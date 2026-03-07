@@ -1,0 +1,29 @@
+# Dependencies
+app/frontend/node_modules/
+app/frontend/.next/
+app/frontend/out/
+
+# Go
+app/backend/zpush-server
+app/backend/zpush-server.exe
+
+# Build output
+dist/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+
+# zpush local data
+.zpush/
+
+# Codacy
+.github/instructions/codacy.instructions.md
