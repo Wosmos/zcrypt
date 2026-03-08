@@ -68,6 +68,7 @@ func DefaultConfig() *Config {
 			"github":      850 * 1024 * 1024,   // 850MB
 			"gitlab":      9000 * 1024 * 1024,   // 9GB
 			"huggingface": 280000 * 1024 * 1024, // 280GB
+			"telegram":    50000 * 1024 * 1024,  // 50GB (virtual — Telegram has no hard repo limit)
 		},
 	}
 }

@@ -5,6 +5,7 @@ import { formatBytes } from "@/lib/utils";
 import { Github, AlertCircle } from "lucide-react";
 import { GitlabIcon } from "@/components/icons/gitlab";
 import { HuggingFaceIcon } from "@/components/icons/huggingface";
+import { TelegramIcon } from "@/components/icons/telegram";
 import Link from "next/link";
 
 interface PlatformHealthProps {
@@ -16,12 +17,14 @@ const platformIcons: Record<string, React.ReactNode> = {
   github: <Github className="h-3.5 w-3.5" />,
   gitlab: <GitlabIcon className="h-3.5 w-3.5" />,
   huggingface: <HuggingFaceIcon className="h-3.5 w-3.5" />,
+  telegram: <TelegramIcon className="h-3.5 w-3.5" />,
 };
 
 const platformLabels: Record<string, string> = {
   github: "GitHub",
   gitlab: "GitLab",
   huggingface: "Hugging Face",
+  telegram: "Telegram",
 };
 
 export function PlatformHealth({ statuses, repos }: PlatformHealthProps) {

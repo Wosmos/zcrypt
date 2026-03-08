@@ -8,6 +8,7 @@ import { connectPlatform } from "@/lib/api";
 import { toast } from "@/store/toast";
 import { GitlabIcon } from "@/components/icons/gitlab";
 import { HuggingFaceIcon } from "@/components/icons/huggingface";
+import { TelegramIcon } from "@/components/icons/telegram";
 import {
   Shield,
   Github,
@@ -54,6 +55,17 @@ const platforms = [
     scope: "write",
     tokenUrl: "https://huggingface.co/settings/tokens/new?tokenType=write",
     tokenLabel: "Generate token on Hugging Face",
+  },
+  {
+    id: "telegram",
+    name: "Telegram",
+    icon: null,
+    customIcon: "telegram",
+    description: "Unlimited storage via channels",
+    placeholder: "123456:ABC-DEF|@channel_name",
+    scope: "bot token + channel",
+    tokenUrl: "https://t.me/BotFather",
+    tokenLabel: "Create bot via @BotFather",
   },
 ] as const;
 
@@ -136,7 +148,7 @@ export default function OnboardingPage() {
               <FeatureRow
                 icon={<Shield className="h-4 w-4" />}
                 title="Multi-platform Storage"
-                desc="GitHub, GitLab, or Hugging Face as backends"
+                desc="GitHub, GitLab, Hugging Face, or Telegram as backends"
               />
             </div>
 
@@ -184,6 +196,7 @@ export default function OnboardingPage() {
                       {p.id === "github" && <Github className="h-5 w-5" />}
                       {p.id === "gitlab" && <GitlabIcon className="h-5 w-5 text-orange-500 dark:text-orange-400" />}
                       {p.id === "huggingface" && <HuggingFaceIcon className="h-5 w-5 text-yellow-500 dark:text-yellow-400" />}
+                      {p.id === "telegram" && <TelegramIcon className="h-5 w-5 text-sky-500 dark:text-sky-400" />}
                     </div>
                     <div className="flex-1">
                       <p className="text-sm font-medium">{p.name}</p>
@@ -226,6 +239,7 @@ export default function OnboardingPage() {
                 {platform.id === "github" && <Github className="h-7 w-7" />}
                 {platform.id === "gitlab" && <GitlabIcon className="h-7 w-7 text-orange-500 dark:text-orange-400" />}
                 {platform.id === "huggingface" && <HuggingFaceIcon className="h-7 w-7 text-yellow-500 dark:text-yellow-400" />}
+                {platform.id === "telegram" && <TelegramIcon className="h-7 w-7 text-sky-500 dark:text-sky-400" />}
               </div>
               <h2 className="text-2xl font-bold">
                 Connect {platform.name}

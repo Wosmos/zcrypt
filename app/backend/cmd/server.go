@@ -125,6 +125,8 @@ func (s *Server) getUserPools(ctx context.Context, userID string) (map[string]*r
 				threshold = 9000 * 1024 * 1024
 			case "huggingface":
 				threshold = 280000 * 1024 * 1024
+			case "telegram":
+				threshold = 50000 * 1024 * 1024
 			}
 		}
 
@@ -329,6 +331,8 @@ func createAdapter(platform, token string) (adapters.PlatformAdapter, error) {
 		return adapters.NewGitlabAdapter(token)
 	case "huggingface":
 		return adapters.NewHuggingFaceAdapter(token)
+	case "telegram":
+		return adapters.NewTelegramAdapter(token)
 	default:
 		return nil, fmt.Errorf("unsupported platform: %s", platform)
 	}
@@ -342,6 +346,8 @@ func getAdapterUsername(adapter adapters.PlatformAdapter) string {
 	case *adapters.GitlabAdapter:
 		return a.GetUsername()
 	case *adapters.HuggingFaceAdapter:
+		return a.GetUsername()
+	case *adapters.TelegramAdapter:
 		return a.GetUsername()
 	}
 	return "unknown"

@@ -13,6 +13,7 @@ import { ExportImport } from "@/components/vault/export-import";
 import { useFileList } from "@/hooks/useFileList";
 import { GitlabIcon } from "@/components/icons/gitlab";
 import { HuggingFaceIcon } from "@/components/icons/huggingface";
+import { TelegramIcon } from "@/components/icons/telegram";
 import type { PlatformStatus } from "@/types";
 import {
   Github,
@@ -36,6 +37,7 @@ export default function SettingsPage() {
   const [githubToken, setGithubToken] = useState("");
   const [gitlabToken, setGitlabToken] = useState("");
   const [huggingfaceToken, setHuggingfaceToken] = useState("");
+  const [telegramToken, setTelegramToken] = useState("");
   const [connecting, setConnecting] = useState<string | null>(null);
   const [disconnecting, setDisconnecting] = useState<string | null>(null);
   const busyRef = useRef<Set<string>>(new Set());
@@ -52,11 +54,15 @@ export default function SettingsPage() {
   const huggingfaceAccounts = statuses.filter(
     (s) => s.platform === "huggingface" && s.connected
   );
+  const telegramAccounts = statuses.filter(
+    (s) => s.platform === "telegram" && s.connected
+  );
 
   const platformNames: Record<string, string> = {
     github: "GitHub",
     gitlab: "GitLab",
     huggingface: "Hugging Face",
+    telegram: "Telegram",
   };
 
   const handleConnect = async (platform: string, token: string) => {
@@ -71,6 +77,7 @@ export default function SettingsPage() {
       if (platform === "github") setGithubToken("");
       if (platform === "gitlab") setGitlabToken("");
       if (platform === "huggingface") setHuggingfaceToken("");
+      if (platform === "telegram") setTelegramToken("");
       refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Connection failed");
@@ -198,6 +205,26 @@ export default function SettingsPage() {
           connectedAccounts={huggingfaceAccounts}
           onDisconnect={(username) =>
             handleDisconnect("huggingface", username)
+          }
+          disconnecting={disconnecting}
+        />
+
+        {/* Telegram */}
+        <PlatformSection
+          icon={<TelegramIcon className="h-5 w-5 text-sky-500 dark:text-sky-400" />}
+          name="Telegram"
+          platform="telegram"
+          description="Bot Token + Channel ID — format: BOT_TOKEN|CHAT_ID — unlimited storage"
+          tokenUrl="https://t.me/BotFather"
+          tokenLabel="Create bot via @BotFather"
+          placeholder="123456:ABC-DEF|@channel_name"
+          token={telegramToken}
+          onTokenChange={setTelegramToken}
+          onConnect={() => handleConnect("telegram", telegramToken)}
+          connecting={connecting === "telegram"}
+          connectedAccounts={telegramAccounts}
+          onDisconnect={(username) =>
+            handleDisconnect("telegram", username)
           }
           disconnecting={disconnecting}
         />

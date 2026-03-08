@@ -5,6 +5,7 @@ import type { RepoInfo } from "@/types";
 import { Github } from "lucide-react";
 import { GitlabIcon } from "@/components/icons/gitlab";
 import { HuggingFaceIcon } from "@/components/icons/huggingface";
+import { TelegramIcon } from "@/components/icons/telegram";
 
 interface PlatformBreakdownProps {
   repos: RepoInfo[];
@@ -14,12 +15,14 @@ const platformIcons: Record<string, React.ReactNode> = {
   github: <Github className="h-4 w-4" />,
   gitlab: <GitlabIcon className="h-4 w-4 text-orange-500" />,
   huggingface: <HuggingFaceIcon className="h-4 w-4 text-yellow-500" />,
+  telegram: <TelegramIcon className="h-4 w-4 text-sky-500" />,
 };
 
 const platformColors: Record<string, string> = {
   github: "#6366f1",
   gitlab: "#f97316",
   huggingface: "#eab308",
+  telegram: "#0ea5e9",
 };
 
 export function PlatformBreakdown({ repos }: PlatformBreakdownProps) {
