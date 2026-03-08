@@ -10,6 +10,7 @@ import { QuotaSettings } from "@/components/admin/quota-settings";
 import { adminGetStats, adminListUsers, adminListTokens, adminGetDefaultQuota } from "@/lib/api";
 import { Role } from "@/types";
 import type { AdminUser, SystemStats, PlatformTokenInfo } from "@/types";
+import AdminLoading from "./loading";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -56,11 +57,7 @@ export default function AdminPage() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <div className="h-6 w-6 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
-      </div>
-    );
+    return <AdminLoading />;
   }
 
   return (

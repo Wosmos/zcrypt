@@ -38,6 +38,7 @@ import Link from "next/link";
 import { useNotifications } from "@/hooks/useNotifications";
 import { FilePreviewModal, useFilePreview } from "@/components/ui/file-preview-modal";
 import type { QuotaInfo } from "@/types";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type ModalMode = { type: "upload"; files: File[] } | { type: "download"; filename: string } | { type: "preview"; filename: string } | null;
 
@@ -483,8 +484,22 @@ export default function VaultPage() {
 
       {/* File list */}
       {loading ? (
-        <div className="flex items-center justify-center py-16">
-          <div className="h-6 w-6 border-2 border-[var(--color-border)] border-t-emerald-500 rounded-full animate-spin" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="card p-4 space-y-3">
+              <div className="flex items-start gap-3">
+                <Skeleton className="h-10 w-10 rounded-lg flex-shrink-0" />
+                <div className="flex-1 space-y-1.5">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-20" />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Skeleton className="h-3 w-16" />
+                <Skeleton className="h-3 w-16" />
+              </div>
+            </div>
+          ))}
         </div>
       ) : filtered.length === 0 && files.length > 0 ? (
         <EmptyState

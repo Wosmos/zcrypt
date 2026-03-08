@@ -10,6 +10,7 @@ import { FileTypeChart } from "@/components/analytics/file-type-chart";
 import { RecentUploads } from "@/components/analytics/recent-uploads";
 import { PlatformBreakdown } from "@/components/analytics/platform-breakdown";
 import { TrendingUp, HardDrive, Layers, TrendingDown } from "lucide-react";
+import AnalyticsLoading from "./loading";
 
 export default function AnalyticsPage() {
   const { files, loading } = useFileList();
@@ -22,17 +23,7 @@ export default function AnalyticsPage() {
   const spaceSaved = totalOriginal - totalEncrypted;
 
   if (loading) {
-    return (
-      <div className="space-y-6 animate-fade-in">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Analytics</h1>
-          <p className="text-sm text-[var(--color-text-secondary)] mt-1">Storage insights and upload activity</p>
-        </div>
-        <div className="flex items-center justify-center py-20">
-          <div className="h-6 w-6 border-2 border-[var(--color-border)] border-t-emerald-500 rounded-full animate-spin" />
-        </div>
-      </div>
-    );
+    return <AnalyticsLoading />;
   }
 
   return (
