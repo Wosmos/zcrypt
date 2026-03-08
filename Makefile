@@ -7,7 +7,7 @@ dev-backend:
 	cd app/backend && go run .
 
 dev-frontend:
-	cd app/frontend && npm run dev
+	cd app/frontend && bun run dev
 
 # Build
 build: build-backend build-frontend
@@ -16,7 +16,7 @@ build-backend:
 	cd app/backend && go build -o ../../dist/zpush-server .
 
 build-frontend:
-	cd app/frontend && npm run build
+	cd app/frontend && bun run build
 
 # Test
 test:
@@ -25,7 +25,7 @@ test:
 # Lint
 lint:
 	cd app/backend && go vet ./...
-	cd app/frontend && npm run lint
+	cd app/frontend && bun run lint
 
 # Clean
 clean:
@@ -36,4 +36,4 @@ clean:
 # Install dependencies
 install:
 	cd app/backend && go mod download
-	cd app/frontend && npm install
+	cd app/frontend && bun install

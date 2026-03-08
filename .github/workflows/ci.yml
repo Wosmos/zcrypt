@@ -39,18 +39,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
+      - uses: oven-sh/setup-bun@v2
 
       - name: Install dependencies
         working-directory: app/frontend
-        run: npm ci
+        run: bun install --frozen-lockfile
 
       - name: Lint
         working-directory: app/frontend
-        run: npm run lint
+        run: bun run lint
 
       - name: Build
         working-directory: app/frontend
-        run: npm run build
+        run: bun run build
