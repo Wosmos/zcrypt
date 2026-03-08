@@ -1,8 +1,11 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -27,6 +30,9 @@ type Server struct {
 	accountKeys []string
 	nextAccount int
 	mu          sync.Mutex
+
+	// Active uploads tracked for pause/resume
+	activeUploads sync.Map // map[fileID]*activeUpload
 }
 
 // NewServer creates a new API server.
@@ -169,6 +175,97 @@ func (s *Server) updateConfigUsername(platform, token, key string) {
 			s.cfg.Accounts[platform] = accounts
 			break
 		}
+	}
+}
+
+// AutoResumeUploads resumes any incomplete uploads from a previous session.
+func (s *Server) AutoResumeUploads(ctx context.Context) {
+	files, err := s.db.ListIncompleteFiles()
+	if err != nil {
+		log.Printf("auto-resume: list incomplete files: %v", err)
+		return
+	}
+
+	if len(files) == 0 {
+		return
+	}
+
+	stagingBase, err := config.StagingDir()
+	if err != nil {
+		log.Printf("auto-resume: staging dir: %v", err)
+		return
+	}
+
+	for _, f := range files {
+		stagingDir := filepath.Join(stagingBase, f.ID)
+		if _, err := os.Stat(stagingDir); os.IsNotExist(err) {
+			log.Printf("auto-resume: staging dir missing for %s (%s), skipping", f.ID, f.OriginalName)
+			continue
+		}
+
+		allChunks, err := s.db.GetChunksForFile(f.ID)
+		if err != nil || len(allChunks) == 0 {
+			continue
+		}
+
+		chunkPlatform := allChunks[0].Platform
+		chunkAccount := allChunks[0].Account
+		key := chunkPlatform + ":" + chunkAccount
+
+		adapter := s.allAdapters[key]
+		pool := s.allPools[key]
+		if adapter == nil || pool == nil {
+			log.Printf("auto-resume: no adapter for %s (%s), skipping", f.ID, key)
+			continue
+		}
+
+		repo, err := pool.GetOrCreateRepo(ctx)
+		if err != nil {
+			log.Printf("auto-resume: get repo for %s: %v", f.ID, err)
+			continue
+		}
+
+		var chunkInfos []pipeline.ChunkInfo
+		for i := 0; i < f.ChunkCount; i++ {
+			chunkPath := filepath.Join(stagingDir, fmt.Sprintf("chunk_%03d", i))
+			ci, statErr := os.Stat(chunkPath)
+			if statErr != nil {
+				continue
+			}
+			chunkInfos = append(chunkInfos, pipeline.ChunkInfo{
+				Path:  chunkPath,
+				Size:  ci.Size(),
+				Index: i,
+			})
+		}
+
+		fileCopy := f // capture loop variable
+		prepared := &pipeline.PreparedFile{
+			FileID:     f.ID,
+			Meta:       &fileCopy,
+			StagingDir: stagingDir,
+			ChunkInfos: chunkInfos,
+			RepoURL:    repo.URL,
+			RepoID:     repo.ID,
+			Account:    chunkAccount,
+			Platform:   chunkPlatform,
+		}
+
+		uploadCtx, cancel := context.WithCancel(ctx)
+		s.activeUploads.Store(f.ID, &activeUpload{cancel: cancel, prepared: prepared})
+
+		engine := pipeline.NewPipelineEngine(s.db, adapter, pool, s.progress, chunkAccount)
+
+		go func(fileID, name string) {
+			defer s.activeUploads.Delete(fileID)
+			log.Printf("auto-resume: resuming upload %s (%s)", fileID, name)
+			if err := engine.Upload(uploadCtx, prepared); err != nil {
+				if uploadCtx.Err() == nil {
+					log.Printf("auto-resume: upload error for %s: %v", fileID, err)
+					s.progress.Emit(pipeline.ErrorEvent(fileID, err.Error()))
+				}
+			}
+		}(f.ID, f.OriginalName)
 	}
 }
 

@@ -1,12 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { ChevronDown } from "lucide-react";
+
+type DisplayMode = "percent" | "speed" | "eta";
 
 interface ProgressBarProps {
   percent: number;
   stage?: string;
   eta?: string;
+  bytesProcessed?: number;
+  totalBytes?: number;
+  startedAt?: number;
   variant?: "default" | "accent" | "success";
   className?: string;
 }
@@ -17,75 +23,91 @@ const barColors = {
   success: "bg-emerald-500",
 };
 
-/**
- * Perceived-speed progress bar:
- * - Smoothly interpolates toward the real value
- * - Slowly creeps forward between real updates (optimistic)
- * - Shimmer overlay makes it look alive even when stalled
- */
+const modeLabels: Record<DisplayMode, string> = {
+  percent: "%",
+  speed: "Speed",
+  eta: "ETA",
+};
+
+function formatSpeed(bytesProcessed: number, startedAt: number): string {
+  const elapsed = (Date.now() - startedAt) / 1000;
+  if (elapsed < 1 || bytesProcessed <= 0) return "--";
+  const bps = bytesProcessed / elapsed;
+  if (bps >= 1024 * 1024) return `${(bps / (1024 * 1024)).toFixed(1)} MB/s`;
+  if (bps >= 1024) return `${(bps / 1024).toFixed(0)} KB/s`;
+  return `${Math.round(bps)} B/s`;
+}
+
+function formatEtaFromProgress(startedAt: number, percent: number): string {
+  if (percent <= 1 || percent >= 100) return "--";
+  const elapsed = (Date.now() - startedAt) / 1000;
+  if (elapsed < 2) return "--";
+  const total = elapsed / (percent / 100);
+  const remaining = Math.max(0, total - elapsed);
+  if (remaining < 60) return `${Math.ceil(remaining)}s`;
+  if (remaining < 3600) return `${Math.ceil(remaining / 60)}m ${Math.ceil(remaining % 60)}s`;
+  const h = Math.floor(remaining / 3600);
+  const m = Math.ceil((remaining % 3600) / 60);
+  return `${h}h ${m}m`;
+}
+
 export function ProgressBar({
   percent,
   stage,
   eta,
+  bytesProcessed,
+  totalBytes,
+  startedAt,
   variant = "accent",
   className,
 }: ProgressBarProps) {
-  const real = Math.min(100, Math.max(0, percent));
-  const [visual, setVisual] = useState(real);
-  const rafRef = useRef<number>(0);
-  const lastRealRef = useRef(real);
-  const lastTickRef = useRef(Date.now());
+  const [mode, setMode] = useState<DisplayMode>("percent");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const real = Math.min(100, Math.max(0, Math.round(percent)));
 
-  useEffect(() => {
-    lastRealRef.current = real;
-    setVisual((v) => Math.max(v, real));
-  }, [real]);
+  const cycleMode = () => {
+    setMode((m) => m === "percent" ? "speed" : m === "speed" ? "eta" : "percent");
+  };
 
-  // Slow optimistic creep: advance ~0.3%/sec when idle, never exceed real+5 or 99
-  useEffect(() => {
-    const tick = () => {
-      const now = Date.now();
-      const dt = (now - lastTickRef.current) / 1000;
-      lastTickRef.current = now;
-
-      setVisual((v) => {
-        const target = lastRealRef.current;
-        if (target >= 100) return 100;
-        const cap = Math.min(target + 5, 99);
-        const next = v + 0.3 * dt;
-        return Math.min(next, cap);
-      });
-
-      rafRef.current = requestAnimationFrame(tick);
-    };
-    rafRef.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafRef.current);
-  }, []);
-
-  const clamped = Math.min(100, Math.max(0, Math.round(visual)));
+  const getDisplayValue = (): string => {
+    switch (mode) {
+      case "percent":
+        return `${real}%`;
+      case "speed":
+        if (bytesProcessed && startedAt) return formatSpeed(bytesProcessed, startedAt);
+        return `${real}%`;
+      case "eta":
+        if (startedAt) return formatEtaFromProgress(startedAt, real);
+        if (eta) return eta;
+        return `${real}%`;
+    }
+  };
 
   return (
     <div className={cn("w-full", className)}>
-      {(stage || eta) && (
+      {(stage || true) && (
         <div className="flex justify-between text-[11px] text-[var(--color-text-secondary)] mb-1.5">
           <span className="capitalize font-medium">{stage}</span>
-          <div className="flex items-center gap-2">
-            {eta && (
-              <span className="text-[var(--color-text-muted)]">{eta}</span>
-            )}
-            <span className="tabular-nums">{clamped}%</span>
+          <div className="relative flex items-center gap-1">
+            <button
+              onClick={cycleMode}
+              className="flex items-center gap-0.5 tabular-nums hover:text-[var(--color-text)] transition-colors px-1 py-0.5 rounded hover:bg-[var(--color-surface-1)]"
+              title={`Showing: ${modeLabels[mode]}. Click to switch.`}
+            >
+              <span>{getDisplayValue()}</span>
+              <ChevronDown className="h-2.5 w-2.5 opacity-50" />
+            </button>
           </div>
         </div>
       )}
       <div className="h-1.5 w-full rounded-full bg-[var(--color-surface-2)] overflow-hidden">
         <div
-          className="relative h-full rounded-full transition-[width] duration-700 ease-out overflow-hidden"
-          style={{ width: `${Math.max(clamped, 1)}%` }}
+          className="relative h-full rounded-full transition-[width] duration-300 ease-out overflow-hidden"
+          style={{ width: `${Math.max(real, 1)}%` }}
         >
           <div className={cn("absolute inset-0", barColors[variant])} />
 
-          {/* Shimmer overlay — keeps bar looking alive even when stalled */}
-          {clamped < 100 && (
+          {real < 100 && (
             <div
               className="absolute inset-0 animate-progress-shimmer"
               style={{

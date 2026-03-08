@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/google/go-github/v60/github"
 	"github.com/zpush/zpush/disguise"
@@ -70,21 +71,50 @@ func (g *GithubAdapter) Upload(ctx context.Context, repo string, chunk types.Chu
 		repoName = parts[1]
 	}
 
-	opts := &github.RepositoryContentFileOptions{
-		Message: github.String(disguise.CommitMessage()),
-		Content: chunk.Data,
-	}
+	// Retry on 409 (SHA conflict from concurrent commits) with exponential backoff
+	var lastErr error
+	for attempt := 0; attempt < 5; attempt++ {
+		if attempt > 0 {
+			wait := time.Duration(1<<uint(attempt-1)) * time.Second
+			select {
+			case <-ctx.Done():
+				return types.ChunkRef{}, ctx.Err()
+			case <-time.After(wait):
+			}
+			// Generate new filename on 409 (path collision)
+			newPath, err := disguise.ChunkFilename()
+			if err != nil {
+				return types.ChunkRef{}, fmt.Errorf("generate filename: %w", err)
+			}
+			remotePath = newPath
+		}
 
-	_, _, err := g.client.Repositories.CreateFile(ctx, owner, repoName, remotePath, opts)
-	if err != nil {
+		opts := &github.RepositoryContentFileOptions{
+			Message: github.String(disguise.CommitMessage()),
+			Content: chunk.Data,
+		}
+
+		_, _, err := g.client.Repositories.CreateFile(ctx, owner, repoName, remotePath, opts)
+		if err == nil {
+			ref := chunk.Ref
+			ref.Platform = "github"
+			ref.Repo = repo
+			ref.RemotePath = remotePath
+			return ref, nil
+		}
+
+		lastErr = err
+
+		// Retry on 409 Conflict (concurrent commit changed HEAD SHA)
+		if errResp, ok := err.(*github.ErrorResponse); ok && errResp.Response != nil && errResp.Response.StatusCode == 409 {
+			continue
+		}
+
+		// Non-retryable error
 		return types.ChunkRef{}, fmt.Errorf("upload chunk: %w", err)
 	}
 
-	ref := chunk.Ref
-	ref.Platform = "github"
-	ref.Repo = repo
-	ref.RemotePath = remotePath
-	return ref, nil
+	return types.ChunkRef{}, fmt.Errorf("upload chunk after retries: %w", lastErr)
 }
 
 func (g *GithubAdapter) Download(ctx context.Context, ref types.ChunkRef) ([]byte, error) {

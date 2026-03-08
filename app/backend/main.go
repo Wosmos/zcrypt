@@ -57,6 +57,9 @@ func main() {
 	defer cancel()
 	server.StartCleanupWorker(ctx)
 
+	// Auto-resume any incomplete uploads from previous session
+	server.AutoResumeUploads(ctx)
+
 	// Graceful shutdown on SIGINT/SIGTERM
 	go func() {
 		sigCh := make(chan os.Signal, 1)
@@ -88,6 +91,9 @@ func main() {
 	mux.HandleFunc("PUT /api/config", server.HandleUpdateConfig)
 	mux.HandleFunc("GET /api/events", server.HandleSSE)
 	mux.HandleFunc("GET /api/health", server.HandleHealth)
+	mux.HandleFunc("POST /api/upload/pause", server.HandlePauseUpload)
+	mux.HandleFunc("POST /api/upload/resume", server.HandleResumeUpload)
+	mux.HandleFunc("GET /api/uploads/incomplete", server.HandleListIncompleteUploads)
 
 	port := os.Getenv("ZPUSH_PORT")
 	if port == "" {

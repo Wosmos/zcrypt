@@ -40,6 +40,15 @@ func (pe *ProgressEmitter) Unsubscribe(id string) {
 	}
 }
 
+// ErrorEvent creates a progress event that signals an error for a file.
+func ErrorEvent(fileID, errMsg string) types.ProgressEvent {
+	return types.ProgressEvent{
+		FileID: fileID,
+		Stage:  "error: " + errMsg,
+		Percent: -1,
+	}
+}
+
 // Emit sends a progress event to all subscribers.
 func (pe *ProgressEmitter) Emit(event types.ProgressEvent) {
 	pe.mu.RLock()

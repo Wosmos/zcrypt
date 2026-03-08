@@ -4,16 +4,17 @@ import "time"
 
 // FileMetadata represents a stored file in the local index.
 type FileMetadata struct {
-	ID            string    `json:"id"`
-	OriginalName  string    `json:"original_name"`
-	OriginalSize  int64     `json:"original_size"`
-	CompressedSize int64    `json:"compressed_size"`
-	EncryptedSize int64     `json:"encrypted_size"`
-	ChunkCount    int       `json:"chunk_count"`
-	SHA256        string    `json:"sha256"`
-	Salt          []byte    `json:"-"`
-	IV            []byte    `json:"-"`
-	CreatedAt     time.Time `json:"created_at"`
+	ID             string    `json:"id"`
+	OriginalName   string    `json:"original_name"`
+	OriginalSize   int64     `json:"original_size"`
+	CompressedSize int64     `json:"compressed_size"`
+	EncryptedSize  int64     `json:"encrypted_size"`
+	ChunkCount     int       `json:"chunk_count"`
+	SHA256         string    `json:"sha256"`
+	Salt           []byte    `json:"-"`
+	IV             []byte    `json:"-"`
+	Status         string    `json:"status"`
+	CreatedAt      time.Time `json:"created_at"`
 }
 
 // ChunkRef identifies a single chunk stored on a platform.
@@ -58,6 +59,7 @@ type PlatformStatus struct {
 
 // ProgressEvent is sent to the frontend during operations.
 type ProgressEvent struct {
+	FileID         string `json:"file_id"`
 	Stage          string `json:"stage"`
 	Percent        int    `json:"percent"`
 	BytesProcessed int64  `json:"bytes_processed"`

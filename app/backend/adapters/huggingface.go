@@ -13,7 +13,9 @@ import (
 	"mime/multipart"
 	"net"
 	"net/http"
+	"net/textproto"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/zpush/zpush/disguise"
@@ -27,11 +29,21 @@ const (
 
 const hfEndpoint = "https://huggingface.co"
 
+// lfsFileEntry holds info for a pending LFS commit.
+type lfsFileEntry struct {
+	Path string
+	OID  string
+	Size int64
+}
+
 // HuggingFaceAdapter implements PlatformAdapter for Hugging Face Hub.
 type HuggingFaceAdapter struct {
 	token    string
 	username string
 	client   *http.Client
+
+	mu             sync.Mutex
+	pendingCommits []lfsFileEntry
 }
 
 // NewHuggingFaceAdapter creates a HuggingFace adapter with the given token.
@@ -116,21 +128,112 @@ func (h *HuggingFaceAdapter) Upload(ctx context.Context, repo string, chunk type
 	oid := hex.EncodeToString(hash[:])
 	size := int64(len(chunk.Data))
 
-	// Step 1: LFS batch request to get upload URL
+	// Upload blob to LFS storage (no commit yet)
 	if err := h.lfsUpload(ctx, repo, oid, size, chunk.Data); err != nil {
 		return types.ChunkRef{}, fmt.Errorf("lfs upload: %w", err)
 	}
 
-	// Step 2: Create commit referencing the LFS object
-	if err := h.createLFSCommit(ctx, repo, remotePath, oid, size); err != nil {
-		return types.ChunkRef{}, fmt.Errorf("commit: %w", err)
-	}
+	// Buffer the commit info — FlushCommits will create a single commit for all chunks
+	h.mu.Lock()
+	h.pendingCommits = append(h.pendingCommits, lfsFileEntry{Path: remotePath, OID: oid, Size: size})
+	h.mu.Unlock()
 
 	ref := chunk.Ref
 	ref.Platform = "huggingface"
 	ref.Repo = repo
 	ref.RemotePath = remotePath
 	return ref, nil
+}
+
+// FlushCommits creates a single commit for all pending LFS uploads.
+// Implements the BatchCommitter interface.
+func (h *HuggingFaceAdapter) FlushCommits(ctx context.Context, repo string) error {
+	h.mu.Lock()
+	pending := h.pendingCommits
+	h.pendingCommits = nil
+	h.mu.Unlock()
+
+	if len(pending) == 0 {
+		return nil
+	}
+
+	lfsFiles := make([]map[string]interface{}, len(pending))
+	for i, entry := range pending {
+		lfsFiles[i] = map[string]interface{}{
+			"path": entry.Path,
+			"algo": "sha256",
+			"oid":  entry.OID,
+			"size": entry.Size,
+		}
+	}
+
+	var buf bytes.Buffer
+	writer := multipart.NewWriter(&buf)
+
+	commitHeader := map[string]interface{}{
+		"summary":  disguise.CommitMessage(),
+		"lfsFiles": lfsFiles,
+	}
+	headerData, err := json.Marshal(commitHeader)
+	if err != nil {
+		return fmt.Errorf("marshal batch commit header: %w", err)
+	}
+
+	if err := writeJSONFormField(writer, "header", headerData); err != nil {
+		return fmt.Errorf("write header field: %w", err)
+	}
+	writer.Close()
+
+	commitURL := fmt.Sprintf("%s/api/models/%s/commit/main", hfEndpoint, repo)
+
+	// Retry with exponential backoff
+	var lastErr error
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		if attempt > 0 {
+			wait := retryBaseWait * time.Duration(math.Pow(2, float64(attempt-1)))
+			log.Printf("retrying batch commit (attempt %d/%d) after %v: %v", attempt, maxRetries, wait, lastErr)
+			select {
+			case <-ctx.Done():
+				return fmt.Errorf("batch commit: %w", ctx.Err())
+			case <-time.After(wait):
+			}
+			// Rebuild the body since it was consumed
+			buf.Reset()
+			writer = multipart.NewWriter(&buf)
+			writeJSONFormField(writer, "header", headerData)
+			writer.Close()
+		}
+
+		req, err := http.NewRequestWithContext(ctx, "POST", commitURL, &buf)
+		if err != nil {
+			return fmt.Errorf("create batch commit request: %w", err)
+		}
+		req.Header.Set("Content-Type", writer.FormDataContentType())
+		h.setAuth(req)
+
+		resp, err := h.client.Do(req)
+		if err != nil {
+			lastErr = err
+			if isRetryable(err) {
+				continue
+			}
+			return fmt.Errorf("batch commit: %w", err)
+		}
+
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+
+		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+			return nil
+		}
+		if resp.StatusCode >= 500 || resp.StatusCode == 429 {
+			lastErr = fmt.Errorf("batch commit returned %d: %s", resp.StatusCode, string(body))
+			continue
+		}
+		return fmt.Errorf("batch commit returned %d: %s", resp.StatusCode, string(body))
+	}
+
+	return fmt.Errorf("batch commit after %d retries: %w", maxRetries, lastErr)
 }
 
 func (h *HuggingFaceAdapter) Download(ctx context.Context, ref types.ChunkRef) ([]byte, error) {
@@ -174,12 +277,8 @@ func (h *HuggingFaceAdapter) Delete(ctx context.Context, ref types.ChunkRef) err
 		return fmt.Errorf("marshal commit header: %w", err)
 	}
 
-	headerField, err := writer.CreateFormField("header")
-	if err != nil {
-		return fmt.Errorf("create header field: %w", err)
-	}
-	if _, err := headerField.Write(headerData); err != nil {
-		return fmt.Errorf("write header: %w", err)
+	if err := writeJSONFormField(writer, "header", headerData); err != nil {
+		return fmt.Errorf("write header field: %w", err)
 	}
 	writer.Close()
 
@@ -422,57 +521,75 @@ func (h *HuggingFaceAdapter) lfsUpload(ctx context.Context, repo, oid string, si
 	return fmt.Errorf("lfs upload after %d retries: %w", maxRetries, lastErr)
 }
 
-// createLFSCommit creates a commit that references an LFS object.
+// createLFSCommit creates a commit that references an LFS object (used by Delete).
 func (h *HuggingFaceAdapter) createLFSCommit(ctx context.Context, repo, path, oid string, size int64) error {
-	var buf bytes.Buffer
-	writer := multipart.NewWriter(&buf)
-
-	commitHeader := map[string]interface{}{
+	headerData, _ := json.Marshal(map[string]interface{}{
 		"summary": disguise.CommitMessage(),
 		"lfsFiles": []map[string]interface{}{
-			{
-				"path": path,
-				"algo": "sha256",
-				"oid":  oid,
-				"size": size,
-			},
+			{"path": path, "algo": "sha256", "oid": oid, "size": size},
 		},
-	}
-	headerData, err := json.Marshal(commitHeader)
-	if err != nil {
-		return fmt.Errorf("marshal commit header: %w", err)
-	}
-
-	// Use CreateFormField (no Content-Type on part) to match HuggingFace's expected format
-	headerField, err := writer.CreateFormField("header")
-	if err != nil {
-		return fmt.Errorf("create header field: %w", err)
-	}
-	if _, err := headerField.Write(headerData); err != nil {
-		return fmt.Errorf("write header: %w", err)
-	}
-	writer.Close()
+	})
 
 	commitURL := fmt.Sprintf("%s/api/models/%s/commit/main", hfEndpoint, repo)
-	req, err := http.NewRequestWithContext(ctx, "POST", commitURL, &buf)
-	if err != nil {
-		return fmt.Errorf("create commit request: %w", err)
-	}
-	req.Header.Set("Content-Type", writer.FormDataContentType())
-	h.setAuth(req)
 
-	resp, err := h.client.Do(req)
-	if err != nil {
-		return fmt.Errorf("commit: %w", err)
-	}
-	defer resp.Body.Close()
+	var lastErr error
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		if attempt > 0 {
+			wait := retryBaseWait * time.Duration(math.Pow(2, float64(attempt-1)))
+			select {
+			case <-ctx.Done():
+				return fmt.Errorf("commit: %w", ctx.Err())
+			case <-time.After(wait):
+			}
+		}
 
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		var buf bytes.Buffer
+		writer := multipart.NewWriter(&buf)
+		writeJSONFormField(writer, "header", headerData)
+		writer.Close()
+
+		req, err := http.NewRequestWithContext(ctx, "POST", commitURL, &buf)
+		if err != nil {
+			return fmt.Errorf("create commit request: %w", err)
+		}
+		req.Header.Set("Content-Type", writer.FormDataContentType())
+		h.setAuth(req)
+
+		resp, err := h.client.Do(req)
+		if err != nil {
+			lastErr = err
+			if isRetryable(err) {
+				continue
+			}
+			return fmt.Errorf("commit: %w", err)
+		}
+
 		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+
+		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+			return nil
+		}
+		if resp.StatusCode >= 500 || resp.StatusCode == 429 {
+			lastErr = fmt.Errorf("commit returned %d: %s", resp.StatusCode, string(body))
+			continue
+		}
 		return fmt.Errorf("commit returned %d: %s", resp.StatusCode, string(body))
 	}
+	return fmt.Errorf("commit after %d retries: %w", maxRetries, lastErr)
+}
 
-	return nil
+// writeJSONFormField writes a multipart form field with Content-Type: application/json.
+func writeJSONFormField(w *multipart.Writer, fieldName string, data []byte) error {
+	h := make(textproto.MIMEHeader)
+	h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="%s"`, fieldName))
+	h.Set("Content-Type", "application/json")
+	part, err := w.CreatePart(h)
+	if err != nil {
+		return err
+	}
+	_, err = part.Write(data)
+	return err
 }
 
 // whoami fetches the authenticated user's username.

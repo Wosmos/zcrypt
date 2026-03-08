@@ -8,11 +8,15 @@ import (
 
 // InsertFile stores file metadata in the index.
 func (db *DB) InsertFile(f *types.FileMetadata) error {
+	status := f.Status
+	if status == "" {
+		status = "complete"
+	}
 	_, err := db.conn.Exec(
-		`INSERT INTO files (id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO files (id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, status)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		f.ID, f.OriginalName, f.OriginalSize, f.CompressedSize, f.EncryptedSize,
-		f.ChunkCount, f.SHA256, f.Salt, f.IV,
+		f.ChunkCount, f.SHA256, f.Salt, f.IV, status,
 	)
 	if err != nil {
 		return fmt.Errorf("insert file: %w", err)
@@ -33,16 +37,16 @@ func (db *DB) InsertChunk(c *types.ChunkRef) error {
 	return nil
 }
 
-// GetFile retrieves file metadata by original name.
+// GetFile retrieves file metadata by original name (most recent complete upload).
 func (db *DB) GetFile(originalName string) (*types.FileMetadata, error) {
 	row := db.conn.QueryRow(
-		`SELECT id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, created_at
-		 FROM files WHERE original_name = ?`, originalName,
+		`SELECT id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, status, created_at
+		 FROM files WHERE original_name = ? AND status = 'complete' ORDER BY created_at DESC LIMIT 1`, originalName,
 	)
 
 	f := &types.FileMetadata{}
 	err := row.Scan(&f.ID, &f.OriginalName, &f.OriginalSize, &f.CompressedSize,
-		&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.Salt, &f.IV, &f.CreatedAt)
+		&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.Salt, &f.IV, &f.Status, &f.CreatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("get file: %w", err)
 	}
@@ -52,13 +56,13 @@ func (db *DB) GetFile(originalName string) (*types.FileMetadata, error) {
 // GetFileByID retrieves file metadata by ID.
 func (db *DB) GetFileByID(id string) (*types.FileMetadata, error) {
 	row := db.conn.QueryRow(
-		`SELECT id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, created_at
+		`SELECT id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, status, created_at
 		 FROM files WHERE id = ?`, id,
 	)
 
 	f := &types.FileMetadata{}
 	err := row.Scan(&f.ID, &f.OriginalName, &f.OriginalSize, &f.CompressedSize,
-		&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.Salt, &f.IV, &f.CreatedAt)
+		&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.Salt, &f.IV, &f.Status, &f.CreatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("get file by id: %w", err)
 	}
@@ -67,11 +71,11 @@ func (db *DB) GetFileByID(id string) (*types.FileMetadata, error) {
 
 // ListFiles returns all stored files, optionally filtered by name substring.
 func (db *DB) ListFiles(filter string) ([]types.FileMetadata, error) {
-	query := `SELECT id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, created_at FROM files`
+	query := `SELECT id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, status, created_at FROM files WHERE status = 'complete'`
 	var args []interface{}
 
 	if filter != "" {
-		query += ` WHERE original_name LIKE ?`
+		query += ` AND original_name LIKE ?`
 		args = append(args, "%"+filter+"%")
 	}
 	query += ` ORDER BY created_at DESC`
@@ -86,7 +90,7 @@ func (db *DB) ListFiles(filter string) ([]types.FileMetadata, error) {
 	for rows.Next() {
 		var f types.FileMetadata
 		if err := rows.Scan(&f.ID, &f.OriginalName, &f.OriginalSize, &f.CompressedSize,
-			&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.Salt, &f.IV, &f.CreatedAt); err != nil {
+			&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.Salt, &f.IV, &f.Status, &f.CreatedAt); err != nil {
 			return nil, fmt.Errorf("scan file: %w", err)
 		}
 		files = append(files, f)
@@ -94,11 +98,11 @@ func (db *DB) ListFiles(filter string) ([]types.FileMetadata, error) {
 	return files, nil
 }
 
-// GetChunksForFile returns all chunks belonging to a file, ordered by index.
+// GetChunksForFile returns all uploaded chunks belonging to a file, ordered by index.
 func (db *DB) GetChunksForFile(fileID string) ([]types.ChunkRef, error) {
 	rows, err := db.conn.Query(
 		`SELECT chunk_id, file_id, idx, size, sha256, platform, account, repo, remote_path
-		 FROM chunks WHERE file_id = ? ORDER BY idx`, fileID,
+		 FROM chunks WHERE file_id = ? AND remote_path != '' ORDER BY idx`, fileID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("get chunks: %w", err)
@@ -273,6 +277,70 @@ func (db *DB) ListRepos(platform string) ([]types.RepoInfo, error) {
 		repos = append(repos, r)
 	}
 	return repos, nil
+}
+
+// UpdateFileStatus updates the status of a file ('uploading' or 'complete').
+func (db *DB) UpdateFileStatus(fileID, status string) error {
+	_, err := db.conn.Exec(`UPDATE files SET status = ? WHERE id = ?`, status, fileID)
+	if err != nil {
+		return fmt.Errorf("update file status: %w", err)
+	}
+	return nil
+}
+
+// ListIncompleteFiles returns all files with status='uploading'.
+func (db *DB) ListIncompleteFiles() ([]types.FileMetadata, error) {
+	rows, err := db.conn.Query(
+		`SELECT id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, status, created_at
+		 FROM files WHERE status = 'uploading' ORDER BY created_at DESC`,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list incomplete files: %w", err)
+	}
+	defer rows.Close()
+
+	var files []types.FileMetadata
+	for rows.Next() {
+		var f types.FileMetadata
+		if err := rows.Scan(&f.ID, &f.OriginalName, &f.OriginalSize, &f.CompressedSize,
+			&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.Salt, &f.IV, &f.Status, &f.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan incomplete file: %w", err)
+		}
+		files = append(files, f)
+	}
+	return files, nil
+}
+
+// UpdateChunkRemotePath sets the remote_path for a chunk after successful upload.
+func (db *DB) UpdateChunkRemotePath(chunkID, remotePath string) error {
+	_, err := db.conn.Exec(`UPDATE chunks SET remote_path = ? WHERE chunk_id = ?`, remotePath, chunkID)
+	if err != nil {
+		return fmt.Errorf("update chunk remote path: %w", err)
+	}
+	return nil
+}
+
+// GetPendingChunksForFile returns chunks with empty remote_path (not yet uploaded).
+func (db *DB) GetPendingChunksForFile(fileID string) ([]types.ChunkRef, error) {
+	rows, err := db.conn.Query(
+		`SELECT chunk_id, file_id, idx, size, sha256, platform, account, repo, remote_path
+		 FROM chunks WHERE file_id = ? AND remote_path = '' ORDER BY idx`, fileID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("get pending chunks: %w", err)
+	}
+	defer rows.Close()
+
+	var chunks []types.ChunkRef
+	for rows.Next() {
+		var c types.ChunkRef
+		if err := rows.Scan(&c.ChunkID, &c.FileID, &c.Index, &c.Size, &c.SHA256,
+			&c.Platform, &c.Account, &c.Repo, &c.RemotePath); err != nil {
+			return nil, fmt.Errorf("scan pending chunk: %w", err)
+		}
+		chunks = append(chunks, c)
+	}
+	return chunks, nil
 }
 
 func boolToInt(b bool) int {

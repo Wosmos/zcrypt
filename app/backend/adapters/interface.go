@@ -29,3 +29,10 @@ type PlatformAdapter interface {
 	// PlatformName returns the name of this platform.
 	PlatformName() string
 }
+
+// BatchCommitter is an optional interface for adapters that can batch multiple
+// chunk uploads into a single commit (e.g., HuggingFace).
+type BatchCommitter interface {
+	// FlushCommits creates a single commit for all pending uploaded chunks.
+	FlushCommits(ctx context.Context, repo string) error
+}

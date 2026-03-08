@@ -1,19 +1,30 @@
 "use client";
 
-import { useCallback, useState } from "react";
-import { FileCard } from "@/components/files/file-card";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { FileCard, DownloadState } from "@/components/files/file-card";
 import { Input } from "@/components/ui/input";
 import { useFileList } from "@/hooks/useFileList";
 import { pullFile, deleteFile } from "@/lib/api";
 import { toast } from "@/store/toast";
 import { formatBytes } from "@/lib/utils";
-import { Search, Lock, FolderOpen, RefreshCw } from "lucide-react";
+import { Search, Lock, FolderOpen, RefreshCw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function FilesPage() {
-  const [passphrase, setPassphrase] = useState("");
   const [search, setSearch] = useState("");
+  const [downloadStates, setDownloadStates] = useState<Record<string, DownloadState>>({});
+  const [pendingDownload, setPendingDownload] = useState<string | null>(null);
+  const [modalPassphrase, setModalPassphrase] = useState("");
+  const passphraseInputRef = useRef<HTMLInputElement>(null);
   const { files, loading, error, refresh } = useFileList();
+
+  // Focus passphrase input when modal opens
+  useEffect(() => {
+    if (pendingDownload && passphraseInputRef.current) {
+      setTimeout(() => passphraseInputRef.current?.focus(), 50);
+    }
+  }, [pendingDownload]);
 
   const filtered = search
     ? files.filter((f) =>
@@ -23,12 +34,30 @@ export default function FilesPage() {
 
   const totalSize = files.reduce((sum, f) => sum + f.original_size, 0);
 
-  const handleDownload = useCallback(
-    async (filename: string) => {
-      if (!passphrase) {
-        toast.warning("Enter your passphrase to download");
-        return;
-      }
+  const setFileDownloadState = useCallback((id: string, state: DownloadState) => {
+    setDownloadStates((prev) => ({ ...prev, [id]: state }));
+  }, []);
+
+  const handleDownloadClick = useCallback(
+    (filename: string) => {
+      const file = files.find((f) => f.original_name === filename);
+      if (!file) return;
+      if (downloadStates[file.id] === "downloading") return;
+
+      setPendingDownload(filename);
+      setModalPassphrase("");
+    },
+    [files, downloadStates]
+  );
+
+  const startDownload = useCallback(
+    async (filename: string, passphrase: string) => {
+      const file = files.find((f) => f.original_name === filename);
+      if (!file) return;
+
+      setFileDownloadState(file.id, "downloading");
+      toast.info(`Downloading ${filename}...`);
+
       try {
         const blob = await pullFile(filename, passphrase);
         const url = URL.createObjectURL(blob);
@@ -37,13 +66,35 @@ export default function FilesPage() {
         a.download = filename;
         a.click();
         URL.revokeObjectURL(url);
+
+        setFileDownloadState(file.id, "done");
         toast.success(`${filename} downloaded`);
+
+        setTimeout(() => setFileDownloadState(file.id, "idle"), 3000);
       } catch (err) {
+        setFileDownloadState(file.id, "idle");
         toast.error(err instanceof Error ? err.message : "Download failed");
       }
     },
-    [passphrase]
+    [files, setFileDownloadState]
   );
+
+  const handleModalConfirm = useCallback(() => {
+    if (!modalPassphrase) {
+      toast.warning("Enter your passphrase");
+      return;
+    }
+    if (!pendingDownload) return;
+
+    const filename = pendingDownload;
+    setPendingDownload(null);
+    startDownload(filename, modalPassphrase);
+  }, [modalPassphrase, pendingDownload, startDownload]);
+
+  const handleModalClose = useCallback(() => {
+    setPendingDownload(null);
+    setModalPassphrase("");
+  }, []);
 
   const handleDelete = useCallback(
     async (id: string) => {
@@ -77,23 +128,14 @@ export default function FilesPage() {
         </Button>
       </div>
 
-      {/* Search + Passphrase */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Input
-          type="text"
-          placeholder="Search files..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          icon={<Search className="h-4 w-4" />}
-        />
-        <Input
-          type="password"
-          placeholder="Passphrase (for downloads)"
-          value={passphrase}
-          onChange={(e) => setPassphrase(e.target.value)}
-          icon={<Lock className="h-4 w-4" />}
-        />
-      </div>
+      {/* Search */}
+      <Input
+        type="text"
+        placeholder="Search files..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        icon={<Search className="h-4 w-4" />}
+      />
 
       {/* Error */}
       {error && (
@@ -129,11 +171,82 @@ export default function FilesPage() {
             <FileCard
               key={file.id}
               file={file}
-              onDownload={handleDownload}
+              downloadState={downloadStates[file.id] || "idle"}
+              onDownload={handleDownloadClick}
               onDelete={handleDelete}
             />
           ))}
         </div>
+      )}
+
+      {/* Passphrase modal — portaled to body */}
+      {pendingDownload && createPortal(
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in"
+          onClick={handleModalClose}
+        >
+          <div
+            className="w-full max-w-md mx-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-2xl animate-slide-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-indigo-500/10 text-indigo-500">
+                  <Lock className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold">Enter Passphrase</h3>
+                  <p className="text-[11px] text-[var(--color-text-muted)] truncate max-w-[240px]">
+                    {pendingDownload}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handleModalClose}
+                className="text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors p-1"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleModalConfirm();
+              }}
+            >
+              <div className="relative">
+                <input
+                  ref={passphraseInputRef}
+                  type="password"
+                  placeholder="Your encryption passphrase"
+                  value={modalPassphrase}
+                  onChange={(e) => setModalPassphrase(e.target.value)}
+                  className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] px-4 py-3 text-sm placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500/40 transition-all"
+                  autoComplete="off"
+                />
+              </div>
+
+              <div className="flex gap-3 mt-5">
+                <button
+                  type="button"
+                  onClick={handleModalClose}
+                  className="flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] px-4 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-2)] transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!modalPassphrase}
+                  className="flex-1 rounded-xl bg-indigo-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Download
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );

@@ -1,4 +1,4 @@
-import type { FileMetadata, PlatformStatus, RepoInfo, AppConfig } from "@/types";
+import type { FileMetadata, PlatformStatus, RepoInfo, AppConfig, IncompleteUpload } from "@/types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
@@ -133,6 +133,26 @@ export function updateConfig(updates: Record<string, unknown>): Promise<{ succes
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(updates),
   });
+}
+
+export function pauseUpload(fileId: string): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>("/api/upload/pause", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ file_id: fileId }),
+  });
+}
+
+export function resumeUpload(fileId: string): Promise<{ success: boolean; remaining_chunks: number; total_chunks: number }> {
+  return request<{ success: boolean; remaining_chunks: number; total_chunks: number }>("/api/upload/resume", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ file_id: fileId }),
+  });
+}
+
+export function listIncompleteUploads(): Promise<IncompleteUpload[]> {
+  return request<IncompleteUpload[]>("/api/uploads/incomplete");
 }
 
 export function createEventSource(): EventSource {

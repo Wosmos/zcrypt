@@ -23,7 +23,7 @@ func EnsureDirs() error {
 		return err
 	}
 
-	for _, sub := range []string{"", "tmp"} {
+	for _, sub := range []string{"", "tmp", "staging"} {
 		p := filepath.Join(dir, sub)
 		if err := os.MkdirAll(p, 0700); err != nil {
 			return fmt.Errorf("create %s: %w", p, err)
@@ -158,6 +158,20 @@ func TmpDir() (string, error) {
 		return "", err
 	}
 	return filepath.Join(dir, "tmp"), nil
+}
+
+// StagingDir returns the staging directory for resumable uploads.
+// Chunks persist here until fully uploaded, surviving server restarts.
+func StagingDir() (string, error) {
+	dir, err := DefaultDir()
+	if err != nil {
+		return "", err
+	}
+	p := filepath.Join(dir, "staging")
+	if err := os.MkdirAll(p, 0700); err != nil {
+		return "", fmt.Errorf("create staging dir: %w", err)
+	}
+	return p, nil
 }
 
 // CleanTmp wipes the entire temp directory (crash recovery).

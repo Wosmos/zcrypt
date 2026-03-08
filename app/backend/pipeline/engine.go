@@ -5,8 +5,10 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/google/uuid"
 	"github.com/zpush/zpush/adapters"
@@ -22,6 +24,26 @@ import (
 
 // AdapterResolver resolves the correct adapter for a given chunk reference.
 type AdapterResolver func(ref types.ChunkRef) adapters.PlatformAdapter
+
+// PreparedFile holds the result of Phase 1 (local processing).
+type PreparedFile struct {
+	FileID     string
+	Meta       *types.FileMetadata
+	StagingDir string
+	ChunkInfos []ChunkInfo
+	RepoURL    string
+	RepoID     string
+	Account    string
+	Platform   string
+}
+
+// ChunkInfo holds metadata about a single chunk on disk.
+type ChunkInfo struct {
+	Path   string
+	Hash   string
+	Size   int64
+	Index  int
+}
 
 // PipelineEngine orchestrates upload and download operations.
 type PipelineEngine struct {
@@ -53,11 +75,12 @@ func NewPullEngine(db *index.DB, progress *ProgressEmitter, resolver AdapterReso
 	}
 }
 
-// Push executes the full upload pipeline:
-// VALIDATE → COMPRESS → ENCRYPT → CHUNK → HASH → UPLOAD → INDEX → CLEANUP
-func (pe *PipelineEngine) Push(ctx context.Context, filePath, originalFilename, passphrase string) (*types.FileMetadata, error) {
+// Prepare executes Phase 1 of the upload pipeline (all local, fast):
+// VALIDATE → COMPRESS → ENCRYPT → CHUNK → HASH → INDEX
+// Chunks are written to a persistent staging directory.
+func (pe *PipelineEngine) Prepare(ctx context.Context, filePath, originalFilename, passphrase, fileID string) (*PreparedFile, error) {
 	// --- VALIDATE ---
-	pe.progress.Emit(types.ProgressEvent{Stage: "validating", Percent: 0})
+	pe.progress.Emit(types.ProgressEvent{FileID: fileID, Stage: "validating", Percent: 0})
 
 	info, err := os.Stat(filePath)
 	if err != nil {
@@ -67,23 +90,19 @@ func (pe *PipelineEngine) Push(ctx context.Context, filePath, originalFilename, 
 		return nil, fmt.Errorf("passphrase cannot be empty")
 	}
 
-	fileID := uuid.New().String()
 	originalName := originalFilename
 	if originalName == "" {
 		originalName = filepath.Base(filePath)
 	}
 	originalSize := info.Size()
 
-	// Compute original file hash
-	originalData, err := os.ReadFile(filePath)
+	// Compute original file hash (streaming to avoid loading entire file into memory)
+	originalSHA, err := hashFileStreaming(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("read file: %w", err)
+		return nil, fmt.Errorf("hash file: %w", err)
 	}
-	originalHash := sha256.Sum256(originalData)
-	originalSHA := hex.EncodeToString(originalHash[:])
-	originalData = nil // free memory
 
-	// Setup temp directory
+	// Setup temp directory for intermediate files
 	tmpDir, err := config.TmpDir()
 	if err != nil {
 		return nil, err
@@ -92,10 +111,20 @@ func (pe *PipelineEngine) Push(ctx context.Context, filePath, originalFilename, 
 	if err := os.MkdirAll(opDir, 0700); err != nil {
 		return nil, fmt.Errorf("create temp dir: %w", err)
 	}
-	defer os.RemoveAll(opDir) // CLEANUP on any exit
+	defer os.RemoveAll(opDir)
+
+	// Setup persistent staging directory for chunks
+	stagingBase, err := config.StagingDir()
+	if err != nil {
+		return nil, err
+	}
+	stagingDir := filepath.Join(stagingBase, fileID)
+	if err := os.MkdirAll(stagingDir, 0700); err != nil {
+		return nil, fmt.Errorf("create staging dir: %w", err)
+	}
 
 	// --- COMPRESS ---
-	pe.progress.Emit(types.ProgressEvent{Stage: "compressing", Percent: 10, TotalBytes: originalSize})
+	pe.progress.Emit(types.ProgressEvent{FileID: fileID, Stage: "compressing", Percent: 10, TotalBytes: originalSize})
 
 	compressedPath := filepath.Join(opDir, fileID+".zst")
 	if err := compression.CompressFile(filePath, compressedPath); err != nil {
@@ -108,7 +137,6 @@ func (pe *PipelineEngine) Push(ctx context.Context, filePath, originalFilename, 
 	}
 	compressedSize := compressedInfo.Size()
 
-	// If compression didn't help (file grew or stayed same), use the original file instead
 	sourceForEncrypt := compressedPath
 	if compressedSize >= originalSize {
 		os.Remove(compressedPath)
@@ -117,14 +145,13 @@ func (pe *PipelineEngine) Push(ctx context.Context, filePath, originalFilename, 
 	}
 
 	// --- ENCRYPT ---
-	pe.progress.Emit(types.ProgressEvent{Stage: "encrypting", Percent: 30, BytesProcessed: compressedSize, TotalBytes: originalSize})
+	pe.progress.Emit(types.ProgressEvent{FileID: fileID, Stage: "encrypting", Percent: 30, BytesProcessed: compressedSize, TotalBytes: originalSize})
 
 	encryptedPath := filepath.Join(opDir, fileID+".enc")
 	salt, iv, err := crypto.EncryptFile(sourceForEncrypt, encryptedPath, passphrase)
 	if err != nil {
 		return nil, fmt.Errorf("encrypt: %w", err)
 	}
-	// passphrase no longer needed after this point
 
 	encryptedInfo, err := os.Stat(encryptedPath)
 	if err != nil {
@@ -132,106 +159,41 @@ func (pe *PipelineEngine) Push(ctx context.Context, filePath, originalFilename, 
 	}
 	encryptedSize := encryptedInfo.Size()
 
-	// Remove compressed temp file (no longer needed)
 	if sourceForEncrypt == compressedPath {
 		os.Remove(compressedPath)
 	}
 
-	// --- CHUNK ---
-	pe.progress.Emit(types.ProgressEvent{Stage: "chunking", Percent: 50, BytesProcessed: encryptedSize, TotalBytes: originalSize})
+	// --- CHUNK (into staging dir) ---
+	pe.progress.Emit(types.ProgressEvent{FileID: fileID, Stage: "chunking", Percent: 50, BytesProcessed: encryptedSize, TotalBytes: originalSize})
 
-	chunkDir := filepath.Join(opDir, "chunks")
-	chunkPaths, err := chunks.SplitFile(encryptedPath, chunkDir)
+	chunkPaths, err := chunks.SplitFile(encryptedPath, stagingDir)
 	if err != nil {
 		return nil, fmt.Errorf("chunk: %w", err)
 	}
 
-	// Remove encrypted temp file
 	os.Remove(encryptedPath)
 
 	// --- HASH ---
-	pe.progress.Emit(types.ProgressEvent{Stage: "hashing", Percent: 60})
+	pe.progress.Emit(types.ProgressEvent{FileID: fileID, Stage: "hashing", Percent: 60})
 
-	type chunkInfo struct {
-		path   string
-		hash   string
-		size   int64
-	}
-	var chunkInfos []chunkInfo
-
-	for _, cp := range chunkPaths {
+	var chunkInfos []ChunkInfo
+	for i, cp := range chunkPaths {
 		hash, err := chunks.HashFile(cp)
 		if err != nil {
 			return nil, fmt.Errorf("hash chunk: %w", err)
 		}
 		ci, _ := os.Stat(cp)
-		chunkInfos = append(chunkInfos, chunkInfo{path: cp, hash: hash, size: ci.Size()})
+		chunkInfos = append(chunkInfos, ChunkInfo{Path: cp, Hash: hash, Size: ci.Size(), Index: i})
 	}
 
-	// --- UPLOAD ---
-	pe.progress.Emit(types.ProgressEvent{Stage: "uploading", Percent: 70})
-
+	// --- GET REPO ---
 	repo, err := pe.pool.GetOrCreateRepo(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("get repo: %w", err)
 	}
 
-	var chunkRefs []types.ChunkRef
-	for i, ci := range chunkInfos {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		default:
-		}
-
-		chunkID := uuid.New().String()
-		remotePath, err := disguise.ChunkFilename()
-		if err != nil {
-			return nil, fmt.Errorf("generate chunk filename: %w", err)
-		}
-
-		data, err := os.ReadFile(ci.path)
-		if err != nil {
-			return nil, fmt.Errorf("read chunk %d: %w", i, err)
-		}
-
-		chunk := types.Chunk{
-			Ref: types.ChunkRef{
-				ChunkID:    chunkID,
-				FileID:     fileID,
-				Index:      i,
-				Size:       ci.size,
-				SHA256:     ci.hash,
-				Account:    pe.account,
-				RemotePath: remotePath,
-			},
-			Data: data,
-		}
-
-		ref, err := pe.adapter.Upload(ctx, repo.URL, chunk)
-		if err != nil {
-			return nil, fmt.Errorf("upload chunk %d: %w", i, err)
-		}
-
-		chunkRefs = append(chunkRefs, ref)
-
-		percent := 70 + (25 * (i + 1) / len(chunkInfos))
-		pe.progress.Emit(types.ProgressEvent{
-			Stage:          "uploading",
-			Percent:        percent,
-			BytesProcessed: ci.size,
-			TotalBytes:     encryptedSize,
-		})
-	}
-
-	// Update repo usage
-	if err := pe.pool.UpdateUsage(repo.ID, encryptedSize); err != nil {
-		// Non-fatal, log but continue
-		fmt.Fprintf(os.Stderr, "warn: update repo usage: %v\n", err)
-	}
-
-	// --- INDEX ---
-	pe.progress.Emit(types.ProgressEvent{Stage: "indexing", Percent: 96})
+	// --- INDEX (with status='uploading') ---
+	pe.progress.Emit(types.ProgressEvent{FileID: fileID, Stage: "indexing", Percent: 65})
 
 	fileMeta := &types.FileMetadata{
 		ID:             fileID,
@@ -239,26 +201,233 @@ func (pe *PipelineEngine) Push(ctx context.Context, filePath, originalFilename, 
 		OriginalSize:   originalSize,
 		CompressedSize: compressedSize,
 		EncryptedSize:  encryptedSize,
-		ChunkCount:     len(chunkRefs),
+		ChunkCount:     len(chunkInfos),
 		SHA256:         originalSHA,
 		Salt:           salt,
 		IV:             iv,
+		Status:         "uploading",
 	}
 
 	if err := pe.db.InsertFile(fileMeta); err != nil {
 		return nil, fmt.Errorf("index file: %w", err)
 	}
 
-	for _, ref := range chunkRefs {
-		if err := pe.db.InsertChunk(&ref); err != nil {
-			return nil, fmt.Errorf("index chunk: %w", err)
+	// Insert chunk placeholders with empty remote_path
+	for _, ci := range chunkInfos {
+		chunkRef := &types.ChunkRef{
+			ChunkID:    uuid.New().String(),
+			FileID:     fileID,
+			Index:      ci.Index,
+			Size:       ci.Size,
+			SHA256:     ci.Hash,
+			Platform:   repo.Platform,
+			Account:    pe.account,
+			Repo:       repo.Name,
+			RemotePath: "", // empty = not yet uploaded
+		}
+		if err := pe.db.InsertChunk(chunkRef); err != nil {
+			return nil, fmt.Errorf("index chunk placeholder: %w", err)
 		}
 	}
 
-	// --- DONE ---
-	pe.progress.Emit(types.ProgressEvent{Stage: "done", Percent: 100})
+	return &PreparedFile{
+		FileID:     fileID,
+		Meta:       fileMeta,
+		StagingDir: stagingDir,
+		ChunkInfos: chunkInfos,
+		RepoURL:    repo.URL,
+		RepoID:     repo.ID,
+		Account:    pe.account,
+		Platform:   repo.Platform,
+	}, nil
+}
 
-	return fileMeta, nil
+const maxConcurrentChunkUploads = 3
+
+// Upload executes Phase 2 of the upload pipeline (network, resumable):
+// Uploads pending chunks concurrently, then commits and cleans up.
+func (pe *PipelineEngine) Upload(ctx context.Context, prepared *PreparedFile) error {
+	fileID := prepared.FileID
+
+	// Query DB for chunks that still need uploading
+	pendingChunks, err := pe.db.GetPendingChunksForFile(fileID)
+	if err != nil {
+		return fmt.Errorf("get pending chunks: %w", err)
+	}
+
+	if len(pendingChunks) == 0 {
+		// All chunks already uploaded, just finalize
+		return pe.finalizeUpload(ctx, prepared)
+	}
+
+	totalChunks := prepared.Meta.ChunkCount
+	uploadedCount := totalChunks - len(pendingChunks)
+
+	pe.progress.Emit(types.ProgressEvent{
+		FileID:  fileID,
+		Stage:   "uploading",
+		Percent: 70 + (25 * uploadedCount / totalChunks),
+	})
+
+	// Upload chunks concurrently with semaphore
+	sem := make(chan struct{}, maxConcurrentChunkUploads)
+	var mu sync.Mutex
+	var uploadErr error
+	var wg sync.WaitGroup
+
+	for _, chunkRef := range pendingChunks {
+		select {
+		case <-ctx.Done():
+			wg.Wait()
+			return ctx.Err()
+		default:
+		}
+
+		// Check if a previous goroutine failed
+		mu.Lock()
+		if uploadErr != nil {
+			mu.Unlock()
+			break
+		}
+		mu.Unlock()
+
+		sem <- struct{}{} // acquire
+		wg.Add(1)
+
+		go func(ref types.ChunkRef) {
+			defer wg.Done()
+			defer func() { <-sem }() // release
+
+			// Find the chunk file on disk
+			chunkPath := filepath.Join(prepared.StagingDir, fmt.Sprintf("chunk_%03d", ref.Index))
+
+			data, readErr := os.ReadFile(chunkPath)
+			if readErr != nil {
+				mu.Lock()
+				if uploadErr == nil {
+					uploadErr = fmt.Errorf("read chunk %d: %w", ref.Index, readErr)
+				}
+				mu.Unlock()
+				return
+			}
+
+			remotePath, genErr := disguise.ChunkFilename()
+			if genErr != nil {
+				mu.Lock()
+				if uploadErr == nil {
+					uploadErr = fmt.Errorf("generate chunk filename: %w", genErr)
+				}
+				mu.Unlock()
+				return
+			}
+
+			chunk := types.Chunk{
+				Ref: types.ChunkRef{
+					ChunkID:    ref.ChunkID,
+					FileID:     fileID,
+					Index:      ref.Index,
+					Size:       ref.Size,
+					SHA256:     ref.SHA256,
+					Account:    prepared.Account,
+					RemotePath: remotePath,
+				},
+				Data: data,
+			}
+
+			uploadedRef, upErr := pe.adapter.Upload(ctx, prepared.RepoURL, chunk)
+			if upErr != nil {
+				mu.Lock()
+				if uploadErr == nil {
+					uploadErr = fmt.Errorf("upload chunk %d: %w", ref.Index, upErr)
+				}
+				mu.Unlock()
+				return
+			}
+
+			// Use the path the adapter actually stored (may differ from original on retry)
+			actualPath := uploadedRef.RemotePath
+
+			// Mark chunk as uploaded in DB
+			if dbErr := pe.db.UpdateChunkRemotePath(ref.ChunkID, actualPath); dbErr != nil {
+				mu.Lock()
+				if uploadErr == nil {
+					uploadErr = fmt.Errorf("update chunk %d path: %w", ref.Index, dbErr)
+				}
+				mu.Unlock()
+				return
+			}
+
+			// Emit per-chunk progress
+			mu.Lock()
+			uploadedCount++
+			percent := 70 + (25 * uploadedCount / totalChunks)
+			mu.Unlock()
+
+			pe.progress.Emit(types.ProgressEvent{
+				FileID:         fileID,
+				Stage:          fmt.Sprintf("uploading chunk %d/%d", uploadedCount, totalChunks),
+				Percent:        percent,
+				BytesProcessed: ref.Size,
+				TotalBytes:     prepared.Meta.EncryptedSize,
+			})
+		}(chunkRef)
+	}
+
+	wg.Wait()
+
+	if uploadErr != nil {
+		return uploadErr
+	}
+
+	return pe.finalizeUpload(ctx, prepared)
+}
+
+// finalizeUpload commits to the platform, marks file as complete, and cleans up staging.
+func (pe *PipelineEngine) finalizeUpload(ctx context.Context, prepared *PreparedFile) error {
+	fileID := prepared.FileID
+
+	// Flush batch commits if the adapter supports it (e.g., HuggingFace)
+	if bc, ok := pe.adapter.(adapters.BatchCommitter); ok {
+		pe.progress.Emit(types.ProgressEvent{FileID: fileID, Stage: "committing", Percent: 96})
+		if err := bc.FlushCommits(ctx, prepared.RepoURL); err != nil {
+			return fmt.Errorf("flush commits: %w", err)
+		}
+	}
+
+	// Update repo usage
+	if err := pe.pool.UpdateUsage(prepared.RepoID, prepared.Meta.EncryptedSize); err != nil {
+		fmt.Fprintf(os.Stderr, "warn: update repo usage: %v\n", err)
+	}
+
+	// Mark file as complete
+	pe.progress.Emit(types.ProgressEvent{FileID: fileID, Stage: "finalizing", Percent: 98})
+
+	if err := pe.db.UpdateFileStatus(fileID, "complete"); err != nil {
+		return fmt.Errorf("update file status: %w", err)
+	}
+
+	// Clean up staging directory
+	os.RemoveAll(prepared.StagingDir)
+
+	pe.progress.Emit(types.ProgressEvent{FileID: fileID, Stage: "done", Percent: 100})
+	return nil
+}
+
+// Push executes the full upload pipeline (convenience wrapper for non-resumable use).
+// VALIDATE → COMPRESS → ENCRYPT → CHUNK → HASH → UPLOAD → INDEX → CLEANUP
+func (pe *PipelineEngine) Push(ctx context.Context, filePath, originalFilename, passphrase string) (*types.FileMetadata, error) {
+	fileID := uuid.New().String()
+
+	prepared, err := pe.Prepare(ctx, filePath, originalFilename, passphrase, fileID)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := pe.Upload(ctx, prepared); err != nil {
+		return nil, err
+	}
+
+	return prepared.Meta, nil
 }
 
 // Pull executes the full download pipeline:
@@ -272,9 +441,17 @@ func (pe *PipelineEngine) Pull(ctx context.Context, filename, passphrase, output
 		return fmt.Errorf("file not found in index: %w", err)
 	}
 
+	if fileMeta.Status != "complete" {
+		return fmt.Errorf("file upload is not complete (status: %s)", fileMeta.Status)
+	}
+
 	chunkRefs, err := pe.db.GetChunksForFile(fileMeta.ID)
 	if err != nil {
 		return fmt.Errorf("get chunks: %w", err)
+	}
+
+	if len(chunkRefs) != fileMeta.ChunkCount {
+		return fmt.Errorf("incomplete chunks: expected %d, got %d uploaded", fileMeta.ChunkCount, len(chunkRefs))
 	}
 
 	if passphrase == "" {
@@ -385,4 +562,19 @@ func (pe *PipelineEngine) Pull(ctx context.Context, filename, passphrase, output
 	pe.progress.Emit(types.ProgressEvent{Stage: "done", Percent: 100})
 
 	return nil
+}
+
+// hashFileStreaming computes SHA-256 without loading the entire file into memory.
+func hashFileStreaming(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
 }

@@ -75,6 +75,22 @@ func (db *DB) runMigrations() error {
 		}
 	}
 
+	if version < 2 {
+		stmts := []string{
+			"ALTER TABLE files ADD COLUMN status TEXT NOT NULL DEFAULT 'complete'",
+			"CREATE INDEX IF NOT EXISTS idx_files_status ON files(status)",
+			"PRAGMA user_version = 2",
+		}
+		for _, stmt := range stmts {
+			if _, err := db.conn.Exec(stmt); err != nil {
+				if isColumnAlreadyExists(err) {
+					continue
+				}
+				return fmt.Errorf("migration v2: %w", err)
+			}
+		}
+	}
+
 	return nil
 }
 
