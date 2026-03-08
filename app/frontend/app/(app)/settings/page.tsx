@@ -8,6 +8,9 @@ import { usePlatformHealth } from "@/hooks/usePlatformHealth";
 import { useTheme } from "@/components/providers/theme-provider";
 import { connectPlatform, disconnectPlatform } from "@/lib/api";
 import { toast } from "@/store/toast";
+import { RateLimits } from "@/components/settings/rate-limits";
+import { ExportImport } from "@/components/vault/export-import";
+import { useFileList } from "@/hooks/useFileList";
 import { GitlabIcon } from "@/components/icons/gitlab";
 import { HuggingFaceIcon } from "@/components/icons/huggingface";
 import type { PlatformStatus } from "@/types";
@@ -36,7 +39,8 @@ export default function SettingsPage() {
   const [connecting, setConnecting] = useState<string | null>(null);
   const [disconnecting, setDisconnecting] = useState<string | null>(null);
   const busyRef = useRef<Set<string>>(new Set());
-  const { statuses, refresh } = usePlatformHealth();
+  const { statuses, repos, refresh } = usePlatformHealth();
+  const { files } = useFileList();
   const { theme, setTheme } = useTheme();
 
   const githubAccounts = statuses.filter(
@@ -201,6 +205,12 @@ export default function SettingsPage() {
 
       {/* Storage Pool — absorbed from Platforms page */}
       <StoragePool />
+
+      {/* Platform quotas & rate limits */}
+      <RateLimits statuses={statuses} repos={repos} />
+
+      {/* Vault backup */}
+      <ExportImport files={files} />
 
       {/* How it works — collapsible */}
       <HowItWorks />

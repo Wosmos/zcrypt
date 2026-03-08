@@ -5,12 +5,21 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { register } from "@/lib/auth-api";
+import { register, login as loginApi, getMe } from "@/lib/auth-api";
+import { useAuthStore } from "@/store/auth";
 import { toast } from "@/store/toast";
-import { Mail, Lock, User, ArrowRight, UserPlus, CheckCircle2 } from "lucide-react";
+import {
+  Mail,
+  Lock,
+  User,
+  ArrowRight,
+  UserPlus,
+  CheckCircle2,
+} from "lucide-react";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { setUser, setTokens } = useAuthStore();
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -27,16 +36,27 @@ export default function RegisterPage() {
       return;
     }
 
-    if (password.length < 8) {
-      toast.error("Password must be at least 8 characters");
-      return;
-    }
+    // ─── Free-form Password Pattern Constraint Removed ────────────────
 
     setLoading(true);
     try {
       const res = await register(email, username, password);
       if (res.user?.email_verified) {
-        // Auto-verified (SMTP not configured) — go straight to login
+        // Auto-verified — log in automatically
+        const loginRes = await loginApi(email, password);
+        if (loginRes.access_token && loginRes.refresh_token) {
+          setTokens(loginRes.access_token, loginRes.refresh_token);
+          if (loginRes.user) {
+            setUser(loginRes.user);
+          } else {
+            const me = await getMe(loginRes.access_token);
+            setUser(me);
+          }
+          toast.success("Account created! Welcome aboard.");
+          router.push("/dashboard");
+          return;
+        }
+        // Fallback if login somehow fails
         setSuccess("verified");
         toast.success("Account created! You can now sign in.");
         setTimeout(() => router.push("/login"), 1500);
@@ -77,8 +97,9 @@ export default function RegisterPage() {
         </div>
         <h2 className="text-xl font-bold">Check your email</h2>
         <p className="text-sm text-[var(--color-text-secondary)] mt-2 max-w-sm mx-auto leading-relaxed">
-          We sent a verification link to <strong className="text-[var(--color-text)]">{email}</strong>.
-          Click it to activate your account.
+          We sent a verification link to{" "}
+          <strong className="text-[var(--color-text)]">{email}</strong>. Click
+          it to activate your account.
         </p>
         <Link href="/login">
           <Button variant="secondary" className="mt-6">
@@ -125,7 +146,7 @@ export default function RegisterPage() {
         <Input
           label="Password"
           type="password"
-          placeholder="At least 8 characters"
+          placeholder="Your password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           icon={<Lock className="h-4 w-4" />}

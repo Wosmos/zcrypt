@@ -61,10 +61,7 @@ function ResetPasswordForm() {
       toast.error("Passwords don't match");
       return;
     }
-    if (password.length < 8) {
-      toast.error("Password must be at least 8 characters");
-      return;
-    }
+    // ─── Free-form Password Pattern Constraint Removed ────────────────
 
     setLoading(true);
     try {
@@ -90,7 +87,7 @@ function ResetPasswordForm() {
         <Input
           label="New Password"
           type="password"
-          placeholder="At least 8 characters"
+          placeholder="Your password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           icon={<Lock className="h-4 w-4" />}

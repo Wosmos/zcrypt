@@ -122,52 +122,7 @@ function ScrollReveal({
   );
 }
 
-// ─── 3D Tilt Card ───────────────────────────────────────────
-function TiltCard({
-  children,
-  className,
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  const rotateX = useMotionValue(0);
-  const rotateY = useMotionValue(0);
-  const springRotateX = useSpring(rotateX, { stiffness: 200, damping: 20 });
-  const springRotateY = useSpring(rotateY, { stiffness: 200, damping: 20 });
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    const el = ref.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const px = (e.clientX - rect.left) / rect.width - 0.5;
-    const py = (e.clientY - rect.top) / rect.height - 0.5;
-    rotateX.set(py * -12);
-    rotateY.set(px * 12);
-  };
-
-  const handleMouseLeave = () => {
-    rotateX.set(0);
-    rotateY.set(0);
-  };
-
-  return (
-    <motion.div
-      ref={ref}
-      style={{
-        rotateX: springRotateX,
-        rotateY: springRotateY,
-        transformPerspective: 800,
-      }}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-      className={className}
-    >
-      {children}
-    </motion.div>
-  );
-}
-
+// ─── Tilt animation removed per user request ────────────────
 // ─── Marquee ────────────────────────────────────────────────
 function Marquee({
   items,
@@ -365,7 +320,7 @@ function FAQItem({ question, answer }: { question: string; answer: string }) {
         <ChevronDown
           className={cn(
             "h-4 w-4 text-[var(--color-text-muted)] transition-transform duration-200 flex-shrink-0",
-            open && "rotate-180"
+            open && "rotate-180",
           )}
         />
       </button>
@@ -437,7 +392,7 @@ export default function LandingPage() {
     {
       icon: Zap,
       title: "Zstd Compression",
-      desc: "Shrinks files smaller than your cloud provider's conscience.",
+      desc: "Shrinks files smaller than your cloud provider's conscience. We don't judge file types.",
       accent: "amber",
       large: false,
     },
@@ -465,95 +420,129 @@ export default function LandingPage() {
   ];
 
   const accentColors: Record<string, string> = {
-    emerald: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-emerald-500/20",
-    amber: "bg-amber-500/10 text-amber-500 dark:text-amber-400 ring-amber-500/20",
-    violet: "bg-violet-500/10 text-violet-500 dark:text-violet-400 ring-violet-500/20",
+    emerald:
+      "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-emerald-500/20",
+    amber:
+      "bg-amber-500/10 text-amber-500 dark:text-amber-400 ring-amber-500/20",
+    violet:
+      "bg-violet-500/10 text-violet-500 dark:text-violet-400 ring-violet-500/20",
     rose: "bg-rose-500/10 text-rose-500 dark:text-rose-400 ring-rose-500/20",
     cyan: "bg-cyan-500/10 text-cyan-500 dark:text-cyan-400 ring-cyan-500/20",
   };
 
   const steps = [
-    { num: "01", title: "Drop a file", desc: "Drag it in. We don't judge file types." },
-    { num: "02", title: "We compress it", desc: "Zstd squeezes every wasted byte out." },
-    { num: "03", title: "We encrypt it", desc: "AES-256-GCM. Your passphrase, your keys." },
-    { num: "04", title: "We chunk it", desc: "Split into pieces, disguised as build artifacts." },
-    { num: "05", title: "Cloud stores it free", desc: "Irony is a beautiful thing." },
+    {
+      num: "01",
+      title: "Drop a file",
+      desc: "Drag it in. We don't judge file types.",
+    },
+    {
+      num: "02",
+      title: "We compress it",
+      desc: "Zstd squeezes every wasted byte out.",
+    },
+    {
+      num: "03",
+      title: "We encrypt it",
+      desc: "AES-256-GCM. Your passphrase, your keys.",
+    },
+    {
+      num: "04",
+      title: "We chunk it",
+      desc: "Split into pieces, disguised as build artifacts.",
+    },
+    {
+      num: "05",
+      title: "Cloud stores it free",
+      desc: "Irony is a beautiful thing.",
+    },
   ];
 
   const pricing = [
     {
+      name: "Hyperscalers (S3, GCS)",
+      price: "$20+",
+      period: "/TB/mo",
+      desc: "Enterprise cloud storage. Built for apps, not your personal privacy.",
+      features: [
+        "Egress & request fees",
+        "Data lock-in",
+        "Complex billing structures",
+        "Data is not zero-knowledge",
+      ],
+      highlight: false,
+    },
+    {
       name: "zpush",
       price: "$0",
-      period: "/mo",
-      desc: "Free. Actually free. Not 'free for 12 months then $49/mo' free.",
-      features: ["Unlimited storage", "AES-256 encryption", "Multi-platform", "Zero-knowledge", "Open source"],
+      period: "forever",
+      desc: "Absolute privacy. We leverage git-based storage to provide you with secure personal cloud.",
+      features: [
+        "Unlimited potential storage",
+        "AES-256-GCM encryption",
+        "Zero-knowledge privacy",
+        "Bring your own Git limits",
+        "Open source architecture",
+      ],
       highlight: true,
     },
     {
-      name: "AWS S3",
-      price: "$23",
-      period: "/TB/mo",
-      desc: "Plus egress fees. Plus request fees. Plus the fee for understanding their fees.",
-      features: ["Egress fees extra", "Request fees extra", "Complex pricing", "They read your metadata"],
-      highlight: false,
-    },
-    {
-      name: "Google Cloud",
-      price: "$20",
-      period: "/TB/mo",
-      desc: "They already have your emails. Why give them your files too?",
-      features: ["Nearline surcharges", "Operations fees", "They index everything"],
-      highlight: false,
-    },
-    {
-      name: "Dropbox",
-      price: "$12",
+      name: "Consumer Cloud",
+      price: "$10-15",
       period: "/mo for 2TB",
-      desc: "They index your files 'for search.' Sure they do.",
-      features: ["2TB cap", "They scan your files", "Sells metadata"],
+      desc: "Convenient syncing with hard data caps and server-side managed encryption.",
+      features: [
+        "Strict data caps",
+        "Server-managed keys",
+        "Vendor ecosystem lock-in",
+        "Data indexed for search",
+      ],
       highlight: false,
     },
   ];
 
   const testimonials = [
     {
-      quote: "I used to pay AWS $847/month for storage. Now I pay nothing and sleep better.",
+      quote:
+        "I used to pay AWS $847/month for storage. Now I pay nothing and sleep better.",
       author: "A Developer Who Saw The Light",
     },
     {
-      quote: "My boss asked where our backups go. I said 'Git repos disguised as build artifacts.' Got promoted.",
+      quote:
+        "My boss asked where our backups go. I said 'Git repos disguised as build artifacts.' Got promoted.",
       author: "Senior Cloud Architect",
     },
     {
-      quote: "I explained zpush to our security team. They said it was either genius or unhinged. I said yes.",
+      quote:
+        "I explained zpush to our security team. They said it was either genius or unhinged. I said yes.",
       author: "Anonymous CISO",
     },
   ];
 
   const faqs = [
     {
-      q: "Is this really free forever?",
-      a: "Yes. zpush is open source and uses free Git LFS storage from platforms like GitHub, GitLab, and Hugging Face. There are no hidden costs, no premium tiers, and no surprise invoices. The software itself will always be free.",
-    },
-    {
-      q: "What happens if GitHub changes their storage limits?",
-      a: "zpush supports multiple platforms. If one provider changes their terms, you can migrate to another with a single command. Your data is portable because it's yours — encrypted and chunked in a standard format.",
+      q: "Is zpush completely free?",
+      a: "Yes. zpush is open-source software that leverages existing Git LFS storage platforms (like GitHub, GitLab, and Hugging Face) as backend infrastructure. There are no subscriptions, hidden fees, or premium tiers for the core software.",
     },
     {
       q: "How secure is the encryption?",
-      a: "We use AES-256-GCM, the same standard used by governments and financial institutions. Your passphrase never leaves your device. We physically cannot decrypt your files — that's zero-knowledge architecture, not a marketing buzzword.",
+      a: "We use AES-256-GCM, the cryptographic standard utilized by financial institutions globally. Your encryption keys are derived locally on your device and are never transmitted. This zero-knowledge architecture ensures that even we cannot access or read your files.",
     },
     {
-      q: "Can I access my files from multiple devices?",
-      a: "Absolutely. Install zpush on any device, connect your Git platform accounts, and pull your encrypted files. You'll just need your passphrase to decrypt them.",
+      q: "What happens if a storage provider changes their limits?",
+      a: "zpush is designed to support multiple platforms simultaneously. If one provider alters their terms, you can migrate your data to another platform seamlessly. Your data remains fully portable because it is encrypted and chunked in an open, standard format.",
     },
     {
-      q: "What file size limits exist?",
-      a: "zpush automatically chunks large files into 80MB pieces to work within Git LFS limits. There's no practical upper limit on file size — we've tested with files over 100GB.",
+      q: "Can I access my files across multiple devices?",
+      a: "Absolutely. You can log into zpush from any modern browser, connect your Git platform accounts, and access your encrypted files. You will simply need your original passphrase to decrypt them locally.",
     },
     {
-      q: "Is my passphrase stored anywhere?",
-      a: "No. Your passphrase is used locally to derive encryption keys and is never transmitted or stored. If you lose it, your files are unrecoverable. That's the price of real security — and it's a feature, not a bug.",
+      q: "Are there file size limits?",
+      a: "zpush intelligently chunks large files into manageable pieces locally before upload, allowing it to work seamlessly within typical Git LFS boundaries. This architecture means there is virtually no practical upper limit on the total size of the files you can store.",
+    },
+    {
+      q: "Is my passphrase recoverable if I forget it?",
+      a: "No. Because zpush is strictly zero-knowledge, your passphrase is never stored on our servers or sent over the network. If you lose your passphrase, your encrypted files cannot be recovered by us or anyone else. We strongly recommend using a password manager.",
     },
   ];
 
@@ -574,8 +563,12 @@ export default function LandingPage() {
           >
             <div className="text-center">
               <p className="text-6xl mb-4">&#9785;</p>
-              <p className="text-2xl font-bold text-white">Cloud Provider Tears</p>
-              <p className="text-sm text-slate-400 mt-2">Collected fresh from AWS billing disputes</p>
+              <p className="text-2xl font-bold text-white">
+                Cloud Provider Tears
+              </p>
+              <p className="text-sm text-slate-400 mt-2">
+                Collected fresh from AWS billing disputes
+              </p>
             </div>
           </motion.div>
         )}
@@ -653,28 +646,28 @@ export default function LandingPage() {
         </motion.div>
       </motion.section>
 
-      {/* ═══ CLOUD ROAST TICKER ═══ */}
+      {/* ═══ CLOUD FEATURES TICKER ═══ */}
       <section className="py-8 border-y border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden">
         <Marquee
           items={[
-            "AWS S3 charges you $23/TB/month",
-            "Google Cloud marked up storage 4,000%",
-            "Azure has 47 pricing tiers for the same thing",
-            "Dropbox sells your metadata",
-            "iCloud won't let you leave",
-            "OneDrive scans your files for 'safety'",
+            "Break free from vendor lock-in",
+            "No complex pricing tiers",
+            "Your keys, your data",
+            "Zero-knowledge by design",
+            "Open source transparency",
+            "No hidden egress fees",
           ]}
         />
         <div className="h-3" />
         <Marquee
           reverse
           items={[
-            "zpush: $0/month forever",
-            "Your passphrase never leaves your device",
-            "AES-256-GCM encryption",
-            "Open source — read the code",
-            "Zero-knowledge architecture",
-            "Disguised as build artifacts",
+            "AES-256-GCM Encryption",
+            "Zstd Compression",
+            "Client-side processing natively",
+            "Git LFS backed infinite storage",
+            "Multi-provider platform support",
+            "Absolute data portability",
           ]}
         />
       </section>
@@ -699,11 +692,11 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
             {largeFeatures.map((feature, i) => (
               <AnimatedBorderCard key={feature.title} delay={i * 0.1}>
-                <TiltCard className="card p-8 h-full">
+                <div className="card p-8 h-full">
                   <div
                     className={cn(
                       "inline-flex items-center justify-center h-14 w-14 rounded-2xl ring-1 mb-5",
-                      accentColors[feature.accent]
+                      accentColors[feature.accent],
                     )}
                   >
                     <feature.icon className="h-6 w-6" />
@@ -712,27 +705,29 @@ export default function LandingPage() {
                   <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-md">
                     {feature.desc}
                   </p>
-                </TiltCard>
+                </div>
               </AnimatedBorderCard>
             ))}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {smallFeatures.map((feature, i) => (
               <AnimatedBorderCard key={feature.title} delay={0.2 + i * 0.08}>
-                <TiltCard className="card p-6 h-full">
+                <div className="card p-6 h-full">
                   <div
                     className={cn(
                       "inline-flex items-center justify-center h-11 w-11 rounded-xl ring-1 mb-4",
-                      accentColors[feature.accent]
+                      accentColors[feature.accent],
                     )}
                   >
                     <feature.icon className="h-5 w-5" />
                   </div>
-                  <h3 className="text-sm font-semibold mb-1.5">{feature.title}</h3>
+                  <h3 className="text-sm font-semibold mb-1.5">
+                    {feature.title}
+                  </h3>
                   <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
                     {feature.desc}
                   </p>
-                </TiltCard>
+                </div>
               </AnimatedBorderCard>
             ))}
           </div>
@@ -750,7 +745,8 @@ export default function LandingPage() {
               See it in action
             </h2>
             <p className="text-[var(--color-text-secondary)] mt-3 max-w-lg mx-auto">
-              A native-feeling experience. Drag, drop, encrypted. It&apos;s that simple.
+              A native-feeling experience. Drag, drop, encrypted. It&apos;s that
+              simple.
             </p>
           </ScrollReveal>
 
@@ -798,48 +794,54 @@ export default function LandingPage() {
             </p>
           </ScrollReveal>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
             {pricing.map((plan, i) => (
-              <ScrollReveal key={plan.name} delay={i * 0.08}>
+              <ScrollReveal key={plan.name} delay={i * 0.08} className="h-full">
                 <div
                   className={cn(
-                    "rounded-2xl border p-6 h-full flex flex-col",
+                    "rounded-2xl border p-8 h-full flex flex-col transition-all duration-300 relative",
                     plan.highlight
-                      ? "border-emerald-500/30 bg-emerald-500/5 ring-1 ring-emerald-500/20 shadow-lg shadow-emerald-500/10"
-                      : "border-[var(--color-border)] bg-[var(--color-surface)] opacity-75"
+                      ? "border-emerald-500/50 bg-emerald-500/10 ring-2 ring-emerald-500/30 shadow-2xl shadow-emerald-500/20 md:-my-4 md:py-12 z-10 scale-[1.02]"
+                      : "border-[var(--color-border)] bg-[var(--color-surface)] opacity-80 hover:opacity-100",
                   )}
                 >
-                  <div className="mb-4">
+                  {plan.highlight && (
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-emerald-500 text-slate-900 text-[10px] font-bold uppercase tracking-widest py-1 px-3 rounded-full">
+                      The Obvious Choice
+                    </div>
+                  )}
+
+                  <div className="mb-6">
                     <div className="flex items-baseline gap-1">
                       {plan.highlight ? (
-                        <span className="text-4xl font-bold text-emerald-600 dark:text-emerald-400">
+                        <span className="text-5xl font-black text-emerald-600 dark:text-emerald-400 tracking-tight">
                           {plan.price}
                         </span>
                       ) : (
-                        <span className="text-4xl font-bold line-through decoration-red-500/60 text-[var(--color-text-muted)]">
+                        <span className="text-4xl font-bold text-[var(--color-text-secondary)]">
                           {plan.price}
                         </span>
                       )}
-                      <span className="text-sm text-[var(--color-text-muted)]">
+                      <span className="text-sm text-[var(--color-text-muted)] font-medium">
                         {plan.period}
                       </span>
                     </div>
-                    <h3 className="text-sm font-semibold mt-2">{plan.name}</h3>
-                    <p className="text-xs text-[var(--color-text-secondary)] mt-1.5 leading-relaxed">
+                    <h3 className="text-lg font-bold mt-4">{plan.name}</h3>
+                    <p className="text-sm text-[var(--color-text-secondary)] mt-2 leading-relaxed">
                       {plan.desc}
                     </p>
                   </div>
 
-                  <ul className="space-y-2 mt-auto pt-4 border-t border-[var(--color-border)]">
+                  <ul className="space-y-4 mt-auto pt-6 border-t border-[var(--color-border)]">
                     {plan.features.map((f) => (
                       <li
                         key={f}
-                        className="flex items-start gap-2 text-xs text-[var(--color-text-secondary)]"
+                        className="flex items-start gap-3 text-sm text-[var(--color-text-secondary)]"
                       >
                         {plan.highlight ? (
-                          <Check className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0 mt-0.5" />
+                          <Check className="h-4 w-4 text-emerald-500 flex-shrink-0 mt-0.5" />
                         ) : (
-                          <X className="h-3.5 w-3.5 text-red-500/60 flex-shrink-0 mt-0.5" />
+                          <X className="h-4 w-4 text-red-500/60 flex-shrink-0 mt-0.5" />
                         )}
                         {f}
                       </li>
@@ -849,9 +851,9 @@ export default function LandingPage() {
                   {plan.highlight && (
                     <Link
                       href="/register"
-                      className="mt-6 inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-6 py-3 text-sm font-medium text-slate-900 hover:bg-emerald-400 transition-colors shadow-lg shadow-emerald-500/25"
+                      className="mt-8 inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-6 py-3.5 text-sm font-semibold text-slate-900 hover:bg-emerald-400 transition-colors shadow-lg shadow-emerald-500/25 w-full"
                     >
-                      Get started free <ArrowRight className="h-4 w-4" />
+                      Create Free Vault <ArrowRight className="h-4 w-4" />
                     </Link>
                   )}
                 </div>
@@ -913,7 +915,8 @@ export default function LandingPage() {
               Got Questions? We&apos;ve Got Answers
             </h2>
             <p className="text-[var(--color-text-secondary)] mt-3 max-w-lg mx-auto">
-              The stuff you actually want to know before trusting us with your files.
+              The stuff you actually want to know before trusting us with your
+              files.
             </p>
           </ScrollReveal>
 

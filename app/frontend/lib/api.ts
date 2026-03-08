@@ -87,6 +87,12 @@ export function pushFile(
     const xhr = new XMLHttpRequest();
     xhr.open("POST", `${API_BASE}/api/push`);
 
+    // Attach auth token (XHR bypasses the request() wrapper)
+    const { accessToken } = useAuthStore.getState();
+    if (accessToken) {
+      xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`);
+    }
+
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable && onUploadProgress) {
         onUploadProgress(Math.round((e.loaded / e.total) * 100));
@@ -121,9 +127,15 @@ export function pushFile(
 }
 
 export async function pullFile(filename: string, passphrase: string): Promise<Blob> {
+  const { accessToken } = useAuthStore.getState();
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (accessToken) {
+    headers["Authorization"] = `Bearer ${accessToken}`;
+  }
+
   const res = await fetch(`${API_BASE}/api/pull`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify({ filename, passphrase }),
   });
 

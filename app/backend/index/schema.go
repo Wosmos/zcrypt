@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS files (
 	sha256        TEXT NOT NULL,
 	salt          BLOB NOT NULL,
 	iv            BLOB NOT NULL,
+	status        TEXT NOT NULL DEFAULT 'complete',
 	created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 

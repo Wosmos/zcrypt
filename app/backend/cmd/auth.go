@@ -77,8 +77,8 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"username must be 3-32 characters (letters, numbers, underscore)"}`, http.StatusBadRequest)
 		return
 	}
-	if len(req.Password) < 8 {
-		http.Error(w, `{"error":"password must be at least 8 characters"}`, http.StatusBadRequest)
+	if len(req.Password) == 0 {
+		http.Error(w, `{"error":"password is required"}`, http.StatusBadRequest)
 		return
 	}
 
@@ -275,8 +275,8 @@ func (s *Server) HandleResetPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(req.NewPassword) < 8 {
-		http.Error(w, `{"error":"password must be at least 8 characters"}`, http.StatusBadRequest)
+	if len(req.NewPassword) == 0 {
+		http.Error(w, `{"error":"password is required"}`, http.StatusBadRequest)
 		return
 	}
 

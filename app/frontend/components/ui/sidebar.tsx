@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import {
   motion,
   useMotionValue,
@@ -10,7 +10,7 @@ import {
   useTransform,
   type MotionValue,
 } from "framer-motion";
-import { cn } from "@/lib/utils";
+import { cn, formatBytes } from "@/lib/utils";
 import { useTheme } from "@/components/providers/theme-provider";
 import {
   Settings,
@@ -18,13 +18,19 @@ import {
   Sun,
   Moon,
   LogOut,
+  BarChart3,
+  PanelLeftClose,
+  PanelLeft,
+  Database,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth";
+import { usePlatformStore } from "@/store/platform";
 import { logout as logoutApi } from "@/lib/auth-api";
 
 const links = [
   { href: "/dashboard", label: "Vault", icon: Shield },
+  { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -33,6 +39,13 @@ export function Sidebar() {
   const router = useRouter();
   const { resolvedTheme, toggleTheme } = useTheme();
   const { refreshTokenValue, clearAuth } = useAuthStore();
+  const [collapsed, setCollapsed] = useState(false);
+  const repos = usePlatformStore((s) => s.repos);
+
+  // Storage stats
+  const totalUsed = repos.reduce((s, r) => s + r.used_bytes, 0);
+  const totalMax = repos.reduce((s, r) => s + r.max_bytes, 0);
+  const storagePercent = totalMax > 0 ? Math.min((totalUsed / totalMax) * 100, 100) : 0;
 
   const handleLogout = async () => {
     try {
@@ -49,59 +62,127 @@ export function Sidebar() {
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex h-screen w-[232px] flex-col border-r border-[var(--color-border)] bg-[var(--color-surface)]">
+      <aside
+        className={cn(
+          "hidden md:flex h-screen flex-col border-r border-[var(--color-border)] transition-all duration-200",
+          "bg-[var(--color-surface-1)] dark:bg-[#0d1117]",
+          collapsed ? "w-[60px]" : "w-[232px]"
+        )}
+      >
         {/* Logo */}
-        <div className="flex items-center gap-3 px-5 py-5">
-          <div className="flex items-center justify-center h-9 w-9 rounded-xl bg-emerald-500/15 ring-1 ring-emerald-500/20">
+        <div className={cn("flex items-center gap-3 px-4 py-5", collapsed && "justify-center px-2")}>
+          <div className="flex items-center justify-center h-9 w-9 rounded-xl bg-emerald-500/15 ring-1 ring-emerald-500/20 flex-shrink-0">
             <Shield className="h-[18px] w-[18px] text-emerald-600 dark:text-emerald-400" />
           </div>
-          <div>
-            <span className="text-[15px] font-bold tracking-tight">
-              zpush
-            </span>
-            <p className="text-[10px] text-[var(--color-text-muted)] -mt-0.5">
-              encrypted vault
-            </p>
-          </div>
+          {!collapsed && (
+            <div className="min-w-0">
+              <span className="text-[15px] font-bold tracking-tight">
+                zpush
+              </span>
+              <p className="text-[10px] text-[var(--color-text-muted)] -mt-0.5">
+                encrypted vault
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 px-3 py-3 space-y-1">
+        <nav className={cn("flex-1 py-3 space-y-1", collapsed ? "px-1.5" : "px-3")}>
           {links.map(({ href, label, icon: Icon }) => {
             const active = pathname === href;
             return (
               <Link
                 key={href}
                 href={href}
+                title={collapsed ? label : undefined}
                 className={cn(
-                  "flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition-all duration-150",
+                  "flex items-center gap-3 rounded-xl text-[13px] font-medium transition-all duration-150",
+                  collapsed ? "justify-center px-0 py-2.5" : "px-3 py-2.5",
                   active
                     ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 shadow-sm shadow-emerald-500/5"
-                    : "text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-1)]"
+                    : "text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)] dark:hover:bg-white/5"
                 )}
               >
                 <Icon
                   className={cn(
-                    "h-[18px] w-[18px]",
+                    "h-[18px] w-[18px] flex-shrink-0",
                     active ? "text-emerald-600 dark:text-emerald-400" : ""
                   )}
                 />
-                {label}
+                {!collapsed && label}
               </Link>
             );
           })}
         </nav>
 
+        {/* Storage progress bar */}
+        {totalMax > 0 && (
+          <div className={cn("px-4 pb-3", collapsed && "px-2")}>
+            {!collapsed ? (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-[10px] text-[var(--color-text-muted)]">
+                    <Database className="h-3 w-3" />
+                    Storage
+                  </span>
+                  <span className="text-[10px] tabular-nums text-[var(--color-text-muted)]">
+                    {storagePercent.toFixed(0)}%
+                  </span>
+                </div>
+                <div className="h-1.5 rounded-full bg-[var(--color-surface-2)] dark:bg-white/10 overflow-hidden">
+                  <div
+                    className={cn(
+                      "h-full rounded-full transition-all duration-500",
+                      storagePercent > 90 ? "bg-red-500" : storagePercent > 70 ? "bg-amber-500" : "bg-emerald-500"
+                    )}
+                    style={{ width: `${storagePercent}%` }}
+                  />
+                </div>
+                <p className="text-[10px] tabular-nums text-[var(--color-text-muted)]">
+                  {formatBytes(totalUsed)} / {formatBytes(totalMax)}
+                </p>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center" title={`${formatBytes(totalUsed)} / ${formatBytes(totalMax)}`}>
+                <div className="h-8 w-1.5 rounded-full bg-[var(--color-surface-2)] dark:bg-white/10 overflow-hidden rotate-180">
+                  <div
+                    className={cn(
+                      "w-full rounded-full transition-all duration-500",
+                      storagePercent > 90 ? "bg-red-500" : storagePercent > 70 ? "bg-amber-500" : "bg-emerald-500"
+                    )}
+                    style={{ height: `${storagePercent}%` }}
+                  />
+                </div>
+                <Database className="h-3 w-3 text-[var(--color-text-muted)] mt-1" />
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Footer */}
-        <div className="px-4 py-4 border-t border-[var(--color-border)] flex items-center justify-between">
-          <p className="text-[10px] text-[var(--color-text-muted)] leading-relaxed">
-            zpush v0.2
-          </p>
-          <div className="flex items-center gap-1">
+        <div className={cn(
+          "py-3 border-t border-[var(--color-border)] dark:border-white/5",
+          collapsed ? "px-1.5 flex flex-col items-center gap-1" : "px-4 flex items-center justify-between"
+        )}>
+          {!collapsed && (
+            <p className="text-[10px] text-[var(--color-text-muted)] leading-relaxed">
+              zpush v0.2
+            </p>
+          )}
+          <div className={cn("flex items-center", collapsed ? "flex-col gap-1" : "gap-1")}>
+            <button
+              onClick={() => setCollapsed(!collapsed)}
+              className="flex items-center justify-center h-8 w-8 rounded-lg hover:bg-[var(--color-surface-2)] dark:hover:bg-white/5 text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {collapsed ? <PanelLeft className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+            </button>
             <button
               onClick={toggleTheme}
-              className="flex items-center justify-center h-8 w-8 rounded-lg hover:bg-[var(--color-surface-1)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
+              className="flex items-center justify-center h-8 w-8 rounded-lg hover:bg-[var(--color-surface-2)] dark:hover:bg-white/5 text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
               aria-label="Toggle theme"
+              title={resolvedTheme === "dark" ? "Light mode" : "Dark mode"}
             >
               {resolvedTheme === "dark" ? (
                 <Sun className="h-4 w-4" />
@@ -113,6 +194,7 @@ export function Sidebar() {
               onClick={handleLogout}
               className="flex items-center justify-center h-8 w-8 rounded-lg hover:bg-red-500/10 text-[var(--color-text-muted)] hover:text-red-500 transition-colors"
               aria-label="Log out"
+              title="Log out"
             >
               <LogOut className="h-4 w-4" />
             </button>

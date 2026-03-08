@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { usePassphraseStore } from "@/store/passphrase";
 import { Lock, X } from "lucide-react";
+import { PassphraseStrength } from "@/components/ui/passphrase-strength";
 
 interface PassphraseModalProps {
   open: boolean;
@@ -104,6 +105,8 @@ export function PassphraseModal({
             className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] px-4 py-3 text-sm placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500/40 transition-all"
             autoComplete="off"
           />
+
+          <PassphraseStrength passphrase={passphrase} />
 
           <label className="flex items-center gap-2 mt-3 cursor-pointer select-none">
             <input

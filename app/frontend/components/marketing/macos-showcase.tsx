@@ -441,7 +441,7 @@ function DockIcon({
         className="relative cursor-pointer origin-bottom"
       >
         <motion.div
-          style={{ width: size, height: size } as React.CSSProperties}
+          style={{ width: size, height: size } as unknown as React.CSSProperties}
           className="rounded-[22%] flex items-center justify-center overflow-hidden"
         >
           <div
