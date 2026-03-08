@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -la /d/zstash/app/frontend/app/\\\\\\(auth\\\\\\)/)",
+      "Bash(wc -l /d/zstash/app/frontend/components/marketing/macos-showcase.tsx /d/zstash/app/frontend/app/\\\\\\(marketing\\\\\\)/page.tsx /d/zstash/app/frontend/components/ui/circuit-background.tsx)",
+      "Bash(ls -la /d/zstash/app/frontend/*.json)",
+      "WebFetch(domain:motion.dev)",
+      "Bash(ls d:zstash/app/backend/*.go)",
+      "Bash(ls \"d:/zstash/app/backend/\"*.go)"
+    ]
+  }
+}
