@@ -1,3 +1,5 @@
+import type { FileMetadata, PlatformStatus, RepoInfo, AppConfig } from "@/types";
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -23,22 +25,54 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-export async function pushFile(file: File, passphrase: string): Promise<unknown> {
-  const form = new FormData();
-  form.append("file", file);
-  form.append("passphrase", passphrase);
+export type UploadProgressCallback = (percent: number) => void;
 
-  const res = await fetch(`${API_BASE}/api/push`, {
-    method: "POST",
-    body: form,
+export function pushFile(
+  file: File,
+  passphrase: string,
+  platform?: string,
+  onUploadProgress?: UploadProgressCallback
+): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("passphrase", passphrase);
+    if (platform) form.append("platform", platform);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${API_BASE}/api/push`);
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && onUploadProgress) {
+        onUploadProgress(Math.round((e.loaded / e.total) * 100));
+      }
+    };
+
+    xhr.onload = () => {
+      try {
+        const body = JSON.parse(xhr.responseText);
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(body);
+        } else {
+          reject(new Error(body.error || "Upload failed"));
+        }
+      } catch {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve({});
+        } else {
+          reject(new Error("Upload failed"));
+        }
+      }
+    };
+
+    xhr.onerror = () => reject(new Error("Network error during upload"));
+    xhr.ontimeout = () => reject(new Error("Upload timed out"));
+
+    // No timeout - large files need time
+    xhr.timeout = 0;
+
+    xhr.send(form);
   });
-
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({ error: "Upload failed" }));
-    throw new Error((body as Record<string, string>).error || "Upload failed");
-  }
-
-  return res.json();
 }
 
 export async function pullFile(filename: string, passphrase: string): Promise<Blob> {
@@ -55,8 +89,6 @@ export async function pullFile(filename: string, passphrase: string): Promise<Bl
 
   return res.blob();
 }
-
-import type { FileMetadata, PlatformStatus, RepoInfo, AppConfig } from "@/types";
 
 export function listFiles(filter?: string): Promise<FileMetadata[]> {
   const params = filter ? `?filter=${encodeURIComponent(filter)}` : "";

@@ -64,10 +64,10 @@ export default function FilesPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-zinc-100 tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
             Files
           </h1>
-          <p className="text-sm text-zinc-500 mt-0.5">
+          <p className="text-sm text-[var(--color-text-secondary)] mt-0.5">
             {files.length} file{files.length !== 1 ? "s" : ""} —{" "}
             {formatBytes(totalSize)} total
           </p>
@@ -97,8 +97,8 @@ export default function FilesPage() {
 
       {/* Error */}
       {error && (
-        <div className="flex items-start gap-3 rounded-2xl border border-red-800/25 bg-red-500/5 p-4">
-          <div className="text-sm text-red-300">
+        <div className="flex items-start gap-3 rounded-2xl border border-red-500/20 bg-red-500/5 p-4">
+          <div className="text-sm text-red-600 dark:text-red-300">
             {error} — is the backend running on :8080?
           </div>
         </div>
@@ -107,17 +107,17 @@ export default function FilesPage() {
       {/* File list */}
       {loading ? (
         <div className="flex items-center justify-center py-16">
-          <div className="h-6 w-6 border-2 border-zinc-700 border-t-indigo-500 rounded-full animate-spin" />
+          <div className="h-6 w-6 border-2 border-[var(--color-border)] border-t-indigo-500 rounded-full animate-spin" />
         </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-16">
-          <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-zinc-800/30 ring-1 ring-zinc-700/40 mb-5">
-            <FolderOpen className="h-8 w-8 text-zinc-600" />
+          <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-[var(--color-surface-1)] ring-1 ring-[var(--color-border)] mb-5">
+            <FolderOpen className="h-8 w-8 text-[var(--color-text-muted)]" />
           </div>
-          <h3 className="text-lg font-semibold text-zinc-300">
+          <h3 className="text-lg font-semibold">
             {search ? "No matching files" : "No files yet"}
           </h3>
-          <p className="text-sm text-zinc-600 mt-1.5 leading-relaxed">
+          <p className="text-sm text-[var(--color-text-secondary)] mt-1.5 leading-relaxed">
             {search
               ? "Try a different search term"
               : "Upload your first file to get started"}

@@ -12,10 +12,10 @@ const icons = {
 };
 
 const styles = {
-  success: "border-emerald-800/30 bg-emerald-500/10 text-emerald-300",
-  error: "border-red-800/30 bg-red-500/10 text-red-300",
-  info: "border-indigo-800/30 bg-indigo-500/10 text-indigo-300",
-  warning: "border-yellow-800/30 bg-yellow-500/10 text-yellow-300",
+  success: "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+  error: "border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-300",
+  info: "border-indigo-500/20 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300",
+  warning: "border-yellow-500/20 bg-yellow-500/10 text-yellow-700 dark:text-yellow-300",
 };
 
 export function ToastContainer() {
@@ -39,7 +39,7 @@ export function ToastContainer() {
             <p className="text-sm flex-1 leading-relaxed">{t.message}</p>
             <button
               onClick={() => remove(t.id)}
-              className="text-zinc-500 hover:text-zinc-300 flex-shrink-0 transition-colors"
+              className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] flex-shrink-0 transition-colors"
             >
               <X className="h-3.5 w-3.5" />
             </button>

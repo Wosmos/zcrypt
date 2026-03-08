@@ -9,8 +9,8 @@ interface PlatformCardProps {
 }
 
 const customIcons: Record<string, { component: React.FC<{ className?: string }>; color: string }> = {
-  gitlab: { component: GitlabIcon, color: "text-orange-400" },
-  huggingface: { component: HuggingFaceIcon, color: "text-yellow-400" },
+  gitlab: { component: GitlabIcon, color: "text-orange-500 dark:text-orange-400" },
+  huggingface: { component: HuggingFaceIcon, color: "text-yellow-500 dark:text-yellow-400" },
 };
 
 const displayNames: Record<string, string> = {
@@ -19,19 +19,7 @@ const displayNames: Record<string, string> = {
   huggingface: "Hugging Face",
 };
 
-const platformMeta: Record<
-  string,
-  { icon: typeof Github; color: string }
-> = {
-  github: {
-    icon: Github,
-    color: "text-zinc-200",
-  },
-};
-
 export function PlatformCard({ status }: PlatformCardProps) {
-  const meta = platformMeta[status.platform];
-  const Icon = meta?.icon;
   const custom = customIcons[status.platform];
 
   return (
@@ -39,8 +27,8 @@ export function PlatformCard({ status }: PlatformCardProps) {
       className={cn(
         "flex items-center gap-4 rounded-2xl border p-4 transition-all duration-200",
         status.connected
-          ? "bg-emerald-500/5 border-emerald-800/25 hover:border-emerald-700/40"
-          : "bg-zinc-900/40 border-zinc-800/50 hover:border-zinc-700/60"
+          ? "bg-emerald-500/5 border-emerald-500/20 hover:border-emerald-500/30"
+          : "bg-[var(--color-surface)] border-[var(--color-border)] hover:border-[var(--color-border-hover)]"
       )}
     >
       <div
@@ -48,45 +36,45 @@ export function PlatformCard({ status }: PlatformCardProps) {
           "flex items-center justify-center h-11 w-11 rounded-xl",
           status.connected
             ? "bg-emerald-500/10 ring-1 ring-emerald-500/20"
-            : "bg-zinc-800/60"
+            : "bg-[var(--color-surface-1)]"
         )}
       >
         {custom ? (
           <custom.component
             className={cn(
               "h-5 w-5",
-              status.connected ? custom.color : "text-zinc-500"
+              status.connected ? custom.color : "text-[var(--color-text-muted)]"
             )}
           />
-        ) : Icon ? (
-          <Icon
+        ) : (
+          <Github
             className={cn(
               "h-5 w-5",
-              status.connected ? meta.color : "text-zinc-500"
+              status.connected ? "" : "text-[var(--color-text-muted)]"
             )}
           />
-        ) : null}
+        )}
       </div>
 
       <div className="flex-1">
-        <p className="text-sm font-semibold text-zinc-100">
+        <p className="text-sm font-semibold">
           {displayNames[status.platform] ?? status.platform}
         </p>
         {status.username && (
-          <p className="text-xs text-zinc-500">@{status.username}</p>
+          <p className="text-xs text-[var(--color-text-secondary)]">@{status.username}</p>
         )}
         {status.error && (
-          <p className="text-xs text-red-400 mt-0.5">{status.error}</p>
+          <p className="text-xs text-red-500 dark:text-red-400 mt-0.5">{status.error}</p>
         )}
       </div>
 
       {status.connected ? (
-        <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-800/30 px-2.5 py-1 rounded-full">
+        <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full">
           <CheckCircle2 className="h-3.5 w-3.5" />
           Connected
         </div>
       ) : (
-        <div className="flex items-center gap-1.5 text-xs text-zinc-600">
+        <div className="flex items-center gap-1.5 text-xs text-[var(--color-text-muted)]">
           <XCircle className="h-4 w-4" />
         </div>
       )}

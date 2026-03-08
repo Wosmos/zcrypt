@@ -14,17 +14,19 @@ import (
 	"github.com/zpush/zpush/pipeline"
 )
 
+const maxFileSize = 2 * 1024 * 1024 * 1024 // 2GB max file size
+
 // HandlePush handles file upload via multipart form.
 // POST /api/push
-// Form fields: passphrase, file (multipart)
+// Form fields: passphrase, file (multipart), platform (optional)
 func (s *Server) HandlePush(w http.ResponseWriter, r *http.Request) {
 	if len(s.accountKeys) == 0 {
 		http.Error(w, `{"error":"no platform connected"}`, http.StatusBadRequest)
 		return
 	}
 
-	// Parse multipart form (max 500MB in memory, rest to disk)
-	if err := r.ParseMultipartForm(500 << 20); err != nil {
+	// Parse multipart form (32MB in memory, rest goes to disk temp files)
+	if err := r.ParseMultipartForm(32 << 20); err != nil {
 		http.Error(w, fmt.Sprintf(`{"error":"parse form: %s"}`, err), http.StatusBadRequest)
 		return
 	}
@@ -35,12 +37,21 @@ func (s *Server) HandlePush(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Optional platform filter
+	targetPlatform := r.FormValue("platform")
+
 	file, header, err := r.FormFile("file")
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error":"file required: %s"}`, err), http.StatusBadRequest)
 		return
 	}
 	defer file.Close()
+
+	// Validate file size
+	if header.Size > maxFileSize {
+		http.Error(w, `{"error":"file too large, max 2GB"}`, http.StatusRequestEntityTooLarge)
+		return
+	}
 
 	// Write uploaded file to temp location
 	tmpDir, err := config.TmpDir()
@@ -65,8 +76,18 @@ func (s *Server) HandlePush(w http.ResponseWriter, r *http.Request) {
 	tmpFile.Close()
 	defer os.Remove(tmpPath)
 
-	// Round-robin select an account
-	key := s.nextAccountKey()
+	// Select account — filter by platform if specified, otherwise round-robin all
+	var key string
+	if targetPlatform != "" {
+		key = s.nextAccountKeyForPlatform(targetPlatform)
+		if key == "" {
+			http.Error(w, fmt.Sprintf(`{"error":"no %s account connected"}`, targetPlatform), http.StatusBadRequest)
+			return
+		}
+	} else {
+		key = s.nextAccountKey()
+	}
+
 	adapter := s.allAdapters[key]
 	pool := s.allPools[key]
 	if adapter == nil || pool == nil {

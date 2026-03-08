@@ -8,12 +8,21 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
+	"math"
 	"mime/multipart"
+	"net"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/zpush/zpush/disguise"
 	"github.com/zpush/zpush/types"
+)
+
+const (
+	maxRetries    = 3
+	retryBaseWait = 2 * time.Second
 )
 
 const hfEndpoint = "https://huggingface.co"
@@ -27,9 +36,24 @@ type HuggingFaceAdapter struct {
 
 // NewHuggingFaceAdapter creates a HuggingFace adapter with the given token.
 func NewHuggingFaceAdapter(token string) (*HuggingFaceAdapter, error) {
+	transport := &http.Transport{
+		TLSHandshakeTimeout:   30 * time.Second,
+		ResponseHeaderTimeout: 120 * time.Second,
+		DialContext: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		MaxIdleConns:        10,
+		IdleConnTimeout:     90 * time.Second,
+		DisableKeepAlives:   false,
+		MaxIdleConnsPerHost: 4,
+	}
 	adapter := &HuggingFaceAdapter{
-		token:  token,
-		client: &http.Client{},
+		token: token,
+		client: &http.Client{
+			Transport: transport,
+			Timeout:   0, // no overall timeout — uploads can be large
+		},
 	}
 
 	user, err := adapter.whoami()
@@ -141,11 +165,6 @@ func (h *HuggingFaceAdapter) Delete(ctx context.Context, ref types.ChunkRef) err
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
 
-	headerPart, err := writer.CreateFormField("header")
-	if err != nil {
-		return fmt.Errorf("create header part: %w", err)
-	}
-
 	commitHeader := map[string]interface{}{
 		"summary":      disguise.CommitMessage(),
 		"deletedFiles": []string{ref.RemotePath},
@@ -154,7 +173,12 @@ func (h *HuggingFaceAdapter) Delete(ctx context.Context, ref types.ChunkRef) err
 	if err != nil {
 		return fmt.Errorf("marshal commit header: %w", err)
 	}
-	if _, err := headerPart.Write(headerData); err != nil {
+
+	headerField, err := writer.CreateFormField("header")
+	if err != nil {
+		return fmt.Errorf("create header field: %w", err)
+	}
+	if _, err := headerField.Write(headerData); err != nil {
 		return fmt.Errorf("write header: %w", err)
 	}
 	writer.Close()
@@ -236,6 +260,19 @@ func (h *HuggingFaceAdapter) ListChunks(ctx context.Context, repo string) ([]typ
 	return refs, nil
 }
 
+// isRetryable returns true for transient network errors worth retrying.
+func isRetryable(err error) bool {
+	if err == nil {
+		return false
+	}
+	s := err.Error()
+	return strings.Contains(s, "TLS handshake timeout") ||
+		strings.Contains(s, "connection reset") ||
+		strings.Contains(s, "connection refused") ||
+		strings.Contains(s, "i/o timeout") ||
+		strings.Contains(s, "EOF")
+}
+
 // lfsUpload handles the Git LFS batch protocol to upload binary data.
 func (h *HuggingFaceAdapter) lfsUpload(ctx context.Context, repo, oid string, size int64, data []byte) error {
 	// LFS batch request
@@ -256,25 +293,8 @@ func (h *HuggingFaceAdapter) lfsUpload(ctx context.Context, repo, oid string, si
 	}
 
 	lfsURL := fmt.Sprintf("%s/%s.git/info/lfs/objects/batch", hfEndpoint, repo)
-	req, err := http.NewRequestWithContext(ctx, "POST", lfsURL, bytes.NewReader(bodyData))
-	if err != nil {
-		return fmt.Errorf("create lfs batch request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/vnd.git-lfs+json")
-	req.Header.Set("Accept", "application/vnd.git-lfs+json")
-	h.setAuth(req)
 
-	resp, err := h.client.Do(req)
-	if err != nil {
-		return fmt.Errorf("lfs batch: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("lfs batch returned %d: %s", resp.StatusCode, string(body))
-	}
-
+	// LFS batch request with retries
 	var batchResp struct {
 		Objects []struct {
 			OID     string `json:"oid"`
@@ -287,8 +307,59 @@ func (h *HuggingFaceAdapter) lfsUpload(ctx context.Context, repo, oid string, si
 			} `json:"actions"`
 		} `json:"objects"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&batchResp); err != nil {
-		return fmt.Errorf("decode lfs batch: %w", err)
+
+	var lastErr error
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		if attempt > 0 {
+			wait := retryBaseWait * time.Duration(math.Pow(2, float64(attempt-1)))
+			log.Printf("retrying LFS batch (attempt %d/%d) after %v: %v", attempt, maxRetries, wait, lastErr)
+			select {
+			case <-ctx.Done():
+				return fmt.Errorf("lfs batch: %w", ctx.Err())
+			case <-time.After(wait):
+			}
+		}
+
+		req, err := http.NewRequestWithContext(ctx, "POST", lfsURL, bytes.NewReader(bodyData))
+		if err != nil {
+			return fmt.Errorf("create lfs batch request: %w", err)
+		}
+		req.Header.Set("Content-Type", "application/vnd.git-lfs+json")
+		req.Header.Set("Accept", "application/vnd.git-lfs+json")
+		h.setAuth(req)
+
+		resp, err := h.client.Do(req)
+		if err != nil {
+			lastErr = err
+			if isRetryable(err) {
+				continue
+			}
+			return fmt.Errorf("lfs batch: %w", err)
+		}
+
+		if resp.StatusCode >= 500 {
+			body, _ := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			lastErr = fmt.Errorf("lfs batch returned %d: %s", resp.StatusCode, string(body))
+			continue
+		}
+
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			body, _ := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			return fmt.Errorf("lfs batch returned %d: %s", resp.StatusCode, string(body))
+		}
+
+		if err := json.NewDecoder(resp.Body).Decode(&batchResp); err != nil {
+			resp.Body.Close()
+			return fmt.Errorf("decode lfs batch: %w", err)
+		}
+		resp.Body.Close()
+		lastErr = nil
+		break
+	}
+	if lastErr != nil {
+		return fmt.Errorf("lfs batch after %d retries: %w", maxRetries, lastErr)
 	}
 
 	if len(batchResp.Objects) == 0 {
@@ -302,39 +373,59 @@ func (h *HuggingFaceAdapter) lfsUpload(ctx context.Context, repo, oid string, si
 		return nil
 	}
 
-	// Upload the actual data
-	uploadReq, err := http.NewRequestWithContext(ctx, "PUT", obj.Actions.Upload.Href, bytes.NewReader(data))
-	if err != nil {
-		return fmt.Errorf("create lfs upload request: %w", err)
-	}
-	uploadReq.Header.Set("Content-Type", "application/octet-stream")
-	for k, v := range obj.Actions.Upload.Header {
-		uploadReq.Header.Set(k, v)
+	// Upload the actual data with retries
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		if attempt > 0 {
+			wait := retryBaseWait * time.Duration(math.Pow(2, float64(attempt-1)))
+			log.Printf("retrying LFS upload (attempt %d/%d) after %v: %v", attempt, maxRetries, wait, lastErr)
+			select {
+			case <-ctx.Done():
+				return fmt.Errorf("lfs upload: %w", ctx.Err())
+			case <-time.After(wait):
+			}
+		}
+
+		uploadReq, err := http.NewRequestWithContext(ctx, "PUT", obj.Actions.Upload.Href, bytes.NewReader(data))
+		if err != nil {
+			return fmt.Errorf("create lfs upload request: %w", err)
+		}
+		uploadReq.Header.Set("Content-Type", "application/octet-stream")
+		for k, v := range obj.Actions.Upload.Header {
+			uploadReq.Header.Set(k, v)
+		}
+
+		uploadResp, err := h.client.Do(uploadReq)
+		if err != nil {
+			lastErr = err
+			if isRetryable(err) {
+				continue
+			}
+			return fmt.Errorf("lfs upload: %w", err)
+		}
+
+		if uploadResp.StatusCode >= 500 {
+			body, _ := io.ReadAll(uploadResp.Body)
+			uploadResp.Body.Close()
+			lastErr = fmt.Errorf("lfs upload returned %d: %s", uploadResp.StatusCode, string(body))
+			continue
+		}
+
+		if uploadResp.StatusCode < 200 || uploadResp.StatusCode >= 300 {
+			body, _ := io.ReadAll(uploadResp.Body)
+			uploadResp.Body.Close()
+			return fmt.Errorf("lfs upload returned %d: %s", uploadResp.StatusCode, string(body))
+		}
+		uploadResp.Body.Close()
+		return nil
 	}
 
-	uploadResp, err := h.client.Do(uploadReq)
-	if err != nil {
-		return fmt.Errorf("lfs upload: %w", err)
-	}
-	defer uploadResp.Body.Close()
-
-	if uploadResp.StatusCode < 200 || uploadResp.StatusCode >= 300 {
-		body, _ := io.ReadAll(uploadResp.Body)
-		return fmt.Errorf("lfs upload returned %d: %s", uploadResp.StatusCode, string(body))
-	}
-
-	return nil
+	return fmt.Errorf("lfs upload after %d retries: %w", maxRetries, lastErr)
 }
 
 // createLFSCommit creates a commit that references an LFS object.
 func (h *HuggingFaceAdapter) createLFSCommit(ctx context.Context, repo, path, oid string, size int64) error {
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
-
-	headerPart, err := writer.CreateFormField("header")
-	if err != nil {
-		return fmt.Errorf("create header part: %w", err)
-	}
 
 	commitHeader := map[string]interface{}{
 		"summary": disguise.CommitMessage(),
@@ -351,7 +442,13 @@ func (h *HuggingFaceAdapter) createLFSCommit(ctx context.Context, repo, path, oi
 	if err != nil {
 		return fmt.Errorf("marshal commit header: %w", err)
 	}
-	if _, err := headerPart.Write(headerData); err != nil {
+
+	// Use CreateFormField (no Content-Type on part) to match HuggingFace's expected format
+	headerField, err := writer.CreateFormField("header")
+	if err != nil {
+		return fmt.Errorf("create header field: %w", err)
+	}
+	if _, err := headerField.Write(headerData); err != nil {
 		return fmt.Errorf("write header: %w", err)
 	}
 	writer.Close()

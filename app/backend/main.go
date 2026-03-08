@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -70,8 +71,9 @@ func main() {
 	// Setup routes
 	mux := http.NewServeMux()
 
-	// Rate limit → CORS middleware chain
-	handler := corsMiddleware(cmd.RateLimitMiddleware(20, time.Second, mux))
+	// Rate limit with SSE exemption, then CORS
+	rateLimited := cmd.RateLimitMiddleware(50, time.Second, mux)
+	handler := corsMiddleware(exemptSSE(rateLimited, mux))
 
 	// API routes
 	mux.HandleFunc("POST /api/push", server.HandlePush)
@@ -98,9 +100,25 @@ func main() {
 	}
 }
 
+// exemptSSE bypasses rate limiting for the SSE endpoint.
+func exemptSSE(rateLimited http.Handler, direct http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/api/events") {
+			direct.ServeHTTP(w, r)
+			return
+		}
+		rateLimited.ServeHTTP(w, r)
+	})
+}
+
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
+		origin := r.Header.Get("Origin")
+		if origin != "" {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+		} else {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+		}
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 

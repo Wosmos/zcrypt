@@ -53,7 +53,7 @@ export function UploadZone({ onFiles, hint, compact }: UploadZoneProps) {
         compact ? "p-6" : "p-10 sm:p-14",
         dragOver
           ? "border-indigo-500/60 bg-indigo-500/5 shadow-xl shadow-indigo-500/10"
-          : "border-zinc-800/60 hover:border-zinc-600 bg-zinc-900/20 hover:bg-zinc-900/40"
+          : "border-[var(--color-border)] hover:border-[var(--color-border-hover)] bg-[var(--color-surface-1)]/30 hover:bg-[var(--color-surface-1)]/60"
       )}
     >
       <div
@@ -61,8 +61,8 @@ export function UploadZone({ onFiles, hint, compact }: UploadZoneProps) {
           "flex items-center justify-center rounded-2xl transition-all duration-200",
           compact ? "h-11 w-11" : "h-14 w-14",
           dragOver
-            ? "bg-indigo-500/10 text-indigo-400 ring-1 ring-indigo-500/20"
-            : "bg-zinc-800/50 text-zinc-500 group-hover:text-zinc-400 group-hover:bg-zinc-800/70"
+            ? "bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 ring-1 ring-indigo-500/20"
+            : "bg-[var(--color-surface-1)] text-[var(--color-text-muted)] group-hover:text-[var(--color-text-secondary)]"
         )}
       >
         {dragOver ? (
@@ -77,12 +77,12 @@ export function UploadZone({ onFiles, hint, compact }: UploadZoneProps) {
           className={cn(
             "font-medium transition-colors",
             compact ? "text-sm" : "text-sm sm:text-base",
-            dragOver ? "text-indigo-300" : "text-zinc-300"
+            dragOver ? "text-indigo-600 dark:text-indigo-300" : ""
           )}
         >
           {dragOver ? "Drop to upload" : "Drop files here or click to browse"}
         </p>
-        <p className="text-[11px] text-zinc-600 mt-1.5 max-w-xs mx-auto leading-relaxed">
+        <p className="text-[11px] text-[var(--color-text-muted)] mt-1.5 max-w-xs mx-auto leading-relaxed">
           {hint || "Files are compressed, encrypted, and chunked before upload"}
         </p>
       </div>

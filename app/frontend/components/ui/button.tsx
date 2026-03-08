@@ -10,11 +10,11 @@ const variantStyles = {
   primary:
     "bg-indigo-600 text-white hover:bg-indigo-500 active:bg-indigo-700 shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40",
   secondary:
-    "bg-zinc-800/80 text-zinc-100 hover:bg-zinc-700/80 border border-zinc-700/60 hover:border-zinc-600",
+    "bg-[var(--color-surface-1)] text-[var(--color-text)] hover:bg-[var(--color-surface-2)] border border-[var(--color-border)] hover:border-[var(--color-border-hover)]",
   danger:
-    "bg-red-600/10 text-red-400 hover:bg-red-600/20 border border-red-800/40 hover:border-red-700/40",
+    "bg-red-500/10 text-red-500 dark:text-red-400 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/30",
   ghost:
-    "bg-transparent text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50",
+    "bg-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-1)]",
 };
 
 const sizeStyles = {
@@ -29,7 +29,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     <button
       ref={ref}
       className={cn(
-        "inline-flex items-center justify-center font-medium transition-all duration-150 outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40 focus-visible:ring-offset-1 focus-visible:ring-offset-zinc-950 disabled:opacity-40 disabled:pointer-events-none cursor-pointer",
+        "inline-flex items-center justify-center font-medium transition-all duration-150 outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40 focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--color-bg)] disabled:opacity-40 disabled:pointer-events-none cursor-pointer",
         variantStyles[variant],
         sizeStyles[size],
         className

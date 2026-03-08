@@ -53,7 +53,7 @@ export interface AppConfig {
   thresholds: Record<string, number>;
 }
 
-export type UploadStatus = "queued" | "compressing" | "encrypting" | "uploading" | "done" | "failed";
+export type UploadStatus = "queued" | "sending" | "compressing" | "encrypting" | "uploading" | "done" | "failed";
 
 export interface UploadItem {
   id: string;
@@ -61,5 +61,8 @@ export interface UploadItem {
   status: UploadStatus;
   progress: number;
   stage: string;
+  startedAt: number;
+  bytesProcessed?: number;
+  totalBytes?: number;
   error?: string;
 }

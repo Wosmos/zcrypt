@@ -4,7 +4,7 @@ import type { UploadItem, UploadStatus } from "@/types";
 interface UploadStore {
   queue: UploadItem[];
   addToQueue: (file: File) => string;
-  updateStatus: (id: string, status: UploadStatus, progress?: number, stage?: string) => void;
+  updateStatus: (id: string, status: UploadStatus, progress?: number, stage?: string, bytesProcessed?: number, totalBytes?: number) => void;
   setError: (id: string, error: string) => void;
   removeFromQueue: (id: string) => void;
   clearCompleted: () => void;
@@ -20,13 +20,13 @@ export const useUploadStore = create<UploadStore>((set) => ({
     set((state) => ({
       queue: [
         ...state.queue,
-        { id, file, status: "queued", progress: 0, stage: "Queued" },
+        { id, file, status: "queued", progress: 0, stage: "Queued", startedAt: Date.now() },
       ],
     }));
     return id;
   },
 
-  updateStatus: (id, status, progress, stage) => {
+  updateStatus: (id, status, progress, stage, bytesProcessed, totalBytes) => {
     set((state) => ({
       queue: state.queue.map((item) =>
         item.id === id
@@ -35,6 +35,8 @@ export const useUploadStore = create<UploadStore>((set) => ({
               status,
               progress: progress ?? item.progress,
               stage: stage ?? item.stage,
+              bytesProcessed: bytesProcessed ?? item.bytesProcessed,
+              totalBytes: totalBytes ?? item.totalBytes,
             }
           : item
       ),

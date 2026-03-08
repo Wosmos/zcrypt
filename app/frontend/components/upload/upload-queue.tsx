@@ -3,7 +3,7 @@
 import { useUploadStore } from "@/store/upload";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { X, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
-import { formatBytes } from "@/lib/utils";
+import { formatBytes, formatEta } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
 export function UploadQueue() {
@@ -16,13 +16,13 @@ export function UploadQueue() {
   return (
     <div className="space-y-3 animate-fade-in">
       <div className="flex items-center justify-between">
-        <h3 className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">
+        <h3 className="text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
           Upload Queue
         </h3>
         {hasCompleted && (
           <button
             onClick={clearCompleted}
-            className="text-[11px] text-zinc-600 hover:text-zinc-400 transition-colors font-medium"
+            className="text-[11px] text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors font-medium"
           >
             Clear completed
           </button>
@@ -36,10 +36,10 @@ export function UploadQueue() {
             className={cn(
               "flex items-center gap-3 rounded-xl border p-3.5 transition-all duration-200",
               item.status === "done"
-                ? "bg-emerald-500/5 border-emerald-800/25"
+                ? "bg-emerald-500/5 border-emerald-500/20"
                 : item.status === "failed"
-                  ? "bg-red-500/5 border-red-800/25"
-                  : "bg-zinc-900/50 border-zinc-800/50"
+                  ? "bg-red-500/5 border-red-500/20"
+                  : "bg-[var(--color-surface)] border-[var(--color-border)]"
             )}
           >
             <div className="flex-shrink-0">
@@ -50,15 +50,15 @@ export function UploadQueue() {
                 <AlertCircle className="h-4 w-4 text-red-500" />
               )}
               {item.status !== "done" && item.status !== "failed" && (
-                <Loader2 className="h-4 w-4 text-indigo-400 animate-spin" />
+                <Loader2 className="h-4 w-4 text-indigo-500 dark:text-indigo-400 animate-spin" />
               )}
             </div>
 
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-zinc-200 truncate font-medium">
+              <p className="text-sm truncate font-medium">
                 {item.file.name}
               </p>
-              <p className="text-[11px] text-zinc-600">
+              <p className="text-[11px] text-[var(--color-text-muted)]">
                 {formatBytes(item.file.size)}
               </p>
               {item.status !== "done" &&
@@ -67,17 +67,18 @@ export function UploadQueue() {
                   <ProgressBar
                     percent={item.progress}
                     stage={item.stage}
+                    eta={formatEta(item.startedAt, item.progress)}
                     className="mt-2"
                   />
                 )}
               {item.error && (
-                <p className="text-[11px] text-red-400 mt-1">{item.error}</p>
+                <p className="text-[11px] text-red-500 dark:text-red-400 mt-1">{item.error}</p>
               )}
             </div>
 
             <button
               onClick={() => removeFromQueue(item.id)}
-              className="flex-shrink-0 text-zinc-700 hover:text-zinc-400 transition-colors"
+              className="flex-shrink-0 text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors"
             >
               <X className="h-3.5 w-3.5" />
             </button>

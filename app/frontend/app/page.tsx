@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { UploadZone } from "@/components/upload/upload-zone";
 import { UploadQueue } from "@/components/upload/upload-queue";
+import { PlatformSelector } from "@/components/upload/platform-selector";
 import { FileCard } from "@/components/files/file-card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -25,8 +26,9 @@ import Link from "next/link";
 
 export default function Dashboard() {
   const [passphrase, setPassphrase] = useState("");
+  const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
   const { files, refresh } = useFileList();
-  const { isAnyConnected } = usePlatformHealth();
+  const { statuses, isAnyConnected } = usePlatformHealth();
   const { addToQueue, updateStatus, setError } = useUploadStore();
 
   useOperationStatus((event) => {
@@ -59,7 +61,7 @@ export default function Dashboard() {
         updateStatus(id, "compressing", 0, "Starting...");
 
         try {
-          await pushFile(file, passphrase);
+          await pushFile(file, passphrase, selectedPlatform ?? undefined);
           updateStatus(id, "done", 100, "Done");
           toast.success(`${file.name} uploaded successfully`);
           refresh();
@@ -71,7 +73,7 @@ export default function Dashboard() {
         }
       }
     },
-    [passphrase, isAnyConnected, addToQueue, updateStatus, setError, refresh]
+    [passphrase, isAnyConnected, selectedPlatform, addToQueue, updateStatus, setError, refresh]
   );
 
   const handleDownload = useCallback(
@@ -121,10 +123,10 @@ export default function Dashboard() {
     <div className="space-y-8 animate-fade-in">
       {/* Header */}
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-zinc-100 tracking-tight">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
           Dashboard
         </h1>
-        <p className="text-sm text-zinc-500 mt-1">
+        <p className="text-sm text-[var(--color-text-secondary)] mt-1">
           Your encrypted cloud storage at a glance
         </p>
       </div>
@@ -141,7 +143,7 @@ export default function Dashboard() {
           icon={<HardDrive className="h-4 w-4" />}
           label="Original"
           value={formatBytes(totalSize)}
-          accent="zinc"
+          accent="slate"
         />
         <StatCard
           icon={<Shield className="h-4 w-4" />}
@@ -157,8 +159,13 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Passphrase + Quick upload */}
-      <div className="rounded-2xl border border-zinc-800/50 bg-gradient-to-b from-zinc-900/80 to-zinc-900/40 p-5 space-y-4">
+      {/* Passphrase + Platform + Quick upload */}
+      <div className="card p-5 space-y-4">
+        <PlatformSelector
+          statuses={statuses}
+          selected={selectedPlatform}
+          onSelect={setSelectedPlatform}
+        />
         <Input
           label="Passphrase"
           type="password"
@@ -186,7 +193,7 @@ export default function Dashboard() {
       {files.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">
+            <h2 className="text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
               Recent Files
             </h2>
             <Link href="/files">
@@ -211,11 +218,11 @@ export default function Dashboard() {
       {/* Empty state */}
       {files.length === 0 && (
         <div className="text-center py-16">
-          <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-zinc-800/30 ring-1 ring-zinc-700/40 mb-5">
-            <Shield className="h-8 w-8 text-zinc-600" />
+          <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-[var(--color-surface-1)] ring-1 ring-[var(--color-border)] mb-5">
+            <Shield className="h-8 w-8 text-[var(--color-text-muted)]" />
           </div>
-          <h3 className="text-lg font-semibold text-zinc-300">No files yet</h3>
-          <p className="text-sm text-zinc-600 mt-1.5 max-w-sm mx-auto leading-relaxed">
+          <h3 className="text-lg font-semibold">No files yet</h3>
+          <p className="text-sm text-[var(--color-text-secondary)] mt-1.5 max-w-sm mx-auto leading-relaxed">
             Upload your first file to get started. Files are compressed,
             encrypted, and stored across your connected platforms.
           </p>
@@ -234,38 +241,34 @@ function StatCard({
   icon: React.ReactNode;
   label: string;
   value: string;
-  accent: "indigo" | "zinc" | "emerald" | "amber";
+  accent: "indigo" | "slate" | "emerald" | "amber";
 }) {
   const styles = {
     indigo: {
-      icon: "text-indigo-400 bg-indigo-500/10 ring-1 ring-indigo-500/20",
-      value: "text-indigo-50",
+      icon: "text-indigo-500 dark:text-indigo-400 bg-indigo-500/10 ring-1 ring-indigo-500/20",
     },
-    zinc: {
-      icon: "text-zinc-400 bg-zinc-800/60 ring-1 ring-zinc-700/40",
-      value: "text-zinc-100",
+    slate: {
+      icon: "text-slate-500 dark:text-slate-400 bg-slate-500/10 dark:bg-slate-500/5 ring-1 ring-slate-500/20 dark:ring-slate-700/40",
     },
     emerald: {
-      icon: "text-emerald-400 bg-emerald-500/10 ring-1 ring-emerald-500/20",
-      value: "text-emerald-50",
+      icon: "text-emerald-500 dark:text-emerald-400 bg-emerald-500/10 ring-1 ring-emerald-500/20",
     },
     amber: {
-      icon: "text-amber-400 bg-amber-500/10 ring-1 ring-amber-500/20",
-      value: "text-amber-50",
+      icon: "text-amber-500 dark:text-amber-400 bg-amber-500/10 ring-1 ring-amber-500/20",
     },
   };
 
   return (
-    <div className="rounded-2xl border border-zinc-800/50 bg-gradient-to-b from-zinc-900/80 to-zinc-900/40 p-4">
+    <div className="card p-4">
       <div
         className={`inline-flex items-center justify-center h-9 w-9 rounded-xl mb-3 ${styles[accent].icon}`}
       >
         {icon}
       </div>
-      <p className={`text-2xl font-bold tabular-nums ${styles[accent].value}`}>
+      <p className="text-2xl font-bold tabular-nums">
         {value}
       </p>
-      <p className="text-[10px] text-zinc-500 uppercase tracking-wider mt-0.5 font-medium">
+      <p className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider mt-0.5 font-medium">
         {label}
       </p>
     </div>

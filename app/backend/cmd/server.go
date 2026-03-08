@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 
 	"github.com/zpush/zpush/adapters"
@@ -113,6 +114,25 @@ func (s *Server) nextAccountKey() string {
 		return ""
 	}
 	key := s.accountKeys[s.nextAccount%len(s.accountKeys)]
+	s.nextAccount++
+	return key
+}
+
+// nextAccountKeyForPlatform returns the next account key for a specific platform.
+func (s *Server) nextAccountKeyForPlatform(platform string) string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var filtered []string
+	for _, k := range s.accountKeys {
+		if strings.HasPrefix(k, platform+":") {
+			filtered = append(filtered, k)
+		}
+	}
+	if len(filtered) == 0 {
+		return ""
+	}
+	key := filtered[s.nextAccount%len(filtered)]
 	s.nextAccount++
 	return key
 }

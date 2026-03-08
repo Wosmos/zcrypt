@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 )
 
-const ChunkSize = 90 * 1024 * 1024 // 90MB
+const ChunkSize = 80 * 1024 * 1024 // 80MB — safe margin under GitHub's 100MB hard limit
 
 // SplitFile splits a file into chunks of ChunkSize bytes.
 // Returns paths to the created chunk files in the output directory.
