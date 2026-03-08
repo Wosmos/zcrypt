@@ -30,7 +30,7 @@ function Section({
 
 function PullQuote({ children }: { children: React.ReactNode }) {
   return (
-    <blockquote className="my-12 border-l-2 border-indigo-500/40 pl-6 py-2">
+    <blockquote className="my-12 border-l-2 border-emerald-500/40 pl-6 py-2">
       <p className="text-xl sm:text-2xl font-medium italic text-[var(--color-text)] leading-relaxed">
         {children}
       </p>
@@ -44,7 +44,7 @@ export default function PhilosophyPage() {
       <article className="mx-auto max-w-2xl px-4">
         {/* Header */}
         <Section>
-          <p className="text-xs font-semibold text-indigo-500 dark:text-indigo-400 uppercase tracking-wider mb-4">
+          <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-4">
             The Manifesto
           </p>
           <h1 className="text-4xl sm:text-5xl font-bold tracking-tight leading-[1.15]">
@@ -246,7 +246,7 @@ export default function PhilosophyPage() {
             </p>
             <Link
               href="/register"
-              className="inline-flex items-center justify-center gap-2 mt-6 rounded-xl bg-indigo-600 px-8 py-3.5 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors shadow-xl shadow-indigo-500/25"
+              className="inline-flex items-center justify-center gap-2 mt-6 rounded-xl bg-emerald-500 px-8 py-3.5 text-sm font-semibold text-slate-900 hover:bg-emerald-400 transition-colors shadow-xl shadow-emerald-500/25"
             >
               Get started for free <ArrowRight className="h-4 w-4" />
             </Link>

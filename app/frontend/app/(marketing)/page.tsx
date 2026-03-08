@@ -9,8 +9,10 @@ import {
   useInView,
   useMotionValue,
   useSpring,
+  useMotionTemplate,
   AnimatePresence,
 } from "framer-motion";
+import { MacOSShowcase } from "@/components/marketing/macos-showcase";
 import {
   Shield,
   ArrowRight,
@@ -25,6 +27,7 @@ import {
   Check,
   X,
   Sparkles,
+  HelpCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -219,6 +222,172 @@ function AnimatedCounter({ target }: { target: number }) {
   return <span ref={ref}>${count.toLocaleString()}</span>;
 }
 
+// ─── Animated Border Card ──────────────────────────────────
+function AnimatedBorderCard({
+  children,
+  className,
+  delay = 0,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  delay?: number;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const isInView = useInView(ref, { once: true, margin: "-60px" });
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    const el = ref.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    mouseX.set(e.clientX - rect.left);
+    mouseY.set(e.clientY - rect.top);
+  };
+
+  const background = useMotionTemplate`radial-gradient(300px at ${mouseX}px ${mouseY}px, rgba(16,185,129,0.12), transparent 80%)`;
+
+  return (
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0, y: 30 }}
+      animate={isInView ? { opacity: 1, y: 0 } : {}}
+      transition={{ duration: 0.6, delay, ease: "easeOut" }}
+      onMouseMove={handleMouseMove}
+      className={cn("relative group", className)}
+    >
+      {/* Animated gradient border */}
+      <div className="absolute -inset-px rounded-2xl overflow-hidden">
+        <div
+          className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+          style={{
+            background:
+              "conic-gradient(from var(--border-angle, 0deg), transparent 30%, rgba(16,185,129,0.3) 50%, transparent 70%)",
+            animation: "borderRotate 4s linear infinite",
+          }}
+        />
+      </div>
+      {/* Spotlight glow on hover */}
+      <motion.div
+        className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+        style={{ background }}
+      />
+      <div className="relative">{children}</div>
+    </motion.div>
+  );
+}
+
+// ─── Animated Timeline Line ────────────────────────────────
+function AnimatedTimelineLine() {
+  const ref = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({
+    target: ref,
+    offset: ["start center", "end center"],
+  });
+  const scaleY = useSpring(scrollYProgress, {
+    stiffness: 100,
+    damping: 30,
+  });
+
+  return (
+    <div ref={ref} className="absolute left-6 top-0 bottom-0 w-px">
+      {/* Background track */}
+      <div className="absolute inset-0 bg-[var(--color-border)]" />
+      {/* Animated fill */}
+      <motion.div
+        className="absolute top-0 left-0 right-0 bg-emerald-500 origin-top"
+        style={{ scaleY, height: "100%" }}
+      />
+      {/* Glow at the tip */}
+      <motion.div
+        className="absolute left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/50 blur-[2px]"
+        style={{
+          top: useTransform(scaleY, (v) => `calc(${v * 100}% - 6px)`),
+        }}
+      />
+    </div>
+  );
+}
+
+// ─── Timeline Step ─────────────────────────────────────────
+function TimelineStep({
+  step,
+  index,
+}: {
+  step: { num: string; title: string; desc: string };
+  index: number;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const isInView = useInView(ref, { once: true, margin: "-80px" });
+
+  return (
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0, x: -20 }}
+      animate={isInView ? { opacity: 1, x: 0 } : {}}
+      transition={{ duration: 0.5, delay: index * 0.1, ease: "easeOut" }}
+    >
+      <div className="relative flex gap-5 py-6">
+        <motion.div
+          className="relative z-10 flex items-center justify-center h-12 w-12 rounded-xl bg-[var(--color-bg)] border border-[var(--color-border)] text-xs font-bold text-emerald-600 dark:text-emerald-400 flex-shrink-0"
+          initial={{ scale: 0.5, opacity: 0 }}
+          animate={isInView ? { scale: 1, opacity: 1 } : {}}
+          transition={{
+            duration: 0.4,
+            delay: 0.1 + index * 0.1,
+            type: "spring",
+            stiffness: 300,
+          }}
+        >
+          {step.num}
+        </motion.div>
+        <div className="pt-1">
+          <h3 className="text-sm font-semibold">{step.title}</h3>
+          <p className="text-sm text-[var(--color-text-secondary)] mt-0.5">
+            {step.desc}
+          </p>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// ─── FAQ Item ───────────────────────────────────────────────
+function FAQItem({ question, answer }: { question: string; answer: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="border-b border-[var(--color-border)]">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center justify-between w-full py-5 text-left group cursor-pointer"
+      >
+        <span className="text-sm font-semibold pr-4">{question}</span>
+        <ChevronDown
+          className={cn(
+            "h-4 w-4 text-[var(--color-text-muted)] transition-transform duration-200 flex-shrink-0",
+            open && "rotate-180"
+          )}
+        />
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <p className="pb-5 text-sm text-[var(--color-text-secondary)] leading-relaxed">
+              {answer}
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 // ─── Main Page ──────────────────────────────────────────────
 export default function LandingPage() {
   const heroRef = useRef<HTMLDivElement>(null);
@@ -229,7 +398,6 @@ export default function LandingPage() {
   const heroOpacity = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
   const heroScale = useTransform(scrollYProgress, [0, 0.8], [1, 0.95]);
   const [easterEgg, setEasterEgg] = useState(false);
-  const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Konami code easter egg
   useEffect(() => {
@@ -256,44 +424,49 @@ export default function LandingPage() {
       icon: Lock,
       title: "AES-256-GCM",
       desc: "Military-grade encryption. Your files are safer than a billionaire's tax returns.",
-      accent: "indigo",
-    },
-    {
-      icon: Zap,
-      title: "Zstd Compression",
-      desc: "Shrinks files smaller than your cloud provider's conscience.",
-      accent: "amber",
-    },
-    {
-      icon: GitBranch,
-      title: "Multi-Platform",
-      desc: "GitHub, GitLab, Hugging Face. We play them against each other like a custody battle.",
       accent: "emerald",
+      large: true,
     },
     {
       icon: Eye,
       title: "Zero-Knowledge",
       desc: "We literally cannot see your files. Not because we're polite — because math.",
       accent: "violet",
+      large: true,
+    },
+    {
+      icon: Zap,
+      title: "Zstd Compression",
+      desc: "Shrinks files smaller than your cloud provider's conscience.",
+      accent: "amber",
+      large: false,
+    },
+    {
+      icon: GitBranch,
+      title: "Multi-Platform",
+      desc: "GitHub, GitLab, Hugging Face. We play them against each other like a custody battle.",
+      accent: "emerald",
+      large: false,
     },
     {
       icon: Scissors,
       title: "Auto-Chunking",
       desc: "Files too big? We shatter them into pieces and scatter them like Horcruxes.",
       accent: "rose",
+      large: false,
     },
     {
       icon: HeartHandshake,
       title: "Free Forever",
       desc: "No credit card. No 'free trial.' No surprise invoice that ruins your Tuesday.",
       accent: "cyan",
+      large: false,
     },
   ];
 
   const accentColors: Record<string, string> = {
-    indigo: "bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 ring-indigo-500/20",
+    emerald: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-emerald-500/20",
     amber: "bg-amber-500/10 text-amber-500 dark:text-amber-400 ring-amber-500/20",
-    emerald: "bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 ring-emerald-500/20",
     violet: "bg-violet-500/10 text-violet-500 dark:text-violet-400 ring-violet-500/20",
     rose: "bg-rose-500/10 text-rose-500 dark:text-rose-400 ring-rose-500/20",
     cyan: "bg-cyan-500/10 text-cyan-500 dark:text-cyan-400 ring-cyan-500/20",
@@ -357,6 +530,36 @@ export default function LandingPage() {
     },
   ];
 
+  const faqs = [
+    {
+      q: "Is this really free forever?",
+      a: "Yes. zpush is open source and uses free Git LFS storage from platforms like GitHub, GitLab, and Hugging Face. There are no hidden costs, no premium tiers, and no surprise invoices. The software itself will always be free.",
+    },
+    {
+      q: "What happens if GitHub changes their storage limits?",
+      a: "zpush supports multiple platforms. If one provider changes their terms, you can migrate to another with a single command. Your data is portable because it's yours — encrypted and chunked in a standard format.",
+    },
+    {
+      q: "How secure is the encryption?",
+      a: "We use AES-256-GCM, the same standard used by governments and financial institutions. Your passphrase never leaves your device. We physically cannot decrypt your files — that's zero-knowledge architecture, not a marketing buzzword.",
+    },
+    {
+      q: "Can I access my files from multiple devices?",
+      a: "Absolutely. Install zpush on any device, connect your Git platform accounts, and pull your encrypted files. You'll just need your passphrase to decrypt them.",
+    },
+    {
+      q: "What file size limits exist?",
+      a: "zpush automatically chunks large files into 80MB pieces to work within Git LFS limits. There's no practical upper limit on file size — we've tested with files over 100GB.",
+    },
+    {
+      q: "Is my passphrase stored anywhere?",
+      a: "No. Your passphrase is used locally to derive encryption keys and is never transmitted or stored. If you lose it, your files are unrecoverable. That's the price of real security — and it's a feature, not a bug.",
+    },
+  ];
+
+  const largeFeatures = features.filter((f) => f.large);
+  const smallFeatures = features.filter((f) => !f.large);
+
   return (
     <>
       {/* Konami easter egg */}
@@ -372,7 +575,7 @@ export default function LandingPage() {
             <div className="text-center">
               <p className="text-6xl mb-4">&#9785;</p>
               <p className="text-2xl font-bold text-white">Cloud Provider Tears</p>
-              <p className="text-sm text-zinc-400 mt-2">Collected fresh from AWS billing disputes</p>
+              <p className="text-sm text-slate-400 mt-2">Collected fresh from AWS billing disputes</p>
             </div>
           </motion.div>
         )}
@@ -386,8 +589,8 @@ export default function LandingPage() {
       >
         {/* Gradient orbs */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-500/10 dark:bg-indigo-500/5 rounded-full blur-3xl" />
-          <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-violet-500/10 dark:bg-violet-500/5 rounded-full blur-3xl" />
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-500/10 dark:bg-emerald-500/5 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-teal-500/10 dark:bg-teal-500/5 rounded-full blur-3xl" />
         </div>
 
         <motion.div
@@ -396,7 +599,7 @@ export default function LandingPage() {
           transition={{ duration: 0.5 }}
           className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] text-xs font-medium text-[var(--color-text-secondary)] mb-8"
         >
-          <Sparkles className="h-3.5 w-3.5 text-indigo-500" />
+          <Sparkles className="h-3.5 w-3.5 text-emerald-500" />
           Open source &amp; free forever
         </motion.div>
 
@@ -422,7 +625,7 @@ export default function LandingPage() {
         >
           <MagneticButton
             href="/register"
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-8 py-3.5 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors shadow-xl shadow-indigo-500/25 hover:shadow-indigo-500/40"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-8 py-3.5 text-sm font-semibold text-slate-900 hover:bg-emerald-400 transition-colors shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/40"
           >
             Start for free <ArrowRight className="h-4 w-4" />
           </MagneticButton>
@@ -476,11 +679,11 @@ export default function LandingPage() {
         />
       </section>
 
-      {/* ═══ FEATURES ═══ */}
+      {/* ═══ FEATURES — BENTO GRID ═══ */}
       <section id="features" className="py-24 px-4">
         <div className="mx-auto max-w-6xl">
           <ScrollReveal className="text-center mb-16">
-            <p className="text-xs font-semibold text-indigo-500 dark:text-indigo-400 uppercase tracking-wider mb-3">
+            <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-3">
               Features
             </p>
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
@@ -492,9 +695,30 @@ export default function LandingPage() {
             </p>
           </ScrollReveal>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {features.map((feature, i) => (
-              <ScrollReveal key={feature.title} delay={i * 0.08}>
+          {/* Bento: 2 large cards on top, 4 small below */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+            {largeFeatures.map((feature, i) => (
+              <AnimatedBorderCard key={feature.title} delay={i * 0.1}>
+                <TiltCard className="card p-8 h-full">
+                  <div
+                    className={cn(
+                      "inline-flex items-center justify-center h-14 w-14 rounded-2xl ring-1 mb-5",
+                      accentColors[feature.accent]
+                    )}
+                  >
+                    <feature.icon className="h-6 w-6" />
+                  </div>
+                  <h3 className="text-lg font-bold mb-2">{feature.title}</h3>
+                  <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-md">
+                    {feature.desc}
+                  </p>
+                </TiltCard>
+              </AnimatedBorderCard>
+            ))}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {smallFeatures.map((feature, i) => (
+              <AnimatedBorderCard key={feature.title} delay={0.2 + i * 0.08}>
                 <TiltCard className="card p-6 h-full">
                   <div
                     className={cn(
@@ -509,9 +733,28 @@ export default function LandingPage() {
                     {feature.desc}
                   </p>
                 </TiltCard>
-              </ScrollReveal>
+              </AnimatedBorderCard>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* ═══ APP SHOWCASE ═══ */}
+      <section className="py-24 px-4 bg-[var(--color-surface)] overflow-hidden">
+        <div className="mx-auto max-w-6xl">
+          <ScrollReveal className="text-center mb-16">
+            <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-3">
+              Experience
+            </p>
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
+              See it in action
+            </h2>
+            <p className="text-[var(--color-text-secondary)] mt-3 max-w-lg mx-auto">
+              A native-feeling experience. Drag, drop, encrypted. It&apos;s that simple.
+            </p>
+          </ScrollReveal>
+
+          <MacOSShowcase />
         </div>
       </section>
 
@@ -519,7 +762,7 @@ export default function LandingPage() {
       <section className="py-24 px-4 bg-[var(--color-surface)]">
         <div className="mx-auto max-w-3xl">
           <ScrollReveal className="text-center mb-16">
-            <p className="text-xs font-semibold text-indigo-500 dark:text-indigo-400 uppercase tracking-wider mb-3">
+            <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-3">
               How it works
             </p>
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
@@ -528,24 +771,12 @@ export default function LandingPage() {
           </ScrollReveal>
 
           <div className="relative">
-            {/* Vertical line */}
-            <div className="absolute left-6 top-0 bottom-0 w-px bg-[var(--color-border)]" />
+            {/* Animated vertical line */}
+            <AnimatedTimelineLine />
 
             <div className="space-y-0">
               {steps.map((step, i) => (
-                <ScrollReveal key={step.num} delay={i * 0.1}>
-                  <div className="relative flex gap-5 py-6">
-                    <div className="relative z-10 flex items-center justify-center h-12 w-12 rounded-xl bg-[var(--color-bg)] border border-[var(--color-border)] text-xs font-bold text-indigo-500 dark:text-indigo-400 flex-shrink-0">
-                      {step.num}
-                    </div>
-                    <div className="pt-1">
-                      <h3 className="text-sm font-semibold">{step.title}</h3>
-                      <p className="text-sm text-[var(--color-text-secondary)] mt-0.5">
-                        {step.desc}
-                      </p>
-                    </div>
-                  </div>
-                </ScrollReveal>
+                <TimelineStep key={step.num} step={step} index={i} />
               ))}
             </div>
           </div>
@@ -556,7 +787,7 @@ export default function LandingPage() {
       <section id="pricing" className="py-24 px-4">
         <div className="mx-auto max-w-6xl">
           <ScrollReveal className="text-center mb-16">
-            <p className="text-xs font-semibold text-indigo-500 dark:text-indigo-400 uppercase tracking-wider mb-3">
+            <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-3">
               Pricing
             </p>
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
@@ -574,14 +805,14 @@ export default function LandingPage() {
                   className={cn(
                     "rounded-2xl border p-6 h-full flex flex-col",
                     plan.highlight
-                      ? "border-indigo-500/30 bg-indigo-500/5 ring-1 ring-indigo-500/20 shadow-lg shadow-indigo-500/10"
+                      ? "border-emerald-500/30 bg-emerald-500/5 ring-1 ring-emerald-500/20 shadow-lg shadow-emerald-500/10"
                       : "border-[var(--color-border)] bg-[var(--color-surface)] opacity-75"
                   )}
                 >
                   <div className="mb-4">
                     <div className="flex items-baseline gap-1">
                       {plan.highlight ? (
-                        <span className="text-4xl font-bold text-indigo-500 dark:text-indigo-400">
+                        <span className="text-4xl font-bold text-emerald-600 dark:text-emerald-400">
                           {plan.price}
                         </span>
                       ) : (
@@ -618,7 +849,7 @@ export default function LandingPage() {
                   {plan.highlight && (
                     <Link
                       href="/register"
-                      className="mt-6 inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-medium text-white hover:bg-indigo-500 transition-colors shadow-lg shadow-indigo-500/25"
+                      className="mt-6 inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-6 py-3 text-sm font-medium text-slate-900 hover:bg-emerald-400 transition-colors shadow-lg shadow-emerald-500/25"
                     >
                       Get started free <ArrowRight className="h-4 w-4" />
                     </Link>
@@ -644,7 +875,7 @@ export default function LandingPage() {
       <section className="py-24 px-4 bg-[var(--color-surface)]">
         <div className="mx-auto max-w-5xl">
           <ScrollReveal className="text-center mb-16">
-            <p className="text-xs font-semibold text-indigo-500 dark:text-indigo-400 uppercase tracking-wider mb-3">
+            <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-3">
               Testimonials
             </p>
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
@@ -656,7 +887,7 @@ export default function LandingPage() {
             {testimonials.map((t, i) => (
               <ScrollReveal key={i} delay={i * 0.1}>
                 <div className="card p-6 h-full flex flex-col">
-                  <Quote className="h-5 w-5 text-indigo-500/30 mb-3 flex-shrink-0" />
+                  <Quote className="h-5 w-5 text-emerald-500/30 mb-3 flex-shrink-0" />
                   <p className="text-sm text-[var(--color-text)] leading-relaxed flex-1">
                     &ldquo;{t.quote}&rdquo;
                   </p>
@@ -670,12 +901,40 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ═══ FAQ ═══ */}
+      <section className="py-24 px-4">
+        <div className="mx-auto max-w-3xl">
+          <ScrollReveal className="text-center mb-16">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] text-xs font-medium text-[var(--color-text-secondary)] mb-4">
+              <HelpCircle className="h-3.5 w-3.5 text-emerald-500" />
+              FAQ
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
+              Got Questions? We&apos;ve Got Answers
+            </h2>
+            <p className="text-[var(--color-text-secondary)] mt-3 max-w-lg mx-auto">
+              The stuff you actually want to know before trusting us with your files.
+            </p>
+          </ScrollReveal>
+
+          <ScrollReveal>
+            <div className="card p-1 sm:p-2">
+              <div className="px-4 sm:px-6">
+                {faqs.map((faq, i) => (
+                  <FAQItem key={i} question={faq.q} answer={faq.a} />
+                ))}
+              </div>
+            </div>
+          </ScrollReveal>
+        </div>
+      </section>
+
       {/* ═══ CTA ═══ */}
       <section className="py-32 px-4 relative overflow-hidden">
         {/* Gradient background */}
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-indigo-500/5 to-transparent" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-indigo-500/8 dark:bg-indigo-500/3 rounded-full blur-3xl" />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-emerald-500/5 to-transparent" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-emerald-500/8 dark:bg-emerald-500/3 rounded-full blur-3xl" />
         </div>
 
         <div className="relative mx-auto max-w-2xl text-center">
@@ -692,7 +951,7 @@ export default function LandingPage() {
             <div className="mt-10 relative inline-block">
               <MagneticButton
                 href="/register"
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-10 py-4 text-base font-semibold text-white hover:bg-indigo-500 transition-colors shadow-2xl shadow-indigo-500/30 hover:shadow-indigo-500/50"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-10 py-4 text-base font-semibold text-slate-900 hover:bg-emerald-400 transition-colors shadow-2xl shadow-emerald-500/30 hover:shadow-emerald-500/50"
               >
                 Get started — it&apos;s free <ArrowRight className="h-4 w-4" />
               </MagneticButton>

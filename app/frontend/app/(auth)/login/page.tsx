@@ -52,8 +52,8 @@ export default function LoginPage() {
   return (
     <div className="card p-6 sm:p-8 animate-fade-in">
       <div className="text-center mb-6">
-        <div className="inline-flex items-center justify-center h-12 w-12 rounded-xl bg-indigo-500/10 mb-4">
-          <LogIn className="h-6 w-6 text-indigo-500 dark:text-indigo-400" />
+        <div className="inline-flex items-center justify-center h-12 w-12 rounded-xl bg-emerald-500/10 mb-4">
+          <LogIn className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
         </div>
         <h1 className="text-xl font-bold">Welcome back</h1>
         <p className="text-sm text-[var(--color-text-secondary)] mt-1">
@@ -86,7 +86,7 @@ export default function LoginPage() {
         <div className="flex justify-end">
           <Link
             href="/forgot-password"
-            className="text-xs text-indigo-500 hover:text-indigo-400 transition-colors"
+            className="text-xs text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors"
           >
             Forgot password?
           </Link>
@@ -95,7 +95,7 @@ export default function LoginPage() {
         <Button type="submit" className="w-full" size="lg" disabled={loading}>
           {loading ? (
             <span className="flex items-center gap-2">
-              <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              <span className="h-4 w-4 border-2 border-slate-900/30 border-t-slate-900 rounded-full animate-spin" />
               Signing in...
             </span>
           ) : (
@@ -110,7 +110,7 @@ export default function LoginPage() {
         Don&apos;t have an account?{" "}
         <Link
           href="/register"
-          className="text-indigo-500 hover:text-indigo-400 font-medium transition-colors"
+          className="text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300 font-medium transition-colors"
         >
           Sign up
         </Link>

@@ -26,8 +26,8 @@ export function MarketingNav() {
           <div className="flex h-16 items-center justify-between">
             {/* Logo */}
             <Link href="/" className="flex items-center gap-2.5 group">
-              <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-indigo-600/15 ring-1 ring-indigo-500/20 group-hover:ring-indigo-500/40 transition-all">
-                <Shield className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
+              <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-emerald-500/15 ring-1 ring-emerald-500/20 group-hover:ring-emerald-500/40 transition-all">
+                <Shield className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
               </div>
               <span className="text-[15px] font-bold tracking-tight">
                 zpush
@@ -75,7 +75,7 @@ export function MarketingNav() {
                 </Link>
                 <Link
                   href="/register"
-                  className="px-4 py-2 text-[13px] font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 transition-colors shadow-lg shadow-indigo-500/25"
+                  className="px-4 py-2 text-[13px] font-medium bg-emerald-500 text-slate-900 rounded-lg hover:bg-emerald-400 transition-colors shadow-lg shadow-emerald-500/25"
                 >
                   Sign up free
                 </Link>
@@ -130,7 +130,7 @@ export function MarketingNav() {
                 <Link
                   href="/register"
                   onClick={() => setMobileOpen(false)}
-                  className="flex-1 text-center px-4 py-2.5 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 transition-colors"
+                  className="flex-1 text-center px-4 py-2.5 text-sm font-medium bg-emerald-500 text-slate-900 rounded-lg hover:bg-emerald-400 transition-colors"
                 >
                   Sign up
                 </Link>

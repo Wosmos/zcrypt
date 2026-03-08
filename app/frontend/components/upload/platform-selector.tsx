@@ -47,7 +47,7 @@ export function PlatformSelector({
           className={cn(
             "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium transition-all duration-150 border",
             selected === null
-              ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-600 dark:text-indigo-300"
+              ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-300"
               : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)] hover:bg-[var(--color-surface-1)]"
           )}
         >
@@ -63,7 +63,7 @@ export function PlatformSelector({
               className={cn(
                 "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium transition-all duration-150 border",
                 isSelected
-                  ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-600 dark:text-indigo-300"
+                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-300"
                   : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)] hover:bg-[var(--color-surface-1)]"
               )}
             >

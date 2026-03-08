@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { StoragePool } from "@/components/settings/storage-pool";
 import { usePlatformHealth } from "@/hooks/usePlatformHealth";
 import { useTheme } from "@/components/providers/theme-provider";
 import { connectPlatform, disconnectPlatform } from "@/lib/api";
@@ -24,6 +25,7 @@ import {
   Sun,
   Moon,
   Monitor,
+  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -122,7 +124,7 @@ export default function SettingsPage() {
                 className={cn(
                   "flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all border",
                   theme === value
-                    ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-600 dark:text-indigo-300"
+                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-300"
                     : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-1)]"
                 )}
               >
@@ -197,41 +199,11 @@ export default function SettingsPage() {
         />
       </div>
 
-      {/* How it works */}
-      <section className="card overflow-hidden">
-        <div className="px-5 py-4 border-b border-[var(--color-border)]">
-          <h2 className="text-sm font-semibold">How it works</h2>
-        </div>
-        <div className="p-5 space-y-5">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <PipelineStep
-              icon={<Zap className="h-4 w-4" />}
-              step="1"
-              title="Compress"
-              desc="Zstd compression shrinks files before encryption"
-            />
-            <PipelineStep
-              icon={<Lock className="h-4 w-4" />}
-              step="2"
-              title="Encrypt"
-              desc="AES-256-GCM with PBKDF2 derived keys (600K iterations)"
-            />
-            <PipelineStep
-              icon={<Box className="h-4 w-4" />}
-              step="3"
-              title="Chunk & Push"
-              desc="Split into 80MB chunks, disguised as build artifacts"
-            />
-          </div>
-          <div className="flex items-start gap-3 pt-3 border-t border-[var(--color-border)]">
-            <Shield className="h-4 w-4 text-indigo-500/60 mt-0.5 flex-shrink-0" />
-            <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed">
-              Your passphrase never leaves your machine. Platforms only see
-              encrypted binary blobs with randomized filenames — zero knowledge.
-            </p>
-          </div>
-        </div>
-      </section>
+      {/* Storage Pool — absorbed from Platforms page */}
+      <StoragePool />
+
+      {/* How it works — collapsible */}
+      <HowItWorks />
     </div>
   );
 }
@@ -351,12 +323,64 @@ function PlatformSection({
           href={tokenUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 text-xs text-indigo-500 hover:text-indigo-400 transition-colors"
+          className="inline-flex items-center gap-1.5 text-xs text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors"
         >
           {tokenLabel}
           <ExternalLink className="h-3 w-3" />
         </a>
       </div>
+    </section>
+  );
+}
+
+function HowItWorks() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <section className="card overflow-hidden">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-[var(--color-surface-1)] transition-colors"
+      >
+        <h2 className="text-sm font-semibold">How it works</h2>
+        <ChevronDown
+          className={cn(
+            "h-4 w-4 text-[var(--color-text-muted)] transition-transform duration-200",
+            open && "rotate-180"
+          )}
+        />
+      </button>
+      {open && (
+        <div className="p-5 pt-0 space-y-5 border-t border-[var(--color-border)] animate-fade-in">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-5">
+            <PipelineStep
+              icon={<Zap className="h-4 w-4" />}
+              step="1"
+              title="Compress"
+              desc="Zstd compression shrinks files before encryption"
+            />
+            <PipelineStep
+              icon={<Lock className="h-4 w-4" />}
+              step="2"
+              title="Encrypt"
+              desc="AES-256-GCM with PBKDF2 derived keys (600K iterations)"
+            />
+            <PipelineStep
+              icon={<Box className="h-4 w-4" />}
+              step="3"
+              title="Chunk & Push"
+              desc="Split into 80MB chunks, disguised as build artifacts"
+            />
+          </div>
+          <div className="flex items-start gap-3 pt-3 border-t border-[var(--color-border)]">
+            <Shield className="h-4 w-4 text-emerald-500/60 mt-0.5 flex-shrink-0" />
+            <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed">
+              Your passphrase never leaves your machine. Platforms only see
+              encrypted binary blobs with randomized filenames — zero knowledge.
+            </p>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

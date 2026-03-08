@@ -73,7 +73,7 @@ export default function ForgotPasswordPage() {
         <Button type="submit" className="w-full" size="lg" disabled={loading}>
           {loading ? (
             <span className="flex items-center gap-2">
-              <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              <span className="h-4 w-4 border-2 border-slate-900/30 border-t-slate-900 rounded-full animate-spin" />
               Sending...
             </span>
           ) : (
@@ -87,7 +87,7 @@ export default function ForgotPasswordPage() {
       <p className="text-center text-sm text-[var(--color-text-secondary)] mt-6">
         <Link
           href="/login"
-          className="text-indigo-500 hover:text-indigo-400 font-medium transition-colors inline-flex items-center gap-1"
+          className="text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300 font-medium transition-colors inline-flex items-center gap-1"
         >
           <ArrowLeft className="h-3.5 w-3.5" /> Back to login
         </Link>

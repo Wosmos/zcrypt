@@ -86,7 +86,7 @@ export function UploadQueue() {
                 <Pause className="h-4 w-4 text-amber-500" />
               )}
               {item.status !== "done" && item.status !== "failed" && item.status !== "paused" && (
-                <Loader2 className="h-4 w-4 text-indigo-500 dark:text-indigo-400 animate-spin" />
+                <Loader2 className="h-4 w-4 text-emerald-500 dark:text-emerald-400 animate-spin" />
               )}
             </div>
 

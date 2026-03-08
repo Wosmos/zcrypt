@@ -19,7 +19,7 @@ interface ProgressBarProps {
 
 const barColors = {
   default: "bg-[var(--color-text-muted)]",
-  accent: "bg-indigo-500",
+  accent: "bg-emerald-500",
   success: "bg-emerald-500",
 };
 

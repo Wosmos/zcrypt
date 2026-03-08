@@ -58,7 +58,7 @@ export function FileCard({ file, downloadState = "idle", onDownload, onDelete }:
         "group relative flex items-center gap-3 sm:gap-4 p-3.5 sm:p-4 overflow-hidden",
         "rounded-2xl border transition-all duration-300",
         isDownloading
-          ? "border-indigo-500/30 bg-indigo-500/5"
+          ? "border-emerald-500/30 bg-emerald-500/5"
           : isDone
             ? "border-emerald-500/30 bg-emerald-500/5"
             : "border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-border-hover)] hover:shadow-lg"
@@ -70,7 +70,7 @@ export function FileCard({ file, downloadState = "idle", onDownload, onDelete }:
           <div
             className="absolute inset-0 opacity-[0.07]"
             style={{
-              background: "linear-gradient(90deg, transparent 25%, rgba(99,102,241,0.4) 50%, transparent 75%)",
+              background: "linear-gradient(90deg, transparent 25%, rgba(16,185,129,0.4) 50%, transparent 75%)",
               backgroundSize: "200% 100%",
               animation: "shimmer 1.5s ease-in-out infinite",
             }}
@@ -93,14 +93,14 @@ export function FileCard({ file, downloadState = "idle", onDownload, onDelete }:
         className={cn(
           "flex-shrink-0 flex items-center justify-center h-10 w-10 rounded-xl transition-all duration-300",
           isDownloading
-            ? "bg-indigo-500/15"
+            ? "bg-emerald-500/15"
             : isDone
               ? "bg-emerald-500/15"
               : typeInfo.bg
         )}
       >
         {isDownloading ? (
-          <Loader2 className="h-[18px] w-[18px] text-indigo-500 animate-spin" />
+          <Loader2 className="h-[18px] w-[18px] text-emerald-500 animate-spin" />
         ) : isDone ? (
           <CheckCircle2 className="h-[18px] w-[18px] text-emerald-500 animate-fade-in" />
         ) : (
@@ -117,7 +117,7 @@ export function FileCard({ file, downloadState = "idle", onDownload, onDelete }:
             {formatBytes(file.original_size)}
           </span>
           {isDownloading ? (
-            <span className="text-[11px] text-indigo-400 font-medium animate-pulse-soft">
+            <span className="text-[11px] text-emerald-400 font-medium animate-pulse-soft">
               Decrypting & downloading...
             </span>
           ) : isDone ? (
@@ -145,7 +145,7 @@ export function FileCard({ file, downloadState = "idle", onDownload, onDelete }:
             <div
               className="h-full rounded-full"
               style={{
-                background: "linear-gradient(90deg, #6366f1, #818cf8, #6366f1)",
+                background: "linear-gradient(90deg, #10b981, #34d399, #10b981)",
                 backgroundSize: "200% 100%",
                 animation: "progress-shimmer 1.8s ease-in-out infinite",
                 width: "100%",

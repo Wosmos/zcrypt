@@ -49,7 +49,7 @@ function VerifyEmailContent() {
     return (
       <div className="card p-6 sm:p-8 text-center animate-fade-in">
         <div className="flex items-center justify-center mb-5">
-          <div className="h-10 w-10 border-2 border-[var(--color-border)] border-t-indigo-500 rounded-full animate-spin" />
+          <div className="h-10 w-10 border-2 border-[var(--color-border)] border-t-emerald-500 rounded-full animate-spin" />
         </div>
         <h2 className="text-xl font-bold">Verifying your email...</h2>
         <p className="text-sm text-[var(--color-text-secondary)] mt-2">
@@ -101,7 +101,7 @@ export default function VerifyEmailPage() {
     <Suspense
       fallback={
         <div className="flex items-center justify-center py-16">
-          <div className="h-6 w-6 border-2 border-[var(--color-border)] border-t-indigo-500 rounded-full animate-spin" />
+          <div className="h-6 w-6 border-2 border-[var(--color-border)] border-t-emerald-500 rounded-full animate-spin" />
         </div>
       }
     >

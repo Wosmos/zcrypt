@@ -9,8 +9,8 @@ export function MarketingFooter() {
           {/* Logo + tagline */}
           <div>
             <Link href="/" className="flex items-center gap-2.5">
-              <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-indigo-600/15 ring-1 ring-indigo-500/20">
-                <Shield className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
+              <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-emerald-500/15 ring-1 ring-emerald-500/20">
+                <Shield className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
               </div>
               <span className="text-[15px] font-bold tracking-tight">
                 zpush
