@@ -6,11 +6,13 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/zpush/zpush/adapters"
 	"github.com/zpush/zpush/config"
+	"github.com/zpush/zpush/crypto"
 	"github.com/zpush/zpush/index"
 	"github.com/zpush/zpush/pipeline"
 	"github.com/zpush/zpush/reppool"
@@ -18,169 +20,188 @@ import (
 
 // Server holds shared state for all HTTP handlers.
 type Server struct {
-	db       *index.DB
-	cfg      *config.Config
-	progress *pipeline.ProgressEmitter
+	db        *index.DB
+	cfg       *config.Config
+	progress  *pipeline.ProgressEmitter
+	masterKey []byte
 
-	// Multi-account support: keyed by "platform:username"
-	allAdapters map[string]adapters.PlatformAdapter
-	allPools    map[string]*reppool.Manager
-
-	// Round-robin state for upload distribution
-	accountKeys []string
-	nextAccount int
-	mu          sync.Mutex
+	// Per-user adapter cache: userID → (platform:username → adapter)
+	adapterMu    sync.RWMutex
+	adapterCache map[string]map[string]adapters.PlatformAdapter
+	poolCache    map[string]map[string]*reppool.Manager
 
 	// Active uploads tracked for pause/resume
 	activeUploads sync.Map // map[fileID]*activeUpload
 }
 
 // NewServer creates a new API server.
-func NewServer(db *index.DB, cfg *config.Config, progress *pipeline.ProgressEmitter) *Server {
-	s := &Server{
-		db:          db,
-		cfg:         cfg,
-		progress:    progress,
-		allAdapters: make(map[string]adapters.PlatformAdapter),
-		allPools:    make(map[string]*reppool.Manager),
+func NewServer(db *index.DB, cfg *config.Config, progress *pipeline.ProgressEmitter, masterKey []byte) *Server {
+	return &Server{
+		db:           db,
+		cfg:          cfg,
+		progress:     progress,
+		masterKey:    masterKey,
+		adapterCache: make(map[string]map[string]adapters.PlatformAdapter),
+		poolCache:    make(map[string]map[string]*reppool.Manager),
 	}
-
-	// Initialize all configured accounts
-	for platform, accounts := range cfg.Accounts {
-		for _, acc := range accounts {
-			key, err := s.initAccount(platform, acc.Token)
-			if err != nil {
-				log.Printf("warn: failed to init %s account: %v", platform, err)
-				continue
-			}
-			// Update the username in config if it was empty (legacy migration)
-			if acc.Username == "" {
-				s.updateConfigUsername(platform, acc.Token, key)
-			}
-		}
-	}
-
-	return s
 }
 
-// initAccount creates an adapter and pool for a platform account.
-// Returns the compound key "platform:username".
-func (s *Server) initAccount(platform, token string) (string, error) {
-	var adapter adapters.PlatformAdapter
-	var err error
-
-	switch platform {
-	case "github":
-		adapter, err = adapters.NewGithubAdapter(token)
-	case "gitlab":
-		adapter, err = adapters.NewGitlabAdapter(token)
-	case "huggingface":
-		adapter, err = adapters.NewHuggingFaceAdapter(token)
-	default:
-		return "", fmt.Errorf("unsupported platform: %s", platform)
+// getUserAdapters returns all adapters for a user (own tokens + global tokens).
+// Results are cached per userID.
+func (s *Server) getUserAdapters(ctx context.Context, userID string) (map[string]adapters.PlatformAdapter, error) {
+	s.adapterMu.RLock()
+	if cached, ok := s.adapterCache[userID]; ok {
+		s.adapterMu.RUnlock()
+		return cached, nil
 	}
+	s.adapterMu.RUnlock()
+
+	// Load tokens from DB (user's own + global)
+	tokens, err := s.db.GetPlatformTokens(ctx, userID)
 	if err != nil {
-		return "", err
+		return nil, fmt.Errorf("get platform tokens: %w", err)
 	}
 
-	username := getAdapterUsername(adapter)
-	key := platform + ":" + username
+	userAdapters := make(map[string]adapters.PlatformAdapter)
 
-	// Don't re-init if already present
-	if _, exists := s.allAdapters[key]; exists {
-		return key, nil
+	for _, tok := range tokens {
+		// Derive KEK for the token owner (not the current user, since global tokens belong to their creator)
+		kek, err := crypto.DeriveUserKEK(s.masterKey, tok.UserID)
+		if err != nil {
+			log.Printf("warn: derive KEK for token %s: %v", tok.ID, err)
+			continue
+		}
+
+		plaintext, err := crypto.DecryptToken(kek, tok.TokenEncrypted, tok.TokenNonce)
+		if err != nil {
+			log.Printf("warn: decrypt token %s: %v", tok.ID, err)
+			continue
+		}
+
+		adapter, err := createAdapter(tok.Platform, plaintext)
+		if err != nil {
+			log.Printf("warn: create adapter for %s/%s: %v", tok.Platform, tok.Username, err)
+			continue
+		}
+
+		username := getAdapterUsername(adapter)
+		key := tok.Platform + ":" + username
+		userAdapters[key] = adapter
 	}
 
-	threshold := s.cfg.Thresholds[platform]
-	if threshold == 0 {
-		switch platform {
-		case "github":
-			threshold = 850 * 1024 * 1024
-		case "gitlab":
-			threshold = 9000 * 1024 * 1024
-		case "huggingface":
-			threshold = 280000 * 1024 * 1024
+	s.adapterMu.Lock()
+	s.adapterCache[userID] = userAdapters
+	s.adapterMu.Unlock()
+
+	return userAdapters, nil
+}
+
+// getUserPools returns repo pool managers for a user's adapters.
+func (s *Server) getUserPools(ctx context.Context, userID string) (map[string]*reppool.Manager, error) {
+	s.adapterMu.RLock()
+	if cached, ok := s.poolCache[userID]; ok {
+		s.adapterMu.RUnlock()
+		return cached, nil
+	}
+	s.adapterMu.RUnlock()
+
+	userAdapters, err := s.getUserAdapters(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	pools := make(map[string]*reppool.Manager)
+	for key, adapter := range userAdapters {
+		parts := strings.SplitN(key, ":", 2)
+		platform := parts[0]
+		account := parts[1]
+
+		threshold := s.cfg.Thresholds[platform]
+		if threshold == 0 {
+			switch platform {
+			case "github":
+				threshold = 850 * 1024 * 1024
+			case "gitlab":
+				threshold = 9000 * 1024 * 1024
+			case "huggingface":
+				threshold = 280000 * 1024 * 1024
+			}
+		}
+
+		pools[key] = reppool.NewManager(s.db, adapter, userID, account, threshold)
+	}
+
+	s.adapterMu.Lock()
+	s.poolCache[userID] = pools
+	s.adapterMu.Unlock()
+
+	return pools, nil
+}
+
+// invalidateUserCache clears the adapter/pool cache for a user (on connect/disconnect).
+func (s *Server) invalidateUserCache(userID string) {
+	s.adapterMu.Lock()
+	delete(s.adapterCache, userID)
+	delete(s.poolCache, userID)
+	s.adapterMu.Unlock()
+}
+
+// selectAdapter picks an adapter for a user, optionally filtering by platform.
+func (s *Server) selectAdapter(ctx context.Context, userID, targetPlatform string) (string, adapters.PlatformAdapter, *reppool.Manager, error) {
+	userAdapters, err := s.getUserAdapters(ctx, userID)
+	if err != nil {
+		return "", nil, nil, err
+	}
+	pools, err := s.getUserPools(ctx, userID)
+	if err != nil {
+		return "", nil, nil, err
+	}
+
+	if len(userAdapters) == 0 {
+		return "", nil, nil, fmt.Errorf("no platform connected")
+	}
+
+	// Find a matching adapter
+	for key, adapter := range userAdapters {
+		if targetPlatform != "" && !strings.HasPrefix(key, targetPlatform+":") {
+			continue
+		}
+		if pool, ok := pools[key]; ok {
+			return key, adapter, pool, nil
 		}
 	}
 
-	pool := reppool.NewManager(s.db, adapter, username, threshold)
-	s.allAdapters[key] = adapter
-	s.allPools[key] = pool
-	s.accountKeys = append(s.accountKeys, key)
-
-	return key, nil
-}
-
-// nextAccountKey returns the next account key using round-robin.
-func (s *Server) nextAccountKey() string {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if len(s.accountKeys) == 0 {
-		return ""
+	if targetPlatform != "" {
+		return "", nil, nil, fmt.Errorf("no %s account connected", targetPlatform)
 	}
-	key := s.accountKeys[s.nextAccount%len(s.accountKeys)]
-	s.nextAccount++
-	return key
+	return "", nil, nil, fmt.Errorf("no platform connected")
 }
 
-// nextAccountKeyForPlatform returns the next account key for a specific platform.
-func (s *Server) nextAccountKeyForPlatform(platform string) string {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+// resolveAdapterForUser finds the right adapter for a platform:account key.
+func (s *Server) resolveAdapterForUser(ctx context.Context, userID, platform, account string) adapters.PlatformAdapter {
+	userAdapters, err := s.getUserAdapters(ctx, userID)
+	if err != nil {
+		return nil
+	}
 
-	var filtered []string
-	for _, k := range s.accountKeys {
-		if strings.HasPrefix(k, platform+":") {
-			filtered = append(filtered, k)
+	// Try exact match
+	if account != "" {
+		if a, ok := userAdapters[platform+":"+account]; ok {
+			return a
 		}
 	}
-	if len(filtered) == 0 {
-		return ""
-	}
-	key := filtered[s.nextAccount%len(filtered)]
-	s.nextAccount++
-	return key
-}
-
-// removeAccount removes an account from the server state.
-func (s *Server) removeAccount(key string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	delete(s.allAdapters, key)
-	delete(s.allPools, key)
-
-	// Remove from accountKeys slice
-	filtered := s.accountKeys[:0]
-	for _, k := range s.accountKeys {
-		if k != key {
-			filtered = append(filtered, k)
+	// Fallback: any adapter for that platform
+	for key, a := range userAdapters {
+		if strings.HasPrefix(key, platform+":") {
+			return a
 		}
 	}
-	s.accountKeys = filtered
-	if s.nextAccount >= len(s.accountKeys) {
-		s.nextAccount = 0
-	}
-}
-
-// updateConfigUsername updates the username for a migrated account.
-func (s *Server) updateConfigUsername(platform, token, key string) {
-	// Extract username from key "platform:username"
-	username := key[len(platform)+1:]
-	accounts := s.cfg.Accounts[platform]
-	for i, acc := range accounts {
-		if acc.Token == token {
-			accounts[i].Username = username
-			s.cfg.Accounts[platform] = accounts
-			break
-		}
-	}
+	return nil
 }
 
 // AutoResumeUploads resumes any incomplete uploads from a previous session.
 func (s *Server) AutoResumeUploads(ctx context.Context) {
-	files, err := s.db.ListIncompleteFiles()
+	files, err := s.db.ListIncompleteFiles(ctx)
 	if err != nil {
 		log.Printf("auto-resume: list incomplete files: %v", err)
 		return
@@ -203,19 +224,25 @@ func (s *Server) AutoResumeUploads(ctx context.Context) {
 			continue
 		}
 
-		allChunks, err := s.db.GetChunksForFile(f.ID)
+		allChunks, err := s.db.GetChunksForFile(ctx, f.ID)
 		if err != nil || len(allChunks) == 0 {
 			continue
 		}
 
 		chunkPlatform := allChunks[0].Platform
 		chunkAccount := allChunks[0].Account
-		key := chunkPlatform + ":" + chunkAccount
 
-		adapter := s.allAdapters[key]
-		pool := s.allPools[key]
-		if adapter == nil || pool == nil {
-			log.Printf("auto-resume: no adapter for %s (%s), skipping", f.ID, key)
+		adapter := s.resolveAdapterForUser(ctx, f.UserID, chunkPlatform, chunkAccount)
+		if adapter == nil {
+			log.Printf("auto-resume: no adapter for %s (user=%s, %s:%s), skipping", f.ID, f.UserID, chunkPlatform, chunkAccount)
+			continue
+		}
+
+		pools, _ := s.getUserPools(ctx, f.UserID)
+		key := chunkPlatform + ":" + chunkAccount
+		pool := pools[key]
+		if pool == nil {
+			log.Printf("auto-resume: no pool for %s, skipping", f.ID)
 			continue
 		}
 
@@ -254,7 +281,7 @@ func (s *Server) AutoResumeUploads(ctx context.Context) {
 		uploadCtx, cancel := context.WithCancel(ctx)
 		s.activeUploads.Store(f.ID, &activeUpload{cancel: cancel, prepared: prepared})
 
-		engine := pipeline.NewPipelineEngine(s.db, adapter, pool, s.progress, chunkAccount)
+		engine := pipeline.NewPipelineEngine(s.db, adapter, pool, s.progress, f.UserID, chunkAccount)
 
 		go func(fileID, name string) {
 			defer s.activeUploads.Delete(fileID)
@@ -266,6 +293,44 @@ func (s *Server) AutoResumeUploads(ctx context.Context) {
 				}
 			}
 		}(f.ID, f.OriginalName)
+	}
+}
+
+// isQuotaExempt returns true if the user has personal (non-global) platform tokens.
+func (s *Server) isQuotaExempt(ctx context.Context, userID string) bool {
+	has, err := s.db.UserHasPersonalTokens(ctx, userID)
+	return err == nil && has
+}
+
+// getEffectiveQuota returns the effective storage quota in bytes for a user.
+// Returns 0 if unlimited.
+func (s *Server) getEffectiveQuota(ctx context.Context, userID string) int64 {
+	user, err := s.db.GetUserByID(ctx, userID)
+	if err != nil {
+		return 0
+	}
+	if user.StorageQuota != nil {
+		return *user.StorageQuota
+	}
+	val, err := s.db.GetSystemSetting(ctx, "default_storage_quota_bytes")
+	if err != nil {
+		return 0
+	}
+	quota, _ := strconv.ParseInt(val, 10, 64)
+	return quota
+}
+
+// createAdapter creates a PlatformAdapter for a given platform and token.
+func createAdapter(platform, token string) (adapters.PlatformAdapter, error) {
+	switch platform {
+	case "github":
+		return adapters.NewGithubAdapter(token)
+	case "gitlab":
+		return adapters.NewGitlabAdapter(token)
+	case "huggingface":
+		return adapters.NewHuggingFaceAdapter(token)
+	default:
+		return nil, fmt.Errorf("unsupported platform: %s", platform)
 	}
 }
 

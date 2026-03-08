@@ -23,7 +23,11 @@ type PullRequest struct {
 // HandlePull handles file download requests.
 // POST /api/pull
 func (s *Server) HandlePull(w http.ResponseWriter, r *http.Request) {
-	if len(s.accountKeys) == 0 {
+	ctx := r.Context()
+	userID := GetUserID(r)
+
+	userAdapters, err := s.getUserAdapters(ctx, userID)
+	if err != nil || len(userAdapters) == 0 {
 		http.Error(w, `{"error":"no platform connected"}`, http.StatusBadRequest)
 		return
 	}
@@ -55,25 +59,13 @@ func (s *Server) HandlePull(w http.ResponseWriter, r *http.Request) {
 
 	// Create a pull engine with per-chunk adapter resolution
 	resolver := func(ref types.ChunkRef) adapters.PlatformAdapter {
-		// Try exact match first: platform:account
-		if ref.Account != "" {
-			if a, ok := s.allAdapters[ref.Platform+":"+ref.Account]; ok {
-				return a
-			}
-		}
-		// Fallback for legacy chunks (account=""): find any adapter for that platform
-		for key, a := range s.allAdapters {
-			if len(key) > len(ref.Platform) && key[:len(ref.Platform)+1] == ref.Platform+":" {
-				return a
-			}
-		}
-		return nil
+		return s.resolveAdapterForUser(ctx, userID, ref.Platform, ref.Account)
 	}
 
-	engine := pipeline.NewPullEngine(s.db, s.progress, resolver)
+	engine := pipeline.NewPullEngine(s.db, s.progress, userID, resolver)
 
 	// Run the pipeline
-	if err := engine.Pull(r.Context(), req.Filename, req.Passphrase, outDir); err != nil {
+	if err := engine.Pull(ctx, req.Filename, req.Passphrase, outDir); err != nil {
 		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)
 		return
 	}

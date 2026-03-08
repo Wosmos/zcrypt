@@ -58,8 +58,17 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     if (!mounted) return;
     const resolved = resolveTheme(theme);
     setResolvedTheme(resolved);
+
+    // Enable smooth transition during theme switch
+    document.documentElement.classList.add("theme-transition");
     document.documentElement.classList.toggle("dark", resolved === "dark");
     document.documentElement.classList.toggle("light", resolved === "light");
+
+    // Remove transition class after animation completes
+    const timer = setTimeout(() => {
+      document.documentElement.classList.remove("theme-transition");
+    }, 450);
+    return () => clearTimeout(timer);
   }, [theme, mounted]);
 
   useEffect(() => {

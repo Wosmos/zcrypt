@@ -49,9 +49,9 @@ export interface ProgressEvent {
 }
 
 export interface AppConfig {
-  has_github_token: boolean;
   default_platform: string;
   thresholds: Record<string, number>;
+  token_count: number;
 }
 
 export type UploadStatus = "queued" | "sending" | "compressing" | "encrypting" | "uploading" | "paused" | "done" | "failed";
@@ -82,12 +82,57 @@ export interface FileMetadataWithStatus extends FileMetadata {
   status: string;
 }
 
+export enum Role {
+  User = "user",
+  Admin = "admin",
+}
+
 export interface AuthUser {
   id: string;
   email: string;
   username: string;
+  role: Role;
   email_verified: boolean;
   totp_enabled: boolean;
   created_at: string;
   updated_at: string;
+}
+
+// Admin types
+export interface AdminUser {
+  id: string;
+  email: string;
+  username: string;
+  role: Role;
+  email_verified: boolean;
+  totp_enabled: boolean;
+  file_count: number;
+  total_size: number;
+  storage_quota: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SystemStats {
+  total_users: number;
+  total_files: number;
+  total_size: number;
+  total_repos: number;
+}
+
+export interface QuotaInfo {
+  used_bytes: number;
+  quota_bytes: number;
+  has_personal_key: boolean;
+  is_unlimited: boolean;
+}
+
+export interface PlatformTokenInfo {
+  id: string;
+  user_id: string;
+  username: string;
+  platform: string;
+  is_global: boolean;
+  owner_email: string;
+  created_at: string;
 }

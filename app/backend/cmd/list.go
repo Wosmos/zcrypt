@@ -8,12 +8,14 @@ import (
 	"github.com/zpush/zpush/types"
 )
 
-// HandleListFiles returns all stored files.
+// HandleListFiles returns all stored files for the current user.
 // GET /api/files?filter=optional_search
 func (s *Server) HandleListFiles(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID := GetUserID(r)
 	filter := r.URL.Query().Get("filter")
 
-	files, err := s.db.ListFiles(filter)
+	files, err := s.db.ListFiles(ctx, userID, filter)
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)
 		return

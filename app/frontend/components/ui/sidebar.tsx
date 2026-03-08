@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useRef, useState } from "react";
+import { useRef, useState, useMemo } from "react";
 import {
   motion,
   useMotionValue,
@@ -11,6 +11,7 @@ import {
   type MotionValue,
 } from "framer-motion";
 import { cn, formatBytes } from "@/lib/utils";
+import { Role } from "@/types";
 import { useTheme } from "@/components/providers/theme-provider";
 import {
   Settings,
@@ -22,25 +23,34 @@ import {
   PanelLeftClose,
   PanelLeft,
   Database,
+  Users,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth";
 import { usePlatformStore } from "@/store/platform";
 import { logout as logoutApi } from "@/lib/auth-api";
 
-const links = [
+const baseLinks = [
   { href: "/dashboard", label: "Vault", icon: Shield },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
+const adminLink = { href: "/admin", label: "Admin", icon: Users };
+
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { resolvedTheme, toggleTheme } = useTheme();
-  const { refreshTokenValue, clearAuth } = useAuthStore();
+  const { user, refreshTokenValue, clearAuth } = useAuthStore();
   const [collapsed, setCollapsed] = useState(false);
   const repos = usePlatformStore((s) => s.repos);
+
+  const isAdmin = user?.role === Role.Admin;
+  const links = useMemo(
+    () => (isAdmin ? [...baseLinks, adminLink] : baseLinks),
+    [isAdmin]
+  );
 
   // Storage stats
   const totalUsed = repos.reduce((s, r) => s + r.used_bytes, 0);
@@ -115,21 +125,21 @@ export function Sidebar() {
           })}
         </nav>
 
-        {/* Storage progress bar */}
-        {totalMax > 0 && (
-          <div className={cn("px-4 pb-3", collapsed && "px-2")}>
-            {!collapsed ? (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-1.5 text-[10px] text-[var(--color-text-muted)]">
-                    <Database className="h-3 w-3" />
-                    Storage
-                  </span>
-                  <span className="text-[10px] tabular-nums text-[var(--color-text-muted)]">
-                    {storagePercent.toFixed(0)}%
-                  </span>
-                </div>
-                <div className="h-1.5 rounded-full bg-[var(--color-surface-2)] dark:bg-white/10 overflow-hidden">
+        {/* Storage progress bar — always visible */}
+        <div className={cn("px-4 pb-3", collapsed && "px-2")}>
+          {!collapsed ? (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-[10px] text-[var(--color-text-muted)]">
+                  <Database className="h-3 w-3" />
+                  Storage
+                </span>
+                <span className="text-[10px] tabular-nums text-[var(--color-text-muted)]">
+                  {totalMax > 0 ? `${storagePercent.toFixed(0)}%` : "\u2014"}
+                </span>
+              </div>
+              <div className="h-1.5 rounded-full bg-[var(--color-surface-2)] dark:bg-white/10 overflow-hidden">
+                {totalMax > 0 && (
                   <div
                     className={cn(
                       "h-full rounded-full transition-all duration-500",
@@ -137,14 +147,18 @@ export function Sidebar() {
                     )}
                     style={{ width: `${storagePercent}%` }}
                   />
-                </div>
-                <p className="text-[10px] tabular-nums text-[var(--color-text-muted)]">
-                  {formatBytes(totalUsed)} / {formatBytes(totalMax)}
-                </p>
+                )}
               </div>
-            ) : (
-              <div className="flex flex-col items-center" title={`${formatBytes(totalUsed)} / ${formatBytes(totalMax)}`}>
-                <div className="h-8 w-1.5 rounded-full bg-[var(--color-surface-2)] dark:bg-white/10 overflow-hidden rotate-180">
+              <p className="text-[10px] tabular-nums text-[var(--color-text-muted)]">
+                {totalMax > 0
+                  ? `${formatBytes(totalUsed)} / ${formatBytes(totalMax)}`
+                  : "No platform connected"}
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center" title={totalMax > 0 ? `${formatBytes(totalUsed)} / ${formatBytes(totalMax)}` : "No platform"}>
+              <div className="h-8 w-1.5 rounded-full bg-[var(--color-surface-2)] dark:bg-white/10 overflow-hidden rotate-180">
+                {totalMax > 0 && (
                   <div
                     className={cn(
                       "w-full rounded-full transition-all duration-500",
@@ -152,12 +166,12 @@ export function Sidebar() {
                     )}
                     style={{ height: `${storagePercent}%` }}
                   />
-                </div>
-                <Database className="h-3 w-3 text-[var(--color-text-muted)] mt-1" />
+                )}
               </div>
-            )}
-          </div>
-        )}
+              <Database className="h-3 w-3 text-[var(--color-text-muted)] mt-1" />
+            </div>
+          )}
+        </div>
 
         {/* Footer */}
         <div className={cn(
@@ -203,13 +217,18 @@ export function Sidebar() {
       </aside>
 
       {/* Mobile dock */}
-      <MobileDock pathname={pathname} onLogout={handleLogout} />
+      <MobileDock pathname={pathname} onLogout={handleLogout} isAdmin={isAdmin} />
     </>
   );
 }
 
-function MobileDock({ pathname, onLogout }: { pathname: string; onLogout: () => void }) {
+function MobileDock({ pathname, onLogout, isAdmin }: { pathname: string; onLogout: () => void; isAdmin: boolean }) {
   const mouseX = useMotionValue(Infinity);
+
+  const links = useMemo(
+    () => (isAdmin ? [...baseLinks, adminLink] : baseLinks),
+    [isAdmin]
+  );
 
   return (
     <motion.nav

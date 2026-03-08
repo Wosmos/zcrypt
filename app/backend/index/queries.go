@@ -1,21 +1,22 @@
 package index
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/zpush/zpush/types"
 )
 
 // InsertFile stores file metadata in the index.
-func (db *DB) InsertFile(f *types.FileMetadata) error {
+func (db *DB) InsertFile(ctx context.Context, userID string, f *types.FileMetadata) error {
 	status := f.Status
 	if status == "" {
 		status = "complete"
 	}
-	_, err := db.conn.Exec(
-		`INSERT INTO files (id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, status)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		f.ID, f.OriginalName, f.OriginalSize, f.CompressedSize, f.EncryptedSize,
+	_, err := db.pool.Exec(ctx,
+		`INSERT INTO files (id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, status)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+		f.ID, userID, f.OriginalName, f.OriginalSize, f.CompressedSize, f.EncryptedSize,
 		f.ChunkCount, f.SHA256, f.Salt, f.IV, status,
 	)
 	if err != nil {
@@ -25,11 +26,11 @@ func (db *DB) InsertFile(f *types.FileMetadata) error {
 }
 
 // InsertChunk stores a chunk reference in the index.
-func (db *DB) InsertChunk(c *types.ChunkRef) error {
-	_, err := db.conn.Exec(
-		`INSERT INTO chunks (chunk_id, file_id, idx, size, sha256, platform, account, repo, remote_path)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		c.ChunkID, c.FileID, c.Index, c.Size, c.SHA256, c.Platform, c.Account, c.Repo, c.RemotePath,
+func (db *DB) InsertChunk(ctx context.Context, userID string, c *types.ChunkRef) error {
+	_, err := db.pool.Exec(ctx,
+		`INSERT INTO chunks (chunk_id, file_id, user_id, idx, size, sha256, platform, account, repo, remote_path)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+		c.ChunkID, c.FileID, userID, c.Index, c.Size, c.SHA256, c.Platform, c.Account, c.Repo, c.RemotePath,
 	)
 	if err != nil {
 		return fmt.Errorf("insert chunk: %w", err)
@@ -37,15 +38,16 @@ func (db *DB) InsertChunk(c *types.ChunkRef) error {
 	return nil
 }
 
-// GetFile retrieves file metadata by original name (most recent complete upload).
-func (db *DB) GetFile(originalName string) (*types.FileMetadata, error) {
-	row := db.conn.QueryRow(
-		`SELECT id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, status, created_at
-		 FROM files WHERE original_name = ? AND status = 'complete' ORDER BY created_at DESC LIMIT 1`, originalName,
+// GetFile retrieves file metadata by original name for a user (most recent complete upload).
+func (db *DB) GetFile(ctx context.Context, userID, originalName string) (*types.FileMetadata, error) {
+	row := db.pool.QueryRow(ctx,
+		`SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, status, created_at
+		 FROM files WHERE user_id = $1 AND original_name = $2 AND status = 'complete' ORDER BY created_at DESC LIMIT 1`,
+		userID, originalName,
 	)
 
 	f := &types.FileMetadata{}
-	err := row.Scan(&f.ID, &f.OriginalName, &f.OriginalSize, &f.CompressedSize,
+	err := row.Scan(&f.ID, &f.UserID, &f.OriginalName, &f.OriginalSize, &f.CompressedSize,
 		&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.Salt, &f.IV, &f.Status, &f.CreatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("get file: %w", err)
@@ -53,15 +55,15 @@ func (db *DB) GetFile(originalName string) (*types.FileMetadata, error) {
 	return f, nil
 }
 
-// GetFileByID retrieves file metadata by ID.
-func (db *DB) GetFileByID(id string) (*types.FileMetadata, error) {
-	row := db.conn.QueryRow(
-		`SELECT id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, status, created_at
-		 FROM files WHERE id = ?`, id,
+// GetFileByID retrieves file metadata by ID, scoped to user.
+func (db *DB) GetFileByID(ctx context.Context, userID, id string) (*types.FileMetadata, error) {
+	row := db.pool.QueryRow(ctx,
+		`SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, status, created_at
+		 FROM files WHERE id = $1 AND user_id = $2`, id, userID,
 	)
 
 	f := &types.FileMetadata{}
-	err := row.Scan(&f.ID, &f.OriginalName, &f.OriginalSize, &f.CompressedSize,
+	err := row.Scan(&f.ID, &f.UserID, &f.OriginalName, &f.OriginalSize, &f.CompressedSize,
 		&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.Salt, &f.IV, &f.Status, &f.CreatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("get file by id: %w", err)
@@ -69,18 +71,19 @@ func (db *DB) GetFileByID(id string) (*types.FileMetadata, error) {
 	return f, nil
 }
 
-// ListFiles returns all stored files, optionally filtered by name substring.
-func (db *DB) ListFiles(filter string) ([]types.FileMetadata, error) {
-	query := `SELECT id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, status, created_at FROM files WHERE status = 'complete'`
-	var args []interface{}
+// ListFiles returns all stored files for a user, optionally filtered by name substring.
+func (db *DB) ListFiles(ctx context.Context, userID, filter string) ([]types.FileMetadata, error) {
+	query := `SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, status, created_at
+	          FROM files WHERE user_id = $1 AND status = 'complete'`
+	args := []interface{}{userID}
 
 	if filter != "" {
-		query += ` AND original_name LIKE ?`
+		query += ` AND original_name LIKE $2`
 		args = append(args, "%"+filter+"%")
 	}
 	query += ` ORDER BY created_at DESC`
 
-	rows, err := db.conn.Query(query, args...)
+	rows, err := db.pool.Query(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list files: %w", err)
 	}
@@ -89,7 +92,7 @@ func (db *DB) ListFiles(filter string) ([]types.FileMetadata, error) {
 	var files []types.FileMetadata
 	for rows.Next() {
 		var f types.FileMetadata
-		if err := rows.Scan(&f.ID, &f.OriginalName, &f.OriginalSize, &f.CompressedSize,
+		if err := rows.Scan(&f.ID, &f.UserID, &f.OriginalName, &f.OriginalSize, &f.CompressedSize,
 			&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.Salt, &f.IV, &f.Status, &f.CreatedAt); err != nil {
 			return nil, fmt.Errorf("scan file: %w", err)
 		}
@@ -98,11 +101,11 @@ func (db *DB) ListFiles(filter string) ([]types.FileMetadata, error) {
 	return files, nil
 }
 
-// GetChunksForFile returns all uploaded chunks belonging to a file, ordered by index.
-func (db *DB) GetChunksForFile(fileID string) ([]types.ChunkRef, error) {
-	rows, err := db.conn.Query(
-		`SELECT chunk_id, file_id, idx, size, sha256, platform, account, repo, remote_path
-		 FROM chunks WHERE file_id = ? AND remote_path != '' ORDER BY idx`, fileID,
+// GetChunksForFile returns all uploaded chunks belonging to a file.
+func (db *DB) GetChunksForFile(ctx context.Context, fileID string) ([]types.ChunkRef, error) {
+	rows, err := db.pool.Query(ctx,
+		`SELECT chunk_id, file_id, user_id, idx, size, sha256, platform, account, repo, remote_path
+		 FROM chunks WHERE file_id = $1 AND remote_path != '' ORDER BY idx`, fileID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("get chunks: %w", err)
@@ -112,7 +115,7 @@ func (db *DB) GetChunksForFile(fileID string) ([]types.ChunkRef, error) {
 	var chunks []types.ChunkRef
 	for rows.Next() {
 		var c types.ChunkRef
-		if err := rows.Scan(&c.ChunkID, &c.FileID, &c.Index, &c.Size, &c.SHA256,
+		if err := rows.Scan(&c.ChunkID, &c.FileID, &c.UserID, &c.Index, &c.Size, &c.SHA256,
 			&c.Platform, &c.Account, &c.Repo, &c.RemotePath); err != nil {
 			return nil, fmt.Errorf("scan chunk: %w", err)
 		}
@@ -121,35 +124,37 @@ func (db *DB) GetChunksForFile(fileID string) ([]types.ChunkRef, error) {
 	return chunks, nil
 }
 
-// DeleteFile removes a file from the index and queues its chunks for deferred GitHub deletion.
-func (db *DB) DeleteFile(fileID string) error {
-	tx, err := db.conn.Begin()
+// DeleteFile removes a file from the index and queues its chunks for deferred deletion.
+func (db *DB) DeleteFile(ctx context.Context, userID, fileID string) error {
+	tx, err := db.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
-	defer tx.Rollback()
+	defer tx.Rollback(ctx)
 
 	// Move chunks to pending_deletions before removing them
-	if _, err := tx.Exec(
-		`INSERT INTO pending_deletions (platform, account, repo, remote_path)
-		 SELECT platform, account, repo, remote_path FROM chunks WHERE file_id = ?`, fileID,
+	if _, err := tx.Exec(ctx,
+		`INSERT INTO pending_deletions (user_id, platform, account, repo, remote_path)
+		 SELECT user_id, platform, account, repo, remote_path FROM chunks WHERE file_id = $1 AND user_id = $2`,
+		fileID, userID,
 	); err != nil {
 		return fmt.Errorf("queue deletions: %w", err)
 	}
 
-	if _, err := tx.Exec(`DELETE FROM chunks WHERE file_id = ?`, fileID); err != nil {
+	if _, err := tx.Exec(ctx, `DELETE FROM chunks WHERE file_id = $1 AND user_id = $2`, fileID, userID); err != nil {
 		return fmt.Errorf("delete chunks: %w", err)
 	}
-	if _, err := tx.Exec(`DELETE FROM files WHERE id = ?`, fileID); err != nil {
+	if _, err := tx.Exec(ctx, `DELETE FROM files WHERE id = $1 AND user_id = $2`, fileID, userID); err != nil {
 		return fmt.Errorf("delete file: %w", err)
 	}
 
-	return tx.Commit()
+	return tx.Commit(ctx)
 }
 
 // PendingDeletion represents a chunk queued for remote deletion.
 type PendingDeletion struct {
 	ID         int64
+	UserID     string
 	Platform   string
 	Account    string
 	Repo       string
@@ -158,10 +163,10 @@ type PendingDeletion struct {
 }
 
 // GetPendingDeletions returns up to `limit` pending deletions with fewer than maxAttempts.
-func (db *DB) GetPendingDeletions(limit, maxAttempts int) ([]PendingDeletion, error) {
-	rows, err := db.conn.Query(
-		`SELECT id, platform, account, repo, remote_path, attempts
-		 FROM pending_deletions WHERE attempts < ? ORDER BY created_at ASC LIMIT ?`,
+func (db *DB) GetPendingDeletions(ctx context.Context, limit, maxAttempts int) ([]PendingDeletion, error) {
+	rows, err := db.pool.Query(ctx,
+		`SELECT id, user_id, platform, account, repo, remote_path, attempts
+		 FROM pending_deletions WHERE attempts < $1 ORDER BY created_at ASC LIMIT $2`,
 		maxAttempts, limit,
 	)
 	if err != nil {
@@ -172,7 +177,7 @@ func (db *DB) GetPendingDeletions(limit, maxAttempts int) ([]PendingDeletion, er
 	var items []PendingDeletion
 	for rows.Next() {
 		var d PendingDeletion
-		if err := rows.Scan(&d.ID, &d.Platform, &d.Account, &d.Repo, &d.RemotePath, &d.Attempts); err != nil {
+		if err := rows.Scan(&d.ID, &d.UserID, &d.Platform, &d.Account, &d.Repo, &d.RemotePath, &d.Attempts); err != nil {
 			return nil, fmt.Errorf("scan pending deletion: %w", err)
 		}
 		items = append(items, d)
@@ -181,33 +186,33 @@ func (db *DB) GetPendingDeletions(limit, maxAttempts int) ([]PendingDeletion, er
 }
 
 // MarkDeletionDone removes a completed deletion from the queue.
-func (db *DB) MarkDeletionDone(id int64) error {
-	_, err := db.conn.Exec(`DELETE FROM pending_deletions WHERE id = ?`, id)
+func (db *DB) MarkDeletionDone(ctx context.Context, id int64) error {
+	_, err := db.pool.Exec(ctx, `DELETE FROM pending_deletions WHERE id = $1`, id)
 	return err
 }
 
 // MarkDeletionFailed increments the attempt count and records the error.
-func (db *DB) MarkDeletionFailed(id int64, errMsg string) error {
-	_, err := db.conn.Exec(
-		`UPDATE pending_deletions SET attempts = attempts + 1, last_error = ? WHERE id = ?`,
+func (db *DB) MarkDeletionFailed(ctx context.Context, id int64, errMsg string) error {
+	_, err := db.pool.Exec(ctx,
+		`UPDATE pending_deletions SET attempts = attempts + 1, last_error = $1 WHERE id = $2`,
 		errMsg, id,
 	)
 	return err
 }
 
 // PendingDeletionCount returns how many deletions are queued.
-func (db *DB) PendingDeletionCount() (int, error) {
+func (db *DB) PendingDeletionCount(ctx context.Context) (int, error) {
 	var count int
-	err := db.conn.QueryRow(`SELECT COUNT(*) FROM pending_deletions`).Scan(&count)
+	err := db.pool.QueryRow(ctx, `SELECT COUNT(*) FROM pending_deletions`).Scan(&count)
 	return count, err
 }
 
 // InsertRepo adds a repo to the pool.
-func (db *DB) InsertRepo(r *types.RepoInfo) error {
-	_, err := db.conn.Exec(
-		`INSERT INTO repos (id, platform, account, name, url, used_bytes, max_bytes, active)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		r.ID, r.Platform, r.Account, r.Name, r.URL, r.UsedBytes, r.MaxBytes, boolToInt(r.Active),
+func (db *DB) InsertRepo(ctx context.Context, userID string, r *types.RepoInfo) error {
+	_, err := db.pool.Exec(ctx,
+		`INSERT INTO repos (id, user_id, platform, account, name, url, used_bytes, max_bytes, active)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+		r.ID, userID, r.Platform, r.Account, r.Name, r.URL, r.UsedBytes, r.MaxBytes, r.Active,
 	)
 	if err != nil {
 		return fmt.Errorf("insert repo: %w", err)
@@ -215,26 +220,25 @@ func (db *DB) InsertRepo(r *types.RepoInfo) error {
 	return nil
 }
 
-// GetActiveRepo returns the current active repo for a platform and account.
-func (db *DB) GetActiveRepo(platform, account string) (*types.RepoInfo, error) {
-	row := db.conn.QueryRow(
-		`SELECT id, platform, account, name, url, used_bytes, max_bytes, active
-		 FROM repos WHERE platform = ? AND account = ? AND active = 1 LIMIT 1`, platform, account,
+// GetActiveRepo returns the current active repo for a platform and account for a user.
+func (db *DB) GetActiveRepo(ctx context.Context, userID, platform, account string) (*types.RepoInfo, error) {
+	row := db.pool.QueryRow(ctx,
+		`SELECT id, user_id, platform, account, name, url, used_bytes, max_bytes, active
+		 FROM repos WHERE user_id = $1 AND platform = $2 AND account = $3 AND active = TRUE LIMIT 1`,
+		userID, platform, account,
 	)
 
 	r := &types.RepoInfo{}
-	var active int
-	err := row.Scan(&r.ID, &r.Platform, &r.Account, &r.Name, &r.URL, &r.UsedBytes, &r.MaxBytes, &active)
+	err := row.Scan(&r.ID, &r.UserID, &r.Platform, &r.Account, &r.Name, &r.URL, &r.UsedBytes, &r.MaxBytes, &r.Active)
 	if err != nil {
 		return nil, fmt.Errorf("get active repo: %w", err)
 	}
-	r.Active = active == 1
 	return r, nil
 }
 
 // UpdateRepoUsage updates the used_bytes for a repo.
-func (db *DB) UpdateRepoUsage(repoID string, usedBytes int64) error {
-	_, err := db.conn.Exec(`UPDATE repos SET used_bytes = ? WHERE id = ?`, usedBytes, repoID)
+func (db *DB) UpdateRepoUsage(ctx context.Context, repoID string, usedBytes int64) error {
+	_, err := db.pool.Exec(ctx, `UPDATE repos SET used_bytes = $1 WHERE id = $2`, usedBytes, repoID)
 	if err != nil {
 		return fmt.Errorf("update repo usage: %w", err)
 	}
@@ -242,25 +246,25 @@ func (db *DB) UpdateRepoUsage(repoID string, usedBytes int64) error {
 }
 
 // DeactivateRepo marks a repo as inactive (full).
-func (db *DB) DeactivateRepo(repoID string) error {
-	_, err := db.conn.Exec(`UPDATE repos SET active = 0 WHERE id = ?`, repoID)
+func (db *DB) DeactivateRepo(ctx context.Context, repoID string) error {
+	_, err := db.pool.Exec(ctx, `UPDATE repos SET active = FALSE WHERE id = $1`, repoID)
 	if err != nil {
 		return fmt.Errorf("deactivate repo: %w", err)
 	}
 	return nil
 }
 
-// ListRepos returns all repos, optionally filtered by platform.
-func (db *DB) ListRepos(platform string) ([]types.RepoInfo, error) {
-	query := `SELECT id, platform, account, name, url, used_bytes, max_bytes, active FROM repos`
-	var args []interface{}
+// ListRepos returns all repos for a user, optionally filtered by platform.
+func (db *DB) ListRepos(ctx context.Context, userID, platform string) ([]types.RepoInfo, error) {
+	query := `SELECT id, user_id, platform, account, name, url, used_bytes, max_bytes, active FROM repos WHERE user_id = $1`
+	args := []interface{}{userID}
 	if platform != "" {
-		query += ` WHERE platform = ?`
+		query += ` AND platform = $2`
 		args = append(args, platform)
 	}
 	query += ` ORDER BY active DESC, name`
 
-	rows, err := db.conn.Query(query, args...)
+	rows, err := db.pool.Query(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list repos: %w", err)
 	}
@@ -269,19 +273,17 @@ func (db *DB) ListRepos(platform string) ([]types.RepoInfo, error) {
 	var repos []types.RepoInfo
 	for rows.Next() {
 		var r types.RepoInfo
-		var active int
-		if err := rows.Scan(&r.ID, &r.Platform, &r.Account, &r.Name, &r.URL, &r.UsedBytes, &r.MaxBytes, &active); err != nil {
+		if err := rows.Scan(&r.ID, &r.UserID, &r.Platform, &r.Account, &r.Name, &r.URL, &r.UsedBytes, &r.MaxBytes, &r.Active); err != nil {
 			return nil, fmt.Errorf("scan repo: %w", err)
 		}
-		r.Active = active == 1
 		repos = append(repos, r)
 	}
 	return repos, nil
 }
 
 // UpdateFileStatus updates the status of a file ('uploading' or 'complete').
-func (db *DB) UpdateFileStatus(fileID, status string) error {
-	_, err := db.conn.Exec(`UPDATE files SET status = ? WHERE id = ?`, status, fileID)
+func (db *DB) UpdateFileStatus(ctx context.Context, fileID, status string) error {
+	_, err := db.pool.Exec(ctx, `UPDATE files SET status = $1 WHERE id = $2`, status, fileID)
 	if err != nil {
 		return fmt.Errorf("update file status: %w", err)
 	}
@@ -289,9 +291,9 @@ func (db *DB) UpdateFileStatus(fileID, status string) error {
 }
 
 // ListIncompleteFiles returns all files with status='uploading'.
-func (db *DB) ListIncompleteFiles() ([]types.FileMetadata, error) {
-	rows, err := db.conn.Query(
-		`SELECT id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, status, created_at
+func (db *DB) ListIncompleteFiles(ctx context.Context) ([]types.FileMetadata, error) {
+	rows, err := db.pool.Query(ctx,
+		`SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, status, created_at
 		 FROM files WHERE status = 'uploading' ORDER BY created_at DESC`,
 	)
 	if err != nil {
@@ -302,7 +304,7 @@ func (db *DB) ListIncompleteFiles() ([]types.FileMetadata, error) {
 	var files []types.FileMetadata
 	for rows.Next() {
 		var f types.FileMetadata
-		if err := rows.Scan(&f.ID, &f.OriginalName, &f.OriginalSize, &f.CompressedSize,
+		if err := rows.Scan(&f.ID, &f.UserID, &f.OriginalName, &f.OriginalSize, &f.CompressedSize,
 			&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.Salt, &f.IV, &f.Status, &f.CreatedAt); err != nil {
 			return nil, fmt.Errorf("scan incomplete file: %w", err)
 		}
@@ -312,8 +314,8 @@ func (db *DB) ListIncompleteFiles() ([]types.FileMetadata, error) {
 }
 
 // UpdateChunkRemotePath sets the remote_path for a chunk after successful upload.
-func (db *DB) UpdateChunkRemotePath(chunkID, remotePath string) error {
-	_, err := db.conn.Exec(`UPDATE chunks SET remote_path = ? WHERE chunk_id = ?`, remotePath, chunkID)
+func (db *DB) UpdateChunkRemotePath(ctx context.Context, chunkID, remotePath string) error {
+	_, err := db.pool.Exec(ctx, `UPDATE chunks SET remote_path = $1 WHERE chunk_id = $2`, remotePath, chunkID)
 	if err != nil {
 		return fmt.Errorf("update chunk remote path: %w", err)
 	}
@@ -321,10 +323,10 @@ func (db *DB) UpdateChunkRemotePath(chunkID, remotePath string) error {
 }
 
 // GetPendingChunksForFile returns chunks with empty remote_path (not yet uploaded).
-func (db *DB) GetPendingChunksForFile(fileID string) ([]types.ChunkRef, error) {
-	rows, err := db.conn.Query(
-		`SELECT chunk_id, file_id, idx, size, sha256, platform, account, repo, remote_path
-		 FROM chunks WHERE file_id = ? AND remote_path = '' ORDER BY idx`, fileID,
+func (db *DB) GetPendingChunksForFile(ctx context.Context, fileID string) ([]types.ChunkRef, error) {
+	rows, err := db.pool.Query(ctx,
+		`SELECT chunk_id, file_id, user_id, idx, size, sha256, platform, account, repo, remote_path
+		 FROM chunks WHERE file_id = $1 AND remote_path = '' ORDER BY idx`, fileID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("get pending chunks: %w", err)
@@ -334,18 +336,11 @@ func (db *DB) GetPendingChunksForFile(fileID string) ([]types.ChunkRef, error) {
 	var chunks []types.ChunkRef
 	for rows.Next() {
 		var c types.ChunkRef
-		if err := rows.Scan(&c.ChunkID, &c.FileID, &c.Index, &c.Size, &c.SHA256,
+		if err := rows.Scan(&c.ChunkID, &c.FileID, &c.UserID, &c.Index, &c.Size, &c.SHA256,
 			&c.Platform, &c.Account, &c.Repo, &c.RemotePath); err != nil {
 			return nil, fmt.Errorf("scan pending chunk: %w", err)
 		}
 		chunks = append(chunks, c)
 	}
 	return chunks, nil
-}
-
-func boolToInt(b bool) int {
-	if b {
-		return 1
-	}
-	return 0
 }

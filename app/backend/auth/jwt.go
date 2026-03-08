@@ -18,6 +18,7 @@ type Claims struct {
 	Sub      string `json:"sub"`
 	Email    string `json:"email"`
 	Username string `json:"username"`
+	Role     string `json:"role"`
 	Exp      int64  `json:"exp"`
 	Iat      int64  `json:"iat"`
 }
@@ -43,12 +44,13 @@ func b64Decode(s string) ([]byte, error) {
 }
 
 // GenerateAccessToken creates a signed HS256 JWT.
-func GenerateAccessToken(secret, userID, email, username string) (string, error) {
+func GenerateAccessToken(secret, userID, email, username, role string) (string, error) {
 	now := time.Now()
 	claims := Claims{
 		Sub:      userID,
 		Email:    email,
 		Username: username,
+		Role:     role,
 		Exp:      now.Add(AccessTokenDuration).Unix(),
 		Iat:      now.Unix(),
 	}

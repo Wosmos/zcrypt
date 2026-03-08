@@ -164,7 +164,7 @@ export function useFilePreview() {
     fileSize: number;
   }>({ open: false, blob: null, filename: "", fileSize: 0 });
 
-  const openPreview = useCallback((blob: Blob, filename: string, fileSize: number) => {
+  const openPreview = useCallback((blob: Blob | null, filename: string, fileSize: number) => {
     setState({ open: true, blob, filename, fileSize });
   }, []);
 

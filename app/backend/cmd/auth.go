@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"regexp"
 	"strings"
@@ -31,6 +32,10 @@ func (s *Server) smtpCfg() *auth.SMTPConfig {
 }
 
 func (s *Server) baseURL(r *http.Request) string {
+	// Prefer configured frontend URL for email links
+	if s.cfg.FrontendURL != "" {
+		return strings.TrimRight(s.cfg.FrontendURL, "/")
+	}
 	scheme := "http"
 	if r.TLS != nil {
 		scheme = "https"
@@ -56,6 +61,8 @@ func writeJSON(w http.ResponseWriter, status int, v interface{}) {
 
 // HandleRegister creates a new user account.
 func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	var req struct {
 		Email    string `json:"email"`
 		Username string `json:"username"`
@@ -83,11 +90,11 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check uniqueness
-	if existing, _ := s.db.GetUserByEmail(req.Email); existing != nil {
+	if existing, _ := s.db.GetUserByEmail(ctx, req.Email); existing != nil {
 		http.Error(w, `{"error":"email already registered"}`, http.StatusConflict)
 		return
 	}
-	if existing, _ := s.db.GetUserByUsername(req.Username); existing != nil {
+	if existing, _ := s.db.GetUserByUsername(ctx, req.Username); existing != nil {
 		http.Error(w, `{"error":"username already taken"}`, http.StatusConflict)
 		return
 	}
@@ -98,11 +105,18 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// First user becomes admin; if we can't check, default to regular user
+	role := types.RoleUser
+	if userCount, err := s.db.GetUserCount(ctx); err == nil && userCount == 0 {
+		role = types.RoleAdmin
+	}
+
 	user := &types.User{
 		ID:           uuid.New().String(),
 		Email:        req.Email,
 		Username:     req.Username,
 		PasswordHash: hash,
+		Role:         role,
 	}
 
 	// Auto-verify if SMTP not configured
@@ -110,7 +124,7 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		user.EmailVerified = true
 	}
 
-	if err := s.db.CreateUser(user); err != nil {
+	if err := s.db.CreateUser(ctx, user); err != nil {
 		http.Error(w, fmt.Sprintf(`{"error":"create user: %s"}`, err), http.StatusInternalServerError)
 		return
 	}
@@ -118,15 +132,17 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	// Send verification email if SMTP configured
 	if s.cfg.SMTP != nil {
 		token, _ := auth.GenerateRandomToken()
-		s.db.DeleteEmailTokensByUser(user.ID, "verify")
-		s.db.InsertEmailToken(&types.EmailToken{
+		s.db.DeleteEmailTokensByUser(ctx, user.ID, "verify")
+		s.db.InsertEmailToken(ctx, &types.EmailToken{
 			ID:        uuid.New().String(),
 			UserID:    user.ID,
 			TokenHash: auth.HashToken(token),
 			Kind:      "verify",
 			ExpiresAt: time.Now().Add(24 * time.Hour),
 		})
-		auth.SendVerificationEmail(s.smtpCfg(), req.Email, token, s.baseURL(r))
+		if err := auth.SendVerificationEmail(s.smtpCfg(), req.Email, token, s.baseURL(r)); err != nil {
+			log.Printf("send verification email to %s: %v", req.Email, err)
+		}
 	}
 
 	writeJSON(w, http.StatusCreated, map[string]interface{}{
@@ -138,6 +154,8 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 
 // HandleLogin authenticates a user with email and password.
 func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	var req struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
@@ -149,14 +167,14 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 
 	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
 
-	user, err := s.db.GetUserByEmail(req.Email)
+	user, err := s.db.GetUserByEmail(ctx, req.Email)
 	if err != nil {
-		http.Error(w, `{"error":"invalid email or password"}`, http.StatusUnauthorized)
+		http.Error(w, `{"error":"no account found with that email"}`, http.StatusUnauthorized)
 		return
 	}
 
 	if err := auth.CheckPassword(req.Password, user.PasswordHash); err != nil {
-		http.Error(w, `{"error":"invalid email or password"}`, http.StatusUnauthorized)
+		http.Error(w, `{"error":"incorrect password"}`, http.StatusUnauthorized)
 		return
 	}
 
@@ -174,11 +192,13 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.issueTokens(w, user)
+	s.issueTokens(w, r, user)
 }
 
 // HandleRefreshToken exchanges a refresh token for a new access token.
 func (s *Server) HandleRefreshToken(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	var req struct {
 		RefreshToken string `json:"refresh_token"`
 	}
@@ -188,31 +208,33 @@ func (s *Server) HandleRefreshToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	hash := auth.HashToken(req.RefreshToken)
-	rt, err := s.db.GetRefreshTokenByHash(hash)
+	rt, err := s.db.GetRefreshTokenByHash(ctx, hash)
 	if err != nil {
 		http.Error(w, `{"error":"invalid refresh token"}`, http.StatusUnauthorized)
 		return
 	}
 
 	if time.Now().After(rt.ExpiresAt) {
-		s.db.DeleteRefreshToken(rt.ID)
+		s.db.DeleteRefreshToken(ctx, rt.ID)
 		http.Error(w, `{"error":"refresh token expired"}`, http.StatusUnauthorized)
 		return
 	}
 
-	user, err := s.db.GetUserByID(rt.UserID)
+	user, err := s.db.GetUserByID(ctx, rt.UserID)
 	if err != nil {
 		http.Error(w, `{"error":"user not found"}`, http.StatusUnauthorized)
 		return
 	}
 
 	// Rotate refresh token
-	s.db.DeleteRefreshToken(rt.ID)
-	s.issueTokens(w, user)
+	s.db.DeleteRefreshToken(ctx, rt.ID)
+	s.issueTokens(w, r, user)
 }
 
 // HandleLogout invalidates the refresh token.
 func (s *Server) HandleLogout(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	var req struct {
 		RefreshToken string `json:"refresh_token"`
 	}
@@ -222,9 +244,9 @@ func (s *Server) HandleLogout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	hash := auth.HashToken(req.RefreshToken)
-	rt, err := s.db.GetRefreshTokenByHash(hash)
+	rt, err := s.db.GetRefreshTokenByHash(ctx, hash)
 	if err == nil {
-		s.db.DeleteRefreshToken(rt.ID)
+		s.db.DeleteRefreshToken(ctx, rt.ID)
 	}
 
 	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
@@ -232,6 +254,8 @@ func (s *Server) HandleLogout(w http.ResponseWriter, r *http.Request) {
 
 // HandleForgotPassword sends a password reset email.
 func (s *Server) HandleForgotPassword(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	var req struct {
 		Email string `json:"email"`
 	}
@@ -240,32 +264,44 @@ func (s *Server) HandleForgotPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Always return success to prevent email enumeration
-	defer writeJSON(w, http.StatusOK, map[string]interface{}{
-		"success": true,
-		"message": "if that email exists, a reset link has been sent",
-	})
-
 	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
-	user, err := s.db.GetUserByEmail(req.Email)
+	user, err := s.db.GetUserByEmail(ctx, req.Email)
 	if err != nil || user == nil {
+		http.Error(w, `{"error":"no account found with that email"}`, http.StatusNotFound)
+		return
+	}
+
+	if s.cfg.SMTP == nil {
+		http.Error(w, `{"error":"email sending is not configured on this server"}`, http.StatusServiceUnavailable)
 		return
 	}
 
 	token, _ := auth.GenerateRandomToken()
-	s.db.DeleteEmailTokensByUser(user.ID, "reset")
-	s.db.InsertEmailToken(&types.EmailToken{
+	s.db.DeleteEmailTokensByUser(ctx, user.ID, "reset")
+	s.db.InsertEmailToken(ctx, &types.EmailToken{
 		ID:        uuid.New().String(),
 		UserID:    user.ID,
 		TokenHash: auth.HashToken(token),
 		Kind:      "reset",
 		ExpiresAt: time.Now().Add(1 * time.Hour),
 	})
-	auth.SendPasswordResetEmail(s.smtpCfg(), req.Email, token, s.baseURL(r))
+
+	if err := auth.SendPasswordResetEmail(s.smtpCfg(), req.Email, token, s.baseURL(r)); err != nil {
+		log.Printf("send password reset email to %s: %v", req.Email, err)
+		http.Error(w, `{"error":"failed to send reset email"}`, http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"success": true,
+		"message": "password reset link sent to your email",
+	})
 }
 
 // HandleResetPassword resets a user's password using a token.
 func (s *Server) HandleResetPassword(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	var req struct {
 		Token       string `json:"token"`
 		NewPassword string `json:"new_password"`
@@ -281,14 +317,14 @@ func (s *Server) HandleResetPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	hash := auth.HashToken(req.Token)
-	et, err := s.db.GetEmailTokenByHash(hash)
+	et, err := s.db.GetEmailTokenByHash(ctx, hash)
 	if err != nil || et.Kind != "reset" {
 		http.Error(w, `{"error":"invalid or expired reset token"}`, http.StatusBadRequest)
 		return
 	}
 
 	if time.Now().After(et.ExpiresAt) {
-		s.db.DeleteEmailToken(et.ID)
+		s.db.DeleteEmailToken(ctx, et.ID)
 		http.Error(w, `{"error":"reset token expired"}`, http.StatusBadRequest)
 		return
 	}
@@ -299,15 +335,17 @@ func (s *Server) HandleResetPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.db.UpdateUserPassword(et.UserID, passwordHash)
-	s.db.DeleteEmailToken(et.ID)
-	s.db.DeleteRefreshTokensByUser(et.UserID) // force re-login everywhere
+	s.db.UpdateUserPassword(ctx, et.UserID, passwordHash)
+	s.db.DeleteEmailToken(ctx, et.ID)
+	s.db.DeleteRefreshTokensByUser(ctx, et.UserID) // force re-login everywhere
 
 	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
 
 // HandleVerifyEmail verifies a user's email address.
 func (s *Server) HandleVerifyEmail(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	var req struct {
 		Token string `json:"token"`
 	}
@@ -317,26 +355,28 @@ func (s *Server) HandleVerifyEmail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	hash := auth.HashToken(req.Token)
-	et, err := s.db.GetEmailTokenByHash(hash)
+	et, err := s.db.GetEmailTokenByHash(ctx, hash)
 	if err != nil || et.Kind != "verify" {
 		http.Error(w, `{"error":"invalid or expired verification token"}`, http.StatusBadRequest)
 		return
 	}
 
 	if time.Now().After(et.ExpiresAt) {
-		s.db.DeleteEmailToken(et.ID)
+		s.db.DeleteEmailToken(ctx, et.ID)
 		http.Error(w, `{"error":"verification token expired"}`, http.StatusBadRequest)
 		return
 	}
 
-	s.db.SetEmailVerified(et.UserID)
-	s.db.DeleteEmailToken(et.ID)
+	s.db.SetEmailVerified(ctx, et.UserID)
+	s.db.DeleteEmailToken(ctx, et.ID)
 
 	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
 
 // HandleResendVerification resends the email verification link.
 func (s *Server) HandleResendVerification(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	var req struct {
 		Email string `json:"email"`
 	}
@@ -346,28 +386,38 @@ func (s *Server) HandleResendVerification(w http.ResponseWriter, r *http.Request
 	}
 
 	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
-	user, err := s.db.GetUserByEmail(req.Email)
-	if err != nil || user.EmailVerified {
-		writeJSON(w, http.StatusOK, map[string]bool{"success": true})
+	user, err := s.db.GetUserByEmail(ctx, req.Email)
+	if err != nil {
+		http.Error(w, `{"error":"no account found with that email"}`, http.StatusNotFound)
+		return
+	}
+	if user.EmailVerified {
+		http.Error(w, `{"error":"email is already verified"}`, http.StatusBadRequest)
 		return
 	}
 
 	token, _ := auth.GenerateRandomToken()
-	s.db.DeleteEmailTokensByUser(user.ID, "verify")
-	s.db.InsertEmailToken(&types.EmailToken{
+	s.db.DeleteEmailTokensByUser(ctx, user.ID, "verify")
+	s.db.InsertEmailToken(ctx, &types.EmailToken{
 		ID:        uuid.New().String(),
 		UserID:    user.ID,
 		TokenHash: auth.HashToken(token),
 		Kind:      "verify",
 		ExpiresAt: time.Now().Add(24 * time.Hour),
 	})
-	auth.SendVerificationEmail(s.smtpCfg(), req.Email, token, s.baseURL(r))
+
+	if err := auth.SendVerificationEmail(s.smtpCfg(), req.Email, token, s.baseURL(r)); err != nil {
+		log.Printf("resend verification email to %s: %v", req.Email, err)
+		http.Error(w, `{"error":"failed to send verification email"}`, http.StatusInternalServerError)
+		return
+	}
 
 	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
 
 // Handle2FASetup generates a TOTP secret for the user.
 func (s *Server) Handle2FASetup(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	claims := GetUserClaims(r)
 	if claims == nil {
 		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
@@ -380,7 +430,7 @@ func (s *Server) Handle2FASetup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.db.SetTOTPSecret(claims.Sub, secret); err != nil {
+	if err := s.db.SetTOTPSecret(ctx, claims.Sub, secret); err != nil {
 		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
 		return
 	}
@@ -395,6 +445,7 @@ func (s *Server) Handle2FASetup(w http.ResponseWriter, r *http.Request) {
 
 // Handle2FAEnable validates a TOTP code and enables 2FA.
 func (s *Server) Handle2FAEnable(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	claims := GetUserClaims(r)
 	if claims == nil {
 		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
@@ -409,7 +460,7 @@ func (s *Server) Handle2FAEnable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := s.db.GetUserByID(claims.Sub)
+	user, err := s.db.GetUserByID(ctx, claims.Sub)
 	if err != nil {
 		http.Error(w, `{"error":"user not found"}`, http.StatusNotFound)
 		return
@@ -425,7 +476,7 @@ func (s *Server) Handle2FAEnable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.db.EnableTOTP(user.ID); err != nil {
+	if err := s.db.EnableTOTP(ctx, user.ID); err != nil {
 		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
 		return
 	}
@@ -435,6 +486,8 @@ func (s *Server) Handle2FAEnable(w http.ResponseWriter, r *http.Request) {
 
 // Handle2FAVerify validates a TOTP code during login (after password was correct).
 func (s *Server) Handle2FAVerify(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	var req struct {
 		TempToken string `json:"temp_token"`
 		Code      string `json:"code"`
@@ -450,7 +503,7 @@ func (s *Server) Handle2FAVerify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := s.db.GetUserByID(claims.Sub)
+	user, err := s.db.GetUserByID(ctx, claims.Sub)
 	if err != nil {
 		http.Error(w, `{"error":"user not found"}`, http.StatusNotFound)
 		return
@@ -461,11 +514,12 @@ func (s *Server) Handle2FAVerify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.issueTokens(w, user)
+	s.issueTokens(w, r, user)
 }
 
 // Handle2FADisable turns off 2FA after verifying password and current code.
 func (s *Server) Handle2FADisable(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	claims := GetUserClaims(r)
 	if claims == nil {
 		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
@@ -481,7 +535,7 @@ func (s *Server) Handle2FADisable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := s.db.GetUserByID(claims.Sub)
+	user, err := s.db.GetUserByID(ctx, claims.Sub)
 	if err != nil {
 		http.Error(w, `{"error":"user not found"}`, http.StatusNotFound)
 		return
@@ -497,7 +551,7 @@ func (s *Server) Handle2FADisable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.db.DisableTOTP(user.ID); err != nil {
+	if err := s.db.DisableTOTP(ctx, user.ID); err != nil {
 		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
 		return
 	}
@@ -513,7 +567,7 @@ func (s *Server) HandleGetMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := s.db.GetUserByID(claims.Sub)
+	user, err := s.db.GetUserByID(r.Context(), claims.Sub)
 	if err != nil {
 		http.Error(w, `{"error":"user not found"}`, http.StatusNotFound)
 		return
@@ -523,8 +577,10 @@ func (s *Server) HandleGetMe(w http.ResponseWriter, r *http.Request) {
 }
 
 // issueTokens generates JWT + refresh token and writes them as JSON response.
-func (s *Server) issueTokens(w http.ResponseWriter, user *types.User) {
-	accessToken, err := auth.GenerateAccessToken(s.cfg.JWTSecret, user.ID, user.Email, user.Username)
+func (s *Server) issueTokens(w http.ResponseWriter, r *http.Request, user *types.User) {
+	ctx := r.Context()
+
+	accessToken, err := auth.GenerateAccessToken(s.cfg.JWTSecret, user.ID, user.Email, user.Username, user.Role.String())
 	if err != nil {
 		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
 		return
@@ -536,7 +592,7 @@ func (s *Server) issueTokens(w http.ResponseWriter, user *types.User) {
 		return
 	}
 
-	s.db.InsertRefreshToken(&types.RefreshToken{
+	s.db.InsertRefreshToken(ctx, &types.RefreshToken{
 		ID:        uuid.New().String(),
 		UserID:    user.ID,
 		TokenHash: auth.HashToken(refreshToken),

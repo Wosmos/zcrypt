@@ -1,114 +1,59 @@
 package index
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
 
-	_ "modernc.org/sqlite"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// DB wraps the SQLite connection.
+// DB wraps the PostgreSQL connection pool.
 type DB struct {
-	conn *sql.DB
+	pool *pgxpool.Pool
 }
 
-// Open opens (or creates) the SQLite database at the given path and runs migrations.
-func Open(dbPath string) (*DB, error) {
-	dir := filepath.Dir(dbPath)
-	if err := os.MkdirAll(dir, 0700); err != nil {
-		return nil, fmt.Errorf("create db directory: %w", err)
-	}
-
-	conn, err := sql.Open("sqlite", dbPath+"?_journal_mode=WAL&_busy_timeout=5000")
+// Open connects to PostgreSQL and runs migrations.
+func Open(databaseURL string) (*DB, error) {
+	config, err := pgxpool.ParseConfig(databaseURL)
 	if err != nil {
-		return nil, fmt.Errorf("open database: %w", err)
+		return nil, fmt.Errorf("parse database url: %w", err)
+	}
+	config.MaxConns = 10
+
+	pool, err := pgxpool.New(context.Background(), config.ConnString())
+	if err != nil {
+		return nil, fmt.Errorf("connect to database: %w", err)
 	}
 
-	conn.SetMaxOpenConns(1) // serialize writes
-
-	if _, err := conn.Exec("PRAGMA foreign_keys = ON"); err != nil {
-		conn.Close()
-		return nil, fmt.Errorf("enable foreign keys: %w", err)
+	if err := pool.Ping(context.Background()); err != nil {
+		pool.Close()
+		return nil, fmt.Errorf("ping database: %w", err)
 	}
 
-	if _, err := conn.Exec(schemaSQL); err != nil {
-		conn.Close()
-		return nil, fmt.Errorf("run migrations: %w", err)
-	}
-
-	db := &DB{conn: conn}
-	if err := db.runMigrations(); err != nil {
-		conn.Close()
+	db := &DB{pool: pool}
+	if err := db.runMigrations(context.Background()); err != nil {
+		pool.Close()
 		return nil, fmt.Errorf("run migrations: %w", err)
 	}
 
 	return db, nil
 }
 
-// runMigrations applies incremental schema changes using PRAGMA user_version.
-func (db *DB) runMigrations() error {
-	var version int
-	if err := db.conn.QueryRow("PRAGMA user_version").Scan(&version); err != nil {
-		return fmt.Errorf("get user_version: %w", err)
+// runMigrations creates tables if they don't exist.
+func (db *DB) runMigrations(ctx context.Context) error {
+	_, err := db.pool.Exec(ctx, schemaSQL)
+	if err != nil {
+		return fmt.Errorf("apply schema: %w", err)
 	}
-
-	if version < 1 {
-		// Add account column to chunks, repos, pending_deletions
-		stmts := []string{
-			"ALTER TABLE chunks ADD COLUMN account TEXT NOT NULL DEFAULT ''",
-			"ALTER TABLE repos ADD COLUMN account TEXT NOT NULL DEFAULT ''",
-			"ALTER TABLE pending_deletions ADD COLUMN account TEXT NOT NULL DEFAULT ''",
-			"CREATE INDEX IF NOT EXISTS idx_repos_platform_account ON repos(platform, account)",
-			"PRAGMA user_version = 1",
-		}
-		for _, stmt := range stmts {
-			if _, err := db.conn.Exec(stmt); err != nil {
-				// Column may already exist if schema was created fresh
-				if isColumnAlreadyExists(err) {
-					continue
-				}
-				return fmt.Errorf("migration v1: %w", err)
-			}
-		}
-	}
-
-	if version < 2 {
-		stmts := []string{
-			"ALTER TABLE files ADD COLUMN status TEXT NOT NULL DEFAULT 'complete'",
-			"CREATE INDEX IF NOT EXISTS idx_files_status ON files(status)",
-			"PRAGMA user_version = 2",
-		}
-		for _, stmt := range stmts {
-			if _, err := db.conn.Exec(stmt); err != nil {
-				if isColumnAlreadyExists(err) {
-					continue
-				}
-				return fmt.Errorf("migration v2: %w", err)
-			}
-		}
-	}
-
 	return nil
 }
 
-// isColumnAlreadyExists checks if an ALTER TABLE error is because the column already exists.
-func isColumnAlreadyExists(err error) bool {
-	if err == nil {
-		return false
-	}
-	msg := err.Error()
-	return strings.Contains(msg, "duplicate column") || strings.Contains(msg, "already exists")
+// Close closes the database connection pool.
+func (db *DB) Close() {
+	db.pool.Close()
 }
 
-// Close closes the database connection.
-func (db *DB) Close() error {
-	return db.conn.Close()
-}
-
-// Conn returns the underlying sql.DB for direct queries.
-func (db *DB) Conn() *sql.DB {
-	return db.conn
+// Pool returns the underlying pgxpool.Pool.
+func (db *DB) Pool() *pgxpool.Pool {
+	return db.pool
 }

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/zpush/zpush/auth"
+	"github.com/zpush/zpush/types"
 )
 
 type contextKey string
@@ -32,8 +33,35 @@ func (s *Server) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+// AdminMiddleware validates JWT and checks for admin role.
+func (s *Server) AdminMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return s.AuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		claims := GetUserClaims(r)
+		if claims == nil || claims.Role != types.RoleAdmin.String() {
+			http.Error(w, `{"error":"admin access required"}`, http.StatusForbidden)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 // GetUserClaims extracts the JWT claims from the request context.
 func GetUserClaims(r *http.Request) *auth.Claims {
 	claims, _ := r.Context().Value(userContextKey).(*auth.Claims)
 	return claims
+}
+
+// GetUserID extracts the user ID from the request context.
+func GetUserID(r *http.Request) string {
+	claims := GetUserClaims(r)
+	if claims == nil {
+		return ""
+	}
+	return claims.Sub
+}
+
+// IsAdmin returns whether the current user has admin role.
+func IsAdmin(r *http.Request) bool {
+	claims := GetUserClaims(r)
+	return claims != nil && claims.Role == types.RoleAdmin.String()
 }

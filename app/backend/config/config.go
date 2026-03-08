@@ -46,25 +46,18 @@ func EnsureDirs() error {
 	return nil
 }
 
-// AccountConfig holds credentials for a single platform account.
-type AccountConfig struct {
-	Token    string `json:"token"`
-	Username string `json:"username"`
-}
-
 // Config holds the application configuration.
 type Config struct {
-	// Legacy single-token fields (migrated to Accounts on load)
-	GithubToken      string           `json:"github_token,omitempty"`
-	GitlabToken      string           `json:"gitlab_token,omitempty"`
-	HuggingFaceToken string           `json:"huggingface_token,omitempty"`
-	DefaultPlatform  string           `json:"default_platform"`
-	Thresholds       map[string]int64 `json:"thresholds"`
-	// Multi-account: platform name → list of accounts
-	Accounts map[string][]AccountConfig `json:"accounts,omitempty"`
+	DefaultPlatform string           `json:"default_platform"`
+	Thresholds      map[string]int64 `json:"thresholds"`
 	// Auth
 	JWTSecret string      `json:"jwt_secret,omitempty"`
 	SMTP      *SMTPConfig `json:"smtp,omitempty"`
+	// Frontend URL for email links (verification, password reset)
+	FrontendURL string `json:"frontend_url,omitempty"`
+	// From environment only — never persisted to JSON
+	DatabaseURL string `json:"-"`
+	MasterKey   string `json:"-"`
 }
 
 // DefaultConfig returns the default configuration.
@@ -76,37 +69,7 @@ func DefaultConfig() *Config {
 			"gitlab":      9000 * 1024 * 1024,   // 9GB
 			"huggingface": 280000 * 1024 * 1024, // 280GB
 		},
-		Accounts: make(map[string][]AccountConfig),
 	}
-}
-
-// migrateTokens moves legacy single-token fields into the Accounts map.
-func (c *Config) migrateTokens() {
-	if c.Accounts == nil {
-		c.Accounts = make(map[string][]AccountConfig)
-	}
-
-	migrate := func(platform, token string) {
-		if token == "" {
-			return
-		}
-		// Don't duplicate if already present
-		for _, acc := range c.Accounts[platform] {
-			if acc.Token == token {
-				return
-			}
-		}
-		c.Accounts[platform] = append(c.Accounts[platform], AccountConfig{Token: token})
-	}
-
-	migrate("github", c.GithubToken)
-	migrate("gitlab", c.GitlabToken)
-	migrate("huggingface", c.HuggingFaceToken)
-
-	// Clear legacy fields
-	c.GithubToken = ""
-	c.GitlabToken = ""
-	c.HuggingFaceToken = ""
 }
 
 // configPath returns the path to config.json.
@@ -153,6 +116,12 @@ func (c *Config) applyEnvOverrides() {
 	if v := os.Getenv("ZPUSH_JWT_SECRET"); v != "" {
 		c.JWTSecret = v
 	}
+	if v := os.Getenv("DATABASE_URL"); v != "" {
+		c.DatabaseURL = v
+	}
+	if v := os.Getenv("MASTER_KEY"); v != "" {
+		c.MasterKey = v
+	}
 	if v := os.Getenv("SMTP_HOST"); v != "" {
 		if c.SMTP == nil {
 			c.SMTP = &SMTPConfig{}
@@ -185,6 +154,9 @@ func (c *Config) applyEnvOverrides() {
 		}
 		c.SMTP.From = v
 	}
+	if v := os.Getenv("FRONTEND_URL"); v != "" {
+		c.FrontendURL = v
+	}
 }
 
 // Load reads the config from disk, or returns defaults if not found.
@@ -200,7 +172,9 @@ func Load() (*Config, error) {
 
 	data, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
-		return DefaultConfig(), nil
+		cfg := DefaultConfig()
+		cfg.applyEnvOverrides()
+		return cfg, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("read config: %w", err)
@@ -210,7 +184,6 @@ func Load() (*Config, error) {
 	if err := json.Unmarshal(data, cfg); err != nil {
 		return nil, fmt.Errorf("parse config: %w", err)
 	}
-	cfg.migrateTokens()
 
 	// Environment variables override config file values
 	cfg.applyEnvOverrides()
@@ -246,15 +219,6 @@ func (c *Config) Save() error {
 		return fmt.Errorf("write config: %w", err)
 	}
 	return nil
-}
-
-// DBPath returns the path to the SQLite database.
-func DBPath() (string, error) {
-	dir, err := DefaultDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(dir, "index.db"), nil
 }
 
 // TmpDir returns the temp directory for pipeline operations.

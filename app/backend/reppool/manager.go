@@ -14,15 +14,17 @@ import (
 type Manager struct {
 	db        *index.DB
 	adapter   adapters.PlatformAdapter
+	userID    string
 	account   string
 	threshold int64
 }
 
-// NewManager creates a new repo pool manager for a specific account.
-func NewManager(db *index.DB, adapter adapters.PlatformAdapter, account string, threshold int64) *Manager {
+// NewManager creates a new repo pool manager for a specific user and account.
+func NewManager(db *index.DB, adapter adapters.PlatformAdapter, userID, account string, threshold int64) *Manager {
 	return &Manager{
 		db:        db,
 		adapter:   adapter,
+		userID:    userID,
 		account:   account,
 		threshold: threshold,
 	}
@@ -30,14 +32,14 @@ func NewManager(db *index.DB, adapter adapters.PlatformAdapter, account string, 
 
 // GetOrCreateRepo returns the active repo for uploads, creating a new one if needed.
 func (m *Manager) GetOrCreateRepo(ctx context.Context) (*types.RepoInfo, error) {
-	repo, err := m.db.GetActiveRepo(m.adapter.PlatformName(), m.account)
+	repo, err := m.db.GetActiveRepo(ctx, m.userID, m.adapter.PlatformName(), m.account)
 	if err == nil {
 		// Check if still under threshold
 		if repo.UsedBytes < m.threshold {
 			return repo, nil
 		}
 		// Repo is full, deactivate and create new
-		if err := m.db.DeactivateRepo(repo.ID); err != nil {
+		if err := m.db.DeactivateRepo(ctx, repo.ID); err != nil {
 			return nil, fmt.Errorf("deactivate full repo: %w", err)
 		}
 	}
@@ -48,7 +50,7 @@ func (m *Manager) GetOrCreateRepo(ctx context.Context) (*types.RepoInfo, error) 
 // createNewRepo creates a fresh repo on the platform and registers it.
 func (m *Manager) createNewRepo(ctx context.Context) (*types.RepoInfo, error) {
 	// Count existing repos to generate index
-	repos, err := m.db.ListRepos(m.adapter.PlatformName())
+	repos, err := m.db.ListRepos(ctx, m.userID, m.adapter.PlatformName())
 	if err != nil {
 		return nil, fmt.Errorf("list repos: %w", err)
 	}
@@ -69,7 +71,7 @@ func (m *Manager) createNewRepo(ctx context.Context) (*types.RepoInfo, error) {
 		Active:   true,
 	}
 
-	if err := m.db.InsertRepo(repo); err != nil {
+	if err := m.db.InsertRepo(ctx, m.userID, repo); err != nil {
 		return nil, fmt.Errorf("register repo: %w", err)
 	}
 
@@ -78,14 +80,15 @@ func (m *Manager) createNewRepo(ctx context.Context) (*types.RepoInfo, error) {
 
 // UpdateUsage updates the used bytes for a repo after an upload.
 func (m *Manager) UpdateUsage(repoID string, additionalBytes int64) error {
-	repos, err := m.db.ListRepos("")
+	ctx := context.Background()
+	repos, err := m.db.ListRepos(ctx, m.userID, "")
 	if err != nil {
 		return err
 	}
 
 	for _, r := range repos {
 		if r.ID == repoID {
-			return m.db.UpdateRepoUsage(repoID, r.UsedBytes+additionalBytes)
+			return m.db.UpdateRepoUsage(ctx, repoID, r.UsedBytes+additionalBytes)
 		}
 	}
 	return fmt.Errorf("repo not found: %s", repoID)

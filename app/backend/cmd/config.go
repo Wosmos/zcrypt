@@ -2,37 +2,43 @@ package cmd
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 )
 
-// HandleGetConfig returns the current configuration (with tokens redacted).
+// HandleGetConfig returns the current configuration (auth-protected).
 // GET /api/config
 func (s *Server) HandleGetConfig(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID := GetUserID(r)
+
 	type SafeConfig struct {
-		HasGithubToken  bool             `json:"has_github_token"`
 		DefaultPlatform string           `json:"default_platform"`
 		Thresholds      map[string]int64 `json:"thresholds"`
-		AccountCount    int              `json:"account_count"`
+		TokenCount      int              `json:"token_count"`
+	}
+
+	tokenCount := 0
+	tokens, err := s.db.GetUserPlatformTokenInfo(ctx, userID)
+	if err == nil {
+		tokenCount = len(tokens)
 	}
 
 	safe := SafeConfig{
-		HasGithubToken:  len(s.cfg.Accounts["github"]) > 0,
 		DefaultPlatform: s.cfg.DefaultPlatform,
 		Thresholds:      s.cfg.Thresholds,
-		AccountCount:    len(s.accountKeys),
+		TokenCount:      tokenCount,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(safe)
 }
 
-// HandleUpdateConfig updates configuration values.
+// HandleUpdateConfig updates configuration values (admin-only).
 // PUT /api/config
 func (s *Server) HandleUpdateConfig(w http.ResponseWriter, r *http.Request) {
 	var updates map[string]interface{}
 	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"invalid request: %s"}`, err), http.StatusBadRequest)
+		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
 		return
 	}
 
@@ -41,7 +47,7 @@ func (s *Server) HandleUpdateConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.cfg.Save(); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"save config: %s"}`, err), http.StatusInternalServerError)
+		http.Error(w, `{"error":"save config failed"}`, http.StatusInternalServerError)
 		return
 	}
 

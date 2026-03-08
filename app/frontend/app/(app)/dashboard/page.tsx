@@ -19,7 +19,7 @@ import { usePlatformHealth } from "@/hooks/usePlatformHealth";
 import { useUploadStore } from "@/store/upload";
 import { usePassphraseStore } from "@/store/passphrase";
 import { useOperationStatus } from "@/hooks/useOperationStatus";
-import { pushFile, pullFile, deleteFile, listIncompleteUploads } from "@/lib/api";
+import { pushFile, pullFile, deleteFile, listIncompleteUploads, getQuota } from "@/lib/api";
 import { toast } from "@/store/toast";
 import {
   Shield,
@@ -32,10 +32,12 @@ import {
   BellOff,
   LayoutGrid,
   TableProperties,
+  List,
 } from "lucide-react";
 import Link from "next/link";
 import { useNotifications } from "@/hooks/useNotifications";
 import { FilePreviewModal, useFilePreview } from "@/components/ui/file-preview-modal";
+import type { QuotaInfo } from "@/types";
 
 type ModalMode = { type: "upload"; files: File[] } | { type: "download"; filename: string } | { type: "preview"; filename: string } | null;
 
@@ -45,7 +47,7 @@ export default function VaultPage() {
   const [modalMode, setModalMode] = useState<ModalMode>(null);
   const [passphraseError, setPassphraseError] = useState<string | null>(null);
   const [downloadStates, setDownloadStates] = useState<Record<string, DownloadState>>({});
-  const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
+  const [viewMode, setViewMode] = useState<"grid" | "list" | "table">("grid");
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
@@ -59,6 +61,12 @@ export default function VaultPage() {
   const [, forceUpdate] = useState(0);
   const { notify, requestPermission, isSupported, isGranted } = useNotifications();
   const preview = useFilePreview();
+  const [quotaInfo, setQuotaInfo] = useState<QuotaInfo | null>(null);
+
+  // Fetch quota info
+  useEffect(() => {
+    getQuota().then(setQuotaInfo).catch(() => {});
+  }, []);
 
   // Tick the passphrase timer display every 30s
   useEffect(() => {
@@ -253,11 +261,14 @@ export default function VaultPage() {
       const file = files.find((f) => f.original_name === filename);
       if (!file) return;
 
+      // Show loading state in preview modal immediately
+      preview.openPreview(null, filename, file.original_size);
+
       try {
-        toast.info(`Loading preview...`);
         const blob = await pullFile(filename, passphrase);
         preview.openPreview(blob, filename, file.original_size);
       } catch (err) {
+        preview.closePreview();
         const msg = err instanceof Error ? err.message : "Preview failed";
         if (msg.toLowerCase().includes("decrypt") || msg.toLowerCase().includes("passphrase") || msg.toLowerCase().includes("cipher")) {
           clearPassphrase();
@@ -339,7 +350,7 @@ export default function VaultPage() {
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Vault</h1>
           <div className="mt-1.5">
-            <CompactStats fileCount={files.length} totalSize={totalSize} totalEncrypted={totalEncrypted} lastUploadDate={lastUploadDate} />
+            <CompactStats fileCount={files.length} totalSize={totalSize} totalEncrypted={totalEncrypted} lastUploadDate={lastUploadDate} quotaInfo={quotaInfo} />
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -439,28 +450,24 @@ export default function VaultPage() {
             />
           </div>
           <div className="flex rounded-xl border border-[var(--color-border)] overflow-hidden flex-shrink-0">
-            <button
-              onClick={() => setViewMode("cards")}
-              className={`flex items-center justify-center h-[38px] w-9 transition-colors ${
-                viewMode === "cards"
-                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                  : "text-[var(--color-text-muted)] hover:bg-[var(--color-surface-1)]"
-              }`}
-              title="Card view"
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => setViewMode("table")}
-              className={`flex items-center justify-center h-[38px] w-9 border-l border-[var(--color-border)] transition-colors ${
-                viewMode === "table"
-                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                  : "text-[var(--color-text-muted)] hover:bg-[var(--color-surface-1)]"
-              }`}
-              title="Table view"
-            >
-              <TableProperties className="h-4 w-4" />
-            </button>
+            {([
+              { mode: "grid" as const, icon: LayoutGrid, title: "Grid" },
+              { mode: "list" as const, icon: List, title: "List" },
+              { mode: "table" as const, icon: TableProperties, title: "Table" },
+            ]).map(({ mode, icon: ModeIcon, title }, i) => (
+              <button
+                key={mode}
+                onClick={() => setViewMode(mode)}
+                className={`flex items-center justify-center h-[38px] w-9 transition-colors ${i > 0 ? "border-l border-[var(--color-border)]" : ""} ${
+                  viewMode === mode
+                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                    : "text-[var(--color-text-muted)] hover:bg-[var(--color-surface-1)]"
+                }`}
+                title={title}
+              >
+                <ModeIcon className="h-4 w-4" />
+              </button>
+            ))}
           </div>
         </div>
       )}
@@ -502,12 +509,27 @@ export default function VaultPage() {
           onDelete={handleDelete}
           onPreview={handlePreview}
         />
+      ) : viewMode === "grid" ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {filtered.map((file) => (
+            <FileCard
+              key={file.id}
+              file={file}
+              variant="grid"
+              downloadState={downloadStates[file.id] || "idle"}
+              onDownload={handleDownloadClick}
+              onDelete={handleDelete}
+              onPreview={handlePreview}
+            />
+          ))}
+        </div>
       ) : (
         <div className="space-y-2">
           {filtered.map((file) => (
             <FileCard
               key={file.id}
               file={file}
+              variant="list"
               downloadState={downloadStates[file.id] || "idle"}
               onDownload={handleDownloadClick}
               onDelete={handleDelete}

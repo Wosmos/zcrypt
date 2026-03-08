@@ -26,11 +26,15 @@ type activeUpload struct {
 
 // HandlePush handles file upload via multipart form.
 // POST /api/push
-// Phase 1 (Prepare) runs synchronously and returns {file_id, status}.
-// Phase 2 (Upload) runs in a background goroutine.
 func (s *Server) HandlePush(w http.ResponseWriter, r *http.Request) {
-	if len(s.accountKeys) == 0 {
-		http.Error(w, `{"error":"no platform connected"}`, http.StatusBadRequest)
+	ctx := r.Context()
+	userID := GetUserID(r)
+
+	targetPlatform := r.FormValue("platform")
+
+	key, adapter, pool, err := s.selectAdapter(ctx, userID, targetPlatform)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusBadRequest)
 		return
 	}
 
@@ -45,8 +49,6 @@ func (s *Server) HandlePush(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	targetPlatform := r.FormValue("platform")
-
 	file, header, err := r.FormFile("file")
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error":"file required: %s"}`, err), http.StatusBadRequest)
@@ -57,6 +59,22 @@ func (s *Server) HandlePush(w http.ResponseWriter, r *http.Request) {
 	if header.Size > maxFileSize {
 		http.Error(w, `{"error":"file too large, max 2GB"}`, http.StatusRequestEntityTooLarge)
 		return
+	}
+
+	// Enforce storage quota for users relying on global tokens
+	if !s.isQuotaExempt(ctx, userID) {
+		quota := s.getEffectiveQuota(ctx, userID)
+		if quota > 0 {
+			used, err := s.db.GetUserStorageUsed(ctx, userID)
+			if err != nil {
+				http.Error(w, `{"error":"check quota failed"}`, http.StatusInternalServerError)
+				return
+			}
+			if used+header.Size > quota {
+				http.Error(w, `{"error":"storage quota exceeded"}`, http.StatusForbidden)
+				return
+			}
+		}
 	}
 
 	tmpDir, err := config.TmpDir()
@@ -80,33 +98,13 @@ func (s *Server) HandlePush(w http.ResponseWriter, r *http.Request) {
 	}
 	tmpFile.Close()
 
-	var key string
-	if targetPlatform != "" {
-		key = s.nextAccountKeyForPlatform(targetPlatform)
-		if key == "" {
-			os.Remove(tmpPath)
-			http.Error(w, fmt.Sprintf(`{"error":"no %s account connected"}`, targetPlatform), http.StatusBadRequest)
-			return
-		}
-	} else {
-		key = s.nextAccountKey()
-	}
-
-	adapter := s.allAdapters[key]
-	pool := s.allPools[key]
-	if adapter == nil || pool == nil {
-		os.Remove(tmpPath)
-		http.Error(w, `{"error":"no platform connected"}`, http.StatusBadRequest)
-		return
-	}
-
 	account := key[strings.Index(key, ":")+1:]
 	fileID := uuid.New().String()
 
-	engine := pipeline.NewPipelineEngine(s.db, adapter, pool, s.progress, account)
+	engine := pipeline.NewPipelineEngine(s.db, adapter, pool, s.progress, userID, account)
 
 	// Phase 1: Prepare (synchronous — local processing)
-	prepared, err := engine.Prepare(r.Context(), tmpPath, header.Filename, passphrase, fileID)
+	prepared, err := engine.Prepare(ctx, tmpPath, header.Filename, passphrase, fileID)
 	os.Remove(tmpPath)
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)
@@ -114,13 +112,13 @@ func (s *Server) HandlePush(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Phase 2: Upload (async — network, resumable)
-	ctx, cancel := context.WithCancel(context.Background())
+	uploadCtx, cancel := context.WithCancel(context.Background())
 	s.activeUploads.Store(fileID, &activeUpload{cancel: cancel, prepared: prepared})
 
 	go func() {
 		defer s.activeUploads.Delete(fileID)
-		if err := engine.Upload(ctx, prepared); err != nil {
-			if ctx.Err() == nil {
+		if err := engine.Upload(uploadCtx, prepared); err != nil {
+			if uploadCtx.Err() == nil {
 				log.Printf("upload error for %s: %v", fileID, err)
 				s.progress.Emit(pipeline.ErrorEvent(fileID, err.Error()))
 			}
@@ -166,6 +164,9 @@ func (s *Server) HandlePauseUpload(w http.ResponseWriter, r *http.Request) {
 // HandleResumeUpload resumes a paused/interrupted upload.
 // POST /api/upload/resume
 func (s *Server) HandleResumeUpload(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID := GetUserID(r)
+
 	var req struct {
 		FileID string `json:"file_id"`
 	}
@@ -179,7 +180,7 @@ func (s *Server) HandleResumeUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fileMeta, err := s.db.GetFileByID(req.FileID)
+	fileMeta, err := s.db.GetFileByID(ctx, userID, req.FileID)
 	if err != nil {
 		http.Error(w, `{"error":"file not found"}`, http.StatusNotFound)
 		return
@@ -189,7 +190,7 @@ func (s *Server) HandleResumeUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pendingChunks, err := s.db.GetPendingChunksForFile(req.FileID)
+	pendingChunks, err := s.db.GetPendingChunksForFile(ctx, req.FileID)
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error":"get pending chunks: %s"}`, err), http.StatusInternalServerError)
 		return
@@ -207,7 +208,7 @@ func (s *Server) HandleResumeUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Find adapter/pool from chunk metadata
-	allChunks, _ := s.db.GetChunksForFile(req.FileID)
+	allChunks, _ := s.db.GetChunksForFile(ctx, req.FileID)
 	if len(allChunks) == 0 {
 		http.Error(w, `{"error":"no chunks found"}`, http.StatusInternalServerError)
 		return
@@ -216,15 +217,21 @@ func (s *Server) HandleResumeUpload(w http.ResponseWriter, r *http.Request) {
 	chunkPlatform := allChunks[0].Platform
 	chunkAccount := allChunks[0].Account
 
-	key := chunkPlatform + ":" + chunkAccount
-	adapter := s.allAdapters[key]
-	pool := s.allPools[key]
-	if adapter == nil || pool == nil {
+	adapter := s.resolveAdapterForUser(ctx, userID, chunkPlatform, chunkAccount)
+	if adapter == nil {
 		http.Error(w, `{"error":"platform account not connected"}`, http.StatusBadRequest)
 		return
 	}
 
-	repo, err := pool.GetOrCreateRepo(r.Context())
+	pools, _ := s.getUserPools(ctx, userID)
+	key := chunkPlatform + ":" + chunkAccount
+	pool := pools[key]
+	if pool == nil {
+		http.Error(w, `{"error":"platform account not connected"}`, http.StatusBadRequest)
+		return
+	}
+
+	repo, err := pool.GetOrCreateRepo(ctx)
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error":"get repo: %s"}`, err), http.StatusInternalServerError)
 		return
@@ -255,15 +262,15 @@ func (s *Server) HandleResumeUpload(w http.ResponseWriter, r *http.Request) {
 		Platform:   chunkPlatform,
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	uploadCtx, cancel := context.WithCancel(context.Background())
 	s.activeUploads.Store(req.FileID, &activeUpload{cancel: cancel, prepared: prepared})
 
-	engine := pipeline.NewPipelineEngine(s.db, adapter, pool, s.progress, chunkAccount)
+	engine := pipeline.NewPipelineEngine(s.db, adapter, pool, s.progress, userID, chunkAccount)
 
 	go func() {
 		defer s.activeUploads.Delete(req.FileID)
-		if err := engine.Upload(ctx, prepared); err != nil {
-			if ctx.Err() == nil {
+		if err := engine.Upload(uploadCtx, prepared); err != nil {
+			if uploadCtx.Err() == nil {
 				log.Printf("resume upload error for %s: %v", req.FileID, err)
 				s.progress.Emit(pipeline.ErrorEvent(req.FileID, err.Error()))
 			}
@@ -279,14 +286,22 @@ func (s *Server) HandleResumeUpload(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// HandleListIncompleteUploads returns files with status='uploading'.
+// HandleListIncompleteUploads returns files with status='uploading' for the current user.
 // GET /api/uploads/incomplete
 func (s *Server) HandleListIncompleteUploads(w http.ResponseWriter, r *http.Request) {
-	files, err := s.db.ListIncompleteFiles()
+	ctx := r.Context()
+	userID := GetUserID(r)
+
+	// ListFiles only returns complete, so query uploading files directly
+	rows, err := s.db.Pool().Query(ctx,
+		`SELECT id, original_name, original_size, chunk_count FROM files WHERE user_id = $1 AND status = 'uploading' ORDER BY created_at DESC`,
+		userID,
+	)
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)
 		return
 	}
+	defer rows.Close()
 
 	type incompleteInfo struct {
 		FileID        string `json:"file_id"`
@@ -298,17 +313,16 @@ func (s *Server) HandleListIncompleteUploads(w http.ResponseWriter, r *http.Requ
 	}
 
 	var result []incompleteInfo
-	for _, f := range files {
-		pending, _ := s.db.GetPendingChunksForFile(f.ID)
-		_, active := s.activeUploads.Load(f.ID)
-		result = append(result, incompleteInfo{
-			FileID:        f.ID,
-			OriginalName:  f.OriginalName,
-			OriginalSize:  f.OriginalSize,
-			TotalChunks:   f.ChunkCount,
-			PendingChunks: len(pending),
-			Active:        active,
-		})
+	for rows.Next() {
+		var info incompleteInfo
+		if err := rows.Scan(&info.FileID, &info.OriginalName, &info.OriginalSize, &info.TotalChunks); err != nil {
+			continue
+		}
+		pending, _ := s.db.GetPendingChunksForFile(ctx, info.FileID)
+		_, active := s.activeUploads.Load(info.FileID)
+		info.PendingChunks = len(pending)
+		info.Active = active
+		result = append(result, info)
 	}
 
 	w.Header().Set("Content-Type", "application/json")

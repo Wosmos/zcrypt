@@ -1,4 +1,4 @@
-import type { FileMetadata, PlatformStatus, RepoInfo, AppConfig, IncompleteUpload } from "@/types";
+import type { FileMetadata, PlatformStatus, RepoInfo, AppConfig, IncompleteUpload, AdminUser, SystemStats, PlatformTokenInfo, QuotaInfo } from "@/types";
 import { useAuthStore } from "@/store/auth";
 import { refreshToken as refreshTokenApi } from "@/lib/auth-api";
 
@@ -213,5 +213,80 @@ export function listIncompleteUploads(): Promise<IncompleteUpload[]> {
 }
 
 export function createEventSource(): EventSource {
-  return new EventSource(`${API_BASE}/api/events`);
+  const { accessToken } = useAuthStore.getState();
+  const params = accessToken ? `?token=${encodeURIComponent(accessToken)}` : "";
+  return new EventSource(`${API_BASE}/api/events${params}`);
+}
+
+// ─── Admin API ───
+
+export function adminListUsers(): Promise<AdminUser[]> {
+  return request<AdminUser[]>("/api/admin/users");
+}
+
+export function adminGetStats(): Promise<SystemStats> {
+  return request<SystemStats>("/api/admin/stats");
+}
+
+export function adminSetUserRole(userId: string, role: string): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/api/admin/users/${userId}/role`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ role }),
+  });
+}
+
+export function adminDeleteUser(userId: string): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/api/admin/users/${userId}`, {
+    method: "DELETE",
+  });
+}
+
+export function adminListTokens(): Promise<PlatformTokenInfo[]> {
+  return request<PlatformTokenInfo[]>("/api/admin/tokens");
+}
+
+export function adminCreateToken(data: {
+  user_id?: string;
+  platform: string;
+  token: string;
+  is_global: boolean;
+}): Promise<{ success: boolean; username: string }> {
+  return request<{ success: boolean; username: string }>("/api/admin/tokens", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export function adminDeleteToken(tokenId: string): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/api/admin/tokens/${tokenId}`, {
+    method: "DELETE",
+  });
+}
+
+// ─── Quota API ───
+
+export function getQuota(): Promise<QuotaInfo> {
+  return request<QuotaInfo>("/api/quota");
+}
+
+export function adminGetDefaultQuota(): Promise<{ default_quota_bytes: number }> {
+  return request<{ default_quota_bytes: number }>("/api/admin/quota");
+}
+
+export function adminSetDefaultQuota(bytes: number): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>("/api/admin/quota", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ default_quota_bytes: bytes }),
+  });
+}
+
+export function adminSetUserQuota(userId: string, quotaBytes: number | null): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/api/admin/users/${userId}/quota`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ quota_bytes: quotaBytes }),
+  });
 }

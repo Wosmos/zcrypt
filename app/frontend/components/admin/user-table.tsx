@@ -1,0 +1,282 @@
+"use client";
+
+import { useState } from "react";
+import { adminSetUserRole, adminDeleteUser, adminSetUserQuota } from "@/lib/api";
+import { formatBytes } from "@/lib/utils";
+import { toast } from "@/store/toast";
+import { cn } from "@/lib/utils";
+import { Trash2, ShieldCheck, User } from "lucide-react";
+import { Role } from "@/types";
+import type { AdminUser } from "@/types";
+
+export function UserTable({
+  users,
+  currentUserId,
+  defaultQuotaBytes,
+  onRefresh,
+}: {
+  users: AdminUser[];
+  currentUserId: string;
+  defaultQuotaBytes: number;
+  onRefresh: () => void;
+}) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [editingQuota, setEditingQuota] = useState<string | null>(null);
+  const [quotaInput, setQuotaInput] = useState("");
+  const [quotaMode, setQuotaMode] = useState<"default" | "custom" | "unlimited">("default");
+
+  const startEditQuota = (u: AdminUser) => {
+    setEditingQuota(u.id);
+    if (u.storage_quota === null) {
+      setQuotaMode("default");
+      setQuotaInput("");
+    } else if (u.storage_quota === 0) {
+      setQuotaMode("unlimited");
+      setQuotaInput("");
+    } else {
+      setQuotaMode("custom");
+      setQuotaInput((u.storage_quota / (1024 * 1024 * 1024)).toString());
+    }
+  };
+
+  const saveQuota = async (userId: string) => {
+    setBusy(userId);
+    try {
+      let quotaBytes: number | null = null;
+      if (quotaMode === "unlimited") quotaBytes = 0;
+      else if (quotaMode === "custom") {
+        const gb = parseFloat(quotaInput);
+        if (isNaN(gb) || gb <= 0) {
+          toast.error("Enter a valid quota in GB");
+          setBusy(null);
+          return;
+        }
+        quotaBytes = Math.round(gb * 1024 * 1024 * 1024);
+      }
+      await adminSetUserQuota(userId, quotaBytes);
+      toast.success("Quota updated");
+      setEditingQuota(null);
+      onRefresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update quota");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const getQuotaDisplay = (u: AdminUser) => {
+    if (u.storage_quota === null) {
+      return defaultQuotaBytes > 0
+        ? formatBytes(defaultQuotaBytes)
+        : "Unlimited";
+    }
+    if (u.storage_quota === 0) return "Unlimited";
+    return formatBytes(u.storage_quota);
+  };
+
+  const getQuotaLabel = (u: AdminUser) => {
+    if (u.storage_quota === null) return "default";
+    if (u.storage_quota === 0) return "override";
+    return "override";
+  };
+
+  const handleRoleToggle = async (userId: string, currentRole: Role) => {
+    const newRole = currentRole === Role.Admin ? Role.User : Role.Admin;
+    setBusy(userId);
+    try {
+      await adminSetUserRole(userId, newRole);
+      toast.success(`Role updated to ${newRole}`);
+      onRefresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update role");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleDelete = async (userId: string) => {
+    setBusy(userId);
+    try {
+      await adminDeleteUser(userId);
+      toast.success("User deleted");
+      setConfirmDelete(null);
+      onRefresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete user");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <section className="card overflow-hidden">
+      <div className="px-5 py-4 border-b border-[var(--color-border)]">
+        <h2 className="text-sm font-semibold">Users</h2>
+        <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
+          {users.length} registered user{users.length !== 1 ? "s" : ""}
+        </p>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-[var(--color-border)] text-[11px] text-[var(--color-text-muted)] uppercase tracking-wider">
+              <th className="text-left px-5 py-3 font-medium">User</th>
+              <th className="text-left px-5 py-3 font-medium">Role</th>
+              <th className="text-right px-5 py-3 font-medium">Files</th>
+              <th className="text-right px-5 py-3 font-medium">Storage</th>
+              <th className="text-right px-5 py-3 font-medium">Quota</th>
+              <th className="text-left px-5 py-3 font-medium">Joined</th>
+              <th className="text-right px-5 py-3 font-medium">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {users.map((u) => {
+              const isSelf = u.id === currentUserId;
+              return (
+                <tr
+                  key={u.id}
+                  className="border-b border-[var(--color-border)] last:border-0 hover:bg-[var(--color-surface-1)] transition-colors"
+                >
+                  <td className="px-5 py-3">
+                    <div>
+                      <p className="font-medium text-[13px]">
+                        {u.username}
+                        {isSelf && (
+                          <span className="ml-1.5 text-[10px] text-[var(--color-text-muted)]">
+                            (you)
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-[11px] text-[var(--color-text-muted)]">
+                        {u.email}
+                      </p>
+                    </div>
+                  </td>
+                  <td className="px-5 py-3">
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full",
+                        u.role === Role.Admin
+                          ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+                          : "bg-[var(--color-surface-2)] text-[var(--color-text-muted)] border border-[var(--color-border)]"
+                      )}
+                    >
+                      {u.role === Role.Admin ? (
+                        <ShieldCheck className="h-3 w-3" />
+                      ) : (
+                        <User className="h-3 w-3" />
+                      )}
+                      {u.role}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3 text-right tabular-nums text-[13px]">
+                    {u.file_count}
+                  </td>
+                  <td className="px-5 py-3 text-right tabular-nums text-[13px]">
+                    {formatBytes(u.total_size)}
+                  </td>
+                  <td className="px-5 py-3 text-right text-[13px]">
+                    {editingQuota === u.id ? (
+                      <div className="flex items-center justify-end gap-1.5">
+                        <select
+                          value={quotaMode}
+                          onChange={(e) => setQuotaMode(e.target.value as "default" | "custom" | "unlimited")}
+                          className="text-xs px-1.5 py-1 rounded bg-[var(--color-surface-1)] border border-[var(--color-border)]"
+                        >
+                          <option value="default">Default</option>
+                          <option value="custom">Custom</option>
+                          <option value="unlimited">Unlimited</option>
+                        </select>
+                        {quotaMode === "custom" && (
+                          <input
+                            type="number"
+                            min="0.1"
+                            step="0.5"
+                            value={quotaInput}
+                            onChange={(e) => setQuotaInput(e.target.value)}
+                            className="w-16 text-xs px-1.5 py-1 rounded bg-[var(--color-surface-1)] border border-[var(--color-border)] tabular-nums"
+                            placeholder="GB"
+                          />
+                        )}
+                        <button
+                          onClick={() => saveQuota(u.id)}
+                          disabled={busy === u.id}
+                          className="text-[10px] px-1.5 py-1 rounded bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+                        >
+                          OK
+                        </button>
+                        <button
+                          onClick={() => setEditingQuota(null)}
+                          className="text-[10px] px-1.5 py-1 rounded hover:bg-[var(--color-surface-2)] text-[var(--color-text-muted)]"
+                        >
+                          X
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => startEditQuota(u)}
+                        className="hover:underline tabular-nums group"
+                        title="Click to edit quota"
+                      >
+                        <span>{getQuotaDisplay(u)}</span>
+                        <span className="ml-1 text-[10px] text-[var(--color-text-muted)]">
+                          ({getQuotaLabel(u)})
+                        </span>
+                      </button>
+                    )}
+                  </td>
+                  <td className="px-5 py-3 text-[13px] text-[var(--color-text-muted)]">
+                    {new Date(u.created_at).toLocaleDateString()}
+                  </td>
+                  <td className="px-5 py-3 text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      {!isSelf && (
+                        <>
+                          <button
+                            onClick={() => handleRoleToggle(u.id, u.role)}
+                            disabled={busy === u.id}
+                            className="text-xs px-2.5 py-1.5 rounded-lg hover:bg-[var(--color-surface-2)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors disabled:opacity-50"
+                            title={`Make ${u.role === Role.Admin ? "user" : "admin"}`}
+                          >
+                            {u.role === Role.Admin ? "Demote" : "Promote"}
+                          </button>
+                          {confirmDelete === u.id ? (
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => handleDelete(u.id)}
+                                disabled={busy === u.id}
+                                className="text-xs px-2.5 py-1.5 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors disabled:opacity-50"
+                              >
+                                Confirm
+                              </button>
+                              <button
+                                onClick={() => setConfirmDelete(null)}
+                                className="text-xs px-2.5 py-1.5 rounded-lg hover:bg-[var(--color-surface-2)] text-[var(--color-text-muted)] transition-colors"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setConfirmDelete(u.id)}
+                              className="flex items-center justify-center h-7 w-7 rounded-lg hover:bg-red-500/10 text-[var(--color-text-muted)] hover:text-red-500 transition-colors"
+                              title="Delete user"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
