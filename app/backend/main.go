@@ -95,6 +95,23 @@ func main() {
 	mux.HandleFunc("POST /api/upload/resume", server.HandleResumeUpload)
 	mux.HandleFunc("GET /api/uploads/incomplete", server.HandleListIncompleteUploads)
 
+	// Auth routes (public)
+	mux.HandleFunc("POST /api/auth/register", server.HandleRegister)
+	mux.HandleFunc("POST /api/auth/login", server.HandleLogin)
+	mux.HandleFunc("POST /api/auth/refresh", server.HandleRefreshToken)
+	mux.HandleFunc("POST /api/auth/forgot-password", server.HandleForgotPassword)
+	mux.HandleFunc("POST /api/auth/reset-password", server.HandleResetPassword)
+	mux.HandleFunc("POST /api/auth/verify-email", server.HandleVerifyEmail)
+	mux.HandleFunc("POST /api/auth/resend-verification", server.HandleResendVerification)
+	mux.HandleFunc("POST /api/auth/2fa/verify", server.Handle2FAVerify)
+
+	// Auth routes (protected)
+	mux.HandleFunc("POST /api/auth/logout", server.AuthMiddleware(server.HandleLogout))
+	mux.HandleFunc("POST /api/auth/2fa/setup", server.AuthMiddleware(server.Handle2FASetup))
+	mux.HandleFunc("POST /api/auth/2fa/enable", server.AuthMiddleware(server.Handle2FAEnable))
+	mux.HandleFunc("POST /api/auth/2fa/disable", server.AuthMiddleware(server.Handle2FADisable))
+	mux.HandleFunc("GET /api/auth/me", server.AuthMiddleware(server.HandleGetMe))
+
 	port := os.Getenv("ZPUSH_PORT")
 	if port == "" {
 		port = "8080"

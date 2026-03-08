@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 
 const links = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/upload", label: "Upload", icon: Upload },
   { href: "/files", label: "Files", icon: FolderOpen },
   { href: "/platforms", label: "Platforms", icon: Server },

@@ -1,14 +1,59 @@
 import type { FileMetadata, PlatformStatus, RepoInfo, AppConfig, IncompleteUpload } from "@/types";
+import { useAuthStore } from "@/store/auth";
+import { refreshToken as refreshTokenApi } from "@/lib/auth-api";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
+let refreshPromise: Promise<string | null> | null = null;
+
+async function tryRefreshToken(): Promise<string | null> {
+  const { refreshTokenValue, setTokens, clearAuth } = useAuthStore.getState();
+  if (!refreshTokenValue) return null;
+
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = refreshTokenApi(refreshTokenValue)
+    .then((data) => {
+      setTokens(data.access_token, data.refresh_token);
+      return data.access_token;
+    })
+    .catch(() => {
+      clearAuth();
+      return null;
+    })
+    .finally(() => {
+      refreshPromise = null;
+    });
+
+  return refreshPromise;
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
+  const { accessToken } = useAuthStore.getState();
+
+  const headers: Record<string, string> = {
+    ...(options?.headers as Record<string, string>),
+  };
+  if (accessToken) {
+    headers["Authorization"] = `Bearer ${accessToken}`;
+  }
+
+  let res = await fetch(`${API_BASE}${path}`, {
     ...options,
-    headers: {
-      ...options?.headers,
-    },
+    headers,
   });
+
+  // On 401, try refreshing the token and retry once
+  if (res.status === 401 && accessToken) {
+    const newToken = await tryRefreshToken();
+    if (newToken) {
+      headers["Authorization"] = `Bearer ${newToken}`;
+      res = await fetch(`${API_BASE}${path}`, {
+        ...options,
+        headers,
+      });
+    }
+  }
 
   if (!res.ok) {
     const body = await res.text();

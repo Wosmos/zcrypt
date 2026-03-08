@@ -1,11 +1,25 @@
 package config
 
 import (
+	"bufio"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 )
+
+// SMTPConfig holds SMTP server settings for sending transactional emails.
+type SMTPConfig struct {
+	Host     string `json:"host"`
+	Port     int    `json:"port"`
+	Username string `json:"username"`
+	Password string `json:"password"`
+	From     string `json:"from"`
+}
 
 // DefaultDir returns the zpush config directory (~/.zpush/).
 func DefaultDir() (string, error) {
@@ -48,6 +62,9 @@ type Config struct {
 	Thresholds       map[string]int64 `json:"thresholds"`
 	// Multi-account: platform name → list of accounts
 	Accounts map[string][]AccountConfig `json:"accounts,omitempty"`
+	// Auth
+	JWTSecret string      `json:"jwt_secret,omitempty"`
+	SMTP      *SMTPConfig `json:"smtp,omitempty"`
 }
 
 // DefaultConfig returns the default configuration.
@@ -101,8 +118,81 @@ func configPath() (string, error) {
 	return filepath.Join(dir, "config.json"), nil
 }
 
+// loadDotEnv reads a .env file and sets environment variables (does not override existing).
+func loadDotEnv(path string) {
+	f, err := os.Open(path)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		key, val, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		key = strings.TrimSpace(key)
+		val = strings.TrimSpace(val)
+		// Strip surrounding quotes
+		if len(val) >= 2 && ((val[0] == '"' && val[len(val)-1] == '"') || (val[0] == '\'' && val[len(val)-1] == '\'')) {
+			val = val[1 : len(val)-1]
+		}
+		if os.Getenv(key) == "" {
+			os.Setenv(key, val)
+		}
+	}
+}
+
+// applyEnvOverrides overrides config fields from environment variables.
+func (c *Config) applyEnvOverrides() {
+	if v := os.Getenv("ZPUSH_JWT_SECRET"); v != "" {
+		c.JWTSecret = v
+	}
+	if v := os.Getenv("SMTP_HOST"); v != "" {
+		if c.SMTP == nil {
+			c.SMTP = &SMTPConfig{}
+		}
+		c.SMTP.Host = v
+	}
+	if v := os.Getenv("SMTP_PORT"); v != "" {
+		if c.SMTP == nil {
+			c.SMTP = &SMTPConfig{}
+		}
+		if port, err := strconv.Atoi(v); err == nil {
+			c.SMTP.Port = port
+		}
+	}
+	if v := os.Getenv("SMTP_USERNAME"); v != "" {
+		if c.SMTP == nil {
+			c.SMTP = &SMTPConfig{}
+		}
+		c.SMTP.Username = v
+	}
+	if v := os.Getenv("SMTP_PASSWORD"); v != "" {
+		if c.SMTP == nil {
+			c.SMTP = &SMTPConfig{}
+		}
+		c.SMTP.Password = v
+	}
+	if v := os.Getenv("SMTP_FROM"); v != "" {
+		if c.SMTP == nil {
+			c.SMTP = &SMTPConfig{}
+		}
+		c.SMTP.From = v
+	}
+}
+
 // Load reads the config from disk, or returns defaults if not found.
+// It also loads .env from the working directory and applies env var overrides.
 func Load() (*Config, error) {
+	// Load .env file if present (won't override existing env vars)
+	loadDotEnv(".env")
+
 	path, err := configPath()
 	if err != nil {
 		return nil, err
@@ -121,6 +211,22 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("parse config: %w", err)
 	}
 	cfg.migrateTokens()
+
+	// Environment variables override config file values
+	cfg.applyEnvOverrides()
+
+	// Auto-generate JWT secret on first load
+	if cfg.JWTSecret == "" {
+		secret := make([]byte, 32)
+		if _, err := rand.Read(secret); err != nil {
+			return nil, fmt.Errorf("generate jwt secret: %w", err)
+		}
+		cfg.JWTSecret = hex.EncodeToString(secret)
+		if err := cfg.Save(); err != nil {
+			return nil, fmt.Errorf("save jwt secret: %w", err)
+		}
+	}
+
 	return cfg, nil
 }
 

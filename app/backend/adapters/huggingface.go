@@ -10,10 +10,8 @@ import (
 	"io"
 	"log"
 	"math"
-	"mime/multipart"
 	"net"
 	"net/http"
-	"net/textproto"
 	"strings"
 	"sync"
 	"time"
@@ -157,32 +155,23 @@ func (h *HuggingFaceAdapter) FlushCommits(ctx context.Context, repo string) erro
 		return nil
 	}
 
-	lfsFiles := make([]map[string]interface{}, len(pending))
-	for i, entry := range pending {
-		lfsFiles[i] = map[string]interface{}{
-			"path": entry.Path,
-			"algo": "sha256",
-			"oid":  entry.OID,
-			"size": entry.Size,
-		}
+	ndjson := buildNDJSON(
+		map[string]interface{}{
+			"key":   "header",
+			"value": map[string]interface{}{"summary": disguise.CommitMessage()},
+		},
+	)
+	for _, entry := range pending {
+		ndjson = appendNDJSON(ndjson, map[string]interface{}{
+			"key": "lfsFile",
+			"value": map[string]interface{}{
+				"path": entry.Path,
+				"algo": "sha256",
+				"oid":  entry.OID,
+				"size": entry.Size,
+			},
+		})
 	}
-
-	var buf bytes.Buffer
-	writer := multipart.NewWriter(&buf)
-
-	commitHeader := map[string]interface{}{
-		"summary":  disguise.CommitMessage(),
-		"lfsFiles": lfsFiles,
-	}
-	headerData, err := json.Marshal(commitHeader)
-	if err != nil {
-		return fmt.Errorf("marshal batch commit header: %w", err)
-	}
-
-	if err := writeJSONFormField(writer, "header", headerData); err != nil {
-		return fmt.Errorf("write header field: %w", err)
-	}
-	writer.Close()
 
 	commitURL := fmt.Sprintf("%s/api/models/%s/commit/main", hfEndpoint, repo)
 
@@ -197,18 +186,13 @@ func (h *HuggingFaceAdapter) FlushCommits(ctx context.Context, repo string) erro
 				return fmt.Errorf("batch commit: %w", ctx.Err())
 			case <-time.After(wait):
 			}
-			// Rebuild the body since it was consumed
-			buf.Reset()
-			writer = multipart.NewWriter(&buf)
-			writeJSONFormField(writer, "header", headerData)
-			writer.Close()
 		}
 
-		req, err := http.NewRequestWithContext(ctx, "POST", commitURL, &buf)
+		req, err := http.NewRequestWithContext(ctx, "POST", commitURL, bytes.NewReader(ndjson))
 		if err != nil {
 			return fmt.Errorf("create batch commit request: %w", err)
 		}
-		req.Header.Set("Content-Type", writer.FormDataContentType())
+		req.Header.Set("Content-Type", "application/x-ndjson")
 		h.setAuth(req)
 
 		resp, err := h.client.Do(req)
@@ -265,29 +249,23 @@ func (h *HuggingFaceAdapter) Download(ctx context.Context, ref types.ChunkRef) (
 }
 
 func (h *HuggingFaceAdapter) Delete(ctx context.Context, ref types.ChunkRef) error {
-	var buf bytes.Buffer
-	writer := multipart.NewWriter(&buf)
-
-	commitHeader := map[string]interface{}{
-		"summary":      disguise.CommitMessage(),
-		"deletedFiles": []string{ref.RemotePath},
-	}
-	headerData, err := json.Marshal(commitHeader)
-	if err != nil {
-		return fmt.Errorf("marshal commit header: %w", err)
-	}
-
-	if err := writeJSONFormField(writer, "header", headerData); err != nil {
-		return fmt.Errorf("write header field: %w", err)
-	}
-	writer.Close()
+	ndjson := buildNDJSON(
+		map[string]interface{}{
+			"key":   "header",
+			"value": map[string]interface{}{"summary": disguise.CommitMessage()},
+		},
+	)
+	ndjson = appendNDJSON(ndjson, map[string]interface{}{
+		"key":   "deletedFile",
+		"value": map[string]interface{}{"path": ref.RemotePath},
+	})
 
 	commitURL := fmt.Sprintf("%s/api/models/%s/commit/main", hfEndpoint, ref.Repo)
-	req, err := http.NewRequestWithContext(ctx, "POST", commitURL, &buf)
+	req, err := http.NewRequestWithContext(ctx, "POST", commitURL, bytes.NewReader(ndjson))
 	if err != nil {
 		return fmt.Errorf("create delete commit request: %w", err)
 	}
-	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.Header.Set("Content-Type", "application/x-ndjson")
 	h.setAuth(req)
 
 	resp, err := h.client.Do(req)
@@ -523,10 +501,16 @@ func (h *HuggingFaceAdapter) lfsUpload(ctx context.Context, repo, oid string, si
 
 // createLFSCommit creates a commit that references an LFS object (used by Delete).
 func (h *HuggingFaceAdapter) createLFSCommit(ctx context.Context, repo, path, oid string, size int64) error {
-	headerData, _ := json.Marshal(map[string]interface{}{
-		"summary": disguise.CommitMessage(),
-		"lfsFiles": []map[string]interface{}{
-			{"path": path, "algo": "sha256", "oid": oid, "size": size},
+	ndjson := buildNDJSON(
+		map[string]interface{}{
+			"key":   "header",
+			"value": map[string]interface{}{"summary": disguise.CommitMessage()},
+		},
+	)
+	ndjson = appendNDJSON(ndjson, map[string]interface{}{
+		"key": "lfsFile",
+		"value": map[string]interface{}{
+			"path": path, "algo": "sha256", "oid": oid, "size": size,
 		},
 	})
 
@@ -543,16 +527,11 @@ func (h *HuggingFaceAdapter) createLFSCommit(ctx context.Context, repo, path, oi
 			}
 		}
 
-		var buf bytes.Buffer
-		writer := multipart.NewWriter(&buf)
-		writeJSONFormField(writer, "header", headerData)
-		writer.Close()
-
-		req, err := http.NewRequestWithContext(ctx, "POST", commitURL, &buf)
+		req, err := http.NewRequestWithContext(ctx, "POST", commitURL, bytes.NewReader(ndjson))
 		if err != nil {
 			return fmt.Errorf("create commit request: %w", err)
 		}
-		req.Header.Set("Content-Type", writer.FormDataContentType())
+		req.Header.Set("Content-Type", "application/x-ndjson")
 		h.setAuth(req)
 
 		resp, err := h.client.Do(req)
@@ -579,17 +558,18 @@ func (h *HuggingFaceAdapter) createLFSCommit(ctx context.Context, repo, path, oi
 	return fmt.Errorf("commit after %d retries: %w", maxRetries, lastErr)
 }
 
-// writeJSONFormField writes a multipart form field with Content-Type: application/json.
-func writeJSONFormField(w *multipart.Writer, fieldName string, data []byte) error {
-	h := make(textproto.MIMEHeader)
-	h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="%s"`, fieldName))
-	h.Set("Content-Type", "application/json")
-	part, err := w.CreatePart(h)
-	if err != nil {
-		return err
-	}
-	_, err = part.Write(data)
-	return err
+// buildNDJSON creates an NDJSON byte slice from the first entry.
+func buildNDJSON(entry map[string]interface{}) []byte {
+	data, _ := json.Marshal(entry)
+	return data
+}
+
+// appendNDJSON appends another JSON line to an NDJSON byte slice.
+func appendNDJSON(ndjson []byte, entry map[string]interface{}) []byte {
+	data, _ := json.Marshal(entry)
+	ndjson = append(ndjson, '\n')
+	ndjson = append(ndjson, data...)
+	return ndjson
 }
 
 // whoami fetches the authenticated user's username.

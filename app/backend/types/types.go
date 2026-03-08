@@ -92,6 +92,37 @@ type Config struct {
 	Thresholds     map[string]int64  `json:"thresholds"`
 }
 
+// User represents a registered user.
+type User struct {
+	ID            string    `json:"id"`
+	Email         string    `json:"email"`
+	Username      string    `json:"username"`
+	PasswordHash  string    `json:"-"`
+	EmailVerified bool      `json:"email_verified"`
+	TOTPSecret    string    `json:"-"`
+	TOTPEnabled   bool      `json:"totp_enabled"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+}
+
+// RefreshToken tracks a user's active refresh token.
+type RefreshToken struct {
+	ID        string
+	UserID    string
+	TokenHash string
+	ExpiresAt time.Time
+	CreatedAt time.Time
+}
+
+// EmailToken is a one-time token for email verification or password reset.
+type EmailToken struct {
+	ID        string
+	UserID    string
+	TokenHash string
+	Kind      string // "verify" or "reset"
+	ExpiresAt time.Time
+}
+
 // Manifest describes a file's chunk layout stored alongside chunks in the repo.
 type Manifest struct {
 	FileID       string     `json:"file_id"`

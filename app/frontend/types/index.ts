@@ -81,3 +81,13 @@ export interface IncompleteUpload {
 export interface FileMetadataWithStatus extends FileMetadata {
   status: string;
 }
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  username: string;
+  email_verified: boolean;
+  totp_enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}

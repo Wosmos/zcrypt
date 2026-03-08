@@ -163,7 +163,7 @@ export default function OnboardingPage() {
             <Button
               className="w-full"
               size="lg"
-              onClick={() => router.push("/")}
+              onClick={() => router.push("/dashboard")}
             >
               Go to Dashboard <ArrowRight className="h-4 w-4" />
             </Button>
