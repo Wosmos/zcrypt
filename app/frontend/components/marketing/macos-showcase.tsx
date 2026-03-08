@@ -10,7 +10,8 @@ import {
   useTransform,
   MotionValue,
 } from "framer-motion";
-import { Play, Shield, FolderOpen, Settings, Upload } from "lucide-react";
+import { Play, Shield, Video, Sun, Moon, LayoutGrid } from "lucide-react";
+import { useTheme } from "@/components/providers/theme-provider";
 
 // ─── Sizes ─────────────────────────────────────────────────
 // The iframe renders the real app at this logical width, then
@@ -78,8 +79,8 @@ function useNetworkStatus() {
 // ─── macOS SVG icons ───────────────────────────────────────
 function AppleLogo({ className }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 14 17" fill="currentColor">
-      <path d="M13.62 12.14c-.33.76-.49 1.1-.91 1.78-.59.94-1.43 2.12-2.46 2.13-1.02.01-1.28-.66-2.66-.66-1.38 0-1.67.65-2.64.67-1.04.04-1.83-1.15-2.42-2.09C1.16 11.63.67 8.62 2.08 6.61c.99-1.41 2.56-2.24 4-2.25 1.24-.02 2.42.86 3.18.86.75 0 2.16-1.07 3.64-.91.62.03 2.36.25 3.47 1.88-.09.06-2.07 1.21-2.05 3.6.03 2.86 2.51 3.81 2.54 3.82-.02.07-.4 1.36-1.24 2.53zM9.38.42C10.04-.34 10.88.03 10.88.03s.2 1.05-.43 1.81c-.66.8-1.41.7-1.41.7s-.23-.86.34-1.62z" />
+    <svg className={className} viewBox="0 0 384 512" fill="currentColor">
+      <path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z" />
     </svg>
   );
 }
@@ -570,6 +571,26 @@ function VideoModal({ open, onClose }: { open: boolean; onClose: () => void }) {
 function ScaledAppFrame({ visible }: { visible: boolean }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
+  const [iframeSrc, setIframeSrc] = useState("/dashboard");
+
+  useEffect(() => {
+    // Determine the infinite loop depth
+    if (typeof window !== "undefined") {
+      const searchParams = new URLSearchParams(window.location.search);
+      const currentDepth = parseInt(searchParams.get("depth") || "0", 10);
+
+      const maxDepthStr = process.env.NEXT_PUBLIC_SHOWCASE_MAX_DEPTH;
+      const maxDepth = maxDepthStr ? parseInt(maxDepthStr, 10) : Infinity;
+
+      // If we've reached the limit, break the loop by showing the isolated demo page
+      if (currentDepth >= maxDepth) {
+        setIframeSrc("/demo");
+      } else {
+        // Otherwise, embed the loop again, incrementing the depth
+        setIframeSrc(`/?depth=${currentDepth + 1}`);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -597,7 +618,7 @@ function ScaledAppFrame({ visible }: { visible: boolean }) {
     >
       {visible && (
         <iframe
-          src="/dashboard"
+          src={iframeSrc}
           title="zpush app"
           style={{
             width: IFRAME_LOGICAL_W,
@@ -651,30 +672,40 @@ export function MacOSShowcase() {
 
   const handlePlayClick = useCallback(() => setVideoOpen(true), []);
 
+  const { resolvedTheme, toggleTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
+
   const dockApps: DockApp[] = [
     {
       icon: Shield,
-      label: "zpush",
+      label: "zpush (Toggle Theme)",
       active: true,
       gradient: "linear-gradient(135deg, #10b981 0%, #047857 100%)",
+      onClick: toggleTheme,
+      bouncing: true,
     },
     {
-      icon: FolderOpen,
-      label: "Finder",
+      icon: Video,
+      label: "Video Demo",
+      active: false,
+      gradient: "linear-gradient(135deg, #f43f5e 0%, #be123c 100%)",
+      onClick: handlePlayClick,
+    },
+    {
+      icon: LayoutGrid,
+      label: "Try Live Demo",
       active: false,
       gradient: "linear-gradient(135deg, #60a5fa 0%, #2563eb 100%)",
+      onClick: () => {
+        window.location.href = "/demo";
+      },
     },
     {
-      icon: Settings,
-      label: "System Settings",
-      active: false,
-      gradient: "linear-gradient(135deg, #6b7280 0%, #374151 100%)",
-    },
-    {
-      icon: Upload,
-      label: "Activity Monitor",
+      icon: isDark ? Sun : Moon,
+      label: "App Theme",
       active: false,
       gradient: "linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%)",
+      onClick: toggleTheme,
     },
   ];
 
@@ -872,8 +903,6 @@ export function MacOSShowcase() {
               }}
             />
           </div>
-
-
         </div>
       </motion.div>
     </div>

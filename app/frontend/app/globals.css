@@ -156,3 +156,25 @@
     --border-angle: 360deg;
   }
 }
+
+@keyframes circuit-flow {
+  0% {
+    stroke-dashoffset: 120;
+    opacity: 0;
+  }
+  5% {
+    opacity: 1;
+  }
+  95% {
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: -20;
+    opacity: 0;
+  }
+}
+.animate-circuit-flow {
+  animation: circuit-flow var(--duration, 5s) linear infinite;
+  animation-delay: var(--delay, 0s);
+  animation-direction: var(--dir, normal);
+}
