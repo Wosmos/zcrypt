@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -19,6 +19,12 @@ import (
 )
 
 func main() {
+	// Setup structured JSON logger
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	}))
+	slog.SetDefault(logger)
+
 	// Ensure directories exist
 	if err := config.EnsureDirs(); err != nil {
 		log.Fatalf("init dirs: %v", err)
@@ -76,7 +82,7 @@ func main() {
 		sigCh := make(chan os.Signal, 1)
 		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 		<-sigCh
-		fmt.Println("\nshutting down gracefully (30s deadline)...")
+		slog.Info("shutting down gracefully", "deadline", "30s")
 		cancel() // cancel background workers
 
 		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -93,9 +99,9 @@ func main() {
 	// Setup routes
 	mux := http.NewServeMux()
 
-	// Rate limit with SSE exemption, then CORS
+	// Rate limit with SSE exemption, then CORS, then request logging
 	rateLimited := cmd.RateLimitMiddleware(50, time.Second, mux)
-	handler := corsMiddleware(exemptSSE(rateLimited, mux))
+	handler := requestLogger(corsMiddleware(exemptSSE(rateLimited, mux)))
 
 	// Public auth routes
 	mux.HandleFunc("POST /api/auth/register", server.HandleRegister)
@@ -160,7 +166,7 @@ func main() {
 		IdleTimeout:  120 * time.Second,
 	}
 
-	fmt.Printf("zstash backend listening on :%s\n", port)
+	slog.Info("server starting", "port", port)
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("server: %v", err)
 	}
@@ -174,6 +180,39 @@ func exemptSSE(rateLimited http.Handler, direct http.Handler) http.Handler {
 			return
 		}
 		rateLimited.ServeHTTP(w, r)
+	})
+}
+
+// statusWriter wraps http.ResponseWriter to capture the status code.
+type statusWriter struct {
+	http.ResponseWriter
+	code int
+}
+
+func (sw *statusWriter) WriteHeader(code int) {
+	sw.code = code
+	sw.ResponseWriter.WriteHeader(code)
+}
+
+func requestLogger(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Skip logging SSE and health checks
+		if strings.HasPrefix(r.URL.Path, "/api/events") || r.URL.Path == "/api/health" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		start := time.Now()
+		sw := &statusWriter{ResponseWriter: w, code: http.StatusOK}
+		next.ServeHTTP(sw, r)
+
+		slog.Info("request",
+			"method", r.Method,
+			"path", r.URL.Path,
+			"status", sw.code,
+			"duration_ms", time.Since(start).Milliseconds(),
+			"ip", r.RemoteAddr,
+		)
 	})
 }
 
