@@ -92,6 +92,22 @@ func ValidateAccessToken(secret, tokenStr string) (*Claims, error) {
 		return nil, ErrTokenInvalid
 	}
 
+	// Validate algorithm to prevent algorithm confusion attacks
+	headerJSON, err := b64Decode(parts[0])
+	if err != nil {
+		return nil, ErrTokenInvalid
+	}
+	var header struct {
+		Alg string `json:"alg"`
+		Typ string `json:"typ"`
+	}
+	if err := json.Unmarshal(headerJSON, &header); err != nil {
+		return nil, ErrTokenInvalid
+	}
+	if header.Alg != "HS256" {
+		return nil, ErrTokenInvalid
+	}
+
 	signingInput := parts[0] + "." + parts[1]
 	mac := hmac.New(sha256.New, []byte(secret))
 	mac.Write([]byte(signingInput))

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 )
@@ -75,7 +76,18 @@ func RateLimitMiddleware(limit int, window time.Duration, next http.Handler) htt
 	}()
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Use X-Forwarded-For when behind a reverse proxy, fall back to RemoteAddr
 		ip := r.RemoteAddr
+		if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
+			// Take the first (client) IP from the chain
+			if idx := strings.Index(forwarded, ","); idx != -1 {
+				ip = strings.TrimSpace(forwarded[:idx])
+			} else {
+				ip = strings.TrimSpace(forwarded)
+			}
+		} else if realIP := r.Header.Get("X-Real-IP"); realIP != "" {
+			ip = strings.TrimSpace(realIP)
+		}
 
 		if !rl.allow(ip) {
 			w.Header().Set("Content-Type", "application/json")
