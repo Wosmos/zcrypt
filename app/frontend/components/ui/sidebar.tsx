@@ -105,6 +105,7 @@ export function Sidebar() {
                 key={href}
                 href={href}
                 title={collapsed ? label : undefined}
+                aria-current={active ? "page" : undefined}
                 className={cn(
                   "flex items-center gap-3 rounded-xl text-[13px] font-medium transition-all duration-150",
                   collapsed ? "justify-center px-0 py-2.5" : "px-3 py-2.5",
@@ -232,6 +233,7 @@ function MobileDock({ pathname, onLogout, isAdmin }: { pathname: string; onLogou
 
   return (
     <motion.nav
+      aria-label="Main navigation"
       onMouseMove={(e) => mouseX.set(e.pageX)}
       onMouseLeave={() => mouseX.set(Infinity)}
       className="md:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-end gap-1.5 px-3 py-2.5 rounded-2xl glass shadow-2xl"

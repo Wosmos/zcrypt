@@ -44,10 +44,19 @@ export function UploadZone({ onFiles, hint, compact }: UploadZoneProps) {
 
   return (
     <div
+      role="button"
+      tabIndex={0}
+      aria-label="Upload files — drop files here or click to browse"
       onDrop={handleDrop}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onClick={handleClick}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          handleClick();
+        }
+      }}
       className={cn(
         "group relative flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed cursor-pointer transition-all duration-200",
         compact ? "p-6" : "p-10 sm:p-14",
