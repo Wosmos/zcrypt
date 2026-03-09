@@ -2,7 +2,7 @@ import type { FileMetadata, PlatformStatus, RepoInfo, AppConfig, IncompleteUploa
 import { useAuthStore } from "@/store/auth";
 import { refreshToken as refreshTokenApi } from "@/lib/auth-api";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
 let refreshPromise: Promise<string | null> | null = null;
 
