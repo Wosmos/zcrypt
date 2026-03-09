@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { login, getMe } from "@/lib/auth-api";
+import { login } from "@/lib/auth-api";
 import { useAuthStore } from "@/store/auth";
 import { toast } from "@/store/toast";
 import { Mail, Lock, ArrowRight, LogIn } from "lucide-react";
@@ -36,9 +36,6 @@ export default function LoginPage() {
         setTokens(res.access_token, res.refresh_token);
         if (res.user) {
           setUser(res.user);
-        } else {
-          const me = await getMe(res.access_token);
-          setUser(me);
         }
         router.push("/dashboard");
       }

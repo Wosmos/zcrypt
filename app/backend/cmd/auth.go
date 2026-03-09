@@ -129,7 +129,7 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Send verification email if SMTP configured
+	// Send verification email if SMTP configured (async to avoid blocking response)
 	if s.cfg.SMTP != nil {
 		token, _ := auth.GenerateRandomToken()
 		s.db.DeleteEmailTokensByUser(ctx, user.ID, "verify")
@@ -140,9 +140,13 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 			Kind:      "verify",
 			ExpiresAt: time.Now().Add(24 * time.Hour),
 		})
-		if err := auth.SendVerificationEmail(s.smtpCfg(), req.Email, token, s.baseURL(r)); err != nil {
-			log.Printf("send verification email to %s: %v", req.Email, err)
-		}
+		smtpCfg := s.smtpCfg()
+		baseURL := s.baseURL(r)
+		go func() {
+			if err := auth.SendVerificationEmail(smtpCfg, req.Email, token, baseURL); err != nil {
+				log.Printf("send verification email to %s: %v", req.Email, err)
+			}
+		}()
 	}
 
 	writeJSON(w, http.StatusCreated, map[string]interface{}{

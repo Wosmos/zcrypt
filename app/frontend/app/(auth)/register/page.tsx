@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { register, login as loginApi, getMe } from "@/lib/auth-api";
+import { register, login as loginApi } from "@/lib/auth-api";
 import { useAuthStore } from "@/store/auth";
 import { toast } from "@/store/toast";
 import {
@@ -48,9 +48,6 @@ export default function RegisterPage() {
           setTokens(loginRes.access_token, loginRes.refresh_token);
           if (loginRes.user) {
             setUser(loginRes.user);
-          } else {
-            const me = await getMe(loginRes.access_token);
-            setUser(me);
           }
           toast.success("Account created! Welcome aboard.");
           router.push("/dashboard");
