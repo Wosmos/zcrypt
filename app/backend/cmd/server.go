@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/zpush/zpush/adapters"
 	"github.com/zpush/zpush/config"
@@ -35,6 +36,9 @@ type Server struct {
 
 	// Limits concurrent Prepare() calls (compress+encrypt+chunk) to prevent OOM
 	prepareSem chan struct{}
+
+	// Auth-specific rate limiter: stricter limits for login/register (5 req per 5 min per IP)
+	authLimiter *rateLimiter
 }
 
 // NewServer creates a new API server.
@@ -47,6 +51,7 @@ func NewServer(db *index.DB, cfg *config.Config, progress *pipeline.ProgressEmit
 		adapterCache: make(map[string]map[string]adapters.PlatformAdapter),
 		poolCache:    make(map[string]map[string]*reppool.Manager),
 		prepareSem:   make(chan struct{}, 3), // max 3 concurrent prepare (compress+encrypt+chunk)
+		authLimiter:  newRateLimiter(5, 5*time.Minute),
 	}
 }
 

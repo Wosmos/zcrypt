@@ -34,12 +34,12 @@ func (s *Server) HandlePush(w http.ResponseWriter, r *http.Request) {
 
 	key, adapter, pool, err := s.selectAdapter(ctx, userID, targetPlatform)
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusBadRequest)
+		http.Error(w, `{"error":"no platform connected"}`, http.StatusBadRequest)
 		return
 	}
 
-	if err := r.ParseMultipartForm(32 << 20); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"parse form: %s"}`, err), http.StatusBadRequest)
+	if err := r.ParseMultipartForm(5 << 20); err != nil { // 5MB form metadata buffer
+		http.Error(w, `{"error":"invalid form data"}`, http.StatusBadRequest)
 		return
 	}
 
@@ -116,7 +116,8 @@ func (s *Server) HandlePush(w http.ResponseWriter, r *http.Request) {
 	<-s.prepareSem // release immediately after prepare completes
 	os.Remove(tmpPath)
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)
+		log.Printf("prepare error for user %s: %v", userID, err)
+		http.Error(w, `{"error":"failed to process file"}`, http.StatusInternalServerError)
 		return
 	}
 

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/zpush/zpush/adapters"
@@ -43,6 +44,14 @@ func (s *Server) HandlePull(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate filename: reject path traversal and dangerous characters
+	if strings.Contains(req.Filename, "..") || strings.Contains(req.Filename, "/") ||
+		strings.Contains(req.Filename, "\\") || strings.ContainsAny(req.Filename, "\x00") ||
+		len(req.Filename) > 255 {
+		http.Error(w, `{"error":"invalid filename"}`, http.StatusBadRequest)
+		return
+	}
+
 	// Create temp output directory
 	tmpDir, err := config.TmpDir()
 	if err != nil {
@@ -66,12 +75,19 @@ func (s *Server) HandlePull(w http.ResponseWriter, r *http.Request) {
 
 	// Run the pipeline
 	if err := engine.Pull(ctx, req.Filename, req.Passphrase, outDir); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)
+		// Check for passphrase error specifically (user-facing)
+		errMsg := "download failed"
+		if strings.Contains(err.Error(), "decrypt") || strings.Contains(err.Error(), "passphrase") {
+			errMsg = "decryption failed — wrong passphrase?"
+		}
+		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, errMsg), http.StatusInternalServerError)
 		return
 	}
 
 	// Serve the file
 	outputPath := filepath.Join(outDir, req.Filename)
-	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, req.Filename))
+	// Sanitize filename for Content-Disposition header (escape quotes)
+	safeName := strings.ReplaceAll(req.Filename, `"`, `\"`)
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, safeName))
 	http.ServeFile(w, r, outputPath)
 }

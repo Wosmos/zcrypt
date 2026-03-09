@@ -17,6 +17,34 @@ import (
 var emailRe = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
 var usernameRe = regexp.MustCompile(`^[a-zA-Z0-9_]{3,32}$`)
 
+// validatePassword enforces password complexity: min 8 chars, 1 uppercase, 1 digit, 1 special char.
+func validatePassword(pw string) error {
+	if len(pw) < 8 {
+		return fmt.Errorf("password must be at least 8 characters")
+	}
+	var hasUpper, hasDigit, hasSpecial bool
+	for _, c := range pw {
+		switch {
+		case c >= 'A' && c <= 'Z':
+			hasUpper = true
+		case c >= '0' && c <= '9':
+			hasDigit = true
+		case !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')):
+			hasSpecial = true
+		}
+	}
+	if !hasUpper {
+		return fmt.Errorf("password must contain at least one uppercase letter")
+	}
+	if !hasDigit {
+		return fmt.Errorf("password must contain at least one digit")
+	}
+	if !hasSpecial {
+		return fmt.Errorf("password must contain at least one special character")
+	}
+	return nil
+}
+
 // smtpCfg converts config.SMTPConfig to auth.SMTPConfig.
 func (s *Server) smtpCfg() *auth.SMTPConfig {
 	if s.cfg.SMTP == nil {
@@ -59,8 +87,28 @@ func writeJSON(w http.ResponseWriter, status int, v interface{}) {
 
 // --- Handlers ---
 
+// getClientIP extracts the real client IP from request headers or RemoteAddr.
+func getClientIP(r *http.Request) string {
+	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
+		if idx := strings.Index(forwarded, ","); idx != -1 {
+			return strings.TrimSpace(forwarded[:idx])
+		}
+		return strings.TrimSpace(forwarded)
+	}
+	if realIP := r.Header.Get("X-Real-IP"); realIP != "" {
+		return strings.TrimSpace(realIP)
+	}
+	return r.RemoteAddr
+}
+
 // HandleRegister creates a new user account.
 func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
+	// Auth-specific rate limiting: 5 attempts per 5 minutes per IP
+	if !s.authLimiter.allow(getClientIP(r)) {
+		http.Error(w, `{"error":"too many attempts, please try again later"}`, http.StatusTooManyRequests)
+		return
+	}
+
 	ctx := r.Context()
 
 	var req struct {
@@ -84,8 +132,8 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"username must be 3-32 characters (letters, numbers, underscore)"}`, http.StatusBadRequest)
 		return
 	}
-	if len(req.Password) == 0 {
-		http.Error(w, `{"error":"password is required"}`, http.StatusBadRequest)
+	if err := validatePassword(req.Password); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusBadRequest)
 		return
 	}
 
@@ -158,6 +206,13 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 
 // HandleLogin authenticates a user with email and password.
 func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
+	// Auth-specific rate limiting: 5 attempts per 5 minutes per IP
+	clientIP := getClientIP(r)
+	if !s.authLimiter.allow(clientIP) {
+		http.Error(w, `{"error":"too many login attempts, please try again later"}`, http.StatusTooManyRequests)
+		return
+	}
+
 	ctx := r.Context()
 
 	var req struct {
@@ -173,12 +228,14 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 
 	user, err := s.db.GetUserByEmail(ctx, req.Email)
 	if err != nil {
-		http.Error(w, `{"error":"no account found with that email"}`, http.StatusUnauthorized)
+		log.Printf("auth: login failed email=%s ip=%s reason=not_found", req.Email, clientIP)
+		http.Error(w, `{"error":"invalid email or password"}`, http.StatusUnauthorized)
 		return
 	}
 
 	if err := auth.CheckPassword(req.Password, user.PasswordHash); err != nil {
-		http.Error(w, `{"error":"incorrect password"}`, http.StatusUnauthorized)
+		log.Printf("auth: login failed email=%s ip=%s reason=wrong_password", req.Email, clientIP)
+		http.Error(w, `{"error":"invalid email or password"}`, http.StatusUnauthorized)
 		return
 	}
 
@@ -315,8 +372,8 @@ func (s *Server) HandleResetPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(req.NewPassword) == 0 {
-		http.Error(w, `{"error":"password is required"}`, http.StatusBadRequest)
+	if err := validatePassword(req.NewPassword); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusBadRequest)
 		return
 	}
 

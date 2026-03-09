@@ -71,14 +71,23 @@ func main() {
 	server.AutoResumeUploads(ctx)
 
 	// Graceful shutdown on SIGINT/SIGTERM
+	var srv *http.Server // set after routes are configured
 	go func() {
 		sigCh := make(chan os.Signal, 1)
 		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 		<-sigCh
-		fmt.Println("\nshutting down...")
-		cancel()
+		fmt.Println("\nshutting down gracefully (30s deadline)...")
+		cancel() // cancel background workers
+
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer shutdownCancel()
+
+		if srv != nil {
+			if err := srv.Shutdown(shutdownCtx); err != nil {
+				log.Printf("shutdown error: %v", err)
+			}
+		}
 		db.Close()
-		os.Exit(0)
 	}()
 
 	// Setup routes
@@ -143,8 +152,16 @@ func main() {
 		port = "8080"
 	}
 
+	srv = &http.Server{
+		Addr:         ":" + port,
+		Handler:      handler,
+		ReadTimeout:  5 * time.Minute,
+		WriteTimeout: 10 * time.Minute,
+		IdleTimeout:  120 * time.Second,
+	}
+
 	fmt.Printf("zstash backend listening on :%s\n", port)
-	if err := http.ListenAndServe(":"+port, handler); err != nil {
+	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("server: %v", err)
 	}
 }
@@ -161,12 +178,27 @@ func exemptSSE(rateLimited http.Handler, direct http.Handler) http.Handler {
 }
 
 func corsMiddleware(next http.Handler) http.Handler {
+	// Build allowed origins from ALLOWED_ORIGINS env var (comma-separated) or FRONTEND_URL fallback
+	allowedOrigins := map[string]bool{}
+	if origins := os.Getenv("ALLOWED_ORIGINS"); origins != "" {
+		for _, o := range strings.Split(origins, ",") {
+			allowedOrigins[strings.TrimSpace(o)] = true
+		}
+	}
+	if frontend := os.Getenv("FRONTEND_URL"); frontend != "" {
+		allowedOrigins[strings.TrimRight(frontend, "/")] = true
+	}
+	// Fallback for local development
+	if len(allowedOrigins) == 0 {
+		allowedOrigins["http://localhost:3000"] = true
+		allowedOrigins["http://localhost:8080"] = true
+	}
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
-		if origin != "" {
+		if origin != "" && allowedOrigins[origin] {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
-		} else {
-			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.Header().Set("Vary", "Origin")
 		}
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
