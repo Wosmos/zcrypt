@@ -1,0 +1,720 @@
+openapi: 3.1.0
+info:
+  title: zpush API
+  description: Zero-knowledge encrypted cloud storage API
+  version: 0.2.0
+
+servers:
+  - url: http://localhost:8080
+    description: Local development
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+    FileMetadata:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        original_name:
+          type: string
+        original_size:
+          type: integer
+        compressed_size:
+          type: integer
+        encrypted_size:
+          type: integer
+        chunk_count:
+          type: integer
+        sha256:
+          type: string
+        status:
+          type: string
+          enum: [uploading, complete]
+        created_at:
+          type: string
+          format: date-time
+    PlatformStatus:
+      type: object
+      properties:
+        platform:
+          type: string
+        username:
+          type: string
+        connected:
+          type: boolean
+    RepoInfo:
+      type: object
+      properties:
+        id:
+          type: string
+        platform:
+          type: string
+        name:
+          type: string
+        url:
+          type: string
+        used_bytes:
+          type: integer
+        max_bytes:
+          type: integer
+        active:
+          type: boolean
+    QuotaInfo:
+      type: object
+      properties:
+        used_bytes:
+          type: integer
+        quota_bytes:
+          type: integer
+        max_concurrent_uploads:
+          type: integer
+        plan:
+          type: string
+
+security:
+  - bearerAuth: []
+
+paths:
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      summary: Create account
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, username, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                username:
+                  type: string
+                password:
+                  type: string
+                  minLength: 8
+      responses:
+        "201":
+          description: Account created
+        "400":
+          description: Validation error
+        "429":
+          description: Rate limited
+
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        "200":
+          description: Login successful (or 2FA challenge)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  refresh_token:
+                    type: string
+                  requires_2fa:
+                    type: boolean
+                  challenge_token:
+                    type: string
+        "401":
+          description: Invalid credentials
+        "429":
+          description: Rate limited
+
+  /api/auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh access token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        "200":
+          description: New tokens issued
+
+  /api/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Invalidate refresh token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        "200":
+          description: Logged out
+
+  /api/auth/forgot-password:
+    post:
+      tags: [Auth]
+      summary: Send password reset email
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+      responses:
+        "200":
+          description: Reset email sent (always returns 200)
+
+  /api/auth/reset-password:
+    post:
+      tags: [Auth]
+      summary: Reset password with token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password]
+              properties:
+                token:
+                  type: string
+                password:
+                  type: string
+      responses:
+        "200":
+          description: Password reset
+
+  /api/auth/verify-email:
+    post:
+      tags: [Auth]
+      summary: Verify email address
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token:
+                  type: string
+      responses:
+        "200":
+          description: Email verified
+
+  /api/auth/2fa/setup:
+    post:
+      tags: [Auth]
+      summary: Generate TOTP secret
+      responses:
+        "200":
+          description: TOTP setup info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  secret:
+                    type: string
+                  uri:
+                    type: string
+
+  /api/auth/2fa/enable:
+    post:
+      tags: [Auth]
+      summary: Enable 2FA with verification code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code:
+                  type: string
+      responses:
+        "200":
+          description: 2FA enabled
+
+  /api/auth/2fa/verify:
+    post:
+      tags: [Auth]
+      summary: Verify 2FA code during login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [challenge_token, code]
+              properties:
+                challenge_token:
+                  type: string
+                code:
+                  type: string
+      responses:
+        "200":
+          description: 2FA verified, tokens issued
+
+  /api/auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current user
+      responses:
+        "200":
+          description: Current user info
+
+  /api/push:
+    post:
+      tags: [Files]
+      summary: Upload file (multipart)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, passphrase]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                passphrase:
+                  type: string
+                platform:
+                  type: string
+      responses:
+        "200":
+          description: Upload started
+        "413":
+          description: File too large / quota exceeded
+
+  /api/pull:
+    post:
+      tags: [Files]
+      summary: Download file
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [filename, passphrase]
+              properties:
+                filename:
+                  type: string
+                passphrase:
+                  type: string
+      responses:
+        "200":
+          description: File data
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+
+  /api/files:
+    get:
+      tags: [Files]
+      summary: List files
+      parameters:
+        - name: filter
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: File list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FileMetadata"
+
+  /api/files/{id}:
+    delete:
+      tags: [Files]
+      summary: Delete file
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: File deleted
+
+  /api/platforms/status:
+    get:
+      tags: [Platforms]
+      summary: Platform connection status
+      responses:
+        "200":
+          description: Platform statuses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PlatformStatus"
+
+  /api/platforms/connect:
+    post:
+      tags: [Platforms]
+      summary: Connect platform token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [platform, token]
+              properties:
+                platform:
+                  type: string
+                  enum: [github, gitlab, huggingface]
+                token:
+                  type: string
+      responses:
+        "200":
+          description: Platform connected
+
+  /api/platforms/disconnect:
+    delete:
+      tags: [Platforms]
+      summary: Disconnect platform
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [platform, username]
+              properties:
+                platform:
+                  type: string
+                username:
+                  type: string
+      responses:
+        "200":
+          description: Platform disconnected
+
+  /api/repos:
+    get:
+      tags: [Platforms]
+      summary: List repos
+      responses:
+        "200":
+          description: Repo list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RepoInfo"
+
+  /api/upload/pause:
+    post:
+      tags: [Upload Control]
+      summary: Pause active upload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [file_id]
+              properties:
+                file_id:
+                  type: string
+      responses:
+        "200":
+          description: Upload paused
+
+  /api/upload/resume:
+    post:
+      tags: [Upload Control]
+      summary: Resume paused upload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [file_id]
+              properties:
+                file_id:
+                  type: string
+      responses:
+        "200":
+          description: Upload resumed
+
+  /api/uploads/incomplete:
+    get:
+      tags: [Upload Control]
+      summary: List incomplete uploads
+      responses:
+        "200":
+          description: Incomplete uploads
+
+  /api/events:
+    get:
+      tags: [Upload Control]
+      summary: SSE progress stream
+      parameters:
+        - name: token
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: SSE event stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
+  /api/quota:
+    get:
+      tags: [Quota]
+      summary: Get user quota
+      responses:
+        "200":
+          description: Quota info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuotaInfo"
+
+  /api/health:
+    get:
+      tags: [System]
+      summary: Health check
+      security: []
+      responses:
+        "200":
+          description: Healthy
+
+  /api/admin/users:
+    get:
+      tags: [Admin]
+      summary: List all users
+      responses:
+        "200":
+          description: User list
+
+  /api/admin/users/{id}/role:
+    put:
+      tags: [Admin]
+      summary: Set user role
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role:
+                  type: string
+                  enum: [user, admin]
+      responses:
+        "200":
+          description: Role updated
+
+  /api/admin/users/{id}/plan:
+    put:
+      tags: [Admin]
+      summary: Set user plan
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [plan]
+              properties:
+                plan:
+                  type: string
+                  enum: [free, pro]
+      responses:
+        "200":
+          description: Plan updated
+
+  /api/admin/users/{id}/quota:
+    put:
+      tags: [Admin]
+      summary: Set user storage quota
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                quota_bytes:
+                  type: integer
+                  nullable: true
+      responses:
+        "200":
+          description: Quota updated
+
+  /api/admin/users/{id}:
+    delete:
+      tags: [Admin]
+      summary: Delete user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User deleted
+
+  /api/admin/stats:
+    get:
+      tags: [Admin]
+      summary: System statistics
+      responses:
+        "200":
+          description: System stats
+
+  /api/admin/tokens:
+    get:
+      tags: [Admin]
+      summary: List all platform tokens
+      responses:
+        "200":
+          description: Token list
+    post:
+      tags: [Admin]
+      summary: Create platform token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [platform, token, is_global]
+              properties:
+                user_id:
+                  type: string
+                platform:
+                  type: string
+                token:
+                  type: string
+                is_global:
+                  type: boolean
+      responses:
+        "200":
+          description: Token created
+
+  /api/admin/tokens/{id}:
+    delete:
+      tags: [Admin]
+      summary: Delete platform token
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Token deleted
+
+  /api/admin/quota:
+    get:
+      tags: [Admin]
+      summary: Get default quota
+      responses:
+        "200":
+          description: Default quota
+    put:
+      tags: [Admin]
+      summary: Set default quota
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [default_quota_bytes]
+              properties:
+                default_quota_bytes:
+                  type: integer
+      responses:
+        "200":
+          description: Default quota updated
