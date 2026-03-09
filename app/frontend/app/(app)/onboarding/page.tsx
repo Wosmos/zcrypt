@@ -110,9 +110,9 @@ export default function OnboardingPage() {
               className={cn(
                 "h-1.5 rounded-full transition-all duration-300",
                 s === step
-                  ? "w-8 bg-emerald-500"
+                  ? "w-8 bg-[var(--color-accent)]"
                   : i < stepIndex
-                    ? "w-4 bg-emerald-500/40"
+                    ? "w-4 bg-[var(--color-accent)]/40"
                     : "w-4 bg-[var(--color-border)]"
               )}
             />
@@ -122,11 +122,11 @@ export default function OnboardingPage() {
         {step === "welcome" && (
           <div className="space-y-8 animate-fade-in">
             <div className="text-center space-y-4">
-              <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 mx-auto">
-                <Shield className="h-8 w-8 text-emerald-400" />
+              <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-[var(--color-accent)]/10 border border-[var(--color-accent)]/20 mx-auto">
+                <Shield className="h-8 w-8 text-[var(--color-accent)]" />
               </div>
               <h1 className="text-3xl font-bold">
-                Welcome to zpush
+                Welcome to <span className="text-[var(--color-accent)]">zpush</span>
               </h1>
               <p className="text-sm text-[var(--color-text-secondary)] max-w-sm mx-auto">
                 Encrypted, compressed, zero-knowledge cloud storage using Git
@@ -188,7 +188,7 @@ export default function OnboardingPage() {
                     className={cn(
                       "w-full flex items-center gap-3.5 rounded-xl border p-4 text-left transition-all",
                       isSelected
-                        ? "border-emerald-500/40 bg-emerald-500/5"
+                        ? "border-[var(--color-accent)]/40 bg-[var(--color-accent)]/5"
                         : "border-[var(--color-border)] hover:border-[var(--color-border-hover)] hover:bg-[var(--color-surface-1)]"
                     )}
                   >
@@ -203,7 +203,7 @@ export default function OnboardingPage() {
                       <p className="text-[11px] text-[var(--color-text-muted)]">{p.description}</p>
                     </div>
                     {isSelected && (
-                      <div className="h-5 w-5 rounded-full bg-emerald-500 flex items-center justify-center">
+                      <div className="h-5 w-5 rounded-full bg-[var(--color-accent)] flex items-center justify-center">
                         <CheckCircle2 className="h-3.5 w-3.5 text-white" />
                       </div>
                     )}
@@ -275,7 +275,7 @@ export default function OnboardingPage() {
                 href={platform.tokenUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block text-center text-xs text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors"
+                className="block text-center text-xs text-[var(--color-accent)] hover:underline transition-colors"
               >
                 {platform.tokenLabel}
               </a>
@@ -292,8 +292,8 @@ export default function OnboardingPage() {
 
         {step === "done" && (
           <div className="text-center space-y-6 animate-fade-in">
-            <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 mx-auto">
-              <CheckCircle2 className="h-8 w-8 text-emerald-400" />
+            <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-[var(--color-accent)]/10 border border-[var(--color-accent)]/20 mx-auto">
+              <CheckCircle2 className="h-8 w-8 text-[var(--color-accent)]" />
             </div>
             <div>
               <h2 className="text-2xl font-bold">

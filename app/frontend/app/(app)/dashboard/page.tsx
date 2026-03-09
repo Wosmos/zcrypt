@@ -6,6 +6,8 @@ import { UploadQueue } from "@/components/upload/upload-queue";
 import { PlatformSelector } from "@/components/upload/platform-selector";
 import { FileCard, type DownloadState } from "@/components/files/file-card";
 import { FileTable, type SortField, type SortDir } from "@/components/files/file-table";
+import { FileTypeFilter } from "@/components/files/file-type-filter";
+import { MobileVaultHeader } from "@/components/vault/mobile-vault-header";
 import { PassphraseModal } from "@/components/ui/passphrase-modal";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CompactStats } from "@/components/vault/compact-stats";
@@ -14,6 +16,7 @@ import { PlatformHealth } from "@/components/vault/platform-health";
 import { ExportImport } from "@/components/vault/export-import";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { batchLoadThumbnails } from "@/hooks/useThumbnail";
 import { useFileList } from "@/hooks/useFileList";
 import { usePlatformHealth } from "@/hooks/usePlatformHealth";
 import { useUploadStore } from "@/store/upload";
@@ -32,9 +35,12 @@ import {
   BellOff,
   LayoutGrid,
   TableProperties,
-  List,
+  CheckSquare,
+  Square,
+  Trash2,
+  Download,
 } from "lucide-react";
-import { cn, formatBytes } from "@/lib/utils";
+import { cn, formatBytes, getFileCategory } from "@/lib/utils";
 import Link from "next/link";
 import { useNotifications } from "@/hooks/useNotifications";
 import { FilePreviewModal, useFilePreview } from "@/components/ui/file-preview-modal";
@@ -45,7 +51,7 @@ import { ConfirmModal } from "@/components/ui/confirm-modal";
 
 const PAGE_SIZE = 12;
 
-type ModalMode = { type: "upload"; files: File[] } | { type: "download"; filename: string } | { type: "preview"; filename: string } | null;
+type ModalMode = { type: "upload"; files: File[] } | { type: "download"; filename: string } | { type: "preview"; filename: string } | { type: "bulk-download" } | { type: "unlock" } | null;
 
 export default function VaultPage() {
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
@@ -53,10 +59,17 @@ export default function VaultPage() {
   const [modalMode, setModalMode] = useState<ModalMode>(null);
   const [passphraseError, setPassphraseError] = useState<string | null>(null);
   const [downloadStates, setDownloadStates] = useState<Record<string, DownloadState>>({});
-  const [viewMode, setViewMode] = useState<"grid" | "list" | "table">("grid");
+  const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [currentPage, setCurrentPage] = useState(1);
+  const [typeFilter, setTypeFilter] = useState<string | null>(null);
+
+  // Bulk selection
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
 
   const { files, loading, error, refresh } = useFileList();
   const { statuses, repos, isAnyConnected } = usePlatformHealth();
@@ -84,6 +97,14 @@ export default function VaultPage() {
     const interval = setInterval(() => forceUpdate((n) => n + 1), 30000);
     return () => clearInterval(interval);
   }, [cachedPassphrase]);
+
+  // Auto-load thumbnails when passphrase is cached and files are available
+  useEffect(() => {
+    const pp = getPassphrase();
+    if (pp && files.length > 0) {
+      batchLoadThumbnails(files, pp).catch(() => {});
+    }
+  }, [files, getPassphrase]);
 
   // Load incomplete uploads on mount
   useEffect(() => {
@@ -133,7 +154,6 @@ export default function VaultPage() {
         return;
       }
 
-      // Client-side dedup: skip files that already exist in vault (same name + size)
       const dupes: string[] = [];
       const uniqueFiles = selectedFiles.filter((f) => {
         const exists = files.some((existing) => existing.original_name === f.name && existing.original_size === f.size);
@@ -148,7 +168,6 @@ export default function VaultPage() {
 
       if (uniqueFiles.length === 0) return;
 
-      // Check storage quota before uploading
       if (quotaInfo && !quotaInfo.is_unlimited && quotaInfo.quota_bytes > 0) {
         const totalUploadSize = uniqueFiles.reduce((sum, f) => sum + f.size, 0);
         const remaining = quotaInfo.quota_bytes - quotaInfo.used_bytes;
@@ -257,6 +276,80 @@ export default function VaultPage() {
     [deleteTarget, refresh]
   );
 
+  // --- Bulk operations ---
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const selectAll = useCallback(() => {
+    const allIds = new Set(filtered.map((f) => f.id));
+    setSelectedIds((prev) => {
+      if (filtered.every((f) => prev.has(f.id))) return new Set();
+      return allIds;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [files, search, typeFilter, sortField, sortDir]);
+
+  const exitSelectionMode = useCallback(() => {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+  }, []);
+
+  const executeBulkDelete = useCallback(async () => {
+    if (selectedIds.size === 0) return;
+    setBulkDeleting(true);
+    let deleted = 0;
+    for (const id of selectedIds) {
+      try {
+        await deleteFile(id);
+        deleted++;
+      } catch {
+        // continue with next
+      }
+    }
+    setBulkDeleting(false);
+    setShowBulkDeleteConfirm(false);
+    toast.success(`Deleted ${deleted} file${deleted !== 1 ? "s" : ""}`);
+    setSelectedIds(new Set());
+    setSelectionMode(false);
+    refresh();
+  }, [selectedIds, refresh]);
+
+  const startBulkDownload = useCallback((passphrase: string) => {
+    const filesToDownload = files.filter((f) => selectedIds.has(f.id));
+    for (const file of filesToDownload) {
+      startDownload(file.original_name, passphrase);
+    }
+    exitSelectionMode();
+  }, [files, selectedIds, startDownload, exitSelectionMode]);
+
+  const handleBulkDownload = useCallback(() => {
+    const cached = getPassphrase();
+    if (cached) {
+      startBulkDownload(cached);
+    } else {
+      setModalMode({ type: "bulk-download" });
+      setPassphraseError(null);
+    }
+  }, [getPassphrase, startBulkDownload]);
+
+  // --- Unlock vault (trigger thumbnail batch load) ---
+  const handleUnlock = useCallback(() => {
+    const cached = getPassphrase();
+    if (cached) {
+      // Already unlocked — trigger batch load with cached passphrase
+      batchLoadThumbnails(files, cached).catch(() => {});
+    } else {
+      setModalMode({ type: "unlock" });
+      setPassphraseError(null);
+    }
+  }, [getPassphrase, files]);
+
   // --- Preview ---
   const handlePreview = useCallback(
     (filename: string) => {
@@ -279,7 +372,6 @@ export default function VaultPage() {
       const file = files.find((f) => f.original_name === filename);
       if (!file) return;
 
-      // Show loading state in preview modal immediately
       preview.openPreview(null, filename, file.original_size);
 
       try {
@@ -307,15 +399,22 @@ export default function VaultPage() {
       setModalMode(null);
       setPassphraseError(null);
 
+      // Always batch-load thumbnails in background when passphrase is entered
+      batchLoadThumbnails(files, passphrase).catch(() => {});
+
       if (modalMode.type === "upload") {
         startUpload(modalMode.files, passphrase);
       } else if (modalMode.type === "download") {
         startDownload(modalMode.filename, passphrase);
+      } else if (modalMode.type === "bulk-download") {
+        startBulkDownload(passphrase);
+      } else if (modalMode.type === "unlock") {
+        // Unlock mode: thumbnails already started loading above
       } else {
         startPreview(modalMode.filename, passphrase);
       }
     },
-    [modalMode, startUpload, startDownload, startPreview]
+    [modalMode, files, startUpload, startDownload, startPreview, startBulkDownload]
   );
 
   // --- Computed ---
@@ -334,9 +433,11 @@ export default function VaultPage() {
     setCurrentPage(1);
   };
 
+  // Apply search + type filter + sort
   const filtered = (search
     ? files.filter((f) => f.original_name.toLowerCase().includes(search.toLowerCase()))
     : files
+  ).filter((f) => typeFilter ? getFileCategory(f.original_name) === typeFilter : true
   ).slice().sort((a, b) => {
     const dir = sortDir === "asc" ? 1 : -1;
     switch (sortField) {
@@ -348,9 +449,21 @@ export default function VaultPage() {
         return dir * (sa - sb);
       }
       case "date": return dir * (new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      case "type": return dir * getFileCategory(a.original_name).localeCompare(getFileCategory(b.original_name));
       default: return 0;
     }
   });
+
+  // Reset type filter when search changes
+  const handleSearchChange = (value: string) => {
+    setSearch(value);
+    setCurrentPage(1);
+  };
+
+  const handleTypeFilter = (category: string | null) => {
+    setTypeFilter(category);
+    setCurrentPage(1);
+  };
 
   // Pagination
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
@@ -364,7 +477,13 @@ export default function VaultPage() {
       ? modalMode.files.length === 1
         ? modalMode.files[0].name
         : `${modalMode.files.length} files selected`
-      : modalMode.filename
+      : modalMode.type === "bulk-download"
+        ? `${selectedIds.size} files selected`
+        : modalMode.type === "unlock"
+          ? "Unlock to view encrypted thumbnails"
+          : modalMode.type === "download" || modalMode.type === "preview"
+            ? modalMode.filename
+            : undefined
     : undefined;
 
   return (
@@ -372,14 +491,20 @@ export default function VaultPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Vault</h1>
-          <div className="mt-1.5">
-            <CompactStats fileCount={files.length} totalSize={totalSize} totalEncrypted={totalEncrypted} lastUploadDate={lastUploadDate} quotaInfo={quotaInfo} />
+          <div className="flex items-center gap-2.5 mb-3">
+            <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-[var(--color-accent)]/10 ring-1 ring-[var(--color-accent)]/20">
+              <Shield className="h-5 w-5 text-[var(--color-accent)]" />
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold text-[var(--color-accent)] uppercase tracking-widest">Encrypted Storage</p>
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight leading-tight">My Vault</h1>
+            </div>
           </div>
+          <CompactStats fileCount={files.length} totalSize={totalSize} totalEncrypted={totalEncrypted} lastUploadDate={lastUploadDate} quotaInfo={quotaInfo} />
         </div>
         <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
           {hasCachedPassphrase && (
-            <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-1.5 rounded-lg">
+            <div className="flex items-center gap-1.5 text-xs text-[var(--color-accent)] bg-[var(--color-accent)]/10 border border-[var(--color-accent)]/20 px-2.5 py-1.5 rounded-lg">
               <Lock className="h-3 w-3" />
               <span className="hidden sm:inline">{remainingMinutes}m</span>
               <button
@@ -397,7 +522,7 @@ export default function VaultPage() {
               className={cn(
                 "flex items-center justify-center h-9 w-9 rounded-lg transition-colors",
                 isGranted
-                  ? "text-emerald-500 bg-emerald-500/10"
+                  ? "text-[var(--color-accent)] bg-[var(--color-accent)]/10"
                   : "text-[var(--color-text-muted)] hover:bg-[var(--color-surface-1)]"
               )}
               title={isGranted ? "Notifications enabled" : "Enable notifications"}
@@ -462,41 +587,78 @@ export default function VaultPage() {
         </div>
       )}
 
-      {/* Search + View toggle */}
+      {/* Mobile vault header (Google Drive style) */}
       {files.length > 0 && (
-        <div className="flex gap-2 items-center">
-          <div className="flex-1">
-            <Input
-              type="text"
-              placeholder="Search files..."
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
-              icon={<Search className="h-4 w-4" />}
-            />
-          </div>
-          <div className="flex rounded-xl border border-[var(--color-border)] overflow-hidden flex-shrink-0">
-            {([
-              { mode: "grid" as const, icon: LayoutGrid, title: "Grid", mobile: true },
-              { mode: "list" as const, icon: List, title: "List", mobile: true },
-              { mode: "table" as const, icon: TableProperties, title: "Table", mobile: false },
-            ]).map(({ mode, icon: ModeIcon, title, mobile }, i) => (
+        <MobileVaultHeader
+          files={files}
+          quotaInfo={quotaInfo}
+          repos={repos}
+          isUnlocked={hasCachedPassphrase}
+          onUnlock={handleUnlock}
+          onCategoryClick={handleTypeFilter}
+          activeCategory={typeFilter}
+        />
+      )}
+
+      {/* Search + View toggle + Select */}
+      {files.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex gap-2 items-center">
+            <div className="flex-1">
+              <Input
+                type="text"
+                placeholder="Search files..."
+                value={search}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                icon={<Search className="h-4 w-4" />}
+              />
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {/* Select toggle */}
               <button
-                key={mode}
-                onClick={() => setViewMode(mode)}
+                onClick={() => selectionMode ? exitSelectionMode() : setSelectionMode(true)}
                 className={cn(
-                  "flex items-center justify-center h-[38px] w-9 transition-colors",
-                  i > 0 && "border-l border-[var(--color-border)]",
-                  !mobile && "hidden sm:flex",
-                  viewMode === mode
-                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                    : "text-[var(--color-text-muted)] hover:bg-[var(--color-surface-1)]"
+                  "flex items-center gap-1.5 h-[38px] px-3 rounded-xl border text-[12px] font-medium transition-colors",
+                  selectionMode
+                    ? "bg-[var(--color-accent)]/10 text-[var(--color-accent)] border-[var(--color-accent)]/20"
+                    : "bg-[var(--color-surface)] text-[var(--color-text-muted)] border-[var(--color-border)] hover:border-[var(--color-border-hover)] hover:text-[var(--color-text-secondary)]"
                 )}
-                title={title}
               >
-                <ModeIcon className="h-4 w-4" />
+                <CheckSquare className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Select</span>
               </button>
-            ))}
+
+              {/* View mode toggle */}
+              <div className="flex rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden">
+                {([
+                  { mode: "grid" as const, icon: LayoutGrid, title: "Grid" },
+                  { mode: "table" as const, icon: TableProperties, title: "Table" },
+                ]).map(({ mode, icon: ModeIcon, title }, i) => (
+                  <button
+                    key={mode}
+                    onClick={() => setViewMode(mode)}
+                    className={cn(
+                      "flex items-center justify-center h-[38px] w-9 transition-colors",
+                      i > 0 && "border-l border-[var(--color-border)]",
+                      viewMode === mode
+                        ? "bg-[var(--color-accent)]/10 text-[var(--color-accent)]"
+                        : "text-[var(--color-text-muted)] hover:bg-[var(--color-surface-1)]"
+                    )}
+                    title={title}
+                  >
+                    <ModeIcon className="h-4 w-4" />
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
+
+          {/* File type filter chips */}
+          <FileTypeFilter
+            files={search ? files.filter((f) => f.original_name.toLowerCase().includes(search.toLowerCase())) : files}
+            activeFilter={typeFilter}
+            onFilter={handleTypeFilter}
+          />
         </div>
       )}
 
@@ -511,28 +673,38 @@ export default function VaultPage() {
 
       {/* File list */}
       {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="card p-4 space-y-3">
-              <div className="flex items-start gap-3">
+        <>
+          {/* Mobile skeleton */}
+          <div className="space-y-2 md:hidden">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
                 <Skeleton className="h-10 w-10 rounded-lg flex-shrink-0" />
                 <div className="flex-1 space-y-1.5">
-                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3.5 w-32" />
                   <Skeleton className="h-3 w-20" />
                 </div>
               </div>
-              <div className="flex gap-2">
-                <Skeleton className="h-3 w-16" />
-                <Skeleton className="h-3 w-16" />
+            ))}
+          </div>
+          {/* Desktop skeleton */}
+          <div className="hidden md:grid grid-cols-2 lg:grid-cols-3 gap-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="card p-0 overflow-hidden">
+                <Skeleton className="h-[130px] w-full" />
+                <div className="p-3.5 space-y-2">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-20" />
+                  <Skeleton className="h-3 w-full" />
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </>
       ) : filtered.length === 0 && files.length > 0 ? (
         <EmptyState
           icon={<Search className="h-8 w-8 text-[var(--color-text-muted)]" />}
           title="No matching files"
-          description="Try a different search term"
+          description={typeFilter ? `No ${typeFilter.toLowerCase()} files found${search ? ` matching "${search}"` : ""}` : "Try a different search term"}
         />
       ) : files.length === 0 ? (
         <EmptyState
@@ -551,30 +723,11 @@ export default function VaultPage() {
             onDownload={handleDownloadClick}
             onDelete={handleDeleteClick}
             onPreview={handlePreview}
+            selectable={selectionMode}
+            selectedIds={selectedIds}
+            onSelect={toggleSelect}
+            onSelectAll={selectAll}
           />
-          <Pagination
-            currentPage={safePage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-            totalItems={filtered.length}
-            pageSize={PAGE_SIZE}
-          />
-        </>
-      ) : viewMode === "grid" ? (
-        <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {paginatedFiles.map((file) => (
-              <FileCard
-                key={file.id}
-                file={file}
-                variant="grid"
-                downloadState={downloadStates[file.id] || "idle"}
-                onDownload={handleDownloadClick}
-                onDelete={handleDeleteClick}
-                onPreview={handlePreview}
-              />
-            ))}
-          </div>
           <Pagination
             currentPage={safePage}
             totalPages={totalPages}
@@ -585,18 +738,39 @@ export default function VaultPage() {
         </>
       ) : (
         <>
-          <div className="space-y-2">
+          <div>
+            {/* Mobile: compact list layout */}
+            <div className="space-y-1.5 md:hidden">
+              {paginatedFiles.map((file) => (
+                <FileCard
+                  key={file.id}
+                  file={file}
+                  downloadState={downloadStates[file.id] || "idle"}
+                  onDownload={handleDownloadClick}
+                  onDelete={handleDeleteClick}
+                  onPreview={handlePreview}
+                  selectable={selectionMode}
+                  selected={selectedIds.has(file.id)}
+                  onSelect={toggleSelect}
+                />
+              ))}
+            </div>
+            {/* Desktop: grid layout */}
+            <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-3">
             {paginatedFiles.map((file) => (
               <FileCard
                 key={file.id}
                 file={file}
-                variant="list"
                 downloadState={downloadStates[file.id] || "idle"}
                 onDownload={handleDownloadClick}
                 onDelete={handleDeleteClick}
                 onPreview={handlePreview}
+                selectable={selectionMode}
+                selected={selectedIds.has(file.id)}
+                onSelect={toggleSelect}
               />
             ))}
+            </div>
           </div>
           <Pagination
             currentPage={safePage}
@@ -606,6 +780,50 @@ export default function VaultPage() {
             pageSize={PAGE_SIZE}
           />
         </>
+      )}
+
+      {/* Bulk selection floating bar */}
+      {selectionMode && selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 animate-fade-in">
+          <div className="flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl backdrop-blur-sm">
+            <span className="text-sm font-medium tabular-nums">
+              {selectedIds.size} selected
+            </span>
+            <div className="w-px h-5 bg-[var(--color-border)]" />
+            <button
+              onClick={selectAll}
+              className="flex items-center gap-1 text-[12px] font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text)] px-2 py-1 rounded-lg hover:bg-[var(--color-surface-1)] transition-colors"
+            >
+              {filtered.every((f) => selectedIds.has(f.id)) ? (
+                <><Square className="h-3.5 w-3.5" /> Deselect</>
+              ) : (
+                <><CheckSquare className="h-3.5 w-3.5" /> All</>
+              )}
+            </button>
+            <div className="w-px h-5 bg-[var(--color-border)]" />
+            <button
+              onClick={handleBulkDownload}
+              className="flex items-center gap-1 text-[12px] font-medium text-[var(--color-accent)] px-2 py-1.5 rounded-lg hover:bg-[var(--color-accent)]/10 transition-colors"
+            >
+              <Download className="h-3.5 w-3.5" />
+              Download
+            </button>
+            <button
+              onClick={() => setShowBulkDeleteConfirm(true)}
+              className="flex items-center gap-1 text-[12px] font-medium text-red-500 px-2 py-1.5 rounded-lg hover:bg-red-500/10 transition-colors"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete
+            </button>
+            <div className="w-px h-5 bg-[var(--color-border)]" />
+            <button
+              onClick={exitSelectionMode}
+              className="flex items-center justify-center h-7 w-7 rounded-lg text-[var(--color-text-muted)] hover:bg-[var(--color-surface-1)] transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Vault backup */}
@@ -618,7 +836,7 @@ export default function VaultPage() {
         onClose={() => { setModalMode(null); setPassphraseError(null); }}
         title="Enter Passphrase"
         subtitle={modalSubtitle}
-        confirmLabel={modalMode?.type === "upload" ? "Upload" : modalMode?.type === "preview" ? "Preview" : "Download"}
+        confirmLabel={modalMode?.type === "upload" ? "Upload" : modalMode?.type === "unlock" ? "Unlock" : modalMode?.type === "preview" ? "Preview" : "Download"}
         error={passphraseError}
       />
 
@@ -642,6 +860,18 @@ export default function VaultPage() {
         confirmLabel="Delete File"
         variant="danger"
         loading={deleting}
+      />
+
+      {/* Bulk delete confirm */}
+      <ConfirmModal
+        open={showBulkDeleteConfirm}
+        onConfirm={executeBulkDelete}
+        onClose={() => setShowBulkDeleteConfirm(false)}
+        title="Delete Selected Files"
+        description={`${selectedIds.size} file${selectedIds.size !== 1 ? "s" : ""} will be permanently deleted from all storage platforms. This action cannot be undone.`}
+        confirmLabel={`Delete ${selectedIds.size} File${selectedIds.size !== 1 ? "s" : ""}`}
+        variant="danger"
+        loading={bulkDeleting}
       />
 
       {/* Storage quota exceeded modal */}

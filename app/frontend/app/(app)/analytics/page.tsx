@@ -9,7 +9,7 @@ import { UploadChart } from "@/components/analytics/upload-chart";
 import { FileTypeChart } from "@/components/analytics/file-type-chart";
 import { RecentUploads } from "@/components/analytics/recent-uploads";
 import { PlatformBreakdown } from "@/components/analytics/platform-breakdown";
-import { TrendingUp, HardDrive, Layers, TrendingDown } from "lucide-react";
+import { TrendingUp, HardDrive, Layers, TrendingDown, BarChart3 } from "lucide-react";
 import AnalyticsLoading from "./loading";
 
 export default function AnalyticsPage() {
@@ -29,9 +29,14 @@ export default function AnalyticsPage() {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Analytics</h1>
-        <p className="text-sm text-[var(--color-text-secondary)] mt-1">Storage insights and upload activity</p>
+      <div className="flex items-center gap-2.5">
+        <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-blue-500/10 ring-1 ring-blue-500/20">
+          <BarChart3 className="h-5 w-5 text-blue-500" />
+        </div>
+        <div>
+          <p className="text-[10px] font-semibold text-[var(--color-accent)] uppercase tracking-widest">Insights</p>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight leading-tight">Analytics</h1>
+        </div>
       </div>
 
       {/* Quick stats row */}
@@ -99,13 +104,15 @@ function QuickStat({ icon, label, value, sub, bg }: {
   bg: string;
 }) {
   return (
-    <div className="card p-4">
-      <div className={`flex items-center justify-center h-8 w-8 rounded-lg ${bg} mb-2`}>
-        {icon}
+    <div className="card p-4 relative overflow-hidden">
+      <div className="flex items-center gap-3 mb-3">
+        <div className={`flex items-center justify-center h-9 w-9 rounded-xl ${bg}`}>
+          {icon}
+        </div>
+        <p className="text-[11px] text-[var(--color-text-muted)] uppercase tracking-wider font-semibold">{label}</p>
       </div>
-      <p className="text-[11px] text-[var(--color-text-muted)] uppercase tracking-wider font-medium">{label}</p>
-      <p className="text-lg font-bold mt-0.5">{value}</p>
-      <p className="text-[11px] text-[var(--color-text-secondary)]">{sub}</p>
+      <p className="text-xl font-bold">{value}</p>
+      <p className="text-[11px] text-[var(--color-text-secondary)] mt-0.5">{sub}</p>
     </div>
   );
 }

@@ -64,7 +64,7 @@ export function PassphraseModal({
       >
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+            <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-[var(--color-accent)]/10 text-[var(--color-accent)]">
               <Lock className="h-5 w-5" />
             </div>
             <div>
@@ -102,7 +102,7 @@ export function PassphraseModal({
             placeholder="Your encryption passphrase"
             value={passphrase}
             onChange={(e) => setPassphrase(e.target.value)}
-            className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] px-4 py-3 text-sm placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500/40 transition-all"
+            className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] px-4 py-3 text-sm placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/30 focus:border-[var(--color-accent)]/40 transition-all"
             autoComplete="off"
           />
 
@@ -131,7 +131,7 @@ export function PassphraseModal({
             <button
               type="submit"
               disabled={!passphrase}
-              className="flex-1 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-medium text-slate-900 hover:bg-emerald-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              className="flex-1 rounded-xl bg-[#1a1f36] dark:bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-[#252b45] dark:hover:bg-emerald-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {confirmLabel}
             </button>

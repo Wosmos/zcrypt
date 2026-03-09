@@ -26,9 +26,9 @@ func SendVerificationEmail(cfg *EmailConfig, to, token, baseURL string) error {
 	subject := "Verify your zpush account"
 	body := fmt.Sprintf(`<!DOCTYPE html>
 <html><body style="font-family:sans-serif;color:#333;max-width:480px;margin:0 auto;padding:32px">
-<h2 style="color:#6366f1">Welcome to zpush</h2>
+<h2 style="color:#10b981">Welcome to zpush</h2>
 <p>Click below to verify your email address:</p>
-<p><a href="%s" style="display:inline-block;background:#6366f1;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">Verify Email</a></p>
+<p><a href="%s" style="display:inline-block;background:#10b981;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">Verify Email</a></p>
 <p style="color:#999;font-size:12px;margin-top:32px">This link expires in 24 hours. If you didn't create this account, ignore this email.</p>
 </body></html>`, link)
 
@@ -45,9 +45,9 @@ func SendPasswordResetEmail(cfg *EmailConfig, to, token, baseURL string) error {
 	subject := "Reset your zpush password"
 	body := fmt.Sprintf(`<!DOCTYPE html>
 <html><body style="font-family:sans-serif;color:#333;max-width:480px;margin:0 auto;padding:32px">
-<h2 style="color:#6366f1">Password Reset</h2>
+<h2 style="color:#10b981">Password Reset</h2>
 <p>Click below to reset your password:</p>
-<p><a href="%s" style="display:inline-block;background:#6366f1;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">Reset Password</a></p>
+<p><a href="%s" style="display:inline-block;background:#10b981;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">Reset Password</a></p>
 <p style="color:#999;font-size:12px;margin-top:32px">This link expires in 1 hour. If you didn't request this, ignore this email.</p>
 </body></html>`, link)
 

@@ -30,6 +30,7 @@ import {
   Moon,
   Monitor,
   ChevronDown,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
@@ -117,13 +118,15 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-          Settings
-        </h1>
-        <p className="text-sm text-[var(--color-text-secondary)] mt-1">
-          Connect platforms and manage your vault
-        </p>
+      {/* Header */}
+      <div className="flex items-center gap-2.5">
+        <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-[var(--color-surface-1)] ring-1 ring-[var(--color-border)]">
+          <Settings className="h-5 w-5 text-[var(--color-text-muted)]" />
+        </div>
+        <div>
+          <p className="text-[10px] font-semibold text-[var(--color-accent)] uppercase tracking-widest">Configuration</p>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight leading-tight">Settings</h1>
+        </div>
       </div>
 
       {/* Theme */}
@@ -144,7 +147,7 @@ export default function SettingsPage() {
                 className={cn(
                   "flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all border",
                   theme === value
-                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-300"
+                    ? "bg-[var(--color-accent)]/10 border-[var(--color-accent)]/30 text-[var(--color-accent)]"
                     : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-1)]"
                 )}
               >
@@ -158,9 +161,7 @@ export default function SettingsPage() {
 
       {/* Platform connections */}
       <div className="space-y-4">
-        <h2 className="text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
-          Platform Connections
-        </h2>
+        <h2 className="section-label">Platform Connections</h2>
 
         {/* GitHub */}
         <PlatformSection
@@ -313,7 +314,7 @@ function PlatformSection({
           <p className="text-[11px] text-[var(--color-text-secondary)]">{description}</p>
         </div>
         {connectedAccounts.length > 0 && (
-          <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full">
+          <span className="text-xs font-medium text-[var(--color-accent)] bg-[var(--color-accent)]/10 border border-[var(--color-accent)]/20 px-2.5 py-1 rounded-full">
             {connectedAccounts.length} connected
           </span>
         )}
@@ -386,7 +387,7 @@ function PlatformSection({
           href={tokenUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 text-xs text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors"
+          className="inline-flex items-center gap-1.5 text-xs text-[var(--color-accent)] hover:underline transition-colors"
         >
           {tokenLabel}
           <ExternalLink className="h-3 w-3" />
