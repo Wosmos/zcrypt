@@ -281,14 +281,14 @@ export function CircuitBackground() {
   return (
     <div className="fixed inset-0 -z-50 overflow-hidden pointer-events-none bg-[var(--color-bg)] transition-colors duration-500">
       <svg
-        className="absolute inset-0 w-full h-full opacity-30 dark:opacity-40"
+        className="absolute inset-0 w-full h-full opacity-50 dark:opacity-60"
         viewBox="0 0 1200 800"
         preserveAspectRatio="xMidYMid slice"
         xmlns="http://www.w3.org/2000/svg"
       >
         {/* Faint background static traces */}
         <g
-          stroke={isDark ? "rgba(16,185,129,0.06)" : "rgba(16,185,129,0.04)"}
+          stroke={isDark ? "rgba(16,185,129,0.12)" : "rgba(16,185,129,0.08)"}
           fill="none"
           strokeWidth="1.5"
           strokeLinejoin="round"
@@ -304,7 +304,7 @@ export function CircuitBackground() {
                   cy={end[1]}
                   r="3"
                   fill={
-                    isDark ? "rgba(16,185,129,0.06)" : "rgba(16,185,129,0.04)"
+                    isDark ? "rgba(16,185,129,0.12)" : "rgba(16,185,129,0.08)"
                   }
                   stroke="none"
                 />
@@ -315,7 +315,7 @@ export function CircuitBackground() {
 
         {/* Animated flowing pulses - Removed Heavy SVG Blur Filter, heavily reduced stroke width & opacity */}
         <g
-          stroke={isDark ? "rgba(16,185,129,0.3)" : "rgba(16,185,129,0.2)"}
+          stroke={isDark ? "rgba(16,185,129,0.45)" : "rgba(16,185,129,0.3)"}
           fill="none"
           strokeWidth="2"
           strokeLinejoin="round"
