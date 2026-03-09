@@ -1,5 +1,7 @@
 import { create } from "zustand";
 
+let clearTimer: ReturnType<typeof setTimeout> | null = null;
+
 interface PassphraseStore {
   cachedPassphrase: string | null;
   cacheUntil: number | null;
@@ -17,10 +19,15 @@ export const usePassphraseStore = create<PassphraseStore>((set, get) => ({
   rememberByDefault: true,
 
   setPassphrase: (passphrase, ttlMinutes = 15) => {
-    set({
-      cachedPassphrase: passphrase,
-      cacheUntil: Date.now() + ttlMinutes * 60 * 1000,
-    });
+    const cacheUntil = Date.now() + ttlMinutes * 60 * 1000;
+    set({ cachedPassphrase: passphrase, cacheUntil });
+
+    // Auto-clear when TTL expires
+    if (clearTimer) clearTimeout(clearTimer);
+    clearTimer = setTimeout(() => {
+      set({ cachedPassphrase: null, cacheUntil: null });
+      clearTimer = null;
+    }, ttlMinutes * 60 * 1000);
   },
 
   getPassphrase: () => {
@@ -28,12 +35,14 @@ export const usePassphraseStore = create<PassphraseStore>((set, get) => ({
     if (!cachedPassphrase || !cacheUntil) return null;
     if (Date.now() > cacheUntil) {
       set({ cachedPassphrase: null, cacheUntil: null });
+      if (clearTimer) { clearTimeout(clearTimer); clearTimer = null; }
       return null;
     }
     return cachedPassphrase;
   },
 
   clear: () => {
+    if (clearTimer) { clearTimeout(clearTimer); clearTimer = null; }
     set({ cachedPassphrase: null, cacheUntil: null });
   },
 

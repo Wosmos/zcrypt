@@ -145,7 +145,9 @@ func (pe *PipelineEngine) Prepare(ctx context.Context, filePath, originalFilenam
 	sourceForEncrypt := compressedPath
 	if compressedSize >= originalSize {
 		log.Printf("[compress] %s: skipped (compressed %d >= original %d)", originalName, compressedSize, originalSize)
-		os.Remove(compressedPath)
+		if err := os.Remove(compressedPath); err != nil {
+			log.Printf("[warn] remove compressed file: %v", err)
+		}
 		sourceForEncrypt = filePath
 		compressedSize = originalSize
 	} else {
@@ -169,7 +171,9 @@ func (pe *PipelineEngine) Prepare(ctx context.Context, filePath, originalFilenam
 	encryptedSize := encryptedInfo.Size()
 
 	if sourceForEncrypt == compressedPath {
-		os.Remove(compressedPath)
+		if err := os.Remove(compressedPath); err != nil {
+			log.Printf("[warn] remove compressed file after encrypt: %v", err)
+		}
 	}
 
 	// --- CHUNK (into staging dir) ---
@@ -180,7 +184,9 @@ func (pe *PipelineEngine) Prepare(ctx context.Context, filePath, originalFilenam
 		return nil, fmt.Errorf("chunk: %w", err)
 	}
 
-	os.Remove(encryptedPath)
+	if err := os.Remove(encryptedPath); err != nil {
+		log.Printf("[warn] remove encrypted file: %v", err)
+	}
 
 	// --- HASH ---
 	pe.progress.Emit(types.ProgressEvent{FileID: fileID, Stage: "hashing", Percent: 60})
@@ -422,7 +428,9 @@ func (pe *PipelineEngine) finalizeUpload(ctx context.Context, prepared *Prepared
 	}
 
 	// Clean up staging directory
-	os.RemoveAll(prepared.StagingDir)
+	if err := os.RemoveAll(prepared.StagingDir); err != nil {
+		log.Printf("[warn] remove staging dir: %v", err)
+	}
 
 	pe.progress.Emit(types.ProgressEvent{FileID: fileID, Stage: "done", Percent: 100})
 	return nil
@@ -438,6 +446,10 @@ func (pe *PipelineEngine) Push(ctx context.Context, filePath, originalFilename, 
 	}
 
 	if err := pe.Upload(ctx, prepared); err != nil {
+		// Clean up staging on non-resumable push failure
+		if rmErr := os.RemoveAll(prepared.StagingDir); rmErr != nil {
+			log.Printf("[warn] cleanup staging after failed push: %v", rmErr)
+		}
 		return nil, err
 	}
 

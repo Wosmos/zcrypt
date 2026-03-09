@@ -204,6 +204,28 @@ func Load() (*Config, error) {
 	return cfg, nil
 }
 
+// Validate checks that required configuration fields are set.
+func (c *Config) Validate() error {
+	if c.JWTSecret == "" {
+		return fmt.Errorf("JWT secret is required")
+	}
+	if len(c.JWTSecret) < 32 {
+		return fmt.Errorf("JWT secret must be at least 32 characters")
+	}
+	if c.SMTP != nil {
+		if c.SMTP.Host == "" {
+			return fmt.Errorf("SMTP_HOST is required when SMTP is configured")
+		}
+		if c.SMTP.From == "" {
+			return fmt.Errorf("SMTP_FROM is required when SMTP is configured")
+		}
+		if c.SMTP.Port <= 0 || c.SMTP.Port > 65535 {
+			return fmt.Errorf("SMTP_PORT must be between 1 and 65535")
+		}
+	}
+	return nil
+}
+
 // Save writes the config to disk.
 func (c *Config) Save() error {
 	path, err := configPath()

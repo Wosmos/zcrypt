@@ -21,7 +21,8 @@ type GithubAdapter struct {
 
 // NewGithubAdapter creates a GitHub adapter with the given token.
 func NewGithubAdapter(token string) (*GithubAdapter, error) {
-	client := github.NewClient(nil).WithAuthToken(token)
+	httpClient := &http.Client{Timeout: 60 * time.Second}
+	client := github.NewClient(httpClient).WithAuthToken(token)
 
 	user, _, err := client.Users.Get(context.Background(), "")
 	if err != nil {

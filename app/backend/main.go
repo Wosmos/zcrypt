@@ -41,12 +41,15 @@ func main() {
 		log.Fatalf("load config: %v", err)
 	}
 
-	// Validate required env vars
+	// Validate required config
 	if cfg.DatabaseURL == "" {
 		log.Fatal("DATABASE_URL is required (set via environment or .env file)")
 	}
 	if cfg.MasterKey == "" {
 		log.Fatal("MASTER_KEY is required (set via environment or .env file, 64-char hex = 32 bytes)")
+	}
+	if err := cfg.Validate(); err != nil {
+		log.Fatalf("config validation: %v", err)
 	}
 
 	// Parse master key
@@ -241,6 +244,13 @@ func corsMiddleware(next http.Handler) http.Handler {
 		}
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+		// Security headers
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("Referrer-Policy", "no-referrer")
+		w.Header().Set("X-XSS-Protection", "1; mode=block")
+		w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
 
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)

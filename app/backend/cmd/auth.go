@@ -60,7 +60,7 @@ func (s *Server) smtpCfg() *auth.SMTPConfig {
 }
 
 func (s *Server) baseURL(r *http.Request) string {
-	// Prefer configured frontend URL for email links
+	// Always prefer configured frontend URL — never trust forwarded headers for email links
 	if s.cfg.FrontendURL != "" {
 		return strings.TrimRight(s.cfg.FrontendURL, "/")
 	}
@@ -68,14 +68,7 @@ func (s *Server) baseURL(r *http.Request) string {
 	if r.TLS != nil {
 		scheme = "https"
 	}
-	if fwd := r.Header.Get("X-Forwarded-Proto"); fwd != "" {
-		scheme = fwd
-	}
-	host := r.Host
-	if fwd := r.Header.Get("X-Forwarded-Host"); fwd != "" {
-		host = fwd
-	}
-	return fmt.Sprintf("%s://%s", scheme, host)
+	return fmt.Sprintf("%s://%s", scheme, r.Host)
 }
 
 // writeJSON writes a JSON response.
@@ -326,14 +319,23 @@ func (s *Server) HandleForgotPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
-	user, err := s.db.GetUserByEmail(ctx, req.Email)
-	if err != nil || user == nil {
-		http.Error(w, `{"error":"no account found with that email"}`, http.StatusNotFound)
+
+	// Always return 200 to prevent account enumeration
+	if s.cfg.SMTP == nil {
+		writeJSON(w, http.StatusOK, map[string]interface{}{
+			"success": true,
+			"message": "if an account exists with that email, a reset link has been sent",
+		})
 		return
 	}
 
-	if s.cfg.SMTP == nil {
-		http.Error(w, `{"error":"email sending is not configured on this server"}`, http.StatusServiceUnavailable)
+	user, err := s.db.GetUserByEmail(ctx, req.Email)
+	if err != nil || user == nil {
+		// Return generic response to prevent account enumeration
+		writeJSON(w, http.StatusOK, map[string]interface{}{
+			"success": true,
+			"message": "if an account exists with that email, a reset link has been sent",
+		})
 		return
 	}
 
@@ -349,13 +351,12 @@ func (s *Server) HandleForgotPassword(w http.ResponseWriter, r *http.Request) {
 
 	if err := auth.SendPasswordResetEmail(s.smtpCfg(), req.Email, token, s.baseURL(r)); err != nil {
 		log.Printf("send password reset email to %s: %v", req.Email, err)
-		http.Error(w, `{"error":"failed to send reset email"}`, http.StatusInternalServerError)
-		return
 	}
 
+	// Always return same response regardless of outcome
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"success": true,
-		"message": "password reset link sent to your email",
+		"message": "if an account exists with that email, a reset link has been sent",
 	})
 }
 
@@ -447,13 +448,16 @@ func (s *Server) HandleResendVerification(w http.ResponseWriter, r *http.Request
 	}
 
 	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
-	user, err := s.db.GetUserByEmail(ctx, req.Email)
-	if err != nil {
-		http.Error(w, `{"error":"no account found with that email"}`, http.StatusNotFound)
-		return
+
+	genericResp := map[string]interface{}{
+		"success": true,
+		"message": "if an unverified account exists with that email, a verification link has been sent",
 	}
-	if user.EmailVerified {
-		http.Error(w, `{"error":"email is already verified"}`, http.StatusBadRequest)
+
+	user, err := s.db.GetUserByEmail(ctx, req.Email)
+	if err != nil || user.EmailVerified {
+		// Return generic response to prevent account enumeration
+		writeJSON(w, http.StatusOK, genericResp)
 		return
 	}
 

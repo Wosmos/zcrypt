@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/zpush/zpush/disguise"
 	"github.com/zpush/zpush/types"
@@ -28,7 +29,7 @@ type GitlabAdapter struct {
 func NewGitlabAdapter(token string) (*GitlabAdapter, error) {
 	adapter := &GitlabAdapter{
 		token:  token,
-		client: &http.Client{},
+		client: &http.Client{Timeout: 60 * time.Second},
 	}
 
 	// Verify token by fetching current user
