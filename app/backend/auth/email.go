@@ -10,10 +10,11 @@ import (
 )
 
 // EmailConfig holds email sending settings.
-// Uses Resend HTTP API (works on cloud platforms that block SMTP).
+// Uses Brevo (Sendinblue) HTTP API (works on cloud platforms that block SMTP).
 type EmailConfig struct {
-	APIKey string // Resend API key
-	From   string // Sender address (e.g. "zpush <noreply@yourdomain.com>")
+	APIKey string // Brevo API key
+	From   string // Sender address (e.g. "noreply@example.com")
+	Name   string // Sender name (e.g. "zpush")
 }
 
 // SendVerificationEmail sends an email verification link.
@@ -32,7 +33,7 @@ func SendVerificationEmail(cfg *EmailConfig, to, token, baseURL string) error {
 <p style="color:#999;font-size:12px;margin-top:32px">This link expires in 24 hours. If you didn't create this account, ignore this email.</p>
 </body></html>`, link)
 
-	return sendResend(cfg, to, subject, body)
+	return sendBrevo(cfg, to, subject, body)
 }
 
 // SendPasswordResetEmail sends a password reset link.
@@ -51,38 +52,45 @@ func SendPasswordResetEmail(cfg *EmailConfig, to, token, baseURL string) error {
 <p style="color:#999;font-size:12px;margin-top:32px">This link expires in 1 hour. If you didn't request this, ignore this email.</p>
 </body></html>`, link)
 
-	return sendResend(cfg, to, subject, body)
+	return sendBrevo(cfg, to, subject, body)
 }
 
-// sendResend sends an email via Resend's HTTP API (https://resend.com/docs/api-reference/emails/send-email).
-func sendResend(cfg *EmailConfig, to, subject, htmlBody string) error {
+// sendBrevo sends an email via Brevo's (Sendinblue) HTTP API.
+// Docs: https://developers.brevo.com/reference/sendtransacemail
+func sendBrevo(cfg *EmailConfig, to, subject, htmlBody string) error {
+	senderName := cfg.Name
+	if senderName == "" {
+		senderName = "zpush"
+	}
+
 	payload, err := json.Marshal(map[string]interface{}{
-		"from":    cfg.From,
-		"to":      []string{to},
+		"sender":  map[string]string{"name": senderName, "email": cfg.From},
+		"to":      []map[string]string{{"email": to}},
 		"subject": subject,
-		"html":    htmlBody,
+		"htmlContent": htmlBody,
 	})
 	if err != nil {
 		return fmt.Errorf("marshal email payload: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", "https://api.resend.com/emails", bytes.NewReader(payload))
+	req, err := http.NewRequest("POST", "https://api.brevo.com/v3/smtp/email", bytes.NewReader(payload))
 	if err != nil {
 		return fmt.Errorf("create request: %w", err)
 	}
-	req.Header.Set("Authorization", "Bearer "+cfg.APIKey)
+	req.Header.Set("api-key", cfg.APIKey)
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
 
 	client := &http.Client{Timeout: 15 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("resend request: %w", err)
+		return fmt.Errorf("brevo request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 400 {
 		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("resend API error %d: %s", resp.StatusCode, string(body))
+		return fmt.Errorf("brevo API error %d: %s", resp.StatusCode, string(body))
 	}
 
 	return nil

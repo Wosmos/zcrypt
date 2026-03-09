@@ -11,10 +11,11 @@ import (
 	"strings"
 )
 
-// EmailConfig holds settings for sending transactional emails via Resend.
+// EmailConfig holds settings for sending transactional emails via Brevo.
 type EmailConfig struct {
 	APIKey string `json:"api_key"`
 	From   string `json:"from"`
+	Name   string `json:"name,omitempty"`
 }
 
 // DefaultDir returns the zpush config directory (~/.zpush/).
@@ -119,17 +120,23 @@ func (c *Config) applyEnvOverrides() {
 	if v := os.Getenv("MASTER_KEY"); v != "" {
 		c.MasterKey = v
 	}
-	if v := os.Getenv("RESEND_API_KEY"); v != "" {
+	if v := os.Getenv("BREVO_API_KEY"); v != "" {
 		if c.Email == nil {
 			c.Email = &EmailConfig{}
 		}
 		c.Email.APIKey = v
 	}
-	if v := os.Getenv("RESEND_FROM"); v != "" {
+	if v := os.Getenv("BREVO_FROM"); v != "" {
 		if c.Email == nil {
 			c.Email = &EmailConfig{}
 		}
 		c.Email.From = v
+	}
+	if v := os.Getenv("BREVO_NAME"); v != "" {
+		if c.Email == nil {
+			c.Email = &EmailConfig{}
+		}
+		c.Email.Name = v
 	}
 	if v := os.Getenv("FRONTEND_URL"); v != "" {
 		c.FrontendURL = v
@@ -190,10 +197,10 @@ func (c *Config) Validate() error {
 	}
 	if c.Email != nil {
 		if c.Email.APIKey == "" {
-			return fmt.Errorf("RESEND_API_KEY is required when email is configured")
+			return fmt.Errorf("BREVO_API_KEY is required when email is configured")
 		}
 		if c.Email.From == "" {
-			return fmt.Errorf("RESEND_FROM is required when email is configured")
+			return fmt.Errorf("BREVO_FROM is required when email is configured")
 		}
 	}
 	return nil
