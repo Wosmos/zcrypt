@@ -71,25 +71,25 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Desktop sidebar */}
+      {/* Desktop sidebar — always dark navy */}
       <aside
         className={cn(
-          "hidden md:flex h-screen flex-col border-r border-[var(--color-border)] transition-all duration-200",
-          "bg-[var(--color-surface-1)] dark:bg-[#0d1117]",
+          "hidden md:flex h-screen flex-col border-r transition-all duration-200",
+          "bg-[var(--color-sidebar)] border-[var(--color-sidebar-border)]",
           collapsed ? "w-[60px]" : "w-[232px]"
         )}
       >
         {/* Logo */}
         <div className={cn("flex items-center gap-3 px-4 py-5", collapsed && "justify-center px-2")}>
-          <div className="flex items-center justify-center h-9 w-9 rounded-xl bg-emerald-500/15 ring-1 ring-emerald-500/20 flex-shrink-0">
-            <Shield className="h-[18px] w-[18px] text-emerald-600 dark:text-emerald-400" />
+          <div className="flex items-center justify-center h-9 w-9 rounded-xl bg-emerald-500/15 ring-1 ring-emerald-500/25 flex-shrink-0">
+            <Shield className="h-[18px] w-[18px] text-emerald-400" />
           </div>
           {!collapsed && (
             <div className="min-w-0">
-              <span className="text-[15px] font-bold tracking-tight">
+              <span className="text-[15px] font-bold tracking-tight text-white">
                 zpush
               </span>
-              <p className="text-[10px] text-[var(--color-text-muted)] -mt-0.5">
+              <p className="text-[10px] text-[var(--color-sidebar-text)] -mt-0.5">
                 encrypted vault
               </p>
             </div>
@@ -97,7 +97,7 @@ export function Sidebar() {
         </div>
 
         {/* Nav */}
-        <nav className={cn("flex-1 py-3 space-y-1", collapsed ? "px-1.5" : "px-3")}>
+        <nav className={cn("flex-1 py-3 space-y-0.5", collapsed ? "px-1.5" : "px-3")}>
           {links.map(({ href, label, icon: Icon }) => {
             const active = pathname === href;
             return (
@@ -110,14 +110,14 @@ export function Sidebar() {
                   "flex items-center gap-3 rounded-xl text-[13px] font-medium transition-all duration-150",
                   collapsed ? "justify-center px-0 py-2.5" : "px-3 py-2.5",
                   active
-                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 shadow-sm shadow-emerald-500/5"
-                    : "text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)] dark:hover:bg-white/5"
+                    ? "bg-[var(--color-sidebar-active)] text-[var(--color-sidebar-text-active)]"
+                    : "text-[var(--color-sidebar-text)] hover:text-white/80 hover:bg-[var(--color-sidebar-hover)]"
                 )}
               >
                 <Icon
                   className={cn(
                     "h-[18px] w-[18px] flex-shrink-0",
-                    active ? "text-emerald-600 dark:text-emerald-400" : ""
+                    active ? "text-emerald-400" : ""
                   )}
                 />
                 {!collapsed && label}
@@ -126,20 +126,20 @@ export function Sidebar() {
           })}
         </nav>
 
-        {/* Storage progress bar — always visible */}
+        {/* Storage progress bar */}
         <div className={cn("px-4 pb-3", collapsed && "px-2")}>
           {!collapsed ? (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="flex items-center gap-1.5 text-[10px] text-[var(--color-text-muted)]">
+                <span className="flex items-center gap-1.5 text-[10px] text-[var(--color-sidebar-text)]">
                   <Database className="h-3 w-3" />
                   Storage
                 </span>
-                <span className="text-[10px] tabular-nums text-[var(--color-text-muted)]">
+                <span className="text-[10px] tabular-nums text-[var(--color-sidebar-text)]">
                   {totalMax > 0 ? `${storagePercent.toFixed(0)}%` : "\u2014"}
                 </span>
               </div>
-              <div className="h-1.5 rounded-full bg-[var(--color-surface-2)] dark:bg-white/10 overflow-hidden">
+              <div className="h-1.5 rounded-full bg-white/8 overflow-hidden">
                 {totalMax > 0 && (
                   <div
                     className={cn(
@@ -150,7 +150,7 @@ export function Sidebar() {
                   />
                 )}
               </div>
-              <p className="text-[10px] tabular-nums text-[var(--color-text-muted)]">
+              <p className="text-[10px] tabular-nums text-[var(--color-sidebar-text)]">
                 {totalMax > 0
                   ? `${formatBytes(totalUsed)} / ${formatBytes(totalMax)}`
                   : "No platform connected"}
@@ -158,7 +158,7 @@ export function Sidebar() {
             </div>
           ) : (
             <div className="flex flex-col items-center" title={totalMax > 0 ? `${formatBytes(totalUsed)} / ${formatBytes(totalMax)}` : "No platform"}>
-              <div className="h-8 w-1.5 rounded-full bg-[var(--color-surface-2)] dark:bg-white/10 overflow-hidden rotate-180">
+              <div className="h-8 w-1.5 rounded-full bg-white/8 overflow-hidden rotate-180">
                 {totalMax > 0 && (
                   <div
                     className={cn(
@@ -169,25 +169,25 @@ export function Sidebar() {
                   />
                 )}
               </div>
-              <Database className="h-3 w-3 text-[var(--color-text-muted)] mt-1" />
+              <Database className="h-3 w-3 text-[var(--color-sidebar-text)] mt-1" />
             </div>
           )}
         </div>
 
         {/* Footer */}
         <div className={cn(
-          "py-3 border-t border-[var(--color-border)] dark:border-white/5",
+          "py-3 border-t border-[var(--color-sidebar-border)]",
           collapsed ? "px-1.5 flex flex-col items-center gap-1" : "px-4 flex items-center justify-between"
         )}>
           {!collapsed && (
-            <p className="text-[10px] text-[var(--color-text-muted)] leading-relaxed">
+            <p className="text-[10px] text-[var(--color-sidebar-text)] leading-relaxed">
               zpush v0.2
             </p>
           )}
           <div className={cn("flex items-center", collapsed ? "flex-col gap-1" : "gap-1")}>
             <button
               onClick={() => setCollapsed(!collapsed)}
-              className="flex items-center justify-center h-8 w-8 rounded-lg hover:bg-[var(--color-surface-2)] dark:hover:bg-white/5 text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
+              className="flex items-center justify-center h-8 w-8 rounded-lg hover:bg-[var(--color-sidebar-hover)] text-[var(--color-sidebar-text)] hover:text-white/80 transition-colors"
               aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
               title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
@@ -195,7 +195,7 @@ export function Sidebar() {
             </button>
             <button
               onClick={toggleTheme}
-              className="flex items-center justify-center h-8 w-8 rounded-lg hover:bg-[var(--color-surface-2)] dark:hover:bg-white/5 text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
+              className="flex items-center justify-center h-8 w-8 rounded-lg hover:bg-[var(--color-sidebar-hover)] text-[var(--color-sidebar-text)] hover:text-white/80 transition-colors"
               aria-label="Toggle theme"
               title={resolvedTheme === "dark" ? "Light mode" : "Dark mode"}
             >
@@ -207,7 +207,7 @@ export function Sidebar() {
             </button>
             <button
               onClick={handleLogout}
-              className="flex items-center justify-center h-8 w-8 rounded-lg hover:bg-red-500/10 text-[var(--color-text-muted)] hover:text-red-500 transition-colors"
+              className="flex items-center justify-center h-8 w-8 rounded-lg hover:bg-red-500/10 text-[var(--color-sidebar-text)] hover:text-red-400 transition-colors"
               aria-label="Log out"
               title="Log out"
             >

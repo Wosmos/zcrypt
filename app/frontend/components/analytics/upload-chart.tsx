@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import {
   AreaChart,
   Area,
@@ -11,13 +11,14 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { formatBytes } from "@/lib/utils";
+import { ChevronDown } from "lucide-react";
 import type { FileMetadata } from "@/types";
 
 interface UploadChartProps {
   files: FileMetadata[];
 }
 
-type Range = "7d" | "30d" | "all";
+type Range = "1d" | "7d" | "30d" | "all";
 
 /** Local YYYY-MM-DD key — avoids UTC drift that toISOString() causes */
 function localDateKey(d: Date): string {
@@ -31,7 +32,10 @@ function getChartData(files: FileMetadata[], range: Range) {
   let startDate: Date;
   let bucketFormat: (d: Date) => string;
 
-  if (range === "7d") {
+  if (range === "1d") {
+    startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    bucketFormat = (d) => d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
+  } else if (range === "7d") {
     startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     bucketFormat = (d) => d.toLocaleDateString("en-US", { weekday: "short" });
   } else if (range === "30d") {
@@ -41,6 +45,30 @@ function getChartData(files: FileMetadata[], range: Range) {
     const dates = files.map((f) => new Date(f.created_at).getTime());
     startDate = new Date(Math.min(...dates));
     bucketFormat = (d) => d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+  }
+
+  // For "1d" range, use hourly buckets
+  if (range === "1d") {
+    const buckets = new Map<number, { date: string; uploads: number; size: number }>();
+    const start = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    start.setMinutes(0, 0, 0);
+
+    for (let h = 0; h <= 24; h++) {
+      const t = new Date(start.getTime() + h * 60 * 60 * 1000);
+      const hour = t.getHours();
+      buckets.set(h, { date: bucketFormat(t), uploads: 0, size: 0 });
+
+      for (const f of files) {
+        const fd = new Date(f.created_at);
+        if (fd >= t && fd < new Date(t.getTime() + 60 * 60 * 1000)) {
+          const bucket = buckets.get(h)!;
+          bucket.uploads += 1;
+          bucket.size += f.original_size;
+        }
+      }
+    }
+
+    return Array.from(buckets.values());
   }
 
   // Build daily buckets using local date keys
@@ -97,41 +125,71 @@ function getChartData(files: FileMetadata[], range: Range) {
 function bestRange(files: FileMetadata[]): Range {
   if (files.length === 0) return "30d";
   const now = Date.now();
+  const dayAgo = now - 24 * 60 * 60 * 1000;
   const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
   const monthAgo = now - 30 * 24 * 60 * 60 * 1000;
+  if (files.some((f) => new Date(f.created_at).getTime() >= dayAgo)) return "1d";
   if (files.some((f) => new Date(f.created_at).getTime() >= weekAgo)) return "7d";
   if (files.some((f) => new Date(f.created_at).getTime() >= monthAgo)) return "30d";
   return "all";
 }
 
+const rangeOptions: { value: Range; label: string }[] = [
+  { value: "1d", label: "Day" },
+  { value: "7d", label: "Week" },
+  { value: "30d", label: "Month" },
+  { value: "all", label: "All Time" },
+];
+
 export function UploadChart({ files }: UploadChartProps) {
   const [range, setRange] = useState<Range>(() => bestRange(files));
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const data = useMemo(() => getChartData(files, range), [files, range]);
 
-  const ranges: { value: Range; label: string }[] = [
-    { value: "7d", label: "7D" },
-    { value: "30d", label: "30D" },
-    { value: "all", label: "All" },
-  ];
+  const currentLabel = rangeOptions.find((r) => r.value === range)?.label ?? "Month";
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!dropdownOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [dropdownOpen]);
 
   return (
     <div className="card overflow-hidden">
       <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border)]">
         <h3 className="text-sm font-semibold">Upload Activity</h3>
-        <div className="flex gap-1">
-          {ranges.map((r) => (
-            <button
-              key={r.value}
-              onClick={() => setRange(r.value)}
-              className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors ${
-                range === r.value
-                  ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                  : "text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-1)]"
-              }`}
-            >
-              {r.label}
-            </button>
-          ))}
+        <div className="relative" ref={dropdownRef}>
+          <button
+            onClick={() => setDropdownOpen(!dropdownOpen)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[12px] font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-1)] transition-colors"
+          >
+            {currentLabel}
+            <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-150 ${dropdownOpen ? "rotate-180" : ""}`} />
+          </button>
+          {dropdownOpen && (
+            <div className="absolute right-0 top-full mt-1 z-20 min-w-[120px] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-lg py-1 animate-fade-in">
+              {rangeOptions.map((r) => (
+                <button
+                  key={r.value}
+                  onClick={() => { setRange(r.value); setDropdownOpen(false); }}
+                  className={`w-full text-left px-3 py-2 text-[12px] font-medium transition-colors ${
+                    range === r.value
+                      ? "bg-[var(--color-accent)]/10 text-[var(--color-accent)]"
+                      : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-1)]"
+                  }`}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
       <div className="p-5 pt-4">

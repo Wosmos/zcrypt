@@ -36,6 +36,8 @@ export interface FileTypeInfo {
   icon: string;
   color: string;
   bg: string;
+  label: string;
+  gradient: string;
 }
 
 export function getFileTypeInfo(filename: string): FileTypeInfo {
@@ -43,50 +45,86 @@ export function getFileTypeInfo(filename: string): FileTypeInfo {
 
   const typeMap: Record<string, FileTypeInfo> = {
     // Documents
-    pdf: { icon: "FileText", color: "text-rose-500", bg: "bg-rose-500/10" },
-    doc: { icon: "FileText", color: "text-rose-500", bg: "bg-rose-500/10" },
-    docx: { icon: "FileText", color: "text-rose-500", bg: "bg-rose-500/10" },
+    pdf: { icon: "FileText", color: "text-rose-500", bg: "bg-rose-500/10", label: "Document", gradient: "from-rose-500/20 to-rose-500/5" },
+    doc: { icon: "FileText", color: "text-rose-500", bg: "bg-rose-500/10", label: "Document", gradient: "from-rose-500/20 to-rose-500/5" },
+    docx: { icon: "FileText", color: "text-rose-500", bg: "bg-rose-500/10", label: "Document", gradient: "from-rose-500/20 to-rose-500/5" },
+    txt: { icon: "FileText", color: "text-rose-500", bg: "bg-rose-500/10", label: "Document", gradient: "from-rose-500/20 to-rose-500/5" },
+    rtf: { icon: "FileText", color: "text-rose-500", bg: "bg-rose-500/10", label: "Document", gradient: "from-rose-500/20 to-rose-500/5" },
+    odt: { icon: "FileText", color: "text-rose-500", bg: "bg-rose-500/10", label: "Document", gradient: "from-rose-500/20 to-rose-500/5" },
+    ppt: { icon: "FileText", color: "text-rose-500", bg: "bg-rose-500/10", label: "Document", gradient: "from-rose-500/20 to-rose-500/5" },
+    pptx: { icon: "FileText", color: "text-rose-500", bg: "bg-rose-500/10", label: "Document", gradient: "from-rose-500/20 to-rose-500/5" },
     // Spreadsheets
-    xls: { icon: "Table", color: "text-emerald-500", bg: "bg-emerald-500/10" },
-    xlsx: { icon: "Table", color: "text-emerald-500", bg: "bg-emerald-500/10" },
-    csv: { icon: "Table", color: "text-emerald-500", bg: "bg-emerald-500/10" },
+    xls: { icon: "Table", color: "text-emerald-500", bg: "bg-emerald-500/10", label: "Spreadsheet", gradient: "from-emerald-500/20 to-emerald-500/5" },
+    xlsx: { icon: "Table", color: "text-emerald-500", bg: "bg-emerald-500/10", label: "Spreadsheet", gradient: "from-emerald-500/20 to-emerald-500/5" },
+    csv: { icon: "Table", color: "text-emerald-500", bg: "bg-emerald-500/10", label: "Spreadsheet", gradient: "from-emerald-500/20 to-emerald-500/5" },
     // Images
-    jpg: { icon: "Image", color: "text-violet-500", bg: "bg-violet-500/10" },
-    jpeg: { icon: "Image", color: "text-violet-500", bg: "bg-violet-500/10" },
-    png: { icon: "Image", color: "text-violet-500", bg: "bg-violet-500/10" },
-    gif: { icon: "Image", color: "text-violet-500", bg: "bg-violet-500/10" },
-    webp: { icon: "Image", color: "text-violet-500", bg: "bg-violet-500/10" },
-    svg: { icon: "Image", color: "text-violet-500", bg: "bg-violet-500/10" },
+    jpg: { icon: "Image", color: "text-violet-500", bg: "bg-violet-500/10", label: "Image", gradient: "from-violet-500/20 to-violet-500/5" },
+    jpeg: { icon: "Image", color: "text-violet-500", bg: "bg-violet-500/10", label: "Image", gradient: "from-violet-500/20 to-violet-500/5" },
+    png: { icon: "Image", color: "text-violet-500", bg: "bg-violet-500/10", label: "Image", gradient: "from-violet-500/20 to-violet-500/5" },
+    gif: { icon: "Image", color: "text-violet-500", bg: "bg-violet-500/10", label: "Image", gradient: "from-violet-500/20 to-violet-500/5" },
+    webp: { icon: "Image", color: "text-violet-500", bg: "bg-violet-500/10", label: "Image", gradient: "from-violet-500/20 to-violet-500/5" },
+    svg: { icon: "Image", color: "text-violet-500", bg: "bg-violet-500/10", label: "Image", gradient: "from-violet-500/20 to-violet-500/5" },
+    bmp: { icon: "Image", color: "text-violet-500", bg: "bg-violet-500/10", label: "Image", gradient: "from-violet-500/20 to-violet-500/5" },
+    ico: { icon: "Image", color: "text-violet-500", bg: "bg-violet-500/10", label: "Image", gradient: "from-violet-500/20 to-violet-500/5" },
     // Video
-    mp4: { icon: "Video", color: "text-blue-500", bg: "bg-blue-500/10" },
-    mov: { icon: "Video", color: "text-blue-500", bg: "bg-blue-500/10" },
-    avi: { icon: "Video", color: "text-blue-500", bg: "bg-blue-500/10" },
-    mkv: { icon: "Video", color: "text-blue-500", bg: "bg-blue-500/10" },
+    mp4: { icon: "Video", color: "text-blue-500", bg: "bg-blue-500/10", label: "Video", gradient: "from-blue-500/20 to-blue-500/5" },
+    mov: { icon: "Video", color: "text-blue-500", bg: "bg-blue-500/10", label: "Video", gradient: "from-blue-500/20 to-blue-500/5" },
+    avi: { icon: "Video", color: "text-blue-500", bg: "bg-blue-500/10", label: "Video", gradient: "from-blue-500/20 to-blue-500/5" },
+    mkv: { icon: "Video", color: "text-blue-500", bg: "bg-blue-500/10", label: "Video", gradient: "from-blue-500/20 to-blue-500/5" },
+    webm: { icon: "Video", color: "text-blue-500", bg: "bg-blue-500/10", label: "Video", gradient: "from-blue-500/20 to-blue-500/5" },
     // Audio
-    mp3: { icon: "Music", color: "text-pink-500", bg: "bg-pink-500/10" },
-    wav: { icon: "Music", color: "text-pink-500", bg: "bg-pink-500/10" },
-    flac: { icon: "Music", color: "text-pink-500", bg: "bg-pink-500/10" },
-    aac: { icon: "Music", color: "text-pink-500", bg: "bg-pink-500/10" },
+    mp3: { icon: "Music", color: "text-pink-500", bg: "bg-pink-500/10", label: "Audio", gradient: "from-pink-500/20 to-pink-500/5" },
+    wav: { icon: "Music", color: "text-pink-500", bg: "bg-pink-500/10", label: "Audio", gradient: "from-pink-500/20 to-pink-500/5" },
+    flac: { icon: "Music", color: "text-pink-500", bg: "bg-pink-500/10", label: "Audio", gradient: "from-pink-500/20 to-pink-500/5" },
+    aac: { icon: "Music", color: "text-pink-500", bg: "bg-pink-500/10", label: "Audio", gradient: "from-pink-500/20 to-pink-500/5" },
+    ogg: { icon: "Music", color: "text-pink-500", bg: "bg-pink-500/10", label: "Audio", gradient: "from-pink-500/20 to-pink-500/5" },
+    m4a: { icon: "Music", color: "text-pink-500", bg: "bg-pink-500/10", label: "Audio", gradient: "from-pink-500/20 to-pink-500/5" },
     // Archives
-    zip: { icon: "Archive", color: "text-amber-500", bg: "bg-amber-500/10" },
-    rar: { icon: "Archive", color: "text-amber-500", bg: "bg-amber-500/10" },
-    "7z": { icon: "Archive", color: "text-amber-500", bg: "bg-amber-500/10" },
-    tar: { icon: "Archive", color: "text-amber-500", bg: "bg-amber-500/10" },
-    gz: { icon: "Archive", color: "text-amber-500", bg: "bg-amber-500/10" },
+    zip: { icon: "Archive", color: "text-amber-500", bg: "bg-amber-500/10", label: "Archive", gradient: "from-amber-500/20 to-amber-500/5" },
+    rar: { icon: "Archive", color: "text-amber-500", bg: "bg-amber-500/10", label: "Archive", gradient: "from-amber-500/20 to-amber-500/5" },
+    "7z": { icon: "Archive", color: "text-amber-500", bg: "bg-amber-500/10", label: "Archive", gradient: "from-amber-500/20 to-amber-500/5" },
+    tar: { icon: "Archive", color: "text-amber-500", bg: "bg-amber-500/10", label: "Archive", gradient: "from-amber-500/20 to-amber-500/5" },
+    gz: { icon: "Archive", color: "text-amber-500", bg: "bg-amber-500/10", label: "Archive", gradient: "from-amber-500/20 to-amber-500/5" },
+    bz2: { icon: "Archive", color: "text-amber-500", bg: "bg-amber-500/10", label: "Archive", gradient: "from-amber-500/20 to-amber-500/5" },
     // Code
-    js: { icon: "Code", color: "text-emerald-500", bg: "bg-emerald-500/10" },
-    ts: { icon: "Code", color: "text-emerald-500", bg: "bg-emerald-500/10" },
-    py: { icon: "Code", color: "text-emerald-500", bg: "bg-emerald-500/10" },
-    go: { icon: "Code", color: "text-emerald-500", bg: "bg-emerald-500/10" },
-    rs: { icon: "Code", color: "text-emerald-500", bg: "bg-emerald-500/10" },
-    java: { icon: "Code", color: "text-emerald-500", bg: "bg-emerald-500/10" },
+    js: { icon: "Code", color: "text-yellow-500", bg: "bg-yellow-500/10", label: "Code", gradient: "from-yellow-500/20 to-yellow-500/5" },
+    ts: { icon: "Code", color: "text-blue-500", bg: "bg-blue-500/10", label: "Code", gradient: "from-blue-500/20 to-blue-500/5" },
+    tsx: { icon: "Code", color: "text-blue-500", bg: "bg-blue-500/10", label: "Code", gradient: "from-blue-500/20 to-blue-500/5" },
+    jsx: { icon: "Code", color: "text-yellow-500", bg: "bg-yellow-500/10", label: "Code", gradient: "from-yellow-500/20 to-yellow-500/5" },
+    py: { icon: "Code", color: "text-emerald-500", bg: "bg-emerald-500/10", label: "Code", gradient: "from-emerald-500/20 to-emerald-500/5" },
+    go: { icon: "Code", color: "text-cyan-500", bg: "bg-cyan-500/10", label: "Code", gradient: "from-cyan-500/20 to-cyan-500/5" },
+    rs: { icon: "Code", color: "text-orange-500", bg: "bg-orange-500/10", label: "Code", gradient: "from-orange-500/20 to-orange-500/5" },
+    java: { icon: "Code", color: "text-red-500", bg: "bg-red-500/10", label: "Code", gradient: "from-red-500/20 to-red-500/5" },
+    cpp: { icon: "Code", color: "text-indigo-500", bg: "bg-indigo-500/10", label: "Code", gradient: "from-indigo-500/20 to-indigo-500/5" },
+    c: { icon: "Code", color: "text-indigo-500", bg: "bg-indigo-500/10", label: "Code", gradient: "from-indigo-500/20 to-indigo-500/5" },
+    html: { icon: "Code", color: "text-orange-500", bg: "bg-orange-500/10", label: "Code", gradient: "from-orange-500/20 to-orange-500/5" },
+    css: { icon: "Code", color: "text-blue-400", bg: "bg-blue-400/10", label: "Code", gradient: "from-blue-400/20 to-blue-400/5" },
+    json: { icon: "Code", color: "text-emerald-500", bg: "bg-emerald-500/10", label: "Data", gradient: "from-emerald-500/20 to-emerald-500/5" },
+    xml: { icon: "Code", color: "text-emerald-500", bg: "bg-emerald-500/10", label: "Data", gradient: "from-emerald-500/20 to-emerald-500/5" },
+    yaml: { icon: "Code", color: "text-emerald-500", bg: "bg-emerald-500/10", label: "Data", gradient: "from-emerald-500/20 to-emerald-500/5" },
+    yml: { icon: "Code", color: "text-emerald-500", bg: "bg-emerald-500/10", label: "Data", gradient: "from-emerald-500/20 to-emerald-500/5" },
     // Executables
-    exe: { icon: "Cog", color: "text-orange-500", bg: "bg-orange-500/10" },
-    dmg: { icon: "Cog", color: "text-orange-500", bg: "bg-orange-500/10" },
-    msi: { icon: "Cog", color: "text-orange-500", bg: "bg-orange-500/10" },
+    exe: { icon: "Cog", color: "text-orange-500", bg: "bg-orange-500/10", label: "Executable", gradient: "from-orange-500/20 to-orange-500/5" },
+    dmg: { icon: "Cog", color: "text-orange-500", bg: "bg-orange-500/10", label: "Executable", gradient: "from-orange-500/20 to-orange-500/5" },
+    msi: { icon: "Cog", color: "text-orange-500", bg: "bg-orange-500/10", label: "Executable", gradient: "from-orange-500/20 to-orange-500/5" },
+    app: { icon: "Cog", color: "text-orange-500", bg: "bg-orange-500/10", label: "Executable", gradient: "from-orange-500/20 to-orange-500/5" },
+    // Fonts
+    ttf: { icon: "File", color: "text-fuchsia-500", bg: "bg-fuchsia-500/10", label: "Font", gradient: "from-fuchsia-500/20 to-fuchsia-500/5" },
+    otf: { icon: "File", color: "text-fuchsia-500", bg: "bg-fuchsia-500/10", label: "Font", gradient: "from-fuchsia-500/20 to-fuchsia-500/5" },
+    woff: { icon: "File", color: "text-fuchsia-500", bg: "bg-fuchsia-500/10", label: "Font", gradient: "from-fuchsia-500/20 to-fuchsia-500/5" },
+    woff2: { icon: "File", color: "text-fuchsia-500", bg: "bg-fuchsia-500/10", label: "Font", gradient: "from-fuchsia-500/20 to-fuchsia-500/5" },
   };
 
-  return typeMap[ext] || { icon: "File", color: "text-[var(--color-text-muted)]", bg: "bg-[var(--color-surface-1)]" };
+  return typeMap[ext] || { icon: "File", color: "text-[var(--color-text-muted)]", bg: "bg-[var(--color-surface-1)]", label: "File", gradient: "from-gray-500/20 to-gray-500/5" };
+}
+
+export function getFileCategory(filename: string): string {
+  return getFileTypeInfo(filename).label;
+}
+
+export function isImageFile(filename: string): boolean {
+  const ext = filename.split(".").pop()?.toLowerCase() || "";
+  return ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "ico"].includes(ext);
 }
 
 // Keep backward compat

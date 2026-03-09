@@ -11,6 +11,7 @@ import { adminGetStats, adminListUsers, adminListTokens, adminGetDefaultQuota } 
 import { Role } from "@/types";
 import type { AdminUser, SystemStats, PlatformTokenInfo } from "@/types";
 import AdminLoading from "./loading";
+import { Users } from "lucide-react";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -62,13 +63,14 @@ export default function AdminPage() {
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-          Admin Dashboard
-        </h1>
-        <p className="text-sm text-[var(--color-text-secondary)] mt-1">
-          System overview and user management
-        </p>
+      <div className="flex items-center gap-2.5">
+        <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-violet-500/10 ring-1 ring-violet-500/20">
+          <Users className="h-5 w-5 text-violet-500" />
+        </div>
+        <div>
+          <p className="text-[10px] font-semibold text-[var(--color-accent)] uppercase tracking-widest">Administration</p>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight leading-tight">Admin Dashboard</h1>
+        </div>
       </div>
 
       {stats && <SystemStatsCards stats={stats} />}

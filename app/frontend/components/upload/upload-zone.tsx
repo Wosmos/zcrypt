@@ -61,8 +61,8 @@ export function UploadZone({ onFiles, hint, compact }: UploadZoneProps) {
         "group relative flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed cursor-pointer transition-all duration-200",
         compact ? "p-6" : "p-10 sm:p-14",
         dragOver
-          ? "border-emerald-500/60 bg-emerald-500/5 shadow-xl shadow-emerald-500/10"
-          : "border-[var(--color-border)] hover:border-[var(--color-border-hover)] bg-[var(--color-surface-1)]/30 hover:bg-[var(--color-surface-1)]/60"
+          ? "border-[var(--color-accent)]/60 bg-[var(--color-accent)]/5 shadow-xl shadow-[var(--color-accent)]/10"
+          : "border-[var(--color-border)] hover:border-[var(--color-border-hover)] bg-[var(--color-surface)]/50 hover:bg-[var(--color-surface-1)]/60"
       )}
     >
       <div
@@ -70,7 +70,7 @@ export function UploadZone({ onFiles, hint, compact }: UploadZoneProps) {
           "flex items-center justify-center rounded-2xl transition-all duration-200",
           compact ? "h-11 w-11" : "h-14 w-14",
           dragOver
-            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-1 ring-emerald-500/20"
+            ? "bg-[var(--color-accent)]/10 text-[var(--color-accent)] ring-1 ring-[var(--color-accent)]/20"
             : "bg-[var(--color-surface-1)] text-[var(--color-text-muted)] group-hover:text-[var(--color-text-secondary)]"
         )}
       >
@@ -86,7 +86,7 @@ export function UploadZone({ onFiles, hint, compact }: UploadZoneProps) {
           className={cn(
             "font-medium transition-colors",
             compact ? "text-sm" : "text-sm sm:text-base",
-            dragOver ? "text-emerald-600 dark:text-emerald-300" : ""
+            dragOver ? "text-[var(--color-accent)]" : ""
           )}
         >
           {dragOver ? "Drop to upload" : "Drop files here or click to browse"}

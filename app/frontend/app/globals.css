@@ -5,34 +5,46 @@
 @layer base {
   :root {
     color-scheme: light;
-    --color-accent: #10b981;
-    --color-accent-hover: #34d399;
-    --color-bg: #f0f5ff;
+    --color-accent: #0d9373;
+    --color-accent-hover: #0fb88e;
+    --color-bg: #f4f6fa;
     --color-surface: #ffffff;
-    --color-surface-1: #e8eef8;
-    --color-surface-2: #dce4f0;
-    --color-surface-3: #cbd5e1;
-    --color-border: #dce4f0;
-    --color-border-hover: #cbd5e1;
-    --color-text: #0f172a;
-    --color-text-secondary: #475569;
-    --color-text-muted: #94a3b8;
+    --color-surface-1: #f0f2f7;
+    --color-surface-2: #e5e8f0;
+    --color-surface-3: #d1d5e0;
+    --color-border: #e2e5ee;
+    --color-border-hover: #cdd1dc;
+    --color-text: #1a1f36;
+    --color-text-secondary: #4a5068;
+    --color-text-muted: #8f95a8;
+    --color-sidebar: #1a1f36;
+    --color-sidebar-hover: #252b45;
+    --color-sidebar-active: rgba(16, 185, 129, 0.12);
+    --color-sidebar-text: #8f95b2;
+    --color-sidebar-text-active: #ffffff;
+    --color-sidebar-border: #252b45;
   }
 
   .dark {
     color-scheme: dark;
     --color-accent: #10b981;
     --color-accent-hover: #34d399;
-    --color-bg: #0a0a0a;
-    --color-surface: #111827;
-    --color-surface-1: #1f2937;
-    --color-surface-2: #374151;
-    --color-surface-3: #4b5563;
-    --color-border: #1f2937;
-    --color-border-hover: #374151;
-    --color-text: #f9fafb;
-    --color-text-secondary: #9ca3af;
-    --color-text-muted: #6b7280;
+    --color-bg: #0c0f1a;
+    --color-surface: #141829;
+    --color-surface-1: #1c2039;
+    --color-surface-2: #262b47;
+    --color-surface-3: #363c5c;
+    --color-border: #1e2340;
+    --color-border-hover: #2d335a;
+    --color-text: #f0f2f8;
+    --color-text-secondary: #9ea3c0;
+    --color-text-muted: #5c6184;
+    --color-sidebar: #0e1225;
+    --color-sidebar-hover: #181d35;
+    --color-sidebar-active: rgba(16, 185, 129, 0.1);
+    --color-sidebar-text: #5c6184;
+    --color-sidebar-text-active: #e0e4f0;
+    --color-sidebar-border: #1a1f38;
   }
 
   * {
@@ -49,22 +61,40 @@
 
 @layer utilities {
   .glass {
-    background: rgba(255, 255, 255, 0.8);
-    backdrop-filter: blur(20px);
-    border: 1px solid rgba(220, 228, 240, 0.6);
+    background: rgba(255, 255, 255, 0.82);
+    backdrop-filter: blur(24px);
+    border: 1px solid rgba(226, 229, 238, 0.7);
   }
   .dark .glass {
-    background: rgba(17, 24, 39, 0.8);
-    backdrop-filter: blur(20px);
-    border: 1px solid rgba(31, 41, 55, 0.5);
+    background: rgba(20, 24, 41, 0.82);
+    backdrop-filter: blur(24px);
+    border: 1px solid rgba(30, 35, 64, 0.6);
   }
 
   .card {
-    @apply rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)];
+    @apply rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm;
+  }
+  .dark .card {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.03) inset;
   }
 
   .card-hover {
-    @apply rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] transition-all duration-200 hover:border-[var(--color-border-hover)] hover:shadow-lg;
+    @apply rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm transition-all duration-200 hover:border-[var(--color-border-hover)] hover:shadow-md;
+  }
+  .dark .card-hover:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+  }
+
+  .section-label {
+    @apply text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)] flex items-center gap-2;
+  }
+  .section-label::before {
+    content: "";
+    display: inline-block;
+    width: 3px;
+    height: 14px;
+    border-radius: 2px;
+    background: var(--color-accent);
   }
 }
 
@@ -179,12 +209,7 @@
   animation-direction: var(--dir, normal);
 }
 
-/* Smooth theme transitions — only applied during theme switch */
-html.theme-transition,
-html.theme-transition *,
-html.theme-transition *::before,
-html.theme-transition *::after {
-  transition: background-color 0.4s ease, color 0.3s ease, border-color 0.3s ease,
-    box-shadow 0.3s ease, fill 0.3s ease, stroke 0.3s ease !important;
-  transition-delay: 0s !important;
+/* Smooth theme transitions — CSS custom property approach (GPU-friendly, no per-element transitions) */
+html.theme-transition {
+  transition: color 0.15s ease, background-color 0.15s ease !important;
 }

@@ -17,35 +17,42 @@ import {
   Loader2,
   CheckCircle2,
   Eye,
-  ChevronDown,
   Copy,
   Check,
-  Lock,
-  Minimize2,
   Layers,
+  Lock,
+  CheckSquare,
+  Square,
+  MoreHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { formatBytes, formatDate, getFileTypeInfo } from "@/lib/utils";
+import { formatBytes, formatDate, getFileTypeInfo, isImageFile } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import { useThumbnail } from "@/hooks/useThumbnail";
 
 export type DownloadState = "idle" | "downloading" | "done";
 
 interface FileCardProps {
   file: FileMetadata;
-  variant?: "grid" | "list";
   downloadState?: DownloadState;
   onDownload: (filename: string) => void;
   onDelete: (id: string) => void;
   onPreview?: (filename: string) => void;
+  selectable?: boolean;
+  selected?: boolean;
+  onSelect?: (id: string) => void;
 }
 
 const iconMap: Record<string, typeof File> = {
   File, FileText, Image, Video, Music, Archive, Code, Cog, Table,
 };
 
-export function FileCard({ file, variant = "list", downloadState = "idle", onDownload, onDelete, onPreview }: FileCardProps) {
-  const [expanded, setExpanded] = useState(false);
+export function FileCard({ file, downloadState = "idle", onDownload, onDelete, onPreview, selectable, selected, onSelect }: FileCardProps) {
   const [copied, setCopied] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Thumbnail from persistent cache (IndexedDB) — no passphrase needed here
+  const { thumbnailUrl, loading: thumbLoading } = useThumbnail(file.id, file.original_name);
 
   const wasCompressed = file.compressed_size < file.original_size;
   const ratio =
@@ -57,72 +64,272 @@ export function FileCard({ file, variant = "list", downloadState = "idle", onDow
   const Icon = iconMap[typeInfo.icon] || File;
   const isDownloading = downloadState === "downloading";
   const isDone = downloadState === "done";
+  const isImage = isImageFile(file.original_name);
 
-  const copyHash = () => {
+  const copyHash = (e: React.MouseEvent) => {
+    e.stopPropagation();
     navigator.clipboard.writeText(file.sha256);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // --- Grid variant ---
-  if (variant === "grid") {
-    return (
-      <div
-        className={cn(
-          "group relative overflow-hidden flex flex-col",
-          "rounded-2xl border transition-all duration-300",
-          isDownloading
+  const handleCardClick = () => {
+    if (selectable && onSelect) {
+      onSelect(file.id);
+    }
+  };
+
+  // ==========================================
+  // MOBILE: Compact native-style row card
+  // ==========================================
+  const mobileCard = (
+    <div
+      onClick={handleCardClick}
+      className={cn(
+        "flex md:hidden items-center gap-3 px-3 py-2.5 rounded-xl border transition-all duration-150 active:scale-[0.98]",
+        selectable && "cursor-pointer",
+        isDownloading
+          ? "border-emerald-500/30 bg-emerald-500/5"
+          : isDone
             ? "border-emerald-500/30 bg-emerald-500/5"
-            : isDone
-              ? "border-emerald-500/30 bg-emerald-500/5"
-              : "border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-border-hover)] hover:shadow-lg"
-        )}
-      >
-        {/* Icon header area */}
-        <div className="relative flex items-center justify-center py-6 bg-[var(--color-surface-1)]/50">
-          {isDownloading && (
-            <div className="absolute inset-0 pointer-events-none opacity-[0.07]" style={{
-              background: "linear-gradient(90deg, transparent 25%, rgba(16,185,129,0.4) 50%, transparent 75%)",
-              backgroundSize: "200% 100%",
-              animation: "shimmer 1.5s ease-in-out infinite",
-            }} />
+            : selected
+              ? "border-[var(--color-accent)]/40 bg-[var(--color-accent)]/5"
+              : "border-[var(--color-border)] bg-[var(--color-surface)]"
+      )}
+    >
+      {/* Selection checkbox */}
+      {selectable && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onSelect?.(file.id); }}
+          className="flex-shrink-0 -ml-0.5"
+        >
+          {selected ? (
+            <CheckSquare className="h-5 w-5 text-[var(--color-accent)]" />
+          ) : (
+            <Square className="h-5 w-5 text-[var(--color-text-muted)]" />
           )}
-          <div
-            className={cn(
-              "flex items-center justify-center h-12 w-12 rounded-xl transition-all duration-300",
-              isDownloading ? "bg-emerald-500/15" : isDone ? "bg-emerald-500/15" : typeInfo.bg
-            )}
-          >
+        </button>
+      )}
+
+      {/* Thumbnail / Icon */}
+      <div className="flex-shrink-0">
+        {thumbnailUrl ? (
+          <div className="h-10 w-10 rounded-lg overflow-hidden bg-[var(--color-surface-1)]">
+            <img src={thumbnailUrl} alt="" className="h-full w-full object-cover" />
+          </div>
+        ) : (
+          <div className={cn(
+            "flex items-center justify-center h-10 w-10 rounded-lg relative",
+            isDownloading ? "bg-emerald-500/15" : isDone ? "bg-emerald-500/15" : typeInfo.bg
+          )}>
             {isDownloading ? (
-              <Loader2 className="h-6 w-6 text-emerald-500 animate-spin" />
+              <Loader2 className="h-5 w-5 text-emerald-500 animate-spin" />
             ) : isDone ? (
-              <CheckCircle2 className="h-6 w-6 text-emerald-500 animate-fade-in" />
+              <CheckCircle2 className="h-5 w-5 text-emerald-500" />
             ) : (
-              <Icon className={`h-6 w-6 ${typeInfo.color}`} />
+              <Icon className={`h-5 w-5 ${typeInfo.color}`} />
+            )}
+            {/* Locked indicator for images without thumbnail */}
+            {isImage && !thumbnailUrl && !isDownloading && !isDone && (
+              <div className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-[var(--color-surface)] border border-[var(--color-border)] flex items-center justify-center">
+                <Lock className="h-2 w-2 text-[var(--color-text-muted)]" />
+              </div>
             )}
           </div>
+        )}
+      </div>
 
-          {/* Hover action overlay — desktop only */}
-          {!isDownloading && (
-            <div className="hidden md:flex absolute inset-0 items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-[var(--color-surface)]/80 backdrop-blur-sm">
-              {onPreview && (
-                <Button variant="ghost" size="icon" onClick={() => onPreview(file.original_name)} title="Preview" className="h-9 w-9">
-                  <Eye className="h-4 w-4" />
-                </Button>
-              )}
-              <Button variant="ghost" size="icon" onClick={() => onDownload(file.original_name)} title="Download" className="h-9 w-9">
-                <Download className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="icon" onClick={() => onDelete(file.id)} title="Delete" className="h-9 w-9">
-                <Trash2 className="h-4 w-4 text-red-400/60 hover:text-red-400" />
-              </Button>
-            </div>
+      {/* File info */}
+      <div className="flex-1 min-w-0">
+        <p className="text-[13px] font-medium truncate leading-tight">{file.original_name}</p>
+        <div className="flex items-center gap-1.5 mt-0.5">
+          <span className="text-[11px] text-[var(--color-text-muted)] tabular-nums">{formatBytes(file.original_size)}</span>
+          {isDownloading ? (
+            <span className="text-[11px] text-emerald-400 font-medium">Downloading...</span>
+          ) : isDone ? (
+            <span className="text-[11px] text-emerald-500 font-medium">Done</span>
+          ) : (
+            <>
+              <span className="text-[11px] text-[var(--color-text-muted)]">&middot;</span>
+              <span className="text-[11px] text-[var(--color-text-muted)]">{formatDate(file.created_at)}</span>
+            </>
           )}
         </div>
+        {isDownloading && (
+          <div className="mt-1.5 h-1 rounded-full bg-[var(--color-surface-2)] overflow-hidden">
+            <div className="h-full rounded-full" style={{
+              background: "linear-gradient(90deg, #10b981, #34d399, #10b981)",
+              backgroundSize: "200% 100%",
+              animation: "progress-shimmer 1.8s ease-in-out infinite",
+              width: "100%",
+            }} />
+          </div>
+        )}
+      </div>
 
-        {/* File info */}
-        <div className="p-3.5 flex-1 min-w-0">
-          <p className="text-sm font-medium truncate">{file.original_name}</p>
+      {/* Actions */}
+      {!isDownloading && !selectable && (
+        <div className="flex items-center gap-0.5 flex-shrink-0 relative">
+          <button
+            onClick={(e) => { e.stopPropagation(); onDownload(file.original_name); }}
+            className="flex items-center justify-center h-8 w-8 rounded-lg text-[var(--color-text-muted)] active:bg-[var(--color-surface-1)] transition-colors"
+          >
+            <Download className="h-4 w-4" />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); setMobileMenuOpen(!mobileMenuOpen); }}
+            className="flex items-center justify-center h-8 w-8 rounded-lg text-[var(--color-text-muted)] active:bg-[var(--color-surface-1)] transition-colors"
+          >
+            <MoreHorizontal className="h-4 w-4" />
+          </button>
+
+          {mobileMenuOpen && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setMobileMenuOpen(false); }} />
+              <div className="absolute right-0 top-full mt-1 z-50 min-w-[140px] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-xl py-1 animate-fade-in">
+                {onPreview && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setMobileMenuOpen(false); onPreview(file.original_name); }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-[var(--color-text-secondary)] active:bg-[var(--color-surface-1)]"
+                  >
+                    <Eye className="h-4 w-4" /> Preview
+                  </button>
+                )}
+                <button
+                  onClick={(e) => { e.stopPropagation(); setMobileMenuOpen(false); onDownload(file.original_name); }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-[var(--color-text-secondary)] active:bg-[var(--color-surface-1)]"
+                >
+                  <Download className="h-4 w-4" /> Download
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setMobileMenuOpen(false); onDelete(file.id); }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-red-400 active:bg-red-500/5"
+                >
+                  <Trash2 className="h-4 w-4" /> Delete
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
+  // ==========================================
+  // DESKTOP: Rich grid card with thumbnails
+  // ==========================================
+  const desktopCard = (
+    <div
+      onClick={handleCardClick}
+      className={cn(
+        "group relative overflow-hidden flex-col hidden md:flex",
+        "rounded-2xl border transition-all duration-200",
+        selectable && "cursor-pointer",
+        isDownloading
+          ? "border-emerald-500/30 bg-emerald-500/5"
+          : isDone
+            ? "border-emerald-500/30 bg-emerald-500/5"
+            : selected
+              ? "border-[var(--color-accent)]/40 bg-[var(--color-accent)]/5 ring-1 ring-[var(--color-accent)]/20"
+              : "border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-border-hover)] hover:shadow-lg hover:-translate-y-0.5"
+      )}
+    >
+      {/* Selection checkbox */}
+      {selectable && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onSelect?.(file.id); }}
+          className="absolute top-2.5 left-2.5 z-10 flex items-center justify-center h-6 w-6 rounded-md bg-[var(--color-surface)]/90 border border-[var(--color-border)] backdrop-blur-sm transition-colors hover:border-[var(--color-accent)]/40"
+        >
+          {selected ? (
+            <CheckSquare className="h-4 w-4 text-[var(--color-accent)]" />
+          ) : (
+            <Square className="h-4 w-4 text-[var(--color-text-muted)]" />
+          )}
+        </button>
+      )}
+
+      {/* Visual header area */}
+      <div className={cn(
+        "relative flex items-center justify-center h-[130px] overflow-hidden",
+        !thumbnailUrl && `bg-gradient-to-b ${typeInfo.gradient}`
+      )}>
+        {/* Image thumbnail */}
+        {thumbnailUrl ? (
+          <img src={thumbnailUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
+        ) : thumbLoading && isImage ? (
+          <div className="absolute inset-0 bg-[var(--color-surface-1)] flex items-center justify-center">
+            <Loader2 className="h-5 w-5 text-[var(--color-text-muted)] animate-spin" />
+          </div>
+        ) : null}
+
+        {isDownloading && (
+          <div className="absolute inset-0 pointer-events-none opacity-[0.07]" style={{
+            background: "linear-gradient(90deg, transparent 25%, rgba(16,185,129,0.4) 50%, transparent 75%)",
+            backgroundSize: "200% 100%",
+            animation: "shimmer 1.5s ease-in-out infinite",
+          }} />
+        )}
+
+        {/* Icon (only when no thumbnail) */}
+        {!thumbnailUrl && !(thumbLoading && isImage) && (
+          <div className={cn(
+            "flex items-center justify-center h-14 w-14 rounded-2xl transition-all duration-300",
+            isDownloading ? "bg-emerald-500/15" : isDone ? "bg-emerald-500/15" : "bg-[var(--color-surface)]/80 backdrop-blur-sm shadow-sm"
+          )}>
+            {isDownloading ? (
+              <Loader2 className="h-7 w-7 text-emerald-500 animate-spin" />
+            ) : isDone ? (
+              <CheckCircle2 className="h-7 w-7 text-emerald-500 animate-fade-in" />
+            ) : (
+              <Icon className={`h-7 w-7 ${typeInfo.color}`} />
+            )}
+            {/* Locked badge for images without thumbnail */}
+            {isImage && !isDownloading && !isDone && (
+              <div className="absolute bottom-2 right-2 flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-[var(--color-surface)]/80 backdrop-blur-sm border border-[var(--color-border)]/50">
+                <Lock className="h-2.5 w-2.5 text-[var(--color-text-muted)]" />
+                <span className="text-[9px] text-[var(--color-text-muted)]">Encrypted</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Type badge */}
+        {!isDownloading && !isDone && (
+          <span className={cn(
+            "absolute top-2.5 right-2.5 text-[10px] font-medium px-2 py-0.5 rounded-md border border-[var(--color-border)]/50",
+            thumbnailUrl
+              ? "bg-black/50 text-white/90 border-white/10 backdrop-blur-sm"
+              : "bg-[var(--color-surface)]/80 text-[var(--color-text-secondary)] backdrop-blur-sm"
+          )}>
+            {typeInfo.label}
+          </span>
+        )}
+
+        {/* Hover action overlay - desktop */}
+        {!isDownloading && !selectable && (
+          <div className={cn(
+            "absolute inset-0 flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200",
+            thumbnailUrl ? "bg-black/40 backdrop-blur-sm" : "bg-[var(--color-surface)]/80 backdrop-blur-sm"
+          )}>
+            {onPreview && (
+              <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onPreview(file.original_name); }} title="Preview" className="h-10 w-10 rounded-xl bg-[var(--color-surface)]/90 hover:bg-[var(--color-surface)] shadow-sm">
+                <Eye className="h-4 w-4" />
+              </Button>
+            )}
+            <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onDownload(file.original_name); }} title="Download" className="h-10 w-10 rounded-xl bg-[var(--color-surface)]/90 hover:bg-[var(--color-surface)] shadow-sm">
+              <Download className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onDelete(file.id); }} title="Delete" className="h-10 w-10 rounded-xl bg-[var(--color-surface)]/90 hover:bg-[var(--color-surface)] shadow-sm">
+              <Trash2 className="h-4 w-4 text-red-400/60 hover:text-red-400" />
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* File info */}
+      <div className="p-3.5 flex-1 min-w-0 space-y-2">
+        <div>
+          <p className="text-sm font-medium truncate" title={file.original_name}>{file.original_name}</p>
           <div className="flex items-center gap-2 mt-1">
             <span className="text-[11px] text-[var(--color-text-secondary)] tabular-nums">
               {formatBytes(file.original_size)}
@@ -132,248 +339,67 @@ export function FileCard({ file, variant = "list", downloadState = "idle", onDow
             ) : isDone ? (
               <span className="text-[11px] text-emerald-500 font-medium animate-fade-in">Done</span>
             ) : (
-              <span className={`text-[11px] font-medium ${wasCompressed ? "text-emerald-500" : "text-[var(--color-text-muted)]"}`}>
-                {wasCompressed ? `${ratio}% saved` : "Not compressed"}
-              </span>
-            )}
-          </div>
-          {!isDownloading && !isDone && (
-            <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">{formatDate(file.created_at)}</p>
-          )}
-          {isDownloading && (
-            <div className="mt-2 h-1 rounded-full bg-[var(--color-surface-2)] overflow-hidden">
-              <div className="h-full rounded-full" style={{
-                background: "linear-gradient(90deg, #10b981, #34d399, #10b981)",
-                backgroundSize: "200% 100%",
-                animation: "progress-shimmer 1.8s ease-in-out infinite",
-                width: "100%",
-              }} />
-            </div>
-          )}
-        </div>
-
-        {/* Mobile action bar — always visible on touch devices */}
-        {!isDownloading && (
-          <div className="flex md:hidden border-t border-[var(--color-border)] divide-x divide-[var(--color-border)]">
-            {onPreview && (
-              <button onClick={() => onPreview(file.original_name)} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[var(--color-text-muted)] active:bg-[var(--color-surface-1)] transition-colors">
-                <Eye className="h-4 w-4" />
-                <span className="text-[11px] font-medium">Preview</span>
-              </button>
-            )}
-            <button onClick={() => onDownload(file.original_name)} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[var(--color-text-muted)] active:bg-[var(--color-surface-1)] transition-colors">
-              <Download className="h-4 w-4" />
-              <span className="text-[11px] font-medium">Download</span>
-            </button>
-            <button onClick={() => onDelete(file.id)} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-red-400/70 active:bg-red-500/5 transition-colors">
-              <Trash2 className="h-4 w-4" />
-              <span className="text-[11px] font-medium">Delete</span>
-            </button>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // --- List variant (horizontal rows) ---
-  return (
-    <div
-      className={cn(
-        "group relative overflow-hidden",
-        "rounded-2xl border transition-all duration-300",
-        isDownloading
-          ? "border-emerald-500/30 bg-emerald-500/5"
-          : isDone
-            ? "border-emerald-500/30 bg-emerald-500/5"
-            : "border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-border-hover)] hover:shadow-lg"
-      )}
-    >
-      <div className="flex items-center gap-3 sm:gap-4 p-3.5 sm:p-4">
-        {/* Animated shimmer overlay during download */}
-        {isDownloading && (
-          <div className="absolute inset-0 pointer-events-none">
-            <div
-              className="absolute inset-0 opacity-[0.07]"
-              style={{
-                background: "linear-gradient(90deg, transparent 25%, rgba(16,185,129,0.4) 50%, transparent 75%)",
-                backgroundSize: "200% 100%",
-                animation: "shimmer 1.5s ease-in-out infinite",
-              }}
-            />
-          </div>
-        )}
-
-        {/* Success flash overlay */}
-        {isDone && (
-          <div
-            className="absolute inset-0 pointer-events-none rounded-2xl"
-            style={{
-              background: "radial-gradient(ellipse at center, rgba(16,185,129,0.08) 0%, transparent 70%)",
-              animation: "fade-in 0.3s ease-out",
-            }}
-          />
-        )}
-
-        <div
-          className={cn(
-            "flex-shrink-0 flex items-center justify-center h-10 w-10 rounded-xl transition-all duration-300",
-            isDownloading
-              ? "bg-emerald-500/15"
-              : isDone
-                ? "bg-emerald-500/15"
-                : typeInfo.bg
-          )}
-        >
-          {isDownloading ? (
-            <Loader2 className="h-[18px] w-[18px] text-emerald-500 animate-spin" />
-          ) : isDone ? (
-            <CheckCircle2 className="h-[18px] w-[18px] text-emerald-500 animate-fade-in" />
-          ) : (
-            <Icon className={`h-[18px] w-[18px] ${typeInfo.color}`} />
-          )}
-        </div>
-
-        <div className="flex-1 min-w-0 relative z-10">
-          <p className="text-sm font-medium truncate">
-            {file.original_name}
-          </p>
-          <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
-            <span className="text-[11px] text-[var(--color-text-secondary)] tabular-nums">
-              {formatBytes(file.original_size)}
-            </span>
-            {isDownloading ? (
-              <span className="text-[11px] text-emerald-400 font-medium animate-pulse-soft">
-                Decrypting & downloading...
-              </span>
-            ) : isDone ? (
-              <span className="text-[11px] text-emerald-500 font-medium animate-fade-in">
-                Download complete
-              </span>
-            ) : (
               <>
+                <span className="text-[11px] text-[var(--color-text-muted)]">&middot;</span>
                 <span className={`text-[11px] font-medium ${wasCompressed ? "text-emerald-500" : "text-[var(--color-text-muted)]"}`}>
-                  {wasCompressed ? `${ratio}% saved` : "Not compressed"}
-                </span>
-                <span className="text-[11px] text-[var(--color-text-muted)]">
-                  {file.chunk_count} chunk{file.chunk_count !== 1 ? "s" : ""}
-                </span>
-                <span className="text-[11px] text-[var(--color-text-muted)] hidden sm:inline">
-                  {formatDate(file.created_at)}
+                  {wasCompressed ? `${ratio}% saved` : "No compression"}
                 </span>
               </>
             )}
           </div>
-
-          {/* Progress bar during download */}
-          {isDownloading && (
-            <div className="mt-2 h-1 rounded-full bg-[var(--color-surface-2)] overflow-hidden">
-              <div
-                className="h-full rounded-full"
-                style={{
-                  background: "linear-gradient(90deg, #10b981, #34d399, #10b981)",
-                  backgroundSize: "200% 100%",
-                  animation: "progress-shimmer 1.8s ease-in-out infinite",
-                  width: "100%",
-                }}
-              />
-            </div>
-          )}
         </div>
 
-        <div className="flex gap-1 flex-shrink-0 relative z-10">
-          {!isDownloading && (
-            <>
-              {/* Expand toggle */}
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setExpanded(!expanded)}
-                title={expanded ? "Less info" : "More info"}
-                className="opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-150"
-              >
-                <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", expanded && "rotate-180")} />
-              </Button>
-              {onPreview && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => onPreview(file.original_name)}
-                  title="Preview"
-                  className="opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-150"
-                >
-                  <Eye className="h-4 w-4" />
-                </Button>
-              )}
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => onDownload(file.original_name)}
-                title="Download"
-                className={cn(
-                  "opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-150",
-                  isDone && "md:opacity-100"
-                )}
-              >
-                <Download className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => onDelete(file.id)}
-                title="Delete"
-                className="opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-150"
-              >
-                <Trash2 className="h-4 w-4 text-red-400/60 hover:text-red-400" />
-              </Button>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Expandable details panel */}
-      {expanded && !isDownloading && (
-        <div className="border-t border-[var(--color-border)] px-4 py-3 bg-[var(--color-surface-1)]/50 animate-fade-in">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-[11px]">
-            <div>
-              <span className="text-[var(--color-text-muted)] flex items-center gap-1">
-                <Minimize2 className="h-3 w-3" /> Compressed
+        {!isDownloading && !isDone && (
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-[10px] text-[var(--color-text-muted)]">
+              <span className="flex items-center gap-0.5">
+                <Layers className="h-3 w-3" />
+                {file.chunk_count}
               </span>
-              <span className="font-medium tabular-nums">{formatBytes(file.compressed_size)}</span>
-            </div>
-            <div>
-              <span className="text-[var(--color-text-muted)] flex items-center gap-1">
-                <Lock className="h-3 w-3" /> Encrypted
+              <span className="flex items-center gap-0.5">
+                <Lock className="h-3 w-3" />
+                {formatBytes(file.encrypted_size)}
               </span>
-              <span className="font-medium tabular-nums">{formatBytes(file.encrypted_size)}</span>
             </div>
-            <div>
-              <span className="text-[var(--color-text-muted)] flex items-center gap-1">
-                <Layers className="h-3 w-3" /> Chunks
-              </span>
-              <span className="font-medium tabular-nums">{file.chunk_count}</span>
-            </div>
-            <div>
-              <span className="text-[var(--color-text-muted)]">Uploaded</span>
-              <span className="font-medium">{formatDate(file.created_at)}</span>
-            </div>
+            <span className="text-[10px] text-[var(--color-text-muted)]">
+              {formatDate(file.created_at)}
+            </span>
           </div>
+        )}
 
-          {/* SHA-256 */}
-          <div className="mt-2.5 flex items-center gap-2">
-            <span className="text-[10px] text-[var(--color-text-muted)] flex-shrink-0">SHA-256</span>
-            <code className="text-[10px] font-mono text-[var(--color-text-secondary)] truncate flex-1">
-              {file.sha256}
+        {!isDownloading && !isDone && file.sha256 && (
+          <div className="flex items-center gap-1.5">
+            <code className="text-[9px] font-mono text-[var(--color-text-muted)] truncate flex-1">
+              SHA: {file.sha256.slice(0, 12)}...
             </code>
             <button
               onClick={copyHash}
-              className="flex-shrink-0 text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors p-1 rounded-md hover:bg-[var(--color-surface-2)]"
+              className="flex-shrink-0 text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors p-0.5 rounded hover:bg-[var(--color-surface-1)]"
               title="Copy SHA-256"
             >
               {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
             </button>
           </div>
-        </div>
-      )}
+        )}
+
+        {isDownloading && (
+          <div className="h-1 rounded-full bg-[var(--color-surface-2)] overflow-hidden">
+            <div className="h-full rounded-full" style={{
+              background: "linear-gradient(90deg, #10b981, #34d399, #10b981)",
+              backgroundSize: "200% 100%",
+              animation: "progress-shimmer 1.8s ease-in-out infinite",
+              width: "100%",
+            }} />
+          </div>
+        )}
+      </div>
     </div>
+  );
+
+  return (
+    <>
+      {mobileCard}
+      {desktopCard}
+    </>
   );
 }
