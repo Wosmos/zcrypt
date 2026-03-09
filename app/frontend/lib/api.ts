@@ -28,7 +28,7 @@ async function tryRefreshToken(): Promise<string | null> {
   return refreshPromise;
 }
 
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
+async function request<T>(path: string, options?: RequestInit, retries = 2): Promise<T> {
   const { accessToken } = useAuthStore.getState();
 
   const headers: Record<string, string> = {
@@ -53,6 +53,12 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
         headers,
       });
     }
+  }
+
+  // Retry on 5xx server errors with backoff
+  if (res.status >= 500 && retries > 0) {
+    await new Promise((r) => setTimeout(r, 1000 * (3 - retries)));
+    return request<T>(path, options, retries - 1);
   }
 
   if (!res.ok) {
@@ -119,8 +125,9 @@ export function pushFile(
     xhr.onerror = () => reject(new Error("Network error during upload"));
     xhr.ontimeout = () => reject(new Error("Upload timed out"));
 
-    // No timeout - large files need time
-    xhr.timeout = 0;
+    // Dynamic timeout: 30s base + 10s per MB (no timeout for files > 500MB)
+    const fileSizeMB = file.size / (1024 * 1024);
+    xhr.timeout = fileSizeMB > 500 ? 0 : (30 + fileSizeMB * 10) * 1000;
 
     xhr.send(form);
   });

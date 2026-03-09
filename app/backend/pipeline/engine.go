@@ -307,6 +307,15 @@ func (pe *PipelineEngine) Upload(ctx context.Context, prepared *PreparedFile) er
 		go func(ref types.ChunkRef) {
 			defer wg.Done()
 			defer func() { <-sem }() // release
+			defer func() {
+				if r := recover(); r != nil {
+					mu.Lock()
+					if uploadErr == nil {
+						uploadErr = fmt.Errorf("upload chunk %d panicked: %v", ref.Index, r)
+					}
+					mu.Unlock()
+				}
+			}()
 
 			// Find the chunk file on disk
 			chunkPath := filepath.Join(prepared.StagingDir, fmt.Sprintf("chunk_%03d", ref.Index))
@@ -511,6 +520,15 @@ func (pe *PipelineEngine) Pull(ctx context.Context, filename, passphrase, output
 		go func(i int, ref types.ChunkRef) {
 			defer dlWg.Done()
 			defer func() { <-dlSem }()
+			defer func() {
+				if r := recover(); r != nil {
+					dlMu.Lock()
+					if dlErr == nil {
+						dlErr = fmt.Errorf("download chunk %d panicked: %v", i, r)
+					}
+					dlMu.Unlock()
+				}
+			}()
 
 			dlAdapter := pe.adapter
 			if pe.adapterResolver != nil {
