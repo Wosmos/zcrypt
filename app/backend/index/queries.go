@@ -348,6 +348,47 @@ func (db *DB) UpdateChunkRemotePath(ctx context.Context, chunkID, remotePath str
 	return nil
 }
 
+// InsertFileWithChunks atomically inserts a file and its chunk placeholders in a single transaction.
+func (db *DB) InsertFileWithChunks(ctx context.Context, userID string, f *types.FileMetadata, chunks []*types.ChunkRef) error {
+	tx, err := db.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	status := f.Status
+	if status == "" {
+		status = "complete"
+	}
+	if _, err := tx.Exec(ctx,
+		`INSERT INTO files (id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, status)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+		f.ID, userID, f.OriginalName, f.OriginalSize, f.CompressedSize, f.EncryptedSize,
+		f.ChunkCount, f.SHA256, f.Salt, f.IV, status,
+	); err != nil {
+		return fmt.Errorf("insert file: %w", err)
+	}
+
+	if len(chunks) > 0 {
+		query := `INSERT INTO chunks (chunk_id, file_id, user_id, idx, size, sha256, platform, account, repo, remote_path) VALUES `
+		args := make([]interface{}, 0, len(chunks)*10)
+		for i, c := range chunks {
+			if i > 0 {
+				query += ","
+			}
+			base := i * 10
+			query += fmt.Sprintf("($%d,$%d,$%d,$%d,$%d,$%d,$%d,$%d,$%d,$%d)",
+				base+1, base+2, base+3, base+4, base+5, base+6, base+7, base+8, base+9, base+10)
+			args = append(args, c.ChunkID, c.FileID, userID, c.Index, c.Size, c.SHA256, c.Platform, c.Account, c.Repo, c.RemotePath)
+		}
+		if _, err := tx.Exec(ctx, query, args...); err != nil {
+			return fmt.Errorf("insert chunks: %w", err)
+		}
+	}
+
+	return tx.Commit(ctx)
+}
+
 // GetPendingChunksForFile returns chunks with empty remote_path (not yet uploaded).
 func (db *DB) GetPendingChunksForFile(ctx context.Context, fileID string) ([]types.ChunkRef, error) {
 	rows, err := db.pool.Query(ctx,
