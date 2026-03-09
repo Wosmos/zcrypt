@@ -27,3 +27,8 @@ Thumbs.db
 
 # Codacy
 .github/instructions/codacy.instructions.md
+.claude/
+.claude/*
+.claude/settings.local.json
+*.claude/settings.local.json
+.claude/settings.local.json

@@ -37,7 +37,9 @@
       "Bash(vercel env ls)",
       "Bash(printf \"https://backend-production-6a0f.up.railway.app\")",
       "Bash(vercel env add NEXT_PUBLIC_API_URL production)",
-      "Bash(vercel inspect)"
+      "Bash(vercel inspect)",
+      "Bash(vercel --prod)",
+      "Bash(PGPASSWORD=npg_4IRtNT0SphMa psql \"postgresql://neondb_owner:npg_4IRtNT0SphMa@ep-soft-sunset-aioquetx-pooler.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require\" -c \"SELECT id, email, username, role, email_verified, created_at FROM users ORDER BY created_at;\")"
     ]
   }
 }
