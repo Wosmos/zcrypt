@@ -45,17 +45,14 @@ func validatePassword(pw string) error {
 	return nil
 }
 
-// smtpCfg converts config.SMTPConfig to auth.SMTPConfig.
-func (s *Server) smtpCfg() *auth.SMTPConfig {
-	if s.cfg.SMTP == nil {
+// emailCfg converts config.EmailConfig to auth.EmailConfig.
+func (s *Server) emailCfg() *auth.EmailConfig {
+	if s.cfg.Email == nil {
 		return nil
 	}
-	return &auth.SMTPConfig{
-		Host:     s.cfg.SMTP.Host,
-		Port:     s.cfg.SMTP.Port,
-		Username: s.cfg.SMTP.Username,
-		Password: s.cfg.SMTP.Password,
-		From:     s.cfg.SMTP.From,
+	return &auth.EmailConfig{
+		APIKey: s.cfg.Email.APIKey,
+		From:   s.cfg.Email.From,
 	}
 }
 
@@ -161,7 +158,7 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Auto-verify if SMTP not configured
-	if s.cfg.SMTP == nil {
+	if s.cfg.Email == nil {
 		user.EmailVerified = true
 	}
 
@@ -171,7 +168,7 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Send verification email if SMTP configured (async to avoid blocking response)
-	if s.cfg.SMTP != nil {
+	if s.cfg.Email != nil {
 		token, _ := auth.GenerateRandomToken()
 		s.db.DeleteEmailTokensByUser(ctx, user.ID, "verify")
 		s.db.InsertEmailToken(ctx, &types.EmailToken{
@@ -181,10 +178,10 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 			Kind:      "verify",
 			ExpiresAt: time.Now().Add(24 * time.Hour),
 		})
-		smtpCfg := s.smtpCfg()
+		emailCfg := s.emailCfg()
 		baseURL := s.baseURL(r)
 		go func() {
-			if err := auth.SendVerificationEmail(smtpCfg, req.Email, token, baseURL); err != nil {
+			if err := auth.SendVerificationEmail(emailCfg, req.Email, token, baseURL); err != nil {
 				log.Printf("send verification email to %s: %v", req.Email, err)
 			}
 		}()
@@ -321,7 +318,7 @@ func (s *Server) HandleForgotPassword(w http.ResponseWriter, r *http.Request) {
 	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
 
 	// Always return 200 to prevent account enumeration
-	if s.cfg.SMTP == nil {
+	if s.cfg.Email == nil {
 		writeJSON(w, http.StatusOK, map[string]interface{}{
 			"success": true,
 			"message": "if an account exists with that email, a reset link has been sent",
@@ -349,7 +346,7 @@ func (s *Server) HandleForgotPassword(w http.ResponseWriter, r *http.Request) {
 		ExpiresAt: time.Now().Add(1 * time.Hour),
 	})
 
-	if err := auth.SendPasswordResetEmail(s.smtpCfg(), req.Email, token, s.baseURL(r)); err != nil {
+	if err := auth.SendPasswordResetEmail(s.emailCfg(), req.Email, token, s.baseURL(r)); err != nil {
 		log.Printf("send password reset email to %s: %v", req.Email, err)
 	}
 
@@ -471,7 +468,7 @@ func (s *Server) HandleResendVerification(w http.ResponseWriter, r *http.Request
 		ExpiresAt: time.Now().Add(24 * time.Hour),
 	})
 
-	if err := auth.SendVerificationEmail(s.smtpCfg(), req.Email, token, s.baseURL(r)); err != nil {
+	if err := auth.SendVerificationEmail(s.emailCfg(), req.Email, token, s.baseURL(r)); err != nil {
 		log.Printf("resend verification email to %s: %v", req.Email, err)
 		http.Error(w, `{"error":"failed to send verification email"}`, http.StatusInternalServerError)
 		return

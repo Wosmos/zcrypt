@@ -236,7 +236,8 @@ function MobileDock({ pathname, onLogout, isAdmin }: { pathname: string; onLogou
       aria-label="Main navigation"
       onMouseMove={(e) => mouseX.set(e.pageX)}
       onMouseLeave={() => mouseX.set(Infinity)}
-      className="md:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-end gap-1.5 px-3 py-2.5 rounded-2xl glass shadow-2xl"
+      className="md:hidden fixed left-1/2 -translate-x-1/2 z-50 flex items-end gap-1.5 px-3 py-2.5 rounded-2xl glass shadow-2xl"
+      style={{ bottom: "max(1rem, env(safe-area-inset-bottom, 0px))" }}
     >
       {links.map((link) => (
         <DockItem

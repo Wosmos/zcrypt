@@ -8,17 +8,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 )
 
-// SMTPConfig holds SMTP server settings for sending transactional emails.
-type SMTPConfig struct {
-	Host     string `json:"host"`
-	Port     int    `json:"port"`
-	Username string `json:"username"`
-	Password string `json:"password"`
-	From     string `json:"from"`
+// EmailConfig holds settings for sending transactional emails via Resend.
+type EmailConfig struct {
+	APIKey string `json:"api_key"`
+	From   string `json:"from"`
 }
 
 // DefaultDir returns the zpush config directory (~/.zpush/).
@@ -51,8 +47,8 @@ type Config struct {
 	DefaultPlatform string           `json:"default_platform"`
 	Thresholds      map[string]int64 `json:"thresholds"`
 	// Auth
-	JWTSecret string      `json:"jwt_secret,omitempty"`
-	SMTP      *SMTPConfig `json:"smtp,omitempty"`
+	JWTSecret string       `json:"jwt_secret,omitempty"`
+	Email     *EmailConfig `json:"email,omitempty"`
 	// Frontend URL for email links (verification, password reset)
 	FrontendURL string `json:"frontend_url,omitempty"`
 	// From environment only — never persisted to JSON
@@ -123,37 +119,17 @@ func (c *Config) applyEnvOverrides() {
 	if v := os.Getenv("MASTER_KEY"); v != "" {
 		c.MasterKey = v
 	}
-	if v := os.Getenv("SMTP_HOST"); v != "" {
-		if c.SMTP == nil {
-			c.SMTP = &SMTPConfig{}
+	if v := os.Getenv("RESEND_API_KEY"); v != "" {
+		if c.Email == nil {
+			c.Email = &EmailConfig{}
 		}
-		c.SMTP.Host = v
+		c.Email.APIKey = v
 	}
-	if v := os.Getenv("SMTP_PORT"); v != "" {
-		if c.SMTP == nil {
-			c.SMTP = &SMTPConfig{}
+	if v := os.Getenv("RESEND_FROM"); v != "" {
+		if c.Email == nil {
+			c.Email = &EmailConfig{}
 		}
-		if port, err := strconv.Atoi(v); err == nil {
-			c.SMTP.Port = port
-		}
-	}
-	if v := os.Getenv("SMTP_USERNAME"); v != "" {
-		if c.SMTP == nil {
-			c.SMTP = &SMTPConfig{}
-		}
-		c.SMTP.Username = v
-	}
-	if v := os.Getenv("SMTP_PASSWORD"); v != "" {
-		if c.SMTP == nil {
-			c.SMTP = &SMTPConfig{}
-		}
-		c.SMTP.Password = v
-	}
-	if v := os.Getenv("SMTP_FROM"); v != "" {
-		if c.SMTP == nil {
-			c.SMTP = &SMTPConfig{}
-		}
-		c.SMTP.From = v
+		c.Email.From = v
 	}
 	if v := os.Getenv("FRONTEND_URL"); v != "" {
 		c.FrontendURL = v
@@ -212,15 +188,12 @@ func (c *Config) Validate() error {
 	if len(c.JWTSecret) < 32 {
 		return fmt.Errorf("JWT secret must be at least 32 characters")
 	}
-	if c.SMTP != nil {
-		if c.SMTP.Host == "" {
-			return fmt.Errorf("SMTP_HOST is required when SMTP is configured")
+	if c.Email != nil {
+		if c.Email.APIKey == "" {
+			return fmt.Errorf("RESEND_API_KEY is required when email is configured")
 		}
-		if c.SMTP.From == "" {
-			return fmt.Errorf("SMTP_FROM is required when SMTP is configured")
-		}
-		if c.SMTP.Port <= 0 || c.SMTP.Port > 65535 {
-			return fmt.Errorf("SMTP_PORT must be between 1 and 65535")
+		if c.Email.From == "" {
+			return fmt.Errorf("RESEND_FROM is required when email is configured")
 		}
 	}
 	return nil

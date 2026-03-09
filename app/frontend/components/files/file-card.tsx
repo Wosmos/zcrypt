@@ -102,9 +102,9 @@ export function FileCard({ file, variant = "list", downloadState = "idle", onDow
             )}
           </div>
 
-          {/* Hover action overlay */}
+          {/* Hover action overlay — desktop only */}
           {!isDownloading && (
-            <div className="absolute inset-0 flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-[var(--color-surface)]/80 backdrop-blur-sm">
+            <div className="hidden md:flex absolute inset-0 items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-[var(--color-surface)]/80 backdrop-blur-sm">
               {onPreview && (
                 <Button variant="ghost" size="icon" onClick={() => onPreview(file.original_name)} title="Preview" className="h-9 w-9">
                   <Eye className="h-4 w-4" />
@@ -151,6 +151,26 @@ export function FileCard({ file, variant = "list", downloadState = "idle", onDow
             </div>
           )}
         </div>
+
+        {/* Mobile action bar — always visible on touch devices */}
+        {!isDownloading && (
+          <div className="flex md:hidden border-t border-[var(--color-border)] divide-x divide-[var(--color-border)]">
+            {onPreview && (
+              <button onClick={() => onPreview(file.original_name)} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[var(--color-text-muted)] active:bg-[var(--color-surface-1)] transition-colors">
+                <Eye className="h-4 w-4" />
+                <span className="text-[11px] font-medium">Preview</span>
+              </button>
+            )}
+            <button onClick={() => onDownload(file.original_name)} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[var(--color-text-muted)] active:bg-[var(--color-surface-1)] transition-colors">
+              <Download className="h-4 w-4" />
+              <span className="text-[11px] font-medium">Download</span>
+            </button>
+            <button onClick={() => onDelete(file.id)} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-red-400/70 active:bg-red-500/5 transition-colors">
+              <Trash2 className="h-4 w-4" />
+              <span className="text-[11px] font-medium">Delete</span>
+            </button>
+          </div>
+        )}
       </div>
     );
   }
@@ -269,7 +289,7 @@ export function FileCard({ file, variant = "list", downloadState = "idle", onDow
                 size="icon"
                 onClick={() => setExpanded(!expanded)}
                 title={expanded ? "Less info" : "More info"}
-                className="sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-150"
+                className="opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-150"
               >
                 <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", expanded && "rotate-180")} />
               </Button>
@@ -279,7 +299,7 @@ export function FileCard({ file, variant = "list", downloadState = "idle", onDow
                   size="icon"
                   onClick={() => onPreview(file.original_name)}
                   title="Preview"
-                  className="sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-150"
+                  className="opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-150"
                 >
                   <Eye className="h-4 w-4" />
                 </Button>
@@ -290,8 +310,8 @@ export function FileCard({ file, variant = "list", downloadState = "idle", onDow
                 onClick={() => onDownload(file.original_name)}
                 title="Download"
                 className={cn(
-                  "sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-150",
-                  isDone && "sm:opacity-100"
+                  "opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-150",
+                  isDone && "md:opacity-100"
                 )}
               >
                 <Download className="h-4 w-4" />
@@ -301,7 +321,7 @@ export function FileCard({ file, variant = "list", downloadState = "idle", onDow
                 size="icon"
                 onClick={() => onDelete(file.id)}
                 title="Delete"
-                className="sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-150"
+                className="opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-150"
               >
                 <Trash2 className="h-4 w-4 text-red-400/60 hover:text-red-400" />
               </Button>
