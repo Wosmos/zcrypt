@@ -47,9 +47,10 @@ export function FileCard({ file, variant = "list", downloadState = "idle", onDow
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  const wasCompressed = file.compressed_size < file.original_size;
   const ratio =
-    file.original_size > 0
-      ? ((1 - file.encrypted_size / file.original_size) * 100).toFixed(0)
+    file.original_size > 0 && wasCompressed
+      ? ((1 - file.compressed_size / file.original_size) * 100).toFixed(0)
       : "0";
 
   const typeInfo = getFileTypeInfo(file.original_name);
@@ -131,7 +132,9 @@ export function FileCard({ file, variant = "list", downloadState = "idle", onDow
             ) : isDone ? (
               <span className="text-[11px] text-emerald-500 font-medium animate-fade-in">Done</span>
             ) : (
-              <span className="text-[11px] text-emerald-500 font-medium">{ratio}% saved</span>
+              <span className={`text-[11px] font-medium ${wasCompressed ? "text-emerald-500" : "text-[var(--color-text-muted)]"}`}>
+                {wasCompressed ? `${ratio}% saved` : "Not compressed"}
+              </span>
             )}
           </div>
           {!isDownloading && !isDone && (
@@ -228,8 +231,8 @@ export function FileCard({ file, variant = "list", downloadState = "idle", onDow
               </span>
             ) : (
               <>
-                <span className="text-[11px] text-emerald-500 font-medium">
-                  {ratio}% saved
+                <span className={`text-[11px] font-medium ${wasCompressed ? "text-emerald-500" : "text-[var(--color-text-muted)]"}`}>
+                  {wasCompressed ? `${ratio}% saved` : "Not compressed"}
                 </span>
                 <span className="text-[11px] text-[var(--color-text-muted)]">
                   {file.chunk_count} chunk{file.chunk_count !== 1 ? "s" : ""}

@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"sync"
 
+	"log"
+
 	"github.com/google/uuid"
 	"github.com/zpush/zpush/adapters"
 	"github.com/zpush/zpush/chunks"
@@ -142,9 +144,13 @@ func (pe *PipelineEngine) Prepare(ctx context.Context, filePath, originalFilenam
 
 	sourceForEncrypt := compressedPath
 	if compressedSize >= originalSize {
+		log.Printf("[compress] %s: skipped (compressed %d >= original %d)", originalName, compressedSize, originalSize)
 		os.Remove(compressedPath)
 		sourceForEncrypt = filePath
 		compressedSize = originalSize
+	} else {
+		ratio := float64(originalSize-compressedSize) / float64(originalSize) * 100
+		log.Printf("[compress] %s: %d → %d (%.1f%% saved)", originalName, originalSize, compressedSize, ratio)
 	}
 
 	// --- ENCRYPT ---

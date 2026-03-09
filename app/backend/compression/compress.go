@@ -22,7 +22,7 @@ func CompressFile(srcPath, dstPath string) error {
 	}
 	defer dst.Close()
 
-	enc, err := zstd.NewWriter(dst, zstd.WithEncoderLevel(zstd.SpeedDefault))
+	enc, err := zstd.NewWriter(dst, zstd.WithEncoderLevel(zstd.SpeedBestCompression))
 	if err != nil {
 		return fmt.Errorf("create encoder: %w", err)
 	}

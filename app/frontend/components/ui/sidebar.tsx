@@ -9,7 +9,7 @@ import {
   useSpring,
   useTransform,
   type MotionValue,
-} from "framer-motion";
+} from "motion/react";
 import { cn, formatBytes } from "@/lib/utils";
 import { Role } from "@/types";
 import { useTheme } from "@/components/providers/theme-provider";

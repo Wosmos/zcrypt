@@ -8,8 +8,8 @@ import {
   useMotionValue,
   useSpring,
   useTransform,
-  MotionValue,
-} from "framer-motion";
+  type MotionValue,
+} from "motion/react";
 import { Play, Shield, Video, Sun, Moon, LayoutGrid } from "lucide-react";
 import { useTheme } from "@/components/providers/theme-provider";
 

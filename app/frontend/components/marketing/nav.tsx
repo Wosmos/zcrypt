@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { useTheme } from "@/components/providers/theme-provider";
 import { cn } from "@/lib/utils";
 import { Shield, Sun, Moon, Menu, X } from "lucide-react";

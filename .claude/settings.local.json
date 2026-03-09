@@ -6,7 +6,11 @@
       "Bash(ls -la /d/zstash/app/frontend/*.json)",
       "WebFetch(domain:motion.dev)",
       "Bash(ls d:zstash/app/backend/*.go)",
-      "Bash(ls \"d:/zstash/app/backend/\"*.go)"
+      "Bash(ls \"d:/zstash/app/backend/\"*.go)",
+      "Bash(bun info babel-plugin-react-compiler)",
+      "Bash(ls -la d:/zstash/app/frontend/app/\\\\\\(app\\\\\\)/)",
+      "Bash(ls d:/zstash/app/frontend/app/\\\\\\(app\\\\\\)/admin/)",
+      "Bash(xargs grep -l \"api/push\\\\|/push\")"
     ]
   }
 }

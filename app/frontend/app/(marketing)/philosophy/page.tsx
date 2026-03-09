@@ -2,7 +2,7 @@
 
 import { useRef } from "react";
 import Link from "next/link";
-import { motion, useInView } from "framer-motion";
+import { motion, useInView } from "motion/react";
 import { ArrowRight } from "lucide-react";
 
 function Section({

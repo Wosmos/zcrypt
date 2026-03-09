@@ -12,7 +12,7 @@ interface FileStore {
 
 export const useFileStore = create<FileStore>((set) => ({
   files: [],
-  loading: false,
+  loading: true,
   error: null,
   setFiles: (files) => set({ files, error: null, loading: false }),
   setLoading: (loading) => set({ loading }),
