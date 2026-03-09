@@ -32,6 +32,9 @@ type Server struct {
 
 	// Active uploads tracked for pause/resume
 	activeUploads sync.Map // map[fileID]*activeUpload
+
+	// Limits concurrent Prepare() calls (compress+encrypt+chunk) to prevent OOM
+	prepareSem chan struct{}
 }
 
 // NewServer creates a new API server.
@@ -43,6 +46,7 @@ func NewServer(db *index.DB, cfg *config.Config, progress *pipeline.ProgressEmit
 		masterKey:    masterKey,
 		adapterCache: make(map[string]map[string]adapters.PlatformAdapter),
 		poolCache:    make(map[string]map[string]*reppool.Manager),
+		prepareSem:   make(chan struct{}, 3), // max 3 concurrent prepare (compress+encrypt+chunk)
 	}
 }
 

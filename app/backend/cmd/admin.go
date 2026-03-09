@@ -299,12 +299,57 @@ func (s *Server) HandleGetQuota(w http.ResponseWriter, r *http.Request) {
 	hasPersonal, _ := s.db.UserHasPersonalTokens(ctx, userID)
 	quota := s.getEffectiveQuota(ctx, userID)
 
+	// Determine plan and concurrent upload limit
+	plan := "free"
+	maxConcurrent := 2
+	if user, uErr := s.db.GetUserByID(ctx, userID); uErr == nil && user != nil {
+		if user.Plan != "" {
+			plan = user.Plan
+		}
+	}
+	if plan == "pro" {
+		maxConcurrent = 5
+	}
+
 	info := types.QuotaInfo{
-		UsedBytes:      used,
-		QuotaBytes:     quota,
-		HasPersonalKey: hasPersonal,
-		IsUnlimited:    hasPersonal || quota == 0,
+		UsedBytes:            used,
+		QuotaBytes:           quota,
+		HasPersonalKey:       hasPersonal,
+		IsUnlimited:          hasPersonal || quota == 0,
+		Plan:                 plan,
+		MaxConcurrentUploads: maxConcurrent,
 	}
 
 	writeJSON(w, http.StatusOK, info)
+}
+
+// HandleAdminSetPlan updates a user's plan.
+// PUT /api/admin/users/{id}/plan
+func (s *Server) HandleAdminSetPlan(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID := r.PathValue("id")
+	if userID == "" {
+		http.Error(w, `{"error":"user id required"}`, http.StatusBadRequest)
+		return
+	}
+
+	var req struct {
+		Plan string `json:"plan"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
+		return
+	}
+
+	if req.Plan != "free" && req.Plan != "pro" {
+		http.Error(w, `{"error":"plan must be 'free' or 'pro'"}`, http.StatusBadRequest)
+		return
+	}
+
+	if err := s.db.SetUserPlan(ctx, userID, req.Plan); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
 }

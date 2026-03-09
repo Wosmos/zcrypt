@@ -154,6 +154,7 @@ type User struct {
 	TOTPSecret    string    `json:"-"`
 	TOTPEnabled   bool      `json:"totp_enabled"`
 	Role          Role      `json:"role"`
+	Plan          string    `json:"plan"`
 	StorageQuota  *int64    `json:"storage_quota,omitempty"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
@@ -219,10 +220,12 @@ type AdminUser struct {
 
 // QuotaInfo describes a user's storage quota status.
 type QuotaInfo struct {
-	UsedBytes      int64 `json:"used_bytes"`
-	QuotaBytes     int64 `json:"quota_bytes"`
-	HasPersonalKey bool  `json:"has_personal_key"`
-	IsUnlimited    bool  `json:"is_unlimited"`
+	UsedBytes            int64  `json:"used_bytes"`
+	QuotaBytes           int64  `json:"quota_bytes"`
+	HasPersonalKey       bool   `json:"has_personal_key"`
+	IsUnlimited          bool   `json:"is_unlimited"`
+	Plan                 string `json:"plan"`
+	MaxConcurrentUploads int    `json:"max_concurrent_uploads"`
 }
 
 // SystemStats holds system-wide aggregate statistics.

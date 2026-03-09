@@ -104,6 +104,7 @@ export interface AdminUser {
   email: string;
   username: string;
   role: Role;
+  plan: string;
   email_verified: boolean;
   totp_enabled: boolean;
   file_count: number;
@@ -125,6 +126,8 @@ export interface QuotaInfo {
   quota_bytes: number;
   has_personal_key: boolean;
   is_unlimited: boolean;
+  plan: string;
+  max_concurrent_uploads: number;
 }
 
 export interface PlatformTokenInfo {

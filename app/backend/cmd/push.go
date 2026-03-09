@@ -104,7 +104,16 @@ func (s *Server) HandlePush(w http.ResponseWriter, r *http.Request) {
 	engine := pipeline.NewPipelineEngine(s.db, adapter, pool, s.progress, userID, account)
 
 	// Phase 1: Prepare (synchronous — local processing)
+	// Acquire semaphore to limit concurrent heavy processing (compress+encrypt+chunk)
+	select {
+	case s.prepareSem <- struct{}{}:
+	case <-ctx.Done():
+		os.Remove(tmpPath)
+		http.Error(w, `{"error":"request cancelled"}`, http.StatusRequestTimeout)
+		return
+	}
 	prepared, err := engine.Prepare(ctx, tmpPath, header.Filename, passphrase, fileID)
+	<-s.prepareSem // release immediately after prepare completes
 	os.Remove(tmpPath)
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)

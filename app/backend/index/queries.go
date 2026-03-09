@@ -38,6 +38,32 @@ func (db *DB) InsertChunk(ctx context.Context, userID string, c *types.ChunkRef)
 	return nil
 }
 
+// InsertChunksBatch inserts multiple chunk placeholders in a single query.
+func (db *DB) InsertChunksBatch(ctx context.Context, userID string, chunks []*types.ChunkRef) error {
+	if len(chunks) == 0 {
+		return nil
+	}
+
+	query := `INSERT INTO chunks (chunk_id, file_id, user_id, idx, size, sha256, platform, account, repo, remote_path) VALUES `
+	args := make([]interface{}, 0, len(chunks)*10)
+
+	for i, c := range chunks {
+		if i > 0 {
+			query += ","
+		}
+		base := i * 10
+		query += fmt.Sprintf("($%d,$%d,$%d,$%d,$%d,$%d,$%d,$%d,$%d,$%d)",
+			base+1, base+2, base+3, base+4, base+5, base+6, base+7, base+8, base+9, base+10)
+		args = append(args, c.ChunkID, c.FileID, userID, c.Index, c.Size, c.SHA256, c.Platform, c.Account, c.Repo, c.RemotePath)
+	}
+
+	_, err := db.pool.Exec(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("insert chunks batch: %w", err)
+	}
+	return nil
+}
+
 // GetFile retrieves file metadata by original name for a user (most recent complete upload).
 func (db *DB) GetFile(ctx context.Context, userID, originalName string) (*types.FileMetadata, error) {
 	row := db.pool.QueryRow(ctx,

@@ -221,7 +221,12 @@ func (h *HuggingFaceAdapter) FlushCommits(ctx context.Context, repo string) erro
 }
 
 func (h *HuggingFaceAdapter) Download(ctx context.Context, ref types.ChunkRef) ([]byte, error) {
-	downloadURL := fmt.Sprintf("%s/%s/resolve/main/%s", hfEndpoint, ref.Repo, ref.RemotePath)
+	// Handle legacy chunks that stored only the short repo name (without username prefix)
+	repo := ref.Repo
+	if !strings.Contains(repo, "/") {
+		repo = h.username + "/" + repo
+	}
+	downloadURL := fmt.Sprintf("%s/%s/resolve/main/%s", hfEndpoint, repo, ref.RemotePath)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", downloadURL, nil)
 	if err != nil {
@@ -249,6 +254,12 @@ func (h *HuggingFaceAdapter) Download(ctx context.Context, ref types.ChunkRef) (
 }
 
 func (h *HuggingFaceAdapter) Delete(ctx context.Context, ref types.ChunkRef) error {
+	// Handle legacy chunks that stored only the short repo name (without username prefix)
+	repo := ref.Repo
+	if !strings.Contains(repo, "/") {
+		repo = h.username + "/" + repo
+	}
+
 	ndjson := buildNDJSON(
 		map[string]interface{}{
 			"key":   "header",
@@ -260,7 +271,7 @@ func (h *HuggingFaceAdapter) Delete(ctx context.Context, ref types.ChunkRef) err
 		"value": map[string]interface{}{"path": ref.RemotePath},
 	})
 
-	commitURL := fmt.Sprintf("%s/api/models/%s/commit/main", hfEndpoint, ref.Repo)
+	commitURL := fmt.Sprintf("%s/api/models/%s/commit/main", hfEndpoint, repo)
 	req, err := http.NewRequestWithContext(ctx, "POST", commitURL, bytes.NewReader(ndjson))
 	if err != nil {
 		return fmt.Errorf("create delete commit request: %w", err)
@@ -283,6 +294,9 @@ func (h *HuggingFaceAdapter) Delete(ctx context.Context, ref types.ChunkRef) err
 }
 
 func (h *HuggingFaceAdapter) GetRepoSize(ctx context.Context, repo string) (int64, error) {
+	if !strings.Contains(repo, "/") {
+		repo = h.username + "/" + repo
+	}
 	apiURL := fmt.Sprintf("%s/api/models/%s", hfEndpoint, repo)
 	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
 	if err != nil {
@@ -307,6 +321,9 @@ func (h *HuggingFaceAdapter) GetRepoSize(ctx context.Context, repo string) (int6
 }
 
 func (h *HuggingFaceAdapter) ListChunks(ctx context.Context, repo string) ([]types.ChunkRef, error) {
+	if !strings.Contains(repo, "/") {
+		repo = h.username + "/" + repo
+	}
 	apiURL := fmt.Sprintf("%s/api/models/%s/tree/main", hfEndpoint, repo)
 	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
 	if err != nil {
