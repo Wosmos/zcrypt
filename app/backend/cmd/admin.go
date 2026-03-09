@@ -66,6 +66,12 @@ func (s *Server) HandleAdminSetRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Prevent admin from demoting themselves
+	if userID == GetUserID(r) && role == types.RoleUser {
+		http.Error(w, `{"error":"cannot demote yourself"}`, http.StatusBadRequest)
+		return
+	}
+
 	if err := s.db.SetUserRole(ctx, userID, role); err != nil {
 		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)
 		return

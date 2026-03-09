@@ -283,6 +283,44 @@ paths:
         "200":
           description: 2FA enabled
 
+  /api/auth/resend-verification:
+    post:
+      tags: [Auth]
+      summary: Resend email verification
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        "200":
+          description: Verification email sent (always returns 200)
+
+  /api/auth/2fa/disable:
+    post:
+      tags: [Auth]
+      summary: Disable 2FA
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code:
+                  type: string
+      responses:
+        "200":
+          description: 2FA disabled
+
   /api/auth/2fa/verify:
     post:
       tags: [Auth]
@@ -537,6 +575,40 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/QuotaInfo"
+
+  /api/config:
+    get:
+      tags: [Config]
+      summary: Get app config
+      responses:
+        "200":
+          description: App configuration
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  registration_enabled:
+                    type: boolean
+                  default_platform:
+                    type: string
+    put:
+      tags: [Config]
+      summary: Update app config (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                registration_enabled:
+                  type: boolean
+                default_platform:
+                  type: string
+      responses:
+        "200":
+          description: Config updated
 
   /api/health:
     get:

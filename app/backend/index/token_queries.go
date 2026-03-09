@@ -43,6 +43,9 @@ func (db *DB) GetPlatformTokens(ctx context.Context, userID string) ([]types.Pla
 		}
 		tokens = append(tokens, t)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate platform tokens: %w", err)
+	}
 	return tokens, nil
 }
 
@@ -66,6 +69,9 @@ func (db *DB) GetPlatformTokensByPlatform(ctx context.Context, userID, platform 
 			return nil, fmt.Errorf("scan platform token: %w", err)
 		}
 		tokens = append(tokens, t)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate platform tokens by platform: %w", err)
 	}
 	return tokens, nil
 }
@@ -104,6 +110,9 @@ func (db *DB) ListAllPlatformTokens(ctx context.Context) ([]types.PlatformTokenI
 		}
 		tokens = append(tokens, t)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate all platform tokens: %w", err)
+	}
 	return tokens, nil
 }
 
@@ -126,6 +135,9 @@ func (db *DB) GetUserPlatformTokenInfo(ctx context.Context, userID string) ([]ty
 			return nil, fmt.Errorf("scan platform token info: %w", err)
 		}
 		tokens = append(tokens, t)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate user platform token info: %w", err)
 	}
 	return tokens, nil
 }

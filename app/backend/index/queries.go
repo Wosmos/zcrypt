@@ -124,6 +124,9 @@ func (db *DB) ListFiles(ctx context.Context, userID, filter string) ([]types.Fil
 		}
 		files = append(files, f)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate files: %w", err)
+	}
 	return files, nil
 }
 
@@ -146,6 +149,9 @@ func (db *DB) GetChunksForFile(ctx context.Context, fileID string) ([]types.Chun
 			return nil, fmt.Errorf("scan chunk: %w", err)
 		}
 		chunks = append(chunks, c)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate chunks: %w", err)
 	}
 	return chunks, nil
 }
@@ -207,6 +213,9 @@ func (db *DB) GetPendingDeletions(ctx context.Context, limit, maxAttempts int) (
 			return nil, fmt.Errorf("scan pending deletion: %w", err)
 		}
 		items = append(items, d)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate deletions: %w", err)
 	}
 	return items, nil
 }
@@ -304,6 +313,9 @@ func (db *DB) ListRepos(ctx context.Context, userID, platform string) ([]types.R
 		}
 		repos = append(repos, r)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate repos: %w", err)
+	}
 	return repos, nil
 }
 
@@ -335,6 +347,9 @@ func (db *DB) ListIncompleteFiles(ctx context.Context) ([]types.FileMetadata, er
 			return nil, fmt.Errorf("scan incomplete file: %w", err)
 		}
 		files = append(files, f)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate incomplete files: %w", err)
 	}
 	return files, nil
 }
@@ -408,6 +423,9 @@ func (db *DB) GetPendingChunksForFile(ctx context.Context, fileID string) ([]typ
 			return nil, fmt.Errorf("scan pending chunk: %w", err)
 		}
 		chunks = append(chunks, c)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate pending chunks: %w", err)
 	}
 	return chunks, nil
 }

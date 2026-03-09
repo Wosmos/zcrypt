@@ -38,10 +38,27 @@ async function request<T>(path: string, options?: RequestInit, retries = 2): Pro
     headers["Authorization"] = `Bearer ${accessToken}`;
   }
 
-  let res = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers,
-  });
+  // Timeout: use caller's signal or default 30s
+  const controller = options?.signal ? undefined : new AbortController();
+  const timeoutId = controller ? setTimeout(() => controller.abort(), 30_000) : undefined;
+  const signal = options?.signal ?? controller?.signal;
+
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers,
+      signal,
+    });
+  } catch (err) {
+    if (timeoutId) clearTimeout(timeoutId);
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new Error("Request timed out");
+    }
+    throw err;
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
 
   // On 401, try refreshing the token and retry once
   if (res.status === 401 && accessToken) {
