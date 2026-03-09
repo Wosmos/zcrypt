@@ -3,10 +3,10 @@ WORKDIR /app
 COPY app/backend/go.mod app/backend/go.sum ./
 RUN go mod download
 COPY app/backend/ .
-RUN CGO_ENABLED=0 go build -o /zpush-server .
+RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /zpush-server .
 
-FROM debian:bookworm-slim
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
+FROM gcr.io/distroless/static-debian12:nonroot
 COPY --from=builder /zpush-server /zpush-server
 EXPOSE 8080
-CMD ["/zpush-server"]
+USER nonroot:nonroot
+ENTRYPOINT ["/zpush-server"]

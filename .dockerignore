@@ -1,0 +1,12 @@
+.git
+.github
+.claude
+.vscode
+node_modules
+app/frontend
+dist
+*.md
+LICENSE
+Makefile
+.env*
+!app/backend/.env
