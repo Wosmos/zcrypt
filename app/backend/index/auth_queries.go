@@ -12,11 +12,15 @@ import (
 
 // CreateUser inserts a new user.
 func (db *DB) CreateUser(ctx context.Context, u *types.User) error {
+	plan := u.Plan
+	if plan == "" {
+		plan = "free"
+	}
 	_, err := db.pool.Exec(ctx,
-		`INSERT INTO users (id, email, username, password_hash, email_verified, totp_secret, totp_enabled, role)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+		`INSERT INTO users (id, email, username, password_hash, email_verified, totp_secret, totp_enabled, role, plan)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
 		u.ID, u.Email, u.Username, u.PasswordHash,
-		u.EmailVerified, u.TOTPSecret, u.TOTPEnabled, u.Role,
+		u.EmailVerified, u.TOTPSecret, u.TOTPEnabled, u.Role, plan,
 	)
 	if err != nil {
 		return fmt.Errorf("create user: %w", err)
@@ -27,7 +31,7 @@ func (db *DB) CreateUser(ctx context.Context, u *types.User) error {
 // GetUserByEmail retrieves a user by email.
 func (db *DB) GetUserByEmail(ctx context.Context, email string) (*types.User, error) {
 	return db.scanUser(ctx,
-		`SELECT id, email, username, password_hash, email_verified, totp_secret, totp_enabled, role, storage_quota_bytes, created_at, updated_at
+		`SELECT id, email, username, password_hash, email_verified, totp_secret, totp_enabled, role, plan, storage_quota_bytes, created_at, updated_at
 		 FROM users WHERE email = $1`, email,
 	)
 }
@@ -35,7 +39,7 @@ func (db *DB) GetUserByEmail(ctx context.Context, email string) (*types.User, er
 // GetUserByID retrieves a user by ID.
 func (db *DB) GetUserByID(ctx context.Context, id string) (*types.User, error) {
 	return db.scanUser(ctx,
-		`SELECT id, email, username, password_hash, email_verified, totp_secret, totp_enabled, role, storage_quota_bytes, created_at, updated_at
+		`SELECT id, email, username, password_hash, email_verified, totp_secret, totp_enabled, role, plan, storage_quota_bytes, created_at, updated_at
 		 FROM users WHERE id = $1`, id,
 	)
 }
@@ -43,7 +47,7 @@ func (db *DB) GetUserByID(ctx context.Context, id string) (*types.User, error) {
 // GetUserByUsername retrieves a user by username.
 func (db *DB) GetUserByUsername(ctx context.Context, username string) (*types.User, error) {
 	return db.scanUser(ctx,
-		`SELECT id, email, username, password_hash, email_verified, totp_secret, totp_enabled, role, storage_quota_bytes, created_at, updated_at
+		`SELECT id, email, username, password_hash, email_verified, totp_secret, totp_enabled, role, plan, storage_quota_bytes, created_at, updated_at
 		 FROM users WHERE username = $1`, username,
 	)
 }
@@ -52,7 +56,7 @@ func (db *DB) scanUser(ctx context.Context, query string, args ...interface{}) (
 	row := db.pool.QueryRow(ctx, query, args...)
 	u := &types.User{}
 	err := row.Scan(&u.ID, &u.Email, &u.Username, &u.PasswordHash,
-		&u.EmailVerified, &u.TOTPSecret, &u.TOTPEnabled, &u.Role, &u.StorageQuota, &u.CreatedAt, &u.UpdatedAt)
+		&u.EmailVerified, &u.TOTPSecret, &u.TOTPEnabled, &u.Role, &u.Plan, &u.StorageQuota, &u.CreatedAt, &u.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("get user: %w", err)
 	}
@@ -116,6 +120,14 @@ func (db *DB) SetUserRole(ctx context.Context, userID string, role types.Role) e
 	return err
 }
 
+// SetUserPlan updates a user's plan (e.g. "free" or "pro").
+func (db *DB) SetUserPlan(ctx context.Context, userID, plan string) error {
+	_, err := db.pool.Exec(ctx,
+		`UPDATE users SET plan = $1, updated_at = NOW() WHERE id = $2`, plan, userID,
+	)
+	return err
+}
+
 // DeleteUser removes a user and all associated data (cascade).
 func (db *DB) DeleteUser(ctx context.Context, userID string) error {
 	_, err := db.pool.Exec(ctx, `DELETE FROM users WHERE id = $1`, userID)
@@ -126,7 +138,7 @@ func (db *DB) DeleteUser(ctx context.Context, userID string) error {
 func (db *DB) ListUsers(ctx context.Context) ([]types.AdminUser, error) {
 	rows, err := db.pool.Query(ctx,
 		`SELECT u.id, u.email, u.username, u.password_hash, u.email_verified,
-		        u.totp_secret, u.totp_enabled, u.role, u.storage_quota_bytes, u.created_at, u.updated_at,
+		        u.totp_secret, u.totp_enabled, u.role, u.plan, u.storage_quota_bytes, u.created_at, u.updated_at,
 		        COALESCE(f.cnt, 0), COALESCE(f.total, 0)
 		 FROM users u
 		 LEFT JOIN (
@@ -144,7 +156,7 @@ func (db *DB) ListUsers(ctx context.Context) ([]types.AdminUser, error) {
 	for rows.Next() {
 		var u types.AdminUser
 		if err := rows.Scan(&u.ID, &u.Email, &u.Username, &u.PasswordHash,
-			&u.EmailVerified, &u.TOTPSecret, &u.TOTPEnabled, &u.Role, &u.StorageQuota,
+			&u.EmailVerified, &u.TOTPSecret, &u.TOTPEnabled, &u.Role, &u.Plan, &u.StorageQuota,
 			&u.CreatedAt, &u.UpdatedAt, &u.FileCount, &u.TotalStorage); err != nil {
 			return nil, fmt.Errorf("scan user: %w", err)
 		}

@@ -132,4 +132,5 @@ CREATE TABLE IF NOT EXISTS system_settings (
 
 -- Migrations for existing databases: add columns that may be missing
 ALTER TABLE users ADD COLUMN IF NOT EXISTS storage_quota_bytes BIGINT DEFAULT NULL;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS plan TEXT NOT NULL DEFAULT 'free';
 `

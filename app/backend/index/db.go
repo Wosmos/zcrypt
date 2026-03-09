@@ -18,9 +18,9 @@ func Open(databaseURL string) (*DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("parse database url: %w", err)
 	}
-	config.MaxConns = 10
+	config.MaxConns = 20
 
-	pool, err := pgxpool.New(context.Background(), config.ConnString())
+	pool, err := pgxpool.NewWithConfig(context.Background(), config)
 	if err != nil {
 		return nil, fmt.Errorf("connect to database: %w", err)
 	}

@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Aurelius - Infinite Category Scroll</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,600&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Poppins', 'sans-serif'],
+                        serif:['Playfair Display', 'serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Custom CSS for specific styling -->
+    <style>
+        body {
+            /* Smooth background matching the final requested image */
+            background: linear-gradient(180deg, #F4E4CD 0%, #FFB170 100%);
+            /* Prevent native scrolling for smooth GSAP Observer handling */
+            overflow: hidden;
+            overscroll-behavior-y: none;
+            touch-action: none; 
+        }
+
+        .card {
+            /* Performance optimizations for GSAP */
+            will-change: transform, opacity, filter, height;
+            /* Glassmorphism base effect */
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-img-container {
+            /* Strong shadow to mimic a floating plate */
+            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.4);
+        }
+    </style>
+</head>
+<body class="h-screen w-full flex flex-col items-center justify-start pt-10 select-none">
+
+    <!-- Header & Logo Section -->
+    <div class="relative z-50 flex flex-col items-center mt-4">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full border border-gray-800/20 flex items-center justify-center bg-black/5">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2D2D2D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M7 2v6c0 2 1.5 3.5 3 3.5v10.5" />
+                    <path d="M4 2v6c0 1.5.5 2.5 1.5 3" />
+                    <path d="M10 2v6c0 1.5-.5 2.5-1.5 3" />
+                    <path d="M17 2v20" />
+                    <path d="M17 2c3 0 3 4 3 8h-3" />
+                </svg>
+            </div>
+            <span class="font-serif italic text-2xl tracking-widest text-[#2D2D2D]">AURELIUS</span>
+        </div>
+        
+        <h1 class="text-[2.5rem] font-bold mt-8 mb-1 text-[#2D2D2D] tracking-tight">Categories</h1>
+        <p class="text-[#4A4A4A] text-[15px]">Swipe to explore our curated selections</p>
+    </div>
+
+    <!-- 3D Carousel Container -->
+    <div class="relative w-full max-w-[340px] flex-1 mt-6 flex items-center justify-center" id="carousel">
+        <!-- Cards will be injected via Javascript -->
+    </div>
+
+    <!-- GSAP Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/Observer.min.js"></script>
+
+    <script>
+        gsap.registerPlugin(Observer);
+
+        // Data array for the 5 generic categories 
+        const categories =[
+            { id: 1, title: "Appetizers", items: 16, img: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&h=400&fit=crop" },
+            { id: 2, title: "Main Course", items: 18, img: "https://images.unsplash.com/photo-1544025162-d76694265947?w=400&h=400&fit=crop" },
+            { id: 3, title: "Fast Food", items: 24, img: "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=400&h=400&fit=crop" },
+            { id: 4, title: "Dessert", items: 12, img: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=400&h=400&fit=crop" },
+            { id: 5, title: "Beverages", items: 14, img: "https://images.unsplash.com/photo-1541167760496-1628856ab772?w=400&h=400&fit=crop" }
+        ];
+
+        const carousel = document.getElementById('carousel');
+        const cards =[];
+        const totalItems = categories.length;
+        let currentIndex = 0;
+        let isAnimating = false;
+
+        // 1. Generate DOM Elements
+        categories.forEach((cat, index) => {
+            const cardEl = document.createElement('div');
+            // Base styling for glassmorphism card structure
+            cardEl.className = `card absolute w-[320px] bg-white/30 backdrop-blur-xl border border-white/40 rounded-[2rem] flex flex-col justify-start overflow-hidden`;
+            
+            cardEl.innerHTML = `
+                <!-- Top Section (Always visible) -->
+                <div class="h-[100px] shrink-0 flex items-center px-6 relative z-10">
+                    <h2 class="text-[22px] font-bold text-[#2A2A2A]">${cat.title}</h2>
+                </div>
+
+                <!-- Bottom Details (Expands when active) -->
+                <div class="card-details px-6 pb-6 flex flex-col items-start gap-4">
+                    <div class="border border-[#B8860B]/40 text-[#8B6508] bg-[#FFD700]/10 text-[11px] font-bold px-3 py-1.5 rounded-full inline-flex items-center gap-2 tracking-wide">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+                        ${cat.items} ITEMS
+                    </div>
+                    <button class="bg-[#2D2D2D] text-white w-full py-3.5 rounded-[14px] mt-2 font-semibold text-[15px] shadow-lg transition active:scale-95">Explore More</button>
+                </div>
+
+                <!-- Circular Floating Image -->
+                <img src="${cat.img}" class="card-img-container absolute top-[14px] right-[-14px] w-[110px] h-[110px] rounded-full border-[3px] border-white/30 object-cover z-20 pointer-events-none" />
+            `;
+            
+            carousel.appendChild(cardEl);
+            cards.push({
+                element: cardEl,
+                details: cardEl.querySelector('.card-details')
+            });
+        });
+
+        // 2. Logic to Map Positions
+        function getCardProps(diff) {
+            // "diff" represents relative distance from the center/active item
+            // Adjust visual stack configuration
+            switch(diff) {
+                // Active Center
+                case 0:  return { y: 0, scale: 1, blur: 0, opacity: 1, height: 240, zIndex: 10, detailsOpacity: 1 };
+                // 1 Item Below
+                case 1:  return { y: 140, scale: 0.85, blur: 4, opacity: 0.6, height: 100, zIndex: 8, detailsOpacity: 0 };
+                // 2 Items Below
+                case 2:  return { y: 230, scale: 0.70, blur: 8, opacity: 0.25, height: 100, zIndex: 6, detailsOpacity: 0 };
+                // 1 Item Above
+                case -1: return { y: -140, scale: 0.85, blur: 4, opacity: 0.6, height: 100, zIndex: 8, detailsOpacity: 0 };
+                // 2 Items Above
+                case -2: return { y: -230, scale: 0.70, blur: 8, opacity: 0.25, height: 100, zIndex: 6, detailsOpacity: 0 };
+                // Fallbacks (hidden gracefully offscreen)
+                default: return { y: Math.sign(diff) * 320, scale: 0.5, blur: 12, opacity: 0, height: 100, zIndex: 0, detailsOpacity: 0 };
+            }
+        }
+
+        // 3. Update Function
+        function updateCarousel(instant = false) {
+            cards.forEach((cardObj, i) => {
+                // Calculate wrapped circular distance (-2 to 2)
+                let diff = (i - currentIndex) % totalItems;
+                if (diff > Math.floor(totalItems / 2)) diff -= totalItems;
+                if (diff < -Math.floor(totalItems / 2)) diff += totalItems;
+
+                const props = getCardProps(diff);
+                const duration = instant ? 0 : 0.45;
+                const ease = "power3.out";
+
+                // Animate Container
+                gsap.to(cardObj.element, {
+                    y: props.y,
+                    scale: props.scale,
+                    opacity: props.opacity,
+                    height: props.height,
+                    zIndex: props.zIndex,
+                    filter: `blur(${props.blur}px)`,
+                    duration: duration,
+                    ease: ease
+                });
+
+                // Animate Internal Details
+                gsap.to(cardObj.details, {
+                    opacity: props.detailsOpacity,
+                    duration: duration * 0.8, // Slightly faster fade to prevent overlaps
+                    ease: ease
+                });
+            });
+        }
+
+        // 4. Initialize Position
+        updateCarousel(true);
+
+        // 5. Scroll / Swipe Handlers using GSAP Observer
+        function handleScroll(direction) {
+            if (isAnimating) return;
+            isAnimating = true;
+
+            if (direction === 'next') {
+                currentIndex = (currentIndex + 1) % totalItems;
+            } else {
+                currentIndex = (currentIndex - 1 + totalItems) % totalItems;
+            }
+
+            updateCarousel();
+
+            // Prevent multi-trigger bouncing
+            setTimeout(() => {
+                isAnimating = false;
+            }, 450);
+        }
+
+        Observer.create({
+            target: window,
+            type: "wheel,touch,pointer",
+            wheelSpeed: -1,
+            // User swipes finger UP -> Page wants to scroll down -> Next item shows
+            onUp: () => handleScroll('next'), 
+            // User swipes finger DOWN -> Page wants to scroll up -> Prev item shows
+            onDown: () => handleScroll('prev'),
+            tolerance: 30, // threshold to fire the gesture
+            preventDefault: true // Locks default scrolling
+        });
+
+    </script>
+</body>
+</html>

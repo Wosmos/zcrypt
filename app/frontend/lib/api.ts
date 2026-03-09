@@ -283,6 +283,14 @@ export function adminSetDefaultQuota(bytes: number): Promise<{ success: boolean 
   });
 }
 
+export function adminSetUserPlan(userId: string, plan: string): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/api/admin/users/${userId}/plan`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ plan }),
+  });
+}
+
 export function adminSetUserQuota(userId: string, quotaBytes: number | null): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/admin/users/${userId}/quota`, {
     method: "PUT",

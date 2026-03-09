@@ -133,6 +133,7 @@ func main() {
 	mux.HandleFunc("GET /api/admin/quota", server.AdminMiddleware(server.HandleAdminGetDefaultQuota))
 	mux.HandleFunc("PUT /api/admin/quota", server.AdminMiddleware(server.HandleAdminSetDefaultQuota))
 	mux.HandleFunc("PUT /api/admin/users/{id}/quota", server.AdminMiddleware(server.HandleAdminSetUserQuota))
+	mux.HandleFunc("PUT /api/admin/users/{id}/plan", server.AdminMiddleware(server.HandleAdminSetPlan))
 
 	// Health check (public)
 	mux.HandleFunc("GET /api/health", server.HandleHealth)

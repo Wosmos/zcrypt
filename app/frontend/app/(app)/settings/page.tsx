@@ -32,6 +32,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ConfirmModal } from "@/components/ui/confirm-modal";
 
 export default function SettingsPage() {
   const [githubToken, setGithubToken] = useState("");
@@ -41,6 +42,7 @@ export default function SettingsPage() {
   const [connecting, setConnecting] = useState<string | null>(null);
   const [disconnecting, setDisconnecting] = useState<string | null>(null);
   const busyRef = useRef<Set<string>>(new Set());
+  const [disconnectTarget, setDisconnectTarget] = useState<{ platform: string; username: string } | null>(null);
   const { statuses, repos, refresh } = usePlatformHealth();
   const { files } = useFileList();
   const { theme, setTheme } = useTheme();
@@ -87,7 +89,13 @@ export default function SettingsPage() {
     }
   };
 
-  const handleDisconnect = async (platform: string, username: string) => {
+  const handleDisconnectClick = (platform: string, username: string) => {
+    setDisconnectTarget({ platform, username });
+  };
+
+  const executeDisconnect = async () => {
+    if (!disconnectTarget) return;
+    const { platform, username } = disconnectTarget;
     const key = `disconnect:${platform}:${username}`;
     if (busyRef.current.has(key)) return;
     busyRef.current.add(key);
@@ -97,6 +105,7 @@ export default function SettingsPage() {
       toast.success(
         `${platformNames[platform] ?? platform} @${username} disconnected`
       );
+      setDisconnectTarget(null);
       refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Disconnect failed");
@@ -167,7 +176,7 @@ export default function SettingsPage() {
           onConnect={() => handleConnect("github", githubToken)}
           connecting={connecting === "github"}
           connectedAccounts={githubAccounts}
-          onDisconnect={(username) => handleDisconnect("github", username)}
+          onDisconnect={(username) => handleDisconnectClick("github", username)}
           disconnecting={disconnecting}
         />
 
@@ -185,7 +194,7 @@ export default function SettingsPage() {
           onConnect={() => handleConnect("gitlab", gitlabToken)}
           connecting={connecting === "gitlab"}
           connectedAccounts={gitlabAccounts}
-          onDisconnect={(username) => handleDisconnect("gitlab", username)}
+          onDisconnect={(username) => handleDisconnectClick("gitlab", username)}
           disconnecting={disconnecting}
         />
 
@@ -204,7 +213,7 @@ export default function SettingsPage() {
           connecting={connecting === "huggingface"}
           connectedAccounts={huggingfaceAccounts}
           onDisconnect={(username) =>
-            handleDisconnect("huggingface", username)
+            handleDisconnectClick("huggingface", username)
           }
           disconnecting={disconnecting}
         />
@@ -224,7 +233,7 @@ export default function SettingsPage() {
           connecting={connecting === "telegram"}
           connectedAccounts={telegramAccounts}
           onDisconnect={(username) =>
-            handleDisconnect("telegram", username)
+            handleDisconnectClick("telegram", username)
           }
           disconnecting={disconnecting}
         />
@@ -241,6 +250,23 @@ export default function SettingsPage() {
 
       {/* How it works — collapsible */}
       <HowItWorks />
+
+      {/* Confirm disconnect modal */}
+      <ConfirmModal
+        open={!!disconnectTarget}
+        onConfirm={executeDisconnect}
+        onClose={() => setDisconnectTarget(null)}
+        title="Disconnect Platform"
+        description={
+          disconnectTarget
+            ? `Disconnect ${platformNames[disconnectTarget.platform] ?? disconnectTarget.platform} account @${disconnectTarget.username}? Files stored on this platform will remain but may become inaccessible.`
+            : ""
+        }
+        details={disconnectTarget ? `@${disconnectTarget.username}` : undefined}
+        confirmLabel="Disconnect"
+        variant="warning"
+        loading={!!disconnecting}
+      />
     </div>
   );
 }

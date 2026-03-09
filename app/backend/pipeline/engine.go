@@ -221,9 +221,10 @@ func (pe *PipelineEngine) Prepare(ctx context.Context, filePath, originalFilenam
 		return nil, fmt.Errorf("index file: %w", err)
 	}
 
-	// Insert chunk placeholders with empty remote_path
-	for _, ci := range chunkInfos {
-		chunkRef := &types.ChunkRef{
+	// Insert all chunk placeholders in a single batch query
+	chunkRefs := make([]*types.ChunkRef, len(chunkInfos))
+	for i, ci := range chunkInfos {
+		chunkRefs[i] = &types.ChunkRef{
 			ChunkID:    uuid.New().String(),
 			FileID:     fileID,
 			Index:      ci.Index,
@@ -231,12 +232,12 @@ func (pe *PipelineEngine) Prepare(ctx context.Context, filePath, originalFilenam
 			SHA256:     ci.Hash,
 			Platform:   repo.Platform,
 			Account:    pe.account,
-			Repo:       repo.Name,
-			RemotePath: "", // empty = not yet uploaded
+			Repo:       repo.URL,
+			RemotePath: "",
 		}
-		if err := pe.db.InsertChunk(ctx, pe.userID, chunkRef); err != nil {
-			return nil, fmt.Errorf("index chunk placeholder: %w", err)
-		}
+	}
+	if err := pe.db.InsertChunksBatch(ctx, pe.userID, chunkRefs); err != nil {
+		return nil, fmt.Errorf("index chunk placeholders: %w", err)
 	}
 
 	return &PreparedFile{
@@ -478,49 +479,100 @@ func (pe *PipelineEngine) Pull(ctx context.Context, filename, passphrase, output
 	}
 	defer os.RemoveAll(opDir)
 
-	// --- FETCH ---
+	// --- FETCH (concurrent) ---
 	pe.progress.Emit(types.ProgressEvent{Stage: "downloading", Percent: 10})
 
-	var chunkPaths []string
+	const maxConcurrentDownloads = 5
+	chunkPaths := make([]string, len(chunkRefs))
+	dlSem := make(chan struct{}, maxConcurrentDownloads)
+	var dlWg sync.WaitGroup
+	var dlMu sync.Mutex
+	var dlErr error
+	var dlCount int
+
 	for i, ref := range chunkRefs {
+		dlMu.Lock()
+		if dlErr != nil {
+			dlMu.Unlock()
+			break
+		}
+		dlMu.Unlock()
+
 		select {
 		case <-ctx.Done():
+			dlWg.Wait()
 			return ctx.Err()
 		default:
 		}
 
-		dlAdapter := pe.adapter
-		if pe.adapterResolver != nil {
-			dlAdapter = pe.adapterResolver(ref)
-		}
-		if dlAdapter == nil {
-			return fmt.Errorf("no adapter for chunk %d (platform=%s, account=%s)", i, ref.Platform, ref.Account)
-		}
+		dlSem <- struct{}{}
+		dlWg.Add(1)
 
-		data, err := dlAdapter.Download(ctx, ref)
-		if err != nil {
-			return fmt.Errorf("download chunk %d: %w", i, err)
-		}
+		go func(i int, ref types.ChunkRef) {
+			defer dlWg.Done()
+			defer func() { <-dlSem }()
 
-		chunkPath := filepath.Join(opDir, fmt.Sprintf("chunk_%03d", ref.Index))
-		if err := os.WriteFile(chunkPath, data, 0600); err != nil {
-			return fmt.Errorf("write chunk %d: %w", i, err)
-		}
+			dlAdapter := pe.adapter
+			if pe.adapterResolver != nil {
+				dlAdapter = pe.adapterResolver(ref)
+			}
+			if dlAdapter == nil {
+				dlMu.Lock()
+				if dlErr == nil {
+					dlErr = fmt.Errorf("no adapter for chunk %d (platform=%s, account=%s)", i, ref.Platform, ref.Account)
+				}
+				dlMu.Unlock()
+				return
+			}
 
-		// --- VERIFY ---
-		if err := chunks.VerifyChunk(chunkPath, ref.SHA256); err != nil {
-			return fmt.Errorf("verify chunk %d: %w", i, err)
-		}
+			data, err := dlAdapter.Download(ctx, ref)
+			if err != nil {
+				dlMu.Lock()
+				if dlErr == nil {
+					dlErr = fmt.Errorf("download chunk %d: %w", i, err)
+				}
+				dlMu.Unlock()
+				return
+			}
 
-		chunkPaths = append(chunkPaths, chunkPath)
+			chunkPath := filepath.Join(opDir, fmt.Sprintf("chunk_%03d", ref.Index))
+			if err := os.WriteFile(chunkPath, data, 0600); err != nil {
+				dlMu.Lock()
+				if dlErr == nil {
+					dlErr = fmt.Errorf("write chunk %d: %w", i, err)
+				}
+				dlMu.Unlock()
+				return
+			}
 
-		percent := 10 + (40 * (i + 1) / len(chunkRefs))
-		pe.progress.Emit(types.ProgressEvent{
-			Stage:          "downloading",
-			Percent:        percent,
-			BytesProcessed: ref.Size,
-			TotalBytes:     fileMeta.EncryptedSize,
-		})
+			if err := chunks.VerifyChunk(chunkPath, ref.SHA256); err != nil {
+				dlMu.Lock()
+				if dlErr == nil {
+					dlErr = fmt.Errorf("verify chunk %d: %w", i, err)
+				}
+				dlMu.Unlock()
+				return
+			}
+
+			chunkPaths[i] = chunkPath
+
+			dlMu.Lock()
+			dlCount++
+			percent := 10 + (40 * dlCount / len(chunkRefs))
+			dlMu.Unlock()
+
+			pe.progress.Emit(types.ProgressEvent{
+				Stage:          fmt.Sprintf("downloading chunk %d/%d", dlCount, len(chunkRefs)),
+				Percent:        percent,
+				BytesProcessed: ref.Size,
+				TotalBytes:     fileMeta.EncryptedSize,
+			})
+		}(i, ref)
+	}
+
+	dlWg.Wait()
+	if dlErr != nil {
+		return dlErr
 	}
 
 	// --- REASSEMBLE ---

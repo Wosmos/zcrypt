@@ -19,7 +19,7 @@ import { usePlatformHealth } from "@/hooks/usePlatformHealth";
 import { useUploadStore } from "@/store/upload";
 import { usePassphraseStore } from "@/store/passphrase";
 import { useOperationStatus } from "@/hooks/useOperationStatus";
-import { pushFile, pullFile, deleteFile, listIncompleteUploads, getQuota } from "@/lib/api";
+import { pullFile, deleteFile, listIncompleteUploads, getQuota } from "@/lib/api";
 import { toast } from "@/store/toast";
 import {
   Shield,
@@ -34,11 +34,16 @@ import {
   TableProperties,
   List,
 } from "lucide-react";
+import { formatBytes } from "@/lib/utils";
 import Link from "next/link";
 import { useNotifications } from "@/hooks/useNotifications";
 import { FilePreviewModal, useFilePreview } from "@/components/ui/file-preview-modal";
-import type { QuotaInfo } from "@/types";
+import type { QuotaInfo, FileMetadata } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Pagination } from "@/components/ui/pagination";
+import { ConfirmModal } from "@/components/ui/confirm-modal";
+
+const PAGE_SIZE = 12;
 
 type ModalMode = { type: "upload"; files: File[] } | { type: "download"; filename: string } | { type: "preview"; filename: string } | null;
 
@@ -51,10 +56,11 @@ export default function VaultPage() {
   const [viewMode, setViewMode] = useState<"grid" | "list" | "table">("grid");
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [currentPage, setCurrentPage] = useState(1);
 
   const { files, loading, error, refresh } = useFileList();
   const { statuses, repos, isAnyConnected } = usePlatformHealth();
-  const { addToQueue, updateStatus, setError, setFileId, addIncomplete } = useUploadStore();
+  const { updateStatus, setError, addIncomplete, startUpload: storeStartUpload } = useUploadStore();
   const { getPassphrase, clear: clearPassphrase } = usePassphraseStore();
   const cachedPassphrase = usePassphraseStore((s) => s.cachedPassphrase);
   const cacheUntil = usePassphraseStore((s) => s.cacheUntil);
@@ -63,6 +69,9 @@ export default function VaultPage() {
   const { notify, requestPermission, isSupported, isGranted } = useNotifications();
   const preview = useFilePreview();
   const [quotaInfo, setQuotaInfo] = useState<QuotaInfo | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<FileMetadata | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [quotaExceeded, setQuotaExceeded] = useState<{ totalSize: number; remaining: number } | null>(null);
 
   // Fetch quota info
   useEffect(() => {
@@ -89,13 +98,9 @@ export default function VaultPage() {
 
   // SSE events from backend pipeline
   useOperationStatus((event) => {
-    const { queue, findByFileId } = useUploadStore.getState();
-    let target = event.file_id ? findByFileId(event.file_id) : undefined;
-    if (!target) {
-      target = queue.find(
-        (i) => i.status !== "done" && i.status !== "failed" && i.status !== "queued" && i.status !== "paused"
-      );
-    }
+    if (!event.file_id) return;
+    const { findByFileId } = useUploadStore.getState();
+    const target = findByFileId(event.file_id);
     if (!target) return;
 
     const stageLower = event.stage.toLowerCase();
@@ -127,49 +132,49 @@ export default function VaultPage() {
         toast.warning("Connect a platform in Settings first");
         return;
       }
+
+      // Client-side dedup: skip files that already exist in vault (same name + size)
+      const dupes: string[] = [];
+      const uniqueFiles = selectedFiles.filter((f) => {
+        const exists = files.some((existing) => existing.original_name === f.name && existing.original_size === f.size);
+        if (exists) dupes.push(f.name);
+        return !exists;
+      });
+
+      if (dupes.length > 0) {
+        const names = dupes.length <= 3 ? dupes.join(", ") : `${dupes.slice(0, 3).join(", ")} +${dupes.length - 3} more`;
+        toast.warning(`Skipped ${dupes.length} duplicate${dupes.length > 1 ? "s" : ""}: ${names}`);
+      }
+
+      if (uniqueFiles.length === 0) return;
+
+      // Check storage quota before uploading
+      if (quotaInfo && !quotaInfo.is_unlimited && quotaInfo.quota_bytes > 0) {
+        const totalUploadSize = uniqueFiles.reduce((sum, f) => sum + f.size, 0);
+        const remaining = quotaInfo.quota_bytes - quotaInfo.used_bytes;
+        if (totalUploadSize > remaining) {
+          setQuotaExceeded({ totalSize: totalUploadSize, remaining: Math.max(0, remaining) });
+          return;
+        }
+      }
       const cached = getPassphrase();
       if (cached) {
-        startUpload(selectedFiles, cached);
+        startUpload(uniqueFiles, cached);
       } else {
-        setModalMode({ type: "upload", files: selectedFiles });
+        setModalMode({ type: "upload", files: uniqueFiles });
         setPassphraseError(null);
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [isAnyConnected]
+    [isAnyConnected, quotaInfo, files]
   );
 
   const startUpload = useCallback(
-    async (uploadFiles: File[], passphrase: string) => {
-      for (const file of uploadFiles) {
-        const id = addToQueue(file);
-        updateStatus(id, "sending", 0, "Sending to server");
-
-        try {
-          const result = await pushFile(file, passphrase, selectedPlatform ?? undefined, (percent) => {
-            const { queue } = useUploadStore.getState();
-            const item = queue.find((i) => i.id === id);
-            if (item && item.status === "sending") {
-              updateStatus(id, "sending", percent, "Sending to server");
-            }
-          });
-
-          const res = result as { file_id?: string; status?: string };
-          if (res.file_id) {
-            setFileId(id, res.file_id);
-            updateStatus(id, "compressing", 65, "Processing on server...");
-          } else {
-            updateStatus(id, "done", 100, "Done");
-            toast.success(`${file.name} uploaded`);
-            refresh();
-          }
-        } catch (err) {
-          setError(id, err instanceof Error ? err.message : "Upload failed");
-          toast.error(`Upload failed: ${err instanceof Error ? err.message : "Unknown error"}`);
-        }
-      }
+    (uploadFiles: File[], passphrase: string) => {
+      const maxConcurrent = quotaInfo?.max_concurrent_uploads ?? 2;
+      storeStartUpload(uploadFiles, passphrase, selectedPlatform ?? undefined, maxConcurrent, refresh);
     },
-    [selectedPlatform, addToQueue, updateStatus, setError, setFileId, refresh]
+    [selectedPlatform, storeStartUpload, refresh, quotaInfo]
   );
 
   // --- Download flow ---
@@ -226,18 +231,30 @@ export default function VaultPage() {
   );
 
   // --- Delete ---
-  const handleDelete = useCallback(
-    async (id: string) => {
-      if (!confirm("Delete this file?")) return;
+  const handleDeleteClick = useCallback(
+    (id: string) => {
+      const file = files.find((f) => f.id === id);
+      if (file) setDeleteTarget(file);
+    },
+    [files]
+  );
+
+  const executeDelete = useCallback(
+    async () => {
+      if (!deleteTarget) return;
+      setDeleting(true);
       try {
-        await deleteFile(id);
+        await deleteFile(deleteTarget.id);
         toast.success("File deleted");
+        setDeleteTarget(null);
         refresh();
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Delete failed");
+      } finally {
+        setDeleting(false);
       }
     },
-    [refresh]
+    [deleteTarget, refresh]
   );
 
   // --- Preview ---
@@ -314,6 +331,7 @@ export default function VaultPage() {
       setSortField(field);
       setSortDir(field === "date" ? "desc" : "asc");
     }
+    setCurrentPage(1);
   };
 
   const filtered = (search
@@ -333,6 +351,11 @@ export default function VaultPage() {
       default: return 0;
     }
   });
+
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedFiles = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
   const remainingMinutes = getRemainingMinutes();
   const hasCachedPassphrase = !!cachedPassphrase && !!cacheUntil && Date.now() < cacheUntil;
 
@@ -446,7 +469,7 @@ export default function VaultPage() {
               type="text"
               placeholder="Search files..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
               icon={<Search className="h-4 w-4" />}
             />
           </div>
@@ -514,44 +537,71 @@ export default function VaultPage() {
           description="Upload your first file to get started. Files are compressed, encrypted, and stored across your connected platforms."
         />
       ) : viewMode === "table" ? (
-        <FileTable
-          files={filtered}
-          downloadStates={downloadStates}
-          sortField={sortField}
-          sortDir={sortDir}
-          onSort={handleSort}
-          onDownload={handleDownloadClick}
-          onDelete={handleDelete}
-          onPreview={handlePreview}
-        />
+        <>
+          <FileTable
+            files={paginatedFiles}
+            downloadStates={downloadStates}
+            sortField={sortField}
+            sortDir={sortDir}
+            onSort={handleSort}
+            onDownload={handleDownloadClick}
+            onDelete={handleDeleteClick}
+            onPreview={handlePreview}
+          />
+          <Pagination
+            currentPage={safePage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            totalItems={filtered.length}
+            pageSize={PAGE_SIZE}
+          />
+        </>
       ) : viewMode === "grid" ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {filtered.map((file) => (
-            <FileCard
-              key={file.id}
-              file={file}
-              variant="grid"
-              downloadState={downloadStates[file.id] || "idle"}
-              onDownload={handleDownloadClick}
-              onDelete={handleDelete}
-              onPreview={handlePreview}
-            />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {paginatedFiles.map((file) => (
+              <FileCard
+                key={file.id}
+                file={file}
+                variant="grid"
+                downloadState={downloadStates[file.id] || "idle"}
+                onDownload={handleDownloadClick}
+                onDelete={handleDeleteClick}
+                onPreview={handlePreview}
+              />
+            ))}
+          </div>
+          <Pagination
+            currentPage={safePage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            totalItems={filtered.length}
+            pageSize={PAGE_SIZE}
+          />
+        </>
       ) : (
-        <div className="space-y-2">
-          {filtered.map((file) => (
-            <FileCard
-              key={file.id}
-              file={file}
-              variant="list"
-              downloadState={downloadStates[file.id] || "idle"}
-              onDownload={handleDownloadClick}
-              onDelete={handleDelete}
-              onPreview={handlePreview}
-            />
-          ))}
-        </div>
+        <>
+          <div className="space-y-2">
+            {paginatedFiles.map((file) => (
+              <FileCard
+                key={file.id}
+                file={file}
+                variant="list"
+                downloadState={downloadStates[file.id] || "idle"}
+                onDownload={handleDownloadClick}
+                onDelete={handleDeleteClick}
+                onPreview={handlePreview}
+              />
+            ))}
+          </div>
+          <Pagination
+            currentPage={safePage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            totalItems={filtered.length}
+            pageSize={PAGE_SIZE}
+          />
+        </>
       )}
 
       {/* Vault backup */}
@@ -575,6 +625,35 @@ export default function VaultPage() {
         blob={preview.blob}
         filename={preview.filename}
         fileSize={preview.fileSize}
+      />
+
+      {/* Confirm delete modal */}
+      <ConfirmModal
+        open={!!deleteTarget}
+        onConfirm={executeDelete}
+        onClose={() => setDeleteTarget(null)}
+        title="Delete File"
+        description="This file will be permanently deleted from all storage platforms. This action cannot be undone."
+        details={deleteTarget?.original_name}
+        confirmLabel="Delete File"
+        variant="danger"
+        loading={deleting}
+      />
+
+      {/* Storage quota exceeded modal */}
+      <ConfirmModal
+        open={!!quotaExceeded}
+        onConfirm={() => setQuotaExceeded(null)}
+        onClose={() => setQuotaExceeded(null)}
+        title="Storage Quota Exceeded"
+        description={
+          quotaExceeded
+            ? `The selected files (${formatBytes(quotaExceeded.totalSize)}) exceed your available storage (${formatBytes(quotaExceeded.remaining)} remaining). Delete some files or contact an admin to increase your quota.`
+            : ""
+        }
+        confirmLabel="OK"
+        cancelLabel="Close"
+        variant="warning"
       />
     </div>
   );
