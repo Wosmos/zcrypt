@@ -571,26 +571,6 @@ function VideoModal({ open, onClose }: { open: boolean; onClose: () => void }) {
 function ScaledAppFrame({ visible }: { visible: boolean }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
-  const [iframeSrc, setIframeSrc] = useState("/dashboard");
-
-  useEffect(() => {
-    // Determine the infinite loop depth
-    if (typeof window !== "undefined") {
-      const searchParams = new URLSearchParams(window.location.search);
-      const currentDepth = parseInt(searchParams.get("depth") || "0", 10);
-
-      const maxDepthStr = process.env.NEXT_PUBLIC_SHOWCASE_MAX_DEPTH;
-      const maxDepth = maxDepthStr ? parseInt(maxDepthStr, 10) : Infinity;
-
-      // If we've reached the limit, break the loop by showing the isolated demo page
-      if (currentDepth >= maxDepth) {
-        setIframeSrc("/demo");
-      } else {
-        // Otherwise, embed the loop again, incrementing the depth
-        setIframeSrc(`/?depth=${currentDepth + 1}`);
-      }
-    }
-  }, []);
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -618,7 +598,7 @@ function ScaledAppFrame({ visible }: { visible: boolean }) {
     >
       {visible && (
         <iframe
-          src={iframeSrc}
+          src="/demo"
           title="zpush app"
           style={{
             width: IFRAME_LOGICAL_W,

@@ -19,6 +19,11 @@ interface UploadChartProps {
 
 type Range = "7d" | "30d" | "all";
 
+/** Local YYYY-MM-DD key — avoids UTC drift that toISOString() causes */
+function localDateKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function getChartData(files: FileMetadata[], range: Range) {
   if (files.length === 0) return [];
 
@@ -38,23 +43,24 @@ function getChartData(files: FileMetadata[], range: Range) {
     bucketFormat = (d) => d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
   }
 
-  // Build daily buckets
+  // Build daily buckets using local date keys
+  const bucketKeys: string[] = [];
   const buckets = new Map<string, { date: string; uploads: number; size: number }>();
 
-  // Fill in dates
   const d = new Date(startDate);
   d.setHours(0, 0, 0, 0);
   while (d <= now) {
-    const key = d.toISOString().split("T")[0];
+    const key = localDateKey(d);
+    bucketKeys.push(key);
     buckets.set(key, { date: bucketFormat(new Date(d)), uploads: 0, size: 0 });
     d.setDate(d.getDate() + 1);
   }
 
-  // Fill in data
+  // Fill in file data using local date keys
   for (const f of files) {
     const fd = new Date(f.created_at);
     if (fd < startDate) continue;
-    const key = fd.toISOString().split("T")[0];
+    const key = localDateKey(fd);
     const bucket = buckets.get(key);
     if (bucket) {
       bucket.uploads += 1;
@@ -67,17 +73,14 @@ function getChartData(files: FileMetadata[], range: Range) {
   // For "all" range with many entries, aggregate by month
   if (range === "all" && entries.length > 60) {
     const monthly = new Map<string, { date: string; uploads: number; size: number }>();
-    for (const e of entries) {
-      // Re-derive month key from the bucket
-      const idx = Array.from(buckets.values()).indexOf(e);
-      const dateKey = Array.from(buckets.keys())[idx];
-      const monthKey = dateKey.substring(0, 7);
+    for (let i = 0; i < entries.length; i++) {
+      const monthKey = bucketKeys[i].substring(0, 7);
       if (!monthly.has(monthKey)) {
-        monthly.set(monthKey, { date: e.date, uploads: 0, size: 0 });
+        monthly.set(monthKey, { date: entries[i].date, uploads: 0, size: 0 });
       }
       const m = monthly.get(monthKey)!;
-      m.uploads += e.uploads;
-      m.size += e.size;
+      m.uploads += entries[i].uploads;
+      m.size += entries[i].size;
     }
     return Array.from(monthly.values());
   }
@@ -90,8 +93,19 @@ function getChartData(files: FileMetadata[], range: Range) {
   return entries;
 }
 
+/** Pick the best range that actually has upload data */
+function bestRange(files: FileMetadata[]): Range {
+  if (files.length === 0) return "30d";
+  const now = Date.now();
+  const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
+  const monthAgo = now - 30 * 24 * 60 * 60 * 1000;
+  if (files.some((f) => new Date(f.created_at).getTime() >= weekAgo)) return "7d";
+  if (files.some((f) => new Date(f.created_at).getTime() >= monthAgo)) return "30d";
+  return "all";
+}
+
 export function UploadChart({ files }: UploadChartProps) {
-  const [range, setRange] = useState<Range>("30d");
+  const [range, setRange] = useState<Range>(() => bestRange(files));
   const data = useMemo(() => getChartData(files, range), [files, range]);
 
   const ranges: { value: Range; label: string }[] = [

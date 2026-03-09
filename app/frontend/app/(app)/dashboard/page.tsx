@@ -34,7 +34,7 @@ import {
   TableProperties,
   List,
 } from "lucide-react";
-import { formatBytes } from "@/lib/utils";
+import { cn, formatBytes } from "@/lib/utils";
 import Link from "next/link";
 import { useNotifications } from "@/hooks/useNotifications";
 import { FilePreviewModal, useFilePreview } from "@/components/ui/file-preview-modal";
@@ -370,18 +370,18 @@ export default function VaultPage() {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-        <div>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Vault</h1>
           <div className="mt-1.5">
             <CompactStats fileCount={files.length} totalSize={totalSize} totalEncrypted={totalEncrypted} lastUploadDate={lastUploadDate} quotaInfo={quotaInfo} />
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
           {hasCachedPassphrase && (
-            <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1.5 rounded-lg">
+            <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-1.5 rounded-lg">
               <Lock className="h-3 w-3" />
-              <span>{remainingMinutes}m</span>
+              <span className="hidden sm:inline">{remainingMinutes}m</span>
               <button
                 onClick={clearPassphrase}
                 className="ml-0.5 hover:text-red-400 transition-colors"
@@ -394,18 +394,19 @@ export default function VaultPage() {
           {isSupported && (
             <button
               onClick={requestPermission}
-              className={`flex items-center justify-center h-8 w-8 rounded-lg transition-colors ${
+              className={cn(
+                "flex items-center justify-center h-9 w-9 rounded-lg transition-colors",
                 isGranted
                   ? "text-emerald-500 bg-emerald-500/10"
                   : "text-[var(--color-text-muted)] hover:bg-[var(--color-surface-1)]"
-              }`}
+              )}
               title={isGranted ? "Notifications enabled" : "Enable notifications"}
             >
-              {isGranted ? <Bell className="h-3.5 w-3.5" /> : <BellOff className="h-3.5 w-3.5" />}
+              {isGranted ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
             </button>
           )}
-          <Button variant="ghost" size="sm" onClick={() => refresh()}>
-            <RefreshCw className="h-3.5 w-3.5" />
+          <Button variant="ghost" size="sm" onClick={() => refresh()} className="h-9 w-9 p-0">
+            <RefreshCw className="h-4 w-4" />
           </Button>
         </div>
       </div>
@@ -475,18 +476,21 @@ export default function VaultPage() {
           </div>
           <div className="flex rounded-xl border border-[var(--color-border)] overflow-hidden flex-shrink-0">
             {([
-              { mode: "grid" as const, icon: LayoutGrid, title: "Grid" },
-              { mode: "list" as const, icon: List, title: "List" },
-              { mode: "table" as const, icon: TableProperties, title: "Table" },
-            ]).map(({ mode, icon: ModeIcon, title }, i) => (
+              { mode: "grid" as const, icon: LayoutGrid, title: "Grid", mobile: true },
+              { mode: "list" as const, icon: List, title: "List", mobile: true },
+              { mode: "table" as const, icon: TableProperties, title: "Table", mobile: false },
+            ]).map(({ mode, icon: ModeIcon, title, mobile }, i) => (
               <button
                 key={mode}
                 onClick={() => setViewMode(mode)}
-                className={`flex items-center justify-center h-[38px] w-9 transition-colors ${i > 0 ? "border-l border-[var(--color-border)]" : ""} ${
+                className={cn(
+                  "flex items-center justify-center h-[38px] w-9 transition-colors",
+                  i > 0 && "border-l border-[var(--color-border)]",
+                  !mobile && "hidden sm:flex",
                   viewMode === mode
                     ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
                     : "text-[var(--color-text-muted)] hover:bg-[var(--color-surface-1)]"
-                }`}
+                )}
                 title={title}
               >
                 <ModeIcon className="h-4 w-4" />
