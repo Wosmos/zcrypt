@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth";
 import { getMe } from "@/lib/auth-api";
 import { refreshToken as refreshTokenApi } from "@/lib/auth-api";
+import { listFiles } from "@/lib/api";
+import { useFileStore } from "@/store/files";
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -29,11 +31,19 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      // Prefetch file list into store so dashboard loads instantly
+      const prefetchFiles = () => {
+        listFiles().then((data) => {
+          useFileStore.getState().setFiles(data);
+        }).catch(() => {});
+      };
+
       // Try to fetch user with current access token
       if (accessToken) {
         try {
           const me = await getMe(accessToken);
           setUser(me);
+          prefetchFiles();
           setInitialized(true);
           return;
         } catch {
@@ -48,6 +58,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
           setTokens(data.access_token, data.refresh_token);
           const me = await getMe(data.access_token);
           setUser(me);
+          prefetchFiles();
           setInitialized(true);
           return;
         } catch {

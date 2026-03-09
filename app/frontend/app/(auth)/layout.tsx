@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Shield } from "lucide-react";
+import { CircuitBackground } from "@/components/ui/circuit-background";
 
 export default function AuthLayout({
   children,
@@ -8,6 +9,7 @@ export default function AuthLayout({
 }) {
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center px-4 py-12">
+      <CircuitBackground />
       <Link
         href="/"
         className="flex items-center gap-2.5 mb-8 group"

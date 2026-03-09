@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { ToastContainer } from "@/components/ui/toast-container";
 import { ThemeProvider } from "@/components/providers/theme-provider";
-import { CircuitBackground } from "@/components/ui/circuit-background";
+import { NavProgress } from "@/components/ui/nav-progress";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://zpush.io"),
@@ -69,7 +69,7 @@ export default function RootLayout({
       </head>
       <body>
         <ThemeProvider>
-          <CircuitBackground />
+          <NavProgress />
           {children}
           <ToastContainer />
         </ThemeProvider>

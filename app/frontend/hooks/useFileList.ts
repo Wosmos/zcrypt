@@ -8,14 +8,16 @@ export function useFileList() {
   const { files, loading, error, setFiles, setLoading, setError } = useFileStore();
 
   const refresh = useCallback(async (filter?: string) => {
-    setLoading(true);
+    // SWR pattern: only show loading skeleton on first load (empty store)
+    // On subsequent refreshes, keep showing stale data while revalidating
+    if (files.length === 0) setLoading(true);
     try {
       const data = await listFiles(filter);
       setFiles(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load files");
     }
-  }, [setFiles, setLoading, setError]);
+  }, [files.length, setFiles, setLoading, setError]);
 
   useEffect(() => {
     refresh();
