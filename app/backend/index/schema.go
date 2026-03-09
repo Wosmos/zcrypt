@@ -108,6 +108,7 @@ CREATE TABLE IF NOT EXISTS pending_deletions (
 );
 
 CREATE INDEX IF NOT EXISTS idx_pending_deletions_user ON pending_deletions(user_id);
+CREATE INDEX IF NOT EXISTS idx_pending_deletions_cleanup ON pending_deletions(attempts, created_at);
 
 CREATE TABLE IF NOT EXISTS platform_tokens (
 	id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -129,6 +130,11 @@ CREATE TABLE IF NOT EXISTS system_settings (
 	value      TEXT NOT NULL,
 	updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Additional indexes for performance
+CREATE INDEX IF NOT EXISTS idx_repos_user_platform_active ON repos(user_id, platform, account) WHERE active = TRUE;
+CREATE INDEX IF NOT EXISTS idx_chunks_file_pending ON chunks(file_id) WHERE remote_path = '';
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires ON refresh_tokens(expires_at);
 
 -- Migrations for existing databases: add columns that may be missing
 ALTER TABLE users ADD COLUMN IF NOT EXISTS storage_quota_bytes BIGINT DEFAULT NULL;

@@ -217,11 +217,7 @@ func (pe *PipelineEngine) Prepare(ctx context.Context, filePath, originalFilenam
 		Status:         "uploading",
 	}
 
-	if err := pe.db.InsertFile(ctx, pe.userID, fileMeta); err != nil {
-		return nil, fmt.Errorf("index file: %w", err)
-	}
-
-	// Insert all chunk placeholders in a single batch query
+	// Insert file + chunk placeholders atomically
 	chunkRefs := make([]*types.ChunkRef, len(chunkInfos))
 	for i, ci := range chunkInfos {
 		chunkRefs[i] = &types.ChunkRef{
@@ -236,8 +232,8 @@ func (pe *PipelineEngine) Prepare(ctx context.Context, filePath, originalFilenam
 			RemotePath: "",
 		}
 	}
-	if err := pe.db.InsertChunksBatch(ctx, pe.userID, chunkRefs); err != nil {
-		return nil, fmt.Errorf("index chunk placeholders: %w", err)
+	if err := pe.db.InsertFileWithChunks(ctx, pe.userID, fileMeta, chunkRefs); err != nil {
+		return nil, fmt.Errorf("index file+chunks: %w", err)
 	}
 
 	return &PreparedFile{
