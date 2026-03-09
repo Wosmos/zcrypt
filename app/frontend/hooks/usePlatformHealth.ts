@@ -1,11 +1,13 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { getPlatformStatus, listRepos } from "@/lib/api";
 import { usePlatformStore } from "@/store/platform";
 
 export function usePlatformHealth() {
   const { statuses, repos, loading, setStatuses, setRepos, setLoading } = usePlatformStore();
+
+  const refreshRef = useRef<() => Promise<void>>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -20,11 +22,13 @@ export function usePlatformHealth() {
     }
   }, [setStatuses, setRepos, setLoading]);
 
+  refreshRef.current = refresh;
+
   useEffect(() => {
-    refresh();
-    const interval = setInterval(refresh, 60_000);
+    refreshRef.current?.();
+    const interval = setInterval(() => refreshRef.current?.(), 60_000);
     return () => clearInterval(interval);
-  }, [refresh]);
+  }, []);
 
   const isAnyConnected = statuses.some((s) => s.connected);
 

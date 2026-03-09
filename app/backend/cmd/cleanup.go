@@ -18,6 +18,12 @@ const (
 // StartCleanupWorker runs a background goroutine that processes pending deletions.
 func (s *Server) StartCleanupWorker(ctx context.Context) {
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("cleanup worker panic: %v", r)
+			}
+		}()
+
 		// Run once on startup after a short delay
 		time.Sleep(10 * time.Second)
 		s.runCleanupBatch(ctx)
