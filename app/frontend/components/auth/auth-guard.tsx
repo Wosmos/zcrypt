@@ -38,6 +38,14 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         }).catch(() => {});
       };
 
+      // If user was already set by login/register page, skip the getMe call
+      const existingUser = useAuthStore.getState().user;
+      if (existingUser && accessToken) {
+        prefetchFiles();
+        setInitialized(true);
+        return;
+      }
+
       // Try to fetch user with current access token
       if (accessToken) {
         try {
