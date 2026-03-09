@@ -32,7 +32,7 @@ export function Pagination({ currentPage, totalPages, onPageChange, totalItems, 
   }
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+    <nav aria-label="Pagination" className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
       <p className="text-xs text-[var(--color-text-muted)]">
         Showing {start}–{end} of {totalItems}
       </p>
@@ -40,6 +40,7 @@ export function Pagination({ currentPage, totalPages, onPageChange, totalItems, 
         <button
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
+          aria-label="Previous page"
           className="flex items-center justify-center h-8 w-8 rounded-lg border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-1)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         >
           <ChevronLeft className="h-4 w-4" />
@@ -51,6 +52,8 @@ export function Pagination({ currentPage, totalPages, onPageChange, totalItems, 
             <button
               key={page}
               onClick={() => onPageChange(page)}
+              aria-label={`Page ${page}`}
+              aria-current={page === currentPage ? "page" : undefined}
               className={cn(
                 "flex items-center justify-center h-8 min-w-[2rem] rounded-lg text-xs font-medium transition-colors",
                 page === currentPage
@@ -65,11 +68,12 @@ export function Pagination({ currentPage, totalPages, onPageChange, totalItems, 
         <button
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
+          aria-label="Next page"
           className="flex items-center justify-center h-8 w-8 rounded-lg border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-1)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         >
           <ChevronRight className="h-4 w-4" />
         </button>
       </div>
-    </div>
+    </nav>
   );
 }
