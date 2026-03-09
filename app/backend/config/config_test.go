@@ -36,36 +36,27 @@ func TestValidateAcceptsValidConfig(t *testing.T) {
 	assert.NoError(t, cfg.Validate())
 }
 
-func TestValidateSMTPRequiresHost(t *testing.T) {
+func TestValidateEmailRequiresAPIKey(t *testing.T) {
 	cfg := DefaultConfig()
 	cfg.JWTSecret = "this-is-a-sufficiently-long-jwt-secret-key"
-	cfg.SMTP = &SMTPConfig{Port: 587, From: "a@b.com"}
+	cfg.Email = &EmailConfig{From: "a@b.com"}
 	err := cfg.Validate()
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "SMTP_HOST")
+	assert.Contains(t, err.Error(), "BREVO_API_KEY")
 }
 
-func TestValidateSMTPRequiresFrom(t *testing.T) {
+func TestValidateEmailRequiresFrom(t *testing.T) {
 	cfg := DefaultConfig()
 	cfg.JWTSecret = "this-is-a-sufficiently-long-jwt-secret-key"
-	cfg.SMTP = &SMTPConfig{Host: "smtp.test.com", Port: 587}
+	cfg.Email = &EmailConfig{APIKey: "xkeysib-test"}
 	err := cfg.Validate()
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "SMTP_FROM")
+	assert.Contains(t, err.Error(), "BREVO_FROM")
 }
 
-func TestValidateSMTPRequiresValidPort(t *testing.T) {
+func TestValidateEmailAcceptsValidConfig(t *testing.T) {
 	cfg := DefaultConfig()
 	cfg.JWTSecret = "this-is-a-sufficiently-long-jwt-secret-key"
-	cfg.SMTP = &SMTPConfig{Host: "smtp.test.com", From: "a@b.com", Port: 0}
-	err := cfg.Validate()
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "SMTP_PORT")
-}
-
-func TestValidateSMTPAcceptsValidConfig(t *testing.T) {
-	cfg := DefaultConfig()
-	cfg.JWTSecret = "this-is-a-sufficiently-long-jwt-secret-key"
-	cfg.SMTP = &SMTPConfig{Host: "smtp.test.com", From: "a@b.com", Port: 587}
+	cfg.Email = &EmailConfig{APIKey: "xkeysib-test", From: "a@b.com"}
 	assert.NoError(t, cfg.Validate())
 }
