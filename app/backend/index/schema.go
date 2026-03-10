@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS email_tokens (
 	id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 	user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 	token_hash TEXT NOT NULL UNIQUE,
-	kind       TEXT NOT NULL CHECK (kind IN ('verify', 'reset')),
+	kind       TEXT NOT NULL CHECK (kind IN ('verify', 'reset', 'magic_link')),
 	expires_at TIMESTAMPTZ NOT NULL,
 	created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -136,7 +136,41 @@ CREATE INDEX IF NOT EXISTS idx_repos_user_platform_active ON repos(user_id, plat
 CREATE INDEX IF NOT EXISTS idx_chunks_file_pending ON chunks(file_id) WHERE remote_path = '';
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires ON refresh_tokens(expires_at);
 
+-- OAuth linked accounts
+CREATE TABLE IF NOT EXISTS oauth_providers (
+	id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+	user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	provider        TEXT NOT NULL CHECK (provider IN ('google', 'github')),
+	provider_id     TEXT NOT NULL,
+	provider_email  TEXT NOT NULL DEFAULT '',
+	created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	UNIQUE (provider, provider_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_oauth_providers_user ON oauth_providers(user_id);
+CREATE INDEX IF NOT EXISTS idx_oauth_providers_lookup ON oauth_providers(provider, provider_id);
+
+-- Audit events
+CREATE TABLE IF NOT EXISTS audit_events (
+	id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+	user_id    UUID REFERENCES users(id) ON DELETE SET NULL,
+	event_type TEXT NOT NULL,
+	ip         TEXT NOT NULL DEFAULT '',
+	user_agent TEXT NOT NULL DEFAULT '',
+	metadata   JSONB NOT NULL DEFAULT '{}',
+	created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_events_user ON audit_events(user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_events_type ON audit_events(event_type);
+CREATE INDEX IF NOT EXISTS idx_audit_events_time ON audit_events(created_at DESC);
+
 -- Migrations for existing databases: add columns that may be missing
 ALTER TABLE users ADD COLUMN IF NOT EXISTS storage_quota_bytes BIGINT DEFAULT NULL;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS plan TEXT NOT NULL DEFAULT 'free';
+
+-- Migrate email_tokens kind constraint for magic links
+ALTER TABLE email_tokens DROP CONSTRAINT IF EXISTS email_tokens_kind_check;
+ALTER TABLE email_tokens ADD CONSTRAINT email_tokens_kind_check
+	CHECK (kind IN ('verify', 'reset', 'magic_link'));
 `

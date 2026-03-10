@@ -39,6 +39,10 @@ type Server struct {
 
 	// Auth-specific rate limiter: stricter limits for login/register (5 req per 5 min per IP)
 	authLimiter *rateLimiter
+	// Per-email rate limiter: 3 req per 15 min for login/magic-link/forgot-password
+	emailLimiter *rateLimiter
+	// Per-user rate limiter: 100 req per 1 min for authenticated API calls
+	userLimiter *rateLimiter
 }
 
 // NewServer creates a new API server.
@@ -52,6 +56,8 @@ func NewServer(db *index.DB, cfg *config.Config, progress *pipeline.ProgressEmit
 		poolCache:    make(map[string]map[string]*reppool.Manager),
 		prepareSem:   make(chan struct{}, 3), // max 3 concurrent prepare (compress+encrypt+chunk)
 		authLimiter:  newRateLimiter(5, 5*time.Minute),
+		emailLimiter: newRateLimiter(3, 15*time.Minute),
+		userLimiter:  newRateLimiter(100, time.Minute),
 	}
 }
 

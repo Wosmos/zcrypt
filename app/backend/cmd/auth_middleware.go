@@ -28,6 +28,11 @@ func (s *Server) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			http.Error(w, `{"error":"invalid or expired token"}`, http.StatusUnauthorized)
 			return
 		}
+		// Per-user rate limiting: 100 req/min
+		if !s.userLimiter.allow(claims.Sub) {
+			http.Error(w, `{"error":"too many requests, please slow down"}`, http.StatusTooManyRequests)
+			return
+		}
 		ctx := context.WithValue(r.Context(), userContextKey, claims)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	}

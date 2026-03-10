@@ -115,6 +115,12 @@ func main() {
 	mux.HandleFunc("POST /api/auth/verify-email", server.HandleVerifyEmail)
 	mux.HandleFunc("POST /api/auth/resend-verification", server.HandleResendVerification)
 	mux.HandleFunc("POST /api/auth/2fa/verify", server.Handle2FAVerify)
+	mux.HandleFunc("POST /api/auth/magic-link", server.HandleMagicLinkRequest)
+	mux.HandleFunc("POST /api/auth/magic-link/verify", server.HandleMagicLinkVerify)
+
+	// OAuth routes (public — redirect-based)
+	mux.HandleFunc("GET /api/auth/oauth/{provider}", server.HandleOAuthStart)
+	mux.HandleFunc("GET /api/auth/oauth/{provider}/callback", server.HandleOAuthCallback)
 
 	// Protected auth routes
 	mux.HandleFunc("POST /api/auth/logout", server.AuthMiddleware(server.HandleLogout))
@@ -122,6 +128,9 @@ func main() {
 	mux.HandleFunc("POST /api/auth/2fa/enable", server.AuthMiddleware(server.Handle2FAEnable))
 	mux.HandleFunc("POST /api/auth/2fa/disable", server.AuthMiddleware(server.Handle2FADisable))
 	mux.HandleFunc("GET /api/auth/me", server.AuthMiddleware(server.HandleGetMe))
+	mux.HandleFunc("GET /api/auth/activity", server.AuthMiddleware(server.HandleUserActivity))
+	mux.HandleFunc("GET /api/auth/linked-accounts", server.AuthMiddleware(server.HandleLinkedAccounts))
+	mux.HandleFunc("DELETE /api/auth/linked-accounts/{provider}", server.AuthMiddleware(server.HandleUnlinkAccount))
 
 	// Protected data routes (all require auth)
 	mux.HandleFunc("POST /api/push", server.AuthMiddleware(server.HandlePush))
@@ -152,6 +161,7 @@ func main() {
 	mux.HandleFunc("PUT /api/admin/quota", server.AdminMiddleware(server.HandleAdminSetDefaultQuota))
 	mux.HandleFunc("PUT /api/admin/users/{id}/quota", server.AdminMiddleware(server.HandleAdminSetUserQuota))
 	mux.HandleFunc("PUT /api/admin/users/{id}/plan", server.AdminMiddleware(server.HandleAdminSetPlan))
+	mux.HandleFunc("GET /api/admin/audit", server.AdminMiddleware(server.HandleAdminAuditLog))
 
 	// Health check (public)
 	mux.HandleFunc("GET /api/health", server.HandleHealth)

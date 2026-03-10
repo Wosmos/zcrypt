@@ -17,6 +17,18 @@ type EmailConfig struct {
 	From   string `json:"from"`
 }
 
+// OAuthProviderConfig holds client credentials for a single OAuth provider.
+type OAuthProviderConfig struct {
+	ClientID     string `json:"client_id"`
+	ClientSecret string `json:"client_secret"`
+}
+
+// OAuthConfig holds OAuth provider configurations.
+type OAuthConfig struct {
+	Google *OAuthProviderConfig `json:"google,omitempty"`
+	GitHub *OAuthProviderConfig `json:"github,omitempty"`
+}
+
 // DefaultDir returns the zpush config directory (~/.zpush/).
 func DefaultDir() (string, error) {
 	home, err := os.UserHomeDir()
@@ -49,6 +61,7 @@ type Config struct {
 	// Auth
 	JWTSecret string       `json:"jwt_secret,omitempty"`
 	Email     *EmailConfig `json:"email,omitempty"`
+	OAuth     *OAuthConfig `json:"oauth,omitempty"`
 	// Frontend URL for email links (verification, password reset)
 	FrontendURL string `json:"frontend_url,omitempty"`
 	// From environment only — never persisted to JSON
@@ -133,6 +146,23 @@ func (c *Config) applyEnvOverrides() {
 	}
 	if v := os.Getenv("FRONTEND_URL"); v != "" {
 		c.FrontendURL = v
+	}
+	// OAuth providers
+	if id := os.Getenv("GOOGLE_CLIENT_ID"); id != "" {
+		if sec := os.Getenv("GOOGLE_CLIENT_SECRET"); sec != "" {
+			if c.OAuth == nil {
+				c.OAuth = &OAuthConfig{}
+			}
+			c.OAuth.Google = &OAuthProviderConfig{ClientID: id, ClientSecret: sec}
+		}
+	}
+	if id := os.Getenv("GITHUB_CLIENT_ID"); id != "" {
+		if sec := os.Getenv("GITHUB_CLIENT_SECRET"); sec != "" {
+			if c.OAuth == nil {
+				c.OAuth = &OAuthConfig{}
+			}
+			c.OAuth.GitHub = &OAuthProviderConfig{ClientID: id, ClientSecret: sec}
+		}
 	}
 }
 

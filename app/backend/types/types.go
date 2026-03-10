@@ -169,13 +169,34 @@ type RefreshToken struct {
 	CreatedAt time.Time
 }
 
-// EmailToken is a one-time token for email verification or password reset.
+// EmailToken is a one-time token for email verification, password reset, or magic link.
 type EmailToken struct {
 	ID        string
 	UserID    string
 	TokenHash string
-	Kind      string // "verify" or "reset"
+	Kind      string // "verify", "reset", or "magic_link"
 	ExpiresAt time.Time
+}
+
+// OAuthProvider represents a linked OAuth account.
+type OAuthProvider struct {
+	ID            string    `json:"id"`
+	UserID        string    `json:"user_id"`
+	Provider      string    `json:"provider"`       // "google" or "github"
+	ProviderID    string    `json:"provider_id"`     // unique ID from provider
+	ProviderEmail string    `json:"provider_email"`
+	CreatedAt     time.Time `json:"created_at"`
+}
+
+// AuditEvent represents a logged security or system event.
+type AuditEvent struct {
+	ID        string                 `json:"id"`
+	UserID    *string                `json:"user_id,omitempty"`
+	EventType string                 `json:"event_type"`
+	IP        string                 `json:"ip"`
+	UserAgent string                 `json:"user_agent"`
+	Metadata  map[string]interface{} `json:"metadata"`
+	CreatedAt time.Time              `json:"created_at"`
 }
 
 // Manifest describes a file's chunk layout stored alongside chunks in the repo.

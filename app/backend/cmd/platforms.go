@@ -119,6 +119,8 @@ func (s *Server) HandleConnectPlatform(w http.ResponseWriter, r *http.Request) {
 	// Invalidate adapter cache so it reloads from DB
 	s.invalidateUserCache(userID)
 
+	s.audit(r, &userID, "platform_connect", map[string]interface{}{"platform": req.Platform, "username": username})
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success":  true,
@@ -151,6 +153,8 @@ func (s *Server) HandleDisconnectPlatform(w http.ResponseWriter, r *http.Request
 
 	// Invalidate adapter cache
 	s.invalidateUserCache(userID)
+
+	s.audit(r, &userID, "platform_disconnect", map[string]interface{}{"platform": req.Platform, "username": req.Username})
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte(`{"success":true}`))

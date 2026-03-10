@@ -322,3 +322,32 @@ export function adminSetUserQuota(userId: string, quotaBytes: number | null): Pr
     body: JSON.stringify({ quota_bytes: quotaBytes }),
   });
 }
+
+// ─── Admin Audit API ───
+
+export interface AdminAuditResponse {
+  events: Array<{
+    id: string;
+    user_id?: string;
+    event_type: string;
+    ip: string;
+    user_agent: string;
+    metadata: Record<string, unknown>;
+    created_at: string;
+  }>;
+  total: number;
+}
+
+export function adminGetAuditLog(params: {
+  limit?: number;
+  offset?: number;
+  event_type?: string;
+  user_id?: string;
+}): Promise<AdminAuditResponse> {
+  const qs = new URLSearchParams();
+  if (params.limit) qs.set("limit", String(params.limit));
+  if (params.offset) qs.set("offset", String(params.offset));
+  if (params.event_type) qs.set("event_type", params.event_type);
+  if (params.user_id) qs.set("user_id", params.user_id);
+  return request<AdminAuditResponse>(`/api/admin/audit?${qs.toString()}`);
+}

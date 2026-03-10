@@ -77,6 +77,9 @@ func (s *Server) HandleAdminSetRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	adminID := GetUserID(r)
+	s.audit(r, &adminID, "admin_role_change", map[string]interface{}{"target_user": userID, "role": req.Role})
+
 	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
 
@@ -103,6 +106,9 @@ func (s *Server) HandleAdminDeleteUser(w http.ResponseWriter, r *http.Request) {
 
 	// Clean up any cached adapters for this user
 	s.invalidateUserCache(userID)
+
+	adminID := GetUserID(r)
+	s.audit(r, &adminID, "admin_user_delete", map[string]interface{}{"target_user": userID})
 
 	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
@@ -357,5 +363,67 @@ func (s *Server) HandleAdminSetPlan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	adminID := GetUserID(r)
+	s.audit(r, &adminID, "admin_plan_change", map[string]interface{}{"target_user": userID, "plan": req.Plan})
+
 	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
+}
+
+// HandleAdminAuditLog returns paginated audit events.
+// GET /api/admin/audit
+func (s *Server) HandleAdminAuditLog(w http.ResponseWriter, r *http.Request) {
+	limit := 50
+	offset := 0
+	if v := r.URL.Query().Get("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 && n <= 100 {
+			limit = n
+		}
+	}
+	if v := r.URL.Query().Get("offset"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
+			offset = n
+		}
+	}
+
+	eventType := r.URL.Query().Get("event_type")
+	userID := r.URL.Query().Get("user_id")
+
+	events, total, err := s.db.ListAuditEvents(r.Context(), limit, offset, eventType, userID)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)
+		return
+	}
+
+	if events == nil {
+		events = []types.AuditEvent{}
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"events": events,
+		"total":  total,
+		"limit":  limit,
+		"offset": offset,
+	})
+}
+
+// HandleUserActivity returns the authenticated user's own recent auth events.
+// GET /api/auth/activity
+func (s *Server) HandleUserActivity(w http.ResponseWriter, r *http.Request) {
+	userID := GetUserID(r)
+	if userID == "" {
+		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+		return
+	}
+
+	events, err := s.db.ListUserAuditEvents(r.Context(), userID, 20)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)
+		return
+	}
+
+	if events == nil {
+		events = []types.AuditEvent{}
+	}
+
+	writeJSON(w, http.StatusOK, events)
 }

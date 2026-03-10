@@ -10,6 +10,8 @@ import { connectPlatform, disconnectPlatform } from "@/lib/api";
 import { toast } from "@/store/toast";
 import { RateLimits } from "@/components/settings/rate-limits";
 import { ExportImport } from "@/components/vault/export-import";
+import { LinkedAccounts } from "@/components/settings/linked-accounts";
+import { SecurityActivity } from "@/components/settings/security-activity";
 import { useFileList } from "@/hooks/useFileList";
 import { GitlabIcon } from "@/components/icons/gitlab";
 import { HuggingFaceIcon } from "@/components/icons/huggingface";
@@ -159,6 +161,9 @@ export default function SettingsPage() {
         </div>
       </section>
 
+      {/* Linked Accounts (OAuth) */}
+      <LinkedAccounts />
+
       {/* Platform connections */}
       <div className="space-y-4">
         <h2 className="section-label">Platform Connections</h2>
@@ -248,6 +253,9 @@ export default function SettingsPage() {
 
       {/* Vault backup */}
       <ExportImport files={files} />
+
+      {/* Security Activity */}
+      <SecurityActivity />
 
       {/* How it works — collapsible */}
       <HowItWorks />

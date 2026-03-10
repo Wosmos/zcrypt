@@ -84,6 +84,8 @@ func (s *Server) HandlePull(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.audit(r, &userID, "file_download", map[string]interface{}{"filename": req.Filename})
+
 	// Serve the file
 	outputPath := filepath.Join(outDir, req.Filename)
 	// Sanitize filename for Content-Disposition header (escape quotes)

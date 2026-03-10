@@ -6,26 +6,43 @@ import (
 	"github.com/zpush/zpush/types"
 )
 
-// ProgressEmitter manages progress event subscribers.
+// SSEEvent wraps both progress and audit events for SSE delivery.
+type SSEEvent struct {
+	Type    string      `json:"type"`    // "progress" or "audit"
+	Payload interface{} `json:"payload"`
+}
+
+// subscriber tracks an SSE connection with user context.
+type subscriber struct {
+	ch      chan SSEEvent
+	userID  string
+	isAdmin bool
+}
+
+// ProgressEmitter manages progress and audit event subscribers.
 type ProgressEmitter struct {
 	mu          sync.RWMutex
-	subscribers map[string]chan types.ProgressEvent
+	subscribers map[string]*subscriber
 }
 
 // NewProgressEmitter creates a new emitter.
 func NewProgressEmitter() *ProgressEmitter {
 	return &ProgressEmitter{
-		subscribers: make(map[string]chan types.ProgressEvent),
+		subscribers: make(map[string]*subscriber),
 	}
 }
 
-// Subscribe registers a new listener and returns its channel and ID.
-func (pe *ProgressEmitter) Subscribe(id string) <-chan types.ProgressEvent {
+// Subscribe registers a new listener and returns its channel.
+func (pe *ProgressEmitter) Subscribe(id, userID string, isAdmin bool) <-chan SSEEvent {
 	pe.mu.Lock()
 	defer pe.mu.Unlock()
 
-	ch := make(chan types.ProgressEvent, 32)
-	pe.subscribers[id] = ch
+	ch := make(chan SSEEvent, 32)
+	pe.subscribers[id] = &subscriber{
+		ch:      ch,
+		userID:  userID,
+		isAdmin: isAdmin,
+	}
 	return ch
 }
 
@@ -34,8 +51,8 @@ func (pe *ProgressEmitter) Unsubscribe(id string) {
 	pe.mu.Lock()
 	defer pe.mu.Unlock()
 
-	if ch, ok := pe.subscribers[id]; ok {
-		close(ch)
+	if sub, ok := pe.subscribers[id]; ok {
+		close(sub.ch)
 		delete(pe.subscribers, id)
 	}
 }
@@ -43,22 +60,40 @@ func (pe *ProgressEmitter) Unsubscribe(id string) {
 // ErrorEvent creates a progress event that signals an error for a file.
 func ErrorEvent(fileID, errMsg string) types.ProgressEvent {
 	return types.ProgressEvent{
-		FileID: fileID,
-		Stage:  "error: " + errMsg,
+		FileID:  fileID,
+		Stage:   "error: " + errMsg,
 		Percent: -1,
 	}
 }
 
-// Emit sends a progress event to all subscribers.
+// Emit sends a progress event to all subscribers (backward compatible).
 func (pe *ProgressEmitter) Emit(event types.ProgressEvent) {
 	pe.mu.RLock()
 	defer pe.mu.RUnlock()
 
-	for _, ch := range pe.subscribers {
+	sse := SSEEvent{Type: "progress", Payload: event}
+	for _, sub := range pe.subscribers {
 		select {
-		case ch <- event:
+		case sub.ch <- sse:
 		default:
 			// drop if subscriber is slow
+		}
+	}
+}
+
+// EmitAudit sends an audit event. Admins get all events; regular users only get their own.
+func (pe *ProgressEmitter) EmitAudit(event types.AuditEvent) {
+	pe.mu.RLock()
+	defer pe.mu.RUnlock()
+
+	sse := SSEEvent{Type: "audit", Payload: event}
+	for _, sub := range pe.subscribers {
+		// Admins see all, users only see their own events
+		if sub.isAdmin || (event.UserID != nil && *event.UserID == sub.userID) {
+			select {
+			case sub.ch <- sse:
+			default:
+			}
 		}
 	}
 }

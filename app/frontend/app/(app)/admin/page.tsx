@@ -7,6 +7,7 @@ import { SystemStatsCards } from "@/components/admin/system-stats";
 import { UserTable } from "@/components/admin/user-table";
 import { TokenManagement } from "@/components/admin/token-management";
 import { QuotaSettings } from "@/components/admin/quota-settings";
+import { AuditLog } from "@/components/admin/audit-log";
 import { adminGetStats, adminListUsers, adminListTokens, adminGetDefaultQuota } from "@/lib/api";
 import { Role } from "@/types";
 import type { AdminUser, SystemStats, PlatformTokenInfo } from "@/types";
@@ -80,6 +81,8 @@ export default function AdminPage() {
       <UserTable users={users} currentUserId={user.id} defaultQuotaBytes={defaultQuotaBytes} onRefresh={refresh} />
 
       <TokenManagement tokens={tokens} onRefresh={refresh} />
+
+      <AuditLog />
     </div>
   );
 }

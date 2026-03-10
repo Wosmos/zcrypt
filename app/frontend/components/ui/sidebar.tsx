@@ -19,7 +19,6 @@ import {
   Sun,
   Moon,
   LogOut,
-  BarChart3,
   PanelLeftClose,
   PanelLeft,
   Database,
@@ -32,7 +31,6 @@ import { logout as logoutApi } from "@/lib/auth-api";
 
 const baseLinks = [
   { href: "/dashboard", label: "Vault", icon: Shield },
-  { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
