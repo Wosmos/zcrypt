@@ -87,6 +87,7 @@ type ChunkRef struct {
 	Account    string `json:"account"`
 	Repo       string `json:"repo"`
 	RemotePath string `json:"remote_path"`
+	Compressed bool   `json:"compressed"`
 }
 
 // Chunk holds chunk data for upload/download.
@@ -133,15 +134,40 @@ type OperationResult struct {
 	Error    string `json:"error,omitempty"`
 }
 
-// PushRequest is the HTTP request to push a file.
-type PushRequest struct {
-	Passphrase string `json:"passphrase"`
+// UploadSession tracks a chunked client-side encrypted upload.
+type UploadSession struct {
+	ID             string    `json:"id"`
+	UserID         string    `json:"user_id"`
+	FileID         string    `json:"file_id"`
+	Filename       string    `json:"filename"`
+	OriginalSize   int64     `json:"original_size"`
+	Salt           []byte    `json:"-"`
+	SHA256         string    `json:"sha256"`
+	ChunkCount     int       `json:"chunk_count"`
+	Platform       string    `json:"platform"`
+	Account        string    `json:"account"`
+	RepoID         string    `json:"repo_id"`
+	RepoURL        string    `json:"repo_url"`
+	UploadedChunks int       `json:"uploaded_chunks"`
+	Status         string    `json:"status"`
+	CreatedAt      time.Time `json:"created_at"`
+	ExpiresAt      time.Time `json:"expires_at"`
 }
 
-// PullRequest is the HTTP request to pull a file.
-type PullRequest struct {
-	Filename   string `json:"filename"`
-	Passphrase string `json:"passphrase"`
+// UploadInitRequest is the JSON body for initiating a chunked upload.
+type UploadInitRequest struct {
+	Filename     string `json:"filename"`
+	OriginalSize int64  `json:"original_size"`
+	SHA256       string `json:"sha256"`
+	Salt         string `json:"salt"` // base64-encoded 32 bytes
+	ChunkCount   int    `json:"chunk_count"`
+	Platform     string `json:"platform,omitempty"`
+}
+
+// UploadCompleteRequest is the JSON body for finalizing a chunked upload.
+type UploadCompleteRequest struct {
+	EncryptedSize  int64 `json:"encrypted_size"`
+	CompressedSize int64 `json:"compressed_size"`
 }
 
 // User represents a registered user.

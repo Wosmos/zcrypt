@@ -25,7 +25,8 @@ import { usePlatformHealth } from "@/hooks/usePlatformHealth";
 import { useUploadStore } from "@/store/upload";
 import { usePassphraseStore } from "@/store/passphrase";
 import { useOperationStatus } from "@/hooks/useOperationStatus";
-import { pullFile, deleteFile, listIncompleteUploads, getQuota } from "@/lib/api";
+import { deleteFile, getQuota } from "@/lib/api";
+import { downloadAndDecryptFile } from "@/lib/download-session";
 import { toast } from "@/store/toast";
 import {
   Shield,
@@ -78,7 +79,7 @@ export default function VaultPage() {
 
   const { files, loading, error, refresh } = useFileList();
   const { statuses, repos, isAnyConnected } = usePlatformHealth();
-  const { updateStatus, setError, addIncomplete, startUpload: storeStartUpload } = useUploadStore();
+  const { updateStatus, setError, startUpload: storeStartUpload } = useUploadStore();
   const { getPassphrase, clear: clearPassphrase } = usePassphraseStore();
   const cachedPassphrase = usePassphraseStore((s) => s.cachedPassphrase);
   const cacheUntil = usePassphraseStore((s) => s.cacheUntil);
@@ -111,17 +112,6 @@ export default function VaultPage() {
     }
   }, [files, getPassphrase]);
 
-  // Load incomplete uploads on mount
-  useEffect(() => {
-    listIncompleteUploads()
-      .then((uploads) => {
-        for (const u of uploads) {
-          addIncomplete(u.file_id, u.original_name, u.original_size, u.total_chunks, u.pending_chunks, u.active);
-        }
-      })
-      .catch(() => {});
-  }, [addIncomplete]);
-
   // SSE events from backend pipeline
   useOperationStatus((event) => {
     if (!event.file_id) return;
@@ -139,11 +129,9 @@ export default function VaultPage() {
     const status =
       stageLower === "done"
         ? ("done" as const)
-        : stageLower.includes("compress")
-          ? ("compressing" as const)
-          : stageLower.includes("encrypt")
-            ? ("encrypting" as const)
-            : ("uploading" as const);
+        : stageLower.includes("encrypt")
+          ? ("encrypting" as const)
+          : ("uploading" as const);
     updateStatus(target.id, status, event.percent, event.stage, event.bytes_processed, event.total_bytes);
     if (stageLower === "done") {
       refresh();
@@ -228,13 +216,7 @@ export default function VaultPage() {
       toast.info(`Downloading ${filename}...`);
 
       try {
-        const blob = await pullFile(filename, passphrase);
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = filename;
-        a.click();
-        URL.revokeObjectURL(url);
+        await downloadAndDecryptFile(file.id, passphrase);
 
         setDownloadStates((prev) => ({ ...prev, [file.id]: "done" }));
         toast.success(`${filename} downloaded`);
@@ -380,7 +362,35 @@ export default function VaultPage() {
       preview.openPreview(null, filename, file.original_size);
 
       try {
-        const blob = await pullFile(filename, passphrase);
+        // Decrypt file in-memory for preview (reuses download-session internals)
+        const { getFileMeta, getFileChunk } = await import("@/lib/api");
+        const { deriveKeyBytes, decryptChunk, sha256Hex, fromBase64 } = await import("@/lib/crypto");
+        const { ZstdInit } = await import("@oneidentity/zstd-js/wasm");
+        const zstd = await ZstdInit();
+
+        const meta = await getFileMeta(file.id);
+        const salt = fromBase64(meta.salt);
+        const keyBytes = await deriveKeyBytes(passphrase, salt);
+
+        const chunks: Uint8Array[] = [];
+        for (let i = 0; i < meta.chunk_count; i++) {
+          const { data, compressed } = await getFileChunk(file.id, i);
+          let plain = await decryptChunk(keyBytes, new Uint8Array(data));
+          if (compressed && zstd) {
+            plain = zstd.ZstdSimple.decompress(plain);
+          }
+          chunks.push(plain);
+        }
+
+        const totalSize = chunks.reduce((s, c) => s + c.byteLength, 0);
+        const full = new Uint8Array(totalSize);
+        let offset = 0;
+        for (const c of chunks) { full.set(c, offset); offset += c.byteLength; }
+
+        const hash = await sha256Hex(full);
+        if (hash !== meta.sha256) throw new Error("File integrity check failed");
+
+        const blob = new Blob([full], { type: "application/octet-stream" });
         preview.openPreview(blob, filename, file.original_size);
       } catch (err) {
         preview.closePreview();

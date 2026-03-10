@@ -429,3 +429,144 @@ func (db *DB) GetPendingChunksForFile(ctx context.Context, fileID string) ([]typ
 	}
 	return chunks, nil
 }
+
+// --- Upload Session Queries (client-side encryption) ---
+
+// CreateUploadSession creates a new upload session and returns its ID.
+func (db *DB) CreateUploadSession(ctx context.Context, s *types.UploadSession) (string, error) {
+	var id string
+	err := db.pool.QueryRow(ctx,
+		`INSERT INTO upload_sessions (user_id, file_id, filename, original_size, salt, sha256, chunk_count, platform, account, repo_id, repo_url)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		 RETURNING id`,
+		s.UserID, s.FileID, s.Filename, s.OriginalSize, s.Salt, s.SHA256, s.ChunkCount,
+		s.Platform, s.Account, s.RepoID, s.RepoURL,
+	).Scan(&id)
+	if err != nil {
+		return "", fmt.Errorf("create upload session: %w", err)
+	}
+	return id, nil
+}
+
+// GetUploadSession retrieves an upload session by ID, scoped to a user.
+func (db *DB) GetUploadSession(ctx context.Context, sessionID, userID string) (*types.UploadSession, error) {
+	s := &types.UploadSession{}
+	err := db.pool.QueryRow(ctx,
+		`SELECT id, user_id, file_id, filename, original_size, salt, sha256, chunk_count,
+		        platform, account, repo_id, repo_url, uploaded_chunks, status, created_at, expires_at
+		 FROM upload_sessions WHERE id = $1 AND user_id = $2`,
+		sessionID, userID,
+	).Scan(&s.ID, &s.UserID, &s.FileID, &s.Filename, &s.OriginalSize, &s.Salt, &s.SHA256, &s.ChunkCount,
+		&s.Platform, &s.Account, &s.RepoID, &s.RepoURL, &s.UploadedChunks, &s.Status, &s.CreatedAt, &s.ExpiresAt)
+	if err != nil {
+		return nil, fmt.Errorf("get upload session: %w", err)
+	}
+	return s, nil
+}
+
+// IncrementSessionChunks atomically increments the uploaded_chunks counter.
+func (db *DB) IncrementSessionChunks(ctx context.Context, sessionID string) error {
+	_, err := db.pool.Exec(ctx,
+		`UPDATE upload_sessions SET uploaded_chunks = uploaded_chunks + 1 WHERE id = $1`,
+		sessionID,
+	)
+	if err != nil {
+		return fmt.Errorf("increment session chunks: %w", err)
+	}
+	return nil
+}
+
+// CompleteUploadSession marks a session as complete.
+func (db *DB) CompleteUploadSession(ctx context.Context, sessionID string) error {
+	_, err := db.pool.Exec(ctx,
+		`UPDATE upload_sessions SET status = 'complete' WHERE id = $1`,
+		sessionID,
+	)
+	if err != nil {
+		return fmt.Errorf("complete upload session: %w", err)
+	}
+	return nil
+}
+
+// CancelUploadSession marks a session as cancelled.
+func (db *DB) CancelUploadSession(ctx context.Context, sessionID string) error {
+	_, err := db.pool.Exec(ctx,
+		`UPDATE upload_sessions SET status = 'cancelled' WHERE id = $1`,
+		sessionID,
+	)
+	if err != nil {
+		return fmt.Errorf("cancel upload session: %w", err)
+	}
+	return nil
+}
+
+// GetUploadedChunkIndices returns the indices of chunks already uploaded for a session's file.
+func (db *DB) GetUploadedChunkIndices(ctx context.Context, fileID string) ([]int, error) {
+	rows, err := db.pool.Query(ctx,
+		`SELECT idx FROM chunks WHERE file_id = $1 AND remote_path != '' ORDER BY idx`, fileID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("get uploaded chunk indices: %w", err)
+	}
+	defer rows.Close()
+
+	var indices []int
+	for rows.Next() {
+		var idx int
+		if err := rows.Scan(&idx); err != nil {
+			return nil, fmt.Errorf("scan chunk index: %w", err)
+		}
+		indices = append(indices, idx)
+	}
+	return indices, rows.Err()
+}
+
+// InsertClientChunk inserts a chunk uploaded by the client (already encrypted).
+func (db *DB) InsertClientChunk(ctx context.Context, userID string, c *types.ChunkRef) error {
+	_, err := db.pool.Exec(ctx,
+		`INSERT INTO chunks (chunk_id, file_id, user_id, idx, size, sha256, platform, account, repo, remote_path, compressed)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+		c.ChunkID, c.FileID, userID, c.Index, c.Size, c.SHA256, c.Platform, c.Account, c.Repo, c.RemotePath, c.Compressed,
+	)
+	if err != nil {
+		return fmt.Errorf("insert client chunk: %w", err)
+	}
+	return nil
+}
+
+// GetChunkByIndex returns a single chunk by file ID and index.
+func (db *DB) GetChunkByIndex(ctx context.Context, fileID string, index int) (*types.ChunkRef, error) {
+	c := &types.ChunkRef{}
+	err := db.pool.QueryRow(ctx,
+		`SELECT chunk_id, file_id, user_id, idx, size, sha256, platform, account, repo, remote_path, compressed
+		 FROM chunks WHERE file_id = $1 AND idx = $2 AND remote_path != ''`,
+		fileID, index,
+	).Scan(&c.ChunkID, &c.FileID, &c.UserID, &c.Index, &c.Size, &c.SHA256, &c.Platform, &c.Account, &c.Repo, &c.RemotePath, &c.Compressed)
+	if err != nil {
+		return nil, fmt.Errorf("get chunk by index: %w", err)
+	}
+	return c, nil
+}
+
+// CleanExpiredSessions deletes expired upload sessions and their associated incomplete data.
+func (db *DB) CleanExpiredSessions(ctx context.Context) (int, error) {
+	tag, err := db.pool.Exec(ctx,
+		`DELETE FROM upload_sessions WHERE status = 'active' AND expires_at < NOW()`,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("clean expired sessions: %w", err)
+	}
+	return int(tag.RowsAffected()), nil
+}
+
+// UpdateFileSizes updates the compressed and encrypted sizes for a file.
+func (db *DB) UpdateFileSizes(ctx context.Context, fileID string, compressedSize, encryptedSize int64) error {
+	_, err := db.pool.Exec(ctx,
+		`UPDATE files SET compressed_size = $1, encrypted_size = $2 WHERE id = $3`,
+		compressedSize, encryptedSize, fileID,
+	)
+	if err != nil {
+		return fmt.Errorf("update file sizes: %w", err)
+	}
+	return nil
+}

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { pullFile } from "@/lib/api";
+import { getFileMeta, getFileChunk } from "@/lib/api";
+import { deriveKeyBytes, decryptChunk, fromBase64 } from "@/lib/crypto";
 import { isImageFile } from "@/lib/utils";
 import type { FileMetadata } from "@/types";
 
@@ -125,13 +126,38 @@ function acquireSlot(): Promise<void> {
   return new Promise((resolve) => queue.push(() => { activeCount++; resolve(); }));
 }
 
+async function decryptFileToBlob(fileId: string, passphrase: string): Promise<Blob> {
+  const meta = await getFileMeta(fileId);
+  const salt = fromBase64(meta.salt);
+  const keyBytes = await deriveKeyBytes(passphrase, salt);
+
+  // Lazy-load zstd only when needed
+  let zstd: Awaited<ReturnType<typeof import("@oneidentity/zstd-js/wasm")["ZstdInit"]>> | null = null;
+
+  const chunks: Uint8Array[] = [];
+  for (let i = 0; i < meta.chunk_count; i++) {
+    const { data, compressed } = await getFileChunk(fileId, i);
+    let plain = await decryptChunk(keyBytes, new Uint8Array(data));
+    if (compressed) {
+      if (!zstd) {
+        const { ZstdInit } = await import("@oneidentity/zstd-js/wasm");
+        zstd = await ZstdInit();
+      }
+      plain = zstd.ZstdSimple.decompress(plain);
+    }
+    chunks.push(plain);
+  }
+
+  return new Blob(chunks as BlobPart[], { type: "application/octet-stream" });
+}
+
 async function fetchAndCacheThumbnail(fileId: string, filename: string, passphrase: string): Promise<string | null> {
   if (memCache.has(fileId) || inflight.has(fileId)) return memCache.get(fileId) ?? null;
   inflight.add(fileId);
 
   await acquireSlot();
   try {
-    const blob = await pullFile(filename, passphrase);
+    const blob = await decryptFileToBlob(fileId, passphrase);
     const dataUrl = await generateThumbnail(blob, 300, 300);
     memCache.set(fileId, dataUrl);
     notify();
