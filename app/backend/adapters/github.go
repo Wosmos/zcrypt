@@ -17,6 +17,7 @@ import (
 type GithubAdapter struct {
 	client *github.Client
 	owner  string
+	token  string
 }
 
 // NewGithubAdapter creates a GitHub adapter with the given token.
@@ -32,6 +33,7 @@ func NewGithubAdapter(token string) (*GithubAdapter, error) {
 	return &GithubAdapter{
 		client: client,
 		owner:  user.GetLogin(),
+		token:  token,
 	}, nil
 }
 
@@ -65,12 +67,7 @@ func (g *GithubAdapter) Upload(ctx context.Context, repo string, chunk types.Chu
 		}
 	}
 
-	repoName := repoNameFromFull(repo)
-	owner := g.owner
-	if parts := strings.SplitN(repo, "/", 2); len(parts) == 2 {
-		owner = parts[0]
-		repoName = parts[1]
-	}
+	owner, repoName := g.parseRepo(repo)
 
 	// Retry on 409 (SHA conflict from concurrent commits) with exponential backoff
 	var lastErr error
@@ -119,28 +116,16 @@ func (g *GithubAdapter) Upload(ctx context.Context, repo string, chunk types.Chu
 }
 
 func (g *GithubAdapter) Download(ctx context.Context, ref types.ChunkRef) ([]byte, error) {
-	owner := g.owner
-	repoName := repoNameFromFull(ref.Repo)
-	if parts := strings.SplitN(ref.Repo, "/", 2); len(parts) == 2 {
-		owner = parts[0]
-		repoName = parts[1]
-	}
+	owner, repoName := g.parseRepo(ref.Repo)
 
-	// Use the download URL for large binary files (Contents API has 1MB limit for content)
-	content, _, _, err := g.client.Repositories.GetContents(ctx, owner, repoName, ref.RemotePath, nil)
-	if err != nil {
-		return nil, fmt.Errorf("download chunk: %w", err)
-	}
-
-	downloadURL := content.GetDownloadURL()
-	if downloadURL == "" {
-		return nil, fmt.Errorf("no download url for %s", ref.RemotePath)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, "GET", downloadURL, nil)
+	// Use raw.githubusercontent.com directly — single request, no size limit,
+	// avoids the 2-request Contents API dance.
+	rawURL := fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/main/%s", owner, repoName, ref.RemotePath)
+	req, err := http.NewRequestWithContext(ctx, "GET", rawURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create download request: %w", err)
 	}
+	req.Header.Set("Authorization", "token "+g.token)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -149,7 +134,7 @@ func (g *GithubAdapter) Download(ctx context.Context, ref types.ChunkRef) ([]byt
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("download returned status %d", resp.StatusCode)
+		return nil, fmt.Errorf("download chunk: GET %s: %d %s", rawURL, resp.StatusCode, resp.Status)
 	}
 
 	data, err := io.ReadAll(resp.Body)
@@ -160,13 +145,26 @@ func (g *GithubAdapter) Download(ctx context.Context, ref types.ChunkRef) ([]byt
 	return data, nil
 }
 
-func (g *GithubAdapter) Delete(ctx context.Context, ref types.ChunkRef) error {
-	owner := g.owner
-	repoName := repoNameFromFull(ref.Repo)
-	if parts := strings.SplitN(ref.Repo, "/", 2); len(parts) == 2 {
-		owner = parts[0]
-		repoName = parts[1]
+// parseRepo extracts owner and repo name from either:
+//   - "owner/repo-name" (correct format)
+//   - "github_owner_repo-name" (legacy pool ID format)
+func (g *GithubAdapter) parseRepo(repo string) (owner, name string) {
+	// Normal format: owner/repo
+	if parts := strings.SplitN(repo, "/", 2); len(parts) == 2 {
+		return parts[0], parts[1]
 	}
+	// Legacy format: github_owner_reponame — strip "github_" prefix, split on first "_"
+	legacy := repo
+	legacy = strings.TrimPrefix(legacy, "github_")
+	if parts := strings.SplitN(legacy, "_", 2); len(parts) == 2 {
+		return parts[0], parts[1]
+	}
+	// Fallback
+	return g.owner, repo
+}
+
+func (g *GithubAdapter) Delete(ctx context.Context, ref types.ChunkRef) error {
+	owner, repoName := g.parseRepo(ref.Repo)
 
 	// Get the file SHA first
 	content, _, _, err := g.client.Repositories.GetContents(ctx, owner, repoName, ref.RemotePath, nil)
@@ -187,12 +185,7 @@ func (g *GithubAdapter) Delete(ctx context.Context, ref types.ChunkRef) error {
 }
 
 func (g *GithubAdapter) GetRepoSize(ctx context.Context, repo string) (int64, error) {
-	owner := g.owner
-	repoName := repoNameFromFull(repo)
-	if parts := strings.SplitN(repo, "/", 2); len(parts) == 2 {
-		owner = parts[0]
-		repoName = parts[1]
-	}
+	owner, repoName := g.parseRepo(repo)
 
 	r, _, err := g.client.Repositories.Get(ctx, owner, repoName)
 	if err != nil {

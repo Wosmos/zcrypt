@@ -1,10 +1,7 @@
 package crypto
 
 import (
-	"bytes"
 	"encoding/hex"
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -44,86 +41,6 @@ func TestDeriveKey(t *testing.T) {
 	salt2, _ := GenerateSalt()
 	key4 := DeriveKey("testpassphrase", salt2)
 	assert.NotEqual(t, key, key4)
-}
-
-func TestEncryptDecryptFile(t *testing.T) {
-	dir := t.TempDir()
-	srcPath := filepath.Join(dir, "plaintext.bin")
-	encPath := filepath.Join(dir, "encrypted.bin")
-	decPath := filepath.Join(dir, "decrypted.bin")
-
-	// Create test file
-	original := []byte("Hello, zpush encryption test! This is a test payload.")
-	require.NoError(t, os.WriteFile(srcPath, original, 0600))
-
-	// Encrypt
-	salt, iv, err := EncryptFile(srcPath, encPath, "mypassphrase")
-	require.NoError(t, err)
-	assert.Len(t, salt, SaltSize)
-	assert.Len(t, iv, IVSize)
-
-	// Encrypted file should be different from original
-	encrypted, err := os.ReadFile(encPath)
-	require.NoError(t, err)
-	assert.NotEqual(t, original, encrypted)
-	assert.Greater(t, len(encrypted), len(original))
-
-	// Decrypt
-	err = DecryptFile(encPath, decPath, "mypassphrase")
-	require.NoError(t, err)
-
-	decrypted, err := os.ReadFile(decPath)
-	require.NoError(t, err)
-	assert.Equal(t, original, decrypted)
-}
-
-func TestDecryptWithWrongPassphrase(t *testing.T) {
-	dir := t.TempDir()
-	srcPath := filepath.Join(dir, "plaintext.bin")
-	encPath := filepath.Join(dir, "encrypted.bin")
-	decPath := filepath.Join(dir, "decrypted.bin")
-
-	require.NoError(t, os.WriteFile(srcPath, []byte("secret data"), 0600))
-
-	_, _, err := EncryptFile(srcPath, encPath, "correctpassphrase")
-	require.NoError(t, err)
-
-	err = DecryptFile(encPath, decPath, "wrongpassphrase")
-	assert.Error(t, err)
-}
-
-func TestEncryptDecryptStream(t *testing.T) {
-	original := []byte("Stream encryption test data with some content to verify.")
-	reader := bytes.NewReader(original)
-	var encrypted bytes.Buffer
-
-	salt, iv, err := EncryptStream(reader, &encrypted, "streampass")
-	require.NoError(t, err)
-	assert.Len(t, salt, SaltSize)
-	assert.Len(t, iv, IVSize)
-
-	// Decrypt the stream output
-	decrypted, err := DecryptBytes(encrypted.Bytes(), "streampass")
-	require.NoError(t, err)
-	assert.Equal(t, original, decrypted)
-}
-
-func TestEncryptDecryptEmptyFile(t *testing.T) {
-	dir := t.TempDir()
-	srcPath := filepath.Join(dir, "empty.bin")
-	encPath := filepath.Join(dir, "encrypted.bin")
-	decPath := filepath.Join(dir, "decrypted.bin")
-
-	require.NoError(t, os.WriteFile(srcPath, []byte{}, 0600))
-
-	_, _, err := EncryptFile(srcPath, encPath, "pass")
-	require.NoError(t, err)
-
-	err = DecryptFile(encPath, decPath, "pass")
-	require.NoError(t, err)
-
-	decrypted, _ := os.ReadFile(decPath)
-	assert.Empty(t, decrypted)
 }
 
 func TestParseMasterKey(t *testing.T) {

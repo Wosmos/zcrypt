@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -31,12 +29,6 @@ type Server struct {
 	adapterCache map[string]map[string]adapters.PlatformAdapter
 	poolCache    map[string]map[string]*reppool.Manager
 
-	// Active uploads tracked for pause/resume
-	activeUploads sync.Map // map[fileID]*activeUpload
-
-	// Limits concurrent Prepare() calls (compress+encrypt+chunk) to prevent OOM
-	prepareSem chan struct{}
-
 	// Auth-specific rate limiter: stricter limits for login/register (5 req per 5 min per IP)
 	authLimiter *rateLimiter
 	// Per-email rate limiter: 3 req per 15 min for login/magic-link/forgot-password
@@ -54,7 +46,6 @@ func NewServer(db *index.DB, cfg *config.Config, progress *pipeline.ProgressEmit
 		masterKey:    masterKey,
 		adapterCache: make(map[string]map[string]adapters.PlatformAdapter),
 		poolCache:    make(map[string]map[string]*reppool.Manager),
-		prepareSem:   make(chan struct{}, 3), // max 3 concurrent prepare (compress+encrypt+chunk)
 		authLimiter:  newRateLimiter(5, 5*time.Minute),
 		emailLimiter: newRateLimiter(3, 15*time.Minute),
 		userLimiter:  newRateLimiter(100, time.Minute),
@@ -214,103 +205,6 @@ func (s *Server) resolveAdapterForUser(ctx context.Context, userID, platform, ac
 		}
 	}
 	return nil
-}
-
-// AutoResumeUploads resumes any incomplete uploads from a previous session.
-func (s *Server) AutoResumeUploads(ctx context.Context) {
-	files, err := s.db.ListIncompleteFiles(ctx)
-	if err != nil {
-		log.Printf("auto-resume: list incomplete files: %v", err)
-		return
-	}
-
-	if len(files) == 0 {
-		return
-	}
-
-	stagingBase, err := config.StagingDir()
-	if err != nil {
-		log.Printf("auto-resume: staging dir: %v", err)
-		return
-	}
-
-	for _, f := range files {
-		stagingDir := filepath.Join(stagingBase, f.ID)
-		if _, err := os.Stat(stagingDir); os.IsNotExist(err) {
-			log.Printf("auto-resume: staging dir missing for %s (%s), skipping", f.ID, f.OriginalName)
-			continue
-		}
-
-		allChunks, err := s.db.GetChunksForFile(ctx, f.ID)
-		if err != nil || len(allChunks) == 0 {
-			continue
-		}
-
-		chunkPlatform := allChunks[0].Platform
-		chunkAccount := allChunks[0].Account
-
-		adapter := s.resolveAdapterForUser(ctx, f.UserID, chunkPlatform, chunkAccount)
-		if adapter == nil {
-			log.Printf("auto-resume: no adapter for %s (user=%s, %s:%s), skipping", f.ID, f.UserID, chunkPlatform, chunkAccount)
-			continue
-		}
-
-		pools, _ := s.getUserPools(ctx, f.UserID)
-		key := chunkPlatform + ":" + chunkAccount
-		pool := pools[key]
-		if pool == nil {
-			log.Printf("auto-resume: no pool for %s, skipping", f.ID)
-			continue
-		}
-
-		repo, err := pool.GetOrCreateRepo(ctx)
-		if err != nil {
-			log.Printf("auto-resume: get repo for %s: %v", f.ID, err)
-			continue
-		}
-
-		var chunkInfos []pipeline.ChunkInfo
-		for i := 0; i < f.ChunkCount; i++ {
-			chunkPath := filepath.Join(stagingDir, fmt.Sprintf("chunk_%03d", i))
-			ci, statErr := os.Stat(chunkPath)
-			if statErr != nil {
-				continue
-			}
-			chunkInfos = append(chunkInfos, pipeline.ChunkInfo{
-				Path:  chunkPath,
-				Size:  ci.Size(),
-				Index: i,
-			})
-		}
-
-		fileCopy := f // capture loop variable
-		prepared := &pipeline.PreparedFile{
-			FileID:     f.ID,
-			Meta:       &fileCopy,
-			StagingDir: stagingDir,
-			ChunkInfos: chunkInfos,
-			RepoURL:    repo.URL,
-			RepoID:     repo.ID,
-			Account:    chunkAccount,
-			Platform:   chunkPlatform,
-		}
-
-		uploadCtx, cancel := context.WithCancel(ctx)
-		s.activeUploads.Store(f.ID, &activeUpload{cancel: cancel, prepared: prepared})
-
-		engine := pipeline.NewPipelineEngine(s.db, adapter, pool, s.progress, f.UserID, chunkAccount)
-
-		go func(fileID, name string) {
-			defer s.activeUploads.Delete(fileID)
-			log.Printf("auto-resume: resuming upload %s (%s)", fileID, name)
-			if err := engine.Upload(uploadCtx, prepared); err != nil {
-				if uploadCtx.Err() == nil {
-					log.Printf("auto-resume: upload error for %s: %v", fileID, err)
-					s.progress.Emit(pipeline.ErrorEvent(fileID, err.Error()))
-				}
-			}
-		}(f.ID, f.OriginalName)
-	}
 }
 
 // isQuotaExempt returns true if the user has personal (non-global) platform tokens.

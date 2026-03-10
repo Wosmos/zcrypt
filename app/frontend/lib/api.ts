@@ -1,4 +1,4 @@
-import type { FileMetadata, PlatformStatus, RepoInfo, AppConfig, IncompleteUpload, AdminUser, SystemStats, PlatformTokenInfo, QuotaInfo } from "@/types";
+import type { FileMetadata, PlatformStatus, RepoInfo, AppConfig, AdminUser, SystemStats, PlatformTokenInfo, QuotaInfo } from "@/types";
 import { useAuthStore } from "@/store/auth";
 import { refreshToken as refreshTokenApi } from "@/lib/auth-api";
 
@@ -93,82 +93,56 @@ async function request<T>(path: string, options?: RequestInit, retries = 2): Pro
   return res.json() as Promise<T>;
 }
 
-export type UploadProgressCallback = (percent: number) => void;
+// ─── File Meta & Chunk Download (client-side decryption) ───
 
-export function pushFile(
-  file: File,
-  passphrase: string,
-  platform?: string,
-  onUploadProgress?: UploadProgressCallback
-): Promise<unknown> {
-  return new Promise((resolve, reject) => {
-    const form = new FormData();
-    form.append("file", file);
-    form.append("passphrase", passphrase);
-    if (platform) form.append("platform", platform);
-
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", `${API_BASE}/api/push`);
-
-    // Attach auth token (XHR bypasses the request() wrapper)
-    const { accessToken } = useAuthStore.getState();
-    if (accessToken) {
-      xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`);
-    }
-
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable && onUploadProgress) {
-        onUploadProgress(Math.round((e.loaded / e.total) * 100));
-      }
-    };
-
-    xhr.onload = () => {
-      try {
-        const body = JSON.parse(xhr.responseText);
-        if (xhr.status >= 200 && xhr.status < 300) {
-          resolve(body);
-        } else {
-          reject(new Error(body.error || "Upload failed"));
-        }
-      } catch {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          resolve({});
-        } else {
-          reject(new Error("Upload failed"));
-        }
-      }
-    };
-
-    xhr.onerror = () => reject(new Error("Network error during upload"));
-    xhr.ontimeout = () => reject(new Error("Upload timed out"));
-
-    // Dynamic timeout: 30s base + 10s per MB (no timeout for files > 500MB)
-    const fileSizeMB = file.size / (1024 * 1024);
-    xhr.timeout = fileSizeMB > 500 ? 0 : (30 + fileSizeMB * 10) * 1000;
-
-    xhr.send(form);
-  });
+export interface FileMetaResponse {
+  id: string;
+  original_name: string;
+  original_size: number;
+  compressed_size: number;
+  encrypted_size: number;
+  chunk_count: number;
+  sha256: string;
+  salt: string; // base64
+  status: string;
+  created_at: string;
 }
 
-export async function pullFile(filename: string, passphrase: string): Promise<Blob> {
+export function getFileMeta(fileId: string): Promise<FileMetaResponse> {
+  return request<FileMetaResponse>(`/api/files/${fileId}/meta`);
+}
+
+/** Download a single encrypted chunk. Returns raw bytes + metadata headers. */
+export async function getFileChunk(fileId: string, index: number): Promise<{
+  data: ArrayBuffer;
+  sha256: string;
+  compressed: boolean;
+}> {
   const { accessToken } = useAuthStore.getState();
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const headers: Record<string, string> = {};
   if (accessToken) {
     headers["Authorization"] = `Bearer ${accessToken}`;
   }
 
-  const res = await fetch(`${API_BASE}/api/pull`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ filename, passphrase }),
-  });
+  const res = await fetch(`${API_BASE}/api/files/${fileId}/chunks/${index}`, { headers });
 
   if (!res.ok) {
-    const body = await res.json().catch(() => ({ error: "Download failed" }));
-    throw new Error((body as Record<string, string>).error || "Download failed");
+    const body = await res.text();
+    let message: string;
+    try {
+      const parsed = JSON.parse(body);
+      message = parsed.error || body;
+    } catch {
+      message = body;
+    }
+    throw new Error(message);
   }
 
-  return res.blob();
+  return {
+    data: await res.arrayBuffer(),
+    sha256: res.headers.get("X-Chunk-SHA256") || "",
+    compressed: res.headers.get("X-Chunk-Compressed") === "true",
+  };
 }
 
 export function listFiles(filter?: string): Promise<FileMetadata[]> {
@@ -214,26 +188,6 @@ export function updateConfig(updates: Record<string, unknown>): Promise<{ succes
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(updates),
   });
-}
-
-export function pauseUpload(fileId: string): Promise<{ success: boolean }> {
-  return request<{ success: boolean }>("/api/upload/pause", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ file_id: fileId }),
-  });
-}
-
-export function resumeUpload(fileId: string): Promise<{ success: boolean; remaining_chunks: number; total_chunks: number }> {
-  return request<{ success: boolean; remaining_chunks: number; total_chunks: number }>("/api/upload/resume", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ file_id: fileId }),
-  });
-}
-
-export function listIncompleteUploads(): Promise<IncompleteUpload[]> {
-  return request<IncompleteUpload[]>("/api/uploads/incomplete");
 }
 
 export function createEventSource(): EventSource {

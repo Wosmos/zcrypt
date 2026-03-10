@@ -54,12 +54,12 @@ export interface AppConfig {
   token_count: number;
 }
 
-export type UploadStatus = "queued" | "sending" | "compressing" | "encrypting" | "uploading" | "paused" | "done" | "failed";
+export type UploadStatus = "queued" | "encrypting" | "uploading" | "done" | "failed";
 
 export interface UploadItem {
   id: string;
   file: File;
-  fileId?: string; // backend file ID for SSE routing + pause/resume
+  fileId?: string; // backend file ID for SSE routing
   status: UploadStatus;
   progress: number;
   stage: string;
@@ -67,15 +67,6 @@ export interface UploadItem {
   bytesProcessed?: number;
   totalBytes?: number;
   error?: string;
-}
-
-export interface IncompleteUpload {
-  file_id: string;
-  original_name: string;
-  original_size: number;
-  total_chunks: number;
-  pending_chunks: number;
-  active: boolean;
 }
 
 export interface FileMetadataWithStatus extends FileMetadata {

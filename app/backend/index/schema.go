@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS files (
 	chunk_count     INTEGER NOT NULL DEFAULT 0,
 	sha256          TEXT NOT NULL,
 	salt            BYTEA NOT NULL,
-	iv              BYTEA NOT NULL,
+	iv              BYTEA NOT NULL DEFAULT '',
 	status          TEXT NOT NULL DEFAULT 'complete' CHECK (status IN ('uploading', 'complete')),
 	created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -74,7 +74,8 @@ CREATE TABLE IF NOT EXISTS chunks (
 	platform    TEXT NOT NULL,
 	account     TEXT NOT NULL DEFAULT '',
 	repo        TEXT NOT NULL,
-	remote_path TEXT NOT NULL DEFAULT ''
+	remote_path TEXT NOT NULL DEFAULT '',
+	compressed  BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 CREATE INDEX IF NOT EXISTS idx_chunks_file ON chunks(file_id);
@@ -165,9 +166,33 @@ CREATE INDEX IF NOT EXISTS idx_audit_events_user ON audit_events(user_id);
 CREATE INDEX IF NOT EXISTS idx_audit_events_type ON audit_events(event_type);
 CREATE INDEX IF NOT EXISTS idx_audit_events_time ON audit_events(created_at DESC);
 
+-- Upload sessions for chunked client-side encrypted uploads
+CREATE TABLE IF NOT EXISTS upload_sessions (
+	id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+	user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	file_id         UUID NOT NULL,
+	filename        TEXT NOT NULL,
+	original_size   BIGINT NOT NULL,
+	salt            BYTEA NOT NULL,
+	sha256          TEXT NOT NULL,
+	chunk_count     INTEGER NOT NULL,
+	platform        TEXT NOT NULL,
+	account         TEXT NOT NULL DEFAULT '',
+	repo_id         TEXT NOT NULL,
+	repo_url        TEXT NOT NULL,
+	uploaded_chunks INTEGER NOT NULL DEFAULT 0,
+	status          TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'complete', 'cancelled')),
+	created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	expires_at      TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '24 hours'
+);
+
+CREATE INDEX IF NOT EXISTS idx_upload_sessions_user ON upload_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_upload_sessions_expires ON upload_sessions(expires_at);
+
 -- Migrations for existing databases: add columns that may be missing
 ALTER TABLE users ADD COLUMN IF NOT EXISTS storage_quota_bytes BIGINT DEFAULT NULL;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS plan TEXT NOT NULL DEFAULT 'free';
+ALTER TABLE chunks ADD COLUMN IF NOT EXISTS compressed BOOLEAN NOT NULL DEFAULT FALSE;
 
 -- Migrate email_tokens kind constraint for magic links
 ALTER TABLE email_tokens DROP CONSTRAINT IF EXISTS email_tokens_kind_check;

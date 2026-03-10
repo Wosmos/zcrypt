@@ -76,9 +76,6 @@ func main() {
 	defer cancel()
 	server.StartCleanupWorker(ctx)
 
-	// Auto-resume any incomplete uploads from previous session
-	server.AutoResumeUploads(ctx)
-
 	// Graceful shutdown on SIGINT/SIGTERM
 	var srv *http.Server // set after routes are configured
 	go func() {
@@ -133,8 +130,6 @@ func main() {
 	mux.HandleFunc("DELETE /api/auth/linked-accounts/{provider}", server.AuthMiddleware(server.HandleUnlinkAccount))
 
 	// Protected data routes (all require auth)
-	mux.HandleFunc("POST /api/push", server.AuthMiddleware(server.HandlePush))
-	mux.HandleFunc("POST /api/pull", server.AuthMiddleware(server.HandlePull))
 	mux.HandleFunc("GET /api/files", server.AuthMiddleware(server.HandleListFiles))
 	mux.HandleFunc("DELETE /api/files/{id}", server.AuthMiddleware(server.HandleDeleteFile))
 	mux.HandleFunc("GET /api/platforms/status", server.AuthMiddleware(server.HandlePlatformStatus))
@@ -144,10 +139,18 @@ func main() {
 	mux.HandleFunc("GET /api/config", server.AuthMiddleware(server.HandleGetConfig))
 	mux.HandleFunc("PUT /api/config", server.AdminMiddleware(server.HandleUpdateConfig))
 	mux.HandleFunc("GET /api/events", server.HandleSSE) // SSE auth via query param
-	mux.HandleFunc("POST /api/upload/pause", server.AuthMiddleware(server.HandlePauseUpload))
-	mux.HandleFunc("POST /api/upload/resume", server.AuthMiddleware(server.HandleResumeUpload))
-	mux.HandleFunc("GET /api/uploads/incomplete", server.AuthMiddleware(server.HandleListIncompleteUploads))
 	mux.HandleFunc("GET /api/quota", server.AuthMiddleware(server.HandleGetQuota))
+
+	// Client-side encrypted upload (chunked)
+	mux.HandleFunc("POST /api/upload/init", server.AuthMiddleware(server.HandleUploadInit))
+	mux.HandleFunc("PUT /api/upload/{sid}/chunk/{idx}", server.AuthMiddleware(server.HandleChunkUpload))
+	mux.HandleFunc("POST /api/upload/{sid}/complete", server.AuthMiddleware(server.HandleUploadComplete))
+	mux.HandleFunc("DELETE /api/upload/{sid}", server.AuthMiddleware(server.HandleUploadCancel))
+	mux.HandleFunc("GET /api/upload/{sid}/status", server.AuthMiddleware(server.HandleUploadStatus))
+
+	// Client-side decrypted download (chunked)
+	mux.HandleFunc("GET /api/files/{id}/meta", server.AuthMiddleware(server.HandleGetFileMeta))
+	mux.HandleFunc("GET /api/files/{id}/chunks/{idx}", server.AuthMiddleware(server.HandleGetChunk))
 
 	// Admin routes
 	mux.HandleFunc("GET /api/admin/users", server.AdminMiddleware(server.HandleAdminListUsers))
@@ -253,7 +256,8 @@ func corsMiddleware(next http.Handler) http.Handler {
 			w.Header().Set("Vary", "Origin")
 		}
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Chunk-SHA256, X-Chunk-Compressed")
+		w.Header().Set("Access-Control-Expose-Headers", "X-Chunk-SHA256, X-Chunk-Compressed")
 
 		// Security headers
 		w.Header().Set("X-Content-Type-Options", "nosniff")
