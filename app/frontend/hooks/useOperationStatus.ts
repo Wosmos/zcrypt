@@ -3,15 +3,22 @@
 import { useEffect, useRef } from "react";
 import { createEventSource } from "@/lib/api";
 import type { ProgressEvent } from "@/types";
+import type { AuditEvent } from "@/lib/auth-api";
 
 type ProgressCallback = (event: ProgressEvent) => void;
+type AuditCallback = (event: AuditEvent) => void;
 
 const MAX_RECONNECT_DELAY = 30_000;
 const BASE_DELAY = 1_000;
 
-export function useOperationStatus(onProgress: ProgressCallback) {
-  const callbackRef = useRef(onProgress);
-  callbackRef.current = onProgress;
+export function useOperationStatus(
+  onProgress: ProgressCallback,
+  onAudit?: AuditCallback
+) {
+  const progressRef = useRef(onProgress);
+  progressRef.current = onProgress;
+  const auditRef = useRef(onAudit);
+  auditRef.current = onAudit;
 
   useEffect(() => {
     let es: EventSource | null = null;
@@ -27,7 +34,16 @@ export function useOperationStatus(onProgress: ProgressCallback) {
       es.addEventListener("progress", (e) => {
         try {
           const data = JSON.parse(e.data) as ProgressEvent;
-          callbackRef.current(data);
+          progressRef.current(data);
+        } catch {
+          // ignore parse errors
+        }
+      });
+
+      es.addEventListener("audit", (e) => {
+        try {
+          const data = JSON.parse(e.data) as AuditEvent;
+          auditRef.current?.(data);
         } catch {
           // ignore parse errors
         }

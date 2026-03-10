@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -16,6 +17,32 @@ import (
 
 var emailRe = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
 var usernameRe = regexp.MustCompile(`^[a-zA-Z0-9_]{3,32}$`)
+
+// audit logs an audit event asynchronously and emits it via SSE.
+func (s *Server) audit(r *http.Request, userID *string, eventType string, metadata map[string]interface{}) {
+	if metadata == nil {
+		metadata = map[string]interface{}{}
+	}
+	e := types.AuditEvent{
+		ID:        uuid.New().String(),
+		UserID:    userID,
+		EventType: eventType,
+		IP:        getClientIP(r),
+		UserAgent: r.UserAgent(),
+		Metadata:  metadata,
+		CreatedAt: time.Now(),
+	}
+	// Emit to SSE subscribers in real-time
+	s.progress.EmitAudit(e)
+	// Persist to DB asynchronously
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := s.db.InsertAuditEvent(ctx, &e); err != nil {
+			log.Printf("audit: %v", err)
+		}
+	}()
+}
 
 // validatePassword enforces password complexity: min 8 chars, 1 uppercase, 1 digit, 1 special char.
 func validatePassword(pw string) error {
@@ -105,6 +132,7 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		Email    string `json:"email"`
 		Username string `json:"username"`
 		Password string `json:"password"`
+		Force    bool   `json:"force"` // bypass breach warning
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
@@ -125,6 +153,18 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	if err := validatePassword(req.Password); err != nil {
 		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusBadRequest)
 		return
+	}
+
+	// Check password against breach database (non-blocking, fail-open)
+	if !req.Force {
+		if breachCount, _ := auth.CheckPasswordBreach(req.Password); breachCount > 0 {
+			writeJSON(w, http.StatusOK, map[string]interface{}{
+				"warning":      fmt.Sprintf("This password has appeared in %d data breach(es). Consider using a different password.", breachCount),
+				"breach_count": breachCount,
+				"requires":     "force",
+			})
+			return
+		}
 	}
 
 	// Check uniqueness
@@ -187,6 +227,8 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		}()
 	}
 
+	s.audit(r, &user.ID, "register", map[string]interface{}{"email": user.Email})
+
 	writeJSON(w, http.StatusCreated, map[string]interface{}{
 		"success": true,
 		"message": "account created",
@@ -216,15 +258,23 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 
 	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
 
+	// Per-email rate limiting: 3 attempts per 15 minutes
+	if !s.emailLimiter.allow(req.Email) {
+		http.Error(w, `{"error":"too many attempts for this email, please try again later"}`, http.StatusTooManyRequests)
+		return
+	}
+
 	user, err := s.db.GetUserByEmail(ctx, req.Email)
 	if err != nil {
 		log.Printf("auth: login failed email=%s ip=%s reason=not_found", req.Email, clientIP)
+		s.audit(r, nil, "login_failed", map[string]interface{}{"email": req.Email, "reason": "not_found"})
 		http.Error(w, `{"error":"invalid email or password"}`, http.StatusUnauthorized)
 		return
 	}
 
 	if err := auth.CheckPassword(req.Password, user.PasswordHash); err != nil {
 		log.Printf("auth: login failed email=%s ip=%s reason=wrong_password", req.Email, clientIP)
+		s.audit(r, &user.ID, "login_failed", map[string]interface{}{"email": req.Email, "reason": "wrong_password"})
 		http.Error(w, `{"error":"invalid email or password"}`, http.StatusUnauthorized)
 		return
 	}
@@ -243,6 +293,7 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.audit(r, &user.ID, "login", map[string]interface{}{"email": user.Email})
 	s.issueTokens(w, r, user)
 }
 
@@ -300,6 +351,11 @@ func (s *Server) HandleLogout(w http.ResponseWriter, r *http.Request) {
 		s.db.DeleteRefreshToken(ctx, rt.ID)
 	}
 
+	userID := GetUserID(r)
+	if userID != "" {
+		s.audit(r, &userID, "logout", nil)
+	}
+
 	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
 
@@ -316,6 +372,16 @@ func (s *Server) HandleForgotPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
+
+	// Per-email rate limiting
+	if !s.emailLimiter.allow(req.Email) {
+		// Still return generic response to prevent enumeration
+		writeJSON(w, http.StatusOK, map[string]interface{}{
+			"success": true,
+			"message": "if an account exists with that email, a reset link has been sent",
+		})
+		return
+	}
 
 	// Always return 200 to prevent account enumeration
 	if s.cfg.Email == nil {
@@ -350,6 +416,8 @@ func (s *Server) HandleForgotPassword(w http.ResponseWriter, r *http.Request) {
 		log.Printf("send password reset email to %s: %v", req.Email, err)
 	}
 
+	s.audit(r, &user.ID, "password_reset_requested", map[string]interface{}{"email": req.Email})
+
 	// Always return same response regardless of outcome
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"success": true,
@@ -364,6 +432,7 @@ func (s *Server) HandleResetPassword(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Token       string `json:"token"`
 		NewPassword string `json:"new_password"`
+		Force       bool   `json:"force"` // bypass breach warning
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
@@ -373,6 +442,18 @@ func (s *Server) HandleResetPassword(w http.ResponseWriter, r *http.Request) {
 	if err := validatePassword(req.NewPassword); err != nil {
 		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusBadRequest)
 		return
+	}
+
+	// Check password against breach database
+	if !req.Force {
+		if breachCount, _ := auth.CheckPasswordBreach(req.NewPassword); breachCount > 0 {
+			writeJSON(w, http.StatusOK, map[string]interface{}{
+				"warning":      fmt.Sprintf("This password has appeared in %d data breach(es). Consider using a different password.", breachCount),
+				"breach_count": breachCount,
+				"requires":     "force",
+			})
+			return
+		}
 	}
 
 	hash := auth.HashToken(req.Token)
@@ -397,6 +478,8 @@ func (s *Server) HandleResetPassword(w http.ResponseWriter, r *http.Request) {
 	s.db.UpdateUserPassword(ctx, et.UserID, passwordHash)
 	s.db.DeleteEmailToken(ctx, et.ID)
 	s.db.DeleteRefreshTokensByUser(ctx, et.UserID) // force re-login everywhere
+
+	s.audit(r, &et.UserID, "password_reset", nil)
 
 	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
@@ -429,6 +512,8 @@ func (s *Server) HandleVerifyEmail(w http.ResponseWriter, r *http.Request) {
 	s.db.SetEmailVerified(ctx, et.UserID)
 	s.db.DeleteEmailToken(ctx, et.ID)
 
+	s.audit(r, &et.UserID, "email_verify", nil)
+
 	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
 
@@ -449,6 +534,12 @@ func (s *Server) HandleResendVerification(w http.ResponseWriter, r *http.Request
 	genericResp := map[string]interface{}{
 		"success": true,
 		"message": "if an unverified account exists with that email, a verification link has been sent",
+	}
+
+	// Per-email rate limiting
+	if !s.emailLimiter.allow(req.Email) {
+		writeJSON(w, http.StatusOK, genericResp)
+		return
 	}
 
 	user, err := s.db.GetUserByEmail(ctx, req.Email)
@@ -543,6 +634,8 @@ func (s *Server) Handle2FAEnable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.audit(r, &user.ID, "2fa_enable", nil)
+
 	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
 
@@ -576,6 +669,7 @@ func (s *Server) Handle2FAVerify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.audit(r, &user.ID, "login", map[string]interface{}{"email": user.Email, "method": "2fa"})
 	s.issueTokens(w, r, user)
 }
 
@@ -618,6 +712,8 @@ func (s *Server) Handle2FADisable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.audit(r, &user.ID, "2fa_disable", nil)
+
 	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
 
@@ -636,6 +732,121 @@ func (s *Server) HandleGetMe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, user)
+}
+
+// HandleMagicLinkRequest sends a magic link login email.
+func (s *Server) HandleMagicLinkRequest(w http.ResponseWriter, r *http.Request) {
+	// Auth-specific rate limiting
+	if !s.authLimiter.allow(getClientIP(r)) {
+		http.Error(w, `{"error":"too many attempts, please try again later"}`, http.StatusTooManyRequests)
+		return
+	}
+
+	ctx := r.Context()
+
+	var req struct {
+		Email string `json:"email"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+		return
+	}
+
+	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
+
+	// Per-email rate limiting
+	if !s.emailLimiter.allow(req.Email) {
+		// Anti-enumeration: always 200
+		writeJSON(w, http.StatusOK, map[string]interface{}{
+			"success": true,
+			"message": "if an account exists with that email, a login link has been sent",
+		})
+		return
+	}
+
+	// Always return 200 to prevent enumeration
+	genericResp := map[string]interface{}{
+		"success": true,
+		"message": "if an account exists with that email, a login link has been sent",
+	}
+
+	if s.cfg.Email == nil {
+		writeJSON(w, http.StatusOK, genericResp)
+		return
+	}
+
+	user, err := s.db.GetUserByEmail(ctx, req.Email)
+	if err != nil || user == nil {
+		writeJSON(w, http.StatusOK, genericResp)
+		return
+	}
+
+	token, _ := auth.GenerateRandomToken()
+	s.db.DeleteEmailTokensByUser(ctx, user.ID, "magic_link")
+	s.db.InsertEmailToken(ctx, &types.EmailToken{
+		ID:        uuid.New().String(),
+		UserID:    user.ID,
+		TokenHash: auth.HashToken(token),
+		Kind:      "magic_link",
+		ExpiresAt: time.Now().Add(15 * time.Minute),
+	})
+
+	emailCfg := s.emailCfg()
+	baseURL := s.baseURL(r)
+	go func() {
+		if err := auth.SendMagicLinkEmail(emailCfg, req.Email, token, baseURL); err != nil {
+			log.Printf("send magic link email to %s: %v", req.Email, err)
+		}
+	}()
+
+	s.audit(r, &user.ID, "magic_link_sent", map[string]interface{}{"email": req.Email})
+
+	writeJSON(w, http.StatusOK, genericResp)
+}
+
+// HandleMagicLinkVerify validates a magic link token and logs the user in.
+func (s *Server) HandleMagicLinkVerify(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var req struct {
+		Token string `json:"token"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+		return
+	}
+
+	hash := auth.HashToken(req.Token)
+	et, err := s.db.GetEmailTokenByHash(ctx, hash)
+	if err != nil || et.Kind != "magic_link" {
+		http.Error(w, `{"error":"invalid or expired login link"}`, http.StatusBadRequest)
+		return
+	}
+
+	if time.Now().After(et.ExpiresAt) {
+		s.db.DeleteEmailToken(ctx, et.ID)
+		http.Error(w, `{"error":"login link expired"}`, http.StatusBadRequest)
+		return
+	}
+
+	user, err := s.db.GetUserByID(ctx, et.UserID)
+	if err != nil {
+		http.Error(w, `{"error":"user not found"}`, http.StatusNotFound)
+		return
+	}
+
+	// Auto-verify email if not yet verified
+	if !user.EmailVerified {
+		s.db.SetEmailVerified(ctx, user.ID)
+		user.EmailVerified = true
+	}
+
+	// Delete used token
+	s.db.DeleteEmailToken(ctx, et.ID)
+
+	s.audit(r, &user.ID, "magic_link_used", map[string]interface{}{"email": user.Email})
+
+	s.issueTokens(w, r, user)
 }
 
 // issueTokens generates JWT + refresh token and writes them as JSON response.

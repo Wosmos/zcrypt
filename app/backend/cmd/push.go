@@ -135,6 +135,12 @@ func (s *Server) HandlePush(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
+	s.audit(r, &userID, "file_upload", map[string]interface{}{
+		"file_id":  fileID,
+		"filename": header.Filename,
+		"size":     header.Size,
+	})
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"file_id": fileID,

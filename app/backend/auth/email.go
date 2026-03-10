@@ -54,6 +54,25 @@ func SendPasswordResetEmail(cfg *EmailConfig, to, token, baseURL string) error {
 	return sendResend(cfg, to, subject, body)
 }
 
+// SendMagicLinkEmail sends a passwordless login link.
+func SendMagicLinkEmail(cfg *EmailConfig, to, token, baseURL string) error {
+	if cfg == nil {
+		return nil
+	}
+
+	link := fmt.Sprintf("%s/magic-link?token=%s", baseURL, token)
+	subject := "Your zpush login link"
+	body := fmt.Sprintf(`<!DOCTYPE html>
+<html><body style="font-family:sans-serif;color:#333;max-width:480px;margin:0 auto;padding:32px">
+<h2 style="color:#10b981">Login to zpush</h2>
+<p>Click below to log in to your account:</p>
+<p><a href="%s" style="display:inline-block;background:#10b981;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">Log In</a></p>
+<p style="color:#999;font-size:12px;margin-top:32px">This link expires in 15 minutes. If you didn't request this, ignore this email.</p>
+</body></html>`, link)
+
+	return sendResend(cfg, to, subject, body)
+}
+
 // sendResend sends an email via Resend's HTTP API (https://resend.com/docs/api-reference/emails/send-email).
 func sendResend(cfg *EmailConfig, to, subject, htmlBody string) error {
 	payload, err := json.Marshal(map[string]interface{}{

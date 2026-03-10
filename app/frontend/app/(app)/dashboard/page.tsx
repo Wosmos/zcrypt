@@ -8,10 +8,13 @@ import { FileCard, type DownloadState } from "@/components/files/file-card";
 import { FileTable, type SortField, type SortDir } from "@/components/files/file-table";
 import { FileTypeFilter } from "@/components/files/file-type-filter";
 import { MobileVaultHeader } from "@/components/vault/mobile-vault-header";
+import { UploadFAB } from "@/components/vault/upload-fab";
+import { InsightsTab } from "@/components/vault/insights-tab";
 import { PassphraseModal } from "@/components/ui/passphrase-modal";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CompactStats } from "@/components/vault/compact-stats";
 import { StorageQuota } from "@/components/vault/storage-quota";
+import { UserQuota } from "@/components/vault/user-quota";
 import { PlatformHealth } from "@/components/vault/platform-health";
 import { ExportImport } from "@/components/vault/export-import";
 import { Input } from "@/components/ui/input";
@@ -39,6 +42,7 @@ import {
   Square,
   Trash2,
   Download,
+  BarChart3,
 } from "lucide-react";
 import { cn, formatBytes, getFileCategory } from "@/lib/utils";
 import Link from "next/link";
@@ -54,6 +58,7 @@ const PAGE_SIZE = 12;
 type ModalMode = { type: "upload"; files: File[] } | { type: "download"; filename: string } | { type: "preview"; filename: string } | { type: "bulk-download" } | { type: "unlock" } | null;
 
 export default function VaultPage() {
+  const [activeTab, setActiveTab] = useState<"files" | "insights">("files");
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [modalMode, setModalMode] = useState<ModalMode>(null);
@@ -496,7 +501,19 @@ export default function VaultPage() {
               <Shield className="h-5 w-5 text-[var(--color-accent)]" />
             </div>
             <div>
-              <p className="text-[10px] font-semibold text-[var(--color-accent)] uppercase tracking-widest">Encrypted Storage</p>
+              <div className="flex items-center gap-2">
+                <p className="text-[10px] font-semibold text-[var(--color-accent)] uppercase tracking-widest">Encrypted Storage</p>
+                {quotaInfo && (
+                  <span className={cn(
+                    "text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md",
+                    quotaInfo.plan === "pro"
+                      ? "bg-violet-500/15 text-violet-500"
+                      : "bg-[var(--color-surface-1)] text-[var(--color-text-muted)]"
+                  )}>
+                    {quotaInfo.plan}
+                  </span>
+                )}
+              </div>
               <h1 className="text-xl sm:text-2xl font-bold tracking-tight leading-tight">My Vault</h1>
             </div>
           </div>
@@ -535,6 +552,33 @@ export default function VaultPage() {
           </Button>
         </div>
       </div>
+
+      {/* Tab switcher */}
+      <div className="flex gap-1 p-1 rounded-xl bg-[var(--color-surface-1)] w-fit">
+        {([
+          { id: "files" as const, label: "Files", icon: Shield },
+          { id: "insights" as const, label: "Insights", icon: BarChart3 },
+        ]).map(({ id, label, icon: TabIcon }) => (
+          <button
+            key={id}
+            onClick={() => setActiveTab(id)}
+            className={cn(
+              "flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all",
+              activeTab === id
+                ? "bg-[var(--color-surface)] text-[var(--color-text)] shadow-sm"
+                : "text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
+            )}
+          >
+            <TabIcon className="h-4 w-4" />
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === "insights" ? (
+        <InsightsTab files={files} repos={repos} quotaInfo={quotaInfo} />
+      ) : (
+      <>
 
       {/* No platform warning */}
       {!isAnyConnected && (
@@ -579,26 +623,15 @@ export default function VaultPage() {
       {/* Upload queue */}
       <UploadQueue />
 
-      {/* Storage & Platform overview */}
-      {(repos.length > 0 || statuses.some((s) => s.connected)) && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {/* Quota, Storage & Platform overview */}
+      {(repos.length > 0 || statuses.some((s) => s.connected) || quotaInfo) && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {quotaInfo && <UserQuota quota={quotaInfo} />}
           <StorageQuota repos={repos} />
           <PlatformHealth statuses={statuses} repos={repos} />
         </div>
       )}
 
-      {/* Mobile vault header (Google Drive style) */}
-      {files.length > 0 && (
-        <MobileVaultHeader
-          files={files}
-          quotaInfo={quotaInfo}
-          repos={repos}
-          isUnlocked={hasCachedPassphrase}
-          onUnlock={handleUnlock}
-          onCategoryClick={handleTypeFilter}
-          activeCategory={typeFilter}
-        />
-      )}
 
       {/* Search + View toggle + Select */}
       {files.length > 0 && (
@@ -874,6 +907,9 @@ export default function VaultPage() {
         loading={bulkDeleting}
       />
 
+      {/* Mobile upload FAB */}
+      {isAnyConnected && <UploadFAB onFiles={handleFilesSelected} />}
+
       {/* Storage quota exceeded modal */}
       <ConfirmModal
         open={!!quotaExceeded}
@@ -889,6 +925,8 @@ export default function VaultPage() {
         cancelLabel="Close"
         variant="warning"
       />
+      </>
+      )}
     </div>
   );
 }

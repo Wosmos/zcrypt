@@ -6,26 +6,39 @@ async function authRequest<T>(
   path: string,
   options?: RequestInit
 ): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...options?.headers,
-    },
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
 
-  if (!res.ok) {
-    const body = await res.text();
-    let message: string;
-    try {
-      message = JSON.parse(body).error || body;
-    } catch {
-      message = body;
+  try {
+    const res = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+      },
+    });
+
+    if (!res.ok) {
+      const body = await res.text();
+      let message: string;
+      try {
+        message = JSON.parse(body).error || body;
+      } catch {
+        message = body;
+      }
+      throw new Error(message);
     }
-    throw new Error(message);
-  }
 
-  return res.json() as Promise<T>;
+    return res.json() as Promise<T>;
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new Error("Request timed out. Is the backend running?");
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export interface LoginResponse {
@@ -156,4 +169,112 @@ export function getMe(accessToken: string): Promise<AuthUser> {
   return authRequest("/api/auth/me", {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
+}
+
+// --- Magic Links ---
+
+export function requestMagicLink(
+  email: string
+): Promise<{ success: boolean; message: string }> {
+  return authRequest("/api/auth/magic-link", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
+export function verifyMagicLink(token: string): Promise<LoginResponse> {
+  return authRequest("/api/auth/magic-link/verify", {
+    method: "POST",
+    body: JSON.stringify({ token }),
+  });
+}
+
+// --- Register with breach detection ---
+
+export interface RegisterResponse {
+  success?: boolean;
+  user?: AuthUser;
+  warning?: string;
+  breach_count?: number;
+  requires?: string;
+}
+
+export function registerWithBreachCheck(
+  email: string,
+  username: string,
+  password: string,
+  force = false
+): Promise<RegisterResponse> {
+  return authRequest("/api/auth/register", {
+    method: "POST",
+    body: JSON.stringify({ email, username, password, force }),
+  });
+}
+
+export function resetPasswordWithBreachCheck(
+  token: string,
+  new_password: string,
+  force = false
+): Promise<{ success?: boolean; warning?: string; breach_count?: number; requires?: string }> {
+  return authRequest("/api/auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify({ token, new_password, force }),
+  });
+}
+
+// --- Linked Accounts ---
+
+export interface LinkedAccountsResponse {
+  providers: Array<{
+    id: string;
+    provider: string;
+    provider_email: string;
+    created_at: string;
+  }>;
+  has_password: boolean;
+}
+
+export function getLinkedAccounts(
+  accessToken: string
+): Promise<LinkedAccountsResponse> {
+  return authRequest("/api/auth/linked-accounts", {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+}
+
+export function unlinkAccount(
+  accessToken: string,
+  provider: string
+): Promise<{ success: boolean }> {
+  return authRequest(`/api/auth/linked-accounts/${provider}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+}
+
+// --- Activity ---
+
+export interface AuditEvent {
+  id: string;
+  user_id?: string;
+  event_type: string;
+  ip: string;
+  user_agent: string;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+export function getUserActivity(
+  accessToken: string
+): Promise<AuditEvent[]> {
+  return authRequest("/api/auth/activity", {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+}
+
+// --- OAuth ---
+
+export function getOAuthURL(provider: string): string {
+  const base = process.env.NEXT_PUBLIC_API_URL || "";
+  return `${base}/api/auth/oauth/${provider}`;
 }

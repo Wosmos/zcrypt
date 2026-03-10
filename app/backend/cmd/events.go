@@ -8,9 +8,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/zpush/zpush/auth"
+	"github.com/zpush/zpush/types"
 )
 
-// HandleSSE serves Server-Sent Events for real-time progress updates.
+// HandleSSE serves Server-Sent Events for real-time progress and audit updates.
 // GET /api/events?token=<jwt>
 // EventSource doesn't support Authorization headers, so JWT is passed via query param.
 func (s *Server) HandleSSE(w http.ResponseWriter, r *http.Request) {
@@ -21,7 +22,7 @@ func (s *Server) HandleSSE(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err := auth.ValidateAccessToken(s.cfg.JWTSecret, token)
+	claims, err := auth.ValidateAccessToken(s.cfg.JWTSecret, token)
 	if err != nil {
 		http.Error(w, `{"error":"invalid or expired token"}`, http.StatusUnauthorized)
 		return
@@ -39,7 +40,8 @@ func (s *Server) HandleSSE(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
 	subID := uuid.New().String()
-	ch := s.progress.Subscribe(subID)
+	isAdmin := claims.Role == types.RoleAdmin.String()
+	ch := s.progress.Subscribe(subID, claims.Sub, isAdmin)
 	defer s.progress.Unsubscribe(subID)
 
 	// Send initial connected event
@@ -60,8 +62,8 @@ func (s *Server) HandleSSE(w http.ResponseWriter, r *http.Request) {
 			if !ok {
 				return
 			}
-			data, _ := json.Marshal(event)
-			fmt.Fprintf(w, "event: progress\ndata: %s\n\n", data)
+			data, _ := json.Marshal(event.Payload)
+			fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event.Type, data)
 			flusher.Flush()
 		}
 	}

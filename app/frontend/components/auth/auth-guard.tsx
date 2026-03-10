@@ -1,15 +1,22 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth";
 import { getMe } from "@/lib/auth-api";
 import { refreshToken as refreshTokenApi } from "@/lib/auth-api";
-import { listFiles } from "@/lib/api";
+import { listFiles, getPlatformStatus } from "@/lib/api";
 import { useFileStore } from "@/store/files";
 
-export function AuthGuard({ children }: { children: React.ReactNode }) {
+export function AuthGuard({
+  children,
+  skipOnboardingCheck = false,
+}: {
+  children: React.ReactNode;
+  skipOnboardingCheck?: boolean;
+}) {
   const router = useRouter();
+  const [redirecting, setRedirecting] = useState(false);
   const {
     user,
     accessToken,
@@ -38,10 +45,28 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         }).catch(() => {});
       };
 
+      // Check if user needs onboarding — returns true if redirect needed
+      const checkOnboarding = async (): Promise<boolean> => {
+        if (skipOnboardingCheck) return false;
+        try {
+          const statuses = await getPlatformStatus();
+          const hasConnected = statuses.some((s) => s.connected);
+          if (!hasConnected) {
+            setRedirecting(true);
+            router.replace("/onboarding");
+            return true;
+          }
+        } catch {
+          // If check fails, let them through
+        }
+        return false;
+      };
+
       // If user was already set by login/register page, skip the getMe call
       const existingUser = useAuthStore.getState().user;
       if (existingUser && accessToken) {
-        prefetchFiles();
+        const needsOnboarding = await checkOnboarding();
+        if (!needsOnboarding) prefetchFiles();
         setInitialized(true);
         return;
       }
@@ -51,7 +76,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         try {
           const me = await getMe(accessToken);
           setUser(me);
-          prefetchFiles();
+          const needsOnboarding = await checkOnboarding();
+          if (!needsOnboarding) prefetchFiles();
           setInitialized(true);
           return;
         } catch {
@@ -66,7 +92,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
           setTokens(data.access_token, data.refresh_token);
           const me = await getMe(data.access_token);
           setUser(me);
-          prefetchFiles();
+          const needsOnboarding = await checkOnboarding();
+          if (!needsOnboarding) prefetchFiles();
           setInitialized(true);
           return;
         } catch {
@@ -81,9 +108,9 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     }
 
     init();
-  }, [initialized, accessToken, refreshTokenValue, router, setUser, setTokens, setInitialized, clearAuth]);
+  }, [initialized, accessToken, refreshTokenValue, router, skipOnboardingCheck, setUser, setTokens, setInitialized, clearAuth]);
 
-  if (!initialized) {
+  if (!initialized || redirecting) {
     return (
       <div className="flex items-center justify-center h-dvh">
         <div className="h-8 w-8 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />

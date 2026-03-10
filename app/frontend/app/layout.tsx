@@ -28,6 +28,9 @@ export const metadata: Metadata = {
   authors: [{ name: "zpush Team" }],
   creator: "zpush",
   publisher: "zpush",
+  icons: {
+    icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
+  },
   openGraph: {
     type: "website",
     locale: "en_US",

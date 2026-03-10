@@ -22,6 +22,8 @@ func (s *Server) HandleDeleteFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.audit(r, &userID, "file_delete", map[string]interface{}{"file_id": fileID})
+
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte(`{"success":true}`))
 }
