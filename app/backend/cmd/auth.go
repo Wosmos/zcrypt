@@ -53,7 +53,6 @@ func (s *Server) emailCfg() *auth.EmailConfig {
 	return &auth.EmailConfig{
 		APIKey: s.cfg.Email.APIKey,
 		From:   s.cfg.Email.From,
-		Name:   s.cfg.Email.Name,
 	}
 }
 

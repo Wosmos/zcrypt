@@ -42,21 +42,21 @@ func TestValidateEmailRequiresAPIKey(t *testing.T) {
 	cfg.Email = &EmailConfig{From: "a@b.com"}
 	err := cfg.Validate()
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "BREVO_API_KEY")
+	assert.Contains(t, err.Error(), "RESEND_API_KEY")
 }
 
 func TestValidateEmailRequiresFrom(t *testing.T) {
 	cfg := DefaultConfig()
 	cfg.JWTSecret = "this-is-a-sufficiently-long-jwt-secret-key"
-	cfg.Email = &EmailConfig{APIKey: "xkeysib-test"}
+	cfg.Email = &EmailConfig{APIKey: "re_test123"}
 	err := cfg.Validate()
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "BREVO_FROM")
+	assert.Contains(t, err.Error(), "RESEND_FROM")
 }
 
 func TestValidateEmailAcceptsValidConfig(t *testing.T) {
 	cfg := DefaultConfig()
 	cfg.JWTSecret = "this-is-a-sufficiently-long-jwt-secret-key"
-	cfg.Email = &EmailConfig{APIKey: "xkeysib-test", From: "a@b.com"}
+	cfg.Email = &EmailConfig{APIKey: "re_test123", From: "a@b.com"}
 	assert.NoError(t, cfg.Validate())
 }
