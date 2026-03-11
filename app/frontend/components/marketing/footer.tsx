@@ -5,7 +5,7 @@ export function MarketingFooter() {
   return (
     <footer className="border-t border-[var(--color-border)] bg-[var(--color-surface)]">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-12">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-8">
+        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-8">
           {/* Logo + tagline */}
           <div>
             <Link href="/" className="flex items-center gap-2.5">
@@ -17,8 +17,8 @@ export function MarketingFooter() {
               </span>
             </Link>
             <p className="text-xs text-[var(--color-text-muted)] mt-2 max-w-xs leading-relaxed">
-              Zero-knowledge encrypted storage. Open source. Free forever.
-              Not affiliated with any cloud provider we&apos;re roasting.
+              Zero-knowledge encrypted cloud storage. Open source.
+              Privacy you can verify, not just trust.
             </p>
           </div>
 
@@ -68,6 +68,25 @@ export function MarketingFooter() {
                 </Link>
               </div>
             </div>
+            <div className="space-y-2.5">
+              <p className="text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
+                Legal
+              </p>
+              <div className="flex flex-col gap-1.5">
+                <Link
+                  href="/terms"
+                  className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)] transition-colors"
+                >
+                  Terms of Service
+                </Link>
+                <Link
+                  href="/privacy"
+                  className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)] transition-colors"
+                >
+                  Privacy Policy
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -77,7 +96,7 @@ export function MarketingFooter() {
             &copy; {new Date().getFullYear()} zpush. Your data belongs to you.
           </p>
           <p className="text-[11px] text-[var(--color-text-muted)]">
-            Built with spite towards overpriced cloud storage.
+            Zero-knowledge encryption. Open source. Auditable by anyone.
           </p>
         </div>
       </div>

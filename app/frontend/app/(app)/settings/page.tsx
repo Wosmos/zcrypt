@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StoragePool } from "@/components/settings/storage-pool";
 import { usePlatformHealth } from "@/hooks/usePlatformHealth";
+import { useAuthStore } from "@/store/auth";
 import { useTheme } from "@/components/providers/theme-provider";
 import { connectPlatform, disconnectPlatform } from "@/lib/api";
 import { toast } from "@/store/toast";
@@ -49,6 +50,8 @@ export default function SettingsPage() {
   const { statuses, repos, refresh } = usePlatformHealth();
   const { files } = useFileList();
   const { theme, setTheme } = useTheme();
+  const user = useAuthStore((s) => s.user);
+  const isAdmin = user?.role === "admin";
 
   const githubAccounts = statuses.filter(
     (s) => s.platform === "github" && s.connected
@@ -254,8 +257,8 @@ export default function SettingsPage() {
       {/* Vault backup */}
       <ExportImport files={files} />
 
-      {/* Security Activity */}
-      <SecurityActivity />
+      {/* Security Activity — admin only */}
+      {isAdmin && <SecurityActivity />}
 
       {/* How it works — collapsible */}
       <HowItWorks />

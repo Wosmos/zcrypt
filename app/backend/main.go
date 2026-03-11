@@ -125,7 +125,7 @@ func main() {
 	mux.HandleFunc("POST /api/auth/2fa/enable", server.AuthMiddleware(server.Handle2FAEnable))
 	mux.HandleFunc("POST /api/auth/2fa/disable", server.AuthMiddleware(server.Handle2FADisable))
 	mux.HandleFunc("GET /api/auth/me", server.AuthMiddleware(server.HandleGetMe))
-	mux.HandleFunc("GET /api/auth/activity", server.AuthMiddleware(server.HandleUserActivity))
+	mux.HandleFunc("GET /api/auth/activity", server.AdminMiddleware(server.HandleUserActivity))
 	mux.HandleFunc("GET /api/auth/linked-accounts", server.AuthMiddleware(server.HandleLinkedAccounts))
 	mux.HandleFunc("DELETE /api/auth/linked-accounts/{provider}", server.AuthMiddleware(server.HandleUnlinkAccount))
 
@@ -167,6 +167,11 @@ func main() {
 	mux.HandleFunc("PUT /api/admin/users/{id}/quota", server.AdminMiddleware(server.HandleAdminSetUserQuota))
 	mux.HandleFunc("PUT /api/admin/users/{id}/plan", server.AdminMiddleware(server.HandleAdminSetPlan))
 	mux.HandleFunc("GET /api/admin/audit", server.AdminMiddleware(server.HandleAdminAuditLog))
+	mux.HandleFunc("GET /api/admin/feedback", server.AdminMiddleware(server.HandleAdminListFeedback))
+
+	// Feedback (authenticated)
+	mux.HandleFunc("POST /api/feedback", server.AuthMiddleware(server.HandleSubmitFeedback))
+	mux.HandleFunc("GET /api/feedback/status", server.AuthMiddleware(server.HandleGetFeedbackStatus))
 
 	// Health check (public)
 	mux.HandleFunc("GET /api/health", server.HandleHealth)

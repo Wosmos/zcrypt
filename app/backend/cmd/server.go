@@ -214,21 +214,39 @@ func (s *Server) isQuotaExempt(ctx context.Context, userID string) bool {
 }
 
 // getEffectiveQuota returns the effective storage quota in bytes for a user.
-// Returns 0 if unlimited.
+// Priority: per-user override > plan-based quota > system default > free plan default.
+// Returns 0 if unlimited (only when admin explicitly sets quota to 0).
 func (s *Server) getEffectiveQuota(ctx context.Context, userID string) int64 {
 	user, err := s.db.GetUserByID(ctx, userID)
 	if err != nil {
-		return 0
+		return planStorageQuota["free"]
 	}
+
+	// 1. Per-user admin override (0 = unlimited, >0 = explicit limit)
 	if user.StorageQuota != nil {
 		return *user.StorageQuota
 	}
-	val, err := s.db.GetSystemSetting(ctx, "default_storage_quota_bytes")
-	if err != nil {
-		return 0
+
+	// 2. Plan-based quota
+	plan := user.Plan
+	if plan == "" {
+		plan = "free"
 	}
-	quota, _ := strconv.ParseInt(val, 10, 64)
-	return quota
+	if q, ok := planStorageQuota[plan]; ok {
+		return q
+	}
+
+	// 3. System default
+	val, err := s.db.GetSystemSetting(ctx, "default_storage_quota_bytes")
+	if err == nil {
+		q, _ := strconv.ParseInt(val, 10, 64)
+		if q > 0 {
+			return q
+		}
+	}
+
+	// 4. Fallback to free plan
+	return planStorageQuota["free"]
 }
 
 // createAdapter creates a PlatformAdapter for a given platform and token.

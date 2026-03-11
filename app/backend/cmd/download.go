@@ -67,8 +67,8 @@ func (s *Server) HandleGetChunk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get chunk reference
-	chunk, err := s.db.GetChunkByIndex(ctx, fileID, chunkIndex)
+	// Get chunk reference (user_id for defense-in-depth isolation)
+	chunk, err := s.db.GetChunkByIndex(ctx, fileID, chunkIndex, userID)
 	if err != nil {
 		http.Error(w, `{"error":"chunk not found"}`, http.StatusNotFound)
 		return

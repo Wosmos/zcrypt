@@ -6,11 +6,36 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/google/uuid"
 	"github.com/zpush/zpush/adapters"
 	"github.com/zpush/zpush/crypto"
 	"github.com/zpush/zpush/reppool"
 	"github.com/zpush/zpush/types"
 )
+
+// Plan limits: storage quota per plan (bytes)
+var planStorageQuota = map[string]int64{
+	"free": 10 * 1024 * 1024 * 1024,            // 10 GB
+	"plus": 200 * 1024 * 1024 * 1024,           // 200 GB
+	"pro":  2 * 1024 * 1024 * 1024 * 1024,      // 2 TB
+	"team": 1 * 1024 * 1024 * 1024 * 1024,      // 1 TB per seat
+}
+
+// Plan limits: max file size per plan (bytes)
+var planMaxFileSize = map[string]int64{
+	"free": 500 * 1024 * 1024,       // 500 MB
+	"plus": 5 * 1024 * 1024 * 1024,  // 5 GB
+	"pro":  25 * 1024 * 1024 * 1024, // 25 GB
+	"team": 25 * 1024 * 1024 * 1024, // 25 GB
+}
+
+// Plan limits: max concurrent uploads per plan
+var planMaxConcurrent = map[string]int{
+	"free": 2,
+	"plus": 5,
+	"pro":  10,
+	"team": 10,
+}
 
 // HandleAdminListUsers returns all users with file count and storage stats.
 // GET /api/admin/users
@@ -311,17 +336,25 @@ func (s *Server) HandleGetQuota(w http.ResponseWriter, r *http.Request) {
 	hasPersonal, _ := s.db.UserHasPersonalTokens(ctx, userID)
 	quota := s.getEffectiveQuota(ctx, userID)
 
-	// Determine plan and concurrent upload limit
+	// Determine plan and limits
 	plan := "free"
-	maxConcurrent := 2
 	if user, uErr := s.db.GetUserByID(ctx, userID); uErr == nil && user != nil {
 		if user.Plan != "" {
 			plan = user.Plan
 		}
 	}
-	if plan == "pro" {
-		maxConcurrent = 5
+	maxConcurrent := planMaxConcurrent[plan]
+	if maxConcurrent == 0 {
+		maxConcurrent = 2
 	}
+	maxFileSize := planMaxFileSize[plan]
+	if maxFileSize == 0 {
+		maxFileSize = 500 * 1024 * 1024 // 500 MB default
+	}
+
+	// Check if user can upload (has any adapters — personal or global/managed)
+	userAdapters, _ := s.getUserAdapters(ctx, userID)
+	canUpload := len(userAdapters) > 0
 
 	info := types.QuotaInfo{
 		UsedBytes:            used,
@@ -330,6 +363,8 @@ func (s *Server) HandleGetQuota(w http.ResponseWriter, r *http.Request) {
 		IsUnlimited:          hasPersonal || quota == 0,
 		Plan:                 plan,
 		MaxConcurrentUploads: maxConcurrent,
+		MaxFileSize:          maxFileSize,
+		CanUpload:            canUpload,
 	}
 
 	writeJSON(w, http.StatusOK, info)
@@ -353,8 +388,9 @@ func (s *Server) HandleAdminSetPlan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Plan != "free" && req.Plan != "pro" {
-		http.Error(w, `{"error":"plan must be 'free' or 'pro'"}`, http.StatusBadRequest)
+	validPlans := map[string]bool{"free": true, "plus": true, "pro": true, "team": true}
+	if !validPlans[req.Plan] {
+		http.Error(w, `{"error":"plan must be 'free', 'plus', 'pro', or 'team'"}`, http.StatusBadRequest)
 		return
 	}
 
@@ -426,4 +462,81 @@ func (s *Server) HandleUserActivity(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, events)
+}
+
+// HandleSubmitFeedback allows an authenticated user to submit feedback.
+// POST /api/feedback
+func (s *Server) HandleSubmitFeedback(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID := GetUserID(r)
+
+	var req struct {
+		Rating  int    `json:"rating"`
+		Message string `json:"message"`
+		Context string `json:"context"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
+		return
+	}
+	if req.Rating < 1 || req.Rating > 5 {
+		http.Error(w, `{"error":"rating must be 1-5"}`, http.StatusBadRequest)
+		return
+	}
+
+	fb := &types.Feedback{
+		ID:      uuid.NewString(),
+		UserID:  userID,
+		Rating:  req.Rating,
+		Message: req.Message,
+		Context: req.Context,
+	}
+	if err := s.db.InsertFeedback(ctx, fb); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)
+		return
+	}
+
+	s.audit(r, &userID, "user_feedback", map[string]interface{}{"rating": req.Rating})
+
+	writeJSON(w, http.StatusCreated, map[string]bool{"success": true})
+}
+
+// HandleGetFeedbackStatus returns whether the current user has submitted feedback.
+// GET /api/feedback/status
+func (s *Server) HandleGetFeedbackStatus(w http.ResponseWriter, r *http.Request) {
+	userID := GetUserID(r)
+	submitted, _ := s.db.HasUserSubmittedFeedback(r.Context(), userID)
+	writeJSON(w, http.StatusOK, map[string]bool{"submitted": submitted})
+}
+
+// HandleAdminListFeedback returns all feedback for admin.
+// GET /api/admin/feedback
+func (s *Server) HandleAdminListFeedback(w http.ResponseWriter, r *http.Request) {
+	limit := 50
+	offset := 0
+	if v := r.URL.Query().Get("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 && n <= 100 {
+			limit = n
+		}
+	}
+	if v := r.URL.Query().Get("offset"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
+			offset = n
+		}
+	}
+
+	items, total, err := s.db.ListFeedback(r.Context(), limit, offset)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)
+		return
+	}
+	if items == nil {
+		items = []types.FeedbackWithUser{}
+	}
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"feedback": items,
+		"total":    total,
+		"limit":    limit,
+		"offset":   offset,
+	})
 }

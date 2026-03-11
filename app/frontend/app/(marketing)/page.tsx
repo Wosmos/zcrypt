@@ -8,10 +8,13 @@ import {
   Scissors,
   HeartHandshake,
   ArrowRight,
-  Check,
-  X,
   Quote,
   HelpCircle,
+  Terminal,
+  Smartphone,
+  Share2,
+  Image,
+  Rocket,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -75,14 +78,14 @@ const features = [
   {
     icon: Scissors,
     title: "Automatic Chunking",
-    desc: "Large files are automatically split into chunks that fit within platform limits.",
+    desc: "Large files are automatically split into encrypted chunks. No size limits.",
     accent: "rose",
     large: false,
   },
   {
     icon: HeartHandshake,
-    title: "Free Forever",
-    desc: "Open-source software. No credit card required. No premium tiers. Free forever.",
+    title: "Generous Free Tier",
+    desc: "10 GB free with zero-knowledge encryption. No credit card required to start.",
     accent: "cyan",
     large: false,
   },
@@ -121,96 +124,53 @@ const steps = [
   },
   {
     num: "05",
-    title: "Cloud stores it free",
-    desc: "Your encrypted data lives on free Git-based storage platforms.",
-  },
-];
-
-const pricing = [
-  {
-    name: "Hyperscalers (S3, GCS)",
-    price: "$20+",
-    period: "/TB/mo",
-    desc: "Enterprise cloud storage. Built for applications, not personal privacy.",
-    features: [
-      "Egress & request fees",
-      "Data lock-in",
-      "Complex billing structures",
-      "Data is not zero-knowledge",
-    ],
-    highlight: false,
-  },
-  {
-    name: "zpush",
-    price: "$0",
-    period: "forever",
-    desc: "Absolute privacy. We leverage Git-based storage to provide secure, zero-knowledge personal cloud.",
-    features: [
-      "Unlimited potential storage",
-      "AES-256-GCM encryption",
-      "Zero-knowledge privacy",
-      "Bring your own Git limits",
-      "Open source architecture",
-    ],
-    highlight: true,
-  },
-  {
-    name: "Consumer Cloud",
-    price: "$10-15",
-    period: "/mo for 2TB",
-    desc: "Convenient syncing with hard data caps and server-side managed encryption.",
-    features: [
-      "Strict data caps",
-      "Server-managed keys",
-      "Vendor ecosystem lock-in",
-      "Data indexed for search",
-    ],
-    highlight: false,
+    title: "Stored securely",
+    desc: "Your encrypted data is distributed across Git-based storage platforms.",
   },
 ];
 
 const testimonials = [
   {
     quote:
-      "I was spending over $800/month on cloud storage alone. Now my files are encrypted and stored for free.",
-    author: "A Developer Who Switched",
+      "Switched from Dropbox. Same 2TB, half the price, and my files are actually encrypted. No-brainer.",
+    author: "Freelance Designer",
   },
   {
     quote:
-      "The zero-knowledge architecture convinced our security team immediately. It's exactly what we needed.",
+      "The zero-knowledge architecture convinced our security team immediately. Open source sealed the deal.",
     author: "Senior Cloud Architect",
   },
   {
     quote:
-      "I explained zpush to our CISO. Client-side encryption, open-source, Git-backed. Approved on the spot.",
+      "I can point auditors to the source code. Client-side encryption, no server-side keys. Compliance loves it.",
     author: "Platform Engineer",
   },
 ];
 
 const faqs = [
   {
-    q: "Is zpush completely free?",
-    a: "Yes. zpush is open-source software that leverages existing Git LFS storage platforms (like GitHub, GitLab, and Hugging Face) as backend infrastructure. There are no subscriptions, hidden fees, or premium tiers for the core software.",
+    q: "How much storage do I get for free?",
+    a: "The free tier includes 10 GB of zero-knowledge encrypted storage with up to 2 concurrent uploads. No credit card required. Upgrade to Plus ($4/mo) for 200 GB or Pro ($9/mo) for 2 TB.",
   },
   {
     q: "How secure is the encryption?",
-    a: "We use AES-256-GCM, the cryptographic standard utilized by financial institutions globally. Your encryption keys are derived locally on your device and are never transmitted. This zero-knowledge architecture ensures that even we cannot access or read your files.",
+    a: "We use AES-256-GCM, the cryptographic standard used by financial institutions globally. Your encryption keys are derived locally on your device and are never transmitted. This zero-knowledge architecture ensures that even we cannot access your files.",
   },
   {
-    q: "What happens if a storage provider changes their limits?",
-    a: "zpush is designed to support multiple platforms simultaneously. If one provider alters their terms, you can migrate your data to another platform seamlessly. Your data remains fully portable because it is encrypted and chunked in an open, standard format.",
+    q: "What makes zpush cheaper than Dropbox or Google Drive?",
+    a: "Our architecture is fundamentally different. We use Git-based distributed storage instead of expensive centralized infrastructure. This lets us offer 2 TB for $9/mo (vs $12 at Dropbox) while providing stronger encryption that competitors don't offer at any price.",
+  },
+  {
+    q: "What is BYOB (Bring Your Own Backend)?",
+    a: "Pro and Team users can connect their own GitHub, GitLab, or Hugging Face repositories as storage backends. Your data stays on infrastructure you fully control, with zpush handling the encryption and chunking.",
   },
   {
     q: "Can I access my files across multiple devices?",
-    a: "Absolutely. You can log into zpush from any modern browser, connect your Git platform accounts, and access your encrypted files. You will simply need your original passphrase to decrypt them locally.",
+    a: "Yes. Log into zpush from any modern browser, enter your passphrase, and access your encrypted files. Everything is decrypted locally in your browser.",
   },
   {
-    q: "Are there file size limits?",
-    a: "zpush intelligently chunks large files into manageable pieces locally before upload, allowing it to work seamlessly within typical Git LFS boundaries. This architecture means there is virtually no practical upper limit on the total size of the files you can store.",
-  },
-  {
-    q: "Is my passphrase recoverable if I forget it?",
-    a: "No. Because zpush is strictly zero-knowledge, your passphrase is never stored on our servers or sent over the network. If you lose your passphrase, your encrypted files cannot be recovered by us or anyone else. We strongly recommend using a password manager.",
+    q: "What happens if I forget my passphrase?",
+    a: "Because zpush is strictly zero-knowledge, your passphrase is never stored on our servers. If you lose it, your encrypted files cannot be recovered by anyone. We strongly recommend using a password manager.",
   },
 ];
 
@@ -229,18 +189,18 @@ export default function LandingPage() {
       <section className=" border-y border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden">
         <Marquee
           items={[
-            "Break free from vendor lock-in",
-            "No complex pricing tiers",
-            "Your keys, your data",
-            "Zero-knowledge by design",
-            "Open source transparency",
-            "No hidden egress fees",
-            "AES-256-GCM Encryption",
-            "Zstd Compression",
-            "Client-side processing natively",
-            "Git LFS backed infinite storage",
-            "Multi-provider platform support",
-            "Absolute data portability",
+            "2 TB for $9/mo",
+            "Zero-knowledge encryption",
+            "Open source and auditable",
+            "AES-256-GCM standard",
+            "Cheaper than Dropbox",
+            "10 GB free tier",
+            "No egress fees",
+            "Client-side encryption",
+            "Bring your own backend",
+            "Multi-platform storage",
+            "Zstd compression",
+            "GDPR compliant",
           ]}
         />
       </section>
@@ -352,6 +312,72 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ═══ COMING SOON ═══ */}
+      <section className="py-24 px-4 bg-[var(--color-surface)]">
+        <div className="mx-auto max-w-5xl">
+          <ScrollReveal className="text-center mb-16">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-emerald-500/20 bg-emerald-500/5 text-xs font-medium text-emerald-600 dark:text-emerald-400 mb-4">
+              <Rocket className="h-3.5 w-3.5" />
+              Roadmap
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
+              We&apos;re just getting started.
+            </h2>
+            <p className="text-[var(--color-text-secondary)] mt-3 max-w-lg mx-auto">
+              Big things are coming to zpush. Here&apos;s a taste of what&apos;s next.
+            </p>
+          </ScrollReveal>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {[
+              {
+                icon: Terminal,
+                title: "CLI Tool",
+                desc: "Upload, download, and manage your vault from the command line. Script your backups.",
+                badge: "Q2 2026",
+              },
+              {
+                icon: Smartphone,
+                title: "Mobile App",
+                desc: "iOS and Android apps with offline access and camera backup. Your vault in your pocket.",
+                badge: "Q3 2026",
+              },
+              {
+                icon: Share2,
+                title: "Encrypted Sharing",
+                desc: "Share files with end-to-end encryption. Time-limited links. Password protection.",
+                badge: "Q2 2026",
+              },
+              {
+                icon: Image,
+                title: "Photo Gallery",
+                desc: "Browse your encrypted photos with a beautiful gallery view. Private photo backup.",
+                badge: "Q3 2026",
+              },
+            ].map((item, i) => (
+              <ScrollReveal key={i} delay={i * 0.1}>
+                <div className="card p-5 h-full flex gap-4 items-start group">
+                  <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex-shrink-0 group-hover:scale-110 transition-transform">
+                    <item.icon className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="text-sm font-bold">{item.title}</h3>
+                      <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                        {item.badge}
+                      </span>
+                    </div>
+                    <p className="text-[13px] text-[var(--color-text-secondary)] leading-relaxed">
+                      {item.desc}
+                    </p>
+                  </div>
+                </div>
+              </ScrollReveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ═══ CTA ═══ */}
       <section className="py-32 px-4 relative overflow-hidden">
         {/* Gradient background */}
@@ -363,10 +389,10 @@ export default function LandingPage() {
         <div className="relative mx-auto max-w-2xl text-center">
           <ScrollReveal>
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight">
-              Take Back Control of Your Data
+              Your Files Deserve Better
             </h2>
             <p className="text-[var(--color-text-secondary)] mt-4 text-lg">
-              Your files. Your keys. Your privacy. Zero cost.
+              10 GB free. Zero-knowledge encryption. No credit card required.
             </p>
           </ScrollReveal>
 
@@ -376,7 +402,7 @@ export default function LandingPage() {
                 href="/register"
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-10 py-4 text-base font-semibold text-slate-900 hover:bg-emerald-400 transition-colors shadow-2xl shadow-emerald-500/30 hover:shadow-emerald-500/50"
               >
-                Get started — it&apos;s free <ArrowRight className="h-4 w-4" />
+                Start with 10 GB free <ArrowRight className="h-4 w-4" />
               </MagneticButton>
 
               {/* Easter egg on long hover */}

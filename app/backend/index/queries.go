@@ -130,12 +130,17 @@ func (db *DB) ListFiles(ctx context.Context, userID, filter string) ([]types.Fil
 	return files, nil
 }
 
-// GetChunksForFile returns all uploaded chunks belonging to a file.
-func (db *DB) GetChunksForFile(ctx context.Context, fileID string) ([]types.ChunkRef, error) {
-	rows, err := db.pool.Query(ctx,
-		`SELECT chunk_id, file_id, user_id, idx, size, sha256, platform, account, repo, remote_path
-		 FROM chunks WHERE file_id = $1 AND remote_path != '' ORDER BY idx`, fileID,
-	)
+// GetChunksForFile returns all uploaded chunks belonging to a file, optionally scoped by user.
+func (db *DB) GetChunksForFile(ctx context.Context, fileID string, userIDs ...string) ([]types.ChunkRef, error) {
+	query := `SELECT chunk_id, file_id, user_id, idx, size, sha256, platform, account, repo, remote_path
+		 FROM chunks WHERE file_id = $1 AND remote_path != ''`
+	args := []interface{}{fileID}
+	if len(userIDs) > 0 && userIDs[0] != "" {
+		query += ` AND user_id = $2`
+		args = append(args, userIDs[0])
+	}
+	query += ` ORDER BY idx`
+	rows, err := db.pool.Query(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("get chunks: %w", err)
 	}
@@ -535,12 +540,16 @@ func (db *DB) InsertClientChunk(ctx context.Context, userID string, c *types.Chu
 }
 
 // GetChunkByIndex returns a single chunk by file ID and index.
-func (db *DB) GetChunkByIndex(ctx context.Context, fileID string, index int) (*types.ChunkRef, error) {
+func (db *DB) GetChunkByIndex(ctx context.Context, fileID string, index int, userIDs ...string) (*types.ChunkRef, error) {
 	c := &types.ChunkRef{}
-	err := db.pool.QueryRow(ctx,
-		`SELECT chunk_id, file_id, user_id, idx, size, sha256, platform, account, repo, remote_path, compressed
-		 FROM chunks WHERE file_id = $1 AND idx = $2 AND remote_path != ''`,
-		fileID, index,
+	query := `SELECT chunk_id, file_id, user_id, idx, size, sha256, platform, account, repo, remote_path, compressed
+		 FROM chunks WHERE file_id = $1 AND idx = $2 AND remote_path != ''`
+	args := []interface{}{fileID, index}
+	if len(userIDs) > 0 && userIDs[0] != "" {
+		query += ` AND user_id = $3`
+		args = append(args, userIDs[0])
+	}
+	err := db.pool.QueryRow(ctx, query, args...,
 	).Scan(&c.ChunkID, &c.FileID, &c.UserID, &c.Index, &c.Size, &c.SHA256, &c.Platform, &c.Account, &c.Repo, &c.RemotePath, &c.Compressed)
 	if err != nil {
 		return nil, fmt.Errorf("get chunk by index: %w", err)

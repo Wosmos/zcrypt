@@ -140,8 +140,8 @@ export function HeroSection() {
           transition={{ delay: 0.1, duration: 0.5 }}
           className="mt-6 text-base sm:text-lg md:text-xl text-slate-600 dark:text-slate-400 max-w-2xl leading-relaxed"
         >
-          zpush encrypts, compresses, and stores your files in Git-based 
-          storage — <span className="text-slate-900 dark:text-slate-200 font-medium">free, open-source, and mathematically private.</span>
+          End-to-end encrypted cloud storage that&apos;s{" "}
+          <span className="text-slate-900 dark:text-slate-200 font-medium">open-source, privacy-first, and cheaper than everyone else.</span>
         </motion.p>
 
         {/* CTAs: Responsive grid/flex */}

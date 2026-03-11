@@ -29,7 +29,11 @@ export function UserQuota({ quota }: UserQuotaProps) {
           <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${
             quota.plan === "pro"
               ? "bg-violet-500/10 text-violet-500"
-              : "bg-[var(--color-surface-1)] text-[var(--color-text-muted)]"
+              : quota.plan === "plus"
+                ? "bg-blue-500/10 text-blue-500"
+                : quota.plan === "team"
+                  ? "bg-amber-500/10 text-amber-500"
+                  : "bg-[var(--color-surface-1)] text-[var(--color-text-muted)]"
           }`}>
             {quota.plan}
           </span>
