@@ -22,9 +22,10 @@ import (
 const maxChunkSize = 17 * 1024 * 1024
 
 // chunkUploadSem limits concurrent chunk uploads being processed server-wide.
-// Each chunk can use ~35MB (raw data + base64 for GitHub API), so 6 concurrent = ~210MB.
-// This prevents OOM on Railway containers with limited RAM (512MB–1GB).
-var chunkUploadSem = make(chan struct{}, 6)
+// Each chunk can use ~35MB (raw data + base64 for GitHub API), so 10 concurrent = ~350MB.
+// Suitable for containers with 1-4GB RAM. For direct upload platforms (HuggingFace),
+// the data never passes through the server so this only applies to relay uploads (GitHub).
+var chunkUploadSem = make(chan struct{}, 10)
 
 // HandleUploadInit creates a new chunked upload session.
 // POST /api/upload/init
@@ -134,6 +135,10 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check if adapter supports direct upload (presigned URLs)
+	adapter := s.resolveAdapterForUser(ctx, userID, platform, account)
+	_, directUpload := adapter.(adapters.DirectUploader)
+
 	s.audit(r, &userID, "upload_init", map[string]interface{}{
 		"file_id":    fileID,
 		"session_id": sessionID,
@@ -144,9 +149,11 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"session_id": sessionID,
-		"file_id":    fileID,
-		"repo_url":   repo.URL,
+		"session_id":    sessionID,
+		"file_id":       fileID,
+		"repo_url":      repo.URL,
+		"platform":      platform,
+		"direct_upload": directUpload,
 	})
 }
 
@@ -457,5 +464,188 @@ func (s *Server) HandleUploadStatus(w http.ResponseWriter, r *http.Request) {
 		"chunk_count":      session.ChunkCount,
 		"uploaded_chunks":  uploadedIndices,
 		"completed_count":  len(uploadedIndices),
+	})
+}
+
+// HandlePresignChunk returns a presigned URL for direct client upload to the platform.
+// This bypasses the server relay — data goes directly from client to platform storage.
+// POST /api/upload/{sid}/presign/{idx}
+func (s *Server) HandlePresignChunk(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID := GetUserID(r)
+
+	sessionID := r.PathValue("sid")
+	chunkIndexStr := r.PathValue("idx")
+	chunkIndex, err := strconv.Atoi(chunkIndexStr)
+	if err != nil {
+		http.Error(w, `{"error":"invalid chunk index"}`, http.StatusBadRequest)
+		return
+	}
+
+	var req struct {
+		SHA256 string `json:"sha256"`
+		Size   int64  `json:"size"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+		return
+	}
+	if req.SHA256 == "" || req.Size <= 0 {
+		http.Error(w, `{"error":"sha256 and size are required"}`, http.StatusBadRequest)
+		return
+	}
+
+	// Validate session
+	session, err := s.db.GetUploadSession(ctx, sessionID, userID)
+	if err != nil {
+		http.Error(w, `{"error":"upload session not found"}`, http.StatusNotFound)
+		return
+	}
+	if session.Status != "active" {
+		http.Error(w, `{"error":"upload session is not active"}`, http.StatusBadRequest)
+		return
+	}
+	if chunkIndex < 0 || chunkIndex >= session.ChunkCount {
+		http.Error(w, `{"error":"chunk index out of range"}`, http.StatusBadRequest)
+		return
+	}
+
+	// Resolve adapter and check DirectUploader support
+	adapter := s.resolveAdapterForUser(ctx, userID, session.Platform, session.Account)
+	if adapter == nil {
+		http.Error(w, `{"error":"platform adapter not available"}`, http.StatusInternalServerError)
+		return
+	}
+	du, ok := adapter.(adapters.DirectUploader)
+	if !ok {
+		http.Error(w, `{"error":"platform does not support direct upload"}`, http.StatusBadRequest)
+		return
+	}
+
+	// Generate disguised remote path
+	remotePath, err := disguise.ChunkFilename()
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"generate filename: %s"}`, err), http.StatusInternalServerError)
+		return
+	}
+
+	// Get presigned URL from platform
+	uploadURL, uploadHeaders, err := du.GetUploadURL(ctx, session.RepoURL, req.SHA256, req.Size)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"get upload url: %s"}`, err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"upload_url":     uploadURL,
+		"upload_headers": uploadHeaders,
+		"remote_path":    remotePath,
+		"already_exists": uploadURL == "",
+	})
+}
+
+// HandleConfirmChunk confirms a directly-uploaded chunk and stores its reference.
+// Called after the client has uploaded data directly to the platform via presigned URL.
+// POST /api/upload/{sid}/confirm/{idx}
+func (s *Server) HandleConfirmChunk(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID := GetUserID(r)
+
+	sessionID := r.PathValue("sid")
+	chunkIndexStr := r.PathValue("idx")
+	chunkIndex, err := strconv.Atoi(chunkIndexStr)
+	if err != nil {
+		http.Error(w, `{"error":"invalid chunk index"}`, http.StatusBadRequest)
+		return
+	}
+
+	var req struct {
+		SHA256     string `json:"sha256"`
+		Size       int64  `json:"size"`
+		RemotePath string `json:"remote_path"`
+		Compressed bool   `json:"compressed"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+		return
+	}
+	if req.SHA256 == "" || req.Size <= 0 || req.RemotePath == "" {
+		http.Error(w, `{"error":"sha256, size, and remote_path are required"}`, http.StatusBadRequest)
+		return
+	}
+
+	// Validate session
+	session, err := s.db.GetUploadSession(ctx, sessionID, userID)
+	if err != nil {
+		http.Error(w, `{"error":"upload session not found"}`, http.StatusNotFound)
+		return
+	}
+	if session.Status != "active" {
+		http.Error(w, `{"error":"upload session is not active"}`, http.StatusBadRequest)
+		return
+	}
+	if chunkIndex < 0 || chunkIndex >= session.ChunkCount {
+		http.Error(w, `{"error":"chunk index out of range"}`, http.StatusBadRequest)
+		return
+	}
+
+	// Idempotency: check if chunk already stored
+	existing, _ := s.db.GetChunkByIndex(ctx, session.FileID, chunkIndex)
+	if existing != nil && existing.RemotePath != "" {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"chunk_index": chunkIndex,
+			"stored":      true,
+			"duplicate":   true,
+		})
+		return
+	}
+
+	// Register with adapter for batch commit (e.g., HuggingFace pendingCommits)
+	adapter := s.resolveAdapterForUser(ctx, userID, session.Platform, session.Account)
+	if du, ok := adapter.(adapters.DirectUploader); ok {
+		du.RegisterUpload(req.RemotePath, req.SHA256, req.Size)
+	}
+
+	// Store chunk reference in DB
+	chunkID := uuid.New().String()
+	dbChunk := &types.ChunkRef{
+		ChunkID:    chunkID,
+		FileID:     session.FileID,
+		Index:      chunkIndex,
+		Size:       req.Size,
+		SHA256:     req.SHA256,
+		Platform:   session.Platform,
+		Account:    session.Account,
+		Repo:       session.RepoURL,
+		RemotePath: req.RemotePath,
+		Compressed: req.Compressed,
+	}
+
+	if err := s.db.InsertClientChunk(ctx, userID, dbChunk); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"store chunk ref: %s"}`, err), http.StatusInternalServerError)
+		return
+	}
+
+	// Increment session counter
+	if err := s.db.IncrementSessionChunks(ctx, sessionID); err != nil {
+		fmt.Printf("warn: increment session chunks: %v\n", err)
+	}
+
+	// Emit progress
+	percent := int(float64(session.UploadedChunks+1) / float64(session.ChunkCount) * 100)
+	s.progress.Emit(types.ProgressEvent{
+		FileID:         session.FileID,
+		Stage:          fmt.Sprintf("uploading chunk %d/%d", chunkIndex+1, session.ChunkCount),
+		Percent:        percent,
+		BytesProcessed: req.Size,
+		TotalBytes:     session.OriginalSize,
+	})
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"chunk_index": chunkIndex,
+		"stored":      true,
 	})
 }

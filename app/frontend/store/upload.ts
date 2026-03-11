@@ -3,7 +3,7 @@ import type { UploadItem, UploadStatus } from "@/types";
 import { toast } from "@/store/toast";
 import { WorkerPool } from "@/lib/worker-pool";
 import { generateSalt, deriveKeyBytes, sha256File, toBase64 } from "@/lib/crypto";
-import { initUpload, uploadChunk, completeUpload } from "@/lib/upload-session";
+import { initUpload, uploadChunk, completeUpload, presignChunk, directUploadToURL, confirmChunk } from "@/lib/upload-session";
 import { getDeviceProfile } from "@/lib/device-profile";
 
 // --- Throttled progress updates to prevent UI jank ---
@@ -126,6 +126,15 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
       id: addToQueue(file),
     }));
 
+    // File extensions that are already compressed — skip zstd to save CPU
+    const COMPRESSED_EXTENSIONS = new Set([
+      "jpg", "jpeg", "png", "gif", "webp", "avif", "heic", "heif",
+      "mp4", "mkv", "avi", "mov", "webm", "flv", "m4v",
+      "mp3", "aac", "ogg", "flac", "opus", "wma", "m4a",
+      "zip", "rar", "7z", "gz", "bz2", "xz", "zst", "lz4", "br", "tar.gz",
+      "pdf", "docx", "xlsx", "pptx", "woff", "woff2",
+    ]);
+
     // Process a single file through the client-side crypto pipeline
     const processOne = async (file: File, id: string) => {
       const pool = new WorkerPool();
@@ -143,6 +152,10 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
         // Step 3: Calculate chunks (device-aware chunk size)
         const chunkCount = Math.max(1, Math.ceil(file.size / chunkSize));
 
+        // Skip compression for already-compressed file formats
+        const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+        const shouldCompress = !COMPRESSED_EXTENSIONS.has(ext);
+
         // Step 4: Init upload session on server
         updateStatus(id, "encrypting", 15, "Starting upload session...");
         const session = await initUpload({
@@ -155,25 +168,21 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
         });
         setFileId(id, session.file_id);
 
+        const useDirectUpload = session.direct_upload;
+
         // Step 5: Process and upload chunks with TWO-STAGE BACKPRESSURE
         //
-        // Pipeline: [read+process in worker] → [upload to server]
-        //            ~100ms per chunk            ~2-10s per chunk
+        // Two modes:
+        //   RELAY:  [worker] → [upload to server] → [server relays to platform]
+        //   DIRECT: [worker] → [presign] → [upload directly to platform] → [confirm]
         //
-        // Two independent limits:
-        //   pipelineDepth: how far ahead workers can pre-process (keeps workers busy)
-        //   maxUploads: concurrent network uploads to server (prevents server OOM)
-        //
-        // Workers race ahead and build a buffer of processed chunks.
-        // Uploads drain that buffer at network speed.
-        // The loop only stalls when pipelineDepth is full (too many unuploaded chunks).
+        // Direct mode eliminates the double-hop — data travels once instead of twice.
+        // Used for HuggingFace (presigned LFS URLs). GitHub still uses relay.
         let uploadedChunks = 0;
         let totalEncryptedSize = 0;
         let totalCompressedSize = 0;
 
         // Pipeline depth: allow workers to pre-process several chunks ahead of uploads.
-        // Higher = better throughput (workers never idle), more client RAM.
-        // Each slot holds one chunk (~chunkSize bytes) in memory.
         const pipelineDepth = Math.min(profile.workers * 3, 12);
         let pipelineSlots = 0;
         const pipelineWaiters: (() => void)[] = [];
@@ -195,9 +204,9 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
           }
         };
 
-        // Upload concurrency: limit simultaneous network requests to server.
-        // Server has its own semaphore (6) but we cap at 3 to be a good client.
-        const maxUploads = 3;
+        // Upload concurrency: limit simultaneous network uploads.
+        // Direct mode can use more slots since data doesn't pass through server.
+        const maxUploads = useDirectUpload ? 6 : 5;
         let activeUploads = 0;
         const uploadWaiters: (() => void)[] = [];
 
@@ -237,21 +246,50 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
             chunkIndex: i,
             plaintext: chunkData, // transferred to worker (zero-copy)
             keyBytes: keyBytes.slice(0), // copy since buffer gets neutered on transfer
-            compress: true,
+            compress: shouldCompress,
             compressionLevel: profile.compressionLevel,
           }).then(async (result) => {
-            // Wait for upload slot (limits concurrent server requests)
+            // Wait for upload slot (limits concurrent network requests)
             await acquireUploadSlot();
 
             try {
               const encrypted = new Uint8Array(result.encrypted);
-              await uploadChunk(
-                session.session_id,
-                result.chunkIndex,
-                encrypted,
-                result.sha256,
-                result.compressed
-              );
+
+              if (useDirectUpload) {
+                // DIRECT MODE: presign → upload to platform → confirm
+                const presign = await presignChunk(
+                  session.session_id,
+                  result.chunkIndex,
+                  result.sha256,
+                  encrypted.byteLength
+                );
+
+                if (!presign.already_exists) {
+                  await directUploadToURL(
+                    presign.upload_url,
+                    presign.upload_headers,
+                    encrypted
+                  );
+                }
+
+                await confirmChunk(
+                  session.session_id,
+                  result.chunkIndex,
+                  result.sha256,
+                  encrypted.byteLength,
+                  presign.remote_path,
+                  result.compressed
+                );
+              } else {
+                // RELAY MODE: upload to server (server relays to platform)
+                await uploadChunk(
+                  session.session_id,
+                  result.chunkIndex,
+                  encrypted,
+                  result.sha256,
+                  result.compressed
+                );
+              }
 
               uploadedChunks++;
               totalEncryptedSize += result.encryptedSize;

@@ -42,6 +42,8 @@ export interface UploadInitParams {
 export interface UploadInitResponse {
   session_id: string;
   file_id: string;
+  platform: string;
+  direct_upload: boolean;
 }
 
 /** POST /api/upload/init — start a new chunked upload session. */
@@ -80,6 +82,93 @@ export async function uploadChunk(
     }
   );
 
+  if (!res.ok) {
+    const body = await res.text();
+    let message: string;
+    try {
+      const parsed = JSON.parse(body);
+      message = parsed.error || body;
+    } catch {
+      message = body;
+    }
+    throw new Error(message);
+  }
+}
+
+export interface PresignResponse {
+  upload_url: string;
+  upload_headers: Record<string, string> | null;
+  remote_path: string;
+  already_exists: boolean;
+}
+
+/** POST /api/upload/{sid}/presign/{idx} — get a presigned URL for direct upload. */
+export async function presignChunk(
+  sessionId: string,
+  index: number,
+  sha256: string,
+  size: number
+): Promise<PresignResponse> {
+  const res = await fetch(
+    `${API_BASE}/api/upload/${sessionId}/presign/${index}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ sha256, size }),
+    }
+  );
+  return handleResponse<PresignResponse>(res);
+}
+
+/** Upload data directly to a presigned platform URL with retries. */
+export async function directUploadToURL(
+  url: string,
+  headers: Record<string, string> | null,
+  data: Uint8Array
+): Promise<void> {
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await fetch(url, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/octet-stream",
+          ...(headers || {}),
+        },
+        body: data as BodyInit,
+      });
+      if (res.ok) return;
+      lastError = new Error(`Direct upload failed: ${res.status}`);
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
+  }
+  throw lastError || new Error("Direct upload failed after retries");
+}
+
+/** POST /api/upload/{sid}/confirm/{idx} — confirm a directly-uploaded chunk. */
+export async function confirmChunk(
+  sessionId: string,
+  index: number,
+  sha256: string,
+  size: number,
+  remotePath: string,
+  compressed: boolean
+): Promise<void> {
+  const res = await fetch(
+    `${API_BASE}/api/upload/${sessionId}/confirm/${index}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({
+        sha256,
+        size,
+        remote_path: remotePath,
+        compressed,
+      }),
+    }
+  );
   if (!res.ok) {
     const body = await res.text();
     let message: string;
