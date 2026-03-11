@@ -2,8 +2,9 @@ import { create } from "zustand";
 import type { UploadItem, UploadStatus } from "@/types";
 import { toast } from "@/store/toast";
 import { WorkerPool } from "@/lib/worker-pool";
-import { generateSalt, deriveKeyBytes, sha256Hex, toBase64, CHUNK_SIZE } from "@/lib/crypto";
+import { generateSalt, deriveKeyBytes, sha256File, toBase64 } from "@/lib/crypto";
 import { initUpload, uploadChunk, completeUpload } from "@/lib/upload-session";
+import { getDeviceProfile } from "@/lib/device-profile";
 
 // --- Throttled progress updates to prevent UI jank ---
 // Batches rapid updateStatus calls into a single Zustand set() per animation frame.
@@ -113,8 +114,11 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
     return get().queue.find((item) => item.fileId === fileId);
   },
 
-  startUpload: (files, passphrase, platform, maxConcurrent = 2, onRefresh) => {
+  startUpload: (files, passphrase, platform, maxConcurrent, onRefresh) => {
     const { addToQueue, updateStatus, setFileId, setError } = get();
+    const profile = getDeviceProfile();
+    const chunkSize = profile.chunkSize;
+    const effectiveConcurrent = maxConcurrent ?? profile.maxConcurrentUploads;
 
     // Add all files to queue immediately so UI shows them all
     const items = files.map((file) => ({
@@ -129,16 +133,15 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
       try {
         // Step 1: Hash original file
         updateStatus(id, "encrypting", 5, "Hashing file...", 0, file.size);
-        const fileBuffer = await file.arrayBuffer();
-        const fileSha256 = await sha256Hex(new Uint8Array(fileBuffer));
+        const fileSha256 = await sha256File(file);
 
         // Step 2: Generate salt & derive key
         updateStatus(id, "encrypting", 10, "Deriving encryption key...");
         const salt = generateSalt();
         const keyBytes = await deriveKeyBytes(passphrase, salt);
 
-        // Step 3: Calculate chunks
-        const chunkCount = Math.max(1, Math.ceil(file.size / CHUNK_SIZE));
+        // Step 3: Calculate chunks (device-aware chunk size)
+        const chunkCount = Math.max(1, Math.ceil(file.size / chunkSize));
 
         // Step 4: Init upload session on server
         updateStatus(id, "encrypting", 15, "Starting upload session...");
@@ -160,8 +163,8 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
         const chunkPromises: Promise<void>[] = [];
 
         for (let i = 0; i < chunkCount; i++) {
-          const start = i * CHUNK_SIZE;
-          const end = Math.min(start + CHUNK_SIZE, file.size);
+          const start = i * chunkSize;
+          const end = Math.min(start + chunkSize, file.size);
           // Lazy slice via File.slice() — only this chunk in RAM
           const chunkSlice = file.slice(start, end);
           const chunkData = await chunkSlice.arrayBuffer();
@@ -172,6 +175,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
             plaintext: chunkData, // transferred, not copied
             keyBytes: keyBytes.slice(0), // copy since buffer gets neutered on transfer
             compress: true,
+            compressionLevel: profile.compressionLevel,
           }).then(async (result) => {
             // Upload encrypted chunk to server
             const encrypted = new Uint8Array(result.encrypted);
@@ -193,7 +197,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
               "uploading",
               percent,
               `Uploading chunk ${uploadedChunks}/${chunkCount}`,
-              uploadedChunks * CHUNK_SIZE,
+              uploadedChunks * chunkSize,
               file.size
             );
           });
@@ -223,7 +227,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
     const waiting: (() => void)[] = [];
 
     const acquire = async () => {
-      if (running < maxConcurrent) {
+      if (running < effectiveConcurrent) {
         running++;
         return;
       }

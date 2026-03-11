@@ -143,7 +143,7 @@ async function decryptFileToBlob(fileId: string, passphrase: string): Promise<Bl
         const { ZstdInit } = await import("@oneidentity/zstd-js/wasm");
         zstd = await ZstdInit();
       }
-      plain = zstd.ZstdSimple.decompress(plain);
+      plain = zstd.ZstdStream.decompress(plain);
     }
     chunks.push(plain);
   }

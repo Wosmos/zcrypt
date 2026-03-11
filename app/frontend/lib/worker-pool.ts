@@ -1,11 +1,12 @@
 /**
  * Worker pool for parallel chunk processing (compress -> encrypt -> hash).
  *
- * Pool of min(hardwareConcurrency, 4) workers.
+ * Pool size is determined by the device profile (CPU/RAM aware).
  * Queue-based: idle worker picks next chunk from queue.
  */
 
 import type { WorkerInput, WorkerOutput } from "@/workers/crypto-worker";
+import { getDeviceProfile } from "@/lib/device-profile";
 
 type QueueItem = {
   input: WorkerInput;
@@ -20,7 +21,7 @@ export class WorkerPool {
   private terminated = false;
 
   constructor(poolSize?: number) {
-    const size = poolSize ?? Math.min(navigator.hardwareConcurrency ?? 2, 4);
+    const size = poolSize ?? getDeviceProfile().workers;
     for (let i = 0; i < size; i++) {
       const worker = new Worker(
         new URL("../workers/crypto-worker.ts", import.meta.url),
