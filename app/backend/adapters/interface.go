@@ -36,3 +36,15 @@ type BatchCommitter interface {
 	// FlushCommits creates a single commit for all pending uploaded chunks.
 	FlushCommits(ctx context.Context, repo string) error
 }
+
+// DirectUploader is an optional interface for adapters that support presigned URL uploads.
+// When available, clients upload chunks directly to the platform storage,
+// bypassing the server relay and eliminating the double-hop bottleneck.
+type DirectUploader interface {
+	// GetUploadURL obtains a presigned upload URL from the platform.
+	// Returns ("", nil, nil) if the object already exists (dedup).
+	GetUploadURL(ctx context.Context, repo string, oid string, size int64) (url string, headers map[string]string, err error)
+
+	// RegisterUpload records a directly-uploaded chunk for later batch commit.
+	RegisterUpload(remotePath, oid string, size int64)
+}

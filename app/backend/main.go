@@ -144,6 +144,8 @@ func main() {
 	// Client-side encrypted upload (chunked)
 	mux.HandleFunc("POST /api/upload/init", server.AuthMiddleware(server.HandleUploadInit))
 	mux.HandleFunc("PUT /api/upload/{sid}/chunk/{idx}", server.AuthMiddleware(server.HandleChunkUpload))
+	mux.HandleFunc("POST /api/upload/{sid}/presign/{idx}", server.AuthMiddleware(server.HandlePresignChunk))
+	mux.HandleFunc("POST /api/upload/{sid}/confirm/{idx}", server.AuthMiddleware(server.HandleConfirmChunk))
 	mux.HandleFunc("POST /api/upload/{sid}/complete", server.AuthMiddleware(server.HandleUploadComplete))
 	mux.HandleFunc("DELETE /api/upload/{sid}", server.AuthMiddleware(server.HandleUploadCancel))
 	mux.HandleFunc("GET /api/upload/{sid}/status", server.AuthMiddleware(server.HandleUploadStatus))

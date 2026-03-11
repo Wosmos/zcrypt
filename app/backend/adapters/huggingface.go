@@ -367,9 +367,9 @@ func isRetryable(err error) bool {
 		strings.Contains(s, "EOF")
 }
 
-// lfsUpload handles the Git LFS batch protocol to upload binary data.
-func (h *HuggingFaceAdapter) lfsUpload(ctx context.Context, repo, oid string, size int64, data []byte) error {
-	// LFS batch request
+// getLFSUploadInfo calls the LFS batch API to obtain a presigned upload URL.
+// Returns ("", nil, nil) if the object already exists on the platform (dedup).
+func (h *HuggingFaceAdapter) getLFSUploadInfo(ctx context.Context, repo, oid string, size int64) (string, map[string]string, error) {
 	batchBody := map[string]interface{}{
 		"operation": "upload",
 		"transfers": []string{"basic"},
@@ -383,12 +383,11 @@ func (h *HuggingFaceAdapter) lfsUpload(ctx context.Context, repo, oid string, si
 
 	bodyData, err := json.Marshal(batchBody)
 	if err != nil {
-		return fmt.Errorf("marshal lfs batch: %w", err)
+		return "", nil, fmt.Errorf("marshal lfs batch: %w", err)
 	}
 
 	lfsURL := fmt.Sprintf("%s/%s.git/info/lfs/objects/batch", hfEndpoint, repo)
 
-	// LFS batch request with retries
 	var batchResp struct {
 		Objects []struct {
 			OID     string `json:"oid"`
@@ -409,14 +408,14 @@ func (h *HuggingFaceAdapter) lfsUpload(ctx context.Context, repo, oid string, si
 			log.Printf("retrying LFS batch (attempt %d/%d) after %v: %v", attempt, maxRetries, wait, lastErr)
 			select {
 			case <-ctx.Done():
-				return fmt.Errorf("lfs batch: %w", ctx.Err())
+				return "", nil, fmt.Errorf("lfs batch: %w", ctx.Err())
 			case <-time.After(wait):
 			}
 		}
 
 		req, err := http.NewRequestWithContext(ctx, "POST", lfsURL, bytes.NewReader(bodyData))
 		if err != nil {
-			return fmt.Errorf("create lfs batch request: %w", err)
+			return "", nil, fmt.Errorf("create lfs batch request: %w", err)
 		}
 		req.Header.Set("Content-Type", "application/vnd.git-lfs+json")
 		req.Header.Set("Accept", "application/vnd.git-lfs+json")
@@ -428,7 +427,7 @@ func (h *HuggingFaceAdapter) lfsUpload(ctx context.Context, repo, oid string, si
 			if isRetryable(err) {
 				continue
 			}
-			return fmt.Errorf("lfs batch: %w", err)
+			return "", nil, fmt.Errorf("lfs batch: %w", err)
 		}
 
 		if resp.StatusCode >= 500 {
@@ -441,33 +440,38 @@ func (h *HuggingFaceAdapter) lfsUpload(ctx context.Context, repo, oid string, si
 		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 			body, _ := io.ReadAll(resp.Body)
 			resp.Body.Close()
-			return fmt.Errorf("lfs batch returned %d: %s", resp.StatusCode, string(body))
+			return "", nil, fmt.Errorf("lfs batch returned %d: %s", resp.StatusCode, string(body))
 		}
 
 		if err := json.NewDecoder(resp.Body).Decode(&batchResp); err != nil {
 			resp.Body.Close()
-			return fmt.Errorf("decode lfs batch: %w", err)
+			return "", nil, fmt.Errorf("decode lfs batch: %w", err)
 		}
 		resp.Body.Close()
 		lastErr = nil
 		break
 	}
 	if lastErr != nil {
-		return fmt.Errorf("lfs batch after %d retries: %w", maxRetries, lastErr)
+		return "", nil, fmt.Errorf("lfs batch after %d retries: %w", maxRetries, lastErr)
 	}
 
 	if len(batchResp.Objects) == 0 {
-		return fmt.Errorf("lfs batch returned no objects")
+		return "", nil, fmt.Errorf("lfs batch returned no objects")
 	}
 
 	obj := batchResp.Objects[0]
 
-	// If no upload action, the object already exists (deduplication)
+	// No upload action means the object already exists (dedup)
 	if obj.Actions.Upload.Href == "" {
-		return nil
+		return "", nil, nil
 	}
 
-	// Upload the actual data with retries
+	return obj.Actions.Upload.Href, obj.Actions.Upload.Header, nil
+}
+
+// uploadToLFSURL uploads data to a presigned LFS URL with retries.
+func (h *HuggingFaceAdapter) uploadToLFSURL(ctx context.Context, url string, headers map[string]string, data []byte) error {
+	var lastErr error
 	for attempt := 0; attempt <= maxRetries; attempt++ {
 		if attempt > 0 {
 			wait := retryBaseWait * time.Duration(math.Pow(2, float64(attempt-1)))
@@ -479,12 +483,12 @@ func (h *HuggingFaceAdapter) lfsUpload(ctx context.Context, repo, oid string, si
 			}
 		}
 
-		uploadReq, err := http.NewRequestWithContext(ctx, "PUT", obj.Actions.Upload.Href, bytes.NewReader(data))
+		uploadReq, err := http.NewRequestWithContext(ctx, "PUT", url, bytes.NewReader(data))
 		if err != nil {
 			return fmt.Errorf("create lfs upload request: %w", err)
 		}
 		uploadReq.Header.Set("Content-Type", "application/octet-stream")
-		for k, v := range obj.Actions.Upload.Header {
+		for k, v := range headers {
 			uploadReq.Header.Set(k, v)
 		}
 
@@ -514,6 +518,30 @@ func (h *HuggingFaceAdapter) lfsUpload(ctx context.Context, repo, oid string, si
 	}
 
 	return fmt.Errorf("lfs upload after %d retries: %w", maxRetries, lastErr)
+}
+
+// lfsUpload handles the Git LFS batch protocol to upload binary data.
+func (h *HuggingFaceAdapter) lfsUpload(ctx context.Context, repo, oid string, size int64, data []byte) error {
+	url, headers, err := h.getLFSUploadInfo(ctx, repo, oid, size)
+	if err != nil {
+		return err
+	}
+	if url == "" {
+		return nil // already exists (dedup)
+	}
+	return h.uploadToLFSURL(ctx, url, headers, data)
+}
+
+// GetUploadURL implements DirectUploader — returns a presigned URL for direct client upload.
+func (h *HuggingFaceAdapter) GetUploadURL(ctx context.Context, repo string, oid string, size int64) (string, map[string]string, error) {
+	return h.getLFSUploadInfo(ctx, repo, oid, size)
+}
+
+// RegisterUpload implements DirectUploader — records a directly-uploaded chunk for batch commit.
+func (h *HuggingFaceAdapter) RegisterUpload(remotePath, oid string, size int64) {
+	h.mu.Lock()
+	h.pendingCommits = append(h.pendingCommits, lfsFileEntry{Path: remotePath, OID: oid, Size: size})
+	h.mu.Unlock()
 }
 
 // createLFSCommit creates a commit that references an LFS object (used by Delete).
