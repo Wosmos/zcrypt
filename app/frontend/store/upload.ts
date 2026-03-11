@@ -155,57 +155,129 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
         });
         setFileId(id, session.file_id);
 
-        // Step 5: Process and upload chunks
+        // Step 5: Process and upload chunks with TWO-STAGE BACKPRESSURE
+        //
+        // Pipeline: [read+process in worker] → [upload to server]
+        //            ~100ms per chunk            ~2-10s per chunk
+        //
+        // Two independent limits:
+        //   pipelineDepth: how far ahead workers can pre-process (keeps workers busy)
+        //   maxUploads: concurrent network uploads to server (prevents server OOM)
+        //
+        // Workers race ahead and build a buffer of processed chunks.
+        // Uploads drain that buffer at network speed.
+        // The loop only stalls when pipelineDepth is full (too many unuploaded chunks).
         let uploadedChunks = 0;
         let totalEncryptedSize = 0;
         let totalCompressedSize = 0;
 
+        // Pipeline depth: allow workers to pre-process several chunks ahead of uploads.
+        // Higher = better throughput (workers never idle), more client RAM.
+        // Each slot holds one chunk (~chunkSize bytes) in memory.
+        const pipelineDepth = Math.min(profile.workers * 3, 12);
+        let pipelineSlots = 0;
+        const pipelineWaiters: (() => void)[] = [];
+
+        const acquirePipelineSlot = (): Promise<void> => {
+          if (pipelineSlots < pipelineDepth) {
+            pipelineSlots++;
+            return Promise.resolve();
+          }
+          return new Promise<void>((resolve) => pipelineWaiters.push(resolve));
+        };
+
+        const releasePipelineSlot = () => {
+          pipelineSlots--;
+          const next = pipelineWaiters.shift();
+          if (next) {
+            pipelineSlots++;
+            next();
+          }
+        };
+
+        // Upload concurrency: limit simultaneous network requests to server.
+        // Server has its own semaphore (6) but we cap at 3 to be a good client.
+        const maxUploads = 3;
+        let activeUploads = 0;
+        const uploadWaiters: (() => void)[] = [];
+
+        const acquireUploadSlot = (): Promise<void> => {
+          if (activeUploads < maxUploads) {
+            activeUploads++;
+            return Promise.resolve();
+          }
+          return new Promise<void>((resolve) => uploadWaiters.push(resolve));
+        };
+
+        const releaseUploadSlot = () => {
+          activeUploads--;
+          const next = uploadWaiters.shift();
+          if (next) {
+            activeUploads++;
+            next();
+          }
+        };
+
         const chunkPromises: Promise<void>[] = [];
+        let firstError: Error | null = null;
 
         for (let i = 0; i < chunkCount; i++) {
+          if (firstError) break;
+
+          // Backpressure: don't read ahead more than pipelineDepth chunks
+          await acquirePipelineSlot();
+
           const start = i * chunkSize;
           const end = Math.min(start + chunkSize, file.size);
-          // Lazy slice via File.slice() — only this chunk in RAM
           const chunkSlice = file.slice(start, end);
           const chunkData = await chunkSlice.arrayBuffer();
 
           // Send to worker for compress -> encrypt -> hash
-          const workerPromise = pool.process({
+          const chunkPromise = pool.process({
             chunkIndex: i,
-            plaintext: chunkData, // transferred, not copied
+            plaintext: chunkData, // transferred to worker (zero-copy)
             keyBytes: keyBytes.slice(0), // copy since buffer gets neutered on transfer
             compress: true,
             compressionLevel: profile.compressionLevel,
           }).then(async (result) => {
-            // Upload encrypted chunk to server
-            const encrypted = new Uint8Array(result.encrypted);
-            await uploadChunk(
-              session.session_id,
-              result.chunkIndex,
-              encrypted,
-              result.sha256,
-              result.compressed
-            );
+            // Wait for upload slot (limits concurrent server requests)
+            await acquireUploadSlot();
 
-            uploadedChunks++;
-            totalEncryptedSize += result.encryptedSize;
-            totalCompressedSize += result.compressed ? result.compressedSize : result.originalSize;
+            try {
+              const encrypted = new Uint8Array(result.encrypted);
+              await uploadChunk(
+                session.session_id,
+                result.chunkIndex,
+                encrypted,
+                result.sha256,
+                result.compressed
+              );
 
-            const percent = 15 + Math.round((uploadedChunks / chunkCount) * 80);
-            updateStatus(
-              id,
-              "uploading",
-              percent,
-              `Uploading chunk ${uploadedChunks}/${chunkCount}`,
-              uploadedChunks * chunkSize,
-              file.size
-            );
+              uploadedChunks++;
+              totalEncryptedSize += result.encryptedSize;
+              totalCompressedSize += result.compressed ? result.compressedSize : result.originalSize;
+
+              const percent = 15 + Math.round((uploadedChunks / chunkCount) * 80);
+              updateStatus(
+                id,
+                "uploading",
+                percent,
+                `Uploading chunk ${uploadedChunks}/${chunkCount}`,
+                uploadedChunks * chunkSize,
+                file.size
+              );
+            } finally {
+              releaseUploadSlot();
+            }
+          }).finally(releasePipelineSlot).catch((err) => {
+            if (!firstError) firstError = err instanceof Error ? err : new Error(String(err));
           });
 
-          chunkPromises.push(workerPromise);
+          chunkPromises.push(chunkPromise);
         }
 
         await Promise.all(chunkPromises);
+        if (firstError) throw firstError;
 
         // Step 6: Complete upload
         updateStatus(id, "uploading", 95, "Finalizing...");

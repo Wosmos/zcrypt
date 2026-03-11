@@ -21,6 +21,11 @@ import (
 // Max encrypted chunk size: 16MB data (ultra tier) + 12B IV + 16B tag + margin
 const maxChunkSize = 17 * 1024 * 1024
 
+// chunkUploadSem limits concurrent chunk uploads being processed server-wide.
+// Each chunk can use ~35MB (raw data + base64 for GitHub API), so 6 concurrent = ~210MB.
+// This prevents OOM on Railway containers with limited RAM (512MB–1GB).
+var chunkUploadSem = make(chan struct{}, 6)
+
 // HandleUploadInit creates a new chunked upload session.
 // POST /api/upload/init
 func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
@@ -166,6 +171,15 @@ func (s *Server) HandleChunkUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	compressed := r.Header.Get("X-Chunk-Compressed") == "true"
+
+	// Acquire semaphore slot — limits server-wide concurrent chunk processing to prevent OOM
+	select {
+	case chunkUploadSem <- struct{}{}:
+		defer func() { <-chunkUploadSem }()
+	case <-ctx.Done():
+		http.Error(w, `{"error":"request cancelled"}`, http.StatusServiceUnavailable)
+		return
+	}
 
 	// Validate session
 	session, err := s.db.GetUploadSession(ctx, sessionID, userID)
