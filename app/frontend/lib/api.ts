@@ -292,6 +292,40 @@ export interface AdminAuditResponse {
   total: number;
 }
 
+// ─── Feedback API ───
+
+export function submitFeedback(data: { rating: number; message: string; context: string }): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>("/api/feedback", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export function getFeedbackStatus(): Promise<{ submitted: boolean }> {
+  return request<{ submitted: boolean }>("/api/feedback/status");
+}
+
+export interface AdminFeedbackResponse {
+  feedback: Array<{
+    id: string;
+    user_id: string;
+    rating: number;
+    message: string;
+    context: string;
+    created_at: string;
+    email: string;
+    username: string;
+  }>;
+  total: number;
+}
+
+export function adminListFeedback(limit = 20, offset = 0): Promise<AdminFeedbackResponse> {
+  return request<AdminFeedbackResponse>(`/api/admin/feedback?limit=${limit}&offset=${offset}`);
+}
+
+// ─── Admin Audit API ───
+
 export function adminGetAuditLog(params: {
   limit?: number;
   offset?: number;

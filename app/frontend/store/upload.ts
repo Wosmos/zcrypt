@@ -325,8 +325,17 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
         toast.success(`${file.name} uploaded`);
         onRefresh?.();
       } catch (err) {
-        setError(id, err instanceof Error ? err.message : "Upload failed");
-        toast.error(`Upload failed: ${err instanceof Error ? err.message : "Unknown error"}`);
+        const msg = err instanceof Error ? err.message : "Upload failed";
+        // Translate backend errors to user-friendly messages
+        const friendlyMsg = msg.includes("storage not available")
+          ? "No storage platform connected. Go to Settings to connect one."
+          : msg.includes("file too large")
+            ? msg.replace(/\(max \d+ bytes\)/, `(upgrade your plan for larger files)`)
+            : msg.includes("quota exceeded")
+              ? "Storage quota exceeded. Delete files or upgrade your plan."
+              : msg;
+        setError(id, friendlyMsg);
+        toast.error(friendlyMsg);
       } finally {
         pool.terminate();
       }

@@ -112,14 +112,26 @@ export function UserTable({
     });
   };
 
+  const planDetails: Record<string, { label: string; uploads: number; storage: string; fileSize: string }> = {
+    free: { label: "Free", uploads: 2, storage: "10 GB", fileSize: "500 MB" },
+    plus: { label: "Plus", uploads: 5, storage: "200 GB", fileSize: "5 GB" },
+    pro: { label: "Pro", uploads: 10, storage: "2 TB", fileSize: "25 GB" },
+    team: { label: "Team", uploads: 10, storage: "1 TB/seat", fileSize: "25 GB" },
+  };
+
   const handlePlanChange = (userId: string, username: string, newPlan: string) => {
+    const plan = planDetails[newPlan] || planDetails.free;
+    const planOrder = ["free", "plus", "pro", "team"];
+    const currentUser = users.find((u) => u.id === userId);
+    const currentPlanIdx = planOrder.indexOf(currentUser?.plan || "free");
+    const newPlanIdx = planOrder.indexOf(newPlan);
+    const isUpgrade = newPlanIdx > currentPlanIdx;
+
     setConfirmAction({
       type: "plan",
       userId,
       userName: username,
-      detail: newPlan === "pro"
-        ? `${username} will be upgraded to Pro plan with 5 concurrent uploads.`
-        : `${username} will be downgraded to Free plan with 2 concurrent uploads.`,
+      detail: `${username} will be ${isUpgrade ? "upgraded" : "changed"} to ${plan.label} plan (${plan.uploads} concurrent uploads, ${plan.storage} storage, ${plan.fileSize} max file size).`,
       newValue: newPlan,
     });
   };
@@ -164,13 +176,20 @@ export function UserTable({
           confirmLabel: confirmAction.newValue === "admin" ? "Promote" : "Demote",
           variant: "warning" as const,
         };
-      case "plan":
+      case "plan": {
+        const planOrder = ["free", "plus", "pro", "team"];
+        const targetUser = users.find((u) => u.id === confirmAction.userId);
+        const currentIdx = planOrder.indexOf(targetUser?.plan || "free");
+        const newIdx = planOrder.indexOf(confirmAction.newValue || "free");
+        const isUpgrade = newIdx > currentIdx;
+        const planLabel = planDetails[confirmAction.newValue || "free"]?.label || confirmAction.newValue;
         return {
-          title: confirmAction.newValue === "pro" ? "Upgrade to Pro" : "Downgrade to Free",
+          title: isUpgrade ? `Upgrade to ${planLabel}` : `Change to ${planLabel}`,
           description: confirmAction.detail,
-          confirmLabel: confirmAction.newValue === "pro" ? "Upgrade" : "Downgrade",
-          variant: confirmAction.newValue === "pro" ? ("info" as const) : ("warning" as const),
+          confirmLabel: isUpgrade ? "Upgrade" : "Change Plan",
+          variant: isUpgrade ? ("info" as const) : ("warning" as const),
         };
+      }
     }
   };
 
@@ -250,11 +269,17 @@ export function UserTable({
                             "text-xs font-medium px-2 py-1 rounded-lg border cursor-pointer transition-colors disabled:opacity-50",
                             (u.plan || "free") === "pro"
                               ? "bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20"
-                              : "bg-[var(--color-surface-2)] text-[var(--color-text-muted)] border-[var(--color-border)]"
+                              : (u.plan || "free") === "plus"
+                                ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
+                                : (u.plan || "free") === "team"
+                                  ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+                                  : "bg-[var(--color-surface-2)] text-[var(--color-text-muted)] border-[var(--color-border)]"
                           )}
                         >
                           <option value="free">Free</option>
+                          <option value="plus">Plus</option>
                           <option value="pro">Pro</option>
+                          <option value="team">Team</option>
                         </select>
                       ) : (
                         <span
@@ -262,10 +287,14 @@ export function UserTable({
                             "inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full",
                             (u.plan || "free") === "pro"
                               ? "bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/20"
-                              : "bg-[var(--color-surface-2)] text-[var(--color-text-muted)] border border-[var(--color-border)]"
+                              : (u.plan || "free") === "plus"
+                                ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20"
+                                : (u.plan || "free") === "team"
+                                  ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+                                  : "bg-[var(--color-surface-2)] text-[var(--color-text-muted)] border border-[var(--color-border)]"
                           )}
                         >
-                          {(u.plan || "free") === "pro" && <Crown className="h-3 w-3" />}
+                          {["pro", "plus", "team"].includes(u.plan || "free") && <Crown className="h-3 w-3" />}
                           {(u.plan || "free")}
                         </span>
                       )}

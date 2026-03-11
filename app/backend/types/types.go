@@ -121,6 +121,7 @@ type PlatformStatus struct {
 // ProgressEvent is sent to the frontend during operations.
 type ProgressEvent struct {
 	FileID         string `json:"file_id"`
+	UserID         string `json:"user_id,omitempty"` // for per-user SSE filtering
 	Stage          string `json:"stage"`
 	Percent        int    `json:"percent"`
 	BytesProcessed int64  `json:"bytes_processed"`
@@ -273,6 +274,25 @@ type QuotaInfo struct {
 	IsUnlimited          bool   `json:"is_unlimited"`
 	Plan                 string `json:"plan"`
 	MaxConcurrentUploads int    `json:"max_concurrent_uploads"`
+	MaxFileSize          int64  `json:"max_file_size"`
+	CanUpload            bool   `json:"can_upload"`
+}
+
+// Feedback represents user-submitted feedback.
+type Feedback struct {
+	ID        string    `json:"id"`
+	UserID    string    `json:"user_id"`
+	Rating    int       `json:"rating"`
+	Message   string    `json:"message"`
+	Context   string    `json:"context"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// FeedbackWithUser includes user info for admin views.
+type FeedbackWithUser struct {
+	Feedback
+	Email    string `json:"email"`
+	Username string `json:"username"`
 }
 
 // SystemStats holds system-wide aggregate statistics.

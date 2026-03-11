@@ -36,8 +36,6 @@ import {
   Lock,
   RefreshCw,
   X,
-  Bell,
-  BellOff,
   LayoutGrid,
   TableProperties,
   CheckSquare,
@@ -49,11 +47,15 @@ import {
 import { cn, formatBytes, getFileCategory } from "@/lib/utils";
 import Link from "next/link";
 import { useNotifications } from "@/hooks/useNotifications";
+import { NotificationCenter } from "@/components/ui/notification-center";
+import { notifications as notifActions } from "@/store/notifications";
 import { FilePreviewModal, useFilePreview } from "@/components/ui/file-preview-modal";
 import type { QuotaInfo, FileMetadata } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Pagination } from "@/components/ui/pagination";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
+import { FeedbackModal } from "@/components/feedback/feedback-modal";
+import { useFeedbackTrigger } from "@/hooks/useFeedbackTrigger";
 
 const PAGE_SIZE = 12;
 
@@ -87,19 +89,23 @@ export default function VaultPage() {
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
 
   const { files, loading, error, refresh } = useFileList();
-  const { statuses, repos, isAnyConnected } = usePlatformHealth();
+  const { statuses, repos } = usePlatformHealth();
   const { updateStatus, setError, startUpload: storeStartUpload } = useUploadStore();
   const { getPassphrase, clear: clearPassphrase } = usePassphraseStore();
   const cachedPassphrase = usePassphraseStore((s) => s.cachedPassphrase);
   const cacheUntil = usePassphraseStore((s) => s.cacheUntil);
   const getRemainingMinutes = usePassphraseStore((s) => s.getRemainingMinutes);
   const [, forceUpdate] = useState(0);
-  const { notify, requestPermission, isSupported, isGranted } = useNotifications();
+  const { notify } = useNotifications();
   const preview = useFilePreview();
   const [quotaInfo, setQuotaInfo] = useState<QuotaInfo | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<FileMetadata | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [quotaExceeded, setQuotaExceeded] = useState<{ totalSize: number; remaining: number } | null>(null);
+  const { showFeedback, dismiss: dismissFeedback, markSubmitted: markFeedbackSubmitted } = useFeedbackTrigger(
+    quotaInfo?.used_bytes ?? 0,
+    quotaInfo?.quota_bytes ?? 0
+  );
 
   // Fetch quota info
   useEffect(() => {
@@ -132,6 +138,7 @@ export default function VaultPage() {
     if (stageLower.startsWith("error:")) {
       const errorMsg = event.stage.substring(7);
       setError(target.id, errorMsg);
+      notifActions.uploadFailed(target.file.name, errorMsg);
       return;
     }
 
@@ -144,15 +151,19 @@ export default function VaultPage() {
     updateStatus(target.id, status, event.percent, event.stage, event.bytes_processed, event.total_bytes);
     if (stageLower === "done") {
       refresh();
+      getQuota().then(setQuotaInfo).catch(() => {});
+      toast.success(`${target.file.name} uploaded successfully`);
       notify(`Upload complete`, { body: target.file.name, tag: "upload-done" });
+      notifActions.uploadComplete(target.file.name);
     }
   });
 
   // --- Upload flow ---
   const handleFilesSelected = useCallback(
     (selectedFiles: File[]) => {
-      if (!isAnyConnected) {
-        toast.warning("Connect a platform in Settings first");
+      // Check if managed storage or personal tokens are available
+      if (quotaInfo && !quotaInfo.can_upload) {
+        toast.warning("No storage platform connected. Go to Settings to connect one.");
         return;
       }
 
@@ -169,6 +180,16 @@ export default function VaultPage() {
       }
 
       if (uniqueFiles.length === 0) return;
+
+      // Check per-file max size
+      if (quotaInfo?.max_file_size) {
+        const oversized = uniqueFiles.filter((f) => f.size > quotaInfo.max_file_size);
+        if (oversized.length > 0) {
+          const names = oversized.length <= 2 ? oversized.map((f) => f.name).join(", ") : `${oversized.length} files`;
+          toast.error(`${names} exceed${oversized.length === 1 ? "s" : ""} the ${formatBytes(quotaInfo.max_file_size)} file size limit for your ${quotaInfo.plan} plan`);
+          return;
+        }
+      }
 
       if (quotaInfo && !quotaInfo.is_unlimited && quotaInfo.quota_bytes > 0) {
         const totalUploadSize = uniqueFiles.reduce((sum, f) => sum + f.size, 0);
@@ -187,7 +208,7 @@ export default function VaultPage() {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [isAnyConnected, quotaInfo, files]
+    [quotaInfo, files]
   );
 
   const startUpload = useCallback(
@@ -507,7 +528,11 @@ export default function VaultPage() {
                     "text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md",
                     quotaInfo.plan === "pro"
                       ? "bg-violet-500/15 text-violet-500"
-                      : "bg-[var(--color-surface-1)] text-[var(--color-text-muted)]"
+                      : quotaInfo.plan === "plus"
+                        ? "bg-blue-500/15 text-blue-500"
+                        : quotaInfo.plan === "team"
+                          ? "bg-amber-500/15 text-amber-500"
+                          : "bg-[var(--color-surface-1)] text-[var(--color-text-muted)]"
                   )}>
                     {quotaInfo.plan}
                   </span>
@@ -532,20 +557,7 @@ export default function VaultPage() {
               </button>
             </div>
           )}
-          {isSupported && (
-            <button
-              onClick={requestPermission}
-              className={cn(
-                "flex items-center justify-center h-9 w-9 rounded-lg transition-colors",
-                isGranted
-                  ? "text-[var(--color-accent)] bg-[var(--color-accent)]/10"
-                  : "text-[var(--color-text-muted)] hover:bg-[var(--color-surface-1)]"
-              )}
-              title={isGranted ? "Notifications enabled" : "Enable notifications"}
-            >
-              {isGranted ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
-            </button>
-          )}
+          <NotificationCenter />
           <Button variant="ghost" size="sm" onClick={() => refresh()} className="h-9 w-9 p-0">
             <RefreshCw className="h-4 w-4" />
           </Button>
@@ -579,22 +591,23 @@ export default function VaultPage() {
       ) : (
       <>
 
-      {/* No platform warning */}
-      {!isAnyConnected && (
+      {/* No storage available warning */}
+      {quotaInfo && !quotaInfo.can_upload && (
         <div className="flex items-start gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4">
           <AlertTriangle className="h-5 w-5 text-amber-500 dark:text-amber-400 flex-shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-medium text-amber-700 dark:text-amber-300">
-              No platform connected
+              Storage not available yet
             </p>
             <p className="text-xs text-amber-600/70 dark:text-amber-400/60 mt-0.5">
+              Managed storage is being set up. You can also{" "}
               <Link
                 href="/settings"
                 className="underline hover:text-amber-600 dark:hover:text-amber-300 transition-colors"
               >
-                Go to Settings
+                connect your own platform
               </Link>{" "}
-              to connect a platform before uploading.
+              for unlimited storage.
             </p>
           </div>
         </div>
@@ -605,8 +618,8 @@ export default function VaultPage() {
         <UploadZone
           onFiles={handleFilesSelected}
           hint={
-            !isAnyConnected
-              ? "Connect a platform in Settings first"
+            quotaInfo && !quotaInfo.can_upload
+              ? "Storage not available yet"
               : hasCachedPassphrase
                 ? "Passphrase cached — drop files to upload instantly"
                 : undefined
@@ -907,8 +920,15 @@ export default function VaultPage() {
         loading={bulkDeleting}
       />
 
+      {/* Feedback modal */}
+      <FeedbackModal
+        open={showFeedback}
+        onClose={dismissFeedback}
+        onSubmitted={markFeedbackSubmitted}
+      />
+
       {/* Mobile upload FAB */}
-      {isAnyConnected && <UploadFAB onFiles={handleFilesSelected} />}
+      {(!quotaInfo || quotaInfo.can_upload) && <UploadFAB onFiles={handleFilesSelected} />}
 
       {/* Storage quota exceeded modal */}
       <ConfirmModal
@@ -918,7 +938,7 @@ export default function VaultPage() {
         title="Storage Quota Exceeded"
         description={
           quotaExceeded
-            ? `The selected files (${formatBytes(quotaExceeded.totalSize)}) exceed your available storage (${formatBytes(quotaExceeded.remaining)} remaining). Delete some files or contact an admin to increase your quota.`
+            ? `The selected files (${formatBytes(quotaExceeded.totalSize)}) exceed your available storage (${formatBytes(quotaExceeded.remaining)} remaining). Delete some files or upgrade your plan for more storage.`
             : ""
         }
         confirmLabel="OK"

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { toast } from "@/store/toast";
+import { notifications } from "@/store/notifications";
 import { downloadAndDecryptFile } from "@/lib/download-session";
 
 export type DownloadStatus = "queued" | "downloading" | "done" | "failed" | "cancelled";
@@ -111,6 +112,14 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
 
         updateProgress("done", 100, "Done");
         toast.success(`${filename} downloaded`);
+        notifications.downloadComplete(filename);
+
+        // Web notification when tab is hidden
+        if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted" && document.hidden) {
+          const n = new Notification("Download complete", { body: filename, icon: "/favicon.ico", tag: "download-done" });
+          setTimeout(() => n.close(), 5000);
+          n.onclick = () => { window.focus(); n.close(); };
+        }
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") {
           updateProgress("cancelled", undefined, "Cancelled");
@@ -123,6 +132,7 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
           ),
         }));
         toast.error(`Download failed: ${msg}`);
+        notifications.downloadFailed(filename, msg);
       } finally {
         // Clean up controller
         set((state) => {

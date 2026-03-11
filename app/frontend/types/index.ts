@@ -119,6 +119,8 @@ export interface QuotaInfo {
   is_unlimited: boolean;
   plan: string;
   max_concurrent_uploads: number;
+  max_file_size: number;
+  can_upload: boolean;
 }
 
 export interface PlatformTokenInfo {

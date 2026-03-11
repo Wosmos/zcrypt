@@ -79,6 +79,20 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Enforce max file size per plan
+	plan := "free"
+	if user, uErr := s.db.GetUserByID(ctx, userID); uErr == nil && user != nil && user.Plan != "" {
+		plan = user.Plan
+	}
+	maxFileSize := planMaxFileSize[plan]
+	if maxFileSize == 0 {
+		maxFileSize = 500 * 1024 * 1024
+	}
+	if req.OriginalSize > maxFileSize {
+		http.Error(w, fmt.Sprintf(`{"error":"file too large for %s plan (max %d bytes)"}`, plan, maxFileSize), http.StatusForbidden)
+		return
+	}
+
 	// Enforce storage quota
 	if !s.isQuotaExempt(ctx, userID) {
 		quota := s.getEffectiveQuota(ctx, userID)
@@ -95,10 +109,16 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Select adapter and get repo
+	// Select adapter and get repo (uses personal tokens + global/managed tokens)
 	key, _, pool, err := s.selectAdapter(ctx, userID, req.Platform)
 	if err != nil {
-		http.Error(w, `{"error":"no platform connected"}`, http.StatusBadRequest)
+		// Check if user has personal tokens — if not, this is a managed storage issue
+		hasPersonal, _ := s.db.UserHasPersonalTokens(ctx, userID)
+		if hasPersonal {
+			http.Error(w, fmt.Sprintf(`{"error":"platform not available: %s"}`, err), http.StatusBadRequest)
+		} else {
+			http.Error(w, `{"error":"storage not available yet — managed storage is being configured"}`, http.StatusServiceUnavailable)
+		}
 		return
 	}
 
@@ -325,6 +345,7 @@ func (s *Server) HandleChunkUpload(w http.ResponseWriter, r *http.Request) {
 	percent := int(float64(session.UploadedChunks+1) / float64(session.ChunkCount) * 100)
 	s.progress.Emit(types.ProgressEvent{
 		FileID:         session.FileID,
+		UserID:         userID,
 		Stage:          fmt.Sprintf("uploading chunk %d/%d", chunkIndex+1, session.ChunkCount),
 		Percent:        percent,
 		BytesProcessed: int64(len(data)),
@@ -409,6 +430,7 @@ func (s *Server) HandleUploadComplete(w http.ResponseWriter, r *http.Request) {
 	// Emit completion event
 	s.progress.Emit(types.ProgressEvent{
 		FileID:  session.FileID,
+		UserID:  userID,
 		Stage:   "done",
 		Percent: 100,
 	})
@@ -457,7 +479,9 @@ func (s *Server) HandleUploadCancel(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Emit error event so frontend knows
-	s.progress.Emit(pipeline.ErrorEvent(session.FileID, "upload cancelled"))
+	cancelEvent := pipeline.ErrorEvent(session.FileID, "upload cancelled")
+	cancelEvent.UserID = userID
+	s.progress.Emit(cancelEvent)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
@@ -666,6 +690,7 @@ func (s *Server) HandleConfirmChunk(w http.ResponseWriter, r *http.Request) {
 	percent := int(float64(session.UploadedChunks+1) / float64(session.ChunkCount) * 100)
 	s.progress.Emit(types.ProgressEvent{
 		FileID:         session.FileID,
+		UserID:         userID,
 		Stage:          fmt.Sprintf("uploading chunk %d/%d", chunkIndex+1, session.ChunkCount),
 		Percent:        percent,
 		BytesProcessed: req.Size,

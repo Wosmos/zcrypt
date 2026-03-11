@@ -20,17 +20,18 @@ export function useNotifications() {
     return result === "granted";
   }, []);
 
-  const notify = useCallback((title: string, options?: NotificationOptions) => {
+  const notify = useCallback((title: string, options?: NotificationOptions & { always?: boolean }) => {
     if (typeof window === "undefined" || !("Notification" in window)) return;
     if (Notification.permission !== "granted") return;
 
-    // Only notify when tab is not focused
-    if (!document.hidden) return;
+    // By default only notify when tab is not focused, unless always=true
+    if (!options?.always && !document.hidden) return;
 
+    const { always: _, ...notifOptions } = options || {};
     const n = new Notification(title, {
       icon: "/favicon.ico",
       badge: "/favicon.ico",
-      ...options,
+      ...notifOptions,
     });
 
     // Auto-close after 5s

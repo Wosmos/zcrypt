@@ -198,4 +198,17 @@ ALTER TABLE chunks ADD COLUMN IF NOT EXISTS compressed BOOLEAN NOT NULL DEFAULT 
 ALTER TABLE email_tokens DROP CONSTRAINT IF EXISTS email_tokens_kind_check;
 ALTER TABLE email_tokens ADD CONSTRAINT email_tokens_kind_check
 	CHECK (kind IN ('verify', 'reset', 'magic_link'));
+
+-- User feedback
+CREATE TABLE IF NOT EXISTS feedback (
+	id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+	user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	rating     INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+	message    TEXT NOT NULL DEFAULT '',
+	context    TEXT NOT NULL DEFAULT '',
+	created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_feedback_user ON feedback(user_id);
+CREATE INDEX IF NOT EXISTS idx_feedback_time ON feedback(created_at DESC);
 `

@@ -66,13 +66,22 @@ func ErrorEvent(fileID, errMsg string) types.ProgressEvent {
 	}
 }
 
-// Emit sends a progress event to all subscribers (backward compatible).
+// Emit sends a progress event to the owning user (or all admins).
 func (pe *ProgressEmitter) Emit(event types.ProgressEvent) {
 	pe.mu.RLock()
 	defer pe.mu.RUnlock()
 
-	sse := SSEEvent{Type: "progress", Payload: event}
+	// Strip user_id from the payload sent to clients (internal routing only)
+	clientEvent := event
+	targetUserID := event.UserID
+	clientEvent.UserID = ""
+
+	sse := SSEEvent{Type: "progress", Payload: clientEvent}
 	for _, sub := range pe.subscribers {
+		// If event has a user_id, only send to that user (or admins)
+		if targetUserID != "" && sub.userID != targetUserID && !sub.isAdmin {
+			continue
+		}
 		select {
 		case sub.ch <- sse:
 		default:
