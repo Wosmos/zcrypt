@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
@@ -10,6 +11,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/google/uuid"
 	"github.com/zpush/zpush/adapters"
@@ -26,6 +28,25 @@ const maxChunkSize = 17 * 1024 * 1024
 // Suitable for containers with 1-4GB RAM. For direct upload platforms (HuggingFace),
 // the data never passes through the server so this only applies to relay uploads (GitHub).
 var chunkUploadSem = make(chan struct{}, 10)
+
+// repoUploadSems limits concurrent relay uploads per repository.
+// GitHub's Contents API creates one commit per file — concurrent commits to the same repo
+// cause 409 SHA conflicts. Limiting to 2 concurrent uploads per repo drastically reduces
+// contention while keeping throughput reasonable.
+var repoUploadSems sync.Map // map[string]chan struct{}
+
+const perRepoMaxConcurrent = 2
+
+func acquireRepoSlot(ctx context.Context, repoURL string) (release func(), err error) {
+	val, _ := repoUploadSems.LoadOrStore(repoURL, make(chan struct{}, perRepoMaxConcurrent))
+	sem := val.(chan struct{})
+	select {
+	case sem <- struct{}{}:
+		return func() { <-sem }, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
 
 // HandleUploadInit creates a new chunked upload session.
 // POST /api/upload/init
@@ -188,7 +209,7 @@ func (s *Server) HandleChunkUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate session
+	// Validate session (need repo URL for per-repo semaphore)
 	session, err := s.db.GetUploadSession(ctx, sessionID, userID)
 	if err != nil {
 		http.Error(w, `{"error":"upload session not found"}`, http.StatusNotFound)
@@ -249,6 +270,14 @@ func (s *Server) HandleChunkUpload(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf(`{"error":"generate filename: %s"}`, err), http.StatusInternalServerError)
 		return
 	}
+
+	// Acquire per-repo slot — limits concurrent commits to the same repo (prevents GitHub 409 storms)
+	releaseRepo, err := acquireRepoSlot(ctx, session.RepoURL)
+	if err != nil {
+		http.Error(w, `{"error":"request cancelled"}`, http.StatusServiceUnavailable)
+		return
+	}
+	defer releaseRepo()
 
 	// Upload to platform
 	chunkRef, err := adapter.Upload(ctx, session.RepoURL, types.Chunk{

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"strings"
 	"time"
@@ -69,15 +70,20 @@ func (g *GithubAdapter) Upload(ctx context.Context, repo string, chunk types.Chu
 
 	owner, repoName := g.parseRepo(repo)
 
-	// Retry on 409 (SHA conflict from concurrent commits) with exponential backoff
+	// Retry on 409 (SHA conflict from concurrent commits) with exponential backoff + jitter.
+	// GitHub Contents API creates one commit per CreateFile — concurrent uploads to the same
+	// repo race on HEAD SHA. With the server-side per-repo semaphore limiting to 2 concurrent,
+	// 10 retries with jitter handles residual contention reliably.
 	var lastErr error
-	for attempt := 0; attempt < 5; attempt++ {
+	for attempt := 0; attempt < 10; attempt++ {
 		if attempt > 0 {
-			wait := time.Duration(1<<uint(attempt-1)) * time.Second
+			// Exponential backoff capped at 8s, plus random jitter up to 1s
+			base := time.Duration(1<<uint(min(attempt-1, 3))) * time.Second
+			jitter := time.Duration(rand.Intn(1000)) * time.Millisecond
 			select {
 			case <-ctx.Done():
 				return types.ChunkRef{}, ctx.Err()
-			case <-time.After(wait):
+			case <-time.After(base + jitter):
 			}
 			// Generate new filename on 409 (path collision)
 			newPath, err := disguise.ChunkFilename()
