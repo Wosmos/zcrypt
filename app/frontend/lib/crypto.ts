@@ -95,21 +95,29 @@ export async function sha256Hex(data: Uint8Array): Promise<string> {
     .join("");
 }
 
-/** Compute SHA-256 hex digest of a File using streaming (no full file in RAM). */
+/** Compute SHA-256 hex digest of a File using streaming (constant ~4MB RAM). */
 export async function sha256File(file: File): Promise<string> {
-  // Use streaming hash for files > 50MB, otherwise read all at once
+  // Small files: read all at once (fast path)
   if (file.size <= 50 * 1024 * 1024) {
     const buf = await file.arrayBuffer();
     return sha256Hex(new Uint8Array(buf));
   }
 
-  // Stream the file in 2MB chunks through SubtleCrypto
-  // SubtleCrypto doesn't support streaming digest, so we use a manual accumulator
-  const STREAM_CHUNK = 2 * 1024 * 1024;
-  // Fall back to reading the entire ArrayBuffer for now
-  // (browsers don't support streaming SHA-256 via SubtleCrypto)
-  const buf = await file.arrayBuffer();
-  return sha256Hex(new Uint8Array(buf));
+  // Large files: stream in 4MB chunks using @noble/hashes (incremental updates)
+  const { sha256: nobleSha256 } = await import("@noble/hashes/sha2.js");
+  const hasher = nobleSha256.create();
+  const STREAM_CHUNK = 4 * 1024 * 1024;
+
+  for (let offset = 0; offset < file.size; offset += STREAM_CHUNK) {
+    const slice = file.slice(offset, Math.min(offset + STREAM_CHUNK, file.size));
+    const buf = await slice.arrayBuffer();
+    hasher.update(new Uint8Array(buf));
+  }
+
+  const hash = hasher.digest();
+  return Array.from(hash)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 /** Encode bytes to base64 string. */

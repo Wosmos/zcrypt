@@ -18,8 +18,8 @@ import (
 	"github.com/zpush/zpush/types"
 )
 
-// Max encrypted chunk size: 10MB data + 12B IV + 16B tag + margin
-const maxChunkSize = 11 * 1024 * 1024
+// Max encrypted chunk size: 16MB data (ultra tier) + 12B IV + 16B tag + margin
+const maxChunkSize = 17 * 1024 * 1024
 
 // HandleUploadInit creates a new chunked upload session.
 // POST /api/upload/init

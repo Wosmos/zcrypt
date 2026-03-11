@@ -21,6 +21,7 @@ export interface WorkerInput {
   plaintext: ArrayBuffer;
   keyBytes: ArrayBuffer;
   compress: boolean;
+  compressionLevel?: number; // zstd level 1-3 (default 3)
 }
 
 export interface WorkerOutput {
@@ -55,7 +56,7 @@ async function sha256Hex(data: Uint8Array): Promise<string> {
 self.onmessage = async (e: MessageEvent<WorkerInput>) => {
   await initPromise;
 
-  const { chunkIndex, plaintext, keyBytes, compress } = e.data;
+  const { chunkIndex, plaintext, keyBytes, compress, compressionLevel = 3 } = e.data;
   const raw = new Uint8Array(plaintext);
   const originalSize = raw.byteLength;
 
@@ -65,7 +66,7 @@ self.onmessage = async (e: MessageEvent<WorkerInput>) => {
   // Compress if requested and beneficial
   if (compress && zstd) {
     try {
-      const compressedData = zstd.ZstdSimple.compress(raw, 3);
+      const compressedData = zstd.ZstdStream.compress(raw, compressionLevel);
       // Only use compressed version if it saves >= 5%
       if (compressedData.byteLength < originalSize * 0.95) {
         processedData = compressedData;

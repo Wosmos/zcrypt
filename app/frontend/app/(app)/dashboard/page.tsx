@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { UploadZone } from "@/components/upload/upload-zone";
 import { UploadQueue } from "@/components/upload/upload-queue";
+import { DownloadQueue } from "@/components/download/download-queue";
 import { PlatformSelector } from "@/components/upload/platform-selector";
 import { FileCard, type DownloadState } from "@/components/files/file-card";
 import { FileTable, type SortField, type SortDir } from "@/components/files/file-table";
@@ -23,10 +24,10 @@ import { batchLoadThumbnails } from "@/hooks/useThumbnail";
 import { useFileList } from "@/hooks/useFileList";
 import { usePlatformHealth } from "@/hooks/usePlatformHealth";
 import { useUploadStore } from "@/store/upload";
+import { useDownloadStore } from "@/store/download";
 import { usePassphraseStore } from "@/store/passphrase";
 import { useOperationStatus } from "@/hooks/useOperationStatus";
 import { deleteFile, getQuota } from "@/lib/api";
-import { downloadAndDecryptFile } from "@/lib/download-session";
 import { toast } from "@/store/toast";
 import {
   Shield,
@@ -64,7 +65,15 @@ export default function VaultPage() {
   const [search, setSearch] = useState("");
   const [modalMode, setModalMode] = useState<ModalMode>(null);
   const [passphraseError, setPassphraseError] = useState<string | null>(null);
-  const [downloadStates, setDownloadStates] = useState<Record<string, DownloadState>>({});
+  const downloadQueue = useDownloadStore((s) => s.queue);
+  const storeStartDownload = useDownloadStore((s) => s.startDownload);
+  // Derive downloadStates from download store for file card/table indicators
+  const downloadStates: Record<string, DownloadState> = {};
+  for (const item of downloadQueue) {
+    if (item.status === "downloading") downloadStates[item.fileId] = "downloading";
+    else if (item.status === "done") downloadStates[item.fileId] = "done";
+    else downloadStates[item.fileId] = "idle";
+  }
   const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
@@ -208,32 +217,12 @@ export default function VaultPage() {
   );
 
   const startDownload = useCallback(
-    async (filename: string, passphrase: string) => {
+    (filename: string, passphrase: string) => {
       const file = files.find((f) => f.original_name === filename);
       if (!file) return;
-
-      setDownloadStates((prev) => ({ ...prev, [file.id]: "downloading" }));
-      toast.info(`Downloading ${filename}...`);
-
-      try {
-        await downloadAndDecryptFile(file.id, passphrase);
-
-        setDownloadStates((prev) => ({ ...prev, [file.id]: "done" }));
-        toast.success(`${filename} downloaded`);
-        setTimeout(() => setDownloadStates((prev) => ({ ...prev, [file.id]: "idle" })), 3000);
-      } catch (err) {
-        setDownloadStates((prev) => ({ ...prev, [file.id]: "idle" }));
-        const msg = err instanceof Error ? err.message : "Download failed";
-        if (msg.toLowerCase().includes("decrypt") || msg.toLowerCase().includes("passphrase") || msg.toLowerCase().includes("cipher")) {
-          clearPassphrase();
-          setModalMode({ type: "download", filename });
-          setPassphraseError("Incorrect passphrase. Please try again.");
-        } else {
-          toast.error(msg);
-        }
-      }
+      storeStartDownload(file.id, filename, file.original_size, passphrase);
     },
-    [files, clearPassphrase]
+    [files, storeStartDownload]
   );
 
   // --- Delete ---
@@ -630,8 +619,9 @@ export default function VaultPage() {
         />
       </div>
 
-      {/* Upload queue */}
+      {/* Upload & Download queues */}
       <UploadQueue />
+      <DownloadQueue />
 
       {/* Quota, Storage & Platform overview */}
       {(repos.length > 0 || statuses.some((s) => s.connected) || quotaInfo) && (

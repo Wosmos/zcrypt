@@ -3,11 +3,14 @@
  *
  * Downloads encrypted chunks from server, decrypts in browser,
  * decompresses if needed, verifies SHA-256, and triggers browser download.
+ *
+ * Supports cancellation via AbortController.
  */
 
 import { getFileMeta, getFileChunk } from "@/lib/api";
 import { deriveKeyBytes, decryptChunk, sha256Hex, fromBase64 } from "@/lib/crypto";
 import { ZstdInit } from "@oneidentity/zstd-js/wasm";
+import { getDeviceProfile } from "@/lib/device-profile";
 
 let zstdCodec: Awaited<ReturnType<typeof ZstdInit>> | null = null;
 const zstdReady = ZstdInit().then((codec) => {
@@ -21,34 +24,52 @@ export type DownloadProgressCallback = (info: {
   chunksTotal: number;
 }) => void;
 
+export interface DownloadOptions {
+  onProgress?: DownloadProgressCallback;
+  signal?: AbortSignal;
+}
+
 /**
  * Download, decrypt, and save a file.
- * Throws on wrong passphrase or integrity failure.
+ * Throws on wrong passphrase, integrity failure, or abort.
  */
 export async function downloadAndDecryptFile(
   fileId: string,
   passphrase: string,
-  onProgress?: DownloadProgressCallback
+  options?: DownloadOptions
 ): Promise<void> {
-  // Ensure zstd is ready
+  const { onProgress, signal } = options ?? {};
+
+  // Check abort before starting
+  if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
+
   await zstdReady;
 
   // Step 1: Get file metadata
   onProgress?.({ stage: "Fetching metadata...", percent: 0, chunksDone: 0, chunksTotal: 0 });
   const meta = await getFileMeta(fileId);
 
+  if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
+
   // Step 2: Derive key from passphrase + salt
   onProgress?.({ stage: "Deriving key...", percent: 5, chunksDone: 0, chunksTotal: meta.chunk_count });
   const salt = fromBase64(meta.salt);
   const keyBytes = await deriveKeyBytes(passphrase, salt);
 
-  // Step 3: Download and decrypt chunks (4 concurrent)
+  if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
+
+  // Step 3: Download and decrypt chunks (device-aware concurrency)
   const decryptedChunks: Uint8Array[] = new Array(meta.chunk_count);
   let chunksDone = 0;
-  const MAX_CONCURRENT = 4;
+  const MAX_CONCURRENT = getDeviceProfile().maxConcurrentDownloads;
 
   const processChunk = async (index: number) => {
+    if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
+
     const { data, compressed } = await getFileChunk(fileId, index);
+
+    if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
+
     const encrypted = new Uint8Array(data);
 
     // Decrypt
@@ -61,7 +82,21 @@ export async function downloadAndDecryptFile(
 
     // Decompress if needed
     if (compressed && zstdCodec) {
-      plaintext = zstdCodec.ZstdSimple.decompress(plaintext);
+      try {
+        // Use ZstdStream (streaming API) — it doesn't require frame content size,
+        // which ZstdSimple.decompress needs but some frames may not include.
+        plaintext = zstdCodec.ZstdStream.decompress(plaintext);
+      } catch (decompressErr) {
+        console.error(
+          `[download] zstd decompress failed for chunk ${index}:`,
+          `decryptedSize=${plaintext.byteLength}`,
+          `header=[${plaintext.slice(0, 4).join(",")}]`,
+          decompressErr
+        );
+        throw new Error(
+          `Decompression failed on chunk ${index}: ${decompressErr instanceof Error ? decompressErr.message : decompressErr}`
+        );
+      }
     }
 
     decryptedChunks[index] = plaintext;
@@ -69,7 +104,7 @@ export async function downloadAndDecryptFile(
 
     const percent = 10 + Math.round((chunksDone / meta.chunk_count) * 80);
     onProgress?.({
-      stage: `Decrypting chunk ${chunksDone}/${meta.chunk_count}`,
+      stage: `Downloading ${chunksDone}/${meta.chunk_count}`,
       percent,
       chunksDone,
       chunksTotal: meta.chunk_count,
@@ -84,6 +119,7 @@ export async function downloadAndDecryptFile(
     workers.push(
       (async () => {
         while (queue.length > 0) {
+          if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
           const idx = queue.shift()!;
           await processChunk(idx);
         }
@@ -92,6 +128,8 @@ export async function downloadAndDecryptFile(
   }
 
   await Promise.all(workers);
+
+  if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
 
   // Step 4: Concatenate and verify
   onProgress?.({ stage: "Verifying integrity...", percent: 92, chunksDone: meta.chunk_count, chunksTotal: meta.chunk_count });
@@ -108,6 +146,8 @@ export async function downloadAndDecryptFile(
   if (actualHash !== meta.sha256) {
     throw new Error("File integrity check failed — SHA-256 mismatch");
   }
+
+  if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
 
   // Step 5: Trigger browser download
   onProgress?.({ stage: "Saving file...", percent: 98, chunksDone: meta.chunk_count, chunksTotal: meta.chunk_count });
