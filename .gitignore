@@ -1,3 +1,6 @@
+# Generated assets (auto-copied by postinstall)
+app/frontend/public/sql-wasm.wasm
+
 # Dependencies
 app/frontend/node_modules/
 app/frontend/.next/

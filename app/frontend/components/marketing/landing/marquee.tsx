@@ -35,7 +35,7 @@ export function Marquee({
                 transition-colors duration-300
                 ${i % 2 === 0 
                   ? "text-[var(--color-text-primary)]" 
-                  : "text-transparent [-webkit-text-stroke:1px_var(--color-text-muted)] opacity-50"
+                  : "text-emerald-950 dark:text-emerald-500 [-webkit-text-stroke:1px_var(--color-text-muted)] opacity-50"
                 }
                 group-hover:text-emerald-500
               `}
