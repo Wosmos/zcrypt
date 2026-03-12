@@ -10,7 +10,8 @@
     "lint": "eslint ./app ./components ./lib ./hooks ./store",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "postinstall": "cp node_modules/sql.js/dist/sql-wasm.wasm public/sql-wasm.wasm"
   },
   "dependencies": {
     "@noble/hashes": "^2.0.1",
