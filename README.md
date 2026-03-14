@@ -14,16 +14,19 @@ File  -->  zstd compress  -->  AES-256-GCM encrypt  -->  10MB chunks  -->  Git L
 ```
 
 **Upload pipeline (two-phase):**
+
 1. **Prepare** (local, synchronous) - Validate, compress with zstd, encrypt with AES-256-GCM, split into 10MB chunks
 2. **Upload** (network, async, resumable) - Push chunks via Git LFS to platform repos, batch commit, update DB
 
 **Download pipeline:**
+
 1. Fetch chunks concurrently (5 parallel) from platform repos
 2. Verify SHA-256 integrity per chunk
 3. Reassemble, decrypt (user provides passphrase), decompress
 4. Verify final file hash matches original
 
 **Repo disguise:**
+
 - Repos named like `utils-core-v1`, `config-helpers-v2`
 - Commits say `chore: clean up build cache`, `fix: resolve loader edge case`
 - Files named `a3f8c1d2e9b047a1.bin`
@@ -49,15 +52,15 @@ Frontend (Next.js 16 / Vercel)         Backend (Go / Railway)           Storage
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Frontend | Next.js 16, React 19, TypeScript, Tailwind CSS, Zustand 5, motion 12 |
-| Backend | Go 1.25, stdlib `net/http`, pgxpool (PostgreSQL) |
-| Database | PostgreSQL on Neon (serverless) |
-| Encryption | AES-256-GCM, PBKDF2-SHA256 (600K iterations), HKDF for per-user KEK |
-| Compression | zstd via `github.com/klauspost/compress` |
-| Auth | JWT (HS256) + bcrypt + TOTP 2FA |
-| Deploy | Frontend on Vercel, Backend on Railway (Docker), DB on Neon |
+| Layer       | Technology                                                           |
+| ----------- | -------------------------------------------------------------------- |
+| Frontend    | Next.js 16, React 19, TypeScript, Tailwind CSS, Zustand 5, motion 12 |
+| Backend     | Go 1.25, stdlib `net/http`, pgxpool (PostgreSQL)                     |
+| Database    | PostgreSQL on Neon (serverless)                                      |
+| Encryption  | AES-256-GCM, PBKDF2-SHA256 (600K iterations), HKDF for per-user KEK  |
+| Compression | zstd via `github.com/klauspost/compress`                             |
+| Auth        | JWT (HS256) + bcrypt + TOTP 2FA                                      |
+| Deploy      | Frontend on Vercel, Backend on Railway (Docker), DB on Neon          |
 
 ## Features
 
@@ -96,7 +99,7 @@ cp .env .env.local
 openssl rand -hex 32
 
 # Run
-go build -o zpush-server . && ./zpush-server
+go build -o zcrypt-server . && ./zcrypt-server
 ```
 
 ### Frontend
@@ -120,42 +123,42 @@ bun run build
 ### Docker
 
 ```bash
-docker build -t zpush .
+docker build -t zcrypt .
 docker run -p 8080:8080 \
   -e DATABASE_URL="postgresql://..." \
   -e MASTER_KEY="$(openssl rand -hex 32)" \
   -e FRONTEND_URL="https://your-frontend.vercel.app" \
   -e ALLOWED_ORIGINS="https://your-frontend.vercel.app" \
-  zpush
+  zcrypt
 ```
 
 ## Environment Variables
 
 ### Backend (required)
 
-| Variable | Description |
-|----------|------------|
-| `DATABASE_URL` | PostgreSQL connection string |
-| `MASTER_KEY` | 32-byte hex key for envelope encryption of platform tokens |
-| `ZPUSH_JWT_SECRET` | JWT signing secret (auto-generated if empty) |
-| `FRONTEND_URL` | Frontend URL for email links |
-| `ALLOWED_ORIGINS` | Comma-separated CORS whitelist (defaults to localhost) |
+| Variable            | Description                                                |
+| ------------------- | ---------------------------------------------------------- |
+| `DATABASE_URL`      | PostgreSQL connection string                               |
+| `MASTER_KEY`        | 32-byte hex key for envelope encryption of platform tokens |
+| `zcrypt_JWT_SECRET` | JWT signing secret (auto-generated if empty)               |
+| `FRONTEND_URL`      | Frontend URL for email links                               |
+| `ALLOWED_ORIGINS`   | Comma-separated CORS whitelist (defaults to localhost)     |
 
 ### Backend (optional)
 
-| Variable | Description |
-|----------|------------|
-| `ZPUSH_PORT` | Server port (default: 8080) |
-| `SMTP_HOST` | SMTP server for email verification |
-| `SMTP_PORT` | SMTP port (default: 587) |
-| `SMTP_USERNAME` | SMTP login |
-| `SMTP_PASSWORD` | SMTP password |
-| `SMTP_FROM` | Sender email address |
+| Variable        | Description                        |
+| --------------- | ---------------------------------- |
+| `zcrypt_PORT`   | Server port (default: 8080)        |
+| `SMTP_HOST`     | SMTP server for email verification |
+| `SMTP_PORT`     | SMTP port (default: 587)           |
+| `SMTP_USERNAME` | SMTP login                         |
+| `SMTP_PASSWORD` | SMTP password                      |
+| `SMTP_FROM`     | Sender email address               |
 
 ### Frontend
 
-| Variable | Description |
-|----------|------------|
+| Variable              | Description     |
+| --------------------- | --------------- |
 | `NEXT_PUBLIC_API_URL` | Backend API URL |
 
 ## Project Structure
@@ -217,65 +220,72 @@ app/frontend/
 ## API Endpoints
 
 ### Auth
-| Method | Endpoint | Description |
-|--------|----------|------------|
-| POST | `/api/auth/register` | Create account |
-| POST | `/api/auth/login` | Login (returns JWT or 2FA challenge) |
-| POST | `/api/auth/refresh` | Refresh access token |
-| POST | `/api/auth/logout` | Invalidate refresh token |
-| POST | `/api/auth/forgot-password` | Send reset email |
-| POST | `/api/auth/reset-password` | Reset with token |
-| POST | `/api/auth/verify-email` | Verify email |
-| POST | `/api/auth/2fa/setup` | Generate TOTP secret |
-| POST | `/api/auth/2fa/enable` | Enable 2FA |
-| POST | `/api/auth/2fa/verify` | Verify 2FA code during login |
-| GET | `/api/auth/me` | Get current user |
+
+| Method | Endpoint                    | Description                          |
+| ------ | --------------------------- | ------------------------------------ |
+| POST   | `/api/auth/register`        | Create account                       |
+| POST   | `/api/auth/login`           | Login (returns JWT or 2FA challenge) |
+| POST   | `/api/auth/refresh`         | Refresh access token                 |
+| POST   | `/api/auth/logout`          | Invalidate refresh token             |
+| POST   | `/api/auth/forgot-password` | Send reset email                     |
+| POST   | `/api/auth/reset-password`  | Reset with token                     |
+| POST   | `/api/auth/verify-email`    | Verify email                         |
+| POST   | `/api/auth/2fa/setup`       | Generate TOTP secret                 |
+| POST   | `/api/auth/2fa/enable`      | Enable 2FA                           |
+| POST   | `/api/auth/2fa/verify`      | Verify 2FA code during login         |
+| GET    | `/api/auth/me`              | Get current user                     |
 
 ### Files
-| Method | Endpoint | Description |
-|--------|----------|------------|
-| POST | `/api/push` | Upload file (multipart) |
-| POST | `/api/pull` | Download file |
-| GET | `/api/files` | List files |
-| DELETE | `/api/files/{id}` | Delete file |
+
+| Method | Endpoint          | Description             |
+| ------ | ----------------- | ----------------------- |
+| POST   | `/api/push`       | Upload file (multipart) |
+| POST   | `/api/pull`       | Download file           |
+| GET    | `/api/files`      | List files              |
+| DELETE | `/api/files/{id}` | Delete file             |
 
 ### Platforms
-| Method | Endpoint | Description |
-|--------|----------|------------|
-| GET | `/api/platforms/status` | Platform connection status |
-| POST | `/api/platforms/connect` | Connect platform token |
-| DELETE | `/api/platforms/disconnect` | Disconnect platform |
-| GET | `/api/repos` | List repos |
+
+| Method | Endpoint                    | Description                |
+| ------ | --------------------------- | -------------------------- |
+| GET    | `/api/platforms/status`     | Platform connection status |
+| POST   | `/api/platforms/connect`    | Connect platform token     |
+| DELETE | `/api/platforms/disconnect` | Disconnect platform        |
+| GET    | `/api/repos`                | List repos                 |
 
 ### Upload Control
-| Method | Endpoint | Description |
-|--------|----------|------------|
-| POST | `/api/upload/pause` | Pause active upload |
-| POST | `/api/upload/resume` | Resume paused upload |
-| GET | `/api/uploads/incomplete` | List incomplete uploads |
-| GET | `/api/events` | SSE progress stream |
+
+| Method | Endpoint                  | Description             |
+| ------ | ------------------------- | ----------------------- |
+| POST   | `/api/upload/pause`       | Pause active upload     |
+| POST   | `/api/upload/resume`      | Resume paused upload    |
+| GET    | `/api/uploads/incomplete` | List incomplete uploads |
+| GET    | `/api/events`             | SSE progress stream     |
 
 ### Admin
-| Method | Endpoint | Description |
-|--------|----------|------------|
-| GET | `/api/admin/users` | List all users |
-| PUT | `/api/admin/users/{id}/role` | Set user role |
-| PUT | `/api/admin/users/{id}/plan` | Set user plan |
-| PUT | `/api/admin/users/{id}/quota` | Set user quota |
-| DELETE | `/api/admin/users/{id}` | Delete user |
-| GET | `/api/admin/stats` | System statistics |
+
+| Method | Endpoint                      | Description       |
+| ------ | ----------------------------- | ----------------- |
+| GET    | `/api/admin/users`            | List all users    |
+| PUT    | `/api/admin/users/{id}/role`  | Set user role     |
+| PUT    | `/api/admin/users/{id}/plan`  | Set user plan     |
+| PUT    | `/api/admin/users/{id}/quota` | Set user quota    |
+| DELETE | `/api/admin/users/{id}`       | Delete user       |
+| GET    | `/api/admin/stats`            | System statistics |
 
 ## Security Hardening Changelog
 
 The following security improvements were implemented as part of a comprehensive audit:
 
 ### Phase 0 - Emergency Fixes
+
 - [x] Rotated all leaked secrets (DB password, master key, JWT secret, SMTP password)
 - [x] Replaced committed `.env` with safe template (no real credentials)
 - [x] Fixed CORS from wildcard `*` to whitelist-based origin validation via `ALLOWED_ORIGINS`
 - [x] Added JWT algorithm validation (rejects non-HS256, prevents algorithm confusion attacks)
 
 ### Phase 1 - Security Hardening
+
 - [x] Added password complexity requirements (8+ chars, uppercase, digit, special)
 - [x] Added auth-specific rate limiting (5 attempts / 5 min per IP on login + register)
 - [x] Fixed global rate limiter to use `X-Forwarded-For` / `X-Real-IP` behind reverse proxy
@@ -286,6 +296,7 @@ The following security improvements were implemented as part of a comprehensive 
 - [x] Added structured audit logging for auth events (login success/failure with IP)
 
 ### Planned
+
 - [ ] Backend unit test suite (crypto, auth, chunks, pipeline)
 - [ ] Frontend test suite (vitest + testing-library)
 - [ ] Database transactions for atomic operations
@@ -301,7 +312,7 @@ The following security improvements were implemented as part of a comprehensive 
 
 ```bash
 # Backend
-cd app/backend && go build -o zpush-server .     # Build
+cd app/backend && go build -o zcrypt-server .     # Build
 cd app/backend && go test ./...                   # Test
 cd app/backend && go vet ./...                    # Lint
 
@@ -312,7 +323,7 @@ cd app/frontend && bun run lint                   # Lint
 cd app/frontend && bunx tsc --noEmit              # Type check
 
 # Docker
-docker build -t zpush .
+docker build -t zcrypt .
 ```
 
 ## License

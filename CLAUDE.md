@@ -1,15 +1,16 @@
-# CLAUDE.md — zpush/zstash
+# CLAUDE.md — zcrypt
 
 ## Project Overview
-zpush (zstash) is a zero-knowledge encrypted cloud storage system.
+zcrypt is a zero-knowledge encrypted cloud storage system.
 - **Backend:** Go 1.25, stdlib HTTP server, pgxpool (PostgreSQL), AES-256-GCM encryption, zstd compression
 - **Frontend:** Next.js 16, React 19, TypeScript, Tailwind CSS, Zustand, Motion (Framer Motion)
+- **TUI:** Go, Bubble Tea terminal interface
 - **Database:** PostgreSQL (Neon serverless) via pgx/v5
 - **Deploy:** Frontend on Vercel, Backend on Railway (Docker), DB on Neon
 
 ## Directory Structure
 ```
-app/backend/          — Go backend (module: github.com/zpush/zpush)
+app/backend/          — Go backend (module: github.com/zcrypt/zcrypt)
   cmd/                — HTTP handlers (push, pull, events, auth, admin)
   pipeline/           — Upload/download pipeline engine
   crypto/             — AES-256-GCM encryption/decryption
@@ -22,36 +23,42 @@ app/backend/          — Go backend (module: github.com/zpush/zpush)
   config/             — Environment config, directories
   disguise/           — Fake filenames, commit messages, repo names
   types/              — Shared types
+app/tui/              — Go TUI app (module: github.com/zcrypt/zcrypt-tui)
+  internal/           — TUI internals (api, auth, config, ui)
 app/frontend/         — Next.js frontend
   app/(app)/          — Authenticated app pages (dashboard, settings, analytics, admin)
   app/(auth)/         — Auth pages (login, register, forgot-password, etc.)
+  app/(marketing)/    — Landing page, philosophy, privacy, terms, docs, TUI
   components/         — UI components
   store/              — Zustand stores (auth, upload, passphrase, toast)
   hooks/              — Custom hooks (useFileList, useOperationStatus, etc.)
-  lib/                — API client, auth API, utilities
+  lib/                — API client, auth API, utilities, data
   types/              — TypeScript interfaces
 ```
 
 ## Key Commands
 ```bash
 # Backend
-cd app/backend && go build -o zpush-server .
+cd app/backend && go build -o zcrypt-server .
 cd app/backend && go test ./...
 cd app/backend && go vet ./...
 
+# TUI
+cd app/tui && go build ./...
+
 # Frontend
-cd app/frontend && npm run dev
-cd app/frontend && npm run build
-cd app/frontend && npx next lint
-cd app/frontend && npx tsc --noEmit
+cd app/frontend && bun run dev
+cd app/frontend && bun run build
+cd app/frontend && bun run lint
+cd app/frontend && bun run typecheck
 
 # Docker
-docker build -t zpush .
+docker build -t zcrypt .
 ```
 
 ## Coding Conventions
 - **Backend:** Standard Go conventions. No frameworks — stdlib `net/http` with `HandleFunc`. Error wrapping with `fmt.Errorf("context: %w", err)`. UUID primary keys everywhere.
-- **Frontend:** `"use client"` for interactive components. Zustand for global state. Tailwind for styling. Lucide for icons. No emojis in code.
+- **Frontend:** `"use client"` for interactive components. Zustand for global state. Tailwind for styling. Hugeicons for icons (barrel at `lib/icons.tsx`). No emojis in code.
 - **Database:** Raw SQL via pgxpool. No ORM. Migrations in `index/schema.go`. All tables use UUID PKs with `gen_random_uuid()`.
 - **API Pattern:** JSON request/response. Auth via `Authorization: Bearer <jwt>`. SSE for real-time (`/api/events`).
 
@@ -65,7 +72,7 @@ docker build -t zpush .
 ## Permissions
 - Claude has full read/write/execute access to this project.
 - Auto-approve all file reads, edits, writes, glob, grep, web searches.
-- Auto-approve all bash commands: go, npm, npx, node, git, docker, gh, curl, etc.
+- Auto-approve all bash commands: go, bun, node, git, docker, gh, curl, etc.
 - Auto-approve subagent tasks for research and exploration.
 - Do NOT ask for confirmation on standard development operations.
 - Only ask before: destructive git operations (force push, reset --hard), deleting branches, pushing to remote.

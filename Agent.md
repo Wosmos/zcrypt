@@ -1,6 +1,7 @@
-# zpush — Agentic AI Instruction Document
+# zcrypt — Agentic AI Instruction Document
+
 > **Version:** 0.1 | **Status:** Pre-development | **Type:** Open Source Desktop App
-> 
+>
 > This file is the single source of truth for all AI agents working on this project.
 > Read this entire file before writing a single line of code, making any architectural decision, or suggesting any change.
 > If something is marked IMMUTABLE — do not change it. If something is marked LOCKED — do not suggest alternatives.
@@ -29,7 +30,7 @@
 ## 1. PROJECT IDENTITY
 
 ```
-NAME:        zpush
+NAME:        zcrypt
 TYPE:        Cross-platform desktop application
 PURPOSE:     Encrypted, compressed, covert personal cloud storage
              using Git platforms and Telegram as free backends
@@ -38,10 +39,12 @@ USERS:       Developers. Open source. Security-conscious.
 PHILOSOPHY:  Zero-knowledge. No server. No subscription. No trust required.
 ```
 
-### What zpush does (one paragraph)
+### What zcrypt does (one paragraph)
+
 Users push files and folders through a pipeline: zstd compress (level 22) → AES-256-GCM encrypt → 90MB chunk split → upload to GitHub / GitLab / HuggingFace / Telegram repos as disguised build artifacts. Download reverses the pipeline exactly. Every byte reconstructed losslessly. The passphrase never leaves the machine. Servers only ever see encrypted binary blobs with randomized hex filenames.
 
-### What zpush is NOT
+### What zcrypt is NOT
+
 - Not a web service. No cloud backend owned by us.
 - Not an encryption tool. Encryption is one step in the pipeline, not the product.
 - Not a backup tool (though it can be used as one).
@@ -75,17 +78,17 @@ Users push files and folders through a pipeline: zstd compress (level 22) → AE
 
 ### Technology Stack (LOCKED — do not propose alternatives)
 
-| Layer | Technology | Reason |
-|---|---|---|
-| Desktop shell | Tauri v2 | Small binary (~8MB), Rust backend, no bundled Chromium |
-| Frontend | Next.js 14 + TypeScript | SSG mode inside Tauri, dev already knows this stack |
-| UI styling | Tailwind CSS | Utility-first, consistent with dev's existing workflow |
-| Backend service | Go 1.22+ | Single binary, goroutines for parallel uploads, best perf |
-| IPC layer | Tauri commands + events | Frontend↔Backend bridge inside desktop app |
-| Local database | SQLite via go-sqlite3 | File→chunk→platform index, zero config |
-| Crypto | Go stdlib crypto/aes + crypto/cipher | No external crypto deps |
-| Compression | go-zstd (DataDog binding) | Native zstd level 22, production grade |
-| Token storage | System keychain via Tauri keychain plugin | Never plaintext |
+| Layer           | Technology                                | Reason                                                    |
+| --------------- | ----------------------------------------- | --------------------------------------------------------- |
+| Desktop shell   | Tauri v2                                  | Small binary (~8MB), Rust backend, no bundled Chromium    |
+| Frontend        | Next.js 14 + TypeScript                   | SSG mode inside Tauri, dev already knows this stack       |
+| UI styling      | Tailwind CSS                              | Utility-first, consistent with dev's existing workflow    |
+| Backend service | Go 1.22+                                  | Single binary, goroutines for parallel uploads, best perf |
+| IPC layer       | Tauri commands + events                   | Frontend↔Backend bridge inside desktop app                |
+| Local database  | SQLite via go-sqlite3                     | File→chunk→platform index, zero config                    |
+| Crypto          | Go stdlib crypto/aes + crypto/cipher      | No external crypto deps                                   |
+| Compression     | go-zstd (DataDog binding)                 | Native zstd level 22, production grade                    |
+| Token storage   | System keychain via Tauri keychain plugin | Never plaintext                                           |
 
 ---
 
@@ -96,12 +99,14 @@ Each agent below owns a specific layer. Agents do not cross boundaries without e
 ---
 
 ### AGENT 1 — FRONTEND AGENT
+
 **Owns:** Everything inside `/app/frontend/`
 **Stack:** Next.js 14, TypeScript, Tailwind CSS, Tauri JS API
 **Does NOT touch:** Go code, crypto logic, platform API calls, SQLite
 **Communicates with backend via:** Tauri `invoke()` commands and `listen()` events only
 
 Responsibilities:
+
 - All UI components, pages, layouts
 - File drag-and-drop upload zone
 - Real-time upload/download progress UI (driven by backend events)
@@ -112,6 +117,7 @@ Responsibilities:
 - Zero state / onboarding flow
 
 Rules:
+
 - Never implement crypto, compression, or API calls in frontend code
 - All sensitive inputs (passphrase, tokens) are passed directly to backend via IPC — never stored in frontend state longer than the IPC call
 - Use Next.js in static export mode (`output: 'export'`) — Tauri does not run a Next.js server
@@ -121,21 +127,24 @@ Rules:
 ---
 
 ### AGENT 2 — BACKEND SERVICE AGENT
+
 **Owns:** Everything inside `/app/backend/`
 **Stack:** Go 1.22+, Tauri Rust bridge, SQLite
 **Does NOT touch:** Frontend components, UI logic, styling
 **Communicates with frontend via:** Tauri command handlers and emitted events
 
 Responsibilities:
+
 - Expose all Tauri commands consumed by frontend
 - Orchestrate the Pipeline Engine on upload/download
 - Manage SQLite local index (schema, queries, migrations)
-- Manage config file at `~/.zpush/config.json`
+- Manage config file at `~/.zcrypt/config.json`
 - Token storage via system keychain
 - Repo Pool Manager logic
 - Emit real-time progress events to frontend during operations
 
 Rules:
+
 - All Go code must be idiomatic Go — no unnecessary abstractions
 - Every function that can fail must return an error — no panic in production paths
 - Goroutines must have proper context cancellation support
@@ -145,11 +154,13 @@ Rules:
 ---
 
 ### AGENT 3 — PIPELINE AGENT
+
 **Owns:** `/app/backend/pipeline/`
 **Called by:** Backend Service Agent
 **Calls:** Crypto Module, Compression Module, Chunk Manager, Platform Adapter
 
 Responsibilities:
+
 - Implement the upload pipeline: compress → encrypt → chunk → upload
 - Implement the download pipeline: fetch → reassemble → decrypt → decompress
 - Coordinate all modules in correct sequence — sequence is IMMUTABLE (see Section 7)
@@ -158,6 +169,7 @@ Responsibilities:
 - Verify SHA-256 of each chunk after download before passing to reassembler
 
 Rules:
+
 - Pipeline sequence cannot be reordered under any circumstances
 - If any step fails, the pipeline must clean up partial state before returning error
 - Progress events must fire at minimum every 250ms during active operations
@@ -165,10 +177,12 @@ Rules:
 ---
 
 ### AGENT 4 — PLATFORM ADAPTER AGENT
+
 **Owns:** `/app/backend/adapters/`
 **Called by:** Pipeline Agent and Repo Pool Manager
 
 Responsibilities:
+
 - Implement a unified `PlatformAdapter` interface in Go
 - Implement concrete adapters: `GithubAdapter`, `GitlabAdapter`, `HuggingFaceAdapter`, `TelegramAdapter`
 - Each adapter implements: `Upload(chunk)`, `Download(chunkID)`, `Delete(chunkID)`, `GetRepoSize(repo)`, `CreateRepo(name)`, `ListChunks(repo)`
@@ -176,6 +190,7 @@ Responsibilities:
 - Abstract away all platform-specific API differences behind the unified interface
 
 Rules:
+
 - Frontend never calls platform APIs directly — always through backend → adapter
 - Each adapter is independently testable with mock HTTP responses
 - Platform API tokens are fetched from keychain inside adapter, never passed as args from frontend
@@ -184,10 +199,12 @@ Rules:
 ---
 
 ### AGENT 5 — DEVOPS / TOOLING AGENT
+
 **Owns:** `/.github/`, `/Makefile`, `/scripts/`, `tauri.conf.json`, CI/CD config
 **Does NOT touch:** Application code
 
 Responsibilities:
+
 - GitHub Actions CI: lint, test, build on push to main and PRs
 - Release pipeline: build binaries for Windows (.msi), macOS (.dmg), Linux (.AppImage + .deb)
 - Makefile targets: `make dev`, `make build`, `make test`, `make lint`, `make clean`
@@ -201,6 +218,7 @@ Responsibilities:
 Run these before starting development. Agent 5 owns the setup scripts.
 
 ### System dependencies
+
 ```bash
 # Rust (required for Tauri)
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
@@ -229,6 +247,7 @@ sudo apt install libsqlite3-dev  # Linux
 ```
 
 ### Go dependencies (run inside `/app/backend/`)
+
 ```bash
 go get github.com/DataDog/zstd              # zstd compression
 go get github.com/mattn/go-sqlite3          # SQLite driver
@@ -239,6 +258,7 @@ go get golang.org/x/crypto                  # additional crypto utilities
 ```
 
 ### Frontend dependencies (run inside `/app/frontend/`)
+
 ```bash
 npm install
 # Key packages already in package.json:
@@ -252,6 +272,7 @@ npm install
 ```
 
 ### VS Code extensions (recommended, not required)
+
 ```
 rust-analyzer
 golang.go
@@ -266,6 +287,7 @@ tauri-apps.tauri-vscode
 ## 5. FRONTEND — NEXT.JS AGENT
 
 ### Configuration rules
+
 ```
 output: 'export'           — static export, no Next.js server inside Tauri
 images.unoptimized: true   — required for static export
@@ -274,6 +296,7 @@ trailingSlash: false
 ```
 
 ### Page structure
+
 ```
 app/
   layout.tsx              — root layout, global styles, Tauri event listeners init
@@ -291,32 +314,35 @@ app/
 ```
 
 ### State management rules
+
 - Use Zustand for global state (upload queue, platform status, file list)
 - Never store passphrase in Zustand or any persistent state
 - Platform connection status is fetched from backend on app mount, cached in Zustand
 - Upload queue is managed in Zustand — items transition: `queued → compressing → encrypting → uploading → done | failed`
 
 ### IPC pattern — how frontend calls backend
+
 ```typescript
 // Calling a Go backend command
-import { invoke } from '@tauri-apps/api/core'
+import { invoke } from "@tauri-apps/api/core";
 
-const result = await invoke<FileListResponse>('list_files', {
-  filter: searchQuery
-})
+const result = await invoke<FileListResponse>("list_files", {
+  filter: searchQuery,
+});
 
 // Listening to backend progress events
-import { listen } from '@tauri-apps/api/event'
+import { listen } from "@tauri-apps/api/event";
 
-const unlisten = await listen<ProgressEvent>('upload_progress', (event) => {
-  updateUploadProgress(event.payload)
-})
+const unlisten = await listen<ProgressEvent>("upload_progress", (event) => {
+  updateUploadProgress(event.payload);
+});
 
 // Always clean up listeners on component unmount
-onCleanup(() => unlisten())
+onCleanup(() => unlisten());
 ```
 
 ### Tauri commands frontend must call (Backend Agent implements these)
+
 ```typescript
 invoke('push_file', { path: string, passphrase: string })
 invoke('pull_file', { filename: string, outputDir: string, passphrase: string })
@@ -330,6 +356,7 @@ invoke('update_config', { key: string, value: unknown })
 ```
 
 ### Events frontend must listen for (Backend Agent emits these)
+
 ```typescript
 listen('upload_progress',   { stage: string, percent: number, bytesProcessed: number })
 listen('download_progress', { stage: string, percent: number, bytesProcessed: number })
@@ -342,6 +369,7 @@ listen('repo_rotated',      { oldRepo: string, newRepo: string, platform: string
 ## 6. BACKEND — GO SERVICE AGENT
 
 ### Package structure
+
 ```
 backend/
   main.go                   — Tauri entry point, registers all commands
@@ -380,7 +408,7 @@ backend/
     schema.go               — table definitions
     queries.go              — all prepared queries
   config/
-    config.go               — read/write ~/.zpush/config.json
+    config.go               — read/write ~/.zcrypt/config.json
     keychain.go             — token storage via system keychain
   types/
     types.go                — all shared structs and interfaces
@@ -391,6 +419,7 @@ backend/
 ```
 
 ### How Go communicates with Tauri frontend
+
 ```go
 // Register a command (in main.go)
 app.OnRequest(func(ctx context.Context, req tauri.Request) {
@@ -409,6 +438,7 @@ app.EmitEvent("upload_progress", ProgressEvent{
 ```
 
 ### Go concurrency rules
+
 - Each upload/download operation runs in its own goroutine
 - Use `context.Context` for cancellation — every long operation must respect ctx.Done()
 - Platform chunk uploads run in parallel with a worker pool (max 4 concurrent per platform)
@@ -420,21 +450,23 @@ app.EmitEvent("upload_progress", ProgressEvent{
 ## 7. CORE PIPELINE AGENT
 
 ### Upload sequence (IMMUTABLE — never reorder)
+
 ```
 1. VALIDATE      Check file exists, passphrase not empty, at least one platform connected
-2. COMPRESS      zstd level 22 → temp file at ~/.zpush/tmp/{uuid}.zst
-3. ENCRYPT       AES-256-GCM → temp file at ~/.zpush/tmp/{uuid}.enc
+2. COMPRESS      zstd level 22 → temp file at ~/.zcrypt/tmp/{uuid}.zst
+3. ENCRYPT       AES-256-GCM → temp file at ~/.zcrypt/tmp/{uuid}.enc
                  Payload: [32B salt][12B IV][16B auth tag][ciphertext]
-4. CHUNK         Split into 90MB chunks → ~/.zpush/tmp/{uuid}/chunk_{000..999}
+4. CHUNK         Split into 90MB chunks → ~/.zcrypt/tmp/{uuid}/chunk_{000..999}
 5. HASH          SHA-256 each chunk, store hashes in manifest
 6. UPLOAD        Push chunks to platform(s) via adapter, parallel workers
 7. INDEX         Write file→chunks→repos mapping to SQLite
-8. MANIFEST      Commit .zpush-manifest.json to repo alongside chunks
-9. CLEANUP       Delete all temp files at ~/.zpush/tmp/{uuid}/
+8. MANIFEST      Commit .zcrypt-manifest.json to repo alongside chunks
+9. CLEANUP       Delete all temp files at ~/.zcrypt/tmp/{uuid}/
 10. EMIT         Send operation_complete event to frontend
 ```
 
 ### Download sequence (IMMUTABLE — never reorder)
+
 ```
 1. LOOKUP        Query SQLite index for filename → get chunk list + locations
 2. FETCH         Download all chunks in parallel from their respective platforms
@@ -448,17 +480,19 @@ app.EmitEvent("upload_progress", ProgressEvent{
 ```
 
 ### Temp file hygiene rules
-- Temp dir: `~/.zpush/tmp/` — created on first run, cleaned on every app start
+
+- Temp dir: `~/.zcrypt/tmp/` — created on first run, cleaned on every app start
 - Every operation gets a UUID-named subdirectory
 - On success: entire subdir deleted immediately after SQLite index updated
 - On failure: entire subdir deleted before error is returned
-- On crash/restart: entire `~/.zpush/tmp/` is wiped on next app start
+- On crash/restart: entire `~/.zcrypt/tmp/` is wiped on next app start
 
 ---
 
 ## 8. PLATFORM ADAPTER AGENT
 
 ### Unified interface (Go)
+
 ```go
 type PlatformAdapter interface {
     Upload(ctx context.Context, chunk Chunk) (ChunkRef, error)
@@ -472,14 +506,16 @@ type PlatformAdapter interface {
 ```
 
 ### Platform rotation thresholds (LOCKED)
-| Platform | Threshold | Hard Limit | Notes |
-|---|---|---|---|
-| GitLab | 9,000 MB | 10 GB | Primary. Best free tier. |
-| GitHub | 850 MB | 1 GB rec | Reliable API. Most familiar. |
-| HuggingFace | 280,000 MB | 300 GB | Public repos only on free tier. |
-| Telegram | N/A | 2 GB/file | Self-hosted local Bot API required. |
+
+| Platform    | Threshold  | Hard Limit | Notes                               |
+| ----------- | ---------- | ---------- | ----------------------------------- |
+| GitLab      | 9,000 MB   | 10 GB      | Primary. Best free tier.            |
+| GitHub      | 850 MB     | 1 GB rec   | Reliable API. Most familiar.        |
+| HuggingFace | 280,000 MB | 300 GB     | Public repos only on free tier.     |
+| Telegram    | N/A        | 2 GB/file  | Self-hosted local Bot API required. |
 
 ### Repo disguise rules (ALL platforms)
+
 ```
 Naming pattern:   {adjective}-{noun}-v{n}
 Examples:         utils-core-v1, config-helpers-v2, build-cache-v3
@@ -493,10 +529,11 @@ Chunk filenames:  Random 16-char hex + .bin extension
 Example:          a3f8c1d2e9b047a1.bin
 
 README.md:        Each repo gets generic dev project description
-                  Never mention zpush or encryption in any repo
+                  Never mention zcrypt or encryption in any repo
 ```
 
 ### Platform fallback waterfall
+
 ```
 1st choice → GitLab   (10GB repos, private, best free tier)
 2nd choice → GitHub   (most reliable API, familiar SDK)
@@ -522,10 +559,10 @@ fn main() {
     tauri::Builder::default()
         .setup(|app| {
             // Hook: app started
-            // → create ~/.zpush/ directories if not exist
+            // → create ~/.zcrypt/ directories if not exist
             // → run SQLite migrations
-            // → wipe ~/.zpush/tmp/ (clean up any crash remnants)
-            // → load config from ~/.zpush/config.json
+            // → wipe ~/.zcrypt/tmp/ (clean up any crash remnants)
+            // → load config from ~/.zcrypt/config.json
             // → verify keychain connectivity
             Ok(())
         })
@@ -621,12 +658,14 @@ Platform Adapter Agent
 ```
 
 ### No agent calls upward
+
 - Platform Adapter does not call Pipeline Agent
 - Pipeline Agent does not call Backend Service Agent
 - Backend Service Agent does not call Frontend Agent
 - Events flow up (backend emits, frontend listens) — commands flow down (frontend invokes, backend handles)
 
 ### IPC payload rules
+
 - All IPC payloads are JSON-serializable Go structs / TypeScript interfaces
 - Define shared types in `/app/backend/types/types.go` (Go) and `/app/frontend/types/index.ts` (TS)
 - Both files must stay in sync — when you change a type in Go, update the TS type immediately
@@ -637,7 +676,7 @@ Platform Adapter Agent
 ## 11. FILE STRUCTURE
 
 ```
-zpush/
+zcrypt/
   app/
     frontend/                   — Next.js app (Frontend Agent owns this)
       app/
@@ -728,7 +767,7 @@ SECURITY
 ARCHITECTURE
 ────────────────────────────────────────────────────────────────────
 [A1]  NEVER add a backend server. No cloud component. No external service we operate.
-      zpush is local-first. Entirely.
+      zcrypt is local-first. Entirely.
 
 [A2]  NEVER use Electron. Tauri only.
 
@@ -751,8 +790,8 @@ CODE QUALITY
 
 [C4]  NEVER leave temp files behind on operation failure. Always clean up in defer.
 
-[C5]  NEVER write to ~/.zpush/ outside of the designated subdirs:
-      ~/.zpush/config.json, ~/.zpush/index.db, ~/.zpush/tmp/
+[C5]  NEVER write to ~/.zcrypt/ outside of the designated subdirs:
+      ~/.zcrypt/config.json, ~/.zcrypt/index.db, ~/.zcrypt/tmp/
 ```
 
 ---
@@ -761,26 +800,27 @@ CODE QUALITY
 
 Use these exact names in all code, comments, documentation, and IPC payloads.
 
-| Component Name | Location | Owned By |
-|---|---|---|
-| `PipelineEngine` | `backend/pipeline/engine.go` | Pipeline Agent |
-| `CryptoModule` | `backend/crypto/` | Backend Agent |
-| `CompressionModule` | `backend/compression/` | Backend Agent |
-| `ChunkManager` | `backend/chunks/` | Backend Agent |
-| `PlatformAdapter` | `backend/adapters/interface.go` | Platform Adapter Agent |
-| `RepoPoolManager` | `backend/reppool/manager.go` | Backend Agent |
-| `LocalIndex` | `backend/index/` | Backend Agent |
-| `DisguiseModule` | `backend/disguise/` | Backend Agent |
-| `UploadQueue` | `frontend/store/uploadQueue.ts` | Frontend Agent |
-| `FileBrowser` | `frontend/components/files/` | Frontend Agent |
-| `PlatformStatus` | `frontend/components/platforms/` | Frontend Agent |
-| `ProgressTracker` | `frontend/components/upload/` | Frontend Agent |
+| Component Name      | Location                         | Owned By               |
+| ------------------- | -------------------------------- | ---------------------- |
+| `PipelineEngine`    | `backend/pipeline/engine.go`     | Pipeline Agent         |
+| `CryptoModule`      | `backend/crypto/`                | Backend Agent          |
+| `CompressionModule` | `backend/compression/`           | Backend Agent          |
+| `ChunkManager`      | `backend/chunks/`                | Backend Agent          |
+| `PlatformAdapter`   | `backend/adapters/interface.go`  | Platform Adapter Agent |
+| `RepoPoolManager`   | `backend/reppool/manager.go`     | Backend Agent          |
+| `LocalIndex`        | `backend/index/`                 | Backend Agent          |
+| `DisguiseModule`    | `backend/disguise/`              | Backend Agent          |
+| `UploadQueue`       | `frontend/store/uploadQueue.ts`  | Frontend Agent         |
+| `FileBrowser`       | `frontend/components/files/`     | Frontend Agent         |
+| `PlatformStatus`    | `frontend/components/platforms/` | Frontend Agent         |
+| `ProgressTracker`   | `frontend/components/upload/`    | Frontend Agent         |
 
 ---
 
 ## 14. MVP SCOPE
 
 ### Phase 1 — IN SCOPE (build this first, nothing else)
+
 - [ ] Push a single file to GitHub only
 - [ ] Pull a file back from GitHub
 - [ ] Full pipeline: compress → encrypt → chunk → upload → index
@@ -792,6 +832,7 @@ Use these exact names in all code, comments, documentation, and IPC payloads.
 - [ ] Onboarding flow: connect GitHub, set passphrase hint
 
 ### Phase 1 — OUT OF SCOPE (do not build yet)
+
 - [ ] GitLab / HuggingFace / Telegram adapters
 - [ ] Multi-platform waterfall
 - [ ] Folder sync / watch mode
@@ -820,5 +861,5 @@ Before writing any code, every agent must confirm:
 
 ---
 
-*AGENTS.md — zpush v0.1 — Last updated: 2025*
-*When making breaking architectural changes, bump the version number at the top of this file.*
+_AGENTS.md — zcrypt v0.1 — Last updated: 2025_
+_When making breaking architectural changes, bump the version number at the top of this file._

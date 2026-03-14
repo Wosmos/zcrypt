@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/zpush/zpush/types"
+	"github.com/zcrypt/zcrypt/types"
 )
 
 // HandleListFiles returns all stored files for the current user.

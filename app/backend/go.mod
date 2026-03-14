@@ -1,4 +1,4 @@
-module github.com/zpush/zpush
+module github.com/zcrypt/zcrypt
 
 go 1.25.0
 

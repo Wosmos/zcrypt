@@ -27,7 +27,7 @@ jobs:
 
       - name: Build
         working-directory: app/backend
-        run: go build -o zpush-server .
+        run: go build -o zcrypt-server .
 
       - name: Test
         working-directory: app/backend

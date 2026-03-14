@@ -7,10 +7,10 @@ import (
 	"strconv"
 
 	"github.com/google/uuid"
-	"github.com/zpush/zpush/adapters"
-	"github.com/zpush/zpush/crypto"
-	"github.com/zpush/zpush/reppool"
-	"github.com/zpush/zpush/types"
+	"github.com/zcrypt/zcrypt/adapters"
+	"github.com/zcrypt/zcrypt/crypto"
+	"github.com/zcrypt/zcrypt/reppool"
+	"github.com/zcrypt/zcrypt/types"
 )
 
 // Plan limits: storage quota per plan (bytes)

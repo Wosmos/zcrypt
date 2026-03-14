@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/zpush/zpush/types"
+	"github.com/zcrypt/zcrypt/types"
 )
 
 const (

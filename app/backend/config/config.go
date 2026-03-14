@@ -29,16 +29,16 @@ type OAuthConfig struct {
 	GitHub *OAuthProviderConfig `json:"github,omitempty"`
 }
 
-// DefaultDir returns the zpush config directory (~/.zpush/).
+// DefaultDir returns the zcrypt config directory (~/.zcrypt/).
 func DefaultDir() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", fmt.Errorf("get home dir: %w", err)
 	}
-	return filepath.Join(home, ".zpush"), nil
+	return filepath.Join(home, ".zcrypt"), nil
 }
 
-// EnsureDirs creates all required zpush directories.
+// EnsureDirs creates all required zcrypt directories.
 func EnsureDirs() error {
 	dir, err := DefaultDir()
 	if err != nil {
@@ -123,8 +123,10 @@ func loadDotEnv(path string) {
 
 // applyEnvOverrides overrides config fields from environment variables.
 func (c *Config) applyEnvOverrides() {
-	if v := os.Getenv("ZPUSH_JWT_SECRET"); v != "" {
+	if v := os.Getenv("ZCRYPT_JWT_SECRET"); v != "" {
 		c.JWTSecret = v
+	} else if v := os.Getenv("zcrypt_JWT_SECRET"); v != "" {
+		c.JWTSecret = v // backward compat
 	}
 	if v := os.Getenv("DATABASE_URL"); v != "" {
 		c.DatabaseURL = v

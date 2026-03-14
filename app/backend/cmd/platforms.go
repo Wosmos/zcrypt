@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/zpush/zpush/crypto"
-	"github.com/zpush/zpush/types"
+	"github.com/zcrypt/zcrypt/crypto"
+	"github.com/zcrypt/zcrypt/types"
 )
 
 // ConnectRequest is the JSON body for connecting a platform.

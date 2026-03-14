@@ -7,8 +7,8 @@ app/frontend/.next/
 app/frontend/out/
 
 # Go
-app/backend/zpush-server
-app/backend/zpush-server.exe
+app/backend/zcrypt-server
+app/backend/zcrypt-server.exe
 
 # Build output
 dist/
@@ -25,8 +25,8 @@ Thumbs.db
 .vscode/
 .idea/
 
-# zpush local data
-.zpush/
+# zcrypt local data
+.zcrypt/
 
 # Codacy
 .github/instructions/codacy.instructions.md

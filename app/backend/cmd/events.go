@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/zpush/zpush/auth"
-	"github.com/zpush/zpush/types"
+	"github.com/zcrypt/zcrypt/auth"
+	"github.com/zcrypt/zcrypt/types"
 )
 
 // HandleSSE serves Server-Sent Events for real-time progress and audit updates.

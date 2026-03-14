@@ -11,11 +11,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/zpush/zpush/cmd"
-	"github.com/zpush/zpush/config"
-	"github.com/zpush/zpush/crypto"
-	"github.com/zpush/zpush/index"
-	"github.com/zpush/zpush/pipeline"
+	"github.com/zcrypt/zcrypt/cmd"
+	"github.com/zcrypt/zcrypt/config"
+	"github.com/zcrypt/zcrypt/crypto"
+	"github.com/zcrypt/zcrypt/index"
+	"github.com/zcrypt/zcrypt/pipeline"
 )
 
 func main() {
@@ -176,7 +176,10 @@ func main() {
 	// Health check (public)
 	mux.HandleFunc("GET /api/health", server.HandleHealth)
 
-	port := os.Getenv("ZPUSH_PORT")
+	port := os.Getenv("ZCRYPT_PORT")
+	if port == "" {
+		port = os.Getenv("zcrypt_PORT") // backward compat
+	}
 	if port == "" {
 		port = "8080"
 	}

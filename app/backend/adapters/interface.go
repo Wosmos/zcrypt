@@ -3,7 +3,7 @@ package adapters
 import (
 	"context"
 
-	"github.com/zpush/zpush/types"
+	"github.com/zcrypt/zcrypt/types"
 )
 
 // PlatformAdapter defines the unified interface for all platform backends.
