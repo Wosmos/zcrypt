@@ -8,7 +8,7 @@ import type { Database } from "sql.js";
 
 let dbPromise: Promise<OfflineCache> | null = null;
 
-const DB_FILE = "zpush-cache.sqlite";
+const DB_FILE = "zcrypt-cache.sqlite";
 
 class OfflineCache {
   private db: Database;

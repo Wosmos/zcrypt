@@ -22,25 +22,25 @@ import {
   Pause,
   Play,
   FileText,
-} from "lucide-react";
+} from "@/lib/icons";
 
 const PAGE_SIZE = 20;
 
 const eventColors: Record<string, string> = {
   login: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
   login_failed: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20",
-  register: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+  register: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20",
   logout: "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20",
   oauth_login: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
-  oauth_register: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+  oauth_register: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20",
   oauth_link: "bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20",
   oauth_unlink: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
   magic_link_sent: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
   magic_link_used: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
-  file_upload: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+  file_upload: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20",
   file_download: "bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20",
   file_delete: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20",
-  platform_connect: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+  platform_connect: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20",
   platform_disconnect: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
   admin_role_change: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
   admin_user_delete: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20",
@@ -139,7 +139,7 @@ export function AuditLog() {
         <div className="flex items-center gap-2">
           <FileText className="h-4 w-4 text-[var(--color-text-muted)]" />
           <h2 className="text-sm font-semibold">Audit Log</h2>
-          <span className="text-[11px] text-[var(--color-text-muted)] tabular-nums">
+          <span className="text-xs text-[var(--color-text-muted)] tabular-nums">
             ({total} events)
           </span>
         </div>
@@ -147,10 +147,10 @@ export function AuditLog() {
           <button
             onClick={() => setPaused(!paused)}
             className={cn(
-              "flex items-center gap-1 text-[11px] font-medium px-2.5 py-1.5 rounded-lg transition-colors",
+              "flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors",
               paused
                 ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
-                : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                : "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400"
             )}
           >
             {paused ? <Play className="h-3 w-3" /> : <Pause className="h-3 w-3" />}
@@ -160,7 +160,7 @@ export function AuditLog() {
             <select
               value={eventTypeFilter}
               onChange={(e) => { setEventTypeFilter(e.target.value); setPage(1); }}
-              className="appearance-none text-[11px] bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-lg px-2.5 py-1.5 pr-7 text-[var(--color-text-secondary)] cursor-pointer"
+              className="appearance-none text-xs bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-lg px-2.5 py-1.5 pr-7 text-[var(--color-text-secondary)] cursor-pointer"
             >
               <option value="">All events</option>
               {eventTypes.map((t) => (
@@ -197,12 +197,12 @@ export function AuditLog() {
                       <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded border", color)}>
                         {event.event_type.replace(/_/g, " ")}
                       </span>
-                      <span className="text-[11px] text-[var(--color-text-muted)] truncate">
+                      <span className="text-xs text-[var(--color-text-muted)] truncate">
                         {event.ip}
                       </span>
                     </div>
                     {isExpanded && (
-                      <div className="mt-2 text-[11px] text-[var(--color-text-secondary)] space-y-1 animate-fade-in">
+                      <div className="mt-2 text-xs text-[var(--color-text-secondary)] space-y-1 animate-fade-in">
                         {event.user_id && <p>User: {event.user_id}</p>}
                         <p>IP: {event.ip}</p>
                         <p>UA: {event.user_agent}</p>
@@ -214,7 +214,7 @@ export function AuditLog() {
                       </div>
                     )}
                   </div>
-                  <span className="text-[11px] text-[var(--color-text-muted)] tabular-nums flex-shrink-0">
+                  <span className="text-xs text-[var(--color-text-muted)] tabular-nums flex-shrink-0">
                     {formatRelativeTime(event.created_at)}
                   </span>
                 </div>

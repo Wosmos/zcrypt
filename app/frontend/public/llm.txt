@@ -1,10 +1,10 @@
-# zpush
+# zcrypt
 
-zpush is a zero-knowledge encrypted personal cloud storage and file sharing platform.
+zcrypt is a zero-knowledge encrypted personal cloud storage and file sharing platform.
 
 ## Key Features
 - **Client-Side Encryption:** Files are compressed and encrypted (AES-256-GCM) directly in the browser before being uploaded. The server never sees the raw data or the keys.
-- **Zero-Knowledge Architecture:** Since keys are derived locally and never transmitted, zpush is completely mathematically private.
+- **Zero-Knowledge Architecture:** Since keys are derived locally and never transmitted, zcrypt is completely mathematically private.
 - **Lightning Fast Uploads:** Real-time chunking and streaming directly to cloud storage natively inside the application.
 
 ## Tech Stack
@@ -12,5 +12,5 @@ zpush is a zero-knowledge encrypted personal cloud storage and file sharing plat
 - Cryptography: Web Crypto API for secure and fast client-side symmetric encryption.
 
 ## More Information
-- Documentation: https://zpush.io/docs
-- Live Demo: https://zpush.io/demo
+- Documentation: https://zcrypt.cloud/docs
+- Live Demo: https://zcrypt.cloud/demo

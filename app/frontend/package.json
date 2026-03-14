@@ -1,5 +1,5 @@
 {
-  "name": "zpush-frontend",
+  "name": "zcrypt-frontend",
   "version": "0.2.0",
   "private": true,
   "scripts": {
@@ -14,6 +14,8 @@
     "postinstall": "cp node_modules/sql.js/dist/sql-wasm.wasm public/sql-wasm.wasm"
   },
   "dependencies": {
+    "@hugeicons/core-free-icons": "^4.0.0",
+    "@hugeicons/react": "^1.1.6",
     "@noble/hashes": "^2.0.1",
     "@oneidentity/zstd-js": "^1.0.3",
     "@tauri-apps/api": "^2.0.0",
@@ -21,7 +23,6 @@
     "@tauri-apps/plugin-fs": "^2.0.0",
     "@tauri-apps/plugin-shell": "^2.0.0",
     "clsx": "^2.1.1",
-    "lucide-react": "^0.473.0",
     "motion": "^12.0.0",
     "next": "^16.1.0",
     "qrcode.react": "^4.2.0",

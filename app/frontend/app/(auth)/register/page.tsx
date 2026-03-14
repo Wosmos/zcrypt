@@ -14,10 +14,9 @@ import {
   Lock,
   User,
   ArrowRight,
-  UserPlus,
   CheckCircle2,
   AlertTriangle,
-} from "lucide-react";
+} from "@/lib/icons";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -28,7 +27,10 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState<"verified" | "pending" | false>(false);
-  const [breachWarning, setBreachWarning] = useState<{ message: string; count: number } | null>(null);
+  const [breachWarning, setBreachWarning] = useState<{
+    message: string;
+    count: number;
+  } | null>(null);
 
   const doRegister = async (force: boolean) => {
     setLoading(true);
@@ -81,16 +83,18 @@ export default function RegisterPage() {
 
   if (success === "verified") {
     return (
-      <div className="card p-6 sm:p-8 text-center animate-fade-in">
-        <div className="inline-flex items-center justify-center h-14 w-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 mb-5">
-          <CheckCircle2 className="h-7 w-7 text-emerald-500 dark:text-emerald-400" />
+      <div className="text-center animate-fade-in">
+        <div className="flex justify-center mb-4">
+          <div className="h-12 w-12 rounded-full bg-cyan-500/10 flex items-center justify-center">
+            <CheckCircle2 className="h-6 w-6 text-cyan-500" />
+          </div>
         </div>
         <h2 className="text-xl font-bold">Account created!</h2>
-        <p className="text-sm text-[var(--color-text-secondary)] mt-2 max-w-sm mx-auto leading-relaxed">
+        <p className="text-sm text-[var(--color-text-secondary)] mt-2 leading-relaxed">
           Redirecting you to sign in...
         </p>
         <Link href="/login">
-          <Button className="mt-6">
+          <Button className="mt-5">
             Sign in <ArrowRight className="h-4 w-4" />
           </Button>
         </Link>
@@ -100,18 +104,20 @@ export default function RegisterPage() {
 
   if (success === "pending") {
     return (
-      <div className="card p-6 sm:p-8 text-center animate-fade-in">
-        <div className="inline-flex items-center justify-center h-14 w-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 mb-5">
-          <CheckCircle2 className="h-7 w-7 text-emerald-500 dark:text-emerald-400" />
+      <div className="text-center animate-fade-in">
+        <div className="flex justify-center mb-4">
+          <div className="h-12 w-12 rounded-full bg-cyan-500/10 flex items-center justify-center">
+            <CheckCircle2 className="h-6 w-6 text-cyan-500" />
+          </div>
         </div>
         <h2 className="text-xl font-bold">Check your email</h2>
-        <p className="text-sm text-[var(--color-text-secondary)] mt-2 max-w-sm mx-auto leading-relaxed">
+        <p className="text-sm text-[var(--color-text-secondary)] mt-2 leading-relaxed">
           We sent a verification link to{" "}
           <strong className="text-[var(--color-text)]">{email}</strong>. Click
           it to activate your account.
         </p>
         <Link href="/login">
-          <Button variant="secondary" className="mt-6">
+          <Button variant="secondary" className="mt-5">
             Back to login
           </Button>
         </Link>
@@ -120,21 +126,13 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="card p-6 sm:p-8 animate-fade-in">
-      <div className="text-center mb-6">
-        <div className="inline-flex items-center justify-center h-12 w-12 rounded-xl bg-emerald-500/10 mb-4">
-          <UserPlus className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
-        </div>
-        <h1 className="text-xl font-bold">Create your vault</h1>
-        <p className="text-sm text-[var(--color-text-secondary)] mt-1">
-          Free encrypted storage. No credit card.
-        </p>
-      </div>
+    <div className="animate-fade-in">
+     
 
-      <div className="space-y-5">
+      <div className="space-y-4">
         <OAuthButtons />
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-3">
           <Input
             label="Email"
             type="email"
@@ -178,20 +176,22 @@ export default function RegisterPage() {
 
           {/* Breach warning */}
           {breachWarning && (
-            <div className="flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3.5 animate-fade-in">
+            <div className="flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 animate-fade-in">
               <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
                 <p className="text-xs text-amber-700 dark:text-amber-300 font-medium">
-                  Password found in {breachWarning.count.toLocaleString()} data breach{breachWarning.count !== 1 ? "es" : ""}
+                  Password found in{" "}
+                  {breachWarning.count.toLocaleString()} data breach
+                  {breachWarning.count !== 1 ? "es" : ""}
                 </p>
-                <p className="text-[11px] text-amber-600/70 dark:text-amber-400/60 mt-0.5">
-                  Consider using a different password for better security.
+                <p className="text-xs text-amber-600/70 dark:text-amber-400/60 mt-0.5">
+                  Consider using a different password.
                 </p>
                 <button
                   type="button"
                   onClick={() => doRegister(true)}
                   disabled={loading}
-                  className="mt-2 text-xs font-medium text-amber-700 dark:text-amber-300 underline hover:no-underline transition-colors"
+                  className="mt-1.5 text-xs font-medium text-amber-700 dark:text-amber-300 underline hover:no-underline transition-colors"
                 >
                   Use this password anyway
                 </button>
@@ -199,7 +199,12 @@ export default function RegisterPage() {
             </div>
           )}
 
-          <Button type="submit" className="w-full" size="lg" disabled={loading}>
+          <Button
+            type="submit"
+            className="w-full"
+            size="lg"
+            disabled={loading}
+          >
             {loading ? (
               <span className="flex items-center gap-2">
                 <span className="h-4 w-4 border-2 border-slate-900/30 border-t-slate-900 rounded-full animate-spin" />
@@ -214,11 +219,11 @@ export default function RegisterPage() {
         </form>
       </div>
 
-      <p className="text-center text-sm text-[var(--color-text-secondary)] mt-6">
+      <p className="text-center text-sm text-[var(--color-text-secondary)] mt-5">
         Already have an account?{" "}
         <Link
           href="/login"
-          className="text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300 font-medium transition-colors"
+          className="text-cyan-600 hover:text-cyan-500 dark:text-cyan-400 dark:hover:text-cyan-300 font-medium transition-colors"
         >
           Sign in
         </Link>

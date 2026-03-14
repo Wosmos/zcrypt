@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>zcrypt.cloud — Logo Samples</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #09090b;
+    color: #fafafa;
+    font-family: 'Inter', sans-serif;
+    padding: 60px 40px;
+  }
+
+  h1 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    color: #52525b;
+    text-transform: uppercase;
+    letter-spacing: 4px;
+    margin-bottom: 60px;
+    text-align: center;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 2px;
+  }
+
+  .card {
+    background: #0a0a0a;
+    border: 1px solid #18181b;
+    padding: 80px 60px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 40px;
+    transition: background 0.2s;
+  }
+
+  .card:hover {
+    background: #111113;
+  }
+
+  .label {
+    font-size: 11px;
+    font-weight: 500;
+    color: #3f3f46;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+  }
+
+  .logo-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  /* ===== 1. z/crypt — Space Grotesk ===== */
+  .logo-slash {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 48px;
+    font-weight: 700;
+    color: #fafafa;
+    letter-spacing: -1px;
+  }
+  .logo-slash .slash {
+    color: #00d5e4;
+    font-weight: 300;
+  }
+
+  /* ===== 2. [zcrypt] — JetBrains Mono ===== */
+  .logo-bracket {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 42px;
+    font-weight: 600;
+    color: #fafafa;
+    letter-spacing: -0.5px;
+  }
+  .logo-bracket .br {
+    color: #00d5e4;
+    font-weight: 400;
+  }
+
+  /* ===== 3. z:crypt — Outfit ===== */
+  .logo-colon {
+    font-family: 'Outfit', sans-serif;
+    font-size: 48px;
+    font-weight: 700;
+    color: #fafafa;
+    letter-spacing: -0.5px;
+  }
+  .logo-colon .colon {
+    color: #00d5e4;
+  }
+
+  /* ===== 4. zcrypt with SVG icon ===== */
+  .logo-icon-text {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 44px;
+    font-weight: 700;
+    color: #fafafa;
+    letter-spacing: -1px;
+  }
+
+  /* ===== 5. z.crypt.cloud ===== */
+  .logo-dots {
+    font-family: 'Outfit', sans-serif;
+    font-size: 40px;
+    font-weight: 600;
+    color: #fafafa;
+    letter-spacing: -0.5px;
+  }
+  .logo-dots .dot {
+    color: #00d5e4;
+    font-weight: 800;
+  }
+
+  /* ===== 6. //zcrypt ===== */
+  .logo-protocol {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 42px;
+    font-weight: 700;
+    color: #fafafa;
+  }
+  .logo-protocol .slashes {
+    color: #00d5e4;
+    font-weight: 400;
+  }
+
+  /* ===== 7. <zcrypt> ===== */
+  .logo-tag {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 46px;
+    font-weight: 700;
+    color: #fafafa;
+    letter-spacing: -1px;
+  }
+  .logo-tag .angle {
+    color: #00d5e4;
+    font-weight: 400;
+  }
+
+  /* ===== 8. z_crypt ===== */
+  .logo-underscore {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 44px;
+    font-weight: 600;
+    color: #fafafa;
+  }
+  .logo-underscore .under {
+    color: #00d5e4;
+  }
+
+  /* ===== Favicon strip ===== */
+  .favicon-strip {
+    display: flex;
+    gap: 24px;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    padding: 60px;
+  }
+
+  .favicon-box {
+    width: 64px;
+    height: 64px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #00d5e4;
+  }
+
+  .favicon-box.dark {
+    background: #18181b;
+    border: 1px solid #27272a;
+  }
+
+  .favicon-box.outline {
+    background: transparent;
+    border: 2px solid #00d5e4;
+  }
+
+  .favicon-text {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 800;
+    font-size: 28px;
+    color: #09090b;
+  }
+
+  .favicon-text.light {
+    color: #00d5e4;
+  }
+
+  .favicon-text.white {
+    color: #fafafa;
+  }
+
+  /* ===== Section headers ===== */
+  .section-label {
+    text-align: center;
+    font-size: 11px;
+    font-weight: 500;
+    color: #27272a;
+    text-transform: uppercase;
+    letter-spacing: 4px;
+    padding: 60px 0 20px;
+  }
+
+  /* ===== Dark/Light comparison ===== */
+  .card.light {
+    background: #fafafa;
+    border-color: #e4e4e7;
+  }
+  .card.light:hover {
+    background: #f4f4f5;
+  }
+  .card.light .logo-slash,
+  .card.light .logo-bracket,
+  .card.light .logo-colon,
+  .card.light .logo-icon-text,
+  .card.light .logo-dots,
+  .card.light .logo-protocol,
+  .card.light .logo-tag,
+  .card.light .logo-underscore {
+    color: #09090b;
+  }
+  .card.light .label {
+    color: #a1a1aa;
+  }
+
+  /* ===== SVG mark variations ===== */
+  .svg-row {
+    display: flex;
+    gap: 48px;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  /* ===== Wordmark + icon lockups ===== */
+  .lockup {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .lockup-text {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 36px;
+    font-weight: 700;
+    color: #fafafa;
+    letter-spacing: -1px;
+  }
+  .card.light .lockup-text {
+    color: #09090b;
+  }
+
+  .cloud-suffix {
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    color: #52525b;
+    letter-spacing: 0.5px;
+    margin-top: 8px;
+    text-align: center;
+  }
+  .card.light .cloud-suffix {
+    color: #a1a1aa;
+  }
+</style>
+</head>
+<body>
+
+<h1>zcrypt.cloud &mdash; logo exploration</h1>
+
+<!-- TEXT LOGOS -->
+<div class="grid">
+
+  <!-- 1. z/crypt -->
+  <div class="card">
+    <span class="logo-slash">z<span class="slash">/</span>crypt</span>
+    <span class="cloud-suffix">zcrypt.cloud</span>
+    <span class="label">slash split</span>
+  </div>
+
+  <div class="card light">
+    <span class="logo-slash">z<span class="slash">/</span>crypt</span>
+    <span class="cloud-suffix">zcrypt.cloud</span>
+    <span class="label">slash split — light</span>
+  </div>
+
+  <!-- 2. [zcrypt] -->
+  <div class="card">
+    <span class="logo-bracket"><span class="br">[</span>zcrypt<span class="br">]</span></span>
+    <span class="cloud-suffix">zcrypt.cloud</span>
+    <span class="label">bracket wrap</span>
+  </div>
+
+  <div class="card light">
+    <span class="logo-bracket"><span class="br">[</span>zcrypt<span class="br">]</span></span>
+    <span class="cloud-suffix">zcrypt.cloud</span>
+    <span class="label">bracket wrap — light</span>
+  </div>
+
+  <!-- 3. z:crypt -->
+  <div class="card">
+    <span class="logo-colon">z<span class="colon">:</span>crypt</span>
+    <span class="cloud-suffix">zcrypt.cloud</span>
+    <span class="label">protocol</span>
+  </div>
+
+  <div class="card light">
+    <span class="logo-colon">z<span class="colon">:</span>crypt</span>
+    <span class="cloud-suffix">zcrypt.cloud</span>
+    <span class="label">protocol — light</span>
+  </div>
+
+  <!-- 4. //zcrypt -->
+  <div class="card">
+    <span class="logo-protocol"><span class="slashes">//</span>zcrypt</span>
+    <span class="cloud-suffix">zcrypt.cloud</span>
+    <span class="label">double slash</span>
+  </div>
+
+  <div class="card light">
+    <span class="logo-protocol"><span class="slashes">//</span>zcrypt</span>
+    <span class="cloud-suffix">zcrypt.cloud</span>
+    <span class="label">double slash — light</span>
+  </div>
+
+  <!-- 5. <zcrypt> -->
+  <div class="card">
+    <span class="logo-tag"><span class="angle">&lt;</span>zcrypt<span class="angle">&gt;</span></span>
+    <span class="cloud-suffix">zcrypt.cloud</span>
+    <span class="label">angle tag</span>
+  </div>
+
+  <div class="card light">
+    <span class="logo-tag"><span class="angle">&lt;</span>zcrypt<span class="angle">&gt;</span></span>
+    <span class="cloud-suffix">zcrypt.cloud</span>
+    <span class="label">angle tag — light</span>
+  </div>
+
+  <!-- 6. z_crypt -->
+  <div class="card">
+    <span class="logo-underscore">z<span class="under">_</span>crypt</span>
+    <span class="cloud-suffix">zcrypt.cloud</span>
+    <span class="label">underscore</span>
+  </div>
+
+  <div class="card light">
+    <span class="logo-underscore">z<span class="under">_</span>crypt</span>
+    <span class="cloud-suffix">zcrypt.cloud</span>
+    <span class="label">underscore — light</span>
+  </div>
+
+  <!-- 7. z.crypt.cloud -->
+  <div class="card">
+    <span class="logo-dots">z<span class="dot">.</span>crypt<span class="dot">.</span>cloud</span>
+    <span class="label">dot chain</span>
+  </div>
+
+  <div class="card light">
+    <span class="logo-dots">z<span class="dot">.</span>crypt<span class="dot">.</span>cloud</span>
+    <span class="label">dot chain — light</span>
+  </div>
+</div>
+
+<!-- SVG ICON MARKS -->
+<div class="section-label">svg icon marks</div>
+
+<div class="grid">
+
+  <!-- Mark A: Z in negative space circle -->
+  <div class="card">
+    <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="40" cy="40" r="38" fill="#00d5e4"/>
+      <path d="M24 24H56L24 56H56" stroke="#09090b" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span class="label">bold Z circle</span>
+  </div>
+
+  <!-- Mark B: Z with shield outline -->
+  <div class="card">
+    <svg width="80" height="90" viewBox="0 0 80 90" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M40 4L72 20V48C72 66 56 82 40 88C24 82 8 66 8 48V20L40 4Z" fill="#00d5e4" opacity="0.12"/>
+      <path d="M40 4L72 20V48C72 66 56 82 40 88C24 82 8 66 8 48V20L40 4Z" stroke="#00d5e4" stroke-width="2"/>
+      <path d="M28 30H52L28 60H52" stroke="#00d5e4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span class="label">Z shield outline</span>
+  </div>
+
+  <!-- Mark C: Split Z -->
+  <div class="card">
+    <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="4" y="4" width="72" height="72" rx="18" fill="#18181b"/>
+      <path d="M22 26H46" stroke="#00d5e4" stroke-width="5" stroke-linecap="round"/>
+      <path d="M46 26L34 54" stroke="#fafafa" stroke-width="5" stroke-linecap="round"/>
+      <path d="M34 54H58" stroke="#00d5e4" stroke-width="5" stroke-linecap="round"/>
+    </svg>
+    <span class="label">split Z — app icon</span>
+  </div>
+
+  <!-- Mark D: Rounded square negative Z -->
+  <div class="card">
+    <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="2" y="2" width="76" height="76" rx="20" fill="#00d5e4"/>
+      <path d="M24 24H56V30H35L56 50V56H24V50H45L24 30V24Z" fill="#09090b"/>
+    </svg>
+    <span class="label">negative Z badge</span>
+  </div>
+
+  <!-- Mark E: Overlapping planes -->
+  <div class="card">
+    <svg width="90" height="80" viewBox="0 0 90 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="4" y="12" width="48" height="48" rx="10" fill="#00d5e4" opacity="0.7"/>
+      <rect x="38" y="20" width="48" height="48" rx="10" fill="#0093a3" opacity="0.8"/>
+      <text x="45" y="52" font-family="Space Grotesk, sans-serif" font-size="24" font-weight="800" fill="#fafafa">z</text>
+    </svg>
+    <span class="label">overlap planes</span>
+  </div>
+
+  <!-- Mark F: Minimal line Z -->
+  <div class="card">
+    <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M20 20H60" stroke="#00d5e4" stroke-width="3" stroke-linecap="round"/>
+      <path d="M60 20L20 60" stroke="#fafafa" stroke-width="3" stroke-linecap="round"/>
+      <path d="M20 60H60" stroke="#00d5e4" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="20" cy="20" r="4" fill="#00d5e4"/>
+      <circle cx="60" cy="20" r="4" fill="#00d5e4"/>
+      <circle cx="20" cy="60" r="4" fill="#00d5e4"/>
+      <circle cx="60" cy="60" r="4" fill="#00d5e4"/>
+    </svg>
+    <span class="label">node constellation Z</span>
+  </div>
+</div>
+
+<!-- LOCKUPS: Icon + Wordmark -->
+<div class="section-label">icon + wordmark lockups</div>
+
+<div class="grid">
+
+  <!-- Lockup 1: Circle Z + z/crypt -->
+  <div class="card">
+    <div class="lockup">
+      <svg width="48" height="48" viewBox="0 0 80 80" fill="none">
+        <circle cx="40" cy="40" r="38" fill="#00d5e4"/>
+        <path d="M24 24H56L24 56H56" stroke="#09090b" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="lockup-text">z<span style="color:#00d5e4;font-weight:300">/</span>crypt</span>
+    </div>
+    <span class="cloud-suffix">zcrypt.cloud</span>
+    <span class="label">lockup A</span>
+  </div>
+
+  <div class="card light">
+    <div class="lockup">
+      <svg width="48" height="48" viewBox="0 0 80 80" fill="none">
+        <circle cx="40" cy="40" r="38" fill="#00d5e4"/>
+        <path d="M24 24H56L24 56H56" stroke="#09090b" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="lockup-text">z<span style="color:#00d5e4;font-weight:300">/</span>crypt</span>
+    </div>
+    <span class="cloud-suffix">zcrypt.cloud</span>
+    <span class="label">lockup A — light</span>
+  </div>
+
+  <!-- Lockup 2: Split Z badge + zcrypt -->
+  <div class="card">
+    <div class="lockup">
+      <svg width="48" height="48" viewBox="0 0 80 80" fill="none">
+        <rect x="4" y="4" width="72" height="72" rx="18" fill="#18181b"/>
+        <path d="M22 26H46" stroke="#00d5e4" stroke-width="5" stroke-linecap="round"/>
+        <path d="M46 26L34 54" stroke="#fafafa" stroke-width="5" stroke-linecap="round"/>
+        <path d="M34 54H58" stroke="#00d5e4" stroke-width="5" stroke-linecap="round"/>
+      </svg>
+      <span class="lockup-text">zcrypt</span>
+    </div>
+    <span class="cloud-suffix">zcrypt.cloud</span>
+    <span class="label">lockup B</span>
+  </div>
+
+  <div class="card light">
+    <div class="lockup">
+      <svg width="48" height="48" viewBox="0 0 80 80" fill="none">
+        <rect x="4" y="4" width="72" height="72" rx="18" fill="#e4e4e7"/>
+        <path d="M22 26H46" stroke="#00d5e4" stroke-width="5" stroke-linecap="round"/>
+        <path d="M46 26L34 54" stroke="#09090b" stroke-width="5" stroke-linecap="round"/>
+        <path d="M34 54H58" stroke="#00d5e4" stroke-width="5" stroke-linecap="round"/>
+      </svg>
+      <span class="lockup-text">zcrypt</span>
+    </div>
+    <span class="cloud-suffix">zcrypt.cloud</span>
+    <span class="label">lockup B — light</span>
+  </div>
+
+  <!-- Lockup 3: Negative badge + [zcrypt] -->
+  <div class="card">
+    <div class="lockup">
+      <svg width="48" height="48" viewBox="0 0 80 80" fill="none">
+        <rect x="2" y="2" width="76" height="76" rx="20" fill="#00d5e4"/>
+        <path d="M24 24H56V30H35L56 50V56H24V50H45L24 30V24Z" fill="#09090b"/>
+      </svg>
+      <span class="lockup-text" style="font-family:'JetBrains Mono',monospace;font-size:32px"><span style="color:#00d5e4;font-weight:400">[</span>zcrypt<span style="color:#00d5e4;font-weight:400">]</span></span>
+    </div>
+    <span class="cloud-suffix">zcrypt.cloud</span>
+    <span class="label">lockup C</span>
+  </div>
+
+  <div class="card light">
+    <div class="lockup">
+      <svg width="48" height="48" viewBox="0 0 80 80" fill="none">
+        <rect x="2" y="2" width="76" height="76" rx="20" fill="#00d5e4"/>
+        <path d="M24 24H56V30H35L56 50V56H24V50H45L24 30V24Z" fill="#09090b"/>
+      </svg>
+      <span class="lockup-text" style="font-family:'JetBrains Mono',monospace;font-size:32px"><span style="color:#00d5e4;font-weight:400">[</span>zcrypt<span style="color:#00d5e4;font-weight:400">]</span></span>
+    </div>
+    <span class="cloud-suffix">zcrypt.cloud</span>
+    <span class="label">lockup C — light</span>
+  </div>
+
+  <!-- Lockup 4: Overlap planes + z:crypt -->
+  <div class="card">
+    <div class="lockup">
+      <svg width="52" height="48" viewBox="0 0 90 80" fill="none">
+        <rect x="4" y="12" width="48" height="48" rx="10" fill="#00d5e4" opacity="0.7"/>
+        <rect x="38" y="20" width="48" height="48" rx="10" fill="#0093a3" opacity="0.8"/>
+        <text x="45" y="52" font-family="Space Grotesk, sans-serif" font-size="24" font-weight="800" fill="#fafafa">z</text>
+      </svg>
+      <span class="lockup-text" style="font-family:'Outfit',sans-serif">z<span style="color:#00d5e4">:</span>crypt</span>
+    </div>
+    <span class="cloud-suffix">zcrypt.cloud</span>
+    <span class="label">lockup D</span>
+  </div>
+
+  <div class="card light">
+    <div class="lockup">
+      <svg width="52" height="48" viewBox="0 0 90 80" fill="none">
+        <rect x="4" y="12" width="48" height="48" rx="10" fill="#00d5e4" opacity="0.7"/>
+        <rect x="38" y="20" width="48" height="48" rx="10" fill="#0093a3" opacity="0.8"/>
+        <text x="45" y="52" font-family="Space Grotesk, sans-serif" font-size="24" font-weight="800" fill="#09090b">z</text>
+      </svg>
+      <span class="lockup-text" style="font-family:'Outfit',sans-serif">z<span style="color:#00d5e4">:</span>crypt</span>
+    </div>
+    <span class="cloud-suffix">zcrypt.cloud</span>
+    <span class="label">lockup D — light</span>
+  </div>
+</div>
+
+<!-- FAVICON STRIP -->
+<div class="section-label">favicon / app icon variants</div>
+
+<div class="favicon-strip">
+  <!-- Cyan bg, dark Z -->
+  <div class="favicon-box">
+    <span class="favicon-text">Z</span>
+  </div>
+
+  <!-- Dark bg, cyan Z -->
+  <div class="favicon-box dark">
+    <span class="favicon-text light">Z</span>
+  </div>
+
+  <!-- Outline -->
+  <div class="favicon-box outline">
+    <span class="favicon-text light">Z</span>
+  </div>
+
+  <!-- Cyan bg, dark [z] -->
+  <div class="favicon-box">
+    <span class="favicon-text" style="font-family:'JetBrains Mono',monospace;font-size:20px">[z]</span>
+  </div>
+
+  <!-- SVG negative Z -->
+  <div class="favicon-box" style="padding:0;overflow:hidden">
+    <svg width="64" height="64" viewBox="0 0 80 80" fill="none">
+      <rect width="80" height="80" rx="20" fill="#00d5e4"/>
+      <path d="M24 24H56V30H35L56 50V56H24V50H45L24 30V24Z" fill="#09090b"/>
+    </svg>
+  </div>
+
+  <!-- Split Z -->
+  <div class="favicon-box dark" style="padding:0;overflow:hidden">
+    <svg width="64" height="64" viewBox="0 0 80 80" fill="none">
+      <rect x="4" y="4" width="72" height="72" rx="18" fill="#18181b"/>
+      <path d="M22 26H46" stroke="#00d5e4" stroke-width="5" stroke-linecap="round"/>
+      <path d="M46 26L34 54" stroke="#fafafa" stroke-width="5" stroke-linecap="round"/>
+      <path d="M34 54H58" stroke="#00d5e4" stroke-width="5" stroke-linecap="round"/>
+    </svg>
+  </div>
+
+  <!-- z/ -->
+  <div class="favicon-box dark">
+    <span class="favicon-text white" style="font-family:'Space Grotesk',sans-serif;font-size:24px">z<span style="color:#00d5e4;font-weight:300">/</span></span>
+  </div>
+
+  <!-- Overlap -->
+  <div class="favicon-box" style="background:transparent;padding:0">
+    <svg width="64" height="64" viewBox="0 0 80 80" fill="none">
+      <rect x="4" y="8" width="40" height="40" rx="8" fill="#00d5e4" opacity="0.7"/>
+      <rect x="30" y="28" width="40" height="40" rx="8" fill="#0093a3"/>
+      <text x="38" y="56" font-family="Space Grotesk, sans-serif" font-size="22" font-weight="800" fill="#fafafa">z</text>
+    </svg>
+  </div>
+</div>
+
+</body>
+</html>

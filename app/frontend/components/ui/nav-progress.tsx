@@ -37,7 +37,7 @@ export function NavProgress() {
   return (
     <div className="fixed top-0 left-0 right-0 z-[999] h-0.5">
       <div
-        className="h-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] transition-all duration-300 ease-out"
+        className="h-full bg-cyan-500 shadow-[0_0_10px_rgba(0,213,228,0.5)] transition-all duration-300 ease-out"
         style={{
           width: loading ? `${progress}%` : "100%",
           opacity: loading ? 1 : 0,

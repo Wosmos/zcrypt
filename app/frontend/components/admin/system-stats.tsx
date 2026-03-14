@@ -1,6 +1,6 @@
 "use client";
 
-import { Users, FileText, Database, GitBranch } from "lucide-react";
+import { Users, FileText, Database, GitBranch } from "@/lib/icons";
 import { formatBytes } from "@/lib/utils";
 import type { SystemStats } from "@/types";
 
@@ -17,8 +17,8 @@ export function SystemStatsCards({ stats }: { stats: SystemStats }) {
       label: "Total Files",
       value: stats.total_files.toLocaleString(),
       icon: FileText,
-      color: "text-emerald-500",
-      bg: "bg-emerald-500/10",
+      color: "text-cyan-500",
+      bg: "bg-cyan-500/10",
     },
     {
       label: "Total Storage",
@@ -47,7 +47,7 @@ export function SystemStatsCards({ stats }: { stats: SystemStats }) {
             <Icon className={`h-5 w-5 ${color}`} />
           </div>
           <div className="min-w-0">
-            <p className="text-[11px] text-[var(--color-text-muted)] uppercase tracking-wider font-medium">
+            <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-wider font-medium">
               {label}
             </p>
             <p className="text-lg font-bold tabular-nums truncate">{value}</p>

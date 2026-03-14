@@ -2,7 +2,7 @@
 
 import { formatBytes } from "@/lib/utils";
 import type { FileMetadata } from "@/types";
-import { FileText, Image, Video, Music, Archive, Code, File } from "lucide-react";
+import { FileText, Image, Video, Music, Archive, Code, File } from "@/lib/icons";
 
 interface StatCardsProps {
   files: FileMetadata[];
@@ -82,14 +82,14 @@ export function StatCards({ files }: StatCardsProps) {
                 <Icon className={`h-5 w-5 ${stat.color}`} />
               </div>
               {stat.count > 0 && (
-                <span className="text-[11px] font-medium text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                <span className="text-xs font-medium text-cyan-500 bg-cyan-500/10 px-2 py-0.5 rounded-full">
                   {stat.savings}% saved
                 </span>
               )}
             </div>
-            <p className="text-[11px] text-[var(--color-text-muted)] uppercase tracking-wider font-medium">{stat.label}</p>
+            <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-wider font-medium">{stat.label}</p>
             <p className="text-xl font-bold mt-0.5">{formatBytes(stat.totalSize)}</p>
-            <p className="text-[11px] text-[var(--color-text-secondary)] mt-0.5">{stat.count} file{stat.count !== 1 ? "s" : ""}</p>
+            <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">{stat.count} file{stat.count !== 1 ? "s" : ""}</p>
           </div>
         );
       })}

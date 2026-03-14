@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { X, Star, Send, Heart } from "lucide-react";
+import { X, Star, Send, Heart } from "@/lib/icons";
 import { submitFeedback } from "@/lib/api";
 import { toast } from "@/store/toast";
 
@@ -87,9 +87,9 @@ export function FeedbackModal({ open, onClose, onSubmitted }: FeedbackModalProps
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     transition={{ type: "spring", delay: 0.1 }}
-                    className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-emerald-500/10 mb-4"
+                    className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-cyan-500/10 mb-4"
                   >
-                    <Heart className="h-8 w-8 text-emerald-500" />
+                    <Heart className="h-8 w-8 text-cyan-500" />
                   </motion.div>
                   <h3 className="text-xl font-bold">Thank you!</h3>
                   <p className="text-sm text-[var(--color-text-secondary)] mt-2">
@@ -103,7 +103,7 @@ export function FeedbackModal({ open, onClose, onSubmitted }: FeedbackModalProps
                     <div>
                       <h3 className="text-lg font-bold">How are we doing?</h3>
                       <p className="text-sm text-[var(--color-text-secondary)] mt-1">
-                        We&apos;d love to hear your thoughts on zpush.
+                        We&apos;d love to hear your thoughts on zcrypt.
                       </p>
                     </div>
                     <button
@@ -141,7 +141,7 @@ export function FeedbackModal({ open, onClose, onSubmitted }: FeedbackModalProps
                     onChange={(e) => setMessage(e.target.value)}
                     placeholder="Tell us what you think... (optional)"
                     rows={3}
-                    className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 resize-none"
+                    className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-cyan-500/30 resize-none"
                   />
 
                   {/* Actions */}
@@ -155,7 +155,7 @@ export function FeedbackModal({ open, onClose, onSubmitted }: FeedbackModalProps
                     <button
                       onClick={handleSubmit}
                       disabled={rating === 0 || submitting}
-                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-500 text-white text-sm font-semibold hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-cyan-500 text-white text-sm font-semibold hover:bg-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                       {submitting ? (
                         "Sending..."

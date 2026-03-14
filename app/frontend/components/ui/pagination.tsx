@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
 interface PaginationProps {
@@ -57,7 +57,7 @@ export function Pagination({ currentPage, totalPages, onPageChange, totalItems, 
               className={cn(
                 "flex items-center justify-center h-8 min-w-[2rem] rounded-lg text-xs font-medium transition-colors",
                 page === currentPage
-                  ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                  ? "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20"
                   : "border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-1)]"
               )}
             >

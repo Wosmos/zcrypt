@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { X, AlertTriangle, Trash2, ShieldAlert, Info } from "lucide-react";
+import { X, AlertTriangle, Trash2, ShieldAlert, Info } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
 type ConfirmVariant = "danger" | "warning" | "info";
@@ -105,7 +105,7 @@ export function ConfirmModal({
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="text-sm font-semibold">{title}</h3>
-            <p className="text-[13px] text-[var(--color-text-secondary)] mt-1 leading-relaxed">
+            <p className="text-sm text-[var(--color-text-secondary)] mt-1 leading-relaxed">
               {description}
             </p>
           </div>

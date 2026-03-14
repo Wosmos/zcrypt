@@ -11,7 +11,7 @@ import {
   Link2,
   Shield,
   Activity,
-} from "lucide-react";
+} from "@/lib/icons";
 
 const eventLabels: Record<string, string> = {
   login: "Signed in",
@@ -111,9 +111,9 @@ export function SecurityActivity() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">{label}</p>
-                <p className="text-[11px] text-[var(--color-text-muted)]">{event.ip}</p>
+                <p className="text-xs text-[var(--color-text-muted)]">{event.ip}</p>
               </div>
-              <span className="text-[11px] text-[var(--color-text-muted)] tabular-nums flex-shrink-0">
+              <span className="text-xs text-[var(--color-text-muted)] tabular-nums flex-shrink-0">
                 {formatRelativeTime(event.created_at)}
               </span>
             </div>

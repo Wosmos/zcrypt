@@ -23,7 +23,8 @@ import {
   PanelLeft,
   Database,
   Users,
-} from "lucide-react";
+} from "@/lib/icons";
+import { Logo } from "@/components/ui/logo";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth";
 import { usePlatformStore } from "@/store/platform";
@@ -78,20 +79,12 @@ export function Sidebar() {
         )}
       >
         {/* Logo */}
-        <div className={cn("flex items-center gap-3 px-4 py-5", collapsed && "justify-center px-2")}>
-          <div className="flex items-center justify-center h-9 w-9 rounded-xl bg-emerald-500/15 ring-1 ring-emerald-500/25 flex-shrink-0">
-            <Shield className="h-[18px] w-[18px] text-emerald-400" />
-          </div>
-          {!collapsed && (
-            <div className="min-w-0">
-              <span className="text-[15px] font-bold tracking-tight text-white">
-                zpush
-              </span>
-              <p className="text-[10px] text-[var(--color-sidebar-text)] -mt-0.5">
-                encrypted vault
-              </p>
-            </div>
-          )}
+        <div className={cn("flex items-center px-4 py-5", collapsed && "justify-center px-2")}>
+          <Logo
+            size={collapsed ? "xs" : "md"}
+            iconOnly={collapsed}
+            subtitle={collapsed ? undefined : "encrypted vault"}
+          />
         </div>
 
         {/* Nav */}
@@ -105,7 +98,7 @@ export function Sidebar() {
                 title={collapsed ? label : undefined}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex items-center gap-3 rounded-xl text-[13px] font-medium transition-all duration-150",
+                  "flex items-center gap-3 rounded-xl text-sm font-medium transition-all duration-150",
                   collapsed ? "justify-center px-0 py-2.5" : "px-3 py-2.5",
                   active
                     ? "bg-[var(--color-sidebar-active)] text-[var(--color-sidebar-text-active)]"
@@ -115,7 +108,7 @@ export function Sidebar() {
                 <Icon
                   className={cn(
                     "h-[18px] w-[18px] flex-shrink-0",
-                    active ? "text-emerald-400" : ""
+                    active ? "text-cyan-400" : ""
                   )}
                 />
                 {!collapsed && label}
@@ -142,7 +135,7 @@ export function Sidebar() {
                   <div
                     className={cn(
                       "h-full rounded-full transition-all duration-500",
-                      storagePercent > 90 ? "bg-red-500" : storagePercent > 70 ? "bg-amber-500" : "bg-emerald-500"
+                      storagePercent > 90 ? "bg-red-500" : storagePercent > 70 ? "bg-amber-500" : "bg-cyan-500"
                     )}
                     style={{ width: `${storagePercent}%` }}
                   />
@@ -161,7 +154,7 @@ export function Sidebar() {
                   <div
                     className={cn(
                       "w-full rounded-full transition-all duration-500",
-                      storagePercent > 90 ? "bg-red-500" : storagePercent > 70 ? "bg-amber-500" : "bg-emerald-500"
+                      storagePercent > 90 ? "bg-red-500" : storagePercent > 70 ? "bg-amber-500" : "bg-cyan-500"
                     )}
                     style={{ height: `${storagePercent}%` }}
                   />
@@ -178,8 +171,8 @@ export function Sidebar() {
           collapsed ? "px-1.5 flex flex-col items-center gap-1" : "px-4 flex items-center justify-between"
         )}>
           {!collapsed && (
-            <p className="text-[10px] text-[var(--color-sidebar-text)] leading-relaxed">
-              zpush v0.2
+            <p className="text-[10px] text-[var(--color-sidebar-text)] leading-relaxed font-heading">
+              zcrypt.cloud
             </p>
           )}
           <div className={cn("flex items-center", collapsed ? "flex-col gap-1" : "gap-1")}>
@@ -290,7 +283,7 @@ function DockItem({
         className={cn(
           "flex items-center justify-center rounded-xl transition-colors",
           active
-            ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+            ? "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400"
             : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
         )}
       >
@@ -300,7 +293,7 @@ function DockItem({
       {active && (
         <motion.div
           layoutId="dock-dot"
-          className="absolute -bottom-1 left-1/2 -translate-x-1/2 h-1 w-1 rounded-full bg-emerald-500"
+          className="absolute -bottom-1 left-1/2 -translate-x-1/2 h-1 w-1 rounded-full bg-cyan-500"
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
         />
       )}

@@ -2,7 +2,7 @@
 
 import type { RepoInfo } from "@/types";
 import { formatBytes } from "@/lib/utils";
-import { Database } from "lucide-react";
+import { Database } from "@/lib/icons";
 
 interface StorageQuotaProps {
   repos: RepoInfo[];
@@ -37,22 +37,22 @@ export function StorageQuota({ repos }: StorageQuotaProps) {
               ? "bg-red-500"
               : isHigh
                 ? "bg-amber-500"
-                : "bg-emerald-500"
+                : "bg-cyan-500"
           }`}
           style={{ width: `${percent}%` }}
         />
       </div>
       {isCritical && (
-        <p className="text-[11px] text-red-500 mt-2">
+        <p className="text-xs text-red-500 mt-2">
           Storage almost full. Connect more repos or clean up files.
         </p>
       )}
       {isHigh && !isCritical && (
-        <p className="text-[11px] text-amber-500 mt-2">
+        <p className="text-xs text-amber-500 mt-2">
           Storage usage is high ({percent.toFixed(0)}%).
         </p>
       )}
-      <div className="text-[11px] text-[var(--color-text-muted)] mt-2">
+      <div className="text-xs text-[var(--color-text-muted)] mt-2">
         {repos.length} repo{repos.length !== 1 ? "s" : ""} across {new Set(repos.map((r) => r.platform)).size} platform{new Set(repos.map((r) => r.platform)).size !== 1 ? "s" : ""}
       </div>
     </div>

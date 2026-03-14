@@ -1,6 +1,6 @@
 "use client";
 
-import { Github } from "lucide-react";
+import { Github } from "@/lib/icons";
 import { GoogleIcon } from "@/components/icons/google";
 import { getOAuthURL } from "@/lib/auth-api";
 

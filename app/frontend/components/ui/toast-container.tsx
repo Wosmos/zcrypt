@@ -1,7 +1,7 @@
 "use client";
 
 import { useToastStore } from "@/store/toast";
-import { X, CheckCircle2, AlertCircle, Info, AlertTriangle } from "lucide-react";
+import { X, CheckCircle2, AlertCircle, Info, AlertTriangle } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
 const icons = {
@@ -12,9 +12,9 @@ const icons = {
 };
 
 const styles = {
-  success: "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+  success: "border-cyan-500/20 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300",
   error: "border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-300",
-  info: "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+  info: "border-cyan-500/20 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300",
   warning: "border-yellow-500/20 bg-yellow-500/10 text-yellow-700 dark:text-yellow-300",
 };
 

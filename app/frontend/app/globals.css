@@ -5,8 +5,8 @@
 @layer base {
   :root {
     color-scheme: light;
-    --color-accent: #0d9373;
-    --color-accent-hover: #0fb88e;
+    --color-accent: #0093a3;
+    --color-accent-hover: #00a8ba;
     --color-bg: #f4f6fa;
     --color-surface: #ffffff;
     --color-surface-1: #f0f2f7;
@@ -19,7 +19,7 @@
     --color-text-muted: #8f95a8;
     --color-sidebar: #1a1f36;
     --color-sidebar-hover: #252b45;
-    --color-sidebar-active: rgba(16, 185, 129, 0.12);
+    --color-sidebar-active: rgba(0, 213, 228, 0.12);
     --color-sidebar-text: #8f95b2;
     --color-sidebar-text-active: #ffffff;
     --color-sidebar-border: #252b45;
@@ -27,8 +27,8 @@
 
   .dark {
     color-scheme: dark;
-    --color-accent: #10b981;
-    --color-accent-hover: #34d399;
+    --color-accent: #00d5e4;
+    --color-accent-hover: #2de0ed;
     --color-bg: #0c0f1a;
     --color-surface: #141829;
     --color-surface-1: #1c2039;
@@ -41,7 +41,7 @@
     --color-text-muted: #5c6184;
     --color-sidebar: #0e1225;
     --color-sidebar-hover: #181d35;
-    --color-sidebar-active: rgba(16, 185, 129, 0.1);
+    --color-sidebar-active: rgba(0, 213, 228, 0.1);
     --color-sidebar-text: #5c6184;
     --color-sidebar-text-active: #e0e4f0;
     --color-sidebar-border: #1a1f38;
@@ -54,8 +54,17 @@
 
   body {
     @apply bg-[var(--color-bg)] text-[var(--color-text)] antialiased;
-    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-      "Helvetica Neue", Arial, sans-serif;
+    font-family: var(--font-body), "Poppins", -apple-system, BlinkMacSystemFont,
+      "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-heading), var(--font-body), sans-serif;
   }
 }
 
@@ -86,7 +95,8 @@
   }
 
   .section-label {
-    @apply text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)] flex items-center gap-2;
+    @apply text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] flex items-center gap-2;
+    font-family: var(--font-heading), var(--font-body), sans-serif;
   }
   .section-label::before {
     content: "";
@@ -96,6 +106,7 @@
     border-radius: 2px;
     background: var(--color-accent);
   }
+
 }
 
 @keyframes fade-in {

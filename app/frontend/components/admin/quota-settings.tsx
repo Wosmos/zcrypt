@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { HardDrive } from "lucide-react";
+import { HardDrive } from "@/lib/icons";
 import { adminSetDefaultQuota } from "@/lib/api";
 import { formatBytes } from "@/lib/utils";
 import { toast } from "@/store/toast";
@@ -45,7 +45,7 @@ export function QuotaSettings({
           <HardDrive className="h-4 w-4 text-[var(--color-text-muted)]" />
           Default Storage Quota
         </h2>
-        <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
+        <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
           Applies to users using global platform tokens. Users with personal tokens have unlimited storage.
         </p>
       </div>
@@ -53,7 +53,7 @@ export function QuotaSettings({
       <div className="px-5 py-4">
         <div className="flex items-end gap-3">
           <div className="flex-1 max-w-xs">
-            <label className="text-[11px] text-[var(--color-text-muted)] uppercase tracking-wider font-medium block mb-1.5">
+            <label className="text-xs text-[var(--color-text-muted)] uppercase tracking-wider font-medium block mb-1.5">
               Quota (GB)
             </label>
             <input
@@ -62,19 +62,19 @@ export function QuotaSettings({
               step="0.5"
               value={quotaGB}
               onChange={(e) => setQuotaGB(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-1)] border border-[var(--color-border)] text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500/50"
+              className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-1)] border border-[var(--color-border)] text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-500/50"
               placeholder="0"
             />
           </div>
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium transition-colors disabled:opacity-50"
+            className="px-4 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-700 text-white text-sm font-medium transition-colors disabled:opacity-50"
           >
             {saving ? "Saving..." : "Save"}
           </button>
         </div>
-        <p className="text-[11px] text-[var(--color-text-muted)] mt-2">
+        <p className="text-xs text-[var(--color-text-muted)] mt-2">
           Set to 0 for unlimited.
           {defaultQuotaBytes > 0 && (
             <span className="ml-1">

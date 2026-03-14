@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { forgotPassword } from "@/lib/auth-api";
 import { toast } from "@/store/toast";
-import { Mail, ArrowRight, ArrowLeft, CheckCircle2 } from "lucide-react";
+import { Mail, ArrowRight, ArrowLeft, CheckCircle2 } from "@/lib/icons";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -22,7 +22,6 @@ export default function ForgotPasswordPage() {
       await forgotPassword(email);
       setSent(true);
     } catch {
-      // Always show success to prevent email enumeration
       setSent(true);
     } finally {
       setLoading(false);
@@ -31,17 +30,20 @@ export default function ForgotPasswordPage() {
 
   if (sent) {
     return (
-      <div className="card p-6 sm:p-8 text-center animate-fade-in">
-        <div className="inline-flex items-center justify-center h-14 w-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 mb-5">
-          <CheckCircle2 className="h-7 w-7 text-emerald-500 dark:text-emerald-400" />
+      <div className="text-center animate-fade-in">
+        <div className="flex justify-center mb-4">
+          <div className="h-12 w-12 rounded-full bg-cyan-500/10 flex items-center justify-center">
+            <CheckCircle2 className="h-6 w-6 text-cyan-500" />
+          </div>
         </div>
         <h2 className="text-xl font-bold">Check your email</h2>
-        <p className="text-sm text-[var(--color-text-secondary)] mt-2 max-w-sm mx-auto leading-relaxed">
-          If an account exists for <strong className="text-[var(--color-text)]">{email}</strong>,
+        <p className="text-sm text-[var(--color-text-secondary)] mt-2 leading-relaxed">
+          If an account exists for{" "}
+          <strong className="text-[var(--color-text)]">{email}</strong>,
           you&apos;ll receive a password reset link shortly.
         </p>
         <Link href="/login">
-          <Button variant="secondary" className="mt-6">
+          <Button variant="secondary" className="mt-5">
             <ArrowLeft className="h-4 w-4" /> Back to login
           </Button>
         </Link>
@@ -50,15 +52,15 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="card p-6 sm:p-8 animate-fade-in">
-      <div className="text-center mb-6">
-        <h1 className="text-xl font-bold">Forgot password?</h1>
+    <div className="animate-fade-in">
+      <div className="mb-6">
+        <h1 className="text-xl font-bold tracking-tight">Reset password</h1>
         <p className="text-sm text-[var(--color-text-secondary)] mt-1">
           Enter your email and we&apos;ll send a reset link
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-3">
         <Input
           label="Email"
           type="email"
@@ -87,7 +89,7 @@ export default function ForgotPasswordPage() {
       <p className="text-center text-sm text-[var(--color-text-secondary)] mt-6">
         <Link
           href="/login"
-          className="text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300 font-medium transition-colors inline-flex items-center gap-1"
+          className="text-cyan-600 hover:text-cyan-500 dark:text-cyan-400 dark:hover:text-cyan-300 font-medium transition-colors inline-flex items-center gap-1"
         >
           <ArrowLeft className="h-3.5 w-3.5" /> Back to login
         </Link>

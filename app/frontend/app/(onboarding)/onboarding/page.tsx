@@ -18,7 +18,7 @@ import {
   Key,
   CheckCircle2,
   SkipForward,
-} from "lucide-react";
+} from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
 type Step = "welcome" | "platform" | "token" | "done";
@@ -31,7 +31,7 @@ const platforms = [
     description: "Up to 1GB per repo",
     placeholder: "ghp_xxxxxxxxxxxx",
     scope: "repo",
-    tokenUrl: "https://github.com/settings/tokens/new?scopes=repo&description=zpush",
+    tokenUrl: "https://github.com/settings/tokens/new?scopes=repo&description=zcrypt",
     tokenLabel: "Generate token on GitHub",
   },
   {
@@ -42,7 +42,7 @@ const platforms = [
     description: "Up to 10GB per repo",
     placeholder: "glpat-xxxxxxxxxxxx",
     scope: "api",
-    tokenUrl: "https://gitlab.com/-/user_settings/personal_access_tokens?name=zpush&scopes=api",
+    tokenUrl: "https://gitlab.com/-/user_settings/personal_access_tokens?name=zcrypt&scopes=api",
     tokenLabel: "Generate token on GitLab",
   },
   {
@@ -126,7 +126,7 @@ export default function OnboardingPage() {
                 <Shield className="h-8 w-8 text-[var(--color-accent)]" />
               </div>
               <h1 className="text-3xl font-bold">
-                Welcome to <span className="text-[var(--color-accent)]">zpush</span>
+                Welcome to <span className="text-[var(--color-accent)]">zcrypt</span>
               </h1>
               <p className="text-sm text-[var(--color-text-secondary)] max-w-sm mx-auto">
                 Encrypted, compressed, zero-knowledge cloud storage using Git
@@ -200,7 +200,7 @@ export default function OnboardingPage() {
                     </div>
                     <div className="flex-1">
                       <p className="text-sm font-medium">{p.name}</p>
-                      <p className="text-[11px] text-[var(--color-text-muted)]">{p.description}</p>
+                      <p className="text-xs text-[var(--color-text-muted)]">{p.description}</p>
                     </div>
                     {isSelected && (
                       <div className="h-5 w-5 rounded-full bg-[var(--color-accent)] flex items-center justify-center">
@@ -333,7 +333,7 @@ function FeatureRow({
       </div>
       <div>
         <p className="text-sm font-medium">{title}</p>
-        <p className="text-[11px] text-[var(--color-text-muted)]">{desc}</p>
+        <p className="text-xs text-[var(--color-text-muted)]">{desc}</p>
       </div>
     </div>
   );

@@ -20,12 +20,12 @@ export function AnimatedTimelineLine() {
       <div className="absolute inset-0 bg-[var(--color-border)]" />
       {/* Animated fill */}
       <motion.div
-        className="absolute top-0 left-0 right-0 bg-emerald-500 origin-top"
+        className="absolute top-0 left-0 right-0 bg-cyan-500 origin-top"
         style={{ scaleY, height: "100%" }}
       />
       {/* Glow at the tip */}
       <motion.div
-        className="absolute left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/50 blur-[2px]"
+        className="absolute left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-cyan-500 shadow-lg shadow-cyan-500/50 blur-[2px]"
         style={{
           top: useTransform(scaleY, (v: number) => `calc(${v * 100}% - 6px)`),
         }}
@@ -51,9 +51,9 @@ export function TimelineStep({
       animate={isInView ? { opacity: 1, x: 0 } : {}}
       transition={{ duration: 0.5, delay: index * 0.1, ease: "easeOut" }}
     >
-      <div className="relative flex gap-5 py-6">
+      <div className="relative flex gap-5 py-7">
         <motion.div
-          className="relative z-10 flex items-center justify-center h-12 w-12 rounded-xl bg-[var(--color-bg)] border border-[var(--color-border)] text-xs font-bold text-emerald-600 dark:text-emerald-400 flex-shrink-0"
+          className="relative z-10 flex items-center justify-center h-12 w-12 rounded-xl bg-[var(--color-bg)] border border-cyan-500/20 text-xs font-bold text-cyan-600 dark:text-cyan-400 flex-shrink-0 shadow-sm"
           initial={{ scale: 0.5, opacity: 0 }}
           animate={isInView ? { scale: 1, opacity: 1 } : {}}
           transition={{
@@ -65,9 +65,11 @@ export function TimelineStep({
         >
           {step.num}
         </motion.div>
-        <div className="pt-1">
-          <h3 className="text-sm font-semibold">{step.title}</h3>
-          <p className="text-sm text-[var(--color-text-secondary)] mt-0.5">
+        <div className="pt-0.5">
+          <h3 className="text-base font-bold tracking-tight font-heading">
+            {step.title}
+          </h3>
+          <p className="text-sm text-[var(--color-text-secondary)] mt-1 leading-relaxed">
             {step.desc}
           </p>
         </div>

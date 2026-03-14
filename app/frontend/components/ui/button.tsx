@@ -8,7 +8,7 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantStyles = {
   primary:
-    "bg-[#1a1f36] text-white hover:bg-[#252b45] active:bg-[#0f1225] dark:bg-emerald-600 dark:text-white dark:hover:bg-emerald-500 dark:active:bg-emerald-700 shadow-lg shadow-[#1a1f36]/20 dark:shadow-emerald-600/25",
+    "bg-[#1a1f36] text-white hover:bg-[#252b45] active:bg-[#0f1225] dark:bg-cyan-600 dark:text-white dark:hover:bg-cyan-500 dark:active:bg-cyan-700 shadow-lg shadow-[#1a1f36]/20 dark:shadow-cyan-600/25",
   secondary:
     "bg-[var(--color-surface)] text-[var(--color-text)] hover:bg-[var(--color-surface-1)] border border-[var(--color-border)] hover:border-[var(--color-border-hover)]",
   danger:
@@ -29,7 +29,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     <button
       ref={ref}
       className={cn(
-        "inline-flex items-center justify-center font-medium transition-all duration-150 outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--color-bg)] disabled:opacity-40 disabled:pointer-events-none cursor-pointer",
+        "inline-flex items-center justify-center font-medium transition-all duration-150 outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/40 focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--color-bg)] disabled:opacity-40 disabled:pointer-events-none cursor-pointer",
         variantStyles[variant],
         sizeStyles[size],
         className

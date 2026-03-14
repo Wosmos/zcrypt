@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState, DragEvent } from "react";
-import { Upload, Cloud } from "lucide-react";
+import { Upload, Cloud } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
 interface UploadZoneProps {
@@ -91,7 +91,7 @@ export function UploadZone({ onFiles, hint, compact }: UploadZoneProps) {
         >
           {dragOver ? "Drop to upload" : "Drop files here or click to browse"}
         </p>
-        <p className="text-[11px] text-[var(--color-text-muted)] mt-1.5 max-w-xs mx-auto leading-relaxed">
+        <p className="text-xs text-[var(--color-text-muted)] mt-1.5 max-w-xs mx-auto leading-relaxed">
           {hint || "Files are compressed, encrypted, and chunked before upload"}
         </p>
       </div>

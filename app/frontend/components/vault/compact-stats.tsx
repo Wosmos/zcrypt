@@ -1,7 +1,7 @@
 "use client";
 
 import { formatBytes, formatDate } from "@/lib/utils";
-import { Layers, HardDrive, TrendingDown, Clock, Infinity } from "lucide-react";
+import { Layers, HardDrive, TrendingDown, Clock, Infinity } from "@/lib/icons";
 import type { QuotaInfo } from "@/types";
 
 interface CompactStatsProps {
@@ -38,7 +38,7 @@ export function CompactStats({ fileCount, totalSize, totalEncrypted, lastUploadD
         ) : quotaInfo ? (
           <>
             {formatBytes(quotaInfo.used_bytes)}
-            <Infinity className="h-3 w-3 text-emerald-500 ml-0.5" />
+            <Infinity className="h-3 w-3 text-cyan-500 ml-0.5" />
           </>
         ) : (
           formatBytes(totalSize)
@@ -54,7 +54,7 @@ export function CompactStats({ fileCount, totalSize, totalEncrypted, lastUploadD
       )}
       <span className="h-3 w-px bg-[var(--color-border)]" />
       <span className="flex items-center gap-1.5">
-        <TrendingDown className="h-3.5 w-3.5 text-emerald-500" />
+        <TrendingDown className="h-3.5 w-3.5 text-cyan-500" />
         {savings}% saved
       </span>
       {lastUploadDate && (

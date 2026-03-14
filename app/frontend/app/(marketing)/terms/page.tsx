@@ -3,7 +3,7 @@
 import { useRef } from "react";
 import Link from "next/link";
 import { motion, useInView } from "motion/react";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight } from "@/lib/icons";
 
 function Section({
   children,
@@ -30,7 +30,7 @@ function Section({
 
 function PullQuote({ children }: { children: React.ReactNode }) {
   return (
-    <blockquote className="my-12 border-l-2 border-emerald-500/40 pl-6 py-2">
+    <blockquote className="my-12 border-l-2 border-cyan-500/40 pl-6 py-2">
       <p className="text-xl sm:text-2xl font-medium italic text-[var(--color-text)] leading-relaxed">
         {children}
       </p>
@@ -40,10 +40,10 @@ function PullQuote({ children }: { children: React.ReactNode }) {
 
 function BulletList({ items }: { items: React.ReactNode[] }) {
   return (
-    <ul className="mt-4 space-y-2 text-[15px] text-[var(--color-text-secondary)] leading-relaxed">
+    <ul className="mt-4 space-y-2 text-base text-[var(--color-text-secondary)] leading-relaxed">
       {items.map((item, i) => (
         <li key={i} className="flex gap-2">
-          <span className="text-emerald-500 mt-0.5 shrink-0">&bull;</span>
+          <span className="text-cyan-500 mt-0.5 shrink-0">&bull;</span>
           <span>{item}</span>
         </li>
       ))}
@@ -57,7 +57,7 @@ export default function TermsPage() {
       <article className="mx-auto max-w-2xl px-4">
         {/* Header */}
         <Section>
-          <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-4">
+          <p className="text-xs font-semibold text-cyan-600 dark:text-cyan-400 uppercase tracking-wider mb-4">
             Legal
           </p>
           <h1 className="text-4xl sm:text-5xl font-bold tracking-tight leading-[1.15]">
@@ -75,15 +75,15 @@ export default function TermsPage() {
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
             1. Service Description
           </h2>
-          <div className="mt-6 space-y-4 text-[15px] text-[var(--color-text-secondary)] leading-relaxed">
+          <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
             <p>
-              zpush is a zero-knowledge encrypted cloud storage platform. Files are
+              zcrypt is a zero-knowledge encrypted cloud storage platform. Files are
               encrypted client-side using AES-256-GCM before upload. We do not have
               access to your encryption keys or the contents of your files.
             </p>
             <p>
-              These Terms of Service (&ldquo;Terms&rdquo;) govern your use of zpush
-              (&ldquo;the Service&rdquo;), operated by zpush (&ldquo;we&rdquo;,
+              These Terms of Service (&ldquo;Terms&rdquo;) govern your use of zcrypt
+              (&ldquo;the Service&rdquo;), operated by zcrypt (&ldquo;we&rdquo;,
               &ldquo;us&rdquo;, &ldquo;our&rdquo;). By creating an account or using
               the Service, you agree to these Terms.
             </p>
@@ -125,7 +125,7 @@ export default function TermsPage() {
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
             4. Acceptable Use
           </h2>
-          <div className="mt-6 space-y-4 text-[15px] text-[var(--color-text-secondary)] leading-relaxed">
+          <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
             <p>You agree not to:</p>
           </div>
           <BulletList
@@ -144,7 +144,7 @@ export default function TermsPage() {
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
             5. Bring Your Own Backend
           </h2>
-          <div className="mt-6 space-y-4 text-[15px] text-[var(--color-text-secondary)] leading-relaxed">
+          <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
             <p>
               Pro and Team users may connect their own Git-based storage repositories.
               When using BYOB:
@@ -153,7 +153,7 @@ export default function TermsPage() {
           <BulletList
             items={[
               "You are solely responsible for the storage platform\u2019s terms of service and costs.",
-              "zpush acts only as an encryption and chunking layer; we do not control or guarantee the availability of your storage backend.",
+              "zcrypt acts only as an encryption and chunking layer; we do not control or guarantee the availability of your storage backend.",
               "We are not liable for data loss caused by third-party platform changes, outages, or account suspensions.",
             ]}
           />
@@ -164,9 +164,9 @@ export default function TermsPage() {
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
             6. Zero-Knowledge Disclaimer
           </h2>
-          <div className="mt-6 space-y-4 text-[15px] text-[var(--color-text-secondary)] leading-relaxed">
+          <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
             <p>
-              zpush uses client-side encryption. We <strong className="text-[var(--color-text)]">cannot</strong> access,
+              zcrypt uses client-side encryption. We <strong className="text-[var(--color-text)]">cannot</strong> access,
               read, recover, or reset your encryption passphrase or file contents.
               If you lose your passphrase, your data is permanently inaccessible.
             </p>
@@ -186,12 +186,12 @@ export default function TermsPage() {
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
             7. Data & Privacy
           </h2>
-          <div className="mt-6 space-y-4 text-[15px] text-[var(--color-text-secondary)] leading-relaxed">
+          <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
             <p>
               Your use of the Service is also governed by our{" "}
               <Link
                 href="/privacy"
-                className="text-emerald-600 dark:text-emerald-400 hover:underline font-medium"
+                className="text-cyan-600 dark:text-cyan-400 hover:underline font-medium"
               >
                 Privacy Policy
               </Link>
@@ -206,10 +206,10 @@ export default function TermsPage() {
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
             8. Intellectual Property
           </h2>
-          <div className="mt-6 space-y-4 text-[15px] text-[var(--color-text-secondary)] leading-relaxed">
+          <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
             <p>
-              You retain all rights to your files. zpush&apos;s source code is open
-              source. The zpush name, logo, and branding are our intellectual property.
+              You retain all rights to your files. zcrypt&apos;s source code is open
+              source. The zcrypt name, logo, and branding are our intellectual property.
             </p>
           </div>
         </Section>
@@ -219,7 +219,7 @@ export default function TermsPage() {
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
             9. Limitation of Liability
           </h2>
-          <div className="mt-6 space-y-4 text-[15px] text-[var(--color-text-secondary)] leading-relaxed">
+          <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
             <p>
               The Service is provided &ldquo;as is&rdquo; without warranties of any
               kind. To the maximum extent permitted by law:
@@ -253,7 +253,7 @@ export default function TermsPage() {
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
             11. Changes to Terms
           </h2>
-          <div className="mt-6 space-y-4 text-[15px] text-[var(--color-text-secondary)] leading-relaxed">
+          <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
             <p>
               We may update these Terms with 30 days notice via email or in-app
               notification. Continued use after changes take effect constitutes
@@ -267,14 +267,14 @@ export default function TermsPage() {
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
             12. Contact
           </h2>
-          <div className="mt-6 space-y-4 text-[15px] text-[var(--color-text-secondary)] leading-relaxed">
+          <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
             <p>
               Questions about these Terms? Contact us at{" "}
               <a
-                href="mailto:legal@zpush.io"
-                className="text-emerald-600 dark:text-emerald-400 hover:underline font-medium"
+                href="mailto:legal@zcrypt.cloud"
+                className="text-cyan-600 dark:text-cyan-400 hover:underline font-medium"
               >
-                legal@zpush.io
+                legal@zcrypt.cloud
               </a>.
             </p>
           </div>
@@ -287,14 +287,14 @@ export default function TermsPage() {
               See also:{" "}
               <Link
                 href="/privacy"
-                className="text-emerald-600 dark:text-emerald-400 hover:underline font-medium"
+                className="text-cyan-600 dark:text-cyan-400 hover:underline font-medium"
               >
                 Privacy Policy
               </Link>
             </p>
             <Link
               href="/register"
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-8 py-3.5 text-sm font-semibold text-slate-900 hover:bg-emerald-400 transition-colors shadow-xl shadow-emerald-500/25"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-500 px-8 py-3.5 text-sm font-semibold text-slate-900 hover:bg-cyan-400 transition-colors shadow-xl shadow-cyan-500/25"
             >
               Get started <ArrowRight className="h-4 w-4" />
             </Link>

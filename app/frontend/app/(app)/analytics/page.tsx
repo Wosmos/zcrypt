@@ -9,7 +9,7 @@ import { UploadChart } from "@/components/analytics/upload-chart";
 import { FileTypeChart } from "@/components/analytics/file-type-chart";
 import { RecentUploads } from "@/components/analytics/recent-uploads";
 import { PlatformBreakdown } from "@/components/analytics/platform-breakdown";
-import { TrendingUp, HardDrive, Layers, TrendingDown, BarChart3 } from "lucide-react";
+import { TrendingUp, HardDrive, Layers, TrendingDown, BarChart3 } from "@/lib/icons";
 import AnalyticsLoading from "./loading";
 
 export default function AnalyticsPage() {
@@ -56,11 +56,11 @@ export default function AnalyticsPage() {
           bg="bg-violet-500/10"
         />
         <QuickStat
-          icon={<TrendingDown className="h-4 w-4 text-emerald-500" />}
+          icon={<TrendingDown className="h-4 w-4 text-cyan-500" />}
           label="Space Saved"
           value={formatBytes(spaceSaved)}
           sub={`${savings}% compression`}
-          bg="bg-emerald-500/10"
+          bg="bg-cyan-500/10"
         />
         <QuickStat
           icon={<TrendingUp className="h-4 w-4 text-amber-500" />}
@@ -109,10 +109,10 @@ function QuickStat({ icon, label, value, sub, bg }: {
         <div className={`flex items-center justify-center h-9 w-9 rounded-xl ${bg}`}>
           {icon}
         </div>
-        <p className="text-[11px] text-[var(--color-text-muted)] uppercase tracking-wider font-semibold">{label}</p>
+        <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-wider font-semibold">{label}</p>
       </div>
       <p className="text-xl font-bold">{value}</p>
-      <p className="text-[11px] text-[var(--color-text-secondary)] mt-0.5">{sub}</p>
+      <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">{sub}</p>
     </div>
   );
 }

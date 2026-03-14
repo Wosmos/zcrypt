@@ -29,7 +29,7 @@ import {
   Volume2,
   Music,
   MonitorSmartphone,
-} from "lucide-react";
+} from "@/lib/icons";
 import { useTheme } from "@/components/providers/theme-provider";
 
 // ─── Sizes ─────────────────────────────────────────────────
@@ -203,7 +203,7 @@ function BatteryFrame({
 }) {
   const pct = Math.round(level * 100);
   const fillColor = charging
-    ? "#34d399"
+    ? "#2de0ed"
     : pct > 20
       ? "#f5f5f5"
       : pct > 10
@@ -389,7 +389,7 @@ function Dock({
           icon: Play,
           label: "Try Demo",
           active: false,
-          gradient: "linear-gradient(135deg, #10b981 0%, #047857 100%)",
+          gradient: "linear-gradient(135deg, #00d5e4 0%, #0e7490 100%)",
           onClick: () => window.open("/demo", "_blank"),
         }}
         mouseX={mouseX}
@@ -554,7 +554,7 @@ function VideoModal({ open, onClose }: { open: boolean; onClose: () => void }) {
             >
               <TrafficLights onClose={onClose} />
               <span className="flex-1 text-center text-[11px] text-gray-400 font-medium">
-                zpush — Demo
+                zcrypt — Demo
               </span>
               <div style={{ width: TRAFFIC_LIGHTS_W }} className="shrink-0" />
             </div>
@@ -577,18 +577,18 @@ function VideoModal({ open, onClose }: { open: boolean; onClose: () => void }) {
                   className="inline-flex items-center justify-center h-16 w-16 rounded-full mb-4 cursor-pointer group"
                   style={
                     {
-                      background: "rgba(16,185,129,0.12)",
-                      border: "1px solid rgba(16,185,129,0.2)",
+                      background: "rgba(0,213,228,0.12)",
+                      border: "1px solid rgba(0,213,228,0.2)",
                     } as React.CSSProperties
                   }
                 >
-                  <Play className="h-7 w-7 text-emerald-400 ml-1 group-hover:text-emerald-300 transition-colors" />
+                  <Play className="h-7 w-7 text-cyan-400 ml-1 group-hover:text-cyan-300 transition-colors" />
                 </motion.div>
                 <p className="text-[13px] text-gray-400 font-medium">
                   Demo coming soon
                 </p>
                 <p className="text-[11px] text-gray-600 mt-1">
-                  Watch zpush encrypt &amp; upload in real-time
+                  Watch zcrypt encrypt &amp; upload in real-time
                 </p>
               </div>
             </div>
@@ -655,7 +655,7 @@ function WebsiteModal({
               <div className="flex-1 flex justify-center">
                 <div className="bg-white text-black text-[11px] px-8 py-1.5 rounded-md shadow-sm border border-black/10 flex items-center gap-2">
                   <Shield className="w-3 h-3 text-gray-500" />
-                  zpush.com
+                  zcrypt.com
                 </div>
               </div>
               <div style={{ width: TRAFFIC_LIGHTS_W }} className="shrink-0" />
@@ -726,7 +726,7 @@ function EasterEggModal({
             >
               <TrafficLights onClose={onClose} />
               <span className="flex-1 text-center text-[11px] text-gray-300 font-mono">
-                zpush_secrets.sh
+                zcrypt_secrets.sh
               </span>
               <div style={{ width: TRAFFIC_LIGHTS_W }} className="shrink-0" />
             </div>
@@ -736,7 +736,7 @@ function EasterEggModal({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
               >
-                <p>$ ./zpush_secrets.sh</p>
+                <p>$ ./zcrypt_secrets.sh</p>
                 <motion.p
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -760,10 +760,10 @@ function EasterEggModal({
                   className="mt-4 text-white text-center"
                 >
                   <span className="text-4xl block mb-2">🚀</span>
-                  <span className="font-bold text-sm tracking-wider uppercase text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-blue-500">
+                  <span className="font-bold text-sm tracking-wider uppercase text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">
                     You found the secret!
                   </span>
-                  <p className="mt-2 text-emerald-400 font-normal">
+                  <p className="mt-2 text-cyan-400 font-normal">
                     Antigravity FTW.
                   </p>
                 </motion.div>
@@ -856,7 +856,7 @@ function AboutThisMacModal({
               />
               <div
                 className="absolute w-28 h-28 rounded-full blur-[35px] top-2 right-1/4"
-                style={{ background: "rgba(16,185,129,0.25)" }}
+                style={{ background: "rgba(0,213,228,0.25)" }}
               />
               <div
                 className="absolute w-20 h-20 rounded-full blur-[30px] bottom-0 left-1/2 -translate-x-1/2"
@@ -896,7 +896,7 @@ function AboutThisMacModal({
                 <span className="text-gray-500">Memory</span>
                 <span className="text-gray-300">128 GB Unified Memory</span>
                 <span className="text-gray-500">Startup Disk</span>
-                <span className="text-gray-300">zpush Vault</span>
+                <span className="text-gray-300">zcrypt Vault</span>
                 <span className="text-gray-500">Serial Number</span>
                 <span className="text-gray-300 font-mono text-[10px]">
                   ZP-2026-E2EE
@@ -907,9 +907,9 @@ function AboutThisMacModal({
 
               {/* Encryption badge */}
               <div className="flex justify-center pt-3">
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                  <Lock className="w-3 h-3 text-emerald-400" />
-                  <span className="text-[10px] text-emerald-400 font-medium">
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/20">
+                  <Lock className="w-3 h-3 text-cyan-400" />
+                  <span className="text-[10px] text-cyan-400 font-medium">
                     AES-256-GCM Encrypted
                   </span>
                 </div>
@@ -918,7 +918,7 @@ function AboutThisMacModal({
               {/* Footer */}
               <div className="pt-3 border-t border-white/5 mt-3">
                 <p className="text-[10px] text-gray-600">
-                  Powered by zpush v0.2 — Zero-Knowledge Vault
+                  Powered by zcrypt v0.2 — Zero-Knowledge Vault
                 </p>
                 <div className="flex justify-center gap-3 mt-2">
                   <button className="text-[11px] text-blue-400 hover:text-blue-300 transition-colors">
@@ -939,7 +939,7 @@ function AboutThisMacModal({
 
 // ─── Spotlight Overlay ─────────────────────────────────────
 const SPOTLIGHT_RESULTS = [
-  { icon: Shield, label: "zpush Vault", subtitle: "Application" },
+  { icon: Shield, label: "zcrypt Vault", subtitle: "Application" },
   { icon: Lock, label: "AES-256-GCM Encryption", subtitle: "Security" },
   {
     icon: Layers,
@@ -951,7 +951,7 @@ const SPOTLIGHT_RESULTS = [
     label: "Upload Pipeline",
     subtitle: "Compress → Encrypt → Chunk → Push",
   },
-  { icon: Globe, label: "zpush.io", subtitle: "Website" },
+  { icon: Globe, label: "zcrypt.cloud", subtitle: "Website" },
   { icon: Cpu, label: "zstd Compression", subtitle: "Pipeline Stage" },
   {
     icon: MonitorSmartphone,
@@ -1232,14 +1232,14 @@ function ControlCenterPanel({
 
               {/* Now Playing */}
               <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-white/[0.04]">
-                <div className="w-7 h-7 rounded-lg bg-emerald-500/20 flex items-center justify-center shrink-0">
-                  <Music className="w-3.5 h-3.5 text-emerald-400" />
+                <div className="w-7 h-7 rounded-lg bg-cyan-500/20 flex items-center justify-center shrink-0">
+                  <Music className="w-3.5 h-3.5 text-cyan-400" />
                 </div>
                 <div className="min-w-0">
                   <p className="text-[9px] font-medium text-white truncate">
                     Encrypting Your Data
                   </p>
-                  <p className="text-[8px] text-gray-400 truncate">zpush</p>
+                  <p className="text-[8px] text-gray-400 truncate">zcrypt</p>
                 </div>
               </div>
             </div>
@@ -1269,12 +1269,12 @@ const MENUS: Record<string, string[]> = {
     "Show Sidebar",
     "Toggle Full Screen",
   ],
-  Window: ["Minimize", "Zoom", "---", "zpush Vault"],
+  Window: ["Minimize", "Zoom", "---", "zcrypt Vault"],
   Help: [
-    "zpush Help",
+    "zcrypt Help",
     "---",
     "Report an Issue",
-    "What's New in zpush",
+    "What's New in zcrypt",
     "---",
     "Keyboard Shortcuts",
   ],
@@ -1366,7 +1366,7 @@ function ScaledAppFrame({ visible }: { visible: boolean }) {
       {visible && (
         <iframe
           src="/demo"
-          title="zpush app"
+          title="zcrypt app"
           style={{
             width: IFRAME_LOGICAL_W,
             height: IFRAME_LOGICAL_H,
@@ -1413,7 +1413,7 @@ function ScaledIPadFrame({ visible }: { visible: boolean }) {
       {visible && (
         <iframe
           src="/demo"
-          title="zpush app"
+          title="zcrypt app"
           style={{
             width: IPAD_LOGICAL_W,
             height: IPAD_LOGICAL_H,
@@ -1454,7 +1454,7 @@ function IPadShowcase({
           className="absolute inset-0 rounded-[30px] opacity-30"
           style={{
             background:
-              "radial-gradient(ellipse at 50% 0%, rgba(16,185,129,0.15) 0%, transparent 60%)",
+              "radial-gradient(ellipse at 50% 0%, rgba(0,213,228,0.15) 0%, transparent 60%)",
           }}
         />
       </div>
@@ -1535,7 +1535,7 @@ function IPadShowcase({
           <div className="absolute inset-0 pointer-events-none overflow-hidden">
             <div
               className="absolute w-[300px] h-[300px] -top-20 -right-10 rounded-full blur-[80px]"
-              style={{ background: "rgba(16,185,129,0.04)" }}
+              style={{ background: "rgba(0,213,228,0.04)" }}
             />
             <div
               className="absolute w-[200px] h-[200px] -bottom-20 -left-10 rounded-full blur-[60px]"
@@ -1734,7 +1734,7 @@ export function MacOSShowcase() {
             className="absolute inset-0 rounded-[40px] opacity-40"
             style={{
               background:
-                "radial-gradient(ellipse at 50% 0%, rgba(16,185,129,0.15) 0%, transparent 60%)",
+                "radial-gradient(ellipse at 50% 0%, rgba(0,213,228,0.15) 0%, transparent 60%)",
             }}
           />
         </div>
@@ -1799,7 +1799,7 @@ export function MacOSShowcase() {
                 <div className="absolute inset-0 pointer-events-none overflow-hidden">
                   <div
                     className="absolute w-[500px] h-[500px] -top-20 -right-20 rounded-full blur-[100px]"
-                    style={{ background: "rgba(16,185,129,0.05)" }}
+                    style={{ background: "rgba(0,213,228,0.05)" }}
                   />
                   <div
                     className="absolute w-[400px] h-[400px] -bottom-40 -left-20 rounded-full blur-[80px]"
@@ -1823,7 +1823,7 @@ export function MacOSShowcase() {
                     >
                       <AppleLogo className="h-[11px] w-[11px] opacity-90" />
                     </button>
-                    <span className="font-semibold text-[11.5px]">zpush</span>
+                    <span className="font-semibold text-[11.5px]">zcrypt</span>
                     {Object.keys(MENUS).map((m) => (
                       <button
                         key={m}

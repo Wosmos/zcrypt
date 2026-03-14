@@ -2,7 +2,7 @@
 
 import type { PlatformStatus, RepoInfo } from "@/types";
 import { formatBytes } from "@/lib/utils";
-import { Github, AlertCircle } from "lucide-react";
+import { Github, AlertCircle } from "@/lib/icons";
 import { GitlabIcon } from "@/components/icons/gitlab";
 import { HuggingFaceIcon } from "@/components/icons/huggingface";
 import { TelegramIcon } from "@/components/icons/telegram";
@@ -47,7 +47,7 @@ export function PlatformHealth({ statuses, repos }: PlatformHealthProps) {
         </span>
         <Link
           href="/settings"
-          className="text-[11px] text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors"
+          className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors"
         >
           Manage
         </Link>
@@ -84,13 +84,13 @@ export function PlatformHealth({ statuses, repos }: PlatformHealthProps) {
                       hasError
                         ? "bg-red-500"
                         : isConnected
-                          ? "bg-emerald-500"
+                          ? "bg-cyan-500"
                           : "bg-[var(--color-text-muted)]"
                     }`}
                   />
                 </div>
                 {isConnected && platformRepos.length > 0 && (
-                  <span className="text-[11px] tabular-nums text-[var(--color-text-muted)]">
+                  <span className="text-xs tabular-nums text-[var(--color-text-muted)]">
                     {formatBytes(used)} / {formatBytes(max)}
                   </span>
                 )}
@@ -101,7 +101,7 @@ export function PlatformHealth({ statuses, repos }: PlatformHealthProps) {
                 <div className="h-1.5 rounded-full bg-[var(--color-surface-2)] overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${
-                      percent > 90 ? "bg-red-500" : percent > 70 ? "bg-amber-500" : "bg-emerald-500"
+                      percent > 90 ? "bg-red-500" : percent > 70 ? "bg-amber-500" : "bg-cyan-500"
                     }`}
                     style={{ width: `${percent}%` }}
                   />
@@ -110,7 +110,7 @@ export function PlatformHealth({ statuses, repos }: PlatformHealthProps) {
 
               {/* Error message */}
               {hasError && (
-                <div className="flex items-center gap-1.5 text-[11px] text-red-500">
+                <div className="flex items-center gap-1.5 text-xs text-red-500">
                   <AlertCircle className="h-3 w-3" />
                   <span>{accounts.find((a) => a.error)?.error}</span>
                 </div>

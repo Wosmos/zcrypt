@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Bell, BellOff, CheckCircle2, AlertCircle, AlertTriangle, Info, X, Check, Trash2 } from "lucide-react";
+import { Bell, BellOff, CheckCircle2, AlertCircle, AlertTriangle, Info, X, Check, Trash2 } from "@/lib/icons";
 import { useNotificationStore, type NotificationType } from "@/store/notifications";
 import { useNotifications } from "@/hooks/useNotifications";
 import { cn } from "@/lib/utils";
@@ -14,7 +14,7 @@ const typeIcons: Record<NotificationType, typeof CheckCircle2> = {
 };
 
 const typeColors: Record<NotificationType, string> = {
-  success: "text-emerald-500",
+  success: "text-cyan-500",
   error: "text-red-500",
   warning: "text-amber-500",
   info: "text-blue-500",
@@ -66,7 +66,7 @@ export function NotificationCenter() {
         <Bell className="h-4 w-4" />
         {unreadCount > 0 && (
           <span className={cn(
-            "absolute -top-0.5 -right-0.5 flex items-center justify-center h-4 min-w-[16px] px-1 rounded-full text-[9px] font-bold text-white",
+            "absolute -top-0.5 -right-0.5 flex items-center justify-center h-4 min-w-[16px] px-1 rounded-full text-[10px] font-bold text-white",
             hasErrors ? "bg-red-500" : "bg-[var(--color-accent)]"
           )}>
             {unreadCount > 9 ? "9+" : unreadCount}
@@ -99,7 +99,7 @@ export function NotificationCenter() {
               {unreadCount > 0 && (
                 <button
                   onClick={markAllRead}
-                  className="flex items-center gap-1 text-[11px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] px-2 py-1 rounded-lg hover:bg-[var(--color-surface-1)] transition-colors"
+                  className="flex items-center gap-1 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] px-2 py-1 rounded-lg hover:bg-[var(--color-surface-1)] transition-colors"
                   title="Mark all as read"
                 >
                   <Check className="h-3 w-3" />
@@ -124,7 +124,7 @@ export function NotificationCenter() {
               <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
                 <Bell className="h-8 w-8 text-[var(--color-text-muted)] mb-2 opacity-30" />
                 <p className="text-sm text-[var(--color-text-muted)]">No notifications yet</p>
-                <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5 opacity-60">
+                <p className="text-xs text-[var(--color-text-muted)] mt-0.5 opacity-60">
                   Upload and download activity will appear here
                 </p>
               </div>
@@ -143,14 +143,14 @@ export function NotificationCenter() {
                     <Icon className={cn("h-4 w-4 mt-0.5 flex-shrink-0", typeColors[n.type])} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className={cn("text-[13px] font-medium truncate", !n.read && "text-[var(--color-text)]")}>
+                        <p className={cn("text-sm font-medium truncate", !n.read && "text-[var(--color-text)]")}>
                           {n.title}
                         </p>
                         {!n.read && (
                           <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-accent)] flex-shrink-0" />
                         )}
                       </div>
-                      <p className="text-[11px] text-[var(--color-text-muted)] truncate mt-0.5">
+                      <p className="text-xs text-[var(--color-text-muted)] truncate mt-0.5">
                         {n.message}
                       </p>
                       <p className="text-[10px] text-[var(--color-text-muted)] opacity-60 mt-1">

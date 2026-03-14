@@ -7,7 +7,7 @@ import { isImageFile } from "@/lib/utils";
 import type { FileMetadata } from "@/types";
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
-const DB_NAME = "zpush_thumbs";
+const DB_NAME = "zcrypt_thumbs";
 const STORE_NAME = "thumbnails";
 const DB_VERSION = 1;
 const MAX_CONCURRENT = 3;

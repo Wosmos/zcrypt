@@ -43,7 +43,7 @@ import {
   Trash2,
   Download,
   BarChart3,
-} from "lucide-react";
+} from "@/lib/icons";
 import { cn, formatBytes, getFileCategory } from "@/lib/utils";
 import Link from "next/link";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -664,7 +664,7 @@ export default function VaultPage() {
               <button
                 onClick={() => selectionMode ? exitSelectionMode() : setSelectionMode(true)}
                 className={cn(
-                  "flex items-center gap-1.5 h-[38px] px-3 rounded-xl border text-[12px] font-medium transition-colors",
+                  "flex items-center gap-1.5 h-[38px] px-3 rounded-xl border text-xs font-medium transition-colors",
                   selectionMode
                     ? "bg-[var(--color-accent)]/10 text-[var(--color-accent)] border-[var(--color-accent)]/20"
                     : "bg-[var(--color-surface)] text-[var(--color-text-muted)] border-[var(--color-border)] hover:border-[var(--color-border-hover)] hover:text-[var(--color-text-secondary)]"
@@ -838,7 +838,7 @@ export default function VaultPage() {
             <div className="w-px h-5 bg-[var(--color-border)]" />
             <button
               onClick={selectAll}
-              className="flex items-center gap-1 text-[12px] font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text)] px-2 py-1 rounded-lg hover:bg-[var(--color-surface-1)] transition-colors"
+              className="flex items-center gap-1 text-xs font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text)] px-2 py-1 rounded-lg hover:bg-[var(--color-surface-1)] transition-colors"
             >
               {filtered.every((f) => selectedIds.has(f.id)) ? (
                 <><Square className="h-3.5 w-3.5" /> Deselect</>
@@ -849,14 +849,14 @@ export default function VaultPage() {
             <div className="w-px h-5 bg-[var(--color-border)]" />
             <button
               onClick={handleBulkDownload}
-              className="flex items-center gap-1 text-[12px] font-medium text-[var(--color-accent)] px-2 py-1.5 rounded-lg hover:bg-[var(--color-accent)]/10 transition-colors"
+              className="flex items-center gap-1 text-xs font-medium text-[var(--color-accent)] px-2 py-1.5 rounded-lg hover:bg-[var(--color-accent)]/10 transition-colors"
             >
               <Download className="h-3.5 w-3.5" />
               Download
             </button>
             <button
               onClick={() => setShowBulkDeleteConfirm(true)}
-              className="flex items-center gap-1 text-[12px] font-medium text-red-500 px-2 py-1.5 rounded-lg hover:bg-red-500/10 transition-colors"
+              className="flex items-center gap-1 text-xs font-medium text-red-500 px-2 py-1.5 rounded-lg hover:bg-red-500/10 transition-colors"
             >
               <Trash2 className="h-3.5 w-3.5" />
               Delete

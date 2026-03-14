@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import {
   Image, Video, Music, FileText, Archive, Code, Cog, File, Table,
   Shield, Lock, Unlock,
-} from "lucide-react";
+} from "@/lib/icons";
 import { formatBytes, getFileCategory } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import type { FileMetadata, QuotaInfo, RepoInfo } from "@/types";
@@ -24,7 +24,7 @@ const CATEGORY_CONFIG: { name: string; icon: typeof File; color: string; bgFrom:
   { name: "Video", icon: Video, color: "text-blue-600 dark:text-blue-400", bgFrom: "from-blue-100 dark:from-blue-500/15", bgTo: "to-blue-50 dark:to-blue-500/5" },
   { name: "Audio", icon: Music, color: "text-pink-600 dark:text-pink-400", bgFrom: "from-pink-100 dark:from-pink-500/15", bgTo: "to-pink-50 dark:to-pink-500/5" },
   { name: "Document", icon: FileText, color: "text-rose-600 dark:text-rose-400", bgFrom: "from-rose-100 dark:from-rose-500/15", bgTo: "to-rose-50 dark:to-rose-500/5" },
-  { name: "Spreadsheet", icon: Table, color: "text-emerald-600 dark:text-emerald-400", bgFrom: "from-emerald-100 dark:from-emerald-500/15", bgTo: "to-emerald-50 dark:to-emerald-500/5" },
+  { name: "Spreadsheet", icon: Table, color: "text-cyan-600 dark:text-cyan-400", bgFrom: "from-cyan-100 dark:from-cyan-500/15", bgTo: "to-cyan-50 dark:to-cyan-500/5" },
   { name: "Code", icon: Code, color: "text-yellow-600 dark:text-yellow-400", bgFrom: "from-yellow-100 dark:from-yellow-500/15", bgTo: "to-yellow-50 dark:to-yellow-500/5" },
   { name: "Archive", icon: Archive, color: "text-amber-600 dark:text-amber-400", bgFrom: "from-amber-100 dark:from-amber-500/15", bgTo: "to-amber-50 dark:to-amber-500/5" },
   { name: "Executable", icon: Cog, color: "text-orange-600 dark:text-orange-400", bgFrom: "from-orange-100 dark:from-orange-500/15", bgTo: "to-orange-50 dark:to-orange-500/5" },
@@ -54,7 +54,7 @@ export function MobileVaultHeader({ files, quotaInfo, repos, isUnlocked, onUnloc
   return (
     <div className="md:hidden space-y-4">
       {/* Storage card */}
-      <div className="rounded-2xl bg-gradient-to-br from-[var(--color-accent)] to-emerald-600 dark:to-emerald-700 p-4 text-white relative overflow-hidden">
+      <div className="rounded-2xl bg-gradient-to-br from-[var(--color-accent)] to-cyan-600 dark:to-cyan-700 p-4 text-white relative overflow-hidden">
         <div className="absolute top-0 right-0 w-24 h-24 rounded-full bg-white/10 -translate-y-8 translate-x-8" />
         <div className="absolute bottom-0 left-0 w-16 h-16 rounded-full bg-white/5 translate-y-6 -translate-x-6" />
         <div className="relative z-10">
@@ -66,7 +66,7 @@ export function MobileVaultHeader({ files, quotaInfo, repos, isUnlocked, onUnloc
             <button
               onClick={onUnlock}
               className={cn(
-                "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors",
+                "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors",
                 isUnlocked
                   ? "bg-white/20 text-white"
                   : "bg-white/25 text-white active:bg-white/30"
@@ -88,7 +88,7 @@ export function MobileVaultHeader({ files, quotaInfo, repos, isUnlocked, onUnloc
               style={{ width: `${percent}%` }}
             />
           </div>
-          <div className="flex items-center justify-between mt-2 text-[11px] text-white/60">
+          <div className="flex items-center justify-between mt-2 text-xs text-white/60">
             <span>{files.length} file{files.length !== 1 ? "s" : ""}</span>
             <span>{percent.toFixed(0)}% used</span>
           </div>
@@ -99,11 +99,11 @@ export function MobileVaultHeader({ files, quotaInfo, repos, isUnlocked, onUnloc
       {activeCategories.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-2.5">
-            <h3 className="text-[13px] font-semibold text-[var(--color-text-secondary)]">Categories</h3>
+            <h3 className="text-sm font-semibold text-[var(--color-text-secondary)]">Categories</h3>
             {activeCategory && (
               <button
                 onClick={() => onCategoryClick(null)}
-                className="text-[11px] font-medium text-[var(--color-accent)]"
+                className="text-xs font-medium text-[var(--color-accent)]"
               >
                 Show All
               </button>
@@ -129,7 +129,7 @@ export function MobileVaultHeader({ files, quotaInfo, repos, isUnlocked, onUnloc
                     <CatIcon className={cn("h-5 w-5", isActive ? "text-[var(--color-accent)]" : cat.color)} />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[12px] font-semibold truncate">{cat.name}</p>
+                    <p className="text-xs font-semibold truncate">{cat.name}</p>
                     <p className="text-[10px] text-[var(--color-text-muted)] tabular-nums">{data.count} file{data.count !== 1 ? "s" : ""}</p>
                     <p className="text-[10px] text-[var(--color-text-muted)] tabular-nums">{formatBytes(data.size)}</p>
                   </div>
@@ -150,7 +150,7 @@ export function MobileVaultHeader({ files, quotaInfo, repos, isUnlocked, onUnloc
                   <File className="h-5 w-5 text-gray-500" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[12px] font-semibold truncate">Other</p>
+                  <p className="text-xs font-semibold truncate">Other</p>
                   <p className="text-[10px] text-[var(--color-text-muted)] tabular-nums">{otherCount.count} file{otherCount.count !== 1 ? "s" : ""}</p>
                   <p className="text-[10px] text-[var(--color-text-muted)] tabular-nums">{formatBytes(otherCount.size)}</p>
                 </div>

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { resetPassword } from "@/lib/auth-api";
 import { toast } from "@/store/toast";
-import { Lock, ArrowRight, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Lock, ArrowRight, CheckCircle2, AlertTriangle } from "@/lib/icons";
 
 function ResetPasswordForm() {
   const searchParams = useSearchParams();
@@ -19,16 +19,18 @@ function ResetPasswordForm() {
 
   if (!token) {
     return (
-      <div className="card p-6 sm:p-8 text-center animate-fade-in">
-        <div className="inline-flex items-center justify-center h-14 w-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 mb-5">
-          <AlertTriangle className="h-7 w-7 text-amber-500 dark:text-amber-400" />
+      <div className="text-center animate-fade-in">
+        <div className="flex justify-center mb-4">
+          <div className="h-12 w-12 rounded-full bg-amber-500/10 flex items-center justify-center">
+            <AlertTriangle className="h-6 w-6 text-amber-500" />
+          </div>
         </div>
         <h2 className="text-xl font-bold">Invalid link</h2>
         <p className="text-sm text-[var(--color-text-secondary)] mt-2">
           This password reset link is invalid or has expired.
         </p>
         <Link href="/forgot-password">
-          <Button variant="secondary" className="mt-6">
+          <Button variant="secondary" className="mt-5">
             Request a new link
           </Button>
         </Link>
@@ -38,16 +40,18 @@ function ResetPasswordForm() {
 
   if (success) {
     return (
-      <div className="card p-6 sm:p-8 text-center animate-fade-in">
-        <div className="inline-flex items-center justify-center h-14 w-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 mb-5">
-          <CheckCircle2 className="h-7 w-7 text-emerald-500 dark:text-emerald-400" />
+      <div className="text-center animate-fade-in">
+        <div className="flex justify-center mb-4">
+          <div className="h-12 w-12 rounded-full bg-cyan-500/10 flex items-center justify-center">
+            <CheckCircle2 className="h-6 w-6 text-cyan-500" />
+          </div>
         </div>
         <h2 className="text-xl font-bold">Password updated</h2>
         <p className="text-sm text-[var(--color-text-secondary)] mt-2">
           Your password has been reset. You can now sign in.
         </p>
         <Link href="/login">
-          <Button className="mt-6">
+          <Button className="mt-5">
             Sign in <ArrowRight className="h-4 w-4" />
           </Button>
         </Link>
@@ -61,7 +65,6 @@ function ResetPasswordForm() {
       toast.error("Passwords don't match");
       return;
     }
-    // ─── Free-form Password Pattern Constraint Removed ────────────────
 
     setLoading(true);
     try {
@@ -75,15 +78,15 @@ function ResetPasswordForm() {
   };
 
   return (
-    <div className="card p-6 sm:p-8 animate-fade-in">
-      <div className="text-center mb-6">
-        <h1 className="text-xl font-bold">Reset password</h1>
+    <div className="animate-fade-in">
+      <div className="mb-6">
+        <h1 className="text-xl font-bold tracking-tight">New password</h1>
         <p className="text-sm text-[var(--color-text-secondary)] mt-1">
-          Choose a new password for your account
+          Choose a new password for your vault
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-3">
         <Input
           label="New Password"
           type="password"
@@ -127,7 +130,7 @@ export default function ResetPasswordPage() {
     <Suspense
       fallback={
         <div className="flex items-center justify-center py-16">
-          <div className="h-6 w-6 border-2 border-[var(--color-border)] border-t-emerald-500 rounded-full animate-spin" />
+          <div className="h-6 w-6 border-2 border-[var(--color-border)] border-t-cyan-500 rounded-full animate-spin" />
         </div>
       }
     >

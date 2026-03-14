@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { getFeedbackStatus } from "@/lib/api";
 
-const DISMISSED_KEY = "zpush_feedback_dismissed";
+const DISMISSED_KEY = "zcrypt_feedback_dismissed";
 const MIN_USAGE_BYTES = 500 * 1024 * 1024; // 500 MB
 
 /**

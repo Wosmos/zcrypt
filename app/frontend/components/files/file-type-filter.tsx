@@ -31,7 +31,7 @@ export function FileTypeFilter({ files, activeFilter, onFilter }: FileTypeFilter
       <button
         onClick={() => onFilter(null)}
         className={cn(
-          "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium whitespace-nowrap border transition-colors",
+          "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap border transition-colors",
           activeFilter === null
             ? "bg-[var(--color-accent)]/10 text-[var(--color-accent)] border-[var(--color-accent)]/20"
             : "bg-[var(--color-surface)] text-[var(--color-text-muted)] border-[var(--color-border)] hover:border-[var(--color-border-hover)] hover:text-[var(--color-text-secondary)]"
@@ -45,7 +45,7 @@ export function FileTypeFilter({ files, activeFilter, onFilter }: FileTypeFilter
           key={cat.name}
           onClick={() => onFilter(activeFilter === cat.name ? null : cat.name)}
           className={cn(
-            "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium whitespace-nowrap border transition-colors",
+            "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap border transition-colors",
             activeFilter === cat.name
               ? "bg-[var(--color-accent)]/10 text-[var(--color-accent)] border-[var(--color-accent)]/20"
               : "bg-[var(--color-surface)] text-[var(--color-text-muted)] border-[var(--color-border)] hover:border-[var(--color-border-hover)] hover:text-[var(--color-text-secondary)]"

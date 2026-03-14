@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Shield, ArrowLeft, Home } from "lucide-react";
+import { Shield, ArrowLeft, Home } from "@/lib/icons";
 
 export default function NotFound() {
   return (

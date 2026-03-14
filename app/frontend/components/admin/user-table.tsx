@@ -5,7 +5,7 @@ import { adminSetUserRole, adminDeleteUser, adminSetUserQuota, adminSetUserPlan 
 import { formatBytes } from "@/lib/utils";
 import { toast } from "@/store/toast";
 import { cn } from "@/lib/utils";
-import { Trash2, ShieldCheck, User, Crown } from "lucide-react";
+import { Trash2, ShieldCheck, User, Crown } from "@/lib/icons";
 import { Role } from "@/types";
 import type { AdminUser } from "@/types";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
@@ -200,7 +200,7 @@ export function UserTable({
       <section className="card overflow-hidden">
         <div className="px-5 py-4 border-b border-[var(--color-border)]">
           <h2 className="text-sm font-semibold">Users</h2>
-          <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
+          <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
             {users.length} registered user{users.length !== 1 ? "s" : ""}
           </p>
         </div>
@@ -208,7 +208,7 @@ export function UserTable({
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-[var(--color-border)] text-[11px] text-[var(--color-text-muted)] uppercase tracking-wider">
+              <tr className="border-b border-[var(--color-border)] text-xs text-[var(--color-text-muted)] uppercase tracking-wider">
                 <th className="text-left px-5 py-3 font-medium">User</th>
                 <th className="text-left px-5 py-3 font-medium">Role</th>
                 <th className="text-left px-5 py-3 font-medium">Plan</th>
@@ -229,7 +229,7 @@ export function UserTable({
                   >
                     <td className="px-5 py-3">
                       <div>
-                        <p className="font-medium text-[13px]">
+                        <p className="font-medium text-sm">
                           {u.username}
                           {isSelf && (
                             <span className="ml-1.5 text-[10px] text-[var(--color-text-muted)]">
@@ -237,7 +237,7 @@ export function UserTable({
                             </span>
                           )}
                         </p>
-                        <p className="text-[11px] text-[var(--color-text-muted)]">
+                        <p className="text-xs text-[var(--color-text-muted)]">
                           {u.email}
                         </p>
                       </div>
@@ -299,13 +299,13 @@ export function UserTable({
                         </span>
                       )}
                     </td>
-                    <td className="px-5 py-3 text-right tabular-nums text-[13px]">
+                    <td className="px-5 py-3 text-right tabular-nums text-sm">
                       {u.file_count}
                     </td>
-                    <td className="px-5 py-3 text-right tabular-nums text-[13px]">
+                    <td className="px-5 py-3 text-right tabular-nums text-sm">
                       {formatBytes(u.total_size)}
                     </td>
-                    <td className="px-5 py-3 text-right text-[13px]">
+                    <td className="px-5 py-3 text-right text-sm">
                       {editingQuota === u.id ? (
                         <div className="flex items-center justify-end gap-1.5">
                           <select
@@ -331,7 +331,7 @@ export function UserTable({
                           <button
                             onClick={() => saveQuota(u.id)}
                             disabled={busy === u.id}
-                            className="text-[10px] px-1.5 py-1 rounded bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+                            className="text-[10px] px-1.5 py-1 rounded bg-cyan-600 text-white hover:bg-cyan-700 disabled:opacity-50"
                           >
                             OK
                           </button>
@@ -355,7 +355,7 @@ export function UserTable({
                         </button>
                       )}
                     </td>
-                    <td className="px-5 py-3 text-[13px] text-[var(--color-text-muted)]">
+                    <td className="px-5 py-3 text-sm text-[var(--color-text-muted)]">
                       {new Date(u.created_at).toLocaleDateString()}
                     </td>
                     <td className="px-5 py-3 text-right">
