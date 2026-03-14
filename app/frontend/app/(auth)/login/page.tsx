@@ -9,7 +9,7 @@ import { login, requestMagicLink } from "@/lib/auth-api";
 import { OAuthButtons } from "@/components/auth/oauth-buttons";
 import { useAuthStore } from "@/store/auth";
 import { toast } from "@/store/toast";
-import { Mail, Lock, ArrowRight, LogIn, Wand2, ChevronDown } from "lucide-react";
+import { Mail, Lock, ArrowRight, Wand2 } from "@/lib/icons";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -30,7 +30,7 @@ export default function LoginPage() {
       const res = await login(email, password);
 
       if (res.requires_2fa && res.temp_token) {
-        sessionStorage.setItem("zpush-temp-token", res.temp_token);
+        sessionStorage.setItem("zcrypt-temp-token", res.temp_token);
         router.push("/2fa-verify");
         return;
       }
@@ -61,7 +61,9 @@ export default function LoginPage() {
       setMagicLinkSent(true);
       toast.success("Login link sent! Check your inbox.");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to send login link");
+      toast.error(
+        err instanceof Error ? err.message : "Failed to send login link"
+      );
     } finally {
       setMagicLinkLoading(false);
     }
@@ -69,28 +71,36 @@ export default function LoginPage() {
 
   if (magicLinkSent) {
     return (
-      <div className="card p-6 sm:p-8 text-center animate-fade-in">
-        <div className="inline-flex items-center justify-center h-14 w-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 mb-5">
-          <Mail className="h-7 w-7 text-emerald-500 dark:text-emerald-400" />
+      <div className="text-center animate-fade-in">
+        <div className="flex justify-center mb-4">
+          <div className="h-12 w-12 rounded-full bg-cyan-500/10 flex items-center justify-center">
+            <Mail className="h-6 w-6 text-cyan-500" />
+          </div>
         </div>
         <h2 className="text-xl font-bold">Check your email</h2>
-        <p className="text-sm text-[var(--color-text-secondary)] mt-2 max-w-sm mx-auto leading-relaxed">
+        <p className="text-sm text-[var(--color-text-secondary)] mt-2 leading-relaxed">
           We sent a login link to{" "}
-          <strong className="text-[var(--color-text)]">{email}</strong>.
-          Click it to sign in. The link expires in 15 minutes.
+          <strong className="text-[var(--color-text)]">{email}</strong>. Click
+          it to sign in.
         </p>
-        <p className="text-xs text-[var(--color-text-muted)] mt-3">
+        <p className="text-xs text-[var(--color-text-muted)] mt-2">
           Didn&apos;t get it? Check your spam folder.
         </p>
         <div className="flex flex-col items-center gap-2 mt-5">
           <button
-            onClick={() => { setMagicLinkSent(false); setMagicLinkLoading(false); }}
-            className="text-sm text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300 font-medium transition-colors"
+            onClick={() => {
+              setMagicLinkSent(false);
+              setMagicLinkLoading(false);
+            }}
+            className="text-sm text-cyan-600 hover:text-cyan-500 dark:text-cyan-400 dark:hover:text-cyan-300 font-medium transition-colors"
           >
             Send again
           </button>
           <button
-            onClick={() => { setMagicLinkSent(false); setMode("password"); }}
+            onClick={() => {
+              setMagicLinkSent(false);
+              setMode("password");
+            }}
             className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors"
           >
             Back to login
@@ -101,18 +111,10 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="card p-6 sm:p-8 animate-fade-in">
-      <div className="text-center mb-6">
-        <div className="inline-flex items-center justify-center h-12 w-12 rounded-xl bg-emerald-500/10 mb-4">
-          <LogIn className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
-        </div>
-        <h1 className="text-xl font-bold">Welcome back</h1>
-        <p className="text-sm text-[var(--color-text-secondary)] mt-1">
-          Sign in to your zpush vault
-        </p>
-      </div>
+    <div className="animate-fade-in">
 
-      <div className="space-y-5">
+
+      <div className="space-y-4">
         <OAuthButtons />
 
         {/* Mode toggle */}
@@ -144,7 +146,7 @@ export default function LoginPage() {
         </div>
 
         {mode === "password" ? (
-          <form onSubmit={handleSubmit} className="space-y-4 animate-fade-in">
+          <form onSubmit={handleSubmit} className="space-y-3 animate-fade-in">
             <Input
               label="Email"
               type="email"
@@ -169,13 +171,18 @@ export default function LoginPage() {
             <div className="flex justify-end">
               <Link
                 href="/forgot-password"
-                className="text-xs text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors"
+                className="text-xs text-cyan-600 hover:text-cyan-500 dark:text-cyan-400 dark:hover:text-cyan-300 transition-colors"
               >
                 Forgot password?
               </Link>
             </div>
 
-            <Button type="submit" className="w-full" size="lg" disabled={loading}>
+            <Button
+              type="submit"
+              className="w-full"
+              size="lg"
+              disabled={loading}
+            >
               {loading ? (
                 <span className="flex items-center gap-2">
                   <span className="h-4 w-4 border-2 border-slate-900/30 border-t-slate-900 rounded-full animate-spin" />
@@ -189,7 +196,10 @@ export default function LoginPage() {
             </Button>
           </form>
         ) : (
-          <form onSubmit={handleMagicLink} className="space-y-4 animate-fade-in">
+          <form
+            onSubmit={handleMagicLink}
+            className="space-y-3 animate-fade-in"
+          >
             <Input
               label="Email"
               type="email"
@@ -202,10 +212,16 @@ export default function LoginPage() {
             />
 
             <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
-              We&apos;ll send a one-time login link to your email. No password needed.
+              We&apos;ll send a one-time login link to your email. No password
+              needed.
             </p>
 
-            <Button type="submit" className="w-full" size="lg" disabled={magicLinkLoading || !email.trim()}>
+            <Button
+              type="submit"
+              className="w-full"
+              size="lg"
+              disabled={magicLinkLoading || !email.trim()}
+            >
               {magicLinkLoading ? (
                 <span className="flex items-center gap-2">
                   <span className="h-4 w-4 border-2 border-slate-900/30 border-t-slate-900 rounded-full animate-spin" />
@@ -226,7 +242,7 @@ export default function LoginPage() {
         Don&apos;t have an account?{" "}
         <Link
           href="/register"
-          className="text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300 font-medium transition-colors"
+          className="text-cyan-600 hover:text-cyan-500 dark:text-cyan-400 dark:hover:text-cyan-300 font-medium transition-colors"
         >
           Sign up
         </Link>

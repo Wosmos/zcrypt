@@ -10,7 +10,7 @@ import {
   Sun,
   Moon,
   Database,
-} from "lucide-react";
+} from "@/lib/icons";
 
 const LINKS = [
   { href: "/demo", label: "Vault", icon: Shield },
@@ -33,12 +33,12 @@ export default function DemoLayout({
       <aside className="hidden md:flex h-screen w-[232px] flex-col border-r bg-[var(--color-sidebar)] border-[var(--color-sidebar-border)]">
         {/* Logo */}
         <div className="flex items-center gap-3 px-5 h-16 border-b border-[var(--color-sidebar-border)]">
-          <div className="flex items-center justify-center h-8 w-8 rounded-xl bg-emerald-500/15 ring-1 ring-emerald-500/25">
-            <Shield className="h-[16px] w-[16px] text-emerald-400" />
+          <div className="flex items-center justify-center h-8 w-8 rounded-xl bg-cyan-500/15 ring-1 ring-cyan-500/25">
+            <Shield className="h-[16px] w-[16px] text-cyan-400" />
           </div>
           <div>
-            <p className="text-[14px] font-bold text-[var(--color-sidebar-text)] tracking-tight">
-              zpush
+            <p className="text-sm font-bold text-[var(--color-sidebar-text)] tracking-tight">
+              zcrypt
             </p>
             <p className="text-[10px] text-[var(--color-sidebar-muted)] -mt-0.5">
               encrypted vault
@@ -54,14 +54,14 @@ export default function DemoLayout({
               <div
                 key={label}
                 className={cn(
-                  "flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition-all duration-150 cursor-default",
+                  "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150 cursor-default",
                   active
-                    ? "bg-[var(--color-sidebar-active)] text-emerald-400"
+                    ? "bg-[var(--color-sidebar-active)] text-cyan-400"
                     : "text-[var(--color-sidebar-muted)] hover:text-[var(--color-sidebar-text)] hover:bg-[var(--color-sidebar-hover)]",
                 )}
               >
                 <Icon
-                  className={cn("h-[18px] w-[18px]", active && "text-emerald-400")}
+                  className={cn("h-[18px] w-[18px]", active && "text-cyan-400")}
                 />
                 {label}
               </div>
@@ -83,14 +83,14 @@ export default function DemoLayout({
                 className="h-full rounded-full"
                 style={{
                   width: "33%",
-                  background: "linear-gradient(90deg, #10b981, #34d399)",
+                  background: "linear-gradient(90deg, #00d5e4, #2de0ed)",
                 }}
               />
             </div>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-[10px] text-[var(--color-sidebar-muted)]">
-              zpush v0.2
+              zcrypt v0.2
             </span>
             <button
               onClick={toggleTheme}

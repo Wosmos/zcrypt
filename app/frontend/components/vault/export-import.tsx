@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { Download, Upload, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Download, Upload, CheckCircle2, AlertTriangle } from "@/lib/icons";
 import type { FileMetadata } from "@/types";
 import { toast } from "@/store/toast";
 
@@ -33,7 +33,7 @@ export function ExportImport({ files }: ExportImportProps) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `zpush-vault-${new Date().toISOString().split("T")[0]}.json`;
+    a.download = `zcrypt-vault-${new Date().toISOString().split("T")[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
 
@@ -73,7 +73,7 @@ export function ExportImport({ files }: ExportImportProps) {
     <section className="card overflow-hidden">
       <div className="px-5 py-4 border-b border-[var(--color-border)]">
         <h2 className="text-sm font-semibold">Vault Backup</h2>
-        <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
+        <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
           Export your file index to restore on another machine
         </p>
       </div>
@@ -89,7 +89,7 @@ export function ExportImport({ files }: ExportImportProps) {
         <button
           onClick={handleImportClick}
           disabled={importing}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 transition-colors disabled:opacity-40"
+          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-cyan-500/20 bg-cyan-500/5 text-sm font-medium text-cyan-600 dark:text-cyan-400 hover:bg-cyan-500/10 transition-colors disabled:opacity-40"
         >
           <Upload className="h-4 w-4" />
           {importing ? "Importing..." : "Import Metadata"}

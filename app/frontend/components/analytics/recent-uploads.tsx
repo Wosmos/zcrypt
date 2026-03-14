@@ -4,7 +4,7 @@ import { formatBytes, formatDate, getFileTypeInfo } from "@/lib/utils";
 import type { FileMetadata } from "@/types";
 import {
   File, FileText, Image, Video, Music, Archive, Code, Cog, Table,
-} from "lucide-react";
+} from "@/lib/icons";
 
 interface RecentUploadsProps {
   files: FileMetadata[];
@@ -36,10 +36,10 @@ export function RecentUploads({ files }: RecentUploadsProps) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--color-border)]">
-                  <th className="text-left px-5 py-3 text-[11px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Name</th>
-                  <th className="text-left px-5 py-3 text-[11px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Date</th>
-                  <th className="text-right px-5 py-3 text-[11px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Size</th>
-                  <th className="text-right px-5 py-3 text-[11px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Saved</th>
+                  <th className="text-left px-5 py-3 text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Name</th>
+                  <th className="text-left px-5 py-3 text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Date</th>
+                  <th className="text-right px-5 py-3 text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Size</th>
+                  <th className="text-right px-5 py-3 text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Saved</th>
                 </tr>
               </thead>
               <tbody>
@@ -63,7 +63,7 @@ export function RecentUploads({ files }: RecentUploadsProps) {
                       <td className="px-5 py-3 text-[var(--color-text-secondary)]">{formatDate(file.created_at)}</td>
                       <td className="px-5 py-3 text-right tabular-nums">{formatBytes(file.original_size)}</td>
                       <td className="px-5 py-3 text-right">
-                        <span className="text-emerald-500 font-medium">{savings}%</span>
+                        <span className="text-cyan-500 font-medium">{savings}%</span>
                       </td>
                     </tr>
                   );
@@ -85,7 +85,7 @@ export function RecentUploads({ files }: RecentUploadsProps) {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{file.original_name}</p>
-                    <p className="text-[11px] text-[var(--color-text-muted)]">
+                    <p className="text-xs text-[var(--color-text-muted)]">
                       {formatBytes(file.original_size)} &middot; {formatDate(file.created_at)}
                     </p>
                   </div>

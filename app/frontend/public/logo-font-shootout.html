@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>zcrypt — Font Shootout</title>
+<link href="https://api.fontshare.com/v2/css?f[]=clash-display@200,300,400,500,600,700&f[]=cabinet-grotesk@100,200,300,400,500,600,700,800,900&f[]=satoshi@300,400,500,600,700,800,900&f[]=general-sans@200,300,400,500,600,700&f[]=switzer@100,200,300,400,500,600,700,800,900&f[]=nippo@200,300,400,500,600,700&f[]=clash-grotesk@200,300,400,500,600,700&f[]=zodiak@200,300,400,500,600,700,800,900&f[]=erode@300,400,500,600,700&f[]=neue-montreal@200,300,400,500,600,700,800,900&f[]=archivo@100,200,300,400,500,600,700,800,900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Unbounded:wght@200;300;400;500;600;700;800;900&family=Space+Grotesk:wght@300;400;500;600;700&family=Outfit:wght@100;200;300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@200;300;400;500;600;700;800&family=Chakra+Petch:wght@300;400;500;600;700&family=Inter:wght@100;200;300;400;500;600;700;800;900&family=DM+Sans:wght@400;500;600;700;800;900&family=Manrope:wght@200;300;400;500;600;700;800&family=Urbanist:wght@100;200;300;400;500;600;700;800;900&family=Figtree:wght@300;400;500;600;700;800;900&family=Lexend:wght@100;200;300;400;500;600;700;800;900&family=Albert+Sans:wght@100;200;300;400;500;600;700;800;900&family=Poppins:wght@100;200;300;400;500;600;700;800;900&family=Montserrat:wght@100;200;300;400;500;600;700;800;900&family=Work+Sans:wght@100;200;300;400;500;600;700;800;900&family=Rubik:wght@300;400;500;600;700;800;900&family=Raleway:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #050507;
+    color: #fafafa;
+    font-family: 'General Sans', sans-serif;
+  }
+
+  .header {
+    text-align: center;
+    padding: 60px 40px 10px;
+  }
+  .header h1 {
+    font-family: 'General Sans', sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    color: #3f3f46;
+    text-transform: uppercase;
+    letter-spacing: 5px;
+  }
+  .header p {
+    font-size: 11px;
+    color: #27272a;
+    margin-top: 8px;
+    letter-spacing: 1px;
+  }
+
+  .section-title {
+    text-align: center;
+    font-size: 10px;
+    font-weight: 500;
+    color: #00d5e4;
+    text-transform: uppercase;
+    letter-spacing: 5px;
+    padding: 50px 0 24px;
+    font-family: 'General Sans', sans-serif;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(520px, 1fr));
+    gap: 1px;
+    background: #18181b;
+    border-top: 1px solid #18181b;
+    border-bottom: 1px solid #18181b;
+  }
+
+  .card {
+    background: #09090b;
+    padding: 72px 56px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 28px;
+    transition: all 0.3s ease;
+  }
+  .card:hover { background: #0c0c0f; }
+  .card.light { background: #fafafa; }
+  .card.light:hover { background: #f4f4f5; }
+
+  .lockup {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+
+  .label {
+    font-family: 'General Sans', sans-serif;
+    font-size: 10px;
+    font-weight: 500;
+    color: #27272a;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+  }
+  .card.light .label { color: #a1a1aa; }
+
+  .accent { color: #00d5e4; }
+  .card.light .accent { color: #0093a3; }
+
+  /* ===== 3D ICON (same everywhere) ===== */
+  .icon {
+    position: relative;
+    width: 76px;
+    height: 76px;
+    perspective: 600px;
+    transform-style: preserve-3d;
+    flex-shrink: 0;
+  }
+  .icon .shadow {
+    position: absolute;
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    background: rgba(0,147,163,0.15);
+    top: 22px;
+    left: 16px;
+    filter: blur(10px);
+  }
+  .icon .back {
+    position: absolute;
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    background: linear-gradient(145deg, #008a97, #006d77);
+    top: 4px;
+    left: 0;
+    transform: rotateY(-14deg) rotateX(7deg) translateZ(-8px);
+    box-shadow: -2px 3px 10px rgba(0,0,0,0.5);
+  }
+  .icon .front {
+    position: absolute;
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    background: linear-gradient(145deg, #00e8f8, #00c5d4);
+    top: 16px;
+    left: 24px;
+    transform: rotateY(-9deg) rotateX(4deg) translateZ(8px);
+    box-shadow: -6px 6px 24px rgba(0,0,0,0.35), 0 1px 0 rgba(255,255,255,0.15) inset;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .icon .front span {
+    font-family: 'Clash Display', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: #09090b;
+  }
+
+  /* Light icon */
+  .card.light .icon .back {
+    background: linear-gradient(145deg, #b2ecf0, #80dde4);
+    box-shadow: -2px 3px 10px rgba(0,0,0,0.06);
+  }
+  .card.light .icon .front {
+    background: linear-gradient(145deg, #00d5e4, #00b5c4);
+    box-shadow: -4px 4px 16px rgba(0,0,0,0.08), 0 1px 0 rgba(255,255,255,0.3) inset;
+  }
+  .card.light .icon .front span { color: #fff; }
+  .card.light .icon .shadow { background: rgba(0,147,163,0.08); }
+
+  /* ===== FONT RANK TAG ===== */
+  .rank {
+    position: absolute;
+    top: 16px;
+    right: 20px;
+    font-size: 9px;
+    font-weight: 600;
+    color: #09090b;
+    background: #00d5e4;
+    padding: 3px 8px;
+    border-radius: 4px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-family: 'General Sans', sans-serif;
+  }
+
+  .card { position: relative; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>font shootout &mdash; same icon, every font</h1>
+  <p>3D deep overlap &times; z://crypt &mdash; find the one</p>
+</div>
+
+<!-- ========== GEOMETRIC / DISPLAY ========== -->
+<div class="section-title">geometric &amp; display</div>
+
+<div class="grid">
+
+  <!-- Clash Display -->
+  <div class="card">
+    <div class="lockup">
+      <div class="icon"><div class="shadow"></div><div class="back"></div><div class="front"><span>z</span></div></div>
+      <div>
+        <span style="font-family:'Clash Display',sans-serif;font-size:46px;font-weight:600;color:#fafafa;letter-spacing:-2px"><span class="accent">z://</span>crypt</span>
+        <span style="display:block;font-family:'General Sans',sans-serif;font-size:11px;color:#3f3f46;letter-spacing:3px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">Clash Display &mdash; 600</span>
+  </div>
+
+  <!-- Clash Display 700 -->
+  <div class="card">
+    <div class="lockup">
+      <div class="icon"><div class="shadow"></div><div class="back"></div><div class="front"><span>z</span></div></div>
+      <div>
+        <span style="font-family:'Clash Display',sans-serif;font-size:46px;font-weight:700;color:#fafafa;letter-spacing:-2px"><span class="accent">z://</span>crypt</span>
+        <span style="display:block;font-family:'General Sans',sans-serif;font-size:11px;color:#3f3f46;letter-spacing:3px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">Clash Display &mdash; 700</span>
+  </div>
+
+  <!-- Clash Grotesk -->
+  <div class="card">
+    <div class="lockup">
+      <div class="icon"><div class="shadow"></div><div class="back"></div><div class="front"><span>z</span></div></div>
+      <div>
+        <span style="font-family:'Clash Grotesk',sans-serif;font-size:46px;font-weight:600;color:#fafafa;letter-spacing:-1.5px"><span class="accent">z://</span>crypt</span>
+        <span style="display:block;font-family:'General Sans',sans-serif;font-size:11px;color:#3f3f46;letter-spacing:3px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">Clash Grotesk &mdash; 600</span>
+  </div>
+
+  <!-- Cabinet Grotesk -->
+  <div class="card">
+    <div class="lockup">
+      <div class="icon"><div class="shadow"></div><div class="back"></div><div class="front"><span>z</span></div></div>
+      <div>
+        <span style="font-family:'Cabinet Grotesk',sans-serif;font-size:48px;font-weight:800;color:#fafafa;letter-spacing:-2px"><span class="accent">z://</span>crypt</span>
+        <span style="display:block;font-family:'General Sans',sans-serif;font-size:11px;color:#3f3f46;letter-spacing:3px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">Cabinet Grotesk &mdash; 800</span>
+  </div>
+
+  <!-- Syne -->
+  <div class="card">
+    <div class="lockup">
+      <div class="icon"><div class="shadow"></div><div class="back"></div><div class="front"><span>z</span></div></div>
+      <div>
+        <span style="font-family:'Syne',sans-serif;font-size:46px;font-weight:700;color:#fafafa;letter-spacing:-1px"><span class="accent">z://</span>crypt</span>
+        <span style="display:block;font-family:'General Sans',sans-serif;font-size:11px;color:#3f3f46;letter-spacing:3px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">Syne &mdash; 700</span>
+  </div>
+
+  <!-- Syne 800 -->
+  <div class="card">
+    <div class="lockup">
+      <div class="icon"><div class="shadow"></div><div class="back"></div><div class="front"><span>z</span></div></div>
+      <div>
+        <span style="font-family:'Syne',sans-serif;font-size:46px;font-weight:800;color:#fafafa;letter-spacing:-1px"><span class="accent">z://</span>crypt</span>
+        <span style="display:block;font-family:'General Sans',sans-serif;font-size:11px;color:#3f3f46;letter-spacing:3px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">Syne &mdash; 800</span>
+  </div>
+
+  <!-- Unbounded -->
+  <div class="card">
+    <div class="lockup">
+      <div class="icon"><div class="shadow"></div><div class="back"></div><div class="front"><span>z</span></div></div>
+      <div>
+        <span style="font-family:'Unbounded',cursive;font-size:38px;font-weight:600;color:#fafafa;letter-spacing:-0.5px"><span class="accent">z://</span>crypt</span>
+        <span style="display:block;font-family:'General Sans',sans-serif;font-size:11px;color:#3f3f46;letter-spacing:3px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">Unbounded &mdash; 600</span>
+  </div>
+
+  <!-- Nippo -->
+  <div class="card">
+    <div class="lockup">
+      <div class="icon"><div class="shadow"></div><div class="back"></div><div class="front"><span>z</span></div></div>
+      <div>
+        <span style="font-family:'Nippo',sans-serif;font-size:44px;font-weight:600;color:#fafafa;letter-spacing:1px"><span class="accent">z://</span>crypt</span>
+        <span style="display:block;font-family:'General Sans',sans-serif;font-size:11px;color:#3f3f46;letter-spacing:3px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">Nippo &mdash; 600</span>
+  </div>
+</div>
+
+<!-- ========== CLEAN / MODERN ========== -->
+<div class="section-title">clean &amp; modern</div>
+
+<div class="grid">
+
+  <!-- Satoshi -->
+  <div class="card">
+    <div class="lockup">
+      <div class="icon"><div class="shadow"></div><div class="back"></div><div class="front"><span>z</span></div></div>
+      <div>
+        <span style="font-family:'Satoshi',sans-serif;font-size:46px;font-weight:700;color:#fafafa;letter-spacing:-1.5px"><span class="accent">z://</span>crypt</span>
+        <span style="display:block;font-family:'Satoshi',sans-serif;font-size:11px;font-weight:400;color:#3f3f46;letter-spacing:3px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">Satoshi &mdash; 700</span>
+  </div>
+
+  <!-- Satoshi 800 -->
+  <div class="card">
+    <div class="lockup">
+      <div class="icon"><div class="shadow"></div><div class="back"></div><div class="front"><span>z</span></div></div>
+      <div>
+        <span style="font-family:'Satoshi',sans-serif;font-size:46px;font-weight:800;color:#fafafa;letter-spacing:-1.5px"><span class="accent">z://</span>crypt</span>
+        <span style="display:block;font-family:'Satoshi',sans-serif;font-size:11px;font-weight:400;color:#3f3f46;letter-spacing:3px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">Satoshi &mdash; 800</span>
+  </div>
+
+  <!-- General Sans -->
+  <div class="card">
+    <div class="lockup">
+      <div class="icon"><div class="shadow"></div><div class="back"></div><div class="front"><span>z</span></div></div>
+      <div>
+        <span style="font-family:'General Sans',sans-serif;font-size:46px;font-weight:600;color:#fafafa;letter-spacing:-1px"><span class="accent">z://</span>crypt</span>
+        <span style="display:block;font-family:'General Sans',sans-serif;font-size:11px;font-weight:400;color:#3f3f46;letter-spacing:3px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">General Sans &mdash; 600</span>
+  </div>
+
+  <!-- Outfit -->
+  <div class="card">
+    <div class="lockup">
+      <div class="icon"><div class="shadow"></div><div class="back"></div><div class="front"><span>z</span></div></div>
+      <div>
+        <span style="font-family:'Outfit',sans-serif;font-size:46px;font-weight:700;color:#fafafa;letter-spacing:-1px"><span class="accent">z://</span>crypt</span>
+        <span style="display:block;font-family:'Outfit',sans-serif;font-size:11px;font-weight:300;color:#3f3f46;letter-spacing:3px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">Outfit &mdash; 700</span>
+  </div>
+
+  <!-- Space Grotesk -->
+  <div class="card">
+    <div class="lockup">
+      <div class="icon"><div class="shadow"></div><div class="back"></div><div class="front"><span>z</span></div></div>
+      <div>
+        <span style="font-family:'Space Grotesk',sans-serif;font-size:46px;font-weight:700;color:#fafafa;letter-spacing:-1px"><span class="accent">z://</span>crypt</span>
+        <span style="display:block;font-family:'General Sans',sans-serif;font-size:11px;color:#3f3f46;letter-spacing:3px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">Space Grotesk &mdash; 700</span>
+  </div>
+
+  <!-- Switzer -->
+  <div class="card">
+    <div class="lockup">
+      <div class="icon"><div class="shadow"></div><div class="back"></div><div class="front"><span>z</span></div></div>
+      <div>
+        <span style="font-family:'Switzer',sans-serif;font-size:46px;font-weight:600;color:#fafafa;letter-spacing:-1px"><span class="accent">z://</span>crypt</span>
+        <span style="display:block;font-family:'Switzer',sans-serif;font-size:11px;font-weight:400;color:#3f3f46;letter-spacing:3px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">Switzer &mdash; 600</span>
+  </div>
+
+  <!-- DM Sans -->
+  <div class="card">
+    <div class="lockup">
+      <div class="icon"><div class="shadow"></div><div class="back"></div><div class="front"><span>z</span></div></div>
+      <div>
+        <span style="font-family:'DM Sans',sans-serif;font-size:46px;font-weight:700;color:#fafafa;letter-spacing:-1.5px"><span class="accent">z://</span>crypt</span>
+        <span style="display:block;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:400;color:#3f3f46;letter-spacing:3px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">DM Sans &mdash; 700</span>
+  </div>
+
+  <!-- Manrope -->
+  <div class="card">
+    <div class="lockup">
+      <div class="icon"><div class="shadow"></div><div class="back"></div><div class="front"><span>z</span></div></div>
+      <div>
+        <span style="font-family:'Manrope',sans-serif;font-size:46px;font-weight:700;color:#fafafa;letter-spacing:-1.5px"><span class="accent">z://</span>crypt</span>
+        <span style="display:block;font-family:'Manrope',sans-serif;font-size:11px;font-weight:400;color:#3f3f46;letter-spacing:3px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">Manrope &mdash; 700</span>
+  </div>
+
+  <!-- Urbanist -->
+  <div class="card">
+    <div class="lockup">
+      <div class="icon"><div class="shadow"></div><div class="back"></div><div class="front"><span>z</span></div></div>
+      <div>
+        <span style="font-family:'Urbanist',sans-serif;font-size:46px;font-weight:700;color:#fafafa;letter-spacing:-1px"><span class="accent">z://</span>crypt</span>
+        <span style="display:block;font-family:'Urbanist',sans-serif;font-size:11px;font-weight:400;color:#3f3f46;letter-spacing:3px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">Urbanist &mdash; 700</span>
+  </div>
+
+  <!-- Plus Jakarta -->
+  <div class="card">
+    <div class="lockup">
+      <div class="icon"><div class="shadow"></div><div class="back"></div><div class="front"><span>z</span></div></div>
+      <div>
+        <span style="font-family:'Plus Jakarta Sans',sans-serif;font-size:44px;font-weight:700;color:#fafafa;letter-spacing:-1.5px"><span class="accent">z://</span>crypt</span>
+        <span style="display:block;font-family:'Plus Jakarta Sans',sans-serif;font-size:11px;font-weight:400;color:#3f3f46;letter-spacing:3px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">Plus Jakarta Sans &mdash; 700</span>
+  </div>
+
+  <!-- Figtree -->
+  <div class="card">
+    <div class="lockup">
+      <div class="icon"><div class="shadow"></div><div class="back"></div><div class="front"><span>z</span></div></div>
+      <div>
+        <span style="font-family:'Figtree',sans-serif;font-size:46px;font-weight:700;color:#fafafa;letter-spacing:-1px"><span class="accent">z://</span>crypt</span>
+        <span style="display:block;font-family:'Figtree',sans-serif;font-size:11px;font-weight:400;color:#3f3f46;letter-spacing:3px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">Figtree &mdash; 700</span>
+  </div>
+
+  <!-- Lexend -->
+  <div class="card">
+    <div class="lockup">
+      <div class="icon"><div class="shadow"></div><div class="back"></div><div class="front"><span>z</span></div></div>
+      <div>
+        <span style="font-family:'Lexend',sans-serif;font-size:44px;font-weight:600;color:#fafafa;letter-spacing:-1px"><span class="accent">z://</span>crypt</span>
+        <span style="display:block;font-family:'Lexend',sans-serif;font-size:11px;font-weight:400;color:#3f3f46;letter-spacing:3px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">Lexend &mdash; 600</span>
+  </div>
+
+  <!-- Inter -->
+  <div class="card">
+    <div class="lockup">
+      <div class="icon"><div class="shadow"></div><div class="back"></div><div class="front"><span>z</span></div></div>
+      <div>
+        <span style="font-family:'Inter',sans-serif;font-size:46px;font-weight:700;color:#fafafa;letter-spacing:-1.5px"><span class="accent">z://</span>crypt</span>
+        <span style="display:block;font-family:'Inter',sans-serif;font-size:11px;font-weight:400;color:#3f3f46;letter-spacing:3px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">Inter &mdash; 700</span>
+  </div>
+
+  <!-- Albert Sans -->
+  <div class="card">
+    <div class="lockup">
+      <div class="icon"><div class="shadow"></div><div class="back"></div><div class="front"><span>z</span></div></div>
+      <div>
+        <span style="font-family:'Albert Sans',sans-serif;font-size:46px;font-weight:700;color:#fafafa;letter-spacing:-1.5px"><span class="accent">z://</span>crypt</span>
+        <span style="display:block;font-family:'Albert Sans',sans-serif;font-size:11px;font-weight:400;color:#3f3f46;letter-spacing:3px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">Albert Sans &mdash; 700</span>
+  </div>
+</div>
+
+<!-- ========== POPULAR / CLASSIC ========== -->
+<div class="section-title">popular &amp; classic</div>
+
+<div class="grid">
+
+  <!-- Poppins -->
+  <div class="card">
+    <div class="lockup">
+      <div class="icon"><div class="shadow"></div><div class="back"></div><div class="front"><span>z</span></div></div>
+      <div>
+        <span style="font-family:'Poppins',sans-serif;font-size:44px;font-weight:700;color:#fafafa;letter-spacing:-1px"><span class="accent">z://</span>crypt</span>
+        <span style="display:block;font-family:'Poppins',sans-serif;font-size:11px;font-weight:300;color:#3f3f46;letter-spacing:3px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">Poppins &mdash; 700</span>
+  </div>
+
+  <!-- Montserrat -->
+  <div class="card">
+    <div class="lockup">
+      <div class="icon"><div class="shadow"></div><div class="back"></div><div class="front"><span>z</span></div></div>
+      <div>
+        <span style="font-family:'Montserrat',sans-serif;font-size:44px;font-weight:700;color:#fafafa;letter-spacing:-1px"><span class="accent">z://</span>crypt</span>
+        <span style="display:block;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:400;color:#3f3f46;letter-spacing:3px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">Montserrat &mdash; 700</span>
+  </div>
+
+  <!-- Work Sans -->
+  <div class="card">
+    <div class="lockup">
+      <div class="icon"><div class="shadow"></div><div class="back"></div><div class="front"><span>z</span></div></div>
+      <div>
+        <span style="font-family:'Work Sans',sans-serif;font-size:46px;font-weight:700;color:#fafafa;letter-spacing:-1.5px"><span class="accent">z://</span>crypt</span>
+        <span style="display:block;font-family:'Work Sans',sans-serif;font-size:11px;font-weight:400;color:#3f3f46;letter-spacing:3px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">Work Sans &mdash; 700</span>
+  </div>
+
+  <!-- Rubik -->
+  <div class="card">
+    <div class="lockup">
+      <div class="icon"><div class="shadow"></div><div class="back"></div><div class="front"><span>z</span></div></div>
+      <div>
+        <span style="font-family:'Rubik',sans-serif;font-size:46px;font-weight:700;color:#fafafa;letter-spacing:-1px"><span class="accent">z://</span>crypt</span>
+        <span style="display:block;font-family:'Rubik',sans-serif;font-size:11px;font-weight:400;color:#3f3f46;letter-spacing:3px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">Rubik &mdash; 700</span>
+  </div>
+
+  <!-- Raleway -->
+  <div class="card">
+    <div class="lockup">
+      <div class="icon"><div class="shadow"></div><div class="back"></div><div class="front"><span>z</span></div></div>
+      <div>
+        <span style="font-family:'Raleway',sans-serif;font-size:46px;font-weight:700;color:#fafafa;letter-spacing:-1px"><span class="accent">z://</span>crypt</span>
+        <span style="display:block;font-family:'Raleway',sans-serif;font-size:11px;font-weight:400;color:#3f3f46;letter-spacing:3px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">Raleway &mdash; 700</span>
+  </div>
+
+  <!-- Neue Montreal -->
+  <div class="card">
+    <div class="lockup">
+      <div class="icon"><div class="shadow"></div><div class="back"></div><div class="front"><span>z</span></div></div>
+      <div>
+        <span style="font-family:'Neue Montreal',sans-serif;font-size:46px;font-weight:700;color:#fafafa;letter-spacing:-1.5px"><span class="accent">z://</span>crypt</span>
+        <span style="display:block;font-family:'Neue Montreal',sans-serif;font-size:11px;font-weight:400;color:#3f3f46;letter-spacing:3px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">Neue Montreal &mdash; 700</span>
+  </div>
+</div>
+
+<!-- ========== TECH / MONO ========== -->
+<div class="section-title">tech &amp; monospace</div>
+
+<div class="grid">
+
+  <!-- Chakra Petch -->
+  <div class="card">
+    <div class="lockup">
+      <div class="icon"><div class="shadow"></div><div class="back"></div><div class="front"><span>z</span></div></div>
+      <div>
+        <span style="font-family:'Chakra Petch',sans-serif;font-size:46px;font-weight:600;color:#fafafa;letter-spacing:0px"><span class="accent">z://</span>crypt</span>
+        <span style="display:block;font-family:'Chakra Petch',sans-serif;font-size:11px;font-weight:400;color:#3f3f46;letter-spacing:3px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">Chakra Petch &mdash; 600</span>
+  </div>
+
+  <!-- Chakra Petch 700 -->
+  <div class="card">
+    <div class="lockup">
+      <div class="icon"><div class="shadow"></div><div class="back"></div><div class="front"><span>z</span></div></div>
+      <div>
+        <span style="font-family:'Chakra Petch',sans-serif;font-size:46px;font-weight:700;color:#fafafa;letter-spacing:0px"><span class="accent">z://</span>crypt</span>
+        <span style="display:block;font-family:'Chakra Petch',sans-serif;font-size:11px;font-weight:400;color:#3f3f46;letter-spacing:3px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">Chakra Petch &mdash; 700</span>
+  </div>
+
+  <!-- Archivo -->
+  <div class="card">
+    <div class="lockup">
+      <div class="icon"><div class="shadow"></div><div class="back"></div><div class="front"><span>z</span></div></div>
+      <div>
+        <span style="font-family:'Archivo',sans-serif;font-size:46px;font-weight:700;color:#fafafa;letter-spacing:-1px"><span class="accent">z://</span>crypt</span>
+        <span style="display:block;font-family:'Archivo',sans-serif;font-size:11px;font-weight:400;color:#3f3f46;letter-spacing:3px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">Archivo &mdash; 700</span>
+  </div>
+
+  <!-- JetBrains Mono -->
+  <div class="card">
+    <div class="lockup">
+      <div class="icon"><div class="shadow"></div><div class="back"></div><div class="front"><span>z</span></div></div>
+      <div>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:40px;font-weight:700;color:#fafafa"><span class="accent">z://</span>crypt</span>
+        <span style="display:block;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:400;color:#3f3f46;letter-spacing:2px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">JetBrains Mono &mdash; 700</span>
+  </div>
+</div>
+
+<!-- ========== LIGHT MODE COMPARISON ========== -->
+<div class="section-title">top picks &mdash; light mode check</div>
+
+<div class="grid">
+
+  <div class="card light">
+    <div class="lockup">
+      <div class="icon"><div class="shadow"></div><div class="back"></div><div class="front"><span>z</span></div></div>
+      <div>
+        <span style="font-family:'Satoshi',sans-serif;font-size:46px;font-weight:700;color:#09090b;letter-spacing:-1.5px"><span class="accent">z://</span>crypt</span>
+        <span style="display:block;font-family:'Satoshi',sans-serif;font-size:11px;font-weight:400;color:#a1a1aa;letter-spacing:3px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">Satoshi 700</span>
+  </div>
+
+  <div class="card light">
+    <div class="lockup">
+      <div class="icon"><div class="shadow"></div><div class="back"></div><div class="front"><span>z</span></div></div>
+      <div>
+        <span style="font-family:'Outfit',sans-serif;font-size:46px;font-weight:700;color:#09090b;letter-spacing:-1px"><span class="accent">z://</span>crypt</span>
+        <span style="display:block;font-family:'Outfit',sans-serif;font-size:11px;font-weight:300;color:#a1a1aa;letter-spacing:3px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">Outfit 700</span>
+  </div>
+
+  <div class="card light">
+    <div class="lockup">
+      <div class="icon"><div class="shadow"></div><div class="back"></div><div class="front"><span>z</span></div></div>
+      <div>
+        <span style="font-family:'General Sans',sans-serif;font-size:46px;font-weight:600;color:#09090b;letter-spacing:-1px"><span class="accent">z://</span>crypt</span>
+        <span style="display:block;font-family:'General Sans',sans-serif;font-size:11px;font-weight:400;color:#a1a1aa;letter-spacing:3px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">General Sans 600</span>
+  </div>
+
+  <div class="card light">
+    <div class="lockup">
+      <div class="icon"><div class="shadow"></div><div class="back"></div><div class="front"><span>z</span></div></div>
+      <div>
+        <span style="font-family:'Manrope',sans-serif;font-size:46px;font-weight:700;color:#09090b;letter-spacing:-1.5px"><span class="accent">z://</span>crypt</span>
+        <span style="display:block;font-family:'Manrope',sans-serif;font-size:11px;font-weight:400;color:#a1a1aa;letter-spacing:3px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">Manrope 700</span>
+  </div>
+
+  <div class="card light">
+    <div class="lockup">
+      <div class="icon"><div class="shadow"></div><div class="back"></div><div class="front"><span>z</span></div></div>
+      <div>
+        <span style="font-family:'DM Sans',sans-serif;font-size:46px;font-weight:700;color:#09090b;letter-spacing:-1.5px"><span class="accent">z://</span>crypt</span>
+        <span style="display:block;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:400;color:#a1a1aa;letter-spacing:3px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">DM Sans 700</span>
+  </div>
+
+  <div class="card light">
+    <div class="lockup">
+      <div class="icon"><div class="shadow"></div><div class="back"></div><div class="front"><span>z</span></div></div>
+      <div>
+        <span style="font-family:'Cabinet Grotesk',sans-serif;font-size:48px;font-weight:800;color:#09090b;letter-spacing:-2px"><span class="accent">z://</span>crypt</span>
+        <span style="display:block;font-family:'General Sans',sans-serif;font-size:11px;font-weight:400;color:#a1a1aa;letter-spacing:3px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">Cabinet Grotesk 800</span>
+  </div>
+</div>
+
+<div style="text-align:center;padding:60px 0 100px">
+  <span style="font-family:'General Sans',sans-serif;font-size:10px;color:#18181b;letter-spacing:3px;text-transform:uppercase">scroll through, find the one that clicks &mdash; trust your gut</span>
+</div>
+
+</body>
+</html>

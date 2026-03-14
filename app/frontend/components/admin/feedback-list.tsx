@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { adminListFeedback, type AdminFeedbackResponse } from "@/lib/api";
-import { Star, MessageSquare, ChevronLeft, ChevronRight } from "lucide-react";
+import { Star, MessageSquare, ChevronLeft, ChevronRight } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 10;
@@ -47,7 +47,7 @@ export function FeedbackList() {
           </div>
           <div>
             <h3 className="text-sm font-bold">User Feedback</h3>
-            <p className="text-[11px] text-[var(--color-text-muted)]">
+            <p className="text-xs text-[var(--color-text-muted)]">
               {total} response{total !== 1 ? "s" : ""}
               {avgRating > 0 && (
                 <span className="ml-2">
@@ -73,16 +73,16 @@ export function FeedbackList() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-[var(--color-border)]">
-                <th className="text-left text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider py-3 px-4">
+                <th className="text-left text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider py-3 px-4">
                   User
                 </th>
-                <th className="text-center text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider py-3 px-4">
+                <th className="text-center text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider py-3 px-4">
                   Rating
                 </th>
-                <th className="text-left text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider py-3 px-4">
+                <th className="text-left text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider py-3 px-4">
                   Message
                 </th>
-                <th className="text-right text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider py-3 px-4">
+                <th className="text-right text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider py-3 px-4">
                   Date
                 </th>
               </tr>
@@ -95,7 +95,7 @@ export function FeedbackList() {
                       <span className="text-sm font-medium text-[var(--color-text)]">
                         {f.username}
                       </span>
-                      <p className="text-[11px] text-[var(--color-text-muted)]">{f.email}</p>
+                      <p className="text-xs text-[var(--color-text-muted)]">{f.email}</p>
                     </div>
                   </td>
                   <td className="py-3 px-4">
@@ -118,7 +118,7 @@ export function FeedbackList() {
                       {f.message || <span className="italic text-[var(--color-text-muted)]">No message</span>}
                     </p>
                   </td>
-                  <td className="py-3 px-4 text-right text-[11px] text-[var(--color-text-muted)] whitespace-nowrap">
+                  <td className="py-3 px-4 text-right text-xs text-[var(--color-text-muted)] whitespace-nowrap">
                     {new Date(f.created_at).toLocaleDateString()}
                   </td>
                 </tr>
@@ -131,7 +131,7 @@ export function FeedbackList() {
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between px-4 py-3 border-t border-[var(--color-border)]">
-          <span className="text-[11px] text-[var(--color-text-muted)]">
+          <span className="text-xs text-[var(--color-text-muted)]">
             Page {page + 1} of {totalPages}
           </span>
           <div className="flex items-center gap-1">

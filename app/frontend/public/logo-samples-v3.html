@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>zcrypt.cloud — Lockup D: Beyond</title>
+<link href="https://api.fontshare.com/v2/css?f[]=clash-display@200,300,400,500,600,700&f[]=cabinet-grotesk@100,200,300,400,500,600,700,800,900&f[]=satoshi@300,400,500,600,700,800,900&f[]=general-sans@200,300,400,500,600,700&f[]=boska@300,400,500,600,700&f[]=nippo@200,300,400,500,600,700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Unbounded:wght@200;300;400;500;600;700;800;900&family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700;800&family=Outfit:wght@100;200;300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@200;300;400;500;600;700;800&family=DM+Sans:wght@400;500;600;700;800;900&family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #050507;
+    color: #fafafa;
+    font-family: 'General Sans', sans-serif;
+    overflow-x: hidden;
+  }
+
+  .header {
+    text-align: center;
+    padding: 80px 40px 20px;
+  }
+  .header h1 {
+    font-family: 'Clash Display', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    color: #3f3f46;
+    text-transform: uppercase;
+    letter-spacing: 6px;
+  }
+  .header p {
+    margin-top: 10px;
+    font-size: 11px;
+    color: #27272a;
+    letter-spacing: 2px;
+  }
+
+  .section-title {
+    text-align: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    color: #00d5e4;
+    text-transform: uppercase;
+    letter-spacing: 5px;
+    padding: 60px 0 30px;
+  }
+  .section-title::after {
+    content: '';
+    display: block;
+    width: 30px;
+    height: 1px;
+    background: #27272a;
+    margin: 14px auto 0;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+    gap: 1px;
+    background: #18181b;
+    border-top: 1px solid #18181b;
+    border-bottom: 1px solid #18181b;
+  }
+
+  .card {
+    background: #09090b;
+    padding: 100px 60px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 36px;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .card:hover { background: #0c0c0f; }
+  .card.light { background: #fafafa; }
+  .card.light:hover { background: #f4f4f5; }
+  .card.cream { background: #f5f0eb; }
+  .card.slate { background: #0f172a; }
+
+  .label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 500;
+    color: #27272a;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+  }
+  .card.light .label, .card.cream .label { color: #a1a1aa; }
+
+  .sub {
+    font-size: 11px;
+    color: #3f3f46;
+    letter-spacing: 1px;
+    text-align: center;
+    max-width: 300px;
+    line-height: 1.6;
+  }
+
+  .lockup {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+  }
+
+  /* ===== ANIMATIONS ===== */
+  @keyframes float1 {
+    0%, 100% { transform: translate(0, 0) rotate(0deg); }
+    50% { transform: translate(2px, -3px) rotate(1deg); }
+  }
+  @keyframes float2 {
+    0%, 100% { transform: translate(0, 0) rotate(0deg); }
+    50% { transform: translate(-2px, 2px) rotate(-1deg); }
+  }
+  @keyframes breathe {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 0.8; }
+  }
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(200%); }
+  }
+  @keyframes rotateSlow {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  @keyframes pulseGlow {
+    0%, 100% { filter: drop-shadow(0 0 8px rgba(0,213,228,0.2)); }
+    50% { filter: drop-shadow(0 0 20px rgba(0,213,228,0.5)); }
+  }
+  @keyframes slideIn {
+    0%, 100% { transform: translateX(0); }
+    50% { transform: translateX(3px); }
+  }
+  @keyframes morphRadius {
+    0%, 100% { border-radius: 20px 20px 20px 8px; }
+    25% { border-radius: 8px 20px 20px 20px; }
+    50% { border-radius: 20px 8px 20px 20px; }
+    75% { border-radius: 20px 20px 8px 20px; }
+  }
+
+  .float1 { animation: float1 4s ease-in-out infinite; }
+  .float2 { animation: float2 4s ease-in-out infinite 0.5s; }
+  .pulse-glow { animation: pulseGlow 3s ease-in-out infinite; }
+
+  /* ===== GLASSMORPHISM ===== */
+  .glass-plane {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(0, 213, 228, 0.15);
+  }
+
+  /* ===== GRADIENT DEFS ===== */
+  .grad-cyan-text {
+    background: linear-gradient(135deg, #00f0ff 0%, #00d5e4 50%, #0093a3 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .grad-ice-text {
+    background: linear-gradient(135deg, #fafafa 0%, #00d5e4 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* ===== FAVICON STRIP ===== */
+  .fav-strip {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    padding: 60px 40px;
+  }
+  .fav {
+    width: 64px;
+    height: 64px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s;
+    overflow: hidden;
+  }
+  .fav:hover { transform: scale(1.1); }
+</style>
+</head>
+<body>
+
+<!-- SVG defs -->
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <linearGradient id="gCyan" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f0ff"/>
+      <stop offset="50%" stop-color="#00d5e4"/>
+      <stop offset="100%" stop-color="#0093a3"/>
+    </linearGradient>
+    <linearGradient id="gCyanV" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#00f0ff"/>
+      <stop offset="100%" stop-color="#006570"/>
+    </linearGradient>
+    <linearGradient id="gAurora" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00d5e4"/>
+      <stop offset="40%" stop-color="#7c3aed"/>
+      <stop offset="100%" stop-color="#ec4899"/>
+    </linearGradient>
+    <linearGradient id="gSunset" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00d5e4"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+    <linearGradient id="gFrost" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e0f7ff"/>
+      <stop offset="50%" stop-color="#00d5e4"/>
+      <stop offset="100%" stop-color="#003d42"/>
+    </linearGradient>
+    <filter id="softGlow">
+      <feGaussianBlur stdDeviation="2.5" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+</svg>
+
+<div class="header">
+  <h1>zcrypt.cloud &mdash; lockup d: beyond</h1>
+  <p>overlap planes + z:crypt &mdash; pushed to the edge</p>
+</div>
+
+<!-- ========== ANIMATED OVERLAP MARKS ========== -->
+<div class="section-title">the icon &mdash; evolved</div>
+
+<div class="grid">
+
+  <!-- 1. Original baseline -->
+  <div class="card">
+    <svg width="120" height="110" viewBox="0 0 120 110" fill="none">
+      <rect x="4" y="12" width="64" height="64" rx="14" fill="#00d5e4" opacity="0.55"/>
+      <rect x="46" y="30" width="64" height="64" rx="14" fill="#0093a3" opacity="0.85"/>
+      <text x="58" y="72" font-family="Clash Display, sans-serif" font-size="36" font-weight="700" fill="#fafafa">z</text>
+    </svg>
+    <span class="label">baseline</span>
+  </div>
+
+  <!-- 2. Animated floating planes -->
+  <div class="card">
+    <svg width="120" height="110" viewBox="0 0 120 110" fill="none">
+      <rect class="float1" x="4" y="12" width="64" height="64" rx="14" fill="#00d5e4" opacity="0.45"/>
+      <rect class="float2" x="46" y="30" width="64" height="64" rx="14" fill="#0093a3" opacity="0.85"/>
+      <text x="58" y="72" font-family="Clash Display, sans-serif" font-size="36" font-weight="700" fill="#fafafa">z</text>
+    </svg>
+    <span class="label">breathing planes</span>
+  </div>
+
+  <!-- 3. Gradient planes -->
+  <div class="card">
+    <svg width="120" height="110" viewBox="0 0 120 110" fill="none">
+      <rect x="4" y="12" width="64" height="64" rx="14" fill="url(#gCyan)" opacity="0.5"/>
+      <rect x="46" y="30" width="64" height="64" rx="14" fill="url(#gFrost)" opacity="0.85"/>
+      <text x="58" y="72" font-family="Clash Display, sans-serif" font-size="36" font-weight="700" fill="#fafafa">z</text>
+    </svg>
+    <span class="label">gradient planes</span>
+  </div>
+
+  <!-- 4. Aurora planes -->
+  <div class="card">
+    <svg width="120" height="110" viewBox="0 0 120 110" fill="none">
+      <rect x="4" y="12" width="64" height="64" rx="14" fill="url(#gAurora)" opacity="0.45"/>
+      <rect x="46" y="30" width="64" height="64" rx="14" fill="#7c3aed" opacity="0.6"/>
+      <text x="58" y="72" font-family="Clash Display, sans-serif" font-size="36" font-weight="700" fill="#fafafa">z</text>
+    </svg>
+    <span class="label">aurora variant</span>
+  </div>
+
+  <!-- 5. Three planes (depth) -->
+  <div class="card">
+    <svg width="140" height="120" viewBox="0 0 140 120" fill="none">
+      <rect x="4" y="8" width="60" height="60" rx="12" fill="#00d5e4" opacity="0.25"/>
+      <rect x="30" y="24" width="60" height="60" rx="12" fill="#00d5e4" opacity="0.5"/>
+      <rect x="56" y="40" width="60" height="60" rx="12" fill="#0093a3" opacity="0.9"/>
+      <text x="68" y="80" font-family="Clash Display, sans-serif" font-size="34" font-weight="700" fill="#fafafa">z</text>
+    </svg>
+    <span class="label">triple depth</span>
+  </div>
+
+  <!-- 6. Glowing overlap -->
+  <div class="card" style="background:#050507">
+    <svg width="120" height="110" viewBox="0 0 120 110" fill="none" class="pulse-glow">
+      <rect x="4" y="12" width="64" height="64" rx="14" fill="#00d5e4" opacity="0.3"/>
+      <rect x="46" y="30" width="64" height="64" rx="14" fill="#00d5e4" opacity="0.15" stroke="#00d5e4" stroke-width="1"/>
+      <text x="58" y="72" font-family="Clash Display, sans-serif" font-size="36" font-weight="700" fill="#00d5e4">z</text>
+    </svg>
+    <span class="label">neon wireframe</span>
+  </div>
+
+  <!-- 7. Monochrome -->
+  <div class="card light">
+    <svg width="120" height="110" viewBox="0 0 120 110" fill="none">
+      <rect x="4" y="12" width="64" height="64" rx="14" fill="#09090b" opacity="0.08"/>
+      <rect x="46" y="30" width="64" height="64" rx="14" fill="#09090b" opacity="0.15"/>
+      <text x="58" y="72" font-family="Clash Display, sans-serif" font-size="36" font-weight="700" fill="#09090b">z</text>
+    </svg>
+    <span class="label">monochrome &mdash; light</span>
+  </div>
+
+  <!-- 8. Outlined only -->
+  <div class="card">
+    <svg width="120" height="110" viewBox="0 0 120 110" fill="none">
+      <rect x="4" y="12" width="64" height="64" rx="14" stroke="#00d5e4" stroke-width="1.5" fill="none" opacity="0.4"/>
+      <rect x="46" y="30" width="64" height="64" rx="14" stroke="#00d5e4" stroke-width="1.5" fill="none" opacity="0.8"/>
+      <text x="58" y="72" font-family="Clash Display, sans-serif" font-size="36" font-weight="700" fill="#fafafa">z</text>
+    </svg>
+    <span class="label">wireframe clean</span>
+  </div>
+
+  <!-- 9. Rotated overlap -->
+  <div class="card">
+    <svg width="120" height="120" viewBox="0 0 120 120" fill="none">
+      <rect x="16" y="16" width="60" height="60" rx="12" fill="#00d5e4" opacity="0.4" transform="rotate(-8 46 46)"/>
+      <rect x="40" y="36" width="60" height="60" rx="12" fill="#0093a3" opacity="0.85" transform="rotate(4 70 66)"/>
+      <text x="52" y="76" font-family="Clash Display, sans-serif" font-size="34" font-weight="700" fill="#fafafa">z</text>
+    </svg>
+    <span class="label">tilted planes</span>
+  </div>
+
+  <!-- 10. Rounded morphing -->
+  <div class="card">
+    <div style="position:relative;width:120px;height:110px">
+      <div style="position:absolute;left:4px;top:12px;width:64px;height:64px;background:rgba(0,213,228,0.45);animation:morphRadius 6s ease-in-out infinite"></div>
+      <div style="position:absolute;left:46px;top:30px;width:64px;height:64px;background:rgba(0,147,163,0.85);border-radius:14px;display:flex;align-items:center;justify-content:center">
+        <span style="font-family:'Clash Display',sans-serif;font-size:36px;font-weight:700;color:#fafafa">z</span>
+      </div>
+    </div>
+    <span class="label">morphing plane</span>
+  </div>
+</div>
+
+<!-- ========== FULL LOCKUPS ========== -->
+<div class="section-title">lockups &mdash; icon + type combos</div>
+
+<div class="grid" style="grid-template-columns:1fr">
+
+  <!-- L1: Overlap + Clash Display z:crypt -->
+  <div class="card" style="padding:100px">
+    <div class="lockup" style="gap:24px">
+      <svg width="64" height="60" viewBox="0 0 120 110" fill="none">
+        <rect class="float1" x="4" y="12" width="64" height="64" rx="14" fill="#00d5e4" opacity="0.5"/>
+        <rect class="float2" x="46" y="30" width="64" height="64" rx="14" fill="#0093a3" opacity="0.85"/>
+        <text x="58" y="72" font-family="Clash Display, sans-serif" font-size="36" font-weight="700" fill="#fafafa">z</text>
+      </svg>
+      <div>
+        <span style="font-family:'Clash Display',sans-serif;font-size:48px;font-weight:600;color:#fafafa;letter-spacing:-2px">z<span style="color:#00d5e4">:</span>crypt</span>
+        <span style="display:block;font-family:'General Sans',sans-serif;font-size:12px;color:#3f3f46;letter-spacing:3px;margin-top:-2px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">breathing + clash display</span>
+  </div>
+
+  <!-- L2: Triple depth + Outfit -->
+  <div class="card" style="padding:100px">
+    <div class="lockup" style="gap:24px">
+      <svg width="72" height="60" viewBox="0 0 140 120" fill="none">
+        <rect x="4" y="8" width="56" height="56" rx="12" fill="#00d5e4" opacity="0.2"/>
+        <rect x="28" y="24" width="56" height="56" rx="12" fill="#00d5e4" opacity="0.45"/>
+        <rect x="52" y="40" width="56" height="56" rx="12" fill="#0093a3" opacity="0.9"/>
+        <text x="62" y="78" font-family="Clash Display, sans-serif" font-size="32" font-weight="700" fill="#fafafa">z</text>
+      </svg>
+      <div>
+        <span style="font-family:'Outfit',sans-serif;font-size:46px;font-weight:700;color:#fafafa;letter-spacing:-1px">z<span style="color:#00d5e4">:</span>crypt</span>
+        <span style="display:block;font-family:'Outfit',sans-serif;font-size:12px;font-weight:300;color:#3f3f46;letter-spacing:3px;margin-top:-2px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">triple depth + outfit</span>
+  </div>
+
+  <!-- L3: Gradient planes + Satoshi bold -->
+  <div class="card" style="padding:100px">
+    <div class="lockup" style="gap:22px">
+      <svg width="64" height="60" viewBox="0 0 120 110" fill="none">
+        <rect x="4" y="12" width="64" height="64" rx="14" fill="url(#gCyan)" opacity="0.5"/>
+        <rect x="46" y="30" width="64" height="64" rx="14" fill="url(#gFrost)" opacity="0.85"/>
+        <text x="58" y="72" font-family="Satoshi, sans-serif" font-size="36" font-weight="900" fill="#fafafa">z</text>
+      </svg>
+      <div>
+        <span style="font-family:'Satoshi',sans-serif;font-size:46px;font-weight:800;color:#fafafa;letter-spacing:-1.5px">zcrypt</span>
+        <span style="display:block;font-family:'Satoshi',sans-serif;font-size:12px;font-weight:400;color:#3f3f46;letter-spacing:2px;margin-top:-2px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">gradient + satoshi 800</span>
+  </div>
+
+  <!-- L4: Neon wireframe + Chakra Petch -->
+  <div class="card" style="padding:100px;background:#050507">
+    <div class="lockup" style="gap:22px">
+      <svg width="64" height="60" viewBox="0 0 120 110" fill="none" class="pulse-glow">
+        <rect x="4" y="12" width="64" height="64" rx="14" fill="#00d5e4" opacity="0.15" stroke="#00d5e4" stroke-width="1"/>
+        <rect x="46" y="30" width="64" height="64" rx="14" fill="#00d5e4" opacity="0.08" stroke="#00d5e4" stroke-width="1.5"/>
+        <text x="58" y="72" font-family="Clash Display, sans-serif" font-size="36" font-weight="700" fill="#00d5e4">z</text>
+      </svg>
+      <div>
+        <span style="font-family:'Chakra Petch',sans-serif;font-size:44px;font-weight:700;color:#00d5e4;text-shadow:0 0 30px rgba(0,213,228,0.3)">z:crypt</span>
+        <span style="display:block;font-family:'Chakra Petch',sans-serif;font-size:11px;font-weight:400;color:#00d5e4;opacity:0.3;letter-spacing:4px;margin-top:2px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">cyberpunk neon</span>
+  </div>
+
+  <!-- L5: Clean light mode -->
+  <div class="card light" style="padding:100px">
+    <div class="lockup" style="gap:22px">
+      <svg width="64" height="60" viewBox="0 0 120 110" fill="none">
+        <rect x="4" y="12" width="64" height="64" rx="14" fill="#0093a3" opacity="0.2"/>
+        <rect x="46" y="30" width="64" height="64" rx="14" fill="#0093a3" opacity="0.4"/>
+        <text x="58" y="72" font-family="Clash Display, sans-serif" font-size="36" font-weight="700" fill="#09090b">z</text>
+      </svg>
+      <div>
+        <span style="font-family:'Clash Display',sans-serif;font-size:48px;font-weight:600;color:#09090b;letter-spacing:-2px">z<span style="color:#0093a3">:</span>crypt</span>
+        <span style="display:block;font-family:'General Sans',sans-serif;font-size:12px;color:#a1a1aa;letter-spacing:3px;margin-top:-2px">.cloud</span>
+      </div>
+    </div>
+    <span class="label" style="color:#a1a1aa">light mode</span>
+  </div>
+
+  <!-- L6: Tilted + Syne -->
+  <div class="card" style="padding:100px">
+    <div class="lockup" style="gap:22px">
+      <svg width="64" height="64" viewBox="0 0 120 120" fill="none">
+        <rect x="14" y="14" width="58" height="58" rx="12" fill="#00d5e4" opacity="0.4" transform="rotate(-10 43 43)"/>
+        <rect x="42" y="38" width="58" height="58" rx="12" fill="#0093a3" opacity="0.85" transform="rotate(3 71 67)"/>
+        <text x="52" y="76" font-family="Clash Display, sans-serif" font-size="32" font-weight="700" fill="#fafafa">z</text>
+      </svg>
+      <div>
+        <span style="font-family:'Syne',sans-serif;font-size:46px;font-weight:800;color:#fafafa;letter-spacing:-1px">zcrypt</span>
+        <span style="display:block;font-family:'Syne',sans-serif;font-size:12px;font-weight:400;color:#3f3f46;letter-spacing:4px;margin-top:2px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">tilted + syne</span>
+  </div>
+
+  <!-- L7: Wordmark only — no icon -->
+  <div class="card" style="padding:100px">
+    <div style="text-align:center">
+      <div style="display:flex;align-items:baseline;gap:1px;justify-content:center">
+        <span style="font-family:'Clash Display',sans-serif;font-size:72px;font-weight:700;letter-spacing:-3px">
+          <span class="grad-cyan-text">z</span><span style="color:#fafafa">crypt</span>
+        </span>
+      </div>
+      <span style="font-family:'General Sans',sans-serif;font-size:14px;color:#52525b;letter-spacing:6px;text-transform:uppercase;margin-top:-4px;display:block">.cloud</span>
+    </div>
+    <span class="label">wordmark only &mdash; gradient Z</span>
+  </div>
+
+  <!-- L8: Stacked vertical -->
+  <div class="card" style="padding:100px">
+    <div style="text-align:center;display:flex;flex-direction:column;align-items:center;gap:16px">
+      <svg width="72" height="66" viewBox="0 0 120 110" fill="none">
+        <rect class="float1" x="4" y="12" width="64" height="64" rx="14" fill="#00d5e4" opacity="0.5"/>
+        <rect class="float2" x="46" y="30" width="64" height="64" rx="14" fill="#0093a3" opacity="0.85"/>
+        <text x="58" y="72" font-family="Clash Display, sans-serif" font-size="36" font-weight="700" fill="#fafafa">z</text>
+      </svg>
+      <div>
+        <span style="font-family:'Clash Display',sans-serif;font-size:36px;font-weight:600;color:#fafafa;letter-spacing:-1px">z<span style="color:#00d5e4">:</span>crypt</span>
+        <span style="display:block;font-family:'General Sans',sans-serif;font-size:11px;color:#3f3f46;letter-spacing:4px;margin-top:4px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">stacked vertical</span>
+  </div>
+</div>
+
+<!-- ========== HERO SECTIONS ========== -->
+<div class="section-title">hero treatments</div>
+
+<div class="grid" style="grid-template-columns:1fr">
+
+  <!-- Hero 1: Big centered glow -->
+  <div class="card" style="padding:140px 80px;background:radial-gradient(ellipse at center, rgba(0,213,228,0.06) 0%, #050507 70%)">
+    <div style="text-align:center;display:flex;flex-direction:column;align-items:center;gap:24px">
+      <svg width="96" height="88" viewBox="0 0 120 110" fill="none" class="pulse-glow">
+        <rect class="float1" x="4" y="12" width="64" height="64" rx="14" fill="#00d5e4" opacity="0.5"/>
+        <rect class="float2" x="46" y="30" width="64" height="64" rx="14" fill="#0093a3" opacity="0.85"/>
+        <text x="58" y="72" font-family="Clash Display, sans-serif" font-size="36" font-weight="700" fill="#fafafa">z</text>
+      </svg>
+      <span style="font-family:'Clash Display',sans-serif;font-size:64px;font-weight:600;color:#fafafa;letter-spacing:-3px">z<span style="color:#00d5e4">:</span>crypt<span style="color:#27272a;font-weight:300">.cloud</span></span>
+      <span style="font-family:'General Sans',sans-serif;font-size:16px;color:#52525b;letter-spacing:2px">zero-knowledge encrypted cloud storage</span>
+    </div>
+    <span class="label">hero &mdash; radial glow</span>
+  </div>
+
+  <!-- Hero 2: Minimal dark -->
+  <div class="card" style="padding:140px 80px;background:#030305">
+    <div style="text-align:center;display:flex;flex-direction:column;align-items:center;gap:20px">
+      <div class="lockup" style="gap:20px">
+        <svg width="56" height="52" viewBox="0 0 120 110" fill="none">
+          <rect x="4" y="12" width="64" height="64" rx="14" fill="#00d5e4" opacity="0.5"/>
+          <rect x="46" y="30" width="64" height="64" rx="14" fill="#0093a3" opacity="0.85"/>
+          <text x="58" y="72" font-family="Clash Display, sans-serif" font-size="36" font-weight="700" fill="#fafafa">z</text>
+        </svg>
+        <span style="font-family:'Satoshi',sans-serif;font-size:52px;font-weight:700;color:#fafafa;letter-spacing:-2px">zcrypt</span>
+      </div>
+      <span style="font-family:'Satoshi',sans-serif;font-size:14px;font-weight:400;color:#3f3f46;letter-spacing:1px">Your files. Your keys. Your cloud.</span>
+    </div>
+    <span class="label">hero &mdash; tagline</span>
+  </div>
+
+  <!-- Hero 3: Gradient background -->
+  <div class="card" style="padding:140px 80px;background:linear-gradient(160deg, #050507 0%, #0a1a1d 50%, #050507 100%)">
+    <div style="text-align:center;display:flex;flex-direction:column;align-items:center;gap:28px">
+      <div class="lockup" style="gap:22px">
+        <svg width="60" height="56" viewBox="0 0 120 110" fill="none">
+          <rect class="float1" x="4" y="12" width="64" height="64" rx="14" fill="url(#gCyan)" opacity="0.45"/>
+          <rect class="float2" x="46" y="30" width="64" height="64" rx="14" fill="url(#gFrost)" opacity="0.8"/>
+          <text x="58" y="72" font-family="Clash Display, sans-serif" font-size="36" font-weight="700" fill="#fafafa">z</text>
+        </svg>
+        <span style="font-family:'Clash Display',sans-serif;font-size:54px;font-weight:600;letter-spacing:-2px" class="grad-ice-text">zcrypt</span>
+      </div>
+      <div style="width:60px;height:1px;background:linear-gradient(90deg, transparent, #00d5e4, transparent)"></div>
+      <span style="font-family:'General Sans',sans-serif;font-size:13px;font-weight:400;color:#52525b;letter-spacing:5px;text-transform:uppercase">encrypted cloud storage</span>
+    </div>
+    <span class="label">hero &mdash; gradient atmosphere</span>
+  </div>
+</div>
+
+<!-- ========== FAVICONS ========== -->
+<div class="section-title">favicons &amp; app icons</div>
+
+<div class="fav-strip">
+
+  <!-- Mini overlap -->
+  <div class="fav" style="background:none;overflow:visible">
+    <svg width="64" height="64" viewBox="0 0 80 80" fill="none">
+      <rect x="4" y="10" width="40" height="40" rx="8" fill="#00d5e4" opacity="0.5"/>
+      <rect x="30" y="26" width="40" height="40" rx="8" fill="#0093a3" opacity="0.9"/>
+      <text x="38" y="54" font-family="Clash Display, sans-serif" font-size="22" font-weight="700" fill="#fafafa">z</text>
+    </svg>
+  </div>
+
+  <!-- Gradient overlap -->
+  <div class="fav" style="background:none;overflow:visible">
+    <svg width="64" height="64" viewBox="0 0 80 80" fill="none">
+      <rect x="4" y="10" width="40" height="40" rx="8" fill="url(#gCyan)" opacity="0.5"/>
+      <rect x="30" y="26" width="40" height="40" rx="8" fill="url(#gFrost)" opacity="0.9"/>
+      <text x="38" y="54" font-family="Clash Display, sans-serif" font-size="22" font-weight="700" fill="#fafafa">z</text>
+    </svg>
+  </div>
+
+  <!-- On cyan bg -->
+  <div class="fav" style="background:#00d5e4">
+    <svg width="48" height="48" viewBox="0 0 80 80" fill="none">
+      <rect x="8" y="12" width="34" height="34" rx="6" fill="#09090b" opacity="0.2"/>
+      <rect x="32" y="28" width="34" height="34" rx="6" fill="#09090b" opacity="0.35"/>
+      <text x="38" y="52" font-family="Clash Display, sans-serif" font-size="22" font-weight="700" fill="#09090b">z</text>
+    </svg>
+  </div>
+
+  <!-- On dark -->
+  <div class="fav" style="background:#18181b;border:1px solid #27272a">
+    <svg width="48" height="48" viewBox="0 0 80 80" fill="none">
+      <rect x="8" y="12" width="34" height="34" rx="6" fill="#00d5e4" opacity="0.4"/>
+      <rect x="32" y="28" width="34" height="34" rx="6" fill="#0093a3" opacity="0.8"/>
+      <text x="38" y="52" font-family="Clash Display, sans-serif" font-size="22" font-weight="700" fill="#fafafa">z</text>
+    </svg>
+  </div>
+
+  <!-- Wireframe -->
+  <div class="fav" style="background:#09090b;border:1px solid #27272a">
+    <svg width="48" height="48" viewBox="0 0 80 80" fill="none">
+      <rect x="8" y="12" width="34" height="34" rx="6" stroke="#00d5e4" stroke-width="1.5" fill="none" opacity="0.4"/>
+      <rect x="32" y="28" width="34" height="34" rx="6" stroke="#00d5e4" stroke-width="1.5" fill="none" opacity="0.8"/>
+      <text x="38" y="52" font-family="Clash Display, sans-serif" font-size="22" font-weight="700" fill="#fafafa">z</text>
+    </svg>
+  </div>
+
+  <!-- Triple -->
+  <div class="fav" style="background:none;overflow:visible">
+    <svg width="64" height="64" viewBox="0 0 80 80" fill="none">
+      <rect x="2" y="6" width="34" height="34" rx="6" fill="#00d5e4" opacity="0.25"/>
+      <rect x="18" y="18" width="34" height="34" rx="6" fill="#00d5e4" opacity="0.5"/>
+      <rect x="34" y="30" width="34" height="34" rx="6" fill="#0093a3" opacity="0.9"/>
+      <text x="40" y="54" font-family="Clash Display, sans-serif" font-size="18" font-weight="700" fill="#fafafa">z</text>
+    </svg>
+  </div>
+
+  <!-- White bg -->
+  <div class="fav" style="background:#fafafa">
+    <svg width="48" height="48" viewBox="0 0 80 80" fill="none">
+      <rect x="8" y="12" width="34" height="34" rx="6" fill="#0093a3" opacity="0.2"/>
+      <rect x="32" y="28" width="34" height="34" rx="6" fill="#0093a3" opacity="0.4"/>
+      <text x="38" y="52" font-family="Clash Display, sans-serif" font-size="22" font-weight="700" fill="#09090b">z</text>
+    </svg>
+  </div>
+
+  <!-- Circle -->
+  <div class="fav" style="border-radius:50%;background:none;overflow:visible">
+    <svg width="64" height="64" viewBox="0 0 80 80" fill="none">
+      <circle cx="40" cy="40" r="30" fill="#18181b"/>
+      <rect x="16" y="20" width="28" height="28" rx="6" fill="#00d5e4" opacity="0.4"/>
+      <rect x="32" y="30" width="28" height="28" rx="6" fill="#0093a3" opacity="0.85"/>
+      <text x="36" y="52" font-family="Clash Display, sans-serif" font-size="18" font-weight="700" fill="#fafafa">z</text>
+    </svg>
+  </div>
+</div>
+
+<div style="text-align:center;padding:40px 0 100px">
+  <span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#18181b;letter-spacing:3px;text-transform:uppercase">pick your fighter &mdash; then i'll build the react component</span>
+</div>
+
+</body>
+</html>

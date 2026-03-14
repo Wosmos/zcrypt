@@ -11,7 +11,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { formatBytes } from "@/lib/utils";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown } from "@/lib/icons";
 import type { FileMetadata } from "@/types";
 
 interface UploadChartProps {
@@ -168,7 +168,7 @@ export function UploadChart({ files }: UploadChartProps) {
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setDropdownOpen(!dropdownOpen)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[12px] font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-1)] transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-xs font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-1)] transition-colors"
           >
             {currentLabel}
             <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-150 ${dropdownOpen ? "rotate-180" : ""}`} />
@@ -179,7 +179,7 @@ export function UploadChart({ files }: UploadChartProps) {
                 <button
                   key={r.value}
                   onClick={() => { setRange(r.value); setDropdownOpen(false); }}
-                  className={`w-full text-left px-3 py-2 text-[12px] font-medium transition-colors ${
+                  className={`w-full text-left px-3 py-2 text-xs font-medium transition-colors ${
                     range === r.value
                       ? "bg-[var(--color-accent)]/10 text-[var(--color-accent)]"
                       : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-1)]"
@@ -202,8 +202,8 @@ export function UploadChart({ files }: UploadChartProps) {
             <AreaChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
               <defs>
                 <linearGradient id="uploadGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#10b981" stopOpacity={0.3} />
-                  <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
+                  <stop offset="0%" stopColor="#00d5e4" stopOpacity={0.3} />
+                  <stop offset="100%" stopColor="#00d5e4" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" opacity={0.5} />
@@ -235,11 +235,11 @@ export function UploadChart({ files }: UploadChartProps) {
               <Area
                 type="monotone"
                 dataKey="uploads"
-                stroke="#10b981"
+                stroke="#00d5e4"
                 strokeWidth={2}
                 fill="url(#uploadGrad)"
                 dot={false}
-                activeDot={{ r: 4, fill: "#10b981", stroke: "var(--color-surface)", strokeWidth: 2 }}
+                activeDot={{ r: 4, fill: "#00d5e4", stroke: "var(--color-surface)", strokeWidth: 2 }}
               />
             </AreaChart>
           </ResponsiveContainer>

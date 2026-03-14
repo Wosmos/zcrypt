@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>zcrypt.cloud — z://crypt exploration</title>
+<link href="https://api.fontshare.com/v2/css?f[]=clash-display@200,300,400,500,600,700&f[]=cabinet-grotesk@100,200,300,400,500,600,700,800,900&f[]=satoshi@300,400,500,600,700,800,900&f[]=general-sans@200,300,400,500,600,700&f[]=boska@300,400,500,600,700&f[]=nippo@200,300,400,500,600,700&f[]=switzer@100,200,300,400,500,600,700,800,900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Unbounded:wght@200;300;400;500;600;700;800;900&family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700;800&family=Outfit:wght@100;200;300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@200;300;400;500;600;700;800&family=Chakra+Petch:wght@300;400;500;600;700&family=Inter:wght@100;200;300;400;500;600;700;800;900&family=Geist+Mono:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #050507;
+    color: #fafafa;
+    font-family: 'General Sans', sans-serif;
+    overflow-x: hidden;
+  }
+
+  .header {
+    text-align: center;
+    padding: 80px 40px 20px;
+  }
+  .header h1 {
+    font-family: 'Clash Display', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    color: #3f3f46;
+    text-transform: uppercase;
+    letter-spacing: 6px;
+  }
+
+  .section-title {
+    text-align: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    color: #00d5e4;
+    text-transform: uppercase;
+    letter-spacing: 5px;
+    padding: 60px 0 30px;
+  }
+  .section-title::after {
+    content: '';
+    display: block;
+    width: 30px;
+    height: 1px;
+    background: #27272a;
+    margin: 14px auto 0;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(520px, 1fr));
+    gap: 1px;
+    background: #18181b;
+    border-top: 1px solid #18181b;
+    border-bottom: 1px solid #18181b;
+  }
+  .grid-full {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1px;
+    background: #18181b;
+    border-top: 1px solid #18181b;
+    border-bottom: 1px solid #18181b;
+  }
+
+  .card {
+    background: #09090b;
+    padding: 90px 60px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 32px;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .card:hover { background: #0c0c0f; }
+  .card.light { background: #fafafa; }
+  .card.light:hover { background: #f4f4f5; }
+  .card.dark { background: #030305; }
+
+  .label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 500;
+    color: #27272a;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+  }
+  .card.light .label { color: #a1a1aa; }
+
+  .cloud-tag {
+    font-family: 'General Sans', sans-serif;
+    font-size: 12px;
+    color: #3f3f46;
+    letter-spacing: 2px;
+  }
+  .card.light .cloud-tag { color: #a1a1aa; }
+
+  /* ===== ACCENT HELPERS ===== */
+  .accent { color: #00d5e4; }
+  .card.light .accent { color: #0093a3; }
+  .dim { opacity: 0.4; }
+
+  .grad-cyan {
+    background: linear-gradient(135deg, #00f0ff 0%, #00d5e4 50%, #0093a3 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .grad-ice {
+    background: linear-gradient(135deg, #fafafa 0%, #00d5e4 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .glow {
+    text-shadow: 0 0 30px rgba(0,213,228,0.3), 0 0 80px rgba(0,213,228,0.1);
+  }
+  .glow-strong {
+    text-shadow: 0 0 20px rgba(0,213,228,0.5), 0 0 60px rgba(0,213,228,0.25), 0 0 120px rgba(0,213,228,0.1);
+  }
+
+  /* ===== LOCKUP ===== */
+  .lockup {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  /* ===== ANIMATIONS ===== */
+  @keyframes float1 {
+    0%, 100% { transform: translate(0, 0) rotate(0deg); }
+    50% { transform: translate(2px, -3px) rotate(1deg); }
+  }
+  @keyframes float2 {
+    0%, 100% { transform: translate(0, 0) rotate(0deg); }
+    50% { transform: translate(-2px, 2px) rotate(-1deg); }
+  }
+  @keyframes pulseGlow {
+    0%, 100% { filter: drop-shadow(0 0 8px rgba(0,213,228,0.15)); }
+    50% { filter: drop-shadow(0 0 24px rgba(0,213,228,0.45)); }
+  }
+  @keyframes shimmer {
+    0% { background-position: -200% center; }
+    100% { background-position: 200% center; }
+  }
+
+  .float1 { animation: float1 4s ease-in-out infinite; }
+  .float2 { animation: float2 4s ease-in-out infinite 0.5s; }
+  .pulse-glow { animation: pulseGlow 3s ease-in-out infinite; }
+
+  /* ===== 3D ICON STYLES ===== */
+  .icon-3d {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    perspective: 400px;
+  }
+  .icon-3d .plane-back {
+    position: absolute;
+    width: 52px;
+    height: 52px;
+    border-radius: 12px;
+    background: #00a5b2;
+    top: 4px;
+    left: 0;
+    transform: rotateY(-12deg) rotateX(5deg);
+    box-shadow: -4px 4px 16px rgba(0,0,0,0.5);
+  }
+  .icon-3d .plane-front {
+    position: absolute;
+    width: 52px;
+    height: 52px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #00e0f0, #00b5c4);
+    top: 16px;
+    left: 24px;
+    transform: rotateY(-8deg) rotateX(3deg);
+    box-shadow: -6px 6px 24px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05) inset;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .icon-3d .plane-front span {
+    font-family: 'Clash Display', sans-serif;
+    font-size: 28px;
+    font-weight: 700;
+    color: #09090b;
+    transform: rotateY(8deg);
+  }
+
+  /* Variant B: deeper 3D */
+  .icon-3d-deep {
+    position: relative;
+    width: 88px;
+    height: 88px;
+    perspective: 600px;
+    transform-style: preserve-3d;
+  }
+  .icon-3d-deep .shadow {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    border-radius: 12px;
+    background: rgba(0,147,163,0.2);
+    top: 24px;
+    left: 18px;
+    filter: blur(12px);
+  }
+  .icon-3d-deep .back {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    border-radius: 12px;
+    background: linear-gradient(145deg, #008a97, #006d77);
+    top: 6px;
+    left: 2px;
+    transform: rotateY(-15deg) rotateX(8deg) translateZ(-10px);
+    box-shadow: -2px 3px 12px rgba(0,0,0,0.6);
+  }
+  .icon-3d-deep .front {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    border-radius: 12px;
+    background: linear-gradient(145deg, #00e8f8, #00c5d4);
+    top: 18px;
+    left: 28px;
+    transform: rotateY(-10deg) rotateX(5deg) translateZ(10px);
+    box-shadow: -8px 8px 32px rgba(0,0,0,0.4), 0 1px 0 rgba(255,255,255,0.15) inset;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .icon-3d-deep .front span {
+    font-family: 'Clash Display', sans-serif;
+    font-size: 26px;
+    font-weight: 700;
+    color: #09090b;
+  }
+
+  /* Variant C: glass 3D */
+  .icon-3d-glass {
+    position: relative;
+    width: 88px;
+    height: 88px;
+    perspective: 500px;
+  }
+  .icon-3d-glass .back {
+    position: absolute;
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    background: linear-gradient(145deg, rgba(0,213,228,0.35), rgba(0,147,163,0.2));
+    border: 1px solid rgba(0,213,228,0.15);
+    backdrop-filter: blur(8px);
+    top: 4px;
+    left: 0;
+    transform: rotateY(-12deg) rotateX(6deg);
+    box-shadow: -4px 4px 20px rgba(0,0,0,0.3);
+  }
+  .icon-3d-glass .front {
+    position: absolute;
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    background: linear-gradient(145deg, rgba(0,213,228,0.5), rgba(0,180,200,0.3));
+    border: 1px solid rgba(0,213,228,0.25);
+    backdrop-filter: blur(12px);
+    top: 18px;
+    left: 26px;
+    transform: rotateY(-8deg) rotateX(3deg);
+    box-shadow: -6px 8px 28px rgba(0,0,0,0.35), 0 1px 0 rgba(255,255,255,0.1) inset;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .icon-3d-glass .front span {
+    font-family: 'Clash Display', sans-serif;
+    font-size: 28px;
+    font-weight: 700;
+    color: #fafafa;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  }
+
+  /* Variant D: isometric */
+  .icon-iso {
+    position: relative;
+    width: 90px;
+    height: 90px;
+  }
+  .icon-iso .layer1 {
+    position: absolute;
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    background: #007a86;
+    top: 0;
+    left: 6px;
+    transform: skewY(-6deg);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  }
+  .icon-iso .layer2 {
+    position: absolute;
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    background: #00a5b2;
+    top: 12px;
+    left: 20px;
+    transform: skewY(-6deg);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  .icon-iso .layer3 {
+    position: absolute;
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #00e0f0, #00c5d4);
+    top: 24px;
+    left: 34px;
+    transform: skewY(-6deg);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3), 0 1px 0 rgba(255,255,255,0.1) inset;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .icon-iso .layer3 span {
+    font-family: 'Clash Display', sans-serif;
+    font-size: 24px;
+    font-weight: 700;
+    color: #09090b;
+    transform: skewY(6deg);
+  }
+
+  /* Variant E: embossed */
+  .icon-emboss {
+    width: 64px;
+    height: 64px;
+    border-radius: 16px;
+    background: linear-gradient(145deg, #00d5e4, #009aa6);
+    box-shadow:
+      8px 8px 24px rgba(0,0,0,0.5),
+      -2px -2px 8px rgba(0,230,245,0.15),
+      inset 2px 2px 4px rgba(255,255,255,0.15),
+      inset -2px -2px 4px rgba(0,0,0,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+  .icon-emboss span {
+    font-family: 'Clash Display', sans-serif;
+    font-size: 30px;
+    font-weight: 700;
+    color: #09090b;
+    text-shadow: 0 1px 1px rgba(255,255,255,0.2);
+  }
+
+  /* ===== FAVICON ===== */
+  .fav-strip {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    padding: 60px 40px;
+  }
+  .fav {
+    width: 64px;
+    height: 64px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s;
+  }
+  .fav:hover { transform: scale(1.1); }
+
+  /* ===== SHIMMER TEXT ===== */
+  .shimmer-text {
+    background: linear-gradient(90deg, #fafafa 0%, #fafafa 40%, #00d5e4 50%, #fafafa 60%, #fafafa 100%);
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: shimmer 3s ease-in-out infinite;
+  }
+</style>
+</head>
+<body>
+
+<!-- SVG defs -->
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <linearGradient id="gCyan" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f0ff"/>
+      <stop offset="50%" stop-color="#00d5e4"/>
+      <stop offset="100%" stop-color="#0093a3"/>
+    </linearGradient>
+    <linearGradient id="gFrost" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e0f7ff"/>
+      <stop offset="50%" stop-color="#00d5e4"/>
+      <stop offset="100%" stop-color="#003d42"/>
+    </linearGradient>
+  </defs>
+</svg>
+
+<div class="header">
+  <h1>z://crypt &mdash; overlap icon + protocol wordmark</h1>
+</div>
+
+<!-- ========== 3D ICON VARIATIONS ========== -->
+<div class="section-title">3d icon variations</div>
+
+<div class="grid">
+
+  <!-- Flat baseline -->
+  <div class="card">
+    <svg width="100" height="92" viewBox="0 0 120 110" fill="none">
+      <rect x="4" y="12" width="64" height="64" rx="14" fill="#00d5e4" opacity="0.5"/>
+      <rect x="46" y="30" width="64" height="64" rx="14" fill="#0093a3" opacity="0.85"/>
+      <text x="58" y="72" font-family="Clash Display, sans-serif" font-size="36" font-weight="700" fill="#fafafa">z</text>
+    </svg>
+    <span class="label">flat baseline</span>
+  </div>
+
+  <!-- CSS 3D perspective -->
+  <div class="card">
+    <div class="icon-3d">
+      <div class="plane-back"></div>
+      <div class="plane-front"><span>z</span></div>
+    </div>
+    <span class="label">3d perspective</span>
+  </div>
+
+  <!-- Deep 3D with shadow -->
+  <div class="card">
+    <div class="icon-3d-deep">
+      <div class="shadow"></div>
+      <div class="back"></div>
+      <div class="front"><span>z</span></div>
+    </div>
+    <span class="label">3d deep shadow</span>
+  </div>
+
+  <!-- Glass 3D -->
+  <div class="card dark">
+    <div class="icon-3d-glass">
+      <div class="back"></div>
+      <div class="front"><span>z</span></div>
+    </div>
+    <span class="label">3d glassmorphic</span>
+  </div>
+
+  <!-- Isometric stack -->
+  <div class="card">
+    <div class="icon-iso">
+      <div class="layer1"></div>
+      <div class="layer2"></div>
+      <div class="layer3"><span>z</span></div>
+    </div>
+    <span class="label">isometric stack</span>
+  </div>
+
+  <!-- Embossed -->
+  <div class="card">
+    <div class="icon-emboss"><span>z</span></div>
+    <span class="label">embossed button</span>
+  </div>
+
+  <!-- Animated 3D float -->
+  <div class="card dark">
+    <div class="icon-3d-deep pulse-glow">
+      <div class="shadow"></div>
+      <div class="back float1"></div>
+      <div class="front float2"><span>z</span></div>
+    </div>
+    <span class="label">3d animated float</span>
+  </div>
+
+  <!-- Light 3D -->
+  <div class="card light">
+    <div style="position:relative;width:88px;height:88px;perspective:600px">
+      <div style="position:absolute;width:50px;height:50px;border-radius:12px;background:linear-gradient(145deg,#b2ecf0,#80dde4);top:6px;left:2px;transform:rotateY(-15deg) rotateX(8deg) translateZ(-10px);box-shadow:-2px 3px 12px rgba(0,0,0,0.1)"></div>
+      <div style="position:absolute;width:50px;height:50px;border-radius:12px;background:linear-gradient(145deg,#00d5e4,#00b5c4);top:18px;left:28px;transform:rotateY(-10deg) rotateX(5deg) translateZ(10px);box-shadow:-6px 6px 24px rgba(0,0,0,0.12),0 1px 0 rgba(255,255,255,0.3) inset;display:flex;align-items:center;justify-content:center">
+        <span style="font-family:'Clash Display',sans-serif;font-size:26px;font-weight:700;color:#fff">z</span>
+      </div>
+    </div>
+    <span class="label" style="color:#a1a1aa">3d &mdash; light mode</span>
+  </div>
+</div>
+
+<!-- ========== z://crypt WORDMARKS ========== -->
+<div class="section-title">z://crypt &mdash; font exploration</div>
+
+<div class="grid">
+
+  <!-- Clash Display -->
+  <div class="card">
+    <span style="font-family:'Clash Display',sans-serif;font-size:52px;font-weight:600;color:#fafafa;letter-spacing:-2px"><span class="accent">z://</span>crypt</span>
+    <span class="cloud-tag">.cloud</span>
+    <span class="label">clash display 600</span>
+  </div>
+
+  <div class="card light">
+    <span style="font-family:'Clash Display',sans-serif;font-size:52px;font-weight:600;color:#09090b;letter-spacing:-2px"><span class="accent">z://</span>crypt</span>
+    <span class="cloud-tag">.cloud</span>
+    <span class="label">clash display &mdash; light</span>
+  </div>
+
+  <!-- Clash Display — dim slashes -->
+  <div class="card">
+    <span style="font-family:'Clash Display',sans-serif;font-size:52px;font-weight:600;color:#fafafa;letter-spacing:-2px">z<span class="accent dim">://</span>crypt</span>
+    <span class="cloud-tag">.cloud</span>
+    <span class="label">clash &mdash; subtle protocol</span>
+  </div>
+
+  <!-- Clash Display 700 -->
+  <div class="card">
+    <span style="font-family:'Clash Display',sans-serif;font-size:56px;font-weight:700;color:#fafafa;letter-spacing:-3px"><span class="grad-cyan">z://</span>crypt</span>
+    <span class="cloud-tag">.cloud</span>
+    <span class="label">clash 700 &mdash; gradient protocol</span>
+  </div>
+
+  <!-- Satoshi -->
+  <div class="card">
+    <span style="font-family:'Satoshi',sans-serif;font-size:50px;font-weight:800;color:#fafafa;letter-spacing:-1.5px"><span class="accent">z://</span>crypt</span>
+    <span class="cloud-tag">.cloud</span>
+    <span class="label">satoshi 800</span>
+  </div>
+
+  <div class="card">
+    <span style="font-family:'Satoshi',sans-serif;font-size:50px;font-weight:700;color:#fafafa;letter-spacing:-1px">z<span style="color:#00d5e4;font-weight:400">://</span>crypt</span>
+    <span class="cloud-tag">.cloud</span>
+    <span class="label">satoshi &mdash; thin protocol</span>
+  </div>
+
+  <!-- Cabinet Grotesk -->
+  <div class="card">
+    <span style="font-family:'Cabinet Grotesk',sans-serif;font-size:56px;font-weight:900;color:#fafafa;letter-spacing:-2px"><span class="accent">z://</span>crypt</span>
+    <span class="cloud-tag">.cloud</span>
+    <span class="label">cabinet grotesk 900</span>
+  </div>
+
+  <div class="card">
+    <span style="font-family:'Cabinet Grotesk',sans-serif;font-size:48px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#fafafa"><span class="accent">Z://</span>CRYPT</span>
+    <span class="cloud-tag">.CLOUD</span>
+    <span class="label">cabinet &mdash; uppercase spaced</span>
+  </div>
+
+  <!-- Syne -->
+  <div class="card">
+    <span style="font-family:'Syne',sans-serif;font-size:52px;font-weight:800;color:#fafafa;letter-spacing:-1px"><span class="accent">z://</span>crypt</span>
+    <span class="cloud-tag">.cloud</span>
+    <span class="label">syne 800</span>
+  </div>
+
+  <div class="card dark">
+    <span style="font-family:'Syne',sans-serif;font-size:52px;font-weight:800;color:#00d5e4;letter-spacing:-1px" class="glow-strong">z://crypt</span>
+    <span style="font-family:'Syne',sans-serif;font-size:11px;letter-spacing:5px;color:#00d5e4;opacity:0.3">.CLOUD</span>
+    <span class="label">syne &mdash; full neon</span>
+  </div>
+
+  <!-- Outfit -->
+  <div class="card">
+    <span style="font-family:'Outfit',sans-serif;font-size:50px;font-weight:700;color:#fafafa;letter-spacing:-1px"><span class="accent">z://</span>crypt</span>
+    <span class="cloud-tag">.cloud</span>
+    <span class="label">outfit 700</span>
+  </div>
+
+  <div class="card">
+    <span style="font-family:'Outfit',sans-serif;font-size:50px;font-weight:800;letter-spacing:-1px" class="grad-ice">z://crypt</span>
+    <span class="cloud-tag">.cloud</span>
+    <span class="label">outfit &mdash; ice gradient</span>
+  </div>
+
+  <!-- Unbounded -->
+  <div class="card">
+    <span style="font-family:'Unbounded',cursive;font-size:42px;font-weight:700;color:#fafafa;letter-spacing:-1px"><span class="accent">z://</span>crypt</span>
+    <span class="cloud-tag">.cloud</span>
+    <span class="label">unbounded 700</span>
+  </div>
+
+  <div class="card">
+    <span style="font-family:'Unbounded',cursive;font-size:42px;font-weight:900;letter-spacing:-1px" class="grad-cyan">z://crypt</span>
+    <span class="cloud-tag">.cloud</span>
+    <span class="label">unbounded 900 &mdash; gradient</span>
+  </div>
+
+  <!-- Nippo -->
+  <div class="card">
+    <span style="font-family:'Nippo',sans-serif;font-size:48px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#fafafa"><span class="accent">Z://</span>CRYPT</span>
+    <span class="cloud-tag">.CLOUD</span>
+    <span class="label">nippo &mdash; sharp spaced</span>
+  </div>
+
+  <div class="card dark">
+    <span style="font-family:'Nippo',sans-serif;font-size:48px;font-weight:500;letter-spacing:4px;text-transform:uppercase;color:#fafafa"><span style="color:#00d5e4">Z</span><span style="color:#3f3f46">://</span>CRYPT</span>
+    <span style="font-family:'Nippo',sans-serif;font-size:10px;letter-spacing:8px;color:#27272a">.CLOUD</span>
+    <span class="label">nippo &mdash; minimal</span>
+  </div>
+
+  <!-- Chakra Petch -->
+  <div class="card">
+    <span style="font-family:'Chakra Petch',sans-serif;font-size:50px;font-weight:700;color:#fafafa;letter-spacing:1px"><span class="accent">z://</span>crypt</span>
+    <span class="cloud-tag">.cloud</span>
+    <span class="label">chakra petch 700</span>
+  </div>
+
+  <div class="card dark">
+    <span style="font-family:'Chakra Petch',sans-serif;font-size:50px;font-weight:600;color:#00d5e4;letter-spacing:1px" class="glow">z://crypt</span>
+    <span style="font-family:'Chakra Petch',sans-serif;font-size:11px;letter-spacing:4px;color:#00d5e4;opacity:0.25">.cloud</span>
+    <span class="label">chakra &mdash; cyberpunk</span>
+  </div>
+
+  <!-- Space Grotesk -->
+  <div class="card">
+    <span style="font-family:'Space Grotesk',sans-serif;font-size:50px;font-weight:700;color:#fafafa;letter-spacing:-1px"><span class="accent">z://</span>crypt</span>
+    <span class="cloud-tag">.cloud</span>
+    <span class="label">space grotesk 700</span>
+  </div>
+
+  <!-- Plus Jakarta -->
+  <div class="card">
+    <span style="font-family:'Plus Jakarta Sans',sans-serif;font-size:48px;font-weight:800;color:#fafafa;letter-spacing:-2px"><span class="accent">z://</span>crypt</span>
+    <span class="cloud-tag">.cloud</span>
+    <span class="label">plus jakarta sans 800</span>
+  </div>
+
+  <!-- JetBrains Mono -->
+  <div class="card">
+    <span style="font-family:'JetBrains Mono',monospace;font-size:42px;font-weight:700;color:#fafafa"><span class="accent">z://</span>crypt</span>
+    <span class="cloud-tag">.cloud</span>
+    <span class="label">jetbrains mono &mdash; dev mode</span>
+  </div>
+
+  <!-- Shimmer -->
+  <div class="card dark">
+    <span style="font-family:'Clash Display',sans-serif;font-size:56px;font-weight:600;letter-spacing:-2px" class="shimmer-text">z://crypt</span>
+    <span class="cloud-tag">.cloud</span>
+    <span class="label">clash &mdash; shimmer animation</span>
+  </div>
+</div>
+
+<!-- ========== FULL LOCKUPS: 3D ICON + z://crypt ========== -->
+<div class="section-title">3d icon + z://crypt lockups</div>
+
+<div class="grid-full">
+
+  <!-- 3D perspective + Clash -->
+  <div class="card" style="padding:100px">
+    <div class="lockup" style="gap:28px">
+      <div class="icon-3d">
+        <div class="plane-back"></div>
+        <div class="plane-front"><span>z</span></div>
+      </div>
+      <div>
+        <span style="font-family:'Clash Display',sans-serif;font-size:50px;font-weight:600;color:#fafafa;letter-spacing:-2px"><span class="accent">z://</span>crypt</span>
+        <span style="display:block;font-family:'General Sans',sans-serif;font-size:12px;color:#3f3f46;letter-spacing:3px;margin-top:-2px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">3d perspective + clash display</span>
+  </div>
+
+  <!-- Deep 3D + Satoshi -->
+  <div class="card" style="padding:100px">
+    <div class="lockup" style="gap:28px">
+      <div class="icon-3d-deep">
+        <div class="shadow"></div>
+        <div class="back"></div>
+        <div class="front"><span>z</span></div>
+      </div>
+      <div>
+        <span style="font-family:'Satoshi',sans-serif;font-size:48px;font-weight:800;color:#fafafa;letter-spacing:-1.5px"><span class="accent">z://</span>crypt</span>
+        <span style="display:block;font-family:'Satoshi',sans-serif;font-size:12px;font-weight:400;color:#3f3f46;letter-spacing:2px;margin-top:-2px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">3d deep + satoshi 800</span>
+  </div>
+
+  <!-- Glass 3D + Syne neon -->
+  <div class="card dark" style="padding:100px;background:radial-gradient(ellipse at 30% 50%, rgba(0,213,228,0.04) 0%, #030305 60%)">
+    <div class="lockup" style="gap:28px">
+      <div class="icon-3d-glass pulse-glow">
+        <div class="back float1"></div>
+        <div class="front float2"><span>z</span></div>
+      </div>
+      <div>
+        <span style="font-family:'Syne',sans-serif;font-size:48px;font-weight:800;color:#fafafa;letter-spacing:-1px"><span style="color:#00d5e4">z://</span>crypt</span>
+        <span style="display:block;font-family:'Syne',sans-serif;font-size:11px;font-weight:400;color:#3f3f46;letter-spacing:4px;margin-top:2px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">glass 3d + syne &mdash; atmospheric</span>
+  </div>
+
+  <!-- Isometric + Cabinet -->
+  <div class="card" style="padding:100px">
+    <div class="lockup" style="gap:24px">
+      <div class="icon-iso">
+        <div class="layer1"></div>
+        <div class="layer2"></div>
+        <div class="layer3"><span>z</span></div>
+      </div>
+      <div>
+        <span style="font-family:'Cabinet Grotesk',sans-serif;font-size:52px;font-weight:900;color:#fafafa;letter-spacing:-2px"><span class="accent">z://</span>crypt</span>
+        <span style="display:block;font-family:'General Sans',sans-serif;font-size:12px;color:#3f3f46;letter-spacing:3px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">isometric + cabinet grotesk 900</span>
+  </div>
+
+  <!-- Embossed + Outfit -->
+  <div class="card" style="padding:100px">
+    <div class="lockup" style="gap:24px">
+      <div class="icon-emboss"><span>z</span></div>
+      <div>
+        <span style="font-family:'Outfit',sans-serif;font-size:48px;font-weight:700;color:#fafafa;letter-spacing:-1px"><span class="accent">z://</span>crypt</span>
+        <span style="display:block;font-family:'Outfit',sans-serif;font-size:12px;font-weight:300;color:#3f3f46;letter-spacing:3px">.cloud</span>
+      </div>
+    </div>
+    <span class="label">embossed + outfit 700</span>
+  </div>
+
+  <!-- Light mode: 3D + Clash -->
+  <div class="card light" style="padding:100px">
+    <div class="lockup" style="gap:28px">
+      <div style="position:relative;width:88px;height:88px;perspective:600px">
+        <div style="position:absolute;width:50px;height:50px;border-radius:12px;background:linear-gradient(145deg,#b2ecf0,#80dde4);top:6px;left:2px;transform:rotateY(-15deg) rotateX(8deg) translateZ(-10px);box-shadow:-2px 3px 12px rgba(0,0,0,0.08)"></div>
+        <div style="position:absolute;width:50px;height:50px;border-radius:12px;background:linear-gradient(145deg,#00d5e4,#00b5c4);top:18px;left:28px;transform:rotateY(-10deg) rotateX(5deg) translateZ(10px);box-shadow:-6px 6px 24px rgba(0,0,0,0.1),0 1px 0 rgba(255,255,255,0.3) inset;display:flex;align-items:center;justify-content:center">
+          <span style="font-family:'Clash Display',sans-serif;font-size:26px;font-weight:700;color:#fff">z</span>
+        </div>
+      </div>
+      <div>
+        <span style="font-family:'Clash Display',sans-serif;font-size:50px;font-weight:600;color:#09090b;letter-spacing:-2px"><span style="color:#0093a3">z://</span>crypt</span>
+        <span style="display:block;font-family:'General Sans',sans-serif;font-size:12px;color:#a1a1aa;letter-spacing:3px;margin-top:-2px">.cloud</span>
+      </div>
+    </div>
+    <span class="label" style="color:#a1a1aa">light mode &mdash; 3d + clash</span>
+  </div>
+
+  <!-- Hero: full width atmospheric -->
+  <div class="card" style="padding:160px 80px;background:radial-gradient(ellipse at center, rgba(0,213,228,0.05) 0%, #050507 65%)">
+    <div style="text-align:center;display:flex;flex-direction:column;align-items:center;gap:28px">
+      <div class="icon-3d-deep pulse-glow" style="width:108px;height:108px">
+        <div class="shadow" style="width:60px;height:60px;top:30px;left:22px"></div>
+        <div class="back float1" style="width:60px;height:60px;top:6px;left:4px"></div>
+        <div class="front float2" style="width:60px;height:60px;top:22px;left:36px">
+          <span style="font-size:32px">z</span>
+        </div>
+      </div>
+      <span style="font-family:'Clash Display',sans-serif;font-size:72px;font-weight:600;color:#fafafa;letter-spacing:-3px"><span class="grad-cyan">z://</span>crypt</span>
+      <span style="font-family:'General Sans',sans-serif;font-size:15px;color:#52525b;letter-spacing:4px;text-transform:uppercase">zero-knowledge encrypted cloud</span>
+    </div>
+    <span class="label">hero &mdash; full atmospheric</span>
+  </div>
+
+  <!-- Hero: Minimal dark -->
+  <div class="card dark" style="padding:140px 80px">
+    <div style="display:flex;align-items:center;gap:24px">
+      <div class="icon-emboss" style="width:56px;height:56px;border-radius:14px">
+        <span style="font-size:26px">z</span>
+      </div>
+      <div>
+        <span style="font-family:'Satoshi',sans-serif;font-size:56px;font-weight:700;color:#fafafa;letter-spacing:-2px" class="shimmer-text">z://crypt</span>
+      </div>
+    </div>
+    <span style="font-family:'Satoshi',sans-serif;font-size:13px;font-weight:400;color:#27272a;letter-spacing:2px;margin-top:-8px">Your files. Your keys. Your cloud.</span>
+    <span class="label">hero &mdash; shimmer + emboss</span>
+  </div>
+</div>
+
+<!-- ========== FAVICONS ========== -->
+<div class="section-title">favicons</div>
+
+<div class="fav-strip">
+  <!-- 3D mini -->
+  <div class="fav" style="background:none;position:relative;perspective:300px">
+    <div style="position:absolute;width:34px;height:34px;border-radius:8px;background:#00a5b2;top:10px;left:6px;transform:rotateY(-12deg)"></div>
+    <div style="position:absolute;width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,#00e0f0,#00c5d4);top:18px;left:22px;transform:rotateY(-8deg);display:flex;align-items:center;justify-content:center;box-shadow:-4px 4px 12px rgba(0,0,0,0.4)">
+      <span style="font-family:'Clash Display',sans-serif;font-size:18px;font-weight:700;color:#09090b">z</span>
+    </div>
+  </div>
+
+  <!-- Embossed mini -->
+  <div class="fav" style="background:linear-gradient(145deg,#00d5e4,#009aa6);box-shadow:6px 6px 16px rgba(0,0,0,0.4),-1px -1px 4px rgba(0,230,245,0.15),inset 1px 1px 3px rgba(255,255,255,0.15)">
+    <span style="font-family:'Clash Display',sans-serif;font-size:28px;font-weight:700;color:#09090b">z</span>
+  </div>
+
+  <!-- Isometric mini -->
+  <div class="fav" style="background:none;position:relative">
+    <div style="position:absolute;width:30px;height:30px;border-radius:6px;background:#007a86;top:8px;left:8px;transform:skewY(-6deg)"></div>
+    <div style="position:absolute;width:30px;height:30px;border-radius:6px;background:#00a5b2;top:14px;left:16px;transform:skewY(-6deg)"></div>
+    <div style="position:absolute;width:30px;height:30px;border-radius:6px;background:linear-gradient(135deg,#00e0f0,#00c5d4);top:20px;left:24px;transform:skewY(-6deg);display:flex;align-items:center;justify-content:center">
+      <span style="font-family:'Clash Display',sans-serif;font-size:16px;font-weight:700;color:#09090b;transform:skewY(6deg)">z</span>
+    </div>
+  </div>
+
+  <!-- Glass mini -->
+  <div class="fav" style="background:#09090b;border:1px solid #18181b;position:relative">
+    <div style="position:absolute;width:30px;height:30px;border-radius:8px;background:rgba(0,213,228,0.2);border:1px solid rgba(0,213,228,0.1);top:10px;left:8px"></div>
+    <div style="position:absolute;width:30px;height:30px;border-radius:8px;background:rgba(0,213,228,0.35);border:1px solid rgba(0,213,228,0.2);top:20px;left:24px;display:flex;align-items:center;justify-content:center">
+      <span style="font-family:'Clash Display',sans-serif;font-size:16px;font-weight:700;color:#fafafa">z</span>
+    </div>
+  </div>
+
+  <!-- Flat overlap -->
+  <div class="fav" style="background:none;overflow:visible">
+    <svg width="64" height="64" viewBox="0 0 80 80" fill="none">
+      <rect x="4" y="10" width="40" height="40" rx="8" fill="#00d5e4" opacity="0.5"/>
+      <rect x="30" y="26" width="40" height="40" rx="8" fill="#0093a3" opacity="0.9"/>
+      <text x="38" y="54" font-family="Clash Display, sans-serif" font-size="22" font-weight="700" fill="#fafafa">z</text>
+    </svg>
+  </div>
+
+  <!-- White bg -->
+  <div class="fav" style="background:#fafafa">
+    <div style="position:relative;width:48px;height:48px;perspective:300px">
+      <div style="position:absolute;width:28px;height:28px;border-radius:6px;background:#b2ecf0;top:4px;left:2px;transform:rotateY(-10deg)"></div>
+      <div style="position:absolute;width:28px;height:28px;border-radius:6px;background:linear-gradient(135deg,#00d5e4,#00b5c4);top:14px;left:16px;transform:rotateY(-6deg);display:flex;align-items:center;justify-content:center;box-shadow:-2px 2px 8px rgba(0,0,0,0.08)">
+        <span style="font-family:'Clash Display',sans-serif;font-size:14px;font-weight:700;color:#fff">z</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="text-align:center;padding:40px 0 100px">
+  <span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#18181b;letter-spacing:3px;text-transform:uppercase">z://crypt.cloud &mdash; pick the combo, i'll build the react component</span>
+</div>
+
+</body>
+</html>

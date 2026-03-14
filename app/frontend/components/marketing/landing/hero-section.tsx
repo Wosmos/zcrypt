@@ -9,8 +9,9 @@ import {
   useSpring,
   useMotionValue,
   AnimatePresence,
-} from "framer-motion"; // Changed to framer-motion for stability, or keep motion/react
-import { ArrowRight, Sparkles, ChevronDown } from "lucide-react";
+} from "motion/react";
+import { ArrowRight, Sparkles, ChevronDown, Lock, Shield } from "@/lib/icons";
+import { Underlined } from "./pencil-underline";
 
 export function MagneticButton({
   children,
@@ -29,7 +30,7 @@ export function MagneticButton({
 
   const handleMouseMove = (e: React.MouseEvent) => {
     const el = ref.current;
-    if (!el || window.innerWidth < 768) return; // Disable on mobile
+    if (!el || window.innerWidth < 768) return;
     const rect = el.getBoundingClientRect();
     x.set((e.clientX - (rect.left + rect.width / 2)) * 0.2);
     y.set((e.clientY - (rect.top + rect.height / 2)) * 0.2);
@@ -63,7 +64,6 @@ export function HeroSection() {
     offset: ["start start", "end start"],
   });
 
-  // Smoother, lighter transforms
   const opacity = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
   const yTranslate = useTransform(scrollYProgress, [0, 0.5], [0, 50]);
 
@@ -85,19 +85,18 @@ export function HeroSection() {
   }, []);
 
   return (
-    <section 
-      ref={heroRef} 
-      className="relative min-h-[90dvh] flex flex-col items-center justify-center px-6 py-20 md:py-32 overflow-hidden"
+    <section
+      ref={heroRef}
+      className="relative min-h-[92dvh] flex flex-col items-center justify-center px-6 py-20 md:py-32 overflow-hidden"
     >
-      {/* Optimized Background: Using CSS animations for better performance than JS-driven ones */}
+      {/* Background */}
       <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:32px_32px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
-        
-        {/* Lighter Glows: Opacity only for better FPS */}
+
         <motion.div
           animate={{ opacity: [0.2, 0.4, 0.2] }}
           transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute -top-[10%] -left-[10%] w-[70vw] h-[70vw] bg-emerald-500/10 rounded-full blur-[100px]"
+          className="absolute -top-[10%] -left-[10%] w-[70vw] h-[70vw] bg-cyan-500/10 rounded-full blur-[100px]"
         />
         <motion.div
           animate={{ opacity: [0.1, 0.3, 0.1] }}
@@ -114,75 +113,111 @@ export function HeroSection() {
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/5 text-[13px] font-medium text-emerald-600 dark:text-emerald-400 mb-6 backdrop-blur-sm"
+          className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full border border-cyan-500/20 bg-cyan-500/5 text-sm font-medium text-cyan-600 dark:text-cyan-400 mb-8 backdrop-blur-sm"
         >
-          <Sparkles className="h-3.5 w-3.5 animate-pulse" />
-          <span>Zero-Knowledge Encrypted Storage</span>
+          <Lock className="h-3.5 w-3.5" />
+          <span className="tracking-wide">Private by design</span>
+          <span className="h-1.5 w-1.5 rounded-full bg-cyan-500 animate-pulse" />
         </motion.div>
 
-        {/* Headline: Responsive text sizes */}
-        <motion.h1 
+        {/* Headline */}
+        <motion.h1
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight text-slate-900 dark:text-white leading-[1.1]"
+          transition={{ duration: 0.6 }}
+          className="text-[2.5rem] sm:text-5xl md:text-6xl lg:text-[4.5rem] font-bold tracking-tight text-slate-900 dark:text-white leading-[1.08] font-heading"
         >
-          Your Files. Your Keys. <br className="hidden sm:block" />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-teal-600">
-            Zero Compromises.
+          <span className="block sm:inline">Your Files.</span>{" "}
+          <Underlined variant="ink" delay={0.5}>
+            Your Keys.
+          </Underlined>
+          <br className="hidden sm:block" />
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-cyan-300 to-blue-500">
+            <em className="italic">Zero</em> Compromises.
           </span>
         </motion.h1>
 
-        {/* Subtext: Better line height and width for readability */}
+        {/* Subtext */}
         <motion.p
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1, duration: 0.5 }}
-          className="mt-6 text-base sm:text-lg md:text-xl text-slate-600 dark:text-slate-400 max-w-2xl leading-relaxed"
+          transition={{ delay: 0.15, duration: 0.5 }}
+          className="mt-7 text-base sm:text-lg md:text-xl text-slate-500 dark:text-slate-400 max-w-2xl leading-relaxed"
         >
-          End-to-end encrypted cloud storage that&apos;s{" "}
-          <span className="text-slate-900 dark:text-slate-200 font-medium">open-source, privacy-first, and cheaper than everyone else.</span>
+          Private cloud storage that costs less than Dropbox — and{" "}
+          <Underlined variant="highlight" delay={0.6} className="text-slate-800 dark:text-slate-200 font-medium">
+            nobody can see your files.
+          </Underlined>{" "}
+          Not even us.
         </motion.p>
 
-        {/* CTAs: Responsive grid/flex */}
+        {/* Trust signals */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3, duration: 0.5 }}
+          className="flex items-center gap-5 mt-5 text-xs text-slate-400 dark:text-slate-500"
+        >
+          <span className="flex items-center gap-1.5">
+            <Shield className="h-3.5 w-3.5 text-cyan-500/60" />
+            Military-grade encryption
+          </span>
+          <span className="h-3 w-px bg-slate-300 dark:bg-slate-700" />
+          <span className="flex items-center gap-1.5">
+            <Sparkles className="h-3.5 w-3.5 text-cyan-500/60" />
+            10 GB Free
+          </span>
+          <span className="h-3 w-px bg-slate-300 dark:bg-slate-700" />
+          <span>No credit card</span>
+        </motion.div>
+
+        {/* CTAs */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 0.5 }}
+          transition={{ delay: 0.25, duration: 0.5 }}
           className="flex flex-col sm:flex-row items-center gap-4 mt-10 w-full sm:w-auto"
         >
           <MagneticButton
             href="/register"
-            className="group relative inline-flex h-14 items-center justify-center gap-2 rounded-xl bg-slate-900 dark:bg-emerald-600 px-8 text-sm font-bold text-white transition-all hover:scale-[1.02] active:scale-[0.98] w-full sm:w-auto overflow-hidden"
+            className="group relative inline-flex h-14 items-center justify-center gap-2.5 rounded-xl bg-cyan-500 dark:bg-cyan-500 px-10 text-sm font-bold text-slate-900 dark:text-slate-900 transition-all hover:scale-[1.02] active:scale-[0.98] hover:shadow-xl hover:shadow-cyan-500/25 w-full sm:w-auto overflow-hidden"
           >
-            Start for free
+            <span>Start for free</span>
             <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+            {/* Shine effect */}
+            <motion.span
+              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12"
+              initial={{ x: "-100%" }}
+              animate={{ x: "200%" }}
+              transition={{ duration: 2, repeat: Infinity, repeatDelay: 4, ease: "easeInOut" }}
+            />
           </MagneticButton>
 
           <Link
             href="#features"
-            className="inline-flex h-14 items-center justify-center px-8 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors w-full sm:w-auto"
+            className="group inline-flex h-14 items-center justify-center gap-2 px-8 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors w-full sm:w-auto"
           >
             See how it works
+            <ChevronDown className="h-3.5 w-3.5 group-hover:translate-y-0.5 transition-transform" />
           </Link>
         </motion.div>
       </motion.div>
 
-      {/* Scroll Indicator: Hidden on very short screens to avoid overlap */}
+      {/* Scroll Indicator */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 0.8 }}
+        transition={{ delay: 1 }}
         className="absolute bottom-8 hidden md:flex flex-col items-center gap-2"
       >
-        <span className="text-[10px] font-bold tracking-[0.2em] uppercase opacity-40">
+        <span className="text-[10px] font-bold tracking-[0.2em] uppercase opacity-30 font-heading">
           Scroll
         </span>
         <motion.div
-          animate={{ y: [0, 5, 0] }}
-          transition={{ duration: 2, repeat: Infinity }}
+          animate={{ y: [0, 6, 0] }}
+          transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
         >
-          <ChevronDown className="h-4 w-4 opacity-40" />
+          <ChevronDown className="h-4 w-4 opacity-30" />
         </motion.div>
       </motion.div>
 

@@ -49,7 +49,7 @@ export default function OAuthCallbackPage() {
 
   return (
     <div className="flex flex-col items-center justify-center gap-4">
-      <div className="h-8 w-8 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
+      <div className="h-8 w-8 rounded-full border-2 border-cyan-500 border-t-transparent animate-spin" />
       <p className="text-sm text-[var(--color-text-secondary)]">
         Completing sign in...
       </p>

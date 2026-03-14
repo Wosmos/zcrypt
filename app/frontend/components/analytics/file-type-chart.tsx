@@ -15,7 +15,7 @@ const FILE_CATEGORIES: { label: string; color: string; extensions: string[] }[] 
   { label: "Videos", color: "#8b5cf6", extensions: ["mp4", "mov", "avi", "mkv", "webm", "flv"] },
   { label: "Audio", color: "#ec4899", extensions: ["mp3", "wav", "flac", "aac", "ogg", "m4a"] },
   { label: "Archives", color: "#f97316", extensions: ["zip", "rar", "7z", "tar", "gz", "bz2"] },
-  { label: "Code", color: "#10b981", extensions: ["js", "ts", "py", "go", "rs", "java", "cpp", "c", "html", "css", "json"] },
+  { label: "Code", color: "#00d5e4", extensions: ["js", "ts", "py", "go", "rs", "java", "cpp", "c", "html", "css", "json"] },
   { label: "Other", color: "#14b8a6", extensions: [] },
 ];
 
@@ -94,8 +94,8 @@ export function FileTypeChart({ files }: FileTypeChartProps) {
             {data.map((d) => (
               <div key={d.name} className="flex items-center gap-2">
                 <span className="h-2.5 w-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: d.color }} />
-                <span className="text-[11px] text-[var(--color-text-secondary)] flex-1">{d.name}</span>
-                <span className="text-[11px] font-medium tabular-nums">
+                <span className="text-xs text-[var(--color-text-secondary)] flex-1">{d.name}</span>
+                <span className="text-xs font-medium tabular-nums">
                   {((d.value / total) * 100).toFixed(0)}%
                 </span>
               </div>

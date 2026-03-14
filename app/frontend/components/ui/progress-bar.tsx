@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown } from "@/lib/icons";
 
 type DisplayMode = "percent" | "speed" | "eta";
 
@@ -19,8 +19,8 @@ interface ProgressBarProps {
 
 const barColors = {
   default: "bg-[var(--color-text-muted)]",
-  accent: "bg-emerald-500",
-  success: "bg-emerald-500",
+  accent: "bg-cyan-500",
+  success: "bg-cyan-500",
 };
 
 const modeLabels: Record<DisplayMode, string> = {
@@ -86,7 +86,7 @@ export function ProgressBar({
   return (
     <div className={cn("w-full", className)}>
       {(stage || true) && (
-        <div className="flex justify-between text-[11px] text-[var(--color-text-secondary)] mb-1.5">
+        <div className="flex justify-between text-xs text-[var(--color-text-secondary)] mb-1.5">
           <span className="capitalize font-medium">{stage}</span>
           <div className="relative flex items-center gap-1">
             <button

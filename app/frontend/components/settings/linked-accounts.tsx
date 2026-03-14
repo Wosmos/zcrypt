@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { getLinkedAccounts, unlinkAccount, getOAuthURL, type LinkedAccountsResponse } from "@/lib/auth-api";
 import { useAuthStore } from "@/store/auth";
 import { toast } from "@/store/toast";
-import { Github, Link2, X } from "lucide-react";
+import { Github, Link2, X } from "@/lib/icons";
 import { GoogleIcon } from "@/components/icons/google";
 import { cn } from "@/lib/utils";
 
@@ -72,7 +72,7 @@ export function LinkedAccounts() {
               className={cn(
                 "flex items-center gap-3 px-3.5 py-3 rounded-xl border transition-colors",
                 isLinked
-                  ? "border-emerald-500/15 bg-emerald-500/5"
+                  ? "border-cyan-500/15 bg-cyan-500/5"
                   : "border-[var(--color-border)]"
               )}
             >
@@ -81,7 +81,7 @@ export function LinkedAccounts() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium">{name}</p>
-                <p className="text-[11px] text-[var(--color-text-muted)] truncate">
+                <p className="text-xs text-[var(--color-text-muted)] truncate">
                   {isLinked ? connection.provider_email : "Not connected"}
                 </p>
               </div>
@@ -109,7 +109,7 @@ export function LinkedAccounts() {
           );
         })}
         {data && !data.has_password && linked.length <= 1 && (
-          <p className="text-[11px] text-amber-600 dark:text-amber-400">
+          <p className="text-xs text-amber-600 dark:text-amber-400">
             Add a password or link another provider to ensure you can always access your account.
           </p>
         )}

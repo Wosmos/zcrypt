@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { usePassphraseStore } from "@/store/passphrase";
-import { Lock, X } from "lucide-react";
+import { Lock, X } from "@/lib/icons";
 import { PassphraseStrength } from "@/components/ui/passphrase-strength";
 
 interface PassphraseModalProps {
@@ -70,7 +70,7 @@ export function PassphraseModal({
             <div>
               <h3 className="text-sm font-semibold">{title}</h3>
               {subtitle && (
-                <p className="text-[11px] text-[var(--color-text-muted)] truncate max-w-[240px]">
+                <p className="text-xs text-[var(--color-text-muted)] truncate max-w-[240px]">
                   {subtitle}
                 </p>
               )}
@@ -113,7 +113,7 @@ export function PassphraseModal({
               type="checkbox"
               checked={remember}
               onChange={(e) => setRemember(e.target.checked)}
-              className="h-3.5 w-3.5 rounded border-[var(--color-border)] accent-emerald-500"
+              className="h-3.5 w-3.5 rounded border-[var(--color-border)] accent-cyan-500"
             />
             <span className="text-xs text-[var(--color-text-secondary)]">
               Remember for this session
@@ -131,7 +131,7 @@ export function PassphraseModal({
             <button
               type="submit"
               disabled={!passphrase}
-              className="flex-1 rounded-xl bg-[#1a1f36] dark:bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-[#252b45] dark:hover:bg-emerald-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              className="flex-1 rounded-xl bg-[#1a1f36] dark:bg-cyan-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-[#252b45] dark:hover:bg-cyan-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {confirmLabel}
             </button>

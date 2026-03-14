@@ -26,7 +26,7 @@ export function AnimatedBorderCard({
     mouseY.set(e.clientY - rect.top);
   };
 
-  const background = useMotionTemplate`radial-gradient(300px at ${mouseX}px ${mouseY}px, rgba(16,185,129,0.12), transparent 80%)`;
+  const background = useMotionTemplate`radial-gradient(300px at ${mouseX}px ${mouseY}px, rgba(0,213,228,0.12), transparent 80%)`;
 
   return (
     <motion.div
@@ -43,7 +43,7 @@ export function AnimatedBorderCard({
           className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
           style={{
             background:
-              "conic-gradient(from var(--border-angle, 0deg), transparent 30%, rgba(16,185,129,0.3) 50%, transparent 70%)",
+              "conic-gradient(from var(--border-angle, 0deg), transparent 30%, rgba(0,213,228,0.3) 50%, transparent 70%)",
             animation: "borderRotate 4s linear infinite",
           }}
         />

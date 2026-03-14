@@ -47,7 +47,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    const stored = localStorage.getItem("zpush-theme") as Theme | null;
+    const stored = localStorage.getItem("zcrypt-theme") as Theme | null;
     const initial = stored || "system";
     setThemeState(initial);
     setResolvedTheme(resolveTheme(initial));
@@ -81,7 +81,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const setTheme = useCallback((t: Theme) => {
     setThemeState(t);
-    localStorage.setItem("zpush-theme", t);
+    localStorage.setItem("zcrypt-theme", t);
   }, []);
 
   const toggleTheme = useCallback(() => {

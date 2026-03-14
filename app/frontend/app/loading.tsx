@@ -1,15 +1,18 @@
-import { Shield } from "lucide-react";
+import { LogoIcon, Logo } from "@/components/ui/logo";
 
 export default function RootLoading() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] animate-fade-in">
-      <div className="relative">
-        <div className="h-10 w-10 rounded-xl bg-emerald-500/15 flex items-center justify-center">
-          <Shield className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-        </div>
-        <div className="absolute -inset-2 rounded-2xl border-2 border-emerald-500/20 animate-ping" />
+    <div className="flex flex-col items-center justify-center h-dvh animate-fade-in">
+      {/* 3D logo icon */}
+      <LogoIcon size={64} />
+
+      {/* Spinner */}
+      <div className="mt-6 h-5 w-5 rounded-full border-2 border-[var(--color-border)] border-t-cyan-500 animate-spin" />
+
+      {/* Wordmark at bottom */}
+      <div className="absolute bottom-8">
+        <Logo size="sm" iconOnly={false} />
       </div>
-      <p className="text-sm text-[var(--color-text-muted)] mt-6">Loading...</p>
     </div>
   );
 }

@@ -3,7 +3,7 @@
 import { useRef } from "react";
 import Link from "next/link";
 import { motion, useInView } from "motion/react";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight } from "@/lib/icons";
 
 function Section({
   children,
@@ -30,7 +30,7 @@ function Section({
 
 function PullQuote({ children }: { children: React.ReactNode }) {
   return (
-    <blockquote className="my-12 border-l-2 border-emerald-500/40 pl-6 py-2">
+    <blockquote className="my-12 border-l-2 border-cyan-500/40 pl-6 py-2">
       <p className="text-xl sm:text-2xl font-medium italic text-[var(--color-text)] leading-relaxed">
         {children}
       </p>
@@ -40,10 +40,10 @@ function PullQuote({ children }: { children: React.ReactNode }) {
 
 function BulletList({ items }: { items: React.ReactNode[] }) {
   return (
-    <ul className="mt-4 space-y-2 text-[15px] text-[var(--color-text-secondary)] leading-relaxed">
+    <ul className="mt-4 space-y-2 text-base text-[var(--color-text-secondary)] leading-relaxed">
       {items.map((item, i) => (
         <li key={i} className="flex gap-2">
-          <span className="text-emerald-500 mt-0.5 shrink-0">&bull;</span>
+          <span className="text-cyan-500 mt-0.5 shrink-0">&bull;</span>
           <span>{item}</span>
         </li>
       ))}
@@ -57,7 +57,7 @@ export default function PrivacyPage() {
       <article className="mx-auto max-w-2xl px-4">
         {/* Header */}
         <Section>
-          <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-4">
+          <p className="text-xs font-semibold text-cyan-600 dark:text-cyan-400 uppercase tracking-wider mb-4">
             Privacy
           </p>
           <h1 className="text-4xl sm:text-5xl font-bold tracking-tight leading-[1.15]">
@@ -72,9 +72,9 @@ export default function PrivacyPage() {
 
         {/* Intro */}
         <Section className="mt-16">
-          <div className="space-y-4 text-[15px] text-[var(--color-text-secondary)] leading-relaxed">
+          <div className="space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
             <p>
-              zpush is built on a zero-knowledge architecture. This means we are
+              zcrypt is built on a zero-knowledge architecture. This means we are
               technically unable to access the contents of your encrypted files.
               This Privacy Policy explains what we <em>can</em> see, what we collect,
               and how we use it.
@@ -87,7 +87,7 @@ export default function PrivacyPage() {
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
             1. What We Cannot See
           </h2>
-          <div className="mt-6 space-y-4 text-[15px] text-[var(--color-text-secondary)] leading-relaxed">
+          <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
             <p>Due to our zero-knowledge encryption design:</p>
           </div>
           <BulletList
@@ -110,7 +110,7 @@ export default function PrivacyPage() {
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
             2. What We Collect
           </h2>
-          <div className="mt-6 space-y-4 text-[15px] text-[var(--color-text-secondary)] leading-relaxed">
+          <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
             <p>We collect the minimum data necessary to operate the Service.</p>
           </div>
 
@@ -161,7 +161,7 @@ export default function PrivacyPage() {
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
             3. Platform Tokens
           </h2>
-          <div className="mt-6 space-y-4 text-[15px] text-[var(--color-text-secondary)] leading-relaxed">
+          <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
             <p>
               When you connect a storage platform (GitHub, GitLab, Hugging Face),
               your platform access token is encrypted at rest using AES-256-GCM
@@ -206,7 +206,7 @@ export default function PrivacyPage() {
             the service is.
           </PullQuote>
 
-          <div className="space-y-4 text-[15px] text-[var(--color-text-secondary)] leading-relaxed">
+          <div className="space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
             <p>
               We do not share data with law enforcement without valid legal process,
               and even then, we can only provide account metadata — not file contents.
@@ -219,7 +219,7 @@ export default function PrivacyPage() {
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
             6. Third-Party Services
           </h2>
-          <div className="mt-6 space-y-4 text-[15px] text-[var(--color-text-secondary)] leading-relaxed">
+          <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
             <p>We use the following third-party services:</p>
           </div>
           <BulletList
@@ -230,7 +230,7 @@ export default function PrivacyPage() {
               <><strong className="text-[var(--color-text)]">Resend</strong> — Transactional email (verification, password reset)</>,
             ]}
           />
-          <div className="mt-4 space-y-4 text-[15px] text-[var(--color-text-secondary)] leading-relaxed">
+          <div className="mt-4 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
             <p>
               Your encrypted files are stored on the Git platforms you connect
               (GitHub, GitLab, Hugging Face). Those platforms&apos; privacy policies
@@ -260,7 +260,7 @@ export default function PrivacyPage() {
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
             8. Your Rights
           </h2>
-          <div className="mt-6 space-y-4 text-[15px] text-[var(--color-text-secondary)] leading-relaxed">
+          <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
             <p>You have the right to:</p>
           </div>
           <BulletList
@@ -271,14 +271,14 @@ export default function PrivacyPage() {
               <><strong className="text-[var(--color-text)]">Correct</strong> your account information</>,
             ]}
           />
-          <div className="mt-4 space-y-4 text-[15px] text-[var(--color-text-secondary)] leading-relaxed">
+          <div className="mt-4 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
             <p>
               For GDPR, CCPA, or other data protection requests, contact{" "}
               <a
-                href="mailto:privacy@zpush.io"
-                className="text-emerald-600 dark:text-emerald-400 hover:underline font-medium"
+                href="mailto:privacy@zcrypt.cloud"
+                className="text-cyan-600 dark:text-cyan-400 hover:underline font-medium"
               >
-                privacy@zpush.io
+                privacy@zcrypt.cloud
               </a>.
             </p>
           </div>
@@ -289,9 +289,9 @@ export default function PrivacyPage() {
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
             9. Children
           </h2>
-          <div className="mt-6 space-y-4 text-[15px] text-[var(--color-text-secondary)] leading-relaxed">
+          <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
             <p>
-              zpush is not intended for users under 16. We do not knowingly collect
+              zcrypt is not intended for users under 16. We do not knowingly collect
               data from children under 16.
             </p>
           </div>
@@ -302,7 +302,7 @@ export default function PrivacyPage() {
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
             10. Changes
           </h2>
-          <div className="mt-6 space-y-4 text-[15px] text-[var(--color-text-secondary)] leading-relaxed">
+          <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
             <p>
               We may update this Privacy Policy. Significant changes will be
               communicated via email or in-app notification at least 30 days
@@ -316,14 +316,14 @@ export default function PrivacyPage() {
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
             11. Contact
           </h2>
-          <div className="mt-6 space-y-4 text-[15px] text-[var(--color-text-secondary)] leading-relaxed">
+          <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
             <p>
               Privacy questions? Contact us at{" "}
               <a
-                href="mailto:privacy@zpush.io"
-                className="text-emerald-600 dark:text-emerald-400 hover:underline font-medium"
+                href="mailto:privacy@zcrypt.cloud"
+                className="text-cyan-600 dark:text-cyan-400 hover:underline font-medium"
               >
-                privacy@zpush.io
+                privacy@zcrypt.cloud
               </a>.
             </p>
           </div>
@@ -336,14 +336,14 @@ export default function PrivacyPage() {
               See also:{" "}
               <Link
                 href="/terms"
-                className="text-emerald-600 dark:text-emerald-400 hover:underline font-medium"
+                className="text-cyan-600 dark:text-cyan-400 hover:underline font-medium"
               >
                 Terms of Service
               </Link>
             </p>
             <Link
               href="/register"
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-8 py-3.5 text-sm font-semibold text-slate-900 hover:bg-emerald-400 transition-colors shadow-xl shadow-emerald-500/25"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-500 px-8 py-3.5 text-sm font-semibold text-slate-900 hover:bg-cyan-400 transition-colors shadow-xl shadow-cyan-500/25"
             >
               Get started <ArrowRight className="h-4 w-4" />
             </Link>

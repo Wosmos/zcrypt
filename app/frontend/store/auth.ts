@@ -19,11 +19,11 @@ export const useAuthStore = create<AuthStore>((set) => ({
   user: null,
   accessToken:
     typeof window !== "undefined"
-      ? localStorage.getItem("zpush-access-token")
+      ? localStorage.getItem("zcrypt-access-token")
       : null,
   refreshTokenValue:
     typeof window !== "undefined"
-      ? localStorage.getItem("zpush-refresh-token")
+      ? localStorage.getItem("zcrypt-refresh-token")
       : null,
   loading: false,
   initialized: false,
@@ -31,8 +31,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
   setUser: (user) => set({ user }),
 
   setTokens: (accessToken, refreshToken) => {
-    localStorage.setItem("zpush-access-token", accessToken);
-    localStorage.setItem("zpush-refresh-token", refreshToken);
+    localStorage.setItem("zcrypt-access-token", accessToken);
+    localStorage.setItem("zcrypt-refresh-token", refreshToken);
     set({ accessToken, refreshTokenValue: refreshToken });
   },
 
@@ -40,8 +40,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
   setInitialized: (initialized) => set({ initialized }),
 
   clearAuth: () => {
-    localStorage.removeItem("zpush-access-token");
-    localStorage.removeItem("zpush-refresh-token");
+    localStorage.removeItem("zcrypt-access-token");
+    localStorage.removeItem("zcrypt-refresh-token");
     set({ user: null, accessToken: null, refreshTokenValue: null });
   },
 }));

@@ -21,7 +21,7 @@ function categorizeFiles(files: FileMetadata[]): CategoryInfo[] {
     videos: { label: "Videos", color: "#8b5cf6", size: 0 },
     audio: { label: "Audio", color: "#ec4899", size: 0 },
     archives: { label: "Archives", color: "#f97316", size: 0 },
-    code: { label: "Code", color: "#10b981", size: 0 },
+    code: { label: "Code", color: "#00d5e4", size: 0 },
     other: { label: "Other", color: "#14b8a6", size: 0 },
   };
 
@@ -60,11 +60,11 @@ export function StorageHero({ files, repos }: StorageHeroProps) {
   return (
     <div className="relative overflow-hidden rounded-2xl border border-[var(--color-border)] p-6"
       style={{
-        background: "linear-gradient(135deg, rgba(16,185,129,0.08) 0%, rgba(139,92,246,0.06) 50%, rgba(20,184,166,0.08) 100%)",
+        background: "linear-gradient(135deg, rgba(0,213,228,0.08) 0%, rgba(139,92,246,0.06) 50%, rgba(20,184,166,0.08) 100%)",
       }}
     >
       {/* Glow effects */}
-      <div className="absolute top-0 right-0 w-40 h-40 rounded-full opacity-20 blur-3xl" style={{ background: "radial-gradient(circle, rgba(16,185,129,0.4), transparent)" }} />
+      <div className="absolute top-0 right-0 w-40 h-40 rounded-full opacity-20 blur-3xl" style={{ background: "radial-gradient(circle, rgba(0,213,228,0.4), transparent)" }} />
       <div className="absolute bottom-0 left-0 w-32 h-32 rounded-full opacity-15 blur-3xl" style={{ background: "radial-gradient(circle, rgba(139,92,246,0.4), transparent)" }} />
 
       <div className="relative flex flex-col sm:flex-row items-start sm:items-center gap-6">
@@ -81,7 +81,7 @@ export function StorageHero({ files, repos }: StorageHeroProps) {
             />
             <defs>
               <linearGradient id="ring-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#10b981" />
+                <stop offset="0%" stopColor="#00d5e4" />
                 <stop offset="100%" stopColor="#8b5cf6" />
               </linearGradient>
             </defs>
@@ -128,7 +128,7 @@ export function StorageHero({ files, repos }: StorageHeroProps) {
               </div>
               <div className="flex flex-wrap gap-x-4 gap-y-1">
                 {categories.map((cat) => (
-                  <span key={cat.label} className="flex items-center gap-1.5 text-[11px] text-[var(--color-text-secondary)]">
+                  <span key={cat.label} className="flex items-center gap-1.5 text-xs text-[var(--color-text-secondary)]">
                     <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: cat.color }} />
                     {cat.label} ({((cat.size / totalOriginal) * 100).toFixed(0)}%)
                   </span>

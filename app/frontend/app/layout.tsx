@@ -1,8 +1,36 @@
 import type { Metadata, Viewport } from "next";
+import localFont from "next/font/local";
+import { Poppins, Manrope } from "next/font/google";
 import "./globals.css";
 import { ToastContainer } from "@/components/ui/toast-container";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { NavProgress } from "@/components/ui/nav-progress";
+
+const satoshi = localFont({
+  src: [
+    {
+      path: "../public/fonts/satoshi/Satoshi-Variable.woff2",
+      style: "normal",
+    },
+  ],
+  variable: "--font-heading",
+  display: "swap",
+  weight: "400 700",
+});
+
+const poppins = Poppins({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-body",
+  display: "swap",
+});
+
+const manrope = Manrope({
+  subsets: ["latin"],
+  weight: ["700"],
+  variable: "--font-logo",
+  display: "swap",
+});
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -11,10 +39,10 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://zpush.io"),
+  metadataBase: new URL("https://zcrypt.cloud"),
   title: {
-    default: "zpush — Encrypted Cloud Storage",
-    template: "%s | zpush",
+    default: "zcrypt — Encrypted Cloud Storage",
+    template: "%s | zcrypt",
   },
   description: "Zero-knowledge encrypted personal cloud storage.",
   keywords: [
@@ -25,24 +53,24 @@ export const metadata: Metadata = {
     "file sharing",
     "secure file upload",
   ],
-  authors: [{ name: "zpush Team" }],
-  creator: "zpush",
-  publisher: "zpush",
+  authors: [{ name: "zcrypt Team" }],
+  creator: "zcrypt",
+  publisher: "zcrypt",
   icons: {
     icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
   },
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://zpush.io",
-    title: "zpush — Encrypted Cloud Storage",
+    url: "https://zcrypt.cloud",
+    title: "zcrypt — Encrypted Cloud Storage",
     description:
       "Zero-knowledge encrypted personal cloud storage built for complete mathematical privacy.",
-    siteName: "zpush",
+    siteName: "zcrypt",
   },
   twitter: {
     card: "summary_large_image",
-    title: "zpush — Encrypted Cloud Storage",
+    title: "zcrypt — Encrypted Cloud Storage",
     description: "Zero-knowledge encrypted personal cloud storage.",
   },
   robots: {
@@ -57,19 +85,24 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
+    <html
+      lang="en"
+      className={`dark ${satoshi.variable} ${poppins.variable} ${manrope.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         <script
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
                 try {
-                  var theme = localStorage.getItem('zpush-theme') || 'system';
+                  var theme = localStorage.getItem('zcrypt-theme') || 'system';
                   var resolved = theme;
                   if (theme === 'system') {
                     resolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
                   }
-                  document.documentElement.className = resolved;
+                  document.documentElement.classList.remove('light', 'dark');
+                  document.documentElement.classList.add(resolved);
                 } catch(e) {}
               })();
             `,

@@ -2,7 +2,7 @@
 
 import type { QuotaInfo } from "@/types";
 import { formatBytes } from "@/lib/utils";
-import { Gauge, Zap, Infinity } from "lucide-react";
+import { Gauge, Zap, Infinity } from "@/lib/icons";
 
 interface UserQuotaProps {
   quota: QuotaInfo;
@@ -57,28 +57,28 @@ export function UserQuota({ quota }: UserQuotaProps) {
                   ? "bg-red-500"
                   : isHigh
                     ? "bg-amber-500"
-                    : "bg-emerald-500"
+                    : "bg-cyan-500"
               }`}
               style={{ width: `${Math.max(percent, 1)}%` }}
             />
           </div>
           <div className="flex items-center justify-between mt-2">
-            <span className={`text-[11px] font-medium ${
+            <span className={`text-xs font-medium ${
               isCritical ? "text-red-500" : isHigh ? "text-amber-500" : "text-[var(--color-text-muted)]"
             }`}>
               {percent.toFixed(0)}% used
             </span>
-            <span className="text-[11px] text-[var(--color-text-muted)] tabular-nums">
+            <span className="text-xs text-[var(--color-text-muted)] tabular-nums">
               {formatBytes(Math.max(0, quota.quota_bytes - quota.used_bytes))} remaining
             </span>
           </div>
         </>
       ) : (
         <div className="flex items-center gap-2 py-1">
-          <Infinity className="h-4 w-4 text-emerald-500" />
+          <Infinity className="h-4 w-4 text-cyan-500" />
           <div>
             <p className="text-sm font-medium">Unlimited storage</p>
-            <p className="text-[11px] text-[var(--color-text-muted)]">
+            <p className="text-xs text-[var(--color-text-muted)]">
               {formatBytes(quota.used_bytes)} used
               {quota.has_personal_key && " \u00b7 personal tokens connected"}
             </p>
@@ -88,7 +88,7 @@ export function UserQuota({ quota }: UserQuotaProps) {
 
       <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-[var(--color-border)]">
         <Zap className="h-3 w-3 text-[var(--color-text-muted)]" />
-        <span className="text-[11px] text-[var(--color-text-muted)]">
+        <span className="text-xs text-[var(--color-text-muted)]">
           {quota.max_concurrent_uploads} concurrent upload{quota.max_concurrent_uploads !== 1 ? "s" : ""}
         </span>
       </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import type { PlatformStatus, RepoInfo } from "@/types";
-import { Github, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Github, AlertTriangle, CheckCircle2 } from "@/lib/icons";
 import { GitlabIcon } from "@/components/icons/gitlab";
 import { HuggingFaceIcon } from "@/components/icons/huggingface";
 import { formatBytes } from "@/lib/utils";
@@ -54,7 +54,7 @@ export function RateLimits({ statuses, repos }: RateLimitsProps) {
     <section className="card overflow-hidden">
       <div className="px-5 py-4 border-b border-[var(--color-border)]">
         <h2 className="text-sm font-semibold">Platform Quotas & Limits</h2>
-        <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
+        <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
           Known rate limits and storage quotas per platform
         </p>
       </div>
@@ -76,16 +76,16 @@ export function RateLimits({ statuses, repos }: RateLimitsProps) {
                   {meta.icon}
                   <span className="text-sm font-medium capitalize">{status.platform}</span>
                   {status.username && (
-                    <span className="text-[11px] text-[var(--color-text-muted)]">@{status.username}</span>
+                    <span className="text-xs text-[var(--color-text-muted)]">@{status.username}</span>
                   )}
                 </div>
                 <div className="flex items-center gap-1.5">
                   {isHigh ? (
                     <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
                   ) : (
-                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                    <CheckCircle2 className="h-3.5 w-3.5 text-cyan-500" />
                   )}
-                  <span className={`text-[11px] font-medium ${isHigh ? "text-amber-500" : "text-emerald-500"}`}>
+                  <span className={`text-xs font-medium ${isHigh ? "text-amber-500" : "text-cyan-500"}`}>
                     {usagePercent.toFixed(0)}% used
                   </span>
                 </div>
@@ -110,7 +110,7 @@ export function RateLimits({ statuses, repos }: RateLimitsProps) {
               {/* Usage bar */}
               {pRepos.length > 0 && (
                 <div className="space-y-1">
-                  <div className="flex justify-between text-[11px] text-[var(--color-text-secondary)]">
+                  <div className="flex justify-between text-xs text-[var(--color-text-secondary)]">
                     <span>{formatBytes(totalUsed)} used</span>
                     <span>{formatBytes(totalMax - totalUsed)} remaining</span>
                   </div>
@@ -119,7 +119,7 @@ export function RateLimits({ statuses, repos }: RateLimitsProps) {
                       className="h-full rounded-full transition-all duration-500"
                       style={{
                         width: `${Math.min(100, usagePercent)}%`,
-                        backgroundColor: isHigh ? "#f59e0b" : "#10b981",
+                        backgroundColor: isHigh ? "#f59e0b" : "#00d5e4",
                       }}
                     />
                   </div>

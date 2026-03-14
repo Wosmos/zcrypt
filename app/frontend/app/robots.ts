@@ -7,6 +7,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: ["/", "/demo"],
       disallow: ["/dashboard/", "/api/"],
     },
-    sitemap: "https://zpush.io/sitemap.xml",
+    sitemap: "https://zcrypt.cloud/sitemap.xml",
   };
 }

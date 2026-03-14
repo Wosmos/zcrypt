@@ -9,7 +9,7 @@ import {
   Loader2,
   StopCircle,
   Download,
-} from "lucide-react";
+} from "@/lib/icons";
 import { formatBytes } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
@@ -27,7 +27,7 @@ export function DownloadQueue() {
   return (
     <div className="space-y-3 animate-fade-in">
       <div className="flex items-center justify-between">
-        <h3 className="text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
+        <h3 className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
           Downloads
           {queue.length > 1 && (
             <span className="ml-2 font-normal">
@@ -38,7 +38,7 @@ export function DownloadQueue() {
         {hasCompleted && (
           <button
             onClick={clearCompleted}
-            className="text-[11px] text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors font-medium"
+            className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors font-medium"
           >
             Clear done
           </button>
@@ -52,7 +52,7 @@ export function DownloadQueue() {
             className={cn(
               "flex items-center gap-3 rounded-xl border p-3.5 transition-all duration-200",
               item.status === "done"
-                ? "bg-emerald-500/5 border-emerald-500/20"
+                ? "bg-cyan-500/5 border-cyan-500/20"
                 : item.status === "failed"
                   ? "bg-red-500/5 border-red-500/20"
                   : item.status === "cancelled"
@@ -63,7 +63,7 @@ export function DownloadQueue() {
             {/* Status icon */}
             <div className="flex-shrink-0">
               {item.status === "done" && (
-                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                <CheckCircle2 className="h-4 w-4 text-cyan-500" />
               )}
               {item.status === "failed" && (
                 <AlertCircle className="h-4 w-4 text-red-500" />
@@ -82,7 +82,7 @@ export function DownloadQueue() {
             {/* Info + progress */}
             <div className="flex-1 min-w-0">
               <p className="text-sm truncate font-medium">{item.filename}</p>
-              <p className="text-[11px] text-[var(--color-text-muted)]">
+              <p className="text-xs text-[var(--color-text-muted)]">
                 {formatBytes(item.fileSize)}
               </p>
               {item.status === "downloading" && (
@@ -94,7 +94,7 @@ export function DownloadQueue() {
                 />
               )}
               {item.error && (
-                <p className="text-[11px] text-red-500 dark:text-red-400 mt-1">
+                <p className="text-xs text-red-500 dark:text-red-400 mt-1">
                   {item.error}
                 </p>
               )}

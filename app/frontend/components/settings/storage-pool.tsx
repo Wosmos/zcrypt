@@ -2,7 +2,7 @@
 
 import { usePlatformHealth } from "@/hooks/usePlatformHealth";
 import { formatBytes, cn } from "@/lib/utils";
-import { Database } from "lucide-react";
+import { Database } from "@/lib/icons";
 
 export function StoragePool() {
   const { repos } = usePlatformHealth();
@@ -38,7 +38,7 @@ export function StoragePool() {
             >
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">{repo.name}</p>
-                <p className="text-[11px] text-[var(--color-text-muted)]">
+                <p className="text-xs text-[var(--color-text-muted)]">
                   <span className="capitalize">{repo.platform}</span>
                   {repo.account && <span> @{repo.account}</span>}
                 </p>
@@ -52,7 +52,7 @@ export function StoragePool() {
                   <div
                     className={cn(
                       "h-full rounded-full transition-all duration-500",
-                      repo.active ? "bg-emerald-500" : "bg-[var(--color-text-muted)]"
+                      repo.active ? "bg-cyan-500" : "bg-[var(--color-text-muted)]"
                     )}
                     style={{ width: `${usagePercent}%` }}
                   />
@@ -61,9 +61,9 @@ export function StoragePool() {
 
               <span
                 className={cn(
-                  "text-[11px] font-medium px-2.5 py-1 rounded-full",
+                  "text-xs font-medium px-2.5 py-1 rounded-full",
                   repo.active
-                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                    ? "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20"
                     : "bg-[var(--color-surface-1)] text-[var(--color-text-muted)] border border-[var(--color-border)]"
                 )}
               >

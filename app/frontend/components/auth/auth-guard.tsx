@@ -113,7 +113,7 @@ export function AuthGuard({
   if (!initialized || redirecting) {
     return (
       <div className="flex items-center justify-center h-dvh">
-        <div className="h-8 w-8 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
+        <div className="h-8 w-8 rounded-full border-2 border-cyan-500 border-t-transparent animate-spin" />
       </div>
     );
   }

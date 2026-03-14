@@ -13,7 +13,7 @@ import { adminGetStats, adminListUsers, adminListTokens, adminGetDefaultQuota } 
 import { Role } from "@/types";
 import type { AdminUser, SystemStats, PlatformTokenInfo } from "@/types";
 import AdminLoading from "./loading";
-import { Users } from "lucide-react";
+import { Users } from "@/lib/icons";
 
 export default function AdminPage() {
   const router = useRouter();

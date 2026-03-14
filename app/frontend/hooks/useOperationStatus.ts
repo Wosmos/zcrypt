@@ -81,7 +81,7 @@ export function useOperationStatus(
           // Push notification for critical server error
           if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
             const n = new Notification("Server connection lost", {
-              body: "zstash is having trouble connecting to the server. We're retrying automatically.",
+              body: "zcrypt is having trouble connecting to the server. We're retrying automatically.",
               icon: "/favicon.ico",
               tag: "server-error",
             });

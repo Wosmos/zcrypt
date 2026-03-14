@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, Download, FileText, Eye } from "lucide-react";
+import { X, Download, FileText, Eye } from "@/lib/icons";
 import { formatBytes } from "@/lib/utils";
 
 interface FilePreviewModalProps {
@@ -83,18 +83,18 @@ export function FilePreviewModal({ open, onClose, blob, filename, fileSize }: Fi
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border)]">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="flex items-center justify-center h-9 w-9 rounded-xl bg-emerald-500/10 text-emerald-500 flex-shrink-0">
+            <div className="flex items-center justify-center h-9 w-9 rounded-xl bg-cyan-500/10 text-cyan-500 flex-shrink-0">
               <Eye className="h-4 w-4" />
             </div>
             <div className="min-w-0">
               <h3 className="text-sm font-semibold truncate">{filename}</h3>
-              <p className="text-[11px] text-[var(--color-text-muted)]">{formatBytes(fileSize)}</p>
+              <p className="text-xs text-[var(--color-text-muted)]">{formatBytes(fileSize)}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={handleDownload}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 hover:bg-cyan-500/20 transition-colors"
             >
               <Download className="h-3.5 w-3.5" />
               Save
@@ -112,7 +112,7 @@ export function FilePreviewModal({ open, onClose, blob, filename, fileSize }: Fi
         <div className="flex-1 overflow-auto p-5">
           {!blob ? (
             <div className="flex items-center justify-center h-40">
-              <div className="h-6 w-6 border-2 border-[var(--color-border)] border-t-emerald-500 rounded-full animate-spin" />
+              <div className="h-6 w-6 border-2 border-[var(--color-border)] border-t-cyan-500 rounded-full animate-spin" />
             </div>
           ) : previewType === "image" && objectUrl ? (
             <div className="flex items-center justify-center">
@@ -143,7 +143,7 @@ export function FilePreviewModal({ open, onClose, blob, filename, fileSize }: Fi
               <p className="text-sm">Preview not available for this file type</p>
               <button
                 onClick={handleDownload}
-                className="mt-3 text-xs text-emerald-500 hover:text-emerald-400 transition-colors"
+                className="mt-3 text-xs text-cyan-500 hover:text-cyan-400 transition-colors"
               >
                 Download to view
               </button>

@@ -24,7 +24,7 @@ import {
   CheckSquare,
   Square,
   MoreHorizontal,
-} from "lucide-react";
+} from "@/lib/icons";
 import { Button } from "@/components/ui/button";
 import { formatBytes, formatDate, getFileTypeInfo, isImageFile } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -89,9 +89,9 @@ export function FileCard({ file, downloadState = "idle", onDownload, onDelete, o
         "flex md:hidden items-center gap-3 px-3 py-2.5 rounded-xl border transition-all duration-150 active:scale-[0.98]",
         selectable && "cursor-pointer",
         isDownloading
-          ? "border-emerald-500/30 bg-emerald-500/5"
+          ? "border-cyan-500/30 bg-cyan-500/5"
           : isDone
-            ? "border-emerald-500/30 bg-emerald-500/5"
+            ? "border-cyan-500/30 bg-cyan-500/5"
             : selected
               ? "border-[var(--color-accent)]/40 bg-[var(--color-accent)]/5"
               : "border-[var(--color-border)] bg-[var(--color-surface)]"
@@ -120,12 +120,12 @@ export function FileCard({ file, downloadState = "idle", onDownload, onDelete, o
         ) : (
           <div className={cn(
             "flex items-center justify-center h-10 w-10 rounded-lg relative",
-            isDownloading ? "bg-emerald-500/15" : isDone ? "bg-emerald-500/15" : typeInfo.bg
+            isDownloading ? "bg-cyan-500/15" : isDone ? "bg-cyan-500/15" : typeInfo.bg
           )}>
             {isDownloading ? (
-              <Loader2 className="h-5 w-5 text-emerald-500 animate-spin" />
+              <Loader2 className="h-5 w-5 text-cyan-500 animate-spin" />
             ) : isDone ? (
-              <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+              <CheckCircle2 className="h-5 w-5 text-cyan-500" />
             ) : (
               <Icon className={`h-5 w-5 ${typeInfo.color}`} />
             )}
@@ -141,24 +141,24 @@ export function FileCard({ file, downloadState = "idle", onDownload, onDelete, o
 
       {/* File info */}
       <div className="flex-1 min-w-0">
-        <p className="text-[13px] font-medium truncate leading-tight">{file.original_name}</p>
+        <p className="text-sm font-medium truncate leading-tight">{file.original_name}</p>
         <div className="flex items-center gap-1.5 mt-0.5">
-          <span className="text-[11px] text-[var(--color-text-muted)] tabular-nums">{formatBytes(file.original_size)}</span>
+          <span className="text-xs text-[var(--color-text-muted)] tabular-nums">{formatBytes(file.original_size)}</span>
           {isDownloading ? (
-            <span className="text-[11px] text-emerald-400 font-medium">Downloading...</span>
+            <span className="text-xs text-cyan-400 font-medium">Downloading...</span>
           ) : isDone ? (
-            <span className="text-[11px] text-emerald-500 font-medium">Done</span>
+            <span className="text-xs text-cyan-500 font-medium">Done</span>
           ) : (
             <>
-              <span className="text-[11px] text-[var(--color-text-muted)]">&middot;</span>
-              <span className="text-[11px] text-[var(--color-text-muted)]">{formatDate(file.created_at)}</span>
+              <span className="text-xs text-[var(--color-text-muted)]">&middot;</span>
+              <span className="text-xs text-[var(--color-text-muted)]">{formatDate(file.created_at)}</span>
             </>
           )}
         </div>
         {isDownloading && (
           <div className="mt-1.5 h-1 rounded-full bg-[var(--color-surface-2)] overflow-hidden">
             <div className="h-full rounded-full" style={{
-              background: "linear-gradient(90deg, #10b981, #34d399, #10b981)",
+              background: "linear-gradient(90deg, #00d5e4, #2de0ed, #00d5e4)",
               backgroundSize: "200% 100%",
               animation: "progress-shimmer 1.8s ease-in-out infinite",
               width: "100%",
@@ -190,20 +190,20 @@ export function FileCard({ file, downloadState = "idle", onDownload, onDelete, o
                 {onPreview && (
                   <button
                     onClick={(e) => { e.stopPropagation(); setMobileMenuOpen(false); onPreview(file.original_name); }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-[var(--color-text-secondary)] active:bg-[var(--color-surface-1)]"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-[var(--color-text-secondary)] active:bg-[var(--color-surface-1)]"
                   >
                     <Eye className="h-4 w-4" /> Preview
                   </button>
                 )}
                 <button
                   onClick={(e) => { e.stopPropagation(); setMobileMenuOpen(false); onDownload(file.original_name); }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-[var(--color-text-secondary)] active:bg-[var(--color-surface-1)]"
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-[var(--color-text-secondary)] active:bg-[var(--color-surface-1)]"
                 >
                   <Download className="h-4 w-4" /> Download
                 </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); setMobileMenuOpen(false); onDelete(file.id); }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-red-400 active:bg-red-500/5"
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-red-400 active:bg-red-500/5"
                 >
                   <Trash2 className="h-4 w-4" /> Delete
                 </button>
@@ -226,9 +226,9 @@ export function FileCard({ file, downloadState = "idle", onDownload, onDelete, o
         "rounded-2xl border transition-all duration-200",
         selectable && "cursor-pointer",
         isDownloading
-          ? "border-emerald-500/30 bg-emerald-500/5"
+          ? "border-cyan-500/30 bg-cyan-500/5"
           : isDone
-            ? "border-emerald-500/30 bg-emerald-500/5"
+            ? "border-cyan-500/30 bg-cyan-500/5"
             : selected
               ? "border-[var(--color-accent)]/40 bg-[var(--color-accent)]/5 ring-1 ring-[var(--color-accent)]/20"
               : "border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-border-hover)] hover:shadow-lg hover:-translate-y-0.5"
@@ -264,7 +264,7 @@ export function FileCard({ file, downloadState = "idle", onDownload, onDelete, o
 
         {isDownloading && (
           <div className="absolute inset-0 pointer-events-none opacity-[0.07]" style={{
-            background: "linear-gradient(90deg, transparent 25%, rgba(16,185,129,0.4) 50%, transparent 75%)",
+            background: "linear-gradient(90deg, transparent 25%, rgba(0,213,228,0.4) 50%, transparent 75%)",
             backgroundSize: "200% 100%",
             animation: "shimmer 1.5s ease-in-out infinite",
           }} />
@@ -274,12 +274,12 @@ export function FileCard({ file, downloadState = "idle", onDownload, onDelete, o
         {!thumbnailUrl && !(thumbLoading && isImage) && (
           <div className={cn(
             "flex items-center justify-center h-14 w-14 rounded-2xl transition-all duration-300",
-            isDownloading ? "bg-emerald-500/15" : isDone ? "bg-emerald-500/15" : "bg-[var(--color-surface)]/80 backdrop-blur-sm shadow-sm"
+            isDownloading ? "bg-cyan-500/15" : isDone ? "bg-cyan-500/15" : "bg-[var(--color-surface)]/80 backdrop-blur-sm shadow-sm"
           )}>
             {isDownloading ? (
-              <Loader2 className="h-7 w-7 text-emerald-500 animate-spin" />
+              <Loader2 className="h-7 w-7 text-cyan-500 animate-spin" />
             ) : isDone ? (
-              <CheckCircle2 className="h-7 w-7 text-emerald-500 animate-fade-in" />
+              <CheckCircle2 className="h-7 w-7 text-cyan-500 animate-fade-in" />
             ) : (
               <Icon className={`h-7 w-7 ${typeInfo.color}`} />
             )}
@@ -287,7 +287,7 @@ export function FileCard({ file, downloadState = "idle", onDownload, onDelete, o
             {isImage && !isDownloading && !isDone && (
               <div className="absolute bottom-2 right-2 flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-[var(--color-surface)]/80 backdrop-blur-sm border border-[var(--color-border)]/50">
                 <Lock className="h-2.5 w-2.5 text-[var(--color-text-muted)]" />
-                <span className="text-[9px] text-[var(--color-text-muted)]">Encrypted</span>
+                <span className="text-[10px] text-[var(--color-text-muted)]">Encrypted</span>
               </div>
             )}
           </div>
@@ -331,17 +331,17 @@ export function FileCard({ file, downloadState = "idle", onDownload, onDelete, o
         <div>
           <p className="text-sm font-medium truncate" title={file.original_name}>{file.original_name}</p>
           <div className="flex items-center gap-2 mt-1">
-            <span className="text-[11px] text-[var(--color-text-secondary)] tabular-nums">
+            <span className="text-xs text-[var(--color-text-secondary)] tabular-nums">
               {formatBytes(file.original_size)}
             </span>
             {isDownloading ? (
-              <span className="text-[11px] text-emerald-400 font-medium animate-pulse-soft">Downloading...</span>
+              <span className="text-xs text-cyan-400 font-medium animate-pulse-soft">Downloading...</span>
             ) : isDone ? (
-              <span className="text-[11px] text-emerald-500 font-medium animate-fade-in">Done</span>
+              <span className="text-xs text-cyan-500 font-medium animate-fade-in">Done</span>
             ) : (
               <>
-                <span className="text-[11px] text-[var(--color-text-muted)]">&middot;</span>
-                <span className={`text-[11px] font-medium ${wasCompressed ? "text-emerald-500" : "text-[var(--color-text-muted)]"}`}>
+                <span className="text-xs text-[var(--color-text-muted)]">&middot;</span>
+                <span className={`text-xs font-medium ${wasCompressed ? "text-cyan-500" : "text-[var(--color-text-muted)]"}`}>
                   {wasCompressed ? `${ratio}% saved` : "No compression"}
                 </span>
               </>
@@ -369,7 +369,7 @@ export function FileCard({ file, downloadState = "idle", onDownload, onDelete, o
 
         {!isDownloading && !isDone && file.sha256 && (
           <div className="flex items-center gap-1.5">
-            <code className="text-[9px] font-mono text-[var(--color-text-muted)] truncate flex-1">
+            <code className="text-[10px] font-mono text-[var(--color-text-muted)] truncate flex-1">
               SHA: {file.sha256.slice(0, 12)}...
             </code>
             <button
@@ -377,7 +377,7 @@ export function FileCard({ file, downloadState = "idle", onDownload, onDelete, o
               className="flex-shrink-0 text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors p-0.5 rounded hover:bg-[var(--color-surface-1)]"
               title="Copy SHA-256"
             >
-              {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+              {copied ? <Check className="h-3 w-3 text-cyan-500" /> : <Copy className="h-3 w-3" />}
             </button>
           </div>
         )}
@@ -385,7 +385,7 @@ export function FileCard({ file, downloadState = "idle", onDownload, onDelete, o
         {isDownloading && (
           <div className="h-1 rounded-full bg-[var(--color-surface-2)] overflow-hidden">
             <div className="h-full rounded-full" style={{
-              background: "linear-gradient(90deg, #10b981, #34d399, #10b981)",
+              background: "linear-gradient(90deg, #00d5e4, #2de0ed, #00d5e4)",
               backgroundSize: "200% 100%",
               animation: "progress-shimmer 1.8s ease-in-out infinite",
               width: "100%",

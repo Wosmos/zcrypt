@@ -1,5 +1,5 @@
 import { PlatformStatus } from "@/types";
-import { Github, CheckCircle2, XCircle } from "lucide-react";
+import { Github, CheckCircle2, XCircle } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { GitlabIcon } from "@/components/icons/gitlab";
 import { HuggingFaceIcon } from "@/components/icons/huggingface";
@@ -27,7 +27,7 @@ export function PlatformCard({ status }: PlatformCardProps) {
       className={cn(
         "flex items-center gap-4 rounded-2xl border p-4 transition-all duration-200",
         status.connected
-          ? "bg-emerald-500/5 border-emerald-500/20 hover:border-emerald-500/30"
+          ? "bg-cyan-500/5 border-cyan-500/20 hover:border-cyan-500/30"
           : "bg-[var(--color-surface)] border-[var(--color-border)] hover:border-[var(--color-border-hover)]"
       )}
     >
@@ -35,7 +35,7 @@ export function PlatformCard({ status }: PlatformCardProps) {
         className={cn(
           "flex items-center justify-center h-11 w-11 rounded-xl",
           status.connected
-            ? "bg-emerald-500/10 ring-1 ring-emerald-500/20"
+            ? "bg-cyan-500/10 ring-1 ring-cyan-500/20"
             : "bg-[var(--color-surface-1)]"
         )}
       >
@@ -69,7 +69,7 @@ export function PlatformCard({ status }: PlatformCardProps) {
       </div>
 
       {status.connected ? (
-        <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full">
+        <div className="flex items-center gap-1.5 text-xs font-medium text-cyan-600 dark:text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-1 rounded-full">
           <CheckCircle2 className="h-3.5 w-3.5" />
           Connected
         </div>

@@ -7,7 +7,7 @@ import {
   File, FileText, Image, Video, Music, Archive, Code, Cog, Table,
   Download, Trash2, Eye, Loader2, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown,
   CheckSquare, Square,
-} from "lucide-react";
+} from "@/lib/icons";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -60,31 +60,31 @@ export function FileTable({ files, downloadStates, sortField, sortDir, onSort, o
                 </th>
               )}
               <th className="text-left px-4 py-3">
-                <button onClick={() => onSort("name")} className="flex items-center gap-1.5 text-[11px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider hover:text-[var(--color-text-secondary)] transition-colors">
+                <button onClick={() => onSort("name")} className="flex items-center gap-1.5 text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider hover:text-[var(--color-text-secondary)] transition-colors">
                   Name <SortIcon field="name" activeField={sortField} dir={sortDir} />
                 </button>
               </th>
               <th className="text-left px-4 py-3">
-                <button onClick={() => onSort("type")} className="flex items-center gap-1.5 text-[11px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider hover:text-[var(--color-text-secondary)] transition-colors">
+                <button onClick={() => onSort("type")} className="flex items-center gap-1.5 text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider hover:text-[var(--color-text-secondary)] transition-colors">
                   Type <SortIcon field="type" activeField={sortField} dir={sortDir} />
                 </button>
               </th>
               <th className="text-right px-4 py-3">
-                <button onClick={() => onSort("size")} className="flex items-center gap-1.5 text-[11px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider hover:text-[var(--color-text-secondary)] transition-colors ml-auto">
+                <button onClick={() => onSort("size")} className="flex items-center gap-1.5 text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider hover:text-[var(--color-text-secondary)] transition-colors ml-auto">
                   Size <SortIcon field="size" activeField={sortField} dir={sortDir} />
                 </button>
               </th>
               <th className="text-right px-4 py-3">
-                <button onClick={() => onSort("saved")} className="flex items-center gap-1.5 text-[11px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider hover:text-[var(--color-text-secondary)] transition-colors ml-auto">
+                <button onClick={() => onSort("saved")} className="flex items-center gap-1.5 text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider hover:text-[var(--color-text-secondary)] transition-colors ml-auto">
                   Saved <SortIcon field="saved" activeField={sortField} dir={sortDir} />
                 </button>
               </th>
               <th className="text-right px-4 py-3">
-                <button onClick={() => onSort("date")} className="flex items-center gap-1.5 text-[11px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider hover:text-[var(--color-text-secondary)] transition-colors ml-auto">
+                <button onClick={() => onSort("date")} className="flex items-center gap-1.5 text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider hover:text-[var(--color-text-secondary)] transition-colors ml-auto">
                   Date <SortIcon field="date" activeField={sortField} dir={sortDir} />
                 </button>
               </th>
-              <th className="text-right px-4 py-3 text-[11px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
+              <th className="text-right px-4 py-3 text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
                 Chunks
               </th>
               <th className="text-right px-4 py-3 w-[120px]" />
@@ -109,7 +109,7 @@ export function FileTable({ files, downloadStates, sortField, sortDir, onSort, o
                   className={cn(
                     "border-b border-[var(--color-border)] last:border-0 transition-colors group",
                     selectable && "cursor-pointer",
-                    isDownloading ? "bg-emerald-500/5" : isDone ? "bg-emerald-500/5" : isSelected ? "bg-[var(--color-accent)]/5" : "hover:bg-[var(--color-surface-1)]"
+                    isDownloading ? "bg-cyan-500/5" : isDone ? "bg-cyan-500/5" : isSelected ? "bg-[var(--color-accent)]/5" : "hover:bg-[var(--color-surface-1)]"
                   )}
                 >
                   {selectable && (
@@ -127,9 +127,9 @@ export function FileTable({ files, downloadStates, sortField, sortDir, onSort, o
                     <div className="flex items-center gap-3">
                       <div className={cn("flex items-center justify-center h-8 w-8 rounded-lg flex-shrink-0", typeInfo.bg)}>
                         {isDownloading ? (
-                          <Loader2 className="h-4 w-4 text-emerald-500 animate-spin" />
+                          <Loader2 className="h-4 w-4 text-cyan-500 animate-spin" />
                         ) : isDone ? (
-                          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                          <CheckCircle2 className="h-4 w-4 text-cyan-500" />
                         ) : (
                           <Icon className={`h-4 w-4 ${typeInfo.color}`} />
                         )}
@@ -138,13 +138,13 @@ export function FileTable({ files, downloadStates, sortField, sortDir, onSort, o
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <span className="text-[11px] text-[var(--color-text-muted)] font-medium">{typeInfo.label}</span>
+                    <span className="text-xs text-[var(--color-text-muted)] font-medium">{typeInfo.label}</span>
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums text-[var(--color-text-secondary)]">
                     {formatBytes(file.original_size)}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <span className={cn("font-medium tabular-nums", Number(savings) > 0 ? "text-emerald-500" : "text-[var(--color-text-muted)]")}>
+                    <span className={cn("font-medium tabular-nums", Number(savings) > 0 ? "text-cyan-500" : "text-[var(--color-text-muted)]")}>
                       {savings}%
                     </span>
                   </td>
@@ -205,7 +205,7 @@ export function FileTable({ files, downloadStates, sortField, sortDir, onSort, o
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">{file.original_name}</p>
-                <p className="text-[11px] text-[var(--color-text-muted)]">
+                <p className="text-xs text-[var(--color-text-muted)]">
                   {formatBytes(file.original_size)} &middot; {savings}% saved &middot; {formatDate(file.created_at)}
                 </p>
               </div>

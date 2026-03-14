@@ -2,7 +2,7 @@
 
 import { useUploadStore } from "@/store/upload";
 import { ProgressBar } from "@/components/ui/progress-bar";
-import { X, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { X, CheckCircle2, AlertCircle, Loader2 } from "@/lib/icons";
 import { formatBytes } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
@@ -18,7 +18,7 @@ export function UploadQueue() {
   return (
     <div className="space-y-3 animate-fade-in">
       <div className="flex items-center justify-between">
-        <h3 className="text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
+        <h3 className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
           Upload Queue
           {queue.length > 1 && (
             <span className="ml-2 font-normal">
@@ -29,7 +29,7 @@ export function UploadQueue() {
         {hasCompleted && (
           <button
             onClick={clearCompleted}
-            className="text-[11px] text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors font-medium"
+            className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors font-medium"
           >
             Clear completed
           </button>
@@ -43,7 +43,7 @@ export function UploadQueue() {
             className={cn(
               "flex items-center gap-3 rounded-xl border p-3.5 transition-all duration-200",
               item.status === "done"
-                ? "bg-emerald-500/5 border-emerald-500/20"
+                ? "bg-cyan-500/5 border-cyan-500/20"
                 : item.status === "failed"
                   ? "bg-red-500/5 border-red-500/20"
                   : "bg-[var(--color-surface)] border-[var(--color-border)]"
@@ -51,13 +51,13 @@ export function UploadQueue() {
           >
             <div className="flex-shrink-0">
               {item.status === "done" && (
-                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                <CheckCircle2 className="h-4 w-4 text-cyan-500" />
               )}
               {item.status === "failed" && (
                 <AlertCircle className="h-4 w-4 text-red-500" />
               )}
               {item.status !== "done" && item.status !== "failed" && (
-                <Loader2 className="h-4 w-4 text-emerald-500 dark:text-emerald-400 animate-spin" />
+                <Loader2 className="h-4 w-4 text-cyan-500 dark:text-cyan-400 animate-spin" />
               )}
             </div>
 
@@ -65,7 +65,7 @@ export function UploadQueue() {
               <p className="text-sm truncate font-medium">
                 {item.file.name}
               </p>
-              <p className="text-[11px] text-[var(--color-text-muted)]">
+              <p className="text-xs text-[var(--color-text-muted)]">
                 {formatBytes(item.file.size)}
               </p>
               {item.status !== "done" &&
@@ -81,7 +81,7 @@ export function UploadQueue() {
                   />
                 )}
               {item.error && (
-                <p className="text-[11px] text-red-500 dark:text-red-400 mt-1">{item.error}</p>
+                <p className="text-xs text-red-500 dark:text-red-400 mt-1">{item.error}</p>
               )}
             </div>
 

@@ -2,7 +2,7 @@
 
 import { formatBytes } from "@/lib/utils";
 import type { RepoInfo } from "@/types";
-import { Github } from "lucide-react";
+import { Github } from "@/lib/icons";
 import { GitlabIcon } from "@/components/icons/gitlab";
 import { HuggingFaceIcon } from "@/components/icons/huggingface";
 import { TelegramIcon } from "@/components/icons/telegram";
@@ -58,7 +58,7 @@ export function PlatformBreakdown({ repos }: PlatformBreakdownProps) {
                   <div className="flex items-center gap-2">
                     {platformIcons[platform] || null}
                     <span className="text-sm font-medium capitalize">{platform}</span>
-                    <span className="text-[11px] text-[var(--color-text-muted)]">
+                    <span className="text-xs text-[var(--color-text-muted)]">
                       {data.repoCount} repo{data.repoCount !== 1 ? "s" : ""}
                     </span>
                   </div>

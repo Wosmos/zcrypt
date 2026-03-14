@@ -21,7 +21,7 @@ import {
   TableProperties,
   CheckSquare,
   Lock,
-} from "lucide-react";
+} from "@/lib/icons";
 
 const PAGE_SIZE = 12;
 
@@ -144,8 +144,8 @@ const MOCK_REPOS: RepoInfo[] = [
   {
     id: "r1",
     platform: "huggingface",
-    name: "zpush-vault-01",
-    url: "https://huggingface.co/datasets/user/zpush-vault-01",
+    name: "zcrypt-vault-01",
+    url: "https://huggingface.co/datasets/user/zcrypt-vault-01",
     used_bytes: 12_400_000_000,
     max_bytes: 280_000_000_000,
     active: true,
@@ -153,8 +153,8 @@ const MOCK_REPOS: RepoInfo[] = [
   {
     id: "r2",
     platform: "huggingface",
-    name: "zpush-vault-02",
-    url: "https://huggingface.co/datasets/user/zpush-vault-02",
+    name: "zcrypt-vault-02",
+    url: "https://huggingface.co/datasets/user/zcrypt-vault-02",
     used_bytes: 4_000_000_000,
     max_bytes: 280_000_000_000,
     active: true,
@@ -353,7 +353,7 @@ export default function DemoClient() {
                   : setSelectionMode(true)
               }
               className={cn(
-                "flex items-center gap-1.5 h-[38px] px-3 rounded-xl border text-[12px] font-medium transition-colors",
+                "flex items-center gap-1.5 h-[38px] px-3 rounded-xl border text-xs font-medium transition-colors",
                 selectionMode
                   ? "bg-[var(--color-accent)]/10 text-[var(--color-accent)] border-[var(--color-accent)]/20"
                   : "bg-[var(--color-surface)] text-[var(--color-text-muted)] border-[var(--color-border)] hover:border-[var(--color-border-hover)] hover:text-[var(--color-text-secondary)]",

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { adminCreateToken, adminDeleteToken } from "@/lib/api";
 import { toast } from "@/store/toast";
 import { cn } from "@/lib/utils";
-import { Key, Trash2, Globe, User, Plus, X } from "lucide-react";
+import { Key, Trash2, Globe, User, Plus, X } from "@/lib/icons";
 import type { PlatformTokenInfo } from "@/types";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
 
@@ -72,7 +72,7 @@ export function TokenManagement({
         <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border)]">
           <div>
             <h2 className="text-sm font-semibold">Platform Tokens</h2>
-            <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
+            <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
               {tokens.length} token{tokens.length !== 1 ? "s" : ""} registered
             </p>
           </div>
@@ -82,7 +82,7 @@ export function TokenManagement({
               "flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors",
               showForm
                 ? "bg-[var(--color-surface-2)] text-[var(--color-text)]"
-                : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20"
+                : "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 hover:bg-cyan-500/20"
             )}
           >
             {showForm ? (
@@ -103,7 +103,7 @@ export function TokenManagement({
               <select
                 value={platform}
                 onChange={(e) => setPlatform(e.target.value)}
-                className="h-10 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                className="h-10 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/30"
               >
                 <option value="github">GitHub</option>
                 <option value="gitlab">GitLab</option>
@@ -125,7 +125,7 @@ export function TokenManagement({
                   type="checkbox"
                   checked={isGlobal}
                   onChange={(e) => setIsGlobal(e.target.checked)}
-                  className="h-4 w-4 rounded border-[var(--color-border)] text-emerald-500 focus:ring-emerald-500/30"
+                  className="h-4 w-4 rounded border-[var(--color-border)] text-cyan-500 focus:ring-cyan-500/30"
                 />
                 <span className="text-sm text-[var(--color-text-secondary)]">
                   Global token (available to all users)
@@ -161,10 +161,10 @@ export function TokenManagement({
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-[13px] font-medium">
+                    <span className="text-sm font-medium">
                       {platformNames[t.platform] ?? t.platform}
                     </span>
-                    <span className="text-[11px] text-[var(--color-text-muted)]">
+                    <span className="text-xs text-[var(--color-text-muted)]">
                       @{t.username}
                     </span>
                     {t.is_global ? (
@@ -179,7 +179,7 @@ export function TokenManagement({
                       </span>
                     )}
                   </div>
-                  <p className="text-[11px] text-[var(--color-text-muted)]">
+                  <p className="text-xs text-[var(--color-text-muted)]">
                     Owner: {t.owner_email} &middot;{" "}
                     {new Date(t.created_at).toLocaleDateString()}
                   </p>
