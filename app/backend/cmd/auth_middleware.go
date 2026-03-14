@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/zpush/zpush/auth"
-	"github.com/zpush/zpush/types"
+	"github.com/zcrypt/zcrypt/auth"
+	"github.com/zcrypt/zcrypt/types"
 )
 
 type contextKey string

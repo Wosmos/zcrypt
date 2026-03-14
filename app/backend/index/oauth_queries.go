@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/zpush/zpush/types"
+	"github.com/zcrypt/zcrypt/types"
 )
 
 // GetOAuthProvider looks up an OAuth provider link by provider+providerID.

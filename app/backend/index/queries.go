@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/zpush/zpush/types"
+	"github.com/zcrypt/zcrypt/types"
 )
 
 // InsertFile stores file metadata in the index.

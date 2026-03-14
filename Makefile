@@ -13,7 +13,7 @@ dev-frontend:
 build: build-backend build-frontend
 
 build-backend:
-	cd app/backend && go build -o ../../dist/zpush-server .
+	cd app/backend && go build -o ../../dist/zcrypt-server .
 
 build-frontend:
 	cd app/frontend && bun run build

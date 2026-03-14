@@ -14,10 +14,10 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
-	"github.com/zpush/zpush/adapters"
-	"github.com/zpush/zpush/disguise"
-	"github.com/zpush/zpush/pipeline"
-	"github.com/zpush/zpush/types"
+	"github.com/zcrypt/zcrypt/adapters"
+	"github.com/zcrypt/zcrypt/disguise"
+	"github.com/zcrypt/zcrypt/pipeline"
+	"github.com/zcrypt/zcrypt/types"
 )
 
 // Max encrypted chunk size: 16MB data (ultra tier) + 12B IV + 16B tag + margin

@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/google/go-github/v60/github"
-	"github.com/zpush/zpush/disguise"
-	"github.com/zpush/zpush/types"
+	"github.com/zcrypt/zcrypt/disguise"
+	"github.com/zcrypt/zcrypt/types"
 )
 
 // GithubAdapter implements PlatformAdapter for GitHub.

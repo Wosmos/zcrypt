@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/zpush/zpush/auth"
-	"github.com/zpush/zpush/config"
-	"github.com/zpush/zpush/types"
+	"github.com/zcrypt/zcrypt/auth"
+	"github.com/zcrypt/zcrypt/config"
+	"github.com/zcrypt/zcrypt/types"
 )
 
 // getOAuthProviderConfig returns the OAuth config for a provider, or nil if not configured.

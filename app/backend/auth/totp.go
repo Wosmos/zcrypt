@@ -15,7 +15,7 @@ import (
 const (
 	totpPeriod = 30
 	totpDigits = 6
-	issuerName = "zpush"
+	issuerName = "zcrypt"
 )
 
 // GenerateTOTPSecret creates a new random 20-byte base32-encoded secret.

@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/zpush/zpush/auth"
-	"github.com/zpush/zpush/types"
+	"github.com/zcrypt/zcrypt/auth"
+	"github.com/zcrypt/zcrypt/types"
 )
 
 var emailRe = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)

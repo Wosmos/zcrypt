@@ -13,7 +13,7 @@ import (
 // Uses Resend HTTP API (works on cloud platforms that block SMTP).
 type EmailConfig struct {
 	APIKey string // Resend API key
-	From   string // Sender address (e.g. "zpush <noreply@yourdomain.com>")
+	From   string // Sender address (e.g. "zcrypt <noreply@yourdomain.com>")
 }
 
 // SendVerificationEmail sends an email verification link.
@@ -23,10 +23,10 @@ func SendVerificationEmail(cfg *EmailConfig, to, token, baseURL string) error {
 	}
 
 	link := fmt.Sprintf("%s/verify-email?token=%s", baseURL, token)
-	subject := "Verify your zpush account"
+	subject := "Verify your zcrypt account"
 	body := fmt.Sprintf(`<!DOCTYPE html>
 <html><body style="font-family:sans-serif;color:#333;max-width:480px;margin:0 auto;padding:32px">
-<h2 style="color:#10b981">Welcome to zpush</h2>
+<h2 style="color:#10b981">Welcome to zcrypt</h2>
 <p>Click below to verify your email address:</p>
 <p><a href="%s" style="display:inline-block;background:#10b981;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">Verify Email</a></p>
 <p style="color:#999;font-size:12px;margin-top:32px">This link expires in 24 hours. If you didn't create this account, ignore this email.</p>
@@ -42,7 +42,7 @@ func SendPasswordResetEmail(cfg *EmailConfig, to, token, baseURL string) error {
 	}
 
 	link := fmt.Sprintf("%s/reset-password?token=%s", baseURL, token)
-	subject := "Reset your zpush password"
+	subject := "Reset your zcrypt password"
 	body := fmt.Sprintf(`<!DOCTYPE html>
 <html><body style="font-family:sans-serif;color:#333;max-width:480px;margin:0 auto;padding:32px">
 <h2 style="color:#10b981">Password Reset</h2>
@@ -61,10 +61,10 @@ func SendMagicLinkEmail(cfg *EmailConfig, to, token, baseURL string) error {
 	}
 
 	link := fmt.Sprintf("%s/magic-link?token=%s", baseURL, token)
-	subject := "Your zpush login link"
+	subject := "Your zcrypt login link"
 	body := fmt.Sprintf(`<!DOCTYPE html>
 <html><body style="font-family:sans-serif;color:#333;max-width:480px;margin:0 auto;padding:32px">
-<h2 style="color:#10b981">Login to zpush</h2>
+<h2 style="color:#10b981">Login to zcrypt</h2>
 <p>Click below to log in to your account:</p>
 <p><a href="%s" style="display:inline-block;background:#10b981;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">Log In</a></p>
 <p style="color:#999;font-size:12px;margin-top:32px">This link expires in 15 minutes. If you didn't request this, ignore this email.</p>

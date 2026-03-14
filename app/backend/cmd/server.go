@@ -9,12 +9,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/zpush/zpush/adapters"
-	"github.com/zpush/zpush/config"
-	"github.com/zpush/zpush/crypto"
-	"github.com/zpush/zpush/index"
-	"github.com/zpush/zpush/pipeline"
-	"github.com/zpush/zpush/reppool"
+	"github.com/zcrypt/zcrypt/adapters"
+	"github.com/zcrypt/zcrypt/config"
+	"github.com/zcrypt/zcrypt/crypto"
+	"github.com/zcrypt/zcrypt/index"
+	"github.com/zcrypt/zcrypt/pipeline"
+	"github.com/zcrypt/zcrypt/reppool"
 )
 
 // Server holds shared state for all HTTP handlers.

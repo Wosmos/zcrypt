@@ -15,8 +15,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zpush/zpush/disguise"
-	"github.com/zpush/zpush/types"
+	"github.com/zcrypt/zcrypt/disguise"
+	"github.com/zcrypt/zcrypt/types"
 )
 
 const (

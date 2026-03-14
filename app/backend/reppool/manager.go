@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/zpush/zpush/adapters"
-	"github.com/zpush/zpush/disguise"
-	"github.com/zpush/zpush/index"
-	"github.com/zpush/zpush/types"
+	"github.com/zcrypt/zcrypt/adapters"
+	"github.com/zcrypt/zcrypt/disguise"
+	"github.com/zcrypt/zcrypt/index"
+	"github.com/zcrypt/zcrypt/types"
 )
 
 // Manager manages the repository pool for a platform account.

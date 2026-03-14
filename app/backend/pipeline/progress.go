@@ -3,7 +3,7 @@ package pipeline
 import (
 	"sync"
 
-	"github.com/zpush/zpush/types"
+	"github.com/zcrypt/zcrypt/types"
 )
 
 // SSEEvent wraps both progress and audit events for SSE delivery.

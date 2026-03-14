@@ -1,8 +1,8 @@
-# zpush Client-Side Computation Architecture
+# zcrypt Client-Side Computation Architecture
 
 ## Overview
 
-This document describes the architectural shift from server-side to client-side file processing in zpush. The core idea: move compression, encryption, chunking, and hashing from the Go backend to the user's device. The server becomes a thin authenticated relay — it never sees plaintext data.
+This document describes the architectural shift from server-side to client-side file processing in zcrypt. The core idea: move compression, encryption, chunking, and hashing from the Go backend to the user's device. The server becomes a thin authenticated relay — it never sees plaintext data.
 
 ```
 CURRENT (Server-Side):
@@ -19,13 +19,13 @@ NEW (Client-Side):
 
 ## Why This Change
 
-| Problem | Current | After Migration |
-|---------|---------|-----------------|
-| **Max file size** | ~500MB (encryption loads full file into RAM) | Unlimited (streaming per-chunk) |
-| **Server RAM per upload** | 2x file size (encrypt doubles it) | ~30MB constant |
-| **Zero-knowledge claim** | Partially true (server briefly holds plaintext) | **Fully true** (server never sees plaintext) |
-| **Concurrent uploads** | Limited by server RAM | Limited by client count (server is stateless) |
-| **Server cost** | High (Railway processes every byte) | Low (just relays encrypted blobs) |
+| Problem                   | Current                                         | After Migration                               |
+| ------------------------- | ----------------------------------------------- | --------------------------------------------- |
+| **Max file size**         | ~500MB (encryption loads full file into RAM)    | Unlimited (streaming per-chunk)               |
+| **Server RAM per upload** | 2x file size (encrypt doubles it)               | ~30MB constant                                |
+| **Zero-knowledge claim**  | Partially true (server briefly holds plaintext) | **Fully true** (server never sees plaintext)  |
+| **Concurrent uploads**    | Limited by server RAM                           | Limited by client count (server is stateless) |
+| **Server cost**           | High (Railway processes every byte)             | Low (just relays encrypted blobs)             |
 
 ### Real-World Incident: 300MB File Crashes Railway
 
@@ -364,46 +364,46 @@ The main browser thread must stay free for UI rendering. Compression and encrypt
 
 ### Worker Count by Platform
 
-| Platform | Recommended Workers | Why |
-|----------|-------------------|-----|
-| Desktop browser | 4-8 | Multiple CPU cores, plenty of RAM |
-| Mobile browser | 1-2 | Limited cores, battery concern |
-| Capacitor (Android) | 2 | WebView constraints |
-| Tauri (Desktop) | Native threads (not Workers) | Direct Rust, no Worker overhead |
+| Platform            | Recommended Workers          | Why                               |
+| ------------------- | ---------------------------- | --------------------------------- |
+| Desktop browser     | 4-8                          | Multiple CPU cores, plenty of RAM |
+| Mobile browser      | 1-2                          | Limited cores, battery concern    |
+| Capacitor (Android) | 2                            | WebView constraints               |
+| Tauri (Desktop)     | Native threads (not Workers) | Direct Rust, no Worker overhead   |
 
 ### Worker Message Protocol
 
 ```typescript
 // Main thread → Worker
 interface WorkerTask {
-  type: "process_chunk"
-  chunkIndex: number
-  fileSlice: ArrayBuffer        // 10MB raw chunk data
-  key: CryptoKey                // AES-256 key (non-extractable, transferred)
-  compress: boolean             // whether to attempt compression
+  type: "process_chunk";
+  chunkIndex: number;
+  fileSlice: ArrayBuffer; // 10MB raw chunk data
+  key: CryptoKey; // AES-256 key (non-extractable, transferred)
+  compress: boolean; // whether to attempt compression
 }
 
 // Worker → Main thread
 interface WorkerResult {
-  type: "chunk_ready"
-  chunkIndex: number
-  encryptedChunk: ArrayBuffer   // IV + ciphertext + tag
-  sha256: string                // hex digest of encrypted chunk
-  originalSize: number          // raw chunk size before processing
-  processedSize: number         // after compression + encryption
-  compressed: boolean           // whether compression was applied
+  type: "chunk_ready";
+  chunkIndex: number;
+  encryptedChunk: ArrayBuffer; // IV + ciphertext + tag
+  sha256: string; // hex digest of encrypted chunk
+  originalSize: number; // raw chunk size before processing
+  processedSize: number; // after compression + encryption
+  compressed: boolean; // whether compression was applied
 }
 
 interface WorkerError {
-  type: "error"
-  chunkIndex: number
-  message: string
+  type: "error";
+  chunkIndex: number;
+  message: string;
 }
 
 interface WorkerProgress {
-  type: "progress"
-  chunkIndex: number
-  stage: "compressing" | "encrypting" | "hashing"
+  type: "progress";
+  chunkIndex: number;
+  stage: "compressing" | "encrypting" | "hashing";
 }
 ```
 
@@ -412,63 +412,65 @@ interface WorkerProgress {
 ```typescript
 // crypto-worker.ts (Web Worker)
 
-import { zstdCompress } from './zstd-wasm'  // WASM module
+import { zstdCompress } from "./zstd-wasm"; // WASM module
 
 self.onmessage = async (e: MessageEvent<WorkerTask>) => {
-  const { chunkIndex, fileSlice, key, compress } = e.data
+  const { chunkIndex, fileSlice, key, compress } = e.data;
 
   try {
-    let payload = new Uint8Array(fileSlice)
+    let payload = new Uint8Array(fileSlice);
 
     // Step 1: Compress (optional)
     if (compress) {
-      self.postMessage({ type: "progress", chunkIndex, stage: "compressing" })
-      const compressed = zstdCompress(payload)
+      self.postMessage({ type: "progress", chunkIndex, stage: "compressing" });
+      const compressed = zstdCompress(payload);
       if (compressed.length < payload.length) {
-        payload = compressed
+        payload = compressed;
       }
     }
 
     // Step 2: Encrypt
-    self.postMessage({ type: "progress", chunkIndex, stage: "encrypting" })
-    const iv = crypto.getRandomValues(new Uint8Array(12))
+    self.postMessage({ type: "progress", chunkIndex, stage: "encrypting" });
+    const iv = crypto.getRandomValues(new Uint8Array(12));
     const ciphertext = await crypto.subtle.encrypt(
       { name: "AES-GCM", iv },
       key,
-      payload
-    )
+      payload,
+    );
 
     // Step 3: Build output: IV || ciphertext (GCM tag is appended by WebCrypto)
-    const encrypted = new Uint8Array(12 + ciphertext.byteLength)
-    encrypted.set(iv, 0)
-    encrypted.set(new Uint8Array(ciphertext), 12)
+    const encrypted = new Uint8Array(12 + ciphertext.byteLength);
+    encrypted.set(iv, 0);
+    encrypted.set(new Uint8Array(ciphertext), 12);
 
     // Step 4: Hash
-    self.postMessage({ type: "progress", chunkIndex, stage: "hashing" })
-    const hashBuffer = await crypto.subtle.digest("SHA-256", encrypted)
+    self.postMessage({ type: "progress", chunkIndex, stage: "hashing" });
+    const hashBuffer = await crypto.subtle.digest("SHA-256", encrypted);
     const hashHex = Array.from(new Uint8Array(hashBuffer))
-      .map(b => b.toString(16).padStart(2, "0"))
-      .join("")
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
 
     // Step 5: Return result
-    self.postMessage({
-      type: "chunk_ready",
-      chunkIndex,
-      encryptedChunk: encrypted.buffer,
-      sha256: hashHex,
-      originalSize: fileSlice.byteLength,
-      processedSize: encrypted.byteLength,
-      compressed: payload.length < fileSlice.byteLength,
-    } as WorkerResult, [encrypted.buffer])  // transfer ownership (zero-copy)
-
+    self.postMessage(
+      {
+        type: "chunk_ready",
+        chunkIndex,
+        encryptedChunk: encrypted.buffer,
+        sha256: hashHex,
+        originalSize: fileSlice.byteLength,
+        processedSize: encrypted.byteLength,
+        compressed: payload.length < fileSlice.byteLength,
+      } as WorkerResult,
+      [encrypted.buffer],
+    ); // transfer ownership (zero-copy)
   } catch (err) {
     self.postMessage({
       type: "error",
       chunkIndex,
       message: err instanceof Error ? err.message : "Unknown error",
-    } as WorkerError)
+    } as WorkerError);
   }
-}
+};
 ```
 
 ---
@@ -477,19 +479,19 @@ self.onmessage = async (e: MessageEvent<WorkerTask>) => {
 
 ### When to Use WASM
 
-| Operation | Web Crypto API | WASM | Use WASM? |
-|-----------|---------------|------|-----------|
-| AES-256-GCM | Native, hardware-accelerated | Same speed | **No** |
-| SHA-256 | Native, hardware-accelerated | Same speed | **No** |
-| PBKDF2 | Native | Same speed | **No** |
-| **zstd compression** | **Not available** | **Near-native speed** | **Yes** |
+| Operation            | Web Crypto API               | WASM                  | Use WASM? |
+| -------------------- | ---------------------------- | --------------------- | --------- |
+| AES-256-GCM          | Native, hardware-accelerated | Same speed            | **No**    |
+| SHA-256              | Native, hardware-accelerated | Same speed            | **No**    |
+| PBKDF2               | Native                       | Same speed            | **No**    |
+| **zstd compression** | **Not available**            | **Near-native speed** | **Yes**   |
 
 WASM is only needed for zstd compression. Everything else uses the Web Crypto API which is already native.
 
 ### WASM Module (Rust → WASM)
 
 ```rust
-// zpush-crypto/src/lib.rs
+// zcrypt-crypto/src/lib.rs
 use wasm_bindgen::prelude::*;
 use zstd;
 
@@ -509,19 +511,19 @@ pub fn decompress(data: &[u8]) -> Result<Vec<u8>, JsValue> {
 
 ```bash
 wasm-pack build --target web --out-dir pkg
-# Output: zpush_crypto_bg.wasm (~200KB)
+# Output: zcrypt_crypto_bg.wasm (~200KB)
 ```
 
 **Usage in Worker:**
 
 ```typescript
-import init, { compress, decompress } from './zpush-crypto/pkg'
+import init, { compress, decompress } from "./zcrypt-crypto/pkg";
 
 // Initialize WASM once per worker
-await init()
+await init();
 
 // Compress a chunk
-const compressed = compress(chunkData, 3)  // level 3 = good balance
+const compressed = compress(chunkData, 3); // level 3 = good balance
 ```
 
 ### Compression Decision Per-Chunk
@@ -529,9 +531,9 @@ const compressed = compress(chunkData, 3)  // level 3 = good balance
 Each chunk independently decides whether compression helps:
 
 ```typescript
-const compressed = zstdCompress(rawChunk)
-const useCompressed = compressed.length < rawChunk.length * 0.95  // 5% threshold
-const payload = useCompressed ? compressed : rawChunk
+const compressed = zstdCompress(rawChunk);
+const useCompressed = compressed.length < rawChunk.length * 0.95; // 5% threshold
+const payload = useCompressed ? compressed : rawChunk;
 ```
 
 The `compressed` flag is stored per-chunk in the manifest so the download pipeline knows whether to decompress each chunk.
@@ -670,16 +672,16 @@ Scenario: User uploads 50-chunk file, connection dies after chunk 30.
 
 ```typescript
 interface UploadSession {
-  uploadId: string
-  fileId: string
-  fileName: string
-  fileSize: number
-  salt: Uint8Array              // needed to re-derive key on resume
-  totalChunks: number
-  completedChunks: number[]     // indices of uploaded chunks
-  compressed: boolean
-  startedAt: number
-  platform: string
+  uploadId: string;
+  fileId: string;
+  fileName: string;
+  fileSize: number;
+  salt: Uint8Array; // needed to re-derive key on resume
+  totalChunks: number;
+  completedChunks: number[]; // indices of uploaded chunks
+  compressed: boolean;
+  startedAt: number;
+  platform: string;
 }
 ```
 
@@ -841,13 +843,13 @@ CREATE TABLE upload_sessions (
 
 ### Per-Upload Memory
 
-| | Current (Server) | Browser | Mobile | Desktop (Tauri) |
-|---|---|---|---|---|
-| 100MB file | 200MB server RAM | 30MB client | 30MB client | 50MB client |
-| 1GB file | 2GB server RAM | 30MB client | 30MB client | 50MB client |
-| 10GB file | CRASH | 30MB client | 30MB client | 50MB client |
-| 50GB file | CRASH | 30MB client | N/A | 50MB client |
-| Server RAM | 2x file size | **~10MB** | **~10MB** | **~10MB** |
+|            | Current (Server) | Browser     | Mobile      | Desktop (Tauri) |
+| ---------- | ---------------- | ----------- | ----------- | --------------- |
+| 100MB file | 200MB server RAM | 30MB client | 30MB client | 50MB client     |
+| 1GB file   | 2GB server RAM   | 30MB client | 30MB client | 50MB client     |
+| 10GB file  | CRASH            | 30MB client | 30MB client | 50MB client     |
+| 50GB file  | CRASH            | 30MB client | N/A         | 50MB client     |
+| Server RAM | 2x file size     | **~10MB**   | **~10MB**   | **~10MB**       |
 
 Memory is constant because only one 10MB chunk is in memory at a time per worker/thread. Previous chunks are garbage collected after upload.
 
@@ -857,16 +859,16 @@ Memory is constant because only one 10MB chunk is in memory at a time per worker
 
 ### Threat Model
 
-| Threat | Current Architecture | Client-Side Architecture |
-|--------|---------------------|------------------------|
-| Server compromise | Attacker sees plaintext during processing | **Attacker sees only encrypted blobs** |
-| Database leak | Salt + IV exposed, but useless without passphrase | Same — salt exposed, useless without passphrase |
-| Platform token leak | Attacker downloads encrypted chunks | Same — chunks are encrypted |
-| Man-in-middle | TLS protects transit (plaintext on server) | TLS protects transit (**end-to-end encrypted**) |
-| Rogue server admin | Can read files during processing | **Cannot read files at any point** |
-| Passphrase brute force | 600,000 PBKDF2 iterations | Same — 600,000 PBKDF2 iterations |
+| Threat                 | Current Architecture                              | Client-Side Architecture                        |
+| ---------------------- | ------------------------------------------------- | ----------------------------------------------- |
+| Server compromise      | Attacker sees plaintext during processing         | **Attacker sees only encrypted blobs**          |
+| Database leak          | Salt + IV exposed, but useless without passphrase | Same — salt exposed, useless without passphrase |
+| Platform token leak    | Attacker downloads encrypted chunks               | Same — chunks are encrypted                     |
+| Man-in-middle          | TLS protects transit (plaintext on server)        | TLS protects transit (**end-to-end encrypted**) |
+| Rogue server admin     | Can read files during processing                  | **Cannot read files at any point**              |
+| Passphrase brute force | 600,000 PBKDF2 iterations                         | Same — 600,000 PBKDF2 iterations                |
 
-**Client-side is strictly more secure.** The server never has access to plaintext, making zpush truly zero-knowledge.
+**Client-side is strictly more secure.** The server never has access to plaintext, making zcrypt truly zero-knowledge.
 
 ### What the Server Can Still See
 
@@ -985,12 +987,12 @@ Client-side:
 
 ## File Size Limits Summary
 
-| Platform | Current (Server-Side) | After Migration (Client-Side) |
-|----------|----------------------|------------------------------|
-| Browser | 500MB (server OOM) | **10GB** (limited by temp storage) |
-| Mobile (Capacitor) | 500MB | **2GB** (limited by device storage) |
-| Desktop (Tauri) | 500MB | **50GB+** (limited by disk space) |
-| Server RAM usage | 2x file size | **~30MB constant** |
+| Platform           | Current (Server-Side) | After Migration (Client-Side)       |
+| ------------------ | --------------------- | ----------------------------------- |
+| Browser            | 500MB (server OOM)    | **10GB** (limited by temp storage)  |
+| Mobile (Capacitor) | 500MB                 | **2GB** (limited by device storage) |
+| Desktop (Tauri)    | 500MB                 | **50GB+** (limited by disk space)   |
+| Server RAM usage   | 2x file size          | **~30MB constant**                  |
 
 ---
 
@@ -1050,12 +1052,12 @@ To verify a passphrase is correct without downloading and decrypting a full file
 
 ```
 During upload:
-  verification_tag = HMAC-SHA256(key, "zpush-verify")
+  verification_tag = HMAC-SHA256(key, "zcrypt-verify")
   Store verification_tag in file metadata
 
 During download:
   Derive key from passphrase + salt
-  computed_tag = HMAC-SHA256(key, "zpush-verify")
+  computed_tag = HMAC-SHA256(key, "zcrypt-verify")
   If computed_tag != stored verification_tag → wrong passphrase
   Else → proceed with download
 ```
