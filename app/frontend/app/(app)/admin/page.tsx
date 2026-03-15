@@ -8,6 +8,7 @@ import { FeedbackList } from "@/components/admin/feedback-list";
 import { adminGetStats, adminListTokens } from "@/lib/api";
 import { Role } from "@/types";
 import type { SystemStats, PlatformTokenInfo } from "@/types";
+import { OverviewSkeleton } from "@/components/admin/skeletons";
 
 export default function AdminOverviewPage() {
   const { user } = useAuthStore();
@@ -38,7 +39,7 @@ export default function AdminOverviewPage() {
 
   if (!user || user.role !== Role.Admin) return null;
 
-  if (loading) return null;
+  if (loading) return <OverviewSkeleton />;
 
   return (
     <div className="space-y-8">

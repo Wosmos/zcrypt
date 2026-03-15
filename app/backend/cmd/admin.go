@@ -66,21 +66,7 @@ func defaultPlanConfigs() *types.PlanConfigs {
 				Highlight: true, Badge: &badge, SocialProof: &socialProof,
 				SortOrder: 2,
 			},
-			{
-				ID: "team", Name: "Team", MonthlyPrice: 0, AnnualPrice: 0,
-				Description:          "For organizations (contact us).",
-				StorageBytes:         1 * 1024 * 1024 * 1024 * 1024,
-				MaxFileBytes:         25 * 1024 * 1024 * 1024,
-				MaxConcurrentUploads: 10,
-				StorageDisplay:       "1 TB per seat", MaxFileDisplay: "25 GB", ConcurrentDisplay: "10 uploads",
-				Features: []types.PlanFeature{
-					{Text: "Everything in Pro", Included: true},
-					{Text: "Team management", Included: true},
-					{Text: "SSO / SAML", Included: true},
-				},
-				SortOrder: 3,
 			},
-		},
 	}
 }
 
@@ -145,12 +131,35 @@ func (s *Server) getPlanMaxConcurrent(ctx context.Context, plan string) int {
 	return 2 // free fallback
 }
 
-// SeedPlanConfigs writes default plan configs to DB if not already set.
+// SeedPlanConfigs writes default plan configs to DB if not already set,
+// and removes deprecated plans (e.g. "team") from existing configs.
 func (s *Server) SeedPlanConfigs(ctx context.Context) {
-	_, err := s.db.GetSystemSetting(ctx, "plan_configs")
+	val, err := s.db.GetSystemSetting(ctx, "plan_configs")
 	if err != nil {
+		// No config yet — seed defaults
 		data, _ := json.Marshal(defaultPlanConfigs())
 		_ = s.db.SetSystemSetting(ctx, "plan_configs", string(data))
+		return
+	}
+
+	// Migrate: remove deprecated "team" plan if present
+	var existing types.PlanConfigs
+	if json.Unmarshal([]byte(val), &existing) == nil {
+		filtered := make([]types.PlanConfig, 0, len(existing.Plans))
+		changed := false
+		for _, p := range existing.Plans {
+			if p.ID == "team" {
+				changed = true
+				continue
+			}
+			filtered = append(filtered, p)
+		}
+		if changed {
+			existing.Plans = filtered
+			data, _ := json.Marshal(&existing)
+			_ = s.db.SetSystemSetting(ctx, "plan_configs", string(data))
+			s.invalidatePlanCache()
+		}
 	}
 }
 

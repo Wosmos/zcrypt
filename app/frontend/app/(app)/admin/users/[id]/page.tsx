@@ -9,6 +9,7 @@ import { toast } from "@/store/toast";
 import { Role } from "@/types";
 import type { AdminUserDetail, PlanConfig } from "@/types";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
+import { UserDetailSkeleton } from "@/components/admin/skeletons";
 import {
   ArrowLeft,
   Shield,
@@ -124,7 +125,7 @@ export default function AdminUserDetailPage() {
   }, [currentUser, id]);
 
   if (!currentUser || currentUser.role !== Role.Admin) return null;
-  if (loading || !data) return null;
+  if (loading || !data) return <UserDetailSkeleton />;
 
   const u = data.user;
   const isSelf = u.id === currentUser.id;
@@ -293,11 +294,9 @@ export default function AdminUserDetailPage() {
                       ? "bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20"
                       : (u.plan || "free") === "plus"
                         ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
-                        : (u.plan || "free") === "team"
-                          ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
-                          : "bg-[var(--color-surface-2)] text-[var(--color-text-muted)] border-[var(--color-border)]"
+                        : "bg-[var(--color-surface-2)] text-[var(--color-text-muted)] border-[var(--color-border)]"
                   )}>
-                    {["pro", "plus", "team"].includes(u.plan || "free") && <Crown className="h-3 w-3" />}
+                    {["pro", "plus"].includes(u.plan || "free") && <Crown className="h-3 w-3" />}
                     {u.plan || "free"}
                   </span>
                   {u.totp_enabled && (

@@ -5,6 +5,7 @@ import { adminGetAuditLog, type AdminAuditResponse } from "@/lib/api";
 import { useOperationStatus } from "@/hooks/useOperationStatus";
 import type { AuditEvent } from "@/lib/auth-api";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Pagination } from "@/components/ui/pagination";
 import {
   Shield,
@@ -174,7 +175,21 @@ export function AuditLog() {
 
       <div className="divide-y divide-[var(--color-border)]">
         {loading && events.length === 0 ? (
-          <div className="p-8 text-center text-sm text-[var(--color-text-muted)]">Loading...</div>
+          <div className="divide-y divide-[var(--color-border)]">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 px-5 py-3">
+                <Skeleton className="h-8 w-8 rounded-lg flex-shrink-0" />
+                <div className="flex-1 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-3 w-20" />
+                    <Skeleton className="h-3 w-24" />
+                  </div>
+                  <Skeleton className="h-2.5 w-48" />
+                </div>
+                <Skeleton className="h-3 w-16" />
+              </div>
+            ))}
+          </div>
         ) : events.length === 0 ? (
           <div className="p-8 text-center text-sm text-[var(--color-text-muted)]">No events found</div>
         ) : (
