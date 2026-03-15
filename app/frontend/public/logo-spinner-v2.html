@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>zcrypt — Extraordinary Spinners</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@700&family=Inter:wght@400;500&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet"/>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#06060a;color:#f0f2f8;font-family:'Inter',sans-serif;min-height:100vh;overflow-x:hidden}
+  .header{text-align:center;padding:60px 20px 48px}
+  .header h1{font-family:'Manrope';font-size:28px;font-weight:700;letter-spacing:-0.5px}
+  .header h1 span{color:#00d5e4}
+  .header p{color:#5c6184;font-size:13px;margin-top:8px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:28px;max-width:1280px;margin:0 auto;padding:0 24px 80px}
+  .card{
+    background:linear-gradient(165deg,#0a0c14 0%,#0d0f18 100%);
+    border:1px solid rgba(30,35,64,0.6);
+    border-radius:24px;padding:56px 32px 40px;
+    display:flex;flex-direction:column;align-items:center;gap:32px;
+    position:relative;overflow:hidden;
+  }
+  .card::before{content:'';position:absolute;top:0;left:20%;right:20%;height:1px;background:linear-gradient(90deg,transparent,rgba(0,213,228,0.12),transparent)}
+  .card h3{font-family:'Manrope';font-size:16px;font-weight:700;letter-spacing:-0.3px}
+  .card p{font-size:11px;color:#5c6184;text-align:center;max-width:280px;line-height:1.7}
+  .tag{font-size:9px;letter-spacing:2px;text-transform:uppercase;padding:4px 10px;border-radius:6px;background:rgba(0,213,228,0.08);color:#00d5e4;position:absolute;top:16px;right:16px}
+
+  /* ═══════════════════════════════════════════════════
+     1 — CIPHER DECODE: z scrambles through characters
+     ═══════════════════════════════════════════════════ */
+  .cipher{position:relative;width:88px;height:88px;perspective:600px}
+  .cipher .back{
+    position:absolute;width:50px;height:50px;border-radius:11px;
+    background:linear-gradient(145deg,#008a97,#006d77);
+    top:2px;left:0;
+    transform:rotateY(-14deg) rotateX(7deg) translateZ(-6px);
+    box-shadow:-2px 3px 12px rgba(0,0,0,0.6);
+  }
+  .cipher .front{
+    position:absolute;width:50px;height:50px;border-radius:11px;
+    background:linear-gradient(145deg,#00e8f8,#00c5d4);
+    top:19px;left:30px;
+    transform:rotateY(-9deg) rotateX(4deg) translateZ(6px);
+    box-shadow:-6px 6px 24px rgba(0,0,0,0.4),0 1px 0 rgba(255,255,255,0.15) inset;
+    display:flex;align-items:center;justify-content:center;
+    overflow:hidden;
+  }
+  .cipher .char{
+    font-family:'JetBrains Mono';font-size:22px;font-weight:500;color:#09090b;
+    animation:cipherScramble 2.4s steps(1) infinite;
+  }
+  .cipher .front::after{
+    content:'';position:absolute;inset:0;
+    background:linear-gradient(180deg,rgba(255,255,255,0.12) 0%,transparent 40%);
+    pointer-events:none;
+  }
+  /* Glow pulse behind */
+  .cipher::before{
+    content:'';position:absolute;top:50%;left:50%;width:70px;height:70px;
+    margin:-35px 0 0 -35px;border-radius:50%;
+    background:radial-gradient(circle,rgba(0,213,228,0.15) 0%,transparent 70%);
+    animation:cipherGlow 2.4s ease-in-out infinite;
+  }
+  @keyframes cipherScramble{
+    0%{content:'#'}2%{content:'$'}4%{content:'@'}6%{content:'&'}
+    8%{content:'%'}10%{content:'!'}12%{content:'?'}14%{content:'>'}
+    16%{content:'<'}18%{content:'/'}20%{content:'='}22%{content:'+'}
+    24%{content:'~'}26%{content:'^'}28%{content:'*'}30%{content:'{'}
+    32%{content:'}'}34%{content:'['}36%{content:']'}38%{content:'|'}
+    40%,100%{content:'z'}
+  }
+  @keyframes cipherGlow{
+    0%,38%{opacity:0;transform:scale(0.8)}
+    42%{opacity:1;transform:scale(1.2)}
+    60%,100%{opacity:0;transform:scale(1)}
+  }
+
+  /* ═══════════════════════════════════════════════════
+     2 — HELIX: two planes orbit in a double helix
+     ═══════════════════════════════════════════════════ */
+  .helix{position:relative;width:80px;height:80px;perspective:800px;transform-style:preserve-3d}
+  .helix-container{
+    width:100%;height:100%;position:relative;
+    transform-style:preserve-3d;
+    animation:helixSpin 3s linear infinite;
+  }
+  .helix .p1,.helix .p2{
+    position:absolute;width:36px;height:36px;border-radius:9px;
+    top:50%;left:50%;margin:-18px 0 0 -18px;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .helix .p1{
+    background:linear-gradient(145deg,#008a97,#006d77);
+    box-shadow:0 4px 16px rgba(0,0,0,0.5);
+    animation:helixOrbit1 3s linear infinite;
+  }
+  .helix .p2{
+    background:linear-gradient(145deg,#00e8f8,#00c5d4);
+    box-shadow:0 4px 16px rgba(0,0,0,0.3),0 1px 0 rgba(255,255,255,0.15) inset;
+    animation:helixOrbit2 3s linear infinite;
+  }
+  .helix .p2 span{font-family:'Manrope';font-size:16px;font-weight:700;color:#09090b}
+  /* Connecting strand */
+  .helix .strand{
+    position:absolute;top:50%;left:50%;width:2px;height:36px;
+    margin:-18px 0 0 -1px;
+    background:linear-gradient(180deg,#008a97,#00d5e4);opacity:0.2;
+    border-radius:1px;
+    animation:helixSpin 3s linear infinite;
+    transform-origin:center center;
+  }
+  @keyframes helixOrbit1{
+    0%{transform:rotateY(0deg) translateX(20px) rotateY(0deg)}
+    100%{transform:rotateY(360deg) translateX(20px) rotateY(-360deg)}
+  }
+  @keyframes helixOrbit2{
+    0%{transform:rotateY(180deg) translateX(20px) rotateY(-180deg)}
+    100%{transform:rotateY(540deg) translateX(20px) rotateY(-540deg)}
+  }
+  @keyframes helixSpin{
+    0%{transform:rotateX(65deg) rotateZ(0deg)}
+    100%{transform:rotateX(65deg) rotateZ(360deg)}
+  }
+
+  /* ═══════════════════════════════════════════════════
+     3 — HOLOGRAM: RGB split + scan lines + flicker
+     ═══════════════════════════════════════════════════ */
+  .holo{position:relative;width:88px;height:88px;perspective:600px;animation:holoFlicker 4s linear infinite}
+  .holo .base{position:absolute;width:50px;height:50px;border-radius:11px}
+  .holo .back{
+    top:2px;left:0;
+    background:linear-gradient(145deg,#008a97,#006d77);
+    transform:rotateY(-14deg) rotateX(7deg) translateZ(-6px);
+    box-shadow:-2px 3px 10px rgba(0,0,0,0.5);
+  }
+  .holo .front{
+    top:19px;left:30px;
+    background:linear-gradient(145deg,#00e8f8,#00c5d4);
+    transform:rotateY(-9deg) rotateX(4deg) translateZ(6px);
+    box-shadow:-6px 6px 24px rgba(0,0,0,0.35);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .holo .front span{font-family:'Manrope';font-size:22px;font-weight:700;color:#09090b}
+  /* RGB ghost layers */
+  .holo .ghost-r,.holo .ghost-b{
+    position:absolute;width:50px;height:50px;border-radius:11px;
+    top:19px;left:30px;pointer-events:none;mix-blend-mode:screen;
+    animation:holoShift 4s ease-in-out infinite;
+  }
+  .holo .ghost-r{
+    background:rgba(255,50,80,0.12);
+    animation-name:holoShiftR;
+  }
+  .holo .ghost-b{
+    background:rgba(50,120,255,0.12);
+    animation-name:holoShiftB;
+  }
+  /* Scan lines overlay */
+  .holo::after{
+    content:'';position:absolute;inset:0;pointer-events:none;
+    background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.05) 2px,rgba(0,0,0,0.05) 4px);
+    animation:holoScan 0.1s linear infinite;
+  }
+  @keyframes holoShiftR{
+    0%,85%,95%,100%{transform:rotateY(-9deg) rotateX(4deg) translateZ(6px) translate(0,0)}
+    90%{transform:rotateY(-9deg) rotateX(4deg) translateZ(6px) translate(3px,-1px)}
+  }
+  @keyframes holoShiftB{
+    0%,85%,95%,100%{transform:rotateY(-9deg) rotateX(4deg) translateZ(6px) translate(0,0)}
+    90%{transform:rotateY(-9deg) rotateX(4deg) translateZ(6px) translate(-3px,1px)}
+  }
+  @keyframes holoFlicker{
+    0%,87%,89%,91%,93%,100%{opacity:1}
+    88%{opacity:0.85}90%{opacity:0.92}92%{opacity:0.88}
+  }
+  @keyframes holoScan{0%{background-position:0 0}100%{background-position:0 4px}}
+
+  /* ═══════════════════════════════════════════════════
+     4 — PARTICLE FIELD: dots swirl into logo shape
+     ═══════════════════════════════════════════════════ */
+  .particles{position:relative;width:100px;height:100px}
+  .particles .dot{
+    position:absolute;width:3px;height:3px;border-radius:50%;
+    background:#00d5e4;
+    animation:particleOrbit var(--dur) linear infinite;
+    animation-delay:var(--del);
+    opacity:0.6;
+  }
+  .particles .core{
+    position:absolute;top:50%;left:50%;width:42px;height:42px;
+    margin:-21px 0 0 -21px;border-radius:10px;
+    background:linear-gradient(145deg,#00e8f8,#00c5d4);
+    box-shadow:0 0 30px rgba(0,213,228,0.2),0 1px 0 rgba(255,255,255,0.15) inset;
+    display:flex;align-items:center;justify-content:center;
+    animation:particleCorePulse 2s ease-in-out infinite;
+  }
+  .particles .core span{font-family:'Manrope';font-size:19px;font-weight:700;color:#09090b}
+  .particles .core-back{
+    position:absolute;top:50%;left:50%;width:42px;height:42px;
+    margin:-27px 0 0 -30px;border-radius:10px;
+    background:linear-gradient(145deg,#008a97,#006d77);
+    box-shadow:0 4px 16px rgba(0,0,0,0.5);
+    animation:particleCorePulse 2s ease-in-out infinite 0.1s;
+  }
+  @keyframes particleOrbit{
+    0%{transform:rotate(var(--angle)) translateX(var(--dist)) scale(0);opacity:0}
+    15%{opacity:0.8;transform:rotate(var(--angle)) translateX(var(--dist)) scale(1)}
+    85%{opacity:0.8;transform:rotate(calc(var(--angle) + 300deg)) translateX(12px) scale(1)}
+    95%{opacity:0;transform:rotate(calc(var(--angle) + 340deg)) translateX(6px) scale(0.3)}
+    100%{opacity:0;transform:rotate(calc(var(--angle) + 360deg)) translateX(0) scale(0)}
+  }
+  @keyframes particleCorePulse{
+    0%,100%{transform:scale(1);box-shadow:0 0 30px rgba(0,213,228,0.2)}
+    50%{transform:scale(0.96);box-shadow:0 0 20px rgba(0,213,228,0.1)}
+  }
+
+  /* ═══════════════════════════════════════════════════
+     5 — LINE DRAW: SVG stroke-dashoffset reveal
+     ═══════════════════════════════════════════════════ */
+  .linedraw svg{overflow:visible;filter:drop-shadow(0 0 12px rgba(0,213,228,0.2))}
+  .linedraw .plane-back{
+    stroke:#008a97;stroke-width:2;fill:none;
+    stroke-dasharray:160;stroke-dashoffset:160;
+    animation:drawStroke 2.5s ease-in-out infinite;
+  }
+  .linedraw .plane-back-fill{
+    fill:#008a97;opacity:0;
+    animation:fillFade 2.5s ease-in-out infinite;
+  }
+  .linedraw .plane-front{
+    stroke:#00d5e4;stroke-width:2;fill:none;
+    stroke-dasharray:160;stroke-dashoffset:160;
+    animation:drawStroke 2.5s ease-in-out infinite 0.3s;
+  }
+  .linedraw .plane-front-fill{
+    fill:#00d5e4;opacity:0;
+    animation:fillFade 2.5s ease-in-out infinite 0.3s;
+  }
+  .linedraw .z-letter{
+    fill:#09090b;opacity:0;
+    animation:zReveal 2.5s ease-in-out infinite;
+  }
+  /* Trail glow */
+  .linedraw .glow-back{
+    stroke:rgba(0,138,151,0.5);stroke-width:4;fill:none;
+    stroke-dasharray:160;stroke-dashoffset:160;
+    animation:drawStroke 2.5s ease-in-out infinite;
+    filter:blur(3px);
+  }
+  .linedraw .glow-front{
+    stroke:rgba(0,213,228,0.5);stroke-width:4;fill:none;
+    stroke-dasharray:160;stroke-dashoffset:160;
+    animation:drawStroke 2.5s ease-in-out infinite 0.3s;
+    filter:blur(3px);
+  }
+  @keyframes drawStroke{
+    0%{stroke-dashoffset:160}
+    35%{stroke-dashoffset:0}
+    70%{stroke-dashoffset:0}
+    100%{stroke-dashoffset:-160}
+  }
+  @keyframes fillFade{
+    0%,30%{opacity:0}
+    40%{opacity:0.9}
+    70%{opacity:0.9}
+    85%,100%{opacity:0}
+  }
+  @keyframes zReveal{
+    0%,35%{opacity:0;transform:translateY(2px)}
+    45%{opacity:1;transform:translateY(0)}
+    70%{opacity:1}
+    85%,100%{opacity:0}
+  }
+
+  /* ═══════════════════════════════════════════════════
+     6 — TESSERACT: 4D-ish rotation, mind-bending
+     ═══════════════════════════════════════════════════ */
+  .tesseract{
+    position:relative;width:80px;height:80px;
+    perspective:600px;transform-style:preserve-3d;
+  }
+  .tess-inner{
+    width:100%;height:100%;position:relative;
+    transform-style:preserve-3d;
+    animation:tessRotate 4s ease-in-out infinite;
+  }
+  .tess-inner .face{
+    position:absolute;width:40px;height:40px;border-radius:9px;
+    top:50%;left:50%;margin:-20px 0 0 -20px;
+  }
+  .tess-inner .f1{background:linear-gradient(145deg,#008a97,#006d77);transform:translateZ(20px);box-shadow:0 0 15px rgba(0,138,151,0.3)}
+  .tess-inner .f2{background:linear-gradient(145deg,#00e8f8,#00c5d4);transform:translateZ(-20px);box-shadow:0 0 15px rgba(0,213,228,0.3);display:flex;align-items:center;justify-content:center}
+  .tess-inner .f3{background:linear-gradient(145deg,#005f6b,#004a55);transform:rotateY(90deg) translateZ(20px);opacity:0.7}
+  .tess-inner .f4{background:linear-gradient(145deg,#00b8c7,#009aa8);transform:rotateY(-90deg) translateZ(20px);opacity:0.7}
+  .tess-inner .f2 span{font-family:'Manrope';font-size:18px;font-weight:700;color:#09090b}
+  /* Wireframe edges */
+  .tess-inner::before{
+    content:'';position:absolute;
+    top:50%;left:50%;width:44px;height:44px;margin:-22px 0 0 -22px;
+    border:1px solid rgba(0,213,228,0.1);border-radius:10px;
+    transform:rotateX(45deg) rotateZ(45deg);
+    animation:tessWire 4s ease-in-out infinite;
+  }
+  @keyframes tessRotate{
+    0%{transform:rotateX(0deg) rotateY(0deg) rotateZ(0deg)}
+    25%{transform:rotateX(90deg) rotateY(90deg) rotateZ(0deg)}
+    50%{transform:rotateX(180deg) rotateY(180deg) rotateZ(90deg)}
+    75%{transform:rotateX(270deg) rotateY(90deg) rotateZ(180deg)}
+    100%{transform:rotateX(360deg) rotateY(360deg) rotateZ(360deg)}
+  }
+  @keyframes tessWire{
+    0%,100%{opacity:0.15;transform:rotateX(45deg) rotateZ(45deg) scale(1)}
+    50%{opacity:0.3;transform:rotateX(135deg) rotateZ(135deg) scale(1.15)}
+  }
+
+  /* ═══════════════════════════════════════════════════
+     7 — PORTAL: ripple rings + logo materializes
+     ═══════════════════════════════════════════════════ */
+  .portal{position:relative;width:100px;height:100px;perspective:600px}
+  .portal .ring{
+    position:absolute;top:50%;left:50%;
+    border:1.5px solid rgba(0,213,228,0.25);
+    border-radius:50%;
+    transform:translate(-50%,-50%) rotateX(75deg);
+  }
+  .portal .ring:nth-child(1){width:90px;height:90px;animation:portalRing 2.4s ease-out infinite}
+  .portal .ring:nth-child(2){width:70px;height:70px;animation:portalRing 2.4s ease-out infinite 0.4s}
+  .portal .ring:nth-child(3){width:50px;height:50px;animation:portalRing 2.4s ease-out infinite 0.8s}
+  /* Logo in center */
+  .portal .logo-wrap{
+    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    width:60px;height:60px;perspective:600px;
+  }
+  .portal .back{
+    position:absolute;width:34px;height:34px;border-radius:8px;
+    background:linear-gradient(145deg,#008a97,#006d77);
+    top:2px;left:0;
+    transform:rotateY(-14deg) rotateX(7deg) translateZ(-5px);
+    box-shadow:-2px 3px 10px rgba(0,0,0,0.5);
+    animation:portalMaterialize 2.4s ease-in-out infinite;
+  }
+  .portal .front{
+    position:absolute;width:34px;height:34px;border-radius:8px;
+    background:linear-gradient(145deg,#00e8f8,#00c5d4);
+    top:14px;left:20px;
+    transform:rotateY(-9deg) rotateX(4deg) translateZ(5px);
+    box-shadow:-6px 6px 20px rgba(0,0,0,0.35),0 1px 0 rgba(255,255,255,0.15) inset;
+    display:flex;align-items:center;justify-content:center;
+    animation:portalMaterialize 2.4s ease-in-out infinite 0.1s;
+  }
+  .portal .front span{font-family:'Manrope';font-size:15px;font-weight:700;color:#09090b}
+  /* Center glow */
+  .portal::after{
+    content:'';position:absolute;top:50%;left:50%;width:40px;height:40px;
+    margin:-20px 0 0 -20px;border-radius:50%;
+    background:radial-gradient(circle,rgba(0,213,228,0.2) 0%,transparent 70%);
+    animation:portalGlow 2.4s ease-in-out infinite;
+  }
+  @keyframes portalRing{
+    0%{transform:translate(-50%,-50%) rotateX(75deg) scale(0.3);opacity:0.8;border-color:rgba(0,213,228,0.4)}
+    100%{transform:translate(-50%,-50%) rotateX(75deg) scale(1.5);opacity:0;border-color:rgba(0,213,228,0)}
+  }
+  @keyframes portalMaterialize{
+    0%{opacity:0;filter:blur(4px)}
+    25%{opacity:1;filter:blur(0px)}
+    75%{opacity:1;filter:blur(0px)}
+    100%{opacity:0;filter:blur(4px)}
+  }
+  @keyframes portalGlow{
+    0%{opacity:0}25%{opacity:1}75%{opacity:1}100%{opacity:0}
+  }
+
+  /* ═══════════════════════════════════════════════════
+     8 — ENCRYPT: binary/hex streams on the planes
+     ═══════════════════════════════════════════════════ */
+  .encrypt{position:relative;width:88px;height:88px;perspective:600px}
+  .encrypt .back{
+    position:absolute;width:50px;height:50px;border-radius:11px;
+    background:linear-gradient(145deg,#008a97,#006d77);
+    top:2px;left:0;
+    transform:rotateY(-14deg) rotateX(7deg) translateZ(-6px);
+    box-shadow:-2px 3px 12px rgba(0,0,0,0.6);
+    overflow:hidden;
+  }
+  .encrypt .back .stream{
+    position:absolute;inset:0;
+    font-family:'JetBrains Mono';font-size:6px;line-height:1.4;
+    color:rgba(0,50,55,0.5);word-break:break-all;overflow:hidden;
+    animation:streamScroll 8s linear infinite;
+  }
+  .encrypt .front{
+    position:absolute;width:50px;height:50px;border-radius:11px;
+    background:linear-gradient(145deg,#00e8f8,#00c5d4);
+    top:19px;left:30px;
+    transform:rotateY(-9deg) rotateX(4deg) translateZ(6px);
+    box-shadow:-6px 6px 24px rgba(0,0,0,0.4),0 1px 0 rgba(255,255,255,0.15) inset;
+    display:flex;align-items:center;justify-content:center;
+    overflow:hidden;
+  }
+  .encrypt .front .stream{
+    position:absolute;inset:0;
+    font-family:'JetBrains Mono';font-size:6px;line-height:1.4;
+    color:rgba(9,9,11,0.12);word-break:break-all;overflow:hidden;
+    animation:streamScroll 6s linear infinite reverse;
+  }
+  .encrypt .front .z-main{
+    position:relative;z-index:1;
+    font-family:'Manrope';font-size:22px;font-weight:700;color:#09090b;
+    text-shadow:0 0 8px rgba(9,9,11,0.3);
+  }
+  /* Lock indicator */
+  .encrypt .lock-dot{
+    position:absolute;top:-4px;right:-4px;width:10px;height:10px;
+    border-radius:50%;background:#00d5e4;
+    box-shadow:0 0 8px rgba(0,213,228,0.5);
+    animation:lockBlink 2s ease-in-out infinite;
+    z-index:2;
+  }
+  @keyframes streamScroll{
+    0%{transform:translateY(0)}100%{transform:translateY(-50%)}
+  }
+  @keyframes lockBlink{
+    0%,40%{opacity:1;transform:scale(1)}
+    50%{opacity:0.4;transform:scale(0.7)}
+    60%,100%{opacity:1;transform:scale(1)}
+  }
+
+  /* ═══════════════════════════════════════════════════
+     9 — GRAVITY WELL: planes spiral inward, reset
+     ═══════════════════════════════════════════════════ */
+  .gravity{position:relative;width:88px;height:88px}
+  .gravity .orbit-ring{
+    position:absolute;top:50%;left:50%;
+    width:80px;height:80px;margin:-40px 0 0 -40px;
+    border:1px solid rgba(0,213,228,0.06);
+    border-radius:50%;
+  }
+  .gravity .orbit-ring:nth-child(2){width:56px;height:56px;margin:-28px 0 0 -28px}
+  .gravity .orbit-ring:nth-child(3){width:32px;height:32px;margin:-16px 0 0 -16px}
+  .gravity .p-back{
+    position:absolute;width:28px;height:28px;border-radius:7px;
+    background:linear-gradient(145deg,#008a97,#006d77);
+    box-shadow:0 2px 10px rgba(0,0,0,0.5);
+    animation:gravitySpiral 3s cubic-bezier(0.4,0,0.2,1) infinite;
+  }
+  .gravity .p-front{
+    position:absolute;width:28px;height:28px;border-radius:7px;
+    background:linear-gradient(145deg,#00e8f8,#00c5d4);
+    box-shadow:0 2px 10px rgba(0,0,0,0.3),0 1px 0 rgba(255,255,255,0.15) inset;
+    display:flex;align-items:center;justify-content:center;
+    animation:gravitySpiral 3s cubic-bezier(0.4,0,0.2,1) infinite 0.15s;
+  }
+  .gravity .p-front span{font-family:'Manrope';font-size:13px;font-weight:700;color:#09090b}
+  /* Center singularity */
+  .gravity .singularity{
+    position:absolute;top:50%;left:50%;width:6px;height:6px;
+    margin:-3px 0 0 -3px;border-radius:50%;
+    background:#00d5e4;
+    box-shadow:0 0 12px rgba(0,213,228,0.5),0 0 24px rgba(0,213,228,0.2);
+    animation:singularityPulse 3s ease-in-out infinite;
+  }
+  @keyframes gravitySpiral{
+    0%{top:-10px;left:50%;opacity:0;transform:rotate(0deg) scale(0.6)}
+    10%{opacity:1}
+    50%{top:50%;left:50%;transform:rotate(360deg) scale(1);margin:-14px 0 0 -14px}
+    70%{opacity:1}
+    85%{top:50%;left:50%;transform:rotate(540deg) scale(0.3);opacity:0;margin:-14px 0 0 -14px}
+    100%{top:50%;left:50%;transform:rotate(540deg) scale(0);opacity:0;margin:-14px 0 0 -14px}
+  }
+  @keyframes singularityPulse{
+    0%,100%{transform:scale(1);box-shadow:0 0 12px rgba(0,213,228,0.5)}
+    50%{transform:scale(1.5);box-shadow:0 0 20px rgba(0,213,228,0.8),0 0 40px rgba(0,213,228,0.2)}
+  }
+
+  /* ═══════════════════════════════════════════════════
+     FULL PAGE LOADING DEMO
+     ═══════════════════════════════════════════════════ */
+  .demo-section{max-width:1280px;margin:0 auto;padding:0 24px 80px}
+  .demo-section h2{font-family:'Manrope';font-size:20px;font-weight:700;margin-bottom:28px;text-align:center}
+  .demo-section h2 span{color:#00d5e4}
+
+  .fullpage{
+    width:100%;height:420px;border-radius:24px;
+    background:linear-gradient(180deg,#08080d 0%,#0c0f1a 100%);
+    border:1px solid rgba(30,35,64,0.5);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;
+    position:relative;overflow:hidden;
+  }
+  .fullpage::before{
+    content:'';position:absolute;top:0;left:0;right:0;height:1px;
+    background:linear-gradient(90deg,transparent,rgba(0,213,228,0.1),transparent);
+  }
+  /* Ambient */
+  .fullpage .ambient{
+    position:absolute;top:30%;left:50%;width:300px;height:300px;
+    margin:-150px 0 0 -150px;border-radius:50%;
+    background:radial-gradient(circle,rgba(0,213,228,0.04) 0%,transparent 70%);
+    animation:ambientPulse 3s ease-in-out infinite;
+  }
+  @keyframes ambientPulse{0%,100%{transform:scale(1);opacity:0.5}50%{transform:scale(1.1);opacity:1}}
+
+  .loading-text{text-align:center;position:relative;z-index:1}
+  .loading-text h3{font-family:'Manrope';font-size:15px;font-weight:700;color:#e0e4f0}
+  .loading-text p{font-size:12px;color:#5c6184;margin-top:6px}
+
+  .progress-bar{
+    width:200px;height:3px;border-radius:2px;background:rgba(255,255,255,0.05);
+    overflow:hidden;position:relative;z-index:1;
+  }
+  .progress-bar .fill{
+    height:100%;border-radius:2px;
+    background:linear-gradient(90deg,#008a97,#00d5e4);
+    animation:progressFill 3s ease-in-out infinite;
+  }
+  @keyframes progressFill{0%{width:0}50%{width:85%}100%{width:100%}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1><span>z</span>crypt — Extraordinary Spinners</h1>
+  <p>Next-level loading animations that tell the encryption story</p>
+</div>
+
+<div class="grid">
+
+  <!-- 1: Cipher Decode -->
+  <div class="card">
+    <span class="tag">Fav</span>
+    <div class="cipher">
+      <div class="back"></div>
+      <div class="front">
+        <span class="char" style="animation:cipherScramble 2.4s steps(1) infinite">z</span>
+      </div>
+    </div>
+    <h3>Cipher Decode</h3>
+    <p>The z scrambles through random cipher characters before decoding into the final letter. Feels like actual decryption happening in real-time.</p>
+  </div>
+
+  <!-- 2: Double Helix -->
+  <div class="card">
+    <span class="tag">Sci-fi</span>
+    <div class="helix">
+      <div class="helix-container" style="transform-style:preserve-3d">
+        <div class="p1"></div>
+        <div class="p2"><span>z</span></div>
+      </div>
+    </div>
+    <h3>Double Helix</h3>
+    <p>The two encryption layers orbit each other like DNA strands. Science meets security. Hypnotic and unique.</p>
+  </div>
+
+  <!-- 3: Hologram -->
+  <div class="card">
+    <span class="tag">Cyber</span>
+    <div class="holo">
+      <div class="base back"></div>
+      <div class="base front"><span>z</span></div>
+      <div class="ghost-r"></div>
+      <div class="ghost-b"></div>
+    </div>
+    <h3>Hologram</h3>
+    <p>RGB chromatic split + scan lines + subtle flicker. Like a holographic projection of the logo. Feels like watching a sci-fi interface boot up.</p>
+  </div>
+
+  <!-- 4: Particle Field -->
+  <div class="card">
+    <span class="tag">Epic</span>
+    <div class="particles">
+      <div class="dot" style="--angle:0deg;--dist:48px;--dur:2.5s;--del:0s"></div>
+      <div class="dot" style="--angle:30deg;--dist:44px;--dur:2.8s;--del:0.15s"></div>
+      <div class="dot" style="--angle:60deg;--dist:46px;--dur:2.3s;--del:0.3s"></div>
+      <div class="dot" style="--angle:90deg;--dist:50px;--dur:2.6s;--del:0.05s"></div>
+      <div class="dot" style="--angle:120deg;--dist:42px;--dur:2.4s;--del:0.2s"></div>
+      <div class="dot" style="--angle:150deg;--dist:48px;--dur:2.7s;--del:0.35s"></div>
+      <div class="dot" style="--angle:180deg;--dist:45px;--dur:2.5s;--del:0.1s"></div>
+      <div class="dot" style="--angle:210deg;--dist:47px;--dur:2.9s;--del:0.25s"></div>
+      <div class="dot" style="--angle:240deg;--dist:43px;--dur:2.3s;--del:0.4s"></div>
+      <div class="dot" style="--angle:270deg;--dist:49px;--dur:2.6s;--del:0.15s"></div>
+      <div class="dot" style="--angle:300deg;--dist:44px;--dur:2.8s;--del:0.3s"></div>
+      <div class="dot" style="--angle:330deg;--dist:46px;--dur:2.4s;--del:0.05s"></div>
+      <div class="core-back"></div>
+      <div class="core"><span>z</span></div>
+    </div>
+    <h3>Particle Vortex</h3>
+    <p>Data particles spiral inward and are absorbed by the encrypted core. Like watching data being encrypted and consumed by the vault.</p>
+  </div>
+
+  <!-- 5: Line Draw -->
+  <div class="card">
+    <span class="tag">Clean</span>
+    <div class="linedraw">
+      <svg width="88" height="88" viewBox="0 0 88 88">
+        <!-- Back plane -->
+        <rect class="glow-back" x="2" y="4" width="48" height="48" rx="11"/>
+        <rect class="plane-back" x="2" y="4" width="48" height="48" rx="11"/>
+        <rect class="plane-back-fill" x="2" y="4" width="48" height="48" rx="11"/>
+        <!-- Front plane -->
+        <rect class="glow-front" x="30" y="28" width="48" height="48" rx="11"/>
+        <rect class="plane-front" x="30" y="28" width="48" height="48" rx="11"/>
+        <rect class="plane-front-fill" x="30" y="28" width="48" height="48" rx="11"/>
+        <!-- z letter -->
+        <text class="z-letter" x="54" y="59" text-anchor="middle" font-family="Manrope" font-weight="700" font-size="22">z</text>
+      </svg>
+    </div>
+    <h3>Line Draw</h3>
+    <p>The logo draws itself from nothing — strokes trace the outline, then the planes fill in and the z appears. Elegant and satisfying reveal.</p>
+  </div>
+
+  <!-- 6: Tesseract -->
+  <div class="card">
+    <span class="tag">4D</span>
+    <div class="tesseract">
+      <div class="tess-inner" style="transform-style:preserve-3d">
+        <div class="face f1"></div>
+        <div class="face f2"><span>z</span></div>
+        <div class="face f3"></div>
+        <div class="face f4"></div>
+      </div>
+    </div>
+    <h3>Tesseract</h3>
+    <p>The encryption planes exist in 4D space, rotating through impossible angles. Mind-bending. Makes the user feel like they're looking at something beyond normal reality.</p>
+  </div>
+
+  <!-- 7: Portal -->
+  <div class="card">
+    <span class="tag">Immersive</span>
+    <div class="portal">
+      <div class="ring"></div>
+      <div class="ring"></div>
+      <div class="ring"></div>
+      <div class="logo-wrap">
+        <div class="back"></div>
+        <div class="front"><span>z</span></div>
+      </div>
+    </div>
+    <h3>Portal</h3>
+    <p>Concentric rings ripple outward in 3D perspective as the logo materializes and dematerializes at the center. Like opening a portal to your encrypted vault.</p>
+  </div>
+
+  <!-- 8: Encrypt Stream -->
+  <div class="card">
+    <span class="tag">Matrix</span>
+    <div class="encrypt">
+      <div class="back">
+        <div class="stream">a4f8e2b9c1d7f3a6b0e5c8d2f9a1b4c7e0d3f6a8b2c5d1e4f7a0b3c6d9e2f5a7b1c4d8e3f0a6b9c2d5e8f1a4b7c0d3e6f9a2b5c8d1e4f7a0b3c6d9e2f5a7b1c4d8e3f0a6b9c2d5e8</div>
+      </div>
+      <div class="front">
+        <div class="stream">7e2a9f4b1c8d5e0a3f6b9c2d7e4a1f8b5c0d3e6a9f2b7c4d1e8a5f0b3c6d9e2a7f4b1c8d5e0a3f6b9c2d7e4a1f8b5c0d3e6a9f2b7c4d1e8a5f0b3c6d9e2a7f4b1c8d5e0</div>
+        <span class="z-main">z</span>
+      </div>
+      <div class="lock-dot"></div>
+    </div>
+    <h3>Encrypt Stream</h3>
+    <p>Hex streams scroll across both planes while the z holds firm in the center. A blinking lock indicator pulses. You can literally see the encryption working.</p>
+  </div>
+
+  <!-- 9: Gravity Well -->
+  <div class="card">
+    <span class="tag">Physics</span>
+    <div class="gravity">
+      <div class="orbit-ring"></div>
+      <div class="orbit-ring"></div>
+      <div class="orbit-ring"></div>
+      <div class="p-back"></div>
+      <div class="p-front"><span>z</span></div>
+      <div class="singularity"></div>
+    </div>
+    <h3>Gravity Well</h3>
+    <p>The encryption planes spiral inward toward a singularity point, like data being pulled into a black hole. Collapse. Reset. Loop. Mesmerizing.</p>
+  </div>
+
+</div>
+
+<!-- Full-page loading demo -->
+<div class="demo-section">
+  <h2>Full-page <span>loading</span> demo</h2>
+  <div class="fullpage">
+    <div class="ambient"></div>
+    <div class="cipher" style="transform:scale(1.15)">
+      <div class="back"></div>
+      <div class="front">
+        <span class="char" style="animation:cipherScramble 2.4s steps(1) infinite">z</span>
+      </div>
+    </div>
+    <div class="loading-text">
+      <h3>Decrypting your vault</h3>
+      <p>Verifying encryption keys...</p>
+    </div>
+    <div class="progress-bar"><div class="fill"></div></div>
+  </div>
+</div>
+
+<script>
+// Cipher scramble — CSS content animation doesn't work on HTML elements,
+// so we do it with JS for the actual character swap
+document.querySelectorAll('.char').forEach(el => {
+  const chars = '#$@&%!?><{}[]|~^*+=0123456789abcdef';
+  const final = 'z';
+  let frame = 0;
+  const total = 48; // frames per cycle
+  const revealAt = Math.floor(total * 0.4);
+  const holdUntil = total;
+
+  setInterval(() => {
+    frame = (frame + 1) % total;
+    if (frame < revealAt) {
+      el.textContent = chars[Math.floor(Math.random() * chars.length)];
+    } else {
+      el.textContent = final;
+    }
+  }, 50);
+});
+</script>
+
+</body>
+</html>

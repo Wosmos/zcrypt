@@ -6,12 +6,12 @@ import {
   X,
   CheckCircle2,
   AlertCircle,
-  Loader2,
   StopCircle,
   Download,
 } from "@/lib/icons";
 import { formatBytes } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import { LogoSpinner } from "@/components/ui/logo-spinner";
 
 export function DownloadQueue() {
   const { queue, cancelDownload, removeFromQueue, clearCompleted } =
@@ -72,7 +72,7 @@ export function DownloadQueue() {
                 <StopCircle className="h-4 w-4 text-yellow-500" />
               )}
               {item.status === "downloading" && (
-                <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />
+                <LogoSpinner size={16} speed="fast" />
               )}
               {item.status === "queued" && (
                 <Download className="h-4 w-4 text-[var(--color-text-muted)]" />

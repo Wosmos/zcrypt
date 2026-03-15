@@ -17,6 +17,7 @@ import {
   CheckCircle2,
   AlertTriangle,
 } from "@/lib/icons";
+import { LogoSpinner } from "@/components/ui/logo-spinner";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -203,11 +204,11 @@ export default function RegisterPage() {
             type="submit"
             className="w-full"
             size="lg"
-            disabled={loading}
+            disabled={loading || !email.trim() || !username.trim() || !password || !confirmPassword}
           >
             {loading ? (
               <span className="flex items-center gap-2">
-                <span className="h-4 w-4 border-2 border-slate-900/30 border-t-slate-900 rounded-full animate-spin" />
+                <LogoSpinner size={16} speed="fast" />
                 Creating account...
               </span>
             ) : (

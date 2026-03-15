@@ -38,6 +38,8 @@ export interface PlatformStatus {
   connected: boolean;
   username?: string;
   error?: string;
+  token_id?: string;
+  is_global?: boolean;
 }
 
 export interface ProgressEvent {
@@ -129,6 +131,52 @@ export interface PlatformTokenInfo {
   username: string;
   platform: string;
   is_global: boolean;
-  owner_email: string;
   created_at: string;
+}
+
+// Plan configuration types (dynamic, managed via admin)
+export interface PlanFeature {
+  text: string;
+  included: boolean;
+}
+
+export interface PlanConfig {
+  id: string;
+  name: string;
+  monthly_price: number;
+  annual_price: number;
+  description: string;
+  storage_bytes: number;
+  max_file_bytes: number;
+  max_concurrent_uploads: number;
+  storage_display: string;
+  max_file_display: string;
+  concurrent_display: string;
+  features: PlanFeature[];
+  highlight: boolean;
+  badge: string | null;
+  icon: string | null;
+  social_proof: string | null;
+  sort_order: number;
+}
+
+export interface PlanConfigs {
+  plans: PlanConfig[];
+}
+
+// Admin user detail (matches backend JSON keys exactly)
+export interface AdminUserDetail {
+  user: AdminUser;
+  file_count: number;
+  used_bytes: number;
+  quota_bytes: number;
+  events: Array<{
+    id: string;
+    user_id?: string;
+    event_type: string;
+    ip: string;
+    user_agent: string;
+    metadata: Record<string, unknown>;
+    created_at: string;
+  }>;
 }

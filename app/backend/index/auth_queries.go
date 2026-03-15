@@ -191,6 +191,16 @@ func (db *DB) SetUserQuota(ctx context.Context, userID string, quotaBytes *int64
 	return err
 }
 
+// GetUserFileCount returns the number of complete files for a user.
+func (db *DB) GetUserFileCount(ctx context.Context, userID string) (int, error) {
+	var count int
+	err := db.pool.QueryRow(ctx,
+		`SELECT COUNT(*) FROM files WHERE user_id = $1 AND status = 'complete'`,
+		userID,
+	).Scan(&count)
+	return count, err
+}
+
 // GetUserStorageUsed returns the total bytes used by a user (including in-progress uploads).
 func (db *DB) GetUserStorageUsed(ctx context.Context, userID string) (int64, error) {
 	var used int64

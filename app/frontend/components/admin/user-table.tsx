@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { adminSetUserRole, adminDeleteUser, adminSetUserQuota, adminSetUserPlan } from "@/lib/api";
 import { formatBytes } from "@/lib/utils";
 import { toast } from "@/store/toast";
 import { cn } from "@/lib/utils";
 import { Trash2, ShieldCheck, User, Crown } from "@/lib/icons";
 import { Role } from "@/types";
-import type { AdminUser } from "@/types";
+import type { AdminUser, PlanConfig } from "@/types";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
 
 export function UserTable({
@@ -15,12 +16,15 @@ export function UserTable({
   currentUserId,
   defaultQuotaBytes,
   onRefresh,
+  planConfigs,
 }: {
   users: AdminUser[];
   currentUserId: string;
   defaultQuotaBytes: number;
   onRefresh: () => void;
+  planConfigs?: PlanConfig[];
 }) {
+  const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [editingQuota, setEditingQuota] = useState<string | null>(null);
   const [quotaInput, setQuotaInput] = useState("");
@@ -76,6 +80,9 @@ export function UserTable({
 
   const getQuotaDisplay = (u: AdminUser) => {
     if (u.storage_quota === null) {
+      // Use plan-based storage if available
+      const planConfig = planConfigs?.find((p) => p.id === (u.plan || "free"));
+      if (planConfig) return planConfig.storage_display;
       return defaultQuotaBytes > 0
         ? formatBytes(defaultQuotaBytes)
         : "Unlimited";
@@ -85,7 +92,7 @@ export function UserTable({
   };
 
   const getQuotaLabel = (u: AdminUser) => {
-    if (u.storage_quota === null) return "default";
+    if (u.storage_quota === null) return "plan";
     if (u.storage_quota === 0) return "override";
     return "override";
   };
@@ -112,12 +119,19 @@ export function UserTable({
     });
   };
 
-  const planDetails: Record<string, { label: string; uploads: number; storage: string; fileSize: string }> = {
-    free: { label: "Free", uploads: 2, storage: "10 GB", fileSize: "500 MB" },
-    plus: { label: "Plus", uploads: 5, storage: "200 GB", fileSize: "5 GB" },
-    pro: { label: "Pro", uploads: 10, storage: "2 TB", fileSize: "25 GB" },
-    team: { label: "Team", uploads: 10, storage: "1 TB/seat", fileSize: "25 GB" },
-  };
+  const planDetails: Record<string, { label: string; uploads: number; storage: string; fileSize: string }> = planConfigs
+    ? Object.fromEntries(
+        planConfigs.map((p) => [
+          p.id,
+          { label: p.name, uploads: p.max_concurrent_uploads, storage: p.storage_display, fileSize: p.max_file_display },
+        ])
+      )
+    : {
+        free: { label: "Free", uploads: 2, storage: "10 GB", fileSize: "500 MB" },
+        plus: { label: "Plus", uploads: 5, storage: "200 GB", fileSize: "5 GB" },
+        pro: { label: "Pro", uploads: 10, storage: "2 TB", fileSize: "25 GB" },
+        team: { label: "Team", uploads: 10, storage: "1 TB/seat", fileSize: "25 GB" },
+      };
 
   const handlePlanChange = (userId: string, username: string, newPlan: string) => {
     const plan = planDetails[newPlan] || planDetails.free;
@@ -228,8 +242,11 @@ export function UserTable({
                     className="border-b border-[var(--color-border)] last:border-0 hover:bg-[var(--color-surface-1)] transition-colors"
                   >
                     <td className="px-5 py-3">
-                      <div>
-                        <p className="font-medium text-sm">
+                      <button
+                        onClick={() => router.push(`/admin/users/${u.id}`)}
+                        className="text-left group"
+                      >
+                        <p className="font-medium text-sm group-hover:text-[var(--color-accent)] transition-colors">
                           {u.username}
                           {isSelf && (
                             <span className="ml-1.5 text-[10px] text-[var(--color-text-muted)]">
@@ -240,7 +257,7 @@ export function UserTable({
                         <p className="text-xs text-[var(--color-text-muted)]">
                           {u.email}
                         </p>
-                      </div>
+                      </button>
                     </td>
                     <td className="px-5 py-3">
                       <span
@@ -276,10 +293,9 @@ export function UserTable({
                                   : "bg-[var(--color-surface-2)] text-[var(--color-text-muted)] border-[var(--color-border)]"
                           )}
                         >
-                          <option value="free">Free</option>
-                          <option value="plus">Plus</option>
-                          <option value="pro">Pro</option>
-                          <option value="team">Team</option>
+                          {Object.entries(planDetails).map(([id, detail]) => (
+                            <option key={id} value={id}>{detail.label}</option>
+                          ))}
                         </select>
                       ) : (
                         <span

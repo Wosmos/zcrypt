@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -13,28 +14,144 @@ import (
 	"github.com/zcrypt/zcrypt/types"
 )
 
-// Plan limits: storage quota per plan (bytes)
-var planStorageQuota = map[string]int64{
-	"free": 10 * 1024 * 1024 * 1024,            // 10 GB
-	"plus": 200 * 1024 * 1024 * 1024,           // 200 GB
-	"pro":  2 * 1024 * 1024 * 1024 * 1024,      // 2 TB
-	"team": 1 * 1024 * 1024 * 1024 * 1024,      // 1 TB per seat
+// defaultPlanConfigs returns the hardcoded plan configurations used as seed/fallback.
+func defaultPlanConfigs() *types.PlanConfigs {
+	badge := "Most Popular"
+	socialProof := "Chosen by 8 out of 10 paid users"
+	return &types.PlanConfigs{
+		Plans: []types.PlanConfig{
+			{
+				ID: "free", Name: "Free", MonthlyPrice: 0, AnnualPrice: 0,
+				Description:          "Get started with generous free storage.",
+				StorageBytes:         10 * 1024 * 1024 * 1024,
+				MaxFileBytes:         500 * 1024 * 1024,
+				MaxConcurrentUploads: 2,
+				StorageDisplay:       "10 GB", MaxFileDisplay: "500 MB", ConcurrentDisplay: "2 uploads",
+				Features: []types.PlanFeature{
+					{Text: "Zero-knowledge encryption", Included: true},
+					{Text: "Multi-platform storage", Included: true},
+					{Text: "5 shares per month", Included: true},
+					{Text: "CLI access", Included: false},
+					{Text: "BYOB (Bring Your Own Backend)", Included: false},
+				},
+				SortOrder: 0,
+			},
+			{
+				ID: "plus", Name: "Plus", MonthlyPrice: 4, AnnualPrice: 3,
+				Description:          "More storage, more speed, more control.",
+				StorageBytes:         200 * 1024 * 1024 * 1024,
+				MaxFileBytes:         5 * 1024 * 1024 * 1024,
+				MaxConcurrentUploads: 5,
+				StorageDisplay:       "200 GB", MaxFileDisplay: "5 GB", ConcurrentDisplay: "5 uploads",
+				Features: []types.PlanFeature{
+					{Text: "Everything in Free", Included: true},
+					{Text: "Unlimited shares", Included: true},
+					{Text: "CLI access", Included: true},
+					{Text: "BYOB (Bring Your Own Backend)", Included: false},
+				},
+				SortOrder: 1,
+			},
+			{
+				ID: "pro", Name: "Pro", MonthlyPrice: 9, AnnualPrice: 7,
+				Description:          "Unlimited power for professionals.",
+				StorageBytes:         2 * 1024 * 1024 * 1024 * 1024,
+				MaxFileBytes:         25 * 1024 * 1024 * 1024,
+				MaxConcurrentUploads: 10,
+				StorageDisplay:       "2 TB", MaxFileDisplay: "25 GB", ConcurrentDisplay: "Unlimited",
+				Features: []types.PlanFeature{
+					{Text: "Everything in Plus", Included: true},
+					{Text: "BYOB (Bring Your Own Backend)", Included: true},
+					{Text: "Priority support", Included: true},
+				},
+				Highlight: true, Badge: &badge, SocialProof: &socialProof,
+				SortOrder: 2,
+			},
+			{
+				ID: "team", Name: "Team", MonthlyPrice: 0, AnnualPrice: 0,
+				Description:          "For organizations (contact us).",
+				StorageBytes:         1 * 1024 * 1024 * 1024 * 1024,
+				MaxFileBytes:         25 * 1024 * 1024 * 1024,
+				MaxConcurrentUploads: 10,
+				StorageDisplay:       "1 TB per seat", MaxFileDisplay: "25 GB", ConcurrentDisplay: "10 uploads",
+				Features: []types.PlanFeature{
+					{Text: "Everything in Pro", Included: true},
+					{Text: "Team management", Included: true},
+					{Text: "SSO / SAML", Included: true},
+				},
+				SortOrder: 3,
+			},
+		},
+	}
 }
 
-// Plan limits: max file size per plan (bytes)
-var planMaxFileSize = map[string]int64{
-	"free": 500 * 1024 * 1024,       // 500 MB
-	"plus": 5 * 1024 * 1024 * 1024,  // 5 GB
-	"pro":  25 * 1024 * 1024 * 1024, // 25 GB
-	"team": 25 * 1024 * 1024 * 1024, // 25 GB
+// loadPlanConfigs reads plan configs from DB, falling back to hardcoded defaults.
+func (s *Server) loadPlanConfigs(ctx context.Context) *types.PlanConfigs {
+	s.planMu.RLock()
+	if s.planCache != nil {
+		defer s.planMu.RUnlock()
+		return s.planCache
+	}
+	s.planMu.RUnlock()
+
+	configs := defaultPlanConfigs()
+	val, err := s.db.GetSystemSetting(ctx, "plan_configs")
+	if err == nil && val != "" {
+		var parsed types.PlanConfigs
+		if json.Unmarshal([]byte(val), &parsed) == nil && len(parsed.Plans) > 0 {
+			configs = &parsed
+		}
+	}
+
+	s.planMu.Lock()
+	s.planCache = configs
+	s.planMu.Unlock()
+	return configs
 }
 
-// Plan limits: max concurrent uploads per plan
-var planMaxConcurrent = map[string]int{
-	"free": 2,
-	"plus": 5,
-	"pro":  10,
-	"team": 10,
+// invalidatePlanCache clears the cached plan configs so they are reloaded from DB.
+func (s *Server) invalidatePlanCache() {
+	s.planMu.Lock()
+	s.planCache = nil
+	s.planMu.Unlock()
+}
+
+// getPlanStorageQuota returns the storage quota for a plan from dynamic config.
+func (s *Server) getPlanStorageQuota(ctx context.Context, plan string) int64 {
+	for _, p := range s.loadPlanConfigs(ctx).Plans {
+		if p.ID == plan {
+			return p.StorageBytes
+		}
+	}
+	return 10 * 1024 * 1024 * 1024 // free fallback
+}
+
+// getPlanMaxFileSize returns the max file size for a plan from dynamic config.
+func (s *Server) getPlanMaxFileSize(ctx context.Context, plan string) int64 {
+	for _, p := range s.loadPlanConfigs(ctx).Plans {
+		if p.ID == plan {
+			return p.MaxFileBytes
+		}
+	}
+	return 500 * 1024 * 1024 // 500 MB fallback
+}
+
+// getPlanMaxConcurrent returns the max concurrent uploads for a plan from dynamic config.
+func (s *Server) getPlanMaxConcurrent(ctx context.Context, plan string) int {
+	for _, p := range s.loadPlanConfigs(ctx).Plans {
+		if p.ID == plan {
+			return p.MaxConcurrentUploads
+		}
+	}
+	return 2 // free fallback
+}
+
+// SeedPlanConfigs writes default plan configs to DB if not already set.
+func (s *Server) SeedPlanConfigs(ctx context.Context) {
+	_, err := s.db.GetSystemSetting(ctx, "plan_configs")
+	if err != nil {
+		data, _ := json.Marshal(defaultPlanConfigs())
+		_ = s.db.SetSystemSetting(ctx, "plan_configs", string(data))
+	}
 }
 
 // HandleAdminListUsers returns all users with file count and storage stats.
@@ -232,6 +349,43 @@ func (s *Server) HandleAdminCreateToken(w http.ResponseWriter, r *http.Request) 
 	})
 }
 
+// HandleAdminToggleTokenScope toggles a token between global and local.
+// Admin can only toggle tokens they own — no one can change another user's token scope.
+// PUT /api/admin/tokens/{id}/scope
+func (s *Server) HandleAdminToggleTokenScope(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	adminID := GetUserID(r)
+	tokenID := r.PathValue("id")
+	if tokenID == "" {
+		http.Error(w, `{"error":"token id required"}`, http.StatusBadRequest)
+		return
+	}
+
+	var req struct {
+		IsGlobal bool `json:"is_global"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
+		return
+	}
+
+	// Ownership check — admin can only toggle their own tokens
+	if err := s.db.SetUserPlatformTokenGlobal(ctx, tokenID, adminID, req.IsGlobal); err != nil {
+		http.Error(w, `{"error":"token not found or not owned by you"}`, http.StatusForbidden)
+		return
+	}
+
+	// Flush all caches since global scope affects all users
+	s.adapterMu.Lock()
+	s.adapterCache = make(map[string]map[string]adapters.PlatformAdapter)
+	s.poolCache = make(map[string]map[string]*reppool.Manager)
+	s.adapterMu.Unlock()
+
+	s.audit(r, &adminID, "admin_token_scope_change", map[string]interface{}{"token_id": tokenID, "is_global": req.IsGlobal})
+
+	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
+}
+
 // HandleAdminDeleteToken deletes any platform token by ID.
 // DELETE /api/admin/tokens/{id}
 func (s *Server) HandleAdminDeleteToken(w http.ResponseWriter, r *http.Request) {
@@ -343,14 +497,8 @@ func (s *Server) HandleGetQuota(w http.ResponseWriter, r *http.Request) {
 			plan = user.Plan
 		}
 	}
-	maxConcurrent := planMaxConcurrent[plan]
-	if maxConcurrent == 0 {
-		maxConcurrent = 2
-	}
-	maxFileSize := planMaxFileSize[plan]
-	if maxFileSize == 0 {
-		maxFileSize = 500 * 1024 * 1024 // 500 MB default
-	}
+	maxConcurrent := s.getPlanMaxConcurrent(ctx, plan)
+	maxFileSize := s.getPlanMaxFileSize(ctx, plan)
 
 	// Check if user can upload (has any adapters — personal or global/managed)
 	userAdapters, _ := s.getUserAdapters(ctx, userID)
@@ -538,5 +686,109 @@ func (s *Server) HandleAdminListFeedback(w http.ResponseWriter, r *http.Request)
 		"total":    total,
 		"limit":    limit,
 		"offset":   offset,
+	})
+}
+
+// HandleGetPlans returns plan configs for public consumption (landing page, pricing page).
+// GET /api/plans
+func (s *Server) HandleGetPlans(w http.ResponseWriter, r *http.Request) {
+	configs := s.loadPlanConfigs(r.Context())
+	writeJSON(w, http.StatusOK, configs)
+}
+
+// HandleAdminGetPlans returns plan configs for admin editing.
+// GET /api/admin/plans
+func (s *Server) HandleAdminGetPlans(w http.ResponseWriter, r *http.Request) {
+	configs := s.loadPlanConfigs(r.Context())
+	writeJSON(w, http.StatusOK, configs)
+}
+
+// HandleAdminSetPlans saves updated plan configs.
+// PUT /api/admin/plans
+func (s *Server) HandleAdminSetPlans(w http.ResponseWriter, r *http.Request) {
+	var configs types.PlanConfigs
+	if err := json.NewDecoder(r.Body).Decode(&configs); err != nil {
+		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
+		return
+	}
+
+	if len(configs.Plans) == 0 {
+		http.Error(w, `{"error":"at least one plan is required"}`, http.StatusBadRequest)
+		return
+	}
+
+	// Validate: must include a "free" plan
+	hasFree := false
+	ids := map[string]bool{}
+	for _, p := range configs.Plans {
+		if p.ID == "" {
+			http.Error(w, `{"error":"all plans must have an id"}`, http.StatusBadRequest)
+			return
+		}
+		if ids[p.ID] {
+			http.Error(w, fmt.Sprintf(`{"error":"duplicate plan id: %s"}`, p.ID), http.StatusBadRequest)
+			return
+		}
+		ids[p.ID] = true
+		if p.ID == "free" {
+			hasFree = true
+		}
+	}
+	if !hasFree {
+		http.Error(w, `{"error":"a 'free' plan is required"}`, http.StatusBadRequest)
+		return
+	}
+
+	data, err := json.Marshal(configs)
+	if err != nil {
+		http.Error(w, `{"error":"failed to encode plans"}`, http.StatusInternalServerError)
+		return
+	}
+
+	if err := s.db.SetSystemSetting(r.Context(), "plan_configs", string(data)); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)
+		return
+	}
+
+	s.invalidatePlanCache()
+
+	adminID := GetUserID(r)
+	s.audit(r, &adminID, "admin_plans_update", map[string]interface{}{"plan_count": len(configs.Plans)})
+
+	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
+}
+
+// HandleAdminGetUser returns a single user's full profile with stats.
+// GET /api/admin/users/{id}
+func (s *Server) HandleAdminGetUser(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID := r.PathValue("id")
+	if userID == "" {
+		http.Error(w, `{"error":"user id required"}`, http.StatusBadRequest)
+		return
+	}
+
+	user, err := s.db.GetUserByID(ctx, userID)
+	if err != nil {
+		http.Error(w, `{"error":"user not found"}`, http.StatusNotFound)
+		return
+	}
+
+	fileCount, _ := s.db.GetUserFileCount(ctx, userID)
+	usedBytes, _ := s.db.GetUserStorageUsed(ctx, userID)
+	quotaBytes := s.getEffectiveQuota(ctx, userID)
+
+	// Get recent audit events for this user
+	events, _ := s.db.ListUserAuditEvents(ctx, userID, 20)
+	if events == nil {
+		events = []types.AuditEvent{}
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"user":        user,
+		"file_count":  fileCount,
+		"used_bytes":  usedBytes,
+		"quota_bytes": quotaBytes,
+		"events":      events,
 	})
 }

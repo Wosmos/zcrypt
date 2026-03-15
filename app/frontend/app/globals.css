@@ -224,3 +224,96 @@
 html.theme-transition {
   transition: color 0.15s ease, background-color 0.15s ease !important;
 }
+
+/* ═══ Cipher Draw Spinner ═══ */
+.cd-glow {
+  stroke-width: 4;
+  fill: none;
+  stroke-dasharray: 230;
+  stroke-dashoffset: 230;
+  filter: blur(4px);
+}
+.cd-glow-back {
+  stroke: rgba(0, 138, 151, 0.5);
+  animation: cdDraw var(--cd-dur, 3.2s) ease-in-out infinite;
+}
+.cd-glow-front {
+  stroke: rgba(0, 213, 228, 0.5);
+  animation: cdDraw var(--cd-dur, 3.2s) ease-in-out infinite 0.15s;
+}
+.cd-stroke {
+  stroke-width: 2;
+  fill: none;
+  stroke-dasharray: 230;
+  stroke-dashoffset: 230;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.cd-stroke-back {
+  stroke: #008a97;
+  animation: cdDraw var(--cd-dur, 3.2s) ease-in-out infinite;
+}
+.cd-stroke-front {
+  stroke: #00d5e4;
+  animation: cdDraw var(--cd-dur, 3.2s) ease-in-out infinite 0.15s;
+}
+.cd-fill-back {
+  fill: #008a97;
+  opacity: 0;
+  animation: cdFill var(--cd-dur, 3.2s) ease-in-out infinite;
+}
+.cd-fill-front {
+  fill: #00d5e4;
+  opacity: 0;
+  animation: cdFill var(--cd-dur, 3.2s) ease-in-out infinite 0.08s;
+}
+.cd-cipher-z {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 500;
+  fill: #09090b;
+  opacity: 0;
+  animation: cdZFade var(--cd-dur, 3.2s) ease-in-out infinite;
+}
+.cd-ambient {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 60%;
+  height: 60%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(0, 213, 228, 0.12) 0%,
+    transparent 70%
+  );
+  opacity: 0;
+  animation: cdAmbient var(--cd-dur, 3.2s) ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes cdDraw {
+  0% { stroke-dashoffset: 230; opacity: 0; }
+  5% { opacity: 1; }
+  25% { stroke-dashoffset: 0; opacity: 1; }
+  75% { stroke-dashoffset: 0; opacity: 1; }
+  87% { opacity: 0.5; }
+  100% { stroke-dashoffset: 0; opacity: 0; }
+}
+@keyframes cdFill {
+  0%, 18% { opacity: 0; }
+  28% { opacity: 0.95; }
+  75% { opacity: 0.95; }
+  90%, 100% { opacity: 0; }
+}
+@keyframes cdZFade {
+  0%, 22% { opacity: 0; }
+  30% { opacity: 1; }
+  75% { opacity: 1; }
+  88%, 100% { opacity: 0; }
+}
+@keyframes cdAmbient {
+  0%, 15% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+  30% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  75% { opacity: 1; }
+  90%, 100% { opacity: 0; transform: translate(-50%, -50%) scale(1.1); }
+}

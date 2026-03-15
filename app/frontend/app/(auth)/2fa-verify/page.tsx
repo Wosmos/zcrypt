@@ -8,6 +8,7 @@ import { verify2FA, getMe } from "@/lib/auth-api";
 import { useAuthStore } from "@/store/auth";
 import { toast } from "@/store/toast";
 import { ArrowLeft } from "@/lib/icons";
+import { LogoSpinner } from "@/components/ui/logo-spinner";
 
 export default function TwoFactorVerifyPage() {
   const router = useRouter();
@@ -142,7 +143,7 @@ export default function TwoFactorVerifyPage() {
       >
         {loading ? (
           <span className="flex items-center gap-2">
-            <span className="h-4 w-4 border-2 border-slate-900/30 border-t-slate-900 rounded-full animate-spin" />
+            <LogoSpinner size={16} speed="fast" />
             Verifying...
           </span>
         ) : (

@@ -15,6 +15,7 @@ import (
 	"github.com/zcrypt/zcrypt/index"
 	"github.com/zcrypt/zcrypt/pipeline"
 	"github.com/zcrypt/zcrypt/reppool"
+	"github.com/zcrypt/zcrypt/types"
 )
 
 // Server holds shared state for all HTTP handlers.
@@ -28,6 +29,10 @@ type Server struct {
 	adapterMu    sync.RWMutex
 	adapterCache map[string]map[string]adapters.PlatformAdapter
 	poolCache    map[string]map[string]*reppool.Manager
+
+	// Cached plan configurations
+	planMu    sync.RWMutex
+	planCache *types.PlanConfigs
 
 	// Auth-specific rate limiter: stricter limits for login/register (5 req per 5 min per IP)
 	authLimiter *rateLimiter
@@ -219,7 +224,7 @@ func (s *Server) isQuotaExempt(ctx context.Context, userID string) bool {
 func (s *Server) getEffectiveQuota(ctx context.Context, userID string) int64 {
 	user, err := s.db.GetUserByID(ctx, userID)
 	if err != nil {
-		return planStorageQuota["free"]
+		return s.getPlanStorageQuota(ctx, "free")
 	}
 
 	// 1. Per-user admin override (0 = unlimited, >0 = explicit limit)
@@ -232,7 +237,7 @@ func (s *Server) getEffectiveQuota(ctx context.Context, userID string) int64 {
 	if plan == "" {
 		plan = "free"
 	}
-	if q, ok := planStorageQuota[plan]; ok {
+	if q := s.getPlanStorageQuota(ctx, plan); q > 0 {
 		return q
 	}
 
@@ -246,7 +251,7 @@ func (s *Server) getEffectiveQuota(ctx context.Context, userID string) int64 {
 	}
 
 	// 4. Fallback to free plan
-	return planStorageQuota["free"]
+	return s.getPlanStorageQuota(ctx, "free")
 }
 
 // createAdapter creates a PlatformAdapter for a given platform and token.

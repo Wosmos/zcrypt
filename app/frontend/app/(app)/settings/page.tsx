@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StoragePool } from "@/components/settings/storage-pool";
 import { usePlatformHealth } from "@/hooks/usePlatformHealth";
 import { useAuthStore } from "@/store/auth";
 import { useTheme } from "@/components/providers/theme-provider";
-import { connectPlatform, disconnectPlatform } from "@/lib/api";
+import { connectPlatform, disconnectPlatform, toggleTokenScope } from "@/lib/api";
 import { toast } from "@/store/toast";
 import { RateLimits } from "@/components/settings/rate-limits";
 import { ExportImport } from "@/components/vault/export-import";
@@ -34,9 +34,12 @@ import {
   Monitor,
   ChevronDown,
   Settings,
+  Globe,
+  User,
 } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
+import { LogoSpinner } from "@/components/ui/logo-spinner";
 
 export default function SettingsPage() {
   const [githubToken, setGithubToken] = useState("");
@@ -45,6 +48,7 @@ export default function SettingsPage() {
   const [telegramToken, setTelegramToken] = useState("");
   const [connecting, setConnecting] = useState<string | null>(null);
   const [disconnecting, setDisconnecting] = useState<string | null>(null);
+  const [scopeOverrides, setScopeOverrides] = useState<Record<string, boolean>>({});
   const busyRef = useRef<Set<string>>(new Set());
   const [disconnectTarget, setDisconnectTarget] = useState<{ platform: string; username: string } | null>(null);
   const { statuses, repos, refresh } = usePlatformHealth();
@@ -53,16 +57,26 @@ export default function SettingsPage() {
   const user = useAuthStore((s) => s.user);
   const isAdmin = user?.role === "admin";
 
-  const githubAccounts = statuses.filter(
+  // Clear optimistic overrides when fresh data arrives
+  useEffect(() => { setScopeOverrides({}); }, [statuses]);
+
+  // Apply optimistic scope overrides to statuses
+  const effectiveStatuses = statuses.map((s) =>
+    s.token_id && s.token_id in scopeOverrides
+      ? { ...s, is_global: scopeOverrides[s.token_id] }
+      : s
+  );
+
+  const githubAccounts = effectiveStatuses.filter(
     (s) => s.platform === "github" && s.connected
   );
-  const gitlabAccounts = statuses.filter(
+  const gitlabAccounts = effectiveStatuses.filter(
     (s) => s.platform === "gitlab" && s.connected
   );
-  const huggingfaceAccounts = statuses.filter(
+  const huggingfaceAccounts = effectiveStatuses.filter(
     (s) => s.platform === "huggingface" && s.connected
   );
-  const telegramAccounts = statuses.filter(
+  const telegramAccounts = effectiveStatuses.filter(
     (s) => s.platform === "telegram" && s.connected
   );
 
@@ -118,6 +132,18 @@ export default function SettingsPage() {
     } finally {
       busyRef.current.delete(key);
       setDisconnecting(null);
+    }
+  };
+
+  const handleToggleScope = async (tokenId: string, currentIsGlobal: boolean) => {
+    const newScope = !currentIsGlobal;
+    setScopeOverrides((prev) => ({ ...prev, [tokenId]: newScope }));
+    try {
+      await toggleTokenScope(tokenId, newScope);
+      refresh();
+    } catch (err) {
+      setScopeOverrides((prev) => { const next = { ...prev }; delete next[tokenId]; return next; });
+      toast.error(err instanceof Error ? err.message : "Failed to update token scope");
     }
   };
 
@@ -187,6 +213,8 @@ export default function SettingsPage() {
           connectedAccounts={githubAccounts}
           onDisconnect={(username) => handleDisconnectClick("github", username)}
           disconnecting={disconnecting}
+          onToggleScope={handleToggleScope}
+
         />
 
         {/* GitLab */}
@@ -205,6 +233,8 @@ export default function SettingsPage() {
           connectedAccounts={gitlabAccounts}
           onDisconnect={(username) => handleDisconnectClick("gitlab", username)}
           disconnecting={disconnecting}
+          onToggleScope={handleToggleScope}
+
         />
 
         {/* Hugging Face */}
@@ -225,6 +255,8 @@ export default function SettingsPage() {
             handleDisconnectClick("huggingface", username)
           }
           disconnecting={disconnecting}
+          onToggleScope={handleToggleScope}
+
         />
 
         {/* Telegram */}
@@ -245,6 +277,8 @@ export default function SettingsPage() {
             handleDisconnectClick("telegram", username)
           }
           disconnecting={disconnecting}
+          onToggleScope={handleToggleScope}
+
         />
       </div>
 
@@ -298,6 +332,7 @@ function PlatformSection({
   connectedAccounts,
   onDisconnect,
   disconnecting,
+  onToggleScope,
 }: {
   icon: React.ReactNode;
   name: string;
@@ -313,6 +348,7 @@ function PlatformSection({
   connectedAccounts: PlatformStatus[];
   onDisconnect: (username: string) => void;
   disconnecting: string | null;
+  onToggleScope: (tokenId: string, currentIsGlobal: boolean) => void;
 }) {
   return (
     <section className="card overflow-hidden">
@@ -344,6 +380,25 @@ function PlatformSection({
                 <span className="text-sm flex-1">
                   @{acc.username}
                 </span>
+                {acc.token_id && (
+                  <button
+                    onClick={() => onToggleScope(acc.token_id!, !!acc.is_global)}
+                    title={acc.is_global ? "Global — shared with all users. Click to make local." : "Local — only you. Click to share with all users."}
+                    className={cn(
+                      "inline-flex items-center gap-1 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors cursor-pointer",
+                      acc.is_global
+                        ? "bg-blue-500/10 text-blue-500 border border-blue-500/20 hover:bg-blue-500/20"
+                        : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 hover:bg-amber-500/20"
+                    )}
+                  >
+                    {acc.is_global ? (
+                      <Globe className="h-3.5 w-3.5" />
+                    ) : (
+                      <User className="h-3.5 w-3.5" />
+                    )}
+                    {acc.is_global ? "Global" : "Local"}
+                  </button>
+                )}
                 <button
                   onClick={() => acc.username && onDisconnect(acc.username)}
                   disabled={
@@ -352,7 +407,7 @@ function PlatformSection({
                   className="text-xs text-[var(--color-text-muted)] hover:text-red-500 transition-colors disabled:opacity-50"
                 >
                   {disconnecting === `${platform}:${acc.username}` ? (
-                    <span className="h-3 w-3 border border-[var(--color-border)] border-t-[var(--color-text-secondary)] rounded-full animate-spin inline-block" />
+                    <LogoSpinner size={12} speed="fast" />
                   ) : (
                     <XCircle className="h-3.5 w-3.5" />
                   )}
@@ -380,7 +435,7 @@ function PlatformSection({
           >
             {connecting ? (
               <span className="flex items-center gap-2">
-                <span className="h-3.5 w-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <LogoSpinner size={14} speed="fast" />
                 Connecting...
               </span>
             ) : (

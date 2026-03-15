@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth";
 import { getMe, refreshToken as refreshTokenApi } from "@/lib/auth-api";
+import { LogoSpinner } from "@/components/ui/logo-spinner";
 
 /**
  * GuestGuard redirects authenticated users away from public/auth pages
@@ -58,7 +59,7 @@ export function GuestGuard({ children }: { children: React.ReactNode }) {
   if (!checked) {
     return (
       <div className="flex items-center justify-center h-dvh">
-        <div className="h-8 w-8 rounded-full border-2 border-cyan-500 border-t-transparent animate-spin" />
+        <LogoSpinner size="lg" speed="slow" />
       </div>
     );
   }

@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { createPortal } from "react-dom";
 import { X, Download, FileText, Eye } from "@/lib/icons";
+import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { formatBytes } from "@/lib/utils";
 
 interface FilePreviewModalProps {
@@ -112,7 +113,7 @@ export function FilePreviewModal({ open, onClose, blob, filename, fileSize }: Fi
         <div className="flex-1 overflow-auto p-5">
           {!blob ? (
             <div className="flex items-center justify-center h-40">
-              <div className="h-6 w-6 border-2 border-[var(--color-border)] border-t-cyan-500 rounded-full animate-spin" />
+              <LogoSpinner size="sm" speed="fast" />
             </div>
           ) : previewType === "image" && objectUrl ? (
             <div className="flex items-center justify-center">

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { forgotPassword } from "@/lib/auth-api";
 import { toast } from "@/store/toast";
 import { Mail, ArrowRight, ArrowLeft, CheckCircle2 } from "@/lib/icons";
+import { LogoSpinner } from "@/components/ui/logo-spinner";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -72,10 +73,10 @@ export default function ForgotPasswordPage() {
           autoComplete="email"
         />
 
-        <Button type="submit" className="w-full" size="lg" disabled={loading}>
+        <Button type="submit" className="w-full" size="lg" disabled={loading || !email.trim()}>
           {loading ? (
             <span className="flex items-center gap-2">
-              <span className="h-4 w-4 border-2 border-slate-900/30 border-t-slate-900 rounded-full animate-spin" />
+              <LogoSpinner size={16} speed="fast" />
               Sending...
             </span>
           ) : (

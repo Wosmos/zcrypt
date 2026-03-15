@@ -90,7 +90,7 @@ export function Sidebar() {
         {/* Nav */}
         <nav className={cn("flex-1 py-3 space-y-0.5", collapsed ? "px-1.5" : "px-3")}>
           {links.map(({ href, label, icon: Icon }) => {
-            const active = pathname === href;
+            const active = href === "/admin" ? pathname.startsWith("/admin") : pathname === href;
             return (
               <Link
                 key={href}
@@ -234,7 +234,7 @@ function MobileDock({ pathname, onLogout, isAdmin }: { pathname: string; onLogou
         <DockItem
           key={link.href}
           {...link}
-          active={pathname === link.href}
+          active={link.href === "/admin" ? pathname.startsWith("/admin") : pathname === link.href}
           mouseX={mouseX}
         />
       ))}

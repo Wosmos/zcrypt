@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { X, AlertTriangle, Trash2, ShieldAlert, Info } from "@/lib/icons";
+import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { cn } from "@/lib/utils";
 
 type ConfirmVariant = "danger" | "warning" | "info";
@@ -148,7 +149,7 @@ export function ConfirmModal({
           >
             {loading ? (
               <span className="flex items-center justify-center gap-2">
-                <span className="h-3.5 w-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <LogoSpinner size={14} speed="fast" />
                 Processing...
               </span>
             ) : (

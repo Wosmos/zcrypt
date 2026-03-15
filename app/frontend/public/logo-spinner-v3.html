@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>zcrypt — Cipher Draw Spinner</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@700&family=Inter:wght@400;500&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet"/>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#06060a;color:#f0f2f8;font-family:'Inter',sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center}
+  .header{text-align:center;padding:50px 20px 36px}
+  .header h1{font-family:'Manrope';font-size:24px;font-weight:700;letter-spacing:-0.5px}
+  .header h1 span{color:#00d5e4}
+  .header p{color:#5c6184;font-size:12px;margin-top:6px}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:28px;max-width:1200px;width:100%;padding:0 24px 60px}
+
+  .card{
+    background:linear-gradient(165deg,#0a0c14,#0d0f18);
+    border:1px solid rgba(30,35,64,0.6);border-radius:24px;
+    padding:52px 32px 40px;display:flex;flex-direction:column;align-items:center;gap:28px;
+    position:relative;overflow:hidden;
+  }
+  .card::before{content:'';position:absolute;top:0;left:20%;right:20%;height:1px;background:linear-gradient(90deg,transparent,rgba(0,213,228,0.12),transparent)}
+  .card h3{font-family:'Manrope';font-size:15px;font-weight:700}
+  .card p{font-size:11px;color:#5c6184;text-align:center;max-width:280px;line-height:1.7}
+  .tag{font-size:9px;letter-spacing:2px;text-transform:uppercase;padding:4px 10px;border-radius:6px;background:rgba(0,213,228,0.08);color:#00d5e4;position:absolute;top:16px;right:16px}
+
+  /* ═══════════════════════════════════════════
+     CIPHER DRAW — the combo
+     ═══════════════════════════════════════════ */
+
+  /* Shared timing: 3.2s total
+     0.0–0.8s: strokes draw
+     0.6–1.0s: fills fade in
+     0.9–2.2s: cipher scramble → decode
+     2.2–2.8s: hold
+     2.8–3.2s: everything fades out
+  */
+
+  .cipher-draw{position:relative}
+  .cipher-draw svg{overflow:visible}
+
+  /* Glow layer behind strokes */
+  .cipher-draw .glow{
+    stroke-width:4;fill:none;
+    stroke-dasharray:230;stroke-dashoffset:230;
+    filter:blur(4px);
+  }
+  .cipher-draw .glow-back{stroke:rgba(0,138,151,0.5);animation:cdDraw 3.2s ease-in-out infinite}
+  .cipher-draw .glow-front{stroke:rgba(0,213,228,0.5);animation:cdDraw 3.2s ease-in-out infinite 0.15s}
+
+  /* Stroke outlines */
+  .cipher-draw .stroke-line{
+    stroke-width:2;fill:none;
+    stroke-dasharray:230;stroke-dashoffset:230;
+    stroke-linecap:round;stroke-linejoin:round;
+  }
+  .cipher-draw .stroke-back{stroke:#008a97;animation:cdDraw 3.2s ease-in-out infinite}
+  .cipher-draw .stroke-front{stroke:#00d5e4;animation:cdDraw 3.2s ease-in-out infinite 0.15s}
+
+  /* Fill planes */
+  .cipher-draw .fill-back{fill:#008a97;opacity:0;animation:cdFill 3.2s ease-in-out infinite}
+  .cipher-draw .fill-front{fill:#00d5e4;opacity:0;animation:cdFill 3.2s ease-in-out infinite 0.08s}
+
+  /* Cipher text */
+  .cipher-draw .cipher-z{
+    font-family:'JetBrains Mono';font-weight:500;
+    fill:#09090b;opacity:0;
+    animation:cdZFade 3.2s ease-in-out infinite;
+  }
+
+  /* Ambient glow behind the whole thing */
+  .cipher-draw .ambient{
+    position:absolute;top:50%;left:50%;width:60%;height:60%;
+    transform:translate(-50%,-50%);border-radius:50%;
+    background:radial-gradient(circle,rgba(0,213,228,0.12) 0%,transparent 70%);
+    opacity:0;animation:cdAmbient 3.2s ease-in-out infinite;
+    pointer-events:none;
+  }
+
+  @keyframes cdDraw{
+    0%{stroke-dashoffset:230;opacity:0}
+    5%{opacity:1}
+    25%{stroke-dashoffset:0;opacity:1}
+    75%{stroke-dashoffset:0;opacity:1}
+    87%{opacity:0.5}
+    100%{stroke-dashoffset:0;opacity:0}
+  }
+  @keyframes cdFill{
+    0%,18%{opacity:0}
+    28%{opacity:0.95}
+    75%{opacity:0.95}
+    90%,100%{opacity:0}
+  }
+  @keyframes cdZFade{
+    0%,22%{opacity:0}
+    30%{opacity:1}
+    75%{opacity:1}
+    88%,100%{opacity:0}
+  }
+  @keyframes cdAmbient{
+    0%,15%{opacity:0;transform:translate(-50%,-50%) scale(0.8)}
+    30%{opacity:1;transform:translate(-50%,-50%) scale(1)}
+    75%{opacity:1}
+    90%,100%{opacity:0;transform:translate(-50%,-50%) scale(1.1)}
+  }
+
+  /* ═══════════════════════════════════════════
+     SIZE VARIATIONS
+     ═══════════════════════════════════════════ */
+  .size-row{display:flex;align-items:center;gap:40px;flex-wrap:wrap;justify-content:center}
+
+  /* ═══════════════════════════════════════════
+     SPEED VARIATIONS
+     ═══════════════════════════════════════════ */
+
+  .fast svg *{animation-duration:2s !important}
+  .slow svg *{animation-duration:4.5s !important}
+  .slow .ambient{animation-duration:4.5s !important}
+  .fast .ambient{animation-duration:2s !important}
+
+  /* ═══════════════════════════════════════════
+     FULL-PAGE DEMO
+     ═══════════════════════════════════════════ */
+  .demo{
+    width:100%;max-width:1200px;margin:0 24px 60px;
+    border-radius:24px;
+    background:linear-gradient(180deg,#08080d,#0c0f1a);
+    border:1px solid rgba(30,35,64,0.5);
+    padding:80px 32px;
+    display:flex;flex-direction:column;align-items:center;gap:24px;
+    position:relative;overflow:hidden;
+  }
+  .demo::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(0,213,228,0.1),transparent)}
+  .demo .bg-glow{
+    position:absolute;top:35%;left:50%;width:400px;height:400px;
+    margin:-200px 0 0 -200px;border-radius:50%;
+    background:radial-gradient(circle,rgba(0,213,228,0.03) 0%,transparent 70%);
+  }
+  .demo h3{font-family:'Manrope';font-size:15px;font-weight:700;color:#e0e4f0;position:relative}
+  .demo .sub{font-size:12px;color:#5c6184;position:relative}
+  .demo .progress{
+    width:200px;height:3px;border-radius:2px;background:rgba(255,255,255,0.04);
+    overflow:hidden;position:relative;
+  }
+  .demo .progress .bar{
+    height:100%;border-radius:2px;
+    background:linear-gradient(90deg,#008a97,#00d5e4);
+    animation:demoProgress 3.2s ease-in-out infinite;
+  }
+  @keyframes demoProgress{0%{width:0}50%{width:70%}80%{width:95%}100%{width:100%}}
+
+  /* Inline usage demo */
+  .inline-row{
+    display:flex;gap:20px;flex-wrap:wrap;justify-content:center;
+    margin-bottom:20px;width:100%;max-width:1200px;padding:0 24px;
+  }
+  .inline-card{
+    display:flex;align-items:center;gap:12px;
+    padding:14px 20px;border-radius:14px;
+    background:#0a0c14;border:1px solid rgba(30,35,64,0.5);
+  }
+  .inline-card .text{font-size:13px;color:#9ea3c0}
+
+  .section-label{
+    font-family:'Manrope';font-size:18px;font-weight:700;
+    text-align:center;margin:16px 0 24px;
+  }
+  .section-label span{color:#00d5e4}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1><span>z</span>crypt — Cipher Draw</h1>
+  <p>Line draw + cipher decode combo</p>
+</div>
+
+<div class="grid">
+
+  <!-- Main concept -->
+  <div class="card">
+    <span class="tag">Default</span>
+    <div class="cipher-draw" style="width:88px;height:88px">
+      <div class="ambient"></div>
+      <svg width="88" height="88" viewBox="0 0 88 88">
+        <!-- Back plane -->
+        <rect class="glow glow-back" x="2" y="4" width="48" height="48" rx="11"/>
+        <rect class="stroke-line stroke-back" x="2" y="4" width="48" height="48" rx="11"/>
+        <rect class="fill-back" x="2" y="4" width="48" height="48" rx="11"/>
+        <!-- Front plane -->
+        <rect class="glow glow-front" x="30" y="28" width="48" height="48" rx="11"/>
+        <rect class="stroke-line stroke-front" x="30" y="28" width="48" height="48" rx="11"/>
+        <rect class="fill-front" x="30" y="28" width="48" height="48" rx="11"/>
+        <!-- Cipher z -->
+        <text class="cipher-z" x="54" y="59" text-anchor="middle" font-size="22">z</text>
+      </svg>
+    </div>
+    <h3>Cipher Draw</h3>
+    <p>Strokes trace the outline with a neon glow trail. Planes fill in. Then the z descrambles from cipher characters into the final letter. Full encryption reveal.</p>
+  </div>
+
+  <!-- Fast variant -->
+  <div class="card fast">
+    <span class="tag">Fast</span>
+    <div class="cipher-draw" style="width:88px;height:88px">
+      <div class="ambient"></div>
+      <svg width="88" height="88" viewBox="0 0 88 88">
+        <rect class="glow glow-back" x="2" y="4" width="48" height="48" rx="11"/>
+        <rect class="stroke-line stroke-back" x="2" y="4" width="48" height="48" rx="11"/>
+        <rect class="fill-back" x="2" y="4" width="48" height="48" rx="11"/>
+        <rect class="glow glow-front" x="30" y="28" width="48" height="48" rx="11"/>
+        <rect class="stroke-line stroke-front" x="30" y="28" width="48" height="48" rx="11"/>
+        <rect class="fill-front" x="30" y="28" width="48" height="48" rx="11"/>
+        <text class="cipher-z" x="54" y="59" text-anchor="middle" font-size="22">z</text>
+      </svg>
+    </div>
+    <h3>Fast (2s loop)</h3>
+    <p>Snappy for button spinners and inline loading states. Same drama, tighter timing.</p>
+  </div>
+
+  <!-- Slow cinematic -->
+  <div class="card slow">
+    <span class="tag">Slow</span>
+    <div class="cipher-draw" style="width:88px;height:88px">
+      <div class="ambient"></div>
+      <svg width="88" height="88" viewBox="0 0 88 88">
+        <rect class="glow glow-back" x="2" y="4" width="48" height="48" rx="11"/>
+        <rect class="stroke-line stroke-back" x="2" y="4" width="48" height="48" rx="11"/>
+        <rect class="fill-back" x="2" y="4" width="48" height="48" rx="11"/>
+        <rect class="glow glow-front" x="30" y="28" width="48" height="48" rx="11"/>
+        <rect class="stroke-line stroke-front" x="30" y="28" width="48" height="48" rx="11"/>
+        <rect class="fill-front" x="30" y="28" width="48" height="48" rx="11"/>
+        <text class="cipher-z" x="54" y="59" text-anchor="middle" font-size="22">z</text>
+      </svg>
+    </div>
+    <h3>Cinematic (4.5s loop)</h3>
+    <p>Slow, dramatic reveal for full-page loading and first-visit experiences. Lets each stage breathe.</p>
+  </div>
+
+</div>
+
+<!-- Size row -->
+<div class="section-label">All <span>sizes</span></div>
+<div class="size-row" style="margin-bottom:60px">
+
+  <!-- XS: 28px -->
+  <div style="text-align:center">
+    <div class="cipher-draw" style="width:28px;height:28px">
+      <svg width="28" height="28" viewBox="0 0 88 88">
+        <rect class="glow glow-back" x="2" y="4" width="48" height="48" rx="11"/>
+        <rect class="stroke-line stroke-back" x="2" y="4" width="48" height="48" rx="11"/>
+        <rect class="fill-back" x="2" y="4" width="48" height="48" rx="11"/>
+        <rect class="glow glow-front" x="30" y="28" width="48" height="48" rx="11"/>
+        <rect class="stroke-line stroke-front" x="30" y="28" width="48" height="48" rx="11"/>
+        <rect class="fill-front" x="30" y="28" width="48" height="48" rx="11"/>
+        <text class="cipher-z" x="54" y="59" text-anchor="middle" font-size="22">z</text>
+      </svg>
+    </div>
+    <div style="font-size:10px;color:#5c6184;margin-top:8px">28px</div>
+  </div>
+
+  <!-- SM: 40px -->
+  <div style="text-align:center">
+    <div class="cipher-draw" style="width:40px;height:40px">
+      <svg width="40" height="40" viewBox="0 0 88 88">
+        <rect class="glow glow-back" x="2" y="4" width="48" height="48" rx="11"/>
+        <rect class="stroke-line stroke-back" x="2" y="4" width="48" height="48" rx="11"/>
+        <rect class="fill-back" x="2" y="4" width="48" height="48" rx="11"/>
+        <rect class="glow glow-front" x="30" y="28" width="48" height="48" rx="11"/>
+        <rect class="stroke-line stroke-front" x="30" y="28" width="48" height="48" rx="11"/>
+        <rect class="fill-front" x="30" y="28" width="48" height="48" rx="11"/>
+        <text class="cipher-z" x="54" y="59" text-anchor="middle" font-size="22">z</text>
+      </svg>
+    </div>
+    <div style="font-size:10px;color:#5c6184;margin-top:8px">40px</div>
+  </div>
+
+  <!-- MD: 56px -->
+  <div style="text-align:center">
+    <div class="cipher-draw" style="width:56px;height:56px">
+      <svg width="56" height="56" viewBox="0 0 88 88">
+        <rect class="glow glow-back" x="2" y="4" width="48" height="48" rx="11"/>
+        <rect class="stroke-line stroke-back" x="2" y="4" width="48" height="48" rx="11"/>
+        <rect class="fill-back" x="2" y="4" width="48" height="48" rx="11"/>
+        <rect class="glow glow-front" x="30" y="28" width="48" height="48" rx="11"/>
+        <rect class="stroke-line stroke-front" x="30" y="28" width="48" height="48" rx="11"/>
+        <rect class="fill-front" x="30" y="28" width="48" height="48" rx="11"/>
+        <text class="cipher-z" x="54" y="59" text-anchor="middle" font-size="22">z</text>
+      </svg>
+    </div>
+    <div style="font-size:10px;color:#5c6184;margin-top:8px">56px</div>
+  </div>
+
+  <!-- LG: 80px -->
+  <div style="text-align:center">
+    <div class="cipher-draw" style="width:80px;height:80px">
+      <div class="ambient"></div>
+      <svg width="80" height="80" viewBox="0 0 88 88">
+        <rect class="glow glow-back" x="2" y="4" width="48" height="48" rx="11"/>
+        <rect class="stroke-line stroke-back" x="2" y="4" width="48" height="48" rx="11"/>
+        <rect class="fill-back" x="2" y="4" width="48" height="48" rx="11"/>
+        <rect class="glow glow-front" x="30" y="28" width="48" height="48" rx="11"/>
+        <rect class="stroke-line stroke-front" x="30" y="28" width="48" height="48" rx="11"/>
+        <rect class="fill-front" x="30" y="28" width="48" height="48" rx="11"/>
+        <text class="cipher-z" x="54" y="59" text-anchor="middle" font-size="22">z</text>
+      </svg>
+    </div>
+    <div style="font-size:10px;color:#5c6184;margin-top:8px">80px</div>
+  </div>
+
+  <!-- XL: 120px -->
+  <div style="text-align:center">
+    <div class="cipher-draw" style="width:120px;height:120px">
+      <div class="ambient"></div>
+      <svg width="120" height="120" viewBox="0 0 88 88">
+        <rect class="glow glow-back" x="2" y="4" width="48" height="48" rx="11"/>
+        <rect class="stroke-line stroke-back" x="2" y="4" width="48" height="48" rx="11"/>
+        <rect class="fill-back" x="2" y="4" width="48" height="48" rx="11"/>
+        <rect class="glow glow-front" x="30" y="28" width="48" height="48" rx="11"/>
+        <rect class="stroke-line stroke-front" x="30" y="28" width="48" height="48" rx="11"/>
+        <rect class="fill-front" x="30" y="28" width="48" height="48" rx="11"/>
+        <text class="cipher-z" x="54" y="59" text-anchor="middle" font-size="22">z</text>
+      </svg>
+    </div>
+    <div style="font-size:10px;color:#5c6184;margin-top:8px">120px</div>
+  </div>
+
+</div>
+
+<!-- Inline usage -->
+<div class="section-label">Inline <span>usage</span></div>
+<div class="inline-row">
+  <div class="inline-card fast">
+    <div class="cipher-draw" style="width:24px;height:24px">
+      <svg width="24" height="24" viewBox="0 0 88 88">
+        <rect class="stroke-line stroke-back" x="2" y="4" width="48" height="48" rx="11"/>
+        <rect class="fill-back" x="2" y="4" width="48" height="48" rx="11"/>
+        <rect class="stroke-line stroke-front" x="30" y="28" width="48" height="48" rx="11"/>
+        <rect class="fill-front" x="30" y="28" width="48" height="48" rx="11"/>
+        <text class="cipher-z" x="54" y="59" text-anchor="middle" font-size="22">z</text>
+      </svg>
+    </div>
+    <span class="text">Encrypting file...</span>
+  </div>
+  <div class="inline-card fast">
+    <div class="cipher-draw" style="width:24px;height:24px">
+      <svg width="24" height="24" viewBox="0 0 88 88">
+        <rect class="stroke-line stroke-back" x="2" y="4" width="48" height="48" rx="11"/>
+        <rect class="fill-back" x="2" y="4" width="48" height="48" rx="11"/>
+        <rect class="stroke-line stroke-front" x="30" y="28" width="48" height="48" rx="11"/>
+        <rect class="fill-front" x="30" y="28" width="48" height="48" rx="11"/>
+        <text class="cipher-z" x="54" y="59" text-anchor="middle" font-size="22">z</text>
+      </svg>
+    </div>
+    <span class="text">Decrypting vault...</span>
+  </div>
+  <div class="inline-card fast">
+    <div class="cipher-draw" style="width:24px;height:24px">
+      <svg width="24" height="24" viewBox="0 0 88 88">
+        <rect class="stroke-line stroke-back" x="2" y="4" width="48" height="48" rx="11"/>
+        <rect class="fill-back" x="2" y="4" width="48" height="48" rx="11"/>
+        <rect class="stroke-line stroke-front" x="30" y="28" width="48" height="48" rx="11"/>
+        <rect class="fill-front" x="30" y="28" width="48" height="48" rx="11"/>
+        <text class="cipher-z" x="54" y="59" text-anchor="middle" font-size="22">z</text>
+      </svg>
+    </div>
+    <span class="text">Uploading...</span>
+  </div>
+</div>
+
+<!-- Full-page demo -->
+<div class="section-label">Full-page <span>loading</span></div>
+<div class="demo">
+  <div class="bg-glow"></div>
+  <div class="cipher-draw" style="width:100px;height:100px;position:relative">
+    <div class="ambient"></div>
+    <svg width="100" height="100" viewBox="0 0 88 88">
+      <rect class="glow glow-back" x="2" y="4" width="48" height="48" rx="11"/>
+      <rect class="stroke-line stroke-back" x="2" y="4" width="48" height="48" rx="11"/>
+      <rect class="fill-back" x="2" y="4" width="48" height="48" rx="11"/>
+      <rect class="glow glow-front" x="30" y="28" width="48" height="48" rx="11"/>
+      <rect class="stroke-line stroke-front" x="30" y="28" width="48" height="48" rx="11"/>
+      <rect class="fill-front" x="30" y="28" width="48" height="48" rx="11"/>
+      <text class="cipher-z" x="54" y="59" text-anchor="middle" font-size="22">z</text>
+    </svg>
+  </div>
+  <h3>Decrypting your vault</h3>
+  <div class="sub">Verifying encryption keys...</div>
+  <div class="progress"><div class="bar"></div></div>
+</div>
+
+<script>
+// Cipher scramble on all .cipher-z text elements
+const chars = '#$@&%!?><{}[]|~^*+=0123456789abcdef';
+document.querySelectorAll('.cipher-z').forEach(el => {
+  // Get the animation duration from the element's computed style
+  const dur = parseFloat(getComputedStyle(el).animationDuration) * 1000 || 3200;
+  const scrambleStart = dur * 0.22;
+  const scrambleEnd = dur * 0.38;
+  const fadeOut = dur * 0.88;
+  let start = performance.now();
+
+  function tick(now) {
+    const elapsed = (now - start) % dur;
+    if (elapsed >= scrambleStart && elapsed < scrambleEnd) {
+      el.textContent = chars[Math.floor(Math.random() * chars.length)];
+    } else if (elapsed >= scrambleEnd && elapsed < fadeOut) {
+      el.textContent = 'z';
+    } else if (elapsed < scrambleStart) {
+      el.textContent = '';
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+});
+</script>
+
+</body>
+</html>

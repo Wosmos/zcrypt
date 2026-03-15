@@ -71,6 +71,9 @@ func main() {
 	// Create API server
 	server := cmd.NewServer(db, cfg, progress, masterKey)
 
+	// Seed default plan configs if not already in DB
+	server.SeedPlanConfigs(context.Background())
+
 	// Start background cleanup worker for deferred deletions
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -135,6 +138,7 @@ func main() {
 	mux.HandleFunc("GET /api/platforms/status", server.AuthMiddleware(server.HandlePlatformStatus))
 	mux.HandleFunc("POST /api/platforms/connect", server.AuthMiddleware(server.HandleConnectPlatform))
 	mux.HandleFunc("DELETE /api/platforms/disconnect", server.AuthMiddleware(server.HandleDisconnectPlatform))
+	mux.HandleFunc("PUT /api/platforms/tokens/{id}/scope", server.AuthMiddleware(server.HandleToggleTokenScope))
 	mux.HandleFunc("GET /api/repos", server.AuthMiddleware(server.HandleListRepos))
 	mux.HandleFunc("GET /api/config", server.AuthMiddleware(server.HandleGetConfig))
 	mux.HandleFunc("PUT /api/config", server.AdminMiddleware(server.HandleUpdateConfig))
@@ -154,6 +158,9 @@ func main() {
 	mux.HandleFunc("GET /api/files/{id}/meta", server.AuthMiddleware(server.HandleGetFileMeta))
 	mux.HandleFunc("GET /api/files/{id}/chunks/{idx}", server.AuthMiddleware(server.HandleGetChunk))
 
+	// Public plan configs (for landing/pricing pages)
+	mux.HandleFunc("GET /api/plans", server.HandleGetPlans)
+
 	// Admin routes
 	mux.HandleFunc("GET /api/admin/users", server.AdminMiddleware(server.HandleAdminListUsers))
 	mux.HandleFunc("GET /api/admin/stats", server.AdminMiddleware(server.HandleAdminStats))
@@ -162,12 +169,16 @@ func main() {
 	mux.HandleFunc("GET /api/admin/tokens", server.AdminMiddleware(server.HandleAdminListTokens))
 	mux.HandleFunc("POST /api/admin/tokens", server.AdminMiddleware(server.HandleAdminCreateToken))
 	mux.HandleFunc("DELETE /api/admin/tokens/{id}", server.AdminMiddleware(server.HandleAdminDeleteToken))
+	mux.HandleFunc("PUT /api/admin/tokens/{id}/scope", server.AdminMiddleware(server.HandleAdminToggleTokenScope))
 	mux.HandleFunc("GET /api/admin/quota", server.AdminMiddleware(server.HandleAdminGetDefaultQuota))
 	mux.HandleFunc("PUT /api/admin/quota", server.AdminMiddleware(server.HandleAdminSetDefaultQuota))
 	mux.HandleFunc("PUT /api/admin/users/{id}/quota", server.AdminMiddleware(server.HandleAdminSetUserQuota))
 	mux.HandleFunc("PUT /api/admin/users/{id}/plan", server.AdminMiddleware(server.HandleAdminSetPlan))
 	mux.HandleFunc("GET /api/admin/audit", server.AdminMiddleware(server.HandleAdminAuditLog))
 	mux.HandleFunc("GET /api/admin/feedback", server.AdminMiddleware(server.HandleAdminListFeedback))
+	mux.HandleFunc("GET /api/admin/plans", server.AdminMiddleware(server.HandleAdminGetPlans))
+	mux.HandleFunc("PUT /api/admin/plans", server.AdminMiddleware(server.HandleAdminSetPlans))
+	mux.HandleFunc("GET /api/admin/users/{id}", server.AdminMiddleware(server.HandleAdminGetUser))
 
 	// Feedback (authenticated)
 	mux.HandleFunc("POST /api/feedback", server.AuthMiddleware(server.HandleSubmitFeedback))

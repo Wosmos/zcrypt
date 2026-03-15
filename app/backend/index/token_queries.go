@@ -76,6 +76,36 @@ func (db *DB) GetPlatformTokensByPlatform(ctx context.Context, userID, platform 
 	return tokens, nil
 }
 
+// SetPlatformTokenGlobal updates the is_global flag on a platform token.
+func (db *DB) SetPlatformTokenGlobal(ctx context.Context, tokenID string, isGlobal bool) error {
+	tag, err := db.pool.Exec(ctx,
+		`UPDATE platform_tokens SET is_global = $2 WHERE id = $1`,
+		tokenID, isGlobal,
+	)
+	if err != nil {
+		return fmt.Errorf("set platform token global: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("token not found")
+	}
+	return nil
+}
+
+// SetUserPlatformTokenGlobal updates is_global only if the token belongs to the given user.
+func (db *DB) SetUserPlatformTokenGlobal(ctx context.Context, tokenID, userID string, isGlobal bool) error {
+	tag, err := db.pool.Exec(ctx,
+		`UPDATE platform_tokens SET is_global = $2 WHERE id = $1 AND user_id = $3`,
+		tokenID, isGlobal, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("set user platform token global: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("token not found or not owned by user")
+	}
+	return nil
+}
+
 // DeletePlatformToken deletes a platform token by ID.
 func (db *DB) DeletePlatformToken(ctx context.Context, tokenID string) error {
 	_, err := db.pool.Exec(ctx, `DELETE FROM platform_tokens WHERE id = $1`, tokenID)
