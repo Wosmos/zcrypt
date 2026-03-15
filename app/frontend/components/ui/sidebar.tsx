@@ -216,6 +216,7 @@ export function Sidebar() {
 
 function MobileDock({ pathname, onLogout, isAdmin }: { pathname: string; onLogout: () => void; isAdmin: boolean }) {
   const mouseX = useMotionValue(Infinity);
+  const { resolvedTheme, toggleTheme } = useTheme();
 
   const links = useMemo(
     () => (isAdmin ? [...baseLinks, adminLink] : baseLinks),
@@ -238,6 +239,12 @@ function MobileDock({ pathname, onLogout, isAdmin }: { pathname: string; onLogou
           mouseX={mouseX}
         />
       ))}
+      {/* Theme toggle */}
+      <button onClick={toggleTheme} className="relative" aria-label="Toggle theme">
+        <motion.div className="flex items-center justify-center h-11 w-11 rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors">
+          {resolvedTheme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+        </motion.div>
+      </button>
       {/* Logout */}
       <button onClick={onLogout} className="relative">
         <motion.div className="flex items-center justify-center h-11 w-11 rounded-xl text-[var(--color-text-muted)] hover:text-red-500 transition-colors">

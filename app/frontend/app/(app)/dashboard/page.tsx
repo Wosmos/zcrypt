@@ -926,10 +926,6 @@ export default function VaultPage() {
         onClose={dismissFeedback}
         onSubmitted={markFeedbackSubmitted}
       />
-
-      {/* Mobile upload FAB */}
-      {(!quotaInfo || quotaInfo.can_upload) && <UploadFAB onFiles={handleFilesSelected} />}
-
       {/* Storage quota exceeded modal */}
       <ConfirmModal
         open={!!quotaExceeded}
