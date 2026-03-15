@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/store/auth";
 import { getMe } from "@/lib/auth-api";
 import { toast } from "@/store/toast";
+import { LogoSpinner } from "@/components/ui/logo-spinner";
 
 export default function OAuthCallbackPage() {
   const router = useRouter();
@@ -49,7 +50,7 @@ export default function OAuthCallbackPage() {
 
   return (
     <div className="flex flex-col items-center justify-center gap-4">
-      <div className="h-8 w-8 rounded-full border-2 border-cyan-500 border-t-transparent animate-spin" />
+      <LogoSpinner size={32} speed="default" />
       <p className="text-sm text-[var(--color-text-secondary)]">
         Completing sign in...
       </p>

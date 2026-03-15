@@ -5,9 +5,10 @@ import type { DownloadState } from "./file-card";
 import { formatBytes, formatDate, getFileTypeInfo } from "@/lib/utils";
 import {
   File, FileText, Image, Video, Music, Archive, Code, Cog, Table,
-  Download, Trash2, Eye, Loader2, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown,
+  Download, Trash2, Eye, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown,
   CheckSquare, Square,
 } from "@/lib/icons";
+import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -127,7 +128,7 @@ export function FileTable({ files, downloadStates, sortField, sortDir, onSort, o
                     <div className="flex items-center gap-3">
                       <div className={cn("flex items-center justify-center h-8 w-8 rounded-lg flex-shrink-0", typeInfo.bg)}>
                         {isDownloading ? (
-                          <Loader2 className="h-4 w-4 text-cyan-500 animate-spin" />
+                          <LogoSpinner size={16} speed="fast" />
                         ) : isDone ? (
                           <CheckCircle2 className="h-4 w-4 text-cyan-500" />
                         ) : (

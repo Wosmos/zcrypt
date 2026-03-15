@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { verifyEmail } from "@/lib/auth-api";
 import { CheckCircle2, XCircle, ArrowRight, AlertTriangle } from "@/lib/icons";
+import { LogoSpinner } from "@/components/ui/logo-spinner";
 
 function VerifyEmailContent() {
   const searchParams = useSearchParams();
@@ -53,7 +54,7 @@ function VerifyEmailContent() {
     return (
       <div className="text-center animate-fade-in">
         <div className="flex items-center justify-center mb-4">
-          <div className="h-10 w-10 border-2 border-[var(--color-border)] border-t-cyan-500 rounded-full animate-spin" />
+          <LogoSpinner size={40} speed="default" />
         </div>
         <h2 className="text-xl font-bold">Verifying your email...</h2>
         <p className="text-sm text-[var(--color-text-secondary)] mt-2">
@@ -109,7 +110,7 @@ export default function VerifyEmailPage() {
     <Suspense
       fallback={
         <div className="flex items-center justify-center py-16">
-          <div className="h-6 w-6 border-2 border-[var(--color-border)] border-t-cyan-500 rounded-full animate-spin" />
+          <LogoSpinner size="sm" speed="default" />
         </div>
       }
     >

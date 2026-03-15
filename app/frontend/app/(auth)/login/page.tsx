@@ -10,6 +10,7 @@ import { OAuthButtons } from "@/components/auth/oauth-buttons";
 import { useAuthStore } from "@/store/auth";
 import { toast } from "@/store/toast";
 import { Mail, Lock, ArrowRight, Wand2 } from "@/lib/icons";
+import { LogoSpinner } from "@/components/ui/logo-spinner";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -181,11 +182,11 @@ export default function LoginPage() {
               type="submit"
               className="w-full"
               size="lg"
-              disabled={loading}
+              disabled={loading || !email.trim() || !password}
             >
               {loading ? (
                 <span className="flex items-center gap-2">
-                  <span className="h-4 w-4 border-2 border-slate-900/30 border-t-slate-900 rounded-full animate-spin" />
+                  <LogoSpinner size={16} speed="fast" />
                   Signing in...
                 </span>
               ) : (
@@ -224,7 +225,7 @@ export default function LoginPage() {
             >
               {magicLinkLoading ? (
                 <span className="flex items-center gap-2">
-                  <span className="h-4 w-4 border-2 border-slate-900/30 border-t-slate-900 rounded-full animate-spin" />
+                  <LogoSpinner size={16} speed="fast" />
                   Sending link...
                 </span>
               ) : (

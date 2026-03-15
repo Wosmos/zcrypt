@@ -32,6 +32,13 @@ func (s *Server) HandlePlatformStatus(w http.ResponseWriter, r *http.Request) {
 
 	userAdapters, _ := s.getUserAdapters(ctx, userID)
 
+	// Fetch token info to include token_id and is_global
+	tokenInfos, _ := s.db.GetUserPlatformTokenInfo(ctx, userID)
+	tokenMap := make(map[string]types.PlatformTokenInfo)
+	for _, t := range tokenInfos {
+		tokenMap[t.Platform+":"+t.Username] = t
+	}
+
 	// Track which platforms have at least one connected account
 	platformHasAccount := map[string]bool{}
 
@@ -41,12 +48,17 @@ func (s *Server) HandlePlatformStatus(w http.ResponseWriter, r *http.Request) {
 		username := getAdapterUsername(adapter)
 
 		platformHasAccount[platform] = true
-		statuses = append(statuses, types.PlatformStatus{
+		status := types.PlatformStatus{
 			Platform:  platform,
 			Account:   username,
 			Connected: true,
 			Username:  username,
-		})
+		}
+		if info, ok := tokenMap[platform+":"+username]; ok {
+			status.TokenID = info.ID
+			status.IsGlobal = info.IsGlobal
+		}
+		statuses = append(statuses, status)
 	}
 
 	// Add disconnected entries for platforms with no accounts
@@ -61,6 +73,38 @@ func (s *Server) HandlePlatformStatus(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(statuses)
+}
+
+// HandleToggleTokenScope toggles the is_global flag on a token owned by the current user.
+// PUT /api/platforms/tokens/{id}/scope
+func (s *Server) HandleToggleTokenScope(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID := GetUserID(r)
+	tokenID := r.PathValue("id")
+	if tokenID == "" {
+		http.Error(w, `{"error":"token id required"}`, http.StatusBadRequest)
+		return
+	}
+
+	var req struct {
+		IsGlobal bool `json:"is_global"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
+		return
+	}
+
+	if err := s.db.SetUserPlatformTokenGlobal(ctx, tokenID, userID, req.IsGlobal); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusNotFound)
+		return
+	}
+
+	// Invalidate adapter cache
+	s.invalidateUserCache(userID)
+
+	s.audit(r, &userID, "token_scope_change", map[string]interface{}{"token_id": tokenID, "is_global": req.IsGlobal})
+
+	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
 
 // HandleConnectPlatform connects a new platform account with the given token.

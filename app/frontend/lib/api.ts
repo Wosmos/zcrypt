@@ -1,4 +1,4 @@
-import type { FileMetadata, PlatformStatus, RepoInfo, AppConfig, AdminUser, SystemStats, PlatformTokenInfo, QuotaInfo } from "@/types";
+import type { FileMetadata, PlatformStatus, RepoInfo, AppConfig, AdminUser, SystemStats, PlatformTokenInfo, QuotaInfo, PlanConfigs, AdminUserDetail } from "@/types";
 import { useAuthStore } from "@/store/auth";
 import { refreshToken as refreshTokenApi } from "@/lib/auth-api";
 
@@ -174,6 +174,14 @@ export function disconnectPlatform(platform: string, username: string): Promise<
   });
 }
 
+export function toggleTokenScope(tokenId: string, isGlobal: boolean): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/api/platforms/tokens/${tokenId}/scope`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ is_global: isGlobal }),
+  });
+}
+
 export function listRepos(): Promise<RepoInfo[]> {
   return request<RepoInfo[]>("/api/repos");
 }
@@ -240,6 +248,14 @@ export function adminCreateToken(data: {
 export function adminDeleteToken(tokenId: string): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/admin/tokens/${tokenId}`, {
     method: "DELETE",
+  });
+}
+
+export function adminToggleTokenScope(tokenId: string, isGlobal: boolean): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/api/admin/tokens/${tokenId}/scope`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ is_global: isGlobal }),
   });
 }
 
@@ -338,4 +354,31 @@ export function adminGetAuditLog(params: {
   if (params.event_type) qs.set("event_type", params.event_type);
   if (params.user_id) qs.set("user_id", params.user_id);
   return request<AdminAuditResponse>(`/api/admin/audit?${qs.toString()}`);
+}
+
+// ─── Plans API ───
+
+/** Public — no auth required. Fetches plan configs for landing/pricing pages. */
+export async function getPlans(): Promise<PlanConfigs> {
+  const res = await fetch(`${API_BASE}/api/plans`);
+  if (!res.ok) throw new Error("Failed to fetch plans");
+  return res.json();
+}
+
+export function adminGetPlans(): Promise<PlanConfigs> {
+  return request<PlanConfigs>("/api/admin/plans");
+}
+
+export function adminSetPlans(plans: PlanConfigs): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>("/api/admin/plans", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(plans),
+  });
+}
+
+// ─── Admin User Detail ───
+
+export function adminGetUser(userId: string): Promise<AdminUserDetail> {
+  return request<AdminUserDetail>(`/api/admin/users/${userId}`);
 }

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { resetPassword } from "@/lib/auth-api";
 import { toast } from "@/store/toast";
 import { Lock, ArrowRight, CheckCircle2, AlertTriangle } from "@/lib/icons";
+import { LogoSpinner } from "@/components/ui/logo-spinner";
 
 function ResetPasswordForm() {
   const searchParams = useSearchParams();
@@ -108,10 +109,10 @@ function ResetPasswordForm() {
           autoComplete="new-password"
         />
 
-        <Button type="submit" className="w-full" size="lg" disabled={loading}>
+        <Button type="submit" className="w-full" size="lg" disabled={loading || !password || !confirmPassword}>
           {loading ? (
             <span className="flex items-center gap-2">
-              <span className="h-4 w-4 border-2 border-slate-900/30 border-t-slate-900 rounded-full animate-spin" />
+              <LogoSpinner size={16} speed="fast" />
               Resetting...
             </span>
           ) : (
@@ -130,7 +131,7 @@ export default function ResetPasswordPage() {
     <Suspense
       fallback={
         <div className="flex items-center justify-center py-16">
-          <div className="h-6 w-6 border-2 border-[var(--color-border)] border-t-cyan-500 rounded-full animate-spin" />
+          <LogoSpinner size="sm" speed="default" />
         </div>
       }
     >

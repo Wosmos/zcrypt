@@ -5,6 +5,7 @@ import { getLinkedAccounts, unlinkAccount, getOAuthURL, type LinkedAccountsRespo
 import { useAuthStore } from "@/store/auth";
 import { toast } from "@/store/toast";
 import { Github, Link2, X } from "@/lib/icons";
+import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { GoogleIcon } from "@/components/icons/google";
 import { cn } from "@/lib/utils";
 
@@ -92,7 +93,7 @@ export function LinkedAccounts() {
                   className="flex items-center gap-1 text-xs text-[var(--color-text-muted)] hover:text-red-500 transition-colors disabled:opacity-50"
                 >
                   {unlinking === id ? (
-                    <span className="h-3.5 w-3.5 border border-[var(--color-border)] border-t-[var(--color-text-secondary)] rounded-full animate-spin" />
+                    <LogoSpinner size={14} speed="fast" />
                   ) : (
                     <X className="h-3.5 w-3.5" />
                   )}

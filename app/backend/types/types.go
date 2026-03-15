@@ -116,6 +116,8 @@ type PlatformStatus struct {
 	Connected bool   `json:"connected"`
 	Username  string `json:"username,omitempty"`
 	Error     string `json:"error,omitempty"`
+	TokenID   string `json:"token_id,omitempty"`
+	IsGlobal  bool   `json:"is_global,omitempty"`
 }
 
 // ProgressEvent is sent to the frontend during operations.
@@ -293,6 +295,38 @@ type FeedbackWithUser struct {
 	Feedback
 	Email    string `json:"email"`
 	Username string `json:"username"`
+}
+
+// PlanFeature describes a single feature line in a plan's marketing display.
+type PlanFeature struct {
+	Text     string `json:"text"`
+	Included bool   `json:"included"`
+}
+
+// PlanConfig describes a single pricing plan's limits and marketing content.
+type PlanConfig struct {
+	ID                   string        `json:"id"`
+	Name                 string        `json:"name"`
+	MonthlyPrice         float64       `json:"monthly_price"`
+	AnnualPrice          float64       `json:"annual_price"`
+	Description          string        `json:"description"`
+	StorageBytes         int64         `json:"storage_bytes"`
+	MaxFileBytes         int64         `json:"max_file_bytes"`
+	MaxConcurrentUploads int           `json:"max_concurrent_uploads"`
+	StorageDisplay       string        `json:"storage_display"`
+	MaxFileDisplay       string        `json:"max_file_display"`
+	ConcurrentDisplay    string        `json:"concurrent_display"`
+	Features             []PlanFeature `json:"features"`
+	Highlight            bool          `json:"highlight"`
+	Badge                *string       `json:"badge"`
+	Icon                 *string       `json:"icon"`
+	SocialProof          *string       `json:"social_proof"`
+	SortOrder            int           `json:"sort_order"`
+}
+
+// PlanConfigs wraps all plan configurations.
+type PlanConfigs struct {
+	Plans []PlanConfig `json:"plans"`
 }
 
 // SystemStats holds system-wide aggregate statistics.

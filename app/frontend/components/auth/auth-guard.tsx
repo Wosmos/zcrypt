@@ -7,6 +7,7 @@ import { getMe } from "@/lib/auth-api";
 import { refreshToken as refreshTokenApi } from "@/lib/auth-api";
 import { listFiles, getPlatformStatus } from "@/lib/api";
 import { useFileStore } from "@/store/files";
+import { LogoSpinner } from "@/components/ui/logo-spinner";
 
 export function AuthGuard({
   children,
@@ -113,7 +114,7 @@ export function AuthGuard({
   if (!initialized || redirecting) {
     return (
       <div className="flex items-center justify-center h-dvh">
-        <div className="h-8 w-8 rounded-full border-2 border-cyan-500 border-t-transparent animate-spin" />
+        <LogoSpinner size="lg" speed="slow" />
       </div>
     );
   }

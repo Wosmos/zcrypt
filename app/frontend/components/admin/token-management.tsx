@@ -1,21 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { adminCreateToken, adminDeleteToken } from "@/lib/api";
+import { adminCreateToken, adminDeleteToken, adminToggleTokenScope } from "@/lib/api";
 import { toast } from "@/store/toast";
 import { cn } from "@/lib/utils";
 import { Key, Trash2, Globe, User, Plus, X } from "@/lib/icons";
+import { LogoSpinner } from "@/components/ui/logo-spinner";
 import type { PlatformTokenInfo } from "@/types";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
 
 export function TokenManagement({
   tokens,
   onRefresh,
+  currentUserId,
 }: {
   tokens: PlatformTokenInfo[];
   onRefresh: () => void;
+  currentUserId: string;
 }) {
   const [showForm, setShowForm] = useState(false);
   const [platform, setPlatform] = useState("github");
@@ -23,7 +26,14 @@ export function TokenManagement({
   const [isGlobal, setIsGlobal] = useState(false);
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [scopeOverrides, setScopeOverrides] = useState<Record<string, boolean>>({});
   const [deleteTarget, setDeleteTarget] = useState<PlatformTokenInfo | null>(null);
+
+  // Clear optimistic overrides when fresh data arrives from parent
+  useEffect(() => { setScopeOverrides({}); }, [tokens]);
+
+  const resolveGlobal = (t: PlatformTokenInfo) =>
+    t.id in scopeOverrides ? scopeOverrides[t.id] : t.is_global;
 
   const platformNames: Record<string, string> = {
     github: "GitHub",
@@ -48,6 +58,18 @@ export function TokenManagement({
       toast.error(err instanceof Error ? err.message : "Failed to create token");
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleToggleScope = async (t: PlatformTokenInfo) => {
+    const newScope = !resolveGlobal(t);
+    setScopeOverrides((prev) => ({ ...prev, [t.id]: newScope }));
+    try {
+      await adminToggleTokenScope(t.id, newScope);
+      onRefresh();
+    } catch (err) {
+      setScopeOverrides((prev) => { const next = { ...prev }; delete next[t.id]; return next; });
+      toast.error(err instanceof Error ? err.message : "Failed to update token scope");
     }
   };
 
@@ -134,7 +156,7 @@ export function TokenManagement({
               <Button onClick={handleCreate} disabled={creating || !token.trim()}>
                 {creating ? (
                   <span className="flex items-center gap-2">
-                    <span className="h-3.5 w-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <LogoSpinner size={14} speed="fast" />
                     Adding...
                   </span>
                 ) : (
@@ -167,35 +189,60 @@ export function TokenManagement({
                     <span className="text-xs text-[var(--color-text-muted)]">
                       @{t.username}
                     </span>
-                    {t.is_global ? (
-                      <span className="inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-500 border border-blue-500/20">
-                        <Globe className="h-2.5 w-2.5" />
-                        Global
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-[var(--color-surface-2)] text-[var(--color-text-muted)] border border-[var(--color-border)]">
-                        <User className="h-2.5 w-2.5" />
-                        Personal
-                      </span>
-                    )}
                   </div>
                   <p className="text-xs text-[var(--color-text-muted)]">
-                    Owner: {t.owner_email} &middot;{" "}
-                    {new Date(t.created_at).toLocaleDateString()}
+                    Added {new Date(t.created_at).toLocaleDateString()}
                   </p>
                 </div>
-                <button
-                  onClick={() => setDeleteTarget(t)}
-                  disabled={deleting === t.id}
-                  className="flex items-center justify-center h-7 w-7 rounded-lg hover:bg-red-500/10 text-[var(--color-text-muted)] hover:text-red-500 transition-colors disabled:opacity-50"
-                  title="Delete token"
-                >
-                  {deleting === t.id ? (
-                    <span className="h-3.5 w-3.5 border-2 border-[var(--color-border)] border-t-[var(--color-text-secondary)] rounded-full animate-spin" />
-                  ) : (
-                    <Trash2 className="h-3.5 w-3.5" />
-                  )}
-                </button>
+                {t.user_id === currentUserId ? (
+                  <button
+                    onClick={() => handleToggleScope(t)}
+                    title={resolveGlobal(t) ? "Click to make local (owner-only)" : "Click to make global (all users)"}
+                    className={cn(
+                      "inline-flex items-center gap-1 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors cursor-pointer",
+                      resolveGlobal(t)
+                        ? "bg-blue-500/10 text-blue-500 border border-blue-500/20 hover:bg-blue-500/20"
+                        : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 hover:bg-amber-500/20"
+                    )}
+                  >
+                    {resolveGlobal(t) ? (
+                      <Globe className="h-3.5 w-3.5" />
+                    ) : (
+                      <User className="h-3.5 w-3.5" />
+                    )}
+                    {resolveGlobal(t) ? "Global" : "Local"}
+                  </button>
+                ) : (
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1 text-xs font-medium px-3 py-1.5 rounded-lg",
+                      resolveGlobal(t)
+                        ? "bg-blue-500/10 text-blue-500 border border-blue-500/20"
+                        : "bg-[var(--color-surface-2)] text-[var(--color-text-muted)] border border-[var(--color-border)]"
+                    )}
+                  >
+                    {resolveGlobal(t) ? (
+                      <Globe className="h-3.5 w-3.5" />
+                    ) : (
+                      <User className="h-3.5 w-3.5" />
+                    )}
+                    {resolveGlobal(t) ? "Global" : "Local"}
+                  </span>
+                )}
+                {t.user_id === currentUserId && (
+                  <button
+                    onClick={() => setDeleteTarget(t)}
+                    disabled={deleting === t.id}
+                    className="flex items-center justify-center h-7 w-7 rounded-lg hover:bg-red-500/10 text-[var(--color-text-muted)] hover:text-red-500 transition-colors disabled:opacity-50"
+                    title="Delete token"
+                  >
+                    {deleting === t.id ? (
+                      <LogoSpinner size={14} speed="fast" />
+                    ) : (
+                      <Trash2 className="h-3.5 w-3.5" />
+                    )}
+                  </button>
+                )}
               </div>
             ))}
           </div>

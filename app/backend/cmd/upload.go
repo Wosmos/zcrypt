@@ -84,10 +84,7 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 	if user, uErr := s.db.GetUserByID(ctx, userID); uErr == nil && user != nil && user.Plan != "" {
 		plan = user.Plan
 	}
-	maxFileSize := planMaxFileSize[plan]
-	if maxFileSize == 0 {
-		maxFileSize = 500 * 1024 * 1024
-	}
+	maxFileSize := s.getPlanMaxFileSize(ctx, plan)
 	if req.OriginalSize > maxFileSize {
 		http.Error(w, fmt.Sprintf(`{"error":"file too large for %s plan (max %d bytes)"}`, plan, maxFileSize), http.StatusForbidden)
 		return

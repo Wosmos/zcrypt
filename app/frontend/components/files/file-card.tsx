@@ -14,7 +14,6 @@ import {
   Table,
   Download,
   Trash2,
-  Loader2,
   CheckCircle2,
   Eye,
   Copy,
@@ -29,6 +28,7 @@ import { Button } from "@/components/ui/button";
 import { formatBytes, formatDate, getFileTypeInfo, isImageFile } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { useThumbnail } from "@/hooks/useThumbnail";
+import { LogoSpinner } from "@/components/ui/logo-spinner";
 
 export type DownloadState = "idle" | "downloading" | "done";
 
@@ -123,7 +123,7 @@ export function FileCard({ file, downloadState = "idle", onDownload, onDelete, o
             isDownloading ? "bg-cyan-500/15" : isDone ? "bg-cyan-500/15" : typeInfo.bg
           )}>
             {isDownloading ? (
-              <Loader2 className="h-5 w-5 text-cyan-500 animate-spin" />
+              <LogoSpinner size={20} speed="fast" />
             ) : isDone ? (
               <CheckCircle2 className="h-5 w-5 text-cyan-500" />
             ) : (
@@ -258,7 +258,7 @@ export function FileCard({ file, downloadState = "idle", onDownload, onDelete, o
           <img src={thumbnailUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
         ) : thumbLoading && isImage ? (
           <div className="absolute inset-0 bg-[var(--color-surface-1)] flex items-center justify-center">
-            <Loader2 className="h-5 w-5 text-[var(--color-text-muted)] animate-spin" />
+            <LogoSpinner size={20} speed="fast" />
           </div>
         ) : null}
 
@@ -277,7 +277,7 @@ export function FileCard({ file, downloadState = "idle", onDownload, onDelete, o
             isDownloading ? "bg-cyan-500/15" : isDone ? "bg-cyan-500/15" : "bg-[var(--color-surface)]/80 backdrop-blur-sm shadow-sm"
           )}>
             {isDownloading ? (
-              <Loader2 className="h-7 w-7 text-cyan-500 animate-spin" />
+              <LogoSpinner size={28} speed="fast" />
             ) : isDone ? (
               <CheckCircle2 className="h-7 w-7 text-cyan-500 animate-fade-in" />
             ) : (

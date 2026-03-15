@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, X, ArrowRight, Crown, Zap, Shield } from "@/lib/icons";
 import Link from "next/link";
 import {
@@ -12,8 +12,10 @@ import {
   type MotionValue,
 } from "motion/react";
 import { cn } from "@/lib/utils";
-import { plans, competitors, trustBadges } from "@/lib/data";
+import { plans as defaultPlans, competitors, trustBadges } from "@/lib/data";
 import type { Plan } from "@/lib/data";
+import { getPlans } from "@/lib/api";
+import type { PlanConfig } from "@/types";
 
 const iconMap: Record<
   string,
@@ -356,9 +358,40 @@ function PlanCard({ plan, annual }: { plan: Plan; annual: boolean }) {
   );
 }
 
+function mapApiPlanToFrontend(p: PlanConfig): Plan {
+  return {
+    name: p.name,
+    monthly: p.monthly_price,
+    annual: p.annual_price,
+    desc: p.description,
+    storage: p.storage_display,
+    maxFile: p.max_file_display,
+    concurrent: p.concurrent_display,
+    features: p.features,
+    highlight: p.highlight,
+    badge: p.badge,
+    icon: p.icon,
+    socialProof: p.social_proof ?? undefined,
+  };
+}
+
 export function PricingSection() {
   const [annual, setAnnual] = useState(false);
+  const [plans, setPlans] = useState<Plan[]>(defaultPlans);
   const gridRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    getPlans()
+      .then((res) => {
+        const mapped = res.plans
+          .sort((a, b) => a.sort_order - b.sort_order)
+          .map(mapApiPlanToFrontend);
+        if (mapped.length > 0) setPlans(mapped);
+      })
+      .catch(() => {
+        // Keep defaultPlans on failure
+      });
+  }, []);
 
   // Full pass-through: 0 = grid top at viewport bottom, 1 = grid bottom at viewport top
   const { scrollYProgress } = useScroll({

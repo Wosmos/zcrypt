@@ -10,15 +10,16 @@ import { GitlabIcon } from "@/components/icons/gitlab";
 import { HuggingFaceIcon } from "@/components/icons/huggingface";
 import { TelegramIcon } from "@/components/icons/telegram";
 import {
-  Shield,
   Github,
   ArrowRight,
   Lock,
   Zap,
+  Shield,
   Key,
   CheckCircle2,
   SkipForward,
 } from "@/lib/icons";
+import { LogoIcon } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
 
 type Step = "welcome" | "platform" | "token" | "done";
@@ -122,8 +123,8 @@ export default function OnboardingPage() {
         {step === "welcome" && (
           <div className="space-y-8 animate-fade-in">
             <div className="text-center space-y-4">
-              <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-[var(--color-accent)]/10 border border-[var(--color-accent)]/20 mx-auto">
-                <Shield className="h-8 w-8 text-[var(--color-accent)]" />
+              <div className="mx-auto">
+                <LogoIcon size={56} />
               </div>
               <h1 className="text-3xl font-bold">
                 Welcome to <span className="text-[var(--color-accent)]">zcrypt</span>
@@ -292,8 +293,8 @@ export default function OnboardingPage() {
 
         {step === "done" && (
           <div className="text-center space-y-6 animate-fade-in">
-            <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-[var(--color-accent)]/10 border border-[var(--color-accent)]/20 mx-auto">
-              <CheckCircle2 className="h-8 w-8 text-[var(--color-accent)]" />
+            <div className="mx-auto">
+              <LogoIcon size={56} />
             </div>
             <div>
               <h2 className="text-2xl font-bold">

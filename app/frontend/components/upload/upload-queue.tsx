@@ -2,7 +2,8 @@
 
 import { useUploadStore } from "@/store/upload";
 import { ProgressBar } from "@/components/ui/progress-bar";
-import { X, CheckCircle2, AlertCircle, Loader2 } from "@/lib/icons";
+import { X, CheckCircle2, AlertCircle } from "@/lib/icons";
+import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { formatBytes } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
@@ -57,7 +58,7 @@ export function UploadQueue() {
                 <AlertCircle className="h-4 w-4 text-red-500" />
               )}
               {item.status !== "done" && item.status !== "failed" && (
-                <Loader2 className="h-4 w-4 text-cyan-500 dark:text-cyan-400 animate-spin" />
+                <LogoSpinner size={16} speed="fast" />
               )}
             </div>
 
