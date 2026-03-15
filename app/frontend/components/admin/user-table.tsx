@@ -130,12 +130,11 @@ export function UserTable({
         free: { label: "Free", uploads: 2, storage: "10 GB", fileSize: "500 MB" },
         plus: { label: "Plus", uploads: 5, storage: "200 GB", fileSize: "5 GB" },
         pro: { label: "Pro", uploads: 10, storage: "2 TB", fileSize: "25 GB" },
-        team: { label: "Team", uploads: 10, storage: "1 TB/seat", fileSize: "25 GB" },
       };
 
   const handlePlanChange = (userId: string, username: string, newPlan: string) => {
     const plan = planDetails[newPlan] || planDetails.free;
-    const planOrder = ["free", "plus", "pro", "team"];
+    const planOrder = Object.keys(planDetails);
     const currentUser = users.find((u) => u.id === userId);
     const currentPlanIdx = planOrder.indexOf(currentUser?.plan || "free");
     const newPlanIdx = planOrder.indexOf(newPlan);
@@ -191,7 +190,7 @@ export function UserTable({
           variant: "warning" as const,
         };
       case "plan": {
-        const planOrder = ["free", "plus", "pro", "team"];
+        const planOrder = Object.keys(planDetails);
         const targetUser = users.find((u) => u.id === confirmAction.userId);
         const currentIdx = planOrder.indexOf(targetUser?.plan || "free");
         const newIdx = planOrder.indexOf(confirmAction.newValue || "free");
@@ -227,7 +226,7 @@ export function UserTable({
                 <th className="text-left px-5 py-3 font-medium">Role</th>
                 <th className="text-left px-5 py-3 font-medium">Plan</th>
                 <th className="text-right px-5 py-3 font-medium">Files</th>
-                <th className="text-right px-5 py-3 font-medium">Storage</th>
+                <th className="text-right px-5 py-3 font-medium">Usage</th>
                 <th className="text-right px-5 py-3 font-medium">Quota</th>
                 <th className="text-left px-5 py-3 font-medium">Joined</th>
                 <th className="text-right px-5 py-3 font-medium">Actions</th>
@@ -288,9 +287,7 @@ export function UserTable({
                               ? "bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20"
                               : (u.plan || "free") === "plus"
                                 ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
-                                : (u.plan || "free") === "team"
-                                  ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
-                                  : "bg-[var(--color-surface-2)] text-[var(--color-text-muted)] border-[var(--color-border)]"
+                                : "bg-[var(--color-surface-2)] text-[var(--color-text-muted)] border-[var(--color-border)]"
                           )}
                         >
                           {Object.entries(planDetails).map(([id, detail]) => (
@@ -305,12 +302,10 @@ export function UserTable({
                               ? "bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/20"
                               : (u.plan || "free") === "plus"
                                 ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20"
-                                : (u.plan || "free") === "team"
-                                  ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
-                                  : "bg-[var(--color-surface-2)] text-[var(--color-text-muted)] border border-[var(--color-border)]"
+                                : "bg-[var(--color-surface-2)] text-[var(--color-text-muted)] border border-[var(--color-border)]"
                           )}
                         >
-                          {["pro", "plus", "team"].includes(u.plan || "free") && <Crown className="h-3 w-3" />}
+                          {["pro", "plus"].includes(u.plan || "free") && <Crown className="h-3 w-3" />}
                           {(u.plan || "free")}
                         </span>
                       )}

@@ -41,7 +41,7 @@ function ScatterCard({
   index: number;
   scrollProgress: MotionValue<number>;
 }) {
-  const scatter = scatterConfigs[index];
+  const scatter = scatterConfigs[index] ?? { x: 0, y: 50, rotate: 0 };
 
   // Bell-curve: assemble between 0.25–0.75, scatter at edges (enter/exit)
   const rawX = useTransform(scrollProgress, [0, 0.25, 0.75, 1], [
@@ -383,10 +383,22 @@ export function PricingSection() {
   useEffect(() => {
     getPlans()
       .then((res) => {
-        const mapped = res.plans
+        const sorted = res.plans
+          .filter((p) => p.monthly_price > 0 || p.id === "free")
           .sort((a, b) => a.sort_order - b.sort_order)
           .map(mapApiPlanToFrontend);
-        if (mapped.length > 0) setPlans(mapped);
+        if (sorted.length > 0) {
+          // Put the highlighted (featured) plan in the center position
+          const highlightIdx = sorted.findIndex((p) => p.highlight);
+          if (highlightIdx > -1 && sorted.length >= 3) {
+            const centerIdx = Math.floor(sorted.length / 2);
+            if (highlightIdx !== centerIdx) {
+              const [highlighted] = sorted.splice(highlightIdx, 1);
+              sorted.splice(centerIdx, 0, highlighted);
+            }
+          }
+          setPlans(sorted);
+        }
       })
       .catch(() => {
         // Keep defaultPlans on failure

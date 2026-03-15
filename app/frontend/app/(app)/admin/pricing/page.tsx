@@ -15,6 +15,7 @@ import {
   X,
   Loader2,
 } from "@/lib/icons";
+import { PricingSkeleton } from "@/components/admin/skeletons";
 
 const BYTES_PER_GB = 1024 * 1024 * 1024;
 const BYTES_PER_MB = 1024 * 1024;
@@ -76,7 +77,7 @@ export default function AdminPricingPage() {
   }, [user]);
 
   if (!user || user.role !== Role.Admin) return null;
-  if (loading) return null;
+  if (loading) return <PricingSkeleton />;
 
   const unitToBytes = (value: number, unit: "MB" | "GB" | "TB"): number => {
     if (unit === "TB") return Math.round(value * 1024 * BYTES_PER_GB);
@@ -142,6 +143,45 @@ export default function AdminPricingPage() {
     );
   };
 
+  const addPlan = () => {
+    const nextOrder = plans.length > 0 ? Math.max(...plans.map((p) => p.sort_order)) + 1 : 0;
+    const id = `plan-${Date.now()}`;
+    const newPlan: PlanConfig = {
+      id,
+      name: "New Plan",
+      monthly_price: 0,
+      annual_price: 0,
+      description: "",
+      storage_bytes: 10 * BYTES_PER_GB,
+      max_file_bytes: 500 * BYTES_PER_MB,
+      max_concurrent_uploads: 2,
+      storage_display: "10 GB",
+      max_file_display: "500 MB",
+      concurrent_display: "2 parallel",
+      features: [],
+      highlight: false,
+      badge: null,
+      icon: null,
+      social_proof: null,
+      sort_order: nextOrder,
+    };
+    setPlans((prev) => [...prev, newPlan]);
+    setStorageInputs((prev) => ({ ...prev, [id]: "10" }));
+    setStorageUnits((prev) => ({ ...prev, [id]: "GB" }));
+    setFileSizeInputs((prev) => ({ ...prev, [id]: "500" }));
+    setFileSizeUnits((prev) => ({ ...prev, [id]: "MB" }));
+    setExpandedPlan(id);
+  };
+
+  const deletePlan = (id: string) => {
+    if (id === "free") {
+      toast.error("Cannot delete the free plan");
+      return;
+    }
+    setPlans((prev) => prev.filter((p) => p.id !== id));
+    if (expandedPlan === id) setExpandedPlan(null);
+  };
+
   const handleSave = async () => {
     if (!plans.some((p) => p.id === "free")) {
       toast.error("A 'free' plan is required");
@@ -173,14 +213,23 @@ export default function AdminPricingPage() {
             Changes reflect across the entire app including landing page pricing
           </p>
         </div>
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-xl bg-[var(--color-accent)] text-white hover:opacity-90 transition-opacity disabled:opacity-50"
-        >
-          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-          Save Changes
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={addPlan}
+            className="flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-xl border border-[var(--color-border)] hover:bg-[var(--color-surface-1)] transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+            Add Plan
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-xl bg-[var(--color-accent)] text-white hover:opacity-90 transition-opacity disabled:opacity-50"
+          >
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+            Save Changes
+          </button>
+        </div>
       </div>
 
       <div className="grid gap-4">
@@ -197,9 +246,12 @@ export default function AdminPricingPage() {
                 )}
               >
                 {/* Plan header */}
-                <button
+                <div
+                  role="button"
+                  tabIndex={0}
                   onClick={() => setExpandedPlan(isExpanded ? null : plan.id)}
-                  className="w-full flex items-center justify-between px-5 py-4 hover:bg-[var(--color-surface-1)] transition-colors"
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setExpandedPlan(isExpanded ? null : plan.id); }}
+                  className="w-full flex items-center justify-between px-5 py-4 hover:bg-[var(--color-surface-1)] transition-colors cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
                     <div className={cn(
@@ -225,14 +277,49 @@ export default function AdminPricingPage() {
                       </p>
                     </div>
                   </div>
-                  <div className="text-xs text-[var(--color-text-muted)]">
-                    {isExpanded ? "Collapse" : "Edit"}
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-[var(--color-text-muted)]">
+                      {isExpanded ? "Collapse" : "Edit"}
+                    </span>
+                    {plan.id !== "free" && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); deletePlan(plan.id); }}
+                        className="flex items-center justify-center h-7 w-7 rounded-lg hover:bg-red-500/10 text-[var(--color-text-muted)] hover:text-red-500 transition-colors"
+                        title="Delete plan"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                   </div>
-                </button>
+                </div>
 
                 {/* Expanded editor */}
                 {isExpanded && (
                   <div className="px-5 pb-5 space-y-5 border-t border-[var(--color-border)] pt-5 animate-fade-in">
+                    {/* Plan ID (editable for new plans) */}
+                    <div>
+                      <label className="text-[10px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Plan ID</label>
+                      <input
+                        type="text"
+                        value={plan.id}
+                        onChange={(e) => {
+                          const newId = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "");
+                          const oldId = plan.id;
+                          setPlans((prev) => prev.map((p) => (p.id === oldId ? { ...p, id: newId } : p)));
+                          // Migrate input state keys
+                          setStorageInputs((prev) => { const v = prev[oldId]; const next = { ...prev, [newId]: v }; delete next[oldId]; return next; });
+                          setStorageUnits((prev) => { const v = prev[oldId]; const next = { ...prev, [newId]: v }; delete next[oldId]; return next; });
+                          setFileSizeInputs((prev) => { const v = prev[oldId]; const next = { ...prev, [newId]: v }; delete next[oldId]; return next; });
+                          setFileSizeUnits((prev) => { const v = prev[oldId]; const next = { ...prev, [newId]: v }; delete next[oldId]; return next; });
+                          if (expandedPlan === oldId) setExpandedPlan(newId);
+                        }}
+                        disabled={plan.id === "free"}
+                        className="mt-1 w-full text-sm px-3 py-2 rounded-lg bg-[var(--color-surface-1)] border border-[var(--color-border)] font-mono disabled:opacity-50"
+                        placeholder="e.g. enterprise"
+                      />
+                      <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">Lowercase, alphanumeric, hyphens only</p>
+                    </div>
+
                     {/* Basic info */}
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                       <div>

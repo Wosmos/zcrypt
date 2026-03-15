@@ -6,6 +6,7 @@ import { UserTable } from "@/components/admin/user-table";
 import { adminListUsers, adminGetDefaultQuota, adminGetPlans } from "@/lib/api";
 import { Role } from "@/types";
 import type { AdminUser, PlanConfig } from "@/types";
+import { UserTableSkeleton } from "@/components/admin/skeletons";
 
 export default function AdminUsersPage() {
   const { user } = useAuthStore();
@@ -38,7 +39,7 @@ export default function AdminUsersPage() {
   }, [user]);
 
   if (!user || user.role !== Role.Admin) return null;
-  if (loading) return null;
+  if (loading) return <UserTableSkeleton />;
 
   return (
     <UserTable
