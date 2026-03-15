@@ -44,6 +44,7 @@ export function MarketingNav() {
           {/* Left — Logo (standalone) */}
           <Link
             href="/"
+            aria-label="zcrypt home"
             className={cn(
               "flex items-center rounded-xl px-2 py-1.5 transition-all duration-300",
               scrolled

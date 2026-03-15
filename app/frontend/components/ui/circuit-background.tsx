@@ -288,7 +288,7 @@ export function CircuitBackground() {
       >
         {/* Faint background static traces */}
         <g
-          stroke={isDark ? "rgba(0,213,228,0.12)" : "rgba(0,213,228,0.08)"}
+          stroke={isDark ? "rgba(0,213,228,0.12)" : "rgba(0,147,163,0.15)"}
           fill="none"
           strokeWidth="1.5"
           strokeLinejoin="round"
@@ -304,7 +304,7 @@ export function CircuitBackground() {
                   cy={end[1]}
                   r="3"
                   fill={
-                    isDark ? "rgba(0,213,228,0.12)" : "rgba(0,213,228,0.08)"
+                    isDark ? "rgba(0,213,228,0.12)" : "rgba(0,147,163,0.15)"
                   }
                   stroke="none"
                 />
@@ -315,7 +315,7 @@ export function CircuitBackground() {
 
         {/* Animated flowing pulses - Removed Heavy SVG Blur Filter, heavily reduced stroke width & opacity */}
         <g
-          stroke={isDark ? "rgba(0,213,228,0.45)" : "rgba(0,213,228,0.3)"}
+          stroke={isDark ? "rgba(0,213,228,0.45)" : "rgba(0,147,163,0.4)"}
           fill="none"
           strokeWidth="2"
           strokeLinejoin="round"

@@ -8,7 +8,9 @@ export function MarketingFooter() {
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-8">
           {/* Logo + tagline */}
           <div>
-            <Logo size="md" href="/" />
+            <Link href="/" aria-label="zcrypt home">
+              <Logo size="md" />
+            </Link>
             <p className="text-xs text-[var(--color-text-muted)] mt-2 max-w-xs leading-relaxed">
               Zero-knowledge encrypted cloud storage. Open source.
               Privacy you can verify, not just trust.

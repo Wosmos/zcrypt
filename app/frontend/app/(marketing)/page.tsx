@@ -153,7 +153,7 @@ export default function LandingPage() {
             {testimonials.map((t, i) => (
               <ScrollReveal key={i} delay={i * 0.1}>
                 <div className="card p-6 h-full flex flex-col">
-                  <Quote className="h-5 w-5 text-cyan-500/30 mb-3 flex-shrink-0" />
+                  <Quote aria-hidden="true" className="h-5 w-5 text-cyan-500/30 mb-3 flex-shrink-0" />
                   <p className="text-sm text-[var(--color-text)] leading-relaxed flex-1">
                     &ldquo;{t.quote}&rdquo;
                   </p>

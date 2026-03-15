@@ -18,6 +18,14 @@ export function BentoGrid() {
   return (
     <section className="py-24 px-4 bg-[var(--color-bg)]">
       <div className="max-w-6xl mx-auto">
+        <div className="text-center mb-12">
+          <p className="text-xs font-semibold text-cyan-600 dark:text-cyan-400 uppercase tracking-wider mb-3">
+            Features
+          </p>
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
+            Built for privacy
+          </h2>
+        </div>
         {/* Dense Grid Construction */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           {bentoFeatures.map((f, i) => {
