@@ -46,12 +46,24 @@ import { HoverReveal } from "@/components/marketing/landing/hover-reveal";
 import { MacOSShowcase } from "@/components/marketing/macos-showcase";
 import { BentoGrid } from "@/components/marketing/landing/bento-grid";
 import { PricingSection } from "@/components/marketing/landing/product-prising";
-
+import {
+  FAQJsonLd,
+  SoftwareApplicationJsonLd,
+} from "@/components/seo/json-ld";
 
 export const metadata: Metadata = {
   title: "zcrypt — Private Cloud Storage That Costs Less",
   description:
-    "Free, open-source cloud storage with military-grade encryption. Your files, your keys, your privacy.",
+    "Free encrypted cloud storage with zero-knowledge AES-256 encryption. 10 GB free, open source, no credit card. Secure alternative to Dropbox, Google Drive, and iCloud.",
+  alternates: {
+    canonical: "https://zcrypt.cloud",
+  },
+  openGraph: {
+    title: "zcrypt — Private Cloud Storage That Costs Less",
+    description:
+      "Free zero-knowledge encrypted cloud storage. 10 GB free, military-grade AES-256 encryption, open source. Your files, your keys.",
+    url: "https://zcrypt.cloud",
+  },
 };
 
 // ─── Icon Maps (Server Component can reference client components) ───
@@ -80,6 +92,9 @@ export default function LandingPage() {
 
   return (
     <>
+      <SoftwareApplicationJsonLd />
+      <FAQJsonLd faqs={faqs} />
+
       {/* ═══ HERO (Client Island) ═══ */}
       <HeroSection />
 

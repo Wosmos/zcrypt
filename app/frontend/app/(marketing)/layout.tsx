@@ -12,7 +12,7 @@ export default function MarketingLayout({
     <GuestGuard>
       <CircuitBackground />
       <MarketingNav />
-      <main>{children}</main>
+      <main id="main-content">{children}</main>
       <MarketingFooter />
     </GuestGuard>
   );

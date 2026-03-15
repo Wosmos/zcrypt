@@ -5,6 +5,10 @@ import "./globals.css";
 import { ToastContainer } from "@/components/ui/toast-container";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { NavProgress } from "@/components/ui/nav-progress";
+import {
+  OrganizationJsonLd,
+  WebSiteJsonLd,
+} from "@/components/seo/json-ld";
 
 const satoshi = localFont({
   src: [
@@ -41,41 +45,78 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL("https://zcrypt.cloud"),
   title: {
-    default: "zcrypt — Encrypted Cloud Storage",
+    default: "zcrypt — Private Encrypted Cloud Storage | Zero-Knowledge Security",
     template: "%s | zcrypt",
   },
-  description: "Zero-knowledge encrypted personal cloud storage.",
+  description:
+    "Free zero-knowledge encrypted cloud storage. Military-grade AES-256 encryption, open source, 10 GB free. Your files, your keys, your privacy. Alternative to Dropbox, Google Drive & iCloud.",
   keywords: [
-    "cloud storage",
-    "encryption",
-    "privacy",
-    "zero-knowledge",
-    "file sharing",
-    "secure file upload",
+    "encrypted cloud storage",
+    "zero knowledge cloud storage",
+    "private cloud storage",
+    "secure file storage",
+    "encrypted file sharing",
+    "zero knowledge encryption",
+    "end to end encrypted storage",
+    "open source cloud storage",
+    "AES-256 cloud storage",
+    "free encrypted storage",
+    "private file upload",
+    "secure cloud backup",
+    "dropbox alternative",
+    "google drive alternative",
+    "encrypted file hosting",
+    "self hosted cloud storage",
+    "privacy focused cloud storage",
+    "zcrypt",
+    "zcrypt cloud",
+    "military grade encryption storage",
+    "BYOB cloud storage",
+    "bring your own backend storage",
+    "git based cloud storage",
+    "cheap cloud storage",
+    "affordable encrypted storage",
   ],
-  authors: [{ name: "zcrypt Team" }],
+  authors: [{ name: "zcrypt Team", url: "https://zcrypt.cloud" }],
   creator: "zcrypt",
   publisher: "zcrypt",
+  category: "technology",
   icons: {
     icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
+  },
+  alternates: {
+    canonical: "https://zcrypt.cloud",
   },
   openGraph: {
     type: "website",
     locale: "en_US",
     url: "https://zcrypt.cloud",
-    title: "zcrypt — Encrypted Cloud Storage",
+    title: "zcrypt — Private Encrypted Cloud Storage",
     description:
-      "Zero-knowledge encrypted personal cloud storage built for complete mathematical privacy.",
+      "Free zero-knowledge encrypted cloud storage with AES-256 encryption. 10 GB free, open source, no credit card required. The private alternative to Dropbox and Google Drive.",
     siteName: "zcrypt",
   },
   twitter: {
     card: "summary_large_image",
-    title: "zcrypt — Encrypted Cloud Storage",
-    description: "Zero-knowledge encrypted personal cloud storage.",
+    title: "zcrypt — Private Encrypted Cloud Storage",
+    description:
+      "Free zero-knowledge encrypted cloud storage. 10 GB free, AES-256 encryption, open source.",
+    creator: "@zcryptcloud",
   },
   robots: {
     index: true,
     follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  verification: {
+    // Add your Google Search Console verification code here
+    // google: "your-verification-code",
   },
 };
 
@@ -108,6 +149,8 @@ export default function RootLayout({
             `,
           }}
         />
+        <OrganizationJsonLd />
+        <WebSiteJsonLd />
       </head>
       <body>
         <a

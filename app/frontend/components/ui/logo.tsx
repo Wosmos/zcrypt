@@ -177,7 +177,7 @@ export function Logo({
 
   if (href) {
     return (
-      <Link href={href} className="inline-flex">
+      <Link href={href} aria-label="zcrypt home" className="inline-flex">
         {content}
       </Link>
     );
