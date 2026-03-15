@@ -91,17 +91,21 @@ export function HeroSection() {
     >
       {/* Background */}
       <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:32px_32px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
 
         <motion.div
-          animate={{ opacity: [0.2, 0.4, 0.2] }}
+          animate={{ opacity: [0.3, 0.5, 0.3] }}
           transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute -top-[10%] -left-[10%] w-[70vw] h-[70vw] bg-cyan-500/10 rounded-full blur-[100px]"
+          className="absolute -top-[10%] -left-[10%] w-[70vw] h-[70vw] bg-cyan-500/15 dark:bg-cyan-500/10 rounded-full blur-[100px]"
         />
         <motion.div
-          animate={{ opacity: [0.1, 0.3, 0.1] }}
+          animate={{ opacity: [0.15, 0.35, 0.15] }}
           transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-          className="absolute top-[10%] -right-[10%] w-[50vw] h-[50vw] bg-violet-500/10 rounded-full blur-[100px]"
+          className="absolute top-[10%] -right-[10%] w-[50vw] h-[50vw] bg-violet-500/15 dark:bg-violet-500/10 rounded-full blur-[100px]"
+        />
+        <motion.div
+          animate={{ opacity: [0.1, 0.2, 0.1] }}
+          transition={{ duration: 12, repeat: Infinity, ease: "easeInOut", delay: 3 }}
+          className="absolute bottom-[5%] left-[20%] w-[40vw] h-[40vw] bg-blue-500/10 dark:bg-blue-500/5 rounded-full blur-[120px]"
         />
       </div>
 
@@ -132,7 +136,7 @@ export function HeroSection() {
             Your Keys.
           </Underlined>
           <br className="hidden sm:block" />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-cyan-300 to-blue-500">
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-600 via-cyan-600 to-blue-600 dark:from-cyan-400 dark:via-cyan-300 dark:to-blue-500">
             <em className="italic">Zero</em> Compromises.
           </span>
         </motion.h1>
@@ -156,7 +160,7 @@ export function HeroSection() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3, duration: 0.5 }}
-          className="flex items-center gap-5 mt-5 text-xs text-slate-400 dark:text-slate-500"
+          className="flex items-center gap-5 mt-5 text-xs text-slate-500 dark:text-slate-400"
         >
           <span className="flex items-center gap-1.5">
             <Shield className="h-3.5 w-3.5 text-cyan-500/60" />
@@ -208,16 +212,17 @@ export function HeroSection() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 1 }}
+        aria-hidden="true"
         className="absolute bottom-8 hidden md:flex flex-col items-center gap-2"
       >
-        <span className="text-[10px] font-bold tracking-[0.2em] uppercase opacity-30 font-heading">
+        <span className="text-[10px] font-bold tracking-[0.2em] uppercase opacity-40 font-heading">
           Scroll
         </span>
         <motion.div
           animate={{ y: [0, 6, 0] }}
           transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
         >
-          <ChevronDown className="h-4 w-4 opacity-30" />
+          <ChevronDown className="h-4 w-4 opacity-40" />
         </motion.div>
       </motion.div>
 

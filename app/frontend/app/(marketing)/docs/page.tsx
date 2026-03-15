@@ -9,6 +9,7 @@ import {
   Globe,
   ArrowRight,
   Mail,
+  Sparkles,
 } from "@/lib/icons";
 import { docsCategories } from "@/lib/data";
 
@@ -23,12 +24,37 @@ const iconMap: Record<
   React.ComponentType<{ className?: string; size?: number }>
 > = { Rocket, Shield, Code, Terminal, HardDrive, Globe };
 
+const iconColors: Record<string, string> = {
+  Rocket: "text-cyan-500",
+  Shield: "text-violet-500",
+  Code: "text-blue-500",
+  Terminal: "text-emerald-500",
+  HardDrive: "text-amber-500",
+  Globe: "text-rose-500",
+};
+
+const iconBgs: Record<string, string> = {
+  Rocket: "bg-cyan-500/10",
+  Shield: "bg-violet-500/10",
+  Code: "bg-blue-500/10",
+  Terminal: "bg-emerald-500/10",
+  HardDrive: "bg-amber-500/10",
+  Globe: "bg-rose-500/10",
+};
+
 export default function DocsPage() {
   return (
     <>
       {/* ═══ HERO ═══ */}
-      <section className="py-24 md:py-32 px-4">
+      <section className="pt-24 md:pt-32 pb-16 px-4 relative overflow-hidden">
+        <div className="absolute inset-0 -z-10 pointer-events-none">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-cyan-500/8 rounded-full blur-[120px]" />
+        </div>
         <div className="max-w-3xl mx-auto text-center">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-cyan-500/10 text-xs font-bold text-cyan-600 dark:text-cyan-400 uppercase tracking-wider mb-4">
+            <Sparkles className="h-3 w-3" />
+            Documentation
+          </div>
           <h1 className="text-4xl sm:text-5xl font-bold tracking-tight font-heading">
             Documentation
           </h1>
@@ -45,25 +71,41 @@ export default function DocsPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {docsCategories.map((cat, i) => {
               const Icon = iconMap[cat.icon];
+              const color = iconColors[cat.icon] ?? "text-cyan-500";
+              const bg = iconBgs[cat.icon] ?? "bg-cyan-500/10";
               const Wrapper = cat.href
-                ? ({ children, className }: { children: React.ReactNode; className: string }) => (
-                    <Link href={cat.href!} className={className}>{children}</Link>
+                ? ({
+                    children,
+                    className,
+                  }: {
+                    children: React.ReactNode;
+                    className: string;
+                  }) => (
+                    <Link href={cat.href!} className={className}>
+                      {children}
+                    </Link>
                   )
-                : ({ children, className }: { children: React.ReactNode; className: string }) => (
-                    <div className={className}>{children}</div>
-                  );
+                : ({
+                    children,
+                    className,
+                  }: {
+                    children: React.ReactNode;
+                    className: string;
+                  }) => <div className={className}>{children}</div>;
 
               return (
                 <Wrapper
                   key={i}
-                  className={`card p-6 group transition-colors ${
+                  className={`card p-6 group transition-all duration-200 ${
                     cat.href
-                      ? "hover:border-cyan-500/40 cursor-pointer"
-                      : "opacity-75"
+                      ? "hover:border-[var(--color-border-hover)] hover:shadow-lg hover:shadow-slate-900/5 dark:hover:shadow-black/20 cursor-pointer"
+                      : "opacity-60"
                   }`}
                 >
                   <div className="flex items-start gap-4">
-                    <div className="flex-shrink-0 inline-flex items-center justify-center h-10 w-10 rounded-lg bg-cyan-500/10 text-cyan-500 group-hover:scale-110 transition-transform">
+                    <div
+                      className={`flex-shrink-0 inline-flex items-center justify-center h-10 w-10 rounded-xl ${bg} ${color} group-hover:scale-110 transition-transform`}
+                    >
                       {Icon && <Icon size={20} />}
                     </div>
                     <div className="min-w-0">
@@ -79,7 +121,7 @@ export default function DocsPage() {
                         {cat.desc}
                       </p>
                       {cat.href && (
-                        <span className="inline-flex items-center gap-1 text-xs font-medium text-cyan-600 dark:text-cyan-400 mt-2">
+                        <span className="inline-flex items-center gap-1 text-xs font-medium text-cyan-600 dark:text-cyan-400 mt-2 group-hover:gap-2 transition-all">
                           Read more
                           <ArrowRight className="h-3 w-3" />
                         </span>
@@ -94,7 +136,7 @@ export default function DocsPage() {
       </section>
 
       {/* ═══ CTA ═══ */}
-      <section className="py-24 px-4 bg-[var(--color-surface)]">
+      <section className="py-20 px-4 bg-[var(--color-surface)]">
         <div className="max-w-2xl mx-auto text-center">
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
             Can&apos;t find what you need?

@@ -66,7 +66,7 @@ export function PencilUnderline({
           <motion.path
             d="M0,4 C30,2 60,6 100,3 C140,0 170,5 200,3 L200,17 C170,19 140,14 100,17 C60,20 30,15 0,17 Z"
             fill={color}
-            opacity="0.12"
+            opacity="0.25"
             filter="url(#ink-bleed)"
             style={{ transformOrigin: "left" }}
             initial={{ scaleX: 0 }}
@@ -137,7 +137,7 @@ export function PencilUnderline({
         <motion.path
           d="M2,18 C40,17 80,19 120,16 C150,14 185,12 196,10 C200,10 202,22 195,24 C150,26 80,24 2,18 Z"
           fill={color}
-          opacity="0.65"
+          opacity="0.75"
           style={{ transformOrigin: "left" }}
           initial={{ scaleX: 0 }}
           whileInView={{ scaleX: 1 }}
