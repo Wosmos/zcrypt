@@ -579,3 +579,101 @@ func (db *DB) UpdateFileSizes(ctx context.Context, fileID string, compressedSize
 	}
 	return nil
 }
+
+// ── Share queries ──
+
+// GetFileByIDUnsafe returns file metadata without user scoping (for share access).
+func (db *DB) GetFileByIDUnsafe(ctx context.Context, fileID string) (*types.FileMetadata, error) {
+	f := &types.FileMetadata{}
+	err := db.pool.QueryRow(ctx,
+		`SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, status, created_at
+		 FROM files WHERE id = $1`, fileID,
+	).Scan(&f.ID, &f.UserID, &f.OriginalName, &f.OriginalSize, &f.CompressedSize,
+		&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.Salt, &f.IV, &f.Status, &f.CreatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("get file by id (unsafe): %w", err)
+	}
+	return f, nil
+}
+
+// CreateShare inserts a new share link.
+func (db *DB) CreateShare(ctx context.Context, s *types.ShareLink) error {
+	_, err := db.pool.Exec(ctx,
+		`INSERT INTO shares (id, file_id, user_id, token, password_hash, expires_at, max_downloads)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+		s.ID, s.FileID, s.UserID, s.Token, s.PasswordHash, s.ExpiresAt, s.MaxDownloads,
+	)
+	if err != nil {
+		return fmt.Errorf("create share: %w", err)
+	}
+	return nil
+}
+
+// GetShareByToken retrieves a share by its public token.
+func (db *DB) GetShareByToken(ctx context.Context, token string) (*types.ShareLink, error) {
+	s := &types.ShareLink{}
+	err := db.pool.QueryRow(ctx,
+		`SELECT id, file_id, user_id, token, password_hash, expires_at, max_downloads, download_count, revoked, created_at
+		 FROM shares WHERE token = $1`, token,
+	).Scan(&s.ID, &s.FileID, &s.UserID, &s.Token, &s.PasswordHash, &s.ExpiresAt, &s.MaxDownloads, &s.DownloadCount, &s.Revoked, &s.CreatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("get share by token: %w", err)
+	}
+	s.HasPassword = s.PasswordHash != ""
+	return s, nil
+}
+
+// ListSharesByUser returns all shares for a user, optionally filtered by file.
+func (db *DB) ListSharesByUser(ctx context.Context, userID, fileID string) ([]types.ShareLink, error) {
+	query := `SELECT id, file_id, user_id, token, password_hash, expires_at, max_downloads, download_count, revoked, created_at
+	          FROM shares WHERE user_id = $1`
+	args := []interface{}{userID}
+
+	if fileID != "" {
+		query += ` AND file_id = $2`
+		args = append(args, fileID)
+	}
+	query += ` ORDER BY created_at DESC`
+
+	rows, err := db.pool.Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list shares: %w", err)
+	}
+	defer rows.Close()
+
+	var shares []types.ShareLink
+	for rows.Next() {
+		var s types.ShareLink
+		if err := rows.Scan(&s.ID, &s.FileID, &s.UserID, &s.Token, &s.PasswordHash, &s.ExpiresAt, &s.MaxDownloads, &s.DownloadCount, &s.Revoked, &s.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan share: %w", err)
+		}
+		s.HasPassword = s.PasswordHash != ""
+		shares = append(shares, s)
+	}
+	return shares, nil
+}
+
+// RevokeShare marks a share as revoked.
+func (db *DB) RevokeShare(ctx context.Context, userID, shareID string) error {
+	tag, err := db.pool.Exec(ctx,
+		`UPDATE shares SET revoked = TRUE WHERE id = $1 AND user_id = $2`, shareID, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("revoke share: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("share not found")
+	}
+	return nil
+}
+
+// IncrementShareDownloads atomically increments the download count.
+func (db *DB) IncrementShareDownloads(ctx context.Context, shareID string) error {
+	_, err := db.pool.Exec(ctx,
+		`UPDATE shares SET download_count = download_count + 1 WHERE id = $1`, shareID,
+	)
+	if err != nil {
+		return fmt.Errorf("increment share downloads: %w", err)
+	}
+	return nil
+}

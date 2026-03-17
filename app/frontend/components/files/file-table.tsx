@@ -6,7 +6,7 @@ import { formatBytes, formatDate, getFileTypeInfo } from "@/lib/utils";
 import {
   File, FileText, Image, Video, Music, Archive, Code, Cog, Table,
   Download, Trash2, Eye, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown,
-  CheckSquare, Square,
+  CheckSquare, Square, Share2,
 } from "@/lib/icons";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ interface FileTableProps {
   onDownload: (filename: string) => void;
   onDelete: (id: string) => void;
   onPreview?: (filename: string) => void;
+  onShare?: (id: string) => void;
   selectable?: boolean;
   selectedIds?: Set<string>;
   onSelect?: (id: string) => void;
@@ -39,7 +40,7 @@ function SortIcon({ field, activeField, dir }: { field: SortField; activeField: 
   return dir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
 }
 
-export function FileTable({ files, downloadStates, sortField, sortDir, onSort, onDownload, onDelete, onPreview, selectable, selectedIds, onSelect, onSelectAll }: FileTableProps) {
+export function FileTable({ files, downloadStates, sortField, sortDir, onSort, onDownload, onDelete, onPreview, onShare, selectable, selectedIds, onSelect, onSelectAll }: FileTableProps) {
   const allSelected = selectable && selectedIds && files.length > 0 && files.every((f) => selectedIds.has(f.id));
 
   return (
@@ -167,6 +168,11 @@ export function FileTable({ files, downloadStates, sortField, sortDir, onSort, o
                           <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onDownload(file.original_name); }} title="Download" className={cn("h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity", isDone && "opacity-100")}>
                             <Download className="h-3.5 w-3.5" />
                           </Button>
+                          {onShare && (
+                            <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onShare(file.id); }} title="Share" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Share2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
                           <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onDelete(file.id); }} title="Delete" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity">
                             <Trash2 className="h-3.5 w-3.5 text-red-400/60 hover:text-red-400" />
                           </Button>

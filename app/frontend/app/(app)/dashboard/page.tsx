@@ -54,6 +54,7 @@ import type { QuotaInfo, FileMetadata } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Pagination } from "@/components/ui/pagination";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
+import { ShareModal } from "@/components/ui/share-modal";
 import { FeedbackModal } from "@/components/feedback/feedback-modal";
 import { useFeedbackTrigger } from "@/hooks/useFeedbackTrigger";
 
@@ -101,6 +102,7 @@ export default function VaultPage() {
   const [quotaInfo, setQuotaInfo] = useState<QuotaInfo | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<FileMetadata | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [shareTarget, setShareTarget] = useState<FileMetadata | null>(null);
   const [quotaExceeded, setQuotaExceeded] = useState<{ totalSize: number; remaining: number } | null>(null);
   const { showFeedback, dismiss: dismissFeedback, markSubmitted: markFeedbackSubmitted } = useFeedbackTrigger(
     quotaInfo?.used_bytes ?? 0,
@@ -255,6 +257,14 @@ export default function VaultPage() {
     [files]
   );
 
+  const handleShare = useCallback(
+    (id: string) => {
+      const file = files.find((f) => f.id === id);
+      if (file) setShareTarget(file);
+    },
+    [files]
+  );
+
   const executeDelete = useCallback(
     async () => {
       if (!deleteTarget) return;
@@ -317,13 +327,23 @@ export default function VaultPage() {
     refresh();
   }, [selectedIds, refresh]);
 
+  const startBulkZipDownload = useDownloadStore((s) => s.startBulkZipDownload);
   const startBulkDownload = useCallback((passphrase: string) => {
     const filesToDownload = files.filter((f) => selectedIds.has(f.id));
-    for (const file of filesToDownload) {
-      startDownload(file.original_name, passphrase);
+    const totalSize = filesToDownload.reduce((s, f) => s + f.original_size, 0);
+    const MAX_ZIP_SIZE = 2 * 1024 * 1024 * 1024; // 2GB
+    if (totalSize > MAX_ZIP_SIZE) {
+      toast.warning(`Selected files total ${formatBytes(totalSize)} — too large for ZIP. Download individually instead.`);
+      return;
     }
+    const bulkFiles = filesToDownload.map((f) => ({
+      fileId: f.id,
+      filename: f.original_name,
+      fileSize: f.original_size,
+    }));
+    startBulkZipDownload(bulkFiles, passphrase);
     exitSelectionMode();
-  }, [files, selectedIds, startDownload, exitSelectionMode]);
+  }, [files, selectedIds, startBulkZipDownload, exitSelectionMode]);
 
   const handleBulkDownload = useCallback(() => {
     const cached = getPassphrase();
@@ -769,6 +789,7 @@ export default function VaultPage() {
             onDownload={handleDownloadClick}
             onDelete={handleDeleteClick}
             onPreview={handlePreview}
+            onShare={handleShare}
             selectable={selectionMode}
             selectedIds={selectedIds}
             onSelect={toggleSelect}
@@ -795,6 +816,7 @@ export default function VaultPage() {
                   onDownload={handleDownloadClick}
                   onDelete={handleDeleteClick}
                   onPreview={handlePreview}
+                  onShare={handleShare}
                   selectable={selectionMode}
                   selected={selectedIds.has(file.id)}
                   onSelect={toggleSelect}
@@ -811,6 +833,7 @@ export default function VaultPage() {
                 onDownload={handleDownloadClick}
                 onDelete={handleDeleteClick}
                 onPreview={handlePreview}
+                onShare={handleShare}
                 selectable={selectionMode}
                 selected={selectedIds.has(file.id)}
                 onSelect={toggleSelect}
@@ -893,6 +916,15 @@ export default function VaultPage() {
         blob={preview.blob}
         filename={preview.filename}
         fileSize={preview.fileSize}
+      />
+
+      {/* Share modal */}
+      <ShareModal
+        open={!!shareTarget}
+        onClose={() => setShareTarget(null)}
+        fileId={shareTarget?.id ?? ""}
+        fileName={shareTarget?.original_name ?? ""}
+        fileSize={shareTarget?.original_size ?? 0}
       />
 
       {/* Confirm delete modal */}

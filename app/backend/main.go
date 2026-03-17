@@ -158,6 +158,16 @@ func main() {
 	mux.HandleFunc("GET /api/files/{id}/meta", server.AuthMiddleware(server.HandleGetFileMeta))
 	mux.HandleFunc("GET /api/files/{id}/chunks/{idx}", server.AuthMiddleware(server.HandleGetChunk))
 
+	// Share management (authenticated)
+	mux.HandleFunc("POST /api/shares", server.AuthMiddleware(server.HandleCreateShare))
+	mux.HandleFunc("GET /api/shares", server.AuthMiddleware(server.HandleListShares))
+	mux.HandleFunc("DELETE /api/shares/{id}", server.AuthMiddleware(server.HandleRevokeShare))
+
+	// Public share access (no auth)
+	mux.HandleFunc("GET /api/share/{token}", server.HandleGetShareInfo)
+	mux.HandleFunc("GET /api/share/{token}/meta", server.HandleGetShareFileMeta)
+	mux.HandleFunc("GET /api/share/{token}/chunks/{idx}", server.HandleGetShareChunk)
+
 	// Public plan configs (for landing/pricing pages)
 	mux.HandleFunc("GET /api/plans", server.HandleGetPlans)
 
@@ -277,7 +287,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 			w.Header().Set("Vary", "Origin")
 		}
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Chunk-SHA256, X-Chunk-Compressed")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Chunk-SHA256, X-Chunk-Compressed, X-Share-Password")
 		w.Header().Set("Access-Control-Expose-Headers", "X-Chunk-SHA256, X-Chunk-Compressed")
 
 		// Security headers
