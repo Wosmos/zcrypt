@@ -329,6 +329,21 @@ type PlanConfigs struct {
 	Plans []PlanConfig `json:"plans"`
 }
 
+// ShareLink represents a shareable link for a file.
+type ShareLink struct {
+	ID            string     `json:"id"`
+	FileID        string     `json:"file_id"`
+	UserID        string     `json:"user_id"`
+	Token         string     `json:"token"`
+	PasswordHash  string     `json:"-"`
+	HasPassword   bool       `json:"has_password"`
+	ExpiresAt     *time.Time `json:"expires_at,omitempty"`
+	MaxDownloads  int        `json:"max_downloads"`
+	DownloadCount int        `json:"download_count"`
+	Revoked       bool       `json:"revoked"`
+	CreatedAt     time.Time  `json:"created_at"`
+}
+
 // SystemStats holds system-wide aggregate statistics.
 type SystemStats struct {
 	TotalUsers        int   `json:"total_users"`

@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { toast } from "@/store/toast";
 import { notifications } from "@/store/notifications";
 import { downloadAndDecryptFile } from "@/lib/download-session";
+import { downloadAsZip, type BulkDownloadFile } from "@/lib/bulk-download";
 
 export type DownloadStatus = "queued" | "downloading" | "done" | "failed" | "cancelled";
 
@@ -49,6 +50,7 @@ interface DownloadStore {
   // Map of download id -> AbortController (for cancellation)
   controllers: Map<string, AbortController>;
   startDownload: (fileId: string, filename: string, fileSize: number, passphrase: string) => void;
+  startBulkZipDownload: (files: BulkDownloadFile[], passphrase: string) => void;
   cancelDownload: (id: string) => void;
   retryDownload: (id: string, passphrase: string) => void;
   removeFromQueue: (id: string) => void;
@@ -135,6 +137,80 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
         notifications.downloadFailed(filename, msg);
       } finally {
         // Clean up controller
+        set((state) => {
+          const controllers = new Map(state.controllers);
+          controllers.delete(id);
+          return { controllers };
+        });
+      }
+    })();
+  },
+
+  startBulkZipDownload: (files, passphrase) => {
+    const id = `zip_${++counter}_${Date.now()}`;
+    const controller = new AbortController();
+    const totalSize = files.reduce((s, f) => s + f.fileSize, 0);
+
+    set((state) => ({
+      queue: [
+        ...state.queue,
+        {
+          id,
+          fileId: "zip",
+          filename: `${files.length} files as ZIP`,
+          fileSize: totalSize,
+          status: "queued" as const,
+          progress: 0,
+          stage: "Queued",
+          startedAt: Date.now(),
+        },
+      ],
+      controllers: new Map(state.controllers).set(id, controller),
+    }));
+
+    void (async () => {
+      const updateProgress = (status: DownloadStatus, progress?: number, stage?: string) => {
+        if (status === "done" || status === "failed" || status === "cancelled") {
+          pendingUpdates.delete(id);
+          set((state) => ({
+            queue: state.queue.map((item) =>
+              item.id === id
+                ? { ...item, status, progress: progress ?? item.progress, stage: stage ?? item.stage }
+                : item
+            ),
+          }));
+          return;
+        }
+        pendingUpdates.set(id, { status, progress, stage });
+        scheduleFlush();
+      };
+
+      try {
+        updateProgress("downloading", 0, "Starting ZIP...");
+
+        await downloadAsZip(files, passphrase, {
+          onProgress: (info) => {
+            updateProgress("downloading", info.percent, info.stage);
+          },
+          signal: controller.signal,
+        });
+
+        updateProgress("done", 100, "Done");
+        toast.success(`ZIP with ${files.length} files downloaded`);
+        notifications.downloadComplete(`${files.length} files (ZIP)`);
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") {
+          updateProgress("cancelled", undefined, "Cancelled");
+          return;
+        }
+        const msg = err instanceof Error ? err.message : "ZIP download failed";
+        set((state) => ({
+          queue: state.queue.map((item) =>
+            item.id === id ? { ...item, status: "failed" as const, error: msg, stage: "Failed" } : item
+          ),
+        }));
+        toast.error(`ZIP download failed: ${msg}`);
+      } finally {
         set((state) => {
           const controllers = new Map(state.controllers);
           controllers.delete(id);

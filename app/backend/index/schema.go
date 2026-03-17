@@ -211,4 +211,22 @@ CREATE TABLE IF NOT EXISTS feedback (
 
 CREATE INDEX IF NOT EXISTS idx_feedback_user ON feedback(user_id);
 CREATE INDEX IF NOT EXISTS idx_feedback_time ON feedback(created_at DESC);
+
+-- File sharing via public links
+CREATE TABLE IF NOT EXISTS shares (
+	id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+	file_id         UUID NOT NULL REFERENCES files(id) ON DELETE CASCADE,
+	user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	token           TEXT NOT NULL UNIQUE,
+	password_hash   TEXT NOT NULL DEFAULT '',
+	expires_at      TIMESTAMPTZ,
+	max_downloads   INTEGER NOT NULL DEFAULT 0,
+	download_count  INTEGER NOT NULL DEFAULT 0,
+	revoked         BOOLEAN NOT NULL DEFAULT FALSE,
+	created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_shares_token ON shares(token);
+CREATE INDEX IF NOT EXISTS idx_shares_user ON shares(user_id);
+CREATE INDEX IF NOT EXISTS idx_shares_file ON shares(file_id);
 `

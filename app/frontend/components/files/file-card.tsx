@@ -23,6 +23,7 @@ import {
   CheckSquare,
   Square,
   MoreHorizontal,
+  Share2,
 } from "@/lib/icons";
 import { Button } from "@/components/ui/button";
 import { formatBytes, formatDate, getFileTypeInfo, isImageFile } from "@/lib/utils";
@@ -38,6 +39,7 @@ interface FileCardProps {
   onDownload: (filename: string) => void;
   onDelete: (id: string) => void;
   onPreview?: (filename: string) => void;
+  onShare?: (id: string) => void;
   selectable?: boolean;
   selected?: boolean;
   onSelect?: (id: string) => void;
@@ -47,7 +49,7 @@ const iconMap: Record<string, typeof File> = {
   File, FileText, Image, Video, Music, Archive, Code, Cog, Table,
 };
 
-export function FileCard({ file, downloadState = "idle", onDownload, onDelete, onPreview, selectable, selected, onSelect }: FileCardProps) {
+export function FileCard({ file, downloadState = "idle", onDownload, onDelete, onPreview, onShare, selectable, selected, onSelect }: FileCardProps) {
   const [copied, setCopied] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -201,6 +203,14 @@ export function FileCard({ file, downloadState = "idle", onDownload, onDelete, o
                 >
                   <Download className="h-4 w-4" /> Download
                 </button>
+                {onShare && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setMobileMenuOpen(false); onShare(file.id); }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-[var(--color-text-secondary)] active:bg-[var(--color-surface-1)]"
+                  >
+                    <Share2 className="h-4 w-4" /> Share
+                  </button>
+                )}
                 <button
                   onClick={(e) => { e.stopPropagation(); setMobileMenuOpen(false); onDelete(file.id); }}
                   className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-red-400 active:bg-red-500/5"
@@ -319,6 +329,11 @@ export function FileCard({ file, downloadState = "idle", onDownload, onDelete, o
             <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onDownload(file.original_name); }} title="Download" className="h-10 w-10 rounded-xl bg-[var(--color-surface)]/90 hover:bg-[var(--color-surface)] shadow-sm">
               <Download className="h-4 w-4" />
             </Button>
+            {onShare && (
+              <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onShare(file.id); }} title="Share" className="h-10 w-10 rounded-xl bg-[var(--color-surface)]/90 hover:bg-[var(--color-surface)] shadow-sm">
+                <Share2 className="h-4 w-4" />
+              </Button>
+            )}
             <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onDelete(file.id); }} title="Delete" className="h-10 w-10 rounded-xl bg-[var(--color-surface)]/90 hover:bg-[var(--color-surface)] shadow-sm">
               <Trash2 className="h-4 w-4 text-red-400/60 hover:text-red-400" />
             </Button>

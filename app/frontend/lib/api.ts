@@ -1,4 +1,4 @@
-import type { FileMetadata, PlatformStatus, RepoInfo, AppConfig, AdminUser, SystemStats, PlatformTokenInfo, QuotaInfo, PlanConfigs, AdminUserDetail } from "@/types";
+import type { FileMetadata, PlatformStatus, RepoInfo, AppConfig, AdminUser, SystemStats, PlatformTokenInfo, QuotaInfo, PlanConfigs, AdminUserDetail, ShareLink, ShareInfo } from "@/types";
 import { useAuthStore } from "@/store/auth";
 import { refreshToken as refreshTokenApi } from "@/lib/auth-api";
 
@@ -381,4 +381,63 @@ export function adminSetPlans(plans: PlanConfigs): Promise<{ success: boolean }>
 
 export function adminGetUser(userId: string): Promise<AdminUserDetail> {
   return request<AdminUserDetail>(`/api/admin/users/${userId}`);
+}
+
+// ─── Shares API (authenticated) ───
+
+export function createShare(data: {
+  file_id: string;
+  password?: string;
+  expires_in_hours?: number;
+  max_downloads?: number;
+}): Promise<{ id: string; token: string }> {
+  return request<{ id: string; token: string }>("/api/shares", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export function listShares(fileId?: string): Promise<ShareLink[]> {
+  const params = fileId ? `?file_id=${fileId}` : "";
+  return request<ShareLink[]>(`/api/shares${params}`);
+}
+
+export function revokeShare(shareId: string): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/api/shares/${shareId}`, { method: "DELETE" });
+}
+
+// ─── Public Share Access (no auth) ───
+
+export async function getShareInfo(token: string): Promise<ShareInfo> {
+  const res = await fetch(`${API_BASE}/api/share/${token}`);
+  if (!res.ok) throw new Error("Share not found");
+  return res.json();
+}
+
+export async function getShareFileMeta(token: string, password?: string): Promise<FileMetaResponse> {
+  const headers: Record<string, string> = {};
+  if (password) headers["X-Share-Password"] = password;
+  const res = await fetch(`${API_BASE}/api/share/${token}/meta`, { headers });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || "Failed to get file metadata");
+  }
+  return res.json();
+}
+
+export async function getShareChunk(token: string, index: number, password?: string): Promise<{
+  data: ArrayBuffer;
+  sha256: string;
+  compressed: boolean;
+}> {
+  const headers: Record<string, string> = {};
+  if (password) headers["X-Share-Password"] = password;
+  const res = await fetch(`${API_BASE}/api/share/${token}/chunks/${index}`, { headers });
+  if (!res.ok) throw new Error("Failed to download chunk");
+  return {
+    data: await res.arrayBuffer(),
+    sha256: res.headers.get("X-Chunk-SHA256") || "",
+    compressed: res.headers.get("X-Chunk-Compressed") === "true",
+  };
 }

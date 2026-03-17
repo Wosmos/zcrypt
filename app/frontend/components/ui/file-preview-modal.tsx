@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, Download, FileText, Eye } from "@/lib/icons";
+import { X, Download, FileText, Eye, Music } from "@/lib/icons";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { formatBytes } from "@/lib/utils";
 
@@ -14,16 +14,27 @@ interface FilePreviewModalProps {
   fileSize: number;
 }
 
-function getPreviewType(filename: string): "image" | "text" | "pdf" | "none" {
+function getPreviewType(filename: string): "image" | "text" | "pdf" | "video" | "audio" | "none" {
   const ext = filename.split(".").pop()?.toLowerCase() || "";
   if (["jpg", "jpeg", "png", "gif", "webp", "bmp", "svg", "ico"].includes(ext)) return "image";
   if (ext === "pdf") return "pdf";
+  if (["mp4", "webm", "ogg", "mov"].includes(ext)) return "video";
+  if (["mp3", "wav", "aac", "flac", "m4a"].includes(ext)) return "audio";
   if ([
     "txt", "md", "json", "js", "ts", "tsx", "jsx", "py", "go", "rs", "java",
     "c", "cpp", "h", "css", "html", "xml", "yaml", "yml", "toml", "sh", "bat",
     "env", "gitignore", "csv", "log", "cfg", "ini", "sql", "graphql",
   ].includes(ext)) return "text";
   return "none";
+}
+
+function getMimeType(filename: string): string | undefined {
+  const ext = filename.split(".").pop()?.toLowerCase() || "";
+  const map: Record<string, string> = {
+    mp4: "video/mp4", webm: "video/webm", ogg: "video/ogg", mov: "video/quicktime",
+    mp3: "audio/mpeg", wav: "audio/wav", aac: "audio/aac", flac: "audio/flac", m4a: "audio/mp4",
+  };
+  return map[ext];
 }
 
 export function FilePreviewModal({ open, onClose, blob, filename, fileSize }: FilePreviewModalProps) {
@@ -42,6 +53,11 @@ export function FilePreviewModal({ open, onClose, blob, filename, fileSize }: Fi
       reader.readAsText(blob.slice(0, 100 * 1024));
     } else if (previewType === "image" || previewType === "pdf") {
       const url = URL.createObjectURL(blob);
+      setObjectUrl(url);
+    } else if (previewType === "video" || previewType === "audio") {
+      const mime = getMimeType(filename);
+      const typedBlob = mime ? new Blob([blob], { type: mime }) : blob;
+      const url = URL.createObjectURL(typedBlob);
       setObjectUrl(url);
     }
   }, [blob, previewType]);
@@ -129,6 +145,27 @@ export function FilePreviewModal({ open, onClose, blob, filename, fileSize }: Fi
               className="w-full h-[60vh] rounded-lg border border-[var(--color-border)]"
               title={filename}
             />
+          ) : previewType === "video" && objectUrl ? (
+            <div className="flex items-center justify-center">
+              <video
+                src={objectUrl}
+                controls
+                autoPlay={false}
+                playsInline
+                className="max-w-full max-h-[60vh] rounded-lg"
+              >
+                Your browser does not support video playback.
+              </video>
+            </div>
+          ) : previewType === "audio" && objectUrl ? (
+            <div className="flex flex-col items-center justify-center h-40 gap-4">
+              <div className="flex items-center justify-center h-16 w-16 rounded-2xl bg-pink-500/10">
+                <Music className="h-8 w-8 text-pink-500" />
+              </div>
+              <audio src={objectUrl} controls className="w-full max-w-md">
+                Your browser does not support audio playback.
+              </audio>
+            </div>
           ) : previewType === "text" && textContent !== null ? (
             <pre className="text-xs font-mono leading-relaxed whitespace-pre-wrap break-all p-4 rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border)] max-h-[60vh] overflow-auto">
               {textContent}

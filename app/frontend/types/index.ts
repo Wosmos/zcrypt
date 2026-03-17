@@ -164,6 +164,28 @@ export interface PlanConfigs {
   plans: PlanConfig[];
 }
 
+// Share link types
+export interface ShareLink {
+  id: string;
+  file_id: string;
+  token: string;
+  has_password: boolean;
+  expires_at: string | null;
+  max_downloads: number;
+  download_count: number;
+  revoked: boolean;
+  created_at: string;
+}
+
+export interface ShareInfo {
+  valid: boolean;
+  reason?: string;
+  file_name: string;
+  file_size: number;
+  chunk_count: number;
+  has_password: boolean;
+}
+
 // Admin user detail (matches backend JSON keys exactly)
 export interface AdminUserDetail {
   user: AdminUser;
