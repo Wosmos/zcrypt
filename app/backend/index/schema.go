@@ -199,6 +199,13 @@ ALTER TABLE email_tokens DROP CONSTRAINT IF EXISTS email_tokens_kind_check;
 ALTER TABLE email_tokens ADD CONSTRAINT email_tokens_kind_check
 	CHECK (kind IN ('verify', 'reset', 'magic_link'));
 
+-- Refresh token client binding (IP + User-Agent)
+ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS ip TEXT NOT NULL DEFAULT '';
+ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS user_agent TEXT NOT NULL DEFAULT '';
+
+-- Token version for JWT revocation
+ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0;
+
 -- User feedback
 CREATE TABLE IF NOT EXISTS feedback (
 	id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),

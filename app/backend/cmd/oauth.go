@@ -68,7 +68,8 @@ func (s *Server) HandleOAuthStart(w http.ResponseWriter, r *http.Request) {
 
 	authURL, err := auth.BuildOAuthURL(provider, providerCfg.ClientID, redirectURI, state)
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)
+		log.Printf("oauth: build auth URL failed: %v", err)
+		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
 		return
 	}
 
@@ -190,18 +191,14 @@ func (s *Server) HandleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	role := types.RoleUser
-	if userCount, err := s.db.GetUserCount(ctx); err == nil && userCount == 0 {
-		role = types.RoleAdmin
-	}
-
+	// Role is set atomically by CreateUser — first user becomes admin via SQL CASE.
 	user := &types.User{
 		ID:            uuid.New().String(),
 		Email:         userInfo.Email,
 		Username:      username,
 		PasswordHash:  "", // OAuth-only user, no password
 		EmailVerified: true,
-		Role:          role,
+		Role:          types.RoleUser,
 	}
 
 	if err := s.db.CreateUser(ctx, user); err != nil {
@@ -228,7 +225,8 @@ func (s *Server) HandleLinkedAccounts(w http.ResponseWriter, r *http.Request) {
 	userID := GetUserID(r)
 	providers, err := s.db.GetOAuthProvidersByUser(r.Context(), userID)
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)
+		log.Printf("oauth: get linked accounts failed: %v", err)
+		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
 		return
 	}
 	if providers == nil {
@@ -267,7 +265,8 @@ func (s *Server) HandleUnlinkAccount(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.db.DeleteOAuthProvider(r.Context(), userID, provider); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)
+		log.Printf("oauth: unlink account failed: %v", err)
+		http.Error(w, `{"error":"failed to unlink account"}`, http.StatusInternalServerError)
 		return
 	}
 
@@ -289,7 +288,7 @@ func (s *Server) oauthCallbackURL(r *http.Request, provider string) string {
 
 // oauthRedirect generates tokens and redirects to the frontend with tokens in URL.
 func (s *Server) oauthRedirect(w http.ResponseWriter, r *http.Request, user *types.User) {
-	jwtToken, err := auth.GenerateAccessToken(s.cfg.JWTSecret, user.ID, user.Email, user.Username, user.Role.String())
+	jwtToken, err := auth.GenerateAccessToken(s.cfg.JWTSecret, user.ID, user.Email, user.Username, user.Role.String(), user.TokenVersion)
 	if err != nil {
 		s.oauthError(w, r, "internal error")
 		return
@@ -306,6 +305,8 @@ func (s *Server) oauthRedirect(w http.ResponseWriter, r *http.Request, user *typ
 		UserID:    user.ID,
 		TokenHash: auth.HashToken(refreshToken),
 		ExpiresAt: time.Now().Add(auth.RefreshTokenDuration),
+		IP:        extractClientIP(r),
+		UserAgent: r.UserAgent(),
 	})
 
 	frontendURL := strings.TrimRight(s.cfg.FrontendURL, "/")
@@ -313,7 +314,9 @@ func (s *Server) oauthRedirect(w http.ResponseWriter, r *http.Request, user *typ
 		frontendURL = "http://localhost:3000"
 	}
 
-	redirectURL := fmt.Sprintf("%s/oauth/callback?access_token=%s&refresh_token=%s",
+	// Use URL fragment (#) instead of query params (?) so tokens are NOT sent to the server
+	// in Referrer headers or logged in server access logs. Fragments are client-side only.
+	redirectURL := fmt.Sprintf("%s/oauth/callback#access_token=%s&refresh_token=%s",
 		frontendURL, jwtToken, refreshToken)
 
 	http.Redirect(w, r, redirectURL, http.StatusTemporaryRedirect)

@@ -34,7 +34,7 @@ func defaultPlanConfigs() *types.PlanConfigs {
 					{Text: "CLI access", Included: false},
 					{Text: "BYOB (Bring Your Own Backend)", Included: false},
 				},
-				SortOrder: 0,
+				SortOrder: 0, AllowsBYOB: false,
 			},
 			{
 				ID: "plus", Name: "Plus", MonthlyPrice: 4, AnnualPrice: 3,
@@ -49,7 +49,7 @@ func defaultPlanConfigs() *types.PlanConfigs {
 					{Text: "CLI access", Included: true},
 					{Text: "BYOB (Bring Your Own Backend)", Included: false},
 				},
-				SortOrder: 1,
+				SortOrder: 1, AllowsBYOB: false,
 			},
 			{
 				ID: "pro", Name: "Pro", MonthlyPrice: 9, AnnualPrice: 7,
@@ -64,7 +64,7 @@ func defaultPlanConfigs() *types.PlanConfigs {
 					{Text: "Priority support", Included: true},
 				},
 				Highlight: true, Badge: &badge, SocialProof: &socialProof,
-				SortOrder: 2,
+				SortOrder: 2, AllowsBYOB: true,
 			},
 			},
 	}
@@ -227,6 +227,10 @@ func (s *Server) HandleAdminSetRole(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)
 		return
 	}
+
+	// Invalidate all existing tokens for this user (role change is security-sensitive)
+	_ = s.db.IncrementTokenVersion(ctx, userID)
+	_ = s.db.DeleteRefreshTokensByUser(ctx, userID)
 
 	adminID := GetUserID(r)
 	s.audit(r, &adminID, "admin_role_change", map[string]interface{}{"target_user": userID, "role": req.Role})
@@ -517,11 +521,12 @@ func (s *Server) HandleGetQuota(w http.ResponseWriter, r *http.Request) {
 		UsedBytes:            used,
 		QuotaBytes:           quota,
 		HasPersonalKey:       hasPersonal,
-		IsUnlimited:          hasPersonal || quota == 0,
+		IsUnlimited:          (hasPersonal && s.planAllowsBYOB(ctx, plan)) || quota == 0,
 		Plan:                 plan,
 		MaxConcurrentUploads: maxConcurrent,
 		MaxFileSize:          maxFileSize,
 		CanUpload:            canUpload,
+		AllowsBYOB:           s.planAllowsBYOB(ctx, plan),
 	}
 
 	writeJSON(w, http.StatusOK, info)

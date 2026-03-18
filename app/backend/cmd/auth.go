@@ -167,13 +167,13 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Check uniqueness
+	// Check uniqueness — use generic messages to prevent account enumeration
 	if existing, _ := s.db.GetUserByEmail(ctx, req.Email); existing != nil {
-		http.Error(w, `{"error":"email already registered"}`, http.StatusConflict)
+		http.Error(w, `{"error":"an account with this email or username already exists"}`, http.StatusConflict)
 		return
 	}
 	if existing, _ := s.db.GetUserByUsername(ctx, req.Username); existing != nil {
-		http.Error(w, `{"error":"username already taken"}`, http.StatusConflict)
+		http.Error(w, `{"error":"an account with this email or username already exists"}`, http.StatusConflict)
 		return
 	}
 
@@ -183,18 +183,13 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// First user becomes admin; if we can't check, default to regular user
-	role := types.RoleUser
-	if userCount, err := s.db.GetUserCount(ctx); err == nil && userCount == 0 {
-		role = types.RoleAdmin
-	}
-
+	// Role is set atomically by CreateUser — first user becomes admin via SQL CASE.
 	user := &types.User{
 		ID:           uuid.New().String(),
 		Email:        req.Email,
 		Username:     req.Username,
 		PasswordHash: hash,
-		Role:         role,
+		Role:         types.RoleUser,
 	}
 
 	// Auto-verify if SMTP not configured
@@ -203,7 +198,8 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.db.CreateUser(ctx, user); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"create user: %s"}`, err), http.StatusInternalServerError)
+		log.Printf("register: create user failed: %v", err)
+		http.Error(w, `{"error":"registration failed, please try again"}`, http.StatusInternalServerError)
 		return
 	}
 
@@ -320,6 +316,12 @@ func (s *Server) HandleRefreshToken(w http.ResponseWriter, r *http.Request) {
 		s.db.DeleteRefreshToken(ctx, rt.ID)
 		http.Error(w, `{"error":"refresh token expired"}`, http.StatusUnauthorized)
 		return
+	}
+
+	// Log IP mismatch (potential stolen token usage) but don't block — IPs change legitimately
+	clientIP := extractClientIP(r)
+	if rt.IP != "" && rt.IP != clientIP {
+		log.Printf("security: refresh token IP mismatch for user %s: issued=%s current=%s", rt.UserID, rt.IP, clientIP)
 	}
 
 	user, err := s.db.GetUserByID(ctx, rt.UserID)
@@ -477,6 +479,7 @@ func (s *Server) HandleResetPassword(w http.ResponseWriter, r *http.Request) {
 
 	s.db.UpdateUserPassword(ctx, et.UserID, passwordHash)
 	s.db.DeleteEmailToken(ctx, et.ID)
+	s.db.IncrementTokenVersion(ctx, et.UserID)     // invalidate all existing JWTs
 	s.db.DeleteRefreshTokensByUser(ctx, et.UserID) // force re-login everywhere
 
 	s.audit(r, &et.UserID, "password_reset", nil)
@@ -853,7 +856,7 @@ func (s *Server) HandleMagicLinkVerify(w http.ResponseWriter, r *http.Request) {
 func (s *Server) issueTokens(w http.ResponseWriter, r *http.Request, user *types.User) {
 	ctx := r.Context()
 
-	accessToken, err := auth.GenerateAccessToken(s.cfg.JWTSecret, user.ID, user.Email, user.Username, user.Role.String())
+	accessToken, err := auth.GenerateAccessToken(s.cfg.JWTSecret, user.ID, user.Email, user.Username, user.Role.String(), user.TokenVersion)
 	if err != nil {
 		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
 		return
@@ -870,6 +873,8 @@ func (s *Server) issueTokens(w http.ResponseWriter, r *http.Request, user *types
 		UserID:    user.ID,
 		TokenHash: auth.HashToken(refreshToken),
 		ExpiresAt: time.Now().Add(auth.RefreshTokenDuration),
+		IP:        extractClientIP(r),
+		UserAgent: r.UserAgent(),
 	})
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{

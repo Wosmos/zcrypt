@@ -16,9 +16,13 @@ func (db *DB) CreateUser(ctx context.Context, u *types.User) error {
 	if plan == "" {
 		plan = "free"
 	}
+	// Atomically set role: if no users exist yet, the first user becomes admin.
+	// This prevents a TOCTOU race where two concurrent registrations both see count=0.
 	_, err := db.pool.Exec(ctx,
 		`INSERT INTO users (id, email, username, password_hash, email_verified, totp_secret, totp_enabled, role, plan)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+		 VALUES ($1, $2, $3, $4, $5, $6, $7,
+		   CASE WHEN (SELECT COUNT(*) FROM users) = 0 THEN 'admin' ELSE $8 END,
+		   $9)`,
 		u.ID, u.Email, u.Username, u.PasswordHash,
 		u.EmailVerified, u.TOTPSecret, u.TOTPEnabled, u.Role, plan,
 	)
@@ -31,7 +35,7 @@ func (db *DB) CreateUser(ctx context.Context, u *types.User) error {
 // GetUserByEmail retrieves a user by email.
 func (db *DB) GetUserByEmail(ctx context.Context, email string) (*types.User, error) {
 	return db.scanUser(ctx,
-		`SELECT id, email, username, password_hash, email_verified, totp_secret, totp_enabled, role, plan, storage_quota_bytes, created_at, updated_at
+		`SELECT id, email, username, password_hash, email_verified, totp_secret, totp_enabled, role, plan, storage_quota_bytes, COALESCE(token_version, 0), created_at, updated_at
 		 FROM users WHERE email = $1`, email,
 	)
 }
@@ -39,7 +43,7 @@ func (db *DB) GetUserByEmail(ctx context.Context, email string) (*types.User, er
 // GetUserByID retrieves a user by ID.
 func (db *DB) GetUserByID(ctx context.Context, id string) (*types.User, error) {
 	return db.scanUser(ctx,
-		`SELECT id, email, username, password_hash, email_verified, totp_secret, totp_enabled, role, plan, storage_quota_bytes, created_at, updated_at
+		`SELECT id, email, username, password_hash, email_verified, totp_secret, totp_enabled, role, plan, storage_quota_bytes, COALESCE(token_version, 0), created_at, updated_at
 		 FROM users WHERE id = $1`, id,
 	)
 }
@@ -47,7 +51,7 @@ func (db *DB) GetUserByID(ctx context.Context, id string) (*types.User, error) {
 // GetUserByUsername retrieves a user by username.
 func (db *DB) GetUserByUsername(ctx context.Context, username string) (*types.User, error) {
 	return db.scanUser(ctx,
-		`SELECT id, email, username, password_hash, email_verified, totp_secret, totp_enabled, role, plan, storage_quota_bytes, created_at, updated_at
+		`SELECT id, email, username, password_hash, email_verified, totp_secret, totp_enabled, role, plan, storage_quota_bytes, COALESCE(token_version, 0), created_at, updated_at
 		 FROM users WHERE username = $1`, username,
 	)
 }
@@ -56,11 +60,18 @@ func (db *DB) scanUser(ctx context.Context, query string, args ...interface{}) (
 	row := db.pool.QueryRow(ctx, query, args...)
 	u := &types.User{}
 	err := row.Scan(&u.ID, &u.Email, &u.Username, &u.PasswordHash,
-		&u.EmailVerified, &u.TOTPSecret, &u.TOTPEnabled, &u.Role, &u.Plan, &u.StorageQuota, &u.CreatedAt, &u.UpdatedAt)
+		&u.EmailVerified, &u.TOTPSecret, &u.TOTPEnabled, &u.Role, &u.Plan, &u.StorageQuota, &u.TokenVersion, &u.CreatedAt, &u.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("get user: %w", err)
 	}
 	return u, nil
+}
+
+// IncrementTokenVersion bumps the user's token version, invalidating all existing JWTs on next refresh.
+func (db *DB) IncrementTokenVersion(ctx context.Context, userID string) error {
+	_, err := db.pool.Exec(ctx,
+		`UPDATE users SET token_version = COALESCE(token_version, 0) + 1 WHERE id = $1`, userID)
+	return err
 }
 
 // GetUserCount returns the total number of users.
@@ -245,11 +256,11 @@ func (db *DB) SetSystemSetting(ctx context.Context, key, value string) error {
 
 // --- Refresh Tokens ---
 
-// InsertRefreshToken stores a refresh token hash.
+// InsertRefreshToken stores a refresh token hash with client binding.
 func (db *DB) InsertRefreshToken(ctx context.Context, rt *types.RefreshToken) error {
 	_, err := db.pool.Exec(ctx,
-		`INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at) VALUES ($1, $2, $3, $4)`,
-		rt.ID, rt.UserID, rt.TokenHash, rt.ExpiresAt,
+		`INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, ip, user_agent) VALUES ($1, $2, $3, $4, $5, $6)`,
+		rt.ID, rt.UserID, rt.TokenHash, rt.ExpiresAt, rt.IP, rt.UserAgent,
 	)
 	if err != nil {
 		return fmt.Errorf("insert refresh token: %w", err)
@@ -260,11 +271,12 @@ func (db *DB) InsertRefreshToken(ctx context.Context, rt *types.RefreshToken) er
 // GetRefreshTokenByHash looks up a refresh token by its SHA256 hash.
 func (db *DB) GetRefreshTokenByHash(ctx context.Context, hash string) (*types.RefreshToken, error) {
 	row := db.pool.QueryRow(ctx,
-		`SELECT id, user_id, token_hash, expires_at, created_at
+		`SELECT id, user_id, token_hash, expires_at, created_at,
+		        COALESCE(ip, ''), COALESCE(user_agent, '')
 		 FROM refresh_tokens WHERE token_hash = $1`, hash,
 	)
 	rt := &types.RefreshToken{}
-	err := row.Scan(&rt.ID, &rt.UserID, &rt.TokenHash, &rt.ExpiresAt, &rt.CreatedAt)
+	err := row.Scan(&rt.ID, &rt.UserID, &rt.TokenHash, &rt.ExpiresAt, &rt.CreatedAt, &rt.IP, &rt.UserAgent)
 	if err != nil {
 		return nil, fmt.Errorf("get refresh token: %w", err)
 	}

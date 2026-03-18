@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"fmt"
+	"log"
 	"net/http"
 )
 
@@ -18,7 +18,8 @@ func (s *Server) HandleDeleteFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.db.DeleteFile(ctx, userID, fileID); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)
+		log.Printf("files: delete failed: %v", err)
+		http.Error(w, `{"error":"failed to delete file"}`, http.StatusInternalServerError)
 		return
 	}
 

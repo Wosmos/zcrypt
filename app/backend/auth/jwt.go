@@ -15,12 +15,13 @@ import (
 
 // Claims represents the JWT payload.
 type Claims struct {
-	Sub      string `json:"sub"`
-	Email    string `json:"email"`
-	Username string `json:"username"`
-	Role     string `json:"role"`
-	Exp      int64  `json:"exp"`
-	Iat      int64  `json:"iat"`
+	Sub          string `json:"sub"`
+	Email        string `json:"email"`
+	Username     string `json:"username"`
+	Role         string `json:"role"`
+	TokenVersion int    `json:"tv,omitempty"`
+	Exp          int64  `json:"exp"`
+	Iat          int64  `json:"iat"`
 }
 
 var (
@@ -44,15 +45,16 @@ func b64Decode(s string) ([]byte, error) {
 }
 
 // GenerateAccessToken creates a signed HS256 JWT.
-func GenerateAccessToken(secret, userID, email, username, role string) (string, error) {
+func GenerateAccessToken(secret, userID, email, username, role string, tokenVersion int) (string, error) {
 	now := time.Now()
 	claims := Claims{
-		Sub:      userID,
-		Email:    email,
-		Username: username,
-		Role:     role,
-		Exp:      now.Add(AccessTokenDuration).Unix(),
-		Iat:      now.Unix(),
+		Sub:          userID,
+		Email:        email,
+		Username:     username,
+		Role:         role,
+		TokenVersion: tokenVersion,
+		Exp:          now.Add(AccessTokenDuration).Unix(),
+		Iat:          now.Unix(),
 	}
 	return signJWT(secret, claims)
 }

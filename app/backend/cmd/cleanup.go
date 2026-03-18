@@ -43,6 +43,13 @@ func (s *Server) StartCleanupWorker(ctx context.Context) {
 }
 
 func (s *Server) runCleanupBatch(ctx context.Context) {
+	// Clean up expired upload sessions first
+	if cleaned, err := s.db.CleanupExpiredUploadSessions(ctx); err != nil {
+		log.Printf("cleanup: expired sessions: %v", err)
+	} else if cleaned > 0 {
+		log.Printf("cleanup: cancelled %d expired upload sessions", cleaned)
+	}
+
 	pending, err := s.db.GetPendingDeletions(ctx, batchSize, maxAttempts)
 	if err != nil {
 		log.Printf("cleanup: get pending: %v", err)

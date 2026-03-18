@@ -35,7 +35,7 @@ func TestHashPasswordUniqueSalts(t *testing.T) {
 
 func TestGenerateAndValidateAccessToken(t *testing.T) {
 	secret := "test-secret-that-is-at-least-32-chars-long"
-	token, err := GenerateAccessToken(secret, "user-123", "user@test.com", "testuser", "user")
+	token, err := GenerateAccessToken(secret, "user-123", "user@test.com", "testuser", "user", 0)
 	require.NoError(t, err)
 	assert.NotEmpty(t, token)
 
@@ -53,7 +53,7 @@ func TestGenerateAndValidateAccessToken(t *testing.T) {
 }
 
 func TestValidateTokenWrongSecret(t *testing.T) {
-	token, err := GenerateAccessToken("correct-secret-that-is-long-enough", "user-1", "a@b.com", "u", "user")
+	token, err := GenerateAccessToken("correct-secret-that-is-long-enough", "user-1", "a@b.com", "u", "user", 0)
 	require.NoError(t, err)
 
 	_, err = ValidateAccessToken("wrong-secret-that-is-long-enough!", token)

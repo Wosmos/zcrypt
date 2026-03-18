@@ -40,6 +40,8 @@ type Server struct {
 	emailLimiter *rateLimiter
 	// Per-user rate limiter: 100 req per 1 min for authenticated API calls
 	userLimiter *rateLimiter
+	// Share endpoint rate limiter: 30 req per 1 min per IP (prevents brute-force)
+	shareLimiter *rateLimiter
 }
 
 // NewServer creates a new API server.
@@ -54,6 +56,7 @@ func NewServer(db *index.DB, cfg *config.Config, progress *pipeline.ProgressEmit
 		authLimiter:  newRateLimiter(5, 5*time.Minute),
 		emailLimiter: newRateLimiter(3, 15*time.Minute),
 		userLimiter:  newRateLimiter(100, time.Minute),
+		shareLimiter: newRateLimiter(30, time.Minute),
 	}
 }
 
@@ -212,10 +215,35 @@ func (s *Server) resolveAdapterForUser(ctx context.Context, userID, platform, ac
 	return nil
 }
 
-// isQuotaExempt returns true if the user has personal (non-global) platform tokens.
+// isQuotaExempt returns true if the user has personal (non-global) platform tokens
+// AND their plan allows BYOB.
 func (s *Server) isQuotaExempt(ctx context.Context, userID string) bool {
 	has, err := s.db.UserHasPersonalTokens(ctx, userID)
-	return err == nil && has
+	if err != nil || !has {
+		return false
+	}
+	// Must also be on a plan that allows BYOB
+	return s.userPlanAllowsBYOB(ctx, userID)
+}
+
+// userPlanAllowsBYOB checks if the user's plan includes BYOB access.
+func (s *Server) userPlanAllowsBYOB(ctx context.Context, userID string) bool {
+	user, err := s.db.GetUserByID(ctx, userID)
+	if err != nil {
+		return false
+	}
+	return s.planAllowsBYOB(ctx, user.Plan)
+}
+
+// planAllowsBYOB returns whether the given plan allows Bring Your Own Backend.
+func (s *Server) planAllowsBYOB(ctx context.Context, plan string) bool {
+	configs := s.loadPlanConfigs(ctx)
+	for _, p := range configs.Plans {
+		if p.ID == plan {
+			return p.AllowsBYOB
+		}
+	}
+	return false
 }
 
 // getEffectiveQuota returns the effective storage quota in bytes for a user.

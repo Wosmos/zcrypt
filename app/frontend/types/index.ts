@@ -123,6 +123,7 @@ export interface QuotaInfo {
   max_concurrent_uploads: number;
   max_file_size: number;
   can_upload: boolean;
+  allows_byob: boolean;
 }
 
 export interface PlatformTokenInfo {

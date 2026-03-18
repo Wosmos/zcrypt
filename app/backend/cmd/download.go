@@ -3,7 +3,7 @@ package cmd
 import (
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 )
@@ -84,7 +84,8 @@ func (s *Server) HandleGetChunk(w http.ResponseWriter, r *http.Request) {
 	// Download from platform
 	data, err := adapter.Download(ctx, *chunk)
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"download chunk: %s"}`, err), http.StatusInternalServerError)
+		log.Printf("download: chunk download failed: %v", err)
+		http.Error(w, `{"error":"failed to download chunk"}`, http.StatusInternalServerError)
 		return
 	}
 
