@@ -1,11 +1,11 @@
 "use client";
 
 import { formatBytes } from "@/lib/utils";
-import type { FileMetadata, RepoInfo } from "@/types";
+import type { FileMetadata, QuotaInfo } from "@/types";
 
 interface StorageHeroProps {
   files: FileMetadata[];
-  repos: RepoInfo[];
+  quotaInfo?: QuotaInfo | null;
 }
 
 interface CategoryInfo {
@@ -45,9 +45,9 @@ function categorizeFiles(files: FileMetadata[]): CategoryInfo[] {
   return Object.values(cats).filter((c) => c.size > 0);
 }
 
-export function StorageHero({ files, repos }: StorageHeroProps) {
-  const totalUsed = repos.reduce((s, r) => s + r.used_bytes, 0);
-  const totalMax = repos.reduce((s, r) => s + r.max_bytes, 0);
+export function StorageHero({ files, quotaInfo }: StorageHeroProps) {
+  const totalUsed = quotaInfo?.used_bytes ?? 0;
+  const totalMax = quotaInfo && !quotaInfo.is_unlimited && quotaInfo.quota_bytes > 0 ? quotaInfo.quota_bytes : 0;
   const usagePercent = totalMax > 0 ? Math.min(100, (totalUsed / totalMax) * 100) : 0;
   const categories = categorizeFiles(files);
   const totalOriginal = files.reduce((s, f) => s + f.original_size, 0);
@@ -66,6 +66,24 @@ export function StorageHero({ files, repos }: StorageHeroProps) {
       {/* Glow effects */}
       <div className="absolute top-0 right-0 w-40 h-40 rounded-full opacity-20 blur-3xl" style={{ background: "radial-gradient(circle, rgba(0,213,228,0.4), transparent)" }} />
       <div className="absolute bottom-0 left-0 w-32 h-32 rounded-full opacity-15 blur-3xl" style={{ background: "radial-gradient(circle, rgba(139,92,246,0.4), transparent)" }} />
+
+      {/* Plan badge */}
+      {quotaInfo && (
+        <div className="relative flex items-center justify-between mb-4">
+          <span className="text-xs font-semibold text-[var(--color-text-secondary)]">Your Storage</span>
+          <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+            quotaInfo.plan === "pro"
+              ? "bg-violet-500/10 text-violet-500"
+              : quotaInfo.plan === "plus"
+                ? "bg-blue-500/10 text-blue-500"
+                : quotaInfo.plan === "team"
+                  ? "bg-amber-500/10 text-amber-500"
+                  : "bg-[var(--color-surface-1)] text-[var(--color-text-muted)]"
+          }`}>
+            {quotaInfo.plan}
+          </span>
+        </div>
+      )}
 
       <div className="relative flex flex-col sm:flex-row items-start sm:items-center gap-6">
         {/* Ring chart */}
@@ -87,7 +105,7 @@ export function StorageHero({ files, repos }: StorageHeroProps) {
             </defs>
           </svg>
           <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-lg font-bold">{Math.round(usagePercent)}%</span>
+            <span className="text-lg font-bold">{totalMax > 0 ? `${Math.round(usagePercent)}%` : "--"}</span>
           </div>
         </div>
 
@@ -95,8 +113,15 @@ export function StorageHero({ files, repos }: StorageHeroProps) {
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-2">
             <span className="text-3xl font-bold tracking-tight">{formatBytes(totalUsed)}</span>
-            <span className="text-sm text-[var(--color-text-muted)]">of {formatBytes(totalMax)} used</span>
+            <span className="text-sm text-[var(--color-text-muted)]">
+              {totalMax > 0 ? `of ${formatBytes(totalMax)}` : "used"}
+            </span>
           </div>
+          {totalMax > 0 && (
+            <p className="text-xs text-[var(--color-text-muted)] mt-1">
+              {formatBytes(Math.max(0, totalMax - totalUsed))} remaining
+            </p>
+          )}
           <div className="flex flex-wrap gap-2 mt-3">
             {categories.slice(0, 4).map((cat) => (
               <span

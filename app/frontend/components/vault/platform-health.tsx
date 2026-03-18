@@ -28,7 +28,9 @@ const platformLabels: Record<string, string> = {
 };
 
 export function PlatformHealth({ statuses, repos }: PlatformHealthProps) {
-  if (statuses.length === 0) return null;
+  // Only show platforms the user personally connected — hide global/admin tokens entirely
+  const personalStatuses = statuses.filter((s) => s.connected && !s.is_global);
+  if (personalStatuses.length === 0) return null;
 
   // Group repos by platform
   const reposByPlatform = repos.reduce<Record<string, RepoInfo[]>>((acc, r) => {
@@ -36,8 +38,7 @@ export function PlatformHealth({ statuses, repos }: PlatformHealthProps) {
     return acc;
   }, {});
 
-  // Deduplicate statuses by platform (show unique platforms)
-  const platforms = Array.from(new Set(statuses.map((s) => s.platform)));
+  const platforms = Array.from(new Set(personalStatuses.map((s) => s.platform)));
 
   return (
     <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
@@ -54,10 +55,8 @@ export function PlatformHealth({ statuses, repos }: PlatformHealthProps) {
       </div>
       <div className="space-y-3">
         {platforms.map((platform) => {
-          const accounts = statuses.filter((s) => s.platform === platform);
-          const connected = accounts.filter((s) => s.connected);
+          const accounts = personalStatuses.filter((s) => s.platform === platform);
           const hasError = accounts.some((s) => s.error);
-          const isConnected = connected.length > 0;
           const platformRepos = reposByPlatform[platform] || [];
           const used = platformRepos.reduce((s, r) => s + r.used_bytes, 0);
           const max = platformRepos.reduce((s, r) => s + r.max_bytes, 0);
@@ -67,37 +66,27 @@ export function PlatformHealth({ statuses, repos }: PlatformHealthProps) {
             <div key={platform} className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className={isConnected ? "text-[var(--color-text-secondary)]" : "text-[var(--color-text-muted)]"}>
+                  <span className="text-[var(--color-text-secondary)]">
                     {platformIcons[platform]}
                   </span>
                   <span className="text-xs font-medium">
                     {platformLabels[platform] ?? platform}
                   </span>
-                  {connected.length > 1 && (
+                  {accounts.length > 1 && (
                     <span className="text-[10px] text-[var(--color-text-muted)]">
-                      ({connected.length} accounts)
+                      ({accounts.length} accounts)
                     </span>
                   )}
-                  {/* Status dot */}
-                  <span
-                    className={`h-1.5 w-1.5 rounded-full ${
-                      hasError
-                        ? "bg-red-500"
-                        : isConnected
-                          ? "bg-cyan-500"
-                          : "bg-[var(--color-text-muted)]"
-                    }`}
-                  />
+                  <span className={`h-1.5 w-1.5 rounded-full ${hasError ? "bg-red-500" : "bg-cyan-500"}`} />
                 </div>
-                {isConnected && platformRepos.length > 0 && (
+                {platformRepos.length > 0 && (
                   <span className="text-xs tabular-nums text-[var(--color-text-muted)]">
                     {formatBytes(used)} / {formatBytes(max)}
                   </span>
                 )}
               </div>
 
-              {/* Storage bar per platform */}
-              {isConnected && platformRepos.length > 0 && (
+              {platformRepos.length > 0 && (
                 <div className="h-1.5 rounded-full bg-[var(--color-surface-2)] overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${
@@ -108,7 +97,6 @@ export function PlatformHealth({ statuses, repos }: PlatformHealthProps) {
                 </div>
               )}
 
-              {/* Error message */}
               {hasError && (
                 <div className="flex items-center gap-1.5 text-xs text-red-500">
                   <AlertCircle className="h-3 w-3" />
@@ -116,8 +104,7 @@ export function PlatformHealth({ statuses, repos }: PlatformHealthProps) {
                 </div>
               )}
 
-              {/* Repo count */}
-              {isConnected && platformRepos.length > 0 && (
+              {platformRepos.length > 0 && (
                 <div className="text-[10px] text-[var(--color-text-muted)]">
                   {platformRepos.length} repo{platformRepos.length !== 1 ? "s" : ""}
                   {platformRepos.some((r) => !r.active) && (

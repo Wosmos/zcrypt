@@ -87,6 +87,44 @@ export function Sidebar() {
           />
         </div>
 
+        {/* User info */}
+        {user && (
+          <div className={cn(
+            "border-b border-[var(--color-sidebar-border)] mb-1",
+            collapsed ? "px-1.5 pb-3 flex justify-center" : "px-4 pb-3"
+          )}>
+            {!collapsed ? (
+              <div className="flex items-center gap-2.5">
+                <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-cyan-500/15 text-cyan-400 text-xs font-bold flex-shrink-0 uppercase">
+                  {user.username?.[0] || user.email[0]}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-xs font-medium text-white/90 truncate">{user.username}</p>
+                    {isAdmin ? (
+                      <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-px rounded bg-amber-500/15 text-amber-400 flex-shrink-0">
+                        Admin
+                      </span>
+                    ) : (
+                      <span className="text-[9px] font-medium uppercase tracking-wider px-1.5 py-px rounded bg-white/5 text-[var(--color-sidebar-text)] flex-shrink-0">
+                        User
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-[var(--color-sidebar-text)] truncate mt-0.5">{user.email}</p>
+                </div>
+              </div>
+            ) : (
+              <div
+                className="flex items-center justify-center h-8 w-8 rounded-lg bg-cyan-500/15 text-cyan-400 text-xs font-bold uppercase"
+                title={`${user.username} (${user.email})`}
+              >
+                {user.username?.[0] || user.email[0]}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Nav */}
         <nav className={cn("flex-1 py-3 space-y-0.5", collapsed ? "px-1.5" : "px-3")}>
           {links.map(({ href, label, icon: Icon }) => {

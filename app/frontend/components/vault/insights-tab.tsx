@@ -5,7 +5,6 @@ import { StorageHero } from "@/components/analytics/storage-hero";
 import { StatCards } from "@/components/analytics/stat-cards";
 import { UploadChart } from "@/components/analytics/upload-chart";
 import { FileTypeChart } from "@/components/analytics/file-type-chart";
-import { UserQuota } from "@/components/vault/user-quota";
 import { TrendingUp, HardDrive, Layers, TrendingDown } from "@/lib/icons";
 import type { FileMetadata, RepoInfo, QuotaInfo } from "@/types";
 
@@ -69,17 +68,14 @@ export function InsightsTab({ files, repos, quotaInfo }: { files: FileMetadata[]
         <QuickStat
           icon={<TrendingUp className="h-4 w-4 text-amber-500" />}
           label="Platforms"
-          value={String(repos.length)}
-          sub={`${repos.filter((r) => r.active).length} active repos`}
+          value={String(new Set(repos.map((r) => r.platform)).size)}
+          sub={`${repos.filter((r) => r.active).length} active repo${repos.filter((r) => r.active).length !== 1 ? "s" : ""}`}
           bg="bg-amber-500/10"
         />
       </div>
 
-      {/* User quota card */}
-      {quotaInfo && <UserQuota quota={quotaInfo} />}
-
       {/* Storage hero */}
-      <StorageHero files={files} repos={repos} />
+      <StorageHero files={files} quotaInfo={quotaInfo} />
 
       {/* File type stat cards */}
       <StatCards files={files} />

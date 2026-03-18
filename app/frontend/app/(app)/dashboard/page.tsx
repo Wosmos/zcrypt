@@ -14,8 +14,6 @@ import { InsightsTab } from "@/components/vault/insights-tab";
 import { PassphraseModal } from "@/components/ui/passphrase-modal";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CompactStats } from "@/components/vault/compact-stats";
-import { StorageQuota } from "@/components/vault/storage-quota";
-import { UserQuota } from "@/components/vault/user-quota";
 import { PlatformHealth } from "@/components/vault/platform-health";
 import { ExportImport } from "@/components/vault/export-import";
 import { Input } from "@/components/ui/input";
@@ -656,14 +654,8 @@ export default function VaultPage() {
       <UploadQueue />
       <DownloadQueue />
 
-      {/* Quota, Storage & Platform overview */}
-      {(repos.length > 0 || statuses.some((s) => s.connected) || quotaInfo) && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {quotaInfo && <UserQuota quota={quotaInfo} />}
-          <StorageQuota repos={repos} />
-          <PlatformHealth statuses={statuses} repos={repos} />
-        </div>
-      )}
+      {/* Platform overview — only shows personally connected platforms */}
+      <PlatformHealth statuses={statuses} repos={repos} />
 
 
       {/* Search + View toggle + Select */}

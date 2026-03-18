@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Shield, ArrowLeft, Home } from "@/lib/icons";
+import { ArrowRight, Home } from "@/lib/icons";
+import { Logo } from "@/components/ui/logo";
 
 export default function NotFound() {
   return (
@@ -13,9 +14,9 @@ export default function NotFound() {
       </div>
 
       <div className="relative text-center max-w-md mx-auto">
-        {/* Icon */}
-        <div className="inline-flex items-center justify-center h-20 w-20 rounded-2xl bg-[var(--color-accent)]/10 ring-1 ring-[var(--color-accent)]/20 mb-8">
-          <Shield className="h-10 w-10 text-[var(--color-accent)]" />
+        {/* Logo */}
+        <div className="mb-10">
+          <Logo size="lg" href="/" showDomain />
         </div>
 
         {/* 404 */}
@@ -46,11 +47,11 @@ export default function NotFound() {
             Go home
           </Link>
           <Link
-            href="/dashboard"
+            href="/login"
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-sm font-medium text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)] hover:text-[var(--color-text)] transition-colors"
           >
-            <ArrowLeft className="h-4 w-4" />
-            My Vault
+            Sign in
+            <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
 

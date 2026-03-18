@@ -67,16 +67,21 @@ export default function SettingsPage() {
       : s
   );
 
-  const githubAccounts = effectiveStatuses.filter(
+  // Non-admins only see their own (non-global) tokens
+  const visibleStatuses = isAdmin
+    ? effectiveStatuses
+    : effectiveStatuses.filter((s) => !s.is_global);
+
+  const githubAccounts = visibleStatuses.filter(
     (s) => s.platform === "github" && s.connected
   );
-  const gitlabAccounts = effectiveStatuses.filter(
+  const gitlabAccounts = visibleStatuses.filter(
     (s) => s.platform === "gitlab" && s.connected
   );
-  const huggingfaceAccounts = effectiveStatuses.filter(
+  const huggingfaceAccounts = visibleStatuses.filter(
     (s) => s.platform === "huggingface" && s.connected
   );
-  const telegramAccounts = effectiveStatuses.filter(
+  const telegramAccounts = visibleStatuses.filter(
     (s) => s.platform === "telegram" && s.connected
   );
 
@@ -214,7 +219,7 @@ export default function SettingsPage() {
           onDisconnect={(username) => handleDisconnectClick("github", username)}
           disconnecting={disconnecting}
           onToggleScope={handleToggleScope}
-
+          isAdmin={isAdmin}
         />
 
         {/* GitLab */}
@@ -234,7 +239,7 @@ export default function SettingsPage() {
           onDisconnect={(username) => handleDisconnectClick("gitlab", username)}
           disconnecting={disconnecting}
           onToggleScope={handleToggleScope}
-
+          isAdmin={isAdmin}
         />
 
         {/* Hugging Face */}
@@ -256,7 +261,7 @@ export default function SettingsPage() {
           }
           disconnecting={disconnecting}
           onToggleScope={handleToggleScope}
-
+          isAdmin={isAdmin}
         />
 
         {/* Telegram */}
@@ -278,7 +283,7 @@ export default function SettingsPage() {
           }
           disconnecting={disconnecting}
           onToggleScope={handleToggleScope}
-
+          isAdmin={isAdmin}
         />
       </div>
 
@@ -333,6 +338,7 @@ function PlatformSection({
   onDisconnect,
   disconnecting,
   onToggleScope,
+  isAdmin,
 }: {
   icon: React.ReactNode;
   name: string;
@@ -349,6 +355,7 @@ function PlatformSection({
   onDisconnect: (username: string) => void;
   disconnecting: string | null;
   onToggleScope: (tokenId: string, currentIsGlobal: boolean) => void;
+  isAdmin?: boolean;
 }) {
   return (
     <section className="card overflow-hidden">
@@ -380,7 +387,7 @@ function PlatformSection({
                 <span className="text-sm flex-1">
                   @{acc.username}
                 </span>
-                {acc.token_id && (
+                {isAdmin && acc.token_id && (
                   <button
                     onClick={() => onToggleScope(acc.token_id!, !!acc.is_global)}
                     title={acc.is_global ? "Global — shared with all users. Click to make local." : "Local — only you. Click to share with all users."}
