@@ -9,11 +9,21 @@ import {
   Check,
   Shield,
 } from "@/lib/icons";
+import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 
 export const metadata: Metadata = {
   title: "Platform Adapters — zcrypt Docs",
   description:
     "Configure GitHub, GitLab, and Hugging Face as encrypted storage backends for zcrypt.",
+  alternates: {
+    canonical: "https://zcrypt.cloud/docs/platform-adapters",
+  },
+  openGraph: {
+    title: "Platform Adapters — zcrypt Docs",
+    description:
+      "Configure GitHub, GitLab, and Hugging Face as encrypted storage backends for zcrypt.",
+    url: "https://zcrypt.cloud/docs/platform-adapters",
+  },
 };
 
 const platforms = [
@@ -88,6 +98,13 @@ const platforms = [
 export default function PlatformAdaptersPage() {
   return (
     <>
+      <BreadcrumbJsonLd
+        items={[
+          { name: "Home", url: "https://zcrypt.cloud" },
+          { name: "Documentation", url: "https://zcrypt.cloud/docs" },
+          { name: "Platform Adapters", url: "https://zcrypt.cloud/docs/platform-adapters" },
+        ]}
+      />
       {/* Header */}
       <section className="pt-24 md:pt-32 pb-12 px-4">
         <div className="max-w-3xl mx-auto">

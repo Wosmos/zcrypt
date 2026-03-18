@@ -20,6 +20,15 @@ export const metadata: Metadata = {
   title: "zcrypt TUI — Your Vault, From the Terminal",
   description:
     "A full terminal interface for zcrypt. Upload, download, browse, and manage your encrypted vault without leaving the command line.",
+  alternates: {
+    canonical: "https://zcrypt.cloud/tui",
+  },
+  openGraph: {
+    title: "zcrypt TUI — Your Vault, From the Terminal",
+    description:
+      "A full terminal interface for zcrypt. Upload, download, browse, and manage your encrypted vault from the command line.",
+    url: "https://zcrypt.cloud/tui",
+  },
 };
 
 const featureIconMap: Record<

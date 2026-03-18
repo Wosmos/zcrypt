@@ -19,6 +19,15 @@ export const metadata: Metadata = {
   title: "Pricing — zcrypt",
   description:
     "Simple, transparent pricing. 10 GB free with military-grade encryption. Upgrade to Plus or Pro for more storage, bigger files, and full control.",
+  alternates: {
+    canonical: "https://zcrypt.cloud/pricing",
+  },
+  openGraph: {
+    title: "Pricing — zcrypt",
+    description:
+      "Simple, transparent pricing. 10 GB free with military-grade encryption. Upgrade for more storage and full control.",
+    url: "https://zcrypt.cloud/pricing",
+  },
 };
 
 const whyItems = [

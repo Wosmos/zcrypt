@@ -9,11 +9,21 @@ import {
   Shield,
   Download,
 } from "@/lib/icons";
+import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 
 export const metadata: Metadata = {
   title: "Getting Started — zcrypt Docs",
   description:
     "Create an account, set your passphrase, and upload your first encrypted file to zcrypt in under 5 minutes.",
+  alternates: {
+    canonical: "https://zcrypt.cloud/docs/getting-started",
+  },
+  openGraph: {
+    title: "Getting Started — zcrypt Docs",
+    description:
+      "Create an account, set your passphrase, and upload your first encrypted file to zcrypt in under 5 minutes.",
+    url: "https://zcrypt.cloud/docs/getting-started",
+  },
 };
 
 const steps = [
@@ -22,7 +32,7 @@ const steps = [
     title: "Create your account",
     icon: Check,
     content: [
-      "Head to zcrypt.io/register and create a free account with your email and a strong password.",
+      "Head to zcrypt.cloud/register and create a free account with your email and a strong password.",
       "Verify your email address by clicking the link we send you.",
       "You'll get 10 GB of free encrypted storage immediately — no credit card required.",
     ],
@@ -74,6 +84,13 @@ const steps = [
 export default function GettingStartedPage() {
   return (
     <>
+      <BreadcrumbJsonLd
+        items={[
+          { name: "Home", url: "https://zcrypt.cloud" },
+          { name: "Documentation", url: "https://zcrypt.cloud/docs" },
+          { name: "Getting Started", url: "https://zcrypt.cloud/docs/getting-started" },
+        ]}
+      />
       {/* Header */}
       <section className="pt-24 md:pt-32 pb-12 px-4">
         <div className="max-w-3xl mx-auto">

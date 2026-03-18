@@ -12,11 +12,21 @@ import {
   Sparkles,
 } from "@/lib/icons";
 import { docsCategories } from "@/lib/data";
+import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 
 export const metadata: Metadata = {
   title: "Documentation — zcrypt",
   description:
     "Learn how to use zcrypt. Guides for getting started, security, API reference, terminal app, self-hosting, and more.",
+  alternates: {
+    canonical: "https://zcrypt.cloud/docs",
+  },
+  openGraph: {
+    title: "Documentation — zcrypt",
+    description:
+      "Learn how to use zcrypt. Guides for getting started, security, API reference, terminal app, and more.",
+    url: "https://zcrypt.cloud/docs",
+  },
 };
 
 const iconMap: Record<
@@ -45,6 +55,12 @@ const iconBgs: Record<string, string> = {
 export default function DocsPage() {
   return (
     <>
+      <BreadcrumbJsonLd
+        items={[
+          { name: "Home", url: "https://zcrypt.cloud" },
+          { name: "Documentation", url: "https://zcrypt.cloud/docs" },
+        ]}
+      />
       {/* ═══ HERO ═══ */}
       <section className="pt-24 md:pt-32 pb-16 px-4 relative overflow-hidden">
         <div className="absolute inset-0 -z-10 pointer-events-none">
