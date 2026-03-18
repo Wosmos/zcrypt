@@ -159,6 +159,20 @@ export default function RootLayout({
         >
           Skip to content
         </a>
+        <noscript>
+          <div style={{ padding: "2rem", maxWidth: "600px", margin: "0 auto", fontFamily: "system-ui, sans-serif", color: "#e4e4e7", backgroundColor: "#09090b", minHeight: "100vh" }}>
+            <h1 style={{ fontSize: "1.5rem", marginBottom: "1rem" }}>zcrypt — Private Cloud Storage</h1>
+            <p style={{ lineHeight: 1.6, color: "#a1a1aa" }}>
+              zcrypt is a zero-knowledge encrypted cloud storage platform. Your files are encrypted with AES-256-GCM before they ever leave your device.
+            </p>
+            <p style={{ lineHeight: 1.6, color: "#a1a1aa", marginTop: "1rem" }}>
+              JavaScript is required to use the zcrypt web app. If you prefer not to enable JavaScript, try our <strong>terminal app (TUI)</strong> which works entirely from the command line.
+            </p>
+            <p style={{ marginTop: "1.5rem" }}>
+              <a href="https://zcrypt.cloud/tui" style={{ color: "#00d5e4", textDecoration: "underline" }}>Learn about the TUI</a>
+            </p>
+          </div>
+        </noscript>
         <ThemeProvider>
           <NavProgress />
           {children}

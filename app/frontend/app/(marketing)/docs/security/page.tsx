@@ -1,11 +1,21 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Shield, Lock, Key, Eye } from "@/lib/icons";
+import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 
 export const metadata: Metadata = {
   title: "Security — zcrypt Docs",
   description:
     "How zcrypt encrypts your files with AES-256-GCM, the zero-knowledge architecture, and our threat model.",
+  alternates: {
+    canonical: "https://zcrypt.cloud/docs/security",
+  },
+  openGraph: {
+    title: "Security — zcrypt Docs",
+    description:
+      "How zcrypt encrypts your files with AES-256-GCM, zero-knowledge architecture, and our threat model.",
+    url: "https://zcrypt.cloud/docs/security",
+  },
 };
 
 const sections = [
@@ -124,6 +134,13 @@ const sections = [
 export default function SecurityPage() {
   return (
     <>
+      <BreadcrumbJsonLd
+        items={[
+          { name: "Home", url: "https://zcrypt.cloud" },
+          { name: "Documentation", url: "https://zcrypt.cloud/docs" },
+          { name: "Security", url: "https://zcrypt.cloud/docs/security" },
+        ]}
+      />
       {/* Header */}
       <section className="pt-24 md:pt-32 pb-12 px-4">
         <div className="max-w-3xl mx-auto">
