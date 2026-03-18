@@ -183,6 +183,7 @@ type User struct {
 	TOTPSecret    string    `json:"-"`
 	TOTPEnabled   bool      `json:"totp_enabled"`
 	Role          Role      `json:"role"`
+	TokenVersion  int       `json:"-"`
 	Plan          string    `json:"plan"`
 	StorageQuota  *int64    `json:"storage_quota,omitempty"`
 	CreatedAt     time.Time `json:"created_at"`
@@ -196,6 +197,8 @@ type RefreshToken struct {
 	TokenHash string
 	ExpiresAt time.Time
 	CreatedAt time.Time
+	IP        string
+	UserAgent string
 }
 
 // EmailToken is a one-time token for email verification, password reset, or magic link.
@@ -278,6 +281,7 @@ type QuotaInfo struct {
 	MaxConcurrentUploads int    `json:"max_concurrent_uploads"`
 	MaxFileSize          int64  `json:"max_file_size"`
 	CanUpload            bool   `json:"can_upload"`
+	AllowsBYOB           bool   `json:"allows_byob"`
 }
 
 // Feedback represents user-submitted feedback.
@@ -322,6 +326,7 @@ type PlanConfig struct {
 	Icon                 *string       `json:"icon"`
 	SocialProof          *string       `json:"social_proof"`
 	SortOrder            int           `json:"sort_order"`
+	AllowsBYOB           bool          `json:"allows_byob"`
 }
 
 // PlanConfigs wraps all plan configurations.

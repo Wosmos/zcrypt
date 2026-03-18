@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"encoding/json"
-	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/zcrypt/zcrypt/types"
@@ -17,7 +17,8 @@ func (s *Server) HandleListFiles(w http.ResponseWriter, r *http.Request) {
 
 	files, err := s.db.ListFiles(ctx, userID, filter)
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)
+		log.Printf("files: list failed: %v", err)
+		http.Error(w, `{"error":"failed to list files"}`, http.StatusInternalServerError)
 		return
 	}
 

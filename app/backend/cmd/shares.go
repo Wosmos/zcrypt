@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -78,7 +79,8 @@ func (s *Server) HandleCreateShare(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.db.CreateShare(ctx, share); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"create share: %s"}`, err), http.StatusInternalServerError)
+		log.Printf("shares: create failed: %v", err)
+		http.Error(w, `{"error":"failed to create share link"}`, http.StatusInternalServerError)
 		return
 	}
 
@@ -98,7 +100,8 @@ func (s *Server) HandleListShares(w http.ResponseWriter, r *http.Request) {
 
 	shares, err := s.db.ListSharesByUser(ctx, userID, fileID)
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"list shares: %s"}`, err), http.StatusInternalServerError)
+		log.Printf("shares: list failed: %v", err)
+		http.Error(w, `{"error":"failed to list shares"}`, http.StatusInternalServerError)
 		return
 	}
 
@@ -135,14 +138,9 @@ func (s *Server) HandleRevokeShare(w http.ResponseWriter, r *http.Request) {
 
 // validateShare checks if a share is valid for access.
 func validateShare(share *types.ShareLink) (string, bool) {
-	if share.Revoked {
-		return "link has been revoked", false
-	}
-	if share.ExpiresAt != nil && time.Now().After(*share.ExpiresAt) {
-		return "link has expired", false
-	}
-	if share.MaxDownloads > 0 && share.DownloadCount >= share.MaxDownloads {
-		return "download limit reached", false
+	if share.Revoked || (share.ExpiresAt != nil && time.Now().After(*share.ExpiresAt)) ||
+		(share.MaxDownloads > 0 && share.DownloadCount >= share.MaxDownloads) {
+		return "this link is no longer available", false
 	}
 	return "", true
 }
@@ -184,15 +182,23 @@ func (s *Server) HandleGetShareInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	resp := map[string]interface{}{
 		"valid":        valid,
-		"reason":       reason,
-		"file_name":    file.OriginalName,
-		"file_size":    file.OriginalSize,
-		"chunk_count":  file.ChunkCount,
 		"has_password": share.HasPassword,
-	})
+	}
+	if !valid {
+		resp["reason"] = reason
+	}
+	// Only reveal file metadata if no password is set — password-protected shares
+	// must not leak filename/size until the password is provided via /meta endpoint.
+	if !share.HasPassword {
+		resp["file_name"] = file.OriginalName
+		resp["file_size"] = file.OriginalSize
+		resp["chunk_count"] = file.ChunkCount
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
 }
 
 // HandleGetShareFileMeta returns full file metadata for a valid share.
@@ -304,7 +310,8 @@ func (s *Server) HandleGetShareChunk(w http.ResponseWriter, r *http.Request) {
 
 	data, err := adapter.Download(ctx, *chunk)
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"download chunk: %s"}`, err), http.StatusInternalServerError)
+		log.Printf("shares: download chunk failed: %v", err)
+		http.Error(w, `{"error":"failed to download chunk"}`, http.StatusInternalServerError)
 		return
 	}
 

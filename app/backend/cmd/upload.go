@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -16,6 +17,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/zcrypt/zcrypt/adapters"
 	"github.com/zcrypt/zcrypt/disguise"
+	"github.com/zcrypt/zcrypt/index"
 	"github.com/zcrypt/zcrypt/pipeline"
 	"github.com/zcrypt/zcrypt/types"
 )
@@ -86,24 +88,22 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 	}
 	maxFileSize := s.getPlanMaxFileSize(ctx, plan)
 	if req.OriginalSize > maxFileSize {
-		http.Error(w, fmt.Sprintf(`{"error":"file too large for %s plan (max %d bytes)"}`, plan, maxFileSize), http.StatusForbidden)
+		http.Error(w, `{"error":"file exceeds your plan's size limit"}`, http.StatusForbidden)
 		return
 	}
 
-	// Enforce storage quota
+	// Enforce concurrent upload session limit per plan
+	maxConcurrent := s.getPlanMaxConcurrent(ctx, plan)
+	activeSessions, _ := s.db.CountActiveUploadSessions(ctx, userID)
+	if activeSessions >= maxConcurrent {
+		http.Error(w, `{"error":"too many concurrent uploads"}`, http.StatusTooManyRequests)
+		return
+	}
+
+	// Determine effective quota (0 = unlimited)
+	var effectiveQuota int64
 	if !s.isQuotaExempt(ctx, userID) {
-		quota := s.getEffectiveQuota(ctx, userID)
-		if quota > 0 {
-			used, err := s.db.GetUserStorageUsed(ctx, userID)
-			if err != nil {
-				http.Error(w, `{"error":"check quota failed"}`, http.StatusInternalServerError)
-				return
-			}
-			if used+req.OriginalSize > quota {
-				http.Error(w, `{"error":"storage quota exceeded"}`, http.StatusForbidden)
-				return
-			}
-		}
+		effectiveQuota = s.getEffectiveQuota(ctx, userID)
 	}
 
 	// Select adapter and get repo (uses personal tokens + global/managed tokens)
@@ -112,7 +112,8 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		// Check if user has personal tokens — if not, this is a managed storage issue
 		hasPersonal, _ := s.db.UserHasPersonalTokens(ctx, userID)
 		if hasPersonal {
-			http.Error(w, fmt.Sprintf(`{"error":"platform not available: %s"}`, err), http.StatusBadRequest)
+			log.Printf("upload: platform not available for user %s: %v", userID, err)
+			http.Error(w, `{"error":"storage platform not available"}`, http.StatusBadRequest)
 		} else {
 			http.Error(w, `{"error":"storage not available yet — managed storage is being configured"}`, http.StatusServiceUnavailable)
 		}
@@ -121,7 +122,8 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 
 	repo, err := pool.GetOrCreateRepo(ctx)
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"get repo: %s"}`, err), http.StatusInternalServerError)
+		log.Printf("upload: get repo failed: %v", err)
+		http.Error(w, `{"error":"storage not available"}`, http.StatusInternalServerError)
 		return
 	}
 
@@ -147,8 +149,12 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		Status:       "uploading",
 	}
 
-	if err := s.db.InsertFile(ctx, userID, fileMeta); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"create file record: %s"}`, err), http.StatusInternalServerError)
+	if err := s.db.InsertFileWithQuotaCheck(ctx, userID, fileMeta, effectiveQuota); err != nil {
+		if err == index.ErrQuotaExceeded {
+			http.Error(w, `{"error":"storage quota exceeded"}`, http.StatusForbidden)
+			return
+		}
+		http.Error(w, `{"error":"create file record failed"}`, http.StatusInternalServerError)
 		return
 	}
 
@@ -169,7 +175,8 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 
 	sessionID, err := s.db.CreateUploadSession(ctx, session)
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"create session: %s"}`, err), http.StatusInternalServerError)
+		log.Printf("upload: create session failed: %v", err)
+		http.Error(w, `{"error":"failed to start upload"}`, http.StatusInternalServerError)
 		return
 	}
 
@@ -284,7 +291,8 @@ func (s *Server) HandleChunkUpload(w http.ResponseWriter, r *http.Request) {
 	// Generate disguised remote path
 	remotePath, err := disguise.ChunkFilename()
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"generate filename: %s"}`, err), http.StatusInternalServerError)
+		log.Printf("upload: generate filename failed: %v", err)
+		http.Error(w, `{"error":"upload failed"}`, http.StatusInternalServerError)
 		return
 	}
 
@@ -308,7 +316,8 @@ func (s *Server) HandleChunkUpload(w http.ResponseWriter, r *http.Request) {
 		Data: data,
 	})
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"upload to platform failed: %s"}`, err), http.StatusInternalServerError)
+		log.Printf("upload: platform upload failed: %v", err)
+		http.Error(w, `{"error":"upload to storage failed"}`, http.StatusInternalServerError)
 		return
 	}
 
@@ -328,7 +337,8 @@ func (s *Server) HandleChunkUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.db.InsertClientChunk(ctx, userID, dbChunk); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"store chunk ref: %s"}`, err), http.StatusInternalServerError)
+		log.Printf("upload: store chunk ref failed: %v", err)
+		http.Error(w, `{"error":"failed to store chunk"}`, http.StatusInternalServerError)
 		return
 	}
 
@@ -384,19 +394,51 @@ func (s *Server) HandleUploadComplete(w http.ResponseWriter, r *http.Request) {
 	// Verify all chunks uploaded
 	uploadedIndices, err := s.db.GetUploadedChunkIndices(ctx, session.FileID)
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"check chunks: %s"}`, err), http.StatusInternalServerError)
+		log.Printf("upload: check chunks failed: %v", err)
+		http.Error(w, `{"error":"failed to verify chunks"}`, http.StatusInternalServerError)
 		return
 	}
 	if len(uploadedIndices) != session.ChunkCount {
-		http.Error(w, fmt.Sprintf(`{"error":"expected %d chunks, got %d"}`, session.ChunkCount, len(uploadedIndices)), http.StatusBadRequest)
+		http.Error(w, `{"error":"not all chunks have been uploaded"}`, http.StatusBadRequest)
 		return
+	}
+
+	// Verify actual uploaded bytes match claimed original_size within reasonable bounds.
+	// Encrypted chunks include IV (12B) and auth tag (16B) per chunk, plus possible compression,
+	// so actual encrypted size should be at least close to original size.
+	actualEncrypted, err := s.db.GetTotalChunkSize(ctx, session.FileID)
+	if err != nil {
+		http.Error(w, `{"error":"verify upload size failed"}`, http.StatusInternalServerError)
+		return
+	}
+	// Per-chunk overhead: 12B IV + 16B tag = 28B per chunk
+	minOverhead := int64(session.ChunkCount) * 28
+	// Actual encrypted data (minus overhead) should be within 2x of claimed size
+	// (compression can shrink, but the encrypted output can't be less than ~28B/chunk)
+	if actualEncrypted < minOverhead {
+		http.Error(w, `{"error":"uploaded data too small"}`, http.StatusBadRequest)
+		return
+	}
+	// If claimed original_size was tiny but actual data is huge, reject.
+	// Allow generous margin: encrypted can be up to 1.5x original (encryption + padding),
+	// but original cannot be less than 1/3 of encrypted (even with worst-case compression).
+	dataWithoutOverhead := actualEncrypted - minOverhead
+	if session.OriginalSize > 0 && dataWithoutOverhead > session.OriginalSize*3 {
+		http.Error(w, `{"error":"uploaded data size does not match claimed file size"}`, http.StatusBadRequest)
+		return
+	}
+
+	// Update the file record with the server-verified encrypted size for accurate quota
+	if err := s.db.UpdateFileOriginalSizeVerified(ctx, session.FileID, actualEncrypted); err != nil {
+		fmt.Printf("warn: update verified size: %v\n", err)
 	}
 
 	// Flush batch commits if adapter supports it (e.g., HuggingFace)
 	adapter := s.resolveAdapterForUser(ctx, userID, session.Platform, session.Account)
 	if bc, ok := adapter.(adapters.BatchCommitter); ok {
 		if err := bc.FlushCommits(ctx, session.RepoURL); err != nil {
-			http.Error(w, fmt.Sprintf(`{"error":"finalize platform upload: %s"}`, err), http.StatusInternalServerError)
+			log.Printf("upload: finalize platform upload failed: %v", err)
+		http.Error(w, `{"error":"failed to finalize upload"}`, http.StatusInternalServerError)
 			return
 		}
 	}
@@ -415,7 +457,8 @@ func (s *Server) HandleUploadComplete(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("warn: update file sizes: %v\n", err)
 	}
 	if err := s.db.UpdateFileStatus(ctx, session.FileID, "complete"); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"update file status: %s"}`, err), http.StatusInternalServerError)
+		log.Printf("upload: update file status failed: %v", err)
+		http.Error(w, `{"error":"failed to complete upload"}`, http.StatusInternalServerError)
 		return
 	}
 
@@ -466,7 +509,8 @@ func (s *Server) HandleUploadCancel(w http.ResponseWriter, r *http.Request) {
 
 	// Cancel session
 	if err := s.db.CancelUploadSession(ctx, sessionID); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"cancel session: %s"}`, err), http.StatusInternalServerError)
+		log.Printf("upload: cancel session failed: %v", err)
+		http.Error(w, `{"error":"failed to cancel upload"}`, http.StatusInternalServerError)
 		return
 	}
 
@@ -502,7 +546,8 @@ func (s *Server) HandleUploadStatus(w http.ResponseWriter, r *http.Request) {
 
 	uploadedIndices, err := s.db.GetUploadedChunkIndices(ctx, session.FileID)
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"get chunk status: %s"}`, err), http.StatusInternalServerError)
+		log.Printf("upload: get chunk status failed: %v", err)
+		http.Error(w, `{"error":"failed to get upload status"}`, http.StatusInternalServerError)
 		return
 	}
 
@@ -575,14 +620,16 @@ func (s *Server) HandlePresignChunk(w http.ResponseWriter, r *http.Request) {
 	// Generate disguised remote path
 	remotePath, err := disguise.ChunkFilename()
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"generate filename: %s"}`, err), http.StatusInternalServerError)
+		log.Printf("upload: generate filename failed: %v", err)
+		http.Error(w, `{"error":"upload failed"}`, http.StatusInternalServerError)
 		return
 	}
 
 	// Get presigned URL from platform
 	uploadURL, uploadHeaders, err := du.GetUploadURL(ctx, session.RepoURL, req.SHA256, req.Size)
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"get upload url: %s"}`, err), http.StatusInternalServerError)
+		log.Printf("upload: get upload url failed: %v", err)
+		http.Error(w, `{"error":"failed to get upload URL"}`, http.StatusInternalServerError)
 		return
 	}
 
@@ -674,7 +721,8 @@ func (s *Server) HandleConfirmChunk(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.db.InsertClientChunk(ctx, userID, dbChunk); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"store chunk ref: %s"}`, err), http.StatusInternalServerError)
+		log.Printf("upload: store chunk ref failed: %v", err)
+		http.Error(w, `{"error":"failed to store chunk"}`, http.StatusInternalServerError)
 		return
 	}
 

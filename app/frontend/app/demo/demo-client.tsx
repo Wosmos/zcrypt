@@ -138,6 +138,7 @@ const MOCK_QUOTA: QuotaInfo = {
   max_concurrent_uploads: 3,
   max_file_size: 25 * 1024 * 1024 * 1024,
   can_upload: true,
+  allows_byob: true,
 };
 
 const MOCK_REPOS: RepoInfo[] = [

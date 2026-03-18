@@ -25,6 +25,37 @@ func (db *DB) InsertFile(ctx context.Context, userID string, f *types.FileMetada
 	return nil
 }
 
+// InsertFileWithQuotaCheck atomically inserts a file record only if the user
+// has enough quota remaining. Returns ErrQuotaExceeded if the insert would exceed quota.
+// quota=0 means unlimited (always succeeds).
+var ErrQuotaExceeded = fmt.Errorf("storage quota exceeded")
+
+func (db *DB) InsertFileWithQuotaCheck(ctx context.Context, userID string, f *types.FileMetadata, quotaBytes int64) error {
+	status := f.Status
+	if status == "" {
+		status = "complete"
+	}
+	if quotaBytes <= 0 {
+		// Unlimited — just insert
+		return db.InsertFile(ctx, userID, f)
+	}
+	// Atomic insert: only succeeds if current usage + new file <= quota
+	tag, err := db.pool.Exec(ctx,
+		`INSERT INTO files (id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, status)
+		 SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+		 WHERE (SELECT COALESCE(SUM(original_size), 0) FROM files WHERE user_id = $2 AND status IN ('complete', 'uploading')) + $4 <= $12`,
+		f.ID, userID, f.OriginalName, f.OriginalSize, f.CompressedSize, f.EncryptedSize,
+		f.ChunkCount, f.SHA256, f.Salt, f.IV, status, quotaBytes,
+	)
+	if err != nil {
+		return fmt.Errorf("insert file: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrQuotaExceeded
+	}
+	return nil
+}
+
 // InsertChunk stores a chunk reference in the index.
 func (db *DB) InsertChunk(ctx context.Context, userID string, c *types.ChunkRef) error {
 	_, err := db.pool.Exec(ctx,
@@ -526,6 +557,49 @@ func (db *DB) GetUploadedChunkIndices(ctx context.Context, fileID string) ([]int
 	return indices, rows.Err()
 }
 
+// GetTotalChunkSize returns the sum of all chunk sizes for a file.
+func (db *DB) GetTotalChunkSize(ctx context.Context, fileID string) (int64, error) {
+	var total int64
+	err := db.pool.QueryRow(ctx,
+		`SELECT COALESCE(SUM(size), 0) FROM chunks WHERE file_id = $1 AND remote_path != ''`,
+		fileID,
+	).Scan(&total)
+	return total, err
+}
+
+// CountActiveUploadSessions returns the number of active upload sessions for a user.
+func (db *DB) CountActiveUploadSessions(ctx context.Context, userID string) (int, error) {
+	var count int
+	err := db.pool.QueryRow(ctx,
+		`SELECT COUNT(*) FROM upload_sessions WHERE user_id = $1 AND status = 'active' AND expires_at > NOW()`,
+		userID,
+	).Scan(&count)
+	return count, err
+}
+
+// CleanupExpiredUploadSessions cancels expired active sessions and marks their files for cleanup.
+// Returns the number of sessions cleaned up.
+func (db *DB) CleanupExpiredUploadSessions(ctx context.Context) (int, error) {
+	// Mark expired sessions as cancelled
+	tag, err := db.pool.Exec(ctx,
+		`UPDATE upload_sessions SET status = 'cancelled' WHERE status = 'active' AND expires_at < NOW()`,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("cleanup expired sessions: %w", err)
+	}
+	count := int(tag.RowsAffected())
+
+	// Delete orphaned files from expired sessions (status still 'uploading')
+	if count > 0 {
+		_, _ = db.pool.Exec(ctx,
+			`DELETE FROM files WHERE status = 'uploading' AND id IN (
+				SELECT file_id FROM upload_sessions WHERE status = 'cancelled' AND expires_at < NOW()
+			)`,
+		)
+	}
+	return count, nil
+}
+
 // InsertClientChunk inserts a chunk uploaded by the client (already encrypted).
 func (db *DB) InsertClientChunk(ctx context.Context, userID string, c *types.ChunkRef) error {
 	_, err := db.pool.Exec(ctx,
@@ -578,6 +652,16 @@ func (db *DB) UpdateFileSizes(ctx context.Context, fileID string, compressedSize
 		return fmt.Errorf("update file sizes: %w", err)
 	}
 	return nil
+}
+
+// UpdateFileOriginalSizeVerified updates the encrypted_size field with server-verified total
+// to ensure quota calculations use actual uploaded data, not client-claimed values.
+func (db *DB) UpdateFileOriginalSizeVerified(ctx context.Context, fileID string, verifiedEncryptedSize int64) error {
+	_, err := db.pool.Exec(ctx,
+		`UPDATE files SET encrypted_size = $1 WHERE id = $2`,
+		verifiedEncryptedSize, fileID,
+	)
+	return err
 }
 
 // ── Share queries ──

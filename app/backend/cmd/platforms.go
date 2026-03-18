@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"encoding/json"
-	"fmt"
+	"log"
 	"net/http"
 	"strings"
 
@@ -95,7 +95,7 @@ func (s *Server) HandleToggleTokenScope(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if err := s.db.SetUserPlatformTokenGlobal(ctx, tokenID, userID, req.IsGlobal); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusNotFound)
+		http.Error(w, `{"error":"token not found"}`, http.StatusNotFound)
 		return
 	}
 
@@ -115,12 +115,18 @@ func (s *Server) HandleConnectPlatform(w http.ResponseWriter, r *http.Request) {
 
 	var req ConnectRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"invalid request: %s"}`, err), http.StatusBadRequest)
+		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
 		return
 	}
 
 	if req.Token == "" {
 		http.Error(w, `{"error":"token required"}`, http.StatusBadRequest)
+		return
+	}
+
+	// Enforce BYOB plan restriction — only plans with AllowsBYOB can connect personal tokens
+	if !s.userPlanAllowsBYOB(ctx, userID) {
+		http.Error(w, `{"error":"your plan does not include Bring Your Own Backend — upgrade to Pro"}`, http.StatusForbidden)
 		return
 	}
 
@@ -135,7 +141,8 @@ func (s *Server) HandleConnectPlatform(w http.ResponseWriter, r *http.Request) {
 	// Create adapter to validate token and get username
 	adapter, err := createAdapter(req.Platform, req.Token)
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"connect failed: %s"}`, err), http.StatusBadRequest)
+		log.Printf("platform: connect failed for %s: %v", req.Platform, err)
+		http.Error(w, `{"error":"invalid token or connection failed"}`, http.StatusBadRequest)
 		return
 	}
 
@@ -156,7 +163,8 @@ func (s *Server) HandleConnectPlatform(w http.ResponseWriter, r *http.Request) {
 
 	// Store encrypted token in DB
 	if err := s.db.InsertPlatformToken(ctx, userID, req.Platform, username, encrypted, nonce, false); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"store token: %s"}`, err), http.StatusInternalServerError)
+		log.Printf("platform: store token failed: %v", err)
+		http.Error(w, `{"error":"failed to store token"}`, http.StatusInternalServerError)
 		return
 	}
 
@@ -180,7 +188,7 @@ func (s *Server) HandleDisconnectPlatform(w http.ResponseWriter, r *http.Request
 
 	var req DisconnectRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"invalid request: %s"}`, err), http.StatusBadRequest)
+		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
 		return
 	}
 
@@ -191,7 +199,8 @@ func (s *Server) HandleDisconnectPlatform(w http.ResponseWriter, r *http.Request
 
 	// Delete token from DB
 	if err := s.db.DeletePlatformTokenByUser(ctx, userID, req.Platform, req.Username); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"disconnect failed: %s"}`, err), http.StatusInternalServerError)
+		log.Printf("platform: disconnect failed: %v", err)
+		http.Error(w, `{"error":"disconnect failed"}`, http.StatusInternalServerError)
 		return
 	}
 
@@ -213,7 +222,8 @@ func (s *Server) HandleListRepos(w http.ResponseWriter, r *http.Request) {
 
 	repos, err := s.db.ListRepos(ctx, userID, platform)
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)
+		log.Printf("repos: list failed: %v", err)
+		http.Error(w, `{"error":"failed to list repos"}`, http.StatusInternalServerError)
 		return
 	}
 
