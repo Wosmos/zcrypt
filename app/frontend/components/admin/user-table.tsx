@@ -208,6 +208,87 @@ export function UserTable({
 
   const modalProps = getConfirmModalProps();
 
+  const RoleBadge = ({ role }: { role: Role }) => (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full",
+        role === Role.Admin
+          ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+          : "bg-[var(--color-surface-2)] text-[var(--color-text-muted)] border border-[var(--color-border)]"
+      )}
+    >
+      {role === Role.Admin ? <ShieldCheck className="h-3 w-3" /> : <User className="h-3 w-3" />}
+      {role}
+    </span>
+  );
+
+  const PlanBadge = ({ plan }: { plan: string }) => (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full",
+        plan === "pro"
+          ? "bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/20"
+          : plan === "plus"
+            ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20"
+            : "bg-[var(--color-surface-2)] text-[var(--color-text-muted)] border border-[var(--color-border)]"
+      )}
+    >
+      {["pro", "plus"].includes(plan) && <Crown className="h-3 w-3" />}
+      {plan}
+    </span>
+  );
+
+  const QuotaEditor = ({ u }: { u: AdminUser }) => (
+    editingQuota === u.id ? (
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <select
+          value={quotaMode}
+          onChange={(e) => setQuotaMode(e.target.value as "default" | "custom" | "unlimited")}
+          className="text-xs px-1.5 py-1 rounded bg-[var(--color-surface-1)] border border-[var(--color-border)]"
+        >
+          <option value="default">Default</option>
+          <option value="custom">Custom</option>
+          <option value="unlimited">Unlimited</option>
+        </select>
+        {quotaMode === "custom" && (
+          <input
+            type="number"
+            min="0.1"
+            step="0.5"
+            value={quotaInput}
+            onChange={(e) => setQuotaInput(e.target.value)}
+            className="w-16 text-xs px-1.5 py-1 rounded bg-[var(--color-surface-1)] border border-[var(--color-border)] tabular-nums"
+            placeholder="GB"
+          />
+        )}
+        <button
+          onClick={() => saveQuota(u.id)}
+          disabled={busy === u.id}
+          className="text-[10px] px-1.5 py-1 rounded bg-cyan-600 text-white hover:bg-cyan-700 disabled:opacity-50"
+        >
+          OK
+        </button>
+        <button
+          onClick={() => setEditingQuota(null)}
+          className="text-[10px] px-1.5 py-1 rounded hover:bg-[var(--color-surface-2)] text-[var(--color-text-muted)]"
+        >
+          X
+        </button>
+      </div>
+    ) : (
+      <button
+        onClick={() => startEditQuota(u)}
+        className="hover:underline tabular-nums group text-sm"
+        title="Click to edit quota"
+      >
+        <span>{getQuotaDisplay(u)}</span>
+        <span className="ml-1 text-[10px] text-[var(--color-text-muted)]">
+          ({getQuotaLabel(u)})
+        </span>
+      </button>
+    )
+  );
+
   return (
     <>
       <section className="card overflow-hidden">
@@ -218,7 +299,8 @@ export function UserTable({
           </p>
         </div>
 
-        <div className="overflow-x-auto">
+        {/* Desktop table — hidden on mobile */}
+        <div className="hidden lg:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-[var(--color-border)] text-xs text-[var(--color-text-muted)] uppercase tracking-wider">
@@ -259,21 +341,7 @@ export function UserTable({
                       </button>
                     </td>
                     <td className="px-5 py-3">
-                      <span
-                        className={cn(
-                          "inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full",
-                          u.role === Role.Admin
-                            ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
-                            : "bg-[var(--color-surface-2)] text-[var(--color-text-muted)] border border-[var(--color-border)]"
-                        )}
-                      >
-                        {u.role === Role.Admin ? (
-                          <ShieldCheck className="h-3 w-3" />
-                        ) : (
-                          <User className="h-3 w-3" />
-                        )}
-                        {u.role}
-                      </span>
+                      <RoleBadge role={u.role} />
                     </td>
                     <td className="px-5 py-3">
                       {!isSelf ? (
@@ -295,19 +363,7 @@ export function UserTable({
                           ))}
                         </select>
                       ) : (
-                        <span
-                          className={cn(
-                            "inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full",
-                            (u.plan || "free") === "pro"
-                              ? "bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/20"
-                              : (u.plan || "free") === "plus"
-                                ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20"
-                                : "bg-[var(--color-surface-2)] text-[var(--color-text-muted)] border border-[var(--color-border)]"
-                          )}
-                        >
-                          {["pro", "plus"].includes(u.plan || "free") && <Crown className="h-3 w-3" />}
-                          {(u.plan || "free")}
-                        </span>
+                        <PlanBadge plan={u.plan || "free"} />
                       )}
                     </td>
                     <td className="px-5 py-3 text-right tabular-nums text-sm">
@@ -317,54 +373,7 @@ export function UserTable({
                       {formatBytes(u.total_size)}
                     </td>
                     <td className="px-5 py-3 text-right text-sm">
-                      {editingQuota === u.id ? (
-                        <div className="flex items-center justify-end gap-1.5">
-                          <select
-                            value={quotaMode}
-                            onChange={(e) => setQuotaMode(e.target.value as "default" | "custom" | "unlimited")}
-                            className="text-xs px-1.5 py-1 rounded bg-[var(--color-surface-1)] border border-[var(--color-border)]"
-                          >
-                            <option value="default">Default</option>
-                            <option value="custom">Custom</option>
-                            <option value="unlimited">Unlimited</option>
-                          </select>
-                          {quotaMode === "custom" && (
-                            <input
-                              type="number"
-                              min="0.1"
-                              step="0.5"
-                              value={quotaInput}
-                              onChange={(e) => setQuotaInput(e.target.value)}
-                              className="w-16 text-xs px-1.5 py-1 rounded bg-[var(--color-surface-1)] border border-[var(--color-border)] tabular-nums"
-                              placeholder="GB"
-                            />
-                          )}
-                          <button
-                            onClick={() => saveQuota(u.id)}
-                            disabled={busy === u.id}
-                            className="text-[10px] px-1.5 py-1 rounded bg-cyan-600 text-white hover:bg-cyan-700 disabled:opacity-50"
-                          >
-                            OK
-                          </button>
-                          <button
-                            onClick={() => setEditingQuota(null)}
-                            className="text-[10px] px-1.5 py-1 rounded hover:bg-[var(--color-surface-2)] text-[var(--color-text-muted)]"
-                          >
-                            X
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => startEditQuota(u)}
-                          className="hover:underline tabular-nums group"
-                          title="Click to edit quota"
-                        >
-                          <span>{getQuotaDisplay(u)}</span>
-                          <span className="ml-1 text-[10px] text-[var(--color-text-muted)]">
-                            ({getQuotaLabel(u)})
-                          </span>
-                        </button>
-                      )}
+                      <QuotaEditor u={u} />
                     </td>
                     <td className="px-5 py-3 text-sm text-[var(--color-text-muted)]">
                       {new Date(u.created_at).toLocaleDateString()}
@@ -398,6 +407,98 @@ export function UserTable({
               })}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile card layout — visible below lg */}
+        <div className="lg:hidden divide-y divide-[var(--color-border)]">
+          {users.map((u) => {
+            const isSelf = u.id === currentUserId;
+            return (
+              <div key={u.id} className="p-4 space-y-3">
+                {/* Top row: user info + badges */}
+                <div className="flex items-start justify-between gap-3">
+                  <button
+                    onClick={() => router.push(`/admin/users/${u.id}`)}
+                    className="text-left group min-w-0"
+                  >
+                    <p className="font-medium text-sm group-hover:text-[var(--color-accent)] transition-colors truncate">
+                      {u.username}
+                      {isSelf && (
+                        <span className="ml-1.5 text-[10px] text-[var(--color-text-muted)]">(you)</span>
+                      )}
+                    </p>
+                    <p className="text-xs text-[var(--color-text-muted)] truncate">{u.email}</p>
+                  </button>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <RoleBadge role={u.role} />
+                    {isSelf ? (
+                      <PlanBadge plan={u.plan || "free"} />
+                    ) : (
+                      <select
+                        value={u.plan || "free"}
+                        onChange={(e) => handlePlanChange(u.id, u.username, e.target.value)}
+                        disabled={busy === u.id}
+                        className={cn(
+                          "text-xs font-medium px-2 py-0.5 rounded-full border cursor-pointer disabled:opacity-50",
+                          (u.plan || "free") === "pro"
+                            ? "bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20"
+                            : (u.plan || "free") === "plus"
+                              ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
+                              : "bg-[var(--color-surface-2)] text-[var(--color-text-muted)] border-[var(--color-border)]"
+                        )}
+                      >
+                        {Object.entries(planDetails).map(([id, detail]) => (
+                          <option key={id} value={id}>{detail.label}</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                </div>
+
+                {/* Stats row */}
+                <div className="grid grid-cols-3 gap-3 text-xs">
+                  <div>
+                    <p className="text-[var(--color-text-muted)]">Files</p>
+                    <p className="font-medium tabular-nums">{u.file_count}</p>
+                  </div>
+                  <div>
+                    <p className="text-[var(--color-text-muted)]">Usage</p>
+                    <p className="font-medium tabular-nums">{formatBytes(u.total_size)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[var(--color-text-muted)]">Joined</p>
+                    <p className="font-medium">{new Date(u.created_at).toLocaleDateString()}</p>
+                  </div>
+                </div>
+
+                {/* Quota + actions row */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-xs">
+                    <span className="text-[var(--color-text-muted)] mr-1">Quota:</span>
+                    <QuotaEditor u={u} />
+                  </div>
+                  {!isSelf && (
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        onClick={() => handleRoleToggle(u.id, u.role, u.username)}
+                        disabled={busy === u.id}
+                        className="text-xs px-2.5 py-1.5 rounded-lg hover:bg-[var(--color-surface-2)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors disabled:opacity-50"
+                      >
+                        {u.role === Role.Admin ? "Demote" : "Promote"}
+                      </button>
+                      <button
+                        onClick={() => handleDelete(u.id, u.username)}
+                        disabled={busy === u.id}
+                        className="flex items-center justify-center h-7 w-7 rounded-lg hover:bg-red-500/10 text-[var(--color-text-muted)] hover:text-red-500 transition-colors disabled:opacity-50"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </section>
 

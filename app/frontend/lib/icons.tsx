@@ -108,7 +108,7 @@ import {
   HelpCircleIcon as _HelpCircle,
   Terminal as _Terminal,
   Smartphone as _Smartphone,
-  Share2 as _Share2,
+  Share01Icon as _Share01,
 } from "@hugeicons/core-free-icons";
 
 type IconProps = SVGProps<SVGSVGElement> & {
@@ -236,4 +236,4 @@ export const Quote = makeIcon(_Quote, "Quote");
 export const HelpCircle = makeIcon(_HelpCircle, "HelpCircle");
 export const Terminal = makeIcon(_Terminal, "Terminal");
 export const Smartphone = makeIcon(_Smartphone, "Smartphone");
-export const Share2 = makeIcon(_Share2, "Share2");
+export const Share2 = makeIcon(_Share01, "Share2");

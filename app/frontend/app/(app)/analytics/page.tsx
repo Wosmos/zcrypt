@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useFileList } from "@/hooks/useFileList";
 import { usePlatformHealth } from "@/hooks/usePlatformHealth";
 import { formatBytes } from "@/lib/utils";
@@ -10,11 +11,18 @@ import { FileTypeChart } from "@/components/analytics/file-type-chart";
 import { RecentUploads } from "@/components/analytics/recent-uploads";
 import { PlatformBreakdown } from "@/components/analytics/platform-breakdown";
 import { TrendingUp, HardDrive, Layers, TrendingDown, BarChart3 } from "@/lib/icons";
+import { getQuota } from "@/lib/api";
+import type { QuotaInfo } from "@/types";
 import AnalyticsLoading from "./loading";
 
 export default function AnalyticsPage() {
   const { files, loading } = useFileList();
   const { repos } = usePlatformHealth();
+  const [quotaInfo, setQuotaInfo] = useState<QuotaInfo | null>(null);
+
+  useEffect(() => {
+    getQuota().then(setQuotaInfo).catch(() => {});
+  }, []);
 
   const totalOriginal = files.reduce((s, f) => s + f.original_size, 0);
   const totalEncrypted = files.reduce((s, f) => s + f.encrypted_size, 0);
@@ -50,9 +58,11 @@ export default function AnalyticsPage() {
         />
         <QuickStat
           icon={<HardDrive className="h-4 w-4 text-violet-500" />}
-          label="Original Size"
+          label="Storage"
           value={formatBytes(totalOriginal)}
-          sub={`Encrypted: ${formatBytes(totalEncrypted)}`}
+          sub={quotaInfo && !quotaInfo.is_unlimited && quotaInfo.quota_bytes > 0
+            ? `${formatBytes(quotaInfo.used_bytes)} / ${formatBytes(quotaInfo.quota_bytes)} used`
+            : `Encrypted: ${formatBytes(totalEncrypted)}`}
           bg="bg-violet-500/10"
         />
         <QuickStat
@@ -65,14 +75,14 @@ export default function AnalyticsPage() {
         <QuickStat
           icon={<TrendingUp className="h-4 w-4 text-amber-500" />}
           label="Platforms"
-          value={String(repos.length)}
-          sub={`${repos.filter((r) => r.active).length} active repos`}
+          value={String(new Set(repos.map((r) => r.platform)).size)}
+          sub={`${repos.filter((r) => r.active).length} active repo${repos.filter((r) => r.active).length !== 1 ? "s" : ""}`}
           bg="bg-amber-500/10"
         />
       </div>
 
       {/* Storage hero */}
-      <StorageHero files={files} repos={repos} />
+      <StorageHero files={files} quotaInfo={quotaInfo} />
 
       {/* File type stat cards */}
       <StatCards files={files} />

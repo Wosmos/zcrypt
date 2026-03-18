@@ -41,6 +41,12 @@ export function TokenManagement({
     huggingface: "Hugging Face",
   };
 
+  const platformShort: Record<string, string> = {
+    github: "GH",
+    gitlab: "GL",
+    huggingface: "HF",
+  };
+
   const handleCreate = async () => {
     if (!token.trim()) return;
     setCreating(true);
@@ -141,7 +147,7 @@ export function TokenManagement({
                 />
               </div>
             </div>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
@@ -150,10 +156,10 @@ export function TokenManagement({
                   className="h-4 w-4 rounded border-[var(--color-border)] text-cyan-500 focus:ring-cyan-500/30"
                 />
                 <span className="text-sm text-[var(--color-text-secondary)]">
-                  Global token (available to all users)
+                  Global token <span className="hidden sm:inline">(available to all users)</span>
                 </span>
               </label>
-              <Button onClick={handleCreate} disabled={creating || !token.trim()}>
+              <Button onClick={handleCreate} disabled={creating || !token.trim()} className="w-full sm:w-auto">
                 {creating ? (
                   <span className="flex items-center gap-2">
                     <LogoSpinner size={14} speed="fast" />
@@ -173,78 +179,72 @@ export function TokenManagement({
           </div>
         ) : (
           <div className="divide-y divide-[var(--color-border)]">
-            {tokens.map((t) => (
-              <div
-                key={t.id}
-                className="flex items-center gap-3 px-5 py-3 hover:bg-[var(--color-surface-1)] transition-colors"
-              >
-                <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-[var(--color-surface-2)] flex-shrink-0">
-                  <Key className="h-4 w-4 text-[var(--color-text-muted)]" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">
-                      {platformNames[t.platform] ?? t.platform}
-                    </span>
-                    <span className="text-xs text-[var(--color-text-muted)]">
-                      @{t.username}
-                    </span>
+            {tokens.map((t) => {
+              const isOwner = t.user_id === currentUserId;
+              const isGlobalResolved = resolveGlobal(t);
+              const scopeBadgeClass = cn(
+                "inline-flex items-center gap-1 text-xs font-medium px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg transition-colors",
+                isGlobalResolved
+                  ? "bg-blue-500/10 text-blue-500 border border-blue-500/20"
+                  : isOwner
+                    ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+                    : "bg-[var(--color-surface-2)] text-[var(--color-text-muted)] border border-[var(--color-border)]"
+              );
+
+              return (
+                <div
+                  key={t.id}
+                  className="flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-3 hover:bg-[var(--color-surface-1)] transition-colors"
+                >
+                  <div className="hidden sm:flex items-center justify-center h-8 w-8 rounded-lg bg-[var(--color-surface-2)] flex-shrink-0">
+                    <Key className="h-4 w-4 text-[var(--color-text-muted)]" />
                   </div>
-                  <p className="text-xs text-[var(--color-text-muted)]">
-                    Added {new Date(t.created_at).toLocaleDateString()}
-                  </p>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                      <span className="text-sm font-medium truncate">
+                        <span className="sm:hidden">{platformShort[t.platform] ?? t.platform}</span>
+                        <span className="hidden sm:inline">{platformNames[t.platform] ?? t.platform}</span>
+                      </span>
+                      <span className="text-xs text-[var(--color-text-muted)] truncate">
+                        @{t.username}
+                      </span>
+                    </div>
+                    <p className="text-xs text-[var(--color-text-muted)]">
+                      {new Date(t.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  {isOwner ? (
+                    <button
+                      onClick={() => handleToggleScope(t)}
+                      title={isGlobalResolved ? "Click to make local (owner-only)" : "Click to make global (all users)"}
+                      className={cn(scopeBadgeClass, "cursor-pointer hover:opacity-80")}
+                    >
+                      {isGlobalResolved ? <Globe className="h-3.5 w-3.5" /> : <User className="h-3.5 w-3.5" />}
+                      <span className="hidden sm:inline">{isGlobalResolved ? "Global" : "Local"}</span>
+                    </button>
+                  ) : (
+                    <span className={scopeBadgeClass}>
+                      {isGlobalResolved ? <Globe className="h-3.5 w-3.5" /> : <User className="h-3.5 w-3.5" />}
+                      <span className="hidden sm:inline">{isGlobalResolved ? "Global" : "Local"}</span>
+                    </span>
+                  )}
+                  {isOwner && (
+                    <button
+                      onClick={() => setDeleteTarget(t)}
+                      disabled={deleting === t.id}
+                      className="flex items-center justify-center h-7 w-7 rounded-lg hover:bg-red-500/10 text-[var(--color-text-muted)] hover:text-red-500 transition-colors disabled:opacity-50 flex-shrink-0"
+                      title="Delete token"
+                    >
+                      {deleting === t.id ? (
+                        <LogoSpinner size={14} speed="fast" />
+                      ) : (
+                        <Trash2 className="h-3.5 w-3.5" />
+                      )}
+                    </button>
+                  )}
                 </div>
-                {t.user_id === currentUserId ? (
-                  <button
-                    onClick={() => handleToggleScope(t)}
-                    title={resolveGlobal(t) ? "Click to make local (owner-only)" : "Click to make global (all users)"}
-                    className={cn(
-                      "inline-flex items-center gap-1 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors cursor-pointer",
-                      resolveGlobal(t)
-                        ? "bg-blue-500/10 text-blue-500 border border-blue-500/20 hover:bg-blue-500/20"
-                        : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 hover:bg-amber-500/20"
-                    )}
-                  >
-                    {resolveGlobal(t) ? (
-                      <Globe className="h-3.5 w-3.5" />
-                    ) : (
-                      <User className="h-3.5 w-3.5" />
-                    )}
-                    {resolveGlobal(t) ? "Global" : "Local"}
-                  </button>
-                ) : (
-                  <span
-                    className={cn(
-                      "inline-flex items-center gap-1 text-xs font-medium px-3 py-1.5 rounded-lg",
-                      resolveGlobal(t)
-                        ? "bg-blue-500/10 text-blue-500 border border-blue-500/20"
-                        : "bg-[var(--color-surface-2)] text-[var(--color-text-muted)] border border-[var(--color-border)]"
-                    )}
-                  >
-                    {resolveGlobal(t) ? (
-                      <Globe className="h-3.5 w-3.5" />
-                    ) : (
-                      <User className="h-3.5 w-3.5" />
-                    )}
-                    {resolveGlobal(t) ? "Global" : "Local"}
-                  </span>
-                )}
-                {t.user_id === currentUserId && (
-                  <button
-                    onClick={() => setDeleteTarget(t)}
-                    disabled={deleting === t.id}
-                    className="flex items-center justify-center h-7 w-7 rounded-lg hover:bg-red-500/10 text-[var(--color-text-muted)] hover:text-red-500 transition-colors disabled:opacity-50"
-                    title="Delete token"
-                  >
-                    {deleting === t.id ? (
-                      <LogoSpinner size={14} speed="fast" />
-                    ) : (
-                      <Trash2 className="h-3.5 w-3.5" />
-                    )}
-                  </button>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>
