@@ -25,7 +25,8 @@ import { useUploadStore } from "@/store/upload";
 import { useDownloadStore } from "@/store/download";
 import { usePassphraseStore } from "@/store/passphrase";
 import { useOperationStatus } from "@/hooks/useOperationStatus";
-import { deleteFile, getQuota } from "@/lib/api";
+import { deleteFile } from "@/lib/api";
+import { useQuota } from "@/hooks/useQuota";
 import { toast } from "@/store/toast";
 import {
   Shield,
@@ -48,7 +49,7 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { NotificationCenter } from "@/components/ui/notification-center";
 import { notifications as notifActions } from "@/store/notifications";
 import { FilePreviewModal, useFilePreview } from "@/components/ui/file-preview-modal";
-import type { QuotaInfo, FileMetadata } from "@/types";
+import type { FileMetadata } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Pagination } from "@/components/ui/pagination";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
@@ -97,7 +98,7 @@ export default function VaultPage() {
   const [, forceUpdate] = useState(0);
   const { notify } = useNotifications();
   const preview = useFilePreview();
-  const [quotaInfo, setQuotaInfo] = useState<QuotaInfo | null>(null);
+  const { quota: quotaInfo, refresh: refreshQuota } = useQuota();
   const [deleteTarget, setDeleteTarget] = useState<FileMetadata | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [shareTarget, setShareTarget] = useState<FileMetadata | null>(null);
@@ -106,11 +107,6 @@ export default function VaultPage() {
     quotaInfo?.used_bytes ?? 0,
     quotaInfo?.quota_bytes ?? 0
   );
-
-  // Fetch quota info
-  useEffect(() => {
-    getQuota().then(setQuotaInfo).catch(() => {});
-  }, []);
 
   // Tick the passphrase timer display every 30s
   useEffect(() => {
@@ -151,7 +147,7 @@ export default function VaultPage() {
     updateStatus(target.id, status, event.percent, event.stage, event.bytes_processed, event.total_bytes);
     if (stageLower === "done") {
       refresh();
-      getQuota().then(setQuotaInfo).catch(() => {});
+      refreshQuota();
       toast.success(`${target.file.name} uploaded successfully`);
       notify(`Upload complete`, { body: target.file.name, tag: "upload-done" });
       notifActions.uploadComplete(target.file.name);
@@ -272,13 +268,14 @@ export default function VaultPage() {
         toast.success("File deleted");
         setDeleteTarget(null);
         refresh();
+        refreshQuota();
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Delete failed");
       } finally {
         setDeleting(false);
       }
     },
-    [deleteTarget, refresh]
+    [deleteTarget, refresh, refreshQuota]
   );
 
   // --- Bulk operations ---
@@ -323,7 +320,8 @@ export default function VaultPage() {
     setSelectedIds(new Set());
     setSelectionMode(false);
     refresh();
-  }, [selectedIds, refresh]);
+    refreshQuota();
+  }, [selectedIds, refresh, refreshQuota]);
 
   const startBulkZipDownload = useDownloadStore((s) => s.startBulkZipDownload);
   const startBulkDownload = useCallback((passphrase: string) => {

@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useFileList } from "@/hooks/useFileList";
 import { usePlatformHealth } from "@/hooks/usePlatformHealth";
+import { useQuota } from "@/hooks/useQuota";
 import { formatBytes } from "@/lib/utils";
 import { StorageHero } from "@/components/analytics/storage-hero";
 import { StatCards } from "@/components/analytics/stat-cards";
@@ -11,18 +11,12 @@ import { FileTypeChart } from "@/components/analytics/file-type-chart";
 import { RecentUploads } from "@/components/analytics/recent-uploads";
 import { PlatformBreakdown } from "@/components/analytics/platform-breakdown";
 import { TrendingUp, HardDrive, Layers, TrendingDown, BarChart3 } from "@/lib/icons";
-import { getQuota } from "@/lib/api";
-import type { QuotaInfo } from "@/types";
 import AnalyticsLoading from "./loading";
 
 export default function AnalyticsPage() {
   const { files, loading } = useFileList();
   const { repos } = usePlatformHealth();
-  const [quotaInfo, setQuotaInfo] = useState<QuotaInfo | null>(null);
-
-  useEffect(() => {
-    getQuota().then(setQuotaInfo).catch(() => {});
-  }, []);
+  const { quota: quotaInfo } = useQuota();
 
   const totalOriginal = files.reduce((s, f) => s + f.original_size, 0);
   const totalEncrypted = files.reduce((s, f) => s + f.encrypted_size, 0);
