@@ -27,7 +27,7 @@ import {
 import { Logo } from "@/components/ui/logo";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth";
-import { usePlatformStore } from "@/store/platform";
+import { useQuotaStore } from "@/store/quota";
 import { logout as logoutApi } from "@/lib/auth-api";
 
 const baseLinks = [
@@ -43,7 +43,7 @@ export function Sidebar() {
   const { resolvedTheme, toggleTheme } = useTheme();
   const { user, refreshTokenValue, clearAuth } = useAuthStore();
   const [collapsed, setCollapsed] = useState(false);
-  const repos = usePlatformStore((s) => s.repos);
+  const quota = useQuotaStore((s) => s.quota);
 
   const isAdmin = user?.role === Role.Admin;
   const links = useMemo(
@@ -51,9 +51,10 @@ export function Sidebar() {
     [isAdmin]
   );
 
-  // Storage stats
-  const totalUsed = repos.reduce((s, r) => s + r.used_bytes, 0);
-  const totalMax = repos.reduce((s, r) => s + r.max_bytes, 0);
+  // Storage stats from user quota (not repo capacity)
+  const isUnlimited = quota?.is_unlimited ?? false;
+  const totalUsed = quota?.used_bytes ?? 0;
+  const totalMax = quota && !quota.is_unlimited && quota.quota_bytes > 0 ? quota.quota_bytes : 0;
   const storagePercent = totalMax > 0 ? Math.min((totalUsed / totalMax) * 100, 100) : 0;
 
   const handleLogout = async () => {
@@ -165,7 +166,7 @@ export function Sidebar() {
                   Storage
                 </span>
                 <span className="text-[10px] tabular-nums text-[var(--color-sidebar-text)]">
-                  {totalMax > 0 ? `${storagePercent.toFixed(0)}%` : "\u2014"}
+                  {isUnlimited ? "\u221E" : totalMax > 0 ? `${storagePercent.toFixed(0)}%` : "\u2014"}
                 </span>
               </div>
               <div className="h-1.5 rounded-full bg-white/8 overflow-hidden">
@@ -180,13 +181,15 @@ export function Sidebar() {
                 )}
               </div>
               <p className="text-[10px] tabular-nums text-[var(--color-sidebar-text)]">
-                {totalMax > 0
-                  ? `${formatBytes(totalUsed)} / ${formatBytes(totalMax)}`
-                  : "No platform connected"}
+                {isUnlimited
+                  ? `${formatBytes(totalUsed)} used`
+                  : totalMax > 0
+                    ? `${formatBytes(totalUsed)} / ${formatBytes(totalMax)}`
+                    : "No platform connected"}
               </p>
             </div>
           ) : (
-            <div className="flex flex-col items-center" title={totalMax > 0 ? `${formatBytes(totalUsed)} / ${formatBytes(totalMax)}` : "No platform"}>
+            <div className="flex flex-col items-center" title={isUnlimited ? `${formatBytes(totalUsed)} used` : totalMax > 0 ? `${formatBytes(totalUsed)} / ${formatBytes(totalMax)}` : "No platform"}>
               <div className="h-8 w-1.5 rounded-full bg-white/8 overflow-hidden rotate-180">
                 {totalMax > 0 && (
                   <div

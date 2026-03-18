@@ -200,6 +200,44 @@ func (db *DB) DeleteFile(ctx context.Context, userID, fileID string) error {
 	}
 	defer tx.Rollback(ctx)
 
+	// Decrement repos.used_bytes for each affected repo (before chunks are deleted)
+	rows, err := tx.Query(ctx,
+		`SELECT repo, SUM(size) FROM chunks
+		 WHERE file_id = $1 AND user_id = $2 AND remote_path != ''
+		 GROUP BY repo`,
+		fileID, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("aggregate chunk sizes: %w", err)
+	}
+	type repoUsage struct {
+		repoURL string
+		size    int64
+	}
+	var decrements []repoUsage
+	for rows.Next() {
+		var ru repoUsage
+		if err := rows.Scan(&ru.repoURL, &ru.size); err != nil {
+			rows.Close()
+			return fmt.Errorf("scan repo usage: %w", err)
+		}
+		decrements = append(decrements, ru)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterate repo usage: %w", err)
+	}
+
+	for _, d := range decrements {
+		if _, err := tx.Exec(ctx,
+			`UPDATE repos SET used_bytes = GREATEST(used_bytes - $1, 0)
+			 WHERE url = $2 AND user_id = $3`,
+			d.size, d.repoURL, userID,
+		); err != nil {
+			return fmt.Errorf("decrement repo usage: %w", err)
+		}
+	}
+
 	// Move chunks to pending_deletions before removing them
 	if _, err := tx.Exec(ctx,
 		`INSERT INTO pending_deletions (user_id, platform, account, repo, remote_path)
