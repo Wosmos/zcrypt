@@ -1,4 +1,4 @@
-import type { FileMetadata, PlatformStatus, RepoInfo, AppConfig, AdminUser, SystemStats, PlatformTokenInfo, QuotaInfo, PlanConfigs, AdminUserDetail, ShareLink, ShareInfo } from "@/types";
+import type { FileMetadata, PlatformStatus, RepoInfo, AppConfig, AdminUser, SystemStats, PlatformTokenInfo, QuotaInfo, PlanConfigs, AdminUserDetail, ShareLink, ShareInfo, SendInitRequest, SendInitResponse, SendInfo, SendMeta, PadCreateRequest, PadInfo, ClipboardItem, ClipboardPushRequest, SyncFolder, SyncFolderRequest, DecoyStatus, DecoyFile, DeadManSwitch, DeadManSwitchRequest, ExpiringVault, ExpiringVaultRequest, Note, NoteRequest, IntegritySnapshot, VaultSnapshot, SharedVault, SharedVaultDetail, SharedVaultMember, OfflinePin } from "@/types";
 import { useAuthStore } from "@/store/auth";
 import { refreshToken as refreshTokenApi } from "@/lib/auth-api";
 
@@ -440,4 +440,381 @@ export async function getShareChunk(token: string, index: number, password?: str
     sha256: res.headers.get("X-Chunk-SHA256") || "",
     compressed: res.headers.get("X-Chunk-Compressed") === "true",
   };
+}
+
+// ─── Anonymous Send API (no auth) ───
+
+export async function sendInit(data: SendInitRequest): Promise<SendInitResponse> {
+  const res = await fetch(`${API_BASE}/api/send/init`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || "Failed to start send");
+  }
+  return res.json();
+}
+
+export async function sendChunkUpload(
+  sessionId: string,
+  idx: number,
+  chunk: Uint8Array,
+  sha256: string,
+  compressed: boolean,
+): Promise<void> {
+  const headers: Record<string, string> = {
+    "X-Chunk-SHA256": sha256,
+  };
+  if (compressed) headers["X-Chunk-Compressed"] = "true";
+
+  const res = await fetch(`${API_BASE}/api/send/${sessionId}/chunk/${idx}`, {
+    method: "PUT",
+    headers,
+    body: chunk as unknown as BodyInit,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || "Failed to upload chunk");
+  }
+}
+
+export async function sendComplete(sessionId: string): Promise<{ token: string }> {
+  const res = await fetch(`${API_BASE}/api/send/${sessionId}/complete`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: "{}",
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || "Failed to complete send");
+  }
+  return res.json();
+}
+
+export async function getSendInfo(token: string): Promise<SendInfo> {
+  const res = await fetch(`${API_BASE}/api/send/${token}`);
+  if (!res.ok) throw new Error("Transfer not found");
+  return res.json();
+}
+
+export async function getSendMeta(token: string): Promise<SendMeta> {
+  const res = await fetch(`${API_BASE}/api/send/${token}/meta`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || "Failed to get transfer metadata");
+  }
+  return res.json();
+}
+
+export async function getSendChunk(token: string, idx: number): Promise<{
+  data: ArrayBuffer;
+  sha256: string;
+  compressed: boolean;
+}> {
+  const res = await fetch(`${API_BASE}/api/send/${token}/chunks/${idx}`);
+  if (!res.ok) throw new Error("Failed to download chunk");
+  return {
+    data: await res.arrayBuffer(),
+    sha256: res.headers.get("X-Chunk-SHA256") || "",
+    compressed: res.headers.get("X-Chunk-Compressed") === "true",
+  };
+}
+
+// ─── Pad (anonymous encrypted text sharing) ─────────────────────────────────
+
+export async function createPad(data: PadCreateRequest): Promise<{ token: string }> {
+  const res = await fetch(`${API_BASE}/api/pad`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || "Failed to create pad");
+  }
+  return res.json();
+}
+
+export async function getPadInfo(token: string): Promise<PadInfo> {
+  const res = await fetch(`${API_BASE}/api/pad/${token}`);
+  if (!res.ok) throw new Error("Pad not found");
+  return res.json();
+}
+
+export async function getPadContent(token: string): Promise<ArrayBuffer> {
+  const res = await fetch(`${API_BASE}/api/pad/${token}/content`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || "Failed to get pad content");
+  }
+  return res.arrayBuffer();
+}
+
+// ─── Clipboard Sync (authenticated) ──────────────────────────────────────────
+
+export function pushClipboard(data: ClipboardPushRequest): Promise<{ id: string; created_at: string }> {
+  return request<{ id: string; created_at: string }>("/api/clipboard", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export function listClipboard(): Promise<ClipboardItem[]> {
+  return request<ClipboardItem[]>("/api/clipboard");
+}
+
+export async function getClipboardContent(id: string): Promise<{ data: ArrayBuffer; contentType: string }> {
+  const { accessToken } = useAuthStore.getState();
+  const headers: Record<string, string> = {};
+  if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
+
+  const res = await fetch(`${API_BASE}/api/clipboard/${id}`, { headers });
+  if (!res.ok) throw new Error("Failed to get clipboard content");
+  return {
+    data: await res.arrayBuffer(),
+    contentType: res.headers.get("X-Content-Type") || "text",
+  };
+}
+
+export function deleteClipboardItem(id: string): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/api/clipboard/${id}`, { method: "DELETE" });
+}
+
+// ─── Selective Folder Sync (authenticated) ───────────────────────────────────
+
+export function listSyncFolders(): Promise<SyncFolder[]> {
+  return request<SyncFolder[]>("/api/sync/folders");
+}
+
+export function createSyncFolder(data: SyncFolderRequest): Promise<SyncFolder> {
+  return request<SyncFolder>("/api/sync/folders", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export function updateSyncFolder(id: string, data: { enabled?: boolean; label?: string }): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/api/sync/folders/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export function deleteSyncFolder(id: string): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/api/sync/folders/${id}`, { method: "DELETE" });
+}
+
+// ─── Decoy Vault (Plausible Deniability) ─────────────────────────────────────
+
+export function getDecoyStatus(): Promise<DecoyStatus> {
+  return request<DecoyStatus>("/api/decoy");
+}
+
+export function setupDecoy(data: { decoy_password: string; enabled?: boolean }): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>("/api/decoy/setup", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export function deleteDecoy(): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>("/api/decoy", { method: "DELETE" });
+}
+
+export function listDecoyFiles(): Promise<DecoyFile[]> {
+  return request<DecoyFile[]>("/api/decoy/files");
+}
+
+export function addDecoyFile(data: { name: string; size: number }): Promise<DecoyFile> {
+  return request<DecoyFile>("/api/decoy/files", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export function deleteDecoyFile(id: string): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/api/decoy/files/${id}`, { method: "DELETE" });
+}
+
+// ─── Dead Man's Switch ──────────────────────────────────────────────────────
+
+export function getDeadManSwitch(): Promise<DeadManSwitch | null> {
+  return request<DeadManSwitch | null>("/api/deadman");
+}
+
+export function setupDeadManSwitch(data: DeadManSwitchRequest): Promise<DeadManSwitch> {
+  return request<DeadManSwitch>("/api/deadman", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export function checkinDeadManSwitch(): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>("/api/deadman/checkin", { method: "POST" });
+}
+
+export function deleteDeadManSwitch(): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>("/api/deadman", { method: "DELETE" });
+}
+
+// ─── Expiring Vaults ────────────────────────────────────────────────────────
+
+export function listExpiringVaults(): Promise<ExpiringVault[]> {
+  return request<ExpiringVault[]>("/api/vaults");
+}
+
+export function createExpiringVault(data: ExpiringVaultRequest): Promise<ExpiringVault> {
+  return request<ExpiringVault>("/api/vaults", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export function getExpiringVault(id: string): Promise<ExpiringVault> {
+  return request<ExpiringVault>(`/api/vaults/${id}`);
+}
+
+export function deleteExpiringVault(id: string): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/api/vaults/${id}`, { method: "DELETE" });
+}
+
+// ─── Secure Notes ───────────────────────────────────────────────────────────
+
+export function listNotes(): Promise<Note[]> {
+  return request<Note[]>("/api/notes");
+}
+
+export function createNote(data: NoteRequest): Promise<Note> {
+  return request<Note>("/api/notes", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export function getNote(id: string): Promise<Note> {
+  return request<Note>(`/api/notes/${id}`);
+}
+
+export function updateNote(id: string, data: NoteRequest): Promise<Note> {
+  return request<Note>(`/api/notes/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export function deleteNote(id: string): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/api/notes/${id}`, { method: "DELETE" });
+}
+
+// ─── File Integrity Monitor ─────────────────────────────────────────────────
+
+export function listIntegritySnapshots(): Promise<IntegritySnapshot[]> {
+  return request<IntegritySnapshot[]>("/api/integrity");
+}
+
+export function createIntegritySnapshot(fileId: string): Promise<IntegritySnapshot> {
+  return request<IntegritySnapshot>("/api/integrity", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ file_id: fileId }),
+  });
+}
+
+export function checkFileIntegrity(fileId: string): Promise<IntegritySnapshot> {
+  return request<IntegritySnapshot>("/api/integrity/check", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ file_id: fileId }),
+  });
+}
+
+export function getChangedFiles(): Promise<IntegritySnapshot[]> {
+  return request<IntegritySnapshot[]>("/api/integrity/changes");
+}
+
+// ─── Vault Snapshots ────────────────────────────────────────────────────────
+
+export function listVaultSnapshots(): Promise<VaultSnapshot[]> {
+  return request<VaultSnapshot[]>("/api/snapshots");
+}
+
+export function createVaultSnapshot(label: string): Promise<VaultSnapshot> {
+  return request<VaultSnapshot>("/api/snapshots", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ label }),
+  });
+}
+
+export function getVaultSnapshot(id: string): Promise<VaultSnapshot> {
+  return request<VaultSnapshot>(`/api/snapshots/${id}`);
+}
+
+export function deleteVaultSnapshot(id: string): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/api/snapshots/${id}`, { method: "DELETE" });
+}
+
+// ─── Shared Vaults ──────────────────────────────────────────────────────────
+
+export function listSharedVaults(): Promise<SharedVault[]> {
+  return request<SharedVault[]>("/api/shared-vaults");
+}
+
+export function createSharedVault(data: { name: string; description: string; file_ids: string[] }): Promise<SharedVault> {
+  return request<SharedVault>("/api/shared-vaults", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export function getSharedVault(id: string): Promise<SharedVaultDetail> {
+  return request<SharedVaultDetail>(`/api/shared-vaults/${id}`);
+}
+
+export function addSharedVaultMember(vaultId: string, email: string, role: string): Promise<SharedVaultMember> {
+  return request<SharedVaultMember>(`/api/shared-vaults/${vaultId}/members`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, role }),
+  });
+}
+
+export function removeSharedVaultMember(vaultId: string, userId: string): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/api/shared-vaults/${vaultId}/members/${userId}`, { method: "DELETE" });
+}
+
+export function deleteSharedVault(id: string): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/api/shared-vaults/${id}`, { method: "DELETE" });
+}
+
+// ─── Offline Pins ───────────────────────────────────────────────────────────
+
+export function listOfflinePins(deviceId?: string): Promise<OfflinePin[]> {
+  const params = deviceId ? `?device_id=${deviceId}` : "";
+  return request<OfflinePin[]>(`/api/offline${params}`);
+}
+
+export function pinFileOffline(fileId: string, deviceId: string): Promise<OfflinePin> {
+  return request<OfflinePin>("/api/offline", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ file_id: fileId, device_id: deviceId }),
+  });
+}
+
+export function unpinFileOffline(fileId: string, deviceId?: string): Promise<{ success: boolean }> {
+  const params = deviceId ? `?device_id=${deviceId}` : "";
+  return request<{ success: boolean }>(`/api/offline/${fileId}${params}`, { method: "DELETE" });
 }

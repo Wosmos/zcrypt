@@ -50,6 +50,40 @@ func (s *Server) runCleanupBatch(ctx context.Context) {
 		log.Printf("cleanup: cancelled %d expired upload sessions", cleaned)
 	}
 
+	// Clean up expired anonymous send transfers
+	s.cleanupExpiredSendTransfers(ctx)
+
+	// Clean up expired pads
+	if cleaned, err := s.db.CleanupExpiredPads(ctx); err != nil {
+		log.Printf("cleanup: expired pads: %v", err)
+	} else if cleaned > 0 {
+		log.Printf("cleanup: deleted %d expired pads", cleaned)
+	}
+
+	// Clean up old clipboard items (older than 24h)
+	if cleaned, err := s.db.CleanupOldClipboardItems(ctx); err != nil {
+		log.Printf("cleanup: old clipboard items: %v", err)
+	} else if cleaned > 0 {
+		log.Printf("cleanup: deleted %d old clipboard items", cleaned)
+	}
+
+	// Expire vaults past their deadline
+	if expired, err := s.db.ExpireVaults(ctx); err != nil {
+		log.Printf("cleanup: expire vaults: %v", err)
+	} else if expired > 0 {
+		log.Printf("cleanup: expired %d vaults", expired)
+	}
+
+	// Check dead man's switches (log only; actual notification needs email service)
+	if switches, err := s.db.GetExpiredDeadManSwitches(ctx); err != nil {
+		log.Printf("cleanup: check dead man switches: %v", err)
+	} else {
+		for _, dms := range switches {
+			log.Printf("cleanup: dead man's switch triggered for user %s, contact: %s", dms.UserID, dms.ContactEmail)
+			s.db.MarkDeadManSwitchTriggered(ctx, dms.ID)
+		}
+	}
+
 	pending, err := s.db.GetPendingDeletions(ctx, batchSize, maxAttempts)
 	if err != nil {
 		log.Printf("cleanup: get pending: %v", err)
@@ -107,5 +141,43 @@ func (s *Server) runCleanupBatch(ctx context.Context) {
 	remaining, _ := s.db.PendingDeletionCount(ctx)
 	if remaining > 0 {
 		fmt.Printf("cleanup: %d deletions remaining in queue\n", remaining)
+	}
+}
+
+// cleanupExpiredSendTransfers deletes remote chunks for expired send transfers,
+// then removes the DB records.
+func (s *Server) cleanupExpiredSendTransfers(ctx context.Context) {
+	// Get chunks from expired transfers (before deleting the DB records)
+	expiredChunks, err := s.db.GetExpiredSendChunks(ctx)
+	if err != nil {
+		log.Printf("cleanup: get expired send chunks: %v", err)
+	}
+
+	// Delete remote chunks via global adapter
+	if len(expiredChunks) > 0 {
+		_, adapter, aErr := s.selectGlobalAdapter(ctx)
+		if aErr != nil {
+			log.Printf("cleanup: no global adapter for send cleanup: %v", aErr)
+		} else {
+			for _, chunk := range expiredChunks {
+				ref := types.ChunkRef{
+					Platform:   chunk.Platform,
+					Account:    chunk.Account,
+					Repo:       chunk.Repo,
+					RemotePath: chunk.RemotePath,
+				}
+				if dErr := adapter.Delete(ctx, ref); dErr != nil {
+					log.Printf("cleanup: delete send chunk %s: %v", chunk.RemotePath, dErr)
+				}
+				time.Sleep(500 * time.Millisecond) // rate limit
+			}
+		}
+	}
+
+	// Now delete the DB records (CASCADE deletes send_chunks too)
+	if cleaned, err := s.db.CleanupExpiredSendTransfers(ctx); err != nil {
+		log.Printf("cleanup: expired send transfers: %v", err)
+	} else if cleaned > 0 {
+		log.Printf("cleanup: deleted %d expired send transfers (%d remote chunks)", cleaned, len(expiredChunks))
 	}
 }

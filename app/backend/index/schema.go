@@ -236,4 +236,219 @@ CREATE TABLE IF NOT EXISTS shares (
 CREATE INDEX IF NOT EXISTS idx_shares_token ON shares(token);
 CREATE INDEX IF NOT EXISTS idx_shares_user ON shares(user_id);
 CREATE INDEX IF NOT EXISTS idx_shares_file ON shares(file_id);
+
+-- Anonymous encrypted file sharing (zcrypt Send)
+CREATE TABLE IF NOT EXISTS send_transfers (
+	id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+	token           TEXT NOT NULL UNIQUE,
+	original_name   TEXT NOT NULL,
+	original_size   BIGINT NOT NULL,
+	encrypted_size  BIGINT NOT NULL DEFAULT 0,
+	chunk_count     INTEGER NOT NULL,
+	sha256          TEXT NOT NULL DEFAULT '',
+	salt            BYTEA NOT NULL DEFAULT '',
+	status          TEXT NOT NULL DEFAULT 'uploading' CHECK (status IN ('uploading', 'complete', 'expired')),
+	burn_after_read BOOLEAN NOT NULL DEFAULT FALSE,
+	max_downloads   INTEGER NOT NULL DEFAULT 0,
+	download_count  INTEGER NOT NULL DEFAULT 0,
+	expires_at      TIMESTAMPTZ NOT NULL,
+	sender_ip       TEXT NOT NULL DEFAULT '',
+	created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_send_transfers_token ON send_transfers(token);
+CREATE INDEX IF NOT EXISTS idx_send_transfers_expires ON send_transfers(expires_at);
+CREATE INDEX IF NOT EXISTS idx_send_transfers_status ON send_transfers(status);
+
+CREATE TABLE IF NOT EXISTS send_chunks (
+	id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+	transfer_id UUID NOT NULL REFERENCES send_transfers(id) ON DELETE CASCADE,
+	idx         INTEGER NOT NULL,
+	size        BIGINT NOT NULL,
+	sha256      TEXT NOT NULL,
+	platform    TEXT NOT NULL,
+	account     TEXT NOT NULL DEFAULT '',
+	repo        TEXT NOT NULL,
+	remote_path TEXT NOT NULL,
+	compressed  BOOLEAN NOT NULL DEFAULT FALSE
+);
+
+CREATE INDEX IF NOT EXISTS idx_send_chunks_transfer ON send_chunks(transfer_id);
+
+-- Encrypted text pads (zcrypt Pad)
+CREATE TABLE IF NOT EXISTS pads (
+	id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+	token           TEXT NOT NULL UNIQUE,
+	encrypted_blob  BYTEA NOT NULL,
+	content_size    INTEGER NOT NULL,
+	burn_after_read BOOLEAN NOT NULL DEFAULT FALSE,
+	view_count      INTEGER NOT NULL DEFAULT 0,
+	expires_at      TIMESTAMPTZ NOT NULL,
+	creator_ip      TEXT NOT NULL DEFAULT '',
+	created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_pads_token ON pads(token);
+CREATE INDEX IF NOT EXISTS idx_pads_expires ON pads(expires_at);
+
+-- Clipboard sync (authenticated, per-user)
+CREATE TABLE IF NOT EXISTS clipboard_items (
+	id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+	user_id        UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	content_type   TEXT NOT NULL DEFAULT 'text' CHECK (content_type IN ('text', 'image', 'link')),
+	encrypted_blob BYTEA NOT NULL,
+	content_size   INTEGER NOT NULL,
+	created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_clipboard_user ON clipboard_items(user_id, created_at DESC);
+
+-- Selective folder sync configuration
+CREATE TABLE IF NOT EXISTS sync_folders (
+	id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+	user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	folder_path TEXT NOT NULL,
+	label       TEXT NOT NULL DEFAULT '',
+	device_name TEXT NOT NULL DEFAULT '',
+	enabled     BOOLEAN NOT NULL DEFAULT TRUE,
+	last_synced TIMESTAMPTZ,
+	file_count  INTEGER NOT NULL DEFAULT 0,
+	total_size  BIGINT NOT NULL DEFAULT 0,
+	created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	UNIQUE(user_id, folder_path, device_name)
+);
+
+CREATE INDEX IF NOT EXISTS idx_sync_folders_user ON sync_folders(user_id);
+
+-- Plausible deniability: decoy vault
+CREATE TABLE IF NOT EXISTS decoy_vaults (
+	id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+	user_id           UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+	decoy_password_hash TEXT NOT NULL,
+	enabled           BOOLEAN NOT NULL DEFAULT TRUE,
+	created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS decoy_files (
+	id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+	user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	name        TEXT NOT NULL,
+	size        BIGINT NOT NULL DEFAULT 0,
+	created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_decoy_files_user ON decoy_files(user_id);
+
+-- Dead man's switch
+CREATE TABLE IF NOT EXISTS dead_man_switches (
+	id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+	user_id         UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+	contact_email   TEXT NOT NULL,
+	contact_name    TEXT NOT NULL DEFAULT '',
+	timeout_days    INTEGER NOT NULL DEFAULT 90,
+	message         TEXT NOT NULL DEFAULT '',
+	include_files   BOOLEAN NOT NULL DEFAULT FALSE,
+	enabled         BOOLEAN NOT NULL DEFAULT TRUE,
+	last_checkin    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	triggered       BOOLEAN NOT NULL DEFAULT FALSE,
+	triggered_at    TIMESTAMPTZ,
+	created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Expiring vaults
+CREATE TABLE IF NOT EXISTS expiring_vaults (
+	id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+	user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	name        TEXT NOT NULL,
+	description TEXT NOT NULL DEFAULT '',
+	expires_at  TIMESTAMPTZ NOT NULL,
+	expired     BOOLEAN NOT NULL DEFAULT FALSE,
+	file_ids    TEXT[] NOT NULL DEFAULT '{}',
+	created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_expiring_vaults_user ON expiring_vaults(user_id);
+CREATE INDEX IF NOT EXISTS idx_expiring_vaults_expires ON expiring_vaults(expires_at);
+
+-- Secure notes (encrypted markdown)
+CREATE TABLE IF NOT EXISTS notes (
+	id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+	user_id        UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	encrypted_title BYTEA NOT NULL DEFAULT '',
+	encrypted_body  BYTEA NOT NULL DEFAULT '',
+	content_size   INTEGER NOT NULL DEFAULT 0,
+	tags           TEXT[] NOT NULL DEFAULT '{}',
+	pinned         BOOLEAN NOT NULL DEFAULT FALSE,
+	created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_notes_user ON notes(user_id);
+
+-- File integrity monitor (hash snapshots)
+CREATE TABLE IF NOT EXISTS integrity_snapshots (
+	id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+	user_id   UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	file_id   UUID NOT NULL,
+	file_name TEXT NOT NULL,
+	sha256    TEXT NOT NULL,
+	size      BIGINT NOT NULL,
+	status    TEXT NOT NULL DEFAULT 'ok' CHECK (status IN ('ok', 'changed', 'missing')),
+	checked_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_integrity_user ON integrity_snapshots(user_id);
+CREATE INDEX IF NOT EXISTS idx_integrity_file ON integrity_snapshots(file_id);
+
+-- Vault snapshots (time travel / point-in-time)
+CREATE TABLE IF NOT EXISTS vault_snapshots (
+	id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+	user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	label       TEXT NOT NULL DEFAULT '',
+	file_count  INTEGER NOT NULL DEFAULT 0,
+	total_size  BIGINT NOT NULL DEFAULT 0,
+	file_ids    TEXT[] NOT NULL DEFAULT '{}',
+	created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_vault_snapshots_user ON vault_snapshots(user_id);
+
+-- Shared vaults (team collaboration)
+CREATE TABLE IF NOT EXISTS shared_vaults (
+	id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+	name        TEXT NOT NULL,
+	owner_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	description TEXT NOT NULL DEFAULT '',
+	file_ids    TEXT[] NOT NULL DEFAULT '{}',
+	created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_shared_vaults_owner ON shared_vaults(owner_id);
+
+CREATE TABLE IF NOT EXISTS shared_vault_members (
+	id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+	vault_id  UUID NOT NULL REFERENCES shared_vaults(id) ON DELETE CASCADE,
+	user_id   UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	role      TEXT NOT NULL DEFAULT 'viewer' CHECK (role IN ('viewer', 'editor', 'admin')),
+	joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	UNIQUE(vault_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_shared_vault_members_vault ON shared_vault_members(vault_id);
+CREATE INDEX IF NOT EXISTS idx_shared_vault_members_user ON shared_vault_members(user_id);
+
+-- Offline vault (pinned files for offline access)
+CREATE TABLE IF NOT EXISTS offline_pins (
+	id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+	user_id   UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	file_id   UUID NOT NULL,
+	device_id TEXT NOT NULL DEFAULT '',
+	pinned_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	UNIQUE(user_id, file_id, device_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_offline_pins_user ON offline_pins(user_id);
 `

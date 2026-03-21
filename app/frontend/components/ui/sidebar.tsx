@@ -2,17 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useRef, useState, useMemo } from "react";
-import {
-  motion,
-  useMotionValue,
-  useSpring,
-  useTransform,
-  type MotionValue,
-} from "motion/react";
+import { useState, useMemo } from "react";
 import { cn, formatBytes } from "@/lib/utils";
 import { Role } from "@/types";
 import { useTheme } from "@/components/providers/theme-provider";
+import { usePreferencesStore } from "@/store/preferences";
 import {
   Settings,
   Shield,
@@ -23,18 +17,25 @@ import {
   PanelLeft,
   Database,
   Users,
+  FileText,
+  Share2,
+  Cog,
 } from "@/lib/icons";
 import { Logo } from "@/components/ui/logo";
+import { MobileNav } from "@/components/ui/mobile-nav";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth";
 import { useQuotaStore } from "@/store/quota";
 import { logout as logoutApi } from "@/lib/auth-api";
 
-const baseLinks = [
+const normalLinks = [
   { href: "/dashboard", label: "Vault", icon: Shield },
+  { href: "/notes", label: "Notes", icon: FileText },
+  { href: "/share", label: "Share", icon: Share2 },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
+const advancedLink = { href: "/tools", label: "Tools", icon: Cog };
 const adminLink = { href: "/admin", label: "Admin", icon: Users };
 
 export function Sidebar() {
@@ -42,16 +43,20 @@ export function Sidebar() {
   const router = useRouter();
   const { resolvedTheme, toggleTheme } = useTheme();
   const { user, refreshTokenValue, clearAuth } = useAuthStore();
+  const advancedMode = usePreferencesStore((s) => s.advancedMode);
+  const setAdvancedMode = usePreferencesStore((s) => s.setAdvancedMode);
   const [collapsed, setCollapsed] = useState(false);
   const quota = useQuotaStore((s) => s.quota);
 
   const isAdmin = user?.role === Role.Admin;
-  const links = useMemo(
-    () => (isAdmin ? [...baseLinks, adminLink] : baseLinks),
-    [isAdmin]
-  );
+  const links = useMemo(() => {
+    const items = [...normalLinks];
+    if (advancedMode) items.push(advancedLink);
+    if (isAdmin) items.push(adminLink);
+    return items;
+  }, [isAdmin, advancedMode]);
 
-  // Storage stats from user quota (not repo capacity)
+  // Storage stats from user quota
   const isUnlimited = quota?.is_unlimited ?? false;
   const totalUsed = quota?.used_bytes ?? 0;
   const totalMax = quota && !quota.is_unlimited && quota.quota_bytes > 0 ? quota.quota_bytes : 0;
@@ -69,9 +74,15 @@ export function Sidebar() {
     router.push("/login");
   };
 
+  const isActive = (href: string) => {
+    if (href === "/admin") return pathname.startsWith("/admin");
+    if (href === "/tools") return pathname.startsWith("/tools");
+    return pathname === href;
+  };
+
   return (
     <>
-      {/* Desktop sidebar — always dark navy */}
+      {/* Desktop sidebar */}
       <aside
         className={cn(
           "hidden md:flex h-screen flex-col border-r transition-all duration-200",
@@ -126,10 +137,10 @@ export function Sidebar() {
           </div>
         )}
 
-        {/* Nav */}
-        <nav className={cn("flex-1 py-3 space-y-0.5", collapsed ? "px-1.5" : "px-3")}>
+        {/* Nav — scrollable */}
+        <nav className={cn("flex-1 py-3 space-y-0.5 overflow-y-auto", collapsed ? "px-1.5" : "px-3")}>
           {links.map(({ href, label, icon: Icon }) => {
-            const active = href === "/admin" ? pathname.startsWith("/admin") : pathname === href;
+            const active = isActive(href);
             return (
               <Link
                 key={href}
@@ -225,6 +236,20 @@ export function Sidebar() {
             >
               {collapsed ? <PanelLeft className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
             </button>
+            {/* Advanced mode toggle */}
+            <button
+              onClick={() => setAdvancedMode(!advancedMode)}
+              className={cn(
+                "flex items-center justify-center h-8 w-8 rounded-lg transition-colors",
+                advancedMode
+                  ? "bg-[var(--color-sidebar-active)] text-cyan-400"
+                  : "hover:bg-[var(--color-sidebar-hover)] text-[var(--color-sidebar-text)] hover:text-white/80"
+              )}
+              aria-label={advancedMode ? "Disable advanced mode" : "Enable advanced mode"}
+              title={advancedMode ? "Advanced mode on" : "Advanced mode off"}
+            >
+              <Cog className="h-4 w-4" />
+            </button>
             <button
               onClick={toggleTheme}
               className="flex items-center justify-center h-8 w-8 rounded-lg hover:bg-[var(--color-sidebar-hover)] text-[var(--color-sidebar-text)] hover:text-white/80 transition-colors"
@@ -249,103 +274,8 @@ export function Sidebar() {
         </div>
       </aside>
 
-      {/* Mobile dock */}
-      <MobileDock pathname={pathname} onLogout={handleLogout} isAdmin={isAdmin} />
+      {/* Mobile nav */}
+      <MobileNav />
     </>
-  );
-}
-
-function MobileDock({ pathname, onLogout, isAdmin }: { pathname: string; onLogout: () => void; isAdmin: boolean }) {
-  const mouseX = useMotionValue(Infinity);
-  const { resolvedTheme, toggleTheme } = useTheme();
-
-  const links = useMemo(
-    () => (isAdmin ? [...baseLinks, adminLink] : baseLinks),
-    [isAdmin]
-  );
-
-  return (
-    <motion.nav
-      aria-label="Main navigation"
-      onMouseMove={(e) => mouseX.set(e.pageX)}
-      onMouseLeave={() => mouseX.set(Infinity)}
-      className="md:hidden fixed left-1/2 -translate-x-1/2 z-50 flex items-end gap-1.5 px-3 py-2.5 rounded-2xl glass shadow-2xl"
-      style={{ bottom: "max(1rem, env(safe-area-inset-bottom, 0px))" }}
-    >
-      {links.map((link) => (
-        <DockItem
-          key={link.href}
-          {...link}
-          active={link.href === "/admin" ? pathname.startsWith("/admin") : pathname === link.href}
-          mouseX={mouseX}
-        />
-      ))}
-      {/* Theme toggle */}
-      <button onClick={toggleTheme} className="relative" aria-label="Toggle theme">
-        <motion.div className="flex items-center justify-center h-11 w-11 rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors">
-          {resolvedTheme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-        </motion.div>
-      </button>
-      {/* Logout */}
-      <button onClick={onLogout} className="relative">
-        <motion.div className="flex items-center justify-center h-11 w-11 rounded-xl text-[var(--color-text-muted)] hover:text-red-500 transition-colors">
-          <LogOut className="h-5 w-5" />
-        </motion.div>
-        <span className="sr-only">Log out</span>
-      </button>
-    </motion.nav>
-  );
-}
-
-function DockItem({
-  href,
-  label,
-  icon: Icon,
-  active,
-  mouseX,
-}: {
-  href: string;
-  label: string;
-  icon: typeof Shield;
-  active: boolean;
-  mouseX: MotionValue<number>;
-}) {
-  const ref = useRef<HTMLAnchorElement>(null);
-
-  const distance = useTransform(mouseX, (val) => {
-    const bounds = ref.current?.getBoundingClientRect() ?? { x: 0, width: 0 };
-    return val - bounds.x - bounds.width / 2;
-  });
-
-  const widthSync = useTransform(distance, [-120, 0, 120], [44, 64, 44]);
-  const width = useSpring(widthSync, {
-    mass: 0.1,
-    stiffness: 200,
-    damping: 15,
-  });
-
-  return (
-    <Link href={href} ref={ref} className="relative">
-      <motion.div
-        style={{ width, height: width }}
-        className={cn(
-          "flex items-center justify-center rounded-xl transition-colors",
-          active
-            ? "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400"
-            : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
-        )}
-      >
-        <Icon className="h-5 w-5" />
-      </motion.div>
-      {/* Active dot */}
-      {active && (
-        <motion.div
-          layoutId="dock-dot"
-          className="absolute -bottom-1 left-1/2 -translate-x-1/2 h-1 w-1 rounded-full bg-cyan-500"
-          transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        />
-      )}
-      <span className="sr-only">{label}</span>
-    </Link>
   );
 }

@@ -7,6 +7,7 @@ import { StoragePool } from "@/components/settings/storage-pool";
 import { usePlatformHealth } from "@/hooks/usePlatformHealth";
 import { useAuthStore } from "@/store/auth";
 import { useTheme } from "@/components/providers/theme-provider";
+import { usePreferencesStore } from "@/store/preferences";
 import { connectPlatform, disconnectPlatform, toggleTokenScope, getQuota } from "@/lib/api";
 import { toast } from "@/store/toast";
 import { RateLimits } from "@/components/settings/rate-limits";
@@ -36,7 +37,10 @@ import {
   Settings,
   Globe,
   User,
+  ShieldAlert,
+  Eye,
 } from "@/lib/icons";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
@@ -56,6 +60,8 @@ export default function SettingsPage() {
   const { files } = useFileList();
   const { theme, setTheme } = useTheme();
   const user = useAuthStore((s) => s.user);
+  const advancedMode = usePreferencesStore((s) => s.advancedMode);
+  const setAdvancedMode = usePreferencesStore((s) => s.setAdvancedMode);
   const isAdmin = user?.role === "admin";
   const allowsByob = isAdmin || (quota?.allows_byob ?? false);
 
@@ -176,7 +182,7 @@ export default function SettingsPage() {
         <div className="px-5 py-4 border-b border-[var(--color-border)]">
           <h2 className="text-sm font-semibold">Appearance</h2>
         </div>
-        <div className="p-5">
+        <div className="p-5 space-y-5">
           <div className="flex gap-2">
             {([
               { value: "light" as const, icon: Sun, label: "Light" },
@@ -197,6 +203,32 @@ export default function SettingsPage() {
                 {label}
               </button>
             ))}
+          </div>
+
+          {/* Advanced Mode toggle */}
+          <div className="flex items-center justify-between pt-4 border-t border-[var(--color-border)]">
+            <div>
+              <p className="text-sm font-medium">Advanced Mode</p>
+              <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                Show power-user tools like snapshots, integrity checks, expiring vaults, and device sync.
+              </p>
+            </div>
+            <button
+              onClick={() => setAdvancedMode(!advancedMode)}
+              role="switch"
+              aria-checked={advancedMode}
+              className={cn(
+                "relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 cursor-pointer",
+                advancedMode ? "bg-[var(--color-accent)]" : "bg-[var(--color-border)]"
+              )}
+            >
+              <span
+                className={cn(
+                  "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200",
+                  advancedMode ? "translate-x-5" : "translate-x-0"
+                )}
+              />
+            </button>
           </div>
         </div>
       </section>
@@ -322,6 +354,15 @@ export default function SettingsPage() {
 
       {/* Vault backup */}
       <ExportImport files={files} />
+
+      {/* Privacy */}
+      <div className="space-y-4">
+        <h2 className="section-label">Privacy</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <ToolLink href="/settings/deadman" icon={<ShieldAlert className="h-4 w-4" />} title="Dead Man's Switch" desc="Auto-notify a contact if you go silent" />
+          <ToolLink href="/settings/decoy" icon={<Eye className="h-4 w-4" />} title="Decoy Profile" desc="Plausible deniability with a decoy vault" />
+        </div>
+      </div>
 
       {/* Security Activity — admin only */}
       {isAdmin && <SecurityActivity />}
@@ -546,6 +587,24 @@ function HowItWorks() {
         </div>
       )}
     </section>
+  );
+}
+
+function ToolLink({ href, icon, title, desc }: { href: string; icon: React.ReactNode; title: string; desc: string }) {
+  return (
+    <Link
+      href={href}
+      className="flex items-start gap-3 p-4 card hover:border-[var(--color-accent)]/30 transition-colors group"
+    >
+      <div className="flex items-center justify-center h-9 w-9 rounded-xl bg-[var(--color-surface-1)] text-[var(--color-text-muted)] group-hover:text-[var(--color-accent)] transition-colors flex-shrink-0">
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <p className="text-sm font-medium group-hover:text-[var(--color-accent)] transition-colors">{title}</p>
+        <p className="text-xs text-[var(--color-text-muted)] mt-0.5">{desc}</p>
+      </div>
+      <ArrowRight className="h-4 w-4 text-[var(--color-text-muted)] group-hover:text-[var(--color-accent)] mt-0.5 ml-auto flex-shrink-0 transition-colors" />
+    </Link>
   );
 }
 
