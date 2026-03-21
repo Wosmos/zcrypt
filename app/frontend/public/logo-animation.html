@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>zcrypt — Logo Animations</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<style>
+  @import url('https://api.fontshare.com/v2/css?f[]=satoshi@900,700,500,400&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #050506;
+    font-family: 'Satoshi', system-ui, sans-serif;
+    color: #fafafa;
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  /* ── Menu ── */
+  .menu {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    padding: 40px;
+    max-width: 900px;
+    margin: 0 auto;
+    height: 100vh;
+    align-content: center;
+  }
+  .menu h1 {
+    grid-column: 1 / -1;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 500;
+    color: #444;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .menu-card {
+    background: #0a0a0c;
+    border: 1px solid #151518;
+    border-radius: 12px;
+    padding: 28px 24px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .menu-card:hover {
+    border-color: #00d5e4;
+    background: #0a0f10;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(0,213,228,0.08);
+  }
+  .menu-card .num {
+    font-size: 11px;
+    font-weight: 700;
+    color: #00d5e4;
+    letter-spacing: 2px;
+    font-family: 'Courier New', monospace;
+  }
+  .menu-card .title {
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .menu-card .desc {
+    font-size: 12px;
+    color: #555;
+    line-height: 1.5;
+  }
+
+  /* ── Animation stage ── */
+  .stage {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: #050506;
+    z-index: 10;
+  }
+  .stage.active { display: flex; }
+  .stage canvas.full {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+  .stage .content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+  }
+
+  .back-btn {
+    position: fixed;
+    top: 24px;
+    left: 24px;
+    z-index: 100;
+    background: transparent;
+    border: 1px solid #1a1a1f;
+    color: #3a3a3f;
+    padding: 6px 16px;
+    font-family: 'Satoshi', system-ui;
+    font-size: 12px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.3s;
+    display: none;
+  }
+  .back-btn:hover { border-color: #00d5e4; color: #00d5e4; }
+
+  .replay-btn {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 100;
+    background: transparent;
+    border: 1px solid #1a1a1f;
+    color: #3a3a3f;
+    padding: 6px 16px;
+    font-family: 'Satoshi', system-ui;
+    font-size: 12px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.3s;
+    display: none;
+  }
+  .replay-btn:hover { border-color: #00d5e4; color: #00d5e4; }
+
+  /* ── Terminal specific ── */
+  .terminal {
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    color: #00d5e4;
+    line-height: 1.7;
+    max-width: 600px;
+    width: 100%;
+    padding: 32px;
+    opacity: 0;
+  }
+  .terminal .line { opacity: 0; white-space: pre; }
+  .terminal .prompt { color: #555; }
+  .terminal .success { color: #22c55e; }
+  .terminal .warn { color: #eab308; }
+  .terminal .dim { color: #333; }
+  .terminal .brand-reveal {
+    font-family: 'Satoshi', system-ui;
+    font-size: 42px;
+    font-weight: 900;
+    color: #fafafa;
+    margin-top: 16px;
+    letter-spacing: -1px;
+  }
+  .terminal .brand-reveal span { opacity: 0; display: inline-block; }
+
+  /* ── Vault specific ── */
+  .vault-scene { perspective: 800px; }
+  .vault-door {
+    width: 200px; height: 200px;
+    position: relative;
+    transform-style: preserve-3d;
+  }
+</style>
+</head>
+<body>
+
+<div class="menu" id="menu">
+  <h1>pick an animation</h1>
+  <div class="menu-card" onclick="launch(1)">
+    <span class="num">01</span>
+    <span class="title">Particle Vortex</span>
+    <span class="desc">Data particles orbit and collapse into the logo like a gravity well</span>
+  </div>
+  <div class="menu-card" onclick="launch(2)">
+    <span class="num">02</span>
+    <span class="title">Terminal Boot</span>
+    <span class="desc">System boot sequence — commands type out, encryption initializes, logo decrypts</span>
+  </div>
+  <div class="menu-card" onclick="launch(3)">
+    <span class="num">03</span>
+    <span class="title">Cipher Rain</span>
+    <span class="desc">Hex characters rain down and converge to form the logo shape</span>
+  </div>
+  <div class="menu-card" onclick="launch(4)">
+    <span class="num">04</span>
+    <span class="title">Vault Lock</span>
+    <span class="desc">Mechanical vault tumblers rotate and lock — the door seals shut over data</span>
+  </div>
+  <div class="menu-card" onclick="launch(5)">
+    <span class="num">05</span>
+    <span class="title">Network Pulse</span>
+    <span class="desc">Nodes light up across a mesh grid — encrypted pathways form the logo</span>
+  </div>
+  <div class="menu-card" onclick="launch(6)">
+    <span class="num">06</span>
+    <span class="title">Shatter & Seal</span>
+    <span class="desc">Logo explodes into encrypted fragments then reassembles and locks</span>
+  </div>
+</div>
+
+<div class="stage" id="stage">
+  <canvas class="full" id="stageCanvas"></canvas>
+  <div class="content" id="stageContent"></div>
+</div>
+
+<button class="back-btn" id="backBtn" onclick="goBack()">back</button>
+<button class="replay-btn" id="replayBtn" onclick="replayAnim()">replay</button>
+
+<script>
+const stage = document.getElementById('stage');
+const stageCanvas = document.getElementById('stageCanvas');
+const stageContent = document.getElementById('stageContent');
+const ctx = stageCanvas.getContext('2d');
+const menu = document.getElementById('menu');
+const backBtn = document.getElementById('backBtn');
+const replayBtn = document.getElementById('replayBtn');
+
+let W, H, currentAnim = null, animFrame = null, currentId = 0;
+
+function resize() {
+  W = stageCanvas.width = window.innerWidth;
+  H = stageCanvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+const CYAN = '#00d5e4';
+const TEAL = '#008a97';
+const DARK = '#09090b';
+
+// ── Logo SVG as reusable HTML ──
+function logoHTML(size = 140, id = '') {
+  return `
+    <div style="width:${size}px;height:${size}px;position:relative;" ${id ? `id="${id}"` : ''}>
+      <svg viewBox="0 0 32 32" fill="none" style="width:100%;height:100%;overflow:visible;">
+        <rect class="bg-r" width="32" height="32" rx="8" fill="#0a0a0b" stroke="#151518" stroke-width="0.5" opacity="0"/>
+        <rect class="bp" x="5" y="6" width="16" height="16" rx="4" fill="${TEAL}" transform="rotate(-4 13 14)" opacity="0"/>
+        <rect class="fp" x="11" y="10" width="16" height="16" rx="4" fill="${CYAN}" transform="rotate(-2 19 18)" opacity="0"/>
+        <text class="zl" x="19" y="22.5" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="700" font-size="12" fill="${DARK}" opacity="0">z</text>
+      </svg>
+    </div>`;
+}
+
+function brandHTML() {
+  return `<div class="brand-text" style="display:flex;gap:0;">
+    ${'zcrypt'.split('').map(c => `<span style="font-size:48px;font-weight:900;color:#fafafa;opacity:0;display:inline-block;letter-spacing:-1.5px;">${c}</span>`).join('')}
+  </div>
+  <div class="tag" style="font-size:13px;font-weight:500;color:#3a3a3f;letter-spacing:4px;text-transform:uppercase;opacity:0;">private cloud storage</div>`;
+}
+
+function scramble(el, final, dur) {
+  const hex = '0123456789abcdef';
+  let step = 0;
+  const steps = Math.floor(dur / 30);
+  const orig = el.style.color;
+  el.style.color = CYAN;
+  el.style.fontFamily = "'Courier New', monospace";
+  el.style.fontSize = '40px';
+  const iv = setInterval(() => {
+    el.textContent = hex[Math.floor(Math.random() * 16)];
+    step++;
+    if (step >= steps) {
+      clearInterval(iv);
+      el.textContent = final;
+      el.style.color = orig || '#fafafa';
+      el.style.fontFamily = "'Satoshi', system-ui";
+      el.style.fontSize = '48px';
+    }
+  }, 30);
+}
+
+function launch(id) {
+  currentId = id;
+  menu.style.display = 'none';
+  stage.classList.add('active');
+  backBtn.style.display = 'block';
+  replayBtn.style.display = 'block';
+  resize();
+  runAnimation(id);
+}
+
+function goBack() {
+  cleanup();
+  stage.classList.remove('active');
+  menu.style.display = 'grid';
+  backBtn.style.display = 'none';
+  replayBtn.style.display = 'none';
+}
+
+function replayAnim() {
+  cleanup();
+  resize();
+  runAnimation(currentId);
+}
+
+function cleanup() {
+  if (animFrame) cancelAnimationFrame(animFrame);
+  animFrame = null;
+  gsap.killTweensOf('*');
+  stageContent.querySelectorAll('*').forEach(el => gsap.killTweensOf(el));
+  ctx.clearRect(0, 0, W, H);
+  stageContent.innerHTML = '';
+}
+
+function runAnimation(id) {
+  cleanup();
+  switch(id) {
+    case 1: anim_vortex(); break;
+    case 2: anim_terminal(); break;
+    case 3: anim_rain(); break;
+    case 4: anim_vault(); break;
+    case 5: anim_network(); break;
+    case 6: anim_shatter(); break;
+  }
+}
+
+// ═══════════════════════════════════════════
+// 1. PARTICLE VORTEX
+// ═══════════════════════════════════════════
+function anim_vortex() {
+  stageContent.innerHTML = `${logoHTML(160, 'v-logo')}${brandHTML()}`;
+  const parts = [];
+  const cx = W / 2, cy = H / 2;
+  let phase = 'orbit'; // orbit → collapse → done
+  let phaseTime = 0;
+
+  // Spawn particles in orbital rings
+  for (let i = 0; i < 600; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const radius = 100 + Math.random() * 300;
+    const speed = 0.003 + Math.random() * 0.008;
+    parts.push({
+      angle, radius, speed,
+      origRadius: radius,
+      x: 0, y: 0,
+      size: 0.5 + Math.random() * 2,
+      color: Math.random() > 0.6 ? CYAN : (Math.random() > 0.5 ? TEAL : '#0a3a3f'),
+      alpha: 0,
+      trail: [],
+    });
+  }
+
+  let t = 0;
+  function loop() {
+    ctx.fillStyle = 'rgba(5,5,6,0.15)';
+    ctx.fillRect(0, 0, W, H);
+    t++;
+
+    if (t === 1) {
+      gsap.to(parts, { alpha: 0.8, duration: 1, stagger: { each: 0.002, from: 'random' } });
+    }
+
+    // Phase transitions
+    if (t === 180) { // 3s — collapse
+      phase = 'collapse';
+      parts.forEach((p, i) => {
+        gsap.to(p, {
+          radius: 0,
+          duration: 1.2 + Math.random() * 0.5,
+          ease: 'power3.in',
+          delay: Math.random() * 0.3,
+        });
+      });
+    }
+
+    if (t === 280 && phase !== 'done') {
+      phase = 'done';
+      // Flash
+      ctx.fillStyle = `rgba(0,213,228,0.15)`;
+      ctx.fillRect(0, 0, W, H);
+      // Reveal logo
+      const logo = stageContent.querySelector('#v-logo');
+      const svg = logo.querySelector('svg');
+      gsap.to(svg.querySelector('.bg-r'), { opacity: 1, duration: 0.3 });
+      gsap.to(svg.querySelector('.bp'), { opacity: 1, duration: 0.4, delay: 0.1 });
+      gsap.to(svg.querySelector('.fp'), { opacity: 1, duration: 0.4, delay: 0.2 });
+      gsap.to(svg.querySelector('.zl'), { opacity: 1, duration: 0.2, delay: 0.35 });
+      gsap.fromTo(logo, { scale: 0.7, filter: 'brightness(3)' },
+        { scale: 1, filter: 'brightness(1)', duration: 0.8, ease: 'elastic.out(1,0.5)' });
+
+      // Text
+      const letters = stageContent.querySelectorAll('.brand-text span');
+      letters.forEach((l, i) => {
+        gsap.to(l, { opacity: 1, duration: 0.01, delay: 0.5 + i * 0.06,
+          onComplete: () => scramble(l, 'zcrypt'[i], 250)
+        });
+      });
+      gsap.to(stageContent.querySelector('.tag'), { opacity: 0.35, duration: 0.6, delay: 1 });
+
+      // Remaining particles drift outward
+      parts.forEach(p => {
+        gsap.to(p, { radius: 200 + Math.random() * 400, alpha: 0, duration: 2, ease: 'power1.out' });
+      });
+    }
+
+    // Draw particles
+    for (const p of parts) {
+      if (p.alpha < 0.01) continue;
+      p.angle += p.speed;
+      p.x = cx + Math.cos(p.angle) * p.radius;
+      p.y = cy + Math.sin(p.angle) * p.radius * 0.6; // elliptical
+
+      // Trail
+      p.trail.push({ x: p.x, y: p.y });
+      if (p.trail.length > 8) p.trail.shift();
+
+      // Draw trail
+      for (let j = 0; j < p.trail.length; j++) {
+        const ta = (j / p.trail.length) * p.alpha * 0.3;
+        ctx.globalAlpha = ta;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.trail[j].x, p.trail[j].y, p.size * 0.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.globalAlpha = p.alpha;
+      ctx.fillStyle = p.color;
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur = p.size * 4;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+    ctx.globalAlpha = 1;
+
+    animFrame = requestAnimationFrame(loop);
+  }
+  loop();
+}
+
+// ═══════════════════════════════════════════
+// 2. TERMINAL BOOT
+// ═══════════════════════════════════════════
+function anim_terminal() {
+  stageContent.innerHTML = `
+    <div class="terminal" id="term">
+      <div class="line l0"><span class="dim">$ zcrypt init</span></div>
+      <div class="line l1">[<span class="success">OK</span>] Loading encryption module...</div>
+      <div class="line l2">[<span class="success">OK</span>] AES-256-GCM cipher initialized</div>
+      <div class="line l3">[<span class="success">OK</span>] Zero-knowledge proof verified</div>
+      <div class="line l4">[<span class="warn">~~</span>] Generating vault keypair... <span class="success">done</span></div>
+      <div class="line l5">[<span class="success">OK</span>] Connecting to distributed mesh...</div>
+      <div class="line l6">[<span class="success">OK</span>] 12 storage nodes online</div>
+      <div class="line l7">[<span class="success">OK</span>] End-to-end encryption active</div>
+      <div class="line l8"><span class="dim">$ zcrypt status</span></div>
+      <div class="line l9" style="color:#22c55e;">SYSTEM READY. ALL VAULTS SEALED.</div>
+      <div class="line l10"><br></div>
+      <div class="line l11 brand-reveal"><span>z</span><span>c</span><span>r</span><span>y</span><span>p</span><span>t</span></div>
+      <div class="line l12" style="font-size:11px;color:#333;letter-spacing:3px;margin-top:4px;text-transform:uppercase;">private cloud storage</div>
+    </div>
+  `;
+
+  // Canvas: subtle scan lines
+  function drawScanlines() {
+    ctx.clearRect(0, 0, W, H);
+    for (let y = 0; y < H; y += 3) {
+      ctx.fillStyle = 'rgba(0,213,228,0.008)';
+      ctx.fillRect(0, y, W, 1);
+    }
+  }
+
+  const tl = gsap.timeline({ delay: 0.3 });
+  const term = document.getElementById('term');
+
+  tl.to(term, { opacity: 1, duration: 0.3 });
+
+  // Type out each line with a CRT feel
+  const lines = term.querySelectorAll('.line');
+  lines.forEach((line, i) => {
+    if (i >= 11) return;
+    tl.to(line, {
+      opacity: 1,
+      duration: 0.02,
+      onStart: () => {
+        // Glitch the canvas briefly
+        ctx.fillStyle = `rgba(0,213,228,${0.03 + Math.random() * 0.04})`;
+        ctx.fillRect(0, Math.random() * H, W, 1 + Math.random() * 3);
+      }
+    }, `+=${i === 0 ? 0.2 : (0.15 + Math.random() * 0.25)}`);
+  });
+
+  // Brand reveal
+  tl.add(() => drawScanlines(), '+=0.3');
+
+  const brandSpans = term.querySelectorAll('.brand-reveal span');
+  tl.to(term.querySelector('.l11'), { opacity: 1, duration: 0.01 });
+  brandSpans.forEach((s, i) => {
+    tl.to(s, {
+      opacity: 1,
+      duration: 0.01,
+      onComplete: () => {
+        const hex = '0123456789abcdef';
+        let c = 0;
+        const iv = setInterval(() => {
+          s.textContent = hex[Math.floor(Math.random() * 16)];
+          s.style.color = CYAN;
+          c++;
+          if (c > 8) {
+            clearInterval(iv);
+            s.textContent = 'zcrypt'[i];
+            s.style.color = '#fafafa';
+          }
+        }, 35);
+      }
+    }, i === 0 ? '+=0.1' : '+=0.04');
+  });
+
+  tl.to(term.querySelector('.l12'), { opacity: 1, duration: 0.5 }, '+=0.3');
+
+  // Cursor blink
+  tl.add(() => {
+    const cursor = document.createElement('span');
+    cursor.textContent = '_';
+    cursor.style.color = CYAN;
+    term.querySelector('.l12').after(cursor);
+    gsap.to(cursor, { opacity: 0, duration: 0.5, yoyo: true, repeat: -1 });
+  }, '+=0.2');
+}
+
+// ═══════════════════════════════════════════
+// 3. CIPHER RAIN
+// ═══════════════════════════════════════════
+function anim_rain() {
+  stageContent.innerHTML = `<div id="rain-logo" style="opacity:0;">${logoHTML(160)}${brandHTML()}</div>`;
+
+  const hex = '0123456789abcdef';
+  const cols = Math.floor(W / 14);
+  const drops = [];
+
+  for (let i = 0; i < cols; i++) {
+    drops.push({
+      x: i * 14,
+      y: -Math.random() * H * 2,
+      speed: 2 + Math.random() * 5,
+      chars: [],
+      len: 8 + Math.floor(Math.random() * 20),
+      alpha: 0.05 + Math.random() * 0.2,
+    });
+  }
+
+  // Define logo target zone (center rectangle)
+  const logoX1 = W / 2 - 80, logoX2 = W / 2 + 80;
+  const logoY1 = H / 2 - 80, logoY2 = H / 2 + 40;
+
+  let phase = 0; // 0=rain, 1=converge, 2=reveal
+  let t = 0;
+
+  function loop() {
+    ctx.fillStyle = 'rgba(5,5,6,0.12)';
+    ctx.fillRect(0, 0, W, H);
+    t++;
+
+    if (t === 200) phase = 1; // start converging
+    if (t === 340) phase = 2; // reveal
+
+    ctx.font = '12px "Courier New", monospace';
+
+    for (const drop of drops) {
+      drop.y += drop.speed;
+
+      // In converge phase, drops near logo area slow and brighten
+      if (phase >= 1) {
+        const inZone = drop.x > logoX1 && drop.x < logoX2 && drop.y > logoY1 - 100 && drop.y < logoY2 + 100;
+        if (inZone) {
+          drop.speed *= 0.97;
+          drop.alpha = Math.min(drop.alpha + 0.003, 0.8);
+        }
+      }
+
+      if (drop.y > H + 100) {
+        drop.y = -Math.random() * 200;
+        if (phase >= 1) drop.alpha *= 0.8;
+      }
+
+      // Draw column
+      for (let j = 0; j < drop.len; j++) {
+        const cy = drop.y - j * 16;
+        if (cy < -20 || cy > H + 20) continue;
+        const fade = 1 - j / drop.len;
+        ctx.globalAlpha = drop.alpha * fade;
+        ctx.fillStyle = j === 0 ? '#ffffff' : CYAN;
+        const ch = hex[Math.floor(Math.random() * 16)];
+        ctx.fillText(ch, drop.x, cy);
+      }
+    }
+    ctx.globalAlpha = 1;
+
+    // Reveal phase
+    if (phase === 2 && t === 340) {
+      // Flash
+      ctx.fillStyle = 'rgba(0,213,228,0.1)';
+      ctx.fillRect(0, 0, W, H);
+
+      const container = document.getElementById('rain-logo');
+      gsap.to(container, { opacity: 1, duration: 0.4 });
+
+      const svg = container.querySelector('svg');
+      gsap.to(svg.querySelector('.bg-r'), { opacity: 1, duration: 0.3 });
+      gsap.to(svg.querySelector('.bp'), { opacity: 1, duration: 0.4, delay: 0.15 });
+      gsap.to(svg.querySelector('.fp'), { opacity: 1, duration: 0.4, delay: 0.25 });
+      gsap.to(svg.querySelector('.zl'), { opacity: 1, duration: 0.2, delay: 0.4 });
+
+      const letters = container.querySelectorAll('.brand-text span');
+      letters.forEach((l, i) => {
+        gsap.to(l, { opacity: 1, duration: 0.01, delay: 0.6 + i * 0.06,
+          onComplete: () => scramble(l, 'zcrypt'[i], 220) });
+      });
+      gsap.to(container.querySelector('.tag'), { opacity: 0.35, duration: 0.5, delay: 1.1 });
+
+      // Fade rain out
+      drops.forEach(d => gsap.to(d, { alpha: 0, duration: 2, delay: Math.random() * 0.5 }));
+    }
+
+    animFrame = requestAnimationFrame(loop);
+  }
+  loop();
+}
+
+// ═══════════════════════════════════════════
+// 4. VAULT LOCK
+// ═══════════════════════════════════════════
+function anim_vault() {
+  stageContent.innerHTML = `
+    <div style="display:flex;flex-direction:column;align-items:center;gap:24px;">
+      <div style="position:relative;width:220px;height:220px;" id="vault-wrap">
+        <!-- Outer ring -->
+        <svg id="vault-ring" viewBox="0 0 220 220" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;">
+          <circle cx="110" cy="110" r="105" fill="none" stroke="#151518" stroke-width="2"/>
+          <circle cx="110" cy="110" r="95" fill="none" stroke="#1a1a1f" stroke-width="1"/>
+          <!-- Tick marks -->
+          ${Array.from({length: 36}, (_, i) => {
+            const a = i * 10 * Math.PI / 180;
+            const r1 = i % 9 === 0 ? 85 : 90;
+            const r2 = 95;
+            return `<line x1="${110 + Math.cos(a)*r1}" y1="${110 + Math.sin(a)*r1}" x2="${110 + Math.cos(a)*r2}" y2="${110 + Math.sin(a)*r2}" stroke="${i % 9 === 0 ? '#00d5e4' : '#1a1a1f'}" stroke-width="${i % 9 === 0 ? 2 : 1}"/>`;
+          }).join('')}
+          <!-- Rotating indicator -->
+          <line id="vault-needle" x1="110" y1="110" x2="110" y2="25" stroke="${CYAN}" stroke-width="1.5" stroke-linecap="round" opacity="0.8"/>
+        </svg>
+
+        <!-- Inner tumblers -->
+        <svg id="vault-tumbler" viewBox="0 0 220 220" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;">
+          <circle cx="110" cy="110" r="60" fill="none" stroke="#111" stroke-width="8"/>
+          <circle cx="110" cy="110" r="60" fill="none" stroke="${TEAL}" stroke-width="1" stroke-dasharray="8 12" opacity="0.4"/>
+          <!-- Bolts -->
+          <circle cx="110" cy="46" r="5" fill="#151518" stroke="#222" stroke-width="1"/>
+          <circle cx="110" cy="174" r="5" fill="#151518" stroke="#222" stroke-width="1"/>
+          <circle cx="46" cy="110" r="5" fill="#151518" stroke="#222" stroke-width="1"/>
+          <circle cx="174" cy="110" r="5" fill="#151518" stroke="#222" stroke-width="1"/>
+        </svg>
+
+        <!-- Center: logo appears here -->
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;" id="vault-center">
+          <div id="vault-logo" style="width:80px;height:80px;opacity:0;">
+            <svg viewBox="0 0 32 32" fill="none" style="width:100%;height:100%;">
+              <rect class="bg-r" width="32" height="32" rx="8" fill="#0a0a0b" opacity="0"/>
+              <rect class="bp" x="5" y="6" width="16" height="16" rx="4" fill="${TEAL}" transform="rotate(-4 13 14)" opacity="0"/>
+              <rect class="fp" x="11" y="10" width="16" height="16" rx="4" fill="${CYAN}" transform="rotate(-2 19 18)" opacity="0"/>
+              <text class="zl" x="19" y="22.5" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="700" font-size="12" fill="${DARK}" opacity="0">z</text>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Lock sealed indicator -->
+        <div id="seal-badge" style="position:absolute;bottom:-12px;left:50%;transform:translateX(-50%);background:${CYAN};color:${DARK};font-size:9px;font-weight:700;padding:3px 10px;border-radius:3px;letter-spacing:2px;opacity:0;font-family:'Courier New',monospace;">SEALED</div>
+      </div>
+      ${brandHTML()}
+    </div>
+  `;
+
+  const tl = gsap.timeline({ delay: 0.5 });
+  const ring = document.getElementById('vault-ring');
+  const tumbler = document.getElementById('vault-tumbler');
+  const needle = document.getElementById('vault-needle');
+  const logo = document.getElementById('vault-logo');
+  const seal = document.getElementById('seal-badge');
+
+  // Subtle background glow
+  function drawVaultBg() {
+    ctx.clearRect(0, 0, W, H);
+    const g = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, 300);
+    g.addColorStop(0, 'rgba(0,213,228,0.03)');
+    g.addColorStop(1, 'transparent');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // Outer ring appears
+  tl.to(ring, { opacity: 1, duration: 0.6, ease: 'power2.out' });
+  tl.add(() => drawVaultBg());
+
+  // Needle spins — combination lock: right, left, right
+  tl.to(needle, {
+    rotation: 270,
+    transformOrigin: '110px 110px',
+    duration: 1.2,
+    ease: 'power2.inOut',
+  });
+  tl.to(needle, {
+    rotation: 90,
+    transformOrigin: '110px 110px',
+    duration: 0.9,
+    ease: 'power2.inOut',
+  });
+  tl.to(needle, {
+    rotation: 180,
+    transformOrigin: '110px 110px',
+    duration: 0.7,
+    ease: 'power2.inOut',
+  });
+
+  // Tumbler appears and clicks
+  tl.to(tumbler, { opacity: 1, duration: 0.3 }, '-=0.3');
+  tl.fromTo(tumbler, { rotation: -45, transformOrigin: 'center' },
+    { rotation: 0, duration: 0.5, ease: 'back.out(3)' });
+
+  // Bolts lock (color change)
+  tl.to('#vault-tumbler circle:nth-child(3), #vault-tumbler circle:nth-child(4), #vault-tumbler circle:nth-child(5), #vault-tumbler circle:nth-child(6)', {
+    fill: CYAN,
+    stroke: TEAL,
+    duration: 0.15,
+    stagger: 0.1,
+  });
+
+  // Logo appears in center
+  tl.to(logo, { opacity: 1, duration: 0.3 }, '+=0.2');
+  const svg = logo.querySelector('svg');
+  tl.to(svg.querySelector('.bg-r'), { opacity: 1, duration: 0.2 });
+  tl.to(svg.querySelector('.bp'), { opacity: 1, duration: 0.3 });
+  tl.to(svg.querySelector('.fp'), { opacity: 1, duration: 0.3 });
+  tl.to(svg.querySelector('.zl'), { opacity: 1, duration: 0.15 });
+
+  // SEALED badge
+  tl.to(seal, { opacity: 1, y: 0, duration: 0.3, ease: 'back.out(2)' });
+
+  // Brand text
+  const letters = stageContent.querySelectorAll('.brand-text span');
+  letters.forEach((l, i) => {
+    tl.to(l, { opacity: 1, duration: 0.01, onComplete: () => scramble(l, 'zcrypt'[i], 200) },
+      i === 0 ? '+=0.2' : '-=0.04');
+  });
+  tl.to(stageContent.querySelector('.tag'), { opacity: 0.35, duration: 0.5 }, '+=0.2');
+
+  // Idle: gentle ring rotation
+  tl.to(ring, { rotation: 360, duration: 60, repeat: -1, ease: 'none', transformOrigin: 'center' });
+  tl.to(tumbler, { rotation: -360, duration: 80, repeat: -1, ease: 'none', transformOrigin: 'center' }, '<');
+}
+
+// ═══════════════════════════════════════════
+// 5. NETWORK PULSE
+// ═══════════════════════════════════════════
+function anim_network() {
+  stageContent.innerHTML = `<div id="net-logo" style="opacity:0;display:flex;flex-direction:column;align-items:center;gap:24px;">
+    ${logoHTML(140)}${brandHTML()}</div>`;
+
+  const nodes = [];
+  const GRID = 50;
+  const cx = W / 2, cy = H / 2;
+
+  // Create grid nodes
+  for (let x = GRID; x < W; x += GRID) {
+    for (let y = GRID; y < H; y += GRID) {
+      const dist = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
+      nodes.push({ x, y, dist, alpha: 0, targetAlpha: 0, pulseDelay: dist / 200, radius: 1.2, active: false });
+    }
+  }
+  nodes.sort((a, b) => a.dist - b.dist);
+
+  let t = 0;
+  let pulseWave = -1;
+  let edgeAlpha = 0;
+
+  function loop() {
+    ctx.clearRect(0, 0, W, H);
+    t++;
+
+    // Pulse wave expands from center
+    if (t === 30) pulseWave = 0;
+    if (pulseWave >= 0) pulseWave += 4;
+
+    // Activate nodes as wave reaches them
+    for (const n of nodes) {
+      if (pulseWave >= 0 && n.dist < pulseWave && !n.active) {
+        n.active = true;
+        n.targetAlpha = n.dist < 150 ? 0.5 : (n.dist < 300 ? 0.25 : 0.1);
+      }
+      n.alpha += (n.targetAlpha - n.alpha) * 0.06;
+    }
+
+    // Draw edges
+    if (edgeAlpha > 0) {
+      ctx.lineWidth = 0.5;
+      for (let i = 0; i < nodes.length; i++) {
+        const a = nodes[i];
+        if (a.alpha < 0.02) continue;
+        for (let j = i + 1; j < nodes.length; j++) {
+          const b = nodes[j];
+          if (b.alpha < 0.02) continue;
+          const dx = Math.abs(a.x - b.x), dy = Math.abs(a.y - b.y);
+          if (dx <= GRID && dy <= GRID && !(dx === 0 && dy === 0)) {
+            ctx.globalAlpha = Math.min(a.alpha, b.alpha) * 0.4 * edgeAlpha;
+            ctx.strokeStyle = TEAL;
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+            ctx.stroke();
+          }
+        }
+      }
+    }
+
+    // Draw nodes
+    for (const n of nodes) {
+      if (n.alpha < 0.01) continue;
+      ctx.globalAlpha = n.alpha;
+      ctx.fillStyle = n.dist < 120 ? CYAN : TEAL;
+      ctx.shadowColor = CYAN;
+      ctx.shadowBlur = n.dist < 120 ? 6 : 0;
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, n.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+    ctx.globalAlpha = 1;
+
+    // Edges fade in
+    if (t === 60) gsap.to({ v: edgeAlpha }, { v: 1, duration: 1.5, onUpdate: function() { edgeAlpha = this.targets()[0].v; } });
+
+    // Logo reveal
+    if (t === 160) {
+      const container = document.getElementById('net-logo');
+      gsap.to(container, { opacity: 1, duration: 0.5 });
+      const svg = container.querySelector('svg');
+      gsap.to(svg.querySelector('.bg-r'), { opacity: 1, duration: 0.3, delay: 0.1 });
+      gsap.to(svg.querySelector('.bp'), { opacity: 1, duration: 0.4, delay: 0.2 });
+      gsap.to(svg.querySelector('.fp'), { opacity: 1, duration: 0.4, delay: 0.3 });
+      gsap.to(svg.querySelector('.zl'), { opacity: 1, duration: 0.2, delay: 0.45 });
+
+      const letters = container.querySelectorAll('.brand-text span');
+      letters.forEach((l, i) => {
+        gsap.to(l, { opacity: 1, duration: 0.01, delay: 0.7 + i * 0.06,
+          onComplete: () => scramble(l, 'zcrypt'[i], 200) });
+      });
+      gsap.to(container.querySelector('.tag'), { opacity: 0.35, duration: 0.5, delay: 1.3 });
+
+      // Dim grid
+      nodes.forEach(n => { n.targetAlpha = n.targetAlpha * 0.3; });
+    }
+
+    // Second pulse wave (subtle heartbeat at logo)
+    if (t > 200 && t % 120 === 0) {
+      nodes.forEach(n => {
+        if (n.dist < 150) {
+          gsap.to(n, { alpha: n.targetAlpha * 2, duration: 0.3, yoyo: true, repeat: 1 });
+        }
+      });
+    }
+
+    animFrame = requestAnimationFrame(loop);
+  }
+  loop();
+}
+
+// ═══════════════════════════════════════════
+// 6. SHATTER & SEAL
+// ═══════════════════════════════════════════
+function anim_shatter() {
+  stageContent.innerHTML = `<div id="sh-logo" style="display:flex;flex-direction:column;align-items:center;gap:24px;">
+    <div style="width:160px;height:160px;position:relative;" id="sh-wrap">
+      <svg viewBox="0 0 32 32" fill="none" style="width:100%;height:100%;overflow:visible;" id="sh-svg">
+        <rect class="bg-r" width="32" height="32" rx="8" fill="#0a0a0b" stroke="#151518" stroke-width="0.5"/>
+        <rect class="bp" x="5" y="6" width="16" height="16" rx="4" fill="${TEAL}" transform="rotate(-4 13 14)"/>
+        <rect class="fp" x="11" y="10" width="16" height="16" rx="4" fill="${CYAN}" transform="rotate(-2 19 18)"/>
+        <text class="zl" x="19" y="22.5" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="700" font-size="12" fill="${DARK}">z</text>
+      </svg>
+    </div>
+    ${brandHTML()}
+  </div>`;
+
+  const frags = [];
+  const cx = W / 2, cy = H / 2;
+  let phase = 0; // 0=show, 1=shatter, 2=float, 3=reform
+  let t = 0;
+
+  // Create fragment positions (hex chars that scatter)
+  const hexChars = '0123456789abcdef';
+  for (let i = 0; i < 80; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 20 + Math.random() * 40;
+    frags.push({
+      // Origin: near center
+      ox: cx + (Math.random() - 0.5) * 80,
+      oy: cy + (Math.random() - 0.5) * 80,
+      // Scattered position
+      sx: cx + Math.cos(angle) * (150 + Math.random() * 250),
+      sy: cy + Math.sin(angle) * (150 + Math.random() * 250),
+      // Current
+      x: 0, y: 0,
+      alpha: 0,
+      char: hexChars[Math.floor(Math.random() * 16)],
+      size: 9 + Math.floor(Math.random() * 5),
+      rot: Math.random() * 360,
+      rotSpeed: (Math.random() - 0.5) * 4,
+      color: Math.random() > 0.5 ? CYAN : TEAL,
+    });
+  }
+
+  const wrap = document.getElementById('sh-wrap');
+  const svg = document.getElementById('sh-svg');
+
+  const tl = gsap.timeline({ delay: 0.3 });
+
+  // Phase 0: Logo visible
+  tl.fromTo(wrap, { scale: 0.9, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.5, ease: 'power2.out' });
+
+  // Phase 1: Shatter — logo disappears, fragments explode out
+  tl.add(() => {
+    phase = 1;
+    gsap.to(wrap, { opacity: 0, scale: 1.1, duration: 0.15 });
+
+    frags.forEach((f, i) => {
+      f.x = f.ox; f.y = f.oy; f.alpha = 0;
+      gsap.to(f, { alpha: 0.7, duration: 0.1, delay: Math.random() * 0.05 });
+      gsap.to(f, {
+        x: f.sx, y: f.sy,
+        duration: 0.6 + Math.random() * 0.3,
+        ease: 'power3.out',
+        delay: Math.random() * 0.1,
+      });
+    });
+  }, '+=0.6');
+
+  // Phase 2: Float — fragments drift and rotate
+  tl.add(() => { phase = 2; }, '+=0.8');
+
+  // Phase 3: Reform — fragments pull back and logo reappears
+  tl.add(() => {
+    phase = 3;
+    frags.forEach((f, i) => {
+      gsap.to(f, {
+        x: f.ox, y: f.oy,
+        alpha: 0,
+        duration: 0.8 + Math.random() * 0.4,
+        ease: 'power3.in',
+        delay: Math.random() * 0.2,
+      });
+    });
+
+    // Logo reappears with lock effect
+    gsap.to(wrap, { opacity: 1, scale: 1, duration: 0.3, delay: 0.9 });
+    gsap.fromTo(wrap, { filter: 'brightness(3) drop-shadow(0 0 20px rgba(0,213,228,0.8))' },
+      { filter: 'brightness(1) drop-shadow(0 0 6px rgba(0,213,228,0.15))', duration: 0.8, delay: 0.9, ease: 'power2.out' });
+  }, '+=0.8');
+
+  // Text reveal
+  tl.add(() => {
+    const letters = stageContent.querySelectorAll('.brand-text span');
+    letters.forEach((l, i) => {
+      gsap.to(l, { opacity: 1, duration: 0.01, delay: i * 0.06,
+        onComplete: () => scramble(l, 'zcrypt'[i], 200) });
+    });
+    gsap.to(stageContent.querySelector('.tag'), { opacity: 0.35, duration: 0.5, delay: 0.6 });
+  }, '+=0.8');
+
+  function loop() {
+    ctx.clearRect(0, 0, W, H);
+    ctx.font = 'bold 12px "Courier New", monospace';
+    ctx.textAlign = 'center';
+
+    for (const f of frags) {
+      if (f.alpha < 0.01) continue;
+      if (phase === 2) {
+        // Gentle drift
+        f.x += (Math.random() - 0.5) * 0.5;
+        f.y += (Math.random() - 0.5) * 0.5;
+      }
+      f.rot += f.rotSpeed;
+
+      ctx.save();
+      ctx.translate(f.x, f.y);
+      ctx.rotate(f.rot * Math.PI / 180);
+      ctx.globalAlpha = f.alpha;
+      ctx.fillStyle = f.color;
+      ctx.shadowColor = f.color;
+      ctx.shadowBlur = 6;
+      ctx.font = `bold ${f.size}px "Courier New", monospace`;
+      ctx.fillText(f.char, 0, 0);
+      ctx.shadowBlur = 0;
+      ctx.restore();
+
+      // Randomly change char
+      if (Math.random() < 0.02) f.char = hexChars[Math.floor(Math.random() * 16)];
+    }
+    ctx.globalAlpha = 1;
+
+    animFrame = requestAnimationFrame(loop);
+  }
+  loop();
+}
+</script>
+</body>
+</html>

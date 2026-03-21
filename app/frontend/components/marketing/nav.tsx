@@ -15,6 +15,9 @@ import { Sun, Moon, Menu, X, ArrowRight } from "@/lib/icons";
 import { Logo } from "@/components/ui/logo";
 
 const navLinks = [
+  { href: "/send", label: "Send" },
+  { href: "/pad", label: "Pad" },
+  { href: "/transfer", label: "Transfer" },
   { href: "/pricing", label: "Pricing" },
   { href: "/tui", label: "TUI" },
   { href: "/docs", label: "Docs" },

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"strconv"
 	"strings"
 	"sync"
@@ -42,21 +43,36 @@ type Server struct {
 	userLimiter *rateLimiter
 	// Share endpoint rate limiter: 30 req per 1 min per IP (prevents brute-force)
 	shareLimiter *rateLimiter
+	// Send init rate limiter: 5 inits per hour per IP (anonymous upload)
+	sendLimiter *rateLimiter
+	// Pad create rate limiter: 10 creates per hour per IP
+	padLimiter *rateLimiter
+
+	// Global adapter cache for anonymous sends (uses global platform tokens)
+	globalAdapterMu    sync.RWMutex
+	globalAdapterCache map[string]adapters.PlatformAdapter
+
+	// WebSocket transfer hub for real-time device-to-device transfer
+	transferHub *transferHub
 }
 
 // NewServer creates a new API server.
 func NewServer(db *index.DB, cfg *config.Config, progress *pipeline.ProgressEmitter, masterKey []byte) *Server {
 	return &Server{
-		db:           db,
-		cfg:          cfg,
-		progress:     progress,
-		masterKey:    masterKey,
-		adapterCache: make(map[string]map[string]adapters.PlatformAdapter),
-		poolCache:    make(map[string]map[string]*reppool.Manager),
-		authLimiter:  newRateLimiter(5, 5*time.Minute),
-		emailLimiter: newRateLimiter(3, 15*time.Minute),
-		userLimiter:  newRateLimiter(100, time.Minute),
-		shareLimiter: newRateLimiter(30, time.Minute),
+		db:                 db,
+		cfg:                cfg,
+		progress:           progress,
+		masterKey:          masterKey,
+		adapterCache:       make(map[string]map[string]adapters.PlatformAdapter),
+		poolCache:          make(map[string]map[string]*reppool.Manager),
+		authLimiter:        newRateLimiter(5, 5*time.Minute),
+		emailLimiter:       newRateLimiter(3, 15*time.Minute),
+		userLimiter:        newRateLimiter(100, time.Minute),
+		shareLimiter:       newRateLimiter(30, time.Minute),
+		sendLimiter:        newRateLimiter(5, time.Hour),
+		padLimiter:         newRateLimiter(10, time.Hour),
+		globalAdapterCache: make(map[string]adapters.PlatformAdapter),
+		transferHub:        newTransferHub(),
 	}
 }
 
@@ -280,6 +296,96 @@ func (s *Server) getEffectiveQuota(ctx context.Context, userID string) int64 {
 
 	// 4. Fallback to free plan
 	return s.getPlanStorageQuota(ctx, "free")
+}
+
+// getGlobalAdapters returns adapters created from global platform tokens (for anonymous send).
+func (s *Server) getGlobalAdapters(ctx context.Context) (map[string]adapters.PlatformAdapter, error) {
+	s.globalAdapterMu.RLock()
+	if len(s.globalAdapterCache) > 0 {
+		cached := s.globalAdapterCache
+		s.globalAdapterMu.RUnlock()
+		return cached, nil
+	}
+	s.globalAdapterMu.RUnlock()
+
+	tokens, err := s.db.GetGlobalPlatformTokens(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get global platform tokens: %w", err)
+	}
+
+	result := make(map[string]adapters.PlatformAdapter)
+	for _, tok := range tokens {
+		kek, err := crypto.DeriveUserKEK(s.masterKey, tok.UserID)
+		if err != nil {
+			log.Printf("warn: derive KEK for global token %s: %v", tok.ID, err)
+			continue
+		}
+		plaintext, err := crypto.DecryptToken(kek, tok.TokenEncrypted, tok.TokenNonce)
+		if err != nil {
+			log.Printf("warn: decrypt global token %s: %v", tok.ID, err)
+			continue
+		}
+		adapter, err := createAdapter(tok.Platform, plaintext)
+		if err != nil {
+			log.Printf("warn: create global adapter for %s/%s: %v", tok.Platform, tok.Username, err)
+			continue
+		}
+		username := getAdapterUsername(adapter)
+		key := tok.Platform + ":" + username
+		result[key] = adapter
+	}
+
+	s.globalAdapterMu.Lock()
+	s.globalAdapterCache = result
+	s.globalAdapterMu.Unlock()
+
+	return result, nil
+}
+
+// selectGlobalAdapter picks a global adapter for anonymous send operations.
+func (s *Server) selectGlobalAdapter(ctx context.Context) (string, adapters.PlatformAdapter, error) {
+	adaptersMap, err := s.getGlobalAdapters(ctx)
+	if err != nil {
+		return "", nil, err
+	}
+	if len(adaptersMap) == 0 {
+		return "", nil, fmt.Errorf("no global platform tokens configured")
+	}
+	// Pick the first available adapter
+	for key, adapter := range adaptersMap {
+		return key, adapter, nil
+	}
+	return "", nil, fmt.Errorf("no global platform available")
+}
+
+// invalidateGlobalAdapterCache clears the global adapter cache.
+func (s *Server) invalidateGlobalAdapterCache() {
+	s.globalAdapterMu.Lock()
+	s.globalAdapterCache = make(map[string]adapters.PlatformAdapter)
+	s.globalAdapterMu.Unlock()
+}
+
+// SendRateLimitMiddleware applies IP-based rate limiting for anonymous send endpoints.
+func (s *Server) SendRateLimitMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ip := extractIP(r)
+		if !s.sendLimiter.allow(ip) {
+			http.Error(w, `{"error":"too many send requests, try again later"}`, http.StatusTooManyRequests)
+			return
+		}
+		next.ServeHTTP(w, r)
+	}
+}
+
+func (s *Server) PadRateLimitMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ip := extractIP(r)
+		if !s.padLimiter.allow(ip) {
+			http.Error(w, `{"error":"too many pad requests, try again later"}`, http.StatusTooManyRequests)
+			return
+		}
+		next.ServeHTTP(w, r)
+	}
 }
 
 // createAdapter creates a PlatformAdapter for a given platform and token.

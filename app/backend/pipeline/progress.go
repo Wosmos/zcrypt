@@ -90,6 +90,21 @@ func (pe *ProgressEmitter) Emit(event types.ProgressEvent) {
 	}
 }
 
+// EmitToUser sends a custom event to a specific user's SSE connections.
+func (pe *ProgressEmitter) EmitToUser(userID string, event SSEEvent) {
+	pe.mu.RLock()
+	defer pe.mu.RUnlock()
+
+	for _, sub := range pe.subscribers {
+		if sub.userID == userID {
+			select {
+			case sub.ch <- event:
+			default:
+			}
+		}
+	}
+}
+
 // EmitAudit sends an audit event. Admins get all events; regular users only get their own.
 func (pe *ProgressEmitter) EmitAudit(event types.AuditEvent) {
 	pe.mu.RLock()

@@ -1,0 +1,483 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useParams } from "next/navigation";
+import { getSendInfo, getSendMeta, getSendChunk } from "@/lib/api";
+import { Button } from "@/components/ui/button";
+import { LogoSpinner } from "@/components/ui/logo-spinner";
+import {
+  Shield, Send, Download, File, AlertTriangle, CheckCircle2, Eye, Music, Clock,
+} from "@/lib/icons";
+import { formatBytes } from "@/lib/utils";
+import type { SendInfo } from "@/types";
+
+type PageState =
+  | "loading"
+  | "ready"
+  | "decrypting"
+  | "preview"
+  | "done"
+  | "error";
+
+function getPreviewType(filename: string): "image" | "video" | "audio" | "none" {
+  const ext = filename.split(".").pop()?.toLowerCase() || "";
+  if (["jpg", "jpeg", "png", "gif", "webp", "bmp", "svg", "ico"].includes(ext)) return "image";
+  if (["mp4", "webm", "ogg", "mov"].includes(ext)) return "video";
+  if (["mp3", "wav", "aac", "flac", "m4a"].includes(ext)) return "audio";
+  return "none";
+}
+
+function getMimeType(filename: string): string | undefined {
+  const ext = filename.split(".").pop()?.toLowerCase() || "";
+  const map: Record<string, string> = {
+    jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", gif: "image/gif",
+    webp: "image/webp", bmp: "image/bmp", svg: "image/svg+xml", ico: "image/x-icon",
+    mp4: "video/mp4", webm: "video/webm", ogg: "video/ogg", mov: "video/quicktime",
+    mp3: "audio/mpeg", wav: "audio/wav", aac: "audio/aac", flac: "audio/flac", m4a: "audio/mp4",
+  };
+  return map[ext];
+}
+
+function getKeyFromFragment(): string | null {
+  if (typeof window === "undefined") return null;
+  const hash = window.location.hash;
+  if (!hash) return null;
+  const match = hash.match(/key=([A-Za-z0-9+/=]+)/);
+  return match ? match[1] : null;
+}
+
+function formatExpiry(expiresAt: string): string {
+  const diff = new Date(expiresAt).getTime() - Date.now();
+  if (diff <= 0) return "Expired";
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  if (hours > 24) return `${Math.floor(hours / 24)}d ${hours % 24}h`;
+  if (hours > 0) return `${hours}h ${mins}m`;
+  return `${mins}m`;
+}
+
+export default function SendDownloadPage() {
+  const { token } = useParams<{ token: string }>();
+  const [info, setInfo] = useState<SendInfo | null>(null);
+  const [pageState, setPageState] = useState<PageState>("loading");
+  const [errorMsg, setErrorMsg] = useState("");
+  const [progress, setProgress] = useState({ stage: "", percent: 0 });
+  const [decryptedBlob, setDecryptedBlob] = useState<Blob | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [fileName, setFileName] = useState("");
+  const [encryptionKey, setEncryptionKey] = useState<string | null>(null);
+  const prevUrlRef = useRef<string | null>(null);
+
+  // Extract key from fragment on mount
+  useEffect(() => {
+    setEncryptionKey(getKeyFromFragment());
+  }, []);
+
+  // Fetch send info
+  useEffect(() => {
+    if (!token) return;
+    getSendInfo(token)
+      .then((data) => {
+        setInfo(data);
+        if (!data.valid) {
+          setPageState("error");
+          setErrorMsg(data.reason || "This link is no longer valid");
+        } else {
+          setPageState("ready");
+        }
+      })
+      .catch(() => {
+        setPageState("error");
+        setErrorMsg("Link not found");
+      });
+  }, [token]);
+
+  // Cleanup
+  useEffect(() => {
+    return () => {
+      if (prevUrlRef.current) URL.revokeObjectURL(prevUrlRef.current);
+    };
+  }, []);
+
+  const decryptFile = useCallback(async (): Promise<{ blob: Blob; originalName: string } | null> => {
+    if (!token || !encryptionKey) return null;
+
+    const { deriveKeyBytes, decryptChunk, sha256Hex, fromBase64 } = await import("@/lib/crypto");
+    const { getDeviceProfile } = await import("@/lib/device-profile");
+
+    setProgress({ stage: "Fetching metadata...", percent: 0 });
+    const meta = await getSendMeta(token);
+
+    setProgress({ stage: "Deriving key...", percent: 5 });
+    const salt = fromBase64(meta.salt);
+    const keyBytes = await deriveKeyBytes(encryptionKey, salt);
+
+    const decryptedChunks: Uint8Array[] = new Array(meta.chunk_count);
+    let chunksDone = 0;
+    const MAX_CONCURRENT = getDeviceProfile().maxConcurrentDownloads;
+
+    const processChunk = async (index: number) => {
+      const res = await getSendChunk(token, index);
+      const encrypted = new Uint8Array(res.data);
+
+      let plaintext: Uint8Array;
+      try {
+        plaintext = await decryptChunk(keyBytes, encrypted);
+      } catch {
+        throw new Error("Decryption failed — the link may be incomplete or corrupted");
+      }
+
+      decryptedChunks[index] = plaintext;
+      chunksDone++;
+      const percent = 10 + Math.round((chunksDone / meta.chunk_count) * 80);
+      setProgress({ stage: `Decrypting ${chunksDone}/${meta.chunk_count}`, percent });
+    };
+
+    const queue = Array.from({ length: meta.chunk_count }, (_, i) => i);
+    const workers: Promise<void>[] = [];
+    for (let w = 0; w < Math.min(MAX_CONCURRENT, meta.chunk_count); w++) {
+      workers.push(
+        (async () => {
+          while (queue.length > 0) {
+            const idx = queue.shift()!;
+            await processChunk(idx);
+          }
+        })()
+      );
+    }
+    await Promise.all(workers);
+
+    setProgress({ stage: "Verifying integrity...", percent: 92 });
+    const totalSize = decryptedChunks.reduce((sum, c) => sum + c.byteLength, 0);
+    const fullFile = new Uint8Array(totalSize);
+    let offset = 0;
+    for (const chunk of decryptedChunks) {
+      fullFile.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+
+    const actualHash = await sha256Hex(fullFile);
+    if (actualHash !== meta.sha256) {
+      throw new Error("File integrity check failed — SHA-256 mismatch");
+    }
+
+    const originalName = info?.file_name || "download";
+    const mime = getMimeType(originalName) || "application/octet-stream";
+    const blob = new Blob([fullFile], { type: mime });
+    return { blob, originalName };
+  }, [token, encryptionKey, info]);
+
+  const handleDecryptAndPreview = useCallback(async () => {
+    if (!token || !encryptionKey) return;
+    setPageState("decrypting");
+    setErrorMsg("");
+
+    try {
+      const result = await decryptFile();
+      if (!result) return;
+
+      const { blob, originalName } = result;
+      setDecryptedBlob(blob);
+      setFileName(originalName);
+
+      const pType = getPreviewType(originalName);
+      if (pType !== "none") {
+        if (prevUrlRef.current) URL.revokeObjectURL(prevUrlRef.current);
+        const url = URL.createObjectURL(blob);
+        prevUrlRef.current = url;
+        setPreviewUrl(url);
+      }
+
+      setPageState("preview");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Decryption failed";
+      setPageState("error");
+      setErrorMsg(msg);
+    }
+  }, [token, encryptionKey, decryptFile]);
+
+  const handleDirectDownload = useCallback(async () => {
+    if (!token || !encryptionKey) return;
+    setPageState("decrypting");
+    setErrorMsg("");
+
+    try {
+      const result = await decryptFile();
+      if (!result) return;
+
+      const { blob, originalName } = result;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = originalName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      setPageState("done");
+      setFileName(originalName);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Download failed";
+      setPageState("error");
+      setErrorMsg(msg);
+    }
+  }, [token, encryptionKey, decryptFile]);
+
+  const handleSaveToDevice = useCallback(() => {
+    if (!decryptedBlob) return;
+    const url = URL.createObjectURL(decryptedBlob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName || info?.file_name || "download";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [decryptedBlob, fileName, info]);
+
+  const previewType = info ? getPreviewType(info.file_name) : "none";
+  const isPreviewable = previewType !== "none";
+  const noKey = pageState === "ready" && !encryptionKey;
+
+  return (
+    <div className="w-full max-w-lg animate-fade-in">
+      {/* Logo */}
+      <div className="flex items-center justify-center gap-2 mb-8">
+        <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-[var(--color-accent)]/10">
+          <Send className="h-5 w-5 text-[var(--color-accent)]" />
+        </div>
+        <span className="text-xl font-bold font-heading tracking-tight">zcrypt Send</span>
+      </div>
+
+      <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-xl overflow-hidden">
+        {pageState === "loading" && (
+          <div className="flex flex-col items-center justify-center py-16 gap-3">
+            <LogoSpinner size={32} />
+            <p className="text-sm text-[var(--color-text-muted)]">Loading...</p>
+          </div>
+        )}
+
+        {pageState === "error" && (
+          <div className="flex flex-col items-center justify-center py-16 px-6 gap-3 text-center">
+            <div className="flex items-center justify-center h-12 w-12 rounded-xl bg-red-500/10">
+              <AlertTriangle className="h-6 w-6 text-red-500" />
+            </div>
+            <h2 className="text-lg font-semibold">Unavailable</h2>
+            <p className="text-sm text-[var(--color-text-muted)] max-w-xs">{errorMsg}</p>
+          </div>
+        )}
+
+        {pageState === "ready" && info && noKey && (
+          <div className="flex flex-col items-center justify-center py-16 px-6 gap-3 text-center">
+            <div className="flex items-center justify-center h-12 w-12 rounded-xl bg-amber-500/10">
+              <AlertTriangle className="h-6 w-6 text-amber-500" />
+            </div>
+            <h2 className="text-lg font-semibold">Incomplete Link</h2>
+            <p className="text-sm text-[var(--color-text-muted)] max-w-xs">
+              This link is missing the encryption key. Make sure you copied the full URL including the <code className="text-[var(--color-text-secondary)]">#key=...</code> part.
+            </p>
+          </div>
+        )}
+
+        {pageState === "ready" && info && !noKey && (
+          <>
+            {/* File info header */}
+            <div className="px-6 pt-6 pb-4 border-b border-[var(--color-border)]">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center h-12 w-12 rounded-xl bg-[var(--color-accent)]/10 flex-shrink-0">
+                  <File className="h-6 w-6 text-[var(--color-accent)]" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold truncate">{info.file_name}</p>
+                  <p className="text-xs text-[var(--color-text-muted)]">
+                    {formatBytes(info.file_size)}
+                    {isPreviewable && (
+                      <span className="ml-1.5 text-[var(--color-accent)]">
+                        &middot; {previewType === "image" ? "Image" : previewType === "video" ? "Video" : "Audio"} preview available
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {/* Info badges */}
+              <div className="flex flex-wrap gap-2 text-[10px] text-[var(--color-text-muted)]">
+                <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-[var(--color-surface-1)]">
+                  <Clock className="h-3 w-3" />
+                  Expires in {formatExpiry(info.expires_at)}
+                </span>
+                {info.burn_after_read && (
+                  <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-red-500/10 text-red-500">
+                    <AlertTriangle className="h-3 w-3" />
+                    Burns after download
+                  </span>
+                )}
+                <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-[var(--color-surface-1)]">
+                  <Shield className="h-3 w-3" />
+                  E2E encrypted
+                </span>
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex gap-2">
+                {isPreviewable ? (
+                  <>
+                    <Button onClick={handleDecryptAndPreview} className="flex-1">
+                      <Eye className="h-4 w-4 mr-2" />
+                      Decrypt &amp; Preview
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      onClick={handleDirectDownload}
+                      className="flex-shrink-0"
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
+                  </>
+                ) : (
+                  <Button onClick={handleDirectDownload} className="w-full">
+                    <Download className="h-4 w-4 mr-2" />
+                    Download &amp; Decrypt
+                  </Button>
+                )}
+              </div>
+
+              <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3">
+                <p className="text-xs text-cyan-700 dark:text-cyan-300">
+                  This file is end-to-end encrypted. Decryption happens entirely in your browser — the server never sees your data.
+                </p>
+              </div>
+            </div>
+          </>
+        )}
+
+        {pageState === "decrypting" && info && (
+          <>
+            <div className="px-6 pt-6 pb-4 border-b border-[var(--color-border)]">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center h-12 w-12 rounded-xl bg-[var(--color-accent)]/10 flex-shrink-0">
+                  <LogoSpinner size={24} speed="fast" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold truncate">{info.file_name}</p>
+                  <p className="text-xs text-[var(--color-text-muted)]">{formatBytes(info.file_size)}</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-6">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-[var(--color-text-muted)]">{progress.stage}</span>
+                  <span className="font-medium tabular-nums">{progress.percent}%</span>
+                </div>
+                <div className="h-2 rounded-full bg-[var(--color-surface-1)] overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-[var(--color-accent)] transition-all duration-300"
+                    style={{ width: `${progress.percent}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {pageState === "preview" && info && (
+          <>
+            {/* Preview header */}
+            <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--color-border)]">
+              <div className="flex items-center gap-2 min-w-0">
+                <Eye className="h-4 w-4 text-[var(--color-accent)] flex-shrink-0" />
+                <p className="text-sm font-semibold truncate">{fileName || info.file_name}</p>
+              </div>
+              <button
+                onClick={handleSaveToDevice}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[var(--color-accent)]/10 text-[var(--color-accent)] hover:bg-[var(--color-accent)]/20 transition-colors flex-shrink-0"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Save
+              </button>
+            </div>
+
+            {/* Preview content */}
+            <div className="p-4">
+              {previewType === "image" && previewUrl && (
+                <div className="flex items-center justify-center rounded-xl overflow-hidden bg-[var(--color-surface-1)]">
+                  <img
+                    src={previewUrl}
+                    alt={fileName || info.file_name}
+                    className="max-w-full max-h-[60vh] object-contain"
+                  />
+                </div>
+              )}
+
+              {previewType === "video" && previewUrl && (
+                <div className="flex items-center justify-center rounded-xl overflow-hidden bg-black">
+                  <video
+                    src={previewUrl}
+                    controls
+                    autoPlay={false}
+                    playsInline
+                    className="max-w-full max-h-[60vh]"
+                  />
+                </div>
+              )}
+
+              {previewType === "audio" && previewUrl && (
+                <div className="flex flex-col items-center gap-4 py-6 rounded-xl bg-[var(--color-surface-1)]">
+                  <div className="flex items-center justify-center h-16 w-16 rounded-2xl bg-[var(--color-accent)]/10">
+                    <Music className="h-8 w-8 text-[var(--color-accent)]" />
+                  </div>
+                  <p className="text-sm font-medium text-[var(--color-text-secondary)]">{fileName || info.file_name}</p>
+                  <audio src={previewUrl} controls className="w-full max-w-sm" />
+                </div>
+              )}
+
+              {previewType === "none" && (
+                <div className="flex flex-col items-center gap-3 py-8 text-center">
+                  <CheckCircle2 className="h-8 w-8 text-cyan-500" />
+                  <p className="text-sm font-medium">File decrypted successfully</p>
+                  <p className="text-xs text-[var(--color-text-muted)]">No preview available for this file type.</p>
+                  <Button onClick={handleSaveToDevice} className="mt-2">
+                    <Download className="h-4 w-4 mr-2" />
+                    Save to Device
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            {/* Bottom bar */}
+            <div className="px-5 py-3 border-t border-[var(--color-border)]">
+              <p className="text-[10px] text-[var(--color-text-muted)]">
+                {formatBytes(info.file_size)} &middot; Decrypted in browser
+              </p>
+            </div>
+          </>
+        )}
+
+        {pageState === "done" && (
+          <div className="p-6">
+            <div className="flex flex-col items-center gap-3 py-4 text-center">
+              <div className="flex items-center justify-center h-12 w-12 rounded-xl bg-cyan-500/10">
+                <CheckCircle2 className="h-6 w-6 text-cyan-500" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold">Download Complete</h3>
+                <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                  {fileName || "File"} decrypted and saved to your device.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <p className="text-center text-[10px] text-[var(--color-text-muted)] mt-6">
+        Sent via <span className="font-semibold">zcrypt</span> &middot; Private encrypted file sharing
+      </p>
+    </div>
+  );
+}

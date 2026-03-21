@@ -1,0 +1,389 @@
+"use client";
+
+import { useCallback, useRef, useState } from "react";
+import { UploadZone } from "@/components/upload/upload-zone";
+import { Button } from "@/components/ui/button";
+import { LogoSpinner } from "@/components/ui/logo-spinner";
+import {
+  Shield, Lock, Send, Copy, Check, Clock, Link2, File,
+  AlertTriangle, CheckCircle2, Upload,
+} from "@/lib/icons";
+import { formatBytes } from "@/lib/utils";
+import { sendInit, sendChunkUpload, sendComplete } from "@/lib/api";
+import { QRShare } from "@/components/ui/qr-code";
+
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB limit for anonymous sends
+
+type SendState =
+  | "idle"       // drop zone
+  | "uploading"  // encrypting + uploading
+  | "done"       // show link
+  | "error";
+
+interface ExpiryOption {
+  label: string;
+  hours: number;
+}
+
+const EXPIRY_OPTIONS: ExpiryOption[] = [
+  { label: "1 hour", hours: 1 },
+  { label: "24 hours", hours: 24 },
+  { label: "7 days", hours: 168 },
+];
+
+export default function SendPage() {
+  const [state, setState] = useState<SendState>("idle");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [burnAfterRead, setBurnAfterRead] = useState(false);
+  const [expiryHours, setExpiryHours] = useState(24);
+  const [progress, setProgress] = useState({ stage: "", percent: 0 });
+  const [shareUrl, setShareUrl] = useState("");
+  const [copied, setCopied] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+  const abortRef = useRef(false);
+
+  const handleFiles = useCallback((files: File[]) => {
+    const file = files[0];
+    if (!file) return;
+    if (file.size > MAX_FILE_SIZE) {
+      setErrorMsg(`File too large (${formatBytes(file.size)}). Maximum is ${formatBytes(MAX_FILE_SIZE)} for anonymous sends.`);
+      setState("error");
+      return;
+    }
+    setSelectedFile(file);
+    setErrorMsg("");
+  }, []);
+
+  const handleUpload = useCallback(async () => {
+    if (!selectedFile) return;
+    abortRef.current = false;
+    setState("uploading");
+    setErrorMsg("");
+
+    try {
+      const { generateSalt, deriveKeyBytes, encryptChunk, sha256File, sha256Hex, toBase64, CHUNK_SIZE: CS } = await import("@/lib/crypto");
+
+      // Step 1: Hash the file
+      setProgress({ stage: "Hashing file...", percent: 2 });
+      const fileHash = await sha256File(selectedFile);
+
+      // Step 2: Generate random 256-bit key and salt
+      setProgress({ stage: "Generating encryption key...", percent: 5 });
+      const randomKey = crypto.getRandomValues(new Uint8Array(32));
+      const keyPassphrase = toBase64(randomKey);
+      const salt = generateSalt();
+      const keyBytes = await deriveKeyBytes(keyPassphrase, salt);
+
+      // Step 3: Calculate chunk count
+      const chunkCount = Math.ceil(selectedFile.size / CS);
+
+      // Step 4: Init session
+      setProgress({ stage: "Starting upload session...", percent: 8 });
+      const session = await sendInit({
+        filename: selectedFile.name,
+        original_size: selectedFile.size,
+        sha256: fileHash,
+        salt: toBase64(salt),
+        chunk_count: chunkCount,
+        burn_after_read: burnAfterRead,
+        expires_hours: expiryHours,
+      });
+
+      if (abortRef.current) return;
+
+      // Step 5: Encrypt and upload chunks
+      for (let i = 0; i < chunkCount; i++) {
+        if (abortRef.current) return;
+
+        const start = i * CS;
+        const end = Math.min(start + CS, selectedFile.size);
+        const slice = selectedFile.slice(start, end);
+        const plaintext = new Uint8Array(await slice.arrayBuffer());
+
+        setProgress({
+          stage: `Encrypting chunk ${i + 1}/${chunkCount}...`,
+          percent: 10 + Math.round((i / chunkCount) * 40),
+        });
+
+        const encrypted = await encryptChunk(keyBytes, plaintext);
+        const chunkHash = await sha256Hex(encrypted);
+
+        setProgress({
+          stage: `Uploading chunk ${i + 1}/${chunkCount}...`,
+          percent: 50 + Math.round((i / chunkCount) * 40),
+        });
+
+        await sendChunkUpload(session.session_id, i, encrypted, chunkHash, false);
+      }
+
+      if (abortRef.current) return;
+
+      // Step 6: Complete
+      setProgress({ stage: "Finalizing...", percent: 95 });
+      await sendComplete(session.session_id);
+
+      // Step 7: Build share URL with key in fragment
+      const url = `${window.location.origin}/send/${session.token}#key=${keyPassphrase}`;
+      setShareUrl(url);
+      setProgress({ stage: "Done!", percent: 100 });
+      setState("done");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Upload failed";
+      setErrorMsg(msg);
+      setState("error");
+    }
+  }, [selectedFile, burnAfterRead, expiryHours]);
+
+  const handleCopy = useCallback(async () => {
+    if (!shareUrl) return;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // fallback
+      const ta = document.createElement("textarea");
+      ta.value = shareUrl;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }, [shareUrl]);
+
+  const handleReset = useCallback(() => {
+    abortRef.current = true;
+    setState("idle");
+    setSelectedFile(null);
+    setShareUrl("");
+    setProgress({ stage: "", percent: 0 });
+    setErrorMsg("");
+    setCopied(false);
+  }, []);
+
+  return (
+    <div className="min-h-dvh flex items-center justify-center bg-[var(--color-bg)] p-4">
+      <div className="w-full max-w-lg animate-fade-in">
+        {/* Logo */}
+        <div className="flex items-center justify-center gap-2 mb-2">
+          <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-[var(--color-accent)]/10">
+            <Send className="h-5 w-5 text-[var(--color-accent)]" />
+          </div>
+          <span className="text-xl font-bold font-heading tracking-tight">zcrypt Send</span>
+        </div>
+        <p className="text-center text-sm text-[var(--color-text-muted)] mb-6">
+          Send files securely. No account needed.
+        </p>
+
+        <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-xl overflow-hidden">
+          {/* Idle — file selection */}
+          {state === "idle" && !selectedFile && (
+            <div className="p-6">
+              <UploadZone
+                onFiles={handleFiles}
+                hint={`Up to ${formatBytes(MAX_FILE_SIZE)}. Files are encrypted in your browser before upload.`}
+              />
+            </div>
+          )}
+
+          {/* Idle — file selected, show options */}
+          {state === "idle" && selectedFile && (
+            <div className="p-6 space-y-5">
+              {/* File info */}
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-[var(--color-surface-1)]">
+                <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-[var(--color-accent)]/10 flex-shrink-0">
+                  <File className="h-5 w-5 text-[var(--color-accent)]" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium truncate">{selectedFile.name}</p>
+                  <p className="text-xs text-[var(--color-text-muted)]">{formatBytes(selectedFile.size)}</p>
+                </div>
+                <button
+                  onClick={() => setSelectedFile(null)}
+                  className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
+                >
+                  Change
+                </button>
+              </div>
+
+              {/* Options */}
+              <div className="space-y-3">
+                {/* Expiry */}
+                <div className="space-y-1.5">
+                  <label className="flex items-center gap-1.5 text-xs font-medium text-[var(--color-text-secondary)]">
+                    <Clock className="h-3.5 w-3.5" />
+                    Expires after
+                  </label>
+                  <div className="flex gap-2">
+                    {EXPIRY_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.hours}
+                        onClick={() => setExpiryHours(opt.hours)}
+                        className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg border transition-all ${
+                          expiryHours === opt.hours
+                            ? "border-[var(--color-accent)] bg-[var(--color-accent)]/10 text-[var(--color-accent)]"
+                            : "border-[var(--color-border)] hover:border-[var(--color-border-hover)] text-[var(--color-text-muted)]"
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Burn after read */}
+                <label className="flex items-center gap-3 p-3 rounded-xl border border-[var(--color-border)] hover:border-[var(--color-border-hover)] cursor-pointer transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={burnAfterRead}
+                    onChange={(e) => setBurnAfterRead(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="relative h-5 w-9 rounded-full bg-[var(--color-surface-1)] border border-[var(--color-border)] peer-checked:bg-[var(--color-accent)] peer-checked:border-[var(--color-accent)] transition-colors">
+                    <div className={`absolute top-0.5 left-0.5 h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${burnAfterRead ? "translate-x-4" : ""}`} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">Burn after read</p>
+                    <p className="text-xs text-[var(--color-text-muted)]">File is deleted after first download</p>
+                  </div>
+                </label>
+              </div>
+
+              {/* Send button */}
+              <Button onClick={handleUpload} className="w-full">
+                <Lock className="h-4 w-4 mr-2" />
+                Encrypt &amp; Send
+              </Button>
+
+              <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3">
+                <p className="text-xs text-cyan-700 dark:text-cyan-300">
+                  Your file is encrypted in your browser before upload. The encryption key is embedded in the share link — the server never sees your data.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Uploading */}
+          {state === "uploading" && selectedFile && (
+            <>
+              <div className="px-6 pt-6 pb-4 border-b border-[var(--color-border)]">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-center h-12 w-12 rounded-xl bg-[var(--color-accent)]/10 flex-shrink-0">
+                    <LogoSpinner size={24} speed="fast" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold truncate">{selectedFile.name}</p>
+                    <p className="text-xs text-[var(--color-text-muted)]">{formatBytes(selectedFile.size)}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="p-6">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-[var(--color-text-muted)]">{progress.stage}</span>
+                    <span className="font-medium tabular-nums">{progress.percent}%</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-[var(--color-surface-1)] overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-[var(--color-accent)] transition-all duration-300"
+                      style={{ width: `${progress.percent}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Done — show share link */}
+          {state === "done" && (
+            <div className="p-6 space-y-5">
+              <div className="flex flex-col items-center gap-3 text-center">
+                <div className="flex items-center justify-center h-12 w-12 rounded-xl bg-cyan-500/10">
+                  <CheckCircle2 className="h-6 w-6 text-cyan-500" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold">File Encrypted &amp; Uploaded</h3>
+                  <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                    Share this link. The recipient can download and decrypt in their browser.
+                  </p>
+                </div>
+              </div>
+
+              {/* Share URL */}
+              <div className="space-y-2">
+                <label className="flex items-center gap-1.5 text-xs font-medium text-[var(--color-text-secondary)]">
+                  <Link2 className="h-3.5 w-3.5" />
+                  Share Link
+                </label>
+                <div className="flex gap-2">
+                  <div className="flex-1 p-3 rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border)] text-xs font-mono break-all select-all leading-relaxed">
+                    {shareUrl}
+                  </div>
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    onClick={handleCopy}
+                    className="flex-shrink-0 self-start"
+                  >
+                    {copied ? <Check className="h-4 w-4 text-cyan-500" /> : <Copy className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </div>
+
+              {/* QR Code */}
+              <QRShare url={shareUrl} />
+
+              {/* Info badges */}
+              <div className="flex gap-2 text-[10px] text-[var(--color-text-muted)]">
+                <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-[var(--color-surface-1)]">
+                  <Clock className="h-3 w-3" />
+                  Expires in {EXPIRY_OPTIONS.find(o => o.hours === expiryHours)?.label || `${expiryHours}h`}
+                </span>
+                {burnAfterRead && (
+                  <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-red-500/10 text-red-500">
+                    <AlertTriangle className="h-3 w-3" />
+                    Burns after read
+                  </span>
+                )}
+                <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-[var(--color-surface-1)]">
+                  <Shield className="h-3 w-3" />
+                  E2E encrypted
+                </span>
+              </div>
+
+              <Button variant="secondary" onClick={handleReset} className="w-full">
+                <Upload className="h-4 w-4 mr-2" />
+                Send Another File
+              </Button>
+            </div>
+          )}
+
+          {/* Error */}
+          {state === "error" && (
+            <div className="p-6">
+              <div className="flex flex-col items-center gap-3 py-4 text-center">
+                <div className="flex items-center justify-center h-12 w-12 rounded-xl bg-red-500/10">
+                  <AlertTriangle className="h-6 w-6 text-red-500" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold">Upload Failed</h3>
+                  <p className="text-xs text-[var(--color-text-muted)] mt-1 max-w-xs">{errorMsg}</p>
+                </div>
+                <Button variant="secondary" onClick={handleReset} className="mt-2">
+                  Try Again
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <p className="text-center text-[10px] text-[var(--color-text-muted)] mt-6">
+          Powered by <span className="font-semibold">zcrypt</span> &middot; Zero-knowledge encrypted file sharing
+        </p>
+      </div>
+    </div>
+  );
+}

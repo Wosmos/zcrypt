@@ -47,6 +47,20 @@ func (rl *rateLimiter) allow(key string) bool {
 	return true
 }
 
+// extractIP extracts the client IP from a request, respecting proxy headers.
+func extractIP(r *http.Request) string {
+	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
+		if idx := strings.Index(forwarded, ","); idx != -1 {
+			return strings.TrimSpace(forwarded[:idx])
+		}
+		return strings.TrimSpace(forwarded)
+	}
+	if realIP := r.Header.Get("X-Real-IP"); realIP != "" {
+		return strings.TrimSpace(realIP)
+	}
+	return r.RemoteAddr
+}
+
 // RateLimitMiddleware limits requests per IP to the given rate.
 func RateLimitMiddleware(limit int, window time.Duration, next http.Handler) http.Handler {
 	rl := newRateLimiter(limit, window)

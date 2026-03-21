@@ -20,6 +20,7 @@ type Claims struct {
 	Username     string `json:"username"`
 	Role         string `json:"role"`
 	TokenVersion int    `json:"tv,omitempty"`
+	Decoy        bool   `json:"decoy,omitempty"`
 	Exp          int64  `json:"exp"`
 	Iat          int64  `json:"iat"`
 }
@@ -53,6 +54,22 @@ func GenerateAccessToken(secret, userID, email, username, role string, tokenVers
 		Username:     username,
 		Role:         role,
 		TokenVersion: tokenVersion,
+		Exp:          now.Add(AccessTokenDuration).Unix(),
+		Iat:          now.Unix(),
+	}
+	return signJWT(secret, claims)
+}
+
+// GenerateDecoyAccessToken creates a JWT with the decoy flag set.
+func GenerateDecoyAccessToken(secret, userID, email, username, role string, tokenVersion int) (string, error) {
+	now := time.Now()
+	claims := Claims{
+		Sub:          userID,
+		Email:        email,
+		Username:     username,
+		Role:         role,
+		TokenVersion: tokenVersion,
+		Decoy:        true,
 		Exp:          now.Add(AccessTokenDuration).Unix(),
 		Iat:          now.Unix(),
 	}

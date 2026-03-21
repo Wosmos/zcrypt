@@ -269,6 +269,17 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := auth.CheckPassword(req.Password, user.PasswordHash); err != nil {
+		// Check if this is a decoy password
+		decoy, decoyErr := s.db.GetDecoyVault(ctx, user.ID)
+		if decoyErr == nil && decoy.Enabled {
+			if auth.CheckPassword(req.Password, decoy.DecoyPasswordHash) == nil {
+				// Decoy password match — issue decoy tokens
+				s.audit(r, &user.ID, "login_decoy", map[string]interface{}{"email": user.Email})
+				s.issueDecoyTokens(w, r, user)
+				return
+			}
+		}
+
 		log.Printf("auth: login failed email=%s ip=%s reason=wrong_password", req.Email, clientIP)
 		s.audit(r, &user.ID, "login_failed", map[string]interface{}{"email": req.Email, "reason": "wrong_password"})
 		http.Error(w, `{"error":"invalid email or password"}`, http.StatusUnauthorized)
@@ -290,6 +301,10 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.audit(r, &user.ID, "login", map[string]interface{}{"email": user.Email})
+
+	// Auto-checkin dead man's switch on successful login
+	_ = s.db.CheckinDeadManSwitch(ctx, user.ID)
+
 	s.issueTokens(w, r, user)
 }
 
@@ -857,6 +872,38 @@ func (s *Server) issueTokens(w http.ResponseWriter, r *http.Request, user *types
 	ctx := r.Context()
 
 	accessToken, err := auth.GenerateAccessToken(s.cfg.JWTSecret, user.ID, user.Email, user.Username, user.Role.String(), user.TokenVersion)
+	if err != nil {
+		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
+		return
+	}
+
+	refreshToken, err := auth.GenerateRandomToken()
+	if err != nil {
+		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
+		return
+	}
+
+	s.db.InsertRefreshToken(ctx, &types.RefreshToken{
+		ID:        uuid.New().String(),
+		UserID:    user.ID,
+		TokenHash: auth.HashToken(refreshToken),
+		ExpiresAt: time.Now().Add(auth.RefreshTokenDuration),
+		IP:        extractClientIP(r),
+		UserAgent: r.UserAgent(),
+	})
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"access_token":  accessToken,
+		"refresh_token": refreshToken,
+		"user":          user,
+	})
+}
+
+// issueDecoyTokens issues JWT tokens with the decoy flag set.
+func (s *Server) issueDecoyTokens(w http.ResponseWriter, r *http.Request, user *types.User) {
+	ctx := r.Context()
+
+	accessToken, err := auth.GenerateDecoyAccessToken(s.cfg.JWTSecret, user.ID, user.Email, user.Username, user.Role.String(), user.TokenVersion)
 	if err != nil {
 		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
 		return

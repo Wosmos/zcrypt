@@ -115,3 +115,9 @@ func IsAdmin(r *http.Request) bool {
 	claims := GetUserClaims(r)
 	return claims != nil && claims.Role == types.RoleAdmin.String()
 }
+
+// IsDecoy returns whether the current session is in decoy mode.
+func IsDecoy(r *http.Request) bool {
+	claims := GetUserClaims(r)
+	return claims != nil && claims.Decoy
+}

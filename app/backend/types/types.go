@@ -356,3 +356,291 @@ type SystemStats struct {
 	TotalStorageBytes int64 `json:"total_size"`
 	TotalRepos        int   `json:"total_repos"`
 }
+
+// SendTransfer represents an anonymous encrypted file transfer.
+type SendTransfer struct {
+	ID            string    `json:"id"`
+	Token         string    `json:"token"`
+	OriginalName  string    `json:"original_name"`
+	OriginalSize  int64     `json:"original_size"`
+	EncryptedSize int64     `json:"encrypted_size"`
+	ChunkCount    int       `json:"chunk_count"`
+	SHA256        string    `json:"sha256"`
+	Salt          []byte    `json:"-"`
+	Status        string    `json:"status"`
+	BurnAfterRead bool      `json:"burn_after_read"`
+	MaxDownloads  int       `json:"max_downloads"`
+	DownloadCount int       `json:"download_count"`
+	ExpiresAt     time.Time `json:"expires_at"`
+	SenderIP      string    `json:"-"`
+	CreatedAt     time.Time `json:"created_at"`
+}
+
+// SendChunk identifies a chunk belonging to an anonymous send transfer.
+type SendChunk struct {
+	ID         string `json:"id"`
+	TransferID string `json:"transfer_id"`
+	Index      int    `json:"index"`
+	Size       int64  `json:"size"`
+	SHA256     string `json:"sha256"`
+	Platform   string `json:"platform"`
+	Account    string `json:"account"`
+	Repo       string `json:"repo"`
+	RemotePath string `json:"remote_path"`
+	Compressed bool   `json:"compressed"`
+}
+
+// SendInitRequest is the JSON body for initiating an anonymous send.
+type SendInitRequest struct {
+	Filename      string `json:"filename"`
+	OriginalSize  int64  `json:"original_size"`
+	SHA256        string `json:"sha256"`
+	Salt          string `json:"salt"`
+	ChunkCount    int    `json:"chunk_count"`
+	BurnAfterRead bool   `json:"burn_after_read"`
+	ExpiresHours  int    `json:"expires_hours"`
+}
+
+// Pad represents an encrypted text pad.
+type Pad struct {
+	ID            string    `json:"id"`
+	Token         string    `json:"token"`
+	EncryptedBlob []byte    `json:"-"`
+	ContentSize   int       `json:"content_size"`
+	BurnAfterRead bool      `json:"burn_after_read"`
+	ViewCount     int       `json:"view_count"`
+	ExpiresAt     time.Time `json:"expires_at"`
+	CreatorIP     string    `json:"-"`
+	CreatedAt     time.Time `json:"created_at"`
+}
+
+// PadCreateRequest is the JSON body for creating an encrypted pad.
+type PadCreateRequest struct {
+	EncryptedBlob string `json:"encrypted_blob"` // base64-encoded
+	ContentSize   int    `json:"content_size"`
+	BurnAfterRead bool   `json:"burn_after_read"`
+	ExpiresHours  int    `json:"expires_hours"`
+}
+
+// ClipboardItem represents an encrypted clipboard entry for cross-device sync.
+type ClipboardItem struct {
+	ID            string    `json:"id"`
+	UserID        string    `json:"user_id"`
+	ContentType   string    `json:"content_type"` // "text", "image", "link"
+	EncryptedBlob []byte    `json:"-"`
+	ContentSize   int       `json:"content_size"`
+	CreatedAt     time.Time `json:"created_at"`
+}
+
+// ClipboardPushRequest is the JSON body for pushing a clipboard item.
+type ClipboardPushRequest struct {
+	ContentType   string `json:"content_type"`
+	EncryptedBlob string `json:"encrypted_blob"` // base64-encoded
+	ContentSize   int    `json:"content_size"`
+}
+
+// SyncFolder represents a folder registered for selective sync.
+type SyncFolder struct {
+	ID         string     `json:"id"`
+	UserID     string     `json:"user_id"`
+	FolderPath string     `json:"folder_path"`
+	Label      string     `json:"label"`
+	DeviceName string     `json:"device_name"`
+	Enabled    bool       `json:"enabled"`
+	LastSynced *time.Time `json:"last_synced,omitempty"`
+	FileCount  int        `json:"file_count"`
+	TotalSize  int64      `json:"total_size"`
+	CreatedAt  time.Time  `json:"created_at"`
+	UpdatedAt  time.Time  `json:"updated_at"`
+}
+
+// SyncFolderRequest is the JSON body for creating/updating a sync folder.
+type SyncFolderRequest struct {
+	FolderPath string `json:"folder_path"`
+	Label      string `json:"label"`
+	DeviceName string `json:"device_name"`
+	Enabled    *bool  `json:"enabled,omitempty"`
+}
+
+// DecoyVault represents a plausible deniability decoy vault config.
+type DecoyVault struct {
+	ID                string    `json:"id"`
+	UserID            string    `json:"user_id"`
+	DecoyPasswordHash string    `json:"-"`
+	Enabled           bool      `json:"enabled"`
+	CreatedAt         time.Time `json:"created_at"`
+}
+
+// DecoyFile represents a fake file shown in the decoy vault.
+type DecoyFile struct {
+	ID        string    `json:"id"`
+	UserID    string    `json:"user_id"`
+	Name      string    `json:"original_name"`
+	Size      int64     `json:"original_size"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// DecoySetupRequest is the JSON body for configuring a decoy vault.
+type DecoySetupRequest struct {
+	DecoyPassword string `json:"decoy_password"`
+	Enabled       *bool  `json:"enabled,omitempty"`
+}
+
+// DecoyFileRequest is the JSON body for adding a decoy file.
+type DecoyFileRequest struct {
+	Name string `json:"name"`
+	Size int64  `json:"size"`
+}
+
+// DeadManSwitch represents a dead man's switch configuration.
+type DeadManSwitch struct {
+	ID           string     `json:"id"`
+	UserID       string     `json:"user_id"`
+	ContactEmail string     `json:"contact_email"`
+	ContactName  string     `json:"contact_name"`
+	TimeoutDays  int        `json:"timeout_days"`
+	Message      string     `json:"message"`
+	IncludeFiles bool       `json:"include_files"`
+	Enabled      bool       `json:"enabled"`
+	LastCheckin  time.Time  `json:"last_checkin"`
+	Triggered    bool       `json:"triggered"`
+	TriggeredAt  *time.Time `json:"triggered_at,omitempty"`
+	CreatedAt    time.Time  `json:"created_at"`
+}
+
+// DeadManSwitchRequest is the JSON body for configuring a dead man's switch.
+type DeadManSwitchRequest struct {
+	ContactEmail string `json:"contact_email"`
+	ContactName  string `json:"contact_name"`
+	TimeoutDays  int    `json:"timeout_days"`
+	Message      string `json:"message"`
+	IncludeFiles bool   `json:"include_files"`
+	Enabled      *bool  `json:"enabled,omitempty"`
+}
+
+// ExpiringVault represents a vault with an auto-destruction date.
+type ExpiringVault struct {
+	ID          string    `json:"id"`
+	UserID      string    `json:"user_id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	ExpiresAt   time.Time `json:"expires_at"`
+	Expired     bool      `json:"expired"`
+	FileIDs     []string  `json:"file_ids"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+// ExpiringVaultRequest is the JSON body for creating an expiring vault.
+type ExpiringVaultRequest struct {
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	ExpiresAt   string   `json:"expires_at"` // ISO 8601
+	FileIDs     []string `json:"file_ids"`
+}
+
+// Note represents an encrypted markdown note.
+type Note struct {
+	ID             string    `json:"id"`
+	UserID         string    `json:"user_id"`
+	EncryptedTitle []byte    `json:"encrypted_title"` // base64 over JSON
+	EncryptedBody  []byte    `json:"encrypted_body"`  // base64 over JSON
+	ContentSize    int       `json:"content_size"`
+	Tags           []string  `json:"tags"`
+	Pinned         bool      `json:"pinned"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+}
+
+// NoteRequest is the JSON body for creating/updating a note.
+type NoteRequest struct {
+	EncryptedTitle string   `json:"encrypted_title"` // base64
+	EncryptedBody  string   `json:"encrypted_body"`  // base64
+	ContentSize    int      `json:"content_size"`
+	Tags           []string `json:"tags"`
+	Pinned         *bool    `json:"pinned,omitempty"`
+}
+
+// IntegritySnapshot represents a file hash snapshot for integrity monitoring.
+type IntegritySnapshot struct {
+	ID        string    `json:"id"`
+	UserID    string    `json:"user_id"`
+	FileID    string    `json:"file_id"`
+	FileName  string    `json:"file_name"`
+	SHA256    string    `json:"sha256"`
+	Size      int64     `json:"size"`
+	Status    string    `json:"status"` // ok, changed, missing
+	CheckedAt time.Time `json:"checked_at"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// VaultSnapshot represents a point-in-time snapshot of the user's vault.
+type VaultSnapshot struct {
+	ID        string    `json:"id"`
+	UserID    string    `json:"user_id"`
+	Label     string    `json:"label"`
+	FileCount int       `json:"file_count"`
+	TotalSize int64     `json:"total_size"`
+	FileIDs   []string  `json:"file_ids"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// VaultSnapshotRequest is the JSON body for creating a vault snapshot.
+type VaultSnapshotRequest struct {
+	Label string `json:"label"`
+}
+
+// SharedVault represents a shared encrypted folder.
+type SharedVault struct {
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	OwnerID     string    `json:"owner_id"`
+	Description string    `json:"description"`
+	FileIDs     []string  `json:"file_ids"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+// SharedVaultMember represents a member of a shared vault.
+type SharedVaultMember struct {
+	ID       string    `json:"id"`
+	VaultID  string    `json:"vault_id"`
+	UserID   string    `json:"user_id"`
+	Username string    `json:"username,omitempty"`
+	Email    string    `json:"email,omitempty"`
+	Role     string    `json:"role"` // viewer, editor, admin
+	JoinedAt time.Time `json:"joined_at"`
+}
+
+// SharedVaultRequest is the JSON body for creating a shared vault.
+type SharedVaultRequest struct {
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	FileIDs     []string `json:"file_ids"`
+}
+
+// SharedVaultDetail includes vault info plus members.
+type SharedVaultDetail struct {
+	SharedVault
+	Members []SharedVaultMember `json:"members"`
+}
+
+// SharedVaultAddMemberRequest is the JSON body for adding a member.
+type SharedVaultAddMemberRequest struct {
+	Email string `json:"email"`
+	Role  string `json:"role"` // viewer, editor, admin
+}
+
+// OfflinePin represents a file pinned for offline access.
+type OfflinePin struct {
+	ID       string    `json:"id"`
+	UserID   string    `json:"user_id"`
+	FileID   string    `json:"file_id"`
+	DeviceID string    `json:"device_id"`
+	PinnedAt time.Time `json:"pinned_at"`
+}
+
+// OfflinePinRequest is the JSON body for pinning a file.
+type OfflinePinRequest struct {
+	FileID   string `json:"file_id"`
+	DeviceID string `json:"device_id"`
+}
