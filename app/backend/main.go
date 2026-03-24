@@ -104,7 +104,7 @@ func main() {
 
 	// Rate limit with SSE exemption, then CORS, then request logging
 	rateLimited := cmd.RateLimitMiddleware(50, time.Second, mux)
-	handler := requestLogger(corsMiddleware(exemptSSE(rateLimited, mux)))
+	handler := requestLogger(corsMiddleware(exemptLongLived(rateLimited, mux)))
 
 	// maxJSON wraps a handler with a 1MB request body limit for JSON endpoints.
 	maxJSON := func(h http.HandlerFunc) http.HandlerFunc {
@@ -288,6 +288,9 @@ func main() {
 		port = os.Getenv("zcrypt_PORT") // backward compat
 	}
 	if port == "" {
+		port = os.Getenv("PORT") // Railway / cloud providers
+	}
+	if port == "" {
 		port = "8080"
 	}
 
@@ -305,10 +308,10 @@ func main() {
 	}
 }
 
-// exemptSSE bypasses rate limiting for the SSE endpoint.
-func exemptSSE(rateLimited http.Handler, direct http.Handler) http.Handler {
+// exemptLongLived bypasses rate limiting for SSE and WebSocket endpoints.
+func exemptLongLived(rateLimited http.Handler, direct http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasPrefix(r.URL.Path, "/api/events") {
+		if strings.HasPrefix(r.URL.Path, "/api/events") || strings.HasPrefix(r.URL.Path, "/api/transfer/ws") {
 			direct.ServeHTTP(w, r)
 			return
 		}
