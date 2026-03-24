@@ -109,6 +109,8 @@ import {
   Terminal as _Terminal,
   Smartphone as _Smartphone,
   Share01Icon as _Share01,
+  Server as _Server,
+  Wifi as _Wifi,
 } from "@hugeicons/core-free-icons";
 
 type IconProps = SVGProps<SVGSVGElement> & {
@@ -237,3 +239,5 @@ export const HelpCircle = makeIcon(_HelpCircle, "HelpCircle");
 export const Terminal = makeIcon(_Terminal, "Terminal");
 export const Smartphone = makeIcon(_Smartphone, "Smartphone");
 export const Share2 = makeIcon(_Share01, "Share2");
+export const Server = makeIcon(_Server, "Server");
+export const Wifi = makeIcon(_Wifi, "Wifi");

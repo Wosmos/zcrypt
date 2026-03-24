@@ -183,7 +183,8 @@ export default function SettingsPage() {
           <h2 className="text-sm font-semibold">Appearance</h2>
         </div>
         <div className="p-5 space-y-5">
-          <div className="flex gap-2">
+          {/* Desktop: button row */}
+          <div className="hidden sm:flex gap-2">
             {([
               { value: "light" as const, icon: Sun, label: "Light" },
               { value: "dark" as const, icon: Moon, label: "Dark" },
@@ -205,9 +206,25 @@ export default function SettingsPage() {
             ))}
           </div>
 
+          {/* Mobile: dropdown */}
+          <div className="sm:hidden relative">
+            <select
+              value={theme}
+              onChange={(e) => setTheme(e.target.value as "light" | "dark" | "system")}
+              className="w-full appearance-none px-4 py-3 pr-10 rounded-xl text-sm font-medium border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] focus:outline-none focus:border-[var(--color-accent)]/40 transition-colors"
+            >
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+              <option value="system">System</option>
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-[var(--color-text-muted)]">
+              <ChevronDown className="h-4 w-4" />
+            </div>
+          </div>
+
           {/* Advanced Mode toggle */}
           <div className="flex items-center justify-between pt-4 border-t border-[var(--color-border)]">
-            <div>
+            <div className="flex-1 min-w-0 mr-3">
               <p className="text-sm font-medium">Advanced Mode</p>
               <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
                 Show power-user tools like snapshots, integrity checks, expiring vaults, and device sync.

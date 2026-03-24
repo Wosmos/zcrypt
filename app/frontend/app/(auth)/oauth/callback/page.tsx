@@ -17,8 +17,12 @@ export default function OAuthCallbackPage() {
     if (handled.current) return;
     handled.current = true;
 
-    const accessToken = searchParams.get("access_token");
-    const refreshToken = searchParams.get("refresh_token");
+    // Tokens come in the URL fragment (#) for security (not sent to server in Referrer headers).
+    // Errors come in query params (?error=...) from the backend.
+    const hash = window.location.hash.substring(1);
+    const fragmentParams = new URLSearchParams(hash);
+    const accessToken = fragmentParams.get("access_token");
+    const refreshToken = fragmentParams.get("refresh_token");
     const error = searchParams.get("error");
 
     // Clear sensitive tokens from URL immediately

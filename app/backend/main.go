@@ -329,8 +329,8 @@ func (sw *statusWriter) WriteHeader(code int) {
 
 func requestLogger(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Skip logging SSE and health checks
-		if strings.HasPrefix(r.URL.Path, "/api/events") || r.URL.Path == "/api/health" {
+		// Skip logging SSE, health checks, and WebSocket endpoints (statusWriter hides http.Hijacker)
+		if strings.HasPrefix(r.URL.Path, "/api/events") || r.URL.Path == "/api/health" || r.URL.Path == "/api/transfer/ws" {
 			next.ServeHTTP(w, r)
 			return
 		}

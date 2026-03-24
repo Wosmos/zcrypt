@@ -12,14 +12,14 @@ import {
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 
 export const metadata: Metadata = {
-  title: "Platform Adapters — zcrypt Docs",
+  title: "Platform Adapters | zcrypt Docs",
   description:
     "Configure GitHub, GitLab, and Hugging Face as encrypted storage backends for zcrypt.",
   alternates: {
     canonical: "https://zcrypt.cloud/docs/platform-adapters",
   },
   openGraph: {
-    title: "Platform Adapters — zcrypt Docs",
+    title: "Platform Adapters | zcrypt Docs",
     description:
       "Configure GitHub, GitLab, and Hugging Face as encrypted storage backends for zcrypt.",
     url: "https://zcrypt.cloud/docs/platform-adapters",
@@ -138,7 +138,7 @@ export default function PlatformAdaptersPage() {
               <p>
                 After your file is compressed, encrypted, and chunked locally,
                 zcrypt pushes the encrypted chunks to Git repositories on your
-                chosen platform. Each chunk is a binary blob — completely
+                chosen platform. Each chunk is a binary blob, completely
                 unreadable without your passphrase.
               </p>
               <p>

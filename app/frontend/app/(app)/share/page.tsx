@@ -7,7 +7,7 @@ import { SharedVaultsContent } from "@/components/share/shared-vaults-content";
 
 export default function SharePage() {
   return (
-    <div className="space-y-8 animate-fade-in max-w-3xl mx-auto">
+    <div className="space-y-8 animate-fade-in">
       {/* Header */}
       <div className="flex items-center gap-2.5">
         <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-[var(--color-surface-1)] ring-1 ring-[var(--color-border)]">
