@@ -46,6 +46,31 @@ export function MarketingFooter() {
             </div>
             <div className="space-y-2.5">
               <p className="text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
+                Tools
+              </p>
+              <div className="flex flex-col gap-1.5">
+                <Link
+                  href="/send"
+                  className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)] transition-colors"
+                >
+                  Send File
+                </Link>
+                <Link
+                  href="/pad"
+                  className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)] transition-colors"
+                >
+                  Text Pad
+                </Link>
+                <Link
+                  href="/transfer"
+                  className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)] transition-colors"
+                >
+                  Transfer
+                </Link>
+              </div>
+            </div>
+            <div className="space-y-2.5">
+              <p className="text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
                 Account
               </p>
               <div className="flex flex-col gap-1.5">

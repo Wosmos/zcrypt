@@ -7,22 +7,30 @@ import {
   Terminal,
   HardDrive,
   Globe,
+  Zap,
   ArrowRight,
   Mail,
   Sparkles,
+  Bell,
+  Eye,
+  FileText,
+  Users,
+  Crown,
+  Cog,
 } from "@/lib/icons";
 import { docsCategories } from "@/lib/data";
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
+import DocsSearch from "@/components/docs/docs-search";
 
 export const metadata: Metadata = {
-  title: "Documentation — zcrypt",
+  title: "Documentation | zcrypt",
   description:
     "Learn how to use zcrypt. Guides for getting started, security, API reference, terminal app, self-hosting, and more.",
   alternates: {
     canonical: "https://zcrypt.cloud/docs",
   },
   openGraph: {
-    title: "Documentation — zcrypt",
+    title: "Documentation | zcrypt",
     description:
       "Learn how to use zcrypt. Guides for getting started, security, API reference, terminal app, and more.",
     url: "https://zcrypt.cloud/docs",
@@ -32,7 +40,7 @@ export const metadata: Metadata = {
 const iconMap: Record<
   string,
   React.ComponentType<{ className?: string; size?: number }>
-> = { Rocket, Shield, Code, Terminal, HardDrive, Globe };
+> = { Rocket, Shield, Code, Terminal, HardDrive, Globe, Zap, Bell, Eye, FileText, Users, Crown, Cog };
 
 const iconColors: Record<string, string> = {
   Rocket: "text-cyan-500",
@@ -41,6 +49,13 @@ const iconColors: Record<string, string> = {
   Terminal: "text-emerald-500",
   HardDrive: "text-amber-500",
   Globe: "text-rose-500",
+  Zap: "text-orange-500",
+  Bell: "text-amber-500",
+  Eye: "text-violet-500",
+  FileText: "text-emerald-500",
+  Users: "text-cyan-500",
+  Crown: "text-amber-500",
+  Cog: "text-slate-500",
 };
 
 const iconBgs: Record<string, string> = {
@@ -50,6 +65,13 @@ const iconBgs: Record<string, string> = {
   Terminal: "bg-emerald-500/10",
   HardDrive: "bg-amber-500/10",
   Globe: "bg-rose-500/10",
+  Zap: "bg-orange-500/10",
+  Bell: "bg-amber-500/10",
+  Eye: "bg-violet-500/10",
+  FileText: "bg-emerald-500/10",
+  Users: "bg-cyan-500/10",
+  Crown: "bg-amber-500/10",
+  Cog: "bg-slate-500/10",
 };
 
 export default function DocsPage() {
@@ -62,8 +84,8 @@ export default function DocsPage() {
         ]}
       />
       {/* ═══ HERO ═══ */}
-      <section className="pt-24 md:pt-32 pb-16 px-4 relative overflow-hidden">
-        <div className="absolute inset-0 -z-10 pointer-events-none">
+      <section className="pt-24 md:pt-32 pb-16 px-4 relative z-10">
+        <div className="absolute inset-0 -z-10 pointer-events-none overflow-hidden">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-cyan-500/8 rounded-full blur-[120px]" />
         </div>
         <div className="max-w-3xl mx-auto text-center">
@@ -72,19 +94,22 @@ export default function DocsPage() {
             Documentation
           </div>
           <h1 className="text-4xl sm:text-5xl font-bold tracking-tight font-heading">
-            Documentation
+            Detailed Go Through
           </h1>
           <p className="mt-4 text-lg text-[var(--color-text-secondary)] max-w-xl mx-auto leading-relaxed">
             Everything you need to get started with zcrypt, understand our
             security model, and build on our platform.
           </p>
+          <div className="mt-8">
+            <DocsSearch />
+          </div>
         </div>
       </section>
 
       {/* ═══ CATEGORY GRID ═══ */}
       <section className="pb-24 px-4">
         <div className="max-w-4xl mx-auto">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3  gap-4">
             {docsCategories.map((cat, i) => {
               const Icon = iconMap[cat.icon];
               const color = iconColors[cat.icon] ?? "text-cyan-500";
@@ -118,32 +143,28 @@ export default function DocsPage() {
                       : "opacity-60"
                   }`}
                 >
-                  <div className="flex items-start gap-4">
+                  <div className="flex items-center gap-3 mb-3">
                     <div
-                      className={`flex-shrink-0 inline-flex items-center justify-center h-10 w-10 rounded-xl ${bg} ${color} group-hover:scale-110 transition-transform`}
+                      className={`flex-shrink-0 inline-flex items-center justify-center h-9 w-9 rounded-lg ${bg} ${color} group-hover:scale-110 transition-transform`}
                     >
-                      {Icon && <Icon size={20} />}
+                      {Icon && <Icon size={18} />}
                     </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-sm font-bold">{cat.title}</h3>
-                        {cat.comingSoon && (
-                          <span className="text-[10px] font-bold text-[var(--color-text-muted)] bg-[var(--color-surface-1)] px-2 py-0.5 rounded-full">
-                            Coming soon
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
-                        {cat.desc}
-                      </p>
-                      {cat.href && (
-                        <span className="inline-flex items-center gap-1 text-xs font-medium text-cyan-600 dark:text-cyan-400 mt-2 group-hover:gap-2 transition-all">
-                          Read more
-                          <ArrowRight className="h-3 w-3" />
-                        </span>
-                      )}
-                    </div>
+                    <h3 className="text-sm font-bold">{cat.title}</h3>
+                    {cat.comingSoon && (
+                      <span className="text-[10px] font-bold text-[var(--color-text-muted)] bg-[var(--color-surface-1)] px-2 py-0.5 rounded-full">
+                        Coming soon
+                      </span>
+                    )}
                   </div>
+                  <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
+                    {cat.desc}
+                  </p>
+                  {cat.href && (
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-cyan-600 dark:text-cyan-400 mt-3 group-hover:gap-2 transition-all">
+                      Read more
+                      <ArrowRight className="h-3 w-3" />
+                    </span>
+                  )}
                 </Wrapper>
               );
             })}

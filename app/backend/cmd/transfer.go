@@ -210,6 +210,8 @@ func (s *Server) handleTransferSender(ctx context.Context, conn *websocket.Conn)
 		// Check if transfer is done
 		var m transferMessage
 		if json.Unmarshal(msg, &m) == nil && m.Type == "done" {
+			// Grace period so receiver processes the done message before we tear down the room
+			time.Sleep(3 * time.Second)
 			return
 		}
 	}

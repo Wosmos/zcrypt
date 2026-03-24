@@ -46,7 +46,7 @@ import {
 import { cn, formatBytes, getFileCategory } from "@/lib/utils";
 import Link from "next/link";
 import { useNotifications } from "@/hooks/useNotifications";
-import { NotificationCenter } from "@/components/ui/notification-center";
+
 import { notifications as notifActions } from "@/store/notifications";
 import { FilePreviewModal, useFilePreview } from "@/components/ui/file-preview-modal";
 import type { FileMetadata } from "@/types";
@@ -529,36 +529,9 @@ export default function VaultPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Header */}
+      {/* Stats & actions */}
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2.5 mb-3">
-            <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-[var(--color-accent)]/10 ring-1 ring-[var(--color-accent)]/20">
-              <Shield className="h-5 w-5 text-[var(--color-accent)]" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <p className="text-[10px] font-semibold text-[var(--color-accent)] uppercase tracking-widest">Encrypted Storage</p>
-                {quotaInfo && (
-                  <span className={cn(
-                    "text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md",
-                    quotaInfo.plan === "pro"
-                      ? "bg-violet-500/15 text-violet-500"
-                      : quotaInfo.plan === "plus"
-                        ? "bg-blue-500/15 text-blue-500"
-                        : quotaInfo.plan === "team"
-                          ? "bg-amber-500/15 text-amber-500"
-                          : "bg-[var(--color-surface-1)] text-[var(--color-text-muted)]"
-                  )}>
-                    {quotaInfo.plan}
-                  </span>
-                )}
-              </div>
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight leading-tight">My Vault</h1>
-            </div>
-          </div>
-          <CompactStats fileCount={files.length} totalSize={totalSize} totalEncrypted={totalEncrypted} lastUploadDate={lastUploadDate} quotaInfo={quotaInfo} />
-        </div>
+        <CompactStats fileCount={files.length} totalSize={totalSize} totalEncrypted={totalEncrypted} lastUploadDate={lastUploadDate} quotaInfo={quotaInfo} />
         <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
           {hasCachedPassphrase && (
             <div className="flex items-center gap-1.5 text-xs text-[var(--color-accent)] bg-[var(--color-accent)]/10 border border-[var(--color-accent)]/20 px-2.5 py-1.5 rounded-lg">
@@ -573,7 +546,6 @@ export default function VaultPage() {
               </button>
             </div>
           )}
-          <NotificationCenter />
           <Button variant="ghost" size="sm" onClick={() => refresh()} className="h-9 w-9 p-0">
             <RefreshCw className="h-4 w-4" />
           </Button>

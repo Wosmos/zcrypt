@@ -64,6 +64,8 @@ type Config struct {
 	OAuth     *OAuthConfig `json:"oauth,omitempty"`
 	// Frontend URL for email links (verification, password reset)
 	FrontendURL string `json:"frontend_url,omitempty"`
+	// Backend URL for OAuth callback URIs (must match what's registered with providers)
+	BackendURL string `json:"backend_url,omitempty"`
 	// From environment only — never persisted to JSON
 	DatabaseURL string `json:"-"`
 	MasterKey   string `json:"-"`
@@ -148,6 +150,9 @@ func (c *Config) applyEnvOverrides() {
 	}
 	if v := os.Getenv("FRONTEND_URL"); v != "" {
 		c.FrontendURL = v
+	}
+	if v := os.Getenv("BACKEND_URL"); v != "" {
+		c.BackendURL = v
 	}
 	// OAuth providers
 	if id := os.Getenv("GOOGLE_CLIENT_ID"); id != "" {

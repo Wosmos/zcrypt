@@ -4,14 +4,14 @@ import { ArrowLeft, ArrowRight, Shield, Lock, Key, Eye } from "@/lib/icons";
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 
 export const metadata: Metadata = {
-  title: "Security — zcrypt Docs",
+  title: "Security | zcrypt Docs",
   description:
     "How zcrypt encrypts your files with AES-256-GCM, the zero-knowledge architecture, and our threat model.",
   alternates: {
     canonical: "https://zcrypt.cloud/docs/security",
   },
   openGraph: {
-    title: "Security — zcrypt Docs",
+    title: "Security | zcrypt Docs",
     description:
       "How zcrypt encrypts your files with AES-256-GCM, zero-knowledge architecture, and our threat model.",
     url: "https://zcrypt.cloud/docs/security",
@@ -22,7 +22,7 @@ const sections = [
   {
     id: "overview",
     title: "Security Overview",
-    content: `zcrypt is built on a zero-knowledge architecture. This means that we cannot read, access, or decrypt your files — by design. Your encryption key is derived from a passphrase that only you know, and all cryptographic operations happen locally on your device (in-browser or in the TUI).`,
+    content: `zcrypt is built on a zero-knowledge architecture. This means that we cannot read, access, or decrypt your files. By design. Your encryption key is derived from a passphrase that only you know, and all cryptographic operations happen locally on your device (in-browser or in the TUI).`,
   },
   {
     id: "encryption",
@@ -31,7 +31,7 @@ const sections = [
       {
         title: "Algorithm: AES-256-GCM",
         content:
-          "Every file is encrypted using AES-256-GCM (Galois/Counter Mode), the same authenticated encryption standard used by financial institutions, governments, and secure messaging apps. GCM provides both confidentiality and integrity — if a single bit of the ciphertext is modified, decryption will fail.",
+          "Every file is encrypted using AES-256-GCM (Galois/Counter Mode), the same authenticated encryption standard used by financial institutions, governments, and secure messaging apps. GCM provides both confidentiality and integrity. If a single bit of the ciphertext is modified, decryption will fail.",
       },
       {
         title: "Key Derivation",
@@ -88,7 +88,7 @@ const sections = [
       {
         title: "What this means",
         content:
-          "Even if our database is fully compromised, an attacker gets encrypted blobs (useless without your passphrase), file metadata, and hashed passwords. They cannot reconstruct your files. A court order demanding your data would yield nothing useful — we physically cannot comply.",
+          "Even if our database is fully compromised, an attacker gets encrypted blobs (useless without your passphrase), file metadata, and hashed passwords. They cannot reconstruct your files. A court order demanding your data would yield nothing useful. We physically cannot comply.",
       },
     ],
   },
@@ -104,7 +104,7 @@ const sections = [
       {
         title: "Not protected against",
         content:
-          "Compromised client device (keylogger, malware capturing your passphrase), weak passphrase (if someone guesses your passphrase, they can derive your key), and supply-chain attacks on the frontend JavaScript (mitigated by open-source code — you can self-host or audit).",
+          "Compromised client device (keylogger, malware capturing your passphrase), weak passphrase (if someone guesses your passphrase, they can derive your key), and supply-chain attacks on the frontend JavaScript (mitigated by open-source code; you can self-host or audit).",
       },
       {
         title: "Mitigations",

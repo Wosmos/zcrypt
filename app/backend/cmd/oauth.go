@@ -277,7 +277,11 @@ func (s *Server) HandleUnlinkAccount(w http.ResponseWriter, r *http.Request) {
 
 // oauthCallbackURL builds the callback URL for an OAuth provider.
 func (s *Server) oauthCallbackURL(r *http.Request, provider string) string {
-	// Use the backend URL (where the callback comes to)
+	// Prefer explicit BACKEND_URL — this must match what's registered with OAuth providers
+	if s.cfg.BackendURL != "" {
+		return fmt.Sprintf("%s/api/auth/oauth/%s/callback", strings.TrimRight(s.cfg.BackendURL, "/"), provider)
+	}
+	// Fallback: derive from request (unreliable behind some proxies)
 	scheme := "https"
 	host := r.Host
 	if r.TLS == nil && r.Header.Get("X-Forwarded-Proto") != "https" {

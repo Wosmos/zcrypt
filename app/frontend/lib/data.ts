@@ -186,18 +186,39 @@ export const features: Feature[] = [
 export const accentColors: Record<string, string> = {
   cyan: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 ring-cyan-500/20",
   amber: "bg-amber-500/10 text-amber-500 dark:text-amber-400 ring-amber-500/20",
-  violet: "bg-violet-500/10 text-violet-500 dark:text-violet-400 ring-violet-500/20",
+  violet:
+    "bg-violet-500/10 text-violet-500 dark:text-violet-400 ring-violet-500/20",
   rose: "bg-rose-500/10 text-rose-500 dark:text-rose-400 ring-rose-500/20",
 };
 
 // ─── How It Works Steps ──────────────────────────────────────
 
 export const steps: Step[] = [
-  { num: "01", title: "Drop a file", desc: "Drag and drop any file into your vault." },
-  { num: "02", title: "We compress it", desc: "Smart compression makes it smaller." },
-  { num: "03", title: "We encrypt it", desc: "Encrypted with your passphrase. Only you hold the key." },
-  { num: "04", title: "We chunk it", desc: "Split into pieces, unrecognizable to anyone." },
-  { num: "05", title: "Stored securely", desc: "Distributed across multiple storage platforms for safety." },
+  {
+    num: "01",
+    title: "Drop a file",
+    desc: "Drag and drop any file into your vault.",
+  },
+  {
+    num: "02",
+    title: "We compress it",
+    desc: "Smart compression makes it smaller.",
+  },
+  {
+    num: "03",
+    title: "We encrypt it",
+    desc: "Encrypted with your passphrase. Only you hold the key.",
+  },
+  {
+    num: "04",
+    title: "We chunk it",
+    desc: "Split into pieces, unrecognizable to anyone.",
+  },
+  {
+    num: "05",
+    title: "Stored securely",
+    desc: "Distributed across multiple storage platforms for safety.",
+  },
 ];
 
 // ─── Pricing Plans ────────────────────────────────────────────
@@ -317,15 +338,18 @@ export const competitors: Competitor[] = [
 
 export const testimonials: Testimonial[] = [
   {
-    quote: "Switched from Dropbox. Same 2TB, half the price, and my files are actually encrypted. No-brainer.",
+    quote:
+      "Switched from Dropbox. Same 2TB, half the price, and my files are actually encrypted. No-brainer.",
     author: "Freelance Designer",
   },
   {
-    quote: "The zero-knowledge architecture convinced our security team immediately. Open source sealed the deal.",
+    quote:
+      "The zero-knowledge architecture convinced our security team immediately. Open source sealed the deal.",
     author: "Senior Cloud Architect",
   },
   {
-    quote: "I can point auditors to the source code. Client-side encryption, no server-side keys. Compliance loves it.",
+    quote:
+      "I can point auditors to the source code. Client-side encryption, no server-side keys. Compliance loves it.",
     author: "Platform Engineer",
   },
 ];
@@ -444,7 +468,8 @@ export const tuiInstallMethods = [
   },
   {
     label: "Build from source",
-    command: "git clone https://github.com/zcrypt/zcrypt-tui && cd zcrypt-tui && go build -o zcrypt .",
+    command:
+      "git clone https://github.com/zcrypt/zcrypt-tui && cd zcrypt-tui && go build -o zcrypt .",
   },
 ] as const;
 
@@ -462,43 +487,92 @@ export const docsCategories: DocsCategory[] = [
   {
     icon: "Rocket",
     title: "Getting Started",
-    desc: "Create an account, set up your passphrase, and upload your first file in minutes.",
+    desc: "Walk through account setup, passphrase creation, connecting a storage platform, and uploading your first encrypted file from the web dashboard.",
     href: "/docs/getting-started",
     comingSoon: false,
   },
   {
     icon: "Shield",
     title: "Security",
-    desc: "How our encryption works, threat model, and zero-knowledge architecture.",
+    desc: "Deep dive into our AES-256-GCM encryption, zero-knowledge architecture, key derivation, threat model, and how your data stays private at every step.",
     href: "/docs/security",
     comingSoon: false,
   },
   {
-    icon: "Code",
-    title: "API Reference",
-    desc: "RESTful API documentation for building integrations with zcrypt.",
-    href: null,
-    comingSoon: true,
+    icon: "Zap",
+    title: "Tools",
+    desc: "Learn about built-in tools like Send for one-time file sharing, Pad for encrypted notes, Transfer for cross-device file moves, and integrity checks.",
+    href: "/docs/tools",
+    comingSoon: false,
+  },
+  {
+    icon: "Bell",
+    title: "Dead Man's Switch",
+    desc: "Automatically notify a trusted contact if you stop checking in. Configurable timeout from 7 to 365 days with custom messages.",
+    href: "/docs/dead-mans-switch",
+    comingSoon: false,
+  },
+  {
+    icon: "Eye",
+    title: "Decoy Profile",
+    desc: "Create a fake vault with a decoy password for plausible deniability. Show innocent-looking files when forced to log in.",
+    href: "/docs/decoy-profile",
+    comingSoon: false,
+  },
+  {
+    icon: "FileText",
+    title: "Encrypted Notes",
+    desc: "End-to-end encrypted notepad with tags, pinning, and full-text search. Everything is encrypted in your browser before it reaches the server.",
+    href: "/docs/encrypted-notes",
+    comingSoon: false,
+  },
+  {
+    icon: "Users",
+    title: "Shared Vaults",
+    desc: "Create collaborative file vaults and invite other users with role-based access control. Viewer, editor, and admin permissions.",
+    href: "/docs/shared-vaults",
+    comingSoon: false,
+  },
+  {
+    icon: "Crown",
+    title: "Plans and Limits",
+    desc: "Compare Free, Plus, and Pro plans. Storage quotas, file size limits, concurrent uploads, and feature availability.",
+    href: "/docs/plans",
+    comingSoon: false,
   },
   {
     icon: "Terminal",
     title: "Terminal App",
-    desc: "Install and use the zcrypt TUI — a full terminal interface for your vault.",
+    desc: "Install the zcrypt TUI to upload, download, and manage your vault directly from the command line with vim-style navigation and real-time progress.",
     href: "/tui",
+    comingSoon: false,
+  },
+  {
+    icon: "Globe",
+    title: "Platform Adapters",
+    desc: "Connect GitHub, GitLab, or Hugging Face as storage backends. Manage tokens, configure repo pools, and control how encrypted chunks are distributed.",
+    href: "/docs/platform-adapters",
+    comingSoon: false,
+  },
+  {
+    icon: "Cog",
+    title: "Advanced Usage",
+    desc: "Snapshots, integrity verification, expiring files, device management, analytics dashboard, and bulk operations.",
+    href: "/docs/advanced",
     comingSoon: false,
   },
   {
     icon: "HardDrive",
     title: "Self-Hosting",
-    desc: "Deploy zcrypt on your own infrastructure with Docker.",
+    desc: "Run your own zcrypt instance with Docker. Full control over your backend, database, and storage for teams with strict compliance requirements.",
     href: null,
     comingSoon: true,
   },
   {
-    icon: "Globe",
-    title: "Platform Adapters",
-    desc: "Configure GitHub, GitLab, and Hugging Face as storage backends.",
-    href: "/docs/platform-adapters",
-    comingSoon: false,
+    icon: "Code",
+    title: "API Reference",
+    desc: "Complete REST API documentation covering authentication, file operations, vault management, and webhooks for building custom integrations with zcrypt.",
+    href: null,
+    comingSoon: true,
   },
 ];

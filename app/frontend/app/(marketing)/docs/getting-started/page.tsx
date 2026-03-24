@@ -8,18 +8,27 @@ import {
   Key,
   Shield,
   Download,
+  Settings,
 } from "@/lib/icons";
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 
 export const metadata: Metadata = {
-  title: "Getting Started — zcrypt Docs",
+  title: "Getting Started | zcrypt Docs",
   description:
-    "Create an account, set your passphrase, and upload your first encrypted file to zcrypt in under 5 minutes.",
+    "Create an account, set your passphrase, and upload your first encrypted file to zcrypt in under 5 minutes. Step-by-step guide with screenshots.",
+  keywords: [
+    "zcrypt getting started",
+    "encrypted cloud storage setup",
+    "zero knowledge storage tutorial",
+    "how to use zcrypt",
+    "passphrase setup",
+    "encrypted file upload",
+  ],
   alternates: {
     canonical: "https://zcrypt.cloud/docs/getting-started",
   },
   openGraph: {
-    title: "Getting Started — zcrypt Docs",
+    title: "Getting Started | zcrypt Docs",
     description:
       "Create an account, set your passphrase, and upload your first encrypted file to zcrypt in under 5 minutes.",
     url: "https://zcrypt.cloud/docs/getting-started",
@@ -32,9 +41,9 @@ const steps = [
     title: "Create your account",
     icon: Check,
     content: [
-      "Head to zcrypt.cloud/register and create a free account with your email and a strong password.",
-      "Verify your email address by clicking the link we send you.",
-      "You'll get 10 GB of free encrypted storage immediately — no credit card required.",
+      "Go to zcrypt.cloud/register and sign up with your email and a strong password.",
+      "Check your inbox and click the verification link we send you.",
+      "Once verified, you get 10 GB of free encrypted storage. No credit card needed.",
     ],
   },
   {
@@ -42,21 +51,21 @@ const steps = [
     title: "Set your passphrase",
     icon: Key,
     content: [
-      "When you first log in, you'll be prompted to create a passphrase. This is separate from your account password.",
+      "On your first login, you will be asked to create a passphrase. This is separate from your account password.",
       "Your passphrase is used to derive your encryption key locally on your device. It never leaves your browser.",
-      "Choose something strong and memorable — if you lose it, your files cannot be recovered. We recommend using a password manager.",
+      "Pick something strong and memorable. If you lose it, your files cannot be recovered. We strongly recommend storing it in a password manager.",
     ],
     warning:
-      "Your passphrase is never stored on our servers. This is a core part of our zero-knowledge architecture. There is no \"forgot passphrase\" option.",
+      'Your passphrase is never stored on our servers. This is a core part of zero-knowledge encryption. There is no "forgot passphrase" recovery option.',
   },
   {
     num: "03",
     title: "Upload your first file",
     icon: Upload,
     content: [
-      "Navigate to your dashboard and drag a file onto the upload area, or click to browse.",
-      "Your file is automatically compressed (zstd), encrypted (AES-256-GCM), and split into chunks — all in your browser.",
-      "Encrypted chunks are uploaded to your configured storage backends. Progress is shown in real-time via SSE.",
+      "Open your dashboard and drag a file onto the upload area, or click to browse your device.",
+      "zcrypt automatically compresses the file with zstd, encrypts it with AES-256-GCM, and splits it into chunks. All of this happens in your browser.",
+      "Encrypted chunks are uploaded to your storage backend. You will see real-time progress as each chunk completes.",
     ],
   },
   {
@@ -64,21 +73,28 @@ const steps = [
     title: "Download and decrypt",
     icon: Download,
     content: [
-      "Click any file in your vault to download it. Enter your passphrase if prompted.",
-      "zcrypt downloads the encrypted chunks, reassembles them, decrypts, and decompresses — all locally.",
-      "The original file is reconstructed in your browser and saved to your device. No plaintext ever touches our servers.",
+      "Click any file in your vault to download it. You may be asked to enter your passphrase if it is not cached.",
+      "zcrypt downloads the encrypted chunks, reassembles them, decrypts, and decompresses the file. Everything happens locally in your browser.",
+      "The original file is reconstructed and saved to your device. No plaintext data ever touches our servers.",
     ],
   },
   {
     num: "05",
     title: "Connect a storage backend (optional)",
-    icon: Shield,
+    icon: Settings,
     content: [
       "By default, zcrypt uses shared platform storage. Pro and Plus users can connect their own GitHub, GitLab, or Hugging Face repositories.",
-      "Go to Settings → Platform Tokens to add a personal access token for your preferred platform.",
-      "Your files will be stored as encrypted blobs in your own repositories — you retain full control of the underlying infrastructure.",
+      "Go to Settings, then Platform Tokens, and add a personal access token for your preferred platform.",
+      "Your files will be stored as encrypted blobs in your own repositories. You keep full control of the underlying infrastructure.",
     ],
   },
+];
+
+const requirements = [
+  { label: "Browser", value: "Chrome, Firefox, Safari, or Edge (latest)" },
+  { label: "JavaScript", value: "Must be enabled for client-side encryption" },
+  { label: "Storage", value: "10 GB free, up to 2 TB on Pro plan" },
+  { label: "Account", value: "Email verification required" },
 ];
 
 export default function GettingStartedPage() {
@@ -88,9 +104,13 @@ export default function GettingStartedPage() {
         items={[
           { name: "Home", url: "https://zcrypt.cloud" },
           { name: "Documentation", url: "https://zcrypt.cloud/docs" },
-          { name: "Getting Started", url: "https://zcrypt.cloud/docs/getting-started" },
+          {
+            name: "Getting Started",
+            url: "https://zcrypt.cloud/docs/getting-started",
+          },
         ]}
       />
+
       {/* Header */}
       <section className="pt-24 md:pt-32 pb-12 px-4">
         <div className="max-w-3xl mx-auto">
@@ -106,8 +126,32 @@ export default function GettingStartedPage() {
           </h1>
           <p className="mt-3 text-lg text-[var(--color-text-secondary)] max-w-2xl leading-relaxed">
             Create an account, set your passphrase, and upload your first
-            encrypted file — all in under 5 minutes.
+            encrypted file in under 5 minutes.
           </p>
+        </div>
+      </section>
+
+      {/* Requirements */}
+      <section className="pb-8 px-4">
+        <div className="max-w-3xl mx-auto">
+          <div className="card p-5">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)] mb-3">
+              Before you start
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {requirements.map((req) => (
+                <div key={req.label} className="flex items-start gap-2">
+                  <Check className="h-3.5 w-3.5 text-cyan-500 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <span className="text-sm font-medium">{req.label}:</span>{" "}
+                    <span className="text-sm text-[var(--color-text-secondary)]">
+                      {req.value}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
@@ -116,17 +160,13 @@ export default function GettingStartedPage() {
         <div className="max-w-3xl mx-auto space-y-10">
           {steps.map((step, i) => (
             <div key={i} className="relative">
-              {/* Connector line */}
               {i < steps.length - 1 && (
                 <div className="absolute left-[19px] top-12 bottom-0 w-px bg-gradient-to-b from-[var(--color-border)] to-transparent" />
               )}
-
               <div className="flex gap-5">
-                {/* Step number */}
                 <div className="flex-shrink-0 h-10 w-10 rounded-xl bg-cyan-500/10 flex items-center justify-center">
                   <step.icon className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
                 </div>
-
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-3 mb-3">
                     <span className="text-xs font-bold text-[var(--color-text-muted)] font-mono">
@@ -134,7 +174,6 @@ export default function GettingStartedPage() {
                     </span>
                     <h2 className="text-lg font-bold">{step.title}</h2>
                   </div>
-
                   <div className="space-y-3">
                     {step.content.map((paragraph, j) => (
                       <p
@@ -145,7 +184,6 @@ export default function GettingStartedPage() {
                       </p>
                     ))}
                   </div>
-
                   {step.warning && (
                     <div className="mt-4 px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
                       <p className="text-sm text-amber-700 dark:text-amber-400 leading-relaxed">
@@ -161,37 +199,42 @@ export default function GettingStartedPage() {
         </div>
       </section>
 
-      {/* Next steps */}
+      {/* What you can do next */}
       <section className="py-16 px-4 bg-[var(--color-surface)]">
         <div className="max-w-3xl mx-auto">
-          <h2 className="text-xl font-bold mb-6">What&apos;s next?</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Link
-              href="/docs/security"
-              className="card p-5 group hover:border-cyan-500/40 transition-colors"
-            >
-              <h3 className="text-sm font-bold mb-1 flex items-center gap-2">
-                Security Model
-                <ArrowRight className="h-3 w-3 text-cyan-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-              </h3>
-              <p className="text-sm text-[var(--color-text-secondary)]">
-                Understand the encryption, threat model, and zero-knowledge
-                architecture.
-              </p>
-            </Link>
-            <Link
-              href="/docs/platform-adapters"
-              className="card p-5 group hover:border-cyan-500/40 transition-colors"
-            >
-              <h3 className="text-sm font-bold mb-1 flex items-center gap-2">
-                Platform Adapters
-                <ArrowRight className="h-3 w-3 text-cyan-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-              </h3>
-              <p className="text-sm text-[var(--color-text-secondary)]">
-                Connect GitHub, GitLab, or Hugging Face as your storage
-                backend.
-              </p>
-            </Link>
+          <h2 className="text-xl font-bold mb-6">What to explore next</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {[
+              {
+                href: "/docs/security",
+                title: "Security Model",
+                desc: "Learn how encryption, key derivation, and zero-knowledge architecture work.",
+              },
+              {
+                href: "/docs/tools",
+                title: "Tools",
+                desc: "Send files, share encrypted notes, and transfer between devices.",
+              },
+              {
+                href: "/docs/plans",
+                title: "Plans and Limits",
+                desc: "Compare Free, Plus, and Pro. See storage quotas and upload limits.",
+              },
+            ].map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="card p-5 group hover:border-cyan-500/40 transition-colors"
+              >
+                <h3 className="text-sm font-bold mb-1 flex items-center gap-2">
+                  {link.title}
+                  <ArrowRight className="h-3 w-3 text-cyan-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </h3>
+                <p className="text-sm text-[var(--color-text-secondary)]">
+                  {link.desc}
+                </p>
+              </Link>
+            ))}
           </div>
         </div>
       </section>

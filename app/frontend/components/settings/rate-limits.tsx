@@ -92,18 +92,18 @@ export function RateLimits({ statuses, repos }: RateLimitsProps) {
               </div>
 
               {/* Quota details */}
-              <div className="grid grid-cols-3 gap-3">
-                <div className="px-3 py-2 rounded-lg bg-[var(--color-surface-1)]">
+              <div className="grid grid-cols-1 xs:grid-cols-3 gap-2">
+                <div className="flex items-center justify-between xs:block px-3 py-2.5 rounded-lg bg-[var(--color-surface-1)]">
                   <p className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider">Repo Limit</p>
-                  <p className="text-xs font-medium mt-0.5">{meta.repoLimit}</p>
+                  <p className="text-xs font-medium xs:mt-0.5">{meta.repoLimit}</p>
                 </div>
-                <div className="px-3 py-2 rounded-lg bg-[var(--color-surface-1)]">
+                <div className="flex items-center justify-between xs:block px-3 py-2.5 rounded-lg bg-[var(--color-surface-1)]">
                   <p className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider">File Limit</p>
-                  <p className="text-xs font-medium mt-0.5">{meta.fileLimit}</p>
+                  <p className="text-xs font-medium xs:mt-0.5">{meta.fileLimit}</p>
                 </div>
-                <div className="px-3 py-2 rounded-lg bg-[var(--color-surface-1)]">
+                <div className="flex items-center justify-between xs:block px-3 py-2.5 rounded-lg bg-[var(--color-surface-1)]">
                   <p className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider">Rate Limit</p>
-                  <p className="text-xs font-medium mt-0.5">{meta.rateInfo}</p>
+                  <p className="text-xs font-medium xs:mt-0.5">{meta.rateInfo}</p>
                 </div>
               </div>
 
