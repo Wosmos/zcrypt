@@ -82,6 +82,8 @@ function SendMode({ onBack }: { onBack: () => void }) {
   const [copied, setCopied] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const keyRef = useRef<Uint8Array | null>(null);
+  const stateRef = useRef<SendState>("selecting");
+  stateRef.current = state;
 
   const handleFiles = useCallback((files: File[]) => {
     if (files[0]) setSelectedFile(files[0]);
@@ -127,7 +129,7 @@ function SendMode({ onBack }: { onBack: () => void }) {
     };
 
     ws.onclose = () => {
-      if (state !== "done" && state !== "error") {
+      if (stateRef.current !== "done" && stateRef.current !== "error") {
         setState("error");
         setErrorMsg("Connection lost");
       }
