@@ -1,0 +1,38 @@
+{
+  "name": "@zcrypt/cli",
+  "version": "0.0.0",
+  "description": "zcrypt — Private cloud storage that costs less (CLI)",
+  "license": "MIT",
+  "homepage": "https://zcrypt.cloud",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Wosmos/zcrypt.git"
+  },
+  "bin": {
+    "zcrypt": "bin/zcrypt.js"
+  },
+  "main": "index.js",
+  "files": [
+    "bin/",
+    "index.js"
+  ],
+  "optionalDependencies": {
+    "@zcrypt/cli-darwin-arm64": "0.0.0",
+    "@zcrypt/cli-darwin-x64": "0.0.0",
+    "@zcrypt/cli-linux-x64": "0.0.0",
+    "@zcrypt/cli-linux-arm64": "0.0.0",
+    "@zcrypt/cli-win32-x64": "0.0.0",
+    "@zcrypt/cli-win32-arm64": "0.0.0"
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "keywords": [
+    "zcrypt",
+    "cloud-storage",
+    "encryption",
+    "cli",
+    "zero-knowledge",
+    "privacy"
+  ]
+}

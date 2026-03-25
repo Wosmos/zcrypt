@@ -57,10 +57,37 @@ jobs:
         working-directory: app/frontend
         run: bun run build
 
+  tui:
+    name: Go TUI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          cache-dependency-path: app/tui/go.sum
+
+      - name: Download dependencies
+        working-directory: app/tui
+        run: go mod download
+
+      - name: Vet
+        working-directory: app/tui
+        run: go vet ./...
+
+      - name: Build
+        working-directory: app/tui
+        run: CGO_ENABLED=0 go build -ldflags="-s -w -X main.version=ci" -o zcrypt .
+
+      - name: Test
+        working-directory: app/tui
+        run: go test ./...
+
   deploy:
     name: Deploy to Vercel
     runs-on: ubuntu-latest
-    needs: [backend, frontend]
+    needs: [backend, frontend, tui]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
