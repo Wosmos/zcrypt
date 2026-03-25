@@ -8,7 +8,7 @@ import { LogoSpinner } from "@/components/ui/logo-spinner";
 import {
   Shield, Send, Download, File, AlertTriangle, CheckCircle2, Eye, Music, Clock,
 } from "@/lib/icons";
-import { formatBytes } from "@/lib/utils";
+import { formatBytes, easeProgress } from "@/lib/utils";
 import type { SendInfo } from "@/types";
 
 type PageState =
@@ -108,7 +108,7 @@ export default function SendDownloadPage() {
     setProgress({ stage: "Fetching metadata...", percent: 0 });
     const meta = await getSendMeta(token);
 
-    setProgress({ stage: "Deriving key...", percent: 5 });
+    setProgress({ stage: "Deriving key...", percent: 1 });
     const salt = fromBase64(meta.salt);
     const keyBytes = await deriveKeyBytes(encryptionKey, salt);
 
@@ -129,7 +129,7 @@ export default function SendDownloadPage() {
 
       decryptedChunks[index] = plaintext;
       chunksDone++;
-      const percent = 10 + Math.round((chunksDone / meta.chunk_count) * 80);
+      const percent = 2 + Math.round((chunksDone / meta.chunk_count) * 90);
       setProgress({ stage: `Decrypting ${chunksDone}/${meta.chunk_count}`, percent });
     };
 
@@ -147,7 +147,7 @@ export default function SendDownloadPage() {
     }
     await Promise.all(workers);
 
-    setProgress({ stage: "Verifying integrity...", percent: 92 });
+    setProgress({ stage: "Verifying integrity...", percent: 93 });
     const totalSize = decryptedChunks.reduce((sum, c) => sum + c.byteLength, 0);
     const fullFile = new Uint8Array(totalSize);
     let offset = 0;
@@ -371,12 +371,12 @@ export default function SendDownloadPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-[var(--color-text-muted)]">{progress.stage}</span>
-                  <span className="font-medium tabular-nums">{progress.percent}%</span>
+                  <span className="font-medium tabular-nums">{easeProgress(progress.percent)}%</span>
                 </div>
                 <div className="h-2 rounded-full bg-[var(--color-surface-1)] overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-[var(--color-accent)] transition-all duration-300"
-                    style={{ width: `${progress.percent}%` }}
+                    className="h-full rounded-full bg-[var(--color-accent)] transition-all duration-500 ease-in-out"
+                    style={{ width: `${easeProgress(progress.percent)}%` }}
                   />
                 </div>
               </div>

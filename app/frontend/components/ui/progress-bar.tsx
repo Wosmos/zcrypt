@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { cn } from "@/lib/utils";
+import { cn, easeProgress } from "@/lib/utils";
 import { ChevronDown } from "@/lib/icons";
 
 type DisplayMode = "percent" | "speed" | "eta";
@@ -64,6 +64,7 @@ export function ProgressBar({
   const [mode, setMode] = useState<DisplayMode>("percent");
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const real = Math.min(100, Math.max(0, Math.round(percent)));
+  const display = easeProgress(real);
 
   const cycleMode = () => {
     setMode((m) => m === "percent" ? "speed" : m === "speed" ? "eta" : "percent");
@@ -72,14 +73,14 @@ export function ProgressBar({
   const getDisplayValue = (): string => {
     switch (mode) {
       case "percent":
-        return `${real}%`;
+        return `${display}%`;
       case "speed":
         if (bytesProcessed && startedAt) return formatSpeed(bytesProcessed, startedAt);
-        return `${real}%`;
+        return `${display}%`;
       case "eta":
         if (startedAt) return formatEtaFromProgress(startedAt, real);
         if (eta) return eta;
-        return `${real}%`;
+        return `${display}%`;
     }
   };
 
@@ -102,8 +103,8 @@ export function ProgressBar({
       )}
       <div className="h-1.5 w-full rounded-full bg-[var(--color-surface-2)] overflow-hidden">
         <div
-          className="relative h-full rounded-full transition-[width] duration-300 ease-out overflow-hidden"
-          style={{ width: `${Math.max(real, 1)}%` }}
+          className="relative h-full rounded-full transition-[width] duration-500 ease-in-out overflow-hidden"
+          style={{ width: `${Math.max(display, 1)}%` }}
         >
           <div className={cn("absolute inset-0", barColors[variant])} />
 

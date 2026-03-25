@@ -141,11 +141,11 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
 
       try {
         // Step 1: Hash original file
-        updateStatus(id, "encrypting", 5, "Hashing file...", 0, file.size);
+        updateStatus(id, "encrypting", 1, "Hashing file...", 0, file.size);
         const fileSha256 = await sha256File(file);
 
         // Step 2: Generate salt & derive key
-        updateStatus(id, "encrypting", 10, "Deriving encryption key...");
+        updateStatus(id, "encrypting", 2, "Deriving encryption key...");
         const salt = generateSalt();
         const keyBytes = await deriveKeyBytes(passphrase, salt);
 
@@ -157,7 +157,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
         const shouldCompress = !COMPRESSED_EXTENSIONS.has(ext);
 
         // Step 4: Init upload session on server
-        updateStatus(id, "encrypting", 15, "Starting upload session...");
+        updateStatus(id, "encrypting", 3, "Starting upload session...");
         const session = await initUpload({
           filename: file.name,
           original_size: file.size,
@@ -295,7 +295,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
               totalEncryptedSize += result.encryptedSize;
               totalCompressedSize += result.compressed ? result.compressedSize : result.originalSize;
 
-              const percent = 15 + Math.round((uploadedChunks / chunkCount) * 80);
+              const percent = 3 + Math.round((uploadedChunks / chunkCount) * 92);
               updateStatus(
                 id,
                 "uploading",
@@ -318,7 +318,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
         if (firstError) throw firstError;
 
         // Step 6: Complete upload
-        updateStatus(id, "uploading", 95, "Finalizing...");
+        updateStatus(id, "uploading", 97, "Finalizing...");
         await completeUpload(session.session_id, totalEncryptedSize, totalCompressedSize);
 
         updateStatus(id, "done", 100, "Done");

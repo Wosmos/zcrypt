@@ -40,10 +40,13 @@ func (db *DB) InsertFileWithQuotaCheck(ctx context.Context, userID string, f *ty
 		return db.InsertFile(ctx, userID, f)
 	}
 	// Atomic insert: only succeeds if current usage + new file <= quota
+	// Note: $4 is cast to BIGINT in the WHERE clause to avoid pgx/PostgreSQL
+	// "inconsistent types deduced for parameter" error (SQLSTATE 42P08) when
+	// the same parameter appears in both SELECT and WHERE contexts.
 	tag, err := db.pool.Exec(ctx,
 		`INSERT INTO files (id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, status)
 		 SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
-		 WHERE (SELECT COALESCE(SUM(original_size), 0) FROM files WHERE user_id = $2 AND status IN ('complete', 'uploading')) + $4 <= $12`,
+		 WHERE (SELECT COALESCE(SUM(original_size), 0) FROM files WHERE user_id = $2 AND status IN ('complete', 'uploading')) + $4::BIGINT <= $12`,
 		f.ID, userID, f.OriginalName, f.OriginalSize, f.CompressedSize, f.EncryptedSize,
 		f.ChunkCount, f.SHA256, f.Salt, f.IV, status, quotaBytes,
 	)

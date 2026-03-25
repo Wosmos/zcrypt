@@ -146,3 +146,13 @@ export function formatEta(startedAt: number, percent: number): string | undefine
   const m = Math.ceil((remaining % 3600) / 60);
   return `~${h}h ${m}m left`;
 }
+
+/** Map raw 0-100 progress through a logarithmic ease-out curve.
+ *  Produces fast initial movement that gradually slows toward 100%.
+ *  Use for display only — keep raw percent for ETA math. */
+export function easeProgress(raw: number): number {
+  const p = Math.min(100, Math.max(0, raw));
+  if (p <= 0) return 0;
+  if (p >= 100) return 100;
+  return Math.round(100 * Math.log10(1 + 9 * p / 100));
+}

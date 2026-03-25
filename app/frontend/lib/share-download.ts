@@ -51,7 +51,7 @@ export async function downloadSharedFile(
   if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
 
   // Step 2: Derive key from passphrase + salt
-  onProgress?.({ stage: "Deriving key...", percent: 5, chunksDone: 0, chunksTotal: meta.chunk_count });
+  onProgress?.({ stage: "Deriving key...", percent: 1, chunksDone: 0, chunksTotal: meta.chunk_count });
   const salt = fromBase64(meta.salt);
   const keyBytes = await deriveKeyBytes(passphrase, salt);
 
@@ -91,7 +91,7 @@ export async function downloadSharedFile(
     decryptedChunks[index] = plaintext;
     chunksDone++;
 
-    const percent = 10 + Math.round((chunksDone / meta.chunk_count) * 80);
+    const percent = 2 + Math.round((chunksDone / meta.chunk_count) * 90);
     onProgress?.({
       stage: `Downloading ${chunksDone}/${meta.chunk_count}`,
       percent,
@@ -121,7 +121,7 @@ export async function downloadSharedFile(
   if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
 
   // Step 4: Concatenate and verify
-  onProgress?.({ stage: "Verifying integrity...", percent: 92, chunksDone: meta.chunk_count, chunksTotal: meta.chunk_count });
+  onProgress?.({ stage: "Verifying integrity...", percent: 93, chunksDone: meta.chunk_count, chunksTotal: meta.chunk_count });
 
   const totalSize = decryptedChunks.reduce((sum, c) => sum + c.byteLength, 0);
   const fullFile = new Uint8Array(totalSize);
@@ -139,7 +139,7 @@ export async function downloadSharedFile(
   if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
 
   // Step 5: Trigger browser download
-  onProgress?.({ stage: "Saving file...", percent: 98, chunksDone: meta.chunk_count, chunksTotal: meta.chunk_count });
+  onProgress?.({ stage: "Saving file...", percent: 97, chunksDone: meta.chunk_count, chunksTotal: meta.chunk_count });
 
   const blob = new Blob([fullFile], { type: "application/octet-stream" });
   const url = URL.createObjectURL(blob);
