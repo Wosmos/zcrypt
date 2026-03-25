@@ -52,7 +52,7 @@ export async function downloadAsZip(
 
     onProgress?.({
       stage: `Downloading ${file.filename}`,
-      percent: Math.round((filesDone / totalFiles) * 90),
+      percent: Math.round((filesDone / totalFiles) * 88),
       currentFile: file.filename,
       filesDone,
       filesTotal: totalFiles,
@@ -134,7 +134,7 @@ export async function downloadAsZip(
   // Build ZIP
   onProgress?.({
     stage: "Building ZIP...",
-    percent: 92,
+    percent: 90,
     currentFile: "",
     filesDone: totalFiles,
     filesTotal: totalFiles,
@@ -149,7 +149,7 @@ export async function downloadAsZip(
   // Trigger download
   onProgress?.({
     stage: "Saving ZIP...",
-    percent: 98,
+    percent: 96,
     currentFile: "",
     filesDone: totalFiles,
     filesTotal: totalFiles,

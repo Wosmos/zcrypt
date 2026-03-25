@@ -8,7 +8,7 @@ import {
   Shield, Lock, Send, Copy, Check, Clock, Link2, File,
   AlertTriangle, CheckCircle2, Upload,
 } from "@/lib/icons";
-import { formatBytes } from "@/lib/utils";
+import { formatBytes, easeProgress } from "@/lib/utils";
 import { sendInit, sendChunkUpload, sendComplete } from "@/lib/api";
 import { QRShare } from "@/components/ui/qr-code";
 
@@ -56,10 +56,10 @@ export function SendTool() {
     try {
       const { generateSalt, deriveKeyBytes, encryptChunk, sha256File, sha256Hex, toBase64, CHUNK_SIZE: CS } = await import("@/lib/crypto");
 
-      setProgress({ stage: "Hashing file...", percent: 2 });
+      setProgress({ stage: "Hashing file...", percent: 1 });
       const fileHash = await sha256File(selectedFile);
 
-      setProgress({ stage: "Generating encryption key...", percent: 5 });
+      setProgress({ stage: "Generating encryption key...", percent: 2 });
       const randomKey = crypto.getRandomValues(new Uint8Array(32));
       const keyPassphrase = toBase64(randomKey);
       const salt = generateSalt();
@@ -67,7 +67,7 @@ export function SendTool() {
 
       const chunkCount = Math.ceil(selectedFile.size / CS);
 
-      setProgress({ stage: "Starting upload session...", percent: 8 });
+      setProgress({ stage: "Starting upload session...", percent: 3 });
       const session = await sendInit({
         filename: selectedFile.name,
         original_size: selectedFile.size,
@@ -87,11 +87,11 @@ export function SendTool() {
         const slice = selectedFile.slice(start, end);
         const plaintext = new Uint8Array(await slice.arrayBuffer());
 
-        setProgress({ stage: `Encrypting chunk ${i + 1}/${chunkCount}...`, percent: 10 + Math.round((i / chunkCount) * 40) });
+        setProgress({ stage: `Encrypting chunk ${i + 1}/${chunkCount}...`, percent: 3 + Math.round((i / chunkCount) * 42) });
         const encrypted = await encryptChunk(keyBytes, plaintext);
         const chunkHash = await sha256Hex(encrypted);
 
-        setProgress({ stage: `Uploading chunk ${i + 1}/${chunkCount}...`, percent: 50 + Math.round((i / chunkCount) * 40) });
+        setProgress({ stage: `Uploading chunk ${i + 1}/${chunkCount}...`, percent: 45 + Math.round((i / chunkCount) * 47) });
         await sendChunkUpload(session.session_id, i, encrypted, chunkHash, false);
       }
 
@@ -221,10 +221,10 @@ export function SendTool() {
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-[var(--color-text-muted)]">{progress.stage}</span>
-                <span className="font-medium tabular-nums">{progress.percent}%</span>
+                <span className="font-medium tabular-nums">{easeProgress(progress.percent)}%</span>
               </div>
               <div className="h-2 rounded-full bg-[var(--color-surface-1)] overflow-hidden">
-                <div className="h-full rounded-full bg-[var(--color-accent)] transition-all duration-300" style={{ width: `${progress.percent}%` }} />
+                <div className="h-full rounded-full bg-[var(--color-accent)] transition-all duration-500 ease-in-out" style={{ width: `${easeProgress(progress.percent)}%` }} />
               </div>
             </div>
           </div>

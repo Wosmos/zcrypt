@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -150,10 +151,11 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.db.InsertFileWithQuotaCheck(ctx, userID, fileMeta, effectiveQuota); err != nil {
-		if err == index.ErrQuotaExceeded {
+		if errors.Is(err, index.ErrQuotaExceeded) {
 			http.Error(w, `{"error":"storage quota exceeded"}`, http.StatusForbidden)
 			return
 		}
+		log.Printf("upload: create file record failed for user %s: %v", userID, err)
 		http.Error(w, `{"error":"create file record failed"}`, http.StatusInternalServerError)
 		return
 	}
