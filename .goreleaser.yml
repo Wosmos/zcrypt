@@ -1,0 +1,87 @@
+version: 2
+
+project_name: zcrypt
+
+before:
+  hooks:
+    - go -C app/tui mod download
+
+builds:
+  - id: zcrypt
+    dir: app/tui
+    main: .
+    binary: zcrypt
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: default
+    format: tar.gz
+    name_template: "zcrypt_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - LICENSE*
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+      - "^chore:"
+
+release:
+  github:
+    owner: Wosmos
+    name: zcrypt
+  draft: false
+  prerelease: auto
+  name_template: "v{{.Version}}"
+
+brews:
+  - name: zcrypt
+    repository:
+      owner: Wosmos
+      name: homebrew-zcrypt
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    commit_author:
+      name: zcrypt-bot
+      email: bot@zcrypt.cloud
+    directory: Formula
+    homepage: "https://zcrypt.cloud"
+    description: "Private cloud storage that costs less — terminal client"
+    license: "MIT"
+    install: |
+      bin.install "zcrypt"
+    test: |
+      system "#{bin}/zcrypt", "--version"
+
+scoops:
+  - name: zcrypt
+    repository:
+      owner: Wosmos
+      name: scoop-zcrypt
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    commit_author:
+      name: zcrypt-bot
+      email: bot@zcrypt.cloud
+    homepage: "https://zcrypt.cloud"
+    description: "Private cloud storage that costs less — terminal client"
+    license: "MIT"

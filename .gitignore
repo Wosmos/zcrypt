@@ -9,6 +9,10 @@ app/frontend/out/
 # Go
 app/backend/zcrypt-server
 app/backend/zcrypt-server.exe
+app/tui/zcrypt
+app/tui/zcrypt.exe
+app/tui/test-tui.exe
+app/tui/zstash-tui.exe
 
 # Build output
 dist/
