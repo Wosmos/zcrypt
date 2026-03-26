@@ -46,10 +46,10 @@ export function FileTable({ files, downloadStates, sortField, sortDir, onSort, o
   return (
     <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden">
       {/* Desktop table */}
-      <div className="hidden sm:block overflow-x-auto">
+      <div className="hidden sm:block overflow-x-auto max-h-[65vh]">
         <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-1)]/50">
+          <thead className="sticky top-0 z-10">
+            <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-1)]">
               {selectable && (
                 <th className="w-10 px-3 py-3">
                   <button onClick={onSelectAll} className="flex items-center justify-center">
@@ -188,7 +188,7 @@ export function FileTable({ files, downloadStates, sortField, sortDir, onSort, o
       </div>
 
       {/* Mobile: fall back to simple list */}
-      <div className="sm:hidden divide-y divide-[var(--color-border)]">
+      <div className="sm:hidden divide-y divide-[var(--color-border)] max-h-[65vh] overflow-y-auto">
         {files.map((file) => {
           const typeInfo = getFileTypeInfo(file.original_name);
           const Icon = iconMap[typeInfo.icon] || File;

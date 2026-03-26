@@ -25,7 +25,7 @@ import { useUploadStore } from "@/store/upload";
 import { useDownloadStore } from "@/store/download";
 import { usePassphraseStore } from "@/store/passphrase";
 import { useOperationStatus } from "@/hooks/useOperationStatus";
-import { deleteFile } from "@/lib/api";
+import { deleteFile, bulkDeleteFiles } from "@/lib/api";
 import { useQuota } from "@/hooks/useQuota";
 import { toast } from "@/store/toast";
 import {
@@ -146,9 +146,7 @@ export default function VaultPage() {
           : ("uploading" as const);
     updateStatus(target.id, status, event.percent, event.stage, event.bytes_processed, event.total_bytes);
     if (stageLower === "done") {
-      refresh();
-      refreshQuota();
-      toast.success(`${target.file.name} uploaded successfully`);
+      // No per-file toast or refresh — upload store handles batch summary + debounced refresh
       notify(`Upload complete`, { body: target.file.name, tag: "upload-done" });
       notifActions.uploadComplete(target.file.name);
     }
@@ -262,18 +260,19 @@ export default function VaultPage() {
   const executeDelete = useCallback(
     async () => {
       if (!deleteTarget) return;
-      setDeleting(true);
-      try {
-        await deleteFile(deleteTarget.id);
-        toast.success("File deleted");
-        setDeleteTarget(null);
+      // Optimistic: close modal and refresh immediately
+      const target = deleteTarget;
+      setDeleteTarget(null);
+      setDeleting(false);
+      toast.success("File deleted");
+      refresh();
+      refreshQuota();
+      // Fire-and-forget the actual delete
+      deleteFile(target.id).catch((err) => {
+        toast.error(err instanceof Error ? err.message : "Delete failed — refreshing");
         refresh();
         refreshQuota();
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Delete failed");
-      } finally {
-        setDeleting(false);
-      }
+      });
     },
     [deleteTarget, refresh, refreshQuota]
   );
@@ -305,22 +304,24 @@ export default function VaultPage() {
   const executeBulkDelete = useCallback(async () => {
     if (selectedIds.size === 0) return;
     setBulkDeleting(true);
-    let deleted = 0;
-    for (const id of selectedIds) {
-      try {
-        await deleteFile(id);
-        deleted++;
-      } catch {
-        // continue with next
+    try {
+      const ids = Array.from(selectedIds);
+      const result = await bulkDeleteFiles(ids);
+      if (result.failed > 0) {
+        toast.warning(`${result.deleted} deleted, ${result.failed} failed`);
+      } else {
+        toast.success(`Deleted ${result.deleted} file${result.deleted !== 1 ? "s" : ""}`);
       }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Bulk delete failed");
+    } finally {
+      setBulkDeleting(false);
+      setShowBulkDeleteConfirm(false);
+      setSelectedIds(new Set());
+      setSelectionMode(false);
+      refresh();
+      refreshQuota();
     }
-    setBulkDeleting(false);
-    setShowBulkDeleteConfirm(false);
-    toast.success(`Deleted ${deleted} file${deleted !== 1 ? "s" : ""}`);
-    setSelectedIds(new Set());
-    setSelectionMode(false);
-    refresh();
-    refreshQuota();
   }, [selectedIds, refresh, refreshQuota]);
 
   const startBulkZipDownload = useDownloadStore((s) => s.startBulkZipDownload);

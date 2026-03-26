@@ -300,10 +300,10 @@ export function UserTable({
         </div>
 
         {/* Desktop table — hidden on mobile */}
-        <div className="hidden lg:block overflow-x-auto">
+        <div className="hidden lg:block overflow-x-auto max-h-[65vh]">
           <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-[var(--color-border)] text-xs text-[var(--color-text-muted)] uppercase tracking-wider">
+            <thead className="sticky top-0 z-10">
+              <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface)] text-xs text-[var(--color-text-muted)] uppercase tracking-wider">
                 <th className="text-left px-5 py-3 font-medium">User</th>
                 <th className="text-left px-5 py-3 font-medium">Role</th>
                 <th className="text-left px-5 py-3 font-medium">Plan</th>
@@ -410,7 +410,7 @@ export function UserTable({
         </div>
 
         {/* Mobile card layout — visible below lg */}
-        <div className="lg:hidden divide-y divide-[var(--color-border)]">
+        <div className="lg:hidden divide-y divide-[var(--color-border)] max-h-[65vh] overflow-y-auto">
           {users.map((u) => {
             const isSelf = u.id === currentUserId;
             return (

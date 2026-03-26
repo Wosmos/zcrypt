@@ -29,7 +29,7 @@ export function TopBar() {
   return (
     <header className="sticky top-0 z-30 bg-[var(--color-bg)]/80 backdrop-blur-xl">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-12">
+        <div className="flex items-center justify-between py-4">
           <h1 className="text-base font-semibold tracking-tight truncate">
             {title}
           </h1>

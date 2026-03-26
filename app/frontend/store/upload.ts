@@ -3,8 +3,73 @@ import type { UploadItem, UploadStatus } from "@/types";
 import { toast } from "@/store/toast";
 import { WorkerPool } from "@/lib/worker-pool";
 import { generateSalt, deriveKeyBytes, sha256File, toBase64 } from "@/lib/crypto";
-import { initUpload, uploadChunk, completeUpload, presignChunk, directUploadToURL, confirmChunk } from "@/lib/upload-session";
+import { initUpload, uploadChunk, completeUpload, presignChunk, directUploadToURL, confirmChunk, cancelUpload } from "@/lib/upload-session";
 import { getDeviceProfile } from "@/lib/device-profile";
+
+// --- Debounced refresh to avoid hammering the API ---
+let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+let pendingRefresh: (() => void) | null = null;
+
+function debouncedRefresh(fn?: () => void) {
+  if (fn) pendingRefresh = fn;
+  if (refreshTimer) clearTimeout(refreshTimer);
+  refreshTimer = setTimeout(() => {
+    pendingRefresh?.();
+    refreshTimer = null;
+  }, 1500);
+}
+
+// --- Background push notification progress ---
+// When user switches to another app/tab, show system notifications with upload progress.
+// Uses the same `tag` to replace the notification (not spam new ones).
+let bgNotifInterval: ReturnType<typeof setInterval> | null = null;
+
+function startBackgroundNotifications(getBatchState: () => { done: number; failed: number; total: number; percent: number }) {
+  stopBackgroundNotifications();
+  bgNotifInterval = setInterval(() => {
+    if (typeof window === "undefined" || !("Notification" in window)) return;
+    if (Notification.permission !== "granted") return;
+    // Only show when tab is hidden (user switched away)
+    if (!document.hidden) return;
+
+    const { done, failed, total, percent } = getBatchState();
+    const active = total - done - failed;
+    if (active <= 0) {
+      // All done — send final notification
+      const body = failed > 0
+        ? `${done} uploaded, ${failed} failed`
+        : `All ${done} files uploaded`;
+      new Notification("Upload complete", {
+        body,
+        icon: "/favicon.ico",
+        tag: "zcrypt-upload-progress",
+        silent: true,
+      });
+      stopBackgroundNotifications();
+      return;
+    }
+
+    // Progress bar made of block characters
+    const barLen = 20;
+    const filled = Math.round((percent / 100) * barLen);
+    const bar = "\u2593".repeat(filled) + "\u2591".repeat(barLen - filled);
+
+    new Notification(`Uploading ${done}/${total} files`, {
+      body: `${bar} ${percent}%`,
+      icon: "/favicon.ico",
+      tag: "zcrypt-upload-progress",
+      silent: true,
+      requireInteraction: false,
+    });
+  }, 3000);
+}
+
+function stopBackgroundNotifications() {
+  if (bgNotifInterval) {
+    clearInterval(bgNotifInterval);
+    bgNotifInterval = null;
+  }
+}
 
 // --- Throttled progress updates to prevent UI jank ---
 // Batches rapid updateStatus calls into a single Zustand set() per animation frame.
@@ -39,6 +104,7 @@ function scheduleFlush() {
 interface UploadStore {
   queue: UploadItem[];
   addToQueue: (file: File) => string;
+  addBatchToQueue: (files: File[]) => { file: File; id: string }[];
   setFileId: (id: string, fileId: string) => void;
   updateStatus: (id: string, status: UploadStatus, progress?: number, stage?: string, bytesProcessed?: number, totalBytes?: number) => void;
   setError: (id: string, error: string) => void;
@@ -62,6 +128,28 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
       ],
     }));
     return id;
+  },
+
+  addBatchToQueue: (files: File[]) => {
+    const now = Date.now();
+    const items = files.map((file) => ({
+      file,
+      id: `upload_${++counter}_${now}`,
+    }));
+    set((state) => ({
+      queue: [
+        ...state.queue,
+        ...items.map(({ id, file }) => ({
+          id,
+          file,
+          status: "queued" as const,
+          progress: 0,
+          stage: "Queued",
+          startedAt: now,
+        })),
+      ],
+    }));
+    return items;
   },
 
   setFileId: (id, fileId) => {
@@ -115,16 +203,13 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
   },
 
   startUpload: (files, passphrase, platform, maxConcurrent, onRefresh) => {
-    const { addToQueue, updateStatus, setFileId, setError } = get();
+    const { addBatchToQueue, updateStatus, setFileId, setError } = get();
     const profile = getDeviceProfile();
     const chunkSize = profile.chunkSize;
     const effectiveConcurrent = maxConcurrent ?? profile.maxConcurrentUploads;
 
-    // Add all files to queue immediately so UI shows them all
-    const items = files.map((file) => ({
-      file,
-      id: addToQueue(file),
-    }));
+    // Add all files to queue in a single state update (prevents 10k re-renders)
+    const items = addBatchToQueue(files);
 
     // File extensions that are already compressed — skip zstd to save CPU
     const COMPRESSED_EXTENSIONS = new Set([
@@ -135,9 +220,28 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
       "pdf", "docx", "xlsx", "pptx", "woff", "woff2",
     ]);
 
+    // Retry wrapper for rate-limited API calls
+    const withRetry = async <T,>(fn: () => Promise<T>, maxRetries = 5): Promise<T> => {
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          return await fn();
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          const isRateLimit = msg.includes("too many requests") || msg.includes("slow down");
+          if (isRateLimit && attempt < maxRetries) {
+            await new Promise((r) => setTimeout(r, 1000 * (attempt + 1) + Math.random() * 1000));
+            continue;
+          }
+          throw err;
+        }
+      }
+      throw new Error("Max retries exceeded");
+    };
+
     // Process a single file through the client-side crypto pipeline
     const processOne = async (file: File, id: string) => {
       const pool = new WorkerPool();
+      let sessionId: string | null = null;
 
       try {
         // Step 1: Hash original file
@@ -156,16 +260,33 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
         const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
         const shouldCompress = !COMPRESSED_EXTENSIONS.has(ext);
 
-        // Step 4: Init upload session on server
+        // Step 4: Init upload session on server (with retry for 429 "too many concurrent")
         updateStatus(id, "encrypting", 3, "Starting upload session...");
-        const session = await initUpload({
-          filename: file.name,
-          original_size: file.size,
-          sha256: fileSha256,
-          salt: toBase64(salt),
-          chunk_count: chunkCount,
-          platform,
-        });
+        let session: Awaited<ReturnType<typeof initUpload>> | null = null;
+        for (let attempt = 0; attempt < 60; attempt++) {
+          try {
+            session = await initUpload({
+              filename: file.name,
+              original_size: file.size,
+              sha256: fileSha256,
+              salt: toBase64(salt),
+              chunk_count: chunkCount,
+              platform,
+            });
+            break;
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            const isRetryable = msg.includes("too many concurrent") || msg.includes("too many requests") || msg.includes("slow down");
+            if (isRetryable && attempt < 59) {
+              updateStatus(id, "queued", 0, `Waiting for slot (${attempt + 1})...`);
+              await new Promise((r) => setTimeout(r, 2000 + Math.random() * 3000));
+              continue;
+            }
+            throw err;
+          }
+        }
+        if (!session) throw new Error("Failed to start upload session");
+        sessionId = session.session_id;
         setFileId(id, session.file_id);
 
         const useDirectUpload = session.direct_upload;
@@ -257,12 +378,12 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
 
               if (useDirectUpload) {
                 // DIRECT MODE: presign → upload to platform → confirm
-                const presign = await presignChunk(
-                  session.session_id,
+                const presign = await withRetry(() => presignChunk(
+                  session!.session_id,
                   result.chunkIndex,
                   result.sha256,
                   encrypted.byteLength
-                );
+                ));
 
                 if (!presign.already_exists) {
                   await directUploadToURL(
@@ -272,23 +393,23 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
                   );
                 }
 
-                await confirmChunk(
-                  session.session_id,
+                await withRetry(() => confirmChunk(
+                  session!.session_id,
                   result.chunkIndex,
                   result.sha256,
                   encrypted.byteLength,
                   presign.remote_path,
                   result.compressed
-                );
+                ));
               } else {
                 // RELAY MODE: upload to server (server relays to platform)
-                await uploadChunk(
-                  session.session_id,
+                await withRetry(() => uploadChunk(
+                  session!.session_id,
                   result.chunkIndex,
                   encrypted,
                   result.sha256,
                   result.compressed
-                );
+                ));
               }
 
               uploadedChunks++;
@@ -319,11 +440,11 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
 
         // Step 6: Complete upload
         updateStatus(id, "uploading", 97, "Finalizing...");
-        await completeUpload(session.session_id, totalEncryptedSize, totalCompressedSize);
+        await withRetry(() => completeUpload(session!.session_id, totalEncryptedSize, totalCompressedSize));
 
         updateStatus(id, "done", 100, "Done");
-        toast.success(`${file.name} uploaded`);
-        onRefresh?.();
+        // No per-file toast — batch summary shown when all finish
+        debouncedRefresh(onRefresh);
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Upload failed";
         // Translate backend errors to user-friendly messages
@@ -335,7 +456,10 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
               ? "Storage quota exceeded. Delete files or upgrade your plan."
               : msg;
         setError(id, friendlyMsg);
-        toast.error(friendlyMsg);
+        // Cancel the server-side session to free the concurrent slot
+        if (sessionId) {
+          cancelUpload(sessionId).catch(() => {});
+        }
       } finally {
         pool.terminate();
       }
@@ -362,7 +486,20 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
       }
     };
 
-    // Fire-and-forget: launch all uploads with concurrency control
+    // Start background push notifications for when user switches away
+    const batchIds = new Set(items.map((i) => i.id));
+    startBackgroundNotifications(() => {
+      const { queue } = get();
+      const batch = queue.filter((q) => batchIds.has(q.id));
+      const done = batch.filter((i) => i.status === "done").length;
+      const failed = batch.filter((i) => i.status === "failed").length;
+      const percent = batch.length > 0
+        ? Math.round(batch.reduce((sum, i) => sum + (i.status === "done" ? 100 : i.status === "failed" ? 100 : (i.progress || 0)), 0) / batch.length)
+        : 0;
+      return { done, failed, total: batch.length, percent };
+    });
+
+    // Launch all uploads with concurrency control, show summary when done
     void Promise.all(
       items.map(async ({ file, id }) => {
         await acquire();
@@ -372,6 +509,27 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
           release();
         }
       })
-    );
+    ).then(() => {
+      stopBackgroundNotifications();
+      // Batch complete — show a single summary toast
+      const { queue } = get();
+      const batchItems = queue.filter((q) => batchIds.has(q.id));
+      const doneCount = batchItems.filter((i) => i.status === "done").length;
+      const failedCount = batchItems.filter((i) => i.status === "failed").length;
+      const total = batchItems.length;
+
+      if (total === 1) {
+        if (doneCount === 1) toast.success(`${items[0].file.name} uploaded`);
+        else if (failedCount === 1) toast.error(`${items[0].file.name} failed`);
+      } else if (failedCount === 0) {
+        toast.success(`All ${doneCount} files uploaded`);
+      } else if (doneCount === 0) {
+        toast.error(`All ${failedCount} files failed to upload`);
+      } else {
+        toast.warning(`${doneCount} uploaded, ${failedCount} failed`);
+      }
+
+      onRefresh?.();
+    });
   },
 }));

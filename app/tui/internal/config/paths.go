@@ -17,7 +17,7 @@ func ConfigDir() string {
 
 // ConfigPath returns the default config file path.
 func ConfigPath() string {
-	return filepath.Join(ConfigDir(), "config.json")
+	return filepath.Join(ConfigDir(), "tui.json")
 }
 
 // CacheDir returns the cache directory for temporary data.

@@ -103,7 +103,7 @@ func main() {
 	mux := http.NewServeMux()
 
 	// Rate limit with SSE exemption, then CORS, then request logging
-	rateLimited := cmd.RateLimitMiddleware(50, time.Second, mux)
+	rateLimited := cmd.RateLimitMiddleware(200, time.Second, mux)
 	handler := requestLogger(corsMiddleware(exemptLongLived(rateLimited, mux)))
 
 	// maxJSON wraps a handler with a 1MB request body limit for JSON endpoints.
@@ -140,6 +140,7 @@ func main() {
 	// Protected data routes (all require auth)
 	mux.HandleFunc("GET /api/files", server.AuthMiddleware(server.HandleListFiles))
 	mux.HandleFunc("DELETE /api/files/{id}", server.AuthMiddleware(server.HandleDeleteFile))
+	mux.HandleFunc("POST /api/files/bulk-delete", maxJSON(server.AuthMiddleware(server.HandleBulkDeleteFiles)))
 	mux.HandleFunc("GET /api/platforms/status", server.AuthMiddleware(server.HandlePlatformStatus))
 	mux.HandleFunc("POST /api/platforms/connect", maxJSON(server.AuthMiddleware(server.HandleConnectPlatform)))
 	mux.HandleFunc("DELETE /api/platforms/disconnect", maxJSON(server.AuthMiddleware(server.HandleDisconnectPlatform)))
