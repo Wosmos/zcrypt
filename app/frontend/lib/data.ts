@@ -87,6 +87,7 @@ export const marqueeItems = [
   "Multi-platform support",
   "Smart compression",
   "GDPR compliant",
+  "Terminal app available",
 ] as const;
 
 // ─── Bento Grid Features ─────────────────────────────────────
@@ -375,7 +376,11 @@ export const faqs: FAQ[] = [
   },
   {
     q: "Can I access my files across multiple devices?",
-    a: "Yes. Log into zcrypt from any modern browser, enter your passphrase, and access your encrypted files. Everything is decrypted locally in your browser.",
+    a: "Yes. Log into zcrypt from any modern browser or the terminal app (TUI), enter your passphrase, and access your encrypted files. Everything is decrypted locally on your device.",
+  },
+  {
+    q: "Is there a command-line or terminal app?",
+    a: "Yes. The zcrypt TUI is a full terminal interface built with Go. Upload, download, search, and manage your vault with vim-style keys and real-time progress. Install it with: go install github.com/zcrypt/zcrypt-tui@latest",
   },
   {
     q: "What happens if I forget my passphrase?",
@@ -389,7 +394,7 @@ export const roadmapItems: RoadmapItem[] = [
   {
     icon: "Terminal",
     title: "Terminal App",
-    desc: "Upload, download, and manage your vault from the terminal. Full TUI experience.",
+    desc: "Full terminal interface with vim-style navigation, real-time progress, command mode, and four performance profiles. Built with Go.",
     badge: "Available now",
   },
   {
@@ -432,46 +437,186 @@ export const tuiFeatures: TUIFeature[] = [
   {
     icon: "Upload",
     title: "Upload & Download",
-    desc: "Encrypt and upload files with real-time progress. Download and decrypt in one step.",
+    desc: "Encrypt and upload files with real-time progress tracking — chunks, bytes, speed. Download and decrypt in one step.",
   },
   {
     icon: "Search",
-    title: "Browse Your Vault",
-    desc: "Navigate your encrypted files with vim-style keys. Search, filter, and bulk-select.",
+    title: "Vim-Style File Browser",
+    desc: "Search with /, bulk-select with space, jump with g/G, and run commands with :. Feels like home.",
   },
   {
     icon: "HardDrive",
-    title: "Multi-Platform",
-    desc: "Connected to all your storage backends — GitHub, GitLab, Hugging Face.",
+    title: "Multi-Platform Storage",
+    desc: "See connection status for GitHub, GitLab, and Hugging Face right from settings. Your backends, at a glance.",
   },
   {
     icon: "Lock",
-    title: "Encrypted Pipeline",
-    desc: "Same military-grade encryption as the web app. Compress, encrypt, chunk — all local.",
+    title: "Full Encryption Pipeline",
+    desc: "Same zero-knowledge pipeline as the web app — compress with zstd, encrypt with AES-256-GCM, chunk, and upload. All on your machine.",
   },
   {
-    icon: "Settings",
+    icon: "Gauge",
     title: "Performance Profiles",
-    desc: "Choose from light to ludicrous. Tune workers, chunk size, and compression level.",
+    desc: "Four tunable profiles from Light (2 workers, 4 MB chunks) to Ludicrous (all CPU cores, 32 MB chunks). Pick your speed.",
   },
   {
     icon: "Shield",
-    title: "2FA Support",
-    desc: "Full two-factor authentication built in. Your account stays secure everywhere.",
+    title: "2FA Built In",
+    desc: "Full TOTP two-factor authentication. Secure your account with any authenticator app, right from the terminal.",
+  },
+  {
+    icon: "Terminal",
+    title: "Command Mode",
+    desc: "Press : for vim-style commands — upload, download, delete, search, select-all, and more. Power at your fingertips.",
+  },
+  {
+    icon: "Cpu",
+    title: "Single Binary, Zero Dependencies",
+    desc: "One ~8 MB binary. No runtime, no browser, no Electron. Runs on any machine with a terminal — including headless servers over SSH.",
+  },
+];
+
+export interface TUIShortcut {
+  keys: string;
+  action: string;
+}
+
+export const tuiShortcuts: TUIShortcut[] = [
+  { keys: "Arrow keys", action: "Navigate up / down" },
+  { keys: "g / G", action: "Jump to top / bottom" },
+  { keys: "space", action: "Toggle file selection" },
+  { keys: "Shift+J/K", action: "Range select" },
+  { keys: "Ctrl+a", action: "Select / deselect all" },
+  { keys: "u", action: "Upload a file" },
+  { keys: "d / Enter", action: "Download selected" },
+  { keys: "x / Delete", action: "Delete selected" },
+  { keys: "/", action: "Search files" },
+  { keys: ":", action: "Command mode" },
+  { keys: "r", action: "Refresh vault" },
+  { keys: "s", action: "Open settings" },
+];
+
+export interface TUICommand {
+  cmd: string;
+  desc: string;
+}
+
+export const tuiCommands: TUICommand[] = [
+  { cmd: ":upload [path]", desc: "Upload a file (optionally pre-fill path)" },
+  { cmd: ":dl", desc: "Download the selected file" },
+  { cmd: ":rm", desc: "Delete selected files" },
+  { cmd: ":search [term]", desc: "Filter files by name" },
+  { cmd: ":select-all", desc: "Select all visible files" },
+  { cmd: ":clear", desc: "Clear search and deselect" },
+  { cmd: ":settings", desc: "Open settings screen" },
+  { cmd: ":logout", desc: "Sign out and return to login" },
+  { cmd: ":help", desc: "Show available commands" },
+];
+
+export interface TUIProfile {
+  name: string;
+  workers: string;
+  chunkSize: string;
+  compression: string;
+  desc: string;
+}
+
+export const tuiProfiles: TUIProfile[] = [
+  {
+    name: "Light",
+    workers: "2",
+    chunkSize: "4 MB",
+    compression: "Level 1",
+    desc: "Low resource usage. Great for background tasks or constrained machines.",
+  },
+  {
+    name: "Normal",
+    workers: "4",
+    chunkSize: "10 MB",
+    compression: "Level 2",
+    desc: "Balanced speed and resource usage. The default for most users.",
+  },
+  {
+    name: "Intense",
+    workers: "8",
+    chunkSize: "16 MB",
+    compression: "Level 3",
+    desc: "Fast uploads on powerful machines. Uses more CPU and memory.",
+  },
+  {
+    name: "Ludicrous",
+    workers: "All cores",
+    chunkSize: "32 MB",
+    compression: "Level 3",
+    desc: "Maximum throughput. Uses every CPU core. For when speed is everything.",
   },
 ];
 
 export const tuiInstallMethods = [
   {
-    label: "Go Install",
-    command: "go install github.com/zcrypt/zcrypt-tui@latest",
+    label: "Homebrew",
+    command: "brew tap Wosmos/zcrypt && brew install zcrypt",
+    note: "macOS / Linux",
   },
   {
-    label: "Build from source",
+    label: "npm / bun / yarn / pnpm",
+    command: "npm i -g @zcrypt/cli",
+    note: "All platforms",
+  },
+  {
+    label: "Scoop",
+    command: "scoop bucket add zcrypt https://github.com/Wosmos/scoop-zcrypt && scoop install zcrypt",
+    note: "Windows",
+  },
+  {
+    label: "Shell Script",
+    command: "curl -fsSL https://zcrypt.cloud/install.sh | sh",
+    note: "macOS / Linux",
+  },
+  {
+    label: "Direct Download",
+    command: "https://github.com/Wosmos/zcrypt/releases/latest",
+    note: "All platforms — prebuilt binaries",
+  },
+  {
+    label: "Build from Source",
     command:
-      "git clone https://github.com/zcrypt/zcrypt-tui && cd zcrypt-tui && go build -o zcrypt .",
+      "git clone https://github.com/Wosmos/zcrypt.git && cd zcrypt/app/tui && go build -o zcrypt .",
+    note: "Requires Go 1.25+",
   },
 ] as const;
+
+export interface TUIQuickStep {
+  step: string;
+  title: string;
+  command?: string;
+  desc: string;
+}
+
+export const tuiQuickStart: TUIQuickStep[] = [
+  {
+    step: "01",
+    title: "Install",
+    command: "brew install Wosmos/zcrypt/zcrypt",
+    desc: "Install via Homebrew, npm, Scoop, or download from GitHub Releases.",
+  },
+  {
+    step: "02",
+    title: "Launch",
+    command: "zcrypt",
+    desc: "Open the TUI. Log in or create an account.",
+  },
+  {
+    step: "03",
+    title: "Upload",
+    desc: "Press u, enter a file path and passphrase. Watch real-time progress as your file is compressed, encrypted, and uploaded.",
+  },
+  {
+    step: "04",
+    title: "Download",
+    desc: "Select a file and press d. Enter your passphrase. The file is downloaded, decrypted, and saved locally.",
+  },
+];
 
 // ─── Docs Page Data ─────────────────────────────────────────
 
