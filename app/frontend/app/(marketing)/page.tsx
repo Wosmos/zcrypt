@@ -149,6 +149,73 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ═══ TUI SHOWCASE ═══ */}
+      <section className="py-24 px-4">
+        <div className="mx-auto max-w-4xl">
+          <ScrollReveal className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-cyan-500/20 bg-cyan-500/5 text-xs font-medium text-cyan-600 dark:text-cyan-400 mb-4">
+              <Terminal className="h-3.5 w-3.5" />
+              Terminal App
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
+              Prefer the command line?
+            </h2>
+            <p className="text-[var(--color-text-secondary)] mt-3 max-w-lg mx-auto">
+              A full terminal interface with vim-style navigation, real-time progress, and the same zero-knowledge encryption. Single binary, zero dependencies.
+            </p>
+          </ScrollReveal>
+
+          <ScrollReveal delay={0.1}>
+            <div className="relative group max-w-2xl mx-auto">
+              <div className="absolute -inset-3 bg-gradient-to-b from-cyan-500/10 via-blue-500/5 to-transparent rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+              <div className="relative rounded-xl border border-[var(--color-border)] bg-[#09090b] overflow-hidden shadow-2xl shadow-black/30">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 bg-white/[0.02]">
+                  <div className="flex items-center gap-3">
+                    <div className="flex gap-1.5">
+                      <div className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
+                      <div className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
+                      <div className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
+                    </div>
+                    <span className="text-[10px] text-white/30 font-mono">zcrypt</span>
+                  </div>
+                </div>
+                <div className="p-4 font-mono text-xs leading-relaxed text-white/70">
+                  <pre className="whitespace-pre overflow-x-auto">{`  zcrypt vault                  14 files   3.2 GB / 10 GB
+  ───────────────────────────────────────────────────────
+   quarterly-report.pdf         12.4 MB   doc       2
+   vacation-photos.zip         847.2 MB   archive  85
+ > project-backup.tar.gz        2.1 GB   archive 210
+   tax-documents-2025.pdf        4.8 MB   doc       1`}</pre>
+                  <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-white/30">
+                    <span><span className="text-cyan-400/50">j/k</span> navigate</span>
+                    <span><span className="text-cyan-400/50">u</span> upload</span>
+                    <span><span className="text-cyan-400/50">d</span> download</span>
+                    <span><span className="text-cyan-400/50">/</span> search</span>
+                    <span><span className="text-cyan-400/50">:</span> command</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </ScrollReveal>
+
+          <ScrollReveal delay={0.2}>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-8">
+              <Link
+                href="/tui"
+                className="group inline-flex items-center gap-2 rounded-xl bg-cyan-500/10 border border-cyan-500/20 px-6 py-3 text-sm font-semibold text-cyan-600 dark:text-cyan-400 hover:bg-cyan-500/15 transition-colors"
+              >
+                <Terminal className="h-4 w-4" />
+                Learn more about the TUI
+                <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
+              </Link>
+              <span className="text-xs text-[var(--color-text-muted)]">
+                go install github.com/zcrypt/zcrypt-tui@latest
+              </span>
+            </div>
+          </ScrollReveal>
+        </div>
+      </section>
+
       {/* ═══ PRICING ═══ */}
      <PricingSection />
 

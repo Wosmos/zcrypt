@@ -37,15 +37,20 @@ const nextConfig: NextConfig = {
     ];
   },
   async rewrites() {
+    const rules = [
+      {
+        source: "/install.sh",
+        destination:
+          "https://raw.githubusercontent.com/Wosmos/zcrypt/main/scripts/install.sh",
+      },
+    ];
     if (process.env.NODE_ENV === "development") {
-      return [
-        {
-          source: "/api/:path*",
-          destination: "http://localhost:8080/api/:path*",
-        },
-      ];
+      rules.push({
+        source: "/api/:path*",
+        destination: "http://localhost:8080/api/:path*",
+      });
     }
-    return [];
+    return rules;
   },
 };
 
