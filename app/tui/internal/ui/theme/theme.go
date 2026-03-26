@@ -124,31 +124,30 @@ var (
 			Foreground(ColorBorderDim)
 )
 
-// Logo returns the futuristic ASCII art logo.
+// Logo returns the zcrypt ASCII art logo matching the favicon —
+// two overlapping filled rounded rectangles with a bold "z" in the front plane.
 func Logo() string {
+	f := lipgloss.NewStyle().Foreground(ColorBrand).Bold(true) // front plane — cyan
+	d := lipgloss.NewStyle().Foreground(ColorBrandDim)         // back plane — dim teal
+	z := lipgloss.NewStyle().Foreground(ColorSurface).Bold(true)
+
+	// Solid filled planes using full-block characters (█ ▄ ▀)
+	// Back plane: dim teal (top-left), front plane: brand cyan (bottom-right, overlapping)
 	lines := []string{
-		"              ┌─┐         ┌┐  ",
-		"  ┌──┐┌──┐┌──┤ │┌──┐┌──┐ │├──┐",
-		"  │  ││  ─┤│  │ ││  │├──┘ ││  │",
-		"  └──┘└──┘└──┘└─┘├──┘└──┘o└┘└──┘",
-		"                 │  cloud  ",
+		d.Render("   ▄██████████▄"),
+		d.Render("   ████████████"),
+		d.Render("   ████████████") + f.Render("▄██████████▄"),
+		d.Render("   ████████") + f.Render("▄███████████████"),
+		d.Render("   ████████") + f.Render("████████████████"),
+		d.Render("   ████████") + f.Render("██████") + z.Render("z") + f.Render("█████████"),
+		d.Render("   ████████") + f.Render("████████████████"),
+		d.Render("   ▀████████") + f.Render("███████████████"),
+		"            " + f.Render("████████████████"),
+		"            " + f.Render("████████████████"),
+		"            " + f.Render(" ▀██████████▀"),
 	}
 
-	var rendered strings.Builder
-	brandStyle := lipgloss.NewStyle().Foreground(ColorBrand).Bold(true)
-	dimStyle := lipgloss.NewStyle().Foreground(ColorBrandDim)
-
-	for i, line := range lines {
-		if i < 2 {
-			rendered.WriteString(dimStyle.Render(line))
-		} else {
-			rendered.WriteString(brandStyle.Render(line))
-		}
-		if i < len(lines)-1 {
-			rendered.WriteString("\n")
-		}
-	}
-	return rendered.String()
+	return strings.Join(lines, "\n")
 }
 
 // BrandLine returns a compact one-line branding string.

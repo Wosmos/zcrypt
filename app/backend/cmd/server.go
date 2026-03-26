@@ -67,7 +67,7 @@ func NewServer(db *index.DB, cfg *config.Config, progress *pipeline.ProgressEmit
 		poolCache:          make(map[string]map[string]*reppool.Manager),
 		authLimiter:        newRateLimiter(5, 5*time.Minute),
 		emailLimiter:       newRateLimiter(3, 15*time.Minute),
-		userLimiter:        newRateLimiter(100, time.Minute),
+		userLimiter:        newRateLimiter(600, time.Minute),
 		shareLimiter:       newRateLimiter(30, time.Minute),
 		sendLimiter:        newRateLimiter(5, time.Hour),
 		padLimiter:         newRateLimiter(10, time.Hour),

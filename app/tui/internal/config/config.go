@@ -24,7 +24,7 @@ type Config struct {
 func Load(path string) (*Config, error) {
 	cfg := &Config{
 		path:      path,
-		ServerURL: "https://api.zcrypt.io",
+		ServerURL: "http://localhost:8080",
 		Profile:   "normal",
 	}
 

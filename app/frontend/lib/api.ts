@@ -154,6 +154,14 @@ export function deleteFile(id: string): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/files/${id}`, { method: "DELETE" });
 }
 
+export function bulkDeleteFiles(ids: string[]): Promise<{ deleted: number; failed: number }> {
+  return request<{ deleted: number; failed: number }>("/api/files/bulk-delete", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids }),
+  });
+}
+
 export function getPlatformStatus(): Promise<PlatformStatus[]> {
   return request<PlatformStatus[]>("/api/platforms/status");
 }

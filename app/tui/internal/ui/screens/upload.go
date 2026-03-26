@@ -29,15 +29,16 @@ type UploadProgressMsg struct {
 type uploadState int
 
 const (
-	uploadStateFilePath uploadState = iota
+	uploadStateBrowse uploadState = iota
 	uploadStatePassphrase
 	uploadStateUploading
 	uploadStateDone
 )
 
 type UploadModel struct {
-	filePath   components.StyledInput
+	picker     components.FilePicker
 	passphrase components.StyledInput
+	filePath   string // selected file path
 	state      uploadState
 	progress   pipeline.UploadProgress
 	bar        components.ProgressBar
@@ -52,23 +53,21 @@ type UploadModel struct {
 }
 
 func NewUploadModel(client *api.Client, profile pipeline.Profile) UploadModel {
-	fp := components.NewStyledInput("File Path", "/path/to/your/file", false)
 	pp := components.NewStyledInput("Passphrase", "encryption passphrase", true)
-	fp.SetFocused(true)
 
 	return UploadModel{
-		filePath:   fp,
+		picker:     components.NewFilePicker(""),
 		passphrase: pp,
 		bar:        components.NewProgressBar("Upload Progress"),
 		spinner:    components.NewFunSpinner(),
-		state:      uploadStateFilePath,
+		state:      uploadStateBrowse,
 		client:     client,
 		profile:    profile,
 	}
 }
 
 func (m UploadModel) Init() tea.Cmd {
-	return textinput.Blink
+	return nil
 }
 
 func (m UploadModel) Update(msg tea.Msg) (UploadModel, tea.Cmd) {
@@ -76,6 +75,13 @@ func (m UploadModel) Update(msg tea.Msg) (UploadModel, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		m.picker.SetHeight(m.height - 14)
+
+	case components.FilePickerMsg:
+		// File selected from browser
+		m.filePath = msg.Path
+		m.state = uploadStatePassphrase
+		return m, m.passphrase.Focus()
 
 	case UploadProgressMsg:
 		m.progress = msg.Progress
@@ -103,20 +109,23 @@ func (m UploadModel) Update(msg tea.Msg) (UploadModel, tea.Cmd) {
 		}
 
 		m.err = ""
-		switch msg.String() {
-		case "esc":
-			return m, func() tea.Msg { return SwitchScreenMsg{Screen: "dashboard"} }
-		case "enter":
-			switch m.state {
-			case uploadStateFilePath:
-				if m.filePath.Value() == "" {
-					m.err = "File path is required"
-					return m, nil
-				}
-				m.state = uploadStatePassphrase
-				m.filePath.Blur()
-				return m, m.passphrase.Focus()
-			case uploadStatePassphrase:
+		switch m.state {
+		case uploadStateBrowse:
+			if msg.String() == "esc" {
+				return m, func() tea.Msg { return SwitchScreenMsg{Screen: "dashboard"} }
+			}
+			// Delegate to file picker
+			cmd := m.picker.Update(msg)
+			return m, cmd
+
+		case uploadStatePassphrase:
+			switch msg.String() {
+			case "esc":
+				// Go back to file browser
+				m.state = uploadStateBrowse
+				m.passphrase.Blur()
+				return m, nil
+			case "enter":
 				if m.passphrase.Value() == "" {
 					m.err = "Passphrase is required"
 					return m, nil
@@ -124,12 +133,6 @@ func (m UploadModel) Update(msg tea.Msg) (UploadModel, tea.Cmd) {
 				m.state = uploadStateUploading
 				cmd := m.startUpload()
 				return m, cmd
-			}
-		case "tab":
-			if m.state == uploadStatePassphrase {
-				m.state = uploadStateFilePath
-				m.passphrase.Blur()
-				return m, m.filePath.Focus()
 			}
 		}
 	}
@@ -140,14 +143,14 @@ func (m UploadModel) Update(msg tea.Msg) (UploadModel, tea.Cmd) {
 		return m, cmd
 	}
 
-	var cmd tea.Cmd
-	switch m.state {
-	case uploadStateFilePath:
-		cmd = m.filePath.Update(msg)
-	case uploadStatePassphrase:
+	// Update passphrase input
+	if m.state == uploadStatePassphrase {
+		var cmd tea.Cmd
 		cmd = m.passphrase.Update(msg)
+		return m, cmd
 	}
-	return m, cmd
+
+	return m, nil
 }
 
 func (m UploadModel) View() string {
@@ -157,15 +160,12 @@ func (m UploadModel) View() string {
 	var body strings.Builder
 
 	switch m.state {
-	case uploadStateFilePath:
-		body.WriteString(m.filePath.View())
-		body.WriteString("\n\n")
-		body.WriteString("  " + lipgloss.NewStyle().Foreground(lipgloss.Color("#71717a")).
-			Render("Enter the full path to the file you want to encrypt and upload"))
+	case uploadStateBrowse:
+		body.WriteString(m.picker.View())
 
 	case uploadStatePassphrase:
 		body.WriteString("  " + lipgloss.NewStyle().Foreground(lipgloss.Color("#a1a1aa")).Render("File") +
-			"  " + lipgloss.NewStyle().Foreground(lipgloss.Color("#e4e4e7")).Render(m.filePath.Value()))
+			"  " + lipgloss.NewStyle().Foreground(lipgloss.Color("#e4e4e7")).Render(m.filePath))
 		body.WriteString("\n\n")
 		body.WriteString(m.passphrase.View())
 		body.WriteString("\n\n")
@@ -210,11 +210,18 @@ func (m UploadModel) View() string {
 
 	var footer string
 	switch m.state {
-	case uploadStateFilePath, uploadStatePassphrase:
+	case uploadStateBrowse:
 		footer = theme.HelpBar(
-			theme.KeyHelp("enter", "next"),
-			theme.KeyHelp("tab", "prev"),
+			theme.KeyHelp("j/k", "navigate"),
+			theme.KeyHelp("enter", "select"),
+			theme.KeyHelp("backspace", "parent"),
+			theme.KeyHelp("~", "home"),
 			theme.KeyHelp("esc", "cancel"),
+		)
+	case uploadStatePassphrase:
+		footer = theme.HelpBar(
+			theme.KeyHelp("enter", "upload"),
+			theme.KeyHelp("esc", "back"),
 		)
 	case uploadStateUploading:
 		footer = theme.HelpBar(theme.KeyHelp("esc", "cancel upload"))
@@ -280,7 +287,7 @@ func waitForUploadProgress(ch <-chan pipeline.UploadProgress) tea.Cmd {
 }
 
 func (m *UploadModel) startUpload() tea.Cmd {
-	filePath := m.filePath.Value()
+	filePath := m.filePath
 	passphrase := m.passphrase.Value()
 	client := m.client
 	profile := m.profile
@@ -311,25 +318,26 @@ func (m *UploadModel) startUpload() tea.Cmd {
 func (m *UploadModel) SetSize(w, h int) {
 	m.width = w
 	m.height = h
+	m.picker.SetHeight(h - 14)
 }
 
 func (m *UploadModel) Reset() {
-	m.filePath.SetValue("")
 	m.passphrase.SetValue("")
-	m.state = uploadStateFilePath
+	m.filePath = ""
+	m.state = uploadStateBrowse
 	m.err = ""
 	m.progress = pipeline.UploadProgress{}
 	m.progressCh = nil
+	m.picker = components.NewFilePicker("")
 }
 
 func (m *UploadModel) FocusFirst() tea.Cmd {
-	m.state = uploadStateFilePath
-	m.filePath.SetFocused(true)
+	m.state = uploadStateBrowse
 	m.passphrase.SetFocused(false)
 	return textinput.Blink
 }
 
 // SetFilePath pre-fills the file path (used by command bar).
 func (m *UploadModel) SetFilePath(path string) {
-	m.filePath.SetValue(path)
+	m.filePath = path
 }
