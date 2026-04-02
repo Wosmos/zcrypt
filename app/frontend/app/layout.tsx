@@ -9,6 +9,7 @@ import {
   OrganizationJsonLd,
   WebSiteJsonLd,
 } from "@/components/seo/json-ld";
+import { Analytics } from "@vercel/analytics/react";
 
 const satoshi = localFont({
   src: [
@@ -177,6 +178,7 @@ export default function RootLayout({
           <NavProgress />
           {children}
           <ToastContainer />
+          <Analytics />
         </ThemeProvider>
       </body>
     </html>

@@ -24,6 +24,7 @@ Thumbs.db
 # Env
 .env
 .env.local
+.env.prod
 .env.prodtest
 
 # IDE
