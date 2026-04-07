@@ -49,6 +49,10 @@ jobs:
         working-directory: app/frontend
         run: bunx tsc --noEmit
 
+      - name: Test
+        working-directory: app/frontend
+        run: bun run test
+
       - name: Build
         working-directory: app/frontend
         run: bun run build

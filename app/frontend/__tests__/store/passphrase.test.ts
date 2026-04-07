@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
-import { usePassphraseStore } from "./passphrase";
+import { usePassphraseStore } from "@/store/passphrase";
 
 describe("usePassphraseStore", () => {
   beforeEach(() => {

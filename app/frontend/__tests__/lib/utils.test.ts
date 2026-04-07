@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatBytes, formatEta, getFileTypeInfo, getFileIcon } from "./utils";
+import { formatBytes, formatEta, getFileTypeInfo, getFileIcon } from "@/lib/utils";
 
 describe("formatBytes", () => {
   it("returns 0 B for zero or negative", () => {
