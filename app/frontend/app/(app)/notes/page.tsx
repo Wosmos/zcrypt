@@ -1,12 +1,16 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { listNotes, createNote, updateNote, deleteNote } from "@/lib/api";
 import type { Note } from "@/types";
 import { Button } from "@/components/ui/button";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { cn } from "@/lib/utils";
+import { deriveKeyBytes } from "@/lib/crypto";
+import { usePassphraseStore } from "@/store/passphrase";
+import { useAuthStore } from "@/store/auth";
+import { PassphraseModal } from "@/components/ui/passphrase-modal";
 import {
   FileText,
   Plus,
@@ -17,21 +21,26 @@ import {
   Search,
 } from "@/lib/icons";
 
-const NOTES_KEY_STORAGE = "zcrypt-notes-key";
+const LEGACY_KEY_STORAGE = "zcrypt-notes-key";
 
-async function getOrCreateKey(): Promise<CryptoKey> {
-  let raw = localStorage.getItem(NOTES_KEY_STORAGE);
-  if (!raw) {
-    const bytes = crypto.getRandomValues(new Uint8Array(32));
-    raw = btoa(String.fromCharCode(...bytes));
-    localStorage.setItem(NOTES_KEY_STORAGE, raw);
-  }
-  const keyBytes = Uint8Array.from(atob(raw), (c) => c.charCodeAt(0));
+async function deriveNotesKey(passphrase: string, userId: string): Promise<CryptoKey> {
+  const salt = new TextEncoder().encode("zcrypt-notes-" + userId);
+  const keyBytes = await deriveKeyBytes(passphrase, salt);
   return crypto.subtle.importKey("raw", keyBytes, "AES-GCM", false, ["encrypt", "decrypt"]);
 }
 
-async function encryptText(text: string): Promise<string> {
-  const key = await getOrCreateKey();
+async function getLegacyKey(): Promise<CryptoKey | null> {
+  const raw = localStorage.getItem(LEGACY_KEY_STORAGE);
+  if (!raw) return null;
+  try {
+    const keyBytes = Uint8Array.from(atob(raw), (c) => c.charCodeAt(0));
+    return crypto.subtle.importKey("raw", keyBytes, "AES-GCM", false, ["encrypt", "decrypt"]);
+  } catch {
+    return null;
+  }
+}
+
+async function encryptText(text: string, key: CryptoKey): Promise<string> {
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const enc = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(text));
   const combined = new Uint8Array(iv.length + new Uint8Array(enc).length);
@@ -40,16 +49,30 @@ async function encryptText(text: string): Promise<string> {
   return btoa(String.fromCharCode(...combined));
 }
 
-async function decryptText(b64: string): Promise<string> {
+async function decryptText(b64: string, key: CryptoKey): Promise<string> {
+  const data = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+  const iv = data.slice(0, 12);
+  const cipher = data.slice(12);
+  const dec = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, cipher);
+  return new TextDecoder().decode(dec);
+}
+
+async function decryptWithFallback(
+  b64: string,
+  primaryKey: CryptoKey,
+  legacyKey: CryptoKey | null,
+): Promise<{ text: string; usedLegacy: boolean }> {
   try {
-    const key = await getOrCreateKey();
-    const data = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-    const iv = data.slice(0, 12);
-    const cipher = data.slice(12);
-    const dec = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, cipher);
-    return new TextDecoder().decode(dec);
+    return { text: await decryptText(b64, primaryKey), usedLegacy: false };
   } catch {
-    return "[decryption failed]";
+    if (legacyKey) {
+      try {
+        return { text: await decryptText(b64, legacyKey), usedLegacy: true };
+      } catch {
+        // Both keys failed
+      }
+    }
+    return { text: "[decryption failed]", usedLegacy: false };
   }
 }
 
@@ -73,25 +96,75 @@ export default function NotesPage() {
   const [saving, setSaving] = useState(false);
   const [isNew, setIsNew] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showPassphraseModal, setShowPassphraseModal] = useState(false);
+  const [passphraseError, setPassphraseError] = useState<string | null>(null);
+
+  const notesKeyRef = useRef<CryptoKey | null>(null);
+  const user = useAuthStore((s) => s.user);
+  const { getPassphrase } = usePassphraseStore();
 
   // On mobile, track whether we're viewing the list or the editor
   const showEditor = isNew || !!selectedId;
 
-  const loadNotes = useCallback(async () => {
+  const loadNotes = useCallback(async (key?: CryptoKey) => {
+    const notesKey = key || notesKeyRef.current;
+    if (!notesKey) return;
+
     try {
       const raw = await listNotes();
+      const legacyKey = await getLegacyKey();
+      const needsMigrationIds: string[] = [];
+
       const decrypted = await Promise.all(
-        raw.map(async (n: Note) => ({
-          id: n.id,
-          title: n.encrypted_title ? await decryptText(n.encrypted_title) : "",
-          body: n.encrypted_body ? await decryptText(n.encrypted_body) : "",
-          tags: n.tags || [],
-          pinned: n.pinned,
-          created_at: n.created_at,
-          updated_at: n.updated_at,
-        }))
+        raw.map(async (n: Note) => {
+          let titleResult = { text: "", usedLegacy: false };
+          let bodyResult = { text: "", usedLegacy: false };
+
+          if (n.encrypted_title) {
+            titleResult = await decryptWithFallback(n.encrypted_title, notesKey, legacyKey);
+          }
+          if (n.encrypted_body) {
+            bodyResult = await decryptWithFallback(n.encrypted_body, notesKey, legacyKey);
+          }
+
+          if (titleResult.usedLegacy || bodyResult.usedLegacy) {
+            needsMigrationIds.push(n.id);
+          }
+
+          return {
+            id: n.id,
+            title: titleResult.text,
+            body: bodyResult.text,
+            tags: n.tags || [],
+            pinned: n.pinned,
+            created_at: n.created_at,
+            updated_at: n.updated_at,
+          };
+        })
       );
+
       setNotes(decrypted);
+
+      // Migrate legacy notes in background — re-encrypt with passphrase-derived key
+      if (needsMigrationIds.length > 0) {
+        for (const note of decrypted) {
+          if (!needsMigrationIds.includes(note.id)) continue;
+          if (note.title === "[decryption failed]" || note.body === "[decryption failed]") continue;
+          try {
+            const encTitle = await encryptText(note.title, notesKey);
+            const encBody = await encryptText(note.body, notesKey);
+            await updateNote(note.id, {
+              encrypted_title: encTitle,
+              encrypted_body: encBody,
+              content_size: new TextEncoder().encode(note.body).length,
+              tags: note.tags,
+            });
+          } catch {
+            // Will retry migration next load
+          }
+        }
+        localStorage.removeItem(LEGACY_KEY_STORAGE);
+      }
     } catch {
       // ignore
     } finally {
@@ -99,9 +172,34 @@ export default function NotesPage() {
     }
   }, []);
 
+  // Initialize: check for cached passphrase or prompt
   useEffect(() => {
-    loadNotes();
-  }, [loadNotes]);
+    if (!user) return;
+    const cached = getPassphrase();
+    if (cached) {
+      deriveNotesKey(cached, user.id).then((key) => {
+        notesKeyRef.current = key;
+        loadNotes(key);
+      });
+    } else {
+      setLoading(false);
+      setShowPassphraseModal(true);
+    }
+  }, [user, getPassphrase, loadNotes]);
+
+  const handlePassphraseConfirm = async (passphrase: string) => {
+    if (!user) return;
+    try {
+      const key = await deriveNotesKey(passphrase, user.id);
+      notesKeyRef.current = key;
+      setShowPassphraseModal(false);
+      setPassphraseError(null);
+      setLoading(true);
+      await loadNotes(key);
+    } catch {
+      setPassphraseError("Failed to derive encryption key");
+    }
+  };
 
   const selectNote = (note: DecryptedNote) => {
     setSelectedId(note.id);
@@ -125,10 +223,16 @@ export default function NotesPage() {
   };
 
   const handleSave = async () => {
+    const key = notesKeyRef.current;
+    if (!key) {
+      setShowPassphraseModal(true);
+      return;
+    }
+
     setSaving(true);
     try {
-      const encTitle = await encryptText(title);
-      const encBody = await encryptText(body);
+      const encTitle = await encryptText(title, key);
+      const encBody = await encryptText(body, key);
       const tagList = tags.split(",").map((t) => t.trim()).filter(Boolean);
 
       if (isNew) {
@@ -202,6 +306,16 @@ export default function NotesPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      <PassphraseModal
+        open={showPassphraseModal}
+        onConfirm={handlePassphraseConfirm}
+        onClose={() => setShowPassphraseModal(false)}
+        title="Unlock Notes"
+        subtitle="Enter your encryption passphrase to access notes"
+        confirmLabel="Unlock"
+        error={passphraseError}
+      />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2.5">
