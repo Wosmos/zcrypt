@@ -1,5 +1,9 @@
 import type { Metadata } from "next";
 
+export function generateStaticParams() {
+  return [];
+}
+
 export const metadata: Metadata = {
   title: "Shared File",
   robots: { index: false, follow: false },

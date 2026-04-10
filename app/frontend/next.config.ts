@@ -1,8 +1,12 @@
 import type { NextConfig } from "next";
 
+const isTauriExport = process.env.NEXT_OUTPUT_EXPORT === "1";
+
 const nextConfig: NextConfig = {
   reactCompiler: true,
   turbopack: {},
+  ...(isTauriExport && { output: "export", distDir: ".next-export" }),
+  // headers are ignored in static export mode but don't cause errors
   async headers() {
     return [
       {
@@ -36,22 +40,25 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  async rewrites() {
-    const rules = [
-      {
-        source: "/install.sh",
-        destination:
-          "https://raw.githubusercontent.com/Wosmos/zcrypt/main/scripts/install.sh",
-      },
-    ];
-    if (process.env.NODE_ENV === "development") {
-      rules.push({
-        source: "/api/:path*",
-        destination: "http://localhost:8080/api/:path*",
-      });
-    }
-    return rules;
-  },
+  // rewrites are incompatible with static export
+  ...(!isTauriExport && {
+    async rewrites() {
+      const rules = [
+        {
+          source: "/install.sh",
+          destination:
+            "https://raw.githubusercontent.com/Wosmos/zcrypt/main/scripts/install.sh",
+        },
+      ];
+      if (process.env.NODE_ENV === "development") {
+        rules.push({
+          source: "/api/:path*",
+          destination: "http://localhost:8080/api/:path*",
+        });
+      }
+      return rules;
+    },
+  }),
 };
 
 export default nextConfig;
