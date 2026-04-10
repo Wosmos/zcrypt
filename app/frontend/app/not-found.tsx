@@ -55,11 +55,10 @@ export default function NotFound() {
           </Link>
         </div>
 
-        {/* Decorative dots */}
-        <div className="flex items-center justify-center gap-1.5 mt-12">
-          <div className="h-1.5 w-1.5 rounded-full bg-[var(--color-accent)]" />
-          <div className="h-1.5 w-6 rounded-full bg-[var(--color-accent)]/30" />
-          <div className="h-1.5 w-1.5 rounded-full bg-[var(--color-accent)]/20" />
+        <div className="mt-12">
+          <p className="text-xs text-[var(--color-text-muted)]">
+            Need help? Contact <a href="mailto:[EMAIL_ADDRESS]" className="text-[var(--color-accent)] hover:underline">support</a>
+          </p>
         </div>
       </div>
     </div>
