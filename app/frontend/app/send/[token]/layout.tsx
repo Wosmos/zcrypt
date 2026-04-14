@@ -1,5 +1,9 @@
 import type { Metadata } from "next";
 
+export function generateStaticParams() {
+  return [];
+}
+
 export const metadata: Metadata = {
   title: "zcrypt Send — Encrypted File",
   robots: { index: false, follow: false },

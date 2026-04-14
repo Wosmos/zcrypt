@@ -7,8 +7,35 @@ on:
     branches: [main]
 
 jobs:
+  # ── Detect what changed ──
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      tui: ${{ steps.filter.outputs.tui }}
+      desktop: ${{ steps.filter.outputs.desktop }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'app/backend/**'
+            frontend:
+              - 'app/frontend/**'
+            tui:
+              - 'app/tui/**'
+            desktop:
+              - 'app/desktop/**'
+
+  # ── Backend: test + deploy to Railway ──
   backend:
     name: Go Backend
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -33,8 +60,27 @@ jobs:
         working-directory: app/backend
         run: go test ./...
 
+  backend-deploy:
+    name: Deploy Backend (Railway)
+    needs: [changes, backend]
+    if: needs.changes.outputs.backend == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy to Railway
+        run: railway up --service zcrypt-backend
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
+  # ── Frontend: test + deploy to Vercel ──
   frontend:
     name: Next.js Frontend
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -49,12 +95,47 @@ jobs:
         working-directory: app/frontend
         run: bunx tsc --noEmit
 
+      - name: Test
+        working-directory: app/frontend
+        run: bun run test
+
       - name: Build
         working-directory: app/frontend
         run: bun run build
 
+  frontend-deploy:
+    name: Deploy Frontend (Vercel)
+    needs: [changes, frontend]
+    if: needs.changes.outputs.frontend == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        working-directory: app/frontend
+        run: bun install --frozen-lockfile
+
+      - name: Build
+        working-directory: app/frontend
+        run: bun run build
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel
+
+      - name: Deploy to Vercel
+        working-directory: app/frontend
+        run: vercel --prod --token ${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+  # ── TUI: test + build ──
   tui:
     name: Go TUI
+    needs: changes
+    if: needs.changes.outputs.tui == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -79,35 +160,3 @@ jobs:
       - name: Test
         working-directory: app/tui
         run: go test ./...
-
-  deploy:
-    name: Deploy to Production
-    runs-on: ubuntu-latest
-    needs: [backend, frontend, tui]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: oven-sh/setup-bun@v2
-
-      - name: Install dependencies
-        working-directory: app/frontend
-        run: bun install --frozen-lockfile
-
-      - name: Type check
-        working-directory: app/frontend
-        run: bunx tsc --noEmit
-
-      - name: Build
-        working-directory: app/frontend
-        run: bun run build
-
-      - name: Install Vercel CLI
-        run: npm install -g vercel
-
-      - name: Deploy to Vercel
-        working-directory: app/frontend
-        run: vercel --prod --token ${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
