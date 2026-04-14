@@ -1,0 +1,50 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nicerapp/tauri/refs/heads/dev/packages/tauri-cli/schema.json",
+  "productName": "zcrypt",
+  "version": "0.1.0",
+  "identifier": "app.zcrypt.desktop",
+  "build": {
+    "beforeBuildCommand": "",
+    "beforeDevCommand": "",
+    "devUrl": "http://localhost:3000",
+    "frontendDist": "../frontend-dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "zcrypt",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 900,
+        "minHeight": 600,
+        "resizable": true,
+        "fullscreen": false,
+        "decorations": true,
+        "transparent": false
+      }
+    ],
+    "trayIcon": {
+      "iconPath": "icons/icon.png",
+      "iconAsTemplate": true,
+      "tooltip": "zcrypt"
+    },
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["app", "dmg"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.png"
+    ],
+    "macOS": {
+      "minimumSystemVersion": "10.15"
+    }
+  },
+  "plugins": {}
+}
