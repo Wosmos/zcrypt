@@ -54,6 +54,17 @@ type Server struct {
 
 	// WebSocket transfer hub for real-time device-to-device transfer
 	transferHub *transferHub
+
+	// Desktop OAuth: temporary token store for poll-based auth flow
+	desktopSessionsMu sync.Mutex
+	desktopSessions   map[string]*desktopOAuthResult
+}
+
+type desktopOAuthResult struct {
+	AccessToken  string    `json:"access_token"`
+	RefreshToken string    `json:"refresh_token"`
+	Error        string    `json:"error,omitempty"`
+	CreatedAt    time.Time `json:"-"`
 }
 
 // NewServer creates a new API server.
@@ -73,6 +84,7 @@ func NewServer(db *index.DB, cfg *config.Config, progress *pipeline.ProgressEmit
 		padLimiter:         newRateLimiter(10, time.Hour),
 		globalAdapterCache: make(map[string]adapters.PlatformAdapter),
 		transferHub:        newTransferHub(),
+		desktopSessions:    make(map[string]*desktopOAuthResult),
 	}
 }
 

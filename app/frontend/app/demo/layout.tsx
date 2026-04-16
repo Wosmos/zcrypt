@@ -11,6 +11,7 @@ import {
   Moon,
   Database,
 } from "@/lib/icons";
+import { DesktopRedirect } from "@/components/guards/desktop-redirect";
 
 const LINKS = [
   { href: "/demo", label: "Vault", icon: Shield },
@@ -28,7 +29,8 @@ export default function DemoLayout({
   const isDark = resolvedTheme === "dark";
 
   return (
-    <div className="flex h-dvh">
+    <DesktopRedirect>
+      <div className="flex h-dvh">
       {/* Simplified sidebar (no auth) */}
       <aside className="hidden md:flex h-screen w-[232px] flex-col border-r bg-[var(--color-sidebar)] border-[var(--color-sidebar-border)]">
         {/* Logo */}
@@ -115,6 +117,7 @@ export default function DemoLayout({
           {children}
         </div>
       </main>
-    </div>
+      </div>
+    </DesktopRedirect>
   );
 }

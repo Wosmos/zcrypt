@@ -1,16 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { login, requestMagicLink } from "@/lib/auth-api";
-import { OAuthButtons } from "@/components/auth/oauth-buttons";
+import { login, requestMagicLink, getMe } from "@/lib/auth-api";
+import { OAuthButtons, DESKTOP_OAUTH_SESSION_KEY } from "@/components/auth/oauth-buttons";
 import { useAuthStore } from "@/store/auth";
 import { toast } from "@/store/toast";
 import { Mail, Lock, ArrowRight, Wand2 } from "@/lib/icons";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
+import { isTauri } from "@/lib/tauri";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -21,6 +22,57 @@ export default function LoginPage() {
   const [mode, setMode] = useState<"password" | "magic">("password");
   const [magicLinkSent, setMagicLinkSent] = useState(false);
   const [magicLinkLoading, setMagicLinkLoading] = useState(false);
+
+  // Desktop OAuth: poll backend for tokens after user completes login in browser
+  useEffect(() => {
+    if (!isTauri) return;
+
+    let stopped = false;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
+    function startPolling() {
+      const session = sessionStorage.getItem(DESKTOP_OAUTH_SESSION_KEY);
+      if (!session) return;
+
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
+      intervalId = setInterval(async () => {
+        if (stopped) return;
+        try {
+          const res = await fetch(`${apiUrl}/api/auth/oauth/desktop-poll?session=${session}`);
+          if (res.status === 404) return; // still pending
+          if (!res.ok) return;
+
+          const data = await res.json();
+          sessionStorage.removeItem(DESKTOP_OAUTH_SESSION_KEY);
+          if (intervalId) clearInterval(intervalId);
+
+          if (data.error) {
+            toast.error(data.error);
+            return;
+          }
+          if (data.access_token && data.refresh_token) {
+            setTokens(data.access_token, data.refresh_token);
+            getMe(data.access_token)
+              .then((user) => { setUser(user); router.replace("/dashboard"); })
+              .catch(() => { router.replace("/dashboard"); });
+          }
+        } catch { /* network error, keep polling */ }
+      }, 2000);
+    }
+
+    // Start polling if there's already a pending session
+    startPolling();
+
+    // Also listen for new OAuth attempts
+    function onOAuthStart() { startPolling(); }
+    window.addEventListener("desktop-oauth-start", onOAuthStart);
+
+    return () => {
+      stopped = true;
+      if (intervalId) clearInterval(intervalId);
+      window.removeEventListener("desktop-oauth-start", onOAuthStart);
+    };
+  }, [setTokens, setUser, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

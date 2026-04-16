@@ -45,13 +45,23 @@ func (s *Server) HandleOAuthStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Generate cryptographic state
+	// Generate cryptographic state.
+	// If platform=desktop, encode as "desktop:<session>:<random>" so the callback
+	// can store tokens for the desktop app to poll.
 	stateBytes := make([]byte, 16)
 	if _, err := rand.Read(stateBytes); err != nil {
 		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
 		return
 	}
 	state := hex.EncodeToString(stateBytes)
+	if r.URL.Query().Get("platform") == "desktop" {
+		session := r.URL.Query().Get("session")
+		if session == "" {
+			http.Error(w, `{"error":"missing session"}`, http.StatusBadRequest)
+			return
+		}
+		state = "desktop:" + session + ":" + state
+	}
 
 	// Set state in cookie (HttpOnly, SameSite=Lax for OAuth redirect)
 	http.SetCookie(w, &http.Cookie{
@@ -81,25 +91,35 @@ func (s *Server) HandleOAuthStart(w http.ResponseWriter, r *http.Request) {
 func (s *Server) HandleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 	provider := r.PathValue("provider")
 	if provider != "google" && provider != "github" {
-		s.oauthError(w, r, "unsupported provider")
+		s.oauthError(w, r, "unsupported provider", false, "")
 		return
 	}
 
 	providerCfg := getOAuthProviderConfig(s.cfg, provider)
 	if providerCfg == nil {
-		s.oauthError(w, r, "provider not configured")
+		s.oauthError(w, r, "provider not configured", false, "")
 		return
 	}
 
 	// Verify state cookie
 	stateCookie, err := r.Cookie("oauth_state")
 	if err != nil || stateCookie.Value == "" {
-		s.oauthError(w, r, "missing state")
+		s.oauthError(w, r, "missing state", false, "")
 		return
 	}
 	if r.URL.Query().Get("state") != stateCookie.Value {
-		s.oauthError(w, r, "invalid state")
+		s.oauthError(w, r, "invalid state", false, "")
 		return
+	}
+
+	// Detect desktop platform and session from state prefix: "desktop:<session>:<random>"
+	isDesktop := strings.HasPrefix(stateCookie.Value, "desktop:")
+	var desktopSession string
+	if isDesktop {
+		parts := strings.SplitN(stateCookie.Value, ":", 3)
+		if len(parts) >= 2 {
+			desktopSession = parts[1]
+		}
 	}
 
 	// Clear state cookie
@@ -114,13 +134,13 @@ func (s *Server) HandleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 	// Check for provider error
 	if errStr := r.URL.Query().Get("error"); errStr != "" {
 		desc := r.URL.Query().Get("error_description")
-		s.oauthError(w, r, fmt.Sprintf("%s: %s", errStr, desc))
+		s.oauthError(w, r, fmt.Sprintf("%s: %s", errStr, desc), isDesktop, desktopSession)
 		return
 	}
 
 	code := r.URL.Query().Get("code")
 	if code == "" {
-		s.oauthError(w, r, "missing code")
+		s.oauthError(w, r, "missing code", isDesktop, desktopSession)
 		return
 	}
 
@@ -131,7 +151,7 @@ func (s *Server) HandleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 	accessToken, err := auth.ExchangeOAuthCode(ctx, provider, providerCfg.ClientID, providerCfg.ClientSecret, code, redirectURI)
 	if err != nil {
 		log.Printf("oauth: exchange code failed for %s: %v", provider, err)
-		s.oauthError(w, r, "authentication failed")
+		s.oauthError(w, r, "authentication failed", isDesktop, desktopSession)
 		return
 	}
 
@@ -139,7 +159,7 @@ func (s *Server) HandleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 	userInfo, err := auth.FetchOAuthUserInfo(ctx, provider, accessToken)
 	if err != nil {
 		log.Printf("oauth: fetch user info failed for %s: %v", provider, err)
-		s.oauthError(w, r, "failed to get user info")
+		s.oauthError(w, r, "failed to get user info", isDesktop, desktopSession)
 		return
 	}
 
@@ -151,11 +171,11 @@ func (s *Server) HandleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 		// Existing link — load user and issue tokens
 		user, err := s.db.GetUserByID(ctx, oauthProvider.UserID)
 		if err != nil {
-			s.oauthError(w, r, "user not found")
+			s.oauthError(w, r, "user not found", isDesktop, desktopSession)
 			return
 		}
 		s.audit(r, &user.ID, "oauth_login", map[string]interface{}{"provider": provider, "email": userInfo.Email})
-		s.oauthRedirect(w, r, user)
+		s.oauthRedirect(w, r, user, isDesktop, desktopSession)
 		return
 	}
 
@@ -171,7 +191,7 @@ func (s *Server) HandleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 			ProviderEmail: userInfo.Email,
 		})
 		s.audit(r, &existingUser.ID, "oauth_link", map[string]interface{}{"provider": provider, "email": userInfo.Email})
-		s.oauthRedirect(w, r, existingUser)
+		s.oauthRedirect(w, r, existingUser, isDesktop, desktopSession)
 		return
 	}
 
@@ -203,7 +223,7 @@ func (s *Server) HandleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 
 	if err := s.db.CreateUser(ctx, user); err != nil {
 		log.Printf("oauth: create user failed: %v", err)
-		s.oauthError(w, r, "failed to create account")
+		s.oauthError(w, r, "failed to create account", isDesktop, desktopSession)
 		return
 	}
 
@@ -216,7 +236,7 @@ func (s *Server) HandleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 	})
 
 	s.audit(r, &user.ID, "oauth_register", map[string]interface{}{"provider": provider, "email": userInfo.Email})
-	s.oauthRedirect(w, r, user)
+	s.oauthRedirect(w, r, user, isDesktop, desktopSession)
 }
 
 // HandleLinkedAccounts returns the current user's linked OAuth providers.
@@ -290,17 +310,17 @@ func (s *Server) oauthCallbackURL(r *http.Request, provider string) string {
 	return fmt.Sprintf("%s://%s/api/auth/oauth/%s/callback", scheme, host, provider)
 }
 
-// oauthRedirect generates tokens and redirects to the frontend with tokens in URL.
-func (s *Server) oauthRedirect(w http.ResponseWriter, r *http.Request, user *types.User) {
+// oauthRedirect generates tokens and either redirects (web) or stores for polling (desktop).
+func (s *Server) oauthRedirect(w http.ResponseWriter, r *http.Request, user *types.User, desktop bool, session string) {
 	jwtToken, err := auth.GenerateAccessToken(s.cfg.JWTSecret, user.ID, user.Email, user.Username, user.Role.String(), user.TokenVersion)
 	if err != nil {
-		s.oauthError(w, r, "internal error")
+		s.oauthError(w, r, "internal error", desktop, session)
 		return
 	}
 
 	refreshToken, err := auth.GenerateRandomToken()
 	if err != nil {
-		s.oauthError(w, r, "internal error")
+		s.oauthError(w, r, "internal error", desktop, session)
 		return
 	}
 
@@ -318,21 +338,77 @@ func (s *Server) oauthRedirect(w http.ResponseWriter, r *http.Request, user *typ
 		frontendURL = "http://localhost:3000"
 	}
 
-	// Use URL fragment (#) instead of query params (?) so tokens are NOT sent to the server
-	// in Referrer headers or logged in server access logs. Fragments are client-side only.
+	if desktop && session != "" {
+		// Store tokens for the desktop app to poll
+		s.desktopSessionsMu.Lock()
+		s.desktopSessions[session] = &desktopOAuthResult{
+			AccessToken:  jwtToken,
+			RefreshToken: refreshToken,
+			CreatedAt:    time.Now(),
+		}
+		s.desktopSessionsMu.Unlock()
+
+		// Show success page in browser
+		http.Redirect(w, r, fmt.Sprintf("%s/oauth/desktop-relay", frontendURL), http.StatusTemporaryRedirect)
+		return
+	}
+
+	// Web: Use URL fragment (#) so tokens are NOT sent in Referrer headers or server logs.
 	redirectURL := fmt.Sprintf("%s/oauth/callback#access_token=%s&refresh_token=%s",
 		frontendURL, jwtToken, refreshToken)
-
 	http.Redirect(w, r, redirectURL, http.StatusTemporaryRedirect)
 }
 
-// oauthError redirects to the frontend with an error message.
-func (s *Server) oauthError(w http.ResponseWriter, r *http.Request, errMsg string) {
+// oauthError redirects to the frontend with an error message (or stores error for desktop poll).
+func (s *Server) oauthError(w http.ResponseWriter, r *http.Request, errMsg string, desktop bool, session string) {
 	frontendURL := strings.TrimRight(s.cfg.FrontendURL, "/")
 	if frontendURL == "" {
 		frontendURL = "http://localhost:3000"
 	}
+
+	if desktop && session != "" {
+		s.desktopSessionsMu.Lock()
+		s.desktopSessions[session] = &desktopOAuthResult{
+			Error:     errMsg,
+			CreatedAt: time.Now(),
+		}
+		s.desktopSessionsMu.Unlock()
+		http.Redirect(w, r, fmt.Sprintf("%s/oauth/desktop-relay?error=%s", frontendURL, errMsg), http.StatusTemporaryRedirect)
+		return
+	}
+
 	http.Redirect(w, r, fmt.Sprintf("%s/oauth/callback?error=%s", frontendURL, errMsg), http.StatusTemporaryRedirect)
+}
+
+// HandleDesktopOAuthPoll returns stored OAuth tokens for a desktop session.
+// GET /api/auth/oauth/desktop-poll?session=<id>
+func (s *Server) HandleDesktopOAuthPoll(w http.ResponseWriter, r *http.Request) {
+	session := r.URL.Query().Get("session")
+	if session == "" {
+		http.Error(w, `{"error":"missing session"}`, http.StatusBadRequest)
+		return
+	}
+
+	s.desktopSessionsMu.Lock()
+	result, ok := s.desktopSessions[session]
+	if ok {
+		delete(s.desktopSessions, session)
+	}
+	// Clean up expired sessions (older than 5 minutes)
+	for k, v := range s.desktopSessions {
+		if time.Since(v.CreatedAt) > 5*time.Minute {
+			delete(s.desktopSessions, k)
+		}
+	}
+	s.desktopSessionsMu.Unlock()
+
+	if !ok {
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(`{"status":"pending"}`))
+		return
+	}
+
+	writeJSON(w, http.StatusOK, result)
 }
 
 // generateUsername creates a username from OAuth name/email.
