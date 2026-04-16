@@ -126,6 +126,7 @@ func main() {
 	// OAuth routes (public — redirect-based)
 	mux.HandleFunc("GET /api/auth/oauth/{provider}", server.HandleOAuthStart)
 	mux.HandleFunc("GET /api/auth/oauth/{provider}/callback", server.HandleOAuthCallback)
+	mux.HandleFunc("GET /api/auth/oauth/desktop-poll", server.HandleDesktopOAuthPoll)
 
 	// Protected auth routes
 	mux.HandleFunc("POST /api/auth/logout", maxJSON(server.AuthMiddleware(server.HandleLogout)))
