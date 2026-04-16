@@ -40,6 +40,61 @@ async fn download_file(
 }
 
 #[tauri::command]
+async fn local_upload(
+    app: tauri::AppHandle,
+    file_path: String,
+    passphrase: String,
+    profile: Option<String>,
+) -> Result<serde_json::Value, String> {
+    sidecar::call(
+        &app,
+        "local_upload",
+        serde_json::json!({
+            "file_path": file_path,
+            "passphrase": passphrase,
+            "profile": profile.unwrap_or_else(|| "normal".to_string()),
+        }),
+    )
+    .await
+}
+
+#[tauri::command]
+async fn start_sync(
+    app: tauri::AppHandle,
+    base_url: String,
+    token: String,
+) -> Result<serde_json::Value, String> {
+    sidecar::call(
+        &app,
+        "start_sync",
+        serde_json::json!({
+            "base_url": base_url,
+            "token": token,
+        }),
+    )
+    .await
+}
+
+#[tauri::command]
+async fn sync_status(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
+    sidecar::call(&app, "sync_status", serde_json::json!({})).await
+}
+
+/// Write file data to a temp file. Returns the path.
+#[tauri::command]
+async fn write_temp_file(name: String, data: Vec<u8>) -> Result<String, String> {
+    let tmp = std::env::temp_dir().join(format!("zcrypt-{}-{}", std::process::id(), name));
+    std::fs::write(&tmp, &data).map_err(|e| format!("write temp: {}", e))?;
+    Ok(tmp.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+async fn remove_temp_file(path: String) -> Result<(), String> {
+    let _ = std::fs::remove_file(&path);
+    Ok(())
+}
+
+#[tauri::command]
 async fn get_sidecar_status(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
     sidecar::call(&app, "status", serde_json::json!({})).await
 }
@@ -53,6 +108,11 @@ pub fn run() {
         .plugin(tauri_plugin_deep_link::init())
         .invoke_handler(tauri::generate_handler![
             upload_file,
+            local_upload,
+            start_sync,
+            sync_status,
+            write_temp_file,
+            remove_temp_file,
             download_file,
             get_sidecar_status,
         ])

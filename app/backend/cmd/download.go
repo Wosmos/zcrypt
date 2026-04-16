@@ -5,7 +5,11 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
+
+	"github.com/zcrypt/zcrypt/config"
 )
 
 // HandleGetFileMeta returns file metadata needed for client-side decryption.
@@ -74,19 +78,35 @@ func (s *Server) HandleGetChunk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Resolve adapter for this chunk's platform
-	adapter := s.resolveAdapterForUser(ctx, userID, chunk.Platform, chunk.Account)
-	if adapter == nil {
-		http.Error(w, `{"error":"platform adapter not available"}`, http.StatusInternalServerError)
-		return
-	}
+	var data []byte
 
-	// Download from platform
-	data, err := adapter.Download(ctx, *chunk)
-	if err != nil {
-		log.Printf("download: chunk download failed: %v", err)
-		http.Error(w, `{"error":"failed to download chunk"}`, http.StatusInternalServerError)
-		return
+	if chunk.RemotePath == "" {
+		// Chunk not yet synced to git platform — serve from staging dir
+		stagingDir, err := config.StagingDir()
+		if err != nil {
+			http.Error(w, `{"error":"staging not available"}`, http.StatusInternalServerError)
+			return
+		}
+		data, err = os.ReadFile(filepath.Join(stagingDir, chunk.ChunkID+".enc"))
+		if err != nil {
+			log.Printf("download: read staging file failed: %v", err)
+			http.Error(w, `{"error":"chunk data not available yet"}`, http.StatusInternalServerError)
+			return
+		}
+	} else {
+		// Chunk synced — download from git platform
+		adapter := s.resolveAdapterForUser(ctx, userID, chunk.Platform, chunk.Account)
+		if adapter == nil {
+			http.Error(w, `{"error":"platform adapter not available"}`, http.StatusInternalServerError)
+			return
+		}
+
+		data, err = adapter.Download(ctx, *chunk)
+		if err != nil {
+			log.Printf("download: chunk download failed: %v", err)
+			http.Error(w, `{"error":"failed to download chunk"}`, http.StatusInternalServerError)
+			return
+		}
 	}
 
 	// Set headers and stream raw encrypted bytes

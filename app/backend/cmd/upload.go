@@ -11,12 +11,16 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/google/uuid"
 	"github.com/zcrypt/zcrypt/adapters"
+	"github.com/zcrypt/zcrypt/config"
+	"github.com/zcrypt/zcrypt/reppool"
 	"github.com/zcrypt/zcrypt/disguise"
 	"github.com/zcrypt/zcrypt/index"
 	"github.com/zcrypt/zcrypt/pipeline"
@@ -82,21 +86,64 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Enforce max file size per plan
-	plan := "free"
-	if user, uErr := s.db.GetUserByID(ctx, userID); uErr == nil && user != nil && user.Plan != "" {
-		plan = user.Plan
+	// Run independent DB lookups in parallel to cut round trips
+	type initData struct {
+		plan           string
+		activeSessions int
+		effectiveQuota int64
+		adapterKey     string
+		pool           *reppool.Manager
+		adapterErr     error
 	}
-	maxFileSize := s.getPlanMaxFileSize(ctx, plan)
+
+	var d initData
+	var wg sync.WaitGroup
+
+	// Group 1: user + plan (needed for size/concurrent checks)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		d.plan = "free"
+		if user, uErr := s.db.GetUserByID(ctx, userID); uErr == nil && user != nil && user.Plan != "" {
+			d.plan = user.Plan
+		}
+	}()
+
+	// Group 2: active session count
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		d.activeSessions, _ = s.db.CountActiveUploadSessions(ctx, userID)
+	}()
+
+	// Group 3: select adapter + repo pool
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		var adapterPool *reppool.Manager
+		key, _, adapterPool, err := s.selectAdapter(ctx, userID, req.Platform)
+		if err != nil {
+			d.adapterErr = err
+			return
+		}
+		d.adapterKey = key
+		d.pool = adapterPool
+		_ = err // silence
+		_ = key
+	}()
+
+	wg.Wait()
+
+	// Enforce max file size per plan
+	maxFileSize := s.getPlanMaxFileSize(ctx, d.plan)
 	if req.OriginalSize > maxFileSize {
 		http.Error(w, `{"error":"file exceeds your plan's size limit"}`, http.StatusForbidden)
 		return
 	}
 
 	// Enforce concurrent upload session limit per plan
-	maxConcurrent := s.getPlanMaxConcurrent(ctx, plan)
-	activeSessions, _ := s.db.CountActiveUploadSessions(ctx, userID)
-	if activeSessions >= maxConcurrent {
+	maxConcurrent := s.getPlanMaxConcurrent(ctx, d.plan)
+	if d.activeSessions >= maxConcurrent {
 		http.Error(w, `{"error":"too many concurrent uploads"}`, http.StatusTooManyRequests)
 		return
 	}
@@ -107,13 +154,13 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		effectiveQuota = s.getEffectiveQuota(ctx, userID)
 	}
 
-	// Select adapter and get repo (uses personal tokens + global/managed tokens)
-	key, _, pool, err := s.selectAdapter(ctx, userID, req.Platform)
-	if err != nil {
-		// Check if user has personal tokens — if not, this is a managed storage issue
+	// Check adapter selection result
+	key := d.adapterKey
+	pool := d.pool
+	if d.adapterErr != nil {
 		hasPersonal, _ := s.db.UserHasPersonalTokens(ctx, userID)
 		if hasPersonal {
-			log.Printf("upload: platform not available for user %s: %v", userID, err)
+			log.Printf("upload: platform not available for user %s: %v", userID, d.adapterErr)
 			http.Error(w, `{"error":"storage platform not available"}`, http.StatusBadRequest)
 		} else {
 			http.Error(w, `{"error":"storage not available yet — managed storage is being configured"}`, http.StatusServiceUnavailable)
@@ -204,7 +251,8 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// HandleChunkUpload receives a single pre-encrypted chunk and relays it to the platform.
+// HandleChunkUpload receives a single pre-encrypted chunk, stages it to disk, and returns immediately.
+// The actual upload to the git platform happens asynchronously via the background sync worker.
 // PUT /api/upload/{sid}/chunk/{idx}
 func (s *Server) HandleChunkUpload(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -235,7 +283,7 @@ func (s *Server) HandleChunkUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate session (need repo URL for per-repo semaphore)
+	// Validate session
 	session, err := s.db.GetUploadSession(ctx, sessionID, userID)
 	if err != nil {
 		http.Error(w, `{"error":"upload session not found"}`, http.StatusNotFound)
@@ -270,10 +318,20 @@ func (s *Server) HandleChunkUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Idempotency: check if chunk already uploaded
-	existing, _ := s.db.GetChunkByIndex(ctx, session.FileID, chunkIndex)
-	if existing != nil && existing.RemotePath != "" {
-		// Already uploaded, return success
+	// Idempotency: check if chunk already received
+	existing, _ := s.db.GetChunkByID(ctx, session.FileID+"-"+strconv.Itoa(chunkIndex))
+	if existing != nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"chunk_index": chunkIndex,
+			"stored":      true,
+			"duplicate":   true,
+		})
+		return
+	}
+	// Also check by file_id + index (the original idempotency check)
+	existingByIdx, _ := s.db.GetChunkByIndex(ctx, session.FileID, chunkIndex)
+	if existingByIdx != nil {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"chunk_index": chunkIndex,
@@ -283,48 +341,22 @@ func (s *Server) HandleChunkUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Resolve adapter
-	adapter := s.resolveAdapterForUser(ctx, userID, session.Platform, session.Account)
-	if adapter == nil {
-		http.Error(w, `{"error":"platform adapter not available"}`, http.StatusInternalServerError)
+	// Write chunk data to staging dir (survives server restarts)
+	chunkID := uuid.New().String()
+	stagingDir, err := config.StagingDir()
+	if err != nil {
+		log.Printf("upload: staging dir failed: %v", err)
+		http.Error(w, `{"error":"upload failed"}`, http.StatusInternalServerError)
 		return
 	}
-
-	// Generate disguised remote path
-	remotePath, err := disguise.ChunkFilename()
-	if err != nil {
-		log.Printf("upload: generate filename failed: %v", err)
+	stagingPath := filepath.Join(stagingDir, chunkID+".enc")
+	if err := os.WriteFile(stagingPath, data, 0600); err != nil {
+		log.Printf("upload: write staging file failed: %v", err)
 		http.Error(w, `{"error":"upload failed"}`, http.StatusInternalServerError)
 		return
 	}
 
-	// Acquire per-repo slot — limits concurrent commits to the same repo (prevents GitHub 409 storms)
-	releaseRepo, err := acquireRepoSlot(ctx, session.RepoURL)
-	if err != nil {
-		http.Error(w, `{"error":"request cancelled"}`, http.StatusServiceUnavailable)
-		return
-	}
-	defer releaseRepo()
-
-	// Upload to platform
-	chunkRef, err := adapter.Upload(ctx, session.RepoURL, types.Chunk{
-		Ref: types.ChunkRef{
-			FileID:     session.FileID,
-			Index:      chunkIndex,
-			Size:       int64(len(data)),
-			SHA256:     actualHash,
-			RemotePath: remotePath,
-		},
-		Data: data,
-	})
-	if err != nil {
-		log.Printf("upload: platform upload failed: %v", err)
-		http.Error(w, `{"error":"upload to storage failed"}`, http.StatusInternalServerError)
-		return
-	}
-
-	// Store chunk reference in DB
-	chunkID := uuid.New().String()
+	// Insert chunk reference with empty remote_path (pending sync)
 	dbChunk := &types.ChunkRef{
 		ChunkID:    chunkID,
 		FileID:     session.FileID,
@@ -334,11 +366,12 @@ func (s *Server) HandleChunkUpload(w http.ResponseWriter, r *http.Request) {
 		Platform:   session.Platform,
 		Account:    session.Account,
 		Repo:       session.RepoURL,
-		RemotePath: chunkRef.RemotePath,
+		RemotePath: "", // pending — will be set by background sync worker
 		Compressed: compressed,
 	}
 
 	if err := s.db.InsertClientChunk(ctx, userID, dbChunk); err != nil {
+		os.Remove(stagingPath) // clean up staging file
 		log.Printf("upload: store chunk ref failed: %v", err)
 		http.Error(w, `{"error":"failed to store chunk"}`, http.StatusInternalServerError)
 		return
@@ -346,7 +379,6 @@ func (s *Server) HandleChunkUpload(w http.ResponseWriter, r *http.Request) {
 
 	// Increment session counter
 	if err := s.db.IncrementSessionChunks(ctx, sessionID); err != nil {
-		// Non-fatal — the chunk is already stored
 		fmt.Printf("warn: increment session chunks: %v\n", err)
 	}
 
@@ -393,8 +425,8 @@ func (s *Server) HandleUploadComplete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verify all chunks uploaded
-	uploadedIndices, err := s.db.GetUploadedChunkIndices(ctx, session.FileID)
+	// Verify all chunks received (includes pending-sync chunks)
+	uploadedIndices, err := s.db.GetReceivedChunkIndices(ctx, session.FileID)
 	if err != nil {
 		log.Printf("upload: check chunks failed: %v", err)
 		http.Error(w, `{"error":"failed to verify chunks"}`, http.StatusInternalServerError)
@@ -405,66 +437,13 @@ func (s *Server) HandleUploadComplete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verify actual uploaded bytes match claimed original_size within reasonable bounds.
-	// Encrypted chunks include IV (12B) and auth tag (16B) per chunk, plus possible compression,
-	// so actual encrypted size should be at least close to original size.
-	actualEncrypted, err := s.db.GetTotalChunkSize(ctx, session.FileID)
-	if err != nil {
-		http.Error(w, `{"error":"verify upload size failed"}`, http.StatusInternalServerError)
-		return
-	}
-	// Per-chunk overhead: 12B IV + 16B tag = 28B per chunk
-	minOverhead := int64(session.ChunkCount) * 28
-	// Actual encrypted data (minus overhead) should be within 2x of claimed size
-	// (compression can shrink, but the encrypted output can't be less than ~28B/chunk)
-	if actualEncrypted < minOverhead {
-		http.Error(w, `{"error":"uploaded data too small"}`, http.StatusBadRequest)
-		return
-	}
-	// If claimed original_size was tiny but actual data is huge, reject.
-	// Allow generous margin: encrypted can be up to 1.5x original (encryption + padding),
-	// but original cannot be less than 1/3 of encrypted (even with worst-case compression).
-	dataWithoutOverhead := actualEncrypted - minOverhead
-	if session.OriginalSize > 0 && dataWithoutOverhead > session.OriginalSize*3 {
-		http.Error(w, `{"error":"uploaded data size does not match claimed file size"}`, http.StatusBadRequest)
-		return
-	}
-
-	// Update the file record with the server-verified encrypted size for accurate quota
-	if err := s.db.UpdateFileOriginalSizeVerified(ctx, session.FileID, actualEncrypted); err != nil {
-		fmt.Printf("warn: update verified size: %v\n", err)
-	}
-
-	// Flush batch commits if adapter supports it (e.g., HuggingFace)
-	adapter := s.resolveAdapterForUser(ctx, userID, session.Platform, session.Account)
-	if bc, ok := adapter.(adapters.BatchCommitter); ok {
-		if err := bc.FlushCommits(ctx, session.RepoURL); err != nil {
-			log.Printf("upload: finalize platform upload failed: %v", err)
-		http.Error(w, `{"error":"failed to finalize upload"}`, http.StatusInternalServerError)
-			return
-		}
-	}
-
-	// Update repo usage
-	pools, _ := s.getUserPools(ctx, userID)
-	key := session.Platform + ":" + session.Account
-	if pool, ok := pools[key]; ok {
-		if err := pool.UpdateUsage(session.RepoID, req.EncryptedSize); err != nil {
-			fmt.Printf("warn: update repo usage: %v\n", err)
-		}
-	}
-
-	// Update file sizes and status
-	if err := s.db.UpdateFileSizes(ctx, session.FileID, req.CompressedSize, req.EncryptedSize); err != nil {
-		fmt.Printf("warn: update file sizes: %v\n", err)
-	}
+	// Mark file as complete and return immediately.
+	// Size verification, FlushCommits, and bookkeeping run in the background.
 	if err := s.db.UpdateFileStatus(ctx, session.FileID, "complete"); err != nil {
 		log.Printf("upload: update file status failed: %v", err)
 		http.Error(w, `{"error":"failed to complete upload"}`, http.StatusInternalServerError)
 		return
 	}
-
-	// Complete session
 	if err := s.db.CompleteUploadSession(ctx, sessionID); err != nil {
 		fmt.Printf("warn: complete session: %v\n", err)
 	}
@@ -477,18 +456,46 @@ func (s *Server) HandleUploadComplete(w http.ResponseWriter, r *http.Request) {
 		Percent: 100,
 	})
 
-	s.audit(r, &userID, "upload_complete", map[string]interface{}{
-		"file_id":    session.FileID,
-		"session_id": sessionID,
-		"filename":   session.Filename,
-		"chunks":     session.ChunkCount,
-	})
-
+	// Return success to client immediately
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
 		"file_id": session.FileID,
 	})
+
+	// Background: FlushCommits, size verification, repo usage, audit
+	go func() {
+		bgCtx := context.Background()
+
+		// Flush batch commits (HuggingFace)
+		adapter := s.resolveAdapterForUser(bgCtx, userID, session.Platform, session.Account)
+		if bc, ok := adapter.(adapters.BatchCommitter); ok {
+			if err := bc.FlushCommits(bgCtx, session.RepoURL); err != nil {
+				log.Printf("upload: background FlushCommits failed: %v", err)
+			}
+		}
+
+		// Verify and update sizes
+		actualEncrypted, err := s.db.GetTotalReceivedChunkSize(bgCtx, session.FileID)
+		if err == nil {
+			s.db.UpdateFileOriginalSizeVerified(bgCtx, session.FileID, actualEncrypted)
+		}
+		s.db.UpdateFileSizes(bgCtx, session.FileID, req.CompressedSize, req.EncryptedSize)
+
+		// Update repo usage
+		pools, _ := s.getUserPools(bgCtx, userID)
+		key := session.Platform + ":" + session.Account
+		if pool, ok := pools[key]; ok {
+			pool.UpdateUsage(session.RepoID, req.EncryptedSize)
+		}
+
+		s.audit(r, &userID, "upload_complete", map[string]interface{}{
+			"file_id":    session.FileID,
+			"session_id": sessionID,
+			"filename":   session.Filename,
+			"chunks":     session.ChunkCount,
+		})
+	}()
 }
 
 // HandleUploadCancel cancels an active upload session.

@@ -5,6 +5,7 @@ import { WorkerPool } from "@/lib/worker-pool";
 import { generateSalt, deriveKeyBytes, sha256File, toBase64 } from "@/lib/crypto";
 import { initUpload, uploadChunk, completeUpload, presignChunk, directUploadToURL, confirmChunk, cancelUpload } from "@/lib/upload-session";
 import { getDeviceProfile } from "@/lib/device-profile";
+import { isTauri, localUpload, tauriInvoke } from "@/lib/tauri";
 
 // --- Debounced refresh to avoid hammering the API ---
 let refreshTimer: ReturnType<typeof setTimeout> | null = null;
@@ -112,6 +113,7 @@ interface UploadStore {
   clearCompleted: () => void;
   findByFileId: (fileId: string) => UploadItem | undefined;
   startUpload: (files: File[], passphrase: string, platform?: string, maxConcurrent?: number, onRefresh?: () => void) => void;
+  startDesktopUpload: (passphrase: string, onRefresh?: () => void) => void;
 }
 
 let counter = 0;
@@ -240,6 +242,9 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
 
     // Process a single file through the client-side crypto pipeline
     const processOne = async (file: File, id: string) => {
+      // Desktop: handled by startDesktopUpload() — should not reach here.
+      // If it does, fall through to the web pipeline as a safe fallback.
+
       const pool = new WorkerPool();
       let sessionId: string | null = null;
 
@@ -531,5 +536,33 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
 
       onRefresh?.();
     });
+  },
+
+  // Desktop-only: opens native file picker, encrypts locally via sidecar.
+  // No browser File objects, no IPC data transfer — sidecar reads from disk path.
+  startDesktopUpload: async (passphrase, onRefresh) => {
+    const { addToQueue, updateStatus, setError } = get();
+
+    const { pickFiles: tauriPickFiles, localUpload: tauriLocalUpload } = await import("@/lib/tauri");
+    const paths = await tauriPickFiles({ multiple: true, title: "Select files to upload" });
+    if (!paths.length) return;
+
+    for (const filePath of paths) {
+      const fileName = filePath.split("/").pop() ?? filePath;
+      // Create a minimal File object for the queue UI
+      const dummyFile = new File([], fileName);
+      const id = addToQueue(dummyFile);
+
+      try {
+        updateStatus(id, "encrypting", 10, "Encrypting locally...");
+        await tauriLocalUpload(filePath, passphrase);
+        updateStatus(id, "done", 100, "Done");
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Upload failed";
+        setError(id, msg);
+      }
+    }
+
+    onRefresh?.();
   },
 }));

@@ -32,8 +32,8 @@ export async function pickFiles(
     title: options?.title ?? "Select files to upload",
   });
   if (!result) return [];
-  if (Array.isArray(result)) return result.map((r) => r.path);
-  return [result.path];
+  if (Array.isArray(result)) return result as string[];
+  return [result as string];
 }
 
 /** Open a native save dialog. Returns the selected path. */
@@ -45,7 +45,7 @@ export async function pickSaveLocation(
   return save({ defaultPath: defaultName });
 }
 
-/** Upload a file via the Go sidecar (desktop only). */
+/** Upload a file via the Go sidecar (desktop only, legacy remote path). */
 export async function sidecarUpload(
   filePath: string,
   passphrase: string,
@@ -55,6 +55,32 @@ export async function sidecarUpload(
     filePath,
     passphrase,
   });
+}
+
+/**
+ * Local-first upload: encrypts locally via sidecar, stores in SQLite + disk.
+ * Returns almost instantly — background sync pushes to cloud later.
+ */
+export async function localUpload(
+  filePath: string,
+  passphrase: string,
+  profile?: string,
+): Promise<void> {
+  return tauriInvoke("local_upload", {
+    filePath,
+    passphrase,
+    profile: profile ?? "normal",
+  });
+}
+
+/** Start the background sync worker in the sidecar. */
+export async function startSync(baseUrl: string, token: string): Promise<void> {
+  return tauriInvoke("start_sync", { baseUrl, token });
+}
+
+/** Get sync status from the sidecar. */
+export async function getSyncStatus(): Promise<SyncStats> {
+  return tauriInvoke("sync_status");
 }
 
 /** Download a file via the Go sidecar (desktop only). */
@@ -80,4 +106,11 @@ export interface SidecarProgress {
   bytes_done: number;
   bytes_total: number;
   speed: number;
+}
+
+export interface SyncStats {
+  pending_files: number;
+  syncing_files: number;
+  synced_files: number;
+  error_files: number;
 }
