@@ -654,11 +654,11 @@ func (db *DB) InsertClientChunk(ctx context.Context, userID string, c *types.Chu
 	return nil
 }
 
-// GetChunkByIndex returns a single chunk by file ID and index.
+// GetChunkByIndex returns a single chunk by file ID and index (including pending-sync chunks).
 func (db *DB) GetChunkByIndex(ctx context.Context, fileID string, index int, userIDs ...string) (*types.ChunkRef, error) {
 	c := &types.ChunkRef{}
 	query := `SELECT chunk_id, file_id, user_id, idx, size, sha256, platform, account, repo, remote_path, compressed
-		 FROM chunks WHERE file_id = $1 AND idx = $2 AND remote_path != ''`
+		 FROM chunks WHERE file_id = $1 AND idx = $2`
 	args := []interface{}{fileID, index}
 	if len(userIDs) > 0 && userIDs[0] != "" {
 		query += ` AND user_id = $3`
@@ -668,6 +668,72 @@ func (db *DB) GetChunkByIndex(ctx context.Context, fileID string, index int, use
 	).Scan(&c.ChunkID, &c.FileID, &c.UserID, &c.Index, &c.Size, &c.SHA256, &c.Platform, &c.Account, &c.Repo, &c.RemotePath, &c.Compressed)
 	if err != nil {
 		return nil, fmt.Errorf("get chunk by index: %w", err)
+	}
+	return c, nil
+}
+
+// GetReceivedChunkIndices returns indices of all chunks received for a file (including pending sync).
+func (db *DB) GetReceivedChunkIndices(ctx context.Context, fileID string) ([]int, error) {
+	rows, err := db.pool.Query(ctx,
+		`SELECT idx FROM chunks WHERE file_id = $1 ORDER BY idx`, fileID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("get received chunk indices: %w", err)
+	}
+	defer rows.Close()
+
+	var indices []int
+	for rows.Next() {
+		var idx int
+		if err := rows.Scan(&idx); err != nil {
+			return nil, fmt.Errorf("scan chunk index: %w", err)
+		}
+		indices = append(indices, idx)
+	}
+	return indices, rows.Err()
+}
+
+// GetTotalReceivedChunkSize returns the sum of all chunk sizes for a file (including pending).
+func (db *DB) GetTotalReceivedChunkSize(ctx context.Context, fileID string) (int64, error) {
+	var total int64
+	err := db.pool.QueryRow(ctx,
+		`SELECT COALESCE(SUM(size), 0) FROM chunks WHERE file_id = $1`, fileID,
+	).Scan(&total)
+	return total, err
+}
+
+// GetPendingChunks returns chunks that have been received but not yet synced to the git platform.
+func (db *DB) GetPendingChunks(ctx context.Context, limit int) ([]types.ChunkRef, error) {
+	rows, err := db.pool.Query(ctx,
+		`SELECT chunk_id, file_id, user_id, idx, size, sha256, platform, account, repo, compressed
+		 FROM chunks WHERE remote_path = '' ORDER BY chunk_id LIMIT $1`, limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("get pending chunks: %w", err)
+	}
+	defer rows.Close()
+
+	var chunks []types.ChunkRef
+	for rows.Next() {
+		var c types.ChunkRef
+		if err := rows.Scan(&c.ChunkID, &c.FileID, &c.UserID, &c.Index, &c.Size, &c.SHA256,
+			&c.Platform, &c.Account, &c.Repo, &c.Compressed); err != nil {
+			return nil, fmt.Errorf("scan pending chunk: %w", err)
+		}
+		chunks = append(chunks, c)
+	}
+	return chunks, rows.Err()
+}
+
+// GetChunkByID returns a single chunk by its ID (regardless of sync status).
+func (db *DB) GetChunkByID(ctx context.Context, chunkID string) (*types.ChunkRef, error) {
+	c := &types.ChunkRef{}
+	err := db.pool.QueryRow(ctx,
+		`SELECT chunk_id, file_id, user_id, idx, size, sha256, platform, account, repo, remote_path, compressed
+		 FROM chunks WHERE chunk_id = $1`, chunkID,
+	).Scan(&c.ChunkID, &c.FileID, &c.UserID, &c.Index, &c.Size, &c.SHA256, &c.Platform, &c.Account, &c.Repo, &c.RemotePath, &c.Compressed)
+	if err != nil {
+		return nil, fmt.Errorf("get chunk by id: %w", err)
 	}
 	return c, nil
 }

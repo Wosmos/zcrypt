@@ -78,6 +78,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	server.StartCleanupWorker(ctx)
+	server.StartSyncWorker(ctx)
 
 	// Graceful shutdown on SIGINT/SIGTERM
 	var srv *http.Server // set after routes are configured

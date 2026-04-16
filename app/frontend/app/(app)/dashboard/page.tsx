@@ -13,6 +13,7 @@ import { UploadFAB } from "@/components/vault/upload-fab";
 import { InsightsTab } from "@/components/vault/insights-tab";
 import { PassphraseModal } from "@/components/ui/passphrase-modal";
 import { EmptyState } from "@/components/ui/empty-state";
+import { isTauri } from "@/lib/tauri";
 import { CompactStats } from "@/components/vault/compact-stats";
 import { PlatformHealth } from "@/components/vault/platform-health";
 import { ExportImport } from "@/components/vault/export-import";
@@ -90,7 +91,7 @@ export default function VaultPage() {
 
   const { files, loading, error, refresh } = useFileList();
   const { statuses, repos } = usePlatformHealth();
-  const { updateStatus, setError, startUpload: storeStartUpload } = useUploadStore();
+  const { updateStatus, setError, startUpload: storeStartUpload, startDesktopUpload } = useUploadStore();
   const { getPassphrase, clear: clearPassphrase } = usePassphraseStore();
   const cachedPassphrase = usePassphraseStore((s) => s.cachedPassphrase);
   const cacheUntil = usePassphraseStore((s) => s.cacheUntil);
@@ -207,10 +208,15 @@ export default function VaultPage() {
 
   const startUpload = useCallback(
     (uploadFiles: File[], passphrase: string) => {
+      // Desktop: use native picker + sidecar (no browser File data transfer)
+      if (isTauri) {
+        startDesktopUpload(passphrase, refresh);
+        return;
+      }
       const maxConcurrent = quotaInfo?.max_concurrent_uploads ?? 2;
       storeStartUpload(uploadFiles, passphrase, selectedPlatform ?? undefined, maxConcurrent, refresh);
     },
-    [selectedPlatform, storeStartUpload, refresh, quotaInfo]
+    [selectedPlatform, storeStartUpload, startDesktopUpload, refresh, quotaInfo]
   );
 
   // --- Download flow ---

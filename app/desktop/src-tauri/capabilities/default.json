@@ -10,6 +10,14 @@
     "fs:default",
     "fs:allow-read",
     "fs:allow-write",
+    "fs:allow-remove",
+    {
+      "identifier": "fs:scope",
+      "allow": [
+        { "path": "$TEMP/**" },
+        { "path": "$APPDATA/**" }
+      ]
+    },
     "shell:default",
     "shell:allow-execute",
     "notification:default",

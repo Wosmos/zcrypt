@@ -8,6 +8,7 @@ import { refreshToken as refreshTokenApi } from "@/lib/auth-api";
 import { listFiles, getPlatformStatus } from "@/lib/api";
 import { useFileStore } from "@/store/files";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
+import { isTauri, startSync } from "@/lib/tauri";
 
 export function AuthGuard({
   children,
@@ -110,6 +111,13 @@ export function AuthGuard({
 
     init();
   }, [initialized, accessToken, refreshTokenValue, router, skipOnboardingCheck, setUser, setTokens, setInitialized, clearAuth]);
+
+  // Start desktop sync worker whenever we have a valid token
+  useEffect(() => {
+    if (!isTauri || !initialized || !accessToken) return;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+    startSync(apiUrl, accessToken).catch(() => {});
+  }, [initialized, accessToken]);
 
   if (!initialized || redirecting) {
     return (
