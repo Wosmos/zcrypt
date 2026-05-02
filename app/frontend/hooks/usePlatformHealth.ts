@@ -26,8 +26,12 @@ export function usePlatformHealth() {
 
   useEffect(() => {
     refreshRef.current?.();
-    const interval = setInterval(() => refreshRef.current?.(), 60_000);
-    return () => clearInterval(interval);
+
+    function onVisibilityChange() {
+      if (document.visibilityState === "visible") refreshRef.current?.();
+    }
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
   }, []);
 
   const isAnyConnected = statuses.some((s) => s.connected);
