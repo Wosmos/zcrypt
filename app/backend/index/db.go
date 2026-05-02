@@ -3,6 +3,7 @@ package index
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -18,7 +19,13 @@ func Open(databaseURL string) (*DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("parse database url: %w", err)
 	}
-	config.MaxConns = 20
+	// Neon already pools via PgBouncer (the -pooler URL).
+	// Keep client-side pool tiny so connections drain fast and Neon can auto-suspend.
+	config.MaxConns = 5
+	config.MinConns = 0
+	config.MaxConnIdleTime = 30 * time.Second
+	config.MaxConnLifetime = 5 * time.Minute
+	config.HealthCheckPeriod = 0
 
 	pool, err := pgxpool.NewWithConfig(context.Background(), config)
 	if err != nil {
