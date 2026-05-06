@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  # ── Detect what changed ──
+  # ── Detect what changed ──────────────────────────────────────────────────────
   changes:
     name: Detect Changes
     runs-on: ubuntu-latest
@@ -24,16 +24,18 @@ jobs:
           filters: |
             backend:
               - 'app/backend/**'
+              - 'tests/load/**'
             frontend:
               - 'app/frontend/**'
+              - 'tests/e2e/**'
             tui:
               - 'app/tui/**'
             desktop:
               - 'app/desktop/**'
 
-  # ── Backend: test + deploy to Railway ──
+  # ── Backend: unit tests ──────────────────────────────────────────────────────
   backend:
-    name: Go Backend
+    name: Go Backend (unit)
     needs: changes
     if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
@@ -56,27 +58,78 @@ jobs:
         working-directory: app/backend
         run: go build -o zcrypt-server .
 
-      - name: Test
+      - name: Unit tests (with race detector)
         working-directory: app/backend
-        run: go test ./...
+        run: go test -race -coverprofile=coverage.out ./...
 
-  backend-deploy:
-    name: Deploy Backend (Railway)
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: app/backend/coverage.out
+
+  # ── Backend: integration tests (real DB via Docker) ──────────────────────────
+  backend-integration:
+    name: Go Backend (integration)
     needs: [changes, backend]
-    if: needs.changes.outputs.backend == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: zcrypt_test
+          POSTGRES_USER: zcrypt
+          POSTGRES_PASSWORD: testpassword
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+
+      - name: Download dependencies
+        working-directory: app/backend
+        run: go mod download
+
+      - name: Integration tests
+        working-directory: app/backend
+        env:
+          TEST_DATABASE_URL: postgres://zcrypt:testpassword@localhost:5433/zcrypt_test
+        run: go test -tags=integration -v -timeout=120s ./integration/...
+
+  # ── Backend: security scanning ───────────────────────────────────────────────
+  backend-security:
+    name: Go Security Scan
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Railway CLI
-        run: npm install -g @railway/cli
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
 
-      - name: Deploy to Railway
-        run: railway up --service zcrypt-backend
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest
 
-  # ── Frontend: test + deploy to Vercel ──
+      - name: Check backend vulnerabilities
+        working-directory: app/backend
+        run: govulncheck ./...
+
+      - name: Check TUI vulnerabilities
+        working-directory: app/tui
+        run: govulncheck ./...
+
+  # ── Frontend: unit tests + typecheck ─────────────────────────────────────────
   frontend:
     name: Next.js Frontend
     needs: changes
@@ -95,43 +148,94 @@ jobs:
         working-directory: app/frontend
         run: bunx tsc --noEmit
 
-      - name: Test
+      - name: Unit tests (with coverage)
         working-directory: app/frontend
-        run: bun run test
+        run: bun run test -- --coverage --reporter=json
 
       - name: Build
         working-directory: app/frontend
         run: bun run build
 
-  frontend-deploy:
-    name: Deploy Frontend (Vercel)
-    needs: [changes, frontend]
-    if: needs.changes.outputs.frontend == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+  # ── Frontend: E2E tests (Playwright) ─────────────────────────────────────────
+  # Runs on main branch pushes only — too slow for every PR
+  frontend-e2e:
+    name: Playwright E2E
+    needs: [changes, frontend, backend]
+    if: |
+      needs.changes.outputs.frontend == 'true' &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: zcrypt_test
+          POSTGRES_USER: zcrypt
+          POSTGRES_PASSWORD: testpassword
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+
       - uses: oven-sh/setup-bun@v2
 
-      - name: Install dependencies
+      - name: Install backend dependencies
+        working-directory: app/backend
+        run: go mod download
+
+      - name: Start backend
+        working-directory: app/backend
+        env:
+          DATABASE_URL: postgres://zcrypt:testpassword@localhost:5432/zcrypt_test
+          MASTER_KEY: "0000000000000000000000000000000000000000000000000000000000000001"
+          ZCRYPT_JWT_SECRET: "e2e-test-jwt-secret-must-be-32characters!!"
+          FRONTEND_URL: "http://localhost:3000"
+        run: go run . &
+
+      - name: Install frontend dependencies
         working-directory: app/frontend
         run: bun install --frozen-lockfile
 
-      - name: Build
+      - name: Start frontend
         working-directory: app/frontend
-        run: bun run build
+        run: bun run dev &
 
-      - name: Install Vercel CLI
-        run: npm install -g vercel
+      - name: Install Playwright browsers
+        working-directory: tests/e2e
+        run: |
+          bun install
+          bun x playwright install chromium --with-deps
 
-      - name: Deploy to Vercel
-        working-directory: app/frontend
-        run: vercel --prod --token ${{ secrets.VERCEL_TOKEN }}
+      - name: Wait for services
+        run: |
+          npx wait-on http://localhost:8080/api/health http://localhost:3000 --timeout 60000
+
+      - name: Run E2E tests
+        working-directory: tests/e2e
         env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          E2E_BASE_URL: http://localhost:3000
+          E2E_API_URL: http://localhost:8080
+        run: bun x playwright test --reporter=list,html
 
-  # ── TUI: test + build ──
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: tests/e2e/playwright-report/
+          retention-days: 14
+
+  # ── TUI: vet + build + test ───────────────────────────────────────────────────
   tui:
     name: Go TUI
     needs: changes
@@ -160,3 +264,49 @@ jobs:
       - name: Test
         working-directory: app/tui
         run: go test ./...
+
+  # ── Deploy: backend → Railway ─────────────────────────────────────────────────
+  backend-deploy:
+    name: Deploy Backend (Railway)
+    needs: [changes, backend, backend-integration]
+    if: needs.changes.outputs.backend == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy to Railway
+        run: railway up --service zcrypt-backend
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
+  # ── Deploy: frontend → Vercel ─────────────────────────────────────────────────
+  frontend-deploy:
+    name: Deploy Frontend (Vercel)
+    needs: [changes, frontend]
+    if: needs.changes.outputs.frontend == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        working-directory: app/frontend
+        run: bun install --frozen-lockfile
+
+      - name: Build
+        working-directory: app/frontend
+        run: bun run build
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel
+
+      - name: Deploy to Vercel
+        working-directory: app/frontend
+        run: vercel --prod --token ${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}

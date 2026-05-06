@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"strings"
 	"time"
-
 	"github.com/google/go-github/v60/github"
 	"github.com/zcrypt/zcrypt/disguise"
 	"github.com/zcrypt/zcrypt/types"

@@ -25,7 +25,7 @@ func Open(databaseURL string) (*DB, error) {
 	config.MinConns = 0
 	config.MaxConnIdleTime = 30 * time.Second
 	config.MaxConnLifetime = 5 * time.Minute
-	config.HealthCheckPeriod = 0
+	config.HealthCheckPeriod = time.Hour
 
 	pool, err := pgxpool.NewWithConfig(context.Background(), config)
 	if err != nil {

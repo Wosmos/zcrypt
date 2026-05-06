@@ -377,6 +377,12 @@ func (s *Server) HandleChunkUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Wake sync worker immediately — non-blocking, channel is buffered(1)
+	select {
+	case s.syncCh <- struct{}{}:
+	default:
+	}
+
 	// Increment session counter
 	if err := s.db.IncrementSessionChunks(ctx, sessionID); err != nil {
 		fmt.Printf("warn: increment session chunks: %v\n", err)

@@ -13,40 +13,38 @@ import (
 	"github.com/zcrypt/zcrypt/types"
 )
 
-const (
-	syncMinInterval = 500 * time.Millisecond
-	syncMaxInterval = 30 * time.Second
-)
+// syncFallbackInterval is a safety net poll for chunks that were staged before
+// the server started (e.g. after a crash/restart). Under normal operation the
+// upload handler signals syncCh immediately, so this timer rarely fires.
+const syncFallbackInterval = 30 * time.Second
 
 // StartSyncWorker launches a background goroutine that flushes pending chunks
-// (received from clients but not yet pushed to the git platform) to their
-// respective storage adapters. It runs continuously until ctx is cancelled.
+// to their respective storage adapters.
 //
-// Polling interval adapts to load: tight (500ms) while chunks are queued,
-// backing off exponentially up to 30s when idle. Idle backoff prevents
-// constant DB pings from holding serverless DBs (e.g. Neon) in active state.
+// It wakes instantly when the upload handler signals syncCh (event-driven),
+// and falls back to a 30s poll to catch any chunks left over from a restart.
+// Zero DB hits when there are no uploads in flight.
 func (s *Server) StartSyncWorker(ctx context.Context) {
 	go func() {
 		log.Println("sync-worker: started")
-		interval := syncMinInterval
-		timer := time.NewTimer(interval)
-		defer timer.Stop()
+		fallback := time.NewTimer(syncFallbackInterval)
+		defer fallback.Stop()
 
 		for {
 			select {
 			case <-ctx.Done():
 				log.Println("sync-worker: stopped")
 				return
-			case <-timer.C:
-				if s.syncPendingChunks(ctx) {
-					interval = syncMinInterval
-				} else if interval < syncMaxInterval {
-					interval *= 2
-					if interval > syncMaxInterval {
-						interval = syncMaxInterval
-					}
+			case <-s.syncCh:
+				// Upload just happened — drain the whole queue
+				for s.syncPendingChunks(ctx) {
 				}
-				timer.Reset(interval)
+				fallback.Reset(syncFallbackInterval)
+			case <-fallback.C:
+				// Safety net: catch any chunks left over from a restart
+				for s.syncPendingChunks(ctx) {
+				}
+				fallback.Reset(syncFallbackInterval)
 			}
 		}
 	}()
