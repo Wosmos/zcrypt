@@ -30,7 +30,7 @@ func (s *Server) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 		// Per-user rate limiting: 100 req/min
-		if !s.userLimiter.allow(claims.Sub) {
+		if !s.devMode && !s.userLimiter.allow(claims.Sub) {
 			http.Error(w, `{"error":"too many requests, please slow down"}`, http.StatusTooManyRequests)
 			return
 		}
@@ -55,7 +55,7 @@ func (s *Server) AdminMiddleware(next http.HandlerFunc) http.HandlerFunc {
 func (s *Server) ShareRateLimitMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ip := extractClientIP(r)
-		if !s.shareLimiter.allow(ip) {
+		if !s.devMode && !s.shareLimiter.allow(ip) {
 			w.Header().Set("Content-Type", "application/json")
 			w.Header().Set("Retry-After", "5")
 			w.WriteHeader(http.StatusTooManyRequests)

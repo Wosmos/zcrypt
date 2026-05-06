@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -58,6 +59,13 @@ type Server struct {
 	// Desktop OAuth: temporary token store for poll-based auth flow
 	desktopSessionsMu sync.Mutex
 	desktopSessions   map[string]*desktopOAuthResult
+
+	// syncCh is signaled by upload handlers when a new chunk is staged.
+	// The sync worker wakes immediately instead of waiting for the next poll.
+	syncCh chan struct{}
+
+	// devMode disables all per-route rate limiting when DEV_MODE=true.
+	devMode bool
 }
 
 type desktopOAuthResult struct {
@@ -85,6 +93,8 @@ func NewServer(db *index.DB, cfg *config.Config, progress *pipeline.ProgressEmit
 		globalAdapterCache: make(map[string]adapters.PlatformAdapter),
 		transferHub:        newTransferHub(),
 		desktopSessions:    make(map[string]*desktopOAuthResult),
+		syncCh:             make(chan struct{}, 1),
+		devMode:            os.Getenv("DEV_MODE") == "true",
 	}
 }
 
@@ -414,6 +424,89 @@ func createAdapter(platform, token string) (adapters.PlatformAdapter, error) {
 	default:
 		return nil, fmt.Errorf("unsupported platform: %s", platform)
 	}
+}
+
+// RegisterRoutes wires all HTTP routes onto mux.
+// Extracted here so integration tests can call it directly without importing main.
+func (s *Server) RegisterRoutes(mux *http.ServeMux) {
+	maxJSON := func(h http.HandlerFunc) http.HandlerFunc {
+		return MaxBodyMiddleware(1<<20, h)
+	}
+
+	// Public auth
+	mux.HandleFunc("POST /api/auth/register", maxJSON(s.HandleRegister))
+	mux.HandleFunc("POST /api/auth/login", maxJSON(s.HandleLogin))
+	mux.HandleFunc("POST /api/auth/refresh", maxJSON(s.HandleRefreshToken))
+	mux.HandleFunc("POST /api/auth/forgot-password", maxJSON(s.HandleForgotPassword))
+	mux.HandleFunc("POST /api/auth/reset-password", maxJSON(s.HandleResetPassword))
+	mux.HandleFunc("POST /api/auth/verify-email", maxJSON(s.HandleVerifyEmail))
+	mux.HandleFunc("POST /api/auth/resend-verification", maxJSON(s.HandleResendVerification))
+	mux.HandleFunc("POST /api/auth/2fa/verify", maxJSON(s.Handle2FAVerify))
+	mux.HandleFunc("POST /api/auth/magic-link", maxJSON(s.HandleMagicLinkRequest))
+	mux.HandleFunc("POST /api/auth/magic-link/verify", maxJSON(s.HandleMagicLinkVerify))
+
+	// OAuth
+	mux.HandleFunc("GET /api/auth/oauth/{provider}", s.HandleOAuthStart)
+	mux.HandleFunc("GET /api/auth/oauth/{provider}/callback", s.HandleOAuthCallback)
+	mux.HandleFunc("GET /api/auth/oauth/desktop-poll", s.HandleDesktopOAuthPoll)
+
+	// Protected auth
+	mux.HandleFunc("POST /api/auth/logout", maxJSON(s.AuthMiddleware(s.HandleLogout)))
+	mux.HandleFunc("POST /api/auth/2fa/setup", maxJSON(s.AuthMiddleware(s.Handle2FASetup)))
+	mux.HandleFunc("POST /api/auth/2fa/enable", maxJSON(s.AuthMiddleware(s.Handle2FAEnable)))
+	mux.HandleFunc("POST /api/auth/2fa/disable", maxJSON(s.AuthMiddleware(s.Handle2FADisable)))
+	mux.HandleFunc("GET /api/auth/me", s.AuthMiddleware(s.HandleGetMe))
+	mux.HandleFunc("GET /api/auth/activity", s.AdminMiddleware(s.HandleUserActivity))
+	mux.HandleFunc("GET /api/auth/linked-accounts", s.AuthMiddleware(s.HandleLinkedAccounts))
+	mux.HandleFunc("DELETE /api/auth/linked-accounts/{provider}", s.AuthMiddleware(s.HandleUnlinkAccount))
+
+	// Files
+	mux.HandleFunc("GET /api/files", s.AuthMiddleware(s.HandleListFiles))
+	mux.HandleFunc("DELETE /api/files/{id}", s.AuthMiddleware(s.HandleDeleteFile))
+	mux.HandleFunc("POST /api/files/bulk-delete", maxJSON(s.AuthMiddleware(s.HandleBulkDeleteFiles)))
+	mux.HandleFunc("GET /api/files/{id}/meta", s.AuthMiddleware(s.HandleGetFileMeta))
+	mux.HandleFunc("GET /api/files/{id}/chunks/{idx}", s.AuthMiddleware(s.HandleGetChunk))
+
+	// Platforms
+	mux.HandleFunc("GET /api/platforms/status", s.AuthMiddleware(s.HandlePlatformStatus))
+	mux.HandleFunc("POST /api/platforms/connect", maxJSON(s.AuthMiddleware(s.HandleConnectPlatform)))
+	mux.HandleFunc("DELETE /api/platforms/disconnect", maxJSON(s.AuthMiddleware(s.HandleDisconnectPlatform)))
+	mux.HandleFunc("PUT /api/platforms/tokens/{id}/scope", maxJSON(s.AuthMiddleware(s.HandleToggleTokenScope)))
+	mux.HandleFunc("GET /api/repos", s.AuthMiddleware(s.HandleListRepos))
+
+	// Config / quota / events
+	mux.HandleFunc("GET /api/config", s.AuthMiddleware(s.HandleGetConfig))
+	mux.HandleFunc("PUT /api/config", maxJSON(s.AdminMiddleware(s.HandleUpdateConfig)))
+	mux.HandleFunc("GET /api/events", s.HandleSSE)
+	mux.HandleFunc("GET /api/quota", s.AuthMiddleware(s.HandleGetQuota))
+
+	// Upload
+	mux.HandleFunc("POST /api/upload/init", maxJSON(s.AuthMiddleware(s.HandleUploadInit)))
+	mux.HandleFunc("PUT /api/upload/{sid}/chunk/{idx}", s.AuthMiddleware(s.HandleChunkUpload))
+	mux.HandleFunc("POST /api/upload/{sid}/presign/{idx}", maxJSON(s.AuthMiddleware(s.HandlePresignChunk)))
+	mux.HandleFunc("POST /api/upload/{sid}/confirm/{idx}", maxJSON(s.AuthMiddleware(s.HandleConfirmChunk)))
+	mux.HandleFunc("POST /api/upload/{sid}/complete", maxJSON(s.AuthMiddleware(s.HandleUploadComplete)))
+	mux.HandleFunc("DELETE /api/upload/{sid}", s.AuthMiddleware(s.HandleUploadCancel))
+	mux.HandleFunc("GET /api/upload/{sid}/status", s.AuthMiddleware(s.HandleUploadStatus))
+
+	// Shares
+	mux.HandleFunc("POST /api/shares", maxJSON(s.AuthMiddleware(s.HandleCreateShare)))
+	mux.HandleFunc("GET /api/shares", s.AuthMiddleware(s.HandleListShares))
+	mux.HandleFunc("DELETE /api/shares/{id}", s.AuthMiddleware(s.HandleRevokeShare))
+	mux.HandleFunc("GET /api/share/{token}", s.ShareRateLimitMiddleware(s.HandleGetShareInfo))
+	mux.HandleFunc("GET /api/share/{token}/meta", s.ShareRateLimitMiddleware(s.HandleGetShareFileMeta))
+	mux.HandleFunc("GET /api/share/{token}/chunks/{idx}", s.ShareRateLimitMiddleware(s.HandleGetShareChunk))
+
+	// Admin
+	mux.HandleFunc("GET /api/admin/users", s.AdminMiddleware(s.HandleAdminListUsers))
+	mux.HandleFunc("GET /api/admin/users/{id}", s.AdminMiddleware(s.HandleAdminGetUser))
+	mux.HandleFunc("DELETE /api/admin/users/{id}", s.AdminMiddleware(s.HandleAdminDeleteUser))
+
+	// Misc
+	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"status":"ok"}`))
+	})
 }
 
 // getAdapterUsername extracts the username from any adapter type.

@@ -121,7 +121,7 @@ func getClientIP(r *http.Request) string {
 // HandleRegister creates a new user account.
 func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	// Auth-specific rate limiting: 5 attempts per 5 minutes per IP
-	if !s.authLimiter.allow(getClientIP(r)) {
+	if !s.devMode && !s.authLimiter.allow(getClientIP(r)) {
 		http.Error(w, `{"error":"too many attempts, please try again later"}`, http.StatusTooManyRequests)
 		return
 	}
@@ -236,7 +236,7 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	// Auth-specific rate limiting: 5 attempts per 5 minutes per IP
 	clientIP := getClientIP(r)
-	if !s.authLimiter.allow(clientIP) {
+	if !s.devMode && !s.authLimiter.allow(clientIP) {
 		http.Error(w, `{"error":"too many login attempts, please try again later"}`, http.StatusTooManyRequests)
 		return
 	}
@@ -255,7 +255,7 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
 
 	// Per-email rate limiting: 3 attempts per 15 minutes
-	if !s.emailLimiter.allow(req.Email) {
+	if !s.devMode && !s.emailLimiter.allow(req.Email) {
 		http.Error(w, `{"error":"too many attempts for this email, please try again later"}`, http.StatusTooManyRequests)
 		return
 	}
@@ -391,7 +391,7 @@ func (s *Server) HandleForgotPassword(w http.ResponseWriter, r *http.Request) {
 	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
 
 	// Per-email rate limiting
-	if !s.emailLimiter.allow(req.Email) {
+	if !s.devMode && !s.emailLimiter.allow(req.Email) {
 		// Still return generic response to prevent enumeration
 		writeJSON(w, http.StatusOK, map[string]interface{}{
 			"success": true,
@@ -555,7 +555,7 @@ func (s *Server) HandleResendVerification(w http.ResponseWriter, r *http.Request
 	}
 
 	// Per-email rate limiting
-	if !s.emailLimiter.allow(req.Email) {
+	if !s.devMode && !s.emailLimiter.allow(req.Email) {
 		writeJSON(w, http.StatusOK, genericResp)
 		return
 	}
@@ -755,7 +755,7 @@ func (s *Server) HandleGetMe(w http.ResponseWriter, r *http.Request) {
 // HandleMagicLinkRequest sends a magic link login email.
 func (s *Server) HandleMagicLinkRequest(w http.ResponseWriter, r *http.Request) {
 	// Auth-specific rate limiting
-	if !s.authLimiter.allow(getClientIP(r)) {
+	if !s.devMode && !s.authLimiter.allow(getClientIP(r)) {
 		http.Error(w, `{"error":"too many attempts, please try again later"}`, http.StatusTooManyRequests)
 		return
 	}
@@ -773,7 +773,7 @@ func (s *Server) HandleMagicLinkRequest(w http.ResponseWriter, r *http.Request) 
 	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
 
 	// Per-email rate limiting
-	if !s.emailLimiter.allow(req.Email) {
+	if !s.devMode && !s.emailLimiter.allow(req.Email) {
 		// Anti-enumeration: always 200
 		writeJSON(w, http.StatusOK, map[string]interface{}{
 			"success": true,

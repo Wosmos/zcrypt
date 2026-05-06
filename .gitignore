@@ -37,10 +37,29 @@ Thumbs.db
 
 # Codacy
 .github/instructions/codacy.instructions.md
-.claude/
-.claude/*
+
+# Claude Code — ignore personal permissions but commit MCP server config
 .claude/settings.local.json
-*.claude/settings.local.json
-.claude/settings.local.json
+
 .vercel
 .env*.local
+
+# ── Test artifacts (generated, not source) ────────────────────────────────────
+
+# Playwright
+tests/e2e/node_modules/
+tests/e2e/playwright-report/
+tests/e2e/test-results/
+tests/e2e/.cache/
+
+# Go coverage
+app/backend/coverage.out
+app/backend/coverage.html
+app/tui/coverage.out
+
+# Frontend coverage
+app/frontend/coverage/
+
+# k6 output files
+tests/load/k6/results/
+*.k6.json
