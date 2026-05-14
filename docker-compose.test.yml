@@ -1,0 +1,29 @@
+services:
+  postgres-test:
+    image: postgres:16-alpine
+    container_name: zcrypt-test-db
+    environment:
+      POSTGRES_DB: zcrypt_test
+      POSTGRES_USER: zcrypt
+      POSTGRES_PASSWORD: testpassword
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zcrypt -d zcrypt_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    tmpfs:
+      - /var/lib/postgresql/data   # in-memory — fast, ephemeral
+
+  # Optional: pgAdmin for inspecting test DB manually
+  # pgadmin:
+  #   image: dpage/pgadmin4:latest
+  #   environment:
+  #     PGADMIN_DEFAULT_EMAIL: test@test.com
+  #     PGADMIN_DEFAULT_PASSWORD: test
+  #   ports:
+  #     - "5050:80"
+  #   depends_on:
+  #     postgres-test:
+  #       condition: service_healthy
