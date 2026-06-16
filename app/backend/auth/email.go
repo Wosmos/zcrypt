@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -164,6 +165,57 @@ func SendMagicLinkEmail(cfg *EmailConfig, to, token, baseURL string) error {
 
 	body := wrapEmail("Log in to zcrypt", content, "This link expires in 15 minutes. If you didn't request this, ignore this email.")
 	return sendResend(cfg, to, subject, body)
+}
+
+// SendDeadManSwitchEmail notifies a contact that a user's dead man's switch has
+// triggered (the user failed to check in within their configured window).
+// ownerName is a human label for the account holder (email or username),
+// personalMessage is the optional message the user left for the contact, and
+// includeFiles indicates the user intended their files to be shared.
+func SendDeadManSwitchEmail(cfg *EmailConfig, to, contactName, ownerName, personalMessage string, includeFiles bool) error {
+	if cfg == nil {
+		return nil // Email not configured, skip silently
+	}
+
+	subject := "Important: a zcrypt dead man's switch has been triggered"
+
+	greeting := "Hello,"
+	if contactName != "" {
+		greeting = fmt.Sprintf("Hello %s,", htmlEscape(contactName))
+	}
+
+	var b strings.Builder
+	fmt.Fprintf(&b, `<p style="margin:0 0 16px;font-size:15px;color:%s;line-height:1.6">%s</p>`, brandText, greeting)
+	fmt.Fprintf(&b, `<p style="margin:0 0 16px;font-size:15px;color:%s;line-height:1.6">%s set up a <strong>dead man's switch</strong> on zcrypt and named you as their emergency contact. They have not checked in within the time window they configured, so the switch has now triggered and we are notifying you as they requested.</p>`,
+		brandText, htmlEscape(ownerName))
+
+	if personalMessage != "" {
+		fmt.Fprintf(&b, `<p style="margin:0 0 8px;font-size:13px;color:%s">They left this message for you:</p>`, brandMuted)
+		fmt.Fprintf(&b, `<blockquote style="margin:0 0 16px;padding:14px 18px;background:%s;border-left:3px solid %s;border-radius:8px;font-size:14px;color:%s;line-height:1.6;white-space:pre-wrap">%s</blockquote>`,
+			brandBg, brandCyan, brandText, htmlEscape(personalMessage))
+	}
+
+	if includeFiles {
+		fmt.Fprintf(&b, `<p style="margin:0 0 16px;font-size:14px;color:%s;line-height:1.6">They indicated they wanted their stored files shared with you. zcrypt is a zero-knowledge service — files are encrypted with a passphrase only the account holder knew — so access requires the decryption passphrase, which they would have arranged to share with you separately. If you do not have it, the files cannot be recovered.</p>`,
+			brandMuted)
+	}
+
+	fmt.Fprintf(&b, `<p style="margin:0;font-size:13px;color:%s;line-height:1.6">If you believe this was sent in error, you can safely ignore it.</p>`, brandMuted)
+
+	body := wrapEmail("Dead man's switch triggered", b.String(), "You received this because you were named as an emergency contact on zcrypt.")
+	return sendResend(cfg, to, subject, body)
+}
+
+// htmlEscape escapes user-supplied strings before interpolating them into email HTML.
+func htmlEscape(s string) string {
+	r := strings.NewReplacer(
+		"&", "&amp;",
+		"<", "&lt;",
+		">", "&gt;",
+		`"`, "&quot;",
+		"'", "&#39;",
+	)
+	return r.Replace(s)
 }
 
 // sendResend sends an email via Resend's HTTP API (https://resend.com/docs/api-reference/emails/send-email).

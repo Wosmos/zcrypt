@@ -26,6 +26,7 @@ func (s *Server) HandleCreateShare(w http.ResponseWriter, r *http.Request) {
 
 	var req struct {
 		FileID       string `json:"file_id"`
+		WrappedCEK   string `json:"wrapped_cek,omitempty"` // file CEK wrapped under the share key
 		Password     string `json:"password,omitempty"`
 		ExpiresHours int    `json:"expires_in_hours,omitempty"`
 		MaxDownloads int    `json:"max_downloads,omitempty"`
@@ -59,6 +60,7 @@ func (s *Server) HandleCreateShare(w http.ResponseWriter, r *http.Request) {
 		FileID:       req.FileID,
 		UserID:       userID,
 		Token:        token,
+		WrappedCEK:   req.WrappedCEK,
 		MaxDownloads: req.MaxDownloads,
 	}
 
@@ -248,6 +250,10 @@ func (s *Server) HandleGetShareFileMeta(w http.ResponseWriter, r *http.Request) 
 		"chunk_count":     file.ChunkCount,
 		"sha256":          file.SHA256,
 		"salt":            base64.StdEncoding.EncodeToString(file.Salt),
+		// The CEK wrapped under the share key (from the share, NOT the file's
+		// passphrase-wrapped CEK). The recipient unwraps this with the key in
+		// the share URL fragment — no passphrase needed.
+		"wrapped_cek":     share.WrappedCEK,
 		"status":          file.Status,
 		"created_at":      file.CreatedAt,
 	})

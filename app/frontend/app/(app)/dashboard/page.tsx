@@ -397,20 +397,23 @@ export default function VaultPage() {
       try {
         // Decrypt file in-memory for preview (reuses download-session internals)
         const { getFileMeta, getFileChunk } = await import("@/lib/api");
-        const { deriveKeyBytes, decryptChunk, sha256Hex, fromBase64 } = await import("@/lib/crypto");
+        const { resolveFileKey, decryptChunk, sha256Hex, fromBase64 } = await import("@/lib/crypto");
         const { ZstdInit } = await import("@oneidentity/zstd-js/wasm");
         const zstd = await ZstdInit();
 
         const meta = await getFileMeta(file.id);
         const salt = fromBase64(meta.salt);
-        const keyBytes = await deriveKeyBytes(passphrase, salt);
+        const keyBytes = await resolveFileKey(passphrase, salt, meta.wrapped_cek);
 
         const chunks: Uint8Array[] = [];
         for (let i = 0; i < meta.chunk_count; i++) {
           const { data, compressed } = await getFileChunk(file.id, i);
           let plain = await decryptChunk(keyBytes, new Uint8Array(data));
           if (compressed && zstd) {
-            plain = zstd.ZstdSimple.decompress(plain);
+            // ZstdStream (not ZstdSimple): it doesn't require frame content size,
+            // which ZstdSimple.decompress needs but some frames may not include.
+            // Matches download-session / bulk-download / share-download.
+            plain = zstd.ZstdStream.decompress(plain);
           }
           chunks.push(plain);
         }

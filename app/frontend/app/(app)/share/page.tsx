@@ -1,5 +1,3 @@
-"use client";
-
 import { Send, Share2 } from "@/lib/icons";
 import { SendCard } from "@/components/share/send-card";
 import { PadCard } from "@/components/share/pad-card";

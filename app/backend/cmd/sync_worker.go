@@ -18,6 +18,13 @@ import (
 // upload handler signals syncCh immediately, so this timer rarely fires.
 const syncFallbackInterval = 30 * time.Second
 
+// maxSyncAttempts caps how many times the sync worker will retry a single
+// pending chunk before giving up on it. A chunk whose staging file is gone (or
+// that fails every upload) would otherwise be retried forever, starving the
+// queue. Once a chunk hits this cap it's left in place (remote_path still '')
+// and logged so the data-loss risk is visible rather than silently looping.
+const maxSyncAttempts = 8
+
 // StartSyncWorker launches a background goroutine that flushes pending chunks
 // to their respective storage adapters.
 //
@@ -26,6 +33,19 @@ const syncFallbackInterval = 30 * time.Second
 // Zero DB hits when there are no uploads in flight.
 func (s *Server) StartSyncWorker(ctx context.Context) {
 	go func() {
+		// Recover so a panic in chunk syncing (e.g. a nil adapter deref or a
+		// malformed chunk) doesn't permanently kill all platform syncing for
+		// the process — which would strand every staged chunk on local disk.
+		// On panic, relaunch the worker so syncing self-heals.
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("sync-worker: panic recovered, restarting: %v", r)
+				if ctx.Err() == nil {
+					s.StartSyncWorker(ctx)
+				}
+			}
+		}()
+
 		log.Println("sync-worker: started")
 		fallback := time.NewTimer(syncFallbackInterval)
 		defer fallback.Stop()
@@ -54,7 +74,7 @@ func (s *Server) StartSyncWorker(ctx context.Context) {
 // any chunks were found (caller should poll fast); false if the queue
 // was empty (caller should back off).
 func (s *Server) syncPendingChunks(ctx context.Context) bool {
-	chunks, err := s.db.GetPendingChunks(ctx, 10)
+	chunks, err := s.db.GetPendingChunks(ctx, 10, maxSyncAttempts)
 	if err != nil {
 		log.Printf("sync-worker: get pending chunks: %v", err)
 		return false
@@ -81,31 +101,47 @@ func (s *Server) syncPendingChunks(ctx context.Context) bool {
 func (s *Server) syncOneChunk(ctx context.Context, chunk types.ChunkRef, stagingDir string) {
 	stagingPath := filepath.Join(stagingDir, chunk.ChunkID+".enc")
 
+	// failAttempt records a failed sync attempt and bumps the retry counter so
+	// the cap in GetPendingChunks eventually engages. When the chunk reaches the
+	// cap it'll stop being retried; log loudly at that point so the stranded
+	// chunk (a real data-loss risk) is visible rather than silently looping.
+	failAttempt := func(format string, args ...interface{}) {
+		log.Printf("sync-worker: "+format, args...)
+		if err := s.db.IncrementChunkSyncAttempts(ctx, chunk.ChunkID); err != nil {
+			log.Printf("sync-worker: increment attempts for %s: %v", chunk.ChunkID, err)
+			return
+		}
+		if chunk.SyncAttempts+1 >= maxSyncAttempts {
+			log.Printf("sync-worker: WARNING chunk %s (file %s, idx %d) hit %d sync attempts and will no longer be retried — it is NOT durable on any platform",
+				chunk.ChunkID, chunk.FileID, chunk.Index, maxSyncAttempts)
+		}
+	}
+
 	// Read chunk data from staging
 	data, err := os.ReadFile(stagingPath)
 	if err != nil {
-		log.Printf("sync-worker: read staging file %s: %v", chunk.ChunkID, err)
+		failAttempt("read staging file %s: %v", chunk.ChunkID, err)
 		return
 	}
 
 	// Resolve adapter
 	adapter := s.resolveAdapterForUser(ctx, chunk.UserID, chunk.Platform, chunk.Account)
 	if adapter == nil {
-		log.Printf("sync-worker: no adapter for chunk %s (platform=%s account=%s)", chunk.ChunkID, chunk.Platform, chunk.Account)
+		failAttempt("no adapter for chunk %s (platform=%s account=%s)", chunk.ChunkID, chunk.Platform, chunk.Account)
 		return
 	}
 
 	// Generate disguised remote path
 	remotePath, err := disguise.ChunkFilename()
 	if err != nil {
-		log.Printf("sync-worker: generate filename: %v", err)
+		failAttempt("generate filename: %v", err)
 		return
 	}
 
 	// Acquire per-repo slot to prevent GitHub 409 storms
 	releaseRepo, err := acquireRepoSlot(ctx, chunk.Repo)
 	if err != nil {
-		return // context cancelled
+		return // context cancelled — shutdown, not a real failure; don't count it
 	}
 	defer releaseRepo()
 
@@ -121,13 +157,13 @@ func (s *Server) syncOneChunk(ctx context.Context, chunk types.ChunkRef, staging
 		Data: data,
 	})
 	if err != nil {
-		log.Printf("sync-worker: upload chunk %s to %s failed: %v", chunk.ChunkID, chunk.Platform, err)
+		failAttempt("upload chunk %s to %s failed: %v", chunk.ChunkID, chunk.Platform, err)
 		return
 	}
 
 	// Update remote_path in DB (marks chunk as synced)
 	if err := s.db.UpdateChunkRemotePath(ctx, chunk.ChunkID, ref.RemotePath); err != nil {
-		log.Printf("sync-worker: update remote path for %s: %v", chunk.ChunkID, err)
+		failAttempt("update remote path for %s: %v", chunk.ChunkID, err)
 		return
 	}
 

@@ -194,6 +194,7 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		SHA256:       req.SHA256,
 		Salt:         salt,
 		IV:           []byte{}, // not used for client-side encryption
+		WrappedCEK:   req.WrappedCEK,
 		Status:       "uploading",
 	}
 
@@ -462,6 +463,16 @@ func (s *Server) HandleUploadComplete(w http.ResponseWriter, r *http.Request) {
 		Percent: 100,
 	})
 
+	// Audit synchronously, before returning — s.audit reads the request (IP,
+	// User-Agent) and must not be called from the background goroutine after the
+	// handler returns and the request context is cancelled.
+	s.audit(r, &userID, "upload_complete", map[string]interface{}{
+		"file_id":    session.FileID,
+		"session_id": sessionID,
+		"filename":   session.Filename,
+		"chunks":     session.ChunkCount,
+	})
+
 	// Return success to client immediately
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
@@ -469,38 +480,44 @@ func (s *Server) HandleUploadComplete(w http.ResponseWriter, r *http.Request) {
 		"file_id": session.FileID,
 	})
 
-	// Background: FlushCommits, size verification, repo usage, audit
+	// Background: FlushCommits, size verification, repo usage. Capture the
+	// values needed off the request now — the goroutine outlives the request, so
+	// it must not touch r.
+	bgUserID := userID
+	bgSession := session
+	compressedSize := req.CompressedSize
+	encryptedSize := req.EncryptedSize
 	go func() {
 		bgCtx := context.Background()
 
-		// Flush batch commits (HuggingFace)
-		adapter := s.resolveAdapterForUser(bgCtx, userID, session.Platform, session.Account)
+		// Flush batch commits (HuggingFace). This is the step that actually
+		// makes buffered LFS uploads durable on the platform; if it fails, the
+		// chunks are NOT safe yet. Re-signal the sync worker as a recovery hint
+		// and log it as a durability warning rather than dropping it silently.
+		adapter := s.resolveAdapterForUser(bgCtx, bgUserID, bgSession.Platform, bgSession.Account)
 		if bc, ok := adapter.(adapters.BatchCommitter); ok {
-			if err := bc.FlushCommits(bgCtx, session.RepoURL); err != nil {
-				log.Printf("upload: background FlushCommits failed: %v", err)
+			if err := bc.FlushCommits(bgCtx, bgSession.RepoURL); err != nil {
+				log.Printf("upload: WARNING background FlushCommits failed for file %s (chunks may not be durable): %v", bgSession.FileID, err)
+				select {
+				case s.syncCh <- struct{}{}:
+				default:
+				}
 			}
 		}
 
 		// Verify and update sizes
-		actualEncrypted, err := s.db.GetTotalReceivedChunkSize(bgCtx, session.FileID)
+		actualEncrypted, err := s.db.GetTotalReceivedChunkSize(bgCtx, bgSession.FileID)
 		if err == nil {
-			s.db.UpdateFileOriginalSizeVerified(bgCtx, session.FileID, actualEncrypted)
+			s.db.UpdateFileOriginalSizeVerified(bgCtx, bgSession.FileID, actualEncrypted)
 		}
-		s.db.UpdateFileSizes(bgCtx, session.FileID, req.CompressedSize, req.EncryptedSize)
+		s.db.UpdateFileSizes(bgCtx, bgSession.FileID, compressedSize, encryptedSize)
 
 		// Update repo usage
-		pools, _ := s.getUserPools(bgCtx, userID)
-		key := session.Platform + ":" + session.Account
+		pools, _ := s.getUserPools(bgCtx, bgUserID)
+		key := bgSession.Platform + ":" + bgSession.Account
 		if pool, ok := pools[key]; ok {
-			pool.UpdateUsage(session.RepoID, req.EncryptedSize)
+			pool.UpdateUsage(bgSession.RepoID, encryptedSize)
 		}
-
-		s.audit(r, &userID, "upload_complete", map[string]interface{}{
-			"file_id":    session.FileID,
-			"session_id": sessionID,
-			"filename":   session.Filename,
-			"chunks":     session.ChunkCount,
-		})
 	}()
 }
 

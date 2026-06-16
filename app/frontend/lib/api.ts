@@ -104,6 +104,7 @@ export interface FileMetaResponse {
   chunk_count: number;
   sha256: string;
   salt: string; // base64
+  wrapped_cek?: string; // base64 envelope-wrapped Content Encryption Key (empty for legacy files)
   status: string;
   created_at: string;
 }
@@ -395,6 +396,7 @@ export function adminGetUser(userId: string): Promise<AdminUserDetail> {
 
 export function createShare(data: {
   file_id: string;
+  wrapped_cek?: string;
   password?: string;
   expires_in_hours?: number;
   max_downloads?: number;

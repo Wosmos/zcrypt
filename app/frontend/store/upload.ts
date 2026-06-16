@@ -2,7 +2,7 @@ import { create } from "zustand";
 import type { UploadItem, UploadStatus } from "@/types";
 import { toast } from "@/store/toast";
 import { WorkerPool } from "@/lib/worker-pool";
-import { generateSalt, deriveKeyBytes, sha256File, toBase64 } from "@/lib/crypto";
+import { generateSalt, deriveKeyBytes, generateCEK, wrapKey, sha256File, toBase64 } from "@/lib/crypto";
 import { initUpload, uploadChunk, completeUpload, presignChunk, directUploadToURL, confirmChunk, cancelUpload } from "@/lib/upload-session";
 import { getDeviceProfile } from "@/lib/device-profile";
 import { isTauri, localUpload, tauriInvoke } from "@/lib/tauri";
@@ -253,10 +253,18 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
         updateStatus(id, "encrypting", 1, "Hashing file...", 0, file.size);
         const fileSha256 = await sha256File(file);
 
-        // Step 2: Generate salt & derive key
+        // Step 2: Generate salt, derive KEK, and create a per-file CEK.
+        // Envelope encryption: chunks are encrypted with a random CEK; the CEK
+        // is wrapped with the passphrase-derived KEK and stored alongside the
+        // file. This decouples file content from the passphrase so a file can be
+        // shared (by wrapping its CEK with a share key) without revealing it.
         updateStatus(id, "encrypting", 2, "Deriving encryption key...");
         const salt = generateSalt();
-        const keyBytes = await deriveKeyBytes(passphrase, salt);
+        const kekBytes = await deriveKeyBytes(passphrase, salt);
+        const cek = generateCEK();
+        const wrappedCek = await wrapKey(kekBytes, cek);
+        // The CEK is what actually encrypts chunk data.
+        const cekBytes = cek.buffer.slice(0) as ArrayBuffer;
 
         // Step 3: Calculate chunks (device-aware chunk size)
         const chunkCount = Math.max(1, Math.ceil(file.size / chunkSize));
@@ -275,6 +283,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
               original_size: file.size,
               sha256: fileSha256,
               salt: toBase64(salt),
+              wrapped_cek: toBase64(wrappedCek),
               chunk_count: chunkCount,
               platform,
             });
@@ -371,7 +380,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
           const chunkPromise = pool.process({
             chunkIndex: i,
             plaintext: chunkData, // transferred to worker (zero-copy)
-            keyBytes: keyBytes.slice(0), // copy since buffer gets neutered on transfer
+            keyBytes: cekBytes.slice(0), // CEK — copy since buffer gets neutered on transfer
             compress: shouldCompress,
             compressionLevel: profile.compressionLevel,
           }).then(async (result) => {

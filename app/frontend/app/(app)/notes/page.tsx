@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { listNotes, createNote, updateNote, deleteNote } from "@/lib/api";
+import { toast } from "@/store/toast";
 import type { Note } from "@/types";
 import { Button } from "@/components/ui/button";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
@@ -234,26 +235,45 @@ export default function NotesPage() {
       const encTitle = await encryptText(title, key);
       const encBody = await encryptText(body, key);
       const tagList = tags.split(",").map((t) => t.trim()).filter(Boolean);
+      const payload = {
+        encrypted_title: encTitle,
+        encrypted_body: encBody,
+        content_size: new TextEncoder().encode(body).length,
+        tags: tagList,
+      };
+
+      // Merge the single saved note into local state using the plaintext we
+      // already hold — no need to refetch and re-decrypt the whole list.
+      const saved = isNew
+        ? await createNote(payload)
+        : selectedId
+          ? await updateNote(selectedId, payload)
+          : null;
+      if (!saved) return;
+
+      const merged: DecryptedNote = {
+        id: saved.id,
+        title,
+        body,
+        tags: tagList,
+        pinned: saved.pinned,
+        created_at: saved.created_at,
+        updated_at: saved.updated_at,
+      };
+      setNotes((prev) => {
+        const idx = prev.findIndex((n) => n.id === merged.id);
+        if (idx === -1) return [merged, ...prev];
+        const next = [...prev];
+        next[idx] = merged;
+        return next;
+      });
 
       if (isNew) {
-        await createNote({
-          encrypted_title: encTitle,
-          encrypted_body: encBody,
-          content_size: new TextEncoder().encode(body).length,
-          tags: tagList,
-        });
-      } else if (selectedId) {
-        await updateNote(selectedId, {
-          encrypted_title: encTitle,
-          encrypted_body: encBody,
-          content_size: new TextEncoder().encode(body).length,
-          tags: tagList,
-        });
+        setIsNew(false);
+        setSelectedId(saved.id);
       }
-      await loadNotes();
-      if (isNew) setIsNew(false);
-    } catch {
-      // ignore
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to save note");
     } finally {
       setSaving(false);
     }
@@ -261,15 +281,21 @@ export default function NotesPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this note?")) return;
+
+    // Optimistic remove with rollback on failure so a failed delete doesn't
+    // silently leave the UI out of sync with the server.
+    const snapshot = notes;
+    if (selectedId === id) {
+      setSelectedId(null);
+      setIsNew(false);
+    }
+    setNotes((prev) => prev.filter((n) => n.id !== id));
+
     try {
       await deleteNote(id);
-      if (selectedId === id) {
-        setSelectedId(null);
-        setIsNew(false);
-      }
-      setNotes((prev) => prev.filter((n) => n.id !== id));
-    } catch {
-      // ignore
+    } catch (err) {
+      setNotes(snapshot);
+      toast.error(err instanceof Error ? err.message : "Failed to delete note");
     }
   };
 

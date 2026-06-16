@@ -63,23 +63,18 @@ export default function ToolsPage() {
 
       <PersistentTabPanel id="send" activeTab={activeTab}>
         {visited.has("send") && (
-          <div className="max-w-lg mx-auto">
+       
             <SendTool />
-          </div>
         )}
       </PersistentTabPanel>
       <PersistentTabPanel id="pad" activeTab={activeTab}>
         {visited.has("pad") && (
-          <div className="max-w-2xl mx-auto">
             <PadTool />
-          </div>
         )}
       </PersistentTabPanel>
       <PersistentTabPanel id="transfer" activeTab={activeTab}>
         {visited.has("transfer") && (
-          <div className="max-w-lg mx-auto">
             <TransferTool />
-          </div>
         )}
       </PersistentTabPanel>
       <PersistentTabPanel id="snapshots" activeTab={activeTab}>

@@ -71,12 +71,14 @@ func (w *SyncWorker) syncFile(ctx context.Context, f localdb.LocalFile) {
 // initRemoteSession creates an upload session on the backend.
 func (w *SyncWorker) initRemoteSession(ctx context.Context, f localdb.LocalFile) {
 	saltB64 := base64.StdEncoding.EncodeToString(f.Salt)
+	wrappedCekB64 := base64.StdEncoding.EncodeToString(f.WrappedCek)
 
 	session, err := w.client.InitUpload(api.UploadInitRequest{
 		Filename:     f.OriginalName,
 		OriginalSize: f.OriginalSize,
 		SHA256:       f.SHA256,
 		Salt:         saltB64,
+		WrappedCek:   wrappedCekB64,
 		ChunkCount:   f.ChunkCount,
 	})
 	if err != nil {

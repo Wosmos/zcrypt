@@ -6,7 +6,7 @@
  */
 
 import { getFileMeta, getFileChunk } from "@/lib/api";
-import { deriveKeyBytes, decryptChunk, sha256Hex, fromBase64 } from "@/lib/crypto";
+import { resolveFileKey, decryptChunk, sha256Hex, fromBase64 } from "@/lib/crypto";
 import { ZstdInit } from "@oneidentity/zstd-js/wasm";
 import { zipSync } from "fflate";
 import { getDeviceProfile } from "@/lib/device-profile";
@@ -58,10 +58,10 @@ export async function downloadAsZip(
       filesTotal: totalFiles,
     });
 
-    // Get metadata and derive key
+    // Get metadata and resolve the file key (unwraps CEK for envelope files)
     const meta = await getFileMeta(file.fileId);
     const salt = fromBase64(meta.salt);
-    const keyBytes = await deriveKeyBytes(passphrase, salt);
+    const keyBytes = await resolveFileKey(passphrase, salt, meta.wrapped_cek);
 
     // Download and decrypt all chunks with concurrency
     const MAX_CONCURRENT = Math.min(getDeviceProfile().maxConcurrentDownloads, 3);

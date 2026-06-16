@@ -57,14 +57,25 @@ func (e *UploadEngine) Upload(ctx context.Context, filePath, passphrase string, 
 		return fmt.Errorf("hash file: %w", err)
 	}
 
-	// 3. Generate salt and derive key
+	// 3. Generate salt, derive KEK, and create a per-file CEK (envelope
+	//    encryption). Chunks are encrypted with the random CEK; the CEK is
+	//    wrapped with the passphrase-derived KEK and sent on init.
 	emit("deriving_key", 0, 0, 0, fileSize)
 	salt, err := crypto.GenerateSalt()
 	if err != nil {
 		return fmt.Errorf("generate salt: %w", err)
 	}
-	keyBytes := crypto.DeriveKey(passphrase, salt)
+	kek := crypto.DeriveKey(passphrase, salt)
+	cek, err := crypto.GenerateCEK()
+	if err != nil {
+		return fmt.Errorf("generate CEK: %w", err)
+	}
+	wrappedCek, err := crypto.WrapCEK(kek, cek)
+	if err != nil {
+		return fmt.Errorf("wrap CEK: %w", err)
+	}
 	saltB64 := base64.StdEncoding.EncodeToString(salt)
+	wrappedCekB64 := base64.StdEncoding.EncodeToString(wrappedCek)
 
 	// 4. Calculate chunk count
 	chunkSize := int64(e.profile.ChunkSize)
@@ -80,6 +91,7 @@ func (e *UploadEngine) Upload(ctx context.Context, filePath, passphrase string, 
 		OriginalSize: fileSize,
 		SHA256:       fileSHA256,
 		Salt:         saltB64,
+		WrappedCek:   wrappedCekB64,
 		ChunkCount:   chunkCount,
 	})
 	if err != nil {
@@ -122,7 +134,7 @@ func (e *UploadEngine) Upload(ctx context.Context, filePath, passphrase string, 
 			pool.Submit(ChunkJob{
 				Index:     i,
 				Data:      buf[:n],
-				KeyBytes:  keyBytes,
+				KeyBytes:  cek, // encrypt chunk data with the CEK, not the KEK
 				Compress:  shouldCompress,
 				ZstdLevel: e.profile.ZstdLevel,
 			})

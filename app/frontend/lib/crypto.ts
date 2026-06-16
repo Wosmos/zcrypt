@@ -87,6 +87,63 @@ export async function decryptChunk(
   return new Uint8Array(plaintext);
 }
 
+/**
+ * Envelope encryption helpers.
+ *
+ * Each file is encrypted with a random Content Encryption Key (CEK), NOT with
+ * the passphrase-derived key directly. The CEK is then "wrapped" (encrypted)
+ * with a Key Encryption Key (KEK): the passphrase-derived key for the owner, or
+ * a random share key for a share link. This lets a file be decrypted by anyone
+ * holding a wrapped copy of its CEK, without ever revealing the owner's
+ * passphrase — the foundation for zero-knowledge sharing.
+ *
+ * The wrapped CEK reuses the chunk wire format: [12B IV || ciphertext || 16B tag].
+ */
+
+/** Generate a random 256-bit Content Encryption Key (CEK). */
+export function generateCEK(): Uint8Array {
+  return crypto.getRandomValues(new Uint8Array(KEY_SIZE));
+}
+
+/** Wrap (encrypt) a CEK under a KEK. Returns [12B IV || ciphertext || 16B tag]. */
+export async function wrapKey(
+  kekBytes: ArrayBuffer,
+  cek: Uint8Array
+): Promise<Uint8Array> {
+  return encryptChunk(kekBytes, cek);
+}
+
+/** Unwrap (decrypt) a CEK that was wrapped under a KEK. */
+export async function unwrapKey(
+  kekBytes: ArrayBuffer,
+  wrapped: Uint8Array
+): Promise<Uint8Array> {
+  return decryptChunk(kekBytes, wrapped);
+}
+
+/**
+ * Resolve the key used to decrypt a file's chunks, from the owner's passphrase.
+ *
+ * Envelope (v2) files carry a base64 `wrappedCek`: derive the KEK from the
+ * passphrase + salt, unwrap it to recover the per-file CEK, and return the CEK.
+ * Legacy files (no wrappedCek) were encrypted directly with the
+ * passphrase-derived key, so that key is returned as-is.
+ *
+ * Returns a raw ArrayBuffer suitable for decryptChunk / worker transfer.
+ */
+export async function resolveFileKey(
+  passphrase: string,
+  salt: Uint8Array,
+  wrappedCek?: string | null
+): Promise<ArrayBuffer> {
+  const kek = await deriveKeyBytes(passphrase, salt);
+  if (!wrappedCek) {
+    return kek; // legacy: passphrase-derived key encrypts content directly
+  }
+  const cek = await unwrapKey(kek, fromBase64(wrappedCek));
+  return cek.buffer.slice(0) as ArrayBuffer;
+}
+
 /** Compute SHA-256 hex digest of data. */
 export async function sha256Hex(data: Uint8Array): Promise<string> {
   const hash = await crypto.subtle.digest("SHA-256", data as BufferSource);

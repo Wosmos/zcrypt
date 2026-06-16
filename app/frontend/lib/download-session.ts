@@ -8,7 +8,7 @@
  */
 
 import { getFileMeta, getFileChunk } from "@/lib/api";
-import { deriveKeyBytes, decryptChunk, sha256Hex, fromBase64 } from "@/lib/crypto";
+import { resolveFileKey, decryptChunk, sha256Hex, fromBase64 } from "@/lib/crypto";
 import { ZstdInit } from "@oneidentity/zstd-js/wasm";
 import { getDeviceProfile } from "@/lib/device-profile";
 
@@ -51,10 +51,11 @@ export async function downloadAndDecryptFile(
 
   if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
 
-  // Step 2: Derive key from passphrase + salt
+  // Step 2: Resolve the file key from passphrase + salt (unwraps the per-file
+  // CEK for envelope files; falls back to the derived key for legacy files).
   onProgress?.({ stage: "Deriving key...", percent: 1, chunksDone: 0, chunksTotal: meta.chunk_count });
   const salt = fromBase64(meta.salt);
-  const keyBytes = await deriveKeyBytes(passphrase, salt);
+  const keyBytes = await resolveFileKey(passphrase, salt, meta.wrapped_cek);
 
   if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
 

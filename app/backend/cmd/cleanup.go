@@ -6,6 +6,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/zcrypt/zcrypt/auth"
 	"github.com/zcrypt/zcrypt/types"
 )
 
@@ -95,9 +96,49 @@ func (s *Server) runCleanupBatch(ctx context.Context) {
 		log.Printf("cleanup: dead man switches: %v", err)
 	} else {
 		for _, dms := range switches {
-			log.Printf("cleanup: dead man's switch triggered for user %s, contact: %s", dms.UserID, dms.ContactEmail)
-			s.db.MarkDeadManSwitchTriggered(ctx, dms.ID)
+			s.triggerDeadManSwitch(ctx, dms)
 		}
+	}
+}
+
+// triggerDeadManSwitch notifies the configured contact that the user failed to
+// check in, then marks the switch as triggered. The switch is only marked
+// triggered if the notification was sent (or email is intentionally disabled),
+// so a transient email failure is retried on the next cleanup pass rather than
+// silently swallowing the one notification this feature exists to deliver.
+func (s *Server) triggerDeadManSwitch(ctx context.Context, dms types.DeadManSwitch) {
+	log.Printf("cleanup: dead man's switch triggered for user %s, notifying contact: %s", dms.UserID, dms.ContactEmail)
+
+	cfg := s.emailCfg()
+	if cfg == nil {
+		// Email isn't configured for this deployment. There's no delivery
+		// channel, so retrying forever is pointless — mark it triggered and
+		// log loudly so it's visible in ops.
+		log.Printf("cleanup: WARNING dead man's switch %s expired but email is not configured; cannot notify %s", dms.ID, dms.ContactEmail)
+		if err := s.db.MarkDeadManSwitchTriggered(ctx, dms.ID); err != nil {
+			log.Printf("cleanup: mark dead man's switch %s triggered: %v", dms.ID, err)
+		}
+		return
+	}
+
+	// Resolve a human-friendly label for the account holder for the email body.
+	ownerName := "A zcrypt user"
+	if owner, err := s.db.GetUserByID(ctx, dms.UserID); err == nil && owner != nil {
+		if owner.Username != "" {
+			ownerName = owner.Username
+		} else if owner.Email != "" {
+			ownerName = owner.Email
+		}
+	}
+
+	if err := auth.SendDeadManSwitchEmail(cfg, dms.ContactEmail, dms.ContactName, ownerName, dms.Message, dms.IncludeFiles); err != nil {
+		// Leave triggered = FALSE so the next cleanup pass retries delivery.
+		log.Printf("cleanup: send dead man's switch email to %s failed (will retry): %v", dms.ContactEmail, err)
+		return
+	}
+
+	if err := s.db.MarkDeadManSwitchTriggered(ctx, dms.ID); err != nil {
+		log.Printf("cleanup: mark dead man's switch %s triggered: %v", dms.ID, err)
 	}
 }
 

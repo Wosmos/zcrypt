@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -66,6 +67,7 @@ func (d *DB) migrate() error {
 			original_size INTEGER NOT NULL,
 			sha256       TEXT NOT NULL,
 			salt         BLOB NOT NULL,
+			wrapped_cek  BLOB NOT NULL DEFAULT '',
 			chunk_count  INTEGER NOT NULL,
 			status       TEXT NOT NULL DEFAULT 'pending',
 			sync_status  TEXT NOT NULL DEFAULT 'pending',
@@ -97,7 +99,18 @@ func (d *DB) migrate() error {
 		CREATE INDEX IF NOT EXISTS idx_chunks_pending ON chunks(sync_status) WHERE sync_status = 'pending';
 		CREATE INDEX IF NOT EXISTS idx_files_pending ON files(sync_status) WHERE sync_status != 'synced';
 	`)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Additive migration for DBs created before envelope encryption. SQLite has
+	// no "ADD COLUMN IF NOT EXISTS", so tolerate the duplicate-column error.
+	if _, aerr := d.db.Exec(`ALTER TABLE files ADD COLUMN wrapped_cek BLOB NOT NULL DEFAULT ''`); aerr != nil {
+		if !strings.Contains(aerr.Error(), "duplicate column name") {
+			return fmt.Errorf("add wrapped_cek column: %w", aerr)
+		}
+	}
+	return nil
 }
 
 // StagingDir returns the path for storing encrypted chunks.
@@ -132,6 +145,7 @@ type LocalFile struct {
 	OriginalSize  int64
 	SHA256        string
 	Salt          []byte
+	WrappedCek    []byte
 	ChunkCount    int
 	Status        string
 	SyncStatus    string
@@ -146,9 +160,9 @@ type LocalFile struct {
 
 func (d *DB) InsertFile(f *LocalFile) error {
 	_, err := d.db.Exec(
-		`INSERT INTO files (id, original_name, original_size, sha256, salt, chunk_count, status)
-		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		f.ID, f.OriginalName, f.OriginalSize, f.SHA256, f.Salt, f.ChunkCount, f.Status,
+		`INSERT INTO files (id, original_name, original_size, sha256, salt, wrapped_cek, chunk_count, status)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		f.ID, f.OriginalName, f.OriginalSize, f.SHA256, f.Salt, f.WrappedCek, f.ChunkCount, f.Status,
 	)
 	return err
 }
@@ -173,7 +187,7 @@ func (d *DB) UpdateFileSyncError(fileID, errMsg string) error {
 
 func (d *DB) GetPendingFiles() ([]LocalFile, error) {
 	rows, err := d.db.Query(
-		`SELECT id, original_name, original_size, sha256, salt, chunk_count, status, sync_status,
+		`SELECT id, original_name, original_size, sha256, salt, wrapped_cek, chunk_count, status, sync_status,
 		        backend_file_id, session_id, platform, repo_url, direct_upload, error_msg
 		 FROM files WHERE sync_status IN ('pending', 'init_done', 'uploading') ORDER BY created_at`,
 	)
@@ -185,7 +199,7 @@ func (d *DB) GetPendingFiles() ([]LocalFile, error) {
 	var files []LocalFile
 	for rows.Next() {
 		var f LocalFile
-		if err := rows.Scan(&f.ID, &f.OriginalName, &f.OriginalSize, &f.SHA256, &f.Salt,
+		if err := rows.Scan(&f.ID, &f.OriginalName, &f.OriginalSize, &f.SHA256, &f.Salt, &f.WrappedCek,
 			&f.ChunkCount, &f.Status, &f.SyncStatus, &f.BackendFileID, &f.SessionID,
 			&f.Platform, &f.RepoURL, &f.DirectUpload, &f.ErrorMsg); err != nil {
 			return nil, err
@@ -198,10 +212,10 @@ func (d *DB) GetPendingFiles() ([]LocalFile, error) {
 func (d *DB) GetFileByID(fileID string) (*LocalFile, error) {
 	f := &LocalFile{}
 	err := d.db.QueryRow(
-		`SELECT id, original_name, original_size, sha256, salt, chunk_count, status, sync_status,
+		`SELECT id, original_name, original_size, sha256, salt, wrapped_cek, chunk_count, status, sync_status,
 		        backend_file_id, session_id, platform, repo_url, direct_upload, error_msg
 		 FROM files WHERE id = ?`, fileID,
-	).Scan(&f.ID, &f.OriginalName, &f.OriginalSize, &f.SHA256, &f.Salt,
+	).Scan(&f.ID, &f.OriginalName, &f.OriginalSize, &f.SHA256, &f.Salt, &f.WrappedCek,
 		&f.ChunkCount, &f.Status, &f.SyncStatus, &f.BackendFileID, &f.SessionID,
 		&f.Platform, &f.RepoURL, &f.DirectUpload, &f.ErrorMsg)
 	if err != nil {

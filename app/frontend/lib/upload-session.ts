@@ -35,6 +35,7 @@ export interface UploadInitParams {
   original_size: number;
   sha256: string;
   salt: string; // base64
+  wrapped_cek: string; // base64 envelope-wrapped Content Encryption Key
   chunk_count: number;
   platform?: string;
 }
