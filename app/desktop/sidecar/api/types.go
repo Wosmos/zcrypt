@@ -77,7 +77,8 @@ type FileMetaResponse struct {
 	EncryptedSize  int64  `json:"encrypted_size"`
 	ChunkCount     int    `json:"chunk_count"`
 	SHA256         string `json:"sha256"`
-	Salt           string `json:"salt"` // base64
+	Salt           string `json:"salt"`                  // base64
+	WrappedCek     string `json:"wrapped_cek,omitempty"` // base64 envelope-wrapped CEK (empty for legacy files)
 	Status         string `json:"status"`
 	CreatedAt      string `json:"created_at"`
 }
@@ -88,7 +89,8 @@ type UploadInitRequest struct {
 	Filename     string `json:"filename"`
 	OriginalSize int64  `json:"original_size"`
 	SHA256       string `json:"sha256"`
-	Salt         string `json:"salt"` // base64
+	Salt         string `json:"salt"`        // base64
+	WrappedCek   string `json:"wrapped_cek"` // base64 envelope-wrapped Content Encryption Key
 	ChunkCount   int    `json:"chunk_count"`
 	Platform     string `json:"platform,omitempty"`
 }

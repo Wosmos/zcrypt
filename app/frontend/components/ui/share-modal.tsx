@@ -5,8 +5,9 @@ import { createPortal } from "react-dom";
 import { X, Share2, Copy, Check, Link2, Lock, Trash2 } from "@/lib/icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { createShare, listShares, revokeShare } from "@/lib/api";
+import { createShare, listShares, revokeShare, getFileMeta } from "@/lib/api";
 import { toast } from "@/store/toast";
+import { usePassphraseStore } from "@/store/passphrase";
 import { formatBytes, formatDate } from "@/lib/utils";
 import type { ShareLink } from "@/types";
 
@@ -43,12 +44,16 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
   const [maxDownloads, setMaxDownloads] = useState(0);
   const [loading, setLoading] = useState(false);
   const [generatedToken, setGeneratedToken] = useState("");
+  const [shareKeyB64, setShareKeyB64] = useState("");
   const [copied, setCopied] = useState(false);
   const [shares, setShares] = useState<ShareLink[]>([]);
   const [loadingShares, setLoadingShares] = useState(false);
 
-  const shareUrl = generatedToken
-    ? `${window.location.origin}/s/${generatedToken}`
+  // The share key lives only in the URL fragment (#key=...) and is never sent
+  // to the server, preserving zero-knowledge: the server stores only the CEK
+  // wrapped under this key, which is useless without the fragment.
+  const shareUrl = generatedToken && shareKeyB64
+    ? `${window.location.origin}/s/${generatedToken}#key=${shareKeyB64}`
     : "";
 
   // Load existing shares
@@ -70,24 +75,58 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
       setExpiryHours(0);
       setMaxDownloads(0);
       setGeneratedToken("");
+      setShareKeyB64("");
       setCopied(false);
     }
   }, [open]);
 
   const handleGenerate = useCallback(async () => {
+    // Sharing needs the passphrase to recover the file's CEK so it can be
+    // re-wrapped under a share key. The recipient then needs only the link.
+    const passphrase = usePassphraseStore.getState().getPassphrase();
+    if (!passphrase) {
+      toast.error("Your passphrase is locked. Open or download a file first to unlock it, then try sharing again.");
+      return;
+    }
+
     setLoading(true);
     try {
+      const { resolveFileKey, generateCEK, wrapKey, fromBase64, toBase64 } = await import("@/lib/crypto");
+
+      // 1. Recover this file's CEK using the owner's passphrase.
+      const meta = await getFileMeta(fileId);
+      if (!meta.wrapped_cek) {
+        throw new Error("This file was uploaded before sharing was supported. Re-upload it to share.");
+      }
+      const salt = fromBase64(meta.salt);
+      // resolveFileKey returns the CEK for envelope files.
+      const cekBuf = await resolveFileKey(passphrase, salt, meta.wrapped_cek);
+      const cek = new Uint8Array(cekBuf);
+
+      // 2. Wrap the CEK under a fresh random share key.
+      const shareKey = generateCEK();
+      const shareWrappedCek = await wrapKey(shareKey.buffer.slice(0) as ArrayBuffer, cek);
+
+      // 3. Create the share storing only the share-wrapped CEK. The share key
+      //    itself never leaves the browser except in the URL fragment below.
       const result = await createShare({
         file_id: fileId,
+        wrapped_cek: toBase64(shareWrappedCek),
         password: usePassword ? password : undefined,
         expires_in_hours: expiryHours || undefined,
         max_downloads: maxDownloads || undefined,
       });
+
       setGeneratedToken(result.token);
+      setShareKeyB64(toBase64(shareKey));
       setStep("link");
       toast.success("Share link created");
-      // Refresh shares list
-      listShares(fileId).then(setShares).catch(() => {});
+      // Refresh the (secondary) active-shares list. The share itself already
+      // succeeded and its link is shown, so a failed refresh here is non-fatal
+      // — log it rather than alarming the user or swallowing it silently.
+      listShares(fileId)
+        .then(setShares)
+        .catch((err) => console.warn("share-modal: refresh shares failed", err));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to create share");
     } finally {
@@ -230,7 +269,7 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
 
                 <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
                   <p className="text-xs text-amber-700 dark:text-amber-300">
-                    Anyone with this link can download the file, but they also need the <strong>encryption passphrase</strong> to decrypt it. Share the passphrase through a separate channel.
+                    This link contains the decryption key in its <strong>#fragment</strong> — anyone with the full link can download <em>and</em> decrypt the file, with no passphrase needed. The key never reaches our servers. Share the link only with people you trust, and use a password or expiry for extra safety.
                   </p>
                 </div>
 

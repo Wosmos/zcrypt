@@ -56,6 +56,7 @@ CREATE TABLE IF NOT EXISTS files (
 	sha256          TEXT NOT NULL,
 	salt            BYTEA NOT NULL,
 	iv              BYTEA NOT NULL DEFAULT '',
+	wrapped_cek     TEXT NOT NULL DEFAULT '',
 	status          TEXT NOT NULL DEFAULT 'complete' CHECK (status IN ('uploading', 'complete')),
 	created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -194,6 +195,15 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS storage_quota_bytes BIGINT DEFAULT NU
 ALTER TABLE users ADD COLUMN IF NOT EXISTS plan TEXT NOT NULL DEFAULT 'free';
 ALTER TABLE chunks ADD COLUMN IF NOT EXISTS compressed BOOLEAN NOT NULL DEFAULT FALSE;
 
+-- Sync attempt counter: lets the sync worker stop retrying a permanently-broken
+-- chunk (e.g. its staging file is gone) instead of looping on it forever.
+ALTER TABLE chunks ADD COLUMN IF NOT EXISTS sync_attempts INTEGER NOT NULL DEFAULT 0;
+
+-- Envelope encryption: per-file Content Encryption Key, wrapped (encrypted) with
+-- the passphrase-derived key, base64-encoded. Empty for legacy files encrypted
+-- directly with the passphrase-derived key.
+ALTER TABLE files ADD COLUMN IF NOT EXISTS wrapped_cek TEXT NOT NULL DEFAULT '';
+
 -- Migrate email_tokens kind constraint for magic links
 ALTER TABLE email_tokens DROP CONSTRAINT IF EXISTS email_tokens_kind_check;
 ALTER TABLE email_tokens ADD CONSTRAINT email_tokens_kind_check
@@ -226,6 +236,7 @@ CREATE TABLE IF NOT EXISTS shares (
 	user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 	token           TEXT NOT NULL UNIQUE,
 	password_hash   TEXT NOT NULL DEFAULT '',
+	wrapped_cek     TEXT NOT NULL DEFAULT '',
 	expires_at      TIMESTAMPTZ,
 	max_downloads   INTEGER NOT NULL DEFAULT 0,
 	download_count  INTEGER NOT NULL DEFAULT 0,
@@ -236,6 +247,10 @@ CREATE TABLE IF NOT EXISTS shares (
 CREATE INDEX IF NOT EXISTS idx_shares_token ON shares(token);
 CREATE INDEX IF NOT EXISTS idx_shares_user ON shares(user_id);
 CREATE INDEX IF NOT EXISTS idx_shares_file ON shares(file_id);
+
+-- Envelope-encryption: the file's CEK wrapped under the share's random key
+-- (the key itself travels only in the share URL fragment, never to the server).
+ALTER TABLE shares ADD COLUMN IF NOT EXISTS wrapped_cek TEXT NOT NULL DEFAULT '';
 
 -- Anonymous encrypted file sharing (zcrypt Send)
 CREATE TABLE IF NOT EXISTS send_transfers (

@@ -27,6 +27,15 @@ function getPreviewType(filename: string): "image" | "video" | "audio" | "none" 
   return "none";
 }
 
+/** Extract the base64 share key from the URL fragment (#key=...). */
+function getShareKeyFromFragment(): string | null {
+  if (typeof window === "undefined") return null;
+  const hash = window.location.hash;
+  if (!hash) return null;
+  const match = hash.match(/key=([A-Za-z0-9+/=]+)/);
+  return match ? match[1] : null;
+}
+
 function getMimeType(filename: string): string | undefined {
   const ext = filename.split(".").pop()?.toLowerCase() || "";
   const map: Record<string, string> = {
@@ -44,7 +53,8 @@ export default function SharePage() {
   const [pageState, setPageState] = useState<PageState>("loading");
   const [errorMsg, setErrorMsg] = useState("");
   const [sharePassword, setSharePassword] = useState("");
-  const [passphrase, setPassphrase] = useState("");
+  // The decryption key comes from the URL fragment, never typed by the user.
+  const [shareKey, setShareKey] = useState<string | null>(null);
   const [progress, setProgress] = useState({ stage: "", percent: 0 });
   const [decryptedBlob, setDecryptedBlob] = useState<Blob | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -53,12 +63,20 @@ export default function SharePage() {
 
   useEffect(() => {
     if (!token) return;
+    // The share key lives in the URL fragment; without it the file can't be
+    // decrypted no matter what, so surface that immediately.
+    const key = getShareKeyFromFragment();
+    setShareKey(key);
+
     getShareInfo(token)
       .then((data) => {
         setInfo(data);
         if (!data.valid) {
           setPageState("error");
           setErrorMsg(data.reason || "This share link is no longer valid");
+        } else if (!key) {
+          setPageState("error");
+          setErrorMsg("This link is missing its decryption key. Make sure you copied the full URL, including the part after #.");
         } else {
           setPageState("ready");
         }
@@ -77,9 +95,9 @@ export default function SharePage() {
   }, []);
 
   const decryptFile = useCallback(async (): Promise<{ blob: Blob; originalName: string } | null> => {
-    if (!token || !passphrase) return null;
+    if (!token || !shareKey) return null;
 
-    const { deriveKeyBytes, decryptChunk, sha256Hex, fromBase64 } = await import("@/lib/crypto");
+    const { unwrapKey, decryptChunk, sha256Hex, fromBase64 } = await import("@/lib/crypto");
     const { ZstdInit } = await import("@oneidentity/zstd-js/wasm");
     const { getDeviceProfile } = await import("@/lib/device-profile");
     const zstd = await ZstdInit();
@@ -87,9 +105,19 @@ export default function SharePage() {
     setProgress({ stage: "Fetching metadata...", percent: 0 });
     const meta = await getShareFileMeta(token, sharePassword || undefined);
 
-    setProgress({ stage: "Deriving key...", percent: 1 });
-    const salt = fromBase64(meta.salt);
-    const keyBytes = await deriveKeyBytes(passphrase, salt);
+    // Unwrap the file's CEK using the share key from the URL fragment.
+    setProgress({ stage: "Unwrapping key...", percent: 1 });
+    if (!meta.wrapped_cek) {
+      throw new Error("This share is missing its encryption key and cannot be decrypted.");
+    }
+    let keyBytes: ArrayBuffer;
+    try {
+      const sk = fromBase64(shareKey);
+      const cek = await unwrapKey(sk.buffer.slice(0) as ArrayBuffer, fromBase64(meta.wrapped_cek));
+      keyBytes = cek.buffer.slice(0) as ArrayBuffer;
+    } catch {
+      throw new Error("Invalid share key — the link may be incomplete or corrupt.");
+    }
 
     const decryptedChunks: Uint8Array[] = new Array(meta.chunk_count);
     let chunksDone = 0;
@@ -103,7 +131,7 @@ export default function SharePage() {
       try {
         plaintext = await decryptChunk(keyBytes, encrypted);
       } catch {
-        throw new Error("Decryption failed — wrong passphrase?");
+        throw new Error("Decryption failed — the share link may be incomplete.");
       }
 
       if (compressed && zstd) {
@@ -147,10 +175,10 @@ export default function SharePage() {
     const mime = getMimeType(meta.original_name) || "application/octet-stream";
     const blob = new Blob([fullFile], { type: mime });
     return { blob, originalName: meta.original_name };
-  }, [token, passphrase, sharePassword]);
+  }, [token, shareKey, sharePassword]);
 
   const handleDecryptAndPreview = useCallback(async () => {
-    if (!token || !passphrase) return;
+    if (!token || !shareKey) return;
     setPageState("decrypting");
     setErrorMsg("");
 
@@ -174,11 +202,7 @@ export default function SharePage() {
       setPageState("preview");
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Decryption failed";
-      if (msg.toLowerCase().includes("passphrase") || msg.toLowerCase().includes("decrypt") || msg.toLowerCase().includes("cipher")) {
-        setPageState("ready");
-        setErrorMsg("Incorrect passphrase. Please try again.");
-        setPassphrase("");
-      } else if (msg.toLowerCase().includes("password") || msg.toLowerCase().includes("unauthorized")) {
+      if (msg.toLowerCase().includes("password") || msg.toLowerCase().includes("unauthorized")) {
         setPageState("ready");
         setErrorMsg("Incorrect share password.");
         setSharePassword("");
@@ -187,7 +211,7 @@ export default function SharePage() {
         setErrorMsg(msg);
       }
     }
-  }, [token, passphrase, decryptFile]);
+  }, [token, shareKey, decryptFile]);
 
   const handleSaveToDevice = useCallback(() => {
     if (!decryptedBlob) return;
@@ -203,7 +227,7 @@ export default function SharePage() {
 
   // Direct download (for non-previewable files, or from the ready state)
   const handleDirectDownload = useCallback(async () => {
-    if (!token || !passphrase) return;
+    if (!token || !shareKey) return;
     setPageState("decrypting");
     setErrorMsg("");
 
@@ -225,11 +249,7 @@ export default function SharePage() {
       setFileName(originalName);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Download failed";
-      if (msg.toLowerCase().includes("passphrase") || msg.toLowerCase().includes("decrypt") || msg.toLowerCase().includes("cipher")) {
-        setPageState("ready");
-        setErrorMsg("Incorrect passphrase. Please try again.");
-        setPassphrase("");
-      } else if (msg.toLowerCase().includes("password") || msg.toLowerCase().includes("unauthorized")) {
+      if (msg.toLowerCase().includes("password") || msg.toLowerCase().includes("unauthorized")) {
         setPageState("ready");
         setErrorMsg("Incorrect share password.");
         setSharePassword("");
@@ -238,7 +258,7 @@ export default function SharePage() {
         setErrorMsg(msg);
       }
     }
-  }, [token, passphrase, decryptFile]);
+  }, [token, shareKey, decryptFile]);
 
   const previewType = info ? getPreviewType(info.file_name) : "none";
   const isPreviewable = previewType !== "none";
@@ -308,37 +328,19 @@ export default function SharePage() {
                 </div>
               )}
 
-              {/* Encryption passphrase (always required) */}
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-[var(--color-text-secondary)]">Encryption Passphrase</label>
-                <Input
-                  type="password"
-                  placeholder="Enter file passphrase"
-                  value={passphrase}
-                  onChange={(e) => { setPassphrase(e.target.value); setErrorMsg(""); }}
-                  icon={<Shield className="h-4 w-4" />}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && passphrase && (!info.has_password || sharePassword)) {
-                      isPreviewable ? handleDecryptAndPreview() : handleDirectDownload();
-                    }
-                  }}
-                />
-                <p className="text-[10px] text-[var(--color-text-muted)]">
-                  The file owner should have shared this separately.
-                </p>
-              </div>
-
               {errorMsg && (
                 <p className="text-xs text-red-500 font-medium">{errorMsg}</p>
               )}
 
-              {/* Action buttons */}
+              {/* Action buttons. The decryption key comes from the link
+                  fragment, so no passphrase is needed — only the optional
+                  share password gates these. */}
               <div className="flex gap-2">
                 {isPreviewable ? (
                   <>
                     <Button
                       onClick={handleDecryptAndPreview}
-                      disabled={!passphrase || (info.has_password && !sharePassword)}
+                      disabled={info.has_password && !sharePassword}
                       className="flex-1"
                     >
                       <Eye className="h-4 w-4 mr-2" />
@@ -347,7 +349,7 @@ export default function SharePage() {
                     <Button
                       variant="secondary"
                       onClick={handleDirectDownload}
-                      disabled={!passphrase || (info.has_password && !sharePassword)}
+                      disabled={info.has_password && !sharePassword}
                       className="flex-shrink-0"
                     >
                       <Download className="h-4 w-4" />
@@ -356,7 +358,7 @@ export default function SharePage() {
                 ) : (
                   <Button
                     onClick={handleDirectDownload}
-                    disabled={!passphrase || (info.has_password && !sharePassword)}
+                    disabled={info.has_password && !sharePassword}
                     className="w-full"
                   >
                     <Download className="h-4 w-4 mr-2" />
@@ -367,7 +369,7 @@ export default function SharePage() {
 
               <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3">
                 <p className="text-xs text-cyan-700 dark:text-cyan-300">
-                  This file is end-to-end encrypted. Decryption happens entirely in your browser — the server never sees your data.
+                  This file is end-to-end encrypted. The decryption key is in this link and never reaches our servers — decryption happens entirely in your browser.
                 </p>
               </div>
             </div>
@@ -482,11 +484,10 @@ export default function SharePage() {
                   setPreviewUrl(null);
                   setDecryptedBlob(null);
                   setPageState("ready");
-                  setPassphrase("");
                 }}
                 className="text-[10px] text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors"
               >
-                Use different passphrase
+                Close preview
               </button>
             </div>
           </>
@@ -508,7 +509,6 @@ export default function SharePage() {
                 variant="secondary"
                 onClick={() => {
                   setPageState("ready");
-                  setPassphrase("");
                 }}
                 className="mt-2"
               >

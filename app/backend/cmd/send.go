@@ -204,7 +204,7 @@ func (s *Server) HandleSendChunkUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get global adapter
-	_, adapter, err := s.selectGlobalAdapter(ctx)
+	adapterKey, adapter, err := s.selectGlobalAdapter(ctx)
 	if err != nil {
 		log.Printf("send: no global adapter for chunk upload: %v", err)
 		http.Error(w, `{"error":"storage not available"}`, http.StatusInternalServerError)
@@ -252,8 +252,9 @@ func (s *Server) HandleSendChunkUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Extract platform info from adapter key
-	adapterKey, _, _ := s.selectGlobalAdapter(ctx)
+	// Extract platform info from the adapter key resolved above (reuse it —
+	// re-selecting here could pick a different adapter or swallow an error,
+	// storing a chunk row with an empty platform/account that can't be downloaded).
 	parts := strings.SplitN(adapterKey, ":", 2)
 	platform := parts[0]
 	adapterAccount := ""

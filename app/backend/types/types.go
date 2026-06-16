@@ -71,6 +71,7 @@ type FileMetadata struct {
 	SHA256         string    `json:"sha256"`
 	Salt           []byte    `json:"-"`
 	IV             []byte    `json:"-"`
+	WrappedCEK     string    `json:"wrapped_cek,omitempty"` // base64 envelope-wrapped Content Encryption Key
 	Status         string    `json:"status"`
 	CreatedAt      time.Time `json:"created_at"`
 }
@@ -85,9 +86,10 @@ type ChunkRef struct {
 	SHA256     string `json:"sha256"`
 	Platform   string `json:"platform"`
 	Account    string `json:"account"`
-	Repo       string `json:"repo"`
-	RemotePath string `json:"remote_path"`
-	Compressed bool   `json:"compressed"`
+	Repo         string `json:"repo"`
+	RemotePath   string `json:"remote_path"`
+	Compressed   bool   `json:"compressed"`
+	SyncAttempts int    `json:"sync_attempts,omitempty"`
 }
 
 // Chunk holds chunk data for upload/download.
@@ -162,7 +164,8 @@ type UploadInitRequest struct {
 	Filename     string `json:"filename"`
 	OriginalSize int64  `json:"original_size"`
 	SHA256       string `json:"sha256"`
-	Salt         string `json:"salt"` // base64-encoded 32 bytes
+	Salt         string `json:"salt"`        // base64-encoded 32 bytes
+	WrappedCEK   string `json:"wrapped_cek"` // base64 envelope-wrapped Content Encryption Key
 	ChunkCount   int    `json:"chunk_count"`
 	Platform     string `json:"platform,omitempty"`
 }
@@ -341,6 +344,7 @@ type ShareLink struct {
 	UserID        string     `json:"user_id"`
 	Token         string     `json:"token"`
 	PasswordHash  string     `json:"-"`
+	WrappedCEK    string     `json:"wrapped_cek,omitempty"` // file CEK wrapped under the share key (base64)
 	HasPassword   bool       `json:"has_password"`
 	ExpiresAt     *time.Time `json:"expires_at,omitempty"`
 	MaxDownloads  int        `json:"max_downloads"`

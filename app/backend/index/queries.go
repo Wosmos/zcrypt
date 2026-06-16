@@ -14,10 +14,10 @@ func (db *DB) InsertFile(ctx context.Context, userID string, f *types.FileMetada
 		status = "complete"
 	}
 	_, err := db.pool.Exec(ctx,
-		`INSERT INTO files (id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, status)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+		`INSERT INTO files (id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, wrapped_cek, status)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
 		f.ID, userID, f.OriginalName, f.OriginalSize, f.CompressedSize, f.EncryptedSize,
-		f.ChunkCount, f.SHA256, f.Salt, f.IV, status,
+		f.ChunkCount, f.SHA256, f.Salt, f.IV, f.WrappedCEK, status,
 	)
 	if err != nil {
 		return fmt.Errorf("insert file: %w", err)
@@ -44,11 +44,11 @@ func (db *DB) InsertFileWithQuotaCheck(ctx context.Context, userID string, f *ty
 	// "inconsistent types deduced for parameter" error (SQLSTATE 42P08) when
 	// the same parameter appears in both SELECT and WHERE contexts.
 	tag, err := db.pool.Exec(ctx,
-		`INSERT INTO files (id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, status)
-		 SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
-		 WHERE (SELECT COALESCE(SUM(original_size), 0) FROM files WHERE user_id = $2 AND status IN ('complete', 'uploading')) + $4::BIGINT <= $12`,
+		`INSERT INTO files (id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, wrapped_cek, status)
+		 SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
+		 WHERE (SELECT COALESCE(SUM(original_size), 0) FROM files WHERE user_id = $2 AND status IN ('complete', 'uploading')) + $4::BIGINT <= $13`,
 		f.ID, userID, f.OriginalName, f.OriginalSize, f.CompressedSize, f.EncryptedSize,
-		f.ChunkCount, f.SHA256, f.Salt, f.IV, status, quotaBytes,
+		f.ChunkCount, f.SHA256, f.Salt, f.IV, f.WrappedCEK, status, quotaBytes,
 	)
 	if err != nil {
 		return fmt.Errorf("insert file: %w", err)
@@ -101,14 +101,14 @@ func (db *DB) InsertChunksBatch(ctx context.Context, userID string, chunks []*ty
 // GetFile retrieves file metadata by original name for a user (most recent complete upload).
 func (db *DB) GetFile(ctx context.Context, userID, originalName string) (*types.FileMetadata, error) {
 	row := db.pool.QueryRow(ctx,
-		`SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, status, created_at
+		`SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, wrapped_cek, status, created_at
 		 FROM files WHERE user_id = $1 AND original_name = $2 AND status = 'complete' ORDER BY created_at DESC LIMIT 1`,
 		userID, originalName,
 	)
 
 	f := &types.FileMetadata{}
 	err := row.Scan(&f.ID, &f.UserID, &f.OriginalName, &f.OriginalSize, &f.CompressedSize,
-		&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.Salt, &f.IV, &f.Status, &f.CreatedAt)
+		&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.Salt, &f.IV, &f.WrappedCEK, &f.Status, &f.CreatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("get file: %w", err)
 	}
@@ -118,13 +118,13 @@ func (db *DB) GetFile(ctx context.Context, userID, originalName string) (*types.
 // GetFileByID retrieves file metadata by ID, scoped to user.
 func (db *DB) GetFileByID(ctx context.Context, userID, id string) (*types.FileMetadata, error) {
 	row := db.pool.QueryRow(ctx,
-		`SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, status, created_at
+		`SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, wrapped_cek, status, created_at
 		 FROM files WHERE id = $1 AND user_id = $2`, id, userID,
 	)
 
 	f := &types.FileMetadata{}
 	err := row.Scan(&f.ID, &f.UserID, &f.OriginalName, &f.OriginalSize, &f.CompressedSize,
-		&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.Salt, &f.IV, &f.Status, &f.CreatedAt)
+		&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.Salt, &f.IV, &f.WrappedCEK, &f.Status, &f.CreatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("get file by id: %w", err)
 	}
@@ -133,7 +133,7 @@ func (db *DB) GetFileByID(ctx context.Context, userID, id string) (*types.FileMe
 
 // ListFiles returns all stored files for a user, optionally filtered by name substring.
 func (db *DB) ListFiles(ctx context.Context, userID, filter string) ([]types.FileMetadata, error) {
-	query := `SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, status, created_at
+	query := `SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, wrapped_cek, status, created_at
 	          FROM files WHERE user_id = $1 AND status = 'complete'`
 	args := []interface{}{userID}
 
@@ -153,7 +153,7 @@ func (db *DB) ListFiles(ctx context.Context, userID, filter string) ([]types.Fil
 	for rows.Next() {
 		var f types.FileMetadata
 		if err := rows.Scan(&f.ID, &f.UserID, &f.OriginalName, &f.OriginalSize, &f.CompressedSize,
-			&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.Salt, &f.IV, &f.Status, &f.CreatedAt); err != nil {
+			&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.Salt, &f.IV, &f.WrappedCEK, &f.Status, &f.CreatedAt); err != nil {
 			return nil, fmt.Errorf("scan file: %w", err)
 		}
 		files = append(files, f)
@@ -408,7 +408,7 @@ func (db *DB) UpdateFileStatus(ctx context.Context, fileID, status string) error
 // ListIncompleteFiles returns all files with status='uploading'.
 func (db *DB) ListIncompleteFiles(ctx context.Context) ([]types.FileMetadata, error) {
 	rows, err := db.pool.Query(ctx,
-		`SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, status, created_at
+		`SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, wrapped_cek, status, created_at
 		 FROM files WHERE status = 'uploading' ORDER BY created_at DESC`,
 	)
 	if err != nil {
@@ -420,7 +420,7 @@ func (db *DB) ListIncompleteFiles(ctx context.Context) ([]types.FileMetadata, er
 	for rows.Next() {
 		var f types.FileMetadata
 		if err := rows.Scan(&f.ID, &f.UserID, &f.OriginalName, &f.OriginalSize, &f.CompressedSize,
-			&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.Salt, &f.IV, &f.Status, &f.CreatedAt); err != nil {
+			&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.Salt, &f.IV, &f.WrappedCEK, &f.Status, &f.CreatedAt); err != nil {
 			return nil, fmt.Errorf("scan incomplete file: %w", err)
 		}
 		files = append(files, f)
@@ -453,10 +453,10 @@ func (db *DB) InsertFileWithChunks(ctx context.Context, userID string, f *types.
 		status = "complete"
 	}
 	if _, err := tx.Exec(ctx,
-		`INSERT INTO files (id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, status)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+		`INSERT INTO files (id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, wrapped_cek, status)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
 		f.ID, userID, f.OriginalName, f.OriginalSize, f.CompressedSize, f.EncryptedSize,
-		f.ChunkCount, f.SHA256, f.Salt, f.IV, status,
+		f.ChunkCount, f.SHA256, f.Salt, f.IV, f.WrappedCEK, status,
 	); err != nil {
 		return fmt.Errorf("insert file: %w", err)
 	}
@@ -702,11 +702,16 @@ func (db *DB) GetTotalReceivedChunkSize(ctx context.Context, fileID string) (int
 	return total, err
 }
 
-// GetPendingChunks returns chunks that have been received but not yet synced to the git platform.
-func (db *DB) GetPendingChunks(ctx context.Context, limit int) ([]types.ChunkRef, error) {
+// GetPendingChunks returns chunks that have been received but not yet synced to
+// the git platform and are still under the retry cap. Chunks at or above
+// maxAttempts are skipped so a permanently-broken chunk (e.g. missing staging
+// file) doesn't starve the queue or loop forever. Fewer-attempt chunks are
+// returned first so a single stuck chunk can't block fresh ones.
+func (db *DB) GetPendingChunks(ctx context.Context, limit, maxAttempts int) ([]types.ChunkRef, error) {
 	rows, err := db.pool.Query(ctx,
-		`SELECT chunk_id, file_id, user_id, idx, size, sha256, platform, account, repo, compressed
-		 FROM chunks WHERE remote_path = '' ORDER BY chunk_id LIMIT $1`, limit,
+		`SELECT chunk_id, file_id, user_id, idx, size, sha256, platform, account, repo, compressed, sync_attempts
+		 FROM chunks WHERE remote_path = '' AND sync_attempts < $1
+		 ORDER BY sync_attempts, chunk_id LIMIT $2`, maxAttempts, limit,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("get pending chunks: %w", err)
@@ -717,12 +722,34 @@ func (db *DB) GetPendingChunks(ctx context.Context, limit int) ([]types.ChunkRef
 	for rows.Next() {
 		var c types.ChunkRef
 		if err := rows.Scan(&c.ChunkID, &c.FileID, &c.UserID, &c.Index, &c.Size, &c.SHA256,
-			&c.Platform, &c.Account, &c.Repo, &c.Compressed); err != nil {
+			&c.Platform, &c.Account, &c.Repo, &c.Compressed, &c.SyncAttempts); err != nil {
 			return nil, fmt.Errorf("scan pending chunk: %w", err)
 		}
 		chunks = append(chunks, c)
 	}
 	return chunks, rows.Err()
+}
+
+// IncrementChunkSyncAttempts bumps the retry counter for a chunk after a failed
+// sync attempt. Once it reaches the cap the chunk is no longer returned by
+// GetPendingChunks.
+func (db *DB) IncrementChunkSyncAttempts(ctx context.Context, chunkID string) error {
+	_, err := db.pool.Exec(ctx,
+		`UPDATE chunks SET sync_attempts = sync_attempts + 1 WHERE chunk_id = $1`, chunkID)
+	if err != nil {
+		return fmt.Errorf("increment chunk sync attempts: %w", err)
+	}
+	return nil
+}
+
+// CountStuckChunks returns the number of chunks that have hit the retry cap
+// without syncing — used for surfacing data-loss risk in logs/metrics.
+func (db *DB) CountStuckChunks(ctx context.Context, maxAttempts int) (int, error) {
+	var n int
+	err := db.pool.QueryRow(ctx,
+		`SELECT COUNT(*) FROM chunks WHERE remote_path = '' AND sync_attempts >= $1`, maxAttempts,
+	).Scan(&n)
+	return n, err
 }
 
 // GetChunkByID returns a single chunk by its ID (regardless of sync status).
@@ -777,10 +804,10 @@ func (db *DB) UpdateFileOriginalSizeVerified(ctx context.Context, fileID string,
 func (db *DB) GetFileByIDUnsafe(ctx context.Context, fileID string) (*types.FileMetadata, error) {
 	f := &types.FileMetadata{}
 	err := db.pool.QueryRow(ctx,
-		`SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, status, created_at
+		`SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, wrapped_cek, status, created_at
 		 FROM files WHERE id = $1`, fileID,
 	).Scan(&f.ID, &f.UserID, &f.OriginalName, &f.OriginalSize, &f.CompressedSize,
-		&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.Salt, &f.IV, &f.Status, &f.CreatedAt)
+		&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.Salt, &f.IV, &f.WrappedCEK, &f.Status, &f.CreatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("get file by id (unsafe): %w", err)
 	}
@@ -790,9 +817,9 @@ func (db *DB) GetFileByIDUnsafe(ctx context.Context, fileID string) (*types.File
 // CreateShare inserts a new share link.
 func (db *DB) CreateShare(ctx context.Context, s *types.ShareLink) error {
 	_, err := db.pool.Exec(ctx,
-		`INSERT INTO shares (id, file_id, user_id, token, password_hash, expires_at, max_downloads)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-		s.ID, s.FileID, s.UserID, s.Token, s.PasswordHash, s.ExpiresAt, s.MaxDownloads,
+		`INSERT INTO shares (id, file_id, user_id, token, password_hash, wrapped_cek, expires_at, max_downloads)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+		s.ID, s.FileID, s.UserID, s.Token, s.PasswordHash, s.WrappedCEK, s.ExpiresAt, s.MaxDownloads,
 	)
 	if err != nil {
 		return fmt.Errorf("create share: %w", err)
@@ -804,9 +831,9 @@ func (db *DB) CreateShare(ctx context.Context, s *types.ShareLink) error {
 func (db *DB) GetShareByToken(ctx context.Context, token string) (*types.ShareLink, error) {
 	s := &types.ShareLink{}
 	err := db.pool.QueryRow(ctx,
-		`SELECT id, file_id, user_id, token, password_hash, expires_at, max_downloads, download_count, revoked, created_at
+		`SELECT id, file_id, user_id, token, password_hash, wrapped_cek, expires_at, max_downloads, download_count, revoked, created_at
 		 FROM shares WHERE token = $1`, token,
-	).Scan(&s.ID, &s.FileID, &s.UserID, &s.Token, &s.PasswordHash, &s.ExpiresAt, &s.MaxDownloads, &s.DownloadCount, &s.Revoked, &s.CreatedAt)
+	).Scan(&s.ID, &s.FileID, &s.UserID, &s.Token, &s.PasswordHash, &s.WrappedCEK, &s.ExpiresAt, &s.MaxDownloads, &s.DownloadCount, &s.Revoked, &s.CreatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("get share by token: %w", err)
 	}

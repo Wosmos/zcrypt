@@ -1,0 +1,971 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>zcrypt — Encrypted in your browser. Stored on your own accounts.</title>
+<meta name="description" content="zcrypt encrypts your files with AES-256-GCM on your device, then stores them on your own GitHub, GitLab, or HuggingFace. No size limits. No servers holding your data. Open source." />
+<meta name="color-scheme" content="dark" />
+
+<!-- Brand font: Poppins -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+<style>
+  /* ---------- Design tokens ---------- */
+  :root{
+    --bg:#0c0f1a;
+    --surface:#141829;
+    --surface-1:#1c2039;
+    --border:#1e2340;
+    --border-soft:rgba(158,163,192,.14);
+    --text:#f0f2f8;
+    --text-secondary:#9ea3c0;
+    --text-dim:#6b7095;
+    --accent:#00d5e4;
+    --accent-hover:#2de0ed;
+    --violet:#8b5cf6;
+    --blue:#3b82f6;
+    --ok:#3ddc97;
+
+    --maxw:1120px;
+    --radius:16px;
+    --radius-sm:11px;
+
+    --font:'Poppins',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    --mono:'JetBrains Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+
+    --shadow-card:0 1px 0 rgba(255,255,255,.03) inset, 0 24px 60px -32px rgba(0,0,0,.7);
+    --glow-accent:0 0 0 1px rgba(0,213,228,.4), 0 14px 40px -10px rgba(0,213,228,.45);
+  }
+
+  *,*::before,*::after{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+
+  body{
+    margin:0;
+    font-family:var(--font);
+    background:var(--bg);
+    color:var(--text);
+    line-height:1.6;
+    font-size:16px;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+    overflow-x:hidden;
+  }
+
+  /* ---------- Ambient background ---------- */
+  .bg-field{position:fixed;inset:0;z-index:-2;overflow:hidden;pointer-events:none}
+  .blob{position:absolute;border-radius:50%;filter:blur(90px);opacity:.5;will-change:transform}
+  .blob.b1{width:620px;height:620px;top:-220px;left:-140px;
+    background:radial-gradient(circle at 30% 30%,rgba(0,213,228,.55),transparent 70%);
+    animation:drift1 26s ease-in-out infinite alternate}
+  .blob.b2{width:520px;height:520px;top:240px;right:-160px;
+    background:radial-gradient(circle at 60% 40%,rgba(139,92,246,.42),transparent 70%);
+    animation:drift2 32s ease-in-out infinite alternate}
+  .blob.b3{width:460px;height:460px;bottom:-180px;left:40%;
+    background:radial-gradient(circle at 50% 50%,rgba(59,130,246,.30),transparent 70%);
+    animation:drift3 30s ease-in-out infinite alternate}
+  @keyframes drift1{to{transform:translate(80px,60px) scale(1.1)}}
+  @keyframes drift2{to{transform:translate(-70px,40px) scale(1.05)}}
+  @keyframes drift3{to{transform:translate(40px,-60px) scale(1.12)}}
+  .grid-overlay{position:fixed;inset:0;z-index:-1;pointer-events:none;
+    background-image:linear-gradient(rgba(158,163,192,.045) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(158,163,192,.045) 1px,transparent 1px);
+    background-size:54px 54px;
+    mask-image:radial-gradient(ellipse 100% 70% at 50% 0%,#000 30%,transparent 80%);
+    -webkit-mask-image:radial-gradient(ellipse 100% 70% at 50% 0%,#000 30%,transparent 80%);}
+  @media (prefers-reduced-motion:reduce){.blob{animation:none}}
+
+  /* ---------- Layout primitives ---------- */
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+  section{position:relative}
+  .eyebrow{
+    display:inline-flex;align-items:center;gap:8px;
+    font-size:.78rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--accent);margin:0 0 16px;
+  }
+  .eyebrow::before{content:"";width:22px;height:1px;background:linear-gradient(90deg,transparent,var(--accent))}
+  h2.section-title{
+    font-size:clamp(1.7rem,3.4vw,2.55rem);line-height:1.12;font-weight:700;
+    letter-spacing:-.02em;margin:0 0 14px;max-width:18ch;
+  }
+  .section-sub{color:var(--text-secondary);font-size:1.05rem;max-width:56ch;margin:0}
+  .section-head{margin-bottom:48px}
+  .center{text-align:center}
+  .center .section-sub{margin-inline:auto}
+  .center .section-title{margin-inline:auto}
+
+  a{color:inherit}
+  .gradient-text{
+    background:linear-gradient(120deg,#fff 0%,#cfe9ee 40%,var(--accent) 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+
+  /* ---------- Buttons ---------- */
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:9px;
+    font-family:inherit;font-weight:600;font-size:.97rem;
+    padding:13px 22px;border-radius:11px;border:1px solid transparent;
+    cursor:pointer;text-decoration:none;white-space:nowrap;
+    transition:transform .18s ease,box-shadow .25s ease,background .2s ease,border-color .2s ease;
+  }
+  .btn:focus-visible{outline:2px solid var(--accent-hover);outline-offset:3px}
+  .btn-primary{
+    background:linear-gradient(180deg,var(--accent-hover),var(--accent));
+    color:#04222a;box-shadow:var(--glow-accent);
+  }
+  .btn-primary:hover{transform:translateY(-2px);box-shadow:0 0 0 1px rgba(45,224,237,.6),0 20px 46px -10px rgba(0,213,228,.6)}
+  .btn-ghost{
+    background:rgba(255,255,255,.02);color:var(--text);border-color:var(--border);
+  }
+  .btn-ghost:hover{transform:translateY(-2px);border-color:rgba(158,163,192,.4);background:rgba(255,255,255,.05)}
+  .btn .arrow{transition:transform .2s ease}
+  .btn:hover .arrow{transform:translateX(3px)}
+  @media (prefers-reduced-motion:reduce){.btn:hover{transform:none}}
+
+  /* ---------- Nav ---------- */
+  header.nav{
+    position:sticky;top:0;z-index:50;
+    backdrop-filter:saturate(140%) blur(14px);
+    -webkit-backdrop-filter:saturate(140%) blur(14px);
+    border-bottom:1px solid transparent;transition:border-color .3s ease,background .3s ease;
+  }
+  header.nav.scrolled{background:rgba(12,15,26,.78);border-bottom-color:var(--border)}
+  .nav-inner{display:flex;align-items:center;justify-content:space-between;height:68px;gap:24px}
+  .wordmark{display:inline-flex;align-items:center;gap:10px;font-weight:700;font-size:1.18rem;letter-spacing:-.02em;text-decoration:none;color:var(--text)}
+  .wordmark .logo{
+    width:30px;height:30px;border-radius:9px;display:grid;place-items:center;
+    background:linear-gradient(150deg,rgba(0,213,228,.22),rgba(139,92,246,.22));
+    border:1px solid rgba(0,213,228,.4);box-shadow:0 0 18px -4px rgba(0,213,228,.5);
+  }
+  .wordmark .logo svg{width:16px;height:16px;color:var(--accent)}
+  .wordmark b{color:var(--accent);font-weight:700}
+  .nav-links{display:flex;align-items:center;gap:30px}
+  .nav-links a.navlink{
+    color:var(--text-secondary);text-decoration:none;font-size:.92rem;font-weight:500;
+    position:relative;transition:color .2s ease;
+  }
+  .nav-links a.navlink:hover{color:var(--text)}
+  .nav-links a.navlink::after{
+    content:"";position:absolute;left:0;right:0;bottom:-6px;height:1.5px;
+    background:var(--accent);transform:scaleX(0);transform-origin:left;transition:transform .22s ease;
+  }
+  .nav-links a.navlink:hover::after{transform:scaleX(1)}
+  .nav-cta{display:flex;align-items:center;gap:14px}
+  .nav-links .navlink,.nav-cta .btn-ghost{}
+  .nav-toggle{display:none;background:none;border:1px solid var(--border);border-radius:9px;color:var(--text);width:42px;height:42px;cursor:pointer}
+  @media (max-width:860px){
+    .nav-links{display:none}
+    .nav-cta .btn-ghost{display:none}
+    .nav-toggle{display:grid;place-items:center}
+  }
+
+  /* ---------- Hero ---------- */
+  .hero{padding:72px 0 64px}
+  .hero-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:54px;align-items:center}
+  @media (max-width:920px){.hero-grid{grid-template-columns:1fr;gap:40px}}
+  .badge{
+    display:inline-flex;align-items:center;gap:9px;
+    padding:7px 14px;border-radius:999px;
+    background:rgba(0,213,228,.07);border:1px solid rgba(0,213,228,.26);
+    color:var(--accent);font-size:.8rem;font-weight:600;letter-spacing:.02em;margin-bottom:24px;
+  }
+  .badge .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent);animation:pulse 2.4s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  @media (prefers-reduced-motion:reduce){.badge .dot{animation:none}}
+  h1.hero-title{
+    font-size:clamp(2.3rem,5.2vw,3.65rem);line-height:1.06;font-weight:800;
+    letter-spacing:-.03em;margin:0 0 20px;
+  }
+  .hero-sub{color:var(--text-secondary);font-size:1.12rem;max-width:50ch;margin:0 0 30px}
+  .hero-sub strong{color:var(--text);font-weight:600}
+  .hero-cta{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:34px}
+  .trust-signals{display:flex;flex-direction:column;gap:11px;border-top:1px solid var(--border);padding-top:24px}
+  .trust-signals li{display:flex;align-items:center;gap:11px;color:var(--text-secondary);font-size:.93rem;list-style:none}
+  .trust-signals ul{margin:0;padding:0}
+  .trust-signals .ck{
+    flex:none;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;
+    background:rgba(61,220,151,.12);color:var(--ok);
+  }
+  .trust-signals .ck svg{width:11px;height:11px}
+
+  /* ---------- Terminal ---------- */
+  .terminal{
+    background:linear-gradient(180deg,#0e1322,#0b0e1a);
+    border:1px solid var(--border);border-radius:var(--radius);
+    box-shadow:var(--shadow-card);overflow:hidden;font-family:var(--mono);
+    position:relative;
+  }
+  .terminal::after{content:"";position:absolute;inset:0;border-radius:var(--radius);pointer-events:none;
+    box-shadow:0 0 60px -20px rgba(0,213,228,.35) inset}
+  .term-bar{display:flex;align-items:center;gap:8px;padding:13px 16px;background:rgba(255,255,255,.025);border-bottom:1px solid var(--border)}
+  .term-bar .dots{display:flex;gap:7px}
+  .term-bar .dots i{width:11px;height:11px;border-radius:50%;display:block}
+  .dots i:nth-child(1){background:#ff5f57}.dots i:nth-child(2){background:#febc2e}.dots i:nth-child(3){background:#28c840}
+  .term-title{margin-left:8px;color:var(--text-dim);font-size:.78rem}
+  .term-body{padding:20px 20px 24px;font-size:.86rem;line-height:1.85;min-height:236px}
+  .term-body .line{white-space:pre-wrap;word-break:break-word}
+  .term-body .prompt{color:var(--accent)}
+  .term-body .cmd{color:var(--text)}
+  .term-body .step{color:var(--text-secondary)}
+  .term-body .label{color:#c9cde6}
+  .term-body .ok{color:var(--ok)}
+  .term-body .note{color:var(--text-dim)}
+  .term-body .done{color:var(--accent-hover)}
+  .term-body .gh{color:var(--violet)}
+  .cursor{display:inline-block;width:8px;height:1.05em;background:var(--accent);vertical-align:-2px;animation:blink 1.05s steps(1) infinite;margin-left:2px}
+  @keyframes blink{50%{opacity:0}}
+  @media (prefers-reduced-motion:reduce){.cursor{animation:none}}
+
+  /* ---------- Generic section spacing ---------- */
+  .sec{padding:90px 0}
+  @media (max-width:720px){.sec{padding:64px 0}}
+
+  /* ---------- How it works ---------- */
+  .boundary{
+    display:grid;grid-template-columns:1fr auto 1fr;gap:0;align-items:stretch;
+    border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;
+    background:linear-gradient(180deg,rgba(20,24,41,.7),rgba(12,15,26,.5));box-shadow:var(--shadow-card);
+  }
+  @media (max-width:860px){.boundary{grid-template-columns:1fr}}
+  .device-side{padding:30px}
+  .server-side{padding:30px;background:rgba(255,255,255,.012)}
+  .side-head{display:flex;align-items:center;gap:10px;margin-bottom:22px;font-weight:600;font-size:.86rem;letter-spacing:.05em;text-transform:uppercase}
+  .side-head .pill{font-size:.66rem;padding:3px 9px;border-radius:999px;letter-spacing:.04em}
+  .device-side .side-head{color:var(--accent)}
+  .device-side .pill{background:rgba(0,213,228,.12);color:var(--accent);border:1px solid rgba(0,213,228,.3)}
+  .server-side .side-head{color:var(--text-secondary)}
+  .server-side .pill{background:rgba(158,163,192,.1);color:var(--text-secondary);border:1px solid var(--border)}
+
+  .steps{display:flex;flex-direction:column;gap:14px;counter-reset:step}
+  .step-card{
+    display:flex;gap:14px;padding:15px;border-radius:var(--radius-sm);
+    background:rgba(255,255,255,.022);border:1px solid var(--border-soft);
+    transition:border-color .25s ease,background .25s ease,transform .25s ease;
+  }
+  .step-card:hover{border-color:rgba(0,213,228,.35);background:rgba(0,213,228,.04);transform:translateX(3px)}
+  @media (prefers-reduced-motion:reduce){.step-card:hover{transform:none}}
+  .step-num{
+    flex:none;width:30px;height:30px;border-radius:9px;display:grid;place-items:center;
+    font-family:var(--mono);font-size:.82rem;font-weight:600;
+    background:linear-gradient(150deg,rgba(0,213,228,.16),rgba(139,92,246,.16));
+    border:1px solid rgba(0,213,228,.3);color:var(--accent);
+  }
+  .step-card h4{margin:0 0 4px;font-size:.98rem;font-weight:600}
+  .step-card p{margin:0;font-size:.86rem;color:var(--text-secondary);line-height:1.5}
+  .step-card code{font-family:var(--mono);font-size:.82em;color:var(--accent-hover);background:rgba(0,213,228,.08);padding:1px 5px;border-radius:5px}
+
+  .divider-col{position:relative;width:1px;background:linear-gradient(180deg,transparent,var(--accent),var(--violet),transparent);justify-self:center}
+  .divider-col .lock{
+    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    width:42px;height:42px;border-radius:12px;display:grid;place-items:center;
+    background:var(--surface);border:1px solid rgba(0,213,228,.4);box-shadow:0 0 24px -4px rgba(0,213,228,.6);
+    color:var(--accent);
+  }
+  .divider-col .lock svg{width:18px;height:18px}
+  @media (max-width:860px){
+    .divider-col{width:auto;height:1px;background:linear-gradient(90deg,transparent,var(--accent),var(--violet),transparent)}
+    .divider-col .lock{position:relative;top:auto;left:auto;transform:none;margin:0 auto}
+  }
+  .server-empty{display:flex;flex-direction:column;gap:12px}
+  .cipher-card{
+    padding:15px;border-radius:var(--radius-sm);background:rgba(8,11,20,.6);border:1px dashed var(--border);
+    font-family:var(--mono);font-size:.78rem;color:var(--text-dim);word-break:break-all;line-height:1.7;
+  }
+  .cipher-card .lbl{display:block;color:var(--text-secondary);font-family:var(--font);font-size:.74rem;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+  .blocked-list{list-style:none;margin:14px 0 0;padding:0;display:flex;flex-direction:column;gap:9px}
+  .blocked-list li{display:flex;align-items:center;gap:10px;color:var(--text-secondary);font-size:.86rem}
+  .blocked-list .x{flex:none;width:18px;height:18px;border-radius:50%;display:grid;place-items:center;background:rgba(255,95,87,.12);color:#ff7a73}
+  .blocked-list .x svg{width:10px;height:10px}
+
+  .boundary-banner{
+    margin-top:20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:center;
+    padding:16px 20px;border-radius:var(--radius-sm);text-align:center;
+    background:linear-gradient(90deg,rgba(0,213,228,.07),rgba(139,92,246,.07));
+    border:1px solid rgba(0,213,228,.25);font-weight:500;font-size:.96rem;
+  }
+  .boundary-banner b{color:var(--accent)}
+  .share-note{margin-top:16px;text-align:center;color:var(--text-dim);font-size:.86rem}
+  .share-note code{font-family:var(--mono);color:var(--accent-hover)}
+
+  /* ---------- What you get (feature grid) ---------- */
+  .feature-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  @media (max-width:860px){.feature-grid{grid-template-columns:repeat(2,1fr)}}
+  @media (max-width:560px){.feature-grid{grid-template-columns:1fr}}
+  .feature{
+    padding:26px 24px;border-radius:var(--radius);position:relative;overflow:hidden;
+    background:linear-gradient(180deg,var(--surface),rgba(20,24,41,.5));
+    border:1px solid var(--border);transition:border-color .25s ease,transform .25s ease,box-shadow .25s ease;
+  }
+  .feature::before{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(0,213,228,.5),transparent);opacity:0;transition:opacity .3s ease}
+  .feature:hover{transform:translateY(-4px);border-color:rgba(0,213,228,.32);box-shadow:0 24px 50px -28px rgba(0,213,228,.4)}
+  .feature:hover::before{opacity:1}
+  @media (prefers-reduced-motion:reduce){.feature:hover{transform:none}}
+  .feature .ico{
+    width:44px;height:44px;border-radius:12px;display:grid;place-items:center;margin-bottom:16px;
+    background:linear-gradient(150deg,rgba(0,213,228,.14),rgba(139,92,246,.14));
+    border:1px solid var(--border-soft);color:var(--accent);
+  }
+  .feature .ico svg{width:21px;height:21px}
+  .feature h3{margin:0 0 8px;font-size:1.08rem;font-weight:600}
+  .feature p{margin:0;color:var(--text-secondary);font-size:.92rem;line-height:1.55}
+  .feature code{font-family:var(--mono);font-size:.84em;color:var(--accent-hover);background:rgba(0,213,228,.08);padding:1px 6px;border-radius:5px}
+
+  /* ---------- BYOB ---------- */
+  .byob{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center}
+  @media (max-width:860px){.byob{grid-template-columns:1fr;gap:34px}}
+  .byob .body{color:var(--text-secondary);font-size:1.02rem;margin:0 0 4px}
+  .backends{
+    background:linear-gradient(180deg,var(--surface),rgba(20,24,41,.4));
+    border:1px solid var(--border);border-radius:var(--radius);padding:28px;box-shadow:var(--shadow-card);
+  }
+  .backends .b-label{font-size:.76rem;text-transform:uppercase;letter-spacing:.07em;color:var(--text-dim);margin:0 0 20px;font-weight:600}
+  .backend-row{display:flex;flex-direction:column;gap:14px}
+  .backend{
+    display:flex;align-items:center;gap:15px;padding:16px 18px;border-radius:var(--radius-sm);
+    background:rgba(255,255,255,.022);border:1px solid var(--border-soft);
+    transition:border-color .25s ease,background .25s ease;
+  }
+  .backend:hover{border-color:rgba(0,213,228,.3);background:rgba(0,213,228,.035)}
+  .backend .bico{flex:none;width:42px;height:42px;border-radius:11px;display:grid;place-items:center;background:rgba(255,255,255,.04);border:1px solid var(--border)}
+  .backend .bico svg{width:24px;height:24px}
+  .backend .bname{font-weight:600;font-size:.98rem}
+  .backend .bdesc{font-size:.8rem;color:var(--text-dim)}
+  .backend .conn{margin-left:auto;font-family:var(--mono);font-size:.72rem;color:var(--ok);display:flex;align-items:center;gap:6px}
+  .backend .conn .led{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok)}
+
+  /* ---------- Where it runs ---------- */
+  .runs-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  @media (max-width:780px){.runs-grid{grid-template-columns:1fr}}
+  .run-card{
+    padding:0;border-radius:var(--radius);overflow:hidden;
+    background:linear-gradient(180deg,var(--surface),rgba(20,24,41,.5));
+    border:1px solid var(--border);transition:border-color .25s ease,transform .25s ease;
+    display:flex;flex-direction:column;
+  }
+  .run-card:hover{transform:translateY(-4px);border-color:rgba(0,213,228,.3)}
+  @media (prefers-reduced-motion:reduce){.run-card:hover{transform:none}}
+  .run-card.featured{border-color:rgba(0,213,228,.4);box-shadow:0 0 0 1px rgba(0,213,228,.18),0 26px 56px -30px rgba(0,213,228,.5)}
+  .run-visual{height:118px;position:relative;overflow:hidden;border-bottom:1px solid var(--border);
+    background:radial-gradient(120% 100% at 50% 0%,rgba(0,213,228,.1),transparent 70%),#0b0e1a;
+    display:grid;place-items:center}
+  .run-visual .mini-term{font-family:var(--mono);font-size:.72rem;color:var(--text-secondary);line-height:1.7;padding:0 16px;width:100%}
+  .run-visual .mini-term .p{color:var(--accent)}
+  .run-visual .mini-term .o{color:var(--ok)}
+  .run-visual .glyph{color:var(--accent);opacity:.85}
+  .run-visual .glyph svg{width:46px;height:46px}
+  .run-body{padding:22px 22px 24px}
+  .run-body .tag{display:inline-block;font-family:var(--mono);font-size:.7rem;color:var(--accent);background:rgba(0,213,228,.1);border:1px solid rgba(0,213,228,.25);padding:2px 9px;border-radius:999px;margin-bottom:12px}
+  .run-body h3{margin:0 0 8px;font-size:1.1rem;font-weight:600}
+  .run-body p{margin:0;color:var(--text-secondary);font-size:.92rem;line-height:1.55}
+
+  /* ---------- Open by design (trust) ---------- */
+  .trust-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+  @media (max-width:780px){.trust-grid{grid-template-columns:1fr}}
+  .trust-card{
+    padding:28px;border-radius:var(--radius);position:relative;
+    background:linear-gradient(180deg,var(--surface),rgba(20,24,41,.45));
+    border:1px solid var(--border);transition:border-color .25s ease;
+  }
+  .trust-card:hover{border-color:rgba(0,213,228,.3)}
+  .trust-card .ico{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;margin-bottom:16px;
+    background:linear-gradient(150deg,rgba(0,213,228,.14),rgba(139,92,246,.14));border:1px solid var(--border-soft);color:var(--accent)}
+  .trust-card .ico svg{width:20px;height:20px}
+  .trust-card h3{margin:0 0 10px;font-size:1.12rem;font-weight:600}
+  .trust-card p{margin:0;color:var(--text-secondary);font-size:.93rem;line-height:1.6}
+  .trust-card .tlink{display:inline-flex;align-items:center;gap:6px;margin-top:16px;color:var(--accent);font-weight:600;font-size:.9rem;text-decoration:none}
+  .trust-card .tlink:hover{color:var(--accent-hover)}
+  .trust-card .tlink .arrow{transition:transform .2s ease}
+  .trust-card .tlink:hover .arrow{transform:translateX(3px)}
+  .trust-card.span2{grid-column:span 2}
+  @media (max-width:780px){.trust-card.span2{grid-column:span 1}}
+  .trust-card.span2 code{font-family:var(--mono);color:var(--accent-hover)}
+
+  /* ---------- FAQ ---------- */
+  .faq-list{max-width:780px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+  .faq{border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);overflow:hidden;transition:border-color .25s ease}
+  .faq[open]{border-color:rgba(0,213,228,.3)}
+  .faq summary{
+    list-style:none;cursor:pointer;padding:19px 22px;display:flex;align-items:center;justify-content:space-between;gap:16px;
+    font-weight:600;font-size:1rem;color:var(--text);
+  }
+  .faq summary::-webkit-details-marker{display:none}
+  .faq summary:focus-visible{outline:2px solid var(--accent-hover);outline-offset:-2px;border-radius:8px}
+  .faq summary .chev{flex:none;width:22px;height:22px;display:grid;place-items:center;color:var(--accent);transition:transform .25s ease}
+  .faq[open] summary .chev{transform:rotate(45deg)}
+  .faq .ans{padding:0 22px 20px;color:var(--text-secondary);font-size:.94rem;line-height:1.65;margin:0}
+  .faq .ans code{font-family:var(--mono);color:var(--accent-hover)}
+
+  /* ---------- Final CTA ---------- */
+  .final-cta{position:relative;overflow:hidden;border-radius:24px;
+    background:linear-gradient(160deg,rgba(20,24,41,.9),rgba(12,15,26,.7));
+    border:1px solid var(--border);padding:64px 40px;text-align:center;box-shadow:var(--shadow-card)}
+  .final-cta::before{content:"";position:absolute;inset:0;z-index:0;
+    background:radial-gradient(60% 90% at 50% 0%,rgba(0,213,228,.16),transparent 70%)}
+  .final-cta > *{position:relative;z-index:1}
+  .final-cta h2{font-size:clamp(1.8rem,4vw,2.7rem);font-weight:800;letter-spacing:-.02em;margin:0 0 14px}
+  .final-cta p{color:var(--text-secondary);font-size:1.08rem;max-width:54ch;margin:0 auto 30px}
+  .final-cta .hero-cta{justify-content:center}
+
+  /* ---------- Footer ---------- */
+  footer{border-top:1px solid var(--border);padding:48px 0 40px;margin-top:90px}
+  .foot-grid{display:flex;justify-content:space-between;gap:32px;flex-wrap:wrap;align-items:flex-start}
+  .foot-brand{max-width:300px}
+  .foot-brand p{color:var(--text-dim);font-size:.88rem;margin:14px 0 0;line-height:1.55}
+  .foot-cols{display:flex;gap:64px;flex-wrap:wrap}
+  .foot-col h5{margin:0 0 14px;font-size:.78rem;text-transform:uppercase;letter-spacing:.07em;color:var(--text-dim)}
+  .foot-col a{display:block;color:var(--text-secondary);text-decoration:none;font-size:.9rem;margin-bottom:10px;transition:color .2s ease}
+  .foot-col a:hover{color:var(--accent)}
+  .foot-bottom{margin-top:40px;padding-top:24px;border-top:1px solid var(--border);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;color:var(--text-dim);font-size:.84rem}
+
+  /* ---------- Scroll reveal ---------- */
+  .reveal{opacity:0;transform:translateY(22px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1)}
+  .reveal.in{opacity:1;transform:none}
+  @media (prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}}
+
+  .skip-link{position:absolute;left:-999px;top:0;background:var(--accent);color:#04222a;padding:10px 16px;border-radius:8px;z-index:100;font-weight:600}
+  .skip-link:focus{left:16px;top:12px}
+</style>
+</head>
+<body>
+
+<a class="skip-link" href="#how">Skip to content</a>
+
+<!-- Ambient background -->
+<div class="bg-field" aria-hidden="true">
+  <span class="blob b1"></span>
+  <span class="blob b2"></span>
+  <span class="blob b3"></span>
+</div>
+<div class="grid-overlay" aria-hidden="true"></div>
+
+<!-- ============ NAV ============ -->
+<header class="nav" id="top">
+  <div class="wrap nav-inner">
+    <a class="wordmark" href="#top" aria-label="zcrypt home">
+      <span class="logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      </span>
+      <span>z<b>crypt</b></span>
+    </a>
+    <nav class="nav-links" aria-label="Primary">
+      <a class="navlink" href="#how">How it works</a>
+      <a class="navlink" href="#features">Features</a>
+      <a class="navlink" href="#storage">Your storage</a>
+      <a class="navlink" href="#runs">Apps</a>
+      <a class="navlink" href="#faq">FAQ</a>
+    </nav>
+    <div class="nav-cta">
+      <a class="btn btn-ghost" href="https://github.com/Wosmos/zcrypt" target="_blank" rel="noopener">Read the source</a>
+      <a class="btn btn-primary" href="/register">Create your vault</a>
+      <button class="nav-toggle" id="navToggle" aria-label="Toggle menu" aria-expanded="false">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<!-- ============ HERO ============ -->
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div class="hero-copy">
+      <span class="eyebrow">Open source · Bring your own storage</span>
+      <h1 class="hero-title"><span class="gradient-text">Encrypted in your browser.</span><br>Stored on your own accounts.</h1>
+      <p class="hero-sub">zcrypt encrypts your files with <strong>AES-256-GCM</strong> on your device, then stores them on your own GitHub, GitLab, or HuggingFace. No size limits. No servers holding your data. <strong>Open source</strong> — read every line.</p>
+      <div class="hero-cta">
+        <a class="btn btn-primary" href="/register">Create your vault <span class="arrow" aria-hidden="true">→</span></a>
+        <a class="btn btn-ghost" href="https://github.com/Wosmos/zcrypt" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.73.5.5 5.73.5 12c0 5.08 3.29 9.39 7.86 10.91.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.54-3.88-1.54-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.71 1.26 3.37.96.1-.75.4-1.26.73-1.55-2.56-.29-5.25-1.28-5.25-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.69 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56C20.71 21.39 24 17.08 24 12 24 5.73 18.77.5 12 .5Z"/></svg>
+          Read the source
+        </a>
+      </div>
+      <div class="trust-signals">
+        <ul>
+          <li><span class="ck" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>Client-side AES-256-GCM — encrypted before upload</li>
+          <li><span class="ck" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>Bring your own storage — GitHub, GitLab, HuggingFace</li>
+          <li><span class="ck" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>Open source — audit the code yourself</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Terminal product asset -->
+    <div class="terminal" role="img" aria-label="Terminal showing zcrypt push report.pdf: compressing with zstd, encrypting with AES-256-GCM where the key never leaves the machine, chunking into 10MB pieces, pushing to github your-vault-archive, and confirming report.pdf is encrypted on your storage.">
+      <div class="term-bar">
+        <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="term-title">zcrypt — push</span>
+      </div>
+      <div class="term-body" id="term" aria-hidden="true"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ HOW IT WORKS ============ -->
+<section class="sec" id="how">
+  <div class="wrap">
+    <div class="section-head center reveal">
+      <span class="eyebrow">The encryption boundary</span>
+      <h2 class="section-title">How your data is protected</h2>
+      <p class="section-sub">Everything that matters happens on your device. The server only ever sees ciphertext.</p>
+    </div>
+
+    <div class="boundary reveal">
+      <!-- DEVICE SIDE -->
+      <div class="device-side">
+        <div class="side-head">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+          Your device
+          <span class="pill">Trusted</span>
+        </div>
+        <div class="steps">
+          <div class="step-card">
+            <span class="step-num">1</span>
+            <div><h4>Derive</h4><p>Your passphrase is turned into a key on your device. It's never sent anywhere.</p></div>
+          </div>
+          <div class="step-card">
+            <span class="step-num">2</span>
+            <div><h4>Compress</h4><p>Files are compressed with <code>zstd</code> to shrink what gets stored.</p></div>
+          </div>
+          <div class="step-card">
+            <span class="step-num">3</span>
+            <div><h4>Encrypt</h4><p>Each file gets its own key, encrypted with AES-256-GCM (envelope encryption) — in your browser, before upload.</p></div>
+          </div>
+          <div class="step-card">
+            <span class="step-num">4</span>
+            <div><h4>Chunk &amp; store</h4><p>Encrypted data is split into <code>10MB</code> chunks (no file-size limit) and pushed to your own GitHub, GitLab, or HuggingFace.</p></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BOUNDARY -->
+      <div class="divider-col" aria-hidden="true">
+        <span class="lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
+      </div>
+
+      <!-- SERVER SIDE -->
+      <div class="server-side">
+        <div class="side-head">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="8" rx="2"/><rect x="2" y="13" width="20" height="8" rx="2"/><path d="M6 7h.01M6 17h.01"/></svg>
+          The server &amp; your storage
+          <span class="pill">Sees ciphertext only</span>
+        </div>
+        <div class="server-empty">
+          <div class="cipher-card">
+            <span class="lbl">What gets stored</span>
+            8f3a1c4e9b2d…7c6f0a1e4d8b 5e2a9f3c8d1b…0a4e7c2f9d6b 1b8e4a7c0f3d…6e9b2a5c8f1d
+          </div>
+          <ul class="blocked-list">
+            <li><span class="x" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></span>Your passphrase</li>
+            <li><span class="x" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></span>Your encryption keys</li>
+            <li><span class="x" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></span>Your plaintext files</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="boundary-banner reveal">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:var(--accent)"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg>
+      <span>The server never sees: <b>your passphrase</b> · <b>your keys</b> · <b>your plaintext</b>.</span>
+    </div>
+    <p class="share-note reveal">Share links put the decryption key in the URL fragment (<code>#</code>) — so the key never reaches the server, not even in access logs.</p>
+  </div>
+</section>
+
+<!-- ============ WHAT YOU GET ============ -->
+<section class="sec" id="features">
+  <div class="wrap">
+    <div class="section-head center reveal">
+      <span class="eyebrow">What you get</span>
+      <h2 class="section-title">Built to keep your files yours</h2>
+      <p class="section-sub">Concrete mechanisms, not marketing. Each one is in the open-source code.</p>
+    </div>
+    <div class="feature-grid">
+      <article class="feature reveal">
+        <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
+        <h3>Client-side encryption</h3>
+        <p>AES-256-GCM runs on your device. Plaintext never touches the network.</p>
+      </article>
+      <article class="feature reveal">
+        <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8 9 3l6 5"/><rect x="3" y="8" width="12" height="13" rx="2"/><circle cx="18" cy="14" r="3"/><path d="M18 17v4l1.5-1 1.5 1v-4"/></svg></span>
+        <h3>Envelope encryption</h3>
+        <p>Every file gets its own key, so sharing one file never exposes the rest.</p>
+      </article>
+      <article class="feature reveal">
+        <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12H3M12 3v18M5 7l-2 5 2 5M19 7l2 5-2 5"/></svg></span>
+        <h3>No size limit</h3>
+        <p>Automatic 10MB chunking means a 2KB note and a 200GB archive go through the same pipeline.</p>
+      </article>
+      <article class="feature reveal">
+        <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M4 10l4-4 4 4-4 4-4-4ZM12 20v-6M20 20v-9"/><path d="M12 14l4-4 4 4"/></svg></span>
+        <h3>zstd compression</h3>
+        <p>Files are compressed before encryption — less to store, faster to move.</p>
+      </article>
+      <article class="feature reveal">
+        <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg></span>
+        <h3>Encrypted sharing</h3>
+        <p>Send a file (<code>/send</code>) or an encrypted note (<code>/pad</code>) with the key living in the link, not on our servers.</p>
+      </article>
+      <article class="feature reveal">
+        <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 6-6 6 6 6M16 6l6 6-6 6M14 4l-4 16"/></svg></span>
+        <h3>Open source</h3>
+        <p>Every line is public. Verify the crypto instead of taking our word for it.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ============ YOUR STORAGE, NOT OURS ============ -->
+<section class="sec" id="storage">
+  <div class="wrap byob">
+    <div class="reveal">
+      <span class="eyebrow">Bring your own storage</span>
+      <h2 class="section-title">Your storage, not ours</h2>
+      <p class="section-sub" style="margin-bottom:20px">We don't host your bytes. You bring the storage; we bring the encryption pipeline.</p>
+      <p class="body">Connect your own GitHub, GitLab, or HuggingFace account with your own token. Your encrypted files live there, under your control. That's also why zcrypt is free — you supply the storage, so we don't have to.</p>
+    </div>
+    <div class="backends reveal">
+      <p class="b-label">Backends you connect with your own tokens</p>
+      <div class="backend-row">
+        <div class="backend">
+          <span class="bico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.73.5.5 5.73.5 12c0 5.08 3.29 9.39 7.86 10.91.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.54-3.88-1.54-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.71 1.26 3.37.96.1-.75.4-1.26.73-1.55-2.56-.29-5.25-1.28-5.25-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.69 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56C20.71 21.39 24 17.08 24 12 24 5.73 18.77.5 12 .5Z"/></svg></span>
+          <div><div class="bname">GitHub</div><div class="bdesc">Repository-backed storage</div></div>
+          <span class="conn"><span class="led"></span>your token</span>
+        </div>
+        <div class="backend">
+          <span class="bico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="#fc6d26"><path d="m12 21.42 3.68-11.33H8.32L12 21.42Z" fill="#e24329"/><path d="M12 21.42 8.32 10.09H3.16L12 21.42Z" fill="#fc6d26"/><path d="M3.16 10.09 2.04 13.53a.76.76 0 0 0 .28.85L12 21.42 3.16 10.09Z" fill="#fca326"/><path d="M3.16 10.09h5.16L6.1 3.26a.38.38 0 0 0-.72 0L3.16 10.09Z" fill="#e24329"/><path d="m12 21.42 3.68-11.33h5.16L12 21.42Z" fill="#fc6d26"/><path d="m20.84 10.09 1.12 3.44a.76.76 0 0 1-.28.85L12 21.42l8.84-11.33Z" fill="#fca326"/><path d="M20.84 10.09h-5.16l2.22-6.83a.38.38 0 0 1 .72 0l2.22 6.83Z" fill="#e24329"/></svg></span>
+          <div><div class="bname">GitLab</div><div class="bdesc">Repository-backed storage</div></div>
+          <span class="conn"><span class="led"></span>your token</span>
+        </div>
+        <div class="backend">
+          <span class="bico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="11" r="7.5" fill="#ffd21e"/><path d="M8.5 10.2a1 1 0 1 0 0-.01M15.5 10.2a1 1 0 1 0 0-.01" stroke="#3a3a3a" stroke-width="1.4" stroke-linecap="round"/><path d="M8.6 13.4c.9 1.2 2 1.8 3.4 1.8s2.5-.6 3.4-1.8" stroke="#3a3a3a" stroke-width="1.4" stroke-linecap="round" fill="none"/></svg></span>
+          <div><div class="bname">HuggingFace</div><div class="bdesc">Dataset-backed storage</div></div>
+          <span class="conn"><span class="led"></span>your token</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ WHERE IT RUNS ============ -->
+<section class="sec" id="runs">
+  <div class="wrap">
+    <div class="section-head center reveal">
+      <span class="eyebrow">Where it runs</span>
+      <h2 class="section-title">Runs where you work</h2>
+      <p class="section-sub">Same encryption, three ways in.</p>
+    </div>
+    <div class="runs-grid">
+      <article class="run-card reveal">
+        <div class="run-visual" aria-hidden="true">
+          <span class="glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M2 9h20M6 22h12"/><circle cx="6" cy="6.5" r=".6" fill="currentColor"/></svg></span>
+        </div>
+        <div class="run-body">
+          <span class="tag">web</span>
+          <h3>Web app</h3>
+          <p>Drag, drop, encrypt. Full vault in the browser.</p>
+        </div>
+      </article>
+      <article class="run-card featured reveal">
+        <div class="run-visual" aria-hidden="true">
+          <div class="mini-term"><span class="p">$</span> zcrypt push notes.md<br><span class="o">  encrypting   ✓</span><br><span class="o">  pushing      ✓</span></div>
+        </div>
+        <div class="run-body">
+          <span class="tag">terminal · Go TUI</span>
+          <h3>Terminal (Go TUI)</h3>
+          <p>A native terminal client for people who live in the shell. Push and pull without leaving your prompt.</p>
+        </div>
+      </article>
+      <article class="run-card reveal">
+        <div class="run-visual" aria-hidden="true">
+          <span class="glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 21V9"/></svg></span>
+        </div>
+        <div class="run-body">
+          <span class="tag">desktop</span>
+          <h3>Desktop app</h3>
+          <p>A local app for everyday encrypting and syncing.</p>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ============ OPEN BY DESIGN ============ -->
+<section class="sec" id="trust">
+  <div class="wrap">
+    <div class="section-head center reveal">
+      <span class="eyebrow">Trust</span>
+      <h2 class="section-title">Open by design</h2>
+      <p class="section-sub">Trust shouldn't require faith. Verify it.</p>
+    </div>
+    <div class="trust-grid">
+      <article class="trust-card reveal">
+        <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 6-6 6 6 6M16 6l6 6-6 6M14 4l-4 16"/></svg></span>
+        <h3>Read every line</h3>
+        <p>zcrypt is open source. The encryption, the sharing, the chunking — it's all public. Don't trust our description; read the code.</p>
+        <a class="tlink" href="https://github.com/Wosmos/zcrypt" target="_blank" rel="noopener">Read the source <span class="arrow" aria-hidden="true">→</span></a>
+      </article>
+      <article class="trust-card reveal">
+        <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3M9 11h4M11 9v4"/></svg></span>
+        <h3>Audit the crypto yourself</h3>
+        <p>The AES-256-GCM and envelope-encryption paths are right there in the repo. Inspect exactly where keys are generated and where encryption happens.</p>
+        <a class="tlink" href="https://github.com/Wosmos/zcrypt/tree/main/app/backend/crypto" target="_blank" rel="noopener">Open the crypto module <span class="arrow" aria-hidden="true">→</span></a>
+      </article>
+      <article class="trust-card reveal">
+        <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7c0-1.66 3.58-3 8-3s8 1.34 8 3-3.58 3-8 3-8-1.34-8-3Z"/><path d="M4 7v10c0 1.66 3.58 3 8 3s8-1.34 8-3V7M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3"/></svg></span>
+        <h3>You bring the storage</h3>
+        <p>Your files sit on your own GitHub, GitLab, or HuggingFace account, encrypted, behind your own token. We never hold your data.</p>
+      </article>
+      <article class="trust-card reveal">
+        <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10M22 4 12 14.01l-3-3"/></svg></span>
+        <h3>No passphrase recovery — on purpose</h3>
+        <p>We can't reset a passphrase we never receive. That's not a missing feature; it's the proof the encryption is real — a service that could recover your files isn't one that can't read them. Keep your passphrase safe: if you lose it, your files stay encrypted forever, including from us.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FAQ ============ -->
+<section class="sec" id="faq">
+  <div class="wrap">
+    <div class="section-head center reveal">
+      <span class="eyebrow">FAQ</span>
+      <h2 class="section-title">Questions, answered plainly</h2>
+      <p class="section-sub">No hedging. If a limitation exists, it's stated here.</p>
+    </div>
+    <div class="faq-list">
+      <details class="faq reveal">
+        <summary>Can zcrypt see my files? <span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span></summary>
+        <p class="ans">No. Files are encrypted on your device with AES-256-GCM before anything is uploaded. Your passphrase is turned into a key locally and never sent to us. The server only ever handles ciphertext.</p>
+      </details>
+      <details class="faq reveal">
+        <summary>What does "bring your own storage" mean? <span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span></summary>
+        <p class="ans">You connect your own GitHub, GitLab, or HuggingFace account with your own access token. Your encrypted files are stored there, under your control. zcrypt provides the encryption pipeline, not the disk.</p>
+      </details>
+      <details class="faq reveal">
+        <summary>Is it really free? What's the catch? <span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span></summary>
+        <p class="ans">It's free and open source. The reason it can be free is that you supply the storage — there are no servers full of your files for us to pay for.</p>
+      </details>
+      <details class="faq reveal">
+        <summary>What happens if I forget my passphrase? <span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span></summary>
+        <p class="ans">There's no recovery. Because your passphrase never leaves your device, we have nothing to reset it with. If you lose it, your files remain encrypted permanently — to you and to us. Store it somewhere safe.</p>
+      </details>
+      <details class="faq reveal">
+        <summary>How does sharing work without the server seeing the key? <span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span></summary>
+        <p class="ans">When you share a file (<code>/send</code>) or an encrypted note (<code>/pad</code>), the decryption key is placed in the URL fragment (the part after <code>#</code>). Browsers never transmit the fragment to the server, so the key reaches the recipient but never us — not even in access logs.</p>
+      </details>
+      <details class="faq reveal">
+        <summary>Is there a file-size limit? <span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span></summary>
+        <p class="ans">No. Files are automatically split into 10MB chunks, so the pipeline handles a small note and a very large archive the same way.</p>
+      </details>
+      <details class="faq reveal">
+        <summary>Can I use it from the terminal? <span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span></summary>
+        <p class="ans">Yes. There's a native Go terminal client (TUI) alongside the web app and a desktop app. Same encryption everywhere.</p>
+      </details>
+      <details class="faq reveal">
+        <summary>Is it actually open source? <span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span></summary>
+        <p class="ans">Yes — every line is public. You can read the source, audit the cryptography, and verify the claims on this page yourself.</p>
+      </details>
+      <details class="faq reveal">
+        <summary>Why not just call it "zero-knowledge"? <span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span></summary>
+        <p class="ans">We use "zero-knowledge" to describe the experience — we genuinely can't see your files. Technically, the precise term is client-side (end-to-end) encryption: keys are derived and used on your device and never leave it.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FINAL CTA ============ -->
+<section class="sec" style="padding-top:20px">
+  <div class="wrap">
+    <div class="final-cta reveal">
+      <h2>Encrypt your first file in minutes</h2>
+      <p>Connect your own storage, set a passphrase, and your files are encrypted before they ever leave your device.</p>
+      <div class="hero-cta">
+        <a class="btn btn-primary" href="/register">Create your vault <span class="arrow" aria-hidden="true">→</span></a>
+        <a class="btn btn-ghost" href="https://github.com/Wosmos/zcrypt" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.73.5.5 5.73.5 12c0 5.08 3.29 9.39 7.86 10.91.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.54-3.88-1.54-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.71 1.26 3.37.96.1-.75.4-1.26.73-1.55-2.56-.29-5.25-1.28-5.25-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.69 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56C20.71 21.39 24 17.08 24 12 24 5.73 18.77.5 12 .5Z"/></svg>
+          Read the source
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <a class="wordmark" href="#top" aria-label="zcrypt home">
+          <span class="logo" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          </span>
+          <span>z<b>crypt</b></span>
+        </a>
+        <p>Zero-knowledge encrypted storage. Encrypted on your device, stored on your own accounts, open for anyone to audit.</p>
+      </div>
+      <div class="foot-cols">
+        <div class="foot-col">
+          <h5>Product</h5>
+          <a href="#how">How it works</a>
+          <a href="#features">Features</a>
+          <a href="#storage">Your storage</a>
+          <a href="#runs">Apps</a>
+        </div>
+        <div class="foot-col">
+          <h5>Open source</h5>
+          <a href="https://github.com/Wosmos/zcrypt" target="_blank" rel="noopener">GitHub repo</a>
+          <a href="https://github.com/Wosmos/zcrypt/tree/main/app/backend/crypto" target="_blank" rel="noopener">Crypto module</a>
+          <a href="#faq">FAQ</a>
+        </div>
+        <div class="foot-col">
+          <h5>Get started</h5>
+          <a href="/register">Create your vault</a>
+          <a href="/login">Sign in</a>
+        </div>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>zcrypt — currently in development, open source &amp; BYOB.</span>
+      <span>Client-side AES-256-GCM · zstd · 10MB chunks</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---- Sticky nav shadow ---- */
+  var nav = document.querySelector('header.nav');
+  function onScroll(){ if(window.scrollY > 12){ nav.classList.add('scrolled'); } else { nav.classList.remove('scrolled'); } }
+  window.addEventListener('scroll', onScroll, {passive:true});
+  onScroll();
+
+  /* ---- Mobile menu (lightweight: jump-anchor list overlay) ---- */
+  var toggle = document.getElementById('navToggle');
+  if(toggle){
+    toggle.addEventListener('click', function(){
+      var links = document.querySelector('.nav-links');
+      var open = links.style.display === 'flex';
+      if(open){
+        links.style.display='';
+        toggle.setAttribute('aria-expanded','false');
+      } else {
+        links.style.display='flex';
+        links.style.position='absolute';
+        links.style.top='68px';
+        links.style.left='0';
+        links.style.right='0';
+        links.style.flexDirection='column';
+        links.style.gap='4px';
+        links.style.padding='16px 24px';
+        links.style.background='rgba(12,15,26,.97)';
+        links.style.borderBottom='1px solid var(--border)';
+        links.style.backdropFilter='blur(14px)';
+        toggle.setAttribute('aria-expanded','true');
+      }
+    });
+    document.querySelectorAll('.nav-links a').forEach(function(a){
+      a.addEventListener('click', function(){
+        if(window.innerWidth <= 860){
+          var links = document.querySelector('.nav-links');
+          links.style.display='';
+          toggle.setAttribute('aria-expanded','false');
+        }
+      });
+    });
+  }
+
+  /* ---- Scroll reveal (IntersectionObserver, graceful fallback) ---- */
+  var reveals = document.querySelectorAll('.reveal');
+  if(reduceMotion || !('IntersectionObserver' in window)){
+    reveals.forEach(function(el){ el.classList.add('in'); });
+  } else {
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); }
+      });
+    }, {threshold:.12, rootMargin:'0px 0px -8% 0px'});
+    reveals.forEach(function(el){ io.observe(el); });
+  }
+
+  /* ---- Terminal typing animation ---- */
+  var term = document.getElementById('term');
+  // Each line: {html, delay-before-next}. The "static" full render is the fallback.
+  var lines = [
+    {html:'<span class="prompt">$</span> <span class="cmd">zcrypt push report.pdf</span>'},
+    {html:'  <span class="step">compressing</span>  <span class="label">zstd</span>            <span class="ok">✓</span>'},
+    {html:'  <span class="step">encrypting</span>   <span class="label">AES-256-GCM</span>     <span class="ok">✓</span>  <span class="note">(key never leaves this machine)</span>'},
+    {html:'  <span class="step">chunking</span>     <span class="label">10MB × 3</span>        <span class="ok">✓</span>'},
+    {html:'  <span class="step">pushing</span>      <span class="gh">github:you/vault-archive</span>   <span class="ok">✓</span>'},
+    {html:'<span class="done">done — report.pdf is encrypted on your storage</span>'}
+  ];
+
+  function renderStatic(){
+    term.innerHTML = lines.map(function(l){ return '<div class="line">'+l.html+'</div>'; }).join('') +
+      '<div class="line"><span class="prompt">$</span> <span class="cursor"></span></div>';
+  }
+
+  if(reduceMotion){
+    renderStatic();
+  } else {
+    var i = 0;
+    function next(){
+      if(i >= lines.length){
+        term.insertAdjacentHTML('beforeend','<div class="line"><span class="prompt">$</span> <span class="cursor"></span></div>');
+        return;
+      }
+      var div = document.createElement('div');
+      div.className = 'line';
+      div.innerHTML = lines[i].html;
+      div.style.opacity = '0';
+      div.style.transform = 'translateY(4px)';
+      div.style.transition = 'opacity .25s ease, transform .25s ease';
+      term.appendChild(div);
+      requestAnimationFrame(function(){ div.style.opacity='1'; div.style.transform='none'; });
+      i++;
+      // command line types slightly slower to feel intentional
+      var d = (i === 1) ? 520 : 420;
+      setTimeout(next, d);
+    }
+    // Start only when terminal is visible (or immediately if no IO)
+    if('IntersectionObserver' in window){
+      var tio = new IntersectionObserver(function(es){
+        es.forEach(function(e){ if(e.isIntersecting){ tio.disconnect(); setTimeout(next, 300); } });
+      }, {threshold:.4});
+      tio.observe(term);
+    } else {
+      setTimeout(next, 400);
+    }
+    // Safety fallback: if for any reason nothing rendered after 6s, show static
+    setTimeout(function(){ if(term.children.length === 0) renderStatic(); }, 6000);
+  }
+
+  /* ---- Active nav highlighting on scroll (subtle, no libs) ---- */
+  var sections = ['how','features','storage','runs','faq'];
+  var navById = {};
+  document.querySelectorAll('.nav-links a').forEach(function(a){
+    var id = a.getAttribute('href').replace('#','');
+    navById[id] = a;
+  });
+  if('IntersectionObserver' in window){
+    var sio = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if(e.isIntersecting){
+          sections.forEach(function(s){ if(navById[s]) navById[s].style.color=''; });
+          if(navById[e.target.id]) navById[e.target.id].style.color='var(--text)';
+        }
+      });
+    }, {rootMargin:'-40% 0px -55% 0px'});
+    sections.forEach(function(s){ var el=document.getElementById(s); if(el) sio.observe(el); });
+  }
+})();
+</script>
+</body>
+</html>

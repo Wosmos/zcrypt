@@ -7,7 +7,7 @@
  */
 
 import { getShareFileMeta, getShareChunk } from "@/lib/api";
-import { deriveKeyBytes, decryptChunk, sha256Hex, fromBase64 } from "@/lib/crypto";
+import { unwrapKey, decryptChunk, sha256Hex, fromBase64 } from "@/lib/crypto";
 import { ZstdInit } from "@oneidentity/zstd-js/wasm";
 import { getDeviceProfile } from "@/lib/device-profile";
 
@@ -31,11 +31,16 @@ export interface ShareDownloadOptions {
 
 /**
  * Download, decrypt, and save a shared file.
- * Throws on wrong passphrase, integrity failure, or abort.
+ *
+ * `shareKeyB64` is the base64 key from the share link's URL fragment. It unwraps
+ * the file's Content Encryption Key (returned wrapped by the share meta
+ * endpoint) — no passphrase is involved, so anyone with the link can decrypt.
+ *
+ * Throws on a bad/missing key, integrity failure, or abort.
  */
 export async function downloadSharedFile(
   token: string,
-  passphrase: string,
+  shareKeyB64: string,
   options?: ShareDownloadOptions
 ): Promise<void> {
   const { onProgress, signal, sharePassword } = options ?? {};
@@ -50,10 +55,19 @@ export async function downloadSharedFile(
 
   if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
 
-  // Step 2: Derive key from passphrase + salt
-  onProgress?.({ stage: "Deriving key...", percent: 1, chunksDone: 0, chunksTotal: meta.chunk_count });
-  const salt = fromBase64(meta.salt);
-  const keyBytes = await deriveKeyBytes(passphrase, salt);
+  // Step 2: Unwrap the file's CEK using the share key from the URL fragment.
+  onProgress?.({ stage: "Unwrapping key...", percent: 1, chunksDone: 0, chunksTotal: meta.chunk_count });
+  if (!meta.wrapped_cek) {
+    throw new Error("This share is missing its encryption key and cannot be decrypted.");
+  }
+  let keyBytes: ArrayBuffer;
+  try {
+    const shareKey = fromBase64(shareKeyB64);
+    const cek = await unwrapKey(shareKey.buffer.slice(0) as ArrayBuffer, fromBase64(meta.wrapped_cek));
+    keyBytes = cek.buffer.slice(0) as ArrayBuffer;
+  } catch {
+    throw new Error("Invalid or corrupt share key — check that you copied the full link.");
+  }
 
   if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
 
@@ -75,7 +89,7 @@ export async function downloadSharedFile(
     try {
       plaintext = await decryptChunk(keyBytes, encrypted);
     } catch {
-      throw new Error("Decryption failed — wrong passphrase?");
+      throw new Error("Decryption failed — the share key may be wrong or the link incomplete.");
     }
 
     if (compressed && zstdCodec) {

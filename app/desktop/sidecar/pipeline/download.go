@@ -49,12 +49,26 @@ func (e *DownloadEngine) Download(ctx context.Context, fileID, passphrase, saveP
 
 	emit("deriving_key", 0, meta.ChunkCount, 0, meta.OriginalSize)
 
-	// 2. Decode salt and derive key
+	// 2. Decode salt and resolve the file key. Envelope files carry a
+	//    wrapped_cek: derive the KEK from the passphrase, then unwrap the CEK
+	//    that actually decrypts chunks. Legacy files (no wrapped_cek) used the
+	//    passphrase-derived key directly. Mirrors resolveFileKey() in the web client.
 	salt, err := base64.StdEncoding.DecodeString(meta.Salt)
 	if err != nil {
 		return fmt.Errorf("decode salt: %w", err)
 	}
 	keyBytes := crypto.DeriveKey(passphrase, salt)
+	if meta.WrappedCek != "" {
+		wrapped, derr := base64.StdEncoding.DecodeString(meta.WrappedCek)
+		if derr != nil {
+			return fmt.Errorf("decode wrapped_cek: %w", derr)
+		}
+		cek, uerr := crypto.UnwrapCEK(keyBytes, wrapped)
+		if uerr != nil {
+			return fmt.Errorf("unwrap CEK: %w (wrong passphrase?)", uerr)
+		}
+		keyBytes = cek
+	}
 
 	// 3. Download and decrypt chunks concurrently
 	decryptedChunks := make([][]byte, meta.ChunkCount)

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { getFileMeta, getFileChunk } from "@/lib/api";
-import { deriveKeyBytes, decryptChunk, fromBase64 } from "@/lib/crypto";
+import { resolveFileKey, decryptChunk, fromBase64 } from "@/lib/crypto";
 import { isImageFile } from "@/lib/utils";
 import type { FileMetadata } from "@/types";
 
@@ -129,7 +129,7 @@ function acquireSlot(): Promise<void> {
 async function decryptFileToBlob(fileId: string, passphrase: string): Promise<Blob> {
   const meta = await getFileMeta(fileId);
   const salt = fromBase64(meta.salt);
-  const keyBytes = await deriveKeyBytes(passphrase, salt);
+  const keyBytes = await resolveFileKey(passphrase, salt, meta.wrapped_cek);
 
   // Lazy-load zstd only when needed
   let zstd: Awaited<ReturnType<typeof import("@oneidentity/zstd-js/wasm")["ZstdInit"]>> | null = null;

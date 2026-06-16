@@ -40,6 +40,7 @@ func (s *Server) HandleGetFileMeta(w http.ResponseWriter, r *http.Request) {
 		"chunk_count":     file.ChunkCount,
 		"sha256":          file.SHA256,
 		"salt":            base64.StdEncoding.EncodeToString(file.Salt),
+		"wrapped_cek":     file.WrappedCEK,
 		"status":          file.Status,
 		"created_at":      file.CreatedAt,
 	})
