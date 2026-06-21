@@ -124,17 +124,15 @@ func (s *Server) HandleConnectPlatform(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Enforce BYOB plan restriction — only plans with AllowsBYOB can connect personal tokens
-	if !s.userPlanAllowsBYOB(ctx, userID) {
-		http.Error(w, `{"error":"your plan does not include Bring Your Own Backend — upgrade to Pro"}`, http.StatusForbidden)
-		return
-	}
+	// zcrypt is free and open source: BYOB (Bring Your Own Backend) is
+	// available to everyone, so connecting a personal platform token is
+	// never gated by plan.
 
 	switch req.Platform {
-	case "github", "gitlab", "huggingface":
+	case "github", "gitlab", "huggingface", "telegram":
 		// supported
 	default:
-		http.Error(w, `{"error":"unsupported platform, use github, gitlab, or huggingface"}`, http.StatusBadRequest)
+		http.Error(w, `{"error":"unsupported platform, use github, gitlab, huggingface, or telegram"}`, http.StatusBadRequest)
 		return
 	}
 

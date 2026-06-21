@@ -14,59 +14,33 @@ import (
 	"github.com/zcrypt/zcrypt/types"
 )
 
-// defaultPlanConfigs returns the hardcoded plan configurations used as seed/fallback.
+// defaultPlanConfigs returns the plan configuration used as seed/fallback.
+//
+// zcrypt is free and open source: there are no paid tiers. There is a single
+// "free" plan with no artificial limits. Users are bounded only by the real
+// git-platform thresholds enforced in reppool. StorageBytes/MaxFileBytes/
+// MaxConcurrentUploads of 0 are treated as "unlimited" everywhere, and
+// AllowsBYOB is true so anyone can connect their own platform account.
 func defaultPlanConfigs() *types.PlanConfigs {
-	badge := "Most Popular"
-	socialProof := "Chosen by 8 out of 10 paid users"
 	return &types.PlanConfigs{
 		Plans: []types.PlanConfig{
 			{
 				ID: "free", Name: "Free", MonthlyPrice: 0, AnnualPrice: 0,
-				Description:          "Get started with generous free storage.",
-				StorageBytes:         10 * 1024 * 1024 * 1024,
-				MaxFileBytes:         500 * 1024 * 1024,
-				MaxConcurrentUploads: 2,
-				StorageDisplay:       "10 GB", MaxFileDisplay: "500 MB", ConcurrentDisplay: "2 uploads",
+				Description:          "Free and open source. No limits beyond the storage platforms you connect.",
+				StorageBytes:         0, // 0 = unlimited
+				MaxFileBytes:         0, // 0 = unlimited
+				MaxConcurrentUploads: 0, // 0 = unlimited
+				StorageDisplay:       "Unlimited", MaxFileDisplay: "Unlimited", ConcurrentDisplay: "Unlimited",
 				Features: []types.PlanFeature{
 					{Text: "Zero-knowledge encryption", Included: true},
 					{Text: "Multi-platform storage", Included: true},
-					{Text: "5 shares per month", Included: true},
-					{Text: "CLI access", Included: false},
-					{Text: "BYOB (Bring Your Own Backend)", Included: false},
-				},
-				SortOrder: 0, AllowsBYOB: false,
-			},
-			{
-				ID: "plus", Name: "Plus", MonthlyPrice: 4, AnnualPrice: 3,
-				Description:          "More storage, more speed, more control.",
-				StorageBytes:         200 * 1024 * 1024 * 1024,
-				MaxFileBytes:         5 * 1024 * 1024 * 1024,
-				MaxConcurrentUploads: 5,
-				StorageDisplay:       "200 GB", MaxFileDisplay: "5 GB", ConcurrentDisplay: "5 uploads",
-				Features: []types.PlanFeature{
-					{Text: "Everything in Free", Included: true},
 					{Text: "Unlimited shares", Included: true},
 					{Text: "CLI access", Included: true},
-					{Text: "BYOB (Bring Your Own Backend)", Included: false},
-				},
-				SortOrder: 1, AllowsBYOB: false,
-			},
-			{
-				ID: "pro", Name: "Pro", MonthlyPrice: 9, AnnualPrice: 7,
-				Description:          "Unlimited power for professionals.",
-				StorageBytes:         2 * 1024 * 1024 * 1024 * 1024,
-				MaxFileBytes:         25 * 1024 * 1024 * 1024,
-				MaxConcurrentUploads: 10,
-				StorageDisplay:       "2 TB", MaxFileDisplay: "25 GB", ConcurrentDisplay: "Unlimited",
-				Features: []types.PlanFeature{
-					{Text: "Everything in Plus", Included: true},
 					{Text: "BYOB (Bring Your Own Backend)", Included: true},
-					{Text: "Priority support", Included: true},
 				},
-				Highlight: true, Badge: &badge, SocialProof: &socialProof,
-				SortOrder: 2, AllowsBYOB: true,
+				SortOrder: 0, AllowsBYOB: true,
 			},
-			},
+		},
 	}
 }
 
@@ -99,36 +73,6 @@ func (s *Server) invalidatePlanCache() {
 	s.planMu.Lock()
 	s.planCache = nil
 	s.planMu.Unlock()
-}
-
-// getPlanStorageQuota returns the storage quota for a plan from dynamic config.
-func (s *Server) getPlanStorageQuota(ctx context.Context, plan string) int64 {
-	for _, p := range s.loadPlanConfigs(ctx).Plans {
-		if p.ID == plan {
-			return p.StorageBytes
-		}
-	}
-	return 10 * 1024 * 1024 * 1024 // free fallback
-}
-
-// getPlanMaxFileSize returns the max file size for a plan from dynamic config.
-func (s *Server) getPlanMaxFileSize(ctx context.Context, plan string) int64 {
-	for _, p := range s.loadPlanConfigs(ctx).Plans {
-		if p.ID == plan {
-			return p.MaxFileBytes
-		}
-	}
-	return 500 * 1024 * 1024 // 500 MB fallback
-}
-
-// getPlanMaxConcurrent returns the max concurrent uploads for a plan from dynamic config.
-func (s *Server) getPlanMaxConcurrent(ctx context.Context, plan string) int {
-	for _, p := range s.loadPlanConfigs(ctx).Plans {
-		if p.ID == plan {
-			return p.MaxConcurrentUploads
-		}
-	}
-	return 2 // free fallback
 }
 
 // SeedPlanConfigs writes default plan configs to DB if not already set,
@@ -501,17 +445,16 @@ func (s *Server) HandleGetQuota(w http.ResponseWriter, r *http.Request) {
 	}
 
 	hasPersonal, _ := s.db.UserHasPersonalTokens(ctx, userID)
-	quota := s.getEffectiveQuota(ctx, userID)
 
-	// Determine plan and limits
+	// zcrypt is free and open source: storage is effectively unlimited and
+	// users are bounded only by the real git-platform thresholds. We still
+	// report the plan label (kept on the user record) for display purposes.
 	plan := "free"
 	if user, uErr := s.db.GetUserByID(ctx, userID); uErr == nil && user != nil {
 		if user.Plan != "" {
 			plan = user.Plan
 		}
 	}
-	maxConcurrent := s.getPlanMaxConcurrent(ctx, plan)
-	maxFileSize := s.getPlanMaxFileSize(ctx, plan)
 
 	// Check if user can upload (has any adapters — personal or global/managed)
 	userAdapters, _ := s.getUserAdapters(ctx, userID)
@@ -519,14 +462,14 @@ func (s *Server) HandleGetQuota(w http.ResponseWriter, r *http.Request) {
 
 	info := types.QuotaInfo{
 		UsedBytes:            used,
-		QuotaBytes:           quota,
+		QuotaBytes:           0, // 0 = unlimited
 		HasPersonalKey:       hasPersonal,
-		IsUnlimited:          (hasPersonal && s.planAllowsBYOB(ctx, plan)) || quota == 0,
+		IsUnlimited:          true,
 		Plan:                 plan,
-		MaxConcurrentUploads: maxConcurrent,
-		MaxFileSize:          maxFileSize,
+		MaxConcurrentUploads: 0, // 0 = unlimited
+		MaxFileSize:          0, // 0 = unlimited
 		CanUpload:            canUpload,
-		AllowsBYOB:           s.planAllowsBYOB(ctx, plan),
+		AllowsBYOB:           true,
 	}
 
 	writeJSON(w, http.StatusOK, info)
@@ -550,9 +493,9 @@ func (s *Server) HandleAdminSetPlan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	validPlans := map[string]bool{"free": true, "plus": true, "pro": true, "team": true}
+	validPlans := map[string]bool{"free": true, "plus": true, "pro": true}
 	if !validPlans[req.Plan] {
-		http.Error(w, `{"error":"plan must be 'free', 'plus', 'pro', or 'team'"}`, http.StatusBadRequest)
+		http.Error(w, `{"error":"plan must be 'free', 'plus', or 'pro'"}`, http.StatusBadRequest)
 		return
 	}
 

@@ -2,26 +2,17 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import {
   Lock,
-  Zap,
-  GitBranch,
-  Eye,
-  Scissors,
-  HeartHandshake,
   ArrowRight,
-  Quote,
   HelpCircle,
   Terminal,
   Smartphone,
   Share2,
   Image,
   Rocket,
+  Github,
+  HardDrive,
 } from "@/lib/icons";
-import { cn } from "@/lib/utils";
 import {
-  features,
-  accentColors,
-  steps,
-  testimonials,
   faqs,
   roadmapItems,
   marqueeItems,
@@ -32,50 +23,41 @@ import {
   HeroSection,
   MagneticButton,
 } from "@/components/marketing/landing/hero-section";
-import { ScrollReveal } from "@/components/marketing/landing/scroll-reveal";
-import { AnimatedBorderCard } from "@/components/marketing/landing/animated-border-card";
-import { Marquee } from "@/components/marketing/landing/marquee";
 import {
   AnimatedTimelineLine,
   TimelineStep,
 } from "@/components/marketing/landing/timeline";
+import { ScrollReveal } from "@/components/marketing/landing/scroll-reveal";
+import { Marquee } from "@/components/marketing/landing/marquee";
 import { FAQItem } from "@/components/marketing/landing/faq-item";
 import { Underlined } from "@/components/marketing/landing/pencil-underline";
-import { AnimatedCounter } from "@/components/marketing/landing/animated-counter";
 import { HoverReveal } from "@/components/marketing/landing/hover-reveal";
 import { MacOSShowcase } from "@/components/marketing/macos-showcase";
 import { BentoGrid } from "@/components/marketing/landing/bento-grid";
-import { PricingSection } from "@/components/marketing/landing/product-prising";
+import { EncryptionBoundary } from "@/components/marketing/landing/encryption-boundary";
+import { BringYourOwnStorage } from "@/components/marketing/landing/bring-your-own-storage";
+import { BuiltToTrust } from "@/components/marketing/landing/built-to-trust";
 import {
   FAQJsonLd,
   SoftwareApplicationJsonLd,
 } from "@/components/seo/json-ld";
 
 export const metadata: Metadata = {
-  title: "zcrypt — Private Cloud Storage That Costs Less",
+  title: "zcrypt — Cloud Storage You Actually Own",
   description:
-    "Free encrypted cloud storage with zero-knowledge AES-256 encryption. 10 GB free, open source, no credit card. Secure alternative to Dropbox, Google Drive, and iCloud.",
+    "zcrypt encrypts your files on your device, then stores them inside your own GitHub, GitLab, Hugging Face, or Telegram account. Zero-knowledge AES-256-GCM encryption, open source, no artificial limits.",
   alternates: {
     canonical: "https://zcrypt.cloud",
   },
   openGraph: {
-    title: "zcrypt — Private Cloud Storage That Costs Less",
+    title: "zcrypt — Cloud Storage You Actually Own",
     description:
-      "Free zero-knowledge encrypted cloud storage. 10 GB free, military-grade AES-256 encryption, open source. Your files, your keys.",
+      "Encrypted on your device, stored in storage you already own. Zero-knowledge AES-256-GCM encryption, open source, no artificial limits.",
     url: "https://zcrypt.cloud",
   },
 };
 
 // ─── Icon Maps (Server Component can reference client components) ───
-
-const featureIconMap: Record<string, React.ComponentType<{ className?: string; size?: number }>> = {
-  Lock,
-  Eye,
-  Zap,
-  GitBranch,
-  Scissors,
-  HeartHandshake,
-};
 
 const roadmapIconMap: Record<string, React.ComponentType<{ className?: string; size?: number }>> = {
   Terminal,
@@ -84,12 +66,47 @@ const roadmapIconMap: Record<string, React.ComponentType<{ className?: string; s
   Image,
 };
 
+// ─── Plain-language "How it works" steps (homepage only) ─────
+const howItWorksSteps = [
+  {
+    num: "01",
+    title: "Connect your account",
+    desc: "Link a storage account you already have — GitHub, GitLab, Hugging Face, or Telegram. That account becomes your private vault.",
+    icon: Github,
+  },
+  {
+    num: "02",
+    title: "Drop a file",
+    desc: "Your file is encrypted on your device before it ever leaves it. The key comes from your passphrase and never leaves your device.",
+    icon: Lock,
+  },
+  {
+    num: "03",
+    title: "Stored in your own cloud",
+    desc: "Your file is saved as encrypted pieces inside your own account. Only you, with your passphrase, can unlock it — from anywhere.",
+    icon: HardDrive,
+  },
+];
+
+// ─── Short objections / reassurance ──────────────────────────
+const objections = [
+  {
+    q: "Do I need a GitHub account?",
+    a: "Yes — and that's the point. Your files live in storage you own, so there are no artificial limits and nothing is locked to us.",
+  },
+  {
+    q: "Is this allowed by the platforms?",
+    a: "Only encrypted, private data is ever uploaded.",
+  },
+  {
+    q: "Are my files always retrievable?",
+    a: "Your file is stored as encrypted pieces and reassembled when you download.",
+  },
+];
+
 // ─── Page (Server Component) ─────────────────────────────────
 
 export default function LandingPage() {
-  const largeFeatures = features.filter((f) => f.large);
-  const smallFeatures = features.filter((f) => !f.large);
-
   return (
     <>
       <SoftwareApplicationJsonLd />
@@ -98,10 +115,53 @@ export default function LandingPage() {
       {/* ═══ HERO (Client Island) ═══ */}
       <HeroSection />
 
-      {/* ═══ CLOUD FEATURES TICKER ═══ */}
-      <section className=" border-y border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden">
+      {/* ═══ FACTS TICKER ═══ */}
+      <section className="border-y border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden">
         <Marquee items={marqueeItems} />
       </section>
+
+      {/* ═══ HOW IT WORKS ═══ */}
+      <section id="how-it-works" className="py-28 px-4 scroll-mt-20">
+        <div className="mx-auto max-w-5xl">
+          <ScrollReveal className="text-center mb-16">
+            <p className="text-xs font-semibold text-cyan-600 dark:text-cyan-400 uppercase tracking-wider mb-3">
+              How it works
+            </p>
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
+              Three steps. <em className="italic">Nothing</em> we can read.
+            </h2>
+            <p className="text-[var(--color-text-secondary)] mt-4 max-w-xl mx-auto leading-relaxed">
+              No new storage to buy, no servers to trust. Your files are encrypted
+              before they leave your device and stored in an account you already own.
+            </p>
+          </ScrollReveal>
+
+          <div className="relative mx-auto max-w-2xl">
+            <AnimatedTimelineLine />
+            <div className="relative">
+              {howItWorksSteps.map((step, i) => (
+                <TimelineStep key={step.num} step={step} index={i} />
+              ))}
+            </div>
+          </div>
+
+          {/* Under the hood — for the curious */}
+          <ScrollReveal delay={0.2} className="mt-10 text-center">
+            <p className="text-xs text-[var(--color-text-muted)] max-w-2xl mx-auto leading-relaxed">
+              Under the hood: files are compressed with zstd, encrypted with
+              AES-256-GCM using a key derived from your passphrase, split into
+              chunks, and uploaded to your connected platform — all client-side
+              and zero-knowledge.
+            </p>
+          </ScrollReveal>
+        </div>
+      </section>
+
+      {/* ═══ ENCRYPTION BOUNDARY (zero-knowledge proof) ═══ */}
+      <EncryptionBoundary />
+
+      {/* ═══ BRING YOUR OWN STORAGE ═══ */}
+      <BringYourOwnStorage />
 
       {/* ═══ FEATURES — BENTO GRID ═══ */}
       <BentoGrid />
@@ -126,130 +186,10 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ═══ HOW IT WORKS ═══ */}
-      <section className="py-24 px-4 bg-[var(--color-surface)]">
-        <div className="mx-auto max-w-3xl">
-          <ScrollReveal className="text-center mb-16">
-            <p className="text-xs font-semibold text-cyan-600 dark:text-cyan-400 uppercase tracking-wider mb-3">
-              How it works
-            </p>
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-              How it works
-            </h2>
-          </ScrollReveal>
+      {/* ═══ WHY ZCRYPT — TRUST STACK ═══ */}
+      <BuiltToTrust />
 
-          <div className="relative">
-            <AnimatedTimelineLine />
-            <div className="space-y-0">
-              {steps.map((step, i) => (
-                <TimelineStep key={step.num} step={step} index={i} />
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ═══ TUI SHOWCASE ═══ */}
-      <section className="py-24 px-4">
-        <div className="mx-auto max-w-4xl">
-          <ScrollReveal className="text-center mb-12">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-cyan-500/20 bg-cyan-500/5 text-xs font-medium text-cyan-600 dark:text-cyan-400 mb-4">
-              <Terminal className="h-3.5 w-3.5" />
-              Terminal App
-            </div>
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-              Prefer the command line?
-            </h2>
-            <p className="text-[var(--color-text-secondary)] mt-3 max-w-lg mx-auto">
-              A full terminal interface with vim-style navigation, real-time progress, and the same zero-knowledge encryption. Single binary, zero dependencies.
-            </p>
-          </ScrollReveal>
-
-          <ScrollReveal delay={0.1}>
-            <div className="relative group max-w-2xl mx-auto">
-              <div className="absolute -inset-3 bg-gradient-to-b from-cyan-500/10 via-blue-500/5 to-transparent rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-              <div className="relative rounded-xl border border-[var(--color-border)] bg-[#09090b] overflow-hidden shadow-2xl shadow-black/30">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 bg-white/[0.02]">
-                  <div className="flex items-center gap-3">
-                    <div className="flex gap-1.5">
-                      <div className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
-                      <div className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
-                      <div className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
-                    </div>
-                    <span className="text-[10px] text-white/30 font-mono">zcrypt</span>
-                  </div>
-                </div>
-                <div className="p-4 font-mono text-xs leading-relaxed text-white/70">
-                  <pre className="whitespace-pre overflow-x-auto">{`  zcrypt vault                  14 files   3.2 GB / 10 GB
-  ───────────────────────────────────────────────────────
-   quarterly-report.pdf         12.4 MB   doc       2
-   vacation-photos.zip         847.2 MB   archive  85
- > project-backup.tar.gz        2.1 GB   archive 210
-   tax-documents-2025.pdf        4.8 MB   doc       1`}</pre>
-                  <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-white/30">
-                    <span><span className="text-cyan-400/50">j/k</span> navigate</span>
-                    <span><span className="text-cyan-400/50">u</span> upload</span>
-                    <span><span className="text-cyan-400/50">d</span> download</span>
-                    <span><span className="text-cyan-400/50">/</span> search</span>
-                    <span><span className="text-cyan-400/50">:</span> command</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </ScrollReveal>
-
-          <ScrollReveal delay={0.2}>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-8">
-              <Link
-                href="/tui"
-                className="group inline-flex items-center gap-2 rounded-xl bg-cyan-500/10 border border-cyan-500/20 px-6 py-3 text-sm font-semibold text-cyan-600 dark:text-cyan-400 hover:bg-cyan-500/15 transition-colors"
-              >
-                <Terminal className="h-4 w-4" />
-                Learn more about the TUI
-                <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
-              </Link>
-              <span className="text-xs text-[var(--color-text-muted)]">
-                go install github.com/zcrypt/zcrypt-tui@latest
-              </span>
-            </div>
-          </ScrollReveal>
-        </div>
-      </section>
-
-      {/* ═══ PRICING ═══ */}
-     <PricingSection />
-
-      {/* ═══ TESTIMONIALS ═══ */}
-      <section className="py-24 px-4 bg-[var(--color-surface)]">
-        <div className="mx-auto max-w-5xl">
-          <ScrollReveal className="text-center mb-16">
-            <p className="text-xs font-semibold text-cyan-600 dark:text-cyan-400 uppercase tracking-wider mb-3">
-              Testimonials
-            </p>
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-              Trusted by thousands
-            </h2>
-          </ScrollReveal>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {testimonials.map((t, i) => (
-              <ScrollReveal key={i} delay={i * 0.1}>
-                <div className="card p-6 h-full flex flex-col">
-                  <Quote aria-hidden="true" className="h-5 w-5 text-cyan-500/30 mb-3 flex-shrink-0" />
-                  <p className="text-sm text-[var(--color-text)] leading-relaxed flex-1">
-                    &ldquo;{t.quote}&rdquo;
-                  </p>
-                  <p className="text-xs text-[var(--color-text-muted)] mt-4 font-medium">
-                    &mdash; {t.author}
-                  </p>
-                </div>
-              </ScrollReveal>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ═══ FAQ ═══ */}
+      {/* ═══ FAQ + OBJECTIONS ═══ */}
       <section className="py-24 px-4">
         <div className="mx-auto max-w-3xl">
           <ScrollReveal className="text-center mb-16">
@@ -265,17 +205,36 @@ export default function LandingPage() {
             </p>
           </ScrollReveal>
 
+          {/* Quick objections row */}
+          <ScrollReveal className="mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {objections.map((o) => (
+                <div
+                  key={o.q}
+                  className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5"
+                >
+                  <h3 className="text-sm font-bold tracking-tight mb-1.5">
+                    {o.q}
+                  </h3>
+                  <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed">
+                    {o.a}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </ScrollReveal>
+
           <ScrollReveal>
             <div className="flex flex-col gap-3">
               {faqs.map((faq, i) => (
-                <FAQItem key={i} question={faq.q} answer={faq.a}  />
+                <FAQItem key={i} question={faq.q} answer={faq.a} />
               ))}
             </div>
           </ScrollReveal>
         </div>
       </section>
 
-      {/* ═══ COMING SOON ═══ */}
+      {/* ═══ ROADMAP ═══ */}
       <section className="py-24 px-4 bg-[var(--color-surface)]">
         <div className="mx-auto max-w-5xl">
           <ScrollReveal className="text-center mb-16">
@@ -287,7 +246,7 @@ export default function LandingPage() {
               We&apos;re just getting started.
             </h2>
             <p className="text-[var(--color-text-secondary)] mt-3 max-w-lg mx-auto">
-              Big things are coming. Here&apos;s a taste of what&apos;s next.
+              Here&apos;s what we&apos;re building next.
             </p>
           </ScrollReveal>
 
@@ -319,6 +278,36 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ═══ TERMINAL APP (de-emphasized, lower on page) ═══ */}
+      {/* <section className="py-24 px-4">
+        <div className="mx-auto max-w-3xl">
+          <ScrollReveal className="text-center">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] text-xs font-medium text-[var(--color-text-secondary)] mb-4">
+              <Terminal className="h-3.5 w-3.5 text-cyan-500" />
+              For developers
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
+              Prefer the command line?
+            </h2>
+            <p className="text-[var(--color-text-secondary)] mt-3 max-w-lg mx-auto leading-relaxed">
+              There&apos;s a full terminal app with the same zero-knowledge
+              encryption — a single binary, no dependencies. Optional, and never
+              required to use zcrypt.
+            </p>
+            <div className="mt-7">
+              <Link
+                href="/tui"
+                className="group inline-flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-6 py-3 text-sm font-semibold text-[var(--color-text)] hover:border-cyan-500/40 transition-colors"
+              >
+                <Terminal className="h-4 w-4 text-cyan-500" />
+                Explore the terminal app
+                <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
+              </Link>
+            </div>
+          </ScrollReveal>
+        </div>
+      </section> */}
+
       {/* ═══ CTA ═══ */}
       <section className="py-32 px-4 relative overflow-hidden">
         {/* Gradient background */}
@@ -329,22 +318,35 @@ export default function LandingPage() {
 
         <div className="relative mx-auto max-w-2xl text-center">
           <ScrollReveal>
+            <p className="mb-4 text-xs font-semibold uppercase tracking-[0.16em] text-cyan-600 dark:text-cyan-400">
+              Get started today
+            </p>
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight">
-              Your Files Deserve <Underlined variant="highlight"><em className="italic">Better</em></Underlined>
+              Storage you{" "}
+              <Underlined variant="highlight">
+                <em className="italic">actually own.</em>
+              </Underlined>
             </h2>
             <p className="text-[var(--color-text-secondary)] mt-4 text-lg">
-              10 GB free. Zero-knowledge encryption. No credit card required.
+              Connect your own account. Encrypted on your device. No artificial
+              limits, no vendor lock-in.
             </p>
           </ScrollReveal>
 
           <ScrollReveal delay={0.2}>
-            <div className="mt-10 relative inline-block">
-              <MagneticButton
+            <div className="mt-10 relative inline-flex flex-wrap items-center justify-center gap-4">
+              <Link
                 href="/register"
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-500 px-10 py-4 text-base font-semibold text-slate-900 hover:bg-cyan-400 transition-colors shadow-2xl shadow-cyan-500/30 hover:shadow-cyan-500/50"
+                className="inline-flex items-center justify-center gap-2 rounded-full px-8 py-3.5 text-base font-semibold text-slate-900 bg-gradient-to-br from-[#2de0ed] via-[#00d5e4] to-[#0093a3] shadow-lg shadow-cyan-500/30 transition-shadow hover:shadow-xl hover:shadow-cyan-500/50"
               >
-                Start with 10 GB free <ArrowRight className="h-4 w-4" />
-              </MagneticButton>
+                Create your vault <ArrowRight className="h-4 w-4" />
+              </Link>
+              {/* <MagneticButton
+                href="/docs"
+                className="inline-flex items-center justify-center rounded-full px-8 py-3.5 text-base font-semibold text-[var(--color-text)] border border-[var(--color-border)] bg-black/[0.02] dark:bg-white/[0.02] transition-colors hover:border-cyan-500/40 hover:bg-cyan-500/5"
+              >
+                Read the docs
+              </MagneticButton> */}
 
               {/* Easter egg on long hover */}
               <HoverReveal />

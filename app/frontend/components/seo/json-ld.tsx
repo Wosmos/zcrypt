@@ -6,7 +6,7 @@ export function OrganizationJsonLd() {
     url: "https://zcrypt.cloud",
     logo: "https://zcrypt.cloud/favicon.svg",
     description:
-      "Free zero-knowledge encrypted cloud storage with military-grade AES-256 encryption. Open source, private, and affordable.",
+      "Free, open-source, zero-knowledge encrypted cloud storage. Your files are encrypted on your device with AES-256-GCM and stored in your own GitHub, GitLab, Hugging Face, or Telegram account — only you can read them.",
     foundingDate: "2025",
     sameAs: [
       "https://github.com/zcrypt",
@@ -35,38 +35,19 @@ export function SoftwareApplicationJsonLd() {
     applicationCategory: "SecurityApplication",
     operatingSystem: "Web, Windows, macOS, Linux",
     description:
-      "Zero-knowledge encrypted cloud storage. Upload, encrypt, and store files with AES-256-GCM encryption. 10 GB free.",
-    offers: [
-      {
-        "@type": "Offer",
-        price: "0",
-        priceCurrency: "USD",
-        name: "Free",
-        description: "10 GB encrypted storage, 2 concurrent uploads",
-      },
-      {
-        "@type": "Offer",
-        price: "4",
-        priceCurrency: "USD",
-        name: "Plus",
-        description: "200 GB encrypted storage, 5 concurrent uploads",
-        priceValidUntil: "2027-12-31",
-      },
-      {
-        "@type": "Offer",
-        price: "9",
-        priceCurrency: "USD",
-        name: "Pro",
-        description: "2 TB encrypted storage, unlimited uploads, BYOB",
-        priceValidUntil: "2027-12-31",
-      },
-    ],
+      "Zero-knowledge encrypted cloud storage. Encrypt files with AES-256-GCM on your device and store them in your own GitHub, GitLab, Hugging Face, or Telegram account. Free and open source.",
+    offers: {
+      "@type": "Offer",
+      price: "0",
+      priceCurrency: "USD",
+      name: "Free and open source",
+    },
     featureList: [
       "Zero-knowledge encryption",
       "AES-256-GCM encryption",
       "Open source",
       "Bring Your Own Backend (BYOB)",
-      "Git-based distributed storage",
+      "Stored in your own cloud accounts",
       "Terminal app (TUI)",
       "Real-time upload progress",
       "Multi-platform support",
@@ -87,7 +68,7 @@ export function WebSiteJsonLd() {
     "@type": "WebSite",
     name: "zcrypt",
     url: "https://zcrypt.cloud",
-    description: "Private encrypted cloud storage that costs less.",
+    description: "Private, open-source encrypted cloud storage you actually own.",
     potentialAction: {
       "@type": "SearchAction",
       target: {

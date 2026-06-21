@@ -25,40 +25,6 @@ func (db *DB) InsertFile(ctx context.Context, userID string, f *types.FileMetada
 	return nil
 }
 
-// InsertFileWithQuotaCheck atomically inserts a file record only if the user
-// has enough quota remaining. Returns ErrQuotaExceeded if the insert would exceed quota.
-// quota=0 means unlimited (always succeeds).
-var ErrQuotaExceeded = fmt.Errorf("storage quota exceeded")
-
-func (db *DB) InsertFileWithQuotaCheck(ctx context.Context, userID string, f *types.FileMetadata, quotaBytes int64) error {
-	status := f.Status
-	if status == "" {
-		status = "complete"
-	}
-	if quotaBytes <= 0 {
-		// Unlimited — just insert
-		return db.InsertFile(ctx, userID, f)
-	}
-	// Atomic insert: only succeeds if current usage + new file <= quota
-	// Note: $4 is cast to BIGINT in the WHERE clause to avoid pgx/PostgreSQL
-	// "inconsistent types deduced for parameter" error (SQLSTATE 42P08) when
-	// the same parameter appears in both SELECT and WHERE contexts.
-	tag, err := db.pool.Exec(ctx,
-		`INSERT INTO files (id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, wrapped_cek, status)
-		 SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
-		 WHERE (SELECT COALESCE(SUM(original_size), 0) FROM files WHERE user_id = $2 AND status IN ('complete', 'uploading')) + $4::BIGINT <= $13`,
-		f.ID, userID, f.OriginalName, f.OriginalSize, f.CompressedSize, f.EncryptedSize,
-		f.ChunkCount, f.SHA256, f.Salt, f.IV, f.WrappedCEK, status, quotaBytes,
-	)
-	if err != nil {
-		return fmt.Errorf("insert file: %w", err)
-	}
-	if tag.RowsAffected() == 0 {
-		return ErrQuotaExceeded
-	}
-	return nil
-}
-
 // InsertChunk stores a chunk reference in the index.
 func (db *DB) InsertChunk(ctx context.Context, userID string, c *types.ChunkRef) error {
 	_, err := db.pool.Exec(ctx,

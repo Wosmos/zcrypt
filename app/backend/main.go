@@ -74,6 +74,9 @@ func main() {
 	// Seed default plan configs if not already in DB
 	server.SeedPlanConfigs(context.Background())
 
+	// Log the effective OAuth config so the exact redirect URIs to register are visible in logs
+	server.LogOAuthConfig()
+
 	// Start background cleanup worker for deferred deletions
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -132,6 +135,7 @@ func main() {
 	mux.HandleFunc("POST /api/auth/magic-link/verify", maxJSON(server.HandleMagicLinkVerify))
 
 	// OAuth routes (public — redirect-based)
+	mux.HandleFunc("GET /api/auth/oauth/config", server.HandleOAuthConfig)
 	mux.HandleFunc("GET /api/auth/oauth/{provider}", server.HandleOAuthStart)
 	mux.HandleFunc("GET /api/auth/oauth/{provider}/callback", server.HandleOAuthCallback)
 	mux.HandleFunc("GET /api/auth/oauth/desktop-poll", server.HandleDesktopOAuthPoll)

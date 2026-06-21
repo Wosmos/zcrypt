@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -20,9 +19,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/zcrypt/zcrypt/adapters"
 	"github.com/zcrypt/zcrypt/config"
-	"github.com/zcrypt/zcrypt/reppool"
 	"github.com/zcrypt/zcrypt/disguise"
-	"github.com/zcrypt/zcrypt/index"
 	"github.com/zcrypt/zcrypt/pipeline"
 	"github.com/zcrypt/zcrypt/types"
 )
@@ -86,81 +83,14 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Run independent DB lookups in parallel to cut round trips
-	type initData struct {
-		plan           string
-		activeSessions int
-		effectiveQuota int64
-		adapterKey     string
-		pool           *reppool.Manager
-		adapterErr     error
-	}
-
-	var d initData
-	var wg sync.WaitGroup
-
-	// Group 1: user + plan (needed for size/concurrent checks)
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		d.plan = "free"
-		if user, uErr := s.db.GetUserByID(ctx, userID); uErr == nil && user != nil && user.Plan != "" {
-			d.plan = user.Plan
-		}
-	}()
-
-	// Group 2: active session count
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		d.activeSessions, _ = s.db.CountActiveUploadSessions(ctx, userID)
-	}()
-
-	// Group 3: select adapter + repo pool
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		var adapterPool *reppool.Manager
-		key, _, adapterPool, err := s.selectAdapter(ctx, userID, req.Platform)
-		if err != nil {
-			d.adapterErr = err
-			return
-		}
-		d.adapterKey = key
-		d.pool = adapterPool
-		_ = err // silence
-		_ = key
-	}()
-
-	wg.Wait()
-
-	// Enforce max file size per plan
-	maxFileSize := s.getPlanMaxFileSize(ctx, d.plan)
-	if req.OriginalSize > maxFileSize {
-		http.Error(w, `{"error":"file exceeds your plan's size limit"}`, http.StatusForbidden)
-		return
-	}
-
-	// Enforce concurrent upload session limit per plan
-	maxConcurrent := s.getPlanMaxConcurrent(ctx, d.plan)
-	if d.activeSessions >= maxConcurrent {
-		http.Error(w, `{"error":"too many concurrent uploads"}`, http.StatusTooManyRequests)
-		return
-	}
-
-	// Determine effective quota (0 = unlimited)
-	var effectiveQuota int64
-	if !s.isQuotaExempt(ctx, userID) {
-		effectiveQuota = s.getEffectiveQuota(ctx, userID)
-	}
-
-	// Check adapter selection result
-	key := d.adapterKey
-	pool := d.pool
-	if d.adapterErr != nil {
+	// zcrypt is free and open source: there are no artificial plan/quota
+	// limits. Users are bounded only by the real git-platform thresholds
+	// enforced in reppool. Select the adapter + repo pool to use.
+	key, _, pool, err := s.selectAdapter(ctx, userID, req.Platform)
+	if err != nil {
 		hasPersonal, _ := s.db.UserHasPersonalTokens(ctx, userID)
 		if hasPersonal {
-			log.Printf("upload: platform not available for user %s: %v", userID, d.adapterErr)
+			log.Printf("upload: platform not available for user %s: %v", userID, err)
 			http.Error(w, `{"error":"storage platform not available"}`, http.StatusBadRequest)
 		} else {
 			http.Error(w, `{"error":"storage not available yet — managed storage is being configured"}`, http.StatusServiceUnavailable)
@@ -198,11 +128,7 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		Status:       "uploading",
 	}
 
-	if err := s.db.InsertFileWithQuotaCheck(ctx, userID, fileMeta, effectiveQuota); err != nil {
-		if errors.Is(err, index.ErrQuotaExceeded) {
-			http.Error(w, `{"error":"storage quota exceeded"}`, http.StatusForbidden)
-			return
-		}
+	if err := s.db.InsertFile(ctx, userID, fileMeta); err != nil {
 		log.Printf("upload: create file record failed for user %s: %v", userID, err)
 		http.Error(w, `{"error":"create file record failed"}`, http.StatusInternalServerError)
 		return

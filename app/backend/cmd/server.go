@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -253,71 +252,24 @@ func (s *Server) resolveAdapterForUser(ctx context.Context, userID, platform, ac
 	return nil
 }
 
-// isQuotaExempt returns true if the user has personal (non-global) platform tokens
-// AND their plan allows BYOB.
-func (s *Server) isQuotaExempt(ctx context.Context, userID string) bool {
-	has, err := s.db.UserHasPersonalTokens(ctx, userID)
-	if err != nil || !has {
-		return false
-	}
-	// Must also be on a plan that allows BYOB
-	return s.userPlanAllowsBYOB(ctx, userID)
-}
-
-// userPlanAllowsBYOB checks if the user's plan includes BYOB access.
-func (s *Server) userPlanAllowsBYOB(ctx context.Context, userID string) bool {
-	user, err := s.db.GetUserByID(ctx, userID)
-	if err != nil {
-		return false
-	}
-	return s.planAllowsBYOB(ctx, user.Plan)
-}
-
-// planAllowsBYOB returns whether the given plan allows Bring Your Own Backend.
-func (s *Server) planAllowsBYOB(ctx context.Context, plan string) bool {
-	configs := s.loadPlanConfigs(ctx)
-	for _, p := range configs.Plans {
-		if p.ID == plan {
-			return p.AllowsBYOB
-		}
-	}
-	return false
-}
-
 // getEffectiveQuota returns the effective storage quota in bytes for a user.
-// Priority: per-user override > plan-based quota > system default > free plan default.
-// Returns 0 if unlimited (only when admin explicitly sets quota to 0).
+//
+// zcrypt is free and open source: storage is effectively unlimited (0 = no
+// limit). An admin may still set an explicit per-user override for display,
+// which is honored here, but nothing in the upload path consults this value
+// anymore — uploads are bounded only by the real git-platform thresholds.
 func (s *Server) getEffectiveQuota(ctx context.Context, userID string) int64 {
 	user, err := s.db.GetUserByID(ctx, userID)
 	if err != nil {
-		return s.getPlanStorageQuota(ctx, "free")
+		return 0 // unlimited
 	}
 
-	// 1. Per-user admin override (0 = unlimited, >0 = explicit limit)
+	// Honor an explicit per-user admin override if one is set (0 = unlimited).
 	if user.StorageQuota != nil {
 		return *user.StorageQuota
 	}
 
-	// 2. Plan-based quota
-	plan := user.Plan
-	if plan == "" {
-		plan = "free"
-	}
-	if q := s.getPlanStorageQuota(ctx, plan); q > 0 {
-		return q
-	}
-
-	// 3. System default
-	val, err := s.db.GetSystemSetting(ctx, "default_storage_quota_bytes")
-	if err == nil {
-		q, _ := strconv.ParseInt(val, 10, 64)
-		if q > 0 {
-			return q
-		}
-	}
-
-	// 4. Fallback to free plan
-	return s.getPlanStorageQuota(ctx, "free")
+	return 0 // unlimited
 }
 
 // getGlobalAdapters returns adapters created from global platform tokens (for anonymous send).

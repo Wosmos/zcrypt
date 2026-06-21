@@ -42,10 +42,9 @@ export function MobileVaultHeader({ files, quotaInfo, repos, isUnlocked, onUnloc
   }, [files]);
 
   const totalUsed = repos.reduce((s, r) => s + r.used_bytes, 0);
-  const totalMax = repos.reduce((s, r) => s + r.max_bytes, 0);
+  // Storage is unbounded — bounded only by the connected platform. Show usage,
+  // never a fraction of a cap.
   const quotaUsed = quotaInfo?.used_bytes ?? totalUsed;
-  const quotaMax = quotaInfo && !quotaInfo.is_unlimited ? quotaInfo.quota_bytes : totalMax;
-  const percent = quotaMax > 0 ? Math.min((quotaUsed / quotaMax) * 100, 100) : 0;
 
   const activeCategories = CATEGORY_CONFIG.filter((c) => categoryCounts.has(c.name));
   // Add "File" catch-all if there are uncategorized files
@@ -78,19 +77,11 @@ export function MobileVaultHeader({ files, quotaInfo, repos, isUnlocked, onUnloc
           </div>
           <div className="text-2xl font-bold tabular-nums">
             {formatBytes(quotaUsed)}
-            <span className="text-sm font-normal text-white/60 ml-1">
-              / {quotaMax > 0 ? formatBytes(quotaMax) : "Unlimited"}
-            </span>
+            <span className="text-sm font-normal text-white/60 ml-1">used</span>
           </div>
-          <div className="mt-3 h-1.5 rounded-full bg-white/20 overflow-hidden">
-            <div
-              className="h-full rounded-full bg-white/80 transition-all duration-500"
-              style={{ width: `${percent}%` }}
-            />
-          </div>
-          <div className="flex items-center justify-between mt-2 text-xs text-white/60">
+          <div className="flex items-center justify-between mt-3 text-xs text-white/60">
             <span>{files.length} file{files.length !== 1 ? "s" : ""}</span>
-            <span>{percent.toFixed(0)}% used</span>
+            <span>Unlimited storage</span>
           </div>
         </div>
       </div>

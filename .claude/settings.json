@@ -1,9 +1,17 @@
 {
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch",
+      "Read",
+      "Grep",
+      "Glob"
+    ]
+  },
   "mcpServers": {
     "playwright": {
       "command": "npx",
-      "args": ["@playwright/mcp@latest", "--browser", "chromium"],
-      "env": {}
+      "args": ["@playwright/mcp@latest", "--browser", "chromium"]
     }
   }
 }

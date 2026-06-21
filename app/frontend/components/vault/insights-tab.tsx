@@ -36,9 +36,8 @@ export function InsightsTab({ files, repos, quotaInfo }: { files: FileMetadata[]
   const savings = totalOriginal > 0 ? ((1 - totalEncrypted / totalOriginal) * 100).toFixed(1) : "0";
   const spaceSaved = totalOriginal - totalEncrypted;
 
-  const storageSub = quotaInfo && !quotaInfo.is_unlimited && quotaInfo.quota_bytes > 0
-    ? `${formatBytes(quotaInfo.used_bytes)} / ${formatBytes(quotaInfo.quota_bytes)} used`
-    : `Encrypted: ${formatBytes(totalEncrypted)}`;
+  // Storage is unbounded — show what is encrypted, never a fraction of a cap.
+  const storageSub = `Encrypted: ${formatBytes(totalEncrypted)}`;
 
   return (
     <div className="space-y-6 animate-fade-in">

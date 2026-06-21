@@ -501,27 +501,6 @@ export const docsSearchIndex: SearchEntry[] = [
     ],
   },
 
-  // ═══ Plans and Limits ═══
-  {
-    title: "Plans and Limits",
-    section: "Plans and Limits",
-    content:
-      "Compare Free, Plus, and Pro plans. Free gives 10 GB and 500 MB max file. Plus gives 200 GB for $4/mo. Pro gives 2 TB for $9/mo with unlimited uploads and BYOB. All plans include zero-knowledge encryption.",
-    href: "/docs/plans",
-    tags: [
-      "plans",
-      "pricing",
-      "free",
-      "pro",
-      "plus",
-      "storage quota",
-      "file size limit",
-      "concurrent uploads",
-      "BYOB",
-      "upgrade",
-      "downgrade",
-    ],
-  },
 
   // ═══ Advanced Usage ═══
   {

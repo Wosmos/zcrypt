@@ -2,31 +2,39 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { ChevronDown } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
 export function FAQItem({ question, answer }: { question: string; answer: string }) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="group relative border-b border-[var(--color-border)] last:border-none">
+    <div
+      className={cn(
+        "rounded-2xl border bg-[var(--color-surface)] transition-colors duration-200",
+        isOpen
+          ? "border-cyan-500/40"
+          : "border-[var(--color-border)] hover:border-[var(--color-border-hover)]"
+      )}
+    >
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex w-full items-center justify-between py-4 text-left transition-all"
+        aria-expanded={isOpen}
+        className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left"
       >
-        <div className="flex items-center gap-4">
-          <div className={cn(
-            "h-1.5 w-1.5 rounded-full transition-all duration-300",
-            isOpen ? "bg-cyan-500 scale-125 shadow-[0_0_8px_rgba(6,182,212,0.5)]" : "bg-[var(--color-border-hover)]"
-          )} />
-          <span className="text-[14px] font-medium tracking-tight text-[var(--color-text)]">
-            {question}
-          </span>
-        </div>
-        <ChevronDown className={cn(
-          "h-4 w-4 opacity-40 transition-transform duration-500 cubic-bezier(0.16,1,0.3,1)",
-          isOpen && "rotate-180 opacity-100 text-cyan-500"
-        )} />
+        <span className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
+          {question}
+        </span>
+        {/* Plus that rotates into an × */}
+        <span
+          aria-hidden="true"
+          className={cn(
+            "relative flex h-5 w-5 flex-shrink-0 items-center justify-center text-cyan-500 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]",
+            isOpen && "rotate-45"
+          )}
+        >
+          <span className="absolute h-px w-3 bg-current" />
+          <span className="absolute h-3 w-px bg-current" />
+        </span>
       </button>
 
       <AnimatePresence initial={false}>
@@ -38,11 +46,9 @@ export function FAQItem({ question, answer }: { question: string; answer: string
             transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
             className="overflow-hidden"
           >
-            <div className="pb-4 pl-[22px] pr-8">
-              <p className="text-[13px] leading-relaxed text-[var(--color-text-secondary)] border-l-2 border-cyan-500/10 pl-4">
-                {answer}
-              </p>
-            </div>
+            <p className="px-5 pb-5 text-[13px] leading-relaxed text-[var(--color-text-secondary)]">
+              {answer}
+            </p>
           </motion.div>
         )}
       </AnimatePresence>

@@ -11,15 +11,38 @@ import {
 } from "motion/react";
 import { useTheme } from "@/components/providers/theme-provider";
 import { cn } from "@/lib/utils";
-import { Sun, Moon, Menu, X, ArrowRight } from "@/lib/icons";
+import { Sun, Moon, Menu, X, ArrowRight, ChevronDown } from "@/lib/icons";
 import { Logo } from "@/components/ui/logo";
 
+// Tools grouped under a single dropdown so first-time visitors aren't
+// confronted with opaque product names in the primary nav.
+const toolLinks = [
+  {
+    href: "/send",
+    label: "Send a file",
+    desc: "Encrypted one-off file sharing",
+  },
+  {
+    href: "/pad",
+    label: "Encrypted notepad",
+    desc: "Private, zero-knowledge notes",
+  },
+  {
+    href: "/transfer",
+    label: "Device transfer",
+    desc: "Move files between your devices",
+  },
+];
+
+// Primary nav — clear, intent-first links for first-time visitors.
 const navLinks = [
-  { href: "/send", label: "Send" },
-  { href: "/pad", label: "Pad" },
-  { href: "/transfer", label: "Transfer" },
-  { href: "/pricing", label: "Pricing" },
-  { href: "/tui", label: "TUI" },
+  { href: "/docs/how-it-works", label: "How it works" },
+  { href: "/philosophy", label: "Why zcrypt" },
+];
+
+// Developer-facing destinations, demoted out of the primary nav.
+const devLinks = [
+  { href: "/tui", label: "Terminal app (TUI)" },
   { href: "/docs", label: "Docs" },
 ];
 
@@ -27,6 +50,7 @@ export function MarketingNav() {
   const pathname = usePathname();
   const { resolvedTheme, toggleTheme } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
   const { scrollY } = useScroll();
@@ -42,30 +66,25 @@ export function MarketingNav() {
           initial={{ y: -20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.4, ease: "easeOut" }}
-          className="pointer-events-auto max-w-6xl mx-auto flex items-center justify-between"
+          className={cn(
+            "pointer-events-auto max-w-6xl mx-auto flex items-center justify-between rounded-3xl corner-squircle px-3 py-2 transition-all duration-300",
+            scrolled
+              ? "nav-glass border border-[rgba(0,213,228,0.18)]"
+              : "bg-transparent"
+          )}
         >
           {/* Left — Logo (standalone) */}
           <Link
             href="/"
             aria-label="zcrypt home"
-            className={cn(
-              "flex items-center rounded-xl px-2 py-1.5 transition-all duration-300",
-              scrolled
-                ? "bg-[var(--color-surface)]/80 "
-                : "bg-transparent"
-            )}
+            className="flex items-center"
           >
             <Logo size="lg" />
           </Link>
 
           {/* Center — Nav pill */}
           <nav
-            className={cn(
-              "hidden md:flex items-center gap-0.5 rounded-2xl px-1.5 py-1.5 transition-all duration-300",
-              scrolled
-                ? "bg-[var(--color-surface)]/90 backdrop-blur-xl shadow-lg shadow-black/[0.04] dark:shadow-black/20 border border-[var(--color-border)]"
-                : "bg-transparent"
-            )}
+            className="hidden md:flex items-center gap-0.5"
           >
             {navLinks.map((link) => (
               <Link
@@ -81,16 +100,86 @@ export function MarketingNav() {
                 {link.label}
               </Link>
             ))}
+
+            {/* Tools — dropdown */}
+            <div
+              className="relative"
+              onMouseEnter={() => setToolsOpen(true)}
+              onMouseLeave={() => setToolsOpen(false)}
+            >
+              <button
+                type="button"
+                onClick={() => setToolsOpen((v) => !v)}
+                aria-expanded={toolsOpen}
+                aria-haspopup="menu"
+                className={cn(
+                  "flex items-center gap-1 px-3.5 py-1.5 text-[13px] font-medium rounded-lg transition-all duration-200",
+                  toolLinks.some((t) => t.href === pathname)
+                    ? "text-[var(--color-text)] bg-[var(--color-surface-1)]"
+                    : "text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-1)]/60"
+                )}
+              >
+                Tools
+                <ChevronDown
+                  className={cn(
+                    "h-3 w-3 transition-transform duration-200",
+                    toolsOpen && "rotate-180"
+                  )}
+                />
+              </button>
+
+              <AnimatePresence>
+                {toolsOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 6, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 6, scale: 0.98 }}
+                    transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+                    role="menu"
+                    className="absolute left-1/2 top-full -translate-x-1/2 mt-2 w-64 rounded-2xl corner-squircle nav-glass-panel border border-[rgba(0,213,228,0.18)] p-1.5"
+                  >
+                    {toolLinks.map((tool) => (
+                      <Link
+                        key={tool.href}
+                        href={tool.href}
+                        role="menuitem"
+                        onClick={() => setToolsOpen(false)}
+                        className="flex flex-col gap-0.5 rounded-xl px-3 py-2.5 transition-colors hover:bg-[var(--color-surface-1)]"
+                      >
+                        <span className="text-[13px] font-medium text-[var(--color-text)]">
+                          {tool.label}
+                        </span>
+                        <span className="text-[11px] text-[var(--color-text-muted)]">
+                          {tool.desc}
+                        </span>
+                      </Link>
+                    ))}
+
+                    <div className="my-1 h-px bg-[var(--color-border)]" />
+
+                    <p className="px-3 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+                      For developers
+                    </p>
+                    {devLinks.map((link) => (
+                      <Link
+                        key={link.href}
+                        href={link.href}
+                        role="menuitem"
+                        onClick={() => setToolsOpen(false)}
+                        className="flex rounded-xl px-3 py-2 text-[13px] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)]"
+                      >
+                        {link.label}
+                      </Link>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </nav>
 
           {/* Right — Actions */}
           <div
-            className={cn(
-              "flex items-center gap-0.5 rounded-2xl px-1.5 py-1.5 transition-all duration-300",
-              scrolled
-                ? "bg-[var(--color-surface)]/90 backdrop-blur-xl shadow-lg shadow-black/[0.04] dark:shadow-black/20 border border-[var(--color-border)]"
-                : "bg-transparent"
-            )}
+            className="flex items-center gap-0.5"
           >
             <button
               onClick={toggleTheme}
@@ -153,10 +242,38 @@ export function MarketingNav() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -8, scale: 0.97 }}
               transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-              className="fixed left-4 right-4 top-16 z-50 md:hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-xl shadow-black/10 dark:shadow-black/30 overflow-hidden"
+              className="fixed left-4 right-4 top-16 z-50 md:hidden rounded-2xl corner-squircle nav-glass-panel border border-[rgba(0,213,228,0.18)] overflow-hidden"
             >
               <div className="p-3 space-y-0.5">
                 {navLinks.map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => setMobileOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-1)] transition-colors"
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+
+                <p className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+                  Tools
+                </p>
+                {toolLinks.map((tool) => (
+                  <Link
+                    key={tool.href}
+                    href={tool.href}
+                    onClick={() => setMobileOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-1)] transition-colors"
+                  >
+                    {tool.label}
+                  </Link>
+                ))}
+
+                <p className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+                  For developers
+                </p>
+                {devLinks.map((link) => (
                   <Link
                     key={link.href}
                     href={link.href}

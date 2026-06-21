@@ -8,20 +8,21 @@ import {
   HardDrive,
   Check,
   Shield,
+  Send,
 } from "@/lib/icons";
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 
 export const metadata: Metadata = {
   title: "Platform Adapters | zcrypt Docs",
   description:
-    "Configure GitHub, GitLab, and Hugging Face as encrypted storage backends for zcrypt.",
+    "Configure GitHub, GitLab, Hugging Face, and Telegram as encrypted storage backends for zcrypt.",
   alternates: {
     canonical: "https://zcrypt.cloud/docs/platform-adapters",
   },
   openGraph: {
     title: "Platform Adapters | zcrypt Docs",
     description:
-      "Configure GitHub, GitLab, and Hugging Face as encrypted storage backends for zcrypt.",
+      "Configure GitHub, GitLab, Hugging Face, and Telegram as encrypted storage backends for zcrypt.",
     url: "https://zcrypt.cloud/docs/platform-adapters",
   },
 };
@@ -93,6 +94,31 @@ const platforms = [
       "Select 'Hugging Face', paste your token, and save",
     ],
   },
+  {
+    name: "Telegram",
+    icon: Send,
+    color: "text-sky-600 dark:text-sky-400",
+    bgColor: "bg-sky-500/10",
+    tokenName: "Bot token + chat/channel ID (BOT_TOKEN|CHAT_ID)",
+    tokenUrl: "https://t.me/BotFather",
+    requiredScopes: [
+      "Bot created via @BotFather",
+      "Bot added as an admin of a private channel or group",
+    ],
+    storageLimit: "No hard per-channel limit (50 MB per upload via the Bot API)",
+    notes:
+      "Telegram has no concept of Git repositories — your chat or channel is the storage location. Each encrypted chunk is sent as a document. Because the Bot API caps downloads at 20 MB, zcrypt transparently splits chunks into ~19 MB sub-parts on the way in and reassembles them on the way out. Use a private channel so only you and the bot can see the files.",
+    steps: [
+      "Open Telegram and message @BotFather, then send /newbot",
+      "Follow the prompts to name your bot and receive its token (looks like '123456:ABC-DEF...')",
+      "Create a private channel (or group) to hold your encrypted files",
+      "Add your bot to that channel as an administrator",
+      "Find the channel ID — use its @username (e.g. '@my_zcrypt_vault') or its numeric ID",
+      "Combine them as 'BOT_TOKEN|CHAT_ID' (for example '123456:ABC-DEF|@my_zcrypt_vault')",
+      "In zcrypt, go to Settings → Platform Tokens → Add Token",
+      "Select 'Telegram', paste the combined value, and save",
+    ],
+  },
 ];
 
 export default function PlatformAdaptersPage() {
@@ -119,9 +145,10 @@ export default function PlatformAdaptersPage() {
             Platform Adapters
           </h1>
           <p className="mt-3 text-lg text-[var(--color-text-secondary)] max-w-2xl leading-relaxed">
-            zcrypt stores your encrypted files on Git-based platforms. Connect
-            your own repositories for full control over your storage
-            infrastructure.
+            zcrypt stores your encrypted files inside platform accounts you
+            already own — GitHub, GitLab, Hugging Face, or Telegram. Connect your
+            own backend for full control over your storage and the free space it
+            provides.
           </p>
         </div>
       </section>
@@ -137,15 +164,17 @@ export default function PlatformAdaptersPage() {
             <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed">
               <p>
                 After your file is compressed, encrypted, and chunked locally,
-                zcrypt pushes the encrypted chunks to Git repositories on your
-                chosen platform. Each chunk is a binary blob, completely
-                unreadable without your passphrase.
+                zcrypt pushes the encrypted chunks to your chosen platform — a
+                private Git repository on GitHub, GitLab, or Hugging Face, or a
+                private channel on Telegram. Each chunk is a binary blob,
+                completely unreadable without your passphrase.
               </p>
               <p>
-                Repository management is automatic: zcrypt creates private
-                repositories, tracks available space, and rotates to new
-                repositories when capacity limits are approached. Filenames and
-                commit messages are randomized to prevent metadata leakage.
+                Storage management is automatic: zcrypt creates private
+                repositories (or uses your Telegram channel), tracks available
+                space, and rotates to new repositories when capacity limits are
+                approached. Filenames and commit messages are randomized to
+                prevent metadata leakage.
               </p>
               <p>
                 Your platform token is encrypted at rest with AES-256-GCM using
@@ -256,7 +285,10 @@ export default function PlatformAdaptersPage() {
               new chunks there.
             </p>
             <p>
-              Rotation thresholds are conservative to ensure reliability:
+              Rotation thresholds are conservative to ensure reliability.
+              Telegram has no hard storage cap, so its threshold is a virtual
+              value zcrypt uses to spread files across multiple channels for
+              performance.
             </p>
           </div>
           <div className="mt-4 card overflow-hidden">
@@ -282,6 +314,11 @@ export default function PlatformAdaptersPage() {
                     name: "Hugging Face",
                     threshold: "280 GB",
                     limit: "300 GB (LFS)",
+                  },
+                  {
+                    name: "Telegram",
+                    threshold: "50 GB",
+                    limit: "No hard limit",
                   },
                 ].map((row) => (
                   <tr

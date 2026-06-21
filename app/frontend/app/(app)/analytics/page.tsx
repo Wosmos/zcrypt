@@ -54,9 +54,7 @@ export default function AnalyticsPage() {
           icon={<HardDrive className="h-4 w-4 text-violet-500" />}
           label="Storage"
           value={formatBytes(totalOriginal)}
-          sub={quotaInfo && !quotaInfo.is_unlimited && quotaInfo.quota_bytes > 0
-            ? `${formatBytes(quotaInfo.used_bytes)} / ${formatBytes(quotaInfo.quota_bytes)} used`
-            : `Encrypted: ${formatBytes(totalEncrypted)}`}
+          sub={`Encrypted: ${formatBytes(totalEncrypted)}`}
           bg="bg-violet-500/10"
         />
         <QuickStat

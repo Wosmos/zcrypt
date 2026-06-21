@@ -107,6 +107,60 @@
     background: var(--color-accent);
   }
 
+  /* Liquid-glass surface for the floating nav pills (mockup look): frosted +
+     saturated backdrop, baked-in cyan specular sheen, soft cyan glow. */
+  .nav-glass {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.28) 60%),
+      radial-gradient(120% 80% at 20% -10%, rgba(0, 213, 228, 0.1), transparent 55%),
+      rgba(255, 255, 255, 0.5);
+    -webkit-backdrop-filter: blur(10px) saturate(160%);
+    backdrop-filter: blur(10px) saturate(160%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.6),
+      0 10px 30px -12px rgba(0, 0, 0, 0.15),
+      0 0 40px -20px rgba(0, 213, 228, 0.35);
+  }
+  .dark .nav-glass {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.07), transparent 42%),
+      radial-gradient(120% 80% at 18% -10%, rgba(0, 213, 228, 0.1), transparent 55%),
+      rgba(9, 12, 22, 0.28);
+    -webkit-backdrop-filter: blur(8px) saturate(150%) brightness(0.85);
+    backdrop-filter: blur(8px) saturate(150%) brightness(0.85);
+    box-shadow:
+      inset 0 1px 1px rgba(255, 255, 255, 0.16),
+      inset 0 -1px 6px rgba(0, 0, 0, 0.3),
+      0 14px 40px -14px rgba(0, 0, 0, 0.55),
+      0 0 55px -22px rgba(0, 213, 228, 0.4);
+  }
+
+  /* Same liquid-glass family as .nav-glass, tuned more opaque so menu text
+     stays readable — for the dropdown / mobile sheet (mega menus). Vertical
+     surface gradient + cyan radial sheen + frosted backdrop + cyan glow. */
+  .nav-glass-panel {
+    background:
+      radial-gradient(120% 100% at 50% 0%, rgba(0, 213, 228, 0.1), transparent 55%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(247, 248, 251, 0.85));
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+    backdrop-filter: blur(16px) saturate(160%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.7),
+      0 20px 50px -20px rgba(0, 0, 0, 0.22),
+      0 0 40px -26px rgba(0, 213, 228, 0.4);
+  }
+  .dark .nav-glass-panel {
+    background:
+      radial-gradient(120% 100% at 50% 0%, rgba(0, 213, 228, 0.12), transparent 55%),
+      linear-gradient(180deg, rgba(28, 32, 57, 0.92), rgba(12, 15, 26, 0.9));
+    -webkit-backdrop-filter: blur(16px) saturate(150%);
+    backdrop-filter: blur(16px) saturate(150%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      0 24px 60px -24px rgba(0, 0, 0, 0.7),
+      0 0 50px -26px rgba(0, 213, 228, 0.4);
+  }
+
 }
 
 @keyframes fade-in {

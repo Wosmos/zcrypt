@@ -1,55 +1,8 @@
 "use client";
 
-import { useRef } from "react";
 import Link from "next/link";
-import { motion, useInView } from "motion/react";
 import { ArrowRight } from "@/lib/icons";
-
-function Section({
-  children,
-  className,
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  const ref = useRef<HTMLElement>(null);
-  const isInView = useInView(ref, { once: true, margin: "-80px" });
-
-  return (
-    <motion.section
-      ref={ref}
-      initial={{ opacity: 0, y: 40 }}
-      animate={isInView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.7, ease: "easeOut" }}
-      className={className}
-    >
-      {children}
-    </motion.section>
-  );
-}
-
-function PullQuote({ children }: { children: React.ReactNode }) {
-  return (
-    <blockquote className="my-12 border-l-2 border-cyan-500/40 pl-6 py-2">
-      <p className="text-xl sm:text-2xl font-medium italic text-[var(--color-text)] leading-relaxed">
-        {children}
-      </p>
-    </blockquote>
-  );
-}
-
-function BulletList({ items }: { items: React.ReactNode[] }) {
-  return (
-    <ul className="mt-4 space-y-2 text-base text-[var(--color-text-secondary)] leading-relaxed">
-      {items.map((item, i) => (
-        <li key={i} className="flex gap-2">
-          <span className="text-cyan-500 mt-0.5 shrink-0">&bull;</span>
-          <span>{item}</span>
-        </li>
-      ))}
-    </ul>
-  );
-}
+import { Section, PullQuote, BulletList } from "@/components/marketing/prose";
 
 export default function PrivacyPage() {
   return (
@@ -95,7 +48,6 @@ export default function PrivacyPage() {
               <><strong className="text-[var(--color-text)]">File contents</strong> — encrypted client-side with AES-256-GCM before upload.</>,
               <><strong className="text-[var(--color-text)]">Your passphrase</strong> — never transmitted to or stored on our servers.</>,
               <><strong className="text-[var(--color-text)]">Encryption keys</strong> — derived locally on your device from your passphrase.</>,
-              <><strong className="text-[var(--color-text)]">File names</strong> — encrypted and chunked; we store only opaque identifiers.</>,
             ]}
           />
 
@@ -134,7 +86,8 @@ export default function PrivacyPage() {
             </h3>
             <BulletList
               items={[
-                "File sizes (encrypted size, for quota tracking)",
+                "Original file names (stored as metadata so you can browse and manage your files — the file contents themselves are always encrypted)",
+                "File sizes (encrypted size, for storage-usage display)",
                 "Upload/download timestamps",
                 "Storage usage per account",
                 "Number of files and chunks",
@@ -163,8 +116,8 @@ export default function PrivacyPage() {
           </h2>
           <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
             <p>
-              When you connect a storage platform (GitHub, GitLab, Hugging Face),
-              your platform access token is encrypted at rest using AES-256-GCM
+              When you connect a storage platform (GitHub, GitLab, Hugging Face,
+              Telegram), your platform access token is encrypted at rest using AES-256-GCM
               with a key derived from our master key. Tokens are only decrypted
               in memory during active upload/download operations.
             </p>
@@ -179,7 +132,7 @@ export default function PrivacyPage() {
           <BulletList
             items={[
               "To provide and maintain the Service",
-              "To enforce storage quotas and rate limits",
+              "To enforce rate limits and prevent abuse",
               "To send essential account communications (verification, password reset)",
               "To detect and prevent abuse",
               "To improve the Service (aggregate, anonymized usage statistics only)",
@@ -232,9 +185,9 @@ export default function PrivacyPage() {
           />
           <div className="mt-4 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
             <p>
-              Your encrypted files are stored on the Git platforms you connect
-              (GitHub, GitLab, Hugging Face). Those platforms&apos; privacy policies
-              apply to the storage of encrypted data on their infrastructure.
+              Your encrypted files are stored on the platforms you connect
+              (GitHub, GitLab, Hugging Face, Telegram). Those platforms&apos; privacy
+              policies apply to the storage of encrypted data on their infrastructure.
             </p>
           </div>
         </Section>
