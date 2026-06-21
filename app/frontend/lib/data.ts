@@ -4,36 +4,6 @@
 
 // ─── Types ────────────────────────────────────────────────────
 
-export interface PlanFeature {
-  text: string;
-  included: boolean;
-}
-
-export interface Plan {
-  name: string;
-  monthly: number;
-  annual: number;
-  desc: string;
-  storage: string;
-  maxFile: string;
-  concurrent: string;
-  features: PlanFeature[];
-  highlight: boolean;
-  badge: string | null;
-  icon: string | null;
-  socialProof?: string;
-}
-
-export interface Competitor {
-  name: string;
-  price: string;
-  storage: string;
-  zeroKnowledge: boolean;
-  byob: boolean;
-  openSource: boolean;
-  highlight: boolean;
-}
-
 export interface BentoFeature {
   title: string;
   desc: string;
@@ -56,11 +26,6 @@ export interface Step {
   desc: string;
 }
 
-export interface Testimonial {
-  quote: string;
-  author: string;
-}
-
 export interface FAQ {
   q: string;
   a: string;
@@ -76,17 +41,14 @@ export interface RoadmapItem {
 // ─── Marquee ──────────────────────────────────────────────────
 
 export const marqueeItems = [
-  "2 TB for $9/mo",
-  "Military-grade encryption",
-  "Open source and auditable",
-  "Cheaper than Dropbox",
-  "10 GB free tier",
-  "No hidden fees",
+  "Open source",
+  "AES-256-GCM encryption",
+  "Zero-knowledge — we can't read your files",
+  "Your own storage",
+  "No artificial limits",
   "Your data stays private",
-  "Use your own storage",
   "Multi-platform support",
   "Smart compression",
-  "GDPR compliant",
   "Terminal app available",
 ] as const;
 
@@ -116,7 +78,7 @@ export const bentoFeatures: BentoFeature[] = [
   },
   {
     title: "Store Anywhere",
-    desc: "Use GitHub, GitLab, or Hugging Face as your storage backend.",
+    desc: "Use GitHub, GitLab, Hugging Face, or Telegram as your storage backend.",
     icon: "HardDrive",
     span: "md:col-span-1",
     bg: "from-purple-500/10",
@@ -164,21 +126,21 @@ export const features: Feature[] = [
   {
     icon: "GitBranch",
     title: "Multi-Platform Storage",
-    desc: "Store across GitHub, GitLab, and Hugging Face. Your data stays portable and redundant.",
+    desc: "Connect GitHub, GitLab, Hugging Face, or Telegram as your storage backend. Each file is stored on one platform, with automatic same-platform repo rotation as repos fill up.",
     accent: "cyan",
     large: false,
   },
   {
     icon: "Scissors",
     title: "Automatic Chunking",
-    desc: "Large files are automatically split into encrypted chunks. No size limits.",
+    desc: "Large files are automatically split into encrypted chunks for fast, resumable uploads.",
     accent: "rose",
     large: false,
   },
   {
     icon: "HeartHandshake",
-    title: "Generous Free Tier",
-    desc: "10 GB free with zero-knowledge encryption. No credit card required to start.",
+    title: "Free and Open Source",
+    desc: "zcrypt is free and open source. Bring your own storage account and keep full control of your data.",
     accent: "cyan",
     large: false,
   },
@@ -218,140 +180,7 @@ export const steps: Step[] = [
   {
     num: "05",
     title: "Stored securely",
-    desc: "Distributed across multiple storage platforms for safety.",
-  },
-];
-
-// ─── Pricing Plans ────────────────────────────────────────────
-
-export const plans: Plan[] = [
-  {
-    name: "Free",
-    monthly: 0,
-    annual: 0,
-    desc: "Get started with generous free storage.",
-    storage: "10 GB",
-    maxFile: "500 MB",
-    concurrent: "2 uploads",
-    features: [
-      { text: "Zero-knowledge encryption", included: true },
-      { text: "Multi-platform storage", included: true },
-      { text: "5 shares per month", included: true },
-      { text: "CLI access", included: false },
-      { text: "BYOB (Bring Your Own Backend)", included: false },
-    ],
-    highlight: false,
-    badge: null,
-    icon: null,
-  },
-  {
-    name: "Pro",
-    monthly: 9,
-    annual: 7,
-    desc: "Maximum storage. Maximum freedom.",
-    storage: "2 TB",
-    maxFile: "25 GB",
-    concurrent: "Unlimited",
-    features: [
-      { text: "Zero-knowledge encryption", included: true },
-      { text: "Multi-platform storage", included: true },
-      { text: "Unlimited shares", included: true },
-      { text: "CLI access", included: true },
-      { text: "BYOB (Bring Your Own Backend)", included: true },
-    ],
-    highlight: true,
-    badge: "Most Popular",
-    icon: "Crown",
-    socialProof: "Chosen by 8 out of 10 paid users",
-  },
-  {
-    name: "Plus",
-    monthly: 4,
-    annual: 3,
-    desc: "For power users who need more space.",
-    storage: "200 GB",
-    maxFile: "5 GB",
-    concurrent: "5 uploads",
-    features: [
-      { text: "Zero-knowledge encryption", included: true },
-      { text: "Multi-platform storage", included: true },
-      { text: "Unlimited shares", included: true },
-      { text: "CLI access", included: true },
-      { text: "BYOB (Bring Your Own Backend)", included: false },
-    ],
-    highlight: false,
-    badge: null,
-    icon: "Zap",
-  },
-];
-
-// ─── Competitor Comparison ────────────────────────────────────
-
-export const competitors: Competitor[] = [
-  {
-    name: "zcrypt Pro",
-    price: "$9/mo",
-    storage: "2 TB",
-    zeroKnowledge: true,
-    byob: true,
-    openSource: true,
-    highlight: true,
-  },
-  {
-    name: "Dropbox Plus",
-    price: "$12/mo",
-    storage: "2 TB",
-    zeroKnowledge: false,
-    byob: false,
-    openSource: false,
-    highlight: false,
-  },
-  {
-    name: "Google One",
-    price: "$10/mo",
-    storage: "2 TB",
-    zeroKnowledge: false,
-    byob: false,
-    openSource: false,
-    highlight: false,
-  },
-  {
-    name: "Proton Drive",
-    price: "$10/mo",
-    storage: "500 GB",
-    zeroKnowledge: true,
-    byob: false,
-    openSource: false,
-    highlight: false,
-  },
-  {
-    name: "Tresorit",
-    price: "$14/mo",
-    storage: "1 TB",
-    zeroKnowledge: true,
-    byob: false,
-    openSource: false,
-    highlight: false,
-  },
-];
-
-// ─── Testimonials ─────────────────────────────────────────────
-
-export const testimonials: Testimonial[] = [
-  {
-    quote:
-      "Switched from Dropbox. Same 2TB, half the price, and my files are actually encrypted. No-brainer.",
-    author: "Freelance Designer",
-  },
-  {
-    quote:
-      "The zero-knowledge architecture convinced our security team immediately. Open source sealed the deal.",
-    author: "Senior Cloud Architect",
-  },
-  {
-    quote:
-      "I can point auditors to the source code. Client-side encryption, no server-side keys. Compliance loves it.",
-    author: "Platform Engineer",
+    desc: "Encrypted chunks are uploaded to your connected storage platform.",
   },
 ];
 
@@ -359,20 +188,20 @@ export const testimonials: Testimonial[] = [
 
 export const faqs: FAQ[] = [
   {
-    q: "How much storage do I get for free?",
-    a: "The free tier includes 10 GB of zero-knowledge encrypted storage with up to 2 concurrent uploads. No credit card required. Upgrade to Plus ($4/mo) for 200 GB or Pro ($9/mo) for 2 TB.",
+    q: "How much does zcrypt cost?",
+    a: "zcrypt is free and open source. There are no paid plans. You connect your own storage account, so your available space is bounded only by that platform's free space — not by us.",
+  },
+  {
+    q: "How much storage do I get?",
+    a: "You bring your own storage. Connect your GitHub, GitLab, Hugging Face, or Telegram account and your capacity is whatever free space that platform gives you. zcrypt handles the encryption and chunking on top of it.",
   },
   {
     q: "How secure is the encryption?",
-    a: "We use AES-256-GCM, the cryptographic standard used by financial institutions globally. Your encryption keys are derived locally on your device and are never transmitted. This zero-knowledge architecture ensures that even we cannot access your files.",
-  },
-  {
-    q: "What makes zcrypt cheaper than Dropbox or Google Drive?",
-    a: "Our architecture is fundamentally different. We use Git-based distributed storage instead of expensive centralized infrastructure. This lets us offer 2 TB for $9/mo (vs $12 at Dropbox) while providing stronger encryption that competitors don't offer at any price.",
+    a: "We use AES-256-GCM. Your encryption keys are derived locally on your device and are never transmitted. This zero-knowledge architecture ensures that even we cannot access your files.",
   },
   {
     q: "What is BYOB (Bring Your Own Backend)?",
-    a: "Pro and Team users can connect their own GitHub, GitLab, or Hugging Face repositories as storage backends. Your data stays on infrastructure you fully control, with zcrypt handling the encryption and chunking.",
+    a: "BYOB is the core of how zcrypt works: you connect your own GitHub, GitLab, Hugging Face, or Telegram account as the storage backend. Your encrypted data lives on infrastructure you control, and zcrypt handles the encryption and chunking. Because it's your account, your storage is bounded only by that platform's free space.",
   },
   {
     q: "Can I access my files across multiple devices?",
@@ -404,12 +233,6 @@ export const roadmapItems: RoadmapItem[] = [
     badge: "Q3 2026",
   },
   {
-    icon: "Share2",
-    title: "Encrypted Sharing",
-    desc: "Share files with end-to-end encryption. Time-limited links. Password protection.",
-    badge: "Q2 2026",
-  },
-  {
     icon: "Image",
     title: "Photo Gallery",
     desc: "Browse your encrypted photos with a beautiful gallery view. Private photo backup.",
@@ -420,9 +243,9 @@ export const roadmapItems: RoadmapItem[] = [
 // ─── Trust Bar ────────────────────────────────────────────────
 
 export const trustBadges = [
-  "AES-256 Compliant",
-  "Open Source",
-  "GDPR Ready",
+  "AES-256-GCM encryption",
+  "Zero-knowledge",
+  "Open source",
 ] as const;
 
 // ─── TUI Page Data ──────────────────────────────────────────
@@ -679,10 +502,10 @@ export const docsCategories: DocsCategory[] = [
     comingSoon: false,
   },
   {
-    icon: "Crown",
-    title: "Plans and Limits",
-    desc: "Compare Free, Plus, and Pro plans. Storage quotas, file size limits, concurrent uploads, and feature availability.",
-    href: "/docs/plans",
+    icon: "Workflow",
+    title: "How It Works",
+    desc: "Follow a file through the pipeline: compression with zstd, AES-256-GCM encryption, chunking, and upload to your connected storage backend — all client-side and zero-knowledge.",
+    href: "/docs/how-it-works",
     comingSoon: false,
   },
   {
@@ -695,7 +518,7 @@ export const docsCategories: DocsCategory[] = [
   {
     icon: "Globe",
     title: "Platform Adapters",
-    desc: "Connect GitHub, GitLab, or Hugging Face as storage backends. Manage tokens, configure repo pools, and control how encrypted chunks are distributed.",
+    desc: "Connect GitHub, GitLab, Hugging Face, or Telegram as storage backends. Manage tokens, configure repo pools, and control how encrypted chunks are stored.",
     href: "/docs/platform-adapters",
     comingSoon: false,
   },
@@ -709,9 +532,9 @@ export const docsCategories: DocsCategory[] = [
   {
     icon: "HardDrive",
     title: "Self-Hosting",
-    desc: "Run your own zcrypt instance with Docker. Full control over your backend, database, and storage for teams with strict compliance requirements.",
-    href: null,
-    comingSoon: true,
+    desc: "Run your own zcrypt instance with Docker. Full control over your backend, database, and storage.",
+    href: "/docs/self-hosting",
+    comingSoon: false,
   },
   {
     icon: "Code",

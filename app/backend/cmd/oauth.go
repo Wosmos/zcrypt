@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -297,17 +298,80 @@ func (s *Server) HandleUnlinkAccount(w http.ResponseWriter, r *http.Request) {
 
 // oauthCallbackURL builds the callback URL for an OAuth provider.
 func (s *Server) oauthCallbackURL(r *http.Request, provider string) string {
-	// Prefer explicit BACKEND_URL — this must match what's registered with OAuth providers
+	return s.backendBaseURL(r) + "/api/auth/oauth/" + provider + "/callback"
+}
+
+// backendBaseURL returns the public-facing base URL of the backend (no trailing slash).
+// It prefers the explicit BACKEND_URL — which MUST match the redirect URIs registered
+// with the OAuth providers — and otherwise derives the value from the request, honoring
+// the reverse-proxy headers that Railway and similar platforms set.
+func (s *Server) backendBaseURL(r *http.Request) string {
 	if s.cfg.BackendURL != "" {
-		return fmt.Sprintf("%s/api/auth/oauth/%s/callback", strings.TrimRight(s.cfg.BackendURL, "/"), provider)
+		return strings.TrimRight(s.cfg.BackendURL, "/")
 	}
-	// Fallback: derive from request (unreliable behind some proxies)
+	// Fallback: derive from request. Behind a TLS-terminating proxy (Railway, etc.)
+	// r.TLS is nil, so trust X-Forwarded-Proto / X-Forwarded-Host when present.
 	scheme := "https"
-	host := r.Host
-	if r.TLS == nil && r.Header.Get("X-Forwarded-Proto") != "https" {
+	if proto := r.Header.Get("X-Forwarded-Proto"); proto != "" {
+		scheme = proto
+	} else if r.TLS == nil {
 		scheme = "http"
 	}
-	return fmt.Sprintf("%s://%s/api/auth/oauth/%s/callback", scheme, host, provider)
+	host := r.Host
+	if fwd := r.Header.Get("X-Forwarded-Host"); fwd != "" {
+		host = fwd
+	}
+	return scheme + "://" + host
+}
+
+// LogOAuthConfig logs the effective OAuth configuration at startup so operators can
+// see exactly which redirect URIs must be registered with each provider. It warns
+// loudly when BACKEND_URL is unset, which is the most common cause of broken OAuth.
+func (s *Server) LogOAuthConfig() {
+	backend := strings.TrimRight(s.cfg.BackendURL, "/")
+	if backend == "" {
+		slog.Warn("oauth: BACKEND_URL is not set — callback URLs will be derived from each request. " +
+			"This frequently mismatches what is registered with Google/GitHub and breaks login. " +
+			"Set BACKEND_URL to your public backend URL, e.g. https://api.zcrypt.app")
+	}
+	for _, provider := range []string{"google", "github"} {
+		if getOAuthProviderConfig(s.cfg, provider) == nil {
+			slog.Info("oauth: provider disabled (client id/secret not set)", "provider", provider)
+			continue
+		}
+		redirect := "<derived per-request>/api/auth/oauth/" + provider + "/callback"
+		if backend != "" {
+			redirect = backend + "/api/auth/oauth/" + provider + "/callback"
+		}
+		slog.Info("oauth: provider enabled — register this EXACT redirect URI with the provider",
+			"provider", provider, "redirect_uri", redirect)
+	}
+	if s.cfg.FrontendURL == "" {
+		slog.Warn("oauth: FRONTEND_URL is not set — falling back to http://localhost:3000 after login")
+	} else {
+		slog.Info("oauth: post-login redirect", "frontend_url", strings.TrimRight(s.cfg.FrontendURL, "/"))
+	}
+}
+
+// HandleOAuthConfig returns the non-secret OAuth configuration so operators can confirm,
+// from a live request, exactly which redirect URIs to register with each provider.
+// Reaching this endpoint also proves the backend domain is provisioned and serving.
+// GET /api/auth/oauth/config
+func (s *Server) HandleOAuthConfig(w http.ResponseWriter, r *http.Request) {
+	providers := map[string]interface{}{}
+	for _, provider := range []string{"google", "github"} {
+		providers[provider] = map[string]interface{}{
+			"configured":   getOAuthProviderConfig(s.cfg, provider) != nil,
+			"redirect_uri": s.oauthCallbackURL(r, provider),
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"backend_url":      strings.TrimRight(s.cfg.BackendURL, "/"),
+		"backend_url_set":  s.cfg.BackendURL != "",
+		"frontend_url":     strings.TrimRight(s.cfg.FrontendURL, "/"),
+		"derived_base_url": s.backendBaseURL(r),
+		"providers":        providers,
+	})
 }
 
 // oauthRedirect generates tokens and either redirects (web) or stores for polling (desktop).

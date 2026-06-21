@@ -1,42 +1,8 @@
 "use client";
 
-import { useRef } from "react";
 import Link from "next/link";
-import { motion, useInView } from "motion/react";
 import { ArrowRight } from "@/lib/icons";
-
-function Section({
-  children,
-  className,
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  const ref = useRef<HTMLElement>(null);
-  const isInView = useInView(ref, { once: true, margin: "-80px" });
-
-  return (
-    <motion.section
-      ref={ref}
-      initial={{ opacity: 0, y: 40 }}
-      animate={isInView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.7, ease: "easeOut" }}
-      className={className}
-    >
-      {children}
-    </motion.section>
-  );
-}
-
-function PullQuote({ children }: { children: React.ReactNode }) {
-  return (
-    <blockquote className="my-12 border-l-2 border-cyan-500/40 pl-6 py-2">
-      <p className="text-xl sm:text-2xl font-medium italic text-[var(--color-text)] leading-relaxed">
-        {children}
-      </p>
-    </blockquote>
-  );
-}
+import { Section, PullQuote } from "@/components/marketing/prose";
 
 export default function PhilosophyPage() {
   return (
@@ -45,7 +11,7 @@ export default function PhilosophyPage() {
         {/* Header */}
         <Section>
           <p className="text-xs font-semibold text-cyan-600 dark:text-cyan-400 uppercase tracking-wider mb-4">
-            The Manifesto
+            Why zcrypt
           </p>
           <h1 className="text-4xl sm:text-5xl font-bold tracking-tight leading-[1.15]">
             Why We Built zcrypt
@@ -55,6 +21,23 @@ export default function PhilosophyPage() {
             who&apos;s profiting from it, and why that needs to change.
           </p>
           <div className="h-px bg-[var(--color-border)] mt-10" />
+        </Section>
+
+        {/* TL;DR */}
+        <Section className="mt-12">
+          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 sm:p-8">
+            <p className="text-xs font-semibold text-cyan-600 dark:text-cyan-400 uppercase tracking-wider mb-3">
+              The short version
+            </p>
+            <p className="text-base sm:text-lg text-[var(--color-text-secondary)] leading-relaxed">
+              Most cloud storage means renting space on someone else&apos;s servers,
+              where <em>they</em> hold the keys to your files. zcrypt is different.
+              Your files are encrypted on your device, then stored inside free space
+              you already have on accounts <em>you</em> own &mdash; GitHub, GitLab,
+              Hugging Face, or Telegram. Only you can read them, you&apos;re limited
+              only by your own storage, and it&apos;s free and open source.
+            </p>
+          </div>
         </Section>
 
         {/* Section 1 */}
@@ -127,14 +110,19 @@ export default function PhilosophyPage() {
           <div className="space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
             <p>
               zcrypt takes your files, compresses them with Zstd, encrypts them with
-              AES-256-GCM, chunks them into manageable pieces, and distributes them
-              across your Git provider accounts. To the platform, they look like
-              build artifacts. To you, they&apos;re your encrypted files, accessible
-              from anywhere, costing nothing.
+              AES-256-GCM, splits them into manageable chunks, and stores them as
+              ordinary-looking data in repositories on the platform you connect. To
+              the platform, they look like build artifacts. To you, they&apos;re your
+              encrypted files, accessible from anywhere, costing nothing.
             </p>
             <p>
-              Is this the intended use of Git LFS? Not exactly. But is paying $23/TB/month
-              the intended use of your money? Also not exactly.
+              <strong className="text-[var(--color-text)]">Is this safe and durable?</strong>{" "}
+              Yes. Your data is stored as standard private repository content &mdash;
+              exactly the kind of large binary data these platforms are built to host.
+              zcrypt automatically spreads data across repositories and rotates to
+              fresh ones as they fill up, so you stay well within each platform&apos;s
+              normal limits. And your files are always retrievable: encrypted chunks
+              are integrity-checked and reassembled when you download.
             </p>
           </div>
         </Section>

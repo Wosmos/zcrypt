@@ -1,55 +1,8 @@
 "use client";
 
-import { useRef } from "react";
 import Link from "next/link";
-import { motion, useInView } from "motion/react";
 import { ArrowRight } from "@/lib/icons";
-
-function Section({
-  children,
-  className,
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  const ref = useRef<HTMLElement>(null);
-  const isInView = useInView(ref, { once: true, margin: "-80px" });
-
-  return (
-    <motion.section
-      ref={ref}
-      initial={{ opacity: 0, y: 40 }}
-      animate={isInView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.7, ease: "easeOut" }}
-      className={className}
-    >
-      {children}
-    </motion.section>
-  );
-}
-
-function PullQuote({ children }: { children: React.ReactNode }) {
-  return (
-    <blockquote className="my-12 border-l-2 border-cyan-500/40 pl-6 py-2">
-      <p className="text-xl sm:text-2xl font-medium italic text-[var(--color-text)] leading-relaxed">
-        {children}
-      </p>
-    </blockquote>
-  );
-}
-
-function BulletList({ items }: { items: React.ReactNode[] }) {
-  return (
-    <ul className="mt-4 space-y-2 text-base text-[var(--color-text-secondary)] leading-relaxed">
-      {items.map((item, i) => (
-        <li key={i} className="flex gap-2">
-          <span className="text-cyan-500 mt-0.5 shrink-0">&bull;</span>
-          <span>{item}</span>
-        </li>
-      ))}
-    </ul>
-  );
-}
+import { Section, PullQuote, BulletList } from "@/components/marketing/prose";
 
 export default function TermsPage() {
   return (
@@ -100,24 +53,24 @@ export default function TermsPage() {
               "You must provide accurate information when creating an account.",
               "You are responsible for maintaining the security of your account credentials and encryption passphrase.",
               "You must be at least 16 years old to use the Service.",
-              "One person or entity may not maintain more than one free account.",
+              "One person or entity may not maintain more than one account.",
             ]}
           />
         </Section>
 
-        {/* Plans & Billing */}
+        {/* Free and Open Source */}
         <Section className="mt-20">
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
-            3. Plans & Billing
+            3. Free and Open Source
           </h2>
-          <BulletList
-            items={[
-              <><strong className="text-[var(--color-text)]">Free tier:</strong> 10 GB of encrypted storage at no cost.</>,
-              <><strong className="text-[var(--color-text)]">Paid plans:</strong> Plus, Pro, and Team plans are available with additional storage and features. Pricing is listed on our website and may change with 30 days notice.</>,
-              "Paid plans are billed monthly or annually. You may cancel at any time; access continues until the end of the billing period.",
-              "We do not offer refunds for partial billing periods.",
-            ]}
-          />
+          <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
+            <p>
+              zcrypt is free and open source. There are no paid plans, subscriptions,
+              or billing. Your storage capacity is bounded only by the free space
+              available on the platform account you connect &mdash; there are no
+              artificial limits imposed by zcrypt.
+            </p>
+          </div>
         </Section>
 
         {/* Acceptable Use */}
@@ -131,7 +84,7 @@ export default function TermsPage() {
           <BulletList
             items={[
               "Use the Service for any illegal purpose or to store illegal content.",
-              "Attempt to circumvent storage quotas or rate limits.",
+              "Attempt to circumvent rate limits or abuse-prevention measures.",
               "Reverse-engineer, attack, or exploit the Service infrastructure.",
               "Share your account credentials with others.",
               "Use automated systems to create accounts or upload content in bulk beyond normal usage.",
@@ -146,8 +99,8 @@ export default function TermsPage() {
           </h2>
           <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
             <p>
-              Pro and Team users may connect their own Git-based storage repositories.
-              When using BYOB:
+              All users may connect their own storage accounts (GitHub, GitLab,
+              Hugging Face, or Telegram). When using BYOB:
             </p>
           </div>
           <BulletList
@@ -228,7 +181,7 @@ export default function TermsPage() {
           <BulletList
             items={[
               "We are not liable for data loss, including loss due to forgotten passphrases, platform outages, or service discontinuation.",
-              "Our total liability is limited to the amount you paid us in the 12 months preceding the claim.",
+              "Because the Service is provided free of charge, our aggregate liability to you is limited to USD $100.",
               "We are not liable for indirect, incidental, or consequential damages.",
             ]}
           />

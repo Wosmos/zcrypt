@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" viewBox="6.409090042114258 6.5 35.18181610107422 35" enable-background="new 0 0 48 48">
+<g>
+	
+		<path fill="#FFFFFF" stroke="#536DFE" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="10" d="   M34.36364,41H13.63636c-3.71537,0-6.72727-3.0119-6.72727-6.72727V13.72727C6.90909,10.0119,9.92099,7,13.63636,7h20.72727   c3.71537,0,6.72727,3.0119,6.72727,6.72727v20.54546C41.09091,37.9881,38.07901,41,34.36364,41z"/>
+	
+		<polyline fill="none" stroke="#536DFE" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="10" points="   15.31497,16.47526 16.45905,17.61934 19.44975,14.62865  "/>
+	
+		<line fill="none" stroke="#536DFE" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="10" x1="26.27273" y1="16.93691" x2="34.5" y2="16.93691"/>
+	<path fill="none" stroke="#536DFE" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="10" d="   M15.05162,11.27273h4.41366c1.23283,0,2.23224,0.99941,2.23224,2.23224v4.41366c0,1.23283-0.99941,2.23224-2.23224,2.23224   h-4.41366c-1.23283,0-2.23224-0.99941-2.23224-2.23224v-4.41366C12.81938,12.27214,13.81879,11.27273,15.05162,11.27273z"/>
+</g>
+<g>
+	
+		<line fill="none" stroke="#000000" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="10" x1="26.27273" y1="25.52143" x2="34.5" y2="25.52143"/>
+	<path fill="none" stroke="#000000" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="10" d="   M17.38236,27.49036c1.09925,0,1.99036-0.89112,1.99036-1.99036s-0.89112-1.99036-1.99036-1.99036   c-1.09925,0-1.99037,0.89112-1.99037,1.99036S16.28311,27.49036,17.38236,27.49036"/>
+	
+		<line fill="none" stroke="#000000" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="10" x1="26.27273" y1="33.5118" x2="34.5" y2="33.5118"/>
+	<path fill="none" stroke="#000000" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="10" d="   M17.38236,35.48073c1.09925,0,1.99036-0.89112,1.99036-1.99036S18.48161,31.5,17.38236,31.5   c-1.09925,0-1.99037,0.89112-1.99037,1.99036S16.28311,35.48073,17.38236,35.48073"/>
+</g>
+</svg>

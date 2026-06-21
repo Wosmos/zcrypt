@@ -1,13 +1,13 @@
-# zstash
+# zcrypt
 
-Zero-knowledge encrypted cloud storage that hides your files inside disguised git repositories on GitHub, GitLab, HuggingFace, and Telegram.
+**zcrypt is a zero-knowledge, end-to-end encrypted cloud storage system that stores your encrypted files inside your own GitHub, GitLab, HuggingFace, and Telegram accounts.**
 
 Your files are compressed, encrypted, chunked, and pushed as LFS objects to private repos that look like ordinary developer repositories. The server never sees your passphrase. The platform never sees your plaintext data.
 
 ## How It Works
 
 ```
-File  -->  zstd compress  -->  AES-256-GCM encrypt  -->  10MB chunks  -->  Git LFS upload
+File  -->  zstd compress  -->  AES-256-GCM encrypt  -->  10 MB chunks  -->  Git LFS upload
                                     ^
                             PBKDF2-SHA256 key
                            (600K iterations, user passphrase)
@@ -91,11 +91,12 @@ Frontend (Next.js 16 / Vercel)         Backend (Go / Railway)           Storage
 ```bash
 cd app/backend
 
-# Copy env template and fill in your values
-cp .env .env.local
-# Edit .env.local with your DATABASE_URL, MASTER_KEY, etc.
+# Copy the example env file and fill in your OWN values.
+# .env is gitignored — never commit real secrets.
+cp .env.example .env
+# Edit .env: at minimum set DATABASE_URL, MASTER_KEY, and ZCRYPT_JWT_SECRET.
 
-# Generate a master key
+# Generate a 32-byte key for MASTER_KEY / ZCRYPT_JWT_SECRET
 openssl rand -hex 32
 
 # Run
@@ -134,21 +135,47 @@ docker run -p 8080:8080 \
 
 ## Environment Variables
 
+The backend is configured entirely through environment variables. A documented
+template with placeholder values lives at
+[`app/backend/.env.example`](app/backend/.env.example) — copy it to
+`app/backend/.env` and fill in your own values. The `.env` file is gitignored;
+never commit real secrets.
+
 ### Backend (required)
 
 | Variable            | Description                                                |
 | ------------------- | ---------------------------------------------------------- |
 | `DATABASE_URL`      | PostgreSQL connection string                               |
 | `MASTER_KEY`        | 32-byte hex key for envelope encryption of platform tokens |
-| `zcrypt_JWT_SECRET` | JWT signing secret (auto-generated if empty)               |
-| `FRONTEND_URL`      | Frontend URL for email links                               |
-| `ALLOWED_ORIGINS`   | Comma-separated CORS whitelist (defaults to localhost)     |
+| `ZCRYPT_JWT_SECRET` | JWT signing secret (auto-generated if empty)               |
+| `FRONTEND_URL`      | Frontend URL — used for email links AND post-OAuth redirect; also added to the CORS whitelist |
+| `BACKEND_URL`       | Public backend URL (e.g. `https://api.zcrypt.app`), no trailing slash. **Required for OAuth** — it builds the `redirect_uri` and MUST exactly match what is registered with Google/GitHub. If unset, it is derived per-request and usually breaks OAuth. |
+| `ALLOWED_ORIGINS`   | Comma-separated CORS whitelist (defaults to localhost; `FRONTEND_URL` is added automatically) |
+
+### OAuth (Google / GitHub login)
+
+OAuth is enabled only when both the client ID **and** secret are set for a provider.
+
+| Variable               | Description                          |
+| ---------------------- | ------------------------------------ |
+| `GOOGLE_CLIENT_ID`     | Google OAuth client ID               |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret           |
+| `GITHUB_CLIENT_ID`     | GitHub OAuth app client ID           |
+| `GITHUB_CLIENT_SECRET` | GitHub OAuth app client secret       |
+
+Register these **exact** redirect URIs with each provider (substitute your real `BACKEND_URL`):
+
+- Google → *Authorized redirect URIs*: `https://<BACKEND_URL>/api/auth/oauth/google/callback`
+- GitHub → *Authorization callback URL*: `https://<BACKEND_URL>/api/auth/oauth/github/callback`
+
+The backend logs the exact URIs to register at startup, and serves them at
+`GET /api/auth/oauth/config` (no secrets) so you can verify the live configuration.
 
 ### Backend (optional)
 
 | Variable        | Description                        |
 | --------------- | ---------------------------------- |
-| `zcrypt_PORT`   | Server port (default: 8080)        |
+| `ZCRYPT_PORT`   | Server port (default: 8080)        |
 | `SMTP_HOST`     | SMTP server for email verification |
 | `SMTP_PORT`     | SMTP port (default: 587)           |
 | `SMTP_USERNAME` | SMTP login                         |
@@ -217,6 +244,11 @@ app/frontend/
 - Recover your passphrase (PBKDF2 is one-way)
 - Access platform repos without your token (tokens encrypted at rest with master key)
 
+### Reporting a vulnerability
+
+Please report security issues privately — see [SECURITY.md](SECURITY.md). Do not
+open a public issue for suspected vulnerabilities.
+
 ## API Endpoints
 
 ### Auth
@@ -273,40 +305,15 @@ app/frontend/
 | DELETE | `/api/admin/users/{id}`       | Delete user       |
 | GET    | `/api/admin/stats`            | System statistics |
 
-## Security Hardening Changelog
+## Contributing
 
-The following security improvements were implemented as part of a comprehensive audit:
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for local
+setup, coding conventions, and the branch/PR workflow. By contributing you agree
+that your work is licensed under the project's MIT license.
 
-### Phase 0 - Emergency Fixes
-
-- [x] Rotated all leaked secrets (DB password, master key, JWT secret, SMTP password)
-- [x] Replaced committed `.env` with safe template (no real credentials)
-- [x] Fixed CORS from wildcard `*` to whitelist-based origin validation via `ALLOWED_ORIGINS`
-- [x] Added JWT algorithm validation (rejects non-HS256, prevents algorithm confusion attacks)
-
-### Phase 1 - Security Hardening
-
-- [x] Added password complexity requirements (8+ chars, uppercase, digit, special)
-- [x] Added auth-specific rate limiting (5 attempts / 5 min per IP on login + register)
-- [x] Fixed global rate limiter to use `X-Forwarded-For` / `X-Real-IP` behind reverse proxy
-- [x] Added filename validation in pull handler (rejects path traversal `..`, `/`, `\`, null bytes)
-- [x] Sanitized `Content-Disposition` header (escapes quotes to prevent header injection)
-- [x] Added security headers in Next.js (HSTS, X-Frame-Options, nosniff, Referrer-Policy, Permissions-Policy)
-- [x] Sanitized error responses (internal errors logged server-side, safe messages to clients)
-- [x] Added structured audit logging for auth events (login success/failure with IP)
-
-### Planned
-
-- [ ] Backend unit test suite (crypto, auth, chunks, pipeline)
-- [ ] Frontend test suite (vitest + testing-library)
-- [ ] Database transactions for atomic operations
-- [ ] React error boundaries
-- [ ] SSE reconnection with exponential backoff
-- [ ] Upload retry with backoff
-- [ ] Structured JSON logging
-- [ ] Prometheus metrics
-- [ ] API documentation (OpenAPI spec)
-- [ ] E2E tests (Playwright)
+If you believe you have found a security vulnerability, please follow the
+responsible-disclosure process in [SECURITY.md](SECURITY.md) instead of opening a
+public issue.
 
 ## Commands
 
@@ -328,4 +335,4 @@ docker build -t zcrypt .
 
 ## License
 
-Private - All rights reserved.
+zcrypt is open source under the [MIT License](./LICENSE).

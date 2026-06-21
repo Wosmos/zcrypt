@@ -1,6 +1,7 @@
 "use client";
 
 import { formatBytes } from "@/lib/utils";
+import { Infinity } from "@/lib/icons";
 import type { FileMetadata, QuotaInfo } from "@/types";
 
 interface StorageHeroProps {
@@ -46,16 +47,11 @@ function categorizeFiles(files: FileMetadata[]): CategoryInfo[] {
 }
 
 export function StorageHero({ files, quotaInfo }: StorageHeroProps) {
-  const totalUsed = quotaInfo?.used_bytes ?? 0;
-  const totalMax = quotaInfo && !quotaInfo.is_unlimited && quotaInfo.quota_bytes > 0 ? quotaInfo.quota_bytes : 0;
-  const usagePercent = totalMax > 0 ? Math.min(100, (totalUsed / totalMax) * 100) : 0;
-  const categories = categorizeFiles(files);
   const totalOriginal = files.reduce((s, f) => s + f.original_size, 0);
-
-  // SVG ring constants
-  const radius = 38;
-  const circumference = 2 * Math.PI * radius;
-  const dashOffset = circumference - (usagePercent / 100) * circumference;
+  // Storage is unbounded (bounded only by the connected platform) — show usage
+  // as a total, never a fraction of a cap.
+  const totalUsed = quotaInfo?.used_bytes ?? totalOriginal;
+  const categories = categorizeFiles(files);
 
   return (
     <div className="relative overflow-hidden rounded-2xl border border-[var(--color-border)] p-6"
@@ -67,34 +63,22 @@ export function StorageHero({ files, quotaInfo }: StorageHeroProps) {
       <div className="absolute top-0 right-0 w-40 h-40 rounded-full opacity-20 blur-3xl" style={{ background: "radial-gradient(circle, rgba(0,213,228,0.4), transparent)" }} />
       <div className="absolute bottom-0 left-0 w-32 h-32 rounded-full opacity-15 blur-3xl" style={{ background: "radial-gradient(circle, rgba(139,92,246,0.4), transparent)" }} />
 
-      {/* Plan badge */}
-      {quotaInfo && (
-        <div className="relative flex items-center justify-between mb-4">
-          <span className="text-xs font-semibold text-[var(--color-text-secondary)]">Your Storage</span>
-          <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-            quotaInfo.plan === "pro"
-              ? "bg-violet-500/10 text-violet-500"
-              : quotaInfo.plan === "plus"
-                ? "bg-blue-500/10 text-blue-500"
-                : quotaInfo.plan === "team"
-                  ? "bg-amber-500/10 text-amber-500"
-                  : "bg-[var(--color-surface-1)] text-[var(--color-text-muted)]"
-          }`}>
-            {quotaInfo.plan}
-          </span>
-        </div>
-      )}
+      {/* Header */}
+      <div className="relative flex items-center justify-between mb-4">
+        <span className="text-xs font-semibold text-[var(--color-text-secondary)]">Your Storage</span>
+        <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-500">
+          <Infinity className="h-3 w-3" /> Unlimited
+        </span>
+      </div>
 
       <div className="relative flex flex-col sm:flex-row items-start sm:items-center gap-6">
-        {/* Ring chart */}
+        {/* Decorative ring */}
         <div className="relative flex-shrink-0">
           <svg width="96" height="96" viewBox="0 0 96 96" className="-rotate-90">
-            <circle cx="48" cy="48" r={radius} fill="none" stroke="var(--color-surface-2)" strokeWidth="6" opacity="0.5" />
+            <circle cx="48" cy="48" r="38" fill="none" stroke="var(--color-surface-2)" strokeWidth="6" opacity="0.5" />
             <circle
-              cx="48" cy="48" r={radius} fill="none"
+              cx="48" cy="48" r="38" fill="none"
               stroke="url(#ring-grad)" strokeWidth="6" strokeLinecap="round"
-              strokeDasharray={circumference}
-              strokeDashoffset={dashOffset}
               className="transition-all duration-1000 ease-out"
             />
             <defs>
@@ -105,7 +89,7 @@ export function StorageHero({ files, quotaInfo }: StorageHeroProps) {
             </defs>
           </svg>
           <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-lg font-bold">{totalMax > 0 ? `${Math.round(usagePercent)}%` : "--"}</span>
+            <Infinity className="h-7 w-7 text-cyan-500" />
           </div>
         </div>
 
@@ -113,15 +97,11 @@ export function StorageHero({ files, quotaInfo }: StorageHeroProps) {
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-2">
             <span className="text-3xl font-bold tracking-tight">{formatBytes(totalUsed)}</span>
-            <span className="text-sm text-[var(--color-text-muted)]">
-              {totalMax > 0 ? `of ${formatBytes(totalMax)}` : "used"}
-            </span>
+            <span className="text-sm text-[var(--color-text-muted)]">used</span>
           </div>
-          {totalMax > 0 && (
-            <p className="text-xs text-[var(--color-text-muted)] mt-1">
-              {formatBytes(Math.max(0, totalMax - totalUsed))} remaining
-            </p>
-          )}
+          <p className="text-xs text-[var(--color-text-muted)] mt-1">
+            Bounded only by your connected platform
+          </p>
           <div className="flex flex-wrap gap-2 mt-3">
             {categories.slice(0, 4).map((cat) => (
               <span

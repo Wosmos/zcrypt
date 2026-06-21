@@ -17,10 +17,9 @@ export function CompactStats({ fileCount, totalSize, totalEncrypted, lastUploadD
 
   if (fileCount === 0) return null;
 
-  const hasLimit = quotaInfo && !quotaInfo.is_unlimited && quotaInfo.quota_bytes > 0;
-  const quotaPercent = hasLimit
-    ? Math.round((quotaInfo.used_bytes / quotaInfo.quota_bytes) * 100)
-    : null;
+  // Storage is unbounded — bounded only by the connected platform. Show usage,
+  // never a fraction of a cap.
+  const usedBytes = quotaInfo?.used_bytes ?? totalSize;
 
   return (
     <div className="flex items-center gap-4 text-xs text-[var(--color-text-secondary)] tabular-nums flex-wrap">
@@ -31,27 +30,9 @@ export function CompactStats({ fileCount, totalSize, totalEncrypted, lastUploadD
       <span className="h-3 w-px bg-[var(--color-border)]" />
       <span className="flex items-center gap-1.5">
         <HardDrive className="h-3.5 w-3.5 text-[var(--color-text-muted)]" />
-        {hasLimit ? (
-          <>
-            {formatBytes(quotaInfo.used_bytes)} / {formatBytes(quotaInfo.quota_bytes)}
-          </>
-        ) : quotaInfo ? (
-          <>
-            {formatBytes(quotaInfo.used_bytes)}
-            <Infinity className="h-3 w-3 text-cyan-500 ml-0.5" />
-          </>
-        ) : (
-          formatBytes(totalSize)
-        )}
+        {formatBytes(usedBytes)}
+        <Infinity className="h-3 w-3 text-cyan-500 ml-0.5" />
       </span>
-      {quotaPercent !== null && quotaPercent >= 80 && (
-        <>
-          <span className="h-3 w-px bg-[var(--color-border)]" />
-          <span className={`flex items-center gap-1.5 font-medium ${quotaPercent >= 95 ? "text-red-500" : "text-amber-500"}`}>
-            {quotaPercent}% used
-          </span>
-        </>
-      )}
       <span className="h-3 w-px bg-[var(--color-border)]" />
       <span className="flex items-center gap-1.5">
         <TrendingDown className="h-3.5 w-3.5 text-cyan-500" />

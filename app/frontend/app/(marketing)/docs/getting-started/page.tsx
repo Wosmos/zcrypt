@@ -6,9 +6,8 @@ import {
   Check,
   Upload,
   Key,
-  Shield,
   Download,
-  Settings,
+  Globe,
 } from "@/lib/icons";
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 
@@ -43,49 +42,49 @@ const steps = [
     content: [
       "Go to zcrypt.cloud/register and sign up with your email and a strong password.",
       "Check your inbox and click the verification link we send you.",
-      "Once verified, you get 10 GB of free encrypted storage. No credit card needed.",
+      "zcrypt is free and open source. There are no paid tiers and no credit card. Your storage comes from the platform accounts you connect in the next step.",
     ],
   },
   {
     num: "02",
+    title: "Connect a storage platform",
+    icon: Globe,
+    content: [
+      "zcrypt does not run its own storage farm. Instead, your encrypted files live inside a platform account you already have: GitHub, GitLab, Hugging Face, or Telegram.",
+      "Go to Settings, then Platform Tokens, and add an access token (or a bot token and channel for Telegram). zcrypt creates private repositories or a private channel on your behalf and stores your encrypted chunks there.",
+      "Your storage capacity is simply the free space your connected platform gives you. Bring more than one platform if you want more room. See Platform Adapters for per-platform setup and capacity.",
+    ],
+  },
+  {
+    num: "03",
     title: "Set your passphrase",
     icon: Key,
     content: [
       "On your first login, you will be asked to create a passphrase. This is separate from your account password.",
-      "Your passphrase is used to derive your encryption key locally on your device. It never leaves your browser.",
+      "Your account password logs you in. Your passphrase encrypts your files: it is used to derive your encryption key locally on your device and it never leaves your browser. The two are intentionally different so that even zcrypt cannot read your data.",
       "Pick something strong and memorable. If you lose it, your files cannot be recovered. We strongly recommend storing it in a password manager.",
     ],
     warning:
       'Your passphrase is never stored on our servers. This is a core part of zero-knowledge encryption. There is no "forgot passphrase" recovery option.',
   },
   {
-    num: "03",
+    num: "04",
     title: "Upload your first file",
     icon: Upload,
     content: [
       "Open your dashboard and drag a file onto the upload area, or click to browse your device.",
       "zcrypt automatically compresses the file with zstd, encrypts it with AES-256-GCM, and splits it into chunks. All of this happens in your browser.",
-      "Encrypted chunks are uploaded to your storage backend. You will see real-time progress as each chunk completes.",
-    ],
-  },
-  {
-    num: "04",
-    title: "Download and decrypt",
-    icon: Download,
-    content: [
-      "Click any file in your vault to download it. You may be asked to enter your passphrase if it is not cached.",
-      "zcrypt downloads the encrypted chunks, reassembles them, decrypts, and decompresses the file. Everything happens locally in your browser.",
-      "The original file is reconstructed and saved to your device. No plaintext data ever touches our servers.",
+      "Encrypted chunks are pushed to the platform you connected in step 2. You will see real-time progress as each chunk completes.",
     ],
   },
   {
     num: "05",
-    title: "Connect a storage backend (optional)",
-    icon: Settings,
+    title: "Download and decrypt",
+    icon: Download,
     content: [
-      "By default, zcrypt uses shared platform storage. Pro and Plus users can connect their own GitHub, GitLab, or Hugging Face repositories.",
-      "Go to Settings, then Platform Tokens, and add a personal access token for your preferred platform.",
-      "Your files will be stored as encrypted blobs in your own repositories. You keep full control of the underlying infrastructure.",
+      "Click any file in your vault to download it. You may be asked to enter your passphrase if it is not cached.",
+      "zcrypt pulls the encrypted chunks back from your platform, reassembles them, decrypts, and decompresses the file. Everything happens locally in your browser.",
+      "The original file is reconstructed and saved to your device. No plaintext data ever touches our servers or your storage platform.",
     ],
   },
 ];
@@ -93,7 +92,11 @@ const steps = [
 const requirements = [
   { label: "Browser", value: "Chrome, Firefox, Safari, or Edge (latest)" },
   { label: "JavaScript", value: "Must be enabled for client-side encryption" },
-  { label: "Storage", value: "10 GB free, up to 2 TB on Pro plan" },
+  {
+    label: "Storage",
+    value:
+      "A GitHub, GitLab, Hugging Face, or Telegram account to hold your encrypted files",
+  },
   { label: "Account", value: "Email verification required" },
 ];
 
@@ -125,9 +128,21 @@ export default function GettingStartedPage() {
             Getting Started
           </h1>
           <p className="mt-3 text-lg text-[var(--color-text-secondary)] max-w-2xl leading-relaxed">
-            Create an account, set your passphrase, and upload your first
-            encrypted file in under 5 minutes.
+            Create an account, connect a storage platform, set your passphrase,
+            and upload your first encrypted file in a few minutes.
           </p>
+          <div className="mt-6 card p-5 border-cyan-500/30 bg-cyan-500/5">
+            <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
+              <strong className="font-semibold text-[var(--color-text)]">
+                Your storage is your own.
+              </strong>{" "}
+              zcrypt is free and open source. It does not sell storage or gate
+              features behind paid plans. Instead, you bring your own backend:
+              your encrypted files live in your connected GitHub, GitLab, Hugging
+              Face, or Telegram account, so your capacity is whatever free space
+              those platforms give you. No artificial limits.
+            </p>
+          </div>
         </div>
       </section>
 
@@ -206,19 +221,19 @@ export default function GettingStartedPage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
               {
+                href: "/docs/platform-adapters",
+                title: "Platform Adapters",
+                desc: "Set up GitHub, GitLab, Hugging Face, or Telegram as your encrypted storage backend.",
+              },
+              {
+                href: "/docs/how-it-works",
+                title: "How It Works",
+                desc: "Follow a file end to end: connect, compress, encrypt, chunk, and push to your repos.",
+              },
+              {
                 href: "/docs/security",
                 title: "Security Model",
                 desc: "Learn how encryption, key derivation, and zero-knowledge architecture work.",
-              },
-              {
-                href: "/docs/tools",
-                title: "Tools",
-                desc: "Send files, share encrypted notes, and transfer between devices.",
-              },
-              {
-                href: "/docs/plans",
-                title: "Plans and Limits",
-                desc: "Compare Free, Plus, and Pro. See storage quotas and upload limits.",
               },
             ].map((link) => (
               <Link

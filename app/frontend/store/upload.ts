@@ -464,11 +464,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
         // Translate backend errors to user-friendly messages
         const friendlyMsg = msg.includes("storage not available")
           ? "No storage platform connected. Go to Settings to connect one."
-          : msg.includes("file too large")
-            ? msg.replace(/\(max \d+ bytes\)/, `(upgrade your plan for larger files)`)
-            : msg.includes("quota exceeded")
-              ? "Storage quota exceeded. Delete files or upgrade your plan."
-              : msg;
+          : msg;
         setError(id, friendlyMsg);
         // Cancel the server-side session to free the concurrent slot
         if (sessionId) {

@@ -8,7 +8,7 @@ import { usePlatformHealth } from "@/hooks/usePlatformHealth";
 import { useAuthStore } from "@/store/auth";
 import { useTheme } from "@/components/providers/theme-provider";
 import { usePreferencesStore } from "@/store/preferences";
-import { connectPlatform, disconnectPlatform, toggleTokenScope, getQuota } from "@/lib/api";
+import { connectPlatform, disconnectPlatform, toggleTokenScope } from "@/lib/api";
 import { toast } from "@/store/toast";
 import { RateLimits } from "@/components/settings/rate-limits";
 import { ExportImport } from "@/components/vault/export-import";
@@ -18,7 +18,7 @@ import { useFileList } from "@/hooks/useFileList";
 import { GitlabIcon } from "@/components/icons/gitlab";
 import { HuggingFaceIcon } from "@/components/icons/huggingface";
 import { TelegramIcon } from "@/components/icons/telegram";
-import type { PlatformStatus, QuotaInfo } from "@/types";
+import type { PlatformStatus } from "@/types";
 import {
   Github,
   CheckCircle2,
@@ -55,7 +55,6 @@ export default function SettingsPage() {
   const [scopeOverrides, setScopeOverrides] = useState<Record<string, boolean>>({});
   const busyRef = useRef<Set<string>>(new Set());
   const [disconnectTarget, setDisconnectTarget] = useState<{ platform: string; username: string } | null>(null);
-  const [quota, setQuota] = useState<QuotaInfo | null>(null);
   const { statuses, repos, refresh } = usePlatformHealth();
   const { files } = useFileList();
   const { theme, setTheme } = useTheme();
@@ -63,11 +62,6 @@ export default function SettingsPage() {
   const advancedMode = usePreferencesStore((s) => s.advancedMode);
   const setAdvancedMode = usePreferencesStore((s) => s.setAdvancedMode);
   const isAdmin = user?.role === "admin";
-  const allowsByob = isAdmin || (quota?.allows_byob ?? false);
-
-  useEffect(() => {
-    getQuota().then(setQuota).catch(() => {});
-  }, []);
 
   // Clear optimistic overrides when fresh data arrives
   useEffect(() => { setScopeOverrides({}); }, [statuses]);
@@ -257,29 +251,8 @@ export default function SettingsPage() {
       <div className="space-y-4">
         <h2 className="section-label">Platform Connections</h2>
 
-        {!allowsByob && (
-          <section className="card overflow-hidden">
-            <div className="p-5 text-center space-y-3">
-              <div className="flex items-center justify-center h-12 w-12 mx-auto rounded-xl bg-[var(--color-accent)]/10">
-                <Key className="h-6 w-6 text-[var(--color-accent)]" />
-              </div>
-              <h3 className="text-sm font-semibold">Bring Your Own Backend</h3>
-              <p className="text-xs text-[var(--color-text-secondary)] max-w-sm mx-auto leading-relaxed">
-                Connect your own GitHub, GitLab, or Hugging Face account for unlimited storage.
-                This feature is available on the Pro plan.
-              </p>
-              <a
-                href="/#pricing"
-                className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--color-accent)] hover:underline"
-              >
-                Upgrade to Pro <ArrowRight className="h-3 w-3" />
-              </a>
-            </div>
-          </section>
-        )}
-
         {/* GitHub */}
-        {allowsByob && <PlatformSection
+        <PlatformSection
           icon={<Github className="h-5 w-5" />}
           name="GitHub"
           platform="github"
@@ -296,10 +269,10 @@ export default function SettingsPage() {
           disconnecting={disconnecting}
           onToggleScope={handleToggleScope}
           isAdmin={isAdmin}
-        />}
+        />
 
         {/* GitLab */}
-        {allowsByob && <PlatformSection
+        <PlatformSection
           icon={<GitlabIcon className="h-5 w-5 text-orange-500 dark:text-orange-400" />}
           name="GitLab"
           platform="gitlab"
@@ -316,10 +289,10 @@ export default function SettingsPage() {
           disconnecting={disconnecting}
           onToggleScope={handleToggleScope}
           isAdmin={isAdmin}
-        />}
+        />
 
         {/* Hugging Face */}
-        {allowsByob && <PlatformSection
+        <PlatformSection
           icon={<HuggingFaceIcon className="h-5 w-5 text-yellow-500 dark:text-yellow-400" />}
           name="Hugging Face"
           platform="huggingface"
@@ -338,10 +311,10 @@ export default function SettingsPage() {
           disconnecting={disconnecting}
           onToggleScope={handleToggleScope}
           isAdmin={isAdmin}
-        />}
+        />
 
         {/* Telegram */}
-        {allowsByob && <PlatformSection
+        <PlatformSection
           icon={<TelegramIcon className="h-5 w-5 text-sky-500 dark:text-sky-400" />}
           name="Telegram"
           platform="telegram"
@@ -360,7 +333,7 @@ export default function SettingsPage() {
           disconnecting={disconnecting}
           onToggleScope={handleToggleScope}
           isAdmin={isAdmin}
-        />}
+        />
       </div>
 
       {/* Storage Pool — absorbed from Platforms page */}

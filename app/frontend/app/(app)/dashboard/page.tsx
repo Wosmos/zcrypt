@@ -8,7 +8,6 @@ import { PlatformSelector } from "@/components/upload/platform-selector";
 import { FileCard, type DownloadState } from "@/components/files/file-card";
 import { FileTable, type SortField, type SortDir } from "@/components/files/file-table";
 import { FileTypeFilter } from "@/components/files/file-type-filter";
-import { MobileVaultHeader } from "@/components/vault/mobile-vault-header";
 import { UploadFAB } from "@/components/vault/upload-fab";
 import { InsightsTab } from "@/components/vault/insights-tab";
 import { PassphraseModal } from "@/components/ui/passphrase-modal";
@@ -103,7 +102,6 @@ export default function VaultPage() {
   const [deleteTarget, setDeleteTarget] = useState<FileMetadata | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [shareTarget, setShareTarget] = useState<FileMetadata | null>(null);
-  const [quotaExceeded, setQuotaExceeded] = useState<{ totalSize: number; remaining: number } | null>(null);
   const { showFeedback, dismiss: dismissFeedback, markSubmitted: markFeedbackSubmitted } = useFeedbackTrigger(
     quotaInfo?.used_bytes ?? 0,
     quotaInfo?.quota_bytes ?? 0
@@ -176,24 +174,6 @@ export default function VaultPage() {
 
       if (uniqueFiles.length === 0) return;
 
-      // Check per-file max size
-      if (quotaInfo?.max_file_size) {
-        const oversized = uniqueFiles.filter((f) => f.size > quotaInfo.max_file_size);
-        if (oversized.length > 0) {
-          const names = oversized.length <= 2 ? oversized.map((f) => f.name).join(", ") : `${oversized.length} files`;
-          toast.error(`${names} exceed${oversized.length === 1 ? "s" : ""} the ${formatBytes(quotaInfo.max_file_size)} file size limit for your ${quotaInfo.plan} plan`);
-          return;
-        }
-      }
-
-      if (quotaInfo && !quotaInfo.is_unlimited && quotaInfo.quota_bytes > 0) {
-        const totalUploadSize = uniqueFiles.reduce((sum, f) => sum + f.size, 0);
-        const remaining = quotaInfo.quota_bytes - quotaInfo.used_bytes;
-        if (totalUploadSize > remaining) {
-          setQuotaExceeded({ totalSize: totalUploadSize, remaining: Math.max(0, remaining) });
-          return;
-        }
-      }
       const cached = getPassphrase();
       if (cached) {
         startUpload(uniqueFiles, cached);
@@ -213,7 +193,8 @@ export default function VaultPage() {
         startDesktopUpload(passphrase, refresh);
         return;
       }
-      const maxConcurrent = quotaInfo?.max_concurrent_uploads ?? 2;
+      // 0 (or unset) means "unlimited" — defer to the device-profile default concurrency.
+      const maxConcurrent = quotaInfo?.max_concurrent_uploads || undefined;
       storeStartUpload(uploadFiles, passphrase, selectedPlatform ?? undefined, maxConcurrent, refresh);
     },
     [selectedPlatform, storeStartUpload, startDesktopUpload, refresh, quotaInfo]
@@ -929,21 +910,6 @@ export default function VaultPage() {
         open={showFeedback}
         onClose={dismissFeedback}
         onSubmitted={markFeedbackSubmitted}
-      />
-      {/* Storage quota exceeded modal */}
-      <ConfirmModal
-        open={!!quotaExceeded}
-        onConfirm={() => setQuotaExceeded(null)}
-        onClose={() => setQuotaExceeded(null)}
-        title="Storage Quota Exceeded"
-        description={
-          quotaExceeded
-            ? `The selected files (${formatBytes(quotaExceeded.totalSize)}) exceed your available storage (${formatBytes(quotaExceeded.remaining)} remaining). Delete some files or upgrade your plan for more storage.`
-            : ""
-        }
-        confirmLabel="OK"
-        cancelLabel="Close"
-        variant="warning"
       />
       </>
       )}

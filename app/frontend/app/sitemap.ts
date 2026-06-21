@@ -11,12 +11,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 1,
     },
     {
-      url: `${baseUrl}/pricing`,
-      lastModified: "2026-03-18",
-      changeFrequency: "monthly",
-      priority: 0.9,
-    },
-    {
       url: `${baseUrl}/tui`,
       lastModified: "2026-03-18",
       changeFrequency: "monthly",
@@ -72,12 +66,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
     {
       url: `${baseUrl}/docs/shared-vaults`,
-      lastModified: "2026-03-24",
-      changeFrequency: "monthly",
-      priority: 0.7,
-    },
-    {
-      url: `${baseUrl}/docs/plans`,
       lastModified: "2026-03-24",
       changeFrequency: "monthly",
       priority: 0.7,
