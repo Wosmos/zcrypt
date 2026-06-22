@@ -76,6 +76,9 @@ export function AvatarDropdown() {
       {/* Compact round avatar button */}
       <button
         onClick={() => setOpen(!open)}
+        aria-label="Account menu"
+        aria-haspopup="menu"
+        aria-expanded={open}
         className={cn(
           "flex items-center justify-center h-8 w-8 rounded-full transition-all",
           "bg-[var(--color-accent)]/15 text-[var(--color-accent)] text-xs font-bold",
@@ -150,6 +153,7 @@ export function AvatarDropdown() {
             <div className="border-t border-[var(--color-border)] py-1">
               <button
                 onClick={() => { handleLogout(); setOpen(false); }}
+                aria-label="Log out"
                 className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
               >
                 <LogOut className="h-4 w-4" />

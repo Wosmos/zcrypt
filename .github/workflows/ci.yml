@@ -161,10 +161,17 @@ jobs:
   frontend-e2e:
     name: Playwright E2E
     needs: [changes, frontend, backend]
+    # always() so this still runs when `backend` is skipped (frontend-only change);
+    # GitHub otherwise skips any job whose `needs` includes a skipped job. We start
+    # our own backend in this job, so we only require that frontend passed and the
+    # backend job didn't actually fail.
     if: |
+      always() &&
       needs.changes.outputs.frontend == 'true' &&
       github.event_name == 'push' &&
-      github.ref == 'refs/heads/main'
+      github.ref == 'refs/heads/main' &&
+      needs.frontend.result == 'success' &&
+      needs.backend.result != 'failure'
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -200,6 +207,9 @@ jobs:
           MASTER_KEY: "0000000000000000000000000000000000000000000000000000000000000001"
           ZCRYPT_JWT_SECRET: "e2e-test-jwt-secret-must-be-32characters!!"
           FRONTEND_URL: "http://localhost:3000"
+          # Disable per-IP rate limiting so the serial E2E suite can register and
+          # log in many users from a single IP without being throttled.
+          DEV_MODE: "true"
         run: go run . &
 
       - name: Install frontend dependencies

@@ -137,6 +137,7 @@ export default function RegisterPage() {
           <Input
             label="Email"
             type="email"
+            name="email"
             placeholder="you@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -147,6 +148,7 @@ export default function RegisterPage() {
           <Input
             label="Username"
             type="text"
+            name="username"
             placeholder="Choose a username"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
@@ -157,6 +159,7 @@ export default function RegisterPage() {
           <Input
             label="Password"
             type="password"
+            name="password"
             placeholder="Your password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -167,6 +170,7 @@ export default function RegisterPage() {
           <Input
             label="Confirm Password"
             type="password"
+            name="confirmPassword"
             placeholder="Type it again"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
