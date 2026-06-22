@@ -11,36 +11,28 @@ import (
 )
 
 const (
-	deletionInterval = 15 * time.Minute
-	cleanupInterval  = 6 * time.Hour
-	batchSize        = 10
-	maxAttempts      = 5
+	// Deletion worker poll bounds. It is event-driven via deletionCh (a delete
+	// signals it instantly), so the timer is only a safety net / retry cadence for
+	// failed deletions. It backs off from min to max while the queue stays empty so
+	// an idle server stops waking Neon.
+	deletionMinInterval = 30 * time.Second
+	// Idle cap on the fallback poll. Deletes signal deletionCh instantly and a
+	// restart re-drains on boot, so this only governs how often an IDLE server
+	// retries FAILED deletions. Pushed out to 3h pre-launch so an idle DB sleeps;
+	// lower it (to minutes) once there are users.
+	deletionMaxInterval = 3 * time.Hour
+	cleanupInterval     = 6 * time.Hour
+	batchSize           = 10
+	maxAttempts         = 5
 )
 
 // StartCleanupWorker runs two background goroutines:
 //   - deletion worker: processes pending file deletions from git platforms every 15 min
 //   - cleanup worker:  expires sessions, pads, vaults, etc. every 6 hours
 func (s *Server) StartCleanupWorker(ctx context.Context) {
-	// Deletion worker — users expect deleted files to disappear "soon"
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				log.Printf("deletion worker panic: %v", r)
-			}
-		}()
-		time.Sleep(10 * time.Second)
-		s.processPendingDeletions(ctx)
-		ticker := time.NewTicker(deletionInterval)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				s.processPendingDeletions(ctx)
-			}
-		}
-	}()
+	// Deletion worker — users expect deleted files to disappear "soon". Event-driven
+	// via deletionCh (a delete wakes it immediately) with an idle-backoff safety poll.
+	s.runDeletionWorker(ctx)
 
 	// Cleanup worker — non-urgent expiry, 6 hours is plenty
 	go func() {
@@ -59,6 +51,59 @@ func (s *Server) StartCleanupWorker(ctx context.Context) {
 				return
 			case <-ticker.C:
 				s.runCleanupBatch(ctx)
+			}
+		}
+	}()
+}
+
+// runDeletionWorker launches the deletion-drain goroutine. Like the sync worker, it
+// self-restarts on panic: with the event-driven design the goroutine is the ONLY
+// reader of deletionCh, so if it died without relaunching, every future signalDeletion
+// would hit the full buffer and be dropped — silently stranding all deletions for the
+// life of the process. Relaunching keeps deletions self-healing.
+func (s *Server) runDeletionWorker(ctx context.Context) {
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("deletion worker panic, restarting: %v", r)
+				if ctx.Err() == nil {
+					s.runDeletionWorker(ctx)
+				}
+			}
+		}()
+
+		time.Sleep(10 * time.Second)
+		// Clear any backlog left by a previous run before settling into the loop.
+		for s.processPendingDeletions(ctx) {
+		}
+
+		backoff := deletionMinInterval
+		timer := time.NewTimer(backoff)
+		defer timer.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-s.deletionCh:
+				// A file was just deleted — drain the whole queue now.
+				for s.processPendingDeletions(ctx) {
+				}
+				backoff = deletionMinInterval
+				resetTimer(timer, backoff)
+			case <-timer.C:
+				worked := false
+				for s.processPendingDeletions(ctx) {
+					worked = true
+				}
+				if worked {
+					backoff = deletionMinInterval
+				} else {
+					backoff *= 2
+					if backoff > deletionMaxInterval {
+						backoff = deletionMaxInterval
+					}
+				}
+				resetTimer(timer, backoff)
 			}
 		}
 	}()
@@ -142,16 +187,19 @@ func (s *Server) triggerDeadManSwitch(ctx context.Context, dms types.DeadManSwit
 	}
 }
 
-// processPendingDeletions deletes chunks from git platforms for files the user has deleted.
-// Runs every 15 min so deletions are visible "soon" without hammering the DB.
-func (s *Server) processPendingDeletions(ctx context.Context) {
+// processPendingDeletions deletes one batch of chunks from git platforms for files
+// the user has deleted. It returns true when a FULL batch was processed (so the
+// caller should loop to drain the rest) and false when the queue is drained, errored,
+// or the context was cancelled. Persistently-failing items eventually fall out of the
+// eligible set once they exceed maxAttempts, so the drain loop always terminates.
+func (s *Server) processPendingDeletions(ctx context.Context) bool {
 	pending, err := s.db.GetPendingDeletions(ctx, batchSize, maxAttempts)
 	if err != nil {
 		log.Printf("deletion: get pending: %v", err)
-		return
+		return false
 	}
 	if len(pending) == 0 {
-		return
+		return false
 	}
 
 	log.Printf("deletion: processing %d pending deletions", len(pending))
@@ -159,7 +207,7 @@ func (s *Server) processPendingDeletions(ctx context.Context) {
 	for _, item := range pending {
 		select {
 		case <-ctx.Done():
-			return
+			return false
 		default:
 		}
 
@@ -194,6 +242,9 @@ func (s *Server) processPendingDeletions(ctx context.Context) {
 	if remaining, _ := s.db.PendingDeletionCount(ctx); remaining > 0 {
 		fmt.Printf("deletion: %d deletions remaining in queue\n", remaining)
 	}
+
+	// A full batch likely means more remain — tell the caller to keep draining.
+	return len(pending) == batchSize
 }
 
 // cleanupExpiredSendTransfers deletes remote chunks for expired send transfers,

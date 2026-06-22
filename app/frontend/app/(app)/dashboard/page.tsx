@@ -88,7 +88,7 @@ export default function VaultPage() {
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
 
-  const { files, loading, error, refresh } = useFileList();
+  const { files, loading, error, refresh, setFiles } = useFileList();
   const { statuses, repos } = usePlatformHealth();
   const { updateStatus, setError, startUpload: storeStartUpload, startDesktopUpload } = useUploadStore();
   const { getPassphrase, clear: clearPassphrase } = usePassphraseStore();
@@ -247,21 +247,23 @@ export default function VaultPage() {
   const executeDelete = useCallback(
     async () => {
       if (!deleteTarget) return;
-      // Optimistic: close modal and refresh immediately
       const target = deleteTarget;
+      // Optimistic: drop the row from the list instantly and close the modal.
       setDeleteTarget(null);
       setDeleting(false);
+      setFiles(files.filter((f) => f.id !== target.id));
       toast.success("File deleted");
-      refresh();
       refreshQuota();
-      // Fire-and-forget the actual delete
+      // Fire-and-forget the actual delete; on failure reconcile against the server
+      // (refresh, not a captured snapshot — a stale snapshot could resurrect a file
+      // that a concurrent delete already removed).
       deleteFile(target.id).catch((err) => {
-        toast.error(err instanceof Error ? err.message : "Delete failed — refreshing");
+        toast.error(err instanceof Error ? err.message : "Delete failed");
         refresh();
         refreshQuota();
       });
     },
-    [deleteTarget, refresh, refreshQuota]
+    [deleteTarget, files, setFiles, refresh, refreshQuota]
   );
 
   // --- Bulk operations ---
@@ -290,26 +292,30 @@ export default function VaultPage() {
 
   const executeBulkDelete = useCallback(async () => {
     if (selectedIds.size === 0) return;
+    const ids = Array.from(selectedIds);
+    const idSet = new Set(ids);
+    // Optimistic: drop the rows and close the selection UI instantly — no spinner wait.
     setBulkDeleting(true);
+    setFiles(files.filter((f) => !idSet.has(f.id)));
+    setShowBulkDeleteConfirm(false);
+    setSelectedIds(new Set());
+    setSelectionMode(false);
     try {
-      const ids = Array.from(selectedIds);
       const result = await bulkDeleteFiles(ids);
       if (result.failed > 0) {
         toast.warning(`${result.deleted} deleted, ${result.failed} failed`);
+        refresh(); // reconcile the partial failure against the server
       } else {
         toast.success(`Deleted ${result.deleted} file${result.deleted !== 1 ? "s" : ""}`);
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Bulk delete failed");
+      refresh(); // reconcile against the server (no stale-snapshot clobber)
     } finally {
       setBulkDeleting(false);
-      setShowBulkDeleteConfirm(false);
-      setSelectedIds(new Set());
-      setSelectionMode(false);
-      refresh();
       refreshQuota();
     }
-  }, [selectedIds, refresh, refreshQuota]);
+  }, [selectedIds, files, setFiles, refresh, refreshQuota]);
 
   const startBulkZipDownload = useDownloadStore((s) => s.startBulkZipDownload);
   const startBulkDownload = useCallback((passphrase: string) => {

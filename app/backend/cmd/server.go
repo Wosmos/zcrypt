@@ -63,6 +63,11 @@ type Server struct {
 	// The sync worker wakes immediately instead of waiting for the next poll.
 	syncCh chan struct{}
 
+	// deletionCh is signaled by delete handlers when chunk refs are queued into
+	// pending_deletions. The deletion worker drains the queue immediately instead
+	// of waiting up to its (now idle-backed-off) periodic poll.
+	deletionCh chan struct{}
+
 	// devMode disables all per-route rate limiting when DEV_MODE=true.
 	devMode bool
 }
@@ -93,7 +98,18 @@ func NewServer(db *index.DB, cfg *config.Config, progress *pipeline.ProgressEmit
 		transferHub:        newTransferHub(),
 		desktopSessions:    make(map[string]*desktopOAuthResult),
 		syncCh:             make(chan struct{}, 1),
+		deletionCh:         make(chan struct{}, 1),
 		devMode:            os.Getenv("DEV_MODE") == "true",
+	}
+}
+
+// signalDeletion nudges the deletion worker to drain pending_deletions now instead
+// of waiting for its periodic poll. Non-blocking: a full buffer means a drain is
+// already pending, so dropping the extra signal is correct.
+func (s *Server) signalDeletion() {
+	select {
+	case s.deletionCh <- struct{}{}:
+	default:
 	}
 }
 

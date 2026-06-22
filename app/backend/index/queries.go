@@ -97,17 +97,25 @@ func (db *DB) GetFileByID(ctx context.Context, userID, id string) (*types.FileMe
 	return f, nil
 }
 
-// ListFiles returns all stored files for a user, optionally filtered by name substring.
-func (db *DB) ListFiles(ctx context.Context, userID, filter string) ([]types.FileMetadata, error) {
+// ListFiles returns stored files for a user, newest first, optionally filtered by
+// name substring. limit caps the number of rows returned (a safety bound against an
+// unbounded scan/transfer for accounts with very large libraries); pass <= 0 for no
+// explicit cap. Search uses ILIKE (case-insensitive) to match the frontend's
+// case-insensitive client-side filter and is backed by the pg_trgm GIN index when present.
+func (db *DB) ListFiles(ctx context.Context, userID, filter string, limit int) ([]types.FileMetadata, error) {
 	query := `SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, wrapped_cek, status, created_at
 	          FROM files WHERE user_id = $1 AND status = 'complete'`
 	args := []interface{}{userID}
 
 	if filter != "" {
-		query += ` AND original_name LIKE $2`
+		query += ` AND original_name ILIKE $2`
 		args = append(args, "%"+filter+"%")
 	}
 	query += ` ORDER BY created_at DESC`
+	if limit > 0 {
+		args = append(args, limit)
+		query += fmt.Sprintf(` LIMIT $%d`, len(args))
+	}
 
 	rows, err := db.pool.Query(ctx, query, args...)
 	if err != nil {
@@ -226,6 +234,70 @@ func (db *DB) DeleteFile(ctx context.Context, userID, fileID string) error {
 	return tx.Commit(ctx)
 }
 
+// DeleteFilesBatch deletes many files in a single transaction using set-based SQL,
+// returning the number of files actually removed. This replaces the old pattern of
+// looping DeleteFile once per id (~7 round-trips * N files, all serial) with a fixed
+// ~4 statements regardless of N — the difference between minutes and milliseconds on
+// a large multi-select. As with DeleteFile, chunk refs are copied into
+// pending_deletions for deferred remote cleanup before the rows are removed.
+//
+// fileIDs is cast to uuid[] so the uuid = ANY(...) comparisons type-check.
+func (db *DB) DeleteFilesBatch(ctx context.Context, userID string, fileIDs []string) (int, error) {
+	if len(fileIDs) == 0 {
+		return 0, nil
+	}
+
+	tx, err := db.pool.Begin(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// Decrement repos.used_bytes for every affected repo in one statement.
+	if _, err := tx.Exec(ctx,
+		`UPDATE repos r SET used_bytes = GREATEST(r.used_bytes - agg.total, 0)
+		 FROM (
+		     SELECT repo, SUM(size) AS total FROM chunks
+		     WHERE user_id = $1 AND file_id = ANY($2::uuid[]) AND remote_path != ''
+		     GROUP BY repo
+		 ) agg
+		 WHERE r.url = agg.repo AND r.user_id = $1`,
+		userID, fileIDs,
+	); err != nil {
+		return 0, fmt.Errorf("decrement repo usage: %w", err)
+	}
+
+	// Queue remote chunk deletions before deleting the chunk rows.
+	if _, err := tx.Exec(ctx,
+		`INSERT INTO pending_deletions (user_id, platform, account, repo, remote_path)
+		 SELECT user_id, platform, account, repo, remote_path FROM chunks
+		 WHERE user_id = $1 AND file_id = ANY($2::uuid[])`,
+		userID, fileIDs,
+	); err != nil {
+		return 0, fmt.Errorf("queue deletions: %w", err)
+	}
+
+	if _, err := tx.Exec(ctx,
+		`DELETE FROM chunks WHERE user_id = $1 AND file_id = ANY($2::uuid[])`,
+		userID, fileIDs,
+	); err != nil {
+		return 0, fmt.Errorf("delete chunks: %w", err)
+	}
+
+	tag, err := tx.Exec(ctx,
+		`DELETE FROM files WHERE user_id = $1 AND id = ANY($2::uuid[])`,
+		userID, fileIDs,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("delete files: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return 0, fmt.Errorf("commit: %w", err)
+	}
+	return int(tag.RowsAffected()), nil
+}
+
 // PendingDeletion represents a chunk queued for remote deletion.
 type PendingDeletion struct {
 	ID         int64
@@ -238,10 +310,15 @@ type PendingDeletion struct {
 }
 
 // GetPendingDeletions returns up to `limit` pending deletions with fewer than maxAttempts.
+//
+// Ordered by attempts first (then age): this rotates a persistently-failing item to
+// the back of the queue so the drain loop keeps making forward progress on fresh items
+// instead of re-fetching and re-failing the same oldest batch every pass (head-of-line
+// blocking). It also matches the (attempts, created_at) index for an index-ordered scan.
 func (db *DB) GetPendingDeletions(ctx context.Context, limit, maxAttempts int) ([]PendingDeletion, error) {
 	rows, err := db.pool.Query(ctx,
 		`SELECT id, user_id, platform, account, repo, remote_path, attempts
-		 FROM pending_deletions WHERE attempts < $1 ORDER BY created_at ASC LIMIT $2`,
+		 FROM pending_deletions WHERE attempts < $1 ORDER BY attempts ASC, created_at ASC LIMIT $2`,
 		maxAttempts, limit,
 	)
 	if err != nil {

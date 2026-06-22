@@ -475,6 +475,8 @@ func (s *Server) HandleUploadCancel(w http.ResponseWriter, r *http.Request) {
 	// Delete file and queue chunks for remote deletion
 	if err := s.db.DeleteFile(ctx, userID, session.FileID); err != nil {
 		fmt.Printf("warn: delete file on cancel: %v\n", err)
+	} else {
+		s.signalDeletion()
 	}
 
 	// Emit error event so frontend knows
