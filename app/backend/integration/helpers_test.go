@@ -5,6 +5,7 @@ package integration_test
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -25,8 +27,9 @@ import (
 // testServer wraps an httptest.Server with convenience helpers.
 type testServer struct {
 	*httptest.Server
-	db *index.DB
-	t  *testing.T
+	db  *index.DB
+	srv *cmd.Server
+	t   *testing.T
 }
 
 // setupTestServer creates an isolated test server with a real DB.
@@ -62,7 +65,18 @@ func setupTestServer(t *testing.T) *testServer {
 	ts := httptest.NewServer(buildMux(server))
 	t.Cleanup(ts.Close)
 
-	return &testServer{Server: ts, db: db, t: t}
+	return &testServer{Server: ts, db: db, srv: server, t: t}
+}
+
+// enableMockStorage attaches an in-memory storage adapter to the given user so
+// upload-pipeline tests can run without a real git platform connected. Call it
+// after the user has been registered (e.g. via registerAndLogin) and before any
+// /api/upload/init request.
+func (ts *testServer) enableMockStorage(email string) {
+	ts.t.Helper()
+	user, err := ts.db.GetUserByEmail(context.Background(), strings.ToLower(email))
+	require.NoError(ts.t, err, "look up user to enable mock storage")
+	ts.srv.InjectTestAdapter(user.ID, "mock", "testacct", &mockAdapter{}, 10<<30)
 }
 
 // POST sends a JSON POST request and returns the response.
@@ -102,6 +116,10 @@ func (ts *testServer) PUT(path string, body []byte, token string) *http.Response
 	req, err := http.NewRequest("PUT", ts.URL+path, bytes.NewReader(body))
 	require.NoError(ts.t, err)
 	req.Header.Set("Content-Type", "application/octet-stream")
+	// The chunk upload handler requires the hex SHA-256 of the body and rejects
+	// its absence with 400 before it even looks up the session.
+	sum := sha256.Sum256(body)
+	req.Header.Set("X-Chunk-SHA256", hex.EncodeToString(sum[:]))
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
@@ -143,28 +161,30 @@ func requireStatus(t *testing.T, resp *http.Response, expected int) []byte {
 }
 
 // registerAndLogin creates a test user and returns their access token.
+//
+// Registration intentionally does NOT return tokens (the handler responds with
+// {success, user}); tokens are obtained via a separate login, matching what the
+// real frontend and TUI clients do.
 func (ts *testServer) registerAndLogin(email, password string) string {
 	ts.t.Helper()
 
-	// Register
-	resp := ts.POST("/api/auth/register", map[string]string{
+	// Derive a collision-free username from the full email. A naive
+	// first-N-chars-of-email scheme collides for addresses sharing a prefix
+	// (e.g. userA@/userB@ both start with "user"), which would make the second
+	// registration fail with a username conflict.
+	sum := sha256.Sum256([]byte(email))
+	username := fmt.Sprintf("user_%x", sum[:6])
+
+	// force=true bypasses the HaveIBeenPwned breach warning so the account is
+	// always created, with no dependency on the external HIBP API.
+	ts.POST("/api/auth/register", map[string]interface{}{
 		"email":    email,
 		"password": password,
-		"username": fmt.Sprintf("user_%s", hex.EncodeToString([]byte(email))[:8]),
-	}, "")
+		"username": username,
+		"force":    true,
+	}, "").Body.Close()
 
-	if resp.StatusCode == http.StatusCreated || resp.StatusCode == http.StatusOK {
-		var result struct {
-			AccessToken string `json:"access_token"`
-		}
-		decodeJSON(ts.t, resp, &result)
-		if result.AccessToken != "" {
-			return result.AccessToken
-		}
-	}
-	resp.Body.Close()
-
-	// If registration fails (user exists), try login
+	// Obtain tokens via login (register does not auto-login).
 	loginResp := ts.POST("/api/auth/login", map[string]string{
 		"email":    email,
 		"password": password,
