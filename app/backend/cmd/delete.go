@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+
+	"github.com/google/uuid"
 )
 
 // HandleDeleteFile deletes a file and its chunks from the index.
@@ -23,6 +25,9 @@ func (s *Server) HandleDeleteFile(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"failed to delete file"}`, http.StatusInternalServerError)
 		return
 	}
+
+	// Chunk refs are now queued in pending_deletions — wake the deletion worker.
+	s.signalDeletion()
 
 	s.audit(r, &userID, "file_delete", map[string]interface{}{"file_id": fileID})
 
@@ -52,15 +57,34 @@ func (s *Server) HandleBulkDeleteFiles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	deleted := 0
-	failed := 0
-	for _, fileID := range req.IDs {
-		if err := s.db.DeleteFile(ctx, userID, fileID); err != nil {
-			log.Printf("bulk-delete: file %s failed: %v", fileID, err)
-			failed++
-			continue
+	// Validate ids up front. The set-based delete casts the whole slice to uuid[], so a
+	// single malformed id would abort the entire batch (rolling back every valid delete
+	// with it). Drop invalid ids here — they simply count as failed — so one bad id can't
+	// sink the rest, preserving the old per-file loop's graceful degradation.
+	validIDs := make([]string, 0, len(req.IDs))
+	for _, id := range req.IDs {
+		if _, perr := uuid.Parse(id); perr == nil {
+			validIDs = append(validIDs, id)
 		}
-		deleted++
+	}
+
+	// Set-based delete: one transaction, ~4 statements regardless of how many files
+	// were selected (the old code ran a full ~7-query transaction per file, serially).
+	deleted, err := s.db.DeleteFilesBatch(ctx, userID, validIDs)
+	if err != nil {
+		log.Printf("bulk-delete: failed: %v", err)
+		http.Error(w, `{"error":"failed to delete files"}`, http.StatusInternalServerError)
+		return
+	}
+	// Anything not deleted (invalid id, already gone, or not owned) counts as failed.
+	failed := len(req.IDs) - deleted
+	if failed < 0 {
+		failed = 0
+	}
+
+	// Chunk refs are now queued in pending_deletions — wake the deletion worker.
+	if deleted > 0 {
+		s.signalDeletion()
 	}
 
 	s.audit(r, &userID, "bulk_file_delete", map[string]interface{}{

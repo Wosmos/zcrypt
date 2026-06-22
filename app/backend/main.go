@@ -45,6 +45,19 @@ func main() {
 	if cfg.DatabaseURL == "" {
 		log.Fatal("DATABASE_URL is required (set via environment or .env file)")
 	}
+
+	// `migrate` subcommand: apply the schema (the "db push" equivalent) and exit.
+	// Migrations also run automatically on normal startup via index.Open below; this
+	// lets you push schema changes without booting the full server. Idempotent.
+	if len(os.Args) > 1 && os.Args[1] == "migrate" {
+		mdb, err := index.Open(cfg.DatabaseURL)
+		if err != nil {
+			log.Fatalf("migrate: %v", err)
+		}
+		mdb.Close()
+		slog.Info("migrate: schema applied successfully")
+		return
+	}
 	if cfg.MasterKey == "" {
 		log.Fatal("MASTER_KEY is required (set via environment or .env file, 64-char hex = 32 bytes)")
 	}

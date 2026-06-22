@@ -122,6 +122,22 @@ export async function unwrapKey(
 }
 
 /**
+ * Thrown when a file key can't be resolved because the passphrase is wrong.
+ *
+ * For envelope files, an incorrect passphrase derives the wrong KEK, so unwrapping
+ * the CEK fails AES-GCM authentication — Web Crypto surfaces that as a bare
+ * `DOMException("OperationError")`, which is NOT `instanceof Error`, so callers that
+ * do `err instanceof Error ? err.message : "…"` silently lose the reason. Re-throwing
+ * this typed Error gives every download path a clear, surfaceable "wrong passphrase".
+ */
+export class IncorrectPassphraseError extends Error {
+  constructor() {
+    super("Incorrect passphrase — could not unlock this file.");
+    this.name = "IncorrectPassphraseError";
+  }
+}
+
+/**
  * Resolve the key used to decrypt a file's chunks, from the owner's passphrase.
  *
  * Envelope (v2) files carry a base64 `wrappedCek`: derive the KEK from the
@@ -130,6 +146,7 @@ export async function unwrapKey(
  * passphrase-derived key, so that key is returned as-is.
  *
  * Returns a raw ArrayBuffer suitable for decryptChunk / worker transfer.
+ * Throws IncorrectPassphraseError when an envelope file's CEK can't be unwrapped.
  */
 export async function resolveFileKey(
   passphrase: string,
@@ -140,7 +157,13 @@ export async function resolveFileKey(
   if (!wrappedCek) {
     return kek; // legacy: passphrase-derived key encrypts content directly
   }
-  const cek = await unwrapKey(kek, fromBase64(wrappedCek));
+  let cek: Uint8Array;
+  try {
+    cek = await unwrapKey(kek, fromBase64(wrappedCek));
+  } catch {
+    // Unwrap failed AES-GCM auth: the KEK (from the passphrase) is wrong.
+    throw new IncorrectPassphraseError();
+  }
   return cek.buffer.slice(0) as ArrayBuffer;
 }
 

@@ -53,5 +53,5 @@ export function useFileList() {
     refresh();
   }, [refresh]);
 
-  return { files, loading, error, refresh };
+  return { files, loading, error, refresh, setFiles };
 }

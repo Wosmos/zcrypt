@@ -13,10 +13,33 @@ import (
 	"github.com/zcrypt/zcrypt/types"
 )
 
-// syncFallbackInterval is a safety net poll for chunks that were staged before
-// the server started (e.g. after a crash/restart). Under normal operation the
-// upload handler signals syncCh immediately, so this timer rarely fires.
-const syncFallbackInterval = 30 * time.Second
+// The sync worker is event-driven: the upload handler signals syncCh the instant a
+// chunk is staged, so the fallback timer is only a safety net for chunks stranded by
+// a crash/restart. It starts at syncMinInterval and, each time a poll finds nothing,
+// backs off (doubling) up to syncMaxInterval. Any signal or any work found resets it
+// to the minimum. This is what lets Neon auto-suspend: an idle server stops pinging
+// the DB every 30s and instead drifts out to a multi-minute poll, leaving long idle
+// gaps for the compute to suspend in.
+const (
+	syncMinInterval = 30 * time.Second
+	// Idle cap on the fallback poll. Uploads signal syncCh instantly and a restart
+	// re-drains on boot, so this only governs how often an IDLE server retries
+	// chunks that failed to sync / re-checks for leftovers. Pushed out to 3h
+	// pre-launch so an idle DB sleeps; lower it (to minutes) once there are users.
+	syncMaxInterval = 3 * time.Hour
+)
+
+// resetTimer safely reschedules t to fire after d. Per the time.Timer contract, a
+// timer that has already fired must have its channel drained before Reset.
+func resetTimer(t *time.Timer, d time.Duration) {
+	if !t.Stop() {
+		select {
+		case <-t.C:
+		default:
+		}
+	}
+	t.Reset(d)
+}
 
 // maxSyncAttempts caps how many times the sync worker will retry a single
 // pending chunk before giving up on it. A chunk whose staging file is gone (or
@@ -28,9 +51,10 @@ const maxSyncAttempts = 8
 // StartSyncWorker launches a background goroutine that flushes pending chunks
 // to their respective storage adapters.
 //
-// It wakes instantly when the upload handler signals syncCh (event-driven),
-// and falls back to a 30s poll to catch any chunks left over from a restart.
-// Zero DB hits when there are no uploads in flight.
+// It wakes instantly when the upload handler signals syncCh (event-driven), and
+// otherwise polls on an idle-backoff timer (syncMinInterval -> syncMaxInterval) that
+// only catches chunks left over from a restart. When idle there are no DB hits beyond
+// the slow backoff poll, so Neon can auto-suspend.
 func (s *Server) StartSyncWorker(ctx context.Context) {
 	go func() {
 		// Recover so a panic in chunk syncing (e.g. a nil adapter deref or a
@@ -47,7 +71,13 @@ func (s *Server) StartSyncWorker(ctx context.Context) {
 		}()
 
 		log.Println("sync-worker: started")
-		fallback := time.NewTimer(syncFallbackInterval)
+
+		// Drain anything stranded by a previous run before settling into the loop.
+		for s.syncPendingChunks(ctx) {
+		}
+
+		backoff := syncMinInterval
+		fallback := time.NewTimer(backoff)
 		defer fallback.Stop()
 
 		for {
@@ -56,15 +86,29 @@ func (s *Server) StartSyncWorker(ctx context.Context) {
 				log.Println("sync-worker: stopped")
 				return
 			case <-s.syncCh:
-				// Upload just happened — drain the whole queue
+				// Upload just happened — drain the whole queue, then poll promptly
+				// in case more chunks land right behind it.
 				for s.syncPendingChunks(ctx) {
 				}
-				fallback.Reset(syncFallbackInterval)
+				backoff = syncMinInterval
+				resetTimer(fallback, backoff)
 			case <-fallback.C:
-				// Safety net: catch any chunks left over from a restart
+				// Safety net: catch any chunks left over from a restart.
+				worked := false
 				for s.syncPendingChunks(ctx) {
+					worked = true
 				}
-				fallback.Reset(syncFallbackInterval)
+				if worked {
+					backoff = syncMinInterval
+				} else {
+					// Idle: back off so the DB connection drains and Neon can
+					// auto-suspend instead of being pinged every 30s forever.
+					backoff *= 2
+					if backoff > syncMaxInterval {
+						backoff = syncMaxInterval
+					}
+				}
+				resetTimer(fallback, backoff)
 			}
 		}
 	}()

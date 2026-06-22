@@ -62,7 +62,6 @@ CREATE TABLE IF NOT EXISTS files (
 );
 
 CREATE INDEX IF NOT EXISTS idx_files_user ON files(user_id);
-CREATE INDEX IF NOT EXISTS idx_files_status ON files(status);
 CREATE INDEX IF NOT EXISTS idx_files_user_name ON files(user_id, original_name);
 
 CREATE TABLE IF NOT EXISTS chunks (
@@ -115,7 +114,7 @@ CREATE INDEX IF NOT EXISTS idx_pending_deletions_cleanup ON pending_deletions(at
 CREATE TABLE IF NOT EXISTS platform_tokens (
 	id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 	user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-	platform        TEXT NOT NULL CHECK (platform IN ('github', 'gitlab', 'huggingface')),
+	platform        TEXT NOT NULL CHECK (platform IN ('github', 'gitlab', 'huggingface', 'telegram')),
 	username        TEXT NOT NULL DEFAULT '',
 	token_encrypted BYTEA NOT NULL,
 	token_nonce     BYTEA NOT NULL,
@@ -137,6 +136,13 @@ CREATE TABLE IF NOT EXISTS system_settings (
 CREATE INDEX IF NOT EXISTS idx_repos_user_platform_active ON repos(user_id, platform, account) WHERE active = TRUE;
 CREATE INDEX IF NOT EXISTS idx_chunks_file_pending ON chunks(file_id) WHERE remote_path = '';
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires ON refresh_tokens(expires_at);
+
+-- File listing hot path: WHERE user_id=$1 AND status='complete' ORDER BY created_at DESC.
+-- This partial composite serves the exact filter and the sort in a single index-ordered scan,
+-- so the list is an O(log n) seek + O(limit) read with no separate sort step.
+-- (The pg_trgm extension + trigram index for ILIKE search are applied best-effort in db.go,
+--  outside this boot-critical batch, since CREATE EXTENSION can fail on restricted DB roles.)
+CREATE INDEX IF NOT EXISTS idx_files_user_created_complete ON files(user_id, created_at DESC) WHERE status = 'complete';
 
 -- OAuth linked accounts
 CREATE TABLE IF NOT EXISTS oauth_providers (
@@ -199,6 +205,11 @@ ALTER TABLE chunks ADD COLUMN IF NOT EXISTS compressed BOOLEAN NOT NULL DEFAULT 
 -- chunk (e.g. its staging file is gone) instead of looping on it forever.
 ALTER TABLE chunks ADD COLUMN IF NOT EXISTS sync_attempts INTEGER NOT NULL DEFAULT 0;
 
+-- Drop the standalone status index: 'status' has only two values ('uploading','complete'),
+-- so it is too low-cardinality to help. The file-list query is fully served by the partial
+-- composite idx_files_user_created_complete above.
+DROP INDEX IF EXISTS idx_files_status;
+
 -- Envelope encryption: per-file Content Encryption Key, wrapped (encrypted) with
 -- the passphrase-derived key, base64-encoded. Empty for legacy files encrypted
 -- directly with the passphrase-derived key.
@@ -208,6 +219,11 @@ ALTER TABLE files ADD COLUMN IF NOT EXISTS wrapped_cek TEXT NOT NULL DEFAULT '';
 ALTER TABLE email_tokens DROP CONSTRAINT IF EXISTS email_tokens_kind_check;
 ALTER TABLE email_tokens ADD CONSTRAINT email_tokens_kind_check
 	CHECK (kind IN ('verify', 'reset', 'magic_link'));
+
+-- Migrate platform_tokens platform constraint to allow telegram
+ALTER TABLE platform_tokens DROP CONSTRAINT IF EXISTS platform_tokens_platform_check;
+ALTER TABLE platform_tokens ADD CONSTRAINT platform_tokens_platform_check
+	CHECK (platform IN ('github', 'gitlab', 'huggingface', 'telegram'));
 
 -- Refresh token client binding (IP + User-Agent)
 ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS ip TEXT NOT NULL DEFAULT '';
