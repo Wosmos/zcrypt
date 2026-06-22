@@ -12,7 +12,7 @@ at risk.
 
 Instead, report it privately by email to:
 
-**wasif@linkedunion.com**
+**m.wasifmalik17@gmail.com**
 
 Please include, where possible:
 
