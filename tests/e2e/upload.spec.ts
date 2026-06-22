@@ -1,12 +1,19 @@
 import { test, expect } from "@playwright/test";
-import { setupAuthenticatedUser } from "./helpers";
+import { setupAuthenticatedUser, storageAvailable } from "./helpers";
 import path from "path";
 import fs from "fs";
 import os from "os";
 
+// The backend requires the salt to be exactly 32 bytes, base64-encoded.
+const VALID_SALT_B64 = Buffer.alloc(32, 7).toString("base64");
+
 test.describe("Upload & Download Pipeline", () => {
   test("upload a text file and see it in the file list", async ({ page }) => {
     const { token } = await setupAuthenticatedUser(page);
+
+    // The upload pipeline needs a configured storage platform; skip when none
+    // is available (e.g. a plain CI backend with no git-platform adapter).
+    test.skip(!(await storageAvailable(page, token)), "no storage platform configured");
 
     await page.goto("/dashboard");
     await expect(page).toHaveURL(/\/dashboard/);
@@ -37,6 +44,7 @@ test.describe("Upload & Download Pipeline", () => {
 
   test("API upload init → chunk → complete flow works", async ({ page }) => {
     const { token } = await setupAuthenticatedUser(page);
+    test.skip(!(await storageAvailable(page, token)), "no storage platform configured");
     const apiUrl = process.env.E2E_API_URL || "http://localhost:8080";
 
     const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
@@ -48,7 +56,7 @@ test.describe("Upload & Download Pipeline", () => {
         filename: "api-e2e-test.txt",
         original_size: 42,
         sha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-        salt: "c2FsdHNhbHRzYWx0",
+        salt: VALID_SALT_B64,
         chunk_count: 1,
       },
     });
@@ -76,23 +84,24 @@ test.describe("Upload & Download Pipeline", () => {
     );
     expect(completeRes.ok()).toBeTruthy();
 
-    // 4. Verify file appears in list
+    // 4. Verify file appears in list. /api/files returns a bare JSON array.
     const listRes = await page.request.get(`${apiUrl}/api/files`, { headers });
     expect(listRes.ok()).toBeTruthy();
-    const { files } = await listRes.json();
+    const files = await listRes.json();
+    expect(Array.isArray(files)).toBeTruthy();
     expect(files.some((f: { original_name: string }) => f.original_name === "api-e2e-test.txt")).toBeTruthy();
   });
 
-  test("file list paginates correctly", async ({ page }) => {
+  test("file list returns an array", async ({ page }) => {
     const { token } = await setupAuthenticatedUser(page);
     const apiUrl = process.env.E2E_API_URL || "http://localhost:8080";
     const headers = { Authorization: `Bearer ${token}` };
 
-    const res = await page.request.get(`${apiUrl}/api/files?limit=10&offset=0`, { headers });
+    // /api/files returns a bare JSON array (filtering via ?filter=, no offset pagination).
+    const res = await page.request.get(`${apiUrl}/api/files`, { headers });
     expect(res.ok()).toBeTruthy();
     const body = await res.json();
-    expect(body).toHaveProperty("files");
-    expect(Array.isArray(body.files)).toBeTruthy();
+    expect(Array.isArray(body)).toBeTruthy();
   });
 
   test("IDOR: user cannot access another user's file", async ({ page }) => {
@@ -100,6 +109,7 @@ test.describe("Upload & Download Pipeline", () => {
 
     const { token: tokenA } = await setupAuthenticatedUser(page);
     const { token: tokenB } = await setupAuthenticatedUser(page);
+    test.skip(!(await storageAvailable(page, tokenA)), "no storage platform configured");
 
     // User A creates a file
     const initRes = await page.request.post(`${apiUrl}/api/upload/init`, {
@@ -108,7 +118,7 @@ test.describe("Upload & Download Pipeline", () => {
         filename: "secret.txt",
         original_size: 10,
         sha256: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-        salt: "c2FsdA==",
+        salt: VALID_SALT_B64,
         chunk_count: 1,
       },
     });
@@ -133,6 +143,6 @@ test.describe("Quota", () => {
     expect(res.ok()).toBeTruthy();
     const body = await res.json();
     expect(typeof body.used_bytes).toBe("number");
-    expect(typeof body.limit_bytes).toBe("number");
+    expect(typeof body.quota_bytes).toBe("number");
   });
 });

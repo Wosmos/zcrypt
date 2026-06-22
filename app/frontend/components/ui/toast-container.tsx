@@ -27,9 +27,12 @@ export function ToastContainer() {
     <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2 max-w-sm w-full pointer-events-none">
       {toasts.map((t) => {
         const Icon = icons[t.type];
+        const assertive = t.type === "error" || t.type === "warning";
         return (
           <div
             key={t.id}
+            role={assertive ? "alert" : "status"}
+            aria-live={assertive ? "assertive" : "polite"}
             className={cn(
               "pointer-events-auto flex items-start gap-3 rounded-xl border p-3.5 shadow-2xl backdrop-blur-md animate-slide-up",
               styles[t.type]
