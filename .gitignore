@@ -63,3 +63,5 @@ app/frontend/coverage/
 # k6 output files
 tests/load/k6/results/
 *.k6.json
+
+/landing-mockups/

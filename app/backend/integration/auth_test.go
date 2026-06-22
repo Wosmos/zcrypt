@@ -14,20 +14,27 @@ func TestRegister(t *testing.T) {
 	ts := setupTestServer(t)
 
 	t.Run("valid registration succeeds", func(t *testing.T) {
-		resp := ts.POST("/api/auth/register", map[string]string{
+		// force=true bypasses the breach-check warning. Registration returns
+		// {success, user} and does NOT auto-login (no tokens in the response).
+		resp := ts.POST("/api/auth/register", map[string]interface{}{
 			"email":    "test@example.com",
 			"password": "SecurePass@123!",
 			"username": "testuser",
+			"force":    true,
 		}, "")
 
 		body := requireStatus(t, resp, http.StatusCreated)
 		var result struct {
-			AccessToken  string `json:"access_token"`
-			RefreshToken string `json:"refresh_token"`
+			Success bool `json:"success"`
+			User    struct {
+				ID    string `json:"id"`
+				Email string `json:"email"`
+			} `json:"user"`
 		}
 		require.NoError(t, jsonUnmarshal(body, &result))
-		assert.NotEmpty(t, result.AccessToken)
-		assert.NotEmpty(t, result.RefreshToken)
+		assert.True(t, result.Success)
+		assert.NotEmpty(t, result.User.ID)
+		assert.Equal(t, "test@example.com", result.User.Email)
 	})
 
 	t.Run("duplicate email rejected", func(t *testing.T) {
@@ -120,18 +127,26 @@ func TestLogin(t *testing.T) {
 func TestTokenRefresh(t *testing.T) {
 	ts := setupTestServer(t)
 
-	// Register and get tokens
-	resp := ts.POST("/api/auth/register", map[string]string{
+	// Register (force=true to bypass the breach warning), then log in to obtain
+	// a refresh token — registration itself does not issue tokens.
+	ts.POST("/api/auth/register", map[string]interface{}{
 		"email":    "refresh@example.com",
 		"password": "SecurePass@123!",
 		"username": "refreshuser",
+		"force":    true,
+	}, "").Body.Close()
+
+	loginResp := ts.POST("/api/auth/login", map[string]string{
+		"email":    "refresh@example.com",
+		"password": "SecurePass@123!",
 	}, "")
-	body := requireStatus(t, resp, http.StatusCreated)
+	body := requireStatus(t, loginResp, http.StatusOK)
 	var tokens struct {
 		AccessToken  string `json:"access_token"`
 		RefreshToken string `json:"refresh_token"`
 	}
 	require.NoError(t, jsonUnmarshal(body, &tokens))
+	require.NotEmpty(t, tokens.RefreshToken)
 
 	t.Run("valid refresh token issues new access token", func(t *testing.T) {
 		resp := ts.POST("/api/auth/refresh", map[string]string{

@@ -5,6 +5,11 @@ import {
   encryptChunk,
   decryptChunk,
   sha256Hex,
+  sha256File,
+  generateCEK,
+  wrapKey,
+  unwrapKey,
+  resolveFileKey,
   toBase64,
   fromBase64,
 } from "@/lib/crypto";
@@ -185,5 +190,80 @@ describe("toBase64 / fromBase64", () => {
   it("produces valid base64 string", () => {
     const encoded = toBase64(new Uint8Array([72, 101, 108, 108, 111]));
     expect(encoded).toBe("SGVsbG8="); // "Hello" in base64
+  });
+});
+
+describe("generateCEK", () => {
+  it("returns 32 random bytes", () => {
+    const a = generateCEK();
+    expect(a).toBeInstanceOf(Uint8Array);
+    expect(a.length).toBe(32);
+    expect(generateCEK()).not.toEqual(a);
+  });
+});
+
+describe("wrapKey / unwrapKey roundtrip", () => {
+  it("unwraps back to the original CEK", async () => {
+    const kek = await deriveKeyBytes("kek-pass", generateSalt());
+    const cek = generateCEK();
+    const wrapped = await wrapKey(kek, cek);
+    expect(await unwrapKey(kek, wrapped)).toEqual(cek);
+  });
+
+  it("a different KEK cannot unwrap", async () => {
+    const salt = generateSalt();
+    const kek = await deriveKeyBytes("right", salt);
+    const wrongKek = await deriveKeyBytes("wrong", salt);
+    const wrapped = await wrapKey(kek, generateCEK());
+    await expect(unwrapKey(wrongKek, wrapped)).rejects.toThrow();
+  });
+});
+
+describe("resolveFileKey", () => {
+  it("legacy file (no wrappedCek) returns the passphrase-derived key", async () => {
+    const salt = generateSalt();
+    const expected = await deriveKeyBytes("pass", salt);
+    const key = await resolveFileKey("pass", salt, null);
+    expect(new Uint8Array(key)).toEqual(new Uint8Array(expected));
+  });
+
+  it("undefined wrappedCek is also treated as legacy", async () => {
+    const salt = generateSalt();
+    const expected = await deriveKeyBytes("pass", salt);
+    const key = await resolveFileKey("pass", salt);
+    expect(new Uint8Array(key)).toEqual(new Uint8Array(expected));
+  });
+
+  it("envelope file (with wrappedCek) returns the unwrapped CEK", async () => {
+    const salt = generateSalt();
+    const kek = await deriveKeyBytes("pass", salt);
+    const cek = generateCEK();
+    const wrappedCek = toBase64(await wrapKey(kek, cek));
+
+    const key = await resolveFileKey("pass", salt, wrappedCek);
+    expect(new Uint8Array(key)).toEqual(cek);
+  });
+});
+
+describe("sha256File", () => {
+  it("hashes a small file via the fast path (matches sha256Hex)", async () => {
+    const data = new Uint8Array([1, 2, 3, 4, 5]);
+    // File-like stub: the fast path only reads file.size and file.arrayBuffer().
+    const smallFile = {
+      size: data.length,
+      arrayBuffer: async () => data.buffer,
+    } as unknown as File;
+    expect(await sha256File(smallFile)).toBe(await sha256Hex(data));
+  });
+
+  it("hashes a large file via the streaming path", async () => {
+    // Reports just over the 50MB fast-path threshold so the streaming branch
+    // runs, but each slice yields only a few bytes so hashing is instant. The
+    // resulting digest is arbitrary — we only assert it produced a valid hash.
+    const bigFile = {
+      size: 51 * 1024 * 1024,
+      slice: () => ({ arrayBuffer: async () => new Uint8Array(8).buffer }),
+    } as unknown as File;
+    expect(await sha256File(bigFile)).toMatch(/^[0-9a-f]{64}$/);
   });
 });

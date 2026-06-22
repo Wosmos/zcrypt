@@ -1,5 +1,15 @@
 import { describe, it, expect } from "vitest";
-import { formatBytes, formatEta, getFileTypeInfo, getFileIcon } from "@/lib/utils";
+import {
+  cn,
+  formatBytes,
+  formatDate,
+  formatEta,
+  getFileTypeInfo,
+  getFileIcon,
+  getFileCategory,
+  isImageFile,
+  easeProgress,
+} from "@/lib/utils";
 
 describe("formatBytes", () => {
   it("returns 0 B for zero or negative", () => {
@@ -83,5 +93,66 @@ describe("formatEta", () => {
     const startedAt = Date.now() - 60000;
     const result = formatEta(startedAt, 10);
     expect(result).toMatch(/~\d+m left/);
+  });
+
+  it("formats hours and minutes remaining", () => {
+    // 1.5% done in ~60s → total ~4000s → ~3940s (>1h) remaining
+    const result = formatEta(Date.now() - 60_000, 1.5);
+    expect(result).toMatch(/~\d+h \d+m left/);
+  });
+});
+
+describe("cn", () => {
+  it("joins truthy class names and drops falsy ones", () => {
+    expect(cn("a", false, "b", null, undefined, "c")).toBe("a b c");
+    expect(cn({ active: true, hidden: false })).toBe("active");
+  });
+});
+
+describe("formatDate", () => {
+  it("returns 'Just now' for under a minute", () => {
+    expect(formatDate(new Date().toISOString())).toBe("Just now");
+  });
+
+  it("formats minutes, hours, and days ago", () => {
+    expect(formatDate(new Date(Date.now() - 5 * 60_000).toISOString())).toMatch(/^\d+m ago$/);
+    expect(formatDate(new Date(Date.now() - 3 * 3_600_000).toISOString())).toMatch(/^\d+h ago$/);
+    expect(formatDate(new Date(Date.now() - 3 * 86_400_000).toISOString())).toMatch(/^\d+d ago$/);
+  });
+
+  it("formats an absolute date for a week or more ago", () => {
+    const result = formatDate(new Date(Date.now() - 60 * 86_400_000).toISOString());
+    expect(result).not.toMatch(/ago|Just now/);
+    expect(result.length).toBeGreaterThan(0);
+  });
+});
+
+describe("getFileCategory / isImageFile", () => {
+  it("getFileCategory returns the type label", () => {
+    expect(getFileCategory("report.pdf")).toBe("Document");
+    expect(getFileCategory("song.mp3")).toBe("Audio");
+    expect(getFileCategory("mystery.xyz")).toBe("File");
+  });
+
+  it("isImageFile detects image extensions case-insensitively", () => {
+    expect(isImageFile("photo.PNG")).toBe(true);
+    expect(isImageFile("scan.jpeg")).toBe(true);
+    expect(isImageFile("report.pdf")).toBe(false);
+    expect(isImageFile("noextension")).toBe(false);
+  });
+});
+
+describe("easeProgress", () => {
+  it("clamps out-of-range input to 0 and 100", () => {
+    expect(easeProgress(-10)).toBe(0);
+    expect(easeProgress(0)).toBe(0);
+    expect(easeProgress(100)).toBe(100);
+    expect(easeProgress(150)).toBe(100);
+  });
+
+  it("eases an intermediate value into the 0-100 range", () => {
+    const v = easeProgress(50);
+    expect(v).toBeGreaterThan(0);
+    expect(v).toBeLessThanOrEqual(100);
   });
 });

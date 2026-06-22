@@ -3,6 +3,8 @@
 package integration_test
 
 import (
+	"context"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"testing"
@@ -11,18 +13,23 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// validSalt is a 32-byte (256-bit) salt, base64-encoded, as /api/upload/init
+// requires. Shorter salts are rejected with "salt must be 32 bytes".
+var validSalt = base64.StdEncoding.EncodeToString(make([]byte, 32))
+
 func TestUploadPipeline(t *testing.T) {
 	ts := setupTestServer(t)
 	token := ts.registerAndLogin("uploader@example.com", "SecurePass@123!")
+	ts.enableMockStorage("uploader@example.com")
 
 	t.Run("full upload cycle: init → chunk → complete → list → delete", func(t *testing.T) {
 		// 1. Init upload session
 		initResp := ts.POST("/api/upload/init", map[string]interface{}{
-			"filename":     "hello.txt",
+			"filename":      "hello.txt",
 			"original_size": 11,
-			"sha256":       "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
-			"salt":         "c2FsdHNhbHRzYWx0c2FsdA==",
-			"chunk_count":  1,
+			"sha256":        "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+			"salt":          validSalt,
+			"chunk_count":   1,
 		}, token)
 
 		initBody := requireStatus(t, initResp, http.StatusOK)
@@ -34,10 +41,11 @@ func TestUploadPipeline(t *testing.T) {
 		assert.NotEmpty(t, initResult.SessionID)
 		assert.NotEmpty(t, initResult.FileID)
 
-		// 2. Upload single chunk (PUT /api/upload/{sid}/chunk/{idx})
+		// 2. Upload single chunk (PUT /api/upload/{sid}/chunk/{idx}). The body
+		// must be at least 28 bytes (12B IV + 16B GCM tag) to pass validation.
 		chunkResp := ts.PUT(
 			"/api/upload/"+initResult.SessionID+"/chunk/0",
-			[]byte("hello world encrypted"),
+			[]byte("encrypted-chunk-payload-0123456789ABCDEF"),
 			token,
 		)
 		requireStatus(t, chunkResp, http.StatusOK)
@@ -50,40 +58,36 @@ func TestUploadPipeline(t *testing.T) {
 		)
 		requireStatus(t, completeResp, http.StatusOK)
 
-		// 4. File appears in list
+		// 4. File appears in list. /api/files returns a bare JSON array.
 		listResp := ts.GET("/api/files", token)
 		listBody := requireStatus(t, listResp, http.StatusOK)
-		var listResult struct {
-			Files []struct {
-				ID           string `json:"id"`
-				OriginalName string `json:"original_name"`
-			} `json:"files"`
+		var listResult []struct {
+			ID           string `json:"id"`
+			OriginalName string `json:"original_name"`
 		}
 		require.NoError(t, json.Unmarshal(listBody, &listResult))
-		require.Len(t, listResult.Files, 1)
-		assert.Equal(t, "hello.txt", listResult.Files[0].OriginalName)
+		require.Len(t, listResult, 1)
+		assert.Equal(t, "hello.txt", listResult[0].OriginalName)
 
 		// 5. Delete file
-		deleteResp := ts.DELETE("/api/files/"+listResult.Files[0].ID, token)
+		deleteResp := ts.DELETE("/api/files/"+listResult[0].ID, token)
 		requireStatus(t, deleteResp, http.StatusOK)
 
 		// 6. File no longer in list
 		listResp2 := ts.GET("/api/files", token)
 		listBody2 := requireStatus(t, listResp2, http.StatusOK)
-		var listResult2 struct {
-			Files []interface{} `json:"files"`
-		}
+		var listResult2 []interface{}
 		require.NoError(t, json.Unmarshal(listBody2, &listResult2))
-		assert.Len(t, listResult2.Files, 0)
+		assert.Len(t, listResult2, 0)
 	})
 
 	t.Run("upload init with zero chunk_count rejected", func(t *testing.T) {
 		resp := ts.POST("/api/upload/init", map[string]interface{}{
-			"filename":     "bad.txt",
+			"filename":      "bad.txt",
 			"original_size": 100,
-			"sha256":       "aaaa",
-			"salt":         "c2FsdA==",
-			"chunk_count":  0,
+			"sha256":        "aaaa",
+			"salt":          validSalt,
+			"chunk_count":   0,
 		}, token)
 		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 		resp.Body.Close()
@@ -91,11 +95,11 @@ func TestUploadPipeline(t *testing.T) {
 
 	t.Run("upload init with negative size rejected", func(t *testing.T) {
 		resp := ts.POST("/api/upload/init", map[string]interface{}{
-			"filename":     "bad.txt",
+			"filename":      "bad.txt",
 			"original_size": -1,
-			"sha256":       "aaaa",
-			"salt":         "c2FsdA==",
-			"chunk_count":  1,
+			"sha256":        "aaaa",
+			"salt":          validSalt,
+			"chunk_count":   1,
 		}, token)
 		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 		resp.Body.Close()
@@ -132,13 +136,14 @@ func TestFileOwnership(t *testing.T) {
 
 	tokenA := ts.registerAndLogin("userA@example.com", "SecurePass@123!")
 	tokenB := ts.registerAndLogin("userB@example.com", "SecurePass@123!")
+	ts.enableMockStorage("userA@example.com")
 
 	// User A uploads a file
 	initResp := ts.POST("/api/upload/init", map[string]interface{}{
 		"filename":      "private.txt",
 		"original_size": 10,
 		"sha256":        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-		"salt":          "c2FsdA==",
+		"salt":          validSalt,
 		"chunk_count":   1,
 	}, tokenA)
 	initBody := requireStatus(t, initResp, http.StatusOK)
@@ -148,19 +153,21 @@ func TestFileOwnership(t *testing.T) {
 	require.NoError(t, json.Unmarshal(initBody, &initResult))
 
 	t.Run("user B cannot delete user A's file (IDOR protection)", func(t *testing.T) {
-		resp := ts.DELETE("/api/files/"+initResult.FileID, tokenB)
-		// Should return 404 (not found for this user) not 200
-		assert.NotEqual(t, http.StatusOK, resp.StatusCode)
-		resp.Body.Close()
+		ts.DELETE("/api/files/"+initResult.FileID, tokenB).Body.Close()
+		// Deletes are scoped by user_id, so user B's request matches no rows it
+		// owns and is a harmless no-op (the API returns an idempotent 200). The
+		// security guarantee is that user A's file is NOT removed — verify it
+		// still exists rather than asserting a particular status code.
+		f, err := ts.db.GetFileByIDUnsafe(context.Background(), initResult.FileID)
+		require.NoError(t, err)
+		require.NotNil(t, f, "user A's file must survive user B's delete attempt")
 	})
 
 	t.Run("user B cannot see user A's files in their list", func(t *testing.T) {
 		resp := ts.GET("/api/files", tokenB)
 		body := requireStatus(t, resp, http.StatusOK)
-		var result struct {
-			Files []interface{} `json:"files"`
-		}
+		var result []interface{}
 		require.NoError(t, json.Unmarshal(body, &result))
-		assert.Len(t, result.Files, 0, "user B should not see user A's files")
+		assert.Len(t, result, 0, "user B should not see user A's files")
 	})
 }

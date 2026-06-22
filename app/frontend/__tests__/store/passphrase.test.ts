@@ -52,4 +52,15 @@ describe("usePassphraseStore", () => {
   it("should return 0 remaining minutes when not set", () => {
     expect(usePassphraseStore.getState().getRemainingMinutes()).toBe(0);
   });
+
+  it("expires via getPassphrase when the clock passes TTL without the timer firing", () => {
+    vi.setSystemTime(0);
+    usePassphraseStore.getState().setPassphrase("mypass", 5);
+
+    // setSystemTime advances the clock WITHOUT firing the pending auto-clear
+    // timer, so getPassphrase itself must detect expiry and clear the cache
+    // (the branch the "auto-clear via timer" test never reaches).
+    vi.setSystemTime(5 * 60 * 1000 + 1);
+    expect(usePassphraseStore.getState().getPassphrase()).toBeNull();
+  });
 });
