@@ -1,19 +1,15 @@
 /**
  * Upload session API — thin fetch wrappers for the chunked upload endpoints.
+ *
+ * All authenticated calls go through authedFetch, which refreshes the access
+ * token on a 401 and retries. This is what lets a large upload survive past the
+ * 15-minute access-token lifetime instead of dying mid-stream with
+ * "invalid or expired token".
  */
 
-import { useAuthStore } from "@/store/auth";
+import { authedFetch } from "@/lib/auth-fetch";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
-
-function authHeaders(): Record<string, string> {
-  const { accessToken } = useAuthStore.getState();
-  const headers: Record<string, string> = {};
-  if (accessToken) {
-    headers["Authorization"] = `Bearer ${accessToken}`;
-  }
-  return headers;
-}
 
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -28,6 +24,20 @@ async function handleResponse<T>(res: Response): Promise<T> {
     throw new Error(message);
   }
   return res.json() as Promise<T>;
+}
+
+async function throwIfNotOk(res: Response): Promise<void> {
+  if (!res.ok) {
+    const body = await res.text();
+    let message: string;
+    try {
+      const parsed = JSON.parse(body);
+      message = parsed.error || body;
+    } catch {
+      message = body;
+    }
+    throw new Error(message);
+  }
 }
 
 export interface UploadInitParams {
@@ -49,9 +59,9 @@ export interface UploadInitResponse {
 
 /** POST /api/upload/init — start a new chunked upload session. */
 export async function initUpload(params: UploadInitParams): Promise<UploadInitResponse> {
-  const res = await fetch(`${API_BASE}/api/upload/init`, {
+  const res = await authedFetch(`${API_BASE}/api/upload/init`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(params),
   });
   return handleResponse<UploadInitResponse>(res);
@@ -68,13 +78,12 @@ export async function uploadChunk(
   const headers: Record<string, string> = {
     "Content-Type": "application/octet-stream",
     "X-Chunk-SHA256": sha256,
-    ...authHeaders(),
   };
   if (compressed) {
     headers["X-Chunk-Compressed"] = "true";
   }
 
-  const res = await fetch(
+  const res = await authedFetch(
     `${API_BASE}/api/upload/${sessionId}/chunk/${index}`,
     {
       method: "PUT",
@@ -82,18 +91,7 @@ export async function uploadChunk(
       body: encryptedData as BodyInit,
     }
   );
-
-  if (!res.ok) {
-    const body = await res.text();
-    let message: string;
-    try {
-      const parsed = JSON.parse(body);
-      message = parsed.error || body;
-    } catch {
-      message = body;
-    }
-    throw new Error(message);
-  }
+  await throwIfNotOk(res);
 }
 
 export interface PresignResponse {
@@ -110,11 +108,11 @@ export async function presignChunk(
   sha256: string,
   size: number
 ): Promise<PresignResponse> {
-  const res = await fetch(
+  const res = await authedFetch(
     `${API_BASE}/api/upload/${sessionId}/presign/${index}`,
     {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sha256, size }),
     }
   );
@@ -157,11 +155,11 @@ export async function confirmChunk(
   remotePath: string,
   compressed: boolean
 ): Promise<void> {
-  const res = await fetch(
+  const res = await authedFetch(
     `${API_BASE}/api/upload/${sessionId}/confirm/${index}`,
     {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         sha256,
         size,
@@ -170,17 +168,7 @@ export async function confirmChunk(
       }),
     }
   );
-  if (!res.ok) {
-    const body = await res.text();
-    let message: string;
-    try {
-      const parsed = JSON.parse(body);
-      message = parsed.error || body;
-    } catch {
-      message = body;
-    }
-    throw new Error(message);
-  }
+  await throwIfNotOk(res);
 }
 
 export interface UploadCompleteResponse {
@@ -193,9 +181,9 @@ export async function completeUpload(
   encryptedSize: number,
   compressedSize: number
 ): Promise<UploadCompleteResponse> {
-  const res = await fetch(`${API_BASE}/api/upload/${sessionId}/complete`, {
+  const res = await authedFetch(`${API_BASE}/api/upload/${sessionId}/complete`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ encrypted_size: encryptedSize, compressed_size: compressedSize }),
   });
   return handleResponse<UploadCompleteResponse>(res);
@@ -203,9 +191,8 @@ export async function completeUpload(
 
 /** DELETE /api/upload/{sid} — cancel an upload session. */
 export async function cancelUpload(sessionId: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/api/upload/${sessionId}`, {
+  const res = await authedFetch(`${API_BASE}/api/upload/${sessionId}`, {
     method: "DELETE",
-    headers: authHeaders(),
   });
   if (!res.ok) {
     const body = await res.text();
@@ -217,15 +204,13 @@ export interface UploadStatusResponse {
   session_id: string;
   file_id: string;
   status: string;
-  uploaded_chunks: number;
   chunk_count: number;
-  completed_indices: number[];
+  uploaded_chunks: number[]; // indices of chunks the server already has
+  completed_count: number;
 }
 
 /** GET /api/upload/{sid}/status — check upload session progress. */
 export async function getUploadStatus(sessionId: string): Promise<UploadStatusResponse> {
-  const res = await fetch(`${API_BASE}/api/upload/${sessionId}/status`, {
-    headers: authHeaders(),
-  });
+  const res = await authedFetch(`${API_BASE}/api/upload/${sessionId}/status`);
   return handleResponse<UploadStatusResponse>(res);
 }

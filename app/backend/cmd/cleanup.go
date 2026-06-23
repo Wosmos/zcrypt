@@ -255,24 +255,24 @@ func (s *Server) cleanupExpiredSendTransfers(ctx context.Context) bool {
 		log.Printf("cleanup: get expired send chunks: %v", err)
 	}
 
-	if len(expiredChunks) > 0 {
-		_, adapter, aErr := s.selectGlobalAdapter(ctx)
+	for _, chunk := range expiredChunks {
+		// Resolve per-chunk so each delete uses the account that actually stored it
+		// (a random global adapter could target a repo its token can't see).
+		adapter, aErr := s.resolveGlobalAdapter(ctx, chunk.Platform, chunk.Account)
 		if aErr != nil {
-			log.Printf("cleanup: no global adapter for send cleanup: %v", aErr)
-		} else {
-			for _, chunk := range expiredChunks {
-				ref := types.ChunkRef{
-					Platform:   chunk.Platform,
-					Account:    chunk.Account,
-					Repo:       chunk.Repo,
-					RemotePath: chunk.RemotePath,
-				}
-				if dErr := adapter.Delete(ctx, ref); dErr != nil {
-					log.Printf("cleanup: delete send chunk %s: %v", chunk.RemotePath, dErr)
-				}
-				time.Sleep(500 * time.Millisecond) // rate limit
-			}
+			log.Printf("cleanup: no global adapter for send chunk %s (%s:%s): %v", chunk.RemotePath, chunk.Platform, chunk.Account, aErr)
+			continue
 		}
+		ref := types.ChunkRef{
+			Platform:   chunk.Platform,
+			Account:    chunk.Account,
+			Repo:       chunk.Repo,
+			RemotePath: chunk.RemotePath,
+		}
+		if dErr := adapter.Delete(ctx, ref); dErr != nil {
+			log.Printf("cleanup: delete send chunk %s: %v", chunk.RemotePath, dErr)
+		}
+		time.Sleep(500 * time.Millisecond) // rate limit
 	}
 
 	cleaned, err := s.db.CleanupExpiredSendTransfers(ctx)

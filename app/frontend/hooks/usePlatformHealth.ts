@@ -1,34 +1,22 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
-import { getPlatformStatus, listRepos } from "@/lib/api";
-import { usePlatformStore } from "@/store/platform";
+import { useCallback, useEffect } from "react";
+import { usePlatformStore, fetchPlatformHealth } from "@/store/platform";
 
 export function usePlatformHealth() {
-  const { statuses, repos, loading, setStatuses, setRepos, setLoading } = usePlatformStore();
-
-  const refreshRef = useRef<() => Promise<void>>(null);
+  const { statuses, repos, loading } = usePlatformStore();
 
   const refresh = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [s, r] = await Promise.all([getPlatformStatus(), listRepos()]);
-      setStatuses(s);
-      setRepos(r);
-    } catch {
-      // silently fail — platform might not be connected yet
-    } finally {
-      setLoading(false);
-    }
-  }, [setStatuses, setRepos, setLoading]);
-
-  refreshRef.current = refresh;
+    await fetchPlatformHealth(true);
+  }, []);
 
   useEffect(() => {
-    refreshRef.current?.();
+    // Deduped: skips if AuthGuard (or a sibling page) already fetched recently,
+    // and coalesces with any in-flight fetch — one request on a fresh load.
+    fetchPlatformHealth();
 
     function onVisibilityChange() {
-      if (document.visibilityState === "visible") refreshRef.current?.();
+      if (document.visibilityState === "visible") fetchPlatformHealth(true);
     }
     document.addEventListener("visibilitychange", onVisibilityChange);
     return () => document.removeEventListener("visibilitychange", onVisibilityChange);

@@ -27,7 +27,7 @@ func (s *Server) audit(r *http.Request, userID *string, eventType string, metada
 		ID:        uuid.New().String(),
 		UserID:    userID,
 		EventType: eventType,
-		IP:        getClientIP(r),
+		IP:        s.clientIP(r),
 		UserAgent: r.UserAgent(),
 		Metadata:  metadata,
 		CreatedAt: time.Now(),
@@ -104,24 +104,10 @@ func writeJSON(w http.ResponseWriter, status int, v interface{}) {
 
 // --- Handlers ---
 
-// getClientIP extracts the real client IP from request headers or RemoteAddr.
-func getClientIP(r *http.Request) string {
-	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
-		if idx := strings.Index(forwarded, ","); idx != -1 {
-			return strings.TrimSpace(forwarded[:idx])
-		}
-		return strings.TrimSpace(forwarded)
-	}
-	if realIP := r.Header.Get("X-Real-IP"); realIP != "" {
-		return strings.TrimSpace(realIP)
-	}
-	return r.RemoteAddr
-}
-
 // HandleRegister creates a new user account.
 func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	// Auth-specific rate limiting: 5 attempts per 5 minutes per IP
-	if !s.devMode && !s.authLimiter.allow(getClientIP(r)) {
+	if !s.devMode && !s.authLimiter.allow(s.clientIP(r)) {
 		http.Error(w, `{"error":"too many attempts, please try again later"}`, http.StatusTooManyRequests)
 		return
 	}
@@ -235,7 +221,7 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 // HandleLogin authenticates a user with email and password.
 func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	// Auth-specific rate limiting: 5 attempts per 5 minutes per IP
-	clientIP := getClientIP(r)
+	clientIP := s.clientIP(r)
 	if !s.devMode && !s.authLimiter.allow(clientIP) {
 		http.Error(w, `{"error":"too many login attempts, please try again later"}`, http.StatusTooManyRequests)
 		return
@@ -334,7 +320,7 @@ func (s *Server) HandleRefreshToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Log IP mismatch (potential stolen token usage) but don't block — IPs change legitimately
-	clientIP := extractClientIP(r)
+	clientIP := s.clientIP(r)
 	if rt.IP != "" && rt.IP != clientIP {
 		log.Printf("security: refresh token IP mismatch for user %s: issued=%s current=%s", rt.UserID, rt.IP, clientIP)
 	}
@@ -495,6 +481,7 @@ func (s *Server) HandleResetPassword(w http.ResponseWriter, r *http.Request) {
 	s.db.UpdateUserPassword(ctx, et.UserID, passwordHash)
 	s.db.DeleteEmailToken(ctx, et.ID)
 	s.db.IncrementTokenVersion(ctx, et.UserID)     // invalidate all existing JWTs
+	s.tokenVersions.invalidate(et.UserID)          // drop cache so revocation is immediate
 	s.db.DeleteRefreshTokensByUser(ctx, et.UserID) // force re-login everywhere
 
 	s.audit(r, &et.UserID, "password_reset", nil)
@@ -670,7 +657,7 @@ func (s *Server) Handle2FAVerify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	claims, err := auth.ValidateAccessToken(s.cfg.JWTSecret, req.TempToken)
+	claims, err := auth.ValidateTempToken(s.cfg.JWTSecret, req.TempToken)
 	if err != nil {
 		http.Error(w, `{"error":"invalid or expired temp token"}`, http.StatusUnauthorized)
 		return
@@ -755,7 +742,7 @@ func (s *Server) HandleGetMe(w http.ResponseWriter, r *http.Request) {
 // HandleMagicLinkRequest sends a magic link login email.
 func (s *Server) HandleMagicLinkRequest(w http.ResponseWriter, r *http.Request) {
 	// Auth-specific rate limiting
-	if !s.devMode && !s.authLimiter.allow(getClientIP(r)) {
+	if !s.devMode && !s.authLimiter.allow(s.clientIP(r)) {
 		http.Error(w, `{"error":"too many attempts, please try again later"}`, http.StatusTooManyRequests)
 		return
 	}
@@ -888,7 +875,7 @@ func (s *Server) issueTokens(w http.ResponseWriter, r *http.Request, user *types
 		UserID:    user.ID,
 		TokenHash: auth.HashToken(refreshToken),
 		ExpiresAt: time.Now().Add(auth.RefreshTokenDuration),
-		IP:        extractClientIP(r),
+		IP:        s.clientIP(r),
 		UserAgent: r.UserAgent(),
 	})
 
@@ -920,7 +907,7 @@ func (s *Server) issueDecoyTokens(w http.ResponseWriter, r *http.Request, user *
 		UserID:    user.ID,
 		TokenHash: auth.HashToken(refreshToken),
 		ExpiresAt: time.Now().Add(auth.RefreshTokenDuration),
-		IP:        extractClientIP(r),
+		IP:        s.clientIP(r),
 		UserAgent: r.UserAgent(),
 	})
 

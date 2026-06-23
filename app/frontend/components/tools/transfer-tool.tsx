@@ -65,6 +65,7 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
 
   const handleStart = useCallback(async () => {
     if (!selectedFile) return;
+    if (wsRef.current && wsRef.current.readyState <= WebSocket.OPEN) return; // already connecting/open
     setState("waiting");
 
     const key = crypto.getRandomValues(new Uint8Array(32));
@@ -90,7 +91,14 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
       }
     };
 
-    ws.onerror = () => { setState("error"); setErrorMsg("Connection failed"); };
+    ws.onerror = () => {
+      // After a successful transfer the server tears down the room and closes the
+      // socket, which fires an error event. Don't overwrite a terminal state —
+      // that produced a bogus "Connection failed" after the transfer completed.
+      if (stateRef.current !== "done" && stateRef.current !== "error") {
+        setState("error"); setErrorMsg("Connection failed");
+      }
+    };
     ws.onclose = () => {
       if (stateRef.current !== "done" && stateRef.current !== "error") {
         setState("error"); setErrorMsg("Connection lost");
@@ -248,6 +256,7 @@ function TransferReceiveMode({ onBack }: { onBack: () => void }) {
   const wsRef = useRef<WebSocket | null>(null);
   const chunksRef = useRef<Uint8Array[]>([]);
   const keyRef = useRef<ArrayBuffer | null>(null);
+  const fileInfoRef = useRef<FileInfo | null>(null);
   const stateRef = useRef<RecvState>(state);
   stateRef.current = state;
 
@@ -260,6 +269,7 @@ function TransferReceiveMode({ onBack }: { onBack: () => void }) {
 
   const handleConnect = useCallback(() => {
     if (code.length !== 6) return;
+    if (wsRef.current && wsRef.current.readyState <= WebSocket.OPEN) return; // already connecting/open
     setState("connecting");
 
     const ws = new WebSocket(WS_URL);
@@ -273,7 +283,9 @@ function TransferReceiveMode({ onBack }: { onBack: () => void }) {
         case "paired": setState("paired"); break;
         case "file_info": {
           const info = msg.data;
-          setFileInfo({ name: info.name, size: info.size, type: info.type });
+          const fi = { name: info.name, size: info.size, type: info.type };
+          fileInfoRef.current = fi;
+          setFileInfo(fi);
           const { fromBase64 } = await import("@/lib/crypto");
           keyRef.current = fromBase64(info.key).buffer as ArrayBuffer;
           chunksRef.current = [];
@@ -296,11 +308,12 @@ function TransferReceiveMode({ onBack }: { onBack: () => void }) {
           const fullFile = new Uint8Array(totalSize);
           let offset = 0;
           for (const chunk of chunksRef.current) { fullFile.set(chunk, offset); offset += chunk.byteLength; }
-          const blob = new Blob([fullFile], { type: fileInfo?.type || "application/octet-stream" });
+          const fi = fileInfoRef.current;
+          const blob = new Blob([fullFile], { type: fi?.type || "application/octet-stream" });
           const url = URL.createObjectURL(blob);
           const a = document.createElement("a");
           a.href = url;
-          a.download = fileInfo?.name || "download";
+          a.download = fi?.name || "download";
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
@@ -314,13 +327,20 @@ function TransferReceiveMode({ onBack }: { onBack: () => void }) {
       }
     };
 
-    ws.onerror = () => { setState("error"); setErrorMsg("Connection failed"); };
+    ws.onerror = () => {
+      // After a successful transfer the server tears down the room and closes the
+      // socket, which fires an error event. Don't overwrite a terminal state —
+      // that produced a bogus "Connection failed" after the transfer completed.
+      if (stateRef.current !== "done" && stateRef.current !== "error") {
+        setState("error"); setErrorMsg("Connection failed");
+      }
+    };
     ws.onclose = () => {
       if (stateRef.current !== "done" && stateRef.current !== "error") {
         setState("error"); setErrorMsg("Connection lost");
       }
     };
-  }, [code, fileInfo]);
+  }, [code]);
 
   useEffect(() => { return () => { wsRef.current?.close(); }; }, []);
 

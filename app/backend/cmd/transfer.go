@@ -131,6 +131,12 @@ func (s *Server) HandleTransferWS(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.Close(websocket.StatusNormalClosure, "")
 
+	// Relayed chunk messages are ~88KB (64KB of data, base64-encoded) — well over
+	// the library's 32KB default read limit, which would otherwise abort the relay
+	// the moment it reads the first chunk. Raise it with headroom; this also caps
+	// per-message size to bound memory use.
+	conn.SetReadLimit(1 << 20) // 1 MB
+
 	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Minute)
 	defer cancel()
 
@@ -155,7 +161,7 @@ func (s *Server) HandleTransferWS(w http.ResponseWriter, r *http.Request) {
 			conn.Close(websocket.StatusInvalidFramePayloadData, "invalid code")
 			return
 		}
-		s.handleTransferReceiver(ctx, conn, code)
+		s.handleTransferReceiver(ctx, conn, code, s.clientIP(r))
 	default:
 		conn.Close(websocket.StatusInvalidFramePayloadData, "unknown type")
 	}
@@ -172,6 +178,7 @@ func (s *Server) handleTransferSender(ctx context.Context, conn *websocket.Conn)
 	room.mu.Lock()
 	room.sender = conn
 	room.mu.Unlock()
+	log.Printf("transfer: room created code=%s", room.code)
 
 	// Send code to sender
 	wsWriteJSON(conn, ctx, transferMessage{Type: "code", Data: jsonRaw(room.code)})
@@ -186,12 +193,15 @@ func (s *Server) handleTransferSender(ctx context.Context, conn *websocket.Conn)
 	}
 
 	// Notify sender that receiver connected
+	log.Printf("transfer: paired, relaying code=%s", room.code)
 	wsWriteJSON(conn, ctx, transferMessage{Type: "paired"})
 
 	// Relay messages from sender to receiver
+	relayed := 0
 	for {
 		_, msg, err := conn.Read(ctx)
 		if err != nil {
+			log.Printf("transfer: sender read ended code=%s relayed=%d: %v", room.code, relayed, err)
 			return
 		}
 
@@ -204,12 +214,15 @@ func (s *Server) handleTransferSender(ctx context.Context, conn *websocket.Conn)
 		}
 
 		if err := receiver.Write(ctx, websocket.MessageText, msg); err != nil {
+			log.Printf("transfer: relay write failed code=%s relayed=%d: %v", room.code, relayed, err)
 			return
 		}
+		relayed++
 
 		// Check if transfer is done
 		var m transferMessage
 		if json.Unmarshal(msg, &m) == nil && m.Type == "done" {
+			log.Printf("transfer: done code=%s relayed=%d", room.code, relayed)
 			// Grace period so receiver processes the done message before we tear down the room
 			time.Sleep(3 * time.Second)
 			return
@@ -217,10 +230,18 @@ func (s *Server) handleTransferSender(ctx context.Context, conn *websocket.Conn)
 	}
 }
 
-func (s *Server) handleTransferReceiver(ctx context.Context, conn *websocket.Conn, code string) {
+func (s *Server) handleTransferReceiver(ctx context.Context, conn *websocket.Conn, code, ip string) {
+	// Rate-limit join attempts per IP. Pairing codes are short and the WS route is
+	// exempt from the global limiter, so without this an attacker could brute-force
+	// the active-room code space within a room's 10-minute lifetime.
+	if !s.devMode && !s.transferJoinLimiter.allow(ip) {
+		wsWriteJSON(conn, ctx, transferMessage{Type: "error", Data: jsonRaw("too many attempts, try again later")})
+		return
+	}
 	room := s.transferHub.getRoom(code)
 	if room == nil {
-		wsWriteJSON(conn, ctx, transferMessage{Type: "error", Data: jsonRaw("invalid code")})
+		log.Printf("transfer: receiver join failed (no room) code=%s", code)
+		wsWriteJSON(conn, ctx, transferMessage{Type: "error", Data: jsonRaw("invalid or expired code")})
 		return
 	}
 
@@ -232,14 +253,32 @@ func (s *Server) handleTransferReceiver(ctx context.Context, conn *websocket.Con
 	}
 	room.receiver = conn
 	room.mu.Unlock()
+	log.Printf("transfer: receiver joined code=%s", code)
 
 	// Notify receiver that pairing succeeded
 	wsWriteJSON(conn, ctx, transferMessage{Type: "paired"})
 
-	// Wait for sender to complete or disconnect
+	// The receiver sends no application messages, but we MUST keep reading from
+	// the connection: the websocket library only processes control frames
+	// (ping/pong/close) while a read is in flight, so without this the closing
+	// handshake never completes — surfacing in the browser as "Close received
+	// after close" and a dropped connection. Draining also lets us notice when
+	// the receiver disconnects.
+	recvGone := make(chan struct{})
+	go func() {
+		defer close(recvGone)
+		for {
+			if _, _, err := conn.Read(ctx); err != nil {
+				return
+			}
+		}
+	}()
+
+	// Wait for the sender to finish, the room to tear down, or the receiver to drop.
 	select {
 	case <-ctx.Done():
 	case <-room.done:
+	case <-recvGone:
 	}
 }
 

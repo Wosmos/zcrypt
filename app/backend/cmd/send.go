@@ -24,6 +24,11 @@ import (
 // maxSendFileSize is the maximum file size for anonymous sends (50 MB).
 const maxSendFileSize = 50 * 1024 * 1024
 
+// maxSendEncryptedSize bounds the stored (encrypted, possibly compressed) bytes
+// for an anonymous send. Plaintext is capped at maxSendFileSize; GCM adds 28B per
+// chunk, so allow modest headroom over the plaintext cap.
+const maxSendEncryptedSize = maxSendFileSize + 4*1024*1024 // 50 MB + 4 MB overhead margin
+
 // HandleSendInit creates a new anonymous send transfer.
 // POST /api/send/init
 func (s *Server) HandleSendInit(w http.ResponseWriter, r *http.Request) {
@@ -50,6 +55,14 @@ func (s *Server) HandleSendInit(w http.ResponseWriter, r *http.Request) {
 	// Enforce size limit for anonymous sends
 	if req.OriginalSize > maxSendFileSize {
 		http.Error(w, `{"error":"file too large, maximum 50 MB for anonymous sends"}`, http.StatusBadRequest)
+		return
+	}
+
+	// Bound chunk count so a client can't declare a tiny original_size but a huge
+	// chunk_count to smuggle unbounded data past the size check above.
+	maxChunks := (maxSendEncryptedSize + maxChunkSize - 1) / maxChunkSize
+	if req.ChunkCount > maxChunks {
+		http.Error(w, `{"error":"too many chunks for maximum send size"}`, http.StatusBadRequest)
 		return
 	}
 
@@ -101,7 +114,7 @@ func (s *Server) HandleSendInit(w http.ResponseWriter, r *http.Request) {
 		Status:        "uploading",
 		BurnAfterRead: req.BurnAfterRead,
 		ExpiresAt:     time.Now().Add(time.Duration(expiresHours) * time.Hour),
-		SenderIP:      extractIP(r),
+		SenderIP:      s.clientIP(r),
 	}
 
 	if err := s.db.CreateSendTransfer(ctx, transfer); err != nil {
@@ -200,6 +213,19 @@ func (s *Server) HandleSendChunkUpload(w http.ResponseWriter, r *http.Request) {
 			"stored":      true,
 			"duplicate":   true,
 		})
+		return
+	}
+
+	// Enforce the cumulative encrypted-size cap. The 50 MB limit at init only
+	// checks the client-supplied original_size; sum the actually-stored chunks and
+	// reject once this chunk would push the transfer over the ceiling.
+	priorBytes, err := s.db.GetTotalSendChunkSize(ctx, transfer.ID)
+	if err != nil {
+		http.Error(w, `{"error":"failed to verify size"}`, http.StatusInternalServerError)
+		return
+	}
+	if priorBytes+int64(len(data)) > maxSendEncryptedSize {
+		http.Error(w, `{"error":"send exceeds maximum size"}`, http.StatusRequestEntityTooLarge)
 		return
 	}
 
@@ -318,8 +344,13 @@ func (s *Server) HandleSendComplete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get total encrypted size
+	// Get total encrypted size and reconcile against the hard cap (defends against
+	// any concurrency that slipped past the per-chunk check).
 	totalSize, _ := s.db.GetTotalSendChunkSize(ctx, transfer.ID)
+	if totalSize > maxSendEncryptedSize {
+		http.Error(w, `{"error":"send exceeds maximum size"}`, http.StatusRequestEntityTooLarge)
+		return
+	}
 
 	// Update transfer status
 	if err := s.db.UpdateSendTransferSize(ctx, transfer.ID, totalSize); err != nil {
@@ -441,10 +472,12 @@ func (s *Server) HandleGetSendChunk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get global adapter to download
-	_, adapter, err := s.selectGlobalAdapter(ctx)
+	// Resolve the adapter that actually stored this chunk (pinned to its
+	// platform:account). Picking a random global adapter here can land on a
+	// different account whose token can't see this private repo → intermittent 404.
+	adapter, err := s.resolveGlobalAdapter(ctx, chunk.Platform, chunk.Account)
 	if err != nil {
-		log.Printf("send: no global adapter for chunk download: %v", err)
+		log.Printf("send: no global adapter for chunk download (%s:%s): %v", chunk.Platform, chunk.Account, err)
 		http.Error(w, `{"error":"storage not available"}`, http.StatusInternalServerError)
 		return
 	}

@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth";
 import { getMe } from "@/lib/auth-api";
 import { refreshToken as refreshTokenApi } from "@/lib/auth-api";
-import { listFiles, getPlatformStatus } from "@/lib/api";
-import { useFileStore } from "@/store/files";
+import { prefetchFileList } from "@/store/files";
+import { usePlatformStore, fetchPlatformHealth } from "@/store/platform";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { isTauri, startSync } from "@/lib/tauri";
 
@@ -33,6 +33,21 @@ export function AuthGuard({
   useEffect(() => {
     if (initialized) return;
 
+    // Background onboarding check: fetch platform health once (shared/deduped with
+    // usePlatformHealth) and redirect to /onboarding only if nothing is connected.
+    // Never blocks initialization, so the dashboard renders immediately.
+    const runOnboardingCheck = () => {
+      if (skipOnboardingCheck) return;
+      fetchPlatformHealth().then((ok) => {
+        if (!ok) return; // couldn't determine — leave them on the dashboard
+        const { statuses } = usePlatformStore.getState();
+        if (!statuses.some((s) => s.connected)) {
+          setRedirecting(true);
+          router.replace("/onboarding");
+        }
+      });
+    };
+
     async function init() {
       if (!accessToken && !refreshTokenValue) {
         setInitialized(true);
@@ -40,66 +55,43 @@ export function AuthGuard({
         return;
       }
 
-      // Prefetch file list into store so dashboard loads instantly
-      const prefetchFiles = () => {
-        listFiles().then((data) => {
-          useFileStore.getState().setFiles(data);
-        }).catch(() => {});
-      };
-
-      // Check if user needs onboarding — returns true if redirect needed
-      const checkOnboarding = async (): Promise<boolean> => {
-        if (skipOnboardingCheck) return false;
-        try {
-          const statuses = await getPlatformStatus();
-          const hasConnected = statuses.some((s) => s.connected);
-          if (!hasConnected) {
-            setRedirecting(true);
-            router.replace("/onboarding");
-            return true;
-          }
-        } catch {
-          // If check fails, let them through
-        }
-        return false;
-      };
-
-      // If user was already set by login/register page, skip the getMe call
+      // Fast path: user already set by the login/register/2fa/oauth page. Show the
+      // dashboard immediately and verify onboarding in the background.
       const existingUser = useAuthStore.getState().user;
       if (existingUser && accessToken) {
-        const needsOnboarding = await checkOnboarding();
-        if (!needsOnboarding) prefetchFiles();
         setInitialized(true);
+        prefetchFileList();
+        runOnboardingCheck();
         return;
       }
 
-      // Try to fetch user with current access token
+      // Resolve a user from the current access token.
       if (accessToken) {
         try {
           const me = await getMe(accessToken);
           setUser(me);
-          const needsOnboarding = await checkOnboarding();
-          if (!needsOnboarding) prefetchFiles();
           setInitialized(true);
+          prefetchFileList();
+          runOnboardingCheck();
           return;
         } catch {
-          // Token might be expired, try refresh
+          // token might be expired — try refresh
         }
       }
 
-      // Try refresh
+      // Refresh path.
       if (refreshTokenValue) {
         try {
           const data = await refreshTokenApi(refreshTokenValue);
           setTokens(data.access_token, data.refresh_token);
           const me = await getMe(data.access_token);
           setUser(me);
-          const needsOnboarding = await checkOnboarding();
-          if (!needsOnboarding) prefetchFiles();
           setInitialized(true);
+          prefetchFileList();
+          runOnboardingCheck();
           return;
         } catch {
-          // Refresh failed
+          // refresh failed
         }
       }
 

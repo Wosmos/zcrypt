@@ -57,8 +57,11 @@ func (s *Server) HandleOAuthStart(w http.ResponseWriter, r *http.Request) {
 	state := hex.EncodeToString(stateBytes)
 	if r.URL.Query().Get("platform") == "desktop" {
 		session := r.URL.Query().Get("session")
-		if session == "" {
-			http.Error(w, `{"error":"missing session"}`, http.StatusBadRequest)
+		// Require a high-entropy hex session id (>=128-bit). A weak/guessable session
+		// could be polled by an attacker to steal the victim's tokens. The desktop
+		// client generates 16 random bytes (32 hex chars).
+		if d, err := hex.DecodeString(session); err != nil || len(d) < 16 {
+			http.Error(w, `{"error":"invalid session"}`, http.StatusBadRequest)
 			return
 		}
 		state = "desktop:" + session + ":" + state
@@ -183,6 +186,14 @@ func (s *Server) HandleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 	// 2. Check if a user with this email exists
 	existingUser, _ := s.db.GetUserByEmail(ctx, userInfo.Email)
 	if existingUser != nil {
+		// Only auto-link to an existing account whose email is verified. Otherwise an
+		// attacker controlling an OAuth account for an unverified local email could
+		// hijack it. Require logging in with the existing method, then link in Settings.
+		if !existingUser.EmailVerified {
+			s.audit(r, &existingUser.ID, "oauth_link_rejected", map[string]interface{}{"provider": provider, "email": userInfo.Email, "reason": "local_email_unverified"})
+			s.oauthError(w, r, "an account with this email already exists — log in with your existing method, then link "+provider+" in Settings", isDesktop, desktopSession)
+			return
+		}
 		// Auto-link OAuth to existing user
 		s.db.CreateOAuthProvider(ctx, &types.OAuthProvider{
 			ID:            uuid.New().String(),
@@ -393,7 +404,7 @@ func (s *Server) oauthRedirect(w http.ResponseWriter, r *http.Request, user *typ
 		UserID:    user.ID,
 		TokenHash: auth.HashToken(refreshToken),
 		ExpiresAt: time.Now().Add(auth.RefreshTokenDuration),
-		IP:        extractClientIP(r),
+		IP:        s.clientIP(r),
 		UserAgent: r.UserAgent(),
 	})
 
@@ -447,9 +458,13 @@ func (s *Server) oauthError(w http.ResponseWriter, r *http.Request, errMsg strin
 // HandleDesktopOAuthPoll returns stored OAuth tokens for a desktop session.
 // GET /api/auth/oauth/desktop-poll?session=<id>
 func (s *Server) HandleDesktopOAuthPoll(w http.ResponseWriter, r *http.Request) {
+	if !s.devMode && !s.desktopPollLimiter.allow(s.clientIP(r)) {
+		http.Error(w, `{"error":"too many requests"}`, http.StatusTooManyRequests)
+		return
+	}
 	session := r.URL.Query().Get("session")
-	if session == "" {
-		http.Error(w, `{"error":"missing session"}`, http.StatusBadRequest)
+	if d, err := hex.DecodeString(session); err != nil || len(d) < 16 {
+		http.Error(w, `{"error":"invalid session"}`, http.StatusBadRequest)
 		return
 	}
 

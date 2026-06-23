@@ -29,6 +29,17 @@ func (s *Server) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			http.Error(w, `{"error":"invalid or expired token"}`, http.StatusUnauthorized)
 			return
 		}
+		// Enforce token revocation: reject tokens whose version is behind the
+		// user's current token_version (bumped on password reset / role change).
+		curVer, err := s.tokenVersions.current(r.Context(), claims.Sub)
+		if err != nil {
+			internalError(w, "token version lookup", err)
+			return
+		}
+		if claims.TokenVersion != curVer {
+			http.Error(w, `{"error":"token revoked, please log in again"}`, http.StatusUnauthorized)
+			return
+		}
 		// Per-user rate limiting: 100 req/min
 		if !s.devMode && !s.userLimiter.allow(claims.Sub) {
 			http.Error(w, `{"error":"too many requests, please slow down"}`, http.StatusTooManyRequests)
@@ -54,7 +65,7 @@ func (s *Server) AdminMiddleware(next http.HandlerFunc) http.HandlerFunc {
 // ShareRateLimitMiddleware applies IP-based rate limiting to public share endpoints.
 func (s *Server) ShareRateLimitMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		ip := extractClientIP(r)
+		ip := s.clientIP(r)
 		if !s.devMode && !s.shareLimiter.allow(ip) {
 			w.Header().Set("Content-Type", "application/json")
 			w.Header().Set("Retry-After", "5")
@@ -64,20 +75,6 @@ func (s *Server) ShareRateLimitMiddleware(next http.HandlerFunc) http.HandlerFun
 		}
 		next.ServeHTTP(w, r)
 	}
-}
-
-// extractClientIP gets the client IP from proxy headers or RemoteAddr.
-func extractClientIP(r *http.Request) string {
-	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
-		if idx := strings.Index(forwarded, ","); idx != -1 {
-			return strings.TrimSpace(forwarded[:idx])
-		}
-		return strings.TrimSpace(forwarded)
-	}
-	if realIP := r.Header.Get("X-Real-IP"); realIP != "" {
-		return strings.TrimSpace(realIP)
-	}
-	return r.RemoteAddr
 }
 
 // internalError logs the real error and returns a generic message to the client.

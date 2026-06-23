@@ -3,9 +3,8 @@ import type { UploadItem, UploadStatus } from "@/types";
 import { toast } from "@/store/toast";
 import { WorkerPool } from "@/lib/worker-pool";
 import { generateSalt, deriveKeyBytes, generateCEK, wrapKey, sha256File, toBase64 } from "@/lib/crypto";
-import { initUpload, uploadChunk, completeUpload, presignChunk, directUploadToURL, confirmChunk, cancelUpload } from "@/lib/upload-session";
+import { initUpload, uploadChunk, completeUpload, presignChunk, directUploadToURL, confirmChunk, cancelUpload, getUploadStatus } from "@/lib/upload-session";
 import { getDeviceProfile } from "@/lib/device-profile";
-import { isTauri, localUpload, tauriInvoke } from "@/lib/tauri";
 
 // --- Debounced refresh to avoid hammering the API ---
 let refreshTimer: ReturnType<typeof setTimeout> | null = null;
@@ -53,7 +52,7 @@ function startBackgroundNotifications(getBatchState: () => { done: number; faile
     // Progress bar made of block characters
     const barLen = 20;
     const filled = Math.round((percent / 100) * barLen);
-    const bar = "\u2593".repeat(filled) + "\u2591".repeat(barLen - filled);
+    const bar = "▓".repeat(filled) + "░".repeat(barLen - filled);
 
     new Notification(`Uploading ${done}/${total} files`, {
       body: `${bar} ${percent}%`,
@@ -112,11 +111,306 @@ interface UploadStore {
   removeFromQueue: (id: string) => void;
   clearCompleted: () => void;
   findByFileId: (fileId: string) => UploadItem | undefined;
-  startUpload: (files: File[], passphrase: string, platform?: string, maxConcurrent?: number, onRefresh?: () => void) => void;
+  startUpload: (files: File[], passphrase: string, platform?: string, maxConcurrent?: number, onRefresh?: () => void, hfConnected?: boolean) => void;
+  retryUpload: (id: string, passphrase: string) => void;
   startDesktopUpload: (passphrase: string, onRefresh?: () => void) => void;
 }
 
 let counter = 0;
+
+// Resume context for an in-flight upload. Holds the raw CEK so a retry re-encrypts
+// remaining chunks with the SAME key as the chunks already uploaded — a fresh key
+// would corrupt the file. Lives only in memory for the page session.
+interface ResumeCtx {
+  sessionId: string;
+  fileId: string;
+  cekBytes: ArrayBuffer;
+  chunkCount: number;
+  directUpload: boolean;
+  shouldCompress: boolean;
+}
+
+// Per-item upload metadata kept out of the typed queue state: target platform,
+// the file-list refresh hook, and (once a session exists) a resume context so a
+// failed item can continue instead of restarting from zero.
+const itemMeta = new Map<string, { platform?: string; onRefresh?: () => void; resume?: ResumeCtx; routedToHF?: boolean }>();
+
+// Files at/above this size prefer HuggingFace when connected: only HF supports
+// direct (presigned) upload that bypasses the Railway relay. GitHub/GitLab/Telegram
+// relay every byte through a memory-bound free-tier backend.
+const LARGE_FILE_THRESHOLD = 2 * 1024 * 1024 * 1024; // 2 GB
+
+// Resolve the platform a file should upload to, applying the large-file -> HF nudge.
+// Only overrides when the user left the picker on "Auto" (platform undefined); a
+// manual pick always wins.
+function resolveUploadPlatform(
+  fileSize: number,
+  chosenPlatform: string | undefined,
+  hfConnected: boolean
+): { platform: string | undefined; routedToHF: boolean } {
+  if (!chosenPlatform && hfConnected && fileSize >= LARGE_FILE_THRESHOLD) {
+    return { platform: "huggingface", routedToHF: true };
+  }
+  return { platform: chosenPlatform, routedToHF: false };
+}
+
+// File extensions that are already compressed — skip zstd to save CPU.
+const COMPRESSED_EXTENSIONS = new Set([
+  "jpg", "jpeg", "png", "gif", "webp", "avif", "heic", "heif",
+  "mp4", "mkv", "avi", "mov", "webm", "flv", "m4v",
+  "mp3", "aac", "ogg", "flac", "opus", "wma", "m4a",
+  "zip", "rar", "7z", "gz", "bz2", "xz", "zst", "lz4", "br", "tar.gz",
+  "pdf", "docx", "xlsx", "pptx", "woff", "woff2",
+]);
+
+// Retry wrapper for rate-limited API calls.
+async function withRetry<T>(fn: () => Promise<T>, maxRetries = 5): Promise<T> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const isRateLimit = msg.includes("too many requests") || msg.includes("slow down");
+      if (isRateLimit && attempt < maxRetries) {
+        await new Promise((r) => setTimeout(r, 1000 * (attempt + 1) + Math.random() * 1000));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new Error("Max retries exceeded");
+}
+
+interface UploadFileOpts {
+  passphrase: string;
+  platform?: string;
+  profile: ReturnType<typeof getDeviceProfile>;
+  onRefresh?: () => void;
+}
+
+// Runs one file through the client-side crypto + upload pipeline.
+//
+// If itemMeta[id] already holds a resume context (set on the first attempt once
+// the session was created), it reuses that session + CEK and skips chunks the
+// server already has — so a retry continues instead of restarting. Used by both
+// startUpload and retryUpload.
+async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Promise<void> {
+  const { passphrase, platform, profile, onRefresh } = opts;
+  const { updateStatus, setFileId, setError } = useUploadStore.getState();
+  const chunkSize = profile.chunkSize;
+  const pool = new WorkerPool();
+
+  let resume = itemMeta.get(id)?.resume;
+
+  try {
+    let sessionId: string;
+    let cekBytes: ArrayBuffer;
+    let chunkCount: number;
+    let useDirectUpload: boolean;
+    let shouldCompress: boolean;
+    let done: Set<number>;
+
+    if (resume) {
+      // RESUME: reuse the existing session + CEK; skip chunks already uploaded.
+      sessionId = resume.sessionId;
+      cekBytes = resume.cekBytes;
+      chunkCount = resume.chunkCount;
+      useDirectUpload = resume.directUpload;
+      shouldCompress = resume.shouldCompress;
+      setFileId(id, resume.fileId);
+      updateStatus(id, "uploading", 3, "Resuming…", 0, file.size);
+      try {
+        const status = await getUploadStatus(sessionId);
+        done = new Set(status.uploaded_chunks);
+      } catch {
+        done = new Set(); // status unavailable — re-send all (chunks are idempotent by SHA)
+      }
+    } else {
+      // FRESH: hash, derive keys, create the session.
+      //
+      // Envelope encryption: chunks are encrypted with a random CEK; the CEK is
+      // wrapped with the passphrase-derived KEK and stored alongside the file, so
+      // a file can be shared (by re-wrapping its CEK) without revealing the passphrase.
+      const routedToHF = itemMeta.get(id)?.routedToHF;
+      updateStatus(id, "encrypting", 1, routedToHF ? "Hashing — large file, using HuggingFace direct" : "Hashing file...", 0, file.size);
+      const fileSha256 = await sha256File(file);
+
+      updateStatus(id, "encrypting", 2, "Deriving encryption key...");
+      const salt = generateSalt();
+      const kekBytes = await deriveKeyBytes(passphrase, salt);
+      const cek = generateCEK();
+      const wrappedCek = await wrapKey(kekBytes, cek);
+      cekBytes = cek.buffer.slice(0) as ArrayBuffer;
+
+      chunkCount = Math.max(1, Math.ceil(file.size / chunkSize));
+      const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+      shouldCompress = !COMPRESSED_EXTENSIONS.has(ext);
+
+      updateStatus(id, "encrypting", 3, "Starting upload session...");
+      let session: Awaited<ReturnType<typeof initUpload>> | null = null;
+      for (let attempt = 0; attempt < 60; attempt++) {
+        try {
+          session = await initUpload({
+            filename: file.name,
+            original_size: file.size,
+            sha256: fileSha256,
+            salt: toBase64(salt),
+            wrapped_cek: toBase64(wrappedCek),
+            chunk_count: chunkCount,
+            platform,
+          });
+          break;
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          const isRetryable = msg.includes("too many concurrent") || msg.includes("too many requests") || msg.includes("slow down");
+          if (isRetryable && attempt < 59) {
+            updateStatus(id, "queued", 0, `Waiting for slot (${attempt + 1})...`);
+            await new Promise((r) => setTimeout(r, 2000 + Math.random() * 3000));
+            continue;
+          }
+          throw err;
+        }
+      }
+      if (!session) throw new Error("Failed to start upload session");
+      sessionId = session.session_id;
+      useDirectUpload = session.direct_upload;
+      setFileId(id, session.file_id);
+
+      // Persist the resume context NOW so a mid-upload failure can continue.
+      resume = { sessionId, fileId: session.file_id, cekBytes, chunkCount, directUpload: useDirectUpload, shouldCompress };
+      itemMeta.set(id, { ...itemMeta.get(id), resume });
+
+      done = new Set();
+    }
+
+    // Chunk pipeline — TWO-STAGE BACKPRESSURE:
+    //   RELAY:  [worker] -> [upload to server] -> [server relays to platform]
+    //   DIRECT: [worker] -> [presign] -> [upload directly to platform] -> [confirm]
+    // Direct (HuggingFace LFS) sends data once; relay (GitHub/GitLab/Telegram) twice.
+    let uploadedChunks = done.size;
+    let totalEncryptedSize = 0;
+    let totalCompressedSize = 0;
+
+    // Pipeline depth: let workers pre-process several chunks ahead of uploads.
+    const pipelineDepth = Math.min(profile.workers * 3, 12);
+    let pipelineSlots = 0;
+    const pipelineWaiters: (() => void)[] = [];
+    const acquirePipelineSlot = (): Promise<void> => {
+      if (pipelineSlots < pipelineDepth) { pipelineSlots++; return Promise.resolve(); }
+      return new Promise<void>((resolve) => pipelineWaiters.push(resolve));
+    };
+    const releasePipelineSlot = () => {
+      pipelineSlots--;
+      const next = pipelineWaiters.shift();
+      if (next) { pipelineSlots++; next(); }
+    };
+
+    // Upload concurrency: limit simultaneous network uploads.
+    const maxUploads = useDirectUpload ? 6 : 5;
+    let activeUploads = 0;
+    const uploadWaiters: (() => void)[] = [];
+    const acquireUploadSlot = (): Promise<void> => {
+      if (activeUploads < maxUploads) { activeUploads++; return Promise.resolve(); }
+      return new Promise<void>((resolve) => uploadWaiters.push(resolve));
+    };
+    const releaseUploadSlot = () => {
+      activeUploads--;
+      const next = uploadWaiters.shift();
+      if (next) { activeUploads++; next(); }
+    };
+
+    const chunkPromises: Promise<void>[] = [];
+    let firstError: Error | null = null;
+
+    for (let i = 0; i < chunkCount; i++) {
+      if (firstError) break;
+      if (done.has(i)) continue; // resume: server already has this chunk
+
+      // Backpressure: don't read ahead more than pipelineDepth chunks
+      await acquirePipelineSlot();
+
+      const start = i * chunkSize;
+      const end = Math.min(start + chunkSize, file.size);
+      const chunkData = await file.slice(start, end).arrayBuffer();
+
+      // Send to worker for compress -> encrypt -> hash
+      const chunkPromise = pool.process({
+        chunkIndex: i,
+        plaintext: chunkData, // transferred to worker (zero-copy)
+        keyBytes: cekBytes.slice(0), // CEK — copy since buffer gets neutered on transfer
+        compress: shouldCompress,
+        compressionLevel: profile.compressionLevel,
+      }).then(async (result) => {
+        // Wait for upload slot (limits concurrent network requests)
+        await acquireUploadSlot();
+
+        try {
+          const encrypted = new Uint8Array(result.encrypted);
+
+          if (useDirectUpload) {
+            // DIRECT MODE: presign -> upload to platform -> confirm
+            const presign = await withRetry(() => presignChunk(
+              sessionId, result.chunkIndex, result.sha256, encrypted.byteLength
+            ));
+            if (!presign.already_exists) {
+              await directUploadToURL(presign.upload_url, presign.upload_headers, encrypted);
+            }
+            await withRetry(() => confirmChunk(
+              sessionId, result.chunkIndex, result.sha256, encrypted.byteLength, presign.remote_path, result.compressed
+            ));
+          } else {
+            // RELAY MODE: upload to server (server relays to platform)
+            await withRetry(() => uploadChunk(
+              sessionId, result.chunkIndex, encrypted, result.sha256, result.compressed
+            ));
+          }
+
+          uploadedChunks++;
+          totalEncryptedSize += result.encryptedSize;
+          totalCompressedSize += result.compressed ? result.compressedSize : result.originalSize;
+
+          const percent = 3 + Math.round((uploadedChunks / chunkCount) * 92);
+          updateStatus(
+            id,
+            "uploading",
+            percent,
+            `Uploading chunk ${uploadedChunks}/${chunkCount}`,
+            uploadedChunks * chunkSize,
+            file.size
+          );
+        } finally {
+          releaseUploadSlot();
+        }
+      }).finally(releasePipelineSlot).catch((err) => {
+        if (!firstError) firstError = err instanceof Error ? err : new Error(String(err));
+      });
+
+      chunkPromises.push(chunkPromise);
+    }
+
+    await Promise.all(chunkPromises);
+    if (firstError) throw firstError;
+
+    // Finalize
+    updateStatus(id, "uploading", 97, "Finalizing...");
+    await withRetry(() => completeUpload(sessionId, totalEncryptedSize, totalCompressedSize));
+
+    updateStatus(id, "done", 100, "Done");
+    itemMeta.set(id, { ...itemMeta.get(id), resume: undefined }); // complete — nothing to resume
+    debouncedRefresh(onRefresh);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Upload failed";
+    const friendlyMsg = msg.includes("storage not available")
+      ? "No storage platform connected. Go to Settings to connect one."
+      : msg;
+    setError(id, friendlyMsg);
+    // Deliberately do NOT cancel the session here — keeping it lets the user
+    // resume via Retry (skipping chunks already uploaded). The session is
+    // cancelled only when the user dismisses the item (removeFromQueue).
+  } finally {
+    pool.terminate();
+  }
+}
 
 export const useUploadStore = create<UploadStore>((set, get) => ({
   queue: [],
@@ -189,6 +483,14 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
   },
 
   removeFromQueue: (id) => {
+    // If the item has a live session (failed mid-upload), cancel it server-side
+    // so it stops holding a concurrent-upload slot. This is the "give up" path —
+    // distinct from Retry, which keeps the session to resume.
+    const meta = itemMeta.get(id);
+    if (meta?.resume?.sessionId) {
+      cancelUpload(meta.resume.sessionId).catch(() => {});
+    }
+    itemMeta.delete(id);
     set((state) => ({
       queue: state.queue.filter((item) => item.id !== id),
     }));
@@ -204,296 +506,31 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
     return get().queue.find((item) => item.fileId === fileId);
   },
 
-  startUpload: (files, passphrase, platform, maxConcurrent, onRefresh) => {
-    const { addBatchToQueue, updateStatus, setFileId, setError } = get();
+  startUpload: (files, passphrase, platform, maxConcurrent, onRefresh, hfConnected = false) => {
+    const { addBatchToQueue } = get();
     const profile = getDeviceProfile();
-    const chunkSize = profile.chunkSize;
     const effectiveConcurrent = maxConcurrent ?? profile.maxConcurrentUploads;
 
     // Add all files to queue in a single state update (prevents 10k re-renders)
     const items = addBatchToQueue(files);
-
-    // File extensions that are already compressed — skip zstd to save CPU
-    const COMPRESSED_EXTENSIONS = new Set([
-      "jpg", "jpeg", "png", "gif", "webp", "avif", "heic", "heif",
-      "mp4", "mkv", "avi", "mov", "webm", "flv", "m4v",
-      "mp3", "aac", "ogg", "flac", "opus", "wma", "m4a",
-      "zip", "rar", "7z", "gz", "bz2", "xz", "zst", "lz4", "br", "tar.gz",
-      "pdf", "docx", "xlsx", "pptx", "woff", "woff2",
-    ]);
-
-    // Retry wrapper for rate-limited API calls
-    const withRetry = async <T,>(fn: () => Promise<T>, maxRetries = 5): Promise<T> => {
-      for (let attempt = 0; attempt <= maxRetries; attempt++) {
-        try {
-          return await fn();
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
-          const isRateLimit = msg.includes("too many requests") || msg.includes("slow down");
-          if (isRateLimit && attempt < maxRetries) {
-            await new Promise((r) => setTimeout(r, 1000 * (attempt + 1) + Math.random() * 1000));
-            continue;
-          }
-          throw err;
-        }
-      }
-      throw new Error("Max retries exceeded");
-    };
-
-    // Process a single file through the client-side crypto pipeline
-    const processOne = async (file: File, id: string) => {
-      // Desktop: handled by startDesktopUpload() — should not reach here.
-      // If it does, fall through to the web pipeline as a safe fallback.
-
-      const pool = new WorkerPool();
-      let sessionId: string | null = null;
-
-      try {
-        // Step 1: Hash original file
-        updateStatus(id, "encrypting", 1, "Hashing file...", 0, file.size);
-        const fileSha256 = await sha256File(file);
-
-        // Step 2: Generate salt, derive KEK, and create a per-file CEK.
-        // Envelope encryption: chunks are encrypted with a random CEK; the CEK
-        // is wrapped with the passphrase-derived KEK and stored alongside the
-        // file. This decouples file content from the passphrase so a file can be
-        // shared (by wrapping its CEK with a share key) without revealing it.
-        updateStatus(id, "encrypting", 2, "Deriving encryption key...");
-        const salt = generateSalt();
-        const kekBytes = await deriveKeyBytes(passphrase, salt);
-        const cek = generateCEK();
-        const wrappedCek = await wrapKey(kekBytes, cek);
-        // The CEK is what actually encrypts chunk data.
-        const cekBytes = cek.buffer.slice(0) as ArrayBuffer;
-
-        // Step 3: Calculate chunks (device-aware chunk size)
-        const chunkCount = Math.max(1, Math.ceil(file.size / chunkSize));
-
-        // Skip compression for already-compressed file formats
-        const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
-        const shouldCompress = !COMPRESSED_EXTENSIONS.has(ext);
-
-        // Step 4: Init upload session on server (with retry for 429 "too many concurrent")
-        updateStatus(id, "encrypting", 3, "Starting upload session...");
-        let session: Awaited<ReturnType<typeof initUpload>> | null = null;
-        for (let attempt = 0; attempt < 60; attempt++) {
-          try {
-            session = await initUpload({
-              filename: file.name,
-              original_size: file.size,
-              sha256: fileSha256,
-              salt: toBase64(salt),
-              wrapped_cek: toBase64(wrappedCek),
-              chunk_count: chunkCount,
-              platform,
-            });
-            break;
-          } catch (err) {
-            const msg = err instanceof Error ? err.message : String(err);
-            const isRetryable = msg.includes("too many concurrent") || msg.includes("too many requests") || msg.includes("slow down");
-            if (isRetryable && attempt < 59) {
-              updateStatus(id, "queued", 0, `Waiting for slot (${attempt + 1})...`);
-              await new Promise((r) => setTimeout(r, 2000 + Math.random() * 3000));
-              continue;
-            }
-            throw err;
-          }
-        }
-        if (!session) throw new Error("Failed to start upload session");
-        sessionId = session.session_id;
-        setFileId(id, session.file_id);
-
-        const useDirectUpload = session.direct_upload;
-
-        // Step 5: Process and upload chunks with TWO-STAGE BACKPRESSURE
-        //
-        // Two modes:
-        //   RELAY:  [worker] → [upload to server] → [server relays to platform]
-        //   DIRECT: [worker] → [presign] → [upload directly to platform] → [confirm]
-        //
-        // Direct mode eliminates the double-hop — data travels once instead of twice.
-        // Used for HuggingFace (presigned LFS URLs). GitHub still uses relay.
-        let uploadedChunks = 0;
-        let totalEncryptedSize = 0;
-        let totalCompressedSize = 0;
-
-        // Pipeline depth: allow workers to pre-process several chunks ahead of uploads.
-        const pipelineDepth = Math.min(profile.workers * 3, 12);
-        let pipelineSlots = 0;
-        const pipelineWaiters: (() => void)[] = [];
-
-        const acquirePipelineSlot = (): Promise<void> => {
-          if (pipelineSlots < pipelineDepth) {
-            pipelineSlots++;
-            return Promise.resolve();
-          }
-          return new Promise<void>((resolve) => pipelineWaiters.push(resolve));
-        };
-
-        const releasePipelineSlot = () => {
-          pipelineSlots--;
-          const next = pipelineWaiters.shift();
-          if (next) {
-            pipelineSlots++;
-            next();
-          }
-        };
-
-        // Upload concurrency: limit simultaneous network uploads.
-        // Direct mode can use more slots since data doesn't pass through server.
-        const maxUploads = useDirectUpload ? 6 : 5;
-        let activeUploads = 0;
-        const uploadWaiters: (() => void)[] = [];
-
-        const acquireUploadSlot = (): Promise<void> => {
-          if (activeUploads < maxUploads) {
-            activeUploads++;
-            return Promise.resolve();
-          }
-          return new Promise<void>((resolve) => uploadWaiters.push(resolve));
-        };
-
-        const releaseUploadSlot = () => {
-          activeUploads--;
-          const next = uploadWaiters.shift();
-          if (next) {
-            activeUploads++;
-            next();
-          }
-        };
-
-        const chunkPromises: Promise<void>[] = [];
-        let firstError: Error | null = null;
-
-        for (let i = 0; i < chunkCount; i++) {
-          if (firstError) break;
-
-          // Backpressure: don't read ahead more than pipelineDepth chunks
-          await acquirePipelineSlot();
-
-          const start = i * chunkSize;
-          const end = Math.min(start + chunkSize, file.size);
-          const chunkSlice = file.slice(start, end);
-          const chunkData = await chunkSlice.arrayBuffer();
-
-          // Send to worker for compress -> encrypt -> hash
-          const chunkPromise = pool.process({
-            chunkIndex: i,
-            plaintext: chunkData, // transferred to worker (zero-copy)
-            keyBytes: cekBytes.slice(0), // CEK — copy since buffer gets neutered on transfer
-            compress: shouldCompress,
-            compressionLevel: profile.compressionLevel,
-          }).then(async (result) => {
-            // Wait for upload slot (limits concurrent network requests)
-            await acquireUploadSlot();
-
-            try {
-              const encrypted = new Uint8Array(result.encrypted);
-
-              if (useDirectUpload) {
-                // DIRECT MODE: presign → upload to platform → confirm
-                const presign = await withRetry(() => presignChunk(
-                  session!.session_id,
-                  result.chunkIndex,
-                  result.sha256,
-                  encrypted.byteLength
-                ));
-
-                if (!presign.already_exists) {
-                  await directUploadToURL(
-                    presign.upload_url,
-                    presign.upload_headers,
-                    encrypted
-                  );
-                }
-
-                await withRetry(() => confirmChunk(
-                  session!.session_id,
-                  result.chunkIndex,
-                  result.sha256,
-                  encrypted.byteLength,
-                  presign.remote_path,
-                  result.compressed
-                ));
-              } else {
-                // RELAY MODE: upload to server (server relays to platform)
-                await withRetry(() => uploadChunk(
-                  session!.session_id,
-                  result.chunkIndex,
-                  encrypted,
-                  result.sha256,
-                  result.compressed
-                ));
-              }
-
-              uploadedChunks++;
-              totalEncryptedSize += result.encryptedSize;
-              totalCompressedSize += result.compressed ? result.compressedSize : result.originalSize;
-
-              const percent = 3 + Math.round((uploadedChunks / chunkCount) * 92);
-              updateStatus(
-                id,
-                "uploading",
-                percent,
-                `Uploading chunk ${uploadedChunks}/${chunkCount}`,
-                uploadedChunks * chunkSize,
-                file.size
-              );
-            } finally {
-              releaseUploadSlot();
-            }
-          }).finally(releasePipelineSlot).catch((err) => {
-            if (!firstError) firstError = err instanceof Error ? err : new Error(String(err));
-          });
-
-          chunkPromises.push(chunkPromise);
-        }
-
-        await Promise.all(chunkPromises);
-        if (firstError) throw firstError;
-
-        // Step 6: Complete upload
-        updateStatus(id, "uploading", 97, "Finalizing...");
-        await withRetry(() => completeUpload(session!.session_id, totalEncryptedSize, totalCompressedSize));
-
-        updateStatus(id, "done", 100, "Done");
-        // No per-file toast — batch summary shown when all finish
-        debouncedRefresh(onRefresh);
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : "Upload failed";
-        // Translate backend errors to user-friendly messages
-        const friendlyMsg = msg.includes("storage not available")
-          ? "No storage platform connected. Go to Settings to connect one."
-          : msg;
-        setError(id, friendlyMsg);
-        // Cancel the server-side session to free the concurrent slot
-        if (sessionId) {
-          cancelUpload(sessionId).catch(() => {});
-        }
-      } finally {
-        pool.terminate();
-      }
-    };
+    // Resolve target per file (large files prefer HuggingFace) and remember it so
+    // a retry reuses the same target.
+    for (const it of items) {
+      const { platform: target, routedToHF } = resolveUploadPlatform(it.file.size, platform, hfConnected);
+      itemMeta.set(it.id, { platform: target, onRefresh, routedToHF });
+    }
 
     // Semaphore-based concurrency limiter
     let running = 0;
     const waiting: (() => void)[] = [];
-
     const acquire = async () => {
-      if (running < effectiveConcurrent) {
-        running++;
-        return;
-      }
+      if (running < effectiveConcurrent) { running++; return; }
       await new Promise<void>((resolve) => waiting.push(resolve));
     };
-
     const release = () => {
       running--;
       const next = waiting.shift();
-      if (next) {
-        running++;
-        next();
-      }
+      if (next) { running++; next(); }
     };
 
     // Start background push notifications for when user switches away
@@ -514,7 +551,8 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
       items.map(async ({ file, id }) => {
         await acquire();
         try {
-          await processOne(file, id);
+          const target = itemMeta.get(id)?.platform; // per-file (may be huggingface)
+          await uploadOneFile(file, id, { passphrase, platform: target, profile, onRefresh });
         } finally {
           release();
         }
@@ -540,6 +578,25 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
       }
 
       onRefresh?.();
+    });
+  },
+
+  retryUpload: (id, passphrase) => {
+    const item = get().queue.find((i) => i.id === id);
+    if (!item) return;
+    const meta = itemMeta.get(id);
+    // Reset the existing item in place (keeps its id, so its resume context in
+    // itemMeta still applies and the upload continues from where it failed).
+    set((state) => ({
+      queue: state.queue.map((i) =>
+        i.id === id ? { ...i, status: "queued" as const, error: undefined, progress: 0, stage: "Retrying..." } : i
+      ),
+    }));
+    void uploadOneFile(item.file, id, {
+      passphrase,
+      platform: meta?.platform,
+      profile: getDeviceProfile(),
+      onRefresh: meta?.onRefresh,
     });
   },
 

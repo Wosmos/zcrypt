@@ -195,9 +195,11 @@ export default function VaultPage() {
       }
       // 0 (or unset) means "unlimited" — defer to the device-profile default concurrency.
       const maxConcurrent = quotaInfo?.max_concurrent_uploads || undefined;
-      storeStartUpload(uploadFiles, passphrase, selectedPlatform ?? undefined, maxConcurrent, refresh);
+      // Large files prefer HuggingFace (direct upload, bypasses the relay) when connected.
+      const hfConnected = statuses.some((s) => s.platform === "huggingface" && s.connected);
+      storeStartUpload(uploadFiles, passphrase, selectedPlatform ?? undefined, maxConcurrent, refresh, hfConnected);
     },
-    [selectedPlatform, storeStartUpload, startDesktopUpload, refresh, quotaInfo]
+    [selectedPlatform, storeStartUpload, startDesktopUpload, refresh, quotaInfo, statuses]
   );
 
   // --- Download flow ---
@@ -605,9 +607,11 @@ export default function VaultPage() {
           hint={
             quotaInfo && !quotaInfo.can_upload
               ? "Storage not available yet"
-              : hasCachedPassphrase
-                ? "Passphrase cached — drop files to upload instantly"
-                : undefined
+              : statuses.some((s) => s.connected) && !statuses.some((s) => s.platform === "huggingface" && s.connected)
+                ? "Tip: connect Hugging Face for faster large-file (2GB+) uploads"
+                : hasCachedPassphrase
+                  ? "Passphrase cached — drop files to upload instantly"
+                  : undefined
           }
         />
         <PlatformSelector
