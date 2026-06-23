@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 )
@@ -47,22 +46,10 @@ func (rl *rateLimiter) allow(key string) bool {
 	return true
 }
 
-// extractIP extracts the client IP from a request, respecting proxy headers.
-func extractIP(r *http.Request) string {
-	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
-		if idx := strings.Index(forwarded, ","); idx != -1 {
-			return strings.TrimSpace(forwarded[:idx])
-		}
-		return strings.TrimSpace(forwarded)
-	}
-	if realIP := r.Header.Get("X-Real-IP"); realIP != "" {
-		return strings.TrimSpace(realIP)
-	}
-	return r.RemoteAddr
-}
-
-// RateLimitMiddleware limits requests per IP to the given rate.
-func RateLimitMiddleware(limit int, window time.Duration, next http.Handler) http.Handler {
+// RateLimitMiddleware limits requests per client IP to the given rate. trustedHops
+// is the number of trusted reverse-proxy hops used to resolve the real client IP
+// (see clientIP), so the limit cannot be bypassed by spoofing X-Forwarded-For.
+func RateLimitMiddleware(limit int, window time.Duration, trustedHops int, next http.Handler) http.Handler {
 	rl := newRateLimiter(limit, window)
 
 	// Cleanup stale entries every minute
@@ -90,20 +77,7 @@ func RateLimitMiddleware(limit int, window time.Duration, next http.Handler) htt
 	}()
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Use X-Forwarded-For when behind a reverse proxy, fall back to RemoteAddr
-		ip := r.RemoteAddr
-		if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
-			// Take the first (client) IP from the chain
-			if idx := strings.Index(forwarded, ","); idx != -1 {
-				ip = strings.TrimSpace(forwarded[:idx])
-			} else {
-				ip = strings.TrimSpace(forwarded)
-			}
-		} else if realIP := r.Header.Get("X-Real-IP"); realIP != "" {
-			ip = strings.TrimSpace(realIP)
-		}
-
-		if !rl.allow(ip) {
+		if !rl.allow(clientIP(r, trustedHops)) {
 			w.Header().Set("Content-Type", "application/json")
 			w.Header().Set("Retry-After", "1")
 			w.WriteHeader(http.StatusTooManyRequests)

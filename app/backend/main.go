@@ -126,7 +126,7 @@ func main() {
 		log.Println("⚠️  DEV_MODE=true — rate limiting disabled")
 		rateLimited = mux
 	} else {
-		rateLimited = cmd.RateLimitMiddleware(200, time.Second, mux)
+		rateLimited = cmd.RateLimitMiddleware(200, time.Second, cfg.TrustedProxyCount, mux)
 	}
 	handler := requestLogger(corsMiddleware(exemptLongLived(rateLimited, mux)))
 

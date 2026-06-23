@@ -14,9 +14,9 @@ import (
 )
 
 const (
-	maxPadPlaintext  = 1 << 20       // 1 MB
-	maxPadBlob       = maxPadPlaintext + 28 + 1024 // 1 MB + IV + tag + base64 overhead margin
-	padGCMOverhead   = 12 + 16       // 12B IV + 16B tag
+	maxPadPlaintext = 1 << 20                     // 1 MB
+	maxPadBlob      = maxPadPlaintext + 28 + 1024 // 1 MB + IV + tag + base64 overhead margin
+	padGCMOverhead  = 12 + 16                     // 12B IV + 16B tag
 )
 
 var validPadExpiry = map[int]bool{1: true, 24: true, 168: true}
@@ -65,7 +65,7 @@ func (s *Server) HandleCreatePad(w http.ResponseWriter, r *http.Request) {
 		ContentSize:   req.ContentSize,
 		BurnAfterRead: req.BurnAfterRead,
 		ExpiresAt:     time.Now().Add(time.Duration(req.ExpiresHours) * time.Hour),
-		CreatorIP:     extractIP(r),
+		CreatorIP:     s.clientIP(r),
 	}
 
 	if err := s.db.CreatePad(r.Context(), pad); err != nil {
@@ -106,10 +106,10 @@ func (s *Server) HandleGetPadInfo(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"valid":          true,
-		"content_size":   pad.ContentSize,
+		"valid":           true,
+		"content_size":    pad.ContentSize,
 		"burn_after_read": pad.BurnAfterRead,
-		"expires_at":     pad.ExpiresAt,
+		"expires_at":      pad.ExpiresAt,
 	})
 }
 

@@ -47,6 +47,15 @@ type Server struct {
 	sendLimiter *rateLimiter
 	// Pad create rate limiter: 10 creates per hour per IP
 	padLimiter *rateLimiter
+	// Transfer-join rate limiter: 5 join attempts per 10 min per IP (pairing-code brute-force guard)
+	transferJoinLimiter *rateLimiter
+	// Desktop-OAuth poll limiter: 30 polls per minute per IP
+	desktopPollLimiter *rateLimiter
+
+	// tokenVersions enforces JWT revocation by checking each access token's
+	// version against the user's current token_version (bumped on password
+	// reset and admin role change).
+	tokenVersions *tokenVersionCache
 
 	// Global adapter cache for anonymous sends (uses global platform tokens)
 	globalAdapterMu    sync.RWMutex
@@ -81,26 +90,39 @@ type desktopOAuthResult struct {
 
 // NewServer creates a new API server.
 func NewServer(db *index.DB, cfg *config.Config, progress *pipeline.ProgressEmitter, masterKey []byte) *Server {
-	return &Server{
-		db:                 db,
-		cfg:                cfg,
-		progress:           progress,
-		masterKey:          masterKey,
-		adapterCache:       make(map[string]map[string]adapters.PlatformAdapter),
-		poolCache:          make(map[string]map[string]*reppool.Manager),
-		authLimiter:        newRateLimiter(5, 5*time.Minute),
-		emailLimiter:       newRateLimiter(3, 15*time.Minute),
-		userLimiter:        newRateLimiter(600, time.Minute),
-		shareLimiter:       newRateLimiter(30, time.Minute),
-		sendLimiter:        newRateLimiter(5, time.Hour),
-		padLimiter:         newRateLimiter(10, time.Hour),
-		globalAdapterCache: make(map[string]adapters.PlatformAdapter),
-		transferHub:        newTransferHub(),
-		desktopSessions:    make(map[string]*desktopOAuthResult),
-		syncCh:             make(chan struct{}, 1),
-		deletionCh:         make(chan struct{}, 1),
-		devMode:            os.Getenv("DEV_MODE") == "true",
+	s := &Server{
+		db:                  db,
+		cfg:                 cfg,
+		progress:            progress,
+		masterKey:           masterKey,
+		adapterCache:        make(map[string]map[string]adapters.PlatformAdapter),
+		poolCache:           make(map[string]map[string]*reppool.Manager),
+		authLimiter:         newRateLimiter(5, 5*time.Minute),
+		emailLimiter:        newRateLimiter(3, 15*time.Minute),
+		userLimiter:         newRateLimiter(600, time.Minute),
+		shareLimiter:        newRateLimiter(30, time.Minute),
+		sendLimiter:         newRateLimiter(5, time.Hour),
+		padLimiter:          newRateLimiter(10, time.Hour),
+		transferJoinLimiter: newRateLimiter(5, 10*time.Minute),
+		desktopPollLimiter:  newRateLimiter(30, time.Minute),
+		globalAdapterCache:  make(map[string]adapters.PlatformAdapter),
+		transferHub:         newTransferHub(),
+		desktopSessions:     make(map[string]*desktopOAuthResult),
+		syncCh:              make(chan struct{}, 1),
+		deletionCh:          make(chan struct{}, 1),
+		devMode:             os.Getenv("DEV_MODE") == "true",
 	}
+	// Back JWT revocation with a 30s-TTL cache over the user's token_version.
+	// The TTL bounds how long a revoked-but-cached token can linger on paths
+	// other than the ones that invalidate explicitly (reset / role change).
+	s.tokenVersions = newTokenVersionCache(30*time.Second, func(ctx context.Context, userID string) (int, error) {
+		u, err := s.db.GetUserByID(ctx, userID)
+		if err != nil {
+			return 0, err
+		}
+		return u.TokenVersion, nil
+	})
+	return s
 }
 
 // signalDeletion nudges the deletion worker to drain pending_deletions now instead
@@ -348,6 +370,29 @@ func (s *Server) selectGlobalAdapter(ctx context.Context) (string, adapters.Plat
 	return "", nil, fmt.Errorf("no global platform available")
 }
 
+// resolveGlobalAdapter returns the global adapter matching a specific
+// platform:account key — the account a chunk was actually uploaded with. Picking
+// a random global adapter on download/cleanup can land on a different account
+// whose token can't see the chunk's private repo, causing intermittent
+// "Repository not found" 404s. Falls back to any adapter for the same platform.
+func (s *Server) resolveGlobalAdapter(ctx context.Context, platform, account string) (adapters.PlatformAdapter, error) {
+	adaptersMap, err := s.getGlobalAdapters(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if account != "" {
+		if a, ok := adaptersMap[platform+":"+account]; ok {
+			return a, nil
+		}
+	}
+	for key, a := range adaptersMap {
+		if strings.HasPrefix(key, platform+":") {
+			return a, nil
+		}
+	}
+	return nil, fmt.Errorf("no global adapter for %s:%s", platform, account)
+}
+
 // invalidateGlobalAdapterCache clears the global adapter cache.
 func (s *Server) invalidateGlobalAdapterCache() {
 	s.globalAdapterMu.Lock()
@@ -358,7 +403,7 @@ func (s *Server) invalidateGlobalAdapterCache() {
 // SendRateLimitMiddleware applies IP-based rate limiting for anonymous send endpoints.
 func (s *Server) SendRateLimitMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		ip := extractIP(r)
+		ip := s.clientIP(r)
 		if !s.sendLimiter.allow(ip) {
 			http.Error(w, `{"error":"too many send requests, try again later"}`, http.StatusTooManyRequests)
 			return
@@ -369,7 +414,7 @@ func (s *Server) SendRateLimitMiddleware(next http.HandlerFunc) http.HandlerFunc
 
 func (s *Server) PadRateLimitMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		ip := extractIP(r)
+		ip := s.clientIP(r)
 		if !s.padLimiter.allow(ip) {
 			http.Error(w, `{"error":"too many pad requests, try again later"}`, http.StatusTooManyRequests)
 			return

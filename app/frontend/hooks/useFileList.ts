@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { listFiles } from "@/lib/api";
-import { useFileStore } from "@/store/files";
+import { useFileStore, prefetchFileList } from "@/store/files";
 import { useAuthStore } from "@/store/auth";
 
 export function useFileList() {
@@ -50,8 +50,9 @@ export function useFileList() {
   }, [setFiles, setLoading, setError]);
 
   useEffect(() => {
-    refresh();
-  }, [refresh]);
+    // Deduped with AuthGuard's prefetch — one /api/files on initial load.
+    prefetchFileList();
+  }, []);
 
   return { files, loading, error, refresh, setFiles };
 }

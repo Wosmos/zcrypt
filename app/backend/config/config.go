@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -66,6 +67,12 @@ type Config struct {
 	FrontendURL string `json:"frontend_url,omitempty"`
 	// Backend URL for OAuth callback URIs (must match what's registered with providers)
 	BackendURL string `json:"backend_url,omitempty"`
+	// TrustedProxyCount is the number of reverse-proxy hops in front of the app
+	// that are trusted to set X-Forwarded-For. The real client IP is read that
+	// many hops in from the right of the chain. 0 (default) ignores forwarding
+	// headers entirely and uses the direct peer, so clients cannot spoof their
+	// IP to bypass rate limits. Set to 1 behind a single proxy (e.g. Railway).
+	TrustedProxyCount int `json:"trusted_proxy_count,omitempty"`
 	// From environment only — never persisted to JSON
 	DatabaseURL string `json:"-"`
 	MasterKey   string `json:"-"`
@@ -76,7 +83,7 @@ func DefaultConfig() *Config {
 	return &Config{
 		DefaultPlatform: "github",
 		Thresholds: map[string]int64{
-			"github":      850 * 1024 * 1024,   // 850MB
+			"github":      850 * 1024 * 1024,    // 850MB
 			"gitlab":      9000 * 1024 * 1024,   // 9GB
 			"huggingface": 280000 * 1024 * 1024, // 280GB
 			"telegram":    50000 * 1024 * 1024,  // 50GB (virtual — Telegram has no hard repo limit)
@@ -153,6 +160,11 @@ func (c *Config) applyEnvOverrides() {
 	}
 	if v := os.Getenv("BACKEND_URL"); v != "" {
 		c.BackendURL = v
+	}
+	if v := os.Getenv("ZCRYPT_TRUSTED_PROXY_COUNT"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
+			c.TrustedProxyCount = n
+		}
 	}
 	// OAuth providers
 	if id := os.Getenv("GOOGLE_CLIENT_ID"); id != "" {

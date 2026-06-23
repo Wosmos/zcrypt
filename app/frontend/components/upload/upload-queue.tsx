@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useUploadStore } from "@/store/upload";
-import { X, CheckCircle2, AlertCircle, ChevronDown } from "@/lib/icons";
+import { usePassphraseStore } from "@/store/passphrase";
+import { toast } from "@/store/toast";
+import { X, CheckCircle2, AlertCircle, ChevronDown, RotateCcw } from "@/lib/icons";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { formatBytes } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -55,7 +57,7 @@ function MiniProgressBar({ percent }: { percent: number }) {
 }
 
 export function UploadQueue() {
-  const { queue, removeFromQueue, clearCompleted } = useUploadStore();
+  const { queue, removeFromQueue, clearCompleted, retryUpload } = useUploadStore();
   const [expanded, setExpanded] = useState(false);
 
   // Block page reload / tab close while uploads are in progress
@@ -220,13 +222,34 @@ export function UploadQueue() {
                       )}
                     </div>
 
-                    {/* Remove button */}
-                    <button
-                      onClick={() => removeFromQueue(item.id)}
-                      className="text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors flex-shrink-0"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
+                    {/* Actions */}
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      {/* Retry — only on failed items, gives the user manual control */}
+                      {item.status === "failed" && (
+                        <button
+                          onClick={() => {
+                            const pass = usePassphraseStore.getState().getPassphrase();
+                            if (!pass) {
+                              toast.error("Session passphrase expired — re-upload the file to retry");
+                              return;
+                            }
+                            retryUpload(item.id, pass);
+                          }}
+                          title="Retry upload"
+                          className="text-[var(--color-text-muted)] hover:text-cyan-500 transition-colors"
+                        >
+                          <RotateCcw className="h-3 w-3" />
+                        </button>
+                      )}
+                      {/* Remove button */}
+                      <button
+                        onClick={() => removeFromQueue(item.id)}
+                        title="Remove"
+                        className="text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               );

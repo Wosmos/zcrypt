@@ -36,6 +36,7 @@ const toolLinks = [
 
 // Primary nav — clear, intent-first links for first-time visitors.
 const navLinks = [
+  { href: "/", label: "Home" },
   { href: "/docs/how-it-works", label: "How it works" },
   { href: "/philosophy", label: "Why zcrypt" },
 ];

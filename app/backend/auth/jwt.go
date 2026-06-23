@@ -19,6 +19,7 @@ type Claims struct {
 	Email        string `json:"email"`
 	Username     string `json:"username"`
 	Role         string `json:"role"`
+	Typ          string `json:"typ,omitempty"`
 	TokenVersion int    `json:"tv,omitempty"`
 	Decoy        bool   `json:"decoy,omitempty"`
 	Exp          int64  `json:"exp"`
@@ -26,14 +27,23 @@ type Claims struct {
 }
 
 var (
-	ErrTokenExpired = errors.New("token expired")
-	ErrTokenInvalid = errors.New("invalid token")
+	ErrTokenExpired   = errors.New("token expired")
+	ErrTokenInvalid   = errors.New("invalid token")
+	ErrWrongTokenType = errors.New("wrong token type")
 )
 
 const (
 	AccessTokenDuration  = 15 * time.Minute
 	RefreshTokenDuration = 7 * 24 * time.Hour
 	TempTokenDuration    = 5 * time.Minute // for 2FA flow
+)
+
+// Token types distinguish a full access token from the short-lived token issued
+// mid-login for the 2FA step. A temp token must never be accepted as an access
+// token — otherwise an attacker who knows only the password could skip 2FA.
+const (
+	tokenTypeAccess = "access"
+	tokenTypeTemp   = "2fa"
 )
 
 // b64Encode is base64url encoding without padding.
@@ -53,6 +63,7 @@ func GenerateAccessToken(secret, userID, email, username, role string, tokenVers
 		Email:        email,
 		Username:     username,
 		Role:         role,
+		Typ:          tokenTypeAccess,
 		TokenVersion: tokenVersion,
 		Exp:          now.Add(AccessTokenDuration).Unix(),
 		Iat:          now.Unix(),
@@ -68,6 +79,7 @@ func GenerateDecoyAccessToken(secret, userID, email, username, role string, toke
 		Email:        email,
 		Username:     username,
 		Role:         role,
+		Typ:          tokenTypeAccess,
 		TokenVersion: tokenVersion,
 		Decoy:        true,
 		Exp:          now.Add(AccessTokenDuration).Unix(),
@@ -81,6 +93,7 @@ func GenerateTempToken(secret, userID string) (string, error) {
 	now := time.Now()
 	claims := Claims{
 		Sub: userID,
+		Typ: tokenTypeTemp,
 		Exp: now.Add(TempTokenDuration).Unix(),
 		Iat: now.Unix(),
 	}
@@ -104,8 +117,11 @@ func signJWT(secret string, claims Claims) (string, error) {
 	return signingInput + "." + signature, nil
 }
 
-// ValidateAccessToken verifies a JWT and returns its claims.
-func ValidateAccessToken(secret, tokenStr string) (*Claims, error) {
+// parseToken verifies a JWT's algorithm, signature, and expiry and returns its
+// claims. It does NOT check the token type — callers must go through
+// ValidateAccessToken or ValidateTempToken so a token minted for one purpose
+// cannot be used for another.
+func parseToken(secret, tokenStr string) (*Claims, error) {
 	parts := strings.Split(tokenStr, ".")
 	if len(parts) != 3 {
 		return nil, ErrTokenInvalid
@@ -156,6 +172,36 @@ func ValidateAccessToken(secret, tokenStr string) (*Claims, error) {
 	}
 
 	return &claims, nil
+}
+
+// ValidateAccessToken verifies a full access-token JWT and returns its claims.
+// It rejects 2FA temp tokens, so the temp token issued mid-login cannot be used
+// to reach authenticated endpoints without completing 2FA.
+func ValidateAccessToken(secret, tokenStr string) (*Claims, error) {
+	claims, err := parseToken(secret, tokenStr)
+	if err != nil {
+		return nil, err
+	}
+	// Accept access tokens. An empty type is treated as access for backward
+	// compatibility with tokens issued before token typing was introduced.
+	if claims.Typ != tokenTypeAccess && claims.Typ != "" {
+		return nil, ErrWrongTokenType
+	}
+	return claims, nil
+}
+
+// ValidateTempToken verifies the short-lived token issued for the 2FA step. It
+// accepts ONLY temp-type tokens, so a temp token can never act as an access
+// token and a full access token cannot be replayed into the 2FA endpoint.
+func ValidateTempToken(secret, tokenStr string) (*Claims, error) {
+	claims, err := parseToken(secret, tokenStr)
+	if err != nil {
+		return nil, err
+	}
+	if claims.Typ != tokenTypeTemp {
+		return nil, ErrWrongTokenType
+	}
+	return claims, nil
 }
 
 // GenerateRandomToken creates a cryptographically random hex token.

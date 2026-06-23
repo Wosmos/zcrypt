@@ -105,9 +105,14 @@ func TestGenerateTempToken(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, token)
 
-	claims, err := ValidateAccessToken(secret, token)
+	// A temp token is validated only via ValidateTempToken (the 2FA step).
+	claims, err := ValidateTempToken(secret, token)
 	require.NoError(t, err)
 	assert.Equal(t, "user-123", claims.Sub)
+
+	// It must NOT be accepted as a full access token (S1: 2FA bypass).
+	_, err = ValidateAccessToken(secret, token)
+	assert.ErrorIs(t, err, ErrWrongTokenType)
 }
 
 // --- Token utility tests ---
