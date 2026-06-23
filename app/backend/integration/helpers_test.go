@@ -14,6 +14,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -30,6 +31,17 @@ type testServer struct {
 	db  *index.DB
 	srv *cmd.Server
 	t   *testing.T
+}
+
+// testIPCounter yields a unique X-Forwarded-For per request so each request looks
+// like a distinct client. This keeps the per-IP rate limiter (and the real IP
+// extraction path) active without functional tests tripping it by hammering one IP.
+// A rate-limit-specific test can pin a fixed X-Forwarded-For to exercise the limiter.
+var testIPCounter atomic.Uint32
+
+func uniqueTestIP() string {
+	n := testIPCounter.Add(1)
+	return fmt.Sprintf("10.%d.%d.%d", byte(n>>16), byte(n>>8), byte(n))
 }
 
 // setupTestServer creates an isolated test server with a real DB.
@@ -55,6 +67,11 @@ func setupTestServer(t *testing.T) *testServer {
 		JWTSecret:   "integration-test-secret-must-be-32chars!!",
 		FrontendURL: "http://localhost:3000",
 		BackendURL:  "http://localhost:8080",
+		// Trust one proxy hop so the per-request X-Forwarded-For set by the request
+		// helpers is honored as the client IP. This keeps the per-IP rate limiter
+		// (and the real IP-extraction path) fully active, while letting each request
+		// look like a distinct client so functional tests don't trip it.
+		TrustedProxyCount: 1,
 	}
 
 	require.NoError(t, config.EnsureDirs())
@@ -88,6 +105,7 @@ func (ts *testServer) POST(path string, body interface{}, token string) *http.Re
 	req, err := http.NewRequest("POST", ts.URL+path, bytes.NewReader(data))
 	require.NoError(ts.t, err)
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Forwarded-For", uniqueTestIP())
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
@@ -102,6 +120,7 @@ func (ts *testServer) GET(path string, token string) *http.Response {
 	ts.t.Helper()
 	req, err := http.NewRequest("GET", ts.URL+path, nil)
 	require.NoError(ts.t, err)
+	req.Header.Set("X-Forwarded-For", uniqueTestIP())
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
@@ -116,6 +135,7 @@ func (ts *testServer) PUT(path string, body []byte, token string) *http.Response
 	req, err := http.NewRequest("PUT", ts.URL+path, bytes.NewReader(body))
 	require.NoError(ts.t, err)
 	req.Header.Set("Content-Type", "application/octet-stream")
+	req.Header.Set("X-Forwarded-For", uniqueTestIP())
 	// The chunk upload handler requires the hex SHA-256 of the body and rejects
 	// its absence with 400 before it even looks up the session.
 	sum := sha256.Sum256(body)
@@ -133,6 +153,7 @@ func (ts *testServer) DELETE(path string, token string) *http.Response {
 	ts.t.Helper()
 	req, err := http.NewRequest("DELETE", ts.URL+path, nil)
 	require.NoError(ts.t, err)
+	req.Header.Set("X-Forwarded-For", uniqueTestIP())
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
