@@ -3,13 +3,34 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { IconButton } from "@/components/ui/icon-button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { EmptyState } from "@/components/ui/empty-state";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { adminCreateToken, adminDeleteToken, adminToggleTokenScope } from "@/lib/api";
 import { toast } from "@/store/toast";
 import { cn } from "@/lib/utils";
 import { Key, Trash2, Globe, User, Plus, X } from "@/lib/icons";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import type { PlatformTokenInfo } from "@/types";
-import { ConfirmModal } from "@/components/ui/confirm-modal";
+
+const platformNames: Record<string, string> = {
+  github: "GitHub",
+  gitlab: "GitLab",
+  huggingface: "Hugging Face",
+};
+
+const platformShort: Record<string, string> = {
+  github: "GH",
+  gitlab: "GL",
+  huggingface: "HF",
+};
 
 export function TokenManagement({
   tokens,
@@ -34,18 +55,6 @@ export function TokenManagement({
 
   const resolveGlobal = (t: PlatformTokenInfo) =>
     t.id in scopeOverrides ? scopeOverrides[t.id] : t.is_global;
-
-  const platformNames: Record<string, string> = {
-    github: "GitHub",
-    gitlab: "GitLab",
-    huggingface: "Hugging Face",
-  };
-
-  const platformShort: Record<string, string> = {
-    github: "GH",
-    gitlab: "GL",
-    huggingface: "HF",
-  };
 
   const handleCreate = async () => {
     if (!token.trim()) return;
@@ -94,49 +103,54 @@ export function TokenManagement({
     }
   };
 
+  const scopeBadgeClass = (t: PlatformTokenInfo) => {
+    const isOwner = t.user_id === currentUserId;
+    const isGlobalResolved = resolveGlobal(t);
+    return cn(
+      "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+      isGlobalResolved
+        ? "border-[var(--color-accent)]/20 bg-[var(--color-accent)]/10 text-[var(--color-accent)]"
+        : isOwner
+          ? "border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+          : "border-[var(--color-border)] bg-[var(--color-surface-2)] text-[var(--color-text-muted)]"
+    );
+  };
+
   return (
     <>
-      <section className="card overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border)]">
-          <div>
-            <h2 className="text-sm font-semibold">Platform Tokens</h2>
-            <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+      <section className="panel overflow-hidden">
+        <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] px-5 py-4">
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">Platform tokens</h2>
+            <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
               {tokens.length} token{tokens.length !== 1 ? "s" : ""} registered
             </p>
           </div>
-          <button
+          <Button
+            variant={showForm ? "secondary" : "primary"}
+            size="sm"
             onClick={() => setShowForm(!showForm)}
-            className={cn(
-              "flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors",
-              showForm
-                ? "bg-[var(--color-surface-2)] text-[var(--color-text)]"
-                : "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 hover:bg-cyan-500/20"
-            )}
           >
-            {showForm ? (
-              <>
-                <X className="h-3.5 w-3.5" /> Cancel
-              </>
-            ) : (
-              <>
-                <Plus className="h-3.5 w-3.5" /> Add Token
-              </>
-            )}
-          </button>
+            {showForm ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+            {showForm ? "Cancel" : "Add token"}
+          </Button>
         </div>
 
         {showForm && (
-          <div className="p-5 border-b border-[var(--color-border)] bg-[var(--color-surface-1)]/50 space-y-4">
-            <div className="flex flex-col sm:flex-row gap-3">
-              <select
-                value={platform}
-                onChange={(e) => setPlatform(e.target.value)}
-                className="h-10 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/30"
-              >
-                <option value="github">GitHub</option>
-                <option value="gitlab">GitLab</option>
-                <option value="huggingface">Hugging Face</option>
-              </select>
+          <div className="animate-fade-in space-y-4 border-b border-[var(--color-border)] bg-[var(--color-surface-1)]/50 p-5">
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <div className="sm:w-44">
+                <Select value={platform} onValueChange={setPlatform}>
+                  <SelectTrigger className="h-10" aria-label="Platform">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="github">GitHub</SelectItem>
+                    <SelectItem value="gitlab">GitLab</SelectItem>
+                    <SelectItem value="huggingface">Hugging Face</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="flex-1">
                 <Input
                   type="password"
@@ -147,13 +161,13 @@ export function TokenManagement({
                 />
               </div>
             </div>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <label className="flex items-center gap-2 cursor-pointer">
+            <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+              <label className="flex cursor-pointer items-center gap-2">
                 <input
                   type="checkbox"
                   checked={isGlobal}
                   onChange={(e) => setIsGlobal(e.target.checked)}
-                  className="h-4 w-4 rounded border-[var(--color-border)] text-cyan-500 focus:ring-cyan-500/30"
+                  className="h-4 w-4 rounded border-[var(--color-border)] accent-[var(--color-accent)]"
                 />
                 <span className="text-sm text-[var(--color-text-secondary)]">
                   Global token <span className="hidden sm:inline">(available to all users)</span>
@@ -163,10 +177,10 @@ export function TokenManagement({
                 {creating ? (
                   <span className="flex items-center gap-2">
                     <LogoSpinner size={14} speed="fast" />
-                    Adding...
+                    Adding…
                   </span>
                 ) : (
-                  "Add Token"
+                  "Add token"
                 )}
               </Button>
             </div>
@@ -174,42 +188,33 @@ export function TokenManagement({
         )}
 
         {tokens.length === 0 ? (
-          <div className="p-8 text-center text-sm text-[var(--color-text-muted)]">
-            No platform tokens registered yet
-          </div>
+          <EmptyState
+            icon={<Key className="h-7 w-7 text-[var(--color-text-muted)]" />}
+            title="No platform tokens"
+            description="Add a GitHub, GitLab, or Hugging Face access token to enable encrypted storage for your users."
+          />
         ) : (
           <div className="divide-y divide-[var(--color-border)]">
             {tokens.map((t) => {
               const isOwner = t.user_id === currentUserId;
               const isGlobalResolved = resolveGlobal(t);
-              const scopeBadgeClass = cn(
-                "inline-flex items-center gap-1 text-xs font-medium px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg transition-colors",
-                isGlobalResolved
-                  ? "bg-blue-500/10 text-blue-500 border border-blue-500/20"
-                  : isOwner
-                    ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
-                    : "bg-[var(--color-surface-2)] text-[var(--color-text-muted)] border border-[var(--color-border)]"
-              );
-
               return (
                 <div
                   key={t.id}
-                  className="flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-3 hover:bg-[var(--color-surface-1)] transition-colors"
+                  className="flex items-center gap-2 px-3 py-3 transition-colors hover:bg-[var(--color-surface-1)] sm:gap-3 sm:px-5"
                 >
-                  <div className="hidden sm:flex items-center justify-center h-8 w-8 rounded-lg bg-[var(--color-surface-2)] flex-shrink-0">
+                  <div className="hidden h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--color-surface-2)] sm:flex">
                     <Key className="h-4 w-4 text-[var(--color-text-muted)]" />
                   </div>
-                  <div className="flex-1 min-w-0">
+                  <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5 sm:gap-2">
-                      <span className="text-sm font-medium truncate">
+                      <span className="truncate text-sm font-medium text-[var(--color-text)]">
                         <span className="sm:hidden">{platformShort[t.platform] ?? t.platform}</span>
                         <span className="hidden sm:inline">{platformNames[t.platform] ?? t.platform}</span>
                       </span>
-                      <span className="text-xs text-[var(--color-text-muted)] truncate">
-                        @{t.username}
-                      </span>
+                      <span className="truncate text-xs text-[var(--color-text-muted)]">@{t.username}</span>
                     </div>
-                    <p className="text-xs text-[var(--color-text-muted)]">
+                    <p className="text-xs text-[var(--color-text-muted)] tabular-nums">
                       {new Date(t.created_at).toLocaleDateString()}
                     </p>
                   </div>
@@ -217,30 +222,30 @@ export function TokenManagement({
                     <button
                       onClick={() => handleToggleScope(t)}
                       title={isGlobalResolved ? "Click to make local (owner-only)" : "Click to make global (all users)"}
-                      className={cn(scopeBadgeClass, "cursor-pointer hover:opacity-80")}
+                      aria-label={isGlobalResolved ? "Make token local" : "Make token global"}
+                      className={cn(
+                        scopeBadgeClass(t),
+                        "cursor-pointer hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40"
+                      )}
                     >
                       {isGlobalResolved ? <Globe className="h-3.5 w-3.5" /> : <User className="h-3.5 w-3.5" />}
                       <span className="hidden sm:inline">{isGlobalResolved ? "Global" : "Local"}</span>
                     </button>
                   ) : (
-                    <span className={scopeBadgeClass}>
+                    <span className={scopeBadgeClass(t)}>
                       {isGlobalResolved ? <Globe className="h-3.5 w-3.5" /> : <User className="h-3.5 w-3.5" />}
                       <span className="hidden sm:inline">{isGlobalResolved ? "Global" : "Local"}</span>
                     </span>
                   )}
                   {isOwner && (
-                    <button
+                    <IconButton
+                      icon={Trash2}
+                      label="Delete token"
+                      variant="ghost"
                       onClick={() => setDeleteTarget(t)}
                       disabled={deleting === t.id}
-                      className="flex items-center justify-center h-7 w-7 rounded-lg hover:bg-red-500/10 text-[var(--color-text-muted)] hover:text-red-500 transition-colors disabled:opacity-50 flex-shrink-0"
-                      title="Delete token"
-                    >
-                      {deleting === t.id ? (
-                        <LogoSpinner size={14} speed="fast" />
-                      ) : (
-                        <Trash2 className="h-3.5 w-3.5" />
-                      )}
-                    </button>
+                      className="flex-shrink-0 hover:bg-red-500/10 hover:text-red-500"
+                    />
                   )}
                 </div>
               );
@@ -249,21 +254,19 @@ export function TokenManagement({
         )}
       </section>
 
-      {/* Confirm delete token modal */}
-      <ConfirmModal
+      <ConfirmDialog
         open={!!deleteTarget}
-        onConfirm={executeDelete}
-        onClose={() => setDeleteTarget(null)}
-        title="Delete Token"
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        destructive
+        title="Delete token?"
         description={
           deleteTarget
             ? `Delete the ${platformNames[deleteTarget.platform] ?? deleteTarget.platform} token for @${deleteTarget.username}?${deleteTarget.is_global ? " This is a global token — removing it will affect all users." : ""}`
             : ""
         }
-        details={deleteTarget ? `${platformNames[deleteTarget.platform] ?? deleteTarget.platform} @${deleteTarget.username}` : undefined}
-        confirmLabel="Delete Token"
-        variant="danger"
+        confirmLabel="Delete token"
         loading={deleting === deleteTarget?.id}
+        onConfirm={executeDelete}
       />
     </>
   );

@@ -7,6 +7,16 @@ import { toast } from "@/store/toast";
 import { cn } from "@/lib/utils";
 import { Role } from "@/types";
 import type { PlanConfig, PlanFeature } from "@/types";
+import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/ui/icon-button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Crown,
   Plus,
@@ -14,15 +24,12 @@ import {
   Check,
   X,
   Loader2,
+  ChevronDown,
 } from "@/lib/icons";
 import { PricingSkeleton } from "@/components/admin/skeletons";
 
 const BYTES_PER_GB = 1024 * 1024 * 1024;
 const BYTES_PER_MB = 1024 * 1024;
-
-function bytesToGB(bytes: number): number {
-  return Math.round((bytes / BYTES_PER_GB) * 100) / 100;
-}
 
 function bytesToMBOrGB(bytes: number): { value: number; unit: "MB" | "GB" | "TB" } {
   if (bytes >= 1024 * BYTES_PER_GB) return { value: Math.round((bytes / (1024 * BYTES_PER_GB)) * 100) / 100, unit: "TB" };
@@ -30,10 +37,10 @@ function bytesToMBOrGB(bytes: number): { value: number; unit: "MB" | "GB" | "TB"
   return { value: Math.round((bytes / BYTES_PER_MB) * 100) / 100, unit: "MB" };
 }
 
-function formatDisplay(bytes: number): string {
-  const { value, unit } = bytesToMBOrGB(bytes);
-  return `${value} ${unit}`;
-}
+const fieldClass =
+  "mt-1 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2 text-sm outline-none transition-colors focus:border-[var(--color-accent)]/40 focus:ring-2 focus:ring-[var(--color-accent)]/10";
+const labelClass =
+  "text-[10px] font-medium uppercase tracking-wider text-[var(--color-text-muted)]";
 
 export default function AdminPricingPage() {
   const { user } = useAuthStore();
@@ -41,8 +48,8 @@ export default function AdminPricingPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [expandedPlan, setExpandedPlan] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<PlanConfig | null>(null);
 
-  // Store GB/MB values as strings for editing (avoids float precision issues in inputs)
   const [storageInputs, setStorageInputs] = useState<Record<string, string>>({});
   const [storageUnits, setStorageUnits] = useState<Record<string, "MB" | "GB" | "TB">>({});
   const [fileSizeInputs, setFileSizeInputs] = useState<Record<string, string>>({});
@@ -53,7 +60,6 @@ export default function AdminPricingPage() {
       adminGetPlans()
         .then((res) => {
           setPlans(res.plans);
-          // Initialize human-readable inputs from byte values
           const sInputs: Record<string, string> = {};
           const sUnits: Record<string, "MB" | "GB" | "TB"> = {};
           const fInputs: Record<string, string> = {};
@@ -86,9 +92,7 @@ export default function AdminPricingPage() {
   };
 
   const updatePlan = (id: string, updates: Partial<PlanConfig>) => {
-    setPlans((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, ...updates } : p))
-    );
+    setPlans((prev) => prev.map((p) => (p.id === id ? { ...p, ...updates } : p)));
   };
 
   const updateStorageForPlan = (id: string, valueStr: string, unit: "MB" | "GB" | "TB") => {
@@ -110,8 +114,7 @@ export default function AdminPricingPage() {
   };
 
   const updateConcurrentForPlan = (id: string, value: number) => {
-    const display = `${value} parallel`;
-    updatePlan(id, { max_concurrent_uploads: value, concurrent_display: display });
+    updatePlan(id, { max_concurrent_uploads: value, concurrent_display: `${value} parallel` });
   };
 
   const updateFeature = (planId: string, index: number, updates: Partial<PlanFeature>) => {
@@ -127,19 +130,13 @@ export default function AdminPricingPage() {
 
   const addFeature = (planId: string) => {
     setPlans((prev) =>
-      prev.map((p) => {
-        if (p.id !== planId) return p;
-        return { ...p, features: [...p.features, { text: "", included: true }] };
-      })
+      prev.map((p) => (p.id === planId ? { ...p, features: [...p.features, { text: "", included: true }] } : p))
     );
   };
 
   const removeFeature = (planId: string, index: number) => {
     setPlans((prev) =>
-      prev.map((p) => {
-        if (p.id !== planId) return p;
-        return { ...p, features: p.features.filter((_, i) => i !== index) };
-      })
+      prev.map((p) => (p.id === planId ? { ...p, features: p.features.filter((_, i) => i !== index) } : p))
     );
   };
 
@@ -180,6 +177,7 @@ export default function AdminPricingPage() {
     }
     setPlans((prev) => prev.filter((p) => p.id !== id));
     if (expandedPlan === id) setExpandedPlan(null);
+    setDeleteTarget(null);
   };
 
   const handleSave = async () => {
@@ -206,34 +204,27 @@ export default function AdminPricingPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-sm font-semibold">Plan Configuration</h2>
-          <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-            Changes reflect across the entire app including landing page pricing
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h2 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">Plan configuration</h2>
+          <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+            Changes reflect across the entire app including landing page pricing.
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={addPlan}
-            className="flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-xl border border-[var(--color-border)] hover:bg-[var(--color-surface-1)] transition-colors"
-          >
+          <Button variant="secondary" onClick={addPlan}>
             <Plus className="h-4 w-4" />
-            Add Plan
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-xl bg-[var(--color-accent)] text-white hover:opacity-90 transition-opacity disabled:opacity-50"
-          >
+            Add plan
+          </Button>
+          <Button onClick={handleSave} disabled={saving}>
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-            Save Changes
-          </button>
+            Save changes
+          </Button>
         </div>
       </div>
 
       <div className="grid gap-4">
-        {plans
+        {[...plans]
           .sort((a, b) => a.sort_order - b.sort_order)
           .map((plan) => {
             const isExpanded = expandedPlan === plan.id;
@@ -241,7 +232,7 @@ export default function AdminPricingPage() {
               <section
                 key={plan.id}
                 className={cn(
-                  "card overflow-hidden",
+                  "panel overflow-hidden",
                   plan.highlight && "ring-1 ring-[var(--color-accent)]/30"
                 )}
               >
@@ -249,56 +240,60 @@ export default function AdminPricingPage() {
                 <div
                   role="button"
                   tabIndex={0}
+                  aria-expanded={isExpanded}
                   onClick={() => setExpandedPlan(isExpanded ? null : plan.id)}
-                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setExpandedPlan(isExpanded ? null : plan.id); }}
-                  className="w-full flex items-center justify-between px-5 py-4 hover:bg-[var(--color-surface-1)] transition-colors cursor-pointer"
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setExpandedPlan(isExpanded ? null : plan.id); } }}
+                  className="flex w-full cursor-pointer items-center justify-between gap-3 px-5 py-4 transition-colors hover:bg-[var(--color-surface-1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--color-accent)]/40"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
                     <div className={cn(
-                      "flex items-center justify-center h-9 w-9 rounded-xl",
-                      plan.highlight ? "bg-violet-500/10 text-violet-500" : "bg-[var(--color-surface-2)] text-[var(--color-text-muted)]"
+                      "flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl",
+                      plan.highlight ? "bg-[var(--color-accent)]/10 text-[var(--color-accent)]" : "bg-[var(--color-surface-2)] text-[var(--color-text-muted)]"
                     )}>
                       <Crown className="h-4 w-4" />
                     </div>
-                    <div className="text-left">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold">{plan.name}</span>
-                        <span className="text-[10px] font-mono text-[var(--color-text-muted)]">
-                          {plan.id}
-                        </span>
+                    <div className="min-w-0 text-left">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-semibold text-[var(--color-text)]">{plan.name}</span>
+                        <span className="font-mono text-[10px] text-[var(--color-text-muted)]">{plan.id}</span>
                         {plan.badge && (
-                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-violet-500/10 text-violet-500">
+                          <span className="rounded-full bg-[var(--color-accent)]/10 px-1.5 py-0.5 text-[10px] font-semibold text-[var(--color-accent)]">
                             {plan.badge}
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-[var(--color-text-muted)]">
+                      <p className="truncate text-xs text-[var(--color-text-muted)] tabular-nums">
                         ${plan.monthly_price}/mo &middot; {plan.storage_display} storage &middot; {plan.max_file_display} max file
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-[var(--color-text-muted)]">
-                      {isExpanded ? "Collapse" : "Edit"}
-                    </span>
+                  <div className="flex flex-shrink-0 items-center gap-1">
                     {plan.id !== "free" && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); deletePlan(plan.id); }}
-                        className="flex items-center justify-center h-7 w-7 rounded-lg hover:bg-red-500/10 text-[var(--color-text-muted)] hover:text-red-500 transition-colors"
-                        title="Delete plan"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+                      <span onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+                        <IconButton
+                          icon={Trash2}
+                          label="Delete plan"
+                          variant="ghost"
+                          onClick={() => setDeleteTarget(plan)}
+                          className="hover:bg-red-500/10 hover:text-red-500"
+                        />
+                      </span>
                     )}
+                    <ChevronDown
+                      className={cn(
+                        "h-4 w-4 text-[var(--color-text-muted)] transition-transform",
+                        isExpanded && "rotate-180"
+                      )}
+                    />
                   </div>
                 </div>
 
                 {/* Expanded editor */}
                 {isExpanded && (
-                  <div className="px-5 pb-5 space-y-5 border-t border-[var(--color-border)] pt-5 animate-fade-in">
-                    {/* Plan ID (editable for new plans) */}
+                  <div className="animate-fade-in space-y-5 border-t border-[var(--color-border)] px-5 pb-5 pt-5">
+                    {/* Plan ID */}
                     <div>
-                      <label className="text-[10px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Plan ID</label>
+                      <label className={labelClass}>Plan ID</label>
                       <input
                         type="text"
                         value={plan.id}
@@ -306,7 +301,6 @@ export default function AdminPricingPage() {
                           const newId = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "");
                           const oldId = plan.id;
                           setPlans((prev) => prev.map((p) => (p.id === oldId ? { ...p, id: newId } : p)));
-                          // Migrate input state keys
                           setStorageInputs((prev) => { const v = prev[oldId]; const next = { ...prev, [newId]: v }; delete next[oldId]; return next; });
                           setStorageUnits((prev) => { const v = prev[oldId]; const next = { ...prev, [newId]: v }; delete next[oldId]; return next; });
                           setFileSizeInputs((prev) => { const v = prev[oldId]; const next = { ...prev, [newId]: v }; delete next[oldId]; return next; });
@@ -314,113 +308,121 @@ export default function AdminPricingPage() {
                           if (expandedPlan === oldId) setExpandedPlan(newId);
                         }}
                         disabled={plan.id === "free"}
-                        className="mt-1 w-full text-sm px-3 py-2 rounded-lg bg-[var(--color-surface-1)] border border-[var(--color-border)] font-mono disabled:opacity-50"
+                        className={cn(fieldClass, "font-mono disabled:opacity-50")}
                         placeholder="e.g. enterprise"
                       />
-                      <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">Lowercase, alphanumeric, hyphens only</p>
+                      <p className="mt-0.5 text-[10px] text-[var(--color-text-muted)]">Lowercase, alphanumeric, hyphens only</p>
                     </div>
 
                     {/* Basic info */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                       <div>
-                        <label className="text-[10px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Name</label>
+                        <label className={labelClass}>Name</label>
                         <input
                           type="text"
                           value={plan.name}
                           onChange={(e) => updatePlan(plan.id, { name: e.target.value })}
-                          className="mt-1 w-full text-sm px-3 py-2 rounded-lg bg-[var(--color-surface-1)] border border-[var(--color-border)]"
+                          className={fieldClass}
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Monthly ($)</label>
+                        <label className={labelClass}>Monthly ($)</label>
                         <input
                           type="number"
                           min="0"
                           step="0.01"
                           value={plan.monthly_price}
                           onChange={(e) => updatePlan(plan.id, { monthly_price: parseFloat(e.target.value) || 0 })}
-                          className="mt-1 w-full text-sm px-3 py-2 rounded-lg bg-[var(--color-surface-1)] border border-[var(--color-border)] tabular-nums"
+                          className={cn(fieldClass, "tabular-nums")}
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Annual ($)</label>
+                        <label className={labelClass}>Annual ($)</label>
                         <input
                           type="number"
                           min="0"
                           step="0.01"
                           value={plan.annual_price}
                           onChange={(e) => updatePlan(plan.id, { annual_price: parseFloat(e.target.value) || 0 })}
-                          className="mt-1 w-full text-sm px-3 py-2 rounded-lg bg-[var(--color-surface-1)] border border-[var(--color-border)] tabular-nums"
+                          className={cn(fieldClass, "tabular-nums")}
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Sort Order</label>
+                        <label className={labelClass}>Sort order</label>
                         <input
                           type="number"
                           min="0"
                           value={plan.sort_order}
                           onChange={(e) => updatePlan(plan.id, { sort_order: parseInt(e.target.value) || 0 })}
-                          className="mt-1 w-full text-sm px-3 py-2 rounded-lg bg-[var(--color-surface-1)] border border-[var(--color-border)] tabular-nums"
+                          className={cn(fieldClass, "tabular-nums")}
                         />
                       </div>
                     </div>
 
                     <div>
-                      <label className="text-[10px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Description</label>
+                      <label className={labelClass}>Description</label>
                       <input
                         type="text"
                         value={plan.description}
                         onChange={(e) => updatePlan(plan.id, { description: e.target.value })}
-                        className="mt-1 w-full text-sm px-3 py-2 rounded-lg bg-[var(--color-surface-1)] border border-[var(--color-border)]"
+                        className={fieldClass}
                       />
                     </div>
 
-                    {/* Limits - GB-based inputs */}
+                    {/* Limits */}
                     <div>
-                      <h4 className="text-[10px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-3">Limits</h4>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                      <h4 className={cn(labelClass, "mb-3 block")}>Limits</h4>
+                      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                         <div>
                           <label className="text-xs text-[var(--color-text-muted)]">Storage</label>
-                          <div className="flex gap-2 mt-1">
+                          <div className="mt-1 flex gap-2">
                             <input
                               type="number"
                               min="0"
                               step="0.5"
                               value={storageInputs[plan.id] ?? ""}
                               onChange={(e) => updateStorageForPlan(plan.id, e.target.value, storageUnits[plan.id] || "GB")}
-                              className="flex-1 text-sm px-3 py-2 rounded-lg bg-[var(--color-surface-1)] border border-[var(--color-border)] tabular-nums"
+                              className="flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2 text-sm tabular-nums outline-none focus:border-[var(--color-accent)]/40 focus:ring-2 focus:ring-[var(--color-accent)]/10"
                             />
-                            <select
+                            <Select
                               value={storageUnits[plan.id] || "GB"}
-                              onChange={(e) => updateStorageForPlan(plan.id, storageInputs[plan.id] || "0", e.target.value as "MB" | "GB" | "TB")}
-                              className="text-xs px-2 py-2 rounded-lg bg-[var(--color-surface-1)] border border-[var(--color-border)]"
+                              onValueChange={(v) => updateStorageForPlan(plan.id, storageInputs[plan.id] || "0", v as "MB" | "GB" | "TB")}
                             >
-                              <option value="MB">MB</option>
-                              <option value="GB">GB</option>
-                              <option value="TB">TB</option>
-                            </select>
+                              <SelectTrigger className="h-[38px] w-16 text-xs" aria-label="Storage unit">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="MB">MB</SelectItem>
+                                <SelectItem value="GB">GB</SelectItem>
+                                <SelectItem value="TB">TB</SelectItem>
+                              </SelectContent>
+                            </Select>
                           </div>
                         </div>
                         <div>
                           <label className="text-xs text-[var(--color-text-muted)]">Max file size</label>
-                          <div className="flex gap-2 mt-1">
+                          <div className="mt-1 flex gap-2">
                             <input
                               type="number"
                               min="0"
                               step="0.5"
                               value={fileSizeInputs[plan.id] ?? ""}
                               onChange={(e) => updateFileSizeForPlan(plan.id, e.target.value, fileSizeUnits[plan.id] || "GB")}
-                              className="flex-1 text-sm px-3 py-2 rounded-lg bg-[var(--color-surface-1)] border border-[var(--color-border)] tabular-nums"
+                              className="flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2 text-sm tabular-nums outline-none focus:border-[var(--color-accent)]/40 focus:ring-2 focus:ring-[var(--color-accent)]/10"
                             />
-                            <select
+                            <Select
                               value={fileSizeUnits[plan.id] || "GB"}
-                              onChange={(e) => updateFileSizeForPlan(plan.id, fileSizeInputs[plan.id] || "0", e.target.value as "MB" | "GB" | "TB")}
-                              className="text-xs px-2 py-2 rounded-lg bg-[var(--color-surface-1)] border border-[var(--color-border)]"
+                              onValueChange={(v) => updateFileSizeForPlan(plan.id, fileSizeInputs[plan.id] || "0", v as "MB" | "GB" | "TB")}
                             >
-                              <option value="MB">MB</option>
-                              <option value="GB">GB</option>
-                              <option value="TB">TB</option>
-                            </select>
+                              <SelectTrigger className="h-[38px] w-16 text-xs" aria-label="File size unit">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="MB">MB</SelectItem>
+                                <SelectItem value="GB">GB</SelectItem>
+                                <SelectItem value="TB">TB</SelectItem>
+                              </SelectContent>
+                            </Select>
                           </div>
                         </div>
                         <div>
@@ -430,22 +432,22 @@ export default function AdminPricingPage() {
                             min="1"
                             value={plan.max_concurrent_uploads}
                             onChange={(e) => updateConcurrentForPlan(plan.id, parseInt(e.target.value) || 1)}
-                            className="mt-1 w-full text-sm px-3 py-2 rounded-lg bg-[var(--color-surface-1)] border border-[var(--color-border)] tabular-nums"
+                            className={cn(fieldClass, "tabular-nums")}
                           />
                         </div>
                       </div>
                     </div>
 
                     {/* Toggles */}
-                    <div className="flex items-center gap-6">
-                      <label className="flex items-center gap-2 cursor-pointer">
+                    <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+                      <label className="flex cursor-pointer items-center gap-2">
                         <input
                           type="checkbox"
                           checked={plan.highlight}
                           onChange={(e) => updatePlan(plan.id, { highlight: e.target.checked })}
                           className="h-4 w-4 rounded border-[var(--color-border)] accent-[var(--color-accent)]"
                         />
-                        <span className="text-xs">Highlighted</span>
+                        <span className="text-xs text-[var(--color-text-secondary)]">Highlighted</span>
                       </label>
                       <div className="flex items-center gap-2">
                         <label className="text-xs text-[var(--color-text-muted)]">Badge:</label>
@@ -453,7 +455,7 @@ export default function AdminPricingPage() {
                           type="text"
                           value={plan.badge ?? ""}
                           onChange={(e) => updatePlan(plan.id, { badge: e.target.value || null })}
-                          className="w-24 text-xs px-2 py-1 rounded bg-[var(--color-surface-1)] border border-[var(--color-border)]"
+                          className="w-24 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-2 py-1 text-xs outline-none focus:border-[var(--color-accent)]/40 focus:ring-2 focus:ring-[var(--color-accent)]/10"
                           placeholder="e.g. Popular"
                         />
                       </div>
@@ -463,7 +465,7 @@ export default function AdminPricingPage() {
                           type="text"
                           value={plan.social_proof ?? ""}
                           onChange={(e) => updatePlan(plan.id, { social_proof: e.target.value || null })}
-                          className="w-48 text-xs px-2 py-1 rounded bg-[var(--color-surface-1)] border border-[var(--color-border)]"
+                          className="w-48 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-2 py-1 text-xs outline-none focus:border-[var(--color-accent)]/40 focus:ring-2 focus:ring-[var(--color-accent)]/10"
                           placeholder="e.g. Chosen by 1,000+ users"
                         />
                       </div>
@@ -471,26 +473,25 @@ export default function AdminPricingPage() {
 
                     {/* Features */}
                     <div>
-                      <div className="flex items-center justify-between mb-3">
-                        <h4 className="text-[10px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Features</h4>
-                        <button
-                          onClick={() => addFeature(plan.id)}
-                          className="flex items-center gap-1 text-xs text-[var(--color-accent)] hover:underline"
-                        >
+                      <div className="mb-3 flex items-center justify-between">
+                        <h4 className={labelClass}>Features</h4>
+                        <Button variant="ghost" size="sm" onClick={() => addFeature(plan.id)}>
                           <Plus className="h-3 w-3" />
                           Add feature
-                        </button>
+                        </Button>
                       </div>
                       <div className="space-y-2">
                         {plan.features.map((feature, i) => (
                           <div key={i} className="flex items-center gap-2">
                             <button
+                              type="button"
                               onClick={() => updateFeature(plan.id, i, { included: !feature.included })}
+                              aria-label={feature.included ? "Mark feature as not included" : "Mark feature as included"}
                               className={cn(
-                                "flex items-center justify-center h-6 w-6 rounded-md border transition-colors flex-shrink-0",
+                                "flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40",
                                 feature.included
-                                  ? "bg-cyan-500/10 border-cyan-500/30 text-cyan-500"
-                                  : "bg-[var(--color-surface-2)] border-[var(--color-border)] text-[var(--color-text-muted)]"
+                                  ? "border-[var(--color-accent)]/30 bg-[var(--color-accent)]/10 text-[var(--color-accent)]"
+                                  : "border-[var(--color-border)] bg-[var(--color-surface-2)] text-[var(--color-text-muted)]"
                               )}
                             >
                               {feature.included ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
@@ -499,17 +500,22 @@ export default function AdminPricingPage() {
                               type="text"
                               value={feature.text}
                               onChange={(e) => updateFeature(plan.id, i, { text: e.target.value })}
-                              className="flex-1 text-sm px-3 py-1.5 rounded-lg bg-[var(--color-surface-1)] border border-[var(--color-border)]"
+                              className="flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-1.5 text-sm outline-none focus:border-[var(--color-accent)]/40 focus:ring-2 focus:ring-[var(--color-accent)]/10"
                               placeholder="Feature text"
                             />
-                            <button
+                            <IconButton
+                              icon={Trash2}
+                              label="Remove feature"
+                              variant="ghost"
                               onClick={() => removeFeature(plan.id, i)}
-                              className="flex items-center justify-center h-6 w-6 rounded-md hover:bg-red-500/10 text-[var(--color-text-muted)] hover:text-red-500 transition-colors flex-shrink-0"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </button>
+                              className="h-6 w-6 flex-shrink-0 hover:bg-red-500/10 hover:text-red-500"
+                              iconClassName="h-3 w-3"
+                            />
                           </div>
                         ))}
+                        {plan.features.length === 0 && (
+                          <p className="text-xs text-[var(--color-text-muted)]">No features yet. Add one to highlight this plan.</p>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -518,6 +524,20 @@ export default function AdminPricingPage() {
             );
           })}
       </div>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        destructive
+        title="Delete plan?"
+        description={
+          deleteTarget
+            ? `Remove the "${deleteTarget.name}" plan from the configuration. This takes effect after you save changes. Users on this plan should be reassigned first.`
+            : ""
+        }
+        confirmLabel="Delete plan"
+        onConfirm={() => deleteTarget && deletePlan(deleteTarget.id)}
+      />
     </div>
   );
 }

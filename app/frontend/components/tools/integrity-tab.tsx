@@ -5,11 +5,29 @@ import { motion } from "motion/react";
 import { listIntegritySnapshots, createIntegritySnapshot, checkFileIntegrity, getChangedFiles, listFiles } from "@/lib/api";
 import type { IntegritySnapshot, FileMetadata } from "@/types";
 import { Button } from "@/components/ui/button";
-import { LogoSpinner } from "@/components/ui/logo-spinner";
-import { AlertTriangle } from "@/lib/icons";
+import { Section } from "@/components/ui/section";
+import { EmptyState } from "@/components/ui/empty-state";
+import { SkeletonRow } from "@/components/ui/skeletons";
+import { AlertTriangle, ShieldCheck } from "@/lib/icons";
+import { cn } from "@/lib/utils";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+const STATUS_STYLES: Record<string, string> = {
+  ok: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+  changed: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+};
+function statusClass(status: string): string {
+  return STATUS_STYLES[status] ?? "bg-red-500/10 text-red-600 dark:text-red-400";
+}
+function StatusBadge({ status }: { status: string }) {
+  return (
+    <span className={cn("rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide", statusClass(status))}>
+      {status}
+    </span>
+  );
 }
 
 export function IntegrityTab() {
@@ -47,29 +65,21 @@ export function IntegrityTab() {
     finally { setChecking(false); }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <LogoSpinner size="md" speed="fast" />
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-4">
       {/* Changes alert */}
       {changes.length > 0 && (
         <div className="flex items-start gap-3 rounded-2xl border border-red-500/20 bg-red-500/5 p-4">
-          <AlertTriangle className="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-medium text-red-400">{changes.length} file(s) with integrity changes detected</p>
-            <div className="space-y-1 mt-2">
+          <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-500" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-red-600 dark:text-red-400">
+              <span className="tabular-nums">{changes.length}</span> file(s) with integrity changes detected
+            </p>
+            <div className="mt-2 space-y-1">
               {changes.map((c) => (
-                <div key={c.id} className="flex items-center justify-between text-sm">
-                  <span>{c.file_name}</span>
-                  <span className={`px-2 py-0.5 rounded-lg text-[10px] font-semibold uppercase ${c.status === "changed" ? "bg-amber-500/10 text-amber-500" : "bg-red-500/10 text-red-400"}`}>
-                    {c.status}
-                  </span>
+                <div key={c.id} className="flex items-center justify-between gap-3 text-sm">
+                  <span className="truncate text-[var(--color-text)]">{c.file_name}</span>
+                  <StatusBadge status={c.status} />
                 </div>
               ))}
             </div>
@@ -78,55 +88,61 @@ export function IntegrityTab() {
       )}
 
       {/* Create snapshot / check */}
-      <section className="card overflow-hidden">
-        <div className="px-5 py-4 border-b border-[var(--color-border)]">
-          <h3 className="text-sm font-semibold">Take Snapshot / Check Integrity</h3>
-        </div>
-        <div className="p-5 flex gap-3">
-          <select value={selectedFile} onChange={(e) => setSelectedFile(e.target.value)}
-            className="flex-1 h-10 px-3.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-sm focus:outline-none focus:border-[var(--color-accent)]/40">
-            <option value="">Select a file...</option>
-            {files.map((f) => <option key={f.id} value={f.id}>{f.original_name}</option>)}
-          </select>
-          <Button onClick={handleSnapshot} disabled={!selectedFile || creating}>
-            {creating ? "..." : "Snapshot"}
-          </Button>
-          <Button variant="secondary" onClick={() => selectedFile && handleCheck(selectedFile)} disabled={!selectedFile || checking}>
-            {checking ? "..." : "Check"}
-          </Button>
-        </div>
-      </section>
+      <div className="panel p-6">
+        <Section title="Snapshot & verify" description="Record a file's fingerprint, then check it later for tampering.">
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <select
+              value={selectedFile}
+              onChange={(e) => setSelectedFile(e.target.value)}
+              className="h-10 flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-sm text-[var(--color-text)] outline-none transition-all focus:border-[var(--color-accent)]/40 focus:ring-2 focus:ring-[var(--color-accent)]/10"
+            >
+              <option value="">Select a file...</option>
+              {files.map((f) => <option key={f.id} value={f.id}>{f.original_name}</option>)}
+            </select>
+            <div className="flex gap-2">
+              <Button onClick={handleSnapshot} disabled={!selectedFile || creating} className="flex-1 sm:flex-none">
+                {creating ? "Snapshotting..." : "Snapshot"}
+              </Button>
+              <Button variant="secondary" onClick={() => selectedFile && handleCheck(selectedFile)} disabled={!selectedFile || checking} className="flex-1 sm:flex-none">
+                {checking ? "Checking..." : "Check"}
+              </Button>
+            </div>
+          </div>
+        </Section>
+      </div>
 
       {/* Snapshot history */}
-      <div>
-        <h3 className="section-label mb-3">Snapshot History</h3>
-        {snapshots.length === 0 ? (
-          <div className="card text-center py-12">
-            <p className="text-[var(--color-text-muted)]">No snapshots yet.</p>
-            <p className="text-xs text-[var(--color-text-muted)] mt-1">Select a file and take a snapshot.</p>
+      <Section title="Snapshot history">
+        {loading ? (
+          <div className="panel divide-y divide-[var(--color-border)] px-4">
+            {Array.from({ length: 3 }).map((_, i) => <SkeletonRow key={i} />)}
+          </div>
+        ) : snapshots.length === 0 ? (
+          <div className="panel">
+            <EmptyState
+              icon={<ShieldCheck className="h-7 w-7 text-[var(--color-text-muted)]" />}
+              title="No snapshots yet"
+              description="Select a file above and take a snapshot to start tracking its integrity over time."
+            />
           </div>
         ) : (
           <div className="space-y-2">
             {snapshots.slice(0, 50).map((snap) => (
               <motion.div key={snap.id} initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }}
-                className="flex items-center justify-between p-4 card">
+                className="panel flex items-center justify-between gap-3 p-4">
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium truncate">{snap.file_name}</p>
-                  <p className="text-xs text-[var(--color-text-muted)] font-mono truncate mt-0.5">{snap.sha256.slice(0, 16)}...</p>
+                  <p className="truncate text-sm font-medium text-[var(--color-text)]">{snap.file_name}</p>
+                  <p className="mt-0.5 truncate font-mono text-xs text-[var(--color-text-muted)]">{snap.sha256.slice(0, 16)}...</p>
                 </div>
-                <div className="flex items-center gap-3 ml-3">
-                  <span className={`px-2 py-0.5 rounded-lg text-[10px] font-semibold uppercase ${
-                    snap.status === "ok" ? "bg-emerald-500/10 text-emerald-500" :
-                    snap.status === "changed" ? "bg-amber-500/10 text-amber-500" :
-                    "bg-red-500/10 text-red-400"
-                  }`}>{snap.status}</span>
-                  <span className="text-xs text-[var(--color-text-muted)]">{formatDate(snap.checked_at)}</span>
+                <div className="flex flex-shrink-0 items-center gap-3">
+                  <StatusBadge status={snap.status} />
+                  <span className="text-xs tabular-nums text-[var(--color-text-muted)]">{formatDate(snap.checked_at)}</span>
                 </div>
               </motion.div>
             ))}
           </div>
         )}
-      </div>
+      </Section>
     </div>
   );
 }

@@ -4,10 +4,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { UploadZone } from "@/components/upload/upload-zone";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { IconButton } from "@/components/ui/icon-button";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { QRShare } from "@/components/ui/qr-code";
 import {
-  Shield, Send, Download, File, AlertTriangle, CheckCircle2,
+  Send, Download, File, AlertTriangle, CheckCircle2,
   Lock, Copy, Check,
 } from "@/lib/icons";
 import { formatBytes } from "@/lib/utils";
@@ -25,7 +26,7 @@ export function TransferTool() {
   const [mode, setMode] = useState<Mode>("choose");
 
   return (
-    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-xl overflow-hidden">
+    <div className="panel overflow-hidden">
       {mode === "choose" && (
         <div className="p-6 space-y-3">
           <Button onClick={() => setMode("send")} className="w-full">
@@ -190,10 +191,14 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
           {code && (
             <>
               <div className="flex items-center justify-center gap-2">
-                <div className="text-4xl font-bold font-mono tracking-[0.3em] text-[var(--color-text)]">{code}</div>
-                <button onClick={handleCopyCode} className="p-2 rounded-lg hover:bg-[var(--color-surface-1)] transition-colors">
-                  {copied ? <Check className="h-4 w-4 text-cyan-500" /> : <Copy className="h-4 w-4 text-[var(--color-text-muted)]" />}
-                </button>
+                <div className="text-4xl font-bold font-mono tracking-[0.3em] tabular-nums text-[var(--color-text)]">{code}</div>
+                <IconButton
+                  icon={copied ? Check : Copy}
+                  label={copied ? "Copied" : "Copy code"}
+                  variant="ghost"
+                  onClick={handleCopyCode}
+                  iconClassName={copied ? "h-4 w-4 text-cyan-500" : "h-4 w-4"}
+                />
               </div>
               <QRShare url={`${typeof window !== "undefined" ? window.location.origin : ""}/transfer?code=${code}`} />
             </>

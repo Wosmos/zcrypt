@@ -74,6 +74,9 @@ type FileMetadata struct {
 	WrappedCEK     string    `json:"wrapped_cek,omitempty"` // base64 envelope-wrapped Content Encryption Key
 	Status         string    `json:"status"`
 	CreatedAt      time.Time `json:"created_at"`
+	FolderID       *string   `json:"folder_id,omitempty"`   // parent folder; nil = root
+	EncryptedName  string    `json:"encrypted_name"`        // client-side-encrypted (base64) name; opaque to server
+	DeletedAt      *string   `json:"deleted_at,omitempty"`  // non-nil = in trash
 }
 
 // ChunkRef identifies a single chunk stored on a platform.
@@ -161,13 +164,14 @@ type UploadSession struct {
 
 // UploadInitRequest is the JSON body for initiating a chunked upload.
 type UploadInitRequest struct {
-	Filename     string `json:"filename"`
-	OriginalSize int64  `json:"original_size"`
-	SHA256       string `json:"sha256"`
-	Salt         string `json:"salt"`        // base64-encoded 32 bytes
-	WrappedCEK   string `json:"wrapped_cek"` // base64 envelope-wrapped Content Encryption Key
-	ChunkCount   int    `json:"chunk_count"`
-	Platform     string `json:"platform,omitempty"`
+	Filename     string  `json:"filename"`
+	OriginalSize int64   `json:"original_size"`
+	SHA256       string  `json:"sha256"`
+	Salt         string  `json:"salt"`        // base64-encoded 32 bytes
+	WrappedCEK   string  `json:"wrapped_cek"` // base64 envelope-wrapped Content Encryption Key
+	ChunkCount   int     `json:"chunk_count"`
+	Platform     string  `json:"platform,omitempty"`
+	FolderID     *string `json:"folder_id,omitempty"` // optional target folder; nil/omitted = root. Ownership-validated server-side.
 }
 
 // UploadCompleteRequest is the JSON body for finalizing a chunked upload.
@@ -562,6 +566,50 @@ type NoteRequest struct {
 	ContentSize    int      `json:"content_size"`
 	Tags           []string `json:"tags"`
 	Pinned         *bool    `json:"pinned,omitempty"`
+}
+
+// Folder represents a (possibly nested) folder in a user's library.
+type Folder struct {
+	ID            string  `json:"id"`
+	UserID        string  `json:"user_id"`
+	ParentID      *string `json:"parent_id,omitempty"`   // nil = root
+	EncryptedName string  `json:"encrypted_name"`        // client-side-encrypted (base64); opaque to server
+	CreatedAt     string  `json:"created_at"`
+	DeletedAt     *string `json:"deleted_at,omitempty"`  // non-nil = in trash
+	PwSalt        *string `json:"pw_salt,omitempty"`     // nil = unprotected; opaque base64, server never derives keys
+	PwVerifier    *string `json:"pw_verifier,omitempty"` // opaque base64 verifier; client-only password check
+}
+
+// FolderRequest is the JSON body for creating a folder.
+type FolderRequest struct {
+	EncryptedName string  `json:"encrypted_name"`
+	ParentID      *string `json:"parent_id"`
+}
+
+// FolderMoveRequest is the JSON body for moving a folder. ParentID null = move to root.
+type FolderMoveRequest struct {
+	ParentID *string `json:"parent_id"`
+}
+
+// FileMoveRequest is the JSON body for moving a file. FolderID null = move to root.
+type FileMoveRequest struct {
+	FolderID *string `json:"folder_id"`
+}
+
+// FolderPasswordRequest is the JSON body for setting/replacing a folder password.
+// Both fields are opaque client-computed base64 blobs; the server stores them verbatim
+// and never derives, sees, or logs the underlying folder password or any key.
+type FolderPasswordRequest struct {
+	PwSalt     string `json:"pw_salt"`
+	PwVerifier string `json:"pw_verifier"`
+}
+
+// FileRekeyRequest is the JSON body for re-keying a single file when it crosses a
+// protection boundary. Salt is base64 (decoded to 32 raw bytes server-side); WrappedCEK
+// is the opaque base64 envelope. The server updates only these two columns and never sees keys.
+type FileRekeyRequest struct {
+	Salt       string `json:"salt"`
+	WrappedCEK string `json:"wrapped_cek"`
 }
 
 // IntegritySnapshot represents a file hash snapshot for integrity monitoring.

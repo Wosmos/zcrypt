@@ -26,25 +26,30 @@ export function PassphraseModal({
   error,
 }: PassphraseModalProps) {
   const [passphrase, setPassphrase] = useState("");
-  const [remember, setRemember] = useState(true);
+  const rememberDevicePref = usePassphraseStore((s) => s.rememberDevice);
+  const setRememberDevice = usePassphraseStore((s) => s.setRememberDevice);
+  const cachePassphrase = usePassphraseStore((s) => s.setPassphrase);
+  const [remember, setRemember] = useState(rememberDevicePref);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { setPassphrase: cachePassphrase } = usePassphraseStore();
 
   useEffect(() => {
     if (open) {
       setPassphrase("");
+      setRemember(usePassphraseStore.getState().rememberDevice);
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [open]);
 
   const handleConfirm = useCallback(() => {
     if (!passphrase) return;
-    if (remember) {
-      cachePassphrase(passphrase);
-    }
+    // Record the device-remember preference first, then cache. setPassphrase
+    // persists encrypted on THIS device iff rememberDevice is on (so the user is
+    // never re-prompted here); otherwise it's a 15-minute in-memory session.
+    setRememberDevice(remember);
+    cachePassphrase(passphrase);
     onConfirm(passphrase);
     setPassphrase("");
-  }, [passphrase, remember, cachePassphrase, onConfirm]);
+  }, [passphrase, remember, setRememberDevice, cachePassphrase, onConfirm]);
 
   const handleClose = useCallback(() => {
     setPassphrase("");
@@ -70,7 +75,7 @@ export function PassphraseModal({
             <div>
               <h3 className="text-sm font-semibold">{title}</h3>
               {subtitle && (
-                <p className="text-xs text-[var(--color-text-muted)] truncate max-w-[240px]">
+                <p className="text-xs text-[var(--color-text-muted)] max-w-[280px]">
                   {subtitle}
                 </p>
               )}
@@ -116,7 +121,7 @@ export function PassphraseModal({
               className="h-3.5 w-3.5 rounded border-[var(--color-border)] accent-cyan-500"
             />
             <span className="text-xs text-[var(--color-text-secondary)]">
-              Remember for this session
+              Keep me unlocked on this device
             </span>
           </label>
 

@@ -13,24 +13,24 @@ import {
   PanelLeft,
   Database,
   Users,
-  FileText,
   Share2,
   Cog,
+  Trash2,
 } from "@/lib/icons";
 import { Logo } from "@/components/ui/logo";
 import { MobileNav } from "@/components/ui/mobile-nav";
 import { useAuthStore } from "@/store/auth";
 import { useQuotaStore } from "@/store/quota";
 
-const normalLinks = [
+const primaryLinks = [
   { href: "/dashboard", label: "Vault", icon: Shield },
-  { href: "/notes", label: "Notes", icon: FileText },
   { href: "/share", label: "Share", icon: Share2 },
-  { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 const advancedLink = { href: "/tools", label: "Tools", icon: Cog };
 const adminLink = { href: "/admin", label: "Admin", icon: Users };
+const settingsLink = { href: "/settings", label: "Settings", icon: Settings };
+const trashLink = { href: "/trash", label: "Deleted Files", icon: Trash2 };
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -40,8 +40,8 @@ export function Sidebar() {
   const quota = useQuotaStore((s) => s.quota);
 
   const isAdmin = user?.role === Role.Admin;
-  const links = useMemo(() => {
-    const items = [...normalLinks];
+  const secondaryLinks = useMemo(() => {
+    const items = [settingsLink, trashLink];
     if (advancedMode) items.push(advancedLink);
     if (isAdmin) items.push(adminLink);
     return items;
@@ -56,21 +56,47 @@ export function Sidebar() {
   const isActive = (href: string) => {
     if (href === "/admin") return pathname.startsWith("/admin");
     if (href === "/tools") return pathname.startsWith("/tools");
+    if (href === "/settings") return pathname.startsWith("/settings");
     return pathname === href;
+  };
+
+  const NavItem = ({ href, label, icon: Icon }: { href: string; label: string; icon: typeof Shield }) => {
+    const active = isActive(href);
+    return (
+      <Link
+        href={href}
+        title={collapsed ? label : undefined}
+        aria-current={active ? "page" : undefined}
+        className={cn(
+          "group flex items-center gap-3 rounded-xl text-sm font-medium transition-colors duration-150",
+          collapsed ? "justify-center px-0 py-2.5" : "px-3 py-2.5",
+          active
+            ? "bg-[var(--shell-active)] text-[var(--shell-active-text)]"
+            : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)]"
+        )}
+      >
+        <Icon
+          className={cn(
+            "h-[18px] w-[18px] flex-shrink-0 transition-colors",
+            active ? "text-[var(--color-accent)]" : "text-[var(--color-text-muted)] group-hover:text-[var(--color-text-secondary)]"
+          )}
+        />
+        {!collapsed && <span className="truncate">{label}</span>}
+      </Link>
+    );
   };
 
   return (
     <>
-      {/* Desktop sidebar */}
+      {/* Desktop sidebar — floating panel */}
       <aside
         className={cn(
-          "hidden md:flex h-screen flex-col border-r transition-all duration-200",
-          "bg-[var(--color-sidebar)] border-[var(--color-sidebar-border)]",
-          collapsed ? "w-[60px]" : "w-[232px]"
+          "panel hidden shrink-0 flex-col p-3 transition-all duration-200 md:flex",
+          collapsed ? "w-[68px]" : "w-[244px]"
         )}
       >
         {/* Logo */}
-        <div className={cn("flex items-center px-4 py-5", collapsed && "justify-center px-2")}>
+        <div className={cn("flex items-center px-1.5 pb-3 pt-1", collapsed && "justify-center px-0")}>
           <Logo
             size={collapsed ? "xs" : "md"}
             iconOnly={collapsed}
@@ -78,99 +104,72 @@ export function Sidebar() {
           />
         </div>
 
-        {/* Nav — scrollable */}
-        <nav className={cn("flex-1 py-3 space-y-0.5 overflow-y-auto", collapsed ? "px-1.5" : "px-3")}>
-          {links.map(({ href, label, icon: Icon }) => {
-            const active = isActive(href);
-            return (
-              <Link
-                key={href}
-                href={href}
-                title={collapsed ? label : undefined}
-                aria-current={active ? "page" : undefined}
-                className={cn(
-                  "flex items-center gap-3 rounded-xl text-sm font-medium transition-all duration-150",
-                  collapsed ? "justify-center px-0 py-2.5" : "px-3 py-2.5",
-                  active
-                    ? "bg-[var(--color-sidebar-active)] text-[var(--color-sidebar-text-active)]"
-                    : "text-[var(--color-sidebar-text)] hover:text-white/80 hover:bg-[var(--color-sidebar-hover)]"
-                )}
-              >
-                <Icon
-                  className={cn(
-                    "h-[18px] w-[18px] flex-shrink-0",
-                    active ? "text-cyan-400" : ""
-                  )}
-                />
-                {!collapsed && label}
-              </Link>
-            );
-          })}
+        {/* Nav */}
+        <nav className="flex-1 space-y-0.5 overflow-y-auto">
+          {primaryLinks.map((link) => (
+            <NavItem key={link.href} {...link} />
+          ))}
+
+          <div className={cn("pt-4", collapsed && "flex justify-center")}>
+            {!collapsed && (
+              <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+                Account
+              </p>
+            )}
+          </div>
+          {secondaryLinks.map((link) => (
+            <NavItem key={link.href} {...link} />
+          ))}
         </nav>
 
-        {/* Storage progress bar */}
-        <div className={cn("px-4 pb-3", collapsed && "px-2")}>
+        {/* Storage card */}
+        <div className="pt-3">
           {!collapsed ? (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="flex items-center gap-1.5 text-[10px] text-[var(--color-sidebar-text)]">
-                  <Database className="h-3 w-3" />
+            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-3">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-xs font-medium text-[var(--color-text-secondary)]">
+                  <Database className="h-3.5 w-3.5 text-[var(--color-text-muted)]" />
                   Storage
                 </span>
-                <span className="text-[10px] tabular-nums text-[var(--color-sidebar-text)]">
-                  {isUnlimited ? "\u221E" : totalMax > 0 ? `${storagePercent.toFixed(0)}%` : "\u2014"}
+                <span className="text-[11px] tabular-nums text-[var(--color-text-muted)]">
+                  {isUnlimited ? "∞" : totalMax > 0 ? `${storagePercent.toFixed(0)}%` : "—"}
                 </span>
               </div>
-              <div className="h-1.5 rounded-full bg-white/8 overflow-hidden">
+              <div className="h-1.5 overflow-hidden rounded-full bg-[var(--color-surface-3)]">
                 {totalMax > 0 && (
                   <div
                     className={cn(
                       "h-full rounded-full transition-all duration-500",
-                      storagePercent > 90 ? "bg-red-500" : storagePercent > 70 ? "bg-amber-500" : "bg-cyan-500"
+                      storagePercent > 90 ? "bg-red-500" : storagePercent > 70 ? "bg-amber-500" : "bg-[var(--color-accent)]"
                     )}
                     style={{ width: `${storagePercent}%` }}
                   />
                 )}
+                {isUnlimited && <div className="h-full w-full rounded-full bg-[var(--color-accent)]/60" />}
               </div>
-              <p className="text-[10px] tabular-nums text-[var(--color-sidebar-text)]">
+              <p className="mt-2 text-[11px] tabular-nums text-[var(--color-text-muted)]">
                 {isUnlimited
                   ? `${formatBytes(totalUsed)} used`
                   : totalMax > 0
-                    ? `${formatBytes(totalUsed)} / ${formatBytes(totalMax)}`
+                    ? `${formatBytes(totalUsed)} of ${formatBytes(totalMax)}`
                     : "No platform connected"}
               </p>
             </div>
           ) : (
-            <div className="flex flex-col items-center" title={isUnlimited ? `${formatBytes(totalUsed)} used` : totalMax > 0 ? `${formatBytes(totalUsed)} / ${formatBytes(totalMax)}` : "No platform"}>
-              <div className="h-8 w-1.5 rounded-full bg-white/8 overflow-hidden rotate-180">
-                {totalMax > 0 && (
-                  <div
-                    className={cn(
-                      "w-full rounded-full transition-all duration-500",
-                      storagePercent > 90 ? "bg-red-500" : storagePercent > 70 ? "bg-amber-500" : "bg-cyan-500"
-                    )}
-                    style={{ height: `${storagePercent}%` }}
-                  />
-                )}
-              </div>
-              <Database className="h-3 w-3 text-[var(--color-sidebar-text)] mt-1" />
+            <div
+              className="flex flex-col items-center gap-1.5"
+              title={isUnlimited ? `${formatBytes(totalUsed)} used` : totalMax > 0 ? `${formatBytes(totalUsed)} / ${formatBytes(totalMax)}` : "No platform"}
+            >
+              <Database className="h-4 w-4 text-[var(--color-text-muted)]" />
             </div>
           )}
         </div>
 
-        {/* Footer — minimal */}
-        <div className={cn(
-          "py-3 border-t border-[var(--color-sidebar-border)]",
-          collapsed ? "px-1.5 flex justify-center" : "px-4 flex items-center justify-between"
-        )}>
-          {!collapsed && (
-            <p className="text-[10px] text-[var(--color-sidebar-text)] leading-relaxed font-heading">
-              zcrypt.cloud
-            </p>
-          )}
+        {/* Collapse toggle */}
+        <div className={cn("mt-2 flex border-t border-[var(--color-border)] pt-2", collapsed ? "justify-center" : "justify-end")}>
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="flex items-center justify-center h-8 w-8 rounded-lg hover:bg-[var(--color-sidebar-hover)] text-[var(--color-sidebar-text)] hover:text-white/80 transition-colors"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text-secondary)]"
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >

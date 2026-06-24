@@ -1,236 +1,238 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { UploadZone } from "@/components/upload/upload-zone";
-import { UploadQueue } from "@/components/upload/upload-queue";
-import { DownloadQueue } from "@/components/download/download-queue";
-import { PlatformSelector } from "@/components/upload/platform-selector";
-import { FileCard, type DownloadState } from "@/components/files/file-card";
-import { FileTable, type SortField, type SortDir } from "@/components/files/file-table";
-import { FileTypeFilter } from "@/components/files/file-type-filter";
-import { UploadFAB } from "@/components/vault/upload-fab";
+import { useCallback, useState } from "react";
+import Link from "next/link";
+
+import { VaultExplorer } from "@/components/files/vault-explorer";
+import { MoveToFolderDialog } from "@/components/files/move-to-folder-dialog";
+import { FileViewer } from "@/components/viewers/file-viewer";
+import {
+  FolderUnlockModal,
+  SetFolderPasswordDialog,
+  RemoveFolderPasswordDialog,
+} from "@/components/files/folder-password-dialogs";
+import { DetailsDrawer } from "@/components/files/details-drawer";
 import { InsightsTab } from "@/components/vault/insights-tab";
-import { PassphraseModal } from "@/components/ui/passphrase-modal";
-import { EmptyState } from "@/components/ui/empty-state";
-import { isTauri } from "@/lib/tauri";
-import { CompactStats } from "@/components/vault/compact-stats";
 import { PlatformHealth } from "@/components/vault/platform-health";
 import { ExportImport } from "@/components/vault/export-import";
-import { Input } from "@/components/ui/input";
+import { FeedbackModal } from "@/components/feedback/feedback-modal";
+
+import { UploadZone } from "@/components/upload/upload-zone";
+import { PlatformSelector } from "@/components/upload/platform-selector";
+
+import { VaultLock } from "@/components/ui/vault-lock";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
+import { IconButton } from "@/components/ui/icon-button";
 import { Button } from "@/components/ui/button";
-import { batchLoadThumbnails } from "@/hooks/useThumbnail";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { ShareModal } from "@/components/ui/share-modal";
+import { FilePreviewModal, useFilePreview } from "@/components/ui/file-preview-modal";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
 import { useFileList } from "@/hooks/useFileList";
 import { usePlatformHealth } from "@/hooks/usePlatformHealth";
-import { useUploadStore } from "@/store/upload";
-import { useDownloadStore } from "@/store/download";
-import { usePassphraseStore } from "@/store/passphrase";
-import { useOperationStatus } from "@/hooks/useOperationStatus";
-import { deleteFile, bulkDeleteFiles } from "@/lib/api";
 import { useQuota } from "@/hooks/useQuota";
+import { useFeedbackTrigger } from "@/hooks/useFeedbackTrigger";
+import { useVaultActions } from "@/hooks/useVaultActions";
+import { useFolderProtection } from "@/hooks/useFolderProtection";
+import { useFileDecryptor } from "@/hooks/useFileDecryptor";
+import { useVaultLockContext } from "@/components/providers/vault-lock-provider";
+import { useFolderStore } from "@/store/folders";
+import { useFolderPasswordStore } from "@/store/folder-passwords";
+import { usePassphraseStore } from "@/store/passphrase";
 import { toast } from "@/store/toast";
+import type { DecryptedFolder } from "@/hooks/useFolders";
+
 import {
   Shield,
-  Search,
   AlertTriangle,
-  Lock,
   RefreshCw,
-  X,
-  LayoutGrid,
-  TableProperties,
-  CheckSquare,
-  Square,
-  Trash2,
-  Download,
   BarChart3,
+  Upload,
+  HardDrive,
 } from "@/lib/icons";
-import { cn, formatBytes, getFileCategory } from "@/lib/utils";
-import Link from "next/link";
-import { useNotifications } from "@/hooks/useNotifications";
-
-import { notifications as notifActions } from "@/store/notifications";
-import { FilePreviewModal, useFilePreview } from "@/components/ui/file-preview-modal";
 import type { FileMetadata } from "@/types";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Pagination } from "@/components/ui/pagination";
-import { ConfirmModal } from "@/components/ui/confirm-modal";
-import { ShareModal } from "@/components/ui/share-modal";
-import { FeedbackModal } from "@/components/feedback/feedback-modal";
-import { useFeedbackTrigger } from "@/hooks/useFeedbackTrigger";
 
-const PAGE_SIZE = 12;
-
-type ModalMode = { type: "upload"; files: File[] } | { type: "download"; filename: string } | { type: "preview"; filename: string } | { type: "bulk-download" } | { type: "unlock" } | null;
-
+/**
+ * Vault page — composition over a god-component (REBUILD_SPEC §6).
+ *
+ * The unified <VaultExplorer /> owns browsing / folders / search / view / sort /
+ * selection / drag. This page owns the page chrome (header + tabs + accordion),
+ * the crypto/upload/download handlers (lifted into useVaultActions), and the
+ * modals the explorer hands control back to (delete confirm, share, details,
+ * move-to-folder, preview). Every decrypt action routes through the ONE vault
+ * unlock provided by <VaultLockProvider> (header pill = <VaultLock />).
+ */
 export default function VaultPage() {
   const [activeTab, setActiveTab] = useState<"files" | "insights">("files");
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
-  const [modalMode, setModalMode] = useState<ModalMode>(null);
-  const [passphraseError, setPassphraseError] = useState<string | null>(null);
-  const downloadQueue = useDownloadStore((s) => s.queue);
-  const storeStartDownload = useDownloadStore((s) => s.startDownload);
-  // Derive downloadStates from download store for file card/table indicators
-  const downloadStates: Record<string, DownloadState> = {};
-  for (const item of downloadQueue) {
-    if (item.status === "downloading") downloadStates[item.fileId] = "downloading";
-    else if (item.status === "done") downloadStates[item.fileId] = "done";
-    else downloadStates[item.fileId] = "idle";
-  }
-  const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
-  const [sortField, setSortField] = useState<SortField>("date");
-  const [sortDir, setSortDir] = useState<SortDir>("desc");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [typeFilter, setTypeFilter] = useState<string | null>(null);
+  const [uploadOpen, setUploadOpen] = useState(false);
 
-  // Bulk selection
-  const [selectionMode, setSelectionMode] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [bulkDeleting, setBulkDeleting] = useState(false);
-  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  // Modal targets the explorer hands back to the page.
+  const [deleteTarget, setDeleteTarget] = useState<FileMetadata | null>(null);
+  const [bulkDeleteIds, setBulkDeleteIds] = useState<string[] | null>(null);
+  const [shareTarget, setShareTarget] = useState<FileMetadata | null>(null);
+  const [moveTarget, setMoveTarget] = useState<string | null>(null);
+  const [detailsTarget, setDetailsTarget] = useState<FileMetadata | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+
+  // Full file viewer (OWNER 2): a navigable list (the opened file's folder) + the
+  // index within it. Decryption is fully in-browser via useFileDecryptor.
+  const [viewerFiles, setViewerFiles] = useState<FileMetadata[]>([]);
+  const [viewerIndex, setViewerIndex] = useState(0);
+  const [viewerOpen, setViewerOpen] = useState(false);
 
   const { files, loading, error, refresh, setFiles } = useFileList();
   const { statuses, repos } = usePlatformHealth();
-  const { updateStatus, setError, startUpload: storeStartUpload, startDesktopUpload } = useUploadStore();
-  const { getPassphrase, clear: clearPassphrase } = usePassphraseStore();
-  const cachedPassphrase = usePassphraseStore((s) => s.cachedPassphrase);
-  const cacheUntil = usePassphraseStore((s) => s.cacheUntil);
-  const getRemainingMinutes = usePassphraseStore((s) => s.getRemainingMinutes);
-  const [, forceUpdate] = useState(0);
-  const { notify } = useNotifications();
-  const preview = useFilePreview();
   const { quota: quotaInfo, refresh: refreshQuota } = useQuota();
-  const [deleteTarget, setDeleteTarget] = useState<FileMetadata | null>(null);
-  const [deleting, setDeleting] = useState(false);
-  const [shareTarget, setShareTarget] = useState<FileMetadata | null>(null);
-  const { showFeedback, dismiss: dismissFeedback, markSubmitted: markFeedbackSubmitted } = useFeedbackTrigger(
-    quotaInfo?.used_bytes ?? 0,
-    quotaInfo?.quota_bytes ?? 0
-  );
+  const preview = useFilePreview();
 
-  // Tick the passphrase timer display every 30s
-  useEffect(() => {
-    if (!cachedPassphrase) return;
-    const interval = setInterval(() => forceUpdate((n) => n + 1), 30000);
-    return () => clearInterval(interval);
-  }, [cachedPassphrase]);
+  // The single app-wide vault unlock (provider lives in the layout).
+  const vault = useVaultLockContext();
 
-  // Auto-load thumbnails when passphrase is cached and files are available
-  useEffect(() => {
-    const pp = getPassphrase();
-    if (pp && files.length > 0) {
-      batchLoadThumbnails(files, pp).catch(() => {});
-    }
-  }, [files, getPassphrase]);
+  // Per-folder password protection: routing + re-key orchestration (spec §3).
+  const folderProtection = useFolderProtection(vault);
 
-  // SSE events from backend pipeline
-  useOperationStatus((event) => {
-    if (!event.file_id) return;
-    const { findByFileId } = useUploadStore.getState();
-    const target = findByFileId(event.file_id);
-    if (!target) return;
+  // In-browser decryptor for the full file viewer (OWNER 1). Same password
+  // routing as every other vault action — folder pass for protected files, else
+  // the vault passphrase; no plaintext/passphrase ever leaves the page.
+  const { decryptToBlob } = useFileDecryptor(folderProtection);
 
-    const stageLower = event.stage.toLowerCase();
-    if (stageLower.startsWith("error:")) {
-      const errorMsg = event.stage.substring(7);
-      setError(target.id, errorMsg);
-      notifActions.uploadFailed(target.file.name, errorMsg);
-      return;
-    }
+  // Current folder (global store) — uploads land here; reads gate protected ones.
+  const currentFolderId = useFolderStore((s) => s.currentFolderId);
+  const setCurrentFolder = useFolderStore((s) => s.setCurrentFolder);
 
-    const status =
-      stageLower === "done"
-        ? ("done" as const)
-        : stageLower.includes("encrypt")
-          ? ("encrypting" as const)
-          : ("uploading" as const);
-    updateStatus(target.id, status, event.percent, event.stage, event.bytes_processed, event.total_bytes);
-    if (stageLower === "done") {
-      // No per-file toast or refresh — upload store handles batch summary + debounced refresh
-      notify(`Upload complete`, { body: target.file.name, tag: "upload-done" });
-      notifActions.uploadComplete(target.file.name);
-    }
+  const {
+    showFeedback,
+    dismiss: dismissFeedback,
+    markSubmitted: markFeedbackSubmitted,
+  } = useFeedbackTrigger(quotaInfo?.used_bytes ?? 0, quotaInfo?.quota_bytes ?? 0);
+
+  // All crypto / upload / download / preview / delete / move / bulk handlers.
+  const actions = useVaultActions({
+    vault,
+    files,
+    quotaInfo,
+    selectedPlatform,
+    refresh,
+    refreshQuota,
+    setFiles,
+    openPreview: preview.openPreview,
+    closePreview: preview.closePreview,
+    folderProtection,
+    currentFolderId,
   });
 
-  // --- Upload flow ---
-  const handleFilesSelected = useCallback(
-    (selectedFiles: File[]) => {
-      // Check if managed storage or personal tokens are available
-      if (quotaInfo && !quotaInfo.can_upload) {
-        toast.warning("No storage platform connected. Go to Settings to connect one.");
-        return;
-      }
+  // ── Folder protection: set / remove password + open-protected dialogs ───────
+  const [protectTarget, setProtectTarget] = useState<DecryptedFolder | null>(null);
+  const [removeTarget, setRemoveTarget] = useState<DecryptedFolder | null>(null);
+  const [moveFolderTarget, setMoveFolderTarget] = useState<DecryptedFolder | null>(null);
+  const [rekeyProgress, setRekeyProgress] = useState<{ done: number; total: number } | null>(null);
 
-      const dupes: string[] = [];
-      const uniqueFiles = selectedFiles.filter((f) => {
-        const exists = files.some((existing) => existing.original_name === f.name && existing.original_size === f.size);
-        if (exists) dupes.push(f.name);
-        return !exists;
+  // Files in a given folder (re-key sweeps operate on these).
+  const filesInFolder = useCallback(
+    (folderId: string) => files.filter((f) => (f.folder_id ?? null) === folderId),
+    [files]
+  );
+
+  // Open a folder: a protected one verifies its password (cache TTL) before
+  // navigating in; an unprotected one navigates immediately (unchanged).
+  const handleOpenFolderRequest = useCallback(
+    (folder: DecryptedFolder) => {
+      if (folder.protected) {
+        folderProtection.withFolderPassword(folder.id, folder.name, () => {
+          setCurrentFolder(folder.id, folder.name);
+        });
+      } else {
+        setCurrentFolder(folder.id, folder.name);
+      }
+    },
+    [folderProtection, setCurrentFolder]
+  );
+
+  // Protect a folder: re-key its files from the vault pass to the new folder
+  // password (vault must be unlocked), then persist protection. Shows progress.
+  const submitProtect = useCallback(
+    async (password: string) => {
+      if (!protectTarget) return;
+      const vaultPass = usePassphraseStore.getState().getPassphrase();
+      const inFolder = filesInFolder(protectTarget.id);
+      if (inFolder.length > 0 && !vaultPass) {
+        throw new Error("Unlock your vault first to re-key the files in this folder.");
+      }
+      setRekeyProgress({ done: 0, total: inFolder.length });
+      try {
+        await folderProtection.protectFolder(
+          protectTarget.id,
+          password,
+          inFolder,
+          vaultPass ?? "",
+          (p) => setRekeyProgress({ done: p.done, total: p.total })
+        );
+        toast.success("Folder protected");
+        setProtectTarget(null);
+        await refresh();
+      } finally {
+        setRekeyProgress(null);
+      }
+    },
+    [protectTarget, filesInFolder, folderProtection, refresh]
+  );
+
+  // Remove protection: needs the folder password (prompt if uncached) AND the
+  // vault unlocked, then re-keys every file back to the vault pass.
+  const submitRemoveProtection = useCallback(async () => {
+    if (!removeTarget) return;
+    const vaultPass = usePassphraseStore.getState().getPassphrase();
+    const inFolder = filesInFolder(removeTarget.id);
+    if (inFolder.length > 0 && !vaultPass) {
+      throw new Error("Unlock your vault first to re-key the files back.");
+    }
+    const run = async (folderPw: string) => {
+      setRekeyProgress({ done: 0, total: inFolder.length });
+      try {
+        await folderProtection.unprotectFolder(
+          removeTarget.id,
+          folderPw,
+          inFolder,
+          vaultPass ?? "",
+          (p) => setRekeyProgress({ done: p.done, total: p.total })
+        );
+        toast.success("Folder password removed");
+        setRemoveTarget(null);
+        await refresh();
+      } finally {
+        setRekeyProgress(null);
+      }
+    };
+    const cached = useFolderPasswordStore.getState().get(removeTarget.id);
+    if (cached) {
+      await run(cached);
+    } else {
+      // Prompt + verify the folder password, then run the sweep.
+      folderProtection.withFolderPassword(removeTarget.id, removeTarget.name, () => {
+        const pw = useFolderPasswordStore.getState().get(removeTarget.id);
+        if (pw) void run(pw);
       });
+    }
+  }, [removeTarget, filesInFolder, folderProtection, refresh]);
 
-      if (dupes.length > 0) {
-        const names = dupes.length <= 3 ? dupes.join(", ") : `${dupes.slice(0, 3).join(", ")} +${dupes.length - 3} more`;
-        toast.warning(`Skipped ${dupes.length} duplicate${dupes.length > 1 ? "s" : ""}: ${names}`);
-      }
-
-      if (uniqueFiles.length === 0) return;
-
-      const cached = getPassphrase();
-      if (cached) {
-        startUpload(uniqueFiles, cached);
-      } else {
-        setModalMode({ type: "upload", files: uniqueFiles });
-        setPassphraseError(null);
-      }
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [quotaInfo, files]
-  );
-
-  const startUpload = useCallback(
-    (uploadFiles: File[], passphrase: string) => {
-      // Desktop: use native picker + sidecar (no browser File data transfer)
-      if (isTauri) {
-        startDesktopUpload(passphrase, refresh);
-        return;
-      }
-      // 0 (or unset) means "unlimited" — defer to the device-profile default concurrency.
-      const maxConcurrent = quotaInfo?.max_concurrent_uploads || undefined;
-      // Large files prefer HuggingFace (direct upload, bypasses the relay) when connected.
-      const hfConnected = statuses.some((s) => s.platform === "huggingface" && s.connected);
-      storeStartUpload(uploadFiles, passphrase, selectedPlatform ?? undefined, maxConcurrent, refresh, hfConnected);
-    },
-    [selectedPlatform, storeStartUpload, startDesktopUpload, refresh, quotaInfo, statuses]
-  );
-
-  // --- Download flow ---
-  const handleDownloadClick = useCallback(
-    (filename: string) => {
-      const file = files.find((f) => f.original_name === filename);
-      if (!file || downloadStates[file.id] === "downloading") return;
-
-      const cached = getPassphrase();
-      if (cached) {
-        startDownload(filename, cached);
-      } else {
-        setModalMode({ type: "download", filename });
-        setPassphraseError(null);
-      }
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [files, downloadStates]
-  );
-
-  const startDownload = useCallback(
-    (filename: string, passphrase: string) => {
-      const file = files.find((f) => f.original_name === filename);
-      if (!file) return;
-      storeStartDownload(file.id, filename, file.original_size, passphrase);
-    },
-    [files, storeStartDownload]
-  );
-
-  // --- Delete ---
-  const handleDeleteClick = useCallback(
+  // ── Explorer callbacks that surface a page-owned modal ──────────────────────
+  const handleDeleteRequest = useCallback(
     (id: string) => {
       const file = files.find((f) => f.id === id);
       if (file) setDeleteTarget(file);
@@ -238,7 +240,7 @@ export default function VaultPage() {
     [files]
   );
 
-  const handleShare = useCallback(
+  const handleShareRequest = useCallback(
     (id: string) => {
       const file = files.find((f) => f.id === id);
       if (file) setShareTarget(file);
@@ -246,639 +248,244 @@ export default function VaultPage() {
     [files]
   );
 
-  const executeDelete = useCallback(
-    async () => {
-      if (!deleteTarget) return;
-      const target = deleteTarget;
-      // Optimistic: drop the row from the list instantly and close the modal.
-      setDeleteTarget(null);
-      setDeleting(false);
-      setFiles(files.filter((f) => f.id !== target.id));
-      toast.success("File deleted");
-      refreshQuota();
-      // Fire-and-forget the actual delete; on failure reconcile against the server
-      // (refresh, not a captured snapshot — a stale snapshot could resurrect a file
-      // that a concurrent delete already removed).
-      deleteFile(target.id).catch((err) => {
-        toast.error(err instanceof Error ? err.message : "Delete failed");
-        refresh();
-        refreshQuota();
+  const handleOpenDetails = useCallback((file: FileMetadata) => {
+    setDetailsTarget(file);
+    setDetailsOpen(true);
+  }, []);
+
+  // Open a file in the full viewer. The explorer hands us the navigable folder
+  // list so prev/next walks the same set the user is browsing. We gate on the
+  // vault first (folder names + the unprotected decrypt path need it); the
+  // decryptor swaps in a folder password for protected files on demand.
+  const handleOpenFile = useCallback(
+    (file: FileMetadata, folderFiles: FileMetadata[]) => {
+      const list = folderFiles.length > 0 ? folderFiles : [file];
+      const idx = Math.max(0, list.findIndex((f) => f.id === file.id));
+      vault.withPassphrase(() => {
+        setViewerFiles(list);
+        setViewerIndex(idx);
+        setViewerOpen(true);
       });
     },
-    [deleteTarget, files, setFiles, refresh, refreshQuota]
+    [vault]
   );
 
-  // --- Bulk operations ---
-  const toggleSelect = useCallback((id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }, []);
-
-  const selectAll = useCallback(() => {
-    const allIds = new Set(filtered.map((f) => f.id));
-    setSelectedIds((prev) => {
-      if (filtered.every((f) => prev.has(f.id))) return new Set();
-      return allIds;
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [files, search, typeFilter, sortField, sortDir]);
-
-  const exitSelectionMode = useCallback(() => {
-    setSelectionMode(false);
-    setSelectedIds(new Set());
-  }, []);
-
-  const executeBulkDelete = useCallback(async () => {
-    if (selectedIds.size === 0) return;
-    const ids = Array.from(selectedIds);
-    const idSet = new Set(ids);
-    // Optimistic: drop the rows and close the selection UI instantly — no spinner wait.
-    setBulkDeleting(true);
-    setFiles(files.filter((f) => !idSet.has(f.id)));
-    setShowBulkDeleteConfirm(false);
-    setSelectedIds(new Set());
-    setSelectionMode(false);
-    try {
-      const result = await bulkDeleteFiles(ids);
-      if (result.failed > 0) {
-        toast.warning(`${result.deleted} deleted, ${result.failed} failed`);
-        refresh(); // reconcile the partial failure against the server
-      } else {
-        toast.success(`Deleted ${result.deleted} file${result.deleted !== 1 ? "s" : ""}`);
-      }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Bulk delete failed");
-      refresh(); // reconcile against the server (no stale-snapshot clobber)
-    } finally {
-      setBulkDeleting(false);
-      refreshQuota();
-    }
-  }, [selectedIds, files, setFiles, refresh, refreshQuota]);
-
-  const startBulkZipDownload = useDownloadStore((s) => s.startBulkZipDownload);
-  const startBulkDownload = useCallback((passphrase: string) => {
-    const filesToDownload = files.filter((f) => selectedIds.has(f.id));
-    const totalSize = filesToDownload.reduce((s, f) => s + f.original_size, 0);
-    const MAX_ZIP_SIZE = 2 * 1024 * 1024 * 1024; // 2GB
-    if (totalSize > MAX_ZIP_SIZE) {
-      toast.warning(`Selected files total ${formatBytes(totalSize)} — too large for ZIP. Download individually instead.`);
-      return;
-    }
-    const bulkFiles = filesToDownload.map((f) => ({
-      fileId: f.id,
-      filename: f.original_name,
-      fileSize: f.original_size,
-    }));
-    startBulkZipDownload(bulkFiles, passphrase);
-    exitSelectionMode();
-  }, [files, selectedIds, startBulkZipDownload, exitSelectionMode]);
-
-  const handleBulkDownload = useCallback(() => {
-    const cached = getPassphrase();
-    if (cached) {
-      startBulkDownload(cached);
-    } else {
-      setModalMode({ type: "bulk-download" });
-      setPassphraseError(null);
-    }
-  }, [getPassphrase, startBulkDownload]);
-
-  // --- Unlock vault (trigger thumbnail batch load) ---
-  const handleUnlock = useCallback(() => {
-    const cached = getPassphrase();
-    if (cached) {
-      // Already unlocked — trigger batch load with cached passphrase
-      batchLoadThumbnails(files, cached).catch(() => {});
-    } else {
-      setModalMode({ type: "unlock" });
-      setPassphraseError(null);
-    }
-  }, [getPassphrase, files]);
-
-  // --- Preview ---
-  const handlePreview = useCallback(
+  // Kebab "Preview" (filename-keyed) routes to the SAME full viewer, scoped to
+  // the file's folder so prev/next still walks that folder.
+  const handlePreviewInViewer = useCallback(
     (filename: string) => {
       const file = files.find((f) => f.original_name === filename);
       if (!file) return;
-
-      const cached = getPassphrase();
-      if (cached) {
-        startPreview(filename, cached);
-      } else {
-        setModalMode({ type: "preview", filename });
-        setPassphraseError(null);
-      }
+      const fid = file.folder_id ?? null;
+      const folderFiles = files.filter((f) => (f.folder_id ?? null) === fid);
+      handleOpenFile(file, folderFiles);
     },
-    [files, getPassphrase]
+    [files, handleOpenFile]
   );
 
-  const startPreview = useCallback(
-    async (filename: string, passphrase: string) => {
-      const file = files.find((f) => f.original_name === filename);
-      if (!file) return;
+  const closeViewer = useCallback(() => setViewerOpen(false), []);
 
-      preview.openPreview(null, filename, file.original_size);
+  const executeDelete = useCallback(() => {
+    if (!deleteTarget) return;
+    actions.executeDelete(deleteTarget);
+    setDeleteTarget(null);
+  }, [deleteTarget, actions]);
 
-      try {
-        // Decrypt file in-memory for preview (reuses download-session internals)
-        const { getFileMeta, getFileChunk } = await import("@/lib/api");
-        const { resolveFileKey, decryptChunk, sha256Hex, fromBase64 } = await import("@/lib/crypto");
-        const { ZstdInit } = await import("@oneidentity/zstd-js/wasm");
-        const zstd = await ZstdInit();
+  const executeBulkDelete = useCallback(() => {
+    if (!bulkDeleteIds) return;
+    void actions.executeBulkDelete(bulkDeleteIds);
+    setBulkDeleteIds(null);
+  }, [bulkDeleteIds, actions]);
 
-        const meta = await getFileMeta(file.id);
-        const salt = fromBase64(meta.salt);
-        const keyBytes = await resolveFileKey(passphrase, salt, meta.wrapped_cek);
-
-        const chunks: Uint8Array[] = [];
-        for (let i = 0; i < meta.chunk_count; i++) {
-          const { data, compressed } = await getFileChunk(file.id, i);
-          let plain = await decryptChunk(keyBytes, new Uint8Array(data));
-          if (compressed && zstd) {
-            // ZstdStream (not ZstdSimple): it doesn't require frame content size,
-            // which ZstdSimple.decompress needs but some frames may not include.
-            // Matches download-session / bulk-download / share-download.
-            plain = zstd.ZstdStream.decompress(plain);
-          }
-          chunks.push(plain);
-        }
-
-        const totalSize = chunks.reduce((s, c) => s + c.byteLength, 0);
-        const full = new Uint8Array(totalSize);
-        let offset = 0;
-        for (const c of chunks) { full.set(c, offset); offset += c.byteLength; }
-
-        const hash = await sha256Hex(full);
-        if (hash !== meta.sha256) throw new Error("File integrity check failed");
-
-        const blob = new Blob([full], { type: "application/octet-stream" });
-        preview.openPreview(blob, filename, file.original_size);
-      } catch (err) {
-        preview.closePreview();
-        const msg = err instanceof Error ? err.message : "Preview failed";
-        if (msg.toLowerCase().includes("decrypt") || msg.toLowerCase().includes("passphrase") || msg.toLowerCase().includes("cipher")) {
-          clearPassphrase();
-          setModalMode({ type: "preview", filename });
-          setPassphraseError("Incorrect passphrase. Please try again.");
-        } else {
-          toast.error(msg);
-        }
-      }
+  // ── Upload dialog → existing upload flow ────────────────────────────────────
+  const handleDialogFiles = useCallback(
+    (selectedFiles: File[]) => {
+      setUploadOpen(false);
+      actions.handleFilesSelected(selectedFiles);
     },
-    [files, clearPassphrase, preview]
+    [actions]
   );
 
-  // --- Modal handler ---
-  const handleModalConfirm = useCallback(
-    (passphrase: string) => {
-      if (!modalMode) return;
-      setModalMode(null);
-      setPassphraseError(null);
+  // Mirror PlatformHealth's filter so the "Storage & backup" panel only renders
+  // when it has content to show.
+  const hasPersonalPlatform = statuses.some((s) => s.connected && !s.is_global);
 
-      // Always batch-load thumbnails in background when passphrase is entered
-      batchLoadThumbnails(files, passphrase).catch(() => {});
-
-      if (modalMode.type === "upload") {
-        startUpload(modalMode.files, passphrase);
-      } else if (modalMode.type === "download") {
-        startDownload(modalMode.filename, passphrase);
-      } else if (modalMode.type === "bulk-download") {
-        startBulkDownload(passphrase);
-      } else if (modalMode.type === "unlock") {
-        // Unlock mode: thumbnails already started loading above
-      } else {
-        startPreview(modalMode.filename, passphrase);
-      }
-    },
-    [modalMode, files, startUpload, startDownload, startPreview, startBulkDownload]
-  );
-
-  // --- Computed ---
-  const totalSize = files.reduce((sum, f) => sum + f.original_size, 0);
-  const totalEncrypted = files.reduce((sum, f) => sum + f.encrypted_size, 0);
-  const lastUploadDate = files.length > 0
-    ? files.reduce((latest, f) => (f.created_at > latest ? f.created_at : latest), files[0].created_at)
-    : undefined;
-  const handleSort = (field: SortField) => {
-    if (field === sortField) {
-      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    } else {
-      setSortField(field);
-      setSortDir(field === "date" ? "desc" : "asc");
-    }
-    setCurrentPage(1);
-  };
-
-  // Apply search + type filter + sort
-  const filtered = (search
-    ? files.filter((f) => f.original_name.toLowerCase().includes(search.toLowerCase()))
-    : files
-  ).filter((f) => typeFilter ? getFileCategory(f.original_name) === typeFilter : true
-  ).slice().sort((a, b) => {
-    const dir = sortDir === "asc" ? 1 : -1;
-    switch (sortField) {
-      case "name": return dir * a.original_name.localeCompare(b.original_name);
-      case "size": return dir * (a.original_size - b.original_size);
-      case "saved": {
-        const sa = a.original_size > 0 ? (1 - a.encrypted_size / a.original_size) : 0;
-        const sb = b.original_size > 0 ? (1 - b.encrypted_size / b.original_size) : 0;
-        return dir * (sa - sb);
-      }
-      case "date": return dir * (new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-      case "type": return dir * getFileCategory(a.original_name).localeCompare(getFileCategory(b.original_name));
-      default: return 0;
-    }
-  });
-
-  // Reset type filter when search changes
-  const handleSearchChange = (value: string) => {
-    setSearch(value);
-    setCurrentPage(1);
-  };
-
-  const handleTypeFilter = (category: string | null) => {
-    setTypeFilter(category);
-    setCurrentPage(1);
-  };
-
-  // Pagination
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const safePage = Math.min(currentPage, totalPages);
-  const paginatedFiles = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
-  const remainingMinutes = getRemainingMinutes();
-  const hasCachedPassphrase = !!cachedPassphrase && !!cacheUntil && Date.now() < cacheUntil;
-
-  const modalSubtitle = modalMode
-    ? modalMode.type === "upload"
-      ? modalMode.files.length === 1
-        ? modalMode.files[0].name
-        : `${modalMode.files.length} files selected`
-      : modalMode.type === "bulk-download"
-        ? `${selectedIds.size} files selected`
-        : modalMode.type === "unlock"
-          ? "Unlock to view encrypted thumbnails"
-          : modalMode.type === "download" || modalMode.type === "preview"
-            ? modalMode.filename
-            : undefined
-    : undefined;
+  const uploadHint =
+    quotaInfo && !quotaInfo.can_upload
+      ? "Storage not available yet"
+      : statuses.some((s) => s.connected) &&
+          !statuses.some((s) => s.platform === "huggingface" && s.connected)
+        ? "Tip: connect Hugging Face for faster large-file (2GB+) uploads"
+        : vault.unlocked
+          ? "Vault unlocked — drop files to upload instantly"
+          : undefined;
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Stats & actions */}
-      <div className="flex items-start justify-between gap-3">
-        <CompactStats fileCount={files.length} totalSize={totalSize} totalEncrypted={totalEncrypted} lastUploadDate={lastUploadDate} quotaInfo={quotaInfo} />
-        <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
-          {hasCachedPassphrase && (
-            <div className="flex items-center gap-1.5 text-xs text-[var(--color-accent)] bg-[var(--color-accent)]/10 border border-[var(--color-accent)]/20 px-2.5 py-1.5 rounded-lg">
-              <Lock className="h-3 w-3" />
-              <span className="hidden sm:inline">{remainingMinutes}m</span>
-              <button
-                onClick={clearPassphrase}
-                className="ml-0.5 hover:text-red-400 transition-colors"
-                title="Clear cached passphrase"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </div>
-          )}
-          <Button variant="ghost" size="sm" onClick={() => refresh()} className="h-9 w-9 p-0">
-            <RefreshCw className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-
-      {/* Tab switcher */}
-      <div className="flex gap-1 p-1 rounded-xl bg-[var(--color-surface-1)] w-fit">
-        {([
-          { id: "files" as const, label: "Files", icon: Shield },
-          { id: "insights" as const, label: "Insights", icon: BarChart3 },
-        ]).map(({ id, label, icon: TabIcon }) => (
-          <button
-            key={id}
-            onClick={() => setActiveTab(id)}
-            className={cn(
-              "flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all",
-              activeTab === id
-                ? "bg-[var(--color-surface)] text-[var(--color-text)] shadow-sm"
-                : "text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
-            )}
-          >
-            <TabIcon className="h-4 w-4" />
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {activeTab === "insights" ? (
-        <InsightsTab files={files} repos={repos} quotaInfo={quotaInfo} />
-      ) : (
-      <>
-
-      {/* No storage available warning */}
-      {quotaInfo && !quotaInfo.can_upload && (
-        <div className="flex items-start gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4">
-          <AlertTriangle className="h-5 w-5 text-amber-500 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-medium text-amber-700 dark:text-amber-300">
-              Storage not available yet
-            </p>
-            <p className="text-xs text-amber-600/70 dark:text-amber-400/60 mt-0.5">
-              Managed storage is being set up. You can also{" "}
-              <Link
-                href="/settings"
-                className="underline hover:text-amber-600 dark:hover:text-amber-300 transition-colors"
-              >
-                connect your own platform
-              </Link>{" "}
-              for unlimited storage.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Upload zone */}
-      <div className="space-y-3">
-        <UploadZone
-          onFiles={handleFilesSelected}
-          hint={
-            quotaInfo && !quotaInfo.can_upload
-              ? "Storage not available yet"
-              : statuses.some((s) => s.connected) && !statuses.some((s) => s.platform === "huggingface" && s.connected)
-                ? "Tip: connect Hugging Face for faster large-file (2GB+) uploads"
-                : hasCachedPassphrase
-                  ? "Passphrase cached — drop files to upload instantly"
-                  : undefined
-          }
-        />
-        <PlatformSelector
-          statuses={statuses}
-          selected={selectedPlatform}
-          onSelect={setSelectedPlatform}
-        />
-      </div>
-
-      {/* Upload & Download queues */}
-      <UploadQueue />
-      <DownloadQueue />
-
-      {/* Platform overview — only shows personally connected platforms */}
-      <PlatformHealth statuses={statuses} repos={repos} />
-
-
-      {/* Search + View toggle + Select */}
-      {files.length > 0 && (
-        <div className="space-y-3">
-          <div className="flex gap-2 items-center">
-            <div className="flex-1">
-              <Input
-                type="text"
-                placeholder="Search files..."
-                value={search}
-                onChange={(e) => handleSearchChange(e.target.value)}
-                icon={<Search className="h-4 w-4" />}
-              />
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              {/* Select toggle */}
-              <button
-                onClick={() => selectionMode ? exitSelectionMode() : setSelectionMode(true)}
-                className={cn(
-                  "flex items-center gap-1.5 h-[38px] px-3 rounded-xl border text-xs font-medium transition-colors",
-                  selectionMode
-                    ? "bg-[var(--color-accent)]/10 text-[var(--color-accent)] border-[var(--color-accent)]/20"
-                    : "bg-[var(--color-surface)] text-[var(--color-text-muted)] border-[var(--color-border)] hover:border-[var(--color-border-hover)] hover:text-[var(--color-text-secondary)]"
-                )}
-              >
-                <CheckSquare className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Select</span>
-              </button>
-
-              {/* View mode toggle */}
-              <div className="flex rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden">
-                {([
-                  { mode: "grid" as const, icon: LayoutGrid, title: "Grid" },
-                  { mode: "table" as const, icon: TableProperties, title: "Table" },
-                ]).map(({ mode, icon: ModeIcon, title }, i) => (
-                  <button
-                    key={mode}
-                    onClick={() => setViewMode(mode)}
-                    className={cn(
-                      "flex items-center justify-center h-[38px] w-9 transition-colors",
-                      i > 0 && "border-l border-[var(--color-border)]",
-                      viewMode === mode
-                        ? "bg-[var(--color-accent)]/10 text-[var(--color-accent)]"
-                        : "text-[var(--color-text-muted)] hover:bg-[var(--color-surface-1)]"
-                    )}
-                    title={title}
-                  >
-                    <ModeIcon className="h-4 w-4" />
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* File type filter chips */}
-          <FileTypeFilter
-            files={search ? files.filter((f) => f.original_name.toLowerCase().includes(search.toLowerCase())) : files}
-            activeFilter={typeFilter}
-            onFilter={handleTypeFilter}
-          />
-        </div>
-      )}
-
-      {/* Backend error */}
-      {error && (
-        <div className="flex items-start gap-3 rounded-2xl border border-red-500/20 bg-red-500/5 p-4">
-          <div className="text-sm text-red-600 dark:text-red-300">
-            {error} — is the backend running on :8080?
-          </div>
-        </div>
-      )}
-
-      {/* File list */}
-      {loading ? (
-        <>
-          {/* Mobile skeleton */}
-          <div className="space-y-2 md:hidden">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
-                <Skeleton className="h-10 w-10 rounded-lg flex-shrink-0" />
-                <div className="flex-1 space-y-1.5">
-                  <Skeleton className="h-3.5 w-32" />
-                  <Skeleton className="h-3 w-20" />
-                </div>
-              </div>
-            ))}
-          </div>
-          {/* Desktop skeleton */}
-          <div className="hidden md:grid grid-cols-2 lg:grid-cols-3 gap-3">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="card p-0 overflow-hidden">
-                <Skeleton className="h-[130px] w-full" />
-                <div className="p-3.5 space-y-2">
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-3 w-20" />
-                  <Skeleton className="h-3 w-full" />
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      ) : filtered.length === 0 && files.length > 0 ? (
-        <EmptyState
-          icon={<Search className="h-8 w-8 text-[var(--color-text-muted)]" />}
-          title="No matching files"
-          description={typeFilter ? `No ${typeFilter.toLowerCase()} files found${search ? ` matching "${search}"` : ""}` : "Try a different search term"}
-        />
-      ) : files.length === 0 ? (
-        <EmptyState
-          icon={<Shield className="h-8 w-8 text-[var(--color-text-muted)]" />}
-          title="No files yet"
-          description="Upload your first file to get started. Files are compressed, encrypted, and stored across your connected platforms."
-        />
-      ) : viewMode === "table" ? (
-        <>
-          <FileTable
-            files={paginatedFiles}
-            downloadStates={downloadStates}
-            sortField={sortField}
-            sortDir={sortDir}
-            onSort={handleSort}
-            onDownload={handleDownloadClick}
-            onDelete={handleDeleteClick}
-            onPreview={handlePreview}
-            onShare={handleShare}
-            selectable={selectionMode}
-            selectedIds={selectedIds}
-            onSelect={toggleSelect}
-            onSelectAll={selectAll}
-          />
-          <Pagination
-            currentPage={safePage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-            totalItems={filtered.length}
-            pageSize={PAGE_SIZE}
-          />
-        </>
-      ) : (
-        <>
-          <div>
-            {/* Mobile: compact list layout */}
-            <div className="space-y-1.5 md:hidden">
-              {paginatedFiles.map((file) => (
-                <FileCard
-                  key={file.id}
-                  file={file}
-                  downloadState={downloadStates[file.id] || "idle"}
-                  onDownload={handleDownloadClick}
-                  onDelete={handleDeleteClick}
-                  onPreview={handlePreview}
-                  onShare={handleShare}
-                  selectable={selectionMode}
-                  selected={selectedIds.has(file.id)}
-                  onSelect={toggleSelect}
-                />
-              ))}
-            </div>
-            {/* Desktop: grid layout */}
-            <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {paginatedFiles.map((file) => (
-              <FileCard
-                key={file.id}
-                file={file}
-                downloadState={downloadStates[file.id] || "idle"}
-                onDownload={handleDownloadClick}
-                onDelete={handleDeleteClick}
-                onPreview={handlePreview}
-                onShare={handleShare}
-                selectable={selectionMode}
-                selected={selectedIds.has(file.id)}
-                onSelect={toggleSelect}
-              />
-            ))}
-            </div>
-          </div>
-          <Pagination
-            currentPage={safePage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-            totalItems={filtered.length}
-            pageSize={PAGE_SIZE}
-          />
-        </>
-      )}
-
-      {/* Bulk selection floating bar */}
-      {selectionMode && selectedIds.size > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 animate-fade-in">
-          <div className="flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl backdrop-blur-sm">
-            <span className="text-sm font-medium tabular-nums">
-              {selectedIds.size} selected
-            </span>
-            <div className="w-px h-5 bg-[var(--color-border)]" />
-            <button
-              onClick={selectAll}
-              className="flex items-center gap-1 text-xs font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text)] px-2 py-1 rounded-lg hover:bg-[var(--color-surface-1)] transition-colors"
-            >
-              {filtered.every((f) => selectedIds.has(f.id)) ? (
-                <><Square className="h-3.5 w-3.5" /> Deselect</>
-              ) : (
-                <><CheckSquare className="h-3.5 w-3.5" /> All</>
-              )}
-            </button>
-            <div className="w-px h-5 bg-[var(--color-border)]" />
-            <button
-              onClick={handleBulkDownload}
-              className="flex items-center gap-1 text-xs font-medium text-[var(--color-accent)] px-2 py-1.5 rounded-lg hover:bg-[var(--color-accent)]/10 transition-colors"
-            >
-              <Download className="h-3.5 w-3.5" />
-              Download
-            </button>
-            <button
-              onClick={() => setShowBulkDeleteConfirm(true)}
-              className="flex items-center gap-1 text-xs font-medium text-red-500 px-2 py-1.5 rounded-lg hover:bg-red-500/10 transition-colors"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              Delete
-            </button>
-            <div className="w-px h-5 bg-[var(--color-border)]" />
-            <button
-              onClick={exitSelectionMode}
-              className="flex items-center justify-center h-7 w-7 rounded-lg text-[var(--color-text-muted)] hover:bg-[var(--color-surface-1)] transition-colors"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Vault backup */}
-      {files.length > 0 && <ExportImport files={files} />}
-
-      {/* Shared passphrase modal */}
-      <PassphraseModal
-        open={!!modalMode}
-        onConfirm={handleModalConfirm}
-        onClose={() => { setModalMode(null); setPassphraseError(null); }}
-        title="Enter Passphrase"
-        subtitle={modalSubtitle}
-        confirmLabel={modalMode?.type === "upload" ? "Upload" : modalMode?.type === "unlock" ? "Unlock" : modalMode?.type === "preview" ? "Preview" : "Download"}
-        error={passphraseError}
+      {/* Page header — title, the single vault-lock pill, refresh, Upload action */}
+      <PageHeader
+        title="My Vault"
+        description="Everything you have encrypted and stored — compressed, end-to-end encrypted, and spread across your connected platforms."
+        actions={
+          <>
+            <VaultLock
+              unlocked={vault.unlocked}
+              remainingSeconds={vault.remainingSeconds}
+              persistent={vault.persistent}
+              onUnlock={() => vault.unlock()}
+              onLock={vault.lock}
+            />
+            <IconButton icon={RefreshCw} label="Refresh" onClick={() => refresh()} />
+            <Button onClick={() => setUploadOpen(true)}>
+              <Upload className="h-4 w-4" />
+              Upload
+            </Button>
+          </>
+        }
       />
 
-      {/* File preview modal */}
+      {/* Tab switcher + panels */}
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) => setActiveTab(v as "files" | "insights")}
+        className="space-y-6"
+      >
+        <TabsList className="inline-flex h-auto w-fit gap-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-1">
+          {(
+            [
+              { id: "files" as const, label: "Files", icon: Shield },
+              { id: "insights" as const, label: "Insights", icon: BarChart3 },
+            ]
+          ).map(({ id, label, icon: TabIcon }) => (
+            <TabsTrigger
+              key={id}
+              value={id}
+              className="gap-1.5 rounded-lg px-4 py-1.5 text-sm font-medium text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text-secondary)] data-[state=active]:bg-[var(--color-surface)] data-[state=active]:text-[var(--color-text)] data-[state=active]:shadow-sm"
+            >
+              <TabIcon className="h-4 w-4" />
+              {label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+
+        <TabsContent value="insights" className="space-y-6 focus-visible:outline-none">
+          <InsightsTab files={files} repos={repos} quotaInfo={quotaInfo} />
+        </TabsContent>
+
+        <TabsContent value="files" className="space-y-6 focus-visible:outline-none">
+          {/* No storage available warning */}
+          {quotaInfo && !quotaInfo.can_upload && (
+            <div className="flex items-start gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4">
+              <AlertTriangle className="h-5 w-5 text-amber-500 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-amber-700 dark:text-amber-300">
+                  Storage not available yet
+                </p>
+                <p className="text-xs text-amber-600/70 dark:text-amber-400/60 mt-0.5">
+                  Managed storage is being set up. You can also{" "}
+                  <Link
+                    href="/settings"
+                    className="underline hover:text-amber-600 dark:hover:text-amber-300 transition-colors"
+                  >
+                    connect your own platform
+                  </Link>{" "}
+                  for unlimited storage.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Empty vault → CTA; otherwise the unified explorer. The explorer
+              renders its own loading / locked / no-results states. */}
+          {!loading && !error && files.length === 0 ? (
+            <EmptyState
+              icon={<Shield className="h-7 w-7 text-[var(--color-text-muted)]" />}
+              title="No files yet"
+              description="Upload your first file to get started. Files are compressed, encrypted, and stored across your connected platforms."
+              action={
+                <Button size="sm" onClick={() => setUploadOpen(true)}>
+                  <Upload className="h-4 w-4" />
+                  Upload files
+                </Button>
+              }
+            />
+          ) : (
+            <VaultExplorer
+              files={files}
+              loading={loading}
+              error={error}
+              onPreview={handlePreviewInViewer}
+              onDownload={actions.handleDownload}
+              onShare={handleShareRequest}
+              onOpenDetails={handleOpenDetails}
+              onOpenFile={handleOpenFile}
+              onDelete={handleDeleteRequest}
+              onMoveFile={actions.handleMoveFileTo}
+              onMoveRequest={setMoveTarget}
+              onBulkDelete={setBulkDeleteIds}
+              onBulkDownload={actions.handleBulkDownload}
+              onUploadClick={() => setUploadOpen(true)}
+              onOpenFolderRequest={handleOpenFolderRequest}
+              onProtectFolder={setProtectTarget}
+              onRemoveFolderPassword={setRemoveTarget}
+              onMoveFolderRequest={setMoveFolderTarget}
+            />
+          )}
+
+          {/* Storage & backup — de-emphasized, collapsed by default. Only render
+              when there's content: a personal platform or files to back up. */}
+          {(hasPersonalPlatform || files.length > 0) && (
+            <Accordion type="single" collapsible className="pt-2">
+              <AccordionItem
+                value="storage-backup"
+                className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4"
+              >
+                <AccordionTrigger className="py-3.5 text-sm font-medium text-[var(--color-text-secondary)] hover:no-underline hover:text-[var(--color-text)] [&>svg]:text-[var(--color-text-muted)]">
+                  <span className="flex items-center gap-2">
+                    <HardDrive className="h-4 w-4 text-[var(--color-text-muted)]" />
+                    Storage &amp; backup
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent className="space-y-3 pb-4">
+                  <PlatformHealth statuses={statuses} repos={repos} />
+                  {files.length > 0 && <ExportImport files={files} />}
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          )}
+
+          {/* Feedback modal */}
+          <FeedbackModal
+            open={showFeedback}
+            onClose={dismissFeedback}
+            onSubmitted={markFeedbackSubmitted}
+          />
+        </TabsContent>
+      </Tabs>
+
+      {/* ── Modals the explorer hands control back to ───────────────────────── */}
+
+      {/* File preview modal (decrypted in-memory by useVaultActions) — retained
+          for any legacy in-memory preview path; the click/kebab now open the
+          richer <FileViewer> below. */}
       <FilePreviewModal
         open={preview.open}
         onClose={preview.closePreview}
         blob={preview.blob}
         filename={preview.filename}
         fileSize={preview.fileSize}
+      />
+
+      {/* Full multi-format file viewer (OWNER 1) — opened by a file click / the
+          kebab Preview, with the file's folder as the prev/next list. Decrypts
+          entirely in-browser via useFileDecryptor (zero-knowledge). */}
+      <FileViewer
+        open={viewerOpen}
+        files={viewerFiles}
+        index={viewerIndex}
+        onIndexChange={setViewerIndex}
+        onClose={closeViewer}
+        decrypt={decryptToBlob}
       />
 
       {/* Share modal */}
@@ -890,39 +497,130 @@ export default function VaultPage() {
         fileSize={shareTarget?.original_size ?? 0}
       />
 
-      {/* Confirm delete modal */}
-      <ConfirmModal
+      {/* File details drawer */}
+      <DetailsDrawer
+        file={detailsTarget}
+        open={detailsOpen}
+        onOpenChange={(o) => {
+          setDetailsOpen(o);
+          if (!o) setDetailsTarget(null);
+        }}
+      />
+
+      {/* Move FILE to folder (kebab path; drag-to-move is handled in-explorer).
+          Routes through moveFileWithRekey so a move across a protection boundary
+          re-keys before moving. */}
+      <MoveToFolderDialog
+        open={!!moveTarget}
+        fileId={moveTarget}
+        onClose={() => setMoveTarget(null)}
+        onMoved={() => refresh()}
+        onMoveFile={actions.moveFileWithRekey}
+      />
+
+      {/* Move FOLDER to folder (keyboard-reachable C1; rejects self/descendant). */}
+      <MoveToFolderDialog
+        open={!!moveFolderTarget}
+        fileId={null}
+        folderId={moveFolderTarget?.id ?? null}
+        onClose={() => setMoveFolderTarget(null)}
+        onMoved={() => refresh()}
+      />
+
+      {/* Folder unlock (open a protected folder / verify before re-key sweeps) */}
+      <FolderUnlockModal state={folderProtection.modalState} />
+
+      {/* Set / replace a folder password (with re-key progress) */}
+      <SetFolderPasswordDialog
+        state={{
+          open: !!protectTarget,
+          folderName: protectTarget?.name ?? "",
+          fileCount: protectTarget ? files.filter((f) => (f.folder_id ?? null) === protectTarget.id).length : 0,
+          vaultUnlocked: vault.unlocked,
+          progress: protectTarget ? rekeyProgress : null,
+          onSubmit: submitProtect,
+          onClose: () => {
+            if (rekeyProgress) return; // don't close mid-sweep
+            setProtectTarget(null);
+          },
+          onRequestVaultUnlock: () => vault.unlock(),
+        }}
+      />
+
+      {/* Remove folder password (with re-key-back progress) */}
+      <RemoveFolderPasswordDialog
+        state={{
+          open: !!removeTarget,
+          folderName: removeTarget?.name ?? "",
+          fileCount: removeTarget ? files.filter((f) => (f.folder_id ?? null) === removeTarget.id).length : 0,
+          vaultUnlocked: vault.unlocked,
+          progress: removeTarget ? rekeyProgress : null,
+          onConfirm: submitRemoveProtection,
+          onClose: () => {
+            if (rekeyProgress) return;
+            setRemoveTarget(null);
+          },
+          onRequestVaultUnlock: () => vault.unlock(),
+        }}
+      />
+
+      {/* Confirm delete (single) */}
+      <ConfirmDialog
         open={!!deleteTarget}
+        onOpenChange={(o) => !o && setDeleteTarget(null)}
         onConfirm={executeDelete}
-        onClose={() => setDeleteTarget(null)}
-        title="Delete File"
-        description="This file will be permanently deleted from all storage platforms. This action cannot be undone."
-        details={deleteTarget?.original_name}
-        confirmLabel="Delete File"
-        variant="danger"
-        loading={deleting}
+        destructive
+        title="Move file to Trash?"
+        description={
+          <>
+            <span className="block">
+              This file will be moved to Trash — you can restore it from Deleted Files.
+            </span>
+            {deleteTarget && (
+              <span className="mt-3 block truncate rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2 font-mono text-xs text-[var(--color-text-muted)]">
+                {deleteTarget.original_name}
+              </span>
+            )}
+          </>
+        }
+        confirmLabel="Move to Trash"
       />
 
       {/* Bulk delete confirm */}
-      <ConfirmModal
-        open={showBulkDeleteConfirm}
+      <ConfirmDialog
+        open={!!bulkDeleteIds}
+        onOpenChange={(o) => !o && setBulkDeleteIds(null)}
         onConfirm={executeBulkDelete}
-        onClose={() => setShowBulkDeleteConfirm(false)}
-        title="Delete Selected Files"
-        description={`${selectedIds.size} file${selectedIds.size !== 1 ? "s" : ""} will be permanently deleted from all storage platforms. This action cannot be undone.`}
-        confirmLabel={`Delete ${selectedIds.size} File${selectedIds.size !== 1 ? "s" : ""}`}
-        variant="danger"
-        loading={bulkDeleting}
+        destructive
+        title="Move selected files to Trash?"
+        description={`${bulkDeleteIds?.length ?? 0} file${
+          (bulkDeleteIds?.length ?? 0) !== 1 ? "s" : ""
+        } will be moved to Trash — you can restore them from Deleted Files.`}
+        confirmLabel={`Move ${bulkDeleteIds?.length ?? 0} file${
+          (bulkDeleteIds?.length ?? 0) !== 1 ? "s" : ""
+        } to Trash`}
       />
 
-      {/* Feedback modal */}
-      <FeedbackModal
-        open={showFeedback}
-        onClose={dismissFeedback}
-        onSubmitted={markFeedbackSubmitted}
-      />
-      </>
-      )}
+      {/* Upload dialog — upload zone + platform selector. Lives outside the tab
+          conditional so the header Upload button works from any tab. */}
+      <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
+        <DialogContent className="max-w-xl border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)]">
+          <DialogHeader>
+            <DialogTitle>Upload files</DialogTitle>
+            <DialogDescription className="text-[var(--color-text-secondary)]">
+              Files are compressed, end-to-end encrypted, and chunked before they leave your device.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <UploadZone onFiles={handleDialogFiles} hint={uploadHint} />
+            <PlatformSelector
+              statuses={statuses}
+              selected={selectedPlatform}
+              onSelect={setSelectedPlatform}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

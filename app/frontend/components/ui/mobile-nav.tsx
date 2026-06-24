@@ -22,7 +22,6 @@ import {
 } from "@/lib/icons";
 import {
   VaultIcon,
-  NotesIcon,
   ShareIcon,
   GearIcon,
   MoreDotsIcon,
@@ -31,7 +30,6 @@ import { Role } from "@/types";
 
 const NAV_LINKS = [
   { href: "/dashboard", label: "Vault", Icon: VaultIcon },
-  { href: "/notes", label: "Notes", Icon: NotesIcon },
   { href: "/share", label: "Share", Icon: ShareIcon },
   { href: "/settings", label: "Settings", Icon: GearIcon },
 ];

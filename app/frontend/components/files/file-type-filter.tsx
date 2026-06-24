@@ -26,35 +26,43 @@ export function FileTypeFilter({ files, activeFilter, onFilter }: FileTypeFilter
 
   if (categories.length <= 1) return null;
 
+  const chipClass = (active: boolean) =>
+    cn(
+      "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)]",
+      active
+        ? "bg-[var(--color-accent)]/10 text-[var(--color-accent)] border-[var(--color-accent)]/20"
+        : "bg-[var(--color-surface)] text-[var(--color-text-secondary)] border-[var(--color-border)] hover:border-[var(--color-border-hover)] hover:text-[var(--color-text)]"
+    );
+
   return (
-    <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none -mx-1 px-1">
+    <div
+      style={{ scrollbarWidth: "none" }}
+      className="flex gap-1.5 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden -mx-1 px-1"
+    >
       <button
+        type="button"
         onClick={() => onFilter(null)}
-        className={cn(
-          "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap border transition-colors",
-          activeFilter === null
-            ? "bg-[var(--color-accent)]/10 text-[var(--color-accent)] border-[var(--color-accent)]/20"
-            : "bg-[var(--color-surface)] text-[var(--color-text-muted)] border-[var(--color-border)] hover:border-[var(--color-border-hover)] hover:text-[var(--color-text-secondary)]"
-        )}
+        aria-pressed={activeFilter === null}
+        className={chipClass(activeFilter === null)}
       >
         All
-        <span className="tabular-nums opacity-60">{files.length}</span>
+        <span className="tabular-nums opacity-80">{files.length}</span>
       </button>
-      {categories.map((cat) => (
-        <button
-          key={cat.name}
-          onClick={() => onFilter(activeFilter === cat.name ? null : cat.name)}
-          className={cn(
-            "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap border transition-colors",
-            activeFilter === cat.name
-              ? "bg-[var(--color-accent)]/10 text-[var(--color-accent)] border-[var(--color-accent)]/20"
-              : "bg-[var(--color-surface)] text-[var(--color-text-muted)] border-[var(--color-border)] hover:border-[var(--color-border-hover)] hover:text-[var(--color-text-secondary)]"
-          )}
-        >
-          {cat.name}
-          <span className="tabular-nums opacity-60">{cat.count}</span>
-        </button>
-      ))}
+      {categories.map((cat) => {
+        const active = activeFilter === cat.name;
+        return (
+          <button
+            type="button"
+            key={cat.name}
+            onClick={() => onFilter(active ? null : cat.name)}
+            aria-pressed={active}
+            className={chipClass(active)}
+          >
+            {cat.name}
+            <span className="tabular-nums opacity-80">{cat.count}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }

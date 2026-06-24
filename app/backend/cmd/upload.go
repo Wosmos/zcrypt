@@ -113,7 +113,12 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		account = parts[1]
 	}
 
-	// Create file record
+	// Create file record. An optional folder_id lets the file be born directly in
+	// its target folder (atomic), avoiding a best-effort post-upload move that, on
+	// failure, would strand a folder-keyed file at Root. Omitted/null => NULL (Root),
+	// exactly as before. Ownership of the folder is validated inside InsertFile; an
+	// unknown/foreign folder_id is treated as NULL (Root) rather than failing the
+	// upload, so a stale client folder reference can never block an upload.
 	fileID := uuid.New().String()
 	fileMeta := &types.FileMetadata{
 		ID:           fileID,
@@ -126,6 +131,7 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		IV:           []byte{}, // not used for client-side encryption
 		WrappedCEK:   req.WrappedCEK,
 		Status:       "uploading",
+		FolderID:     req.FolderID,
 	}
 
 	if err := s.db.InsertFile(ctx, userID, fileMeta); err != nil {

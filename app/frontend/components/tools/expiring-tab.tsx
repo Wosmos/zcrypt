@@ -1,12 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { listExpiringVaults, createExpiringVault, deleteExpiringVault, listFiles } from "@/lib/api";
 import type { ExpiringVault, FileMetadata } from "@/types";
 import { Button } from "@/components/ui/button";
-import { LogoSpinner } from "@/components/ui/logo-spinner";
-import { Plus, Trash2 } from "@/lib/icons";
+import { IconButton } from "@/components/ui/icon-button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { EmptyState } from "@/components/ui/empty-state";
+import { SkeletonRow } from "@/components/ui/skeletons";
+import { Plus, Trash2, Clock } from "@/lib/icons";
+import { cn } from "@/lib/utils";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -22,7 +26,21 @@ function timeUntil(iso: string): string {
   return `${hours}h ${minutes}m`;
 }
 
+const EXPIRY_CHOICES = [
+  { value: "1", label: "1 hour" },
+  { value: "6", label: "6 hours" },
+  { value: "24", label: "24 hours" },
+  { value: "168", label: "7 days" },
+  { value: "720", label: "30 days" },
+  { value: "2160", label: "90 days" },
+];
+
+const inputClass =
+  "h-10 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] outline-none transition-all focus:border-[var(--color-accent)]/40 focus:ring-2 focus:ring-[var(--color-accent)]/10";
+const labelClass = "text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]";
+
 export function ExpiringTab() {
+  const reduceMotion = useReducedMotion();
   const [vaults, setVaults] = useState<ExpiringVault[]>([]);
   const [files, setFiles] = useState<FileMetadata[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,6 +51,8 @@ export function ExpiringTab() {
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
+  const [pendingDelete, setPendingDelete] = useState<ExpiringVault | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     Promise.all([listExpiringVaults(), listFiles()])
@@ -57,126 +77,153 @@ export function ExpiringTab() {
     } finally { setCreating(false); }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Delete this vault? The files themselves will not be deleted.")) return;
-    try { await deleteExpiringVault(id); setVaults((prev) => prev.filter((v) => v.id !== id)); } catch { /* ignore */ }
+  const handleDelete = async () => {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    try {
+      await deleteExpiringVault(pendingDelete.id);
+      setVaults((prev) => prev.filter((v) => v.id !== pendingDelete.id));
+      setPendingDelete(null);
+    } catch { /* ignore */ }
+    finally { setDeleting(false); }
   };
 
   const getFileName = (fileId: string) => files.find((f) => f.id === fileId)?.original_name || fileId.slice(0, 8);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <LogoSpinner size="md" speed="fast" />
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button onClick={() => setShowCreate(!showCreate)} size="sm" variant={showCreate ? "secondary" : "primary"}>
-          {showCreate ? "Cancel" : <><Plus className="h-3.5 w-3.5" /> Create Vault</>}
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-[var(--color-text-secondary)]">Group files behind an auto-destruction timer.</p>
+        <Button onClick={() => { setShowCreate(!showCreate); setError(""); }} size="sm" variant={showCreate ? "secondary" : "primary"}>
+          {showCreate ? "Cancel" : <><Plus className="h-3.5 w-3.5" /> Create vault</>}
         </Button>
       </div>
 
-      {error && <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">{error}</div>}
-
-      <AnimatePresence>
+      <AnimatePresence initial={false}>
         {showCreate && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-            <section className="card overflow-hidden">
-              <div className="px-5 py-4 border-b border-[var(--color-border)]">
-                <h3 className="text-sm font-semibold">New Expiring Vault</h3>
+          <motion.div
+            initial={reduceMotion ? false : { opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={reduceMotion ? { opacity: 0 } : { opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="panel space-y-4 p-6">
+              <h3 className="text-sm font-semibold text-[var(--color-text)]">New expiring vault</h3>
+              <div className="space-y-1.5">
+                <label className={labelClass}>Name *</label>
+                <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Tax Documents 2025" className={inputClass} />
               </div>
-              <div className="p-5 space-y-4">
-                <div>
-                  <label className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Name *</label>
-                  <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Tax Documents 2025"
-                    className="mt-1.5 w-full h-10 px-3.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-sm placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-accent)]/40" />
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Description</label>
-                  <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional description..."
-                    className="mt-1.5 w-full h-10 px-3.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-sm placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-accent)]/40" />
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Expires In</label>
-                  <select value={expiresIn} onChange={(e) => setExpiresIn(e.target.value)}
-                    className="mt-1.5 w-full h-10 px-3.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-sm focus:outline-none focus:border-[var(--color-accent)]/40">
-                    <option value="1">1 hour</option>
-                    <option value="6">6 hours</option>
-                    <option value="24">24 hours</option>
-                    <option value="168">7 days</option>
-                    <option value="720">30 days</option>
-                    <option value="2160">90 days</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Select Files *</label>
-                  {files.length === 0 ? (
-                    <p className="text-sm text-[var(--color-text-muted)] mt-1.5">No files uploaded yet.</p>
-                  ) : (
-                    <div className="mt-1.5 max-h-48 overflow-y-auto space-y-1 border border-[var(--color-border)] rounded-xl p-2">
-                      {files.map((file) => (
-                        <label key={file.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-[var(--color-surface-1)] cursor-pointer">
-                          <input type="checkbox" checked={selectedFiles.includes(file.id)} onChange={() => setSelectedFiles((prev) => prev.includes(file.id) ? prev.filter((id) => id !== file.id) : [...prev, file.id])} className="w-4 h-4 rounded accent-[var(--color-accent)]" />
-                          <span className="text-sm truncate">{file.original_name}</span>
-                        </label>
-                      ))}
-                    </div>
-                  )}
-                  {selectedFiles.length > 0 && <p className="text-xs text-[var(--color-text-muted)] mt-1">{selectedFiles.length} file(s) selected</p>}
-                </div>
-                <Button onClick={handleCreate} disabled={creating} className="w-full">
-                  {creating ? "Creating..." : "Create Vault"}
-                </Button>
+              <div className="space-y-1.5">
+                <label className={labelClass}>Description</label>
+                <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional description..." className={inputClass} />
               </div>
-            </section>
+              <div className="space-y-1.5">
+                <label className={labelClass}>Expires in</label>
+                <select value={expiresIn} onChange={(e) => setExpiresIn(e.target.value)} className={inputClass}>
+                  {EXPIRY_CHOICES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className={labelClass}>Select files *</label>
+                {files.length === 0 ? (
+                  <p className="text-sm text-[var(--color-text-muted)]">No files uploaded yet.</p>
+                ) : (
+                  <div className="max-h-48 space-y-0.5 overflow-y-auto rounded-xl border border-[var(--color-border)] p-2">
+                    {files.map((file) => (
+                      <label key={file.id} className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-[var(--color-surface-1)]">
+                        <input
+                          type="checkbox"
+                          checked={selectedFiles.includes(file.id)}
+                          onChange={() => setSelectedFiles((prev) => prev.includes(file.id) ? prev.filter((id) => id !== file.id) : [...prev, file.id])}
+                          className="h-4 w-4 rounded accent-[var(--color-accent)]"
+                        />
+                        <span className="truncate text-sm text-[var(--color-text)]">{file.original_name}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+                {selectedFiles.length > 0 && <p className="text-xs tabular-nums text-[var(--color-text-muted)]">{selectedFiles.length} file(s) selected</p>}
+              </div>
+              {error && (
+                <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-3 text-sm text-red-600 dark:text-red-400" role="alert">
+                  {error}
+                </div>
+              )}
+              <Button onClick={handleCreate} disabled={creating} className="w-full">
+                {creating ? "Creating..." : "Create vault"}
+              </Button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {vaults.length === 0 && !showCreate ? (
-        <div className="card text-center py-12">
-          <p className="text-[var(--color-text-muted)]">No expiring vaults yet.</p>
-          <p className="text-xs text-[var(--color-text-muted)] mt-1">Create one to group files with an auto-destruction timer.</p>
+      {loading ? (
+        <div className="panel divide-y divide-[var(--color-border)] px-4">
+          {Array.from({ length: 3 }).map((_, i) => <SkeletonRow key={i} />)}
         </div>
-      ) : (
+      ) : vaults.length === 0 && !showCreate ? (
+        <div className="panel">
+          <EmptyState
+            icon={<Clock className="h-7 w-7 text-[var(--color-text-muted)]" />}
+            title="No expiring vaults yet"
+            description="Create one to group files with an auto-destruction timer. The files themselves stay in your vault."
+          />
+        </div>
+      ) : vaults.length > 0 ? (
         <div className="space-y-2">
           {vaults.map((vault) => (
-            <motion.div key={vault.id} initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }}
-              className={`p-4 card ${vault.expired ? "opacity-60" : ""}`}>
-              <div className="flex items-start justify-between">
+            <motion.div
+              key={vault.id}
+              initial={reduceMotion ? false : { opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={cn("panel p-4", vault.expired && "opacity-60")}
+            >
+              <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <h3 className="font-medium truncate">{vault.name}</h3>
-                    <span className={`px-2 py-0.5 rounded-lg text-[10px] font-semibold uppercase ${vault.expired ? "bg-red-500/10 text-red-400" : "bg-emerald-500/10 text-emerald-500"}`}>
+                    <h3 className="truncate font-medium text-[var(--color-text)]">{vault.name}</h3>
+                    <span className={cn(
+                      "flex-shrink-0 rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide tabular-nums",
+                      vault.expired ? "bg-red-500/10 text-red-600 dark:text-red-400" : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                    )}>
                       {vault.expired ? "Expired" : timeUntil(vault.expires_at)}
                     </span>
                   </div>
-                  {vault.description && <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">{vault.description}</p>}
-                  <div className="flex items-center gap-4 mt-2 text-xs text-[var(--color-text-muted)]">
-                    <span>{vault.file_ids.length} file(s)</span>
+                  {vault.description && <p className="mt-0.5 truncate text-xs text-[var(--color-text-secondary)]">{vault.description}</p>}
+                  <div className="mt-2 flex items-center gap-4 text-xs text-[var(--color-text-muted)]">
+                    <span className="tabular-nums">{vault.file_ids.length} file(s)</span>
                     <span>Expires {formatDate(vault.expires_at)}</span>
                   </div>
                   {vault.file_ids.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
+                    <div className="mt-2 flex flex-wrap gap-1">
                       {vault.file_ids.slice(0, 5).map((fid) => (
-                        <span key={fid} className="px-2 py-0.5 bg-[var(--color-surface-1)] rounded-lg text-[10px] text-[var(--color-text-muted)] truncate max-w-[150px]">{getFileName(fid)}</span>
+                        <span key={fid} className="max-w-[150px] truncate rounded-md bg-[var(--color-surface-1)] px-2 py-0.5 text-[10px] text-[var(--color-text-muted)]">{getFileName(fid)}</span>
                       ))}
-                      {vault.file_ids.length > 5 && <span className="text-[10px] text-[var(--color-text-muted)]">+{vault.file_ids.length - 5} more</span>}
+                      {vault.file_ids.length > 5 && <span className="px-1 py-0.5 text-[10px] text-[var(--color-text-muted)]">+{vault.file_ids.length - 5} more</span>}
                     </div>
                   )}
                 </div>
-                <button onClick={() => handleDelete(vault.id)} className="ml-3 p-1.5 text-[var(--color-text-muted)] hover:text-red-400 transition-colors">
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
+                <IconButton icon={Trash2} label="Delete vault" variant="danger" iconClassName="h-3.5 w-3.5" onClick={() => setPendingDelete(vault)} />
               </div>
             </motion.div>
           ))}
         </div>
-      )}
+      ) : null}
+
+      <ConfirmDialog
+        open={!!pendingDelete}
+        onOpenChange={(o) => { if (!o) setPendingDelete(null); }}
+        destructive
+        title="Delete expiring vault?"
+        description={
+          <>
+            This removes the vault{pendingDelete?.name ? <> &ldquo;{pendingDelete.name}&rdquo;</> : null} and its timer. The files themselves are not deleted.
+          </>
+        }
+        confirmLabel="Delete"
+        loading={deleting}
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }

@@ -27,6 +27,14 @@ export type DownloadProgressCallback = (info: {
 export interface DownloadOptions {
   onProgress?: DownloadProgressCallback;
   signal?: AbortSignal;
+  /**
+   * Optional per-file password resolver. When provided, its return value is used
+   * to decrypt THIS file instead of the `passphrase` argument — this is how a
+   * file in a password-protected folder uses its folder password rather than the
+   * vault passphrase. Omitted by all unprotected/legacy callers, so their
+   * behavior is byte-for-byte unchanged (the plain `passphrase` is used).
+   */
+  resolvePassword?: (fileId: string) => Promise<string> | string;
 }
 
 /**
@@ -38,7 +46,7 @@ export async function downloadAndDecryptFile(
   passphrase: string,
   options?: DownloadOptions
 ): Promise<void> {
-  const { onProgress, signal } = options ?? {};
+  const { onProgress, signal, resolvePassword } = options ?? {};
 
   // Check abort before starting
   if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
@@ -53,9 +61,11 @@ export async function downloadAndDecryptFile(
 
   // Step 2: Resolve the file key from passphrase + salt (unwraps the per-file
   // CEK for envelope files; falls back to the derived key for legacy files).
+  // A per-file resolver (folder-protected files) overrides the vault passphrase.
   onProgress?.({ stage: "Deriving key...", percent: 1, chunksDone: 0, chunksTotal: meta.chunk_count });
+  const filePassphrase = resolvePassword ? await resolvePassword(fileId) : passphrase;
   const salt = fromBase64(meta.salt);
-  const keyBytes = await resolveFileKey(passphrase, salt, meta.wrapped_cek);
+  const keyBytes = await resolveFileKey(filePassphrase, salt, meta.wrapped_cek);
 
   if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
 

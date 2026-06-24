@@ -6,8 +6,17 @@ import { useOperationStatus } from "@/hooks/useOperationStatus";
 import type { AuditEvent } from "@/lib/auth-api";
 import { cn } from "@/lib/utils";
 import { formatBytes } from "@/lib/utils";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Pagination } from "@/components/ui/pagination";
+import { IconButton } from "@/components/ui/icon-button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { AuditLogSkeleton } from "@/components/admin/skeletons";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Shield,
   LogIn,
@@ -20,7 +29,6 @@ import {
   Download,
   Trash2,
   Settings,
-  ChevronDown,
   Pause,
   Play,
   FileText,
@@ -310,65 +318,56 @@ export function AuditLog() {
     "admin_role_change", "admin_user_delete", "admin_plan_change",
   ];
 
+  if (loading && events.length === 0) {
+    return <AuditLogSkeleton />;
+  }
+
   return (
-    <section className="card overflow-hidden">
+    <section className="panel overflow-hidden">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 border-b border-[var(--color-border)]">
+      <div className="flex flex-col justify-between gap-3 border-b border-[var(--color-border)] px-5 py-4 sm:flex-row sm:items-center">
         <div className="flex items-center gap-2">
           <FileText className="h-4 w-4 text-[var(--color-text-muted)]" />
-          <h2 className="text-sm font-semibold">Audit Log</h2>
-          <span className="text-xs text-[var(--color-text-muted)] tabular-nums">
-            ({total} events)
-          </span>
+          <h2 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">Audit log</h2>
+          <span className="text-xs text-[var(--color-text-muted)] tabular-nums">({total} events)</span>
         </div>
         <div className="flex items-center gap-2">
-          <button
+          <IconButton
+            icon={paused ? Play : Pause}
+            label={paused ? "Resume live updates" : "Pause live updates"}
+            variant="secondary"
             onClick={() => setPaused(!paused)}
             className={cn(
-              "flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors",
-              paused
-                ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
-                : "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400"
+              !paused && "text-[var(--color-accent)]",
+              paused && "text-amber-600 dark:text-amber-400"
             )}
-          >
-            {paused ? <Play className="h-3 w-3" /> : <Pause className="h-3 w-3" />}
-            {paused ? "Resume" : "Live"}
-          </button>
-          <div className="relative flex-1 sm:flex-initial">
-            <select
-              value={eventTypeFilter}
-              onChange={(e) => { setEventTypeFilter(e.target.value); setPage(1); }}
-              className="appearance-none w-full sm:w-auto text-xs bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-lg px-2.5 py-1.5 pr-7 text-[var(--color-text-secondary)] cursor-pointer"
+          />
+          <div className="flex-1 sm:flex-initial sm:w-44">
+            <Select
+              value={eventTypeFilter || "all"}
+              onValueChange={(v) => { setEventTypeFilter(v === "all" ? "" : v); setPage(1); }}
             >
-              <option value="">All events</option>
-              {eventTypes.map((t) => (
-                <option key={t} value={t}>{eventLabels[t] || t.replace(/_/g, " ")}</option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-[var(--color-text-muted)] pointer-events-none" />
+              <SelectTrigger className="h-9 text-xs" aria-label="Filter by event type">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All events</SelectItem>
+                {eventTypes.map((t) => (
+                  <SelectItem key={t} value={t}>{eventLabels[t] || t.replace(/_/g, " ")}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
       </div>
 
       <div className="divide-y divide-[var(--color-border)]">
-        {loading && events.length === 0 ? (
-          <div className="divide-y divide-[var(--color-border)]">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-3 px-5 py-3">
-                <Skeleton className="h-8 w-8 rounded-lg flex-shrink-0" />
-                <div className="flex-1 space-y-1">
-                  <div className="flex items-center gap-2">
-                    <Skeleton className="h-3 w-20" />
-                    <Skeleton className="h-3 w-24" />
-                  </div>
-                  <Skeleton className="h-2.5 w-48" />
-                </div>
-                <Skeleton className="h-3 w-16" />
-              </div>
-            ))}
-          </div>
-        ) : events.length === 0 ? (
-          <div className="p-8 text-center text-sm text-[var(--color-text-muted)]">No events found</div>
+        {events.length === 0 ? (
+          <EmptyState
+            icon={<FileText className="h-7 w-7 text-[var(--color-text-muted)]" />}
+            title="No events found"
+            description={eventTypeFilter ? "No events match this filter. Try a different event type." : "No audited activity has been recorded yet."}
+          />
         ) : (
           events.map((event) => {
             const Icon = eventIcons[event.event_type] ?? Shield;

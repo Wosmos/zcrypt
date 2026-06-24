@@ -25,7 +25,7 @@ import {
   MoreHorizontal,
   Share2,
 } from "@/lib/icons";
-import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/ui/icon-button";
 import { formatBytes, formatDate, getFileTypeInfo, isImageFile } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { useThumbnail } from "@/hooks/useThumbnail";
@@ -40,6 +40,7 @@ interface FileCardProps {
   onDelete: (id: string) => void;
   onPreview?: (filename: string) => void;
   onShare?: (id: string) => void;
+  onOpen?: (file: FileMetadata) => void;
   selectable?: boolean;
   selected?: boolean;
   onSelect?: (id: string) => void;
@@ -49,7 +50,7 @@ const iconMap: Record<string, typeof File> = {
   File, FileText, Image, Video, Music, Archive, Code, Cog, Table,
 };
 
-export function FileCard({ file, downloadState = "idle", onDownload, onDelete, onPreview, onShare, selectable, selected, onSelect }: FileCardProps) {
+export function FileCard({ file, downloadState = "idle", onDownload, onDelete, onPreview, onShare, onOpen, selectable, selected, onSelect }: FileCardProps) {
   const [copied, setCopied] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -78,6 +79,8 @@ export function FileCard({ file, downloadState = "idle", onDownload, onDelete, o
   const handleCardClick = () => {
     if (selectable && onSelect) {
       onSelect(file.id);
+    } else if (!selectable && onOpen) {
+      onOpen(file);
     }
   };
 
@@ -89,7 +92,7 @@ export function FileCard({ file, downloadState = "idle", onDownload, onDelete, o
       onClick={handleCardClick}
       className={cn(
         "flex md:hidden items-center gap-3 px-3 py-2.5 rounded-xl border transition-all duration-150 active:scale-[0.98]",
-        selectable && "cursor-pointer",
+        (selectable || onOpen) && "cursor-pointer",
         isDownloading
           ? "border-cyan-500/30 bg-cyan-500/5"
           : isDone
@@ -234,7 +237,7 @@ export function FileCard({ file, downloadState = "idle", onDownload, onDelete, o
       className={cn(
         "group relative overflow-hidden flex-col hidden md:flex",
         "rounded-2xl border transition-all duration-200",
-        selectable && "cursor-pointer",
+        (selectable || onOpen) && "cursor-pointer",
         isDownloading
           ? "border-cyan-500/30 bg-cyan-500/5"
           : isDone
@@ -322,21 +325,13 @@ export function FileCard({ file, downloadState = "idle", onDownload, onDelete, o
             thumbnailUrl ? "bg-black/40 backdrop-blur-sm" : "bg-[var(--color-surface)]/80 backdrop-blur-sm"
           )}>
             {onPreview && (
-              <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onPreview(file.original_name); }} title="Preview" className="h-10 w-10 rounded-xl bg-[var(--color-surface)]/90 hover:bg-[var(--color-surface)] shadow-sm">
-                <Eye className="h-4 w-4" />
-              </Button>
+              <IconButton icon={Eye} label="Preview" onClick={(e) => { e.stopPropagation(); onPreview(file.original_name); }} className="h-10 w-10 rounded-xl bg-[var(--color-surface)]/90 hover:bg-[var(--color-surface)] shadow-sm" />
             )}
-            <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onDownload(file.original_name); }} title="Download" className="h-10 w-10 rounded-xl bg-[var(--color-surface)]/90 hover:bg-[var(--color-surface)] shadow-sm">
-              <Download className="h-4 w-4" />
-            </Button>
+            <IconButton icon={Download} label="Download" onClick={(e) => { e.stopPropagation(); onDownload(file.original_name); }} className="h-10 w-10 rounded-xl bg-[var(--color-surface)]/90 hover:bg-[var(--color-surface)] shadow-sm" />
             {onShare && (
-              <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onShare(file.id); }} title="Share" className="h-10 w-10 rounded-xl bg-[var(--color-surface)]/90 hover:bg-[var(--color-surface)] shadow-sm">
-                <Share2 className="h-4 w-4" />
-              </Button>
+              <IconButton icon={Share2} label="Share" onClick={(e) => { e.stopPropagation(); onShare(file.id); }} className="h-10 w-10 rounded-xl bg-[var(--color-surface)]/90 hover:bg-[var(--color-surface)] shadow-sm" />
             )}
-            <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onDelete(file.id); }} title="Delete" className="h-10 w-10 rounded-xl bg-[var(--color-surface)]/90 hover:bg-[var(--color-surface)] shadow-sm">
-              <Trash2 className="h-4 w-4 text-red-400/60 hover:text-red-400" />
-            </Button>
+            <IconButton icon={Trash2} label="Delete" onClick={(e) => { e.stopPropagation(); onDelete(file.id); }} className="h-10 w-10 rounded-xl bg-[var(--color-surface)]/90 hover:bg-[var(--color-surface)] shadow-sm [&_svg]:text-red-400/60 hover:[&_svg]:text-red-400" />
           </div>
         )}
       </div>
@@ -389,8 +384,9 @@ export function FileCard({ file, downloadState = "idle", onDownload, onDelete, o
             </code>
             <button
               onClick={copyHash}
-              className="flex-shrink-0 text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors p-0.5 rounded hover:bg-[var(--color-surface-1)]"
-              title="Copy SHA-256"
+              className="flex-shrink-0 rounded p-0.5 text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40"
+              title={copied ? "Copied" : "Copy SHA-256"}
+              aria-label={copied ? "SHA-256 copied" : "Copy SHA-256"}
             >
               {copied ? <Check className="h-3 w-3 text-cyan-500" /> : <Copy className="h-3 w-3" />}
             </button>

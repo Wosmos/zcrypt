@@ -30,7 +30,11 @@ export function useFileList() {
   }, [setFiles]);
 
   const refresh = useCallback(async (filter?: string) => {
-    if (!hasFetched.current) setLoading(true);
+    // Only show the loading skeleton when there's genuinely nothing cached yet.
+    // The file store is a singleton that survives navigation, so revisiting the
+    // Vault should render the cached list instantly and refresh in the background
+    // — not flash a skeleton on every remount (hasFetched is a per-mount ref).
+    if (!hasFetched.current && useFileStore.getState().files.length === 0) setLoading(true);
     try {
       const data = await listFiles(filter);
       setFiles(data);

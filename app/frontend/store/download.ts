@@ -3,6 +3,10 @@ import { toast } from "@/store/toast";
 import { notifications } from "@/store/notifications";
 import { downloadAndDecryptFile } from "@/lib/download-session";
 import { downloadAsZip, type BulkDownloadFile } from "@/lib/bulk-download";
+import { useFileStore } from "@/store/files";
+import { useFolderRegistry } from "@/store/folder-registry";
+import { useFolderPasswordStore } from "@/store/folder-passwords";
+import { resolveFilePasswordGlobal } from "@/hooks/useFolderProtection";
 
 export type DownloadStatus = "queued" | "downloading" | "done" | "failed" | "cancelled";
 
@@ -45,14 +49,54 @@ function scheduleFlush() {
   });
 }
 
+/**
+ * Optional per-file password resolver, threaded through to the decrypt pipeline.
+ * For a file in a password-protected folder it returns the cached folder
+ * password (the caller having already unlocked the folder); for everything else
+ * it returns the vault passphrase. Omitted ⇒ the plain `passphrase` is used, so
+ * unprotected downloads are byte-for-byte unchanged.
+ */
+export type DownloadPasswordResolver = (fileId: string) => Promise<string> | string;
+
+// True iff `fileId` lives in a folder known to be password-protected. Used to
+// scope the wrong-password recovery (clear-cache + re-prompt) to protected files
+// only — unprotected files keep the existing vault wrong-passphrase flow.
+function protectedFolderOf(fileId: string): string | null {
+  const file = useFileStore.getState().files.find((f) => f.id === fileId);
+  const fid = file?.folder_id ?? null;
+  if (fid && useFolderRegistry.getState().isProtected(fid)) return fid;
+  return null;
+}
+
+// Heuristic match for a wrong/stale-key decrypt failure (mirrors the preview
+// recovery in useVaultActions). The decrypt pipelines surface AES-GCM failures
+// as "Decryption failed — wrong passphrase?".
+function looksLikeWrongKey(msg: string): boolean {
+  const m = msg.toLowerCase();
+  return m.includes("decrypt") || m.includes("passphrase") || m.includes("cipher") || m.includes("wrong");
+}
+
+// On a wrong-password failure for a PROTECTED-folder file, clear that folder's
+// cached password (FIX-4) so the next attempt re-prompts + re-verifies — exactly
+// like the preview recovery. Returns true if it was a protected-folder
+// wrong-key case (so the caller can show a re-prompt hint instead of a generic
+// failure toast). Unprotected files are left to the existing vault flow.
+function recoverWrongFolderPassword(fileId: string, msg: string): boolean {
+  if (!looksLikeWrongKey(msg)) return false;
+  const fid = protectedFolderOf(fileId);
+  if (!fid) return false;
+  useFolderPasswordStore.getState().clear(fid);
+  return true;
+}
+
 interface DownloadStore {
   queue: DownloadItem[];
   // Map of download id -> AbortController (for cancellation)
   controllers: Map<string, AbortController>;
-  startDownload: (fileId: string, filename: string, fileSize: number, passphrase: string) => void;
-  startBulkZipDownload: (files: BulkDownloadFile[], passphrase: string) => void;
+  startDownload: (fileId: string, filename: string, fileSize: number, passphrase: string, resolvePassword?: DownloadPasswordResolver) => void;
+  startBulkZipDownload: (files: BulkDownloadFile[], passphrase: string, resolvePassword?: DownloadPasswordResolver) => void;
   cancelDownload: (id: string) => void;
-  retryDownload: (id: string, passphrase: string) => void;
+  retryDownload: (id: string, passphrase: string, resolvePassword?: DownloadPasswordResolver) => void;
   removeFromQueue: (id: string) => void;
   clearCompleted: () => void;
 }
@@ -63,7 +107,7 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
   queue: [],
   controllers: new Map(),
 
-  startDownload: (fileId, filename, fileSize, passphrase) => {
+  startDownload: (fileId, filename, fileSize, passphrase, resolvePassword) => {
     const id = `dl_${++counter}_${Date.now()}`;
     const controller = new AbortController();
 
@@ -105,11 +149,16 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
       try {
         updateProgress("downloading", 0, "Starting...");
 
+        // FIX-4: route decryption through the folder-aware resolver. The page
+        // passes its prompting resolver; callers without one (e.g. the transfer
+        // manager retry) fall back to the global non-prompting resolver so a
+        // protected-folder file still uses its folder password, not the vault pass.
         await downloadAndDecryptFile(fileId, passphrase, {
           onProgress: (info) => {
             updateProgress("downloading", info.percent, info.stage);
           },
           signal: controller.signal,
+          resolvePassword: resolvePassword ?? resolveFilePasswordGlobal,
         });
 
         updateProgress("done", 100, "Done");
@@ -128,12 +177,20 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
           return;
         }
         const msg = err instanceof Error ? err.message : "Download failed";
+        // FIX-4: wrong/stale password on a PROTECTED-folder file → clear that
+        // folder's cache so a retry re-prompts + re-verifies (mirrors the preview
+        // recovery), and surface a re-prompt hint instead of a generic failure.
+        const recovered = recoverWrongFolderPassword(fileId, msg);
         set((state) => ({
           queue: state.queue.map((item) =>
             item.id === id ? { ...item, status: "failed" as const, error: msg, stage: "Failed" } : item
           ),
         }));
-        toast.error(`Download failed: ${msg}`);
+        if (recovered) {
+          toast.error(`Wrong folder password for ${filename}. Retry to re-enter it.`);
+        } else {
+          toast.error(`Download failed: ${msg}`);
+        }
         notifications.downloadFailed(filename, msg);
       } finally {
         // Clean up controller
@@ -146,7 +203,7 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
     })();
   },
 
-  startBulkZipDownload: (files, passphrase) => {
+  startBulkZipDownload: (files, passphrase, resolvePassword) => {
     const id = `zip_${++counter}_${Date.now()}`;
     const controller = new AbortController();
     const totalSize = files.reduce((s, f) => s + f.fileSize, 0);
@@ -188,11 +245,14 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
       try {
         updateProgress("downloading", 0, "Starting ZIP...");
 
+        // FIX-4: same folder-aware resolver as single download, with the global
+        // fallback so each file in the ZIP uses its own folder password.
         await downloadAsZip(files, passphrase, {
           onProgress: (info) => {
             updateProgress("downloading", info.percent, info.stage);
           },
           signal: controller.signal,
+          resolvePassword: resolvePassword ?? resolveFilePasswordGlobal,
         });
 
         updateProgress("done", 100, "Done");
@@ -204,12 +264,25 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
           return;
         }
         const msg = err instanceof Error ? err.message : "ZIP download failed";
+        // FIX-4: a wrong-key failure inside the ZIP → clear the cache of every
+        // protected folder among the bulk files so a retry re-prompts for the
+        // right password(s). Unprotected-only ZIPs are unaffected.
+        let recovered = false;
+        if (looksLikeWrongKey(msg)) {
+          for (const f of files) {
+            if (recoverWrongFolderPassword(f.fileId, msg)) recovered = true;
+          }
+        }
         set((state) => ({
           queue: state.queue.map((item) =>
             item.id === id ? { ...item, status: "failed" as const, error: msg, stage: "Failed" } : item
           ),
         }));
-        toast.error(`ZIP download failed: ${msg}`);
+        if (recovered) {
+          toast.error("Wrong folder password in this ZIP. Retry to re-enter it.");
+        } else {
+          toast.error(`ZIP download failed: ${msg}`);
+        }
       } finally {
         set((state) => {
           const controllers = new Map(state.controllers);
@@ -228,7 +301,7 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
     }
   },
 
-  retryDownload: (id, passphrase) => {
+  retryDownload: (id, passphrase, resolvePassword) => {
     const item = get().queue.find((i) => i.id === id);
     if (!item) return;
 
@@ -236,7 +309,7 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
     get().removeFromQueue(id);
 
     // Start fresh
-    get().startDownload(item.fileId, item.filename, item.fileSize, passphrase);
+    get().startDownload(item.fileId, item.filename, item.fileSize, passphrase, resolvePassword);
   },
 
   removeFromQueue: (id) => {

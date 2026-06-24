@@ -40,13 +40,13 @@ export function PlatformBreakdown({ repos }: PlatformBreakdownProps) {
   const entries = Array.from(platforms.entries());
 
   return (
-    <div className="card overflow-hidden">
-      <div className="px-5 py-4 border-b border-[var(--color-border)]">
-        <h3 className="text-sm font-semibold">Storage by Platform</h3>
+    <div className="panel overflow-hidden">
+      <div className="border-b border-[var(--color-border)] px-5 py-4">
+        <h3 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">Storage by platform</h3>
       </div>
-      <div className="p-5 space-y-4">
+      <div className="space-y-4 p-5">
         {entries.length === 0 ? (
-          <p className="text-sm text-[var(--color-text-muted)] text-center py-4">No platforms connected</p>
+          <p className="py-4 text-center text-sm text-[var(--color-text-muted)]">No platforms connected</p>
         ) : (
           entries.map(([platform, data]) => {
             const percent = data.max > 0 ? Math.min(100, (data.used / data.max) * 100) : 0;
@@ -57,7 +57,7 @@ export function PlatformBreakdown({ repos }: PlatformBreakdownProps) {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     {platformIcons[platform] || null}
-                    <span className="text-sm font-medium capitalize">{platform}</span>
+                    <span className="text-sm font-medium capitalize text-[var(--color-text)]">{platform}</span>
                     <span className="text-xs text-[var(--color-text-muted)]">
                       {data.repoCount} repo{data.repoCount !== 1 ? "s" : ""}
                     </span>

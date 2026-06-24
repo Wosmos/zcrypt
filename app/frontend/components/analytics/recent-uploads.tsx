@@ -20,13 +20,13 @@ export function RecentUploads({ files }: RecentUploadsProps) {
     .slice(0, 8);
 
   return (
-    <div className="card overflow-hidden">
-      <div className="px-5 py-4 border-b border-[var(--color-border)]">
-        <h3 className="text-sm font-semibold">Recent Uploads</h3>
+    <div className="panel overflow-hidden">
+      <div className="border-b border-[var(--color-border)] px-5 py-4">
+        <h3 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">Recent uploads</h3>
       </div>
 
       {recent.length === 0 ? (
-        <div className="flex items-center justify-center h-[120px] text-sm text-[var(--color-text-muted)]">
+        <div className="flex h-[120px] items-center justify-center text-sm text-[var(--color-text-muted)]">
           No uploads yet
         </div>
       ) : (
@@ -51,19 +51,19 @@ export function RecentUploads({ files }: RecentUploadsProps) {
                     : "0";
 
                   return (
-                    <tr key={file.id} className="border-b border-[var(--color-border)] last:border-0 hover:bg-[var(--color-surface-1)] transition-colors">
+                    <tr key={file.id} className="border-b border-[var(--color-border)] transition-colors last:border-0 hover:bg-[var(--color-surface-1)]">
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-3">
-                          <div className={`flex items-center justify-center h-8 w-8 rounded-lg ${typeInfo.bg}`}>
+                          <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${typeInfo.bg}`}>
                             <Icon className={`h-4 w-4 ${typeInfo.color}`} />
                           </div>
-                          <span className="font-medium truncate max-w-[200px]">{file.original_name}</span>
+                          <span className="max-w-[200px] truncate font-medium text-[var(--color-text)]">{file.original_name}</span>
                         </div>
                       </td>
                       <td className="px-5 py-3 text-[var(--color-text-secondary)]">{formatDate(file.created_at)}</td>
-                      <td className="px-5 py-3 text-right tabular-nums">{formatBytes(file.original_size)}</td>
+                      <td className="px-5 py-3 text-right tabular-nums text-[var(--color-text-secondary)]">{formatBytes(file.original_size)}</td>
                       <td className="px-5 py-3 text-right">
-                        <span className="text-cyan-500 font-medium">{savings}%</span>
+                        <span className="font-medium tabular-nums text-[var(--color-accent)]">{savings}%</span>
                       </td>
                     </tr>
                   );

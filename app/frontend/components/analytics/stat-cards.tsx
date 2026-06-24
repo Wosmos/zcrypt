@@ -2,7 +2,7 @@
 
 import { formatBytes } from "@/lib/utils";
 import type { FileMetadata } from "@/types";
-import { FileText, Image, Video, Music, Archive, Code, File } from "@/lib/icons";
+import { FileText, Image, Video, Archive, File } from "@/lib/icons";
 
 interface StatCardsProps {
   files: FileMetadata[];
@@ -69,27 +69,33 @@ export function StatCards({ files }: StatCardsProps) {
   });
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
       {stats.map((stat) => {
         const Icon = stat.icon;
         return (
           <div
             key={stat.label}
-            className="card p-4 hover:border-[var(--color-border-hover)] hover:shadow-lg transition-all duration-200 group"
+            className="panel p-5 transition-colors hover:border-[var(--color-border-hover)]"
           >
-            <div className="flex items-start justify-between mb-3">
-              <div className={`flex items-center justify-center h-10 w-10 rounded-xl ${stat.bg}`}>
+            <div className="mb-3 flex items-start justify-between gap-2">
+              <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${stat.bg}`}>
                 <Icon className={`h-5 w-5 ${stat.color}`} />
               </div>
               {stat.count > 0 && (
-                <span className="text-xs font-medium text-cyan-500 bg-cyan-500/10 px-2 py-0.5 rounded-full">
+                <span className="rounded-full bg-[var(--color-accent)]/10 px-2 py-0.5 text-xs font-medium tabular-nums text-[var(--color-accent)]">
                   {stat.savings}% saved
                 </span>
               )}
             </div>
-            <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-wider font-medium">{stat.label}</p>
-            <p className="text-xl font-bold mt-0.5">{formatBytes(stat.totalSize)}</p>
-            <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">{stat.count} file{stat.count !== 1 ? "s" : ""}</p>
+            <p className="truncate text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
+              {stat.label}
+            </p>
+            <p className="mt-0.5 truncate text-xl font-semibold tabular-nums tracking-tight text-[var(--color-text)]">
+              {formatBytes(stat.totalSize)}
+            </p>
+            <p className="mt-0.5 text-xs tabular-nums text-[var(--color-text-secondary)]">
+              {stat.count} file{stat.count !== 1 ? "s" : ""}
+            </p>
           </div>
         );
       })}
