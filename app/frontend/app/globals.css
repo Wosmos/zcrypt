@@ -372,3 +372,145 @@ html.theme-transition {
   90%, 100% { opacity: 0; transform: translate(-50%, -50%) scale(1.1); }
 }
 
+/* ═══════════════════════════════════════════════════════════════════════
+   Authenticated app shell — redesigned, light-first paneled UI.
+   All overrides are scoped to .app-shell so the marketing & auth pages
+   (which share globals.css) are completely untouched.
+   ═══════════════════════════════════════════════════════════════════════ */
+@layer base {
+  /* Light theme: neutral gray canvas + crisp white panels (high contrast so
+     panels read as floating cards — the reference look). */
+  .app-shell {
+    --color-bg: #eceef2;
+    --color-surface: #ffffff;
+    --color-surface-1: #f4f5f8;
+    --color-surface-2: #eceef3;
+    --color-surface-3: #e1e4eb;
+    --color-border: #e6e8ee;
+    --color-border-hover: #d4d8e1;
+    --color-text: #161a2b;
+    --color-text-secondary: #515873;
+    --color-text-muted: #7b829e;
+    --shell-active: rgba(0, 147, 163, 0.1);
+    --shell-active-text: var(--color-accent);
+  }
+  /* Dark theme: deep canvas + raised panels. */
+  .dark .app-shell {
+    --color-bg: #090c16;
+    --color-surface: #12162a;
+    --color-surface-1: #181d33;
+    --color-surface-2: #222843;
+    --color-surface-3: #2e3553;
+    --color-border: #20253f;
+    --color-border-hover: #2f3656;
+    --color-text: #f0f2f8;
+    --color-text-secondary: #9ea3c0;
+    --color-text-muted: #767c9d;
+    --shell-active: rgba(0, 213, 228, 0.12);
+    --shell-active-text: var(--color-accent);
+  }
+}
+@layer components {
+  /* Floating panel surface used by the shell + content cards. */
+  .panel {
+    border-radius: 1rem;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 4px 12px -6px rgba(16, 24, 40, 0.08);
+  }
+  .dark .panel {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+  }
+}
+
+/* Honor the OS "reduce motion" preference for the CSS-driven entrance/loop
+   animations used across the (app) shell. motion/react components handle this
+   themselves via useReducedMotion; this covers the .animate-* utilities. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
+  .animate-slide-up,
+  .animate-pulse-soft,
+  .animate-shimmer,
+  .animate-progress-shimmer,
+  .animate-circuit-flow {
+    animation: none !important;
+  }
+  .animate-fade-in,
+  .animate-slide-up {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+/* ── Reading prose for the DOCX + Markdown viewers (the `.prose-viewer` class
+   those viewers apply). Token-driven, additive. ── */
+.prose-viewer {
+  color: var(--color-text);
+  font-size: 0.9rem;
+  line-height: 1.7;
+  word-break: break-word;
+}
+.prose-viewer h1,
+.prose-viewer h2,
+.prose-viewer h3,
+.prose-viewer h4,
+.prose-viewer h5,
+.prose-viewer h6 {
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 1.4em 0 0.5em;
+  color: var(--color-text);
+}
+.prose-viewer h1 { font-size: 1.6em; }
+.prose-viewer h2 { font-size: 1.35em; }
+.prose-viewer h3 { font-size: 1.15em; }
+.prose-viewer p { margin: 0.75em 0; }
+.prose-viewer ul,
+.prose-viewer ol { margin: 0.75em 0; padding-left: 1.5em; }
+.prose-viewer ul { list-style: disc; }
+.prose-viewer ol { list-style: decimal; }
+.prose-viewer li { margin: 0.25em 0; }
+.prose-viewer a { color: var(--color-accent); text-decoration: underline; }
+.prose-viewer blockquote {
+  margin: 1em 0;
+  padding: 0.25em 1em;
+  border-left: 3px solid var(--color-border);
+  color: var(--color-text-secondary);
+}
+.prose-viewer code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+  font-size: 0.85em;
+  background: var(--color-surface-1);
+  padding: 0.1em 0.35em;
+  border-radius: 0.3rem;
+}
+.prose-viewer pre {
+  background: var(--color-surface-1);
+  padding: 0.9em 1em;
+  border-radius: 0.6rem;
+  overflow-x: auto;
+  margin: 1em 0;
+}
+.prose-viewer pre code { background: transparent; padding: 0; }
+.prose-viewer img { max-width: 100%; height: auto; border-radius: 0.4rem; }
+.prose-viewer table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+.prose-viewer th,
+.prose-viewer td {
+  border: 1px solid var(--color-border);
+  padding: 0.45em 0.7em;
+  text-align: left;
+}
+.prose-viewer th { background: var(--color-surface-1); font-weight: 600; }
+.prose-viewer hr { border: 0; border-top: 1px solid var(--color-border); margin: 1.5em 0; }
+
+/* Reduced-motion: neutralize the explorer's Tailwind `transition-*` hover /
+   selection / drop animations (motion/react components already self-handle it). */
+@media (prefers-reduced-motion: reduce) {
+  .app-shell *,
+  .app-shell *::before,
+  .app-shell *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+

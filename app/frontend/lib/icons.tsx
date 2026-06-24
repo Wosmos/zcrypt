@@ -19,6 +19,9 @@ import {
   Eye as _Eye,
   File as _File,
   FileText as _FileText,
+  Folder as _Folder,
+  FolderOpen as _FolderOpen,
+  Edit as _Edit,
   Trash as _Trash,
   Trash2 as _Trash2,
   Star as _Star,
@@ -151,6 +154,9 @@ export const ChevronRight = makeIcon(_ChevronRight, "ChevronRight");
 export const Eye = makeIcon(_Eye, "Eye");
 export const File = makeIcon(_File, "File");
 export const FileText = makeIcon(_FileText, "FileText");
+export const Folder = makeIcon(_Folder, "Folder");
+export const FolderOpen = makeIcon(_FolderOpen, "FolderOpen");
+export const Edit = makeIcon(_Edit, "Edit");
 export const Trash2 = makeIcon(_Trash2, "Trash2");
 export const Star = makeIcon(_Star, "Star");
 export const Heart = makeIcon(_Heart, "Heart");

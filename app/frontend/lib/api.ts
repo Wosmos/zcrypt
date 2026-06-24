@@ -1,4 +1,4 @@
-import type { FileMetadata, PlatformStatus, RepoInfo, AppConfig, AdminUser, SystemStats, PlatformTokenInfo, QuotaInfo, PlanConfigs, AdminUserDetail, ShareLink, ShareInfo, SendInitRequest, SendInitResponse, SendInfo, SendMeta, PadCreateRequest, PadInfo, ClipboardItem, ClipboardPushRequest, SyncFolder, SyncFolderRequest, DecoyStatus, DecoyFile, DeadManSwitch, DeadManSwitchRequest, ExpiringVault, ExpiringVaultRequest, Note, NoteRequest, IntegritySnapshot, VaultSnapshot, SharedVault, SharedVaultDetail, SharedVaultMember, OfflinePin } from "@/types";
+import type { FileMetadata, Folder, FolderRequest, PlatformStatus, RepoInfo, AppConfig, AdminUser, SystemStats, PlatformTokenInfo, QuotaInfo, PlanConfigs, AdminUserDetail, ShareLink, ShareInfo, SendInitRequest, SendInitResponse, SendInfo, SendMeta, PadCreateRequest, PadInfo, ClipboardItem, ClipboardPushRequest, SyncFolder, SyncFolderRequest, DecoyStatus, DecoyFile, DeadManSwitch, DeadManSwitchRequest, ExpiringVault, ExpiringVaultRequest, IntegritySnapshot, VaultSnapshot, SharedVault, SharedVaultDetail, SharedVaultMember, OfflinePin } from "@/types";
 import { useAuthStore } from "@/store/auth";
 import { tryRefreshToken } from "@/lib/auth-fetch";
 
@@ -137,6 +137,72 @@ export function bulkDeleteFiles(ids: string[]): Promise<{ deleted: number; faile
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ids }),
   });
+}
+
+// ─── Folders + Trash (authenticated) ───
+// Folder/file names are encrypted client-side (see lib/name-crypto.ts); the
+// server only ever sees opaque ciphertext in `encrypted_name`.
+
+const JSON_HEADERS = { "Content-Type": "application/json" } as const;
+
+export function listFolders(parentId?: string | null): Promise<Folder[]> {
+  const params = parentId ? `?parent_id=${encodeURIComponent(parentId)}` : "";
+  return request<Folder[]>(`/api/folders${params}`);
+}
+
+export function createFolder(data: FolderRequest): Promise<Folder> {
+  return request<Folder>("/api/folders", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify(data) });
+}
+
+export function renameFolder(id: string, encryptedName: string): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/api/folders/${id}`, { method: "PATCH", headers: JSON_HEADERS, body: JSON.stringify({ encrypted_name: encryptedName }) });
+}
+
+export function moveFolder(id: string, parentId: string | null): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/api/folders/${id}/move`, { method: "PATCH", headers: JSON_HEADERS, body: JSON.stringify({ parent_id: parentId }) });
+}
+
+export function deleteFolder(id: string): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/api/folders/${id}`, { method: "DELETE" });
+}
+
+export function moveFile(id: string, folderId: string | null): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/api/files/${id}/move`, { method: "PATCH", headers: JSON_HEADERS, body: JSON.stringify({ folder_id: folderId }) });
+}
+
+// ─── Per-Folder Password Protection (zero-knowledge) ───
+// The folder password never leaves the device. The client derives a salt +
+// verifier (see lib/folder-crypto.ts) and sends only those opaque base64 blobs;
+// the server stores them but can never recover the password.
+
+/** Set/replace a folder's password protection. `pw_salt` + `pw_verifier` are base64. */
+export function setFolderPassword(id: string, pw_salt: string, pw_verifier: string): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/api/folders/${id}/password`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ pw_salt, pw_verifier }) });
+}
+
+/** Remove a folder's password protection (server nulls both columns). The client
+ *  must re-key the folder's files back to the vault passphrase BEFORE calling this. */
+export function removeFolderPassword(id: string): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/api/folders/${id}/password`, { method: "DELETE" });
+}
+
+/** Re-key a file: update ONLY its `salt` (base64) + `wrapped_cek` (base64) when it
+ *  crosses a protection boundary. The server never sees keys. */
+export function rekeyFile(id: string, salt: string, wrapped_cek: string): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/api/files/${id}/rekey`, { method: "PUT", headers: JSON_HEADERS, body: JSON.stringify({ salt, wrapped_cek }) });
+}
+
+export function listTrash(): Promise<FileMetadata[]> {
+  return request<FileMetadata[]>("/api/files/trash");
+}
+
+export function restoreFile(id: string): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/api/files/${id}/restore`, { method: "POST" });
+}
+
+/** Permanently delete a file + remove its chunks from storage (irreversible). */
+export function purgeFile(id: string): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/api/files/${id}/purge`, { method: "DELETE" });
 }
 
 export function getPlatformStatus(): Promise<PlatformStatus[]> {
@@ -671,36 +737,6 @@ export function getExpiringVault(id: string): Promise<ExpiringVault> {
 
 export function deleteExpiringVault(id: string): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/vaults/${id}`, { method: "DELETE" });
-}
-
-// ─── Secure Notes ───────────────────────────────────────────────────────────
-
-export function listNotes(): Promise<Note[]> {
-  return request<Note[]>("/api/notes");
-}
-
-export function createNote(data: NoteRequest): Promise<Note> {
-  return request<Note>("/api/notes", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-  });
-}
-
-export function getNote(id: string): Promise<Note> {
-  return request<Note>(`/api/notes/${id}`);
-}
-
-export function updateNote(id: string, data: NoteRequest): Promise<Note> {
-  return request<Note>(`/api/notes/${id}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-  });
-}
-
-export function deleteNote(id: string): Promise<{ success: boolean }> {
-  return request<{ success: boolean }>(`/api/notes/${id}`, { method: "DELETE" });
 }
 
 // ─── File Integrity Monitor ─────────────────────────────────────────────────

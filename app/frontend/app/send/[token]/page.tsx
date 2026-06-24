@@ -10,6 +10,7 @@ import {
 } from "@/lib/icons";
 import { formatBytes, easeProgress } from "@/lib/utils";
 import type { SendInfo } from "@/types";
+import Image from "next/image";
 
 type PageState =
   | "loading"
@@ -405,7 +406,7 @@ export default function SendDownloadPage() {
             <div className="p-4">
               {previewType === "image" && previewUrl && (
                 <div className="flex items-center justify-center rounded-xl overflow-hidden bg-[var(--color-surface-1)]">
-                  <img
+                  <Image
                     src={previewUrl}
                     alt={fileName || info.file_name}
                     className="max-w-full max-h-[60vh] object-contain"

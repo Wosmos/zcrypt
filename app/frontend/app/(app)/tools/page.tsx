@@ -11,8 +11,11 @@ import {
   FileText,
   Wifi,
 } from "@/lib/icons";
+import type { ComponentType } from "react";
 import { usePreferencesStore } from "@/store/preferences";
-import { TabBar, PersistentTabPanel } from "@/components/ui/tab-bar";
+import { PageHeader } from "@/components/ui/page-header";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { SnapshotsTab } from "@/components/tools/snapshots-tab";
 import { IntegrityTab } from "@/components/tools/integrity-tab";
 import { ExpiringTab } from "@/components/tools/expiring-tab";
@@ -21,14 +24,23 @@ import { SendTool } from "@/components/tools/send-tool";
 import { PadTool } from "@/components/tools/pad-tool";
 import { TransferTool } from "@/components/tools/transfer-tool";
 
-const tabs = [
-  { id: "send", label: "Send File", icon: <Send className="h-3.5 w-3.5" /> },
-  { id: "pad", label: "Text Pad", icon: <FileText className="h-3.5 w-3.5" /> },
-  { id: "transfer", label: "Transfer", icon: <Wifi className="h-3.5 w-3.5" /> },
-  { id: "snapshots", label: "Snapshots", icon: <Layers className="h-3.5 w-3.5" /> },
-  { id: "integrity", label: "Integrity", icon: <ShieldCheck className="h-3.5 w-3.5" /> },
-  { id: "expiring", label: "Expiring", icon: <Clock className="h-3.5 w-3.5" /> },
-  { id: "devices", label: "Devices", icon: <MonitorSmartphone className="h-3.5 w-3.5" /> },
+type IconComponent = ComponentType<{ className?: string; size?: number }>;
+
+interface TabDef {
+  id: string;
+  label: string;
+  icon: IconComponent;
+  Content: ComponentType;
+}
+
+const tabs: TabDef[] = [
+  { id: "send", label: "Send File", icon: Send, Content: SendTool },
+  { id: "pad", label: "Text Pad", icon: FileText, Content: PadTool },
+  { id: "transfer", label: "Transfer", icon: Wifi, Content: TransferTool },
+  { id: "snapshots", label: "Snapshots", icon: Layers, Content: SnapshotsTab },
+  { id: "integrity", label: "Integrity", icon: ShieldCheck, Content: IntegrityTab },
+  { id: "expiring", label: "Expiring", icon: Clock, Content: ExpiringTab },
+  { id: "devices", label: "Devices", icon: MonitorSmartphone, Content: DevicesTab },
 ];
 
 export default function ToolsPage() {
@@ -39,7 +51,9 @@ export default function ToolsPage() {
   const [activeTab, setActiveTab] = useState(
     tabs.some((t) => t.id === tabParam) ? tabParam! : "send"
   );
-  const [visited, setVisited] = useState<Set<string>>(new Set(["send"]));
+  // Lazily mount tabs but keep them mounted once visited so in-flight client
+  // state (transfers, uploads, decrypted clipboard) survives tab switches.
+  const [visited, setVisited] = useState<Set<string>>(new Set([activeTab]));
 
   useEffect(() => {
     if (!advancedMode) {
@@ -58,37 +72,42 @@ export default function ToolsPage() {
   if (!advancedMode) return null;
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <TabBar tabs={tabs} activeTab={activeTab} onTabChange={handleTabChange} />
+    <div className="animate-fade-in space-y-6">
+      <PageHeader
+        eyebrow="Toolkit"
+        title="Tools"
+        description="Advanced utilities for sharing, syncing and verifying your encrypted vault. Everything runs end-to-end encrypted in your browser."
+      />
 
-      <PersistentTabPanel id="send" activeTab={activeTab}>
-        {visited.has("send") && (
-       
-            <SendTool />
-        )}
-      </PersistentTabPanel>
-      <PersistentTabPanel id="pad" activeTab={activeTab}>
-        {visited.has("pad") && (
-            <PadTool />
-        )}
-      </PersistentTabPanel>
-      <PersistentTabPanel id="transfer" activeTab={activeTab}>
-        {visited.has("transfer") && (
-            <TransferTool />
-        )}
-      </PersistentTabPanel>
-      <PersistentTabPanel id="snapshots" activeTab={activeTab}>
-        {visited.has("snapshots") && <SnapshotsTab />}
-      </PersistentTabPanel>
-      <PersistentTabPanel id="integrity" activeTab={activeTab}>
-        {visited.has("integrity") && <IntegrityTab />}
-      </PersistentTabPanel>
-      <PersistentTabPanel id="expiring" activeTab={activeTab}>
-        {visited.has("expiring") && <ExpiringTab />}
-      </PersistentTabPanel>
-      <PersistentTabPanel id="devices" activeTab={activeTab}>
-        {visited.has("devices") && <DevicesTab />}
-      </PersistentTabPanel>
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
+        <ScrollArea className="w-full">
+          <TabsList className="inline-flex h-auto w-max gap-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-1">
+            {tabs.map(({ id, label, icon: Icon }) => (
+              <TabsTrigger
+                key={id}
+                value={id}
+                className="gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text)] data-[state=active]:bg-[var(--color-surface)] data-[state=active]:text-[var(--color-text)] data-[state=active]:shadow-sm"
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
+
+        {tabs.map(({ id, Content }) => (
+          <TabsContent
+            key={id}
+            value={id}
+            forceMount
+            hidden={activeTab !== id}
+            className="mt-6 focus-visible:outline-none data-[state=inactive]:hidden"
+          >
+            {visited.has(id) && <Content />}
+          </TabsContent>
+        ))}
+      </Tabs>
     </div>
   );
 }

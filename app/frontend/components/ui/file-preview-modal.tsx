@@ -2,9 +2,11 @@
 
 import { useCallback, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, Download, FileText, Eye, Music } from "@/lib/icons";
+import { X, Download, FileText, Eye } from "@/lib/icons";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
+import { MediaPlayer } from "@/components/ui/media-player";
 import { formatBytes } from "@/lib/utils";
+import Image from "next/image";
 
 interface FilePreviewModalProps {
   open: boolean;
@@ -18,8 +20,8 @@ function getPreviewType(filename: string): "image" | "text" | "pdf" | "video" | 
   const ext = filename.split(".").pop()?.toLowerCase() || "";
   if (["jpg", "jpeg", "png", "gif", "webp", "bmp", "svg", "ico"].includes(ext)) return "image";
   if (ext === "pdf") return "pdf";
-  if (["mp4", "webm", "ogg", "mov"].includes(ext)) return "video";
-  if (["mp3", "wav", "aac", "flac", "m4a"].includes(ext)) return "audio";
+  if (["mp4", "webm", "mov", "mkv", "m4v", "ogv"].includes(ext)) return "video";
+  if (["mp3", "wav", "aac", "flac", "m4a", "ogg", "oga", "opus"].includes(ext)) return "audio";
   if ([
     "txt", "md", "json", "js", "ts", "tsx", "jsx", "py", "go", "rs", "java",
     "c", "cpp", "h", "css", "html", "xml", "yaml", "yml", "toml", "sh", "bat",
@@ -31,8 +33,10 @@ function getPreviewType(filename: string): "image" | "text" | "pdf" | "video" | 
 function getMimeType(filename: string): string | undefined {
   const ext = filename.split(".").pop()?.toLowerCase() || "";
   const map: Record<string, string> = {
-    mp4: "video/mp4", webm: "video/webm", ogg: "video/ogg", mov: "video/quicktime",
-    mp3: "audio/mpeg", wav: "audio/wav", aac: "audio/aac", flac: "audio/flac", m4a: "audio/mp4",
+    mp4: "video/mp4", webm: "video/webm", mov: "video/quicktime",
+    mkv: "video/x-matroska", m4v: "video/mp4", ogv: "video/ogg",
+    mp3: "audio/mpeg", wav: "audio/wav", aac: "audio/aac", flac: "audio/flac",
+    m4a: "audio/mp4", ogg: "audio/ogg", oga: "audio/ogg", opus: "audio/ogg",
   };
   return map[ext];
 }
@@ -133,7 +137,7 @@ export function FilePreviewModal({ open, onClose, blob, filename, fileSize }: Fi
             </div>
           ) : previewType === "image" && objectUrl ? (
             <div className="flex items-center justify-center">
-              <img
+              <Image
                 src={objectUrl}
                 alt={filename}
                 className="max-w-full max-h-[60vh] rounded-lg object-contain"
@@ -146,26 +150,19 @@ export function FilePreviewModal({ open, onClose, blob, filename, fileSize }: Fi
               title={filename}
             />
           ) : previewType === "video" && objectUrl ? (
-            <div className="flex items-center justify-center">
-              <video
-                src={objectUrl}
-                controls
-                autoPlay={false}
-                playsInline
-                className="max-w-full max-h-[60vh] rounded-lg"
-              >
-                Your browser does not support video playback.
-              </video>
-            </div>
+            <MediaPlayer
+              src={objectUrl}
+              filename={filename}
+              mime={getMimeType(filename)}
+              kind="video"
+            />
           ) : previewType === "audio" && objectUrl ? (
-            <div className="flex flex-col items-center justify-center h-40 gap-4">
-              <div className="flex items-center justify-center h-16 w-16 rounded-2xl bg-pink-500/10">
-                <Music className="h-8 w-8 text-pink-500" />
-              </div>
-              <audio src={objectUrl} controls className="w-full max-w-md">
-                Your browser does not support audio playback.
-              </audio>
-            </div>
+            <MediaPlayer
+              src={objectUrl}
+              filename={filename}
+              mime={getMimeType(filename)}
+              kind="audio"
+            />
           ) : previewType === "text" && textContent !== null ? (
             <pre className="text-xs font-mono leading-relaxed whitespace-pre-wrap break-all p-4 rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border)] max-h-[60vh] overflow-auto">
               {textContent}

@@ -8,7 +8,8 @@ import (
 	"github.com/google/uuid"
 )
 
-// HandleDeleteFile deletes a file and its chunks from the index.
+// HandleDeleteFile soft-deletes a file (moves it to Trash) so it stays recoverable.
+// The chunks remain in storage until the file is purged or trash is emptied.
 // DELETE /api/files/{id}
 func (s *Server) HandleDeleteFile(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -20,14 +21,11 @@ func (s *Server) HandleDeleteFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.db.DeleteFile(ctx, userID, fileID); err != nil {
-		log.Printf("files: delete failed: %v", err)
+	if err := s.db.SoftDeleteFile(ctx, userID, fileID); err != nil {
+		log.Printf("files: soft-delete failed: %v", err)
 		http.Error(w, `{"error":"failed to delete file"}`, http.StatusInternalServerError)
 		return
 	}
-
-	// Chunk refs are now queued in pending_deletions — wake the deletion worker.
-	s.signalDeletion()
 
 	s.audit(r, &userID, "file_delete", map[string]interface{}{"file_id": fileID})
 
@@ -35,7 +33,35 @@ func (s *Server) HandleDeleteFile(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(`{"success":true}`))
 }
 
-// HandleBulkDeleteFiles deletes multiple files in one transaction.
+// HandlePurgeFile permanently deletes a file and queues its chunks for removal from
+// storage platforms. This is the original hard-delete path; it is irreversible.
+// DELETE /api/files/{id}/purge
+func (s *Server) HandlePurgeFile(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID := GetUserID(r)
+
+	fileID := r.PathValue("id")
+	if fileID == "" {
+		http.Error(w, `{"error":"file id required"}`, http.StatusBadRequest)
+		return
+	}
+
+	if err := s.db.DeleteFile(ctx, userID, fileID); err != nil {
+		log.Printf("files: purge failed: %v", err)
+		http.Error(w, `{"error":"failed to delete file"}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Chunk refs are now queued in pending_deletions — wake the deletion worker.
+	s.signalDeletion()
+
+	s.audit(r, &userID, "file_purge", map[string]interface{}{"file_id": fileID})
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte(`{"success":true}`))
+}
+
+// HandleBulkDeleteFiles soft-deletes multiple files in one statement (moves them to Trash).
 // POST /api/files/bulk-delete
 func (s *Server) HandleBulkDeleteFiles(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -57,10 +83,9 @@ func (s *Server) HandleBulkDeleteFiles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate ids up front. The set-based delete casts the whole slice to uuid[], so a
-	// single malformed id would abort the entire batch (rolling back every valid delete
-	// with it). Drop invalid ids here — they simply count as failed — so one bad id can't
-	// sink the rest, preserving the old per-file loop's graceful degradation.
+	// Validate ids up front. The set-based update casts the whole slice to uuid[], so a
+	// single malformed id would abort the entire batch. Drop invalid ids here — they
+	// simply count as failed — so one bad id can't sink the rest.
 	validIDs := make([]string, 0, len(req.IDs))
 	for _, id := range req.IDs {
 		if _, perr := uuid.Parse(id); perr == nil {
@@ -68,23 +93,17 @@ func (s *Server) HandleBulkDeleteFiles(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Set-based delete: one transaction, ~4 statements regardless of how many files
-	// were selected (the old code ran a full ~7-query transaction per file, serially).
-	deleted, err := s.db.DeleteFilesBatch(ctx, userID, validIDs)
+	// Soft-delete the set in a single statement (files move to Trash, recoverable).
+	deleted, err := s.db.SoftDeleteFilesBatch(ctx, userID, validIDs)
 	if err != nil {
 		log.Printf("bulk-delete: failed: %v", err)
 		http.Error(w, `{"error":"failed to delete files"}`, http.StatusInternalServerError)
 		return
 	}
-	// Anything not deleted (invalid id, already gone, or not owned) counts as failed.
+	// Anything not deleted (invalid id, already trashed, or not owned) counts as failed.
 	failed := len(req.IDs) - deleted
 	if failed < 0 {
 		failed = 0
-	}
-
-	// Chunk refs are now queued in pending_deletions — wake the deletion worker.
-	if deleted > 0 {
-		s.signalDeletion()
 	}
 
 	s.audit(r, &userID, "bulk_file_delete", map[string]interface{}{

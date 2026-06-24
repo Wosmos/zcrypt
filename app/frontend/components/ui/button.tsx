@@ -1,4 +1,5 @@
 import { ButtonHTMLAttributes, forwardRef } from "react";
+import { cva } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -40,3 +41,36 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 );
 
 Button.displayName = "Button";
+
+/**
+ * CVA variants consumed by shadcn/ui primitives that expect
+ * `buttonVariants` from `@/components/ui/button` (e.g. alert-dialog). The
+ * bespoke `Button` component above keeps its own API; this is purely for
+ * shadcn primitives and ad-hoc `className={buttonVariants(...)}` usage.
+ */
+export const buttonVariants = cva(
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-medium transition-all outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/40 focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--color-bg)] disabled:opacity-40 disabled:pointer-events-none cursor-pointer",
+  {
+    variants: {
+      variant: {
+        default:
+          "bg-primary text-primary-foreground hover:bg-[var(--color-accent-hover)] shadow-sm",
+        destructive:
+          "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+        outline:
+          "border border-border bg-transparent hover:bg-[var(--color-surface-1)] hover:border-[var(--color-border-hover)]",
+        secondary:
+          "bg-secondary text-secondary-foreground hover:bg-[var(--color-surface-3)]",
+        ghost: "hover:bg-[var(--color-surface-1)] text-[var(--color-text-secondary)] hover:text-[var(--color-text)]",
+        link: "text-primary underline-offset-4 hover:underline",
+      },
+      size: {
+        default: "h-10 px-4 py-2",
+        sm: "h-8 rounded-lg px-3 text-xs",
+        lg: "h-11 rounded-xl px-6",
+        icon: "h-9 w-9",
+      },
+    },
+    defaultVariants: { variant: "default", size: "default" },
+  }
+);

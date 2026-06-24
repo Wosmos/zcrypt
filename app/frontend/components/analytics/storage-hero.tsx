@@ -2,6 +2,7 @@
 
 import { formatBytes } from "@/lib/utils";
 import { Infinity } from "@/lib/icons";
+import { Badge } from "@/components/ui/badge";
 import type { FileMetadata, QuotaInfo } from "@/types";
 
 interface StorageHeroProps {
@@ -22,7 +23,7 @@ function categorizeFiles(files: FileMetadata[]): CategoryInfo[] {
     videos: { label: "Videos", color: "#8b5cf6", size: 0 },
     audio: { label: "Audio", color: "#ec4899", size: 0 },
     archives: { label: "Archives", color: "#f97316", size: 0 },
-    code: { label: "Code", color: "#00d5e4", size: 0 },
+    code: { label: "Code", color: "#06b6d4", size: 0 },
     other: { label: "Other", color: "#14b8a6", size: 0 },
   };
 
@@ -54,71 +55,61 @@ export function StorageHero({ files, quotaInfo }: StorageHeroProps) {
   const categories = categorizeFiles(files);
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-[var(--color-border)] p-6"
-      style={{
-        background: "linear-gradient(135deg, rgba(0,213,228,0.08) 0%, rgba(139,92,246,0.06) 50%, rgba(20,184,166,0.08) 100%)",
-      }}
-    >
-      {/* Glow effects */}
-      <div className="absolute top-0 right-0 w-40 h-40 rounded-full opacity-20 blur-3xl" style={{ background: "radial-gradient(circle, rgba(0,213,228,0.4), transparent)" }} />
-      <div className="absolute bottom-0 left-0 w-32 h-32 rounded-full opacity-15 blur-3xl" style={{ background: "radial-gradient(circle, rgba(139,92,246,0.4), transparent)" }} />
-
+    <div className="panel p-5 sm:p-6">
       {/* Header */}
-      <div className="relative flex items-center justify-between mb-4">
-        <span className="text-xs font-semibold text-[var(--color-text-secondary)]">Your Storage</span>
-        <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-500">
-          <Infinity className="h-3 w-3" /> Unlimited
-        </span>
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">Your storage</h2>
+        <Badge variant="secondary" className="gap-1 bg-[var(--color-accent)]/10 text-[var(--color-accent)]">
+          <Infinity className="h-3 w-3" />
+          Unlimited
+        </Badge>
       </div>
 
-      <div className="relative flex flex-col sm:flex-row items-start sm:items-center gap-6">
-        {/* Decorative ring */}
-        <div className="relative flex-shrink-0">
-          <svg width="96" height="96" viewBox="0 0 96 96" className="-rotate-90">
-            <circle cx="48" cy="48" r="38" fill="none" stroke="var(--color-surface-2)" strokeWidth="6" opacity="0.5" />
+      <div className="mt-5 flex flex-col gap-6 sm:flex-row sm:items-center">
+        {/* Usage ring */}
+        <div className="relative flex-shrink-0 self-center sm:self-auto">
+          <svg width="96" height="96" viewBox="0 0 96 96" className="-rotate-90" aria-hidden>
             <circle
-              cx="48" cy="48" r="38" fill="none"
-              stroke="url(#ring-grad)" strokeWidth="6" strokeLinecap="round"
-              className="transition-all duration-1000 ease-out"
+              cx="48"
+              cy="48"
+              r="38"
+              fill="none"
+              stroke="var(--color-surface-2)"
+              strokeWidth="6"
             />
-            <defs>
-              <linearGradient id="ring-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#00d5e4" />
-                <stop offset="100%" stopColor="#8b5cf6" />
-              </linearGradient>
-            </defs>
+            <circle
+              cx="48"
+              cy="48"
+              r="38"
+              fill="none"
+              stroke="var(--color-accent)"
+              strokeWidth="6"
+              strokeLinecap="round"
+              strokeDasharray="200 240"
+              className="transition-all duration-700 ease-out"
+            />
           </svg>
           <div className="absolute inset-0 flex items-center justify-center">
-            <Infinity className="h-7 w-7 text-cyan-500" />
+            <Infinity className="h-7 w-7 text-[var(--color-accent)]" />
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="flex-1 min-w-0">
+        {/* Totals + distribution */}
+        <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-bold tracking-tight">{formatBytes(totalUsed)}</span>
+            <span className="text-3xl font-semibold tracking-tight tabular-nums text-[var(--color-text)]">
+              {formatBytes(totalUsed)}
+            </span>
             <span className="text-sm text-[var(--color-text-muted)]">used</span>
           </div>
-          <p className="text-xs text-[var(--color-text-muted)] mt-1">
+          <p className="mt-1 text-xs text-[var(--color-text-muted)]">
             Bounded only by your connected platform
           </p>
-          <div className="flex flex-wrap gap-2 mt-3">
-            {categories.slice(0, 4).map((cat) => (
-              <span
-                key={cat.label}
-                className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-lg"
-                style={{ backgroundColor: cat.color + "15", color: cat.color }}
-              >
-                <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: cat.color }} />
-                {cat.label} {formatBytes(cat.size)}
-              </span>
-            ))}
-          </div>
 
-          {/* Category bar */}
+          {/* Distribution bar */}
           {totalOriginal > 0 && (
-            <div className="mt-4 space-y-2">
-              <div className="flex h-2.5 rounded-full overflow-hidden bg-[var(--color-surface-2)]">
+            <div className="mt-4 space-y-3">
+              <div className="flex h-2.5 overflow-hidden rounded-full bg-[var(--color-surface-2)]">
                 {categories.map((cat) => (
                   <div
                     key={cat.label}
@@ -131,11 +122,17 @@ export function StorageHero({ files, quotaInfo }: StorageHeroProps) {
                   />
                 ))}
               </div>
-              <div className="flex flex-wrap gap-x-4 gap-y-1">
+              <div className="flex flex-wrap gap-x-4 gap-y-1.5">
                 {categories.map((cat) => (
-                  <span key={cat.label} className="flex items-center gap-1.5 text-xs text-[var(--color-text-secondary)]">
+                  <span
+                    key={cat.label}
+                    className="flex items-center gap-1.5 text-xs text-[var(--color-text-secondary)]"
+                  >
                     <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: cat.color }} />
-                    {cat.label} ({((cat.size / totalOriginal) * 100).toFixed(0)}%)
+                    {cat.label}
+                    <span className="tabular-nums text-[var(--color-text-muted)]">
+                      {((cat.size / totalOriginal) * 100).toFixed(0)}%
+                    </span>
                   </span>
                 ))}
               </div>

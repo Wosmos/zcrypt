@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { motion } from "motion/react";
 import {
   listSharedVaults,
   createSharedVault,
@@ -13,12 +13,36 @@ import {
 } from "@/lib/api";
 import type { SharedVault, SharedVaultDetail, FileMetadata } from "@/types";
 import { useAuthStore } from "@/store/auth";
+import { Section } from "@/components/ui/section";
 import { Button } from "@/components/ui/button";
-import { LogoSpinner } from "@/components/ui/logo-spinner";
-import { Plus, Trash2, ArrowRight } from "@/lib/icons";
+import { Input } from "@/components/ui/input";
+import { IconButton } from "@/components/ui/icon-button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Badge } from "@/components/ui/badge";
+import { SkeletonRow } from "@/components/ui/skeletons";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Plus, Trash2, Users, FolderOpen } from "@/lib/icons";
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return new Date(iso).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 export function SharedVaultsContent() {
@@ -33,208 +57,463 @@ export function SharedVaultsContent() {
   const [description, setDescription] = useState("");
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [creating, setCreating] = useState(false);
-  const [error, setError] = useState("");
+  const [createError, setCreateError] = useState("");
 
   const [memberEmail, setMemberEmail] = useState("");
   const [memberRole, setMemberRole] = useState("viewer");
   const [addingMember, setAddingMember] = useState(false);
+  const [memberError, setMemberError] = useState("");
+
+  const [deleteTarget, setDeleteTarget] = useState<SharedVault | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     Promise.all([listSharedVaults(), listFiles()])
-      .then(([v, f]) => { setVaults(v); setFiles(f); })
+      .then(([v, f]) => {
+        setVaults(v);
+        setFiles(f);
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
+  const resetCreate = () => {
+    setName("");
+    setDescription("");
+    setSelectedFiles([]);
+    setCreateError("");
+  };
+
   const handleCreate = async () => {
-    setError("");
-    if (!name.trim()) { setError("Name is required"); return; }
+    setCreateError("");
+    if (!name.trim()) {
+      setCreateError("Name is required");
+      return;
+    }
     setCreating(true);
     try {
-      const vault = await createSharedVault({ name: name.trim(), description: description.trim(), file_ids: selectedFiles });
+      const vault = await createSharedVault({
+        name: name.trim(),
+        description: description.trim(),
+        file_ids: selectedFiles,
+      });
       setVaults((prev) => [vault, ...prev]);
       setShowCreate(false);
-      setName(""); setDescription(""); setSelectedFiles([]);
+      resetCreate();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create");
-    } finally { setCreating(false); }
+      setCreateError(err instanceof Error ? err.message : "Failed to create");
+    } finally {
+      setCreating(false);
+    }
   };
 
   const openDetail = async (vaultId: string) => {
-    try { setDetail(await getSharedVault(vaultId)); } catch { /* ignore */ }
+    setMemberError("");
+    setMemberEmail("");
+    setMemberRole("viewer");
+    try {
+      setDetail(await getSharedVault(vaultId));
+    } catch {
+      /* ignore */
+    }
   };
 
   const handleAddMember = async () => {
     if (!detail || !memberEmail.trim()) return;
+    setMemberError("");
     setAddingMember(true);
     try {
-      const member = await addSharedVaultMember(detail.id, memberEmail.trim(), memberRole);
+      const member = await addSharedVaultMember(
+        detail.id,
+        memberEmail.trim(),
+        memberRole
+      );
       setDetail({ ...detail, members: [...detail.members, member] });
       setMemberEmail("");
-    } catch { setError("Failed to add member"); }
-    finally { setAddingMember(false); }
+    } catch {
+      setMemberError("Failed to add member");
+    } finally {
+      setAddingMember(false);
+    }
   };
 
   const handleRemoveMember = async (userId: string) => {
     if (!detail) return;
     try {
       await removeSharedVaultMember(detail.id, userId);
-      setDetail({ ...detail, members: detail.members.filter((m) => m.user_id !== userId) });
-    } catch { /* ignore */ }
+      setDetail({
+        ...detail,
+        members: detail.members.filter((m) => m.user_id !== userId),
+      });
+    } catch {
+      /* ignore */
+    }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Delete this shared vault? Files will not be deleted.")) return;
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await deleteSharedVault(id);
-      setVaults((prev) => prev.filter((v) => v.id !== id));
-      if (detail?.id === id) setDetail(null);
-    } catch { /* ignore */ }
+      await deleteSharedVault(deleteTarget.id);
+      setVaults((prev) => prev.filter((v) => v.id !== deleteTarget.id));
+      if (detail?.id === deleteTarget.id) setDetail(null);
+      setDeleteTarget(null);
+    } catch {
+      /* ignore */
+    } finally {
+      setDeleting(false);
+    }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <LogoSpinner size="md" speed="fast" />
-      </div>
-    );
-  }
+  const isOwner = (vault: SharedVault) => vault.owner_id === user?.id;
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="section-label">Shared Vaults</h2>
-        <Button onClick={() => { setShowCreate(!showCreate); setDetail(null); }} size="sm" variant={showCreate ? "secondary" : "primary"}>
-          {showCreate ? "Cancel" : <><Plus className="h-3.5 w-3.5" /> New Vault</>}
+    <Section
+      title="Shared vaults"
+      description="Collaborate on encrypted files with people you invite."
+      actions={
+        <Button
+          onClick={() => {
+            resetCreate();
+            setShowCreate(true);
+          }}
+          size="sm"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          New vault
         </Button>
-      </div>
-
-      {error && (
-        <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">{error}</div>
-      )}
-
-      {/* Create form */}
-      <AnimatePresence>
-        {showCreate && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-            <section className="card overflow-hidden">
-              <div className="px-5 py-4 border-b border-[var(--color-border)]">
-                <h3 className="text-sm font-semibold">Create Shared Vault</h3>
-              </div>
-              <div className="p-5 space-y-4">
-                <input
-                  type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Vault name"
-                  className="w-full h-10 px-3.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-sm placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-accent)]/40"
-                />
-                <input
-                  type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description (optional)"
-                  className="w-full h-10 px-3.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-sm placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-accent)]/40"
-                />
-                {files.length > 0 && (
-                  <div>
-                    <label className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Add files (optional)</label>
-                    <div className="mt-1.5 max-h-32 overflow-y-auto space-y-1 border border-[var(--color-border)] rounded-xl p-2">
-                      {files.map((f) => (
-                        <label key={f.id} className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-[var(--color-surface-1)] cursor-pointer">
-                          <input type="checkbox" checked={selectedFiles.includes(f.id)} onChange={() => setSelectedFiles((prev) => prev.includes(f.id) ? prev.filter((id) => id !== f.id) : [...prev, f.id])} className="w-4 h-4 rounded accent-[var(--color-accent)]" />
-                          <span className="text-sm truncate">{f.original_name}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                <Button onClick={handleCreate} disabled={creating} className="w-full">
-                  {creating ? "Creating..." : "Create"}
-                </Button>
-              </div>
-            </section>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Detail view */}
-      {detail && (
-        <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="card overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border)]">
-            <div>
-              <h3 className="text-sm font-semibold">{detail.name}</h3>
-              {detail.description && <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">{detail.description}</p>}
-            </div>
-            <button onClick={() => setDetail(null)} className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors">Close</button>
-          </div>
-          <div className="p-5 space-y-4">
-            <div>
-              <h4 className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-2">Members ({detail.members?.length || 0})</h4>
-              <div className="space-y-2">
-                {detail.members?.map((m) => (
-                  <div key={m.id} className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2">
-                      <span>{m.username || m.email}</span>
-                      <span className="text-[10px] font-medium px-1.5 py-0.5 bg-[var(--color-surface-1)] rounded text-[var(--color-text-muted)]">{m.role}</span>
-                    </div>
-                    {m.user_id !== user?.id && detail.owner_id === user?.id && (
-                      <button onClick={() => handleRemoveMember(m.user_id)} className="text-xs text-red-400 hover:underline">Remove</button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-            {detail.owner_id === user?.id && (
-              <div className="flex gap-2">
-                <input type="email" value={memberEmail} onChange={(e) => setMemberEmail(e.target.value)} placeholder="Email address"
-                  className="flex-1 h-9 px-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-sm placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-accent)]/40" />
-                <select value={memberRole} onChange={(e) => setMemberRole(e.target.value)}
-                  className="h-9 px-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-sm focus:outline-none">
-                  <option value="viewer">Viewer</option>
-                  <option value="editor">Editor</option>
-                  <option value="admin">Admin</option>
-                </select>
-                <Button onClick={handleAddMember} disabled={addingMember} size="sm">
-                  {addingMember ? "..." : "Add"}
-                </Button>
-              </div>
-            )}
-            <p className="text-xs text-[var(--color-text-muted)]">{detail.file_ids?.length || 0} files shared</p>
-          </div>
-        </motion.section>
-      )}
-
-      {/* Vault list */}
-      {vaults.length === 0 && !showCreate ? (
-        <div className="card text-center py-12">
-          <p className="text-[var(--color-text-muted)]">No shared vaults yet.</p>
-          <p className="text-xs text-[var(--color-text-muted)] mt-1">Create one to start collaborating.</p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {vaults.map((vault) => (
-            <motion.div
-              key={vault.id}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex items-center justify-between p-4 card cursor-pointer hover:border-[var(--color-accent)]/30 transition-colors"
-              onClick={() => openDetail(vault.id)}
-            >
-              <div className="min-w-0 flex-1">
-                <h3 className="font-medium">{vault.name}</h3>
-                <div className="flex items-center gap-3 text-xs text-[var(--color-text-muted)] mt-0.5">
-                  {vault.description && <span>{vault.description}</span>}
-                  <span>{vault.file_ids?.length || 0} files</span>
-                  <span>{formatDate(vault.created_at)}</span>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <ArrowRight className="h-4 w-4 text-[var(--color-text-muted)]" />
-                {vault.owner_id === user?.id && (
-                  <button onClick={(e) => { e.stopPropagation(); handleDelete(vault.id); }} className="p-1.5 text-[var(--color-text-muted)] hover:text-red-400 transition-colors">
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                )}
-              </div>
-            </motion.div>
+      }
+    >
+      {loading ? (
+        <div className="panel divide-y divide-[var(--color-border)] px-5">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <SkeletonRow key={i} />
           ))}
         </div>
+      ) : vaults.length === 0 ? (
+        <div className="panel flex flex-col items-center justify-center gap-3 px-6 py-14 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--color-surface-1)] text-[var(--color-text-muted)] ring-1 ring-[var(--color-border)]">
+            <Users className="h-6 w-6" />
+          </div>
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-[var(--color-text)]">
+              No shared vaults yet
+            </p>
+            <p className="text-sm text-[var(--color-text-secondary)]">
+              Create one to start collaborating with others.
+            </p>
+          </div>
+          <Button
+            onClick={() => {
+              resetCreate();
+              setShowCreate(true);
+            }}
+            size="sm"
+            variant="secondary"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            New vault
+          </Button>
+        </div>
+      ) : (
+        <ul className="panel divide-y divide-[var(--color-border)]">
+          {vaults.map((vault) => (
+            <li key={vault.id}>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="group flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-[var(--color-surface-1)]"
+              >
+                <button
+                  type="button"
+                  onClick={() => openDetail(vault.id)}
+                  className="flex min-w-0 flex-1 items-center gap-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)] rounded-lg"
+                >
+                  <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--color-surface-1)] text-[var(--color-text-secondary)] ring-1 ring-[var(--color-border)] group-hover:text-[var(--color-accent)]">
+                    <FolderOpen className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-[var(--color-text)]">
+                      {vault.name}
+                    </p>
+                    <div className="mt-0.5 flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
+                      {vault.description && (
+                        <span className="truncate">{vault.description}</span>
+                      )}
+                      <span className="tabular-nums">
+                        {vault.file_ids?.length || 0} files
+                      </span>
+                      <span className="text-[var(--color-border-hover)]">·</span>
+                      <span className="tabular-nums">
+                        {formatDate(vault.created_at)}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+                {isOwner(vault) && (
+                  <IconButton
+                    icon={Trash2}
+                    label="Delete vault"
+                    variant="ghost"
+                    onClick={() => setDeleteTarget(vault)}
+                    className="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 hover:text-red-500"
+                  />
+                )}
+              </motion.div>
+            </li>
+          ))}
+        </ul>
       )}
-    </div>
+
+      {/* Create vault modal */}
+      <Dialog
+        open={showCreate}
+        onOpenChange={(o) => {
+          if (creating) return;
+          setShowCreate(o);
+          if (!o) resetCreate();
+        }}
+      >
+        <DialogContent className="border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)]">
+          <DialogHeader>
+            <DialogTitle>Create shared vault</DialogTitle>
+            <DialogDescription className="text-[var(--color-text-secondary)]">
+              Group files into a vault and invite people to collaborate. Files
+              stay encrypted end-to-end.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <Input
+              label="Vault name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Project Atlas"
+              autoFocus
+            />
+            <Input
+              label="Description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Optional"
+            />
+
+            {files.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
+                  Add files
+                  <span className="ml-1 normal-case text-[var(--color-text-muted)]">
+                    (optional)
+                  </span>
+                </p>
+                <div className="max-h-40 space-y-0.5 overflow-y-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1.5">
+                  {files.map((f) => (
+                    <label
+                      key={f.id}
+                      className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-[var(--color-surface-1)]"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedFiles.includes(f.id)}
+                        onChange={() =>
+                          setSelectedFiles((prev) =>
+                            prev.includes(f.id)
+                              ? prev.filter((id) => id !== f.id)
+                              : [...prev, f.id]
+                          )
+                        }
+                        className="h-4 w-4 rounded border-[var(--color-border)] accent-[var(--color-accent)]"
+                      />
+                      <span className="truncate text-sm text-[var(--color-text)]">
+                        {f.original_name}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                {selectedFiles.length > 0 && (
+                  <p className="text-xs tabular-nums text-[var(--color-text-muted)]">
+                    {selectedFiles.length} selected
+                  </p>
+                )}
+              </div>
+            )}
+
+            {createError && (
+              <p
+                role="alert"
+                className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-400"
+              >
+                {createError}
+              </p>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setShowCreate(false);
+                resetCreate();
+              }}
+              disabled={creating}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleCreate} disabled={creating}>
+              {creating ? "Creating..." : "Create vault"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Vault detail modal */}
+      <Dialog
+        open={!!detail}
+        onOpenChange={(o) => {
+          if (!o) setDetail(null);
+        }}
+      >
+        <DialogContent className="border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)]">
+          <DialogHeader>
+            <DialogTitle className="truncate">
+              {detail?.name ?? "Vault"}
+            </DialogTitle>
+            <DialogDescription className="text-[var(--color-text-secondary)]">
+              {detail?.description ||
+                `${detail?.file_ids?.length || 0} files shared in this vault.`}
+            </DialogDescription>
+          </DialogHeader>
+
+          {detail && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
+                  Members
+                  <span className="ml-1 tabular-nums">
+                    ({detail.members?.length || 0})
+                  </span>
+                </p>
+                {detail.members && detail.members.length > 0 ? (
+                  <ul className="space-y-1">
+                    {detail.members.map((m) => (
+                      <li
+                        key={m.id}
+                        className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-[var(--color-surface-1)]"
+                      >
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span className="truncate text-sm text-[var(--color-text)]">
+                            {m.username || m.email}
+                          </span>
+                          <Badge
+                            variant="secondary"
+                            className="flex-shrink-0 bg-[var(--color-surface-1)] capitalize text-[var(--color-text-muted)] ring-1 ring-[var(--color-border)]"
+                          >
+                            {m.role}
+                          </Badge>
+                        </div>
+                        {m.user_id !== user?.id &&
+                          detail.owner_id === user?.id && (
+                            <IconButton
+                              icon={Trash2}
+                              label="Remove member"
+                              variant="ghost"
+                              onClick={() => handleRemoveMember(m.user_id)}
+                              className="h-7 w-7 flex-shrink-0 hover:text-red-500"
+                              iconClassName="h-3.5 w-3.5"
+                            />
+                          )}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-[var(--color-text-muted)]">
+                    No members yet.
+                  </p>
+                )}
+              </div>
+
+              {detail.owner_id === user?.id && (
+                <div className="space-y-2 border-t border-[var(--color-border)] pt-4">
+                  <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
+                    Invite a member
+                  </p>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <input
+                      type="email"
+                      value={memberEmail}
+                      onChange={(e) => setMemberEmail(e.target.value)}
+                      placeholder="Email address"
+                      className="h-10 flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-sm text-[var(--color-text)] outline-none transition-all placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-accent)]/40 focus:ring-2 focus:ring-[var(--color-accent)]/10"
+                    />
+                    <Select value={memberRole} onValueChange={setMemberRole}>
+                      <SelectTrigger className="h-10 w-full rounded-xl border-[var(--color-border)] bg-[var(--color-surface)] text-sm sm:w-32">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)]">
+                        <SelectItem value="viewer">Viewer</SelectItem>
+                        <SelectItem value="editor">Editor</SelectItem>
+                        <SelectItem value="admin">Admin</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      onClick={handleAddMember}
+                      disabled={addingMember || !memberEmail.trim()}
+                    >
+                      {addingMember ? "Adding..." : "Add"}
+                    </Button>
+                  </div>
+                  {memberError && (
+                    <p
+                      role="alert"
+                      className="text-sm text-red-600 dark:text-red-400"
+                    >
+                      {memberError}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setDetail(null)}>
+              Close
+            </Button>
+            {detail && detail.owner_id === user?.id && (
+              <Button
+                variant="danger"
+                onClick={() => setDeleteTarget(detail)}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Delete vault
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirmation */}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(o) => {
+          if (!deleting && !o) setDeleteTarget(null);
+        }}
+        destructive
+        title="Delete shared vault?"
+        description={
+          <>
+            This removes{" "}
+            <span className="font-medium text-[var(--color-text)]">
+              {deleteTarget?.name}
+            </span>{" "}
+            and revokes access for all members. The underlying files are not
+            deleted.
+          </>
+        }
+        confirmLabel="Delete vault"
+        loading={deleting}
+        onConfirm={handleDelete}
+      />
+    </Section>
   );
 }

@@ -111,8 +111,15 @@ interface UploadStore {
   removeFromQueue: (id: string) => void;
   clearCompleted: () => void;
   findByFileId: (fileId: string) => UploadItem | undefined;
-  startUpload: (files: File[], passphrase: string, platform?: string, maxConcurrent?: number, onRefresh?: () => void, hfConnected?: boolean) => void;
+  /** Destination folder for a queued/in-flight upload item, or null for Root.
+   *  Lets the transfer manager pick the right password for resume/retry (FIX-4):
+   *  a protected-folder upload must re-encrypt remaining chunks under the folder
+   *  password, not the vault passphrase. */
+  getItemFolderId: (id: string) => string | null;
+  startUpload: (files: File[], passphrase: string, platform?: string, maxConcurrent?: number, onRefresh?: () => void, hfConnected?: boolean, folderId?: string | null) => void;
   retryUpload: (id: string, passphrase: string) => void;
+  pauseUpload: (id: string) => void;                        // stop at chunk boundary; preserves resume context (does NOT cancel session)
+  resumeUpload: (id: string, passphrase: string) => void;   // continue from getUploadStatus uploaded_chunks
   startDesktopUpload: (passphrase: string, onRefresh?: () => void) => void;
 }
 
@@ -133,7 +140,15 @@ interface ResumeCtx {
 // Per-item upload metadata kept out of the typed queue state: target platform,
 // the file-list refresh hook, and (once a session exists) a resume context so a
 // failed item can continue instead of restarting from zero.
-const itemMeta = new Map<string, { platform?: string; onRefresh?: () => void; resume?: ResumeCtx; routedToHF?: boolean }>();
+const itemMeta = new Map<string, { platform?: string; onRefresh?: () => void; resume?: ResumeCtx; routedToHF?: boolean; folderId?: string | null }>();
+
+// Ids the user has paused. The chunk loop in uploadOneFile checks this set at the
+// chunk boundary (before launching the next chunk) and stops cleanly, leaving the
+// server session + resume context intact so resumeUpload can continue from
+// getUploadStatus's uploaded_chunks. We CANNOT abort an in-flight chunk: none of
+// the lib/upload-session.ts wrappers accept an AbortSignal (see contract §3), so
+// in-flight chunks finish and pause takes effect at the next chunk boundary.
+const pausedIds = new Set<string>();
 
 // Files at/above this size prefer HuggingFace when connected: only HF supports
 // direct (presigned) upload that bypasses the Railway relay. GitHub/GitLab/Telegram
@@ -186,6 +201,13 @@ interface UploadFileOpts {
   platform?: string;
   profile: ReturnType<typeof getDeviceProfile>;
   onRefresh?: () => void;
+  /**
+   * Destination folder. When set, the file is moved into this folder right after
+   * its upload completes. For a password-protected folder, `passphrase` is the
+   * FOLDER password (so the CEK is wrapped under the folder KEK at init time) and
+   * this move just files the row under the folder. null/undefined = stay at Root.
+   */
+  folderId?: string | null;
 }
 
 // Runs one file through the client-side crypto + upload pipeline.
@@ -195,7 +217,7 @@ interface UploadFileOpts {
 // server already has — so a retry continues instead of restarting. Used by both
 // startUpload and retryUpload.
 async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Promise<void> {
-  const { passphrase, platform, profile, onRefresh } = opts;
+  const { passphrase, platform, profile, onRefresh, folderId } = opts;
   const { updateStatus, setFileId, setError } = useUploadStore.getState();
   const chunkSize = profile.chunkSize;
   const pool = new WorkerPool();
@@ -258,6 +280,11 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
             wrapped_cek: toBase64(wrappedCek),
             chunk_count: chunkCount,
             platform,
+            // FIX-1b: create the row directly in its destination folder. For a
+            // protected folder the CEK was already wrapped under the folder
+            // password above, so the file is born correctly folder-keyed AND
+            // folder-filed in one step — no stranding window, no post-move.
+            folder_id: itemMeta.get(id)?.folderId ?? folderId ?? null,
           });
           break;
         } catch (err) {
@@ -324,6 +351,11 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
 
     for (let i = 0; i < chunkCount; i++) {
       if (firstError) break;
+      // Pause at the chunk boundary: stop launching new chunks. In-flight chunks
+      // (already-launched promises) finish and confirm server-side, so their
+      // uploaded_chunks state is preserved for a clean resume. We do NOT abort
+      // them — the chunk API wrappers don't accept an AbortSignal (contract §3).
+      if (pausedIds.has(id)) break;
       if (done.has(i)) continue; // resume: server already has this chunk
 
       // Backpressure: don't read ahead more than pipelineDepth chunks
@@ -369,15 +401,20 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
           totalEncryptedSize += result.encryptedSize;
           totalCompressedSize += result.compressed ? result.compressedSize : result.originalSize;
 
-          const percent = 3 + Math.round((uploadedChunks / chunkCount) * 92);
-          updateStatus(
-            id,
-            "uploading",
-            percent,
-            `Uploading chunk ${uploadedChunks}/${chunkCount}`,
-            uploadedChunks * chunkSize,
-            file.size
-          );
+          // If the user paused, an in-flight chunk finishing here must NOT flip the
+          // row back to "uploading" — skip the status emit while paused. The byte
+          // accounting above still runs so resume math (uploaded_chunks) stays correct.
+          if (!pausedIds.has(id)) {
+            const percent = 3 + Math.round((uploadedChunks / chunkCount) * 92);
+            updateStatus(
+              id,
+              "uploading",
+              percent,
+              `Uploading chunk ${uploadedChunks}/${chunkCount}`,
+              uploadedChunks * chunkSize,
+              file.size
+            );
+          }
         } finally {
           releaseUploadSlot();
         }
@@ -391,9 +428,26 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
     await Promise.all(chunkPromises);
     if (firstError) throw firstError;
 
+    // Paused: stop here WITHOUT completing, so the file never lands in the vault
+    // while paused. The session and resume context (CEK + sessionId) stay intact
+    // so resumeUpload continues from the server's uploaded_chunks (which then
+    // hits completeUpload). We check pausedIds at finalize — not just at the
+    // chunk-launch boundary — so a small/single-chunk file whose chunks were all
+    // already in-flight when the user hit pause still stops here instead of
+    // completing anyway.
+    if (pausedIds.has(id)) {
+      const percent = 3 + Math.round((uploadedChunks / chunkCount) * 92);
+      updateStatus(id, "paused", percent, "Paused", uploadedChunks * chunkSize, file.size);
+      return;
+    }
+
     // Finalize
     updateStatus(id, "uploading", 97, "Finalizing...");
     await withRetry(() => completeUpload(sessionId, totalEncryptedSize, totalCompressedSize));
+
+    // FIX-1b: no post-complete moveFile. The file was created in its destination
+    // folder atomically at init (initUpload's folder_id), so it is already filed
+    // in the right folder AND keyed correctly — there is no stranding window.
 
     updateStatus(id, "done", 100, "Done");
     itemMeta.set(id, { ...itemMeta.get(id), resume: undefined }); // complete — nothing to resume
@@ -457,8 +511,11 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
   },
 
   updateStatus: (id, status, progress, stage, bytesProcessed, totalBytes) => {
-    // Terminal states flush immediately so UI reflects completion/failure
-    if (status === "done" || status === "failed") {
+    // Terminal states flush immediately so UI reflects completion/failure.
+    // "paused" is not terminal, but we flush it immediately too (and drop any
+    // pending batched update for this id) so a stale in-flight progress frame
+    // can't overwrite the paused state a frame later.
+    if (status === "done" || status === "failed" || status === "paused") {
       pendingUpdates.delete(id);
       set((state) => ({
         queue: state.queue.map((item) =>
@@ -491,6 +548,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
       cancelUpload(meta.resume.sessionId).catch(() => {});
     }
     itemMeta.delete(id);
+    pausedIds.delete(id);
     set((state) => ({
       queue: state.queue.filter((item) => item.id !== id),
     }));
@@ -506,7 +564,9 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
     return get().queue.find((item) => item.fileId === fileId);
   },
 
-  startUpload: (files, passphrase, platform, maxConcurrent, onRefresh, hfConnected = false) => {
+  getItemFolderId: (id) => itemMeta.get(id)?.folderId ?? null,
+
+  startUpload: (files, passphrase, platform, maxConcurrent, onRefresh, hfConnected = false, folderId = null) => {
     const { addBatchToQueue } = get();
     const profile = getDeviceProfile();
     const effectiveConcurrent = maxConcurrent ?? profile.maxConcurrentUploads;
@@ -514,10 +574,12 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
     // Add all files to queue in a single state update (prevents 10k re-renders)
     const items = addBatchToQueue(files);
     // Resolve target per file (large files prefer HuggingFace) and remember it so
-    // a retry reuses the same target.
+    // a retry reuses the same target. `folderId` is the destination folder (the
+    // current explorer folder) so uploads land where the user is browsing; for a
+    // protected folder `passphrase` is already the folder password.
     for (const it of items) {
       const { platform: target, routedToHF } = resolveUploadPlatform(it.file.size, platform, hfConnected);
-      itemMeta.set(it.id, { platform: target, onRefresh, routedToHF });
+      itemMeta.set(it.id, { platform: target, onRefresh, routedToHF, folderId });
     }
 
     // Semaphore-based concurrency limiter
@@ -551,8 +613,9 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
       items.map(async ({ file, id }) => {
         await acquire();
         try {
-          const target = itemMeta.get(id)?.platform; // per-file (may be huggingface)
-          await uploadOneFile(file, id, { passphrase, platform: target, profile, onRefresh });
+          const meta = itemMeta.get(id);
+          const target = meta?.platform; // per-file (may be huggingface)
+          await uploadOneFile(file, id, { passphrase, platform: target, profile, onRefresh, folderId: meta?.folderId });
         } finally {
           release();
         }
@@ -564,17 +627,23 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
       const batchItems = queue.filter((q) => batchIds.has(q.id));
       const doneCount = batchItems.filter((i) => i.status === "done").length;
       const failedCount = batchItems.filter((i) => i.status === "failed").length;
+      const pausedCount = batchItems.filter((i) => i.status === "paused").length;
       const total = batchItems.length;
 
-      if (total === 1) {
-        if (doneCount === 1) toast.success(`${items[0].file.name} uploaded`);
-        else if (failedCount === 1) toast.error(`${items[0].file.name} failed`);
-      } else if (failedCount === 0) {
-        toast.success(`All ${doneCount} files uploaded`);
-      } else if (doneCount === 0) {
-        toast.error(`All ${failedCount} files failed to upload`);
-      } else {
-        toast.warning(`${doneCount} uploaded, ${failedCount} failed`);
+      // If any item is paused, the batch isn't truly finished — suppress the
+      // summary toast. Resuming re-runs uploadOneFile (via resumeUpload), and the
+      // user will see the per-item completion in the transfer manager.
+      if (pausedCount === 0) {
+        if (total === 1) {
+          if (doneCount === 1) toast.success(`${items[0].file.name} uploaded`);
+          else if (failedCount === 1) toast.error(`${items[0].file.name} failed`);
+        } else if (failedCount === 0) {
+          toast.success(`All ${doneCount} files uploaded`);
+        } else if (doneCount === 0) {
+          toast.error(`All ${failedCount} files failed to upload`);
+        } else {
+          toast.warning(`${doneCount} uploaded, ${failedCount} failed`);
+        }
       }
 
       onRefresh?.();
@@ -597,6 +666,48 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
       platform: meta?.platform,
       profile: getDeviceProfile(),
       onRefresh: meta?.onRefresh,
+      folderId: meta?.folderId,
+    });
+  },
+
+  // Pause an in-progress upload. We CANNOT abort an in-flight chunk (the
+  // upload-session wrappers take no AbortSignal — contract §3), so this pauses at
+  // the chunk boundary: the running uploadOneFile loop sees pausedIds.has(id)
+  // before launching its next chunk and stops, leaving the server session +
+  // resume context (CEK, sessionId) untouched. Already-launched chunks finish and
+  // their uploaded_chunks state is preserved, so resumeUpload picks up cleanly.
+  // We do NOT call cancelUpload — that's the "give up" path (removeFromQueue).
+  pauseUpload: (id) => {
+    const item = get().queue.find((i) => i.id === id);
+    if (!item) return;
+    // Only meaningful while actively encrypting/uploading; ignore terminal states.
+    if (item.status === "done" || item.status === "failed" || item.status === "paused") return;
+    pausedIds.add(id);
+    // Reflect the intent immediately. The loop will also emit "paused" once the
+    // last in-flight chunk settles; this gives instant feedback in the meantime.
+    get().updateStatus(id, "paused", item.progress, "Pausing…", item.bytesProcessed, item.totalBytes);
+  },
+
+  // Resume a paused upload. Clears the paused flag and re-runs uploadOneFile,
+  // which reads itemMeta[id].resume and continues from getUploadStatus's
+  // uploaded_chunks — re-encrypting only the remaining chunks with the SAME CEK.
+  // Same continuation path as retryUpload, just from a "paused" (not "failed") state.
+  resumeUpload: (id, passphrase) => {
+    const item = get().queue.find((i) => i.id === id);
+    if (!item) return;
+    pausedIds.delete(id);
+    const meta = itemMeta.get(id);
+    set((state) => ({
+      queue: state.queue.map((i) =>
+        i.id === id ? { ...i, status: "uploading" as const, error: undefined, stage: "Resuming…" } : i
+      ),
+    }));
+    void uploadOneFile(item.file, id, {
+      passphrase,
+      platform: meta?.platform,
+      profile: getDeviceProfile(),
+      onRefresh: meta?.onRefresh,
+      folderId: meta?.folderId,
     });
   },
 

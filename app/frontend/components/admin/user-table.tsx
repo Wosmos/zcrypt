@@ -3,13 +3,66 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { adminSetUserRole, adminDeleteUser, adminSetUserQuota, adminSetUserPlan } from "@/lib/api";
-import { formatBytes } from "@/lib/utils";
+import { formatBytes, cn } from "@/lib/utils";
 import { toast } from "@/store/toast";
-import { cn } from "@/lib/utils";
-import { Trash2, ShieldCheck, User, Crown } from "@/lib/icons";
+import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/ui/icon-button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ConfirmModal } from "@/components/ui/confirm-modal";
+import { Trash2, ShieldCheck, User, Crown, Check, X } from "@/lib/icons";
 import { Role } from "@/types";
 import type { AdminUser, PlanConfig } from "@/types";
-import { ConfirmModal } from "@/components/ui/confirm-modal";
+
+const planBadgeClass = (plan: string) =>
+  cn(
+    "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium",
+    plan === "pro"
+      ? "border-violet-500/20 bg-violet-500/10 text-violet-600 dark:text-violet-400"
+      : plan === "plus"
+        ? "border-blue-500/20 bg-blue-500/10 text-blue-600 dark:text-blue-400"
+        : "border-[var(--color-border)] bg-[var(--color-surface-2)] text-[var(--color-text-muted)]"
+  );
+
+const planSelectClass = (plan: string) =>
+  cn(
+    "h-8 w-[7.5rem] text-xs font-medium",
+    plan === "pro"
+      ? "border-violet-500/20 bg-violet-500/10 text-violet-600 dark:text-violet-400"
+      : plan === "plus"
+        ? "border-blue-500/20 bg-blue-500/10 text-blue-600 dark:text-blue-400"
+        : ""
+  );
+
+function RoleBadge({ role }: { role: Role }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium",
+        role === Role.Admin
+          ? "border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+          : "border-[var(--color-border)] bg-[var(--color-surface-2)] text-[var(--color-text-muted)]"
+      )}
+    >
+      {role === Role.Admin ? <ShieldCheck className="h-3 w-3" /> : <User className="h-3 w-3" />}
+      {role}
+    </span>
+  );
+}
+
+function PlanBadge({ plan }: { plan: string }) {
+  return (
+    <span className={planBadgeClass(plan)}>
+      {["pro", "plus"].includes(plan) && <Crown className="h-3 w-3" />}
+      {plan}
+    </span>
+  );
+}
 
 export function UserTable({
   users,
@@ -30,7 +83,6 @@ export function UserTable({
   const [quotaInput, setQuotaInput] = useState("");
   const [quotaMode, setQuotaMode] = useState<"default" | "custom" | "unlimited">("default");
 
-  // Confirm modal state
   const [confirmAction, setConfirmAction] = useState<{
     type: "delete" | "role" | "plan";
     userId: string;
@@ -80,22 +132,15 @@ export function UserTable({
 
   const getQuotaDisplay = (u: AdminUser) => {
     if (u.storage_quota === null) {
-      // Use plan-based storage if available
       const planConfig = planConfigs?.find((p) => p.id === (u.plan || "free"));
       if (planConfig) return planConfig.storage_display;
-      return defaultQuotaBytes > 0
-        ? formatBytes(defaultQuotaBytes)
-        : "Unlimited";
+      return defaultQuotaBytes > 0 ? formatBytes(defaultQuotaBytes) : "Unlimited";
     }
     if (u.storage_quota === 0) return "Unlimited";
     return formatBytes(u.storage_quota);
   };
 
-  const getQuotaLabel = (u: AdminUser) => {
-    if (u.storage_quota === null) return "plan";
-    if (u.storage_quota === 0) return "override";
-    return "override";
-  };
+  const getQuotaLabel = (u: AdminUser) => (u.storage_quota === null ? "plan" : "override");
 
   const handleRoleToggle = (userId: string, currentRole: Role, username: string) => {
     const newRole = currentRole === Role.Admin ? Role.User : Role.Admin;
@@ -176,15 +221,10 @@ export function UserTable({
     if (!confirmAction) return null;
     switch (confirmAction.type) {
       case "delete":
-        return {
-          title: "Delete User",
-          description: confirmAction.detail,
-          confirmLabel: "Delete User",
-          variant: "danger" as const,
-        };
+        return { title: "Delete user", description: confirmAction.detail, confirmLabel: "Delete user", variant: "danger" as const };
       case "role":
         return {
-          title: confirmAction.newValue === "admin" ? "Promote to Admin" : "Demote to User",
+          title: confirmAction.newValue === "admin" ? "Promote to admin" : "Demote to user",
           description: confirmAction.detail,
           confirmLabel: confirmAction.newValue === "admin" ? "Promote" : "Demote",
           variant: "warning" as const,
@@ -199,7 +239,7 @@ export function UserTable({
         return {
           title: isUpgrade ? `Upgrade to ${planLabel}` : `Change to ${planLabel}`,
           description: confirmAction.detail,
-          confirmLabel: isUpgrade ? "Upgrade" : "Change Plan",
+          confirmLabel: isUpgrade ? "Upgrade" : "Change plan",
           variant: isUpgrade ? ("info" as const) : ("warning" as const),
         };
       }
@@ -208,48 +248,19 @@ export function UserTable({
 
   const modalProps = getConfirmModalProps();
 
-  const RoleBadge = ({ role }: { role: Role }) => (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full",
-        role === Role.Admin
-          ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
-          : "bg-[var(--color-surface-2)] text-[var(--color-text-muted)] border border-[var(--color-border)]"
-      )}
-    >
-      {role === Role.Admin ? <ShieldCheck className="h-3 w-3" /> : <User className="h-3 w-3" />}
-      {role}
-    </span>
-  );
-
-  const PlanBadge = ({ plan }: { plan: string }) => (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full",
-        plan === "pro"
-          ? "bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/20"
-          : plan === "plus"
-            ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20"
-            : "bg-[var(--color-surface-2)] text-[var(--color-text-muted)] border border-[var(--color-border)]"
-      )}
-    >
-      {["pro", "plus"].includes(plan) && <Crown className="h-3 w-3" />}
-      {plan}
-    </span>
-  );
-
-  const QuotaEditor = ({ u }: { u: AdminUser }) => (
+  const QuotaEditor = ({ u }: { u: AdminUser }) =>
     editingQuota === u.id ? (
-      <div className="flex items-center gap-1.5 flex-wrap">
-        <select
-          value={quotaMode}
-          onChange={(e) => setQuotaMode(e.target.value as "default" | "custom" | "unlimited")}
-          className="text-xs px-1.5 py-1 rounded bg-[var(--color-surface-1)] border border-[var(--color-border)]"
-        >
-          <option value="default">Default</option>
-          <option value="custom">Custom</option>
-          <option value="unlimited">Unlimited</option>
-        </select>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Select value={quotaMode} onValueChange={(v) => setQuotaMode(v as typeof quotaMode)}>
+          <SelectTrigger className="h-7 w-24 text-xs" aria-label="Quota mode">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="default">Default</SelectItem>
+            <SelectItem value="custom">Custom</SelectItem>
+            <SelectItem value="unlimited">Unlimited</SelectItem>
+          </SelectContent>
+        </Select>
         {quotaMode === "custom" && (
           <input
             type="number"
@@ -257,61 +268,64 @@ export function UserTable({
             step="0.5"
             value={quotaInput}
             onChange={(e) => setQuotaInput(e.target.value)}
-            className="w-16 text-xs px-1.5 py-1 rounded bg-[var(--color-surface-1)] border border-[var(--color-border)] tabular-nums"
+            className="w-16 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-2 py-1 text-xs tabular-nums outline-none focus:border-[var(--color-accent)]/40 focus:ring-2 focus:ring-[var(--color-accent)]/10"
             placeholder="GB"
+            aria-label="Quota in GB"
           />
         )}
-        <button
+        <IconButton
+          icon={Check}
+          label="Save quota"
+          variant="primary"
           onClick={() => saveQuota(u.id)}
           disabled={busy === u.id}
-          className="text-[10px] px-1.5 py-1 rounded bg-cyan-600 text-white hover:bg-cyan-700 disabled:opacity-50"
-        >
-          OK
-        </button>
-        <button
+          className="h-7 w-7"
+          iconClassName="h-3.5 w-3.5"
+        />
+        <IconButton
+          icon={X}
+          label="Cancel"
+          variant="ghost"
           onClick={() => setEditingQuota(null)}
-          className="text-[10px] px-1.5 py-1 rounded hover:bg-[var(--color-surface-2)] text-[var(--color-text-muted)]"
-        >
-          X
-        </button>
+          className="h-7 w-7"
+          iconClassName="h-3.5 w-3.5"
+        />
       </div>
     ) : (
       <button
         onClick={() => startEditQuota(u)}
-        className="hover:underline tabular-nums group text-sm"
+        className="group rounded-md text-sm tabular-nums transition-colors hover:text-[var(--color-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40"
         title="Click to edit quota"
+        aria-label={`Edit quota for ${u.username}`}
       >
         <span>{getQuotaDisplay(u)}</span>
-        <span className="ml-1 text-[10px] text-[var(--color-text-muted)]">
-          ({getQuotaLabel(u)})
-        </span>
+        <span className="ml-1 text-[10px] text-[var(--color-text-muted)]">({getQuotaLabel(u)})</span>
       </button>
-    )
-  );
+    );
 
   return (
     <>
-      <section className="card overflow-hidden">
-        <div className="px-5 py-4 border-b border-[var(--color-border)]">
-          <h2 className="text-sm font-semibold">Users</h2>
-          <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-            {users.length} registered user{users.length !== 1 ? "s" : ""}
+      <section className="panel overflow-hidden">
+        <div className="border-b border-[var(--color-border)] px-5 py-4">
+          <h2 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">Users</h2>
+          <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+            <span className="tabular-nums">{users.length}</span> registered user{users.length !== 1 ? "s" : ""}
           </p>
         </div>
 
-        {/* Desktop table — hidden on mobile */}
-        <div className="hidden lg:block overflow-x-auto max-h-[65vh]">
+        {/* Desktop table */}
+        <div className="hidden max-h-[65vh] overflow-x-auto lg:block">
           <table className="w-full text-sm">
             <thead className="sticky top-0 z-10">
-              <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface)] text-xs text-[var(--color-text-muted)] uppercase tracking-wider">
-                <th className="text-left px-5 py-3 font-medium">User</th>
-                <th className="text-left px-5 py-3 font-medium">Role</th>
-                <th className="text-left px-5 py-3 font-medium">Plan</th>
-                <th className="text-right px-5 py-3 font-medium">Files</th>
-                <th className="text-right px-5 py-3 font-medium">Usage</th>
-                <th className="text-right px-5 py-3 font-medium">Quota</th>
-                <th className="text-left px-5 py-3 font-medium">Joined</th>
-                <th className="text-right px-5 py-3 font-medium">Actions</th>
+              <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-1)] text-xs uppercase tracking-wider text-[var(--color-text-muted)]">
+                <th className="px-5 py-3 text-left font-medium">User</th>
+                <th className="px-4 py-3 text-left font-medium">Role</th>
+                <th className="px-4 py-3 text-left font-medium">Plan</th>
+                <th className="px-4 py-3 text-right font-medium">Files</th>
+                <th className="px-4 py-3 text-right font-medium">Usage</th>
+                <th className="px-4 py-3 text-right font-medium">Quota</th>
+                <th className="px-4 py-3 text-left font-medium">Joined</th>
+                <th className="px-5 py-3 text-right font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -320,87 +334,78 @@ export function UserTable({
                 return (
                   <tr
                     key={u.id}
-                    className="border-b border-[var(--color-border)] last:border-0 hover:bg-[var(--color-surface-1)] transition-colors"
+                    className="group border-b border-[var(--color-border)] transition-colors last:border-0 hover:bg-[var(--color-surface-1)]"
                   >
-                    <td className="px-5 py-3">
+                    <td className="px-5 py-3.5">
                       <button
                         onClick={() => router.push(`/admin/users/${u.id}`)}
-                        className="text-left group"
+                        className="group/name rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40"
                       >
-                        <p className="font-medium text-sm group-hover:text-[var(--color-accent)] transition-colors">
+                        <p className="text-sm font-medium text-[var(--color-text)] transition-colors group-hover/name:text-[var(--color-accent)]">
                           {u.username}
                           {isSelf && (
-                            <span className="ml-1.5 text-[10px] text-[var(--color-text-muted)]">
-                              (you)
-                            </span>
+                            <span className="ml-1.5 text-[10px] text-[var(--color-text-muted)]">(you)</span>
                           )}
                         </p>
-                        <p className="text-xs text-[var(--color-text-muted)]">
-                          {u.email}
-                        </p>
+                        <p className="truncate text-xs text-[var(--color-text-muted)]">{u.email}</p>
                       </button>
                     </td>
-                    <td className="px-5 py-3">
+                    <td className="px-4 py-3.5">
                       <RoleBadge role={u.role} />
                     </td>
-                    <td className="px-5 py-3">
+                    <td className="px-4 py-3.5">
                       {!isSelf ? (
-                        <select
+                        <Select
                           value={u.plan || "free"}
-                          onChange={(e) => handlePlanChange(u.id, u.username, e.target.value)}
+                          onValueChange={(v) => handlePlanChange(u.id, u.username, v)}
                           disabled={busy === u.id}
-                          className={cn(
-                            "text-xs font-medium px-2 py-1 rounded-lg border cursor-pointer transition-colors disabled:opacity-50",
-                            (u.plan || "free") === "pro"
-                              ? "bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20"
-                              : (u.plan || "free") === "plus"
-                                ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
-                                : "bg-[var(--color-surface-2)] text-[var(--color-text-muted)] border-[var(--color-border)]"
-                          )}
                         >
-                          {Object.entries(planDetails).map(([id, detail]) => (
-                            <option key={id} value={id}>{detail.label}</option>
-                          ))}
-                        </select>
+                          <SelectTrigger className={planSelectClass(u.plan || "free")} aria-label={`Plan for ${u.username}`}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(planDetails).map(([id, detail]) => (
+                              <SelectItem key={id} value={id}>{detail.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       ) : (
                         <PlanBadge plan={u.plan || "free"} />
                       )}
                     </td>
-                    <td className="px-5 py-3 text-right tabular-nums text-sm">
+                    <td className="px-4 py-3.5 text-right text-sm tabular-nums text-[var(--color-text-secondary)]">
                       {u.file_count}
                     </td>
-                    <td className="px-5 py-3 text-right tabular-nums text-sm">
+                    <td className="px-4 py-3.5 text-right text-sm tabular-nums text-[var(--color-text-secondary)]">
                       {formatBytes(u.total_size)}
                     </td>
-                    <td className="px-5 py-3 text-right text-sm">
+                    <td className="px-4 py-3.5 text-right text-sm">
                       <QuotaEditor u={u} />
                     </td>
-                    <td className="px-5 py-3 text-sm text-[var(--color-text-muted)]">
+                    <td className="px-4 py-3.5 text-sm text-[var(--color-text-muted)] tabular-nums">
                       {new Date(u.created_at).toLocaleDateString()}
                     </td>
-                    <td className="px-5 py-3 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        {!isSelf && (
-                          <>
-                            <button
-                              onClick={() => handleRoleToggle(u.id, u.role, u.username)}
-                              disabled={busy === u.id}
-                              className="text-xs px-2.5 py-1.5 rounded-lg hover:bg-[var(--color-surface-2)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors disabled:opacity-50"
-                              title={`Make ${u.role === Role.Admin ? "user" : "admin"}`}
-                            >
-                              {u.role === Role.Admin ? "Demote" : "Promote"}
-                            </button>
-                            <button
-                              onClick={() => handleDelete(u.id, u.username)}
-                              disabled={busy === u.id}
-                              className="flex items-center justify-center h-7 w-7 rounded-lg hover:bg-red-500/10 text-[var(--color-text-muted)] hover:text-red-500 transition-colors disabled:opacity-50"
-                              title="Delete user"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          </>
-                        )}
-                      </div>
+                    <td className="px-5 py-3.5 text-right">
+                      {!isSelf && (
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRoleToggle(u.id, u.role, u.username)}
+                            disabled={busy === u.id}
+                          >
+                            {u.role === Role.Admin ? "Demote" : "Promote"}
+                          </Button>
+                          <IconButton
+                            icon={Trash2}
+                            label="Delete user"
+                            variant="ghost"
+                            onClick={() => handleDelete(u.id, u.username)}
+                            disabled={busy === u.id}
+                            className="hover:bg-red-500/10 hover:text-red-500"
+                          />
+                        </div>
+                      )}
                     </td>
                   </tr>
                 );
@@ -409,53 +414,46 @@ export function UserTable({
           </table>
         </div>
 
-        {/* Mobile card layout — visible below lg */}
-        <div className="lg:hidden divide-y divide-[var(--color-border)] max-h-[65vh] overflow-y-auto">
+        {/* Mobile card layout */}
+        <div className="max-h-[65vh] divide-y divide-[var(--color-border)] overflow-y-auto lg:hidden">
           {users.map((u) => {
             const isSelf = u.id === currentUserId;
             return (
-              <div key={u.id} className="p-4 space-y-3">
-                {/* Top row: user info + badges */}
+              <div key={u.id} className="space-y-3 p-4">
                 <div className="flex items-start justify-between gap-3">
                   <button
                     onClick={() => router.push(`/admin/users/${u.id}`)}
-                    className="text-left group min-w-0"
+                    className="group min-w-0 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40"
                   >
-                    <p className="font-medium text-sm group-hover:text-[var(--color-accent)] transition-colors truncate">
+                    <p className="truncate text-sm font-medium text-[var(--color-text)] transition-colors group-hover:text-[var(--color-accent)]">
                       {u.username}
-                      {isSelf && (
-                        <span className="ml-1.5 text-[10px] text-[var(--color-text-muted)]">(you)</span>
-                      )}
+                      {isSelf && <span className="ml-1.5 text-[10px] text-[var(--color-text-muted)]">(you)</span>}
                     </p>
-                    <p className="text-xs text-[var(--color-text-muted)] truncate">{u.email}</p>
+                    <p className="truncate text-xs text-[var(--color-text-muted)]">{u.email}</p>
                   </button>
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <div className="flex flex-shrink-0 items-center gap-1.5">
                     <RoleBadge role={u.role} />
                     {isSelf ? (
                       <PlanBadge plan={u.plan || "free"} />
                     ) : (
-                      <select
+                      <Select
                         value={u.plan || "free"}
-                        onChange={(e) => handlePlanChange(u.id, u.username, e.target.value)}
+                        onValueChange={(v) => handlePlanChange(u.id, u.username, v)}
                         disabled={busy === u.id}
-                        className={cn(
-                          "text-xs font-medium px-2 py-0.5 rounded-full border cursor-pointer disabled:opacity-50",
-                          (u.plan || "free") === "pro"
-                            ? "bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20"
-                            : (u.plan || "free") === "plus"
-                              ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
-                              : "bg-[var(--color-surface-2)] text-[var(--color-text-muted)] border-[var(--color-border)]"
-                        )}
                       >
-                        {Object.entries(planDetails).map(([id, detail]) => (
-                          <option key={id} value={id}>{detail.label}</option>
-                        ))}
-                      </select>
+                        <SelectTrigger className={cn(planSelectClass(u.plan || "free"), "w-[6.5rem]")} aria-label={`Plan for ${u.username}`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(planDetails).map(([id, detail]) => (
+                            <SelectItem key={id} value={id}>{detail.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     )}
                   </div>
                 </div>
 
-                {/* Stats row */}
                 <div className="grid grid-cols-3 gap-3 text-xs">
                   <div>
                     <p className="text-[var(--color-text-muted)]">Files</p>
@@ -467,32 +465,33 @@ export function UserTable({
                   </div>
                   <div>
                     <p className="text-[var(--color-text-muted)]">Joined</p>
-                    <p className="font-medium">{new Date(u.created_at).toLocaleDateString()}</p>
+                    <p className="font-medium tabular-nums">{new Date(u.created_at).toLocaleDateString()}</p>
                   </div>
                 </div>
 
-                {/* Quota + actions row */}
                 <div className="flex items-center justify-between gap-2">
                   <div className="text-xs">
-                    <span className="text-[var(--color-text-muted)] mr-1">Quota:</span>
+                    <span className="mr-1 text-[var(--color-text-muted)]">Quota:</span>
                     <QuotaEditor u={u} />
                   </div>
                   {!isSelf && (
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      <button
+                    <div className="flex flex-shrink-0 items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => handleRoleToggle(u.id, u.role, u.username)}
                         disabled={busy === u.id}
-                        className="text-xs px-2.5 py-1.5 rounded-lg hover:bg-[var(--color-surface-2)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors disabled:opacity-50"
                       >
                         {u.role === Role.Admin ? "Demote" : "Promote"}
-                      </button>
-                      <button
+                      </Button>
+                      <IconButton
+                        icon={Trash2}
+                        label="Delete user"
+                        variant="ghost"
                         onClick={() => handleDelete(u.id, u.username)}
                         disabled={busy === u.id}
-                        className="flex items-center justify-center h-7 w-7 rounded-lg hover:bg-red-500/10 text-[var(--color-text-muted)] hover:text-red-500 transition-colors disabled:opacity-50"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+                        className="hover:bg-red-500/10 hover:text-red-500"
+                      />
                     </div>
                   )}
                 </div>
@@ -502,7 +501,6 @@ export function UserTable({
         </div>
       </section>
 
-      {/* Confirm modal for big actions */}
       {modalProps && (
         <ConfirmModal
           open={!!confirmAction}

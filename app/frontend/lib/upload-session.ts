@@ -48,6 +48,13 @@ export interface UploadInitParams {
   wrapped_cek: string; // base64 envelope-wrapped Content Encryption Key
   chunk_count: number;
   platform?: string;
+  /**
+   * Destination folder (FIX-1b). When set, the backend creates the file row IN
+   * this folder atomically at init — so a protected-folder file is born in its
+   * folder and there is no stranding window (no separate best-effort move).
+   * Omitted/null ⇒ the file is created at Root, exactly as before.
+   */
+  folder_id?: string | null;
 }
 
 export interface UploadInitResponse {

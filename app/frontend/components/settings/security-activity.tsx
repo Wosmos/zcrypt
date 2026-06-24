@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { getUserActivity, type AuditEvent } from "@/lib/auth-api";
 import { useAuthStore } from "@/store/auth";
+import { Section } from "@/components/ui/section";
+import { SkeletonRow } from "@/components/ui/skeletons";
 import {
   LogIn,
   LogOut,
@@ -72,54 +74,46 @@ export function SecurityActivity() {
       .finally(() => setLoading(false));
   }, [accessToken]);
 
-  if (loading) {
-    return (
-      <section className="card overflow-hidden">
-        <div className="px-5 py-4 border-b border-[var(--color-border)]">
-          <h2 className="text-sm font-semibold">Security Activity</h2>
-        </div>
-        <div className="p-5 text-center text-sm text-[var(--color-text-muted)]">Loading...</div>
-      </section>
-    );
-  }
-
-  if (events.length === 0) {
-    return (
-      <section className="card overflow-hidden">
-        <div className="px-5 py-4 border-b border-[var(--color-border)]">
-          <h2 className="text-sm font-semibold">Security Activity</h2>
-        </div>
-        <div className="p-5 text-center text-sm text-[var(--color-text-muted)]">No activity yet</div>
-      </section>
-    );
-  }
-
   return (
-    <section className="card overflow-hidden">
-      <div className="flex items-center gap-2 px-5 py-4 border-b border-[var(--color-border)]">
-        <Activity className="h-4 w-4 text-[var(--color-text-muted)]" />
-        <h2 className="text-sm font-semibold">Security Activity</h2>
-      </div>
-      <div className="divide-y divide-[var(--color-border)]">
-        {events.map((event) => {
-          const Icon = eventIcons[event.event_type] ?? Shield;
-          const label = eventLabels[event.event_type] ?? event.event_type.replace(/_/g, " ");
-          return (
-            <div key={event.id} className="flex items-center gap-3 px-5 py-3">
-              <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-[var(--color-surface-1)] text-[var(--color-text-muted)] flex-shrink-0">
-                <Icon className="h-3.5 w-3.5" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{label}</p>
-                <p className="text-xs text-[var(--color-text-muted)]">{event.ip}</p>
-              </div>
-              <span className="text-xs text-[var(--color-text-muted)] tabular-nums flex-shrink-0">
-                {formatRelativeTime(event.created_at)}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-    </section>
+    <div className="panel p-6">
+      <Section
+        title="Security activity"
+        description="Recent authentication events on your account."
+      >
+        {loading ? (
+          <div className="divide-y divide-[var(--color-border)]">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <SkeletonRow key={i} />
+            ))}
+          </div>
+        ) : events.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-[var(--color-border)] px-4 py-10 text-center">
+            <Activity className="mx-auto mb-2 h-7 w-7 text-[var(--color-text-muted)]" />
+            <p className="text-sm text-[var(--color-text-secondary)]">No activity yet</p>
+          </div>
+        ) : (
+          <ul className="divide-y divide-[var(--color-border)]">
+            {events.map((event) => {
+              const Icon = eventIcons[event.event_type] ?? Shield;
+              const label = eventLabels[event.event_type] ?? event.event_type.replace(/_/g, " ");
+              return (
+                <li key={event.id} className="flex items-center gap-3 py-3">
+                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-[var(--color-surface-1)] text-[var(--color-text-muted)] ring-1 ring-[var(--color-border)]">
+                    <Icon className="h-3.5 w-3.5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-[var(--color-text)]">{label}</p>
+                    <p className="truncate text-xs text-[var(--color-text-muted)]">{event.ip}</p>
+                  </div>
+                  <span className="flex-shrink-0 text-xs tabular-nums text-[var(--color-text-muted)]">
+                    {formatRelativeTime(event.created_at)}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </Section>
+    </div>
   );
 }

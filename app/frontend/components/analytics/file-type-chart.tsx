@@ -15,7 +15,7 @@ const FILE_CATEGORIES: { label: string; color: string; extensions: string[] }[] 
   { label: "Videos", color: "#8b5cf6", extensions: ["mp4", "mov", "avi", "mkv", "webm", "flv"] },
   { label: "Audio", color: "#ec4899", extensions: ["mp3", "wav", "flac", "aac", "ogg", "m4a"] },
   { label: "Archives", color: "#f97316", extensions: ["zip", "rar", "7z", "tar", "gz", "bz2"] },
-  { label: "Code", color: "#00d5e4", extensions: ["js", "ts", "py", "go", "rs", "java", "cpp", "c", "html", "css", "json"] },
+  { label: "Code", color: "#06b6d4", extensions: ["js", "ts", "py", "go", "rs", "java", "cpp", "c", "html", "css", "json"] },
   { label: "Other", color: "#14b8a6", extensions: [] },
 ];
 
@@ -39,11 +39,11 @@ export function FileTypeChart({ files }: FileTypeChartProps) {
 
   if (data.length === 0) {
     return (
-      <div className="card overflow-hidden">
-        <div className="px-5 py-4 border-b border-[var(--color-border)]">
-          <h3 className="text-sm font-semibold">By File Type</h3>
+      <div className="panel overflow-hidden">
+        <div className="border-b border-[var(--color-border)] px-5 py-4">
+          <h3 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">By file type</h3>
         </div>
-        <div className="flex items-center justify-center h-[200px] text-sm text-[var(--color-text-muted)]">
+        <div className="flex h-[200px] items-center justify-center text-sm text-[var(--color-text-muted)]">
           No files yet
         </div>
       </div>
@@ -53,9 +53,9 @@ export function FileTypeChart({ files }: FileTypeChartProps) {
   const total = data.reduce((s, d) => s + d.value, 0);
 
   return (
-    <div className="card overflow-hidden">
-      <div className="px-5 py-4 border-b border-[var(--color-border)]">
-        <h3 className="text-sm font-semibold">By File Type</h3>
+    <div className="panel overflow-hidden">
+      <div className="border-b border-[var(--color-border)] px-5 py-4">
+        <h3 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">By file type</h3>
       </div>
       <div className="p-5 pt-4">
         <div className="flex items-center gap-4">
@@ -83,7 +83,10 @@ export function FileTypeChart({ files }: FileTypeChartProps) {
                     borderRadius: "12px",
                     fontSize: "12px",
                     padding: "8px 12px",
+                    color: "var(--color-text)",
+                    boxShadow: "0 4px 12px -6px rgba(16, 24, 40, 0.16)",
                   }}
+                  labelStyle={{ color: "var(--color-text-secondary)" }}
                   formatter={(value) => [formatBytes(Number(value)), "Size"]}
                 />
               </PieChart>

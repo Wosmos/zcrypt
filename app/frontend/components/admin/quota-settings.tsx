@@ -5,6 +5,7 @@ import { HardDrive } from "@/lib/icons";
 import { adminSetDefaultQuota } from "@/lib/api";
 import { formatBytes } from "@/lib/utils";
 import { toast } from "@/store/toast";
+import { Button } from "@/components/ui/button";
 
 export function QuotaSettings({
   defaultQuotaBytes,
@@ -39,46 +40,46 @@ export function QuotaSettings({
   };
 
   return (
-    <section className="card">
-      <div className="px-5 py-4 border-b border-[var(--color-border)]">
-        <h2 className="text-sm font-semibold flex items-center gap-2">
+    <section className="panel overflow-hidden">
+      <div className="border-b border-[var(--color-border)] px-5 py-4">
+        <h2 className="flex items-center gap-2 text-sm font-semibold tracking-tight text-[var(--color-text)]">
           <HardDrive className="h-4 w-4 text-[var(--color-text-muted)]" />
-          Default Storage Quota
+          Default storage quota
         </h2>
-        <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+        <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
           Applies to users using global platform tokens. Users with personal tokens have unlimited storage.
         </p>
       </div>
 
       <div className="px-5 py-4">
         <div className="flex items-end gap-3">
-          <div className="flex-1 max-w-xs">
-            <label className="text-xs text-[var(--color-text-muted)] uppercase tracking-wider font-medium block mb-1.5">
+          <div className="max-w-xs flex-1">
+            <label
+              htmlFor="default-quota-gb"
+              className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]"
+            >
               Quota (GB)
             </label>
             <input
+              id="default-quota-gb"
               type="number"
               min="0"
               step="0.5"
               value={quotaGB}
               onChange={(e) => setQuotaGB(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-1)] border border-[var(--color-border)] text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-500/50"
+              className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2 text-sm tabular-nums outline-none transition-colors focus:border-[var(--color-accent)]/40 focus:ring-2 focus:ring-[var(--color-accent)]/10"
               placeholder="0"
             />
           </div>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-4 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-700 text-white text-sm font-medium transition-colors disabled:opacity-50"
-          >
-            {saving ? "Saving..." : "Save"}
-          </button>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? "Saving…" : "Save"}
+          </Button>
         </div>
-        <p className="text-xs text-[var(--color-text-muted)] mt-2">
+        <p className="mt-2 text-xs text-[var(--color-text-muted)]">
           Set to 0 for unlimited.
           {defaultQuotaBytes > 0 && (
             <span className="ml-1">
-              Current: <span className="font-medium text-[var(--color-text)]">{formatBytes(defaultQuotaBytes)}</span>
+              Current: <span className="font-medium text-[var(--color-text)] tabular-nums">{formatBytes(defaultQuotaBytes)}</span>
             </span>
           )}
         </p>

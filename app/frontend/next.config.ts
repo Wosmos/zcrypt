@@ -5,6 +5,13 @@ const isTauriExport = process.env.NEXT_OUTPUT_EXPORT === "1";
 const nextConfig: NextConfig = {
   reactCompiler: true,
   turbopack: {},
+  // Keep navigated page segments in the App Router client cache so going
+  // back to a page (e.g. Dashboard -> Settings -> Dashboard) is instant and
+  // doesn't re-render from the server. Next's default is 0s for dynamic
+  // segments, which made revisits feel uncached.
+  experimental: {
+    staleTimes: { dynamic: 30, static: 180 },
+  },
   ...(isTauriExport && { output: "export", distDir: ".next-export" }),
   // headers are ignored in static export mode but don't cause errors
   async headers() {

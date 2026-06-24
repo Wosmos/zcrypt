@@ -1,15 +1,23 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { listOfflinePins, pinFileOffline, unpinFileOffline, listFiles, pushClipboard, listClipboard, getClipboardContent, deleteClipboardItem, createEventSource, listSyncFolders, createSyncFolder, updateSyncFolder, deleteSyncFolder } from "@/lib/api";
 import { encryptChunk, decryptChunk, toBase64 } from "@/lib/crypto";
 import type { OfflinePin, FileMetadata, ClipboardItem, SyncFolder } from "@/types";
 import { Button } from "@/components/ui/button";
-import { LogoSpinner } from "@/components/ui/logo-spinner";
-import { HardDrive, Copy, RefreshCw } from "@/lib/icons";
+import { IconButton } from "@/components/ui/icon-button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Section } from "@/components/ui/section";
+import { Separator } from "@/components/ui/separator";
+import { SkeletonRow } from "@/components/ui/skeletons";
+import { Trash2, Lock, Unlock } from "@/lib/icons";
+import { cn } from "@/lib/utils";
 
 const MAX_SIZE = 512 * 1024;
+
+const inputClass =
+  "h-10 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] outline-none transition-all focus:border-[var(--color-accent)]/40 focus:ring-2 focus:ring-[var(--color-accent)]/10";
 
 function getDeviceId(): string {
   const key = "zcrypt-device-id";
@@ -32,7 +40,8 @@ function OfflinePinsSection() {
       .then(([p, f]) => { setPins(p); setFiles(f); })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    // deviceId is stable for the session; run once on mount.
+  }, []);
 
   const isPinned = (fileId: string) => pins.some((p) => p.file_id === fileId);
 
@@ -50,59 +59,68 @@ function OfflinePinsSection() {
     finally { setPinning(null); }
   };
 
-  if (loading) {
-    return <div className="flex items-center justify-center py-8"><LogoSpinner size="sm" speed="fast" /></div>;
-  }
-
   const pinnedFiles = files.filter((f) => isPinned(f.id));
   const unpinnedFiles = files.filter((f) => !isPinned(f.id));
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <HardDrive className="h-4 w-4 text-[var(--color-text-muted)]" />
-          <h3 className="text-sm font-semibold">Offline Pins</h3>
-        </div>
-        <span className="text-xs text-[var(--color-text-muted)]">Device: {deviceId.slice(0, 8)}...</span>
-      </div>
-
-      {pinnedFiles.length > 0 && (
+    <Section
+      title="Offline pins"
+      description="Keep selected files available on this device without a connection."
+      actions={
+        deviceId ? (
+          <span className="rounded-md bg-[var(--color-surface-1)] px-2 py-1 font-mono text-[11px] text-[var(--color-text-muted)]">
+            {deviceId.slice(0, 8)}
+          </span>
+        ) : null
+      }
+    >
+      {loading ? (
         <div className="space-y-1">
-          {pinnedFiles.map((file) => (
-            <div key={file.id} className="flex items-center justify-between p-3 card">
-              <p className="text-sm font-medium truncate flex-1">{file.original_name}</p>
-              <Button variant="danger" size="sm" onClick={() => handleTogglePin(file.id)} disabled={pinning === file.id}>
-                {pinning === file.id ? "..." : "Unpin"}
-              </Button>
+          {Array.from({ length: 2 }).map((_, i) => <SkeletonRow key={i} />)}
+        </div>
+      ) : files.length === 0 ? (
+        <p className="py-2 text-sm text-[var(--color-text-muted)]">No files uploaded yet.</p>
+      ) : (
+        <div className="space-y-3">
+          {pinnedFiles.length > 0 && (
+            <div className="space-y-1">
+              {pinnedFiles.map((file) => (
+                <div key={file.id} className="flex items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-3">
+                  <div className="flex min-w-0 flex-1 items-center gap-2">
+                    <Lock className="h-3.5 w-3.5 flex-shrink-0 text-[var(--color-accent)]" />
+                    <p className="truncate text-sm font-medium text-[var(--color-text)]">{file.original_name}</p>
+                  </div>
+                  <Button variant="danger" size="sm" onClick={() => handleTogglePin(file.id)} disabled={pinning === file.id}>
+                    <Unlock className="h-3.5 w-3.5" /> {pinning === file.id ? "..." : "Unpin"}
+                  </Button>
+                </div>
+              ))}
             </div>
-          ))}
+          )}
+          {unpinnedFiles.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">Available ({unpinnedFiles.length})</p>
+              {unpinnedFiles.slice(0, 10).map((file) => (
+                <div key={file.id} className="flex items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] p-3">
+                  <p className="min-w-0 flex-1 truncate text-sm text-[var(--color-text)]">{file.original_name}</p>
+                  <Button variant="secondary" size="sm" onClick={() => handleTogglePin(file.id)} disabled={pinning === file.id}>
+                    {pinning === file.id ? "..." : "Pin"}
+                  </Button>
+                </div>
+              ))}
+              {unpinnedFiles.length > 10 && <p className="text-center text-xs tabular-nums text-[var(--color-text-muted)]">+{unpinnedFiles.length - 10} more files</p>}
+            </div>
+          )}
         </div>
       )}
-
-      {unpinnedFiles.length > 0 && (
-        <div className="space-y-1">
-          <p className="text-xs text-[var(--color-text-muted)]">Available ({unpinnedFiles.length})</p>
-          {unpinnedFiles.slice(0, 10).map((file) => (
-            <div key={file.id} className="flex items-center justify-between p-3 card">
-              <p className="text-sm truncate flex-1">{file.original_name}</p>
-              <Button variant="secondary" size="sm" onClick={() => handleTogglePin(file.id)} disabled={pinning === file.id}>
-                {pinning === file.id ? "..." : "Pin"}
-              </Button>
-            </div>
-          ))}
-          {unpinnedFiles.length > 10 && <p className="text-xs text-[var(--color-text-muted)] text-center">+{unpinnedFiles.length - 10} more files</p>}
-        </div>
-      )}
-
-      {files.length === 0 && <p className="text-sm text-[var(--color-text-muted)] text-center py-4">No files uploaded yet.</p>}
-    </div>
+    </Section>
   );
 }
 
 // ── Clipboard Sync Section ────────────────────────────────────────────
 
 function ClipboardSyncSection() {
+  const reduceMotion = useReducedMotion();
   const [items, setItems] = useState<ClipboardItem[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -195,53 +213,59 @@ function ClipboardSyncSection() {
   };
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <Copy className="h-4 w-4 text-[var(--color-text-muted)]" />
-        <h3 className="text-sm font-semibold">Clipboard Sync</h3>
-      </div>
-
+    <Section title="Clipboard sync" description="End-to-end encrypted snippets that sync across your devices. Items auto-delete after 24h.">
       <div className="space-y-2">
         <textarea
           value={input} onChange={(e) => setInput(e.target.value)}
           placeholder="Paste or type content to sync across devices..."
-          className="w-full h-24 px-3.5 py-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-sm placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-accent)]/40 resize-none font-mono"
+          className={cn(inputClass, "h-24 resize-none py-2.5 font-mono")}
           maxLength={MAX_SIZE}
           onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handlePush(); } }}
         />
         <div className="flex items-center justify-between">
-          <span className="text-xs text-[var(--color-text-muted)]">{new TextEncoder().encode(input).length.toLocaleString()} / {MAX_SIZE.toLocaleString()} bytes</span>
+          <span className="text-xs tabular-nums text-[var(--color-text-muted)]">{new TextEncoder().encode(input).length.toLocaleString()} / {MAX_SIZE.toLocaleString()} bytes</span>
           <Button onClick={handlePush} disabled={sending || !input.trim()} size="sm">
             {sending ? "Syncing..." : "Sync"}
           </Button>
         </div>
-        {error && <p className="text-xs text-red-400">{error}</p>}
+        {error && <p className="text-xs text-red-500" role="alert">{error}</p>}
       </div>
 
       {items.length > 0 && (
         <div className="space-y-1">
-          <AnimatePresence mode="popLayout">
+          <AnimatePresence mode="popLayout" initial={false}>
             {items.slice(0, 10).map((item) => (
-              <motion.div key={item.id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="p-3 card space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${item.content_type === "link" ? "bg-blue-500/10 text-blue-400" : "bg-[var(--color-accent)]/10 text-[var(--color-accent)]"}`}>{item.content_type}</span>
+              <motion.div
+                key={item.id}
+                layout={!reduceMotion}
+                initial={reduceMotion ? false : { opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="space-y-2 rounded-xl border border-[var(--color-border)] p-3"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span className={cn(
+                      "rounded-full px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide",
+                      item.content_type === "link" ? "bg-blue-500/10 text-blue-600 dark:text-blue-400" : "bg-[var(--color-accent)]/10 text-[var(--color-accent)]"
+                    )}>{item.content_type}</span>
                     <span className="text-xs text-[var(--color-text-muted)]">{formatTime(item.created_at)}</span>
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex flex-shrink-0 items-center gap-1">
                     {decryptedCache[item.id] ? (
-                      <button onClick={() => handleCopy(item.id)} className="text-xs px-2 py-1 rounded-md hover:bg-[var(--color-border)] transition-colors text-[var(--color-text-secondary)]">
+                      <Button variant="ghost" size="sm" onClick={() => handleCopy(item.id)}>
                         {copiedId === item.id ? "Copied" : "Copy"}
-                      </button>
+                      </Button>
                     ) : (
-                      <button onClick={() => handleDecrypt(item)} className="text-xs px-2 py-1 rounded-md hover:bg-[var(--color-border)] transition-colors text-[var(--color-accent)]">Decrypt</button>
+                      <Button variant="ghost" size="sm" onClick={() => handleDecrypt(item)} className="text-[var(--color-accent)] hover:text-[var(--color-accent)]">
+                        Decrypt
+                      </Button>
                     )}
-                    <button onClick={() => handleDelete(item.id)} className="text-xs px-2 py-1 rounded-md hover:bg-red-500/10 transition-colors text-red-400">Delete</button>
+                    <IconButton icon={Trash2} label="Delete item" variant="danger" iconClassName="h-3.5 w-3.5" onClick={() => handleDelete(item.id)} />
                   </div>
                 </div>
                 {decryptedCache[item.id] && (
-                  <pre className="text-xs text-[var(--color-text)] whitespace-pre-wrap break-all font-mono bg-[var(--color-bg)] rounded-lg p-2 max-h-24 overflow-y-auto">
+                  <pre className="max-h-24 overflow-y-auto whitespace-pre-wrap break-all rounded-lg bg-[var(--color-bg)] p-2 font-mono text-xs text-[var(--color-text)]">
                     {decryptedCache[item.id]}
                   </pre>
                 )}
@@ -250,17 +274,14 @@ function ClipboardSyncSection() {
           </AnimatePresence>
         </div>
       )}
-
-      <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
-        End-to-end encrypted. Each device has its own key. Items auto-delete after 24h.
-      </p>
-    </div>
+    </Section>
   );
 }
 
 // ── Folder Sync Section ───────────────────────────────────────────────
 
 function FolderSyncSection() {
+  const reduceMotion = useReducedMotion();
   const [folders, setFolders] = useState<SyncFolder[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
@@ -268,6 +289,8 @@ function FolderSyncSection() {
   const [newLabel, setNewLabel] = useState("");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
+  const [pendingDelete, setPendingDelete] = useState<SyncFolder | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     listSyncFolders().then(setFolders).catch(() => {}).finally(() => setLoading(false));
@@ -291,75 +314,99 @@ function FolderSyncSection() {
     } catch { /* ignore */ }
   };
 
-  const handleDelete = async (id: string) => {
-    try { await deleteSyncFolder(id); setFolders((prev) => prev.filter((f) => f.id !== id)); } catch { /* ignore */ }
+  const handleDelete = async () => {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    try {
+      await deleteSyncFolder(pendingDelete.id);
+      setFolders((prev) => prev.filter((f) => f.id !== pendingDelete.id));
+      setPendingDelete(null);
+    } catch { /* ignore */ }
+    finally { setDeleting(false); }
   };
 
-  if (loading) {
-    return <div className="flex items-center justify-center py-8"><LogoSpinner size="sm" speed="fast" /></div>;
-  }
-
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <RefreshCw className="h-4 w-4 text-[var(--color-text-muted)]" />
-          <h3 className="text-sm font-semibold">Folder Sync</h3>
-        </div>
-        <Button onClick={() => setShowAdd(!showAdd)} size="sm" variant={showAdd ? "secondary" : "primary"}>
-          {showAdd ? "Cancel" : "Add Folder"}
+    <Section
+      title="Folder sync"
+      description="Managed by the zcrypt TUI — point it at local folders to back them up automatically."
+      actions={
+        <Button onClick={() => { setShowAdd(!showAdd); setError(""); }} size="sm" variant={showAdd ? "secondary" : "primary"}>
+          {showAdd ? "Cancel" : "Add folder"}
         </Button>
-      </div>
-
-      <AnimatePresence>
+      }
+    >
+      <AnimatePresence initial={false}>
         {showAdd && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-            <div className="p-4 card space-y-3">
-              <input type="text" value={newPath} onChange={(e) => setNewPath(e.target.value)} placeholder="/home/user/Documents"
-                className="w-full h-10 px-3.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-sm placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-accent)]/40 font-mono" />
-              <input type="text" value={newLabel} onChange={(e) => setNewLabel(e.target.value)} placeholder="Label (optional)"
-                className="w-full h-10 px-3.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-sm placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-accent)]/40" />
-              {error && <p className="text-xs text-red-400">{error}</p>}
+          <motion.div
+            initial={reduceMotion ? false : { opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={reduceMotion ? { opacity: 0 } : { opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="space-y-3 rounded-xl border border-[var(--color-border)] p-4">
+              <input type="text" value={newPath} onChange={(e) => setNewPath(e.target.value)} placeholder="/home/user/Documents" className={cn(inputClass, "font-mono")} />
+              <input type="text" value={newLabel} onChange={(e) => setNewLabel(e.target.value)} placeholder="Label (optional)" className={inputClass} />
+              {error && <p className="text-xs text-red-500" role="alert">{error}</p>}
               <Button onClick={handleCreate} disabled={creating || !newPath.trim()} className="w-full">
-                {creating ? "Adding..." : "Add Folder"}
+                {creating ? "Adding..." : "Add folder"}
               </Button>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {folders.length === 0 && !showAdd ? (
-        <p className="text-sm text-[var(--color-text-muted)] text-center py-4">No synced folders configured.</p>
-      ) : (
+      {loading ? (
+        <div className="space-y-1">
+          {Array.from({ length: 2 }).map((_, i) => <SkeletonRow key={i} />)}
+        </div>
+      ) : folders.length === 0 && !showAdd ? (
+        <p className="py-2 text-sm text-[var(--color-text-muted)]">No synced folders configured.</p>
+      ) : folders.length > 0 ? (
         <div className="space-y-1">
           {folders.map((folder) => (
-            <div key={folder.id} className="p-3 card">
-              <div className="flex items-center justify-between">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium truncate">{folder.label || folder.folder_path}</span>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${folder.enabled ? "bg-emerald-500/10 text-emerald-500" : "bg-[var(--color-text-muted)]/10 text-[var(--color-text-muted)]"}`}>
-                      {folder.enabled ? "Active" : "Paused"}
-                    </span>
-                  </div>
-                  <p className="text-xs text-[var(--color-text-muted)] font-mono truncate mt-0.5">{folder.folder_path}</p>
+            <div key={folder.id} className="flex items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] p-3">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="truncate text-sm font-medium text-[var(--color-text)]">{folder.label || folder.folder_path}</span>
+                  <span className={cn(
+                    "flex-shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide",
+                    folder.enabled ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-[var(--color-surface-2)] text-[var(--color-text-muted)]"
+                  )}>
+                    {folder.enabled ? "Active" : "Paused"}
+                  </span>
                 </div>
-                <div className="flex items-center gap-1 ml-2">
-                  <button onClick={() => handleToggle(folder)} className="text-xs px-2 py-1 rounded-md hover:bg-[var(--color-border)] transition-colors text-[var(--color-text-secondary)]">
-                    {folder.enabled ? "Pause" : "Resume"}
-                  </button>
-                  <button onClick={() => handleDelete(folder.id)} className="text-xs px-2 py-1 rounded-md hover:bg-red-500/10 transition-colors text-red-400">Remove</button>
-                </div>
+                <p className="mt-0.5 truncate font-mono text-xs text-[var(--color-text-muted)]">{folder.folder_path}</p>
+              </div>
+              <div className="flex flex-shrink-0 items-center gap-1">
+                <Button variant="ghost" size="sm" onClick={() => handleToggle(folder)}>
+                  {folder.enabled ? "Pause" : "Resume"}
+                </Button>
+                <IconButton icon={Trash2} label="Remove folder" variant="danger" iconClassName="h-3.5 w-3.5" onClick={() => setPendingDelete(folder)} />
               </div>
             </div>
           ))}
         </div>
-      )}
+      ) : null}
 
-      <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
-        Managed by the zcrypt TUI. Run <code className="text-[var(--color-accent)]">zcrypt sync</code> on each device.
+      <p className="text-xs leading-relaxed text-[var(--color-text-muted)]">
+        Run <code className="rounded bg-[var(--color-surface-1)] px-1 py-0.5 font-mono text-[var(--color-accent)]">zcrypt sync</code> on each device to keep these folders in sync.
       </p>
-    </div>
+
+      <ConfirmDialog
+        open={!!pendingDelete}
+        onOpenChange={(o) => { if (!o) setPendingDelete(null); }}
+        destructive
+        title="Remove synced folder?"
+        description={
+          <>
+            This stops syncing{pendingDelete ? <> &ldquo;{pendingDelete.label || pendingDelete.folder_path}&rdquo;</> : null}. Files already uploaded stay in your vault.
+          </>
+        }
+        confirmLabel="Remove"
+        loading={deleting}
+        onConfirm={handleDelete}
+      />
+    </Section>
   );
 }
 
@@ -367,11 +414,11 @@ function FolderSyncSection() {
 
 export function DevicesTab() {
   return (
-    <div className="space-y-6">
+    <div className="panel space-y-6 p-6">
       <OfflinePinsSection />
-      <div className="border-t border-[var(--color-border)]" />
+      <Separator className="bg-[var(--color-border)]" />
       <ClipboardSyncSection />
-      <div className="border-t border-[var(--color-border)]" />
+      <Separator className="bg-[var(--color-border)]" />
       <FolderSyncSection />
     </div>
   );

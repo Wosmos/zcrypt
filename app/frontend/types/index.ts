@@ -7,6 +7,32 @@ export interface FileMetadata {
   chunk_count: number;
   sha256: string;
   created_at: string;
+  // Folders + trash + encrypted names (added 2026-06). Optional so legacy
+  // call sites and decoy files (which omit them) keep type-checking.
+  folder_id?: string | null;
+  encrypted_name?: string;
+  deleted_at?: string | null;
+}
+
+/** A nested folder. `encrypted_name` is the AES-GCM-encrypted (base64) name —
+ *  decrypted client-side with the vault passphrase, never on the server. */
+export interface Folder {
+  id: string;
+  user_id: string;
+  parent_id?: string | null;
+  encrypted_name: string;
+  created_at: string;
+  deleted_at?: string | null;
+  // Optional per-folder password protection (zero-knowledge). Both are opaque
+  // base64 blobs the server stores but can never read. `pw_salt != null` means
+  // the folder is password-protected. Absent on unprotected folders.
+  pw_salt?: string | null;
+  pw_verifier?: string | null;
+}
+
+export interface FolderRequest {
+  encrypted_name: string;
+  parent_id?: string | null;
 }
 
 export interface ChunkRef {
@@ -56,7 +82,7 @@ export interface AppConfig {
   token_count: number;
 }
 
-export type UploadStatus = "queued" | "encrypting" | "uploading" | "done" | "failed";
+export type UploadStatus = "queued" | "encrypting" | "uploading" | "paused" | "done" | "failed";
 
 export interface UploadItem {
   id: string;
@@ -331,27 +357,6 @@ export interface ExpiringVaultRequest {
   description: string;
   expires_at: string;
   file_ids: string[];
-}
-
-// Secure notes
-export interface Note {
-  id: string;
-  user_id: string;
-  encrypted_title: string; // base64
-  encrypted_body: string;  // base64
-  content_size: number;
-  tags: string[];
-  pinned: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface NoteRequest {
-  encrypted_title: string;
-  encrypted_body: string;
-  content_size: number;
-  tags: string[];
-  pinned?: boolean;
 }
 
 // File integrity monitor

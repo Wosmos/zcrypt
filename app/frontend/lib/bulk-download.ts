@@ -28,6 +28,13 @@ export interface BulkDownloadProgress {
 export interface BulkDownloadOptions {
   onProgress?: (info: BulkDownloadProgress) => void;
   signal?: AbortSignal;
+  /**
+   * Optional per-file password resolver. When provided, each file is decrypted
+   * with its resolver result (the folder password for protected-folder files)
+   * instead of the shared `passphrase`. Omitted by unprotected callers, so the
+   * existing all-vault-passphrase ZIP path is byte-for-byte unchanged.
+   */
+  resolvePassword?: (fileId: string) => Promise<string> | string;
 }
 
 /**
@@ -38,7 +45,7 @@ export async function downloadAsZip(
   passphrase: string,
   options?: BulkDownloadOptions
 ): Promise<void> {
-  const { onProgress, signal } = options ?? {};
+  const { onProgress, signal, resolvePassword } = options ?? {};
 
   if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
 
@@ -58,10 +65,12 @@ export async function downloadAsZip(
       filesTotal: totalFiles,
     });
 
-    // Get metadata and resolve the file key (unwraps CEK for envelope files)
+    // Get metadata and resolve the file key (unwraps CEK for envelope files).
+    // A per-file resolver (folder-protected files) overrides the shared passphrase.
     const meta = await getFileMeta(file.fileId);
+    const filePassphrase = resolvePassword ? await resolvePassword(file.fileId) : passphrase;
     const salt = fromBase64(meta.salt);
-    const keyBytes = await resolveFileKey(passphrase, salt, meta.wrapped_cek);
+    const keyBytes = await resolveFileKey(filePassphrase, salt, meta.wrapped_cek);
 
     // Download and decrypt all chunks with concurrency
     const MAX_CONCURRENT = Math.min(getDeviceProfile().maxConcurrentDownloads, 3);

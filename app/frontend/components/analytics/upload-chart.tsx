@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo } from "react";
 import {
   AreaChart,
   Area,
@@ -11,7 +11,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { formatBytes } from "@/lib/utils";
-import { ChevronDown } from "@/lib/icons";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { FileMetadata } from "@/types";
 
 interface UploadChartProps {
@@ -143,58 +143,34 @@ const rangeOptions: { value: Range; label: string }[] = [
 
 export function UploadChart({ files }: UploadChartProps) {
   const [range, setRange] = useState<Range>(() => bestRange(files));
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
   const data = useMemo(() => getChartData(files, range), [files, range]);
 
-  const currentLabel = rangeOptions.find((r) => r.value === range)?.label ?? "Month";
-
-  // Close dropdown on outside click
-  useEffect(() => {
-    if (!dropdownOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setDropdownOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [dropdownOpen]);
-
   return (
-    <div className="card overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border)]">
-        <h3 className="text-sm font-semibold">Upload Activity</h3>
-        <div className="relative" ref={dropdownRef}>
-          <button
-            onClick={() => setDropdownOpen(!dropdownOpen)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-xs font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-1)] transition-colors"
-          >
-            {currentLabel}
-            <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-150 ${dropdownOpen ? "rotate-180" : ""}`} />
-          </button>
-          {dropdownOpen && (
-            <div className="absolute right-0 top-full mt-1 z-20 min-w-[120px] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-lg py-1 animate-fade-in">
-              {rangeOptions.map((r) => (
-                <button
-                  key={r.value}
-                  onClick={() => { setRange(r.value); setDropdownOpen(false); }}
-                  className={`w-full text-left px-3 py-2 text-xs font-medium transition-colors ${
-                    range === r.value
-                      ? "bg-[var(--color-accent)]/10 text-[var(--color-accent)]"
-                      : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-1)]"
-                  }`}
-                >
-                  {r.label}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+    <div className="panel overflow-hidden">
+      <div className="flex flex-col gap-3 border-b border-[var(--color-border)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <h3 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">Upload activity</h3>
+        <ToggleGroup
+          type="single"
+          value={range}
+          onValueChange={(v) => { if (v) setRange(v as Range); }}
+          className="self-start rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] p-0.5 sm:self-auto"
+          aria-label="Select time range"
+        >
+          {rangeOptions.map((r) => (
+            <ToggleGroupItem
+              key={r.value}
+              value={r.value}
+              aria-label={r.label}
+              className="h-7 rounded-md px-2.5 text-xs font-medium text-[var(--color-text-secondary)] data-[state=on]:bg-[var(--color-surface)] data-[state=on]:text-[var(--color-text)] data-[state=on]:shadow-sm"
+            >
+              {r.label}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
       </div>
       <div className="p-5 pt-4">
         {data.length === 0 ? (
-          <div className="flex items-center justify-center h-[200px] text-sm text-[var(--color-text-muted)]">
+          <div className="flex h-[200px] items-center justify-center text-sm text-[var(--color-text-muted)]">
             No upload data yet
           </div>
         ) : (
@@ -202,8 +178,8 @@ export function UploadChart({ files }: UploadChartProps) {
             <AreaChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
               <defs>
                 <linearGradient id="uploadGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#00d5e4" stopOpacity={0.3} />
-                  <stop offset="100%" stopColor="#00d5e4" stopOpacity={0} />
+                  <stop offset="0%" stopColor="var(--color-accent)" stopOpacity={0.3} />
+                  <stop offset="100%" stopColor="var(--color-accent)" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" opacity={0.5} />
@@ -220,13 +196,17 @@ export function UploadChart({ files }: UploadChartProps) {
                 allowDecimals={false}
               />
               <Tooltip
+                cursor={{ stroke: "var(--color-border)", strokeWidth: 1 }}
                 contentStyle={{
                   backgroundColor: "var(--color-surface)",
                   border: "1px solid var(--color-border)",
                   borderRadius: "12px",
                   fontSize: "12px",
                   padding: "8px 12px",
+                  color: "var(--color-text)",
+                  boxShadow: "0 4px 12px -6px rgba(16, 24, 40, 0.16)",
                 }}
+                labelStyle={{ color: "var(--color-text-secondary)" }}
                 formatter={(value, name) => {
                   if (name === "size") return [formatBytes(Number(value)), "Size"];
                   return [value, "Uploads"];
@@ -235,11 +215,11 @@ export function UploadChart({ files }: UploadChartProps) {
               <Area
                 type="monotone"
                 dataKey="uploads"
-                stroke="#00d5e4"
+                stroke="var(--color-accent)"
                 strokeWidth={2}
                 fill="url(#uploadGrad)"
                 dot={false}
-                activeDot={{ r: 4, fill: "#00d5e4", stroke: "var(--color-surface)", strokeWidth: 2 }}
+                activeDot={{ r: 4, fill: "var(--color-accent)", stroke: "var(--color-surface)", strokeWidth: 2 }}
               />
             </AreaChart>
           </ResponsiveContainer>

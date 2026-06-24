@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/ui/icon-button";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import {
   Shield, Lock, Copy, Check, Clock, Link2, FileText,
@@ -93,7 +94,7 @@ export function PadTool() {
   }, []);
 
   return (
-    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-xl overflow-hidden">
+    <div className="panel overflow-hidden">
       {state === "editing" && (
         <div className="p-6 space-y-4">
           <div className="space-y-1.5">
@@ -174,9 +175,14 @@ export function PadTool() {
             </label>
             <div className="flex gap-2">
               <div className="flex-1 p-3 rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border)] text-xs font-mono break-all select-all leading-relaxed">{shareUrl}</div>
-              <Button variant="secondary" size="icon" onClick={handleCopy} className="flex-shrink-0 self-start">
-                {copied ? <Check className="h-4 w-4 text-cyan-500" /> : <Copy className="h-4 w-4" />}
-              </Button>
+              <IconButton
+                icon={copied ? Check : Copy}
+                label={copied ? "Copied" : "Copy link"}
+                variant="secondary"
+                onClick={handleCopy}
+                className="flex-shrink-0 self-start"
+                iconClassName={copied ? "h-4 w-4 text-cyan-500" : "h-4 w-4"}
+              />
             </div>
           </div>
           <QRShare url={shareUrl} />

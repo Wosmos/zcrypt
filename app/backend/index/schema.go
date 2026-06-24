@@ -482,4 +482,33 @@ CREATE TABLE IF NOT EXISTS offline_pins (
 );
 
 CREATE INDEX IF NOT EXISTS idx_offline_pins_user ON offline_pins(user_id);
+
+-- Nested folders + trash (soft-delete) + encrypted names.
+-- encrypted_name holds a client-side-encrypted (base64) name; the server never decrypts it.
+-- parent_id NULL = root folder; deleted_at NULL = live, non-null = in trash.
+CREATE TABLE IF NOT EXISTS folders (
+    id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id        UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    parent_id      UUID REFERENCES folders(id) ON DELETE CASCADE,
+    encrypted_name TEXT NOT NULL,
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at     TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_folders_user ON folders(user_id);
+CREATE INDEX IF NOT EXISTS idx_folders_parent ON folders(parent_id);
+
+ALTER TABLE files ADD COLUMN IF NOT EXISTS folder_id UUID REFERENCES folders(id) ON DELETE SET NULL;
+ALTER TABLE files ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+ALTER TABLE files ADD COLUMN IF NOT EXISTS encrypted_name TEXT NOT NULL DEFAULT '';
+CREATE INDEX IF NOT EXISTS idx_files_folder ON files(folder_id);
+
+-- Optional per-folder password protection (zero-knowledge). Both nullable; NULL = unprotected
+-- (behaves exactly as today). The server stores ONLY opaque client-computed base64 blobs and
+-- never derives, sees, or logs the folder password or any key.
+--   pw_salt     = random per-folder salt (base64) used to derive the folder-password KEK client-side.
+--   pw_verifier = base64 AES-256-GCM ciphertext of a fixed constant under that KEK, used by the
+--                 client to verify a typed password locally (no server round-trip).
+-- A folder is "protected" iff pw_salt IS NOT NULL.
+ALTER TABLE folders ADD COLUMN IF NOT EXISTS pw_salt TEXT;
+ALTER TABLE folders ADD COLUMN IF NOT EXISTS pw_verifier TEXT;
 `

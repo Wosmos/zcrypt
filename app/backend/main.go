@@ -253,6 +253,20 @@ func main() {
 	mux.HandleFunc("PUT /api/notes/{id}", maxJSON(server.AuthMiddleware(server.HandleUpdateNote)))
 	mux.HandleFunc("DELETE /api/notes/{id}", server.AuthMiddleware(server.HandleDeleteNote))
 
+	// Folders + trash (soft-delete) + file moves (authenticated)
+	mux.HandleFunc("GET /api/folders", server.AuthMiddleware(server.HandleListFolders))
+	mux.HandleFunc("POST /api/folders", maxJSON(server.AuthMiddleware(server.HandleCreateFolder)))
+	mux.HandleFunc("PATCH /api/folders/{id}", maxJSON(server.AuthMiddleware(server.HandleRenameFolder)))
+	mux.HandleFunc("PATCH /api/folders/{id}/move", maxJSON(server.AuthMiddleware(server.HandleMoveFolder)))
+	mux.HandleFunc("POST /api/folders/{id}/password", maxJSON(server.AuthMiddleware(server.HandleSetFolderPassword)))
+	mux.HandleFunc("DELETE /api/folders/{id}/password", server.AuthMiddleware(server.HandleRemoveFolderPassword))
+	mux.HandleFunc("DELETE /api/folders/{id}", server.AuthMiddleware(server.HandleDeleteFolder))
+	mux.HandleFunc("GET /api/files/trash", server.AuthMiddleware(server.HandleListTrash))
+	mux.HandleFunc("PATCH /api/files/{id}/move", maxJSON(server.AuthMiddleware(server.HandleMoveFile)))
+	mux.HandleFunc("PUT /api/files/{id}/rekey", maxJSON(server.AuthMiddleware(server.HandleRekeyFile)))
+	mux.HandleFunc("POST /api/files/{id}/restore", maxJSON(server.AuthMiddleware(server.HandleRestoreFile)))
+	mux.HandleFunc("DELETE /api/files/{id}/purge", server.AuthMiddleware(server.HandlePurgeFile))
+
 	// File integrity monitor (authenticated)
 	mux.HandleFunc("GET /api/integrity", server.AuthMiddleware(server.HandleListIntegritySnapshots))
 	mux.HandleFunc("POST /api/integrity", maxJSON(server.AuthMiddleware(server.HandleCreateIntegritySnapshot)))
@@ -402,7 +416,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Set("Vary", "Origin")
 		}
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Chunk-SHA256, X-Chunk-Compressed, X-Share-Password")
 		w.Header().Set("Access-Control-Expose-Headers", "X-Chunk-SHA256, X-Chunk-Compressed")
 

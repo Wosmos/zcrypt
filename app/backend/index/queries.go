@@ -3,21 +3,29 @@ package index
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/zcrypt/zcrypt/types"
 )
 
 // InsertFile stores file metadata in the index.
+//
+// folder_id assignment is atomic and ownership-validated in the same INSERT: the
+// value is only persisted when a live folder with that id is owned by this user
+// (the scalar subquery resolves to NULL otherwise, landing the file at Root). A
+// nil f.FolderID means Root, exactly as before — so existing callers that never
+// set FolderID are unaffected (backward compatible).
 func (db *DB) InsertFile(ctx context.Context, userID string, f *types.FileMetadata) error {
 	status := f.Status
 	if status == "" {
 		status = "complete"
 	}
 	_, err := db.pool.Exec(ctx,
-		`INSERT INTO files (id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, wrapped_cek, status)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+		`INSERT INTO files (id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, wrapped_cek, status, folder_id)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
+		         (SELECT id FROM folders WHERE id = $13::uuid AND user_id = $2 AND deleted_at IS NULL))`,
 		f.ID, userID, f.OriginalName, f.OriginalSize, f.CompressedSize, f.EncryptedSize,
-		f.ChunkCount, f.SHA256, f.Salt, f.IV, f.WrappedCEK, status,
+		f.ChunkCount, f.SHA256, f.Salt, f.IV, f.WrappedCEK, status, f.FolderID,
 	)
 	if err != nil {
 		return fmt.Errorf("insert file: %w", err)
@@ -97,14 +105,29 @@ func (db *DB) GetFileByID(ctx context.Context, userID, id string) (*types.FileMe
 	return f, nil
 }
 
+// UpdateFileKey re-keys a single file by overwriting ONLY its salt + wrapped_cek columns,
+// scoped to the owning user. salt is the raw 32-byte per-file salt (BYTEA); wrappedCek is the
+// opaque base64 envelope. Used when a file crosses a protection boundary (vault <-> folder
+// password). The server stores opaque values only and never derives or sees any key.
+func (db *DB) UpdateFileKey(ctx context.Context, userID, fileID string, salt []byte, wrappedCek string) error {
+	_, err := db.pool.Exec(ctx,
+		`UPDATE files SET salt = $3, wrapped_cek = $4 WHERE id = $1 AND user_id = $2`,
+		fileID, userID, salt, wrappedCek,
+	)
+	if err != nil {
+		return fmt.Errorf("update file key: %w", err)
+	}
+	return nil
+}
+
 // ListFiles returns stored files for a user, newest first, optionally filtered by
 // name substring. limit caps the number of rows returned (a safety bound against an
 // unbounded scan/transfer for accounts with very large libraries); pass <= 0 for no
 // explicit cap. Search uses ILIKE (case-insensitive) to match the frontend's
 // case-insensitive client-side filter and is backed by the pg_trgm GIN index when present.
 func (db *DB) ListFiles(ctx context.Context, userID, filter string, limit int) ([]types.FileMetadata, error) {
-	query := `SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, wrapped_cek, status, created_at
-	          FROM files WHERE user_id = $1 AND status = 'complete'`
+	query := `SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, wrapped_cek, status, created_at, folder_id, encrypted_name, deleted_at
+	          FROM files WHERE user_id = $1 AND status = 'complete' AND deleted_at IS NULL`
 	args := []interface{}{userID}
 
 	if filter != "" {
@@ -125,11 +148,52 @@ func (db *DB) ListFiles(ctx context.Context, userID, filter string, limit int) (
 
 	var files []types.FileMetadata
 	for rows.Next() {
-		var f types.FileMetadata
+		var (
+			f         types.FileMetadata
+			deletedAt *time.Time
+		)
 		if err := rows.Scan(&f.ID, &f.UserID, &f.OriginalName, &f.OriginalSize, &f.CompressedSize,
-			&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.Salt, &f.IV, &f.WrappedCEK, &f.Status, &f.CreatedAt); err != nil {
+			&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.Salt, &f.IV, &f.WrappedCEK, &f.Status, &f.CreatedAt,
+			&f.FolderID, &f.EncryptedName, &deletedAt); err != nil {
 			return nil, fmt.Errorf("scan file: %w", err)
 		}
+		f.DeletedAt = folderTimeStr(deletedAt)
+		files = append(files, f)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate files: %w", err)
+	}
+	return files, nil
+}
+
+// ListFilesInFolder returns a user's live (non-trashed) complete files within a specific
+// folder, newest first. A nil folderID returns root-level files (folder_id IS NULL) via
+// IS NOT DISTINCT FROM. This is a sibling of ListFiles so existing callers stay untouched.
+func (db *DB) ListFilesInFolder(ctx context.Context, userID string, folderID *string) ([]types.FileMetadata, error) {
+	rows, err := db.pool.Query(ctx,
+		`SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, wrapped_cek, status, created_at, folder_id, encrypted_name, deleted_at
+		 FROM files
+		 WHERE user_id = $1 AND status = 'complete' AND deleted_at IS NULL AND folder_id IS NOT DISTINCT FROM $2
+		 ORDER BY created_at DESC`,
+		userID, folderID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list files in folder: %w", err)
+	}
+	defer rows.Close()
+
+	var files []types.FileMetadata
+	for rows.Next() {
+		var (
+			f         types.FileMetadata
+			deletedAt *time.Time
+		)
+		if err := rows.Scan(&f.ID, &f.UserID, &f.OriginalName, &f.OriginalSize, &f.CompressedSize,
+			&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.Salt, &f.IV, &f.WrappedCEK, &f.Status, &f.CreatedAt,
+			&f.FolderID, &f.EncryptedName, &deletedAt); err != nil {
+			return nil, fmt.Errorf("scan file: %w", err)
+		}
+		f.DeletedAt = folderTimeStr(deletedAt)
 		files = append(files, f)
 	}
 	if err := rows.Err(); err != nil {

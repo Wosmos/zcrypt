@@ -126,10 +126,29 @@ function acquireSlot(): Promise<void> {
   return new Promise((resolve) => queue.push(() => { activeCount++; resolve(); }));
 }
 
-async function decryptFileToBlob(fileId: string, passphrase: string): Promise<Blob> {
+/**
+ * Optional per-file password resolver for thumbnails. For a file in a protected
+ * folder it returns the cached folder password; if that folder is locked it
+ * returns `null` so the thumbnail is silently skipped (thumbnails must never
+ * prompt — we don't nag for a locked folder just to draw a grid preview). For
+ * unprotected files it returns the vault passphrase. When NOT supplied, the
+ * plain `passphrase` is used (legacy/unprotected behavior, byte-for-byte).
+ */
+export type ThumbnailPasswordResolver = (fileId: string) => string | null;
+
+async function decryptFileToBlob(
+  fileId: string,
+  passphrase: string,
+  resolvePassword?: ThumbnailPasswordResolver
+): Promise<Blob> {
+  const filePassphrase = resolvePassword ? resolvePassword(fileId) : passphrase;
+  if (filePassphrase == null) {
+    // Protected folder is locked — skip (don't prompt for a thumbnail).
+    throw new Error("locked");
+  }
   const meta = await getFileMeta(fileId);
   const salt = fromBase64(meta.salt);
-  const keyBytes = await resolveFileKey(passphrase, salt, meta.wrapped_cek);
+  const keyBytes = await resolveFileKey(filePassphrase, salt, meta.wrapped_cek);
 
   // Lazy-load zstd only when needed
   let zstd: Awaited<ReturnType<typeof import("@oneidentity/zstd-js/wasm")["ZstdInit"]>> | null = null;
@@ -151,13 +170,18 @@ async function decryptFileToBlob(fileId: string, passphrase: string): Promise<Bl
   return new Blob(chunks as BlobPart[], { type: "application/octet-stream" });
 }
 
-async function fetchAndCacheThumbnail(fileId: string, filename: string, passphrase: string): Promise<string | null> {
+async function fetchAndCacheThumbnail(
+  fileId: string,
+  filename: string,
+  passphrase: string,
+  resolvePassword?: ThumbnailPasswordResolver
+): Promise<string | null> {
   if (memCache.has(fileId) || inflight.has(fileId)) return memCache.get(fileId) ?? null;
   inflight.add(fileId);
 
   await acquireSlot();
   try {
-    const blob = await decryptFileToBlob(fileId, passphrase);
+    const blob = await decryptFileToBlob(fileId, passphrase, resolvePassword);
     const dataUrl = await generateThumbnail(blob, 300, 300);
     memCache.set(fileId, dataUrl);
     notify();
@@ -172,14 +196,20 @@ async function fetchAndCacheThumbnail(fileId: string, filename: string, passphra
   }
 }
 
-/** Batch-load thumbnails for all image files. Call once after passphrase is entered. */
-export async function batchLoadThumbnails(files: FileMetadata[], passphrase: string) {
+/** Batch-load thumbnails for all image files. Call once after passphrase is entered.
+ *  `resolvePassword` (optional) routes protected-folder files to their folder
+ *  password and skips locked ones — see ThumbnailPasswordResolver. */
+export async function batchLoadThumbnails(
+  files: FileMetadata[],
+  passphrase: string,
+  resolvePassword?: ThumbnailPasswordResolver
+) {
   const images = files.filter(
     (f) => isImageFile(f.original_name) && f.original_size < MAX_FILE_SIZE && !memCache.has(f.id) && !inflight.has(f.id)
   );
   // Process in parallel with concurrency limit (handled by acquireSlot)
   await Promise.allSettled(
-    images.map((f) => fetchAndCacheThumbnail(f.id, f.original_name, passphrase))
+    images.map((f) => fetchAndCacheThumbnail(f.id, f.original_name, passphrase, resolvePassword))
   );
 }
 
