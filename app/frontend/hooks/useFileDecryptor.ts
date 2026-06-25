@@ -2,19 +2,28 @@
 
 import { useCallback } from "react";
 import { IncorrectPassphraseError } from "@/lib/crypto";
-import type { UseFolderProtection } from "@/hooks/useFolderProtection";
+import {
+  cachedDecrypt,
+  isWarmOrInflight,
+} from "@/lib/decrypt-cache";
+import { getZstdCodec, resetZstdCodec } from "@/lib/zstd";
+import {
+  resolveFilePasswordGlobal,
+  FolderUnlockCancelled,
+  type UseFolderProtection,
+} from "@/hooks/useFolderProtection";
 import type { FileMetadata } from "@/types";
 
 /**
  * ── useFileDecryptor — PUBLIC INTERFACE ──────────────────────────────────────
  *
- *   const { decryptToBlob } = useFileDecryptor(folderProtection);
+ *   const { decryptToBlob, prefetch } = useFileDecryptor(folderProtection);
  *   const blob = await decryptToBlob(file);   // typed MIME, ready for a viewer
+ *   prefetch(neighbourFile);                  // warm the cache, fire-and-forget
  *
  * `decryptToBlob(file: FileMetadata): Promise<Blob>`
- *   Faithfully replays `useVaultActions.startPreview`'s decrypt pipeline entirely
- *   in the browser (zero-knowledge — no plaintext or passphrase ever leaves the
- *   page or is logged):
+ *   Faithfully replays the decrypt pipeline entirely in the browser (zero-
+ *   knowledge — no plaintext or passphrase ever leaves the page or is logged):
  *     1. password = await folderProtection.passwordForFile(file)
  *        (vault pass for unprotected files; cached/prompted+verified folder pass
  *        for protected-folder files — routes through the existing unlock flow).
@@ -24,18 +33,25 @@ import type { FileMetadata } from "@/types";
  *        chunk's `compressed` flag is set) → push
  *     5. concat → sha256Hex must equal meta.sha256 (else integrity error)
  *     6. new Blob([full], { type: <mime derived from extension> })
- *   Unlike `startPreview` (which returns a generic octet-stream and dispatches by
- *   filename later), this stamps the correct MIME up front so <video>/<audio>/
- *   <img>/<iframe> consumers play/render directly.
+ *   The decrypted blob is cached in memory (see lib/decrypt-cache) keyed by
+ *   file id, so re-opening / navigating back to a file is instant. The whole
+ *   pipeline — including the password prompt — is skipped on a cache hit, and
+ *   concurrent callers for the same file are de-duplicated.
  *
- * Errors (so callers — e.g. <FileViewer> — can react precisely):
+ * `prefetch(file: FileMetadata): void`
+ *   Best-effort, fire-and-forget cache warm-up used to decrypt a viewer's
+ *   neighbours ahead of time. It NEVER prompts: it resolves a password only if
+ *   one is already available (vault unlocked / folder unlocked) and otherwise
+ *   silently does nothing. Errors are swallowed — prefetch is purely an
+ *   optimisation.
+ *
+ * Errors from `decryptToBlob` (so callers — e.g. <FileViewer> — can react):
  *   - `WrongPasswordError`  → a wrong vault/folder password. Carries `folderId`
  *     (null for the vault). The caller may clear the cache + re-prompt + retry.
  *   - `IntegrityError`      → SHA-256 mismatch (corruption / tampering).
+ *   - `FolderUnlockCancelled` → the user cancelled an unlock prompt; callers
+ *     treat it as a clean no-op, not an error.
  *   - any other Error       → network / decode failure (show retry + download).
- * The user cancelling an unlock prompt rejects with the existing
- * `FolderUnlockCancelled` (from useFolderProtection) — callers treat it as a
- * clean no-op, not an error.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -61,6 +77,11 @@ export class IntegrityError extends Error {
 export interface UseFileDecryptor {
   /** Decrypt a file fully in-browser and return a typed Blob (correct MIME). */
   decryptToBlob: (file: FileMetadata) => Promise<Blob>;
+  /**
+   * Best-effort, non-prompting cache warm-up for a file (e.g. a viewer
+   * neighbour). Fire-and-forget; resolves nothing and never throws.
+   */
+  prefetch: (file: FileMetadata) => void;
 }
 
 /**
@@ -113,21 +134,63 @@ function looksLikeWrongKey(err: unknown): boolean {
   );
 }
 
-// Initialize the zstd wasm codec ONCE and reuse it across every decrypt. Calling
-// ZstdInit() per decrypt — and especially while a previous decrypt is still
-// decompressing (a re-fired effect, or React StrictMode's double-invoke in dev) —
-// re-initializes the shared wasm mid-use and corrupts in-flight decompression
-// ("ZSTD_ERROR: Src size is incorrect"). A single module-level init is safe and
-// mirrors how lib/download-session.ts uses one shared codec.
-type ZstdCodec = { ZstdStream: { decompress(d: Uint8Array): Uint8Array } };
-let zstdPromise: Promise<ZstdCodec> | null = null;
-function getZstd(): Promise<ZstdCodec> {
-  if (!zstdPromise) {
-    zstdPromise = import("@oneidentity/zstd-js/wasm").then(
-      (m) => m.ZstdInit() as unknown as Promise<ZstdCodec>
-    );
+/**
+ * The pure decrypt pipeline (no React, no password prompting). Given a file and
+ * its already-resolved password, fetch every chunk, decrypt + decompress, verify
+ * the SHA-256, and return a MIME-typed Blob. Shared by decryptToBlob and prefetch
+ * and always invoked through the in-memory blob cache.
+ */
+async function runDecryptPipeline(file: FileMetadata, password: string): Promise<Blob> {
+  const { getFileMeta, getFileChunk } = await import("@/lib/api");
+  const { resolveFileKey, decryptChunk, sha256Hex, fromBase64 } = await import("@/lib/crypto");
+  const zstd = await getZstdCodec();
+
+  const meta = await getFileMeta(file.id);
+  const salt = fromBase64(meta.salt);
+  const keyBytes = await resolveFileKey(password, salt, meta.wrapped_cek);
+
+  // Fetch + AES-GCM-decrypt every chunk first. Both are safe to interleave with
+  // other in-flight decrypts (network + WebCrypto hold no shared mutable state),
+  // so neighbour prefetches and the foreground view can overlap here.
+  const decrypted: { plain: Uint8Array; compressed: boolean }[] = [];
+  for (let i = 0; i < meta.chunk_count; i++) {
+    const { data, compressed } = await getFileChunk(file.id, i);
+    const plain = await decryptChunk(keyBytes, new Uint8Array(data));
+    decrypted.push({ plain, compressed });
   }
-  return zstdPromise;
+
+  // Decompress in ONE synchronous pass — NO awaits between calls. The zstd wasm
+  // codec is a single shared instance with internal streaming state; if two
+  // files' decompress() calls interleave at await points (e.g. a view + its
+  // neighbour prefetches running at once) that state is corrupted and throws
+  // "ZSTD_ERROR: Src size is incorrect". A synchronous burst is atomic w.r.t. the
+  // event loop, so concurrent pipelines can never interleave their decompression.
+  // (ZstdStream, not ZstdSimple: no embedded frame content size needed.)
+  let chunks: Uint8Array[];
+  try {
+    chunks = decrypted.map(({ plain, compressed }) =>
+      compressed && zstd ? zstd.ZstdStream.decompress(plain) : plain
+    );
+  } catch (err) {
+    // If the shared codec was somehow corrupted, reset it so the user's Retry
+    // re-inits a clean codec instead of failing forever until a page reload.
+    resetZstdCodec();
+    throw err;
+  }
+
+  const totalSize = chunks.reduce((s, c) => s + c.byteLength, 0);
+  const full = new Uint8Array(totalSize);
+  let offset = 0;
+  for (const c of chunks) {
+    full.set(c, offset);
+    offset += c.byteLength;
+  }
+
+  const hash = await sha256Hex(full);
+  if (hash !== meta.sha256) throw new IntegrityError();
+
+  // Stamp the real MIME so viewers can render/play directly.
+  return new Blob([full as BlobPart], { type: mimeForFilename(file.original_name) });
 }
 
 /**
@@ -137,54 +200,24 @@ function getZstd(): Promise<ZstdCodec> {
 export function useFileDecryptor(folderProtection: UseFolderProtection): UseFileDecryptor {
   const decryptToBlob = useCallback(
     async (file: FileMetadata): Promise<Blob> => {
-      // 1. Resolve the right password (vault, or folder pass for a protected
-      //    folder — prompting/verifying through the existing unlock flow). This
-      //    can reject with FolderUnlockCancelled if the user cancels — let it
-      //    propagate so the caller treats it as a clean no-op.
-      const password = await folderProtection.passwordForFile(file);
-
-      // 2. Dynamic imports (same modules + path as startPreview).
-      const { getFileMeta, getFileChunk } = await import("@/lib/api");
-      const { resolveFileKey, decryptChunk, sha256Hex, fromBase64 } = await import(
-        "@/lib/crypto"
-      );
-      const zstd = await getZstd();
-
       try {
-        const meta = await getFileMeta(file.id);
-        const salt = fromBase64(meta.salt);
-        const keyBytes = await resolveFileKey(password, salt, meta.wrapped_cek);
-
-        const chunks: Uint8Array[] = [];
-        for (let i = 0; i < meta.chunk_count; i++) {
-          const { data, compressed } = await getFileChunk(file.id, i);
-          let plain = await decryptChunk(keyBytes, new Uint8Array(data));
-          if (compressed && zstd) {
-            // ZstdStream (not ZstdSimple): no embedded frame content size needed.
-            plain = zstd.ZstdStream.decompress(plain);
-          }
-          chunks.push(plain);
-        }
-
-        const totalSize = chunks.reduce((s, c) => s + c.byteLength, 0);
-        const full = new Uint8Array(totalSize);
-        let offset = 0;
-        for (const c of chunks) {
-          full.set(c, offset);
-          offset += c.byteLength;
-        }
-
-        const hash = await sha256Hex(full);
-        if (hash !== meta.sha256) throw new IntegrityError();
-
-        // Stamp the real MIME so viewers can render/play directly.
-        return new Blob([full], { type: mimeForFilename(file.original_name) });
+        // Cache hit → returns instantly, skipping the prompt and the pipeline.
+        // Concurrent callers for the same id share one decrypt.
+        return await cachedDecrypt(file.id, file.folder_id ?? null, async () => {
+          // Resolve the right password (vault, or folder pass for a protected
+          // folder — prompting/verifying through the existing unlock flow). Can
+          // reject with FolderUnlockCancelled if the user cancels.
+          const password = await folderProtection.passwordForFile(file);
+          return runDecryptPipeline(file, password);
+        });
       } catch (err) {
         if (err instanceof IntegrityError) throw err;
+        // A cancelled unlock prompt is a clean no-op — let it propagate.
+        if (err instanceof FolderUnlockCancelled) throw err;
         if (looksLikeWrongKey(err)) {
           const fid = file.folder_id ?? null;
           // Throw a typed wrong-password error so callers can clear the cache +
-          // re-prompt + retry, exactly mirroring startPreview's recovery branch.
+          // re-prompt + retry, exactly mirroring the previous recovery branch.
           throw new WrongPasswordError(
             fid && folderProtection.isFileProtected(file) ? fid : null
           );
@@ -195,5 +228,22 @@ export function useFileDecryptor(folderProtection: UseFolderProtection): UseFile
     [folderProtection]
   );
 
-  return { decryptToBlob };
+  const prefetch = useCallback((file: FileMetadata): void => {
+    if (isWarmOrInflight(file.id)) return;
+    // Best-effort and NON-prompting: resolve a password only if one is already
+    // known (vault/folder unlocked); resolveFilePasswordGlobal throws otherwise,
+    // which we swallow. Prefetch must never pop an unlock modal for a neighbour.
+    void (async () => {
+      try {
+        const password = await resolveFilePasswordGlobal(file.id);
+        await cachedDecrypt(file.id, file.folder_id ?? null, () =>
+          runDecryptPipeline(file, password)
+        );
+      } catch {
+        // Locked / unavailable / network — prefetch is an optimisation, ignore.
+      }
+    })();
+  }, []);
+
+  return { decryptToBlob, prefetch };
 }
