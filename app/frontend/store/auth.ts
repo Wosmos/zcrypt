@@ -1,5 +1,7 @@
 import { create } from "zustand";
 import type { AuthUser } from "@/types";
+import { clearDecryptCache } from "@/lib/decrypt-cache";
+import { usePassphraseStore } from "@/store/passphrase";
 
 interface AuthStore {
   user: AuthUser | null;
@@ -42,6 +44,11 @@ export const useAuthStore = create<AuthStore>((set) => ({
   clearAuth: () => {
     localStorage.removeItem("zcrypt-access-token");
     localStorage.removeItem("zcrypt-refresh-token");
+    // Logout is stronger than a vault lock: also drop all decrypted plaintext
+    // and forget the vault passphrase (incl. the device-persisted copy) so a
+    // different user on the same tab can't inherit the prior session's data.
+    clearDecryptCache();
+    usePassphraseStore.getState().clear();
     set({ user: null, accessToken: null, refreshTokenValue: null });
   },
 }));
