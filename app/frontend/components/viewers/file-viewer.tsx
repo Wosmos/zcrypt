@@ -24,6 +24,7 @@ import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { getFileTypeInfo, cn } from "@/lib/utils";
 import { mimeForFilename, WrongPasswordError, IntegrityError } from "@/hooks/useFileDecryptor";
 import { FolderUnlockCancelled } from "@/hooks/useFolderProtection";
+import { useThumbnail } from "@/hooks/useThumbnail";
 import { viewerKindFor, isMediaKind, type ViewerKind } from "@/components/viewers/viewer-kind";
 import { ImageViewer } from "@/components/viewers/image-viewer";
 import { PdfViewer } from "@/components/viewers/pdf-viewer";
@@ -82,6 +83,20 @@ export interface FileViewerProps {
   onClose: () => void;
   /** Decrypt a file fully in-browser to a typed Blob. */
   decrypt: (file: FileMetadata) => Promise<Blob>;
+  /**
+   * Optional best-effort cache warm-up for a file (never prompts). When given,
+   * the viewer prefetches the next/previous file so navigation is instant.
+   * Typically `useFileDecryptor().prefetch`.
+   */
+  prefetch?: (file: FileMetadata) => void;
+  /**
+   * Called when a decrypt fails because the cached password is wrong, with the
+   * offending folder id (null = the vault). The consumer should clear that
+   * cached password so the user's Retry re-prompts instead of silently reusing
+   * the same wrong password (the vault unlock has no verifier, so a wrong vault
+   * passphrase would otherwise loop until the TTL).
+   */
+  onWrongPassword?: (folderId: string | null) => void;
   /** Reserved for trash/read-only contexts (no in-viewer mutation either way). */
   readOnly?: boolean;
 }
@@ -102,8 +117,13 @@ export function FileViewer({
   onIndexChange,
   onClose,
   decrypt,
+  prefetch,
+  onWrongPassword,
 }: FileViewerProps) {
   const file = files[index];
+  // Cached thumbnail (if any) for the current image — drives the instant blurred
+  // placeholder while the full file decrypts (LQIP). Null for non-images.
+  const { thumbnailUrl } = useThumbnail(file?.id ?? "", file?.original_name ?? "");
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -118,6 +138,12 @@ export function FileViewer({
   // leaving the viewer stuck "loading" and spawning overlapping decrypt runs.
   const decryptRef = useRef(decrypt);
   decryptRef.current = decrypt;
+  // Same treatment for the optional prefetch callback (also closes over the
+  // non-memoized folderProtection, so its identity changes each render).
+  const prefetchRef = useRef(prefetch);
+  prefetchRef.current = prefetch;
+  const onWrongPasswordRef = useRef(onWrongPassword);
+  onWrongPasswordRef.current = onWrongPassword;
 
   const kind: ViewerKind = file ? viewerKindFor(file.original_name) : "fallback";
 
@@ -141,16 +167,24 @@ export function FileViewer({
       try {
         const blob = await decryptRef.current(file);
         if (cancelled) return;
-        // Some sub-viewers want a URL (image/video/audio/pdf), others read the
-        // blob directly (docx/html/md/csv/text). Build the URL eagerly only for
-        // the URL-consuming kinds.
+        // Some sub-viewers want a URL (image/video/audio), others read the blob
+        // directly (pdf via pdf.js, docx/html/md/csv/text). Build the URL eagerly
+        // only for the URL-consuming kinds.
         const k = viewerKindFor(file.original_name);
-        if (k === "image" || k === "pdf" || isMediaKind(k)) {
+        if (k === "image" || isMediaKind(k)) {
           const url = URL.createObjectURL(blob);
           blobUrlRef.current = url;
           setObjectUrl(url);
         }
         setState({ status: "ready", blob });
+        // Warm the immediate neighbours so prev/next is instant. Best-effort and
+        // deduped by the decrypt cache; never prompts (see useFileDecryptor). The
+        // effect re-runs per file id, so `files`/`index` are current here.
+        const pf = prefetchRef.current;
+        if (pf && files.length > 1) {
+          pf(files[(index + 1) % files.length]);
+          pf(files[(index - 1 + files.length) % files.length]);
+        }
       } catch (err) {
         if (cancelled) return;
         if (err instanceof FolderUnlockCancelled) {
@@ -158,10 +192,13 @@ export function FileViewer({
           return;
         }
         if (err instanceof WrongPasswordError) {
+          // Clear the wrong cached password (via the consumer) so Retry re-prompts
+          // instead of reusing it forever — the vault unlock has no verifier.
+          onWrongPasswordRef.current?.(err.folderId);
           setState({
             status: "error",
             kind: "wrong-password",
-            message: "Incorrect password. Try again to unlock this file.",
+            message: "Incorrect password. Click Retry to re-enter it.",
           });
           return;
         }
@@ -186,6 +223,8 @@ export function FileViewer({
     };
     // Keyed on the file IDENTITY (id) + retry, NOT on `decrypt` (unstable each
     // render) — so the decrypt runs once per opened file, not on every render.
+    // `files`/`index` are read for prefetch but intentionally omitted: the effect
+    // already re-runs on every navigation (file.id changes), so they're current.
   }, [open, file?.id, attempt]);
 
   // Revoke on unmount / close.
@@ -428,6 +467,7 @@ export function FileViewer({
             kind={kind}
             state={state}
             objectUrl={objectUrl}
+            thumbnailUrl={thumbnailUrl}
             onRetry={() => setAttempt((a) => a + 1)}
             onDownload={handleDownload}
             mediaTracks={mediaTracks}
@@ -450,6 +490,7 @@ function ViewerBody({
   kind,
   state,
   objectUrl,
+  thumbnailUrl,
   onRetry,
   onDownload,
   mediaTracks,
@@ -460,6 +501,7 @@ function ViewerBody({
   kind: ViewerKind;
   state: LoadState;
   objectUrl: string | null;
+  thumbnailUrl: string | null;
   onRetry: () => void;
   onDownload: () => void;
   mediaTracks: MediaTrack[];
@@ -467,6 +509,25 @@ function ViewerBody({
   onSelectTrack: (index: number) => void;
 }) {
   if (state.status === "loading") {
+    // For an image with a cached thumbnail, show it blurred immediately (instead
+    // of a bare spinner) so the decrypt wait feels instant — it then crossfades
+    // to the full image once ready (see ImageViewer's placeholderUrl).
+    if (kind === "image" && thumbnailUrl) {
+      return (
+        <div className="relative flex h-full w-full items-center justify-center overflow-hidden">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={thumbnailUrl}
+            alt=""
+            aria-hidden
+            className="h-full w-full scale-105 object-contain opacity-60 blur-xl"
+          />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <LogoSpinner size="md" speed="fast" />
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3">
         <LogoSpinner size="md" speed="fast" />
@@ -514,13 +575,15 @@ function ViewerBody({
   switch (kind) {
     case "image":
       return objectUrl ? (
-        <ImageViewer url={objectUrl} alt={file.original_name} />
+        <ImageViewer
+          url={objectUrl}
+          alt={file.original_name}
+          placeholderUrl={thumbnailUrl ?? undefined}
+        />
       ) : null;
 
     case "pdf":
-      return objectUrl ? (
-        <PdfViewer url={objectUrl} filename={file.original_name} onDownload={onDownload} />
-      ) : null;
+      return <PdfViewer blob={blob} filename={file.original_name} onDownload={onDownload} />;
 
     case "audio":
     case "video":

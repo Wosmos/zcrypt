@@ -22,11 +22,21 @@ const SCALE_STEP = 0.25;
  * fit-to-screen. Pan is disabled when the image fits (scale ≤ 1). Reduced-motion
  * disables the smooth zoom transition. Renders from a blob object URL only.
  */
-export function ImageViewer({ url, alt }: { url: string; alt: string }) {
+export function ImageViewer({
+  url,
+  alt,
+  placeholderUrl,
+}: {
+  url: string;
+  alt: string;
+  /** Cached thumbnail shown blurred until the full image decodes (LQIP/blur-up). */
+  placeholderUrl?: string;
+}) {
   const reduce = useReducedMotion() ?? false;
   const [scale, setScale] = useState(1);
   const [rotation, setRotation] = useState(0);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [loaded, setLoaded] = useState(false);
   const draggingRef = useRef(false);
   const lastPointer = useRef({ x: 0, y: 0 });
 
@@ -36,9 +46,10 @@ export function ImageViewer({ url, alt }: { url: string; alt: string }) {
     setOffset({ x: 0, y: 0 });
   }, []);
 
-  // Reset all transforms whenever the image source changes (prev/next nav).
+  // Reset transforms + the load flag whenever the image source changes (nav).
   useEffect(() => {
     reset();
+    setLoaded(false);
   }, [url, reset]);
 
   const clampScale = (s: number) => Math.max(MIN_SCALE, Math.min(MAX_SCALE, s));
@@ -97,19 +108,36 @@ export function ImageViewer({ url, alt }: { url: string; alt: string }) {
         onPointerLeave={endDrag}
         onDoubleClick={() => (scale > 1 ? reset() : setScale(2))}
         className={cn(
-          "flex flex-1 items-center justify-center overflow-hidden touch-none select-none",
+          "relative flex flex-1 items-center justify-center overflow-hidden touch-none select-none",
           scale > 1 ? "cursor-grab active:cursor-grabbing" : "cursor-zoom-in"
         )}
       >
+        {/* LQIP: the cached thumbnail, blurred, shown until the full image decodes
+            then crossfaded out. Same object-contain box so it lines up. */}
+        {placeholderUrl && !loaded && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={placeholderUrl}
+            alt=""
+            aria-hidden
+            draggable={false}
+            className="pointer-events-none absolute inset-0 h-full w-full scale-105 object-contain blur-xl"
+          />
+        )}
         {/* Decrypted blob object URL; alt set, no external network. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={url}
           alt={alt}
           draggable={false}
+          onLoad={() => setLoaded(true)}
           className={cn(
             "max-h-full max-w-full object-contain",
-            !reduce && !draggingRef.current && "transition-transform duration-150"
+            // Fade the full image in over the blurred placeholder once decoded.
+            placeholderUrl && !loaded ? "opacity-0" : "opacity-100",
+            !reduce && !draggingRef.current
+              ? "transition-[opacity,transform] duration-200"
+              : "transition-opacity duration-200"
           )}
           style={{
             transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale}) rotate(${rotation}deg)`,
