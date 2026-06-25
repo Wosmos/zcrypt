@@ -99,9 +99,9 @@ export default function SharePage() {
     if (!token || !shareKey) return null;
 
     const { unwrapKey, decryptChunk, sha256Hex, fromBase64 } = await import("@/lib/crypto");
-    const { ZstdInit } = await import("@oneidentity/zstd-js/wasm");
+    const { getZstdCodec } = await import("@/lib/zstd");
     const { getDeviceProfile } = await import("@/lib/device-profile");
-    const zstd = await ZstdInit();
+    const zstd = await getZstdCodec();
 
     setProgress({ stage: "Fetching metadata...", percent: 0 });
     const meta = await getShareFileMeta(token, sharePassword || undefined);
