@@ -64,7 +64,7 @@ export function TrashContent() {
   // ── Preview overlay (read-only <FileViewer>) ─────────────────────────────────
   const vault = useVaultLockContext();
   const folderProtection = useFolderProtection(vault);
-  const { decryptToBlob } = useFileDecryptor(folderProtection);
+  const { decryptToBlob, prefetch } = useFileDecryptor(folderProtection);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerIndex, setViewerIndex] = useState(0);
 
@@ -587,6 +587,12 @@ export function TrashContent() {
         onIndexChange={setViewerIndex}
         onClose={() => setViewerOpen(false)}
         decrypt={decryptToBlob}
+        prefetch={prefetch}
+        onWrongPassword={(folderId) =>
+          folderId == null
+            ? vault.lock()
+            : folderProtection.clearFolderPassword(folderId)
+        }
         readOnly
       />
 

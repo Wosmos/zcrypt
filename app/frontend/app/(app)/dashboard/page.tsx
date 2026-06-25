@@ -110,7 +110,7 @@ export default function VaultPage() {
   // In-browser decryptor for the full file viewer (OWNER 1). Same password
   // routing as every other vault action — folder pass for protected files, else
   // the vault passphrase; no plaintext/passphrase ever leaves the page.
-  const { decryptToBlob } = useFileDecryptor(folderProtection);
+  const { decryptToBlob, prefetch } = useFileDecryptor(folderProtection);
 
   // Current folder (global store) — uploads land here; reads gate protected ones.
   const currentFolderId = useFolderStore((s) => s.currentFolderId);
@@ -486,6 +486,12 @@ export default function VaultPage() {
         onIndexChange={setViewerIndex}
         onClose={closeViewer}
         decrypt={decryptToBlob}
+        prefetch={prefetch}
+        onWrongPassword={(folderId) =>
+          folderId == null
+            ? vault.lock()
+            : folderProtection.clearFolderPassword(folderId)
+        }
       />
 
       {/* Share modal */}
