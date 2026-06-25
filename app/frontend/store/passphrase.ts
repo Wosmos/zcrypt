@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persistPassphrase, loadPassphrase, clearPersistedPassphrase } from "@/lib/device-vault";
+import { clearDecryptCache } from "@/lib/decrypt-cache";
 
 let clearTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -72,6 +73,9 @@ export const usePassphraseStore = create<PassphraseStore>((set, get) => ({
     clearTimer = setTimeout(() => {
       set({ cachedPassphrase: null, cacheUntil: null });
       clearTimer = null;
+      // Vault auto-locked on TTL — drop decrypted plaintext too (it must not
+      // outlive the unlocked session).
+      clearDecryptCache();
     }, ttlMinutes * 60 * 1000);
   },
 
@@ -86,6 +90,8 @@ export const usePassphraseStore = create<PassphraseStore>((set, get) => ({
         clearTimeout(clearTimer);
         clearTimer = null;
       }
+      // Lazy TTL expiry on read — same plaintext eviction as the timer path.
+      clearDecryptCache();
       return null;
     }
     return cachedPassphrase;
@@ -100,6 +106,8 @@ export const usePassphraseStore = create<PassphraseStore>((set, get) => ({
     // but keeps the rememberDevice PREFERENCE so the next unlock re-persists.
     set({ cachedPassphrase: null, cacheUntil: null, persistent: false });
     void clearPersistedPassphrase();
+    // Drop all decrypted plaintext blobs when the vault re-locks.
+    clearDecryptCache();
   },
 
   getRemainingMinutes: () => {
@@ -137,6 +145,7 @@ export const usePassphraseStore = create<PassphraseStore>((set, get) => ({
         clearTimer = setTimeout(() => {
           set({ cachedPassphrase: null, cacheUntil: null });
           clearTimer = null;
+          clearDecryptCache();
         }, SESSION_TTL_MIN * 60 * 1000);
       } else {
         set({ persistent: false });

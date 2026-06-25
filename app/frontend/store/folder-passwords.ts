@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { clearDecryptCacheForFolder } from "@/lib/decrypt-cache";
 
 /**
  * In-memory per-folder password cache, mirroring `store/passphrase.ts` but keyed
@@ -60,6 +61,9 @@ export const useFolderPasswordStore = create<FolderPasswordStore>((set, get) => 
         const { [folderId]: _removed, ...rest } = s.cache;
         return { cache: rest };
       });
+      // Folder re-locked on TTL — drop its decrypted plaintext so a later open
+      // re-gates it instead of being served from the cache.
+      clearDecryptCacheForFolder(folderId);
     }, ttlMinutes * 60 * 1000);
     clearTimers.set(folderId, timer);
   },
@@ -73,6 +77,8 @@ export const useFolderPasswordStore = create<FolderPasswordStore>((set, get) => 
         const { [folderId]: _removed, ...rest } = s.cache;
         return { cache: rest };
       });
+      // Lazy TTL expiry on read — same plaintext eviction as the timer path.
+      clearDecryptCacheForFolder(folderId);
       return null;
     }
     return entry.password;
@@ -95,11 +101,15 @@ export const useFolderPasswordStore = create<FolderPasswordStore>((set, get) => 
       const { [folderId]: _removed, ...rest } = s.cache;
       return { cache: rest };
     });
+    // Forgetting the folder password must also evict that folder's plaintext.
+    clearDecryptCacheForFolder(folderId);
   },
 
   clearAll: () => {
+    const folderIds = Object.keys(get().cache);
     for (const folderId of clearTimers.keys()) cancelTimer(folderId);
     clearTimers.clear();
     set({ cache: {} });
+    for (const folderId of folderIds) clearDecryptCacheForFolder(folderId);
   },
 }));

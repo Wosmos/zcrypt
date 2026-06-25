@@ -136,6 +136,8 @@ export function useVaultLock(): UseVaultLock {
   );
 
   const lock = useCallback(() => {
+    // clear() (the passphrase store) also drops the decrypted-blob cache, so a
+    // re-lock leaves no plaintext in memory.
     clear();
     pendingRef.current = null;
     setError(null);
