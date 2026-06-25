@@ -35,6 +35,33 @@ describe("device-vault", () => {
     expect(await loadPassphrase()).toBeNull();
   });
 
+  it("returns null when the stored record can't be decrypted (tampered/corrupt)", async () => {
+    await persistPassphrase("secret");
+    // Flip a byte of the stored ciphertext so AES-GCM auth fails on load,
+    // exercising loadPassphrase's decrypt-failure catch.
+    await new Promise<void>((resolve, reject) => {
+      const open = indexedDB.open("zcrypt-device-vault", 1);
+      open.onsuccess = () => {
+        const db = open.result;
+        const tx = db.transaction("kv", "readwrite");
+        const store = tx.objectStore("kv");
+        const getReq = store.get("passphrase");
+        getReq.onsuccess = () => {
+          const rec = getReq.result as { iv: Uint8Array; ct: ArrayBuffer };
+          new Uint8Array(rec.ct)[0] ^= 0xff; // corrupt in place
+          store.put(rec, "passphrase");
+        };
+        tx.oncomplete = () => {
+          db.close();
+          resolve();
+        };
+        tx.onerror = () => reject(tx.error);
+      };
+      open.onerror = () => reject(open.error);
+    });
+    expect(await loadPassphrase()).toBeNull();
+  });
+
   it("is a safe no-op when IndexedDB is unavailable", async () => {
     const saved = globalThis.indexedDB;
     // @ts-expect-error force the !available() branch

@@ -10,6 +10,7 @@ import {
   wrapKey,
   unwrapKey,
   resolveFileKey,
+  IncorrectPassphraseError,
   toBase64,
   fromBase64,
 } from "@/lib/crypto";
@@ -242,6 +243,19 @@ describe("resolveFileKey", () => {
 
     const key = await resolveFileKey("pass", salt, wrappedCek);
     expect(new Uint8Array(key)).toEqual(cek);
+  });
+
+  it("envelope file with the WRONG passphrase throws IncorrectPassphraseError", async () => {
+    const salt = generateSalt();
+    const kek = await deriveKeyBytes("right-pass", salt);
+    const cek = generateCEK();
+    const wrappedCek = toBase64(await wrapKey(kek, cek));
+
+    // A wrong passphrase derives a different KEK, so unwrapping the CEK fails
+    // AES-GCM auth and resolveFileKey re-throws the typed error.
+    await expect(
+      resolveFileKey("wrong-pass", salt, wrappedCek)
+    ).rejects.toBeInstanceOf(IncorrectPassphraseError);
   });
 });
 
