@@ -9,11 +9,14 @@
 
 import { getFileMeta, getFileChunk } from "@/lib/api";
 import { resolveFileKey, decryptChunk, sha256Hex, fromBase64 } from "@/lib/crypto";
-import { ZstdInit } from "@oneidentity/zstd-js/wasm";
+import { getZstdCodec } from "@/lib/zstd";
 import { getDeviceProfile } from "@/lib/device-profile";
 
-let zstdCodec: Awaited<ReturnType<typeof ZstdInit>> | null = null;
-const zstdReady = ZstdInit().then((codec) => {
+// Route through the single app-wide codec (lib/zstd) — never call ZstdInit()
+// directly, or it re-inits the shared wasm and corrupts other in-flight
+// decompression ("ZSTD_ERROR -72").
+let zstdCodec: Awaited<ReturnType<typeof getZstdCodec>> | null = null;
+const zstdReady = getZstdCodec().then((codec) => {
   zstdCodec = codec;
 });
 

@@ -7,7 +7,7 @@
 
 import { getFileMeta, getFileChunk } from "@/lib/api";
 import { resolveFileKey, decryptChunk, sha256Hex, fromBase64 } from "@/lib/crypto";
-import { ZstdInit } from "@oneidentity/zstd-js/wasm";
+import { getZstdCodec } from "@/lib/zstd";
 import { zipSync } from "fflate";
 import { getDeviceProfile } from "@/lib/device-profile";
 
@@ -49,7 +49,7 @@ export async function downloadAsZip(
 
   if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
 
-  const zstd = await ZstdInit();
+  const zstd = await getZstdCodec();
   const totalFiles = files.length;
   let filesDone = 0;
   const zipEntries: Array<{ name: string; data: Uint8Array }> = [];

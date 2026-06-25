@@ -305,8 +305,8 @@ export function useVaultActions({
 
         const { getFileMeta, getFileChunk } = await import("@/lib/api");
         const { resolveFileKey, decryptChunk, sha256Hex, fromBase64 } = await import("@/lib/crypto");
-        const { ZstdInit } = await import("@oneidentity/zstd-js/wasm");
-        const zstd = await ZstdInit();
+        const { getZstdCodec } = await import("@/lib/zstd");
+        const zstd = await getZstdCodec();
 
         const meta = await getFileMeta(file.id);
         const salt = fromBase64(meta.salt);

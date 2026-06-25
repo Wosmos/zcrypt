@@ -150,18 +150,20 @@ async function decryptFileToBlob(
   const salt = fromBase64(meta.salt);
   const keyBytes = await resolveFileKey(filePassphrase, salt, meta.wrapped_cek);
 
-  // Lazy-load zstd only when needed
-  let zstd: Awaited<ReturnType<typeof import("@oneidentity/zstd-js/wasm")["ZstdInit"]>> | null = null;
+  // Use the single app-wide zstd codec — NEVER call ZstdInit() here. The
+  // thumbnail loader runs several decrypts concurrently; a per-call ZstdInit()
+  // re-initialises the shared wasm mid-use and corrupts other in-flight
+  // decompression (the file viewer's), throwing "ZSTD_ERROR: Src size is
+  // incorrect, -72". See lib/zstd.ts.
+  const { getZstdCodec } = await import("@/lib/zstd");
+  let zstd: Awaited<ReturnType<typeof getZstdCodec>> | null = null;
 
   const chunks: Uint8Array[] = [];
   for (let i = 0; i < meta.chunk_count; i++) {
     const { data, compressed } = await getFileChunk(fileId, i);
     let plain = await decryptChunk(keyBytes, new Uint8Array(data));
     if (compressed) {
-      if (!zstd) {
-        const { ZstdInit } = await import("@oneidentity/zstd-js/wasm");
-        zstd = await ZstdInit();
-      }
+      if (!zstd) zstd = await getZstdCodec();
       plain = zstd.ZstdStream.decompress(plain);
     }
     chunks.push(plain);
