@@ -120,6 +120,27 @@ export default function LandingPage() {
         <Marquee items={marqueeItems} />
       </section>
 
+      {/* ═══ APP SHOWCASE ═══ */}
+      
+      <section className="py-24 px-4 bg-[var(--color-surface)] overflow-hidden">
+        <div className="mx-auto max-w-6xl">
+          <ScrollReveal className="text-center mb-16">
+            <p className="text-xs font-semibold text-cyan-600 dark:text-cyan-400 uppercase tracking-wider mb-3">
+              Experience
+            </p>
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
+              See it <em className="italic">in action</em>
+            </h2>
+            <p className="text-[var(--color-text-secondary)] mt-3 max-w-lg mx-auto">
+              A native-feeling experience. Drag, drop, encrypted. It&apos;s that
+              simple.
+            </p>
+          </ScrollReveal>
+
+          <MacOSShowcase />
+        </div>
+      </section>``
+
       {/* ═══ HOW IT WORKS ═══ */}
       <section id="how-it-works" className="py-28 px-4 scroll-mt-20">
         <div className="mx-auto max-w-5xl">
@@ -128,7 +149,7 @@ export default function LandingPage() {
               How it works
             </p>
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-              Three steps. <em className="italic">Nothing</em> we can read.
+              Three steps. <em className="italic"> <Underlined variant="ink" delay={0.5}>Nothing</Underlined>  </em> we can read.
             </h2>
             <p className="text-[var(--color-text-secondary)] mt-4 max-w-xl mx-auto leading-relaxed">
               No new storage to buy, no servers to trust. Your files are encrypted
@@ -166,25 +187,7 @@ export default function LandingPage() {
       {/* ═══ FEATURES — BENTO GRID ═══ */}
       <BentoGrid />
 
-      {/* ═══ APP SHOWCASE ═══ */}
-      <section className="py-24 px-4 bg-[var(--color-surface)] overflow-hidden">
-        <div className="mx-auto max-w-6xl">
-          <ScrollReveal className="text-center mb-16">
-            <p className="text-xs font-semibold text-cyan-600 dark:text-cyan-400 uppercase tracking-wider mb-3">
-              Experience
-            </p>
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-              See it <em className="italic">in action</em>
-            </h2>
-            <p className="text-[var(--color-text-secondary)] mt-3 max-w-lg mx-auto">
-              A native-feeling experience. Drag, drop, encrypted. It&apos;s that
-              simple.
-            </p>
-          </ScrollReveal>
-
-          <MacOSShowcase />
-        </div>
-      </section>
+   
 
       {/* ═══ WHY ZCRYPT — TRUST STACK ═══ */}
       <BuiltToTrust />

@@ -115,7 +115,7 @@ export function HeroSection() {
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full border border-cyan-500/20 bg-cyan-500/5 text-sm font-medium text-cyan-600 dark:text-cyan-400 mb-8 backdrop-blur-sm"
+            className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full border border-cyan-500/20 bg-cyan-500/5 text-xs font-medium text-cyan-600 dark:text-cyan-400 mb-2 backdrop-blur-sm"
           >
             <Shield className="h-3.5 w-3.5" />
             <span className="tracking-wide">Private by design</span>
@@ -127,14 +127,15 @@ export function HeroSection() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="text-[2.5rem] sm:text-5xl lg:text-6xl xl:text-[4rem] font-bold tracking-tight text-slate-900 dark:text-white leading-[1.08] font-heading"
+            className="text-[2.75rem] sm:text-6xl lg:text-7xl font-bold tracking-tight text-[var(--color-text)] dark:text-white leading-[1.12] font-heading capitalize"
           >
-             <span className="block mt-1 pb-2 italic text-transparent bg-clip-text bg-gradient-to-r from-teal-600 via-cyan-600 to-blue-600 dark:from-cyan-400 dark:via-cyan-300 dark:to-blue-500">
-              Cloud storage
+             <span className="mx-auto block w-fit px-1 pt-1 pb-3 italic leading-[1.2]  via-cyan-600 dark:via-cyan-300              
+              bg-gradient-to-r from-cyan-500 to-cyan-400 bg-clip-text text-transparent dark:from-cyan-400 dark:to-cyan-300">
+              Cloud Storage
             </span>
-            you{" "}
+            You{" "}
             <Underlined variant="ink" delay={0.5}>
-              actually own
+              Actually Own
             </Underlined>
           </motion.h1>
 
@@ -143,11 +144,11 @@ export function HeroSection() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15, duration: 0.5 }}
-            className="mt-6 text-base sm:text-lg text-slate-500 dark:text-slate-400 max-w-xl leading-relaxed"
+            className="mt-6 text-base sm:text-lg text-[var(--color-text-secondary)] max-w-xl leading-relaxed"
           >
             Your files, encrypted before they ever leave your device. <br/>Stored in
             your own GitHub, GitLab, or Telegram ,{" "} <br />
-            <Underlined variant="highlight" delay={0.6} className="text-slate-800 dark:text-slate-200 font-medium">
+            <Underlined variant="highlight" delay={0.6} >
               readable only by you
             </Underlined>
             .
@@ -162,64 +163,15 @@ export function HeroSection() {
           >
             <Link
                 href="/register"
-                className="inline-flex items-center justify-center gap-2 rounded-full px-8 py-3.5 text-base font-semibold text-slate-900 bg-gradient-to-br from-[#2de0ed] via-[#00d5e4] to-[#0093a3] shadow-lg shadow-cyan-500/30 transition-shadow hover:shadow-xl hover:shadow-cyan-500/50">
+                className="inline-flex items-center justify-center gap-2 rounded-2xl px-8 py-3.5 text-base font-semibold text-slate-900 bg-gradient-to-br from-[#2de0ed] via-[#00d5e4] to-[#0093a3] shadow-lg shadow-cyan-500/30 transition-shadow hover:shadow-xl hover:shadow-cyan-500/50">
                 Create your vault 
               </Link>
 
-            {/* <Link
-              href="#how-it-works"
-              className="group inline-flex h-14 items-center justify-center gap-2 px-8 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors w-full sm:w-auto"
-            >
-              See how it works
-              <ChevronDown className="h-3.5 w-3.5 group-hover:translate-y-0.5 transition-transform" />
-            </Link> */}
-          </motion.div>
-
-          {/* Trust signals */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3, duration: 0.5 }}
-            className="flex flex-wrap items-center justify-center  gap-x-5 gap-y-2 mt-8 text-xs text-slate-500 dark:text-slate-400"
-          >
-            <span className="flex items-center gap-1.5">
-              <Shield className="h-3.5 w-3.5 text-cyan-500/60" />
-              AES-256-GCM encryption
-            </span>
-            <span className="hidden sm:inline h-3 w-px bg-slate-300 dark:bg-slate-700" />
-            <span className="flex items-center gap-1.5">
-              <Eye className="h-3.5 w-3.5 text-cyan-500/60" />
-              Zero-knowledge
-            </span>
-            <span className="hidden sm:inline h-3 w-px bg-slate-300 dark:bg-slate-700" />
-            <span className="flex items-center gap-1.5">
-              <Globe className="h-3.5 w-3.5 text-cyan-500/60" />
-              Open source
-            </span>
+            
           </motion.div>
         </div>
 
-        {/* Right — boundary visual */}
       </motion.div>
-
-      {/* Easter Egg Overlay */}
-      <AnimatePresence>
-        {easterEgg && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md"
-            onClick={() => setEasterEgg(false)}
-          >
-            <div className="text-center p-6">
-              <p className="text-5xl mb-4">💧</p>
-              <p className="text-xl font-bold text-white">Cloud Provider Tears</p>
-              <p className="text-sm text-slate-400 mt-2">Zero egress fees. Zero storage fees.</p>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </section>
   );
 }
