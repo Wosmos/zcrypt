@@ -109,7 +109,9 @@ jobs:
         shell: bash
         run: |
           rm -rf app/desktop/frontend-dist
-          cp -r app/frontend/.next-export/out app/desktop/frontend-dist
+          # next.config.ts sets output:"export" + distDir:".next-export", so the
+          # static HTML is written directly into .next-export (no nested out/).
+          cp -r app/frontend/.next-export app/desktop/frontend-dist
 
           # Strip marketing-only pages not needed in the desktop app
           cd app/desktop/frontend-dist

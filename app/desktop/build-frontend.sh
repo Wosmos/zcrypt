@@ -26,10 +26,12 @@ rm -rf .next-export
 # Build with static export enabled via env var
 NEXT_OUTPUT_EXPORT=1 bun run build
 
-# Copy the static export to desktop's frontend-dist
-# (Tauri export uses .next-export/out to avoid conflicts with dev .next cache)
+# Copy the static export to desktop's frontend-dist.
+# next.config.ts sets output:"export" + distDir:".next-export", which keeps the
+# build out of the dev .next cache AND writes the static HTML directly into
+# .next-export (there is no nested out/ — the distDir is the export root).
 rm -rf "$OUT_DIR"
-cp -r "$FRONTEND_DIR/.next-export/out" "$OUT_DIR"
+cp -r "$FRONTEND_DIR/.next-export" "$OUT_DIR"
 
 # ── Strip pages that don't belong in the desktop app ──
 # Marketing / public pages
