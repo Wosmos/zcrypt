@@ -48,7 +48,7 @@ export function EncryptionBoundary() {
             There&apos;s a line your files cross.
             <br />
             We&apos;re on the{" "}
-            <em className="italic text-cyan-600 dark:text-cyan-400">wrong side</em> of it.
+            <em className="italic inline bg-gradient-to-r from-cyan-500 to-cyan-400 bg-clip-text pb-1 text-transparent dark:from-cyan-400 dark:to-cyan-300"> wrong side </em> of it.
           </h2>
           <p className="mx-auto mt-4 max-w-xl leading-relaxed text-[var(--color-text-secondary)]">
             Everything sensitive happens on your device. What crosses to our
