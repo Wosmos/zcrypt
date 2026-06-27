@@ -1,50 +1,74 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useId } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 /**
+ * Superellipse (squircle) clip path using SVG.
+ * Works in all browsers/WebViews — no corner-shape required.
+ * n=5 matches the iOS icon shape.
+ */
+function SquircleClipPath({ id, size }: { id: string; size: number }) {
+  const n = 5;
+  const steps = 120;
+  const r = size / 2;
+  const points: string[] = [];
+  for (let i = 0; i <= steps; i++) {
+    const angle = (2 * Math.PI * i) / steps;
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    const x = r + r * Math.sign(cos) * Math.pow(Math.abs(cos), 2 / n);
+    const y = r + r * Math.sign(sin) * Math.pow(Math.abs(sin), 2 / n);
+    points.push(`${x.toFixed(2)},${y.toFixed(2)}`);
+  }
+  return (
+    <svg width="0" height="0" style={{ position: "absolute" }}>
+      <defs>
+        <clipPath id={id} clipPathUnits="userSpaceOnUse">
+          <polygon points={points.join(" ")} />
+        </clipPath>
+      </defs>
+    </svg>
+  );
+}
+
+/**
  * 3D overlap-planes icon rendered with CSS perspective transforms.
- * Two rounded rects with depth — front one carries the "z".
+ * Two squircle planes with depth — front one carries the "z".
  * On hover: layers merge together + glassy shine sweeps across.
  */
 function LogoIcon({
   size = 36,
-  radius,
   hover = true,
   className,
 }: {
   size?: number;
-  /** Plane corner radius in px. Falls back to ~45% of the plane when omitted. */
-  radius?: number;
   hover?: boolean;
   className?: string;
 }) {
+  const uid = useId().replace(/:/g, "");
   const [isHovered, setIsHovered] = useState(false);
   const active = hover && isHovered;
 
   const plane = Math.round(size * 0.58);
-  // Large radius (~45% of the plane) so `corner-shape: squircle` reads as a
-  // proper iOS-style superellipse instead of a barely-rounded corner.
-  const r = radius ?? Math.round(plane * 0.45);
   const tz = Math.max(3, Math.round(size * 0.09));
   const hoverTz = Math.max(1, Math.round(tz * 0.25));
   const ease = "all 0.5s cubic-bezier(0.33, 1, 0.68, 1)";
+  const clipId = `sq-${uid}`;
+  const clipUrl = `url(#${clipId})`;
 
   return (
     <span
       className={cn("relative inline-block flex-shrink-0", hover && "cursor-pointer", className)}
-      style={{
-        width: size,
-        height: size,
-        perspective: 600,
-        transformStyle: "preserve-3d",
-      }}
+      style={{ width: size, height: size, perspective: 600, transformStyle: "preserve-3d" }}
       aria-hidden="true"
       onMouseEnter={() => hover && setIsHovered(true)}
       onMouseLeave={() => hover && setIsHovered(false)}
     >
+      {/* Shared squircle clip definition */}
+      <SquircleClipPath id={clipId} size={plane} />
+
       {/* Soft shadow */}
       <span
         className="absolute"
@@ -53,13 +77,13 @@ function LogoIcon({
           height: plane,
           top: active ? Math.round(size * 0.2) : Math.round(size * 0.27),
           left: active ? Math.round(size * 0.16) : Math.round(size * 0.21),
-          borderRadius: r,
-          cornerShape: "squircle",
+          borderRadius: Math.round(plane * 0.3),
           background: active ? "rgba(0,213,228,0.22)" : "rgba(0,147,163,0.15)",
           filter: active ? "blur(16px)" : "blur(10px)",
           transition: ease,
         }}
       />
+
       {/* Back plane — darker teal */}
       <span
         className="absolute"
@@ -68,8 +92,7 @@ function LogoIcon({
           height: plane,
           top: active ? Math.round(size * 0.11) : Math.round(size * 0.04),
           left: active ? Math.round(size * 0.11) : 0,
-          borderRadius: r,
-          cornerShape: "squircle",
+          clipPath: clipUrl,
           background: "linear-gradient(145deg, #008a97, #006d77)",
           boxShadow: "-2px 3px 10px rgba(0,0,0,0.5)",
           transform: active
@@ -78,6 +101,7 @@ function LogoIcon({
           transition: ease,
         }}
       />
+
       {/* Front plane — brand cyan */}
       <span
         className="absolute flex items-center justify-center overflow-hidden"
@@ -86,8 +110,7 @@ function LogoIcon({
           height: plane,
           top: active ? Math.round(size * 0.16) : Math.round(size * 0.21),
           left: active ? Math.round(size * 0.25) : Math.round(size * 0.33),
-          borderRadius: r,
-          cornerShape: "squircle",
+          clipPath: clipUrl,
           background: "linear-gradient(145deg, #00e8f8, #00c5d4)",
           boxShadow: active
             ? "-8px 8px 30px rgba(0,0,0,0.4), 0 1px 0 rgba(255,255,255,0.2) inset, 0 0 20px rgba(0,213,228,0.15)"
@@ -98,9 +121,7 @@ function LogoIcon({
           transition: ease,
         }}
       >
-        {/* Cipher Z: bold Z dissolving into scattered data blocks.
-            Sits on the cyan plane in both themes, so the mark stays dark ink
-            for contrast — a hair softer in light mode, near-black in dark. */}
+        {/* Cipher Z mark */}
         <svg
           viewBox="-4 6 150 145"
           width={Math.round(plane * 0.66)}
@@ -174,29 +195,24 @@ type LogoSize =
   | "8xl"
   | "9xl";
 
-// `radius` is a dedicated, hand-tuned squircle radius per size: smaller icons
-// get a slightly higher ratio so the squircle still reads at tiny px, larger
-// ones ease off for a more refined silhouette.
-const sizeConfig: Record<LogoSize, { icon: number; radius: number; text: string; dot: string; gap: string }> = {
-  xs: { icon: 24, radius: 7, text: "text-xs", dot: "text-[8px]", gap: "gap-1.5" },
-  sm: { icon: 28, radius: 8, text: "text-sm", dot: "text-[9px]", gap: "gap-2" },
-  md: { icon: 36, radius: 10, text: "text-base", dot: "text-[10px]", gap: "gap-2.5" },
-  lg: { icon: 44, radius: 12, text: "text-xl", dot: "text-xs", gap: "gap-3" },
-  "xl": { icon: 56, radius: 14, text: "text-3xl", dot: "text-sm", gap: "gap-3.5" },
-  "2xl": { icon: 72, radius: 18, text: "text-4xl", dot: "text-base", gap: "gap-4" },
-  "3xl": { icon: 96, radius: 24, text: "text-5xl", dot: "text-lg", gap: "gap-5" },
-  "4xl": { icon: 120, radius: 30, text: "text-6xl", dot: "text-xl", gap: "gap-5" },
-  "5xl": { icon: 144, radius: 35, text: "text-7xl", dot: "text-xl", gap: "gap-6" },
-  "6xl": { icon: 176, radius: 42, text: "text-8xl", dot: "text-2xl", gap: "gap-6" },
-  "7xl": { icon: 208, radius: 49, text: "text-9xl", dot: "text-2xl", gap: "gap-7" },
-  "8xl": { icon: 232, radius: 54, text: "text-9xl", dot: "text-3xl", gap: "gap-7" },
-  "9xl": { icon: 256, radius: 59, text: "text-9xl", dot: "text-3xl", gap: "gap-8" }
+const sizeConfig: Record<LogoSize, { icon: number; text: string; dot: string; gap: string }> = {
+  xs:   { icon: 24,  text: "text-xs",   dot: "text-[8px]",  gap: "gap-1.5" },
+  sm:   { icon: 28,  text: "text-sm",   dot: "text-[9px]",  gap: "gap-2" },
+  md:   { icon: 36,  text: "text-base", dot: "text-[10px]", gap: "gap-2.5" },
+  lg:   { icon: 44,  text: "text-xl",   dot: "text-xs",     gap: "gap-3" },
+  "xl": { icon: 56,  text: "text-3xl",  dot: "text-sm",     gap: "gap-3.5" },
+  "2xl":{ icon: 72,  text: "text-4xl",  dot: "text-base",   gap: "gap-4" },
+  "3xl":{ icon: 96,  text: "text-5xl",  dot: "text-lg",     gap: "gap-5" },
+  "4xl":{ icon: 120, text: "text-6xl",  dot: "text-xl",     gap: "gap-5" },
+  "5xl":{ icon: 144, text: "text-7xl",  dot: "text-xl",     gap: "gap-6" },
+  "6xl":{ icon: 176, text: "text-8xl",  dot: "text-2xl",    gap: "gap-6" },
+  "7xl":{ icon: 208, text: "text-9xl",  dot: "text-2xl",    gap: "gap-7" },
+  "8xl":{ icon: 232, text: "text-9xl",  dot: "text-3xl",    gap: "gap-7" },
+  "9xl":{ icon: 256, text: "text-9xl",  dot: "text-3xl",    gap: "gap-8" },
 };
 
 interface LogoProps {
   size?: LogoSize;
-  /** Override the per-size squircle corner radius (px). */
-  radius?: number;
   iconOnly?: boolean;
   showDomain?: boolean;
   className?: string;
@@ -206,7 +222,6 @@ interface LogoProps {
 
 export function Logo({
   size = "md",
-  radius,
   iconOnly = false,
   showDomain = false,
   className,
@@ -217,7 +232,7 @@ export function Logo({
 
   const content = (
     <span className={cn("flex items-center", cfg.gap, className)}>
-      <LogoIcon size={cfg.icon} radius={radius ?? cfg.radius} className="flex-shrink-0" />
+      <LogoIcon size={cfg.icon} className="flex-shrink-0" />
       {!iconOnly && (
         <span className="flex flex-col min-w-0">
           <span className={cn(cfg.text, "font-bold tracking-tight font-logo leading-none")}>
