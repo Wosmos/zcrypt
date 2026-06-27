@@ -725,7 +725,7 @@ Load tests are intentionally NOT in the standard CI pipeline — they require a 
 To run load tests against staging:
 
 ```bash
-K6_BASE_URL=https://api.zcrypt.app k6 run tests/load/k6/load.js
+K6_BASE_URL=https://NEXT_PUBLIC_API_URL k6 run tests/load/k6/load.js
 ```
 
 ---

@@ -13,7 +13,7 @@
  *   register p95 < 500ms
  *
  * Usage: k6 run tests/load/k6/auth.js
- * Staged: K6_BASE_URL=https://api.zcrypt.app k6 run tests/load/k6/auth.js
+ * Staged: K6_BASE_URL=https://NEXT_PUBLIC_API_URL k6 run tests/load/k6/auth.js
  */
 import http from "k6/http";
 import { check, sleep } from "k6";

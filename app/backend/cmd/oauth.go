@@ -343,7 +343,7 @@ func (s *Server) LogOAuthConfig() {
 	if backend == "" {
 		slog.Warn("oauth: BACKEND_URL is not set — callback URLs will be derived from each request. " +
 			"This frequently mismatches what is registered with Google/GitHub and breaks login. " +
-			"Set BACKEND_URL to your public backend URL, e.g. https://api.zcrypt.app")
+			"Set BACKEND_URL to your public backend URL, e.g. https://NEXT_PUBLIC_API_URL")
 	}
 	for _, provider := range []string{"google", "github"} {
 		if getOAuthProviderConfig(s.cfg, provider) == nil {
