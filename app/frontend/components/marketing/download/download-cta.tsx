@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { Download, ChevronDown } from "@/lib/icons";
-import { desktopPlatforms, type PlatformId, type DownloadOption } from "@/lib/data";
+import { RELEASES_FALLBACK_URL, type PlatformId, type DownloadOption } from "@/lib/releases";
 import { OS_GLYPHS } from "./os-glyphs";
+import { useLatestRelease } from "./use-release";
 
 const OS_LABEL: Record<PlatformId, string> = {
   macos: "macOS",
@@ -21,22 +22,23 @@ function detectOS(): PlatformId | null {
   return null;
 }
 
+const PRIMARY_BTN =
+  "group inline-flex items-center gap-3 rounded-xl bg-gradient-to-br from-[#2de0ed] via-[#00d5e4] to-[#0093a3] px-8 py-4 text-base font-bold text-slate-900 shadow-lg shadow-cyan-500/30 transition-all hover:scale-[1.02] hover:shadow-xl hover:shadow-cyan-500/50 active:scale-[0.99]";
+
 /**
- * Primary download button that auto-detects the visitor's OS (and, on macOS,
- * their CPU architecture where the browser exposes it). Falls back to a neutral
- * "see all platforms" state when the OS can't be determined or before hydration.
+ * Hero download button: auto-detects OS (and macOS arch where exposed) and
+ * links to the matching asset from the latest release. Falls back to the
+ * platform grid / releases page while loading or when detection fails.
  */
 export function DownloadCta() {
+  const release = useLatestRelease();
   const [os, setOs] = useState<PlatformId | null>(null);
   const [macIntel, setMacIntel] = useState(false);
 
   useEffect(() => {
     const detected = detectOS();
     setOs(detected);
-
     if (detected === "macos") {
-      // Apple Silicon is the right default for most modern Macs; only flip to
-      // Intel when the browser actually reports an x86 architecture.
       const uaData = (
         navigator as Navigator & {
           userAgentData?: {
@@ -44,14 +46,16 @@ export function DownloadCta() {
           };
         }
       ).userAgentData;
-      uaData?.getHighEntropyValues?.(["architecture"]).then((v) => {
-        if (v?.architecture === "x86") setMacIntel(true);
-      }).catch(() => {});
+      uaData
+        ?.getHighEntropyValues?.(["architecture"])
+        .then((v) => {
+          if (v?.architecture === "x86") setMacIntel(true);
+        })
+        .catch(() => {});
     }
   }, []);
 
-  const platform = os ? desktopPlatforms.find((p) => p.id === os) ?? null : null;
-
+  const platform = release && os ? release.desktop.find((p) => p.id === os) : null;
   let primary: DownloadOption | null = null;
   if (platform) {
     primary =
@@ -62,45 +66,41 @@ export function DownloadCta() {
 
   const Glyph = os ? OS_GLYPHS[os] : null;
 
-  return (
-    <div className="flex flex-col items-center gap-4">
-      {primary && platform && Glyph ? (
-        <>
-          <a
-            href={primary.href}
-            className="group inline-flex items-center gap-3 rounded-xl bg-gradient-to-br from-[#2de0ed] via-[#00d5e4] to-[#0093a3] px-8 py-4 text-base font-bold text-slate-900 shadow-lg shadow-cyan-500/30 transition-all hover:scale-[1.02] hover:shadow-xl hover:shadow-cyan-500/50 active:scale-[0.99]"
-          >
-            <Glyph className="h-5 w-5" />
-            Download for {OS_LABEL[platform.id]}
-            <Download className="h-4 w-4 opacity-70 transition-transform group-hover:translate-y-0.5" />
-          </a>
-          <p className="text-xs text-[var(--color-text-muted)]">
-            {primary.sublabel}
-            <span aria-hidden> · </span>
-            <a
-              href="#desktop"
-              className="font-medium text-cyan-600 underline-offset-2 hover:underline dark:text-cyan-400"
-            >
-              Other options
-            </a>
-          </p>
-        </>
-      ) : (
-        // Unknown OS or pre-hydration: send people to the full platform grid.
-        <>
+  // Resolved: OS detected and a matching build exists in the latest release.
+  if (primary && platform && Glyph) {
+    return (
+      <div className="flex flex-col items-center gap-4">
+        <a href={primary.href} className={PRIMARY_BTN}>
+          <Glyph className="h-5 w-5" />
+          Download for {OS_LABEL[platform.id]}
+          <Download className="h-4 w-4 opacity-70 transition-transform group-hover:translate-y-0.5" />
+        </a>
+        <p className="text-xs text-[var(--color-text-muted)]">
+          {primary.sublabel}
+          <span aria-hidden> · </span>
           <a
             href="#desktop"
-            className="group inline-flex items-center gap-3 rounded-xl bg-gradient-to-br from-[#2de0ed] via-[#00d5e4] to-[#0093a3] px-8 py-4 text-base font-bold text-slate-900 shadow-lg shadow-cyan-500/30 transition-all hover:scale-[1.02] hover:shadow-xl hover:shadow-cyan-500/50 active:scale-[0.99]"
+            className="font-medium text-cyan-600 underline-offset-2 hover:underline dark:text-cyan-400"
           >
-            <Download className="h-5 w-5" />
-            Download zcrypt
-            <ChevronDown className="h-4 w-4 opacity-70 transition-transform group-hover:translate-y-0.5" />
+            Other options
           </a>
-          <p className="text-xs text-[var(--color-text-muted)]">
-            Pick your platform below — macOS, Windows, Linux &amp; the terminal app.
-          </p>
-        </>
-      )}
+        </p>
+      </div>
+    );
+  }
+
+  // Loading, unknown OS, or API unavailable → point at the grid (or releases).
+  const href = release === null ? RELEASES_FALLBACK_URL : "#desktop";
+  return (
+    <div className="flex flex-col items-center gap-4">
+      <a href={href} className={PRIMARY_BTN}>
+        <Download className="h-5 w-5" />
+        Download zcrypt
+        <ChevronDown className="h-4 w-4 opacity-70 transition-transform group-hover:translate-y-0.5" />
+      </a>
+      <p className="text-xs text-[var(--color-text-muted)]">
+        Pick your platform below — macOS, Windows, Linux &amp; the terminal app.
+      </p>
     </div>
   );
 }
