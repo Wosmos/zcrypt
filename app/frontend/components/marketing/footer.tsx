@@ -8,12 +8,23 @@ type FooterLink = { label: string; href: string; external?: boolean };
 
 const FOOTER_COLUMNS: { title: string; links: FooterLink[] }[] = [
   {
-    title: "Product",
+    title: "Features",
     links: [
-      { label: "How it works", href: "/docs/how-it-works" },
-      { label: "Lifecycle", href: "/#how-it-works" },
-      { label: "Why zcrypt", href: "/philosophy" },
+      { label: "Encrypted drive", href: "/features/encrypted-drive" },
+      { label: "File viewers", href: "/features/file-viewers" },
+      { label: "Encrypted folders", href: "/features/folders" },
+      { label: "Sharing", href: "/features/sharing" },
+      { label: "All features", href: "/features" },
+    ],
+  },
+  {
+    title: "Compare & apps",
+    links: [
+      { label: "vs Dropbox", href: "/vs/dropbox" },
+      { label: "vs Google Drive", href: "/vs/google-drive" },
+      { label: "vs Proton Drive", href: "/vs/proton-drive" },
       { label: "Terminal app", href: "/tui" },
+      { label: "Desktop app", href: "/docs/desktop-app" },
     ],
   },
   {
@@ -21,21 +32,14 @@ const FOOTER_COLUMNS: { title: string; links: FooterLink[] }[] = [
     links: [
       { label: "Documentation", href: "/docs" },
       { label: "Self-hosting", href: "/docs/self-hosting" },
+      { label: "API reference", href: "/docs/api" },
       { label: "GitHub", href: GITHUB_REPO_URL, external: true },
-      { label: "Adapters", href: "/docs/platform-adapters" },
     ],
   },
   {
     title: "Company",
     links: [
       { label: "Philosophy", href: "/philosophy" },
-      { label: "Pricing", href: "/pricing" },
-      { label: "Plans", href: "/docs/plans" },
-    ],
-  },
-  {
-    title: "Legal",
-    links: [
       { label: "Privacy", href: "/privacy" },
       { label: "Terms", href: "/terms" },
       {
@@ -110,8 +114,9 @@ export function MarketingFooter() {
                 <Logo size="xl" />
               </Link>
               <p className="mt-4 mb-[1.4rem] max-w-[280px] text-[0.88rem] leading-[1.7] text-[var(--color-text-muted)]">
-                Zero-knowledge encrypted cloud storage. Your files, your keys,
-                your storage — open source and self-hostable.
+                A zero-knowledge encrypted cloud drive — real folders, instant
+                previews, your own storage. Encrypted on your device, readable
+                only by you. Open source and self-hostable.
               </p>
               <span className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] px-[0.85rem] py-[0.4rem] text-[0.76rem] text-[var(--color-text-secondary)]">
                 <span className="h-[7px] w-[7px] rounded-full bg-[#34c779]" />

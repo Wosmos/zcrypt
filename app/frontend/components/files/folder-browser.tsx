@@ -11,6 +11,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PassphraseModal } from "@/components/ui/passphrase-modal";
+import { verifyVaultPassphrase } from "@/lib/vault-verify";
 import { usePassphraseStore } from "@/store/passphrase";
 import {
   Dialog,
@@ -435,6 +436,7 @@ export function FolderBrowser({ onMoveFile }: FolderBrowserProps) {
       {/* Unlock vault to manage encrypted folder names */}
       <PassphraseModal
         open={showUnlock}
+        verify={verifyVaultPassphrase}
         onConfirm={handleUnlock}
         onClose={() => {
           setShowUnlock(false);

@@ -1,377 +1,213 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
-  ArrowLeft,
-  ArrowRight,
-  Github,
-  Globe,
-  HardDrive,
-  Check,
-  Shield,
-  Send,
-} from "@/lib/icons";
-import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
+  DocPage,
+  DocSection,
+  DocP,
+  DocList,
+  DocCode,
+  DocNote,
+  DocTable,
+} from "@/components/docs/doc-page";
 
 export const metadata: Metadata = {
-  title: "Platform Adapters | zcrypt Docs",
+  title: "Bring your own storage | zcrypt Docs",
   description:
-    "Configure GitHub, GitLab, Hugging Face, and Telegram as encrypted storage backends for zcrypt.",
-  alternates: {
-    canonical: "https://zcrypt.cloud/docs/platform-adapters",
-  },
+    "zcrypt has no storage farm of its own. Connect a GitHub, GitLab, Hugging Face, or Telegram account as your encrypted backend — tokens, scopes, and capacities, all explained.",
+  alternates: { canonical: "https://zcrypt.cloud/docs/platform-adapters" },
   openGraph: {
-    title: "Platform Adapters | zcrypt Docs",
+    title: "Bring your own storage | zcrypt Docs",
     description:
-      "Configure GitHub, GitLab, Hugging Face, and Telegram as encrypted storage backends for zcrypt.",
+      "Connect GitHub, GitLab, Hugging Face, or Telegram as your encrypted storage backend — with the tokens, scopes, and capacities for each.",
     url: "https://zcrypt.cloud/docs/platform-adapters",
   },
 };
 
-const platforms = [
-  {
-    name: "GitHub",
-    icon: Github,
-    color: "text-slate-900 dark:text-white",
-    bgColor: "bg-slate-900/10 dark:bg-white/10",
-    tokenName: "Personal Access Token (classic)",
-    tokenUrl: "https://github.com/settings/tokens",
-    requiredScopes: ["repo (Full control of private repositories)"],
-    storageLimit: "Recommended: ~850 MB per repository",
-    notes:
-      "zcrypt automatically creates and rotates repositories when they approach the size limit. Files are stored as binary blobs with randomized names. Private repositories only.",
-    steps: [
-      "Go to GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)",
-      "Click 'Generate new token (classic)'",
-      "Give it a descriptive name like 'zcrypt-storage'",
-      "Select the 'repo' scope (full control of private repositories)",
-      "Generate the token and copy it",
-      "In zcrypt, go to Settings → Platform Tokens → Add Token",
-      "Select 'GitHub', paste your token, and save",
-    ],
-  },
-  {
-    name: "GitLab",
-    icon: Globe,
-    color: "text-orange-600 dark:text-orange-400",
-    bgColor: "bg-orange-500/10",
-    tokenName: "Personal Access Token",
-    tokenUrl: "https://gitlab.com/-/user_settings/personal_access_tokens",
-    requiredScopes: [
-      "api (Full API access)",
-      "write_repository (Write access to repositories)",
-    ],
-    storageLimit: "Recommended: ~9 GB per repository",
-    notes:
-      "GitLab offers much larger repository limits than GitHub, making it ideal for users with large files. zcrypt uses the GitLab API for repository management and Git operations.",
-    steps: [
-      "Go to GitLab → Edit Profile → Access Tokens",
-      "Click 'Add new token'",
-      "Name it 'zcrypt-storage' and set an expiration date",
-      "Select scopes: 'api' and 'write_repository'",
-      "Create the token and copy it",
-      "In zcrypt, go to Settings → Platform Tokens → Add Token",
-      "Select 'GitLab', paste your token, and save",
-    ],
-  },
-  {
-    name: "Hugging Face",
-    icon: HardDrive,
-    color: "text-yellow-600 dark:text-yellow-400",
-    bgColor: "bg-yellow-500/10",
-    tokenName: "User Access Token",
-    tokenUrl: "https://huggingface.co/settings/tokens",
-    requiredScopes: ["write (Write access to your repos)"],
-    storageLimit: "Recommended: ~280 GB per repository (Git LFS)",
-    notes:
-      "Hugging Face uses Git LFS for large file storage, giving it the highest per-repository capacity. Ideal for storing large encrypted backups. zcrypt creates private datasets for storage.",
-    steps: [
-      "Go to Hugging Face → Settings → Access Tokens",
-      "Click 'New token'",
-      "Name it 'zcrypt-storage'",
-      "Select 'Write' permission",
-      "Create the token and copy it",
-      "In zcrypt, go to Settings → Platform Tokens → Add Token",
-      "Select 'Hugging Face', paste your token, and save",
-    ],
-  },
-  {
-    name: "Telegram",
-    icon: Send,
-    color: "text-sky-600 dark:text-sky-400",
-    bgColor: "bg-sky-500/10",
-    tokenName: "Bot token + chat/channel ID (BOT_TOKEN|CHAT_ID)",
-    tokenUrl: "https://t.me/BotFather",
-    requiredScopes: [
-      "Bot created via @BotFather",
-      "Bot added as an admin of a private channel or group",
-    ],
-    storageLimit: "No hard per-channel limit (50 MB per upload via the Bot API)",
-    notes:
-      "Telegram has no concept of Git repositories — your chat or channel is the storage location. Each encrypted chunk is sent as a document. Because the Bot API caps downloads at 20 MB, zcrypt transparently splits chunks into ~19 MB sub-parts on the way in and reassembles them on the way out. Use a private channel so only you and the bot can see the files.",
-    steps: [
-      "Open Telegram and message @BotFather, then send /newbot",
-      "Follow the prompts to name your bot and receive its token (looks like '123456:ABC-DEF...')",
-      "Create a private channel (or group) to hold your encrypted files",
-      "Add your bot to that channel as an administrator",
-      "Find the channel ID — use its @username (e.g. '@my_zcrypt_vault') or its numeric ID",
-      "Combine them as 'BOT_TOKEN|CHAT_ID' (for example '123456:ABC-DEF|@my_zcrypt_vault')",
-      "In zcrypt, go to Settings → Platform Tokens → Add Token",
-      "Select 'Telegram', paste the combined value, and save",
-    ],
-  },
+const toc = [
+  { id: "byo", title: "Bring your own storage" },
+  { id: "backends", title: "The four backends" },
+  { id: "tokens", title: "Tokens & scopes" },
+  { id: "telegram", title: "Telegram's token format" },
+  { id: "multiple", title: "Multiple accounts & managed storage" },
+  { id: "next", title: "Where to go next" },
 ];
 
-export default function PlatformAdaptersPage() {
+export default function PlatformAdaptersDocPage() {
   return (
-    <>
-      <BreadcrumbJsonLd
-        items={[
-          { name: "Home", url: "https://zcrypt.cloud" },
-          { name: "Documentation", url: "https://zcrypt.cloud/docs" },
-          { name: "Platform Adapters", url: "https://zcrypt.cloud/docs/platform-adapters" },
-        ]}
-      />
-      {/* Header */}
-      <section className="pt-24 md:pt-32 pb-12 px-4">
-        <div className="max-w-3xl mx-auto">
-          <Link
-            href="/docs"
-            className="inline-flex items-center gap-1.5 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors mb-6"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            Back to docs
-          </Link>
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight font-heading">
-            Platform Adapters
-          </h1>
-          <p className="mt-3 text-lg text-[var(--color-text-secondary)] max-w-2xl leading-relaxed">
-            zcrypt stores your encrypted files inside platform accounts you
-            already own — GitHub, GitLab, Hugging Face, or Telegram. Connect your
-            own backend for full control over your storage and the free space it
-            provides.
-          </p>
-        </div>
-      </section>
+    <DocPage
+      href="/docs/platform-adapters"
+      title="Bring your own storage"
+      description="zcrypt runs no storage farm of its own. Your encrypted chunks live inside accounts you already own — GitHub, GitLab, Hugging Face, or Telegram — so your capacity is whatever free space those platforms give you, and the infrastructure stays under your control."
+      toc={toc}
+    >
+      <DocSection id="byo" title="Bring your own storage">
+        <DocP>
+          A storage backend (internally, a <em>platform adapter</em>) is the
+          account zcrypt pushes your encrypted chunks to. By the time anything is
+          sent, the file has already been compressed, encrypted with
+          AES-256-GCM, and split into chunks on your device — so the platform
+          only ever sees opaque binary blobs under disguised filenames and commit
+          messages. It never sees your file names or their contents.
+        </DocP>
+        <DocP>
+          Because it&apos;s your account, your usable space is bounded only by
+          that platform&apos;s free space rather than by a plan we sell. zcrypt
+          handles the encryption, chunking, and repository management on top.
+        </DocP>
+      </DocSection>
 
-      {/* How it works */}
-      <section className="pb-12 px-4">
-        <div className="max-w-3xl mx-auto">
-          <div className="card p-6">
-            <h2 className="text-sm font-bold mb-3 flex items-center gap-2">
-              <Shield className="h-4 w-4 text-cyan-500" />
-              How platform adapters work
-            </h2>
-            <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed">
-              <p>
-                After your file is compressed, encrypted, and chunked locally,
-                zcrypt pushes the encrypted chunks to your chosen platform — a
-                private Git repository on GitHub, GitLab, or Hugging Face, or a
-                private channel on Telegram. Each chunk is a binary blob,
-                completely unreadable without your passphrase.
-              </p>
-              <p>
-                Storage management is automatic: zcrypt creates private
-                repositories (or uses your Telegram channel), tracks available
-                space, and rotates to new repositories when capacity limits are
-                approached. Filenames and commit messages are randomized to
-                prevent metadata leakage.
-              </p>
-              <p>
-                Your platform token is encrypted at rest with AES-256-GCM using
-                a server-side key-encryption key (KEK). Even in a database
-                breach, tokens remain protected.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
+      <DocSection id="backends" title="The four backends">
+        <DocP>
+          Each file is stored on a single platform. Backends differ mostly in
+          how much they hold per repository and how large a single piece can be —
+          which is why zcrypt rotates across many repositories as they fill up
+          (see <Link href="/docs/repo-pool" className="text-cyan-600 hover:underline dark:text-cyan-400">Repo pool &amp; rotation</Link>).
+        </DocP>
+        <DocTable
+          head={["Backend", "Per-repo capacity", "How it stores", "Notes"]}
+          rows={[
+            [
+              <strong key="t">GitHub</strong>,
+              "~850 MB per repo",
+              "Contents API, private repos",
+              "Highest API maturity; new private repos are created automatically as they fill.",
+            ],
+            [
+              <strong key="t">GitLab</strong>,
+              "~9 GB per repo",
+              "Repository files API, private projects",
+              "Much larger repos than GitHub — a good middle ground for bigger vaults.",
+            ],
+            [
+              <strong key="t">Hugging Face</strong>,
+              "~280 GB per repo",
+              "Git LFS, private datasets",
+              "Highest per-repo capacity. Supports presigned direct upload, so large files stream straight to LFS storage instead of relaying through our server.",
+            ],
+            [
+              <strong key="t">Telegram</strong>,
+              "~50 MB per file",
+              "Bot uploads to a chat/channel",
+              "No Git repos — your chat or channel is the storage. The Bot API caps uploads at 50 MB and downloads at 20 MB, so zcrypt transparently splits and reassembles parts.",
+            ],
+          ]}
+        />
+        <DocNote type="info" title="Capacities are guidance, not hard caps">
+          These figures are the conservative thresholds zcrypt rotates at, chosen
+          to stay comfortably inside each platform&apos;s real limits. Your total
+          space is not one repo — it grows across as many repositories as you
+          need.
+        </DocNote>
+      </DocSection>
 
-      {/* Platforms */}
-      <section className="pb-24 px-4">
-        <div className="max-w-3xl mx-auto space-y-10">
-          {platforms.map((platform) => (
-            <div
-              key={platform.name}
-              id={platform.name.toLowerCase().replace(/\s+/g, "-")}
-              className="scroll-mt-24"
-            >
-              <div className="flex items-center gap-3 mb-5">
-                <div
-                  className={`h-10 w-10 rounded-xl ${platform.bgColor} flex items-center justify-center`}
-                >
-                  <platform.icon
-                    className={`h-5 w-5 ${platform.color}`}
-                  />
-                </div>
-                <div>
-                  <h2 className="text-lg font-bold">{platform.name}</h2>
-                  <p className="text-xs text-[var(--color-text-muted)]">
-                    {platform.storageLimit}
-                  </p>
-                </div>
-              </div>
+      <DocSection id="tokens" title="Tokens & scopes">
+        <DocP>
+          You connect a backend by pasting an access token from{" "}
+          <strong>Settings → Platform Tokens</strong>. Grant the least privilege
+          that still lets zcrypt create repositories and read/write files:
+        </DocP>
+        <DocTable
+          head={["Backend", "Token type", "Required scope(s)"]}
+          rows={[
+            [
+              <strong key="t">GitHub</strong>,
+              "Personal Access Token (classic)",
+              <code key="s">repo</code>,
+            ],
+            [
+              <strong key="t">GitLab</strong>,
+              "Personal Access Token",
+              <span key="s">
+                <code>api</code> + <code>write_repository</code>
+              </span>,
+            ],
+            [
+              <strong key="t">Hugging Face</strong>,
+              "User Access Token",
+              <span key="s">
+                <code>write</code>
+              </span>,
+            ],
+            [
+              <strong key="t">Telegram</strong>,
+              "Bot token + chat/channel ID",
+              "Bot from @BotFather, added to a private channel/group as admin",
+            ],
+          ]}
+        />
+        <DocP>
+          For GitHub, the classic <code>repo</code> scope means full control of
+          private repositories — zcrypt only ever touches the storage repos it
+          creates, but the scope itself is broad, so use a token dedicated to
+          zcrypt. GitLab needs <code>api</code> for project management plus{" "}
+          <code>write_repository</code> for file operations.
+        </DocP>
+        <DocNote type="security" title="Tokens are encrypted at rest">
+          Every platform token is encrypted with AES-256-GCM using a server-side
+          key-encryption key (KEK) before it touches the database. Even in a
+          database breach, your tokens stay protected.
+        </DocNote>
+      </DocSection>
 
-              <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed mb-5">
-                {platform.notes}
-              </p>
+      <DocSection id="telegram" title="Telegram's token format">
+        <DocP>
+          Telegram has no concept of repositories, so its &quot;token&quot; is
+          actually two values joined with a pipe: your bot token and the target
+          chat or channel ID.
+        </DocP>
+        <DocCode label="Settings → Platform Tokens → Telegram">{`BOT_TOKEN|CHAT_ID
 
-              {/* Token info */}
-              <div className="card p-5 mb-5">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)] mb-3">
-                  Token requirements
-                </h3>
-                <div className="space-y-2">
-                  <div className="flex items-start gap-2">
-                    <span className="text-xs font-semibold text-[var(--color-text-muted)] w-20 flex-shrink-0">
-                      Type
-                    </span>
-                    <span className="text-sm font-medium">
-                      {platform.tokenName}
-                    </span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <span className="text-xs font-semibold text-[var(--color-text-muted)] w-20 flex-shrink-0">
-                      Scopes
-                    </span>
-                    <div className="space-y-1">
-                      {platform.requiredScopes.map((scope) => (
-                        <div
-                          key={scope}
-                          className="flex items-center gap-1.5"
-                        >
-                          <Check className="h-3 w-3 text-cyan-500 shrink-0" />
-                          <code className="text-xs font-mono text-[var(--color-text-secondary)]">
-                            {scope}
-                          </code>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
+# example
+123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11|@my_zcrypt_vault`}</DocCode>
+        <DocList
+          items={[
+            <>
+              Create the bot by messaging <strong>@BotFather</strong> and sending{" "}
+              <code>/newbot</code>; copy the token it gives you.
+            </>,
+            <>
+              Make a <strong>private channel or group</strong> to hold your files
+              and add the bot to it as an administrator.
+            </>,
+            <>
+              Use the channel&apos;s <code>@username</code> or its numeric ID as{" "}
+              <code>CHAT_ID</code>, then paste{" "}
+              <code>BOT_TOKEN|CHAT_ID</code> into zcrypt.
+            </>,
+          ]}
+        />
+      </DocSection>
 
-              {/* Setup steps */}
-              <div className="space-y-2.5">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
-                  Setup steps
-                </h3>
-                {platform.steps.map((step, i) => (
-                  <div key={i} className="flex gap-3">
-                    <span className="flex-shrink-0 h-5 w-5 rounded-full bg-[var(--color-surface-2)] flex items-center justify-center text-[10px] font-bold text-[var(--color-text-muted)]">
-                      {i + 1}
-                    </span>
-                    <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
-                      {step}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+      <DocSection id="multiple" title="Multiple accounts & managed storage">
+        <DocP>
+          You can connect more than one account per platform — for example two
+          GitHub accounts — and zcrypt keeps a separate repository pool for each.
+          That multiplies your usable space and isolates rotation per account.
+        </DocP>
+        <DocP>
+          Administrators of a zcrypt instance can also mark a token{" "}
+          <strong>global / managed</strong>, so users can store files without
+          connecting any account of their own. When no personal token and no
+          managed storage is available yet, uploads return a clear
+          &quot;storage not available&quot; message instead of failing silently.
+        </DocP>
+      </DocSection>
 
-      {/* Auto-rotation */}
-      <section className="py-16 px-4 bg-[var(--color-surface)]">
-        <div className="max-w-3xl mx-auto">
-          <h2 className="text-xl font-bold mb-4">
-            Automatic Repository Rotation
-          </h2>
-          <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed">
-            <p>
-              zcrypt monitors the storage usage of each repository. When a
-              repository approaches its platform-specific size threshold,
-              zcrypt automatically creates a new repository and begins storing
-              new chunks there.
-            </p>
-            <p>
-              Rotation thresholds are conservative to ensure reliability.
-              Telegram has no hard storage cap, so its threshold is a virtual
-              value zcrypt uses to spread files across multiple channels for
-              performance.
-            </p>
-          </div>
-          <div className="mt-4 card overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-1)]">
-                  <th className="text-left px-4 py-2.5 text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wider">
-                    Platform
-                  </th>
-                  <th className="text-right px-4 py-2.5 text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wider">
-                    Rotation Threshold
-                  </th>
-                  <th className="text-right px-4 py-2.5 text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wider">
-                    Platform Limit
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {[
-                  { name: "GitHub", threshold: "850 MB", limit: "~1 GB" },
-                  { name: "GitLab", threshold: "9 GB", limit: "10 GB" },
-                  {
-                    name: "Hugging Face",
-                    threshold: "280 GB",
-                    limit: "300 GB (LFS)",
-                  },
-                  {
-                    name: "Telegram",
-                    threshold: "50 GB",
-                    limit: "No hard limit",
-                  },
-                ].map((row) => (
-                  <tr
-                    key={row.name}
-                    className="border-t border-[var(--color-border)]"
-                  >
-                    <td className="px-4 py-2.5 font-medium">{row.name}</td>
-                    <td className="px-4 py-2.5 text-right font-mono text-xs">
-                      {row.threshold}
-                    </td>
-                    <td className="px-4 py-2.5 text-right font-mono text-xs text-[var(--color-text-muted)]">
-                      {row.limit}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      {/* Related */}
-      <section className="py-16 px-4">
-        <div className="max-w-3xl mx-auto">
-          <h2 className="text-xl font-bold mb-6">Related</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Link
-              href="/docs/getting-started"
-              className="card p-5 group hover:border-cyan-500/40 transition-colors"
-            >
-              <h3 className="text-sm font-bold mb-1 flex items-center gap-2">
-                Getting Started
-                <ArrowRight className="h-3 w-3 text-cyan-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-              </h3>
-              <p className="text-sm text-[var(--color-text-secondary)]">
-                Create your account and upload your first encrypted file.
-              </p>
-            </Link>
-            <Link
-              href="/docs/security"
-              className="card p-5 group hover:border-cyan-500/40 transition-colors"
-            >
-              <h3 className="text-sm font-bold mb-1 flex items-center gap-2">
-                Security Model
-                <ArrowRight className="h-3 w-3 text-cyan-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-              </h3>
-              <p className="text-sm text-[var(--color-text-secondary)]">
-                How zcrypt encrypts your data and protects your tokens.
-              </p>
-            </Link>
-          </div>
-        </div>
-      </section>
-    </>
+      <DocSection id="next" title="Where to go next">
+        <DocList
+          items={[
+            <Link key="a" href="/docs/repo-pool" className="text-cyan-600 hover:underline dark:text-cyan-400">
+              Repo pool &amp; rotation — how your space grows across many repositories
+            </Link>,
+            <Link key="b" href="/docs/connect-storage" className="text-cyan-600 hover:underline dark:text-cyan-400">
+              Connect your storage — step-by-step token setup for each platform
+            </Link>,
+            <Link key="c" href="/docs/obfuscation" className="text-cyan-600 hover:underline dark:text-cyan-400">
+              Storage obfuscation — disguised filenames, commit messages, and repo names
+            </Link>,
+          ]}
+        />
+      </DocSection>
+    </DocPage>
   );
 }

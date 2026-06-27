@@ -1,257 +1,260 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, Shield, Lock, Key, Eye } from "@/lib/icons";
-import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
+import {
+  DocPage,
+  DocSection,
+  DocP,
+  DocList,
+  DocCode,
+  DocNote,
+  DocTable,
+} from "@/components/docs/doc-page";
 
 export const metadata: Metadata = {
-  title: "Security | zcrypt Docs",
+  title: "Encryption model | zcrypt Docs",
   description:
-    "How zcrypt encrypts your files with AES-256-GCM, the zero-knowledge architecture, and our threat model.",
-  alternates: {
-    canonical: "https://zcrypt.cloud/docs/security",
-  },
+    "The exact cryptography behind zcrypt: AES-256-GCM with envelope encryption, PBKDF2-HMAC-SHA256 at 600,000 iterations, a random per-file content key, and client-side zstd compression — all performed on your device before anything leaves it.",
+  alternates: { canonical: "https://zcrypt.cloud/docs/security" },
   openGraph: {
-    title: "Security | zcrypt Docs",
+    title: "Encryption model | zcrypt Docs",
     description:
-      "How zcrypt encrypts your files with AES-256-GCM, zero-knowledge architecture, and our threat model.",
+      "AES-256-GCM, envelope encryption, PBKDF2 at 600k iterations, and per-file content keys — the precise cryptography zcrypt runs on your device.",
     url: "https://zcrypt.cloud/docs/security",
   },
 };
 
-const sections = [
-  {
-    id: "overview",
-    title: "Security Overview",
-    content: `zcrypt is built on a zero-knowledge architecture. This means that we cannot read, access, or decrypt your files. By design. Your encryption key is derived from a passphrase that only you know, and all cryptographic operations happen locally on your device (in-browser or in the TUI).`,
-  },
-  {
-    id: "encryption",
-    title: "Encryption",
-    subsections: [
-      {
-        title: "Algorithm: AES-256-GCM",
-        content:
-          "Every file is encrypted using AES-256-GCM (Galois/Counter Mode), the same authenticated encryption standard used by financial institutions, governments, and secure messaging apps. GCM provides both confidentiality and integrity. If a single bit of the ciphertext is modified, decryption will fail.",
-      },
-      {
-        title: "Key Derivation",
-        content:
-          "Your passphrase is never transmitted or stored. Instead, it's combined with a unique random salt using a key derivation function (KDF) to produce a 256-bit encryption key. The salt is stored alongside file metadata (it doesn't need to be secret), but the passphrase exists only in your memory and your password manager.",
-      },
-      {
-        title: "Per-File Keys",
-        content:
-          "Each file upload generates a fresh random salt. This means every file has a unique encryption key derived from your passphrase, even if the files are identical. Compromising one file's metadata reveals nothing about other files.",
-      },
-    ],
-  },
-  {
-    id: "pipeline",
-    title: "Upload Pipeline",
-    subsections: [
-      {
-        title: "1. Compression (zstd)",
-        content:
-          "Before encryption, files are compressed using Facebook's Zstandard (zstd) algorithm. This reduces storage usage and upload time. Compression happens locally.",
-      },
-      {
-        title: "2. Encryption (AES-256-GCM)",
-        content:
-          "The compressed payload is encrypted with your derived key. The ciphertext includes an authentication tag that prevents tampering.",
-      },
-      {
-        title: "3. Chunking (10 MB)",
-        content:
-          "Large encrypted files are split into 10 MB chunks. Each chunk is individually uploaded and verified. This enables parallel uploads, resumable transfers, and works within Git platform file-size limits.",
-      },
-      {
-        title: "4. Storage",
-        content:
-          "Encrypted chunks are pushed to your configured storage backend (GitHub, GitLab, or Hugging Face). The chunks are stored as binary blobs in Git repositories with randomized filenames and commit messages to prevent metadata leakage.",
-      },
-    ],
-  },
-  {
-    id: "zero-knowledge",
-    title: "Zero-Knowledge Architecture",
-    subsections: [
-      {
-        title: "What we store",
-        content:
-          "File metadata (original name, size, chunk count, SHA-256 hash of the plaintext), encryption salt, and your account credentials (email, bcrypt-hashed password). We also store an index mapping files to their storage locations.",
-      },
-      {
-        title: "What we never store",
-        content:
-          "Your passphrase, encryption keys, or any plaintext file data. These exist only on your device during active sessions. When you close the browser, they're gone.",
-      },
-      {
-        title: "What this means",
-        content:
-          "Even if our database is fully compromised, an attacker gets encrypted blobs (useless without your passphrase), file metadata, and hashed passwords. They cannot reconstruct your files. A court order demanding your data would yield nothing useful. We physically cannot comply.",
-      },
-    ],
-  },
-  {
-    id: "threat-model",
-    title: "Threat Model",
-    subsections: [
-      {
-        title: "Protected against",
-        content:
-          "Server-side breaches (database, storage backends), man-in-the-middle attacks (TLS + client-side encryption), insider threats (we cannot access your files), storage provider access (GitHub/GitLab see only encrypted blobs), and metadata leakage (randomized filenames and commit messages).",
-      },
-      {
-        title: "Not protected against",
-        content:
-          "Compromised client device (keylogger, malware capturing your passphrase), weak passphrase (if someone guesses your passphrase, they can derive your key), and supply-chain attacks on the frontend JavaScript (mitigated by open-source code; you can self-host or audit).",
-      },
-      {
-        title: "Mitigations",
-        content:
-          "Use a strong, unique passphrase. Enable two-factor authentication (TOTP). Keep your devices secure. For maximum assurance, audit the open-source code or use the TUI (compiled binary, no browser supply-chain risk).",
-      },
-    ],
-  },
-  {
-    id: "platform-tokens",
-    title: "Platform Token Security",
-    subsections: [
-      {
-        title: "Encryption at rest",
-        content:
-          "When you connect a storage backend, your platform access token (GitHub PAT, GitLab token, etc.) is encrypted with AES-256-GCM using a key-encryption key (KEK) derived from a server-side master key. Tokens are never stored in plaintext.",
-      },
-      {
-        title: "Minimal permissions",
-        content:
-          "We only request the minimum permissions needed: repository read/write access. No access to your other repositories, profile, or organization data.",
-      },
-    ],
-  },
+const toc = [
+  { id: "primitives", title: "The primitives" },
+  { id: "envelope", title: "Envelope encryption" },
+  { id: "derivation", title: "Key derivation" },
+  { id: "pipeline", title: "The upload pipeline" },
+  { id: "chunks", title: "Chunks & integrity" },
+  { id: "next", title: "Where to go next" },
 ];
 
-export default function SecurityPage() {
+export default function EncryptionModelPage() {
   return (
-    <>
-      <BreadcrumbJsonLd
-        items={[
-          { name: "Home", url: "https://zcrypt.cloud" },
-          { name: "Documentation", url: "https://zcrypt.cloud/docs" },
-          { name: "Security", url: "https://zcrypt.cloud/docs/security" },
-        ]}
-      />
-      {/* Header */}
-      <section className="pt-24 md:pt-32 pb-12 px-4">
-        <div className="max-w-3xl mx-auto">
-          <Link
-            href="/docs"
-            className="inline-flex items-center gap-1.5 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors mb-6"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            Back to docs
+    <DocPage
+      href="/docs/security"
+      title="Encryption model"
+      description="Everything in zcrypt is encrypted on your device before it touches the network. This page documents exactly which algorithms run, in what order, and where each key lives — no hand-waving."
+      toc={toc}
+    >
+      <DocSection id="primitives" title="The primitives">
+        <DocP>
+          zcrypt uses a small, deliberately boring set of well-understood
+          primitives. There is no custom cipher and no novel construction — just
+          standard authenticated encryption and a standard key-derivation
+          function, run client-side via the Web Crypto API (in the browser) or
+          the Go standard library (in the TUI). The exact parameters below are
+          shared by both clients, so a file encrypted in the browser decrypts in
+          the TUI and vice versa.
+        </DocP>
+        <DocTable
+          head={["Purpose", "Primitive", "Parameters"]}
+          rows={[
+            [
+              "Content encryption",
+              <span key="a" className="font-mono">AES-256-GCM</span>,
+              "256-bit key, 12-byte random nonce, 16-byte auth tag",
+            ],
+            [
+              "Key derivation",
+              <span key="b" className="font-mono">PBKDF2-HMAC-SHA256</span>,
+              "600,000 iterations, 32-byte random salt, 256-bit output",
+            ],
+            [
+              "Integrity",
+              <span key="c" className="font-mono">SHA-256</span>,
+              "Per-chunk and whole-file digests",
+            ],
+            [
+              "Token wrapping (server-side)",
+              <span key="d" className="font-mono">HKDF-SHA256 + AES-256-GCM</span>,
+              "Per-user KEK derived from a server master key",
+            ],
+          ]}
+        />
+        <DocNote type="info" title="Why AES-GCM specifically">
+          GCM is <em>authenticated</em> encryption: every ciphertext carries a
+          16-byte tag bound to the key and nonce. Flip a single bit of a stored
+          chunk and decryption fails loudly rather than returning garbage. You
+          get confidentiality and tamper-detection from one pass.
+        </DocNote>
+        <DocP>
+          The last row — token wrapping — is the one place zcrypt holds a key
+          server-side, and it never touches your files. It is covered honestly
+          in{" "}
+          <Link href="/docs/zero-knowledge" className="text-cyan-600 hover:underline dark:text-cyan-400">
+            the zero-knowledge architecture
           </Link>
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight font-heading">
-            Security
-          </h1>
-          <p className="mt-3 text-lg text-[var(--color-text-secondary)] max-w-2xl leading-relaxed">
-            How zcrypt protects your files with AES-256-GCM, zero-knowledge
-            architecture, and a transparent threat model.
-          </p>
-        </div>
-      </section>
+          .
+        </DocP>
+      </DocSection>
 
-      {/* Table of contents */}
-      <section className="pb-8 px-4">
-        <div className="max-w-3xl mx-auto">
-          <nav className="card p-5">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)] mb-3">
-              On this page
-            </h2>
-            <ul className="space-y-1.5">
-              {sections.map((s) => (
-                <li key={s.id}>
-                  <a
-                    href={`#${s.id}`}
-                    className="text-sm text-[var(--color-text-secondary)] hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors"
-                  >
-                    {s.title}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        </div>
-      </section>
+      <DocSection id="envelope" title="Envelope encryption">
+        <DocP>
+          Your passphrase does not encrypt your files directly. Instead, every
+          file gets its own random 256-bit <strong>Content Encryption Key
+          (CEK)</strong>. The file&apos;s chunks are encrypted with that CEK, and
+          the CEK itself is then <em>wrapped</em> (encrypted) with a Key
+          Encryption Key (KEK) derived from your passphrase. This is called
+          envelope encryption.
+        </DocP>
+        <DocList
+          items={[
+            <>
+              <strong>The CEK</strong> is generated fresh, at random, per file —
+              never derived from anything you type.
+            </>,
+            <>
+              <strong>The KEK</strong> is derived from your passphrase plus the
+              file&apos;s salt and is used only to wrap and unwrap the CEK.
+            </>,
+            <>
+              <strong>The server stores the wrapped CEK</strong> (a small
+              base64 ciphertext) and the salt, but holds no key that can unwrap
+              it.
+            </>,
+          ]}
+        />
+        <DocP>
+          This indirection is what makes secure sharing and{" "}
+          <Link href="/docs/folder-encryption" className="text-cyan-600 hover:underline dark:text-cyan-400">
+            per-folder passwords
+          </Link>{" "}
+          possible without ever exposing your passphrase: zcrypt can re-wrap a
+          file&apos;s CEK under a different key — a one-time share key, or a
+          folder-password key — so a recipient (or a different password) can
+          decrypt that one file while your master passphrase never moves. The
+          underlying chunks are untouched; only the small wrapped CEK changes.
+          See{" "}
+          <Link href="/docs/key-management" className="text-cyan-600 hover:underline dark:text-cyan-400">
+            passphrase &amp; key management
+          </Link>{" "}
+          for how keys flow end to end.
+        </DocP>
+        <DocNote type="security" title="Legacy files">
+          A small number of files predate envelope encryption and were encrypted
+          directly with the passphrase-derived key (no wrapped CEK). zcrypt
+          detects this automatically on download — a file with no stored wrapped
+          CEK uses the passphrase-derived key as the content key directly — so
+          either path just works and you never have to think about it.
+        </DocNote>
+      </DocSection>
 
-      {/* Content */}
-      <section className="pb-24 px-4">
-        <div className="max-w-3xl mx-auto space-y-16">
-          {sections.map((section) => (
-            <div key={section.id} id={section.id} className="scroll-mt-24">
-              <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                <div className="h-1 w-1 rounded-full bg-cyan-500" />
-                {section.title}
-              </h2>
+      <DocSection id="derivation" title="Key derivation">
+        <DocP>
+          Keys are derived with PBKDF2-HMAC-SHA256 at <strong>600,000
+          iterations</strong> against a cryptographically random{" "}
+          <strong>32-byte salt</strong>. The high iteration count makes each
+          guess expensive, so brute-forcing a strong passphrase is
+          computationally impractical. The salt is unique per file, so identical
+          passphrases never produce identical keys and a precomputed-table
+          attack buys an adversary nothing.
+        </DocP>
+        <DocCode label="key derivation (conceptual)">{`salt = random(32 bytes)                       // unique per file
+KEK  = PBKDF2-HMAC-SHA256(passphrase, salt,    // 600,000 iterations
+                          iter = 600000,
+                          dkLen = 32)
+CEK  = random(32 bytes)                        // unique per file
+wrappedCEK = AES-256-GCM(key = KEK, plaintext = CEK)`}</DocCode>
+        <DocP>
+          The salt is not secret — it is stored alongside the file&apos;s
+          metadata. The passphrase is. It is never transmitted, never written to
+          our database, and exists only in your device&apos;s memory for the
+          duration of an unlocked session.
+        </DocP>
+      </DocSection>
 
-              {section.content && (
-                <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed mb-6">
-                  {section.content}
-                </p>
-              )}
+      <DocSection id="pipeline" title="The upload pipeline">
+        <DocP>
+          When you add a file, all of the heavy lifting happens locally — in a
+          Web Worker in the browser, or on-device in the TUI. The server only
+          ever receives finished, encrypted chunks.
+        </DocP>
+        <DocList
+          ordered
+          items={[
+            <>
+              <strong>Compress.</strong> The file is compressed with zstd{" "}
+              <em>on your device, before encryption</em>. Encrypted data is
+              effectively random and will not compress, so this order matters.
+            </>,
+            <>
+              <strong>Encrypt.</strong> Each compressed chunk is sealed with
+              AES-256-GCM under the file&apos;s CEK, producing{" "}
+              <span className="font-mono">[12B nonce][ciphertext][16B tag]</span>.
+            </>,
+            <>
+              <strong>Hash.</strong> A SHA-256 digest is computed per chunk for
+              integrity, and a whole-file digest is recorded.
+            </>,
+            <>
+              <strong>Store.</strong> Chunks are pushed to your configured
+              storage backend as opaque binary blobs.
+            </>,
+          ]}
+        />
+        <DocNote type="warning" title="Compression is client-side only">
+          The backend does <strong>not</strong> compress anything. It merely
+          carries a per-chunk <span className="font-mono">compressed</span> flag
+          so the client knows whether to run zstd in reverse on the way back
+          down. Older documentation implied server-side zstd — that was never
+          how it worked.
+        </DocNote>
+      </DocSection>
 
-              {section.subsections && (
-                <div className="space-y-6">
-                  {section.subsections.map((sub, i) => (
-                    <div
-                      key={i}
-                      className="pl-5 border-l-2 border-[var(--color-border)]"
-                    >
-                      <h3 className="text-sm font-bold mb-2">{sub.title}</h3>
-                      <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
-                        {sub.content}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </section>
+      <DocSection id="chunks" title="Chunks & integrity">
+        <DocP>
+          Files are split into chunks so uploads can run in parallel, resume
+          after interruption, and stay within storage-provider size limits. The
+          plaintext chunk size is chosen adaptively for your device —{" "}
+          <strong>4 MB</strong> on constrained hardware up to{" "}
+          <strong>16 MB</strong> on machines with plenty of memory — and each
+          encrypted chunk adds a 12-byte nonce plus a 16-byte tag of overhead.
+          Encrypted chunks therefore top out around <strong>16–17 MB</strong>.
+        </DocP>
+        <DocList
+          items={[
+            <>
+              Every chunk is independently authenticated by its GCM tag, so
+              tampering with one chunk cannot silently corrupt the file.
+            </>,
+            <>
+              Per-chunk and whole-file SHA-256 digests let the client verify
+              that what it downloaded is exactly what it uploaded.
+            </>,
+            <>
+              Because each chunk is encrypted on its own, large files stream
+              through memory in bounded windows rather than being held whole.
+            </>,
+          ]}
+        />
+        <DocNote type="info" title="On chunk sizes">
+          A nonce and a tag are appended per chunk, not per file, so overhead is
+          a flat ~28 bytes per chunk regardless of file size. The exact
+          plaintext window is picked from your device&apos;s reported memory at
+          upload time.
+        </DocNote>
+      </DocSection>
 
-      {/* Next steps */}
-      <section className="py-16 px-4 bg-[var(--color-surface)]">
-        <div className="max-w-3xl mx-auto">
-          <h2 className="text-xl font-bold mb-6">Related</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Link
-              href="/docs/getting-started"
-              className="card p-5 group hover:border-cyan-500/40 transition-colors"
-            >
-              <h3 className="text-sm font-bold mb-1 flex items-center gap-2">
-                Getting Started
-                <ArrowRight className="h-3 w-3 text-cyan-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-              </h3>
-              <p className="text-sm text-[var(--color-text-secondary)]">
-                Create an account and upload your first encrypted file.
-              </p>
-            </Link>
-            <Link
-              href="/docs/platform-adapters"
-              className="card p-5 group hover:border-cyan-500/40 transition-colors"
-            >
-              <h3 className="text-sm font-bold mb-1 flex items-center gap-2">
-                Platform Adapters
-                <ArrowRight className="h-3 w-3 text-cyan-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-              </h3>
-              <p className="text-sm text-[var(--color-text-secondary)]">
-                Connect your own storage backends with platform tokens.
-              </p>
-            </Link>
-          </div>
-        </div>
-      </section>
-    </>
+      <DocSection id="next" title="Where to go next">
+        <DocP>Dig into the guarantees and the honest edges of this design.</DocP>
+        <DocList
+          items={[
+            <Link key="a" href="/docs/zero-knowledge" className="text-cyan-600 hover:underline dark:text-cyan-400">
+              Zero-knowledge architecture — what the server can and cannot see
+            </Link>,
+            <Link key="b" href="/docs/key-management" className="text-cyan-600 hover:underline dark:text-cyan-400">
+              Passphrase &amp; key management — how keys are derived, held, and revoked
+            </Link>,
+            <Link key="c" href="/docs/threat-model" className="text-cyan-600 hover:underline dark:text-cyan-400">
+              Threat model — what zcrypt defends against, and what it does not
+            </Link>,
+          ]}
+        />
+      </DocSection>
+    </DocPage>
   );
 }

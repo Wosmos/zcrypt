@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect } from "react";
 import { useVaultLock, type UseVaultLock } from "@/hooks/useVaultLock";
 import { PassphraseModal } from "@/components/ui/passphrase-modal";
 import { usePassphraseStore } from "@/store/passphrase";
+import { verifyVaultPassphrase } from "@/lib/vault-verify";
 
 /**
  * VaultLockProvider — owns the ONE vault-unlock instance for the whole
@@ -29,7 +30,7 @@ export function useVaultLockContext(): UseVaultLock {
 }
 
 export function VaultLockProvider({ children }: { children: React.ReactNode }) {
-  const vault = useVaultLock();
+  const vault = useVaultLock({ verify: verifyVaultPassphrase });
 
   // Restore a device-persisted passphrase ("keep me unlocked on this device")
   // once on load, so the vault is already unlocked — no re-prompt, and encrypted
