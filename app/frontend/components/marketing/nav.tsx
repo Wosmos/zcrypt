@@ -31,6 +31,7 @@ import {
   Shield,
   Server,
   Code,
+  Download,
 } from "@/lib/icons";
 import { Logo } from "@/components/ui/logo";
 
@@ -357,6 +358,13 @@ export function MarketingNav() {
               ))}
 
               <Link
+                href="/download"
+                className={cn(triggerClass(pathname === "/download"))}
+              >
+                Download
+              </Link>
+
+              <Link
                 href="/philosophy"
                 className={cn(triggerClass(pathname === "/philosophy"))}
               >
@@ -529,9 +537,18 @@ export function MarketingNav() {
                 </Link>
 
                 <Link
-                  href="/philosophy"
+                  href="/download"
                   onClick={() => setMobileOpen(false)}
                   className="mt-1 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)]"
+                >
+                  <Download className="h-4 w-4 text-cyan-500" />
+                  Download
+                </Link>
+
+                <Link
+                  href="/philosophy"
+                  onClick={() => setMobileOpen(false)}
+                  className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)]"
                 >
                   Why zcrypt
                 </Link>

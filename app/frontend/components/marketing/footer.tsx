@@ -20,11 +20,11 @@ const FOOTER_COLUMNS: { title: string; links: FooterLink[] }[] = [
   {
     title: "Compare & apps",
     links: [
+      { label: "Download", href: "/download" },
       { label: "vs Dropbox", href: "/vs/dropbox" },
       { label: "vs Google Drive", href: "/vs/google-drive" },
       { label: "vs Proton Drive", href: "/vs/proton-drive" },
       { label: "Terminal app", href: "/tui" },
-      { label: "Desktop app", href: "/docs/desktop-app" },
     ],
   },
   {

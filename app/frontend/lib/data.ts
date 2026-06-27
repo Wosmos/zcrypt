@@ -423,6 +423,94 @@ export const tuiInstallMethods = [
   },
 ] as const;
 
+// ─── Downloads ──────────────────────────────────────────────
+// Single source of truth for the /download page. Asset filenames must match
+// what the release workflows publish to the GitHub Release:
+//   • Desktop installers  → .github/workflows/desktop.yml  (Tauri bundle)
+//   • CLI / TUI binaries   → .github/workflows/release.yml  (GoReleaser)
+// Bump the two version constants when a new release goes out — everything else
+// is derived from them.
+
+export const GITHUB_REPO = "https://github.com/Wosmos/zcrypt";
+export const RELEASES_URL = `${GITHUB_REPO}/releases`;
+export const LATEST_RELEASE_URL = `${RELEASES_URL}/latest`;
+
+/** Tauri desktop bundle version (productName "zcrypt" in tauri.conf.json). */
+export const DESKTOP_VERSION = "0.1.0";
+/** GoReleaser CLI/TUI version. */
+export const CLI_VERSION = "0.1.0";
+
+const desktopAsset = (file: string) =>
+  `${RELEASES_URL}/download/v${DESKTOP_VERSION}/${file}`;
+const cliAsset = (file: string) =>
+  `${RELEASES_URL}/download/v${CLI_VERSION}/${file}`;
+
+export type PlatformId = "macos" | "windows" | "linux";
+
+export interface DownloadOption {
+  label: string;
+  /** Short qualifier, e.g. "M1–M4 · .dmg". */
+  sublabel: string;
+  href: string;
+  /** The build most people on this OS should pick. */
+  recommended?: boolean;
+}
+
+export interface DesktopPlatform {
+  id: PlatformId;
+  name: string;
+  blurb: string;
+  options: DownloadOption[];
+}
+
+export const desktopPlatforms: DesktopPlatform[] = [
+  {
+    id: "macos",
+    name: "macOS",
+    blurb: "Apple Silicon, macOS 11 Big Sur or later.",
+    options: [
+      { label: "Apple Silicon", sublabel: "M1–M4 · .dmg", href: desktopAsset(`zcrypt_${DESKTOP_VERSION}_aarch64.dmg`), recommended: true },
+    ],
+  },
+  {
+    id: "windows",
+    name: "Windows",
+    blurb: "Windows 10 and 11, 64-bit.",
+    options: [
+      { label: "Installer", sublabel: "x64 · .exe", href: desktopAsset(`zcrypt_${DESKTOP_VERSION}_x64-setup.exe`), recommended: true },
+      { label: "MSI package", sublabel: "x64 · .msi", href: desktopAsset(`zcrypt_${DESKTOP_VERSION}_x64_en-US.msi`) },
+    ],
+  },
+  {
+    id: "linux",
+    name: "Linux",
+    blurb: "64-bit. AppImage runs anywhere; deb/rpm for your package manager.",
+    options: [
+      { label: "AppImage", sublabel: "x86_64 · portable", href: desktopAsset(`zcrypt_${DESKTOP_VERSION}_amd64.AppImage`), recommended: true },
+      { label: "Debian / Ubuntu", sublabel: "amd64 · .deb", href: desktopAsset(`zcrypt_${DESKTOP_VERSION}_amd64.deb`) },
+      { label: "Fedora / RHEL", sublabel: "x86_64 · .rpm", href: desktopAsset(`zcrypt-${DESKTOP_VERSION}-1.x86_64.rpm`) },
+    ],
+  },
+];
+
+/** Prebuilt CLI/TUI binaries (GoReleaser) — live on the current release. */
+export interface CliBinary {
+  os: "macOS" | "Linux" | "Windows";
+  arch: string;
+  href: string;
+}
+
+export const cliBinaries: CliBinary[] = [
+  { os: "macOS", arch: "Apple Silicon", href: cliAsset(`zcrypt_${CLI_VERSION}_darwin_arm64.tar.gz`) },
+  { os: "macOS", arch: "Intel", href: cliAsset(`zcrypt_${CLI_VERSION}_darwin_amd64.tar.gz`) },
+  { os: "Linux", arch: "amd64", href: cliAsset(`zcrypt_${CLI_VERSION}_linux_amd64.tar.gz`) },
+  { os: "Linux", arch: "arm64", href: cliAsset(`zcrypt_${CLI_VERSION}_linux_arm64.tar.gz`) },
+  { os: "Windows", arch: "amd64", href: cliAsset(`zcrypt_${CLI_VERSION}_windows_amd64.zip`) },
+  { os: "Windows", arch: "arm64", href: cliAsset(`zcrypt_${CLI_VERSION}_windows_arm64.zip`) },
+];
+
+export const CHECKSUMS_URL = cliAsset("checksums.txt");
+
 export interface TUIQuickStep {
   step: string;
   title: string;
