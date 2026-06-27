@@ -41,14 +41,16 @@ export interface RoadmapItem {
 // ─── Marquee ──────────────────────────────────────────────────
 
 export const marqueeItems = [
-  "Open source",
-  "AES-256-GCM encryption",
+  "Real folders & file explorer",
+  "Preview any file — still encrypted",
+  "Per-folder passwords",
   "Zero-knowledge — we can't read your files",
-  "Your own storage",
+  "AES-256-GCM encryption",
+  "Your own storage accounts",
   "No artificial limits",
-  "Your data stays private",
-  "Multi-platform support",
-  "Smart compression",
+  "Open source",
+  "Trash & restore",
+  "Pause & resume uploads",
   "Terminal app available",
 ] as const;
 
@@ -202,6 +204,18 @@ export const faqs: FAQ[] = [
   {
     q: "What is BYOB (Bring Your Own Backend)?",
     a: "BYOB is the core of how zcrypt works: you connect your own GitHub, GitLab, Hugging Face, or Telegram account as the storage backend. Your encrypted data lives on infrastructure you control, and zcrypt handles the encryption and chunking. Because it's your account, your storage is bounded only by that platform's free space.",
+  },
+  {
+    q: "Does zcrypt have real folders, or just a flat file list?",
+    a: "Real folders. zcrypt is a full encrypted drive: create and nest folders, drag files to organize them, search, sort, and switch between grid and list views. Folder names are encrypted too, so even your structure stays private.",
+  },
+  {
+    q: "Can I preview files without downloading them?",
+    a: "Yes. zcrypt previews images, video, audio, PDFs, documents (DOCX), Markdown, CSVs, and source code directly in the browser. Each file is decrypted on the fly on your device — the plaintext never touches our servers.",
+  },
+  {
+    q: "Can I password-protect a single folder?",
+    a: "Yes. Any folder can have its own password, separate from your account passphrase. The files inside are re-encrypted under that folder's key, so even with your vault unlocked, a protected folder stays sealed until you enter its password.",
   },
   {
     q: "Can I access my files across multiple devices?",
@@ -441,106 +455,135 @@ export const tuiQuickStart: TUIQuickStep[] = [
   },
 ];
 
-// ─── Docs Page Data ─────────────────────────────────────────
+// ─── Docs Navigation ────────────────────────────────────────
+// Single source of truth for the docs sidebar, the docs index grid, and the
+// search index. Keep titles/desc accurate to what actually ships — honest
+// labels only. `badge: "Beta"` marks features that work but are still
+// maturing; `badge: "Roadmap"` marks planned-but-not-shipped.
 
-export interface DocsCategory {
-  icon: string;
+export interface DocsNavLink {
   title: string;
+  href: string;
   desc: string;
-  href: string | null;
-  comingSoon: boolean;
+  badge?: "Beta" | "Roadmap" | "New";
+  /** External (e.g. the TUI marketing page) — render with a normal anchor. */
+  external?: boolean;
 }
 
-export const docsCategories: DocsCategory[] = [
+export interface DocsNavGroup {
+  title: string;
+  /** Short one-liner shown under the group heading on the docs index. */
+  summary: string;
+  links: DocsNavLink[];
+}
+
+export const docsNav: DocsNavGroup[] = [
   {
-    icon: "Rocket",
     title: "Getting Started",
-    desc: "Walk through account setup, passphrase creation, connecting a storage platform, and uploading your first encrypted file from the web dashboard.",
-    href: "/docs/getting-started",
-    comingSoon: false,
+    summary: "Set up your encrypted drive and upload your first file.",
+    links: [
+      { title: "Introduction", href: "/docs", desc: "What zcrypt is and how the encrypted drive works." },
+      { title: "Quickstart", href: "/docs/getting-started", desc: "Create an account, connect storage, and upload your first file." },
+      { title: "Core concepts", href: "/docs/concepts", desc: "Vault, passphrase, folders, and chunks — and how they fit together." },
+      { title: "Connect your storage", href: "/docs/connect-storage", desc: "Link a GitHub, GitLab, Hugging Face, or Telegram account as your backend." },
+    ],
   },
   {
-    icon: "Shield",
+    title: "Organizing files",
+    summary: "Folders, search, previews, and trash — the drive itself.",
+    links: [
+      { title: "Folders & the file explorer", href: "/docs/folders", desc: "Create, nest, rename, and navigate folders in the unified explorer." },
+      { title: "Moving & organizing", href: "/docs/organizing", desc: "Drag and drop, move-to-folder, and bulk actions." },
+      { title: "Search & filters", href: "/docs/search", desc: "Find files fast and filter by type." },
+      { title: "Viewing & previewing files", href: "/docs/viewing-files", desc: "Open images, video, audio, PDFs, docs, and code without downloading." },
+      { title: "Trash & restore", href: "/docs/trash", desc: "Soft-delete, restore, and permanently purge files." },
+    ],
+  },
+  {
     title: "Security",
-    desc: "Deep dive into our AES-256-GCM encryption, zero-knowledge architecture, key derivation, threat model, and how your data stays private at every step.",
-    href: "/docs/security",
-    comingSoon: false,
+    summary: "How the zero-knowledge encryption actually works.",
+    links: [
+      { title: "Encryption model", href: "/docs/security", desc: "AES-256-GCM, key derivation, and per-file keys." },
+      { title: "Zero-knowledge architecture", href: "/docs/zero-knowledge", desc: "What we store, and what we can never see." },
+      { title: "Per-folder encryption", href: "/docs/folder-encryption", desc: "How password-protected folders are re-keyed end to end." },
+      { title: "Passphrase & key management", href: "/docs/key-management", desc: "How your keys are derived and kept on your device." },
+      { title: "Threat model", href: "/docs/threat-model", desc: "What zcrypt protects against — and what it can't." },
+      { title: "Storage obfuscation", href: "/docs/obfuscation", desc: "Disguised filenames, commit messages, and repo names." },
+    ],
   },
   {
-    icon: "Zap",
-    title: "Tools",
-    desc: "Learn about built-in tools like Send for one-time file sharing, Pad for encrypted notes, Transfer for cross-device file moves, and integrity checks.",
-    href: "/docs/tools",
-    comingSoon: false,
+    title: "Storage backends",
+    summary: "Bring your own storage and let it grow automatically.",
+    links: [
+      { title: "Bring your own storage", href: "/docs/platform-adapters", desc: "Connect GitHub, GitLab, Hugging Face, or Telegram, and manage tokens." },
+      { title: "Repo pool & rotation", href: "/docs/repo-pool", desc: "How your storage grows across repositories automatically." },
+    ],
   },
   {
-    icon: "Bell",
-    title: "Dead Man's Switch",
-    desc: "Automatically notify a trusted contact if you stop checking in. Configurable timeout from 7 to 365 days with custom messages.",
-    href: "/docs/dead-mans-switch",
-    comingSoon: false,
+    title: "Sharing & sending",
+    summary: "Get files to other people and your other devices.",
+    links: [
+      { title: "Share links", href: "/docs/sharing", desc: "Share a file with an optional password, expiry, and download limit." },
+      { title: "Anonymous Send", href: "/docs/send", desc: "Send an encrypted file without an account." },
+      { title: "Encrypted Pad", href: "/docs/pad", desc: "Share a one-time encrypted note." },
+      { title: "Sync & device transfer", href: "/docs/sync-transfer", desc: "Encrypted clipboard sync and device-to-device transfer." },
+    ],
   },
   {
-    icon: "Eye",
-    title: "Decoy Profile",
-    desc: "Create a fake vault with a decoy password for plausible deniability. Show innocent-looking files when forced to log in.",
-    href: "/docs/decoy-profile",
-    comingSoon: false,
+    title: "Transfers",
+    summary: "How files move in and out of your drive.",
+    links: [
+      { title: "How it works", href: "/docs/how-it-works", desc: "A file's journey: compress, encrypt, chunk, upload." },
+      { title: "Uploading", href: "/docs/uploading", desc: "Compression, encryption, chunking, and direct uploads." },
+      { title: "Downloading", href: "/docs/downloading", desc: "Fetching, verifying, and decrypting your files." },
+      { title: "Transfer manager", href: "/docs/transfer-manager", desc: "Pause, resume, retry, and track every transfer." },
+      { title: "Bulk operations", href: "/docs/bulk", desc: "Download many files as a ZIP, or bulk-delete." },
+    ],
   },
   {
-    icon: "FileText",
-    title: "Encrypted Notes",
-    desc: "End-to-end encrypted notepad with tags, pinning, and full-text search. Everything is encrypted in your browser before it reaches the server.",
-    href: "/docs/encrypted-notes",
-    comingSoon: false,
+    title: "Privacy tools",
+    summary: "Optional power features for high-stakes privacy.",
+    links: [
+      { title: "Decoy profile", href: "/docs/decoy-profile", desc: "A second password that opens an innocent-looking decoy vault." },
+      { title: "Dead man's switch", href: "/docs/dead-mans-switch", desc: "Notify a trusted contact if you stop checking in." },
+      { title: "Snapshots & integrity", href: "/docs/snapshots-integrity", desc: "Point-in-time manifests and tamper detection.", badge: "Beta" },
+      { title: "Shared vaults", href: "/docs/shared-vaults", desc: "Collaborative vaults with role-based access.", badge: "Beta" },
+    ],
   },
   {
-    icon: "Users",
-    title: "Shared Vaults",
-    desc: "Create collaborative file vaults and invite other users with role-based access control. Viewer, editor, and admin permissions.",
-    href: "/docs/shared-vaults",
-    comingSoon: false,
+    title: "Account",
+    summary: "Sign-in, two-factor, and recovery.",
+    links: [
+      { title: "Authentication & 2FA", href: "/docs/authentication", desc: "Sign-in, sessions, password rules, and TOTP two-factor." },
+      { title: "Sign in with Google or GitHub", href: "/docs/oauth", desc: "Link and use OAuth providers." },
+      { title: "Account recovery", href: "/docs/recovery", desc: "What is and isn't recoverable — and why." },
+    ],
   },
   {
-    icon: "Workflow",
-    title: "How It Works",
-    desc: "Follow a file through the pipeline: compression with zstd, AES-256-GCM encryption, chunking, and upload to your connected storage backend — all client-side and zero-knowledge.",
-    href: "/docs/how-it-works",
-    comingSoon: false,
+    title: "Apps",
+    summary: "zcrypt on the web, desktop, and terminal.",
+    links: [
+      { title: "Web app", href: "/docs/web-app", desc: "Use zcrypt in any modern browser." },
+      { title: "Desktop app", href: "/docs/desktop-app", desc: "The native desktop build for macOS, Windows, and Linux." },
+      { title: "Terminal app (TUI)", href: "/tui", desc: "Manage your vault from the command line.", external: true },
+    ],
   },
   {
-    icon: "Terminal",
-    title: "Terminal App",
-    desc: "Install the zcrypt TUI to upload, download, and manage your vault directly from the command line with vim-style navigation and real-time progress.",
-    href: "/tui",
-    comingSoon: false,
+    title: "Developers",
+    summary: "Self-host, integrate, and understand the internals.",
+    links: [
+      { title: "Self-hosting", href: "/docs/self-hosting", desc: "Run your own zcrypt instance with Docker." },
+      { title: "API reference", href: "/docs/api", desc: "REST endpoints, authentication, and the SSE event stream." },
+      { title: "Architecture", href: "/docs/architecture", desc: "How the pipeline, adapters, and services fit together." },
+    ],
   },
   {
-    icon: "Globe",
-    title: "Platform Adapters",
-    desc: "Connect GitHub, GitLab, Hugging Face, or Telegram as storage backends. Manage tokens, configure repo pools, and control how encrypted chunks are stored.",
-    href: "/docs/platform-adapters",
-    comingSoon: false,
-  },
-  {
-    icon: "Cog",
-    title: "Advanced Usage",
-    desc: "Snapshots, integrity verification, expiring files, device management, analytics dashboard, and bulk operations.",
-    href: "/docs/advanced",
-    comingSoon: false,
-  },
-  {
-    icon: "HardDrive",
-    title: "Self-Hosting",
-    desc: "Run your own zcrypt instance with Docker. Full control over your backend, database, and storage.",
-    href: "/docs/self-hosting",
-    comingSoon: false,
-  },
-  {
-    icon: "Code",
-    title: "API Reference",
-    desc: "Complete REST API documentation covering authentication, file operations, vault management, and webhooks for building custom integrations with zcrypt.",
-    href: null,
-    comingSoon: true,
+    title: "Reference",
+    summary: "Quick answers and definitions.",
+    links: [
+      { title: "FAQ", href: "/docs/faq", desc: "Common questions, answered plainly." },
+      { title: "Troubleshooting", href: "/docs/troubleshooting", desc: "Fixes for the most common issues." },
+      { title: "Glossary", href: "/docs/glossary", desc: "Terms used across zcrypt, defined." },
+    ],
   },
 ];

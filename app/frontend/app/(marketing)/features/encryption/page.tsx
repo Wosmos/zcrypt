@@ -1,0 +1,391 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import {
+  ArrowRight,
+  ChevronRight,
+  Lock,
+  Key,
+  Shield,
+  ShieldCheck,
+  Cpu,
+  Server,
+  Folder,
+  Eye,
+  Check,
+  X,
+} from "@/lib/icons";
+import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
+
+export const metadata: Metadata = {
+  title: "Zero-Knowledge Encryption — AES-256-GCM, Encrypted on Your Device",
+  description:
+    "Your files are encrypted on your own device with AES-256-GCM before they ever leave. Your key is derived from your passphrase with PBKDF2-SHA256 (600,000 iterations) and never transmitted. The server only ever sees ciphertext — no keys, no plaintext, not even your folder names.",
+  keywords: [
+    "zero-knowledge encryption",
+    "client-side encryption",
+    "AES-256-GCM",
+    "PBKDF2",
+    "end-to-end encrypted storage",
+    "envelope encryption",
+    "encrypted cloud storage",
+    "private cloud",
+  ],
+  alternates: { canonical: "https://zcrypt.cloud/features/encryption" },
+  openGraph: {
+    title: "Zero-Knowledge Encryption — Encrypted on Your Device | zcrypt",
+    description:
+      "AES-256-GCM, on your device, before anything leaves. Your passphrase never travels. The server only ever holds ciphertext — no keys, no plaintext, no folder names.",
+    url: "https://zcrypt.cloud/features/encryption",
+    type: "website",
+  },
+};
+
+const guarantees = [
+  {
+    Icon: Cpu,
+    title: "Encrypted on your device",
+    desc: "Compression and AES-256-GCM encryption happen in your browser, on your machine, before a single byte goes over the wire.",
+  },
+  {
+    Icon: Key,
+    title: "Your key never travels",
+    desc: "Your encryption key is derived from your passphrase with PBKDF2-SHA256 — 600,000 iterations — and stays on your device. It is never sent to us.",
+  },
+  {
+    Icon: Lock,
+    title: "A unique key per file",
+    desc: "Each file gets its own random content key, wrapped by your passphrase key. One file's key can never unlock another.",
+  },
+  {
+    Icon: Folder,
+    title: "Even folder names are sealed",
+    desc: "File names and folder names are encrypted client-side too. The server can't read your files, their names, or how you organized them.",
+  },
+  {
+    Icon: Server,
+    title: "The server only sees ciphertext",
+    desc: "On our side there are no keys and no plaintext — only opaque encrypted blobs we couldn't open even if compelled to.",
+  },
+  {
+    Icon: ShieldCheck,
+    title: "Tamper-evident by design",
+    desc: "AES-256-GCM authenticates every chunk. If ciphertext is altered in transit or at rest, decryption fails loudly instead of returning garbage.",
+  },
+];
+
+const pipeline = [
+  {
+    step: "01",
+    title: "Derive your key",
+    desc: "Your passphrase + a random salt run through PBKDF2-SHA256 (600,000 iterations) to derive a 256-bit key encryption key. This happens locally and the key never leaves your device.",
+  },
+  {
+    step: "02",
+    title: "Seal each file with its own key",
+    desc: "A fresh random content key is generated per file and used to encrypt it with AES-256-GCM. That content key is then wrapped (encrypted) with your passphrase-derived key.",
+  },
+  {
+    step: "03",
+    title: "Encrypt folder names, then chunk",
+    desc: "Folder names are encrypted client-side too. The encrypted file is then split into chunks, each individually authenticated.",
+  },
+  {
+    step: "04",
+    title: "Upload ciphertext only",
+    desc: "Only the wrapped key and the encrypted chunks ever leave your device. The server stores blobs it has no way to read.",
+  },
+];
+
+export default function EncryptionPage() {
+  return (
+    <>
+      <BreadcrumbJsonLd
+        items={[
+          { name: "Home", url: "https://zcrypt.cloud" },
+          { name: "Features", url: "https://zcrypt.cloud/features/encrypted-drive" },
+          { name: "Encryption", url: "https://zcrypt.cloud/features/encryption" },
+        ]}
+      />
+
+      {/* ═══ HERO ═══ */}
+      <section className="relative overflow-hidden px-6 pt-32 pb-16 md:pt-36">
+        <div className="absolute inset-0 -z-10 pointer-events-none">
+          <div className="absolute left-1/2 top-0 h-[500px] w-[700px] -translate-x-1/2 rounded-full bg-cyan-500/10 blur-[120px]" />
+        </div>
+        <div className="mx-auto max-w-3xl text-center">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
+            Zero-knowledge encryption
+          </p>
+          <h1 className="font-heading text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl md:text-6xl">
+            We can&apos;t read your files.
+            <br />
+            <span className="bg-gradient-to-r from-cyan-500 to-cyan-400 bg-clip-text italic text-transparent dark:from-cyan-400 dark:to-cyan-300">
+              That&apos;s the whole point.
+            </span>
+          </h1>
+          <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-[var(--color-text-secondary)]">
+            Your files are encrypted on your own device with AES-256-GCM before
+            they ever leave it. The key is derived from your passphrase and never
+            transmitted. We store ciphertext and nothing else — no keys, no
+            plaintext, not even your folder names.
+          </p>
+          <div className="mt-9 flex flex-col items-center justify-center gap-4 sm:flex-row">
+            <Link
+              href="/register"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-[#2de0ed] via-[#00d5e4] to-[#0093a3] px-8 py-3.5 text-base font-semibold text-slate-900 shadow-lg shadow-cyan-500/30 transition-shadow hover:shadow-xl hover:shadow-cyan-500/50"
+            >
+              Create your vault
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link
+              href="/docs/zero-knowledge"
+              className="inline-flex items-center gap-2 px-5 py-3.5 text-sm font-semibold text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text)]"
+            >
+              Read the docs
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+        </div>
+
+        {/* Encryption boundary diagram */}
+        <div className="mx-auto mt-16 max-w-4xl">
+          <div className="grid gap-4 md:grid-cols-[1fr_auto_1fr] md:items-stretch">
+            {/* trusted device */}
+            <div className="rounded-2xl border border-cyan-500/30 bg-cyan-500/[0.04] p-5">
+              <div className="mb-4 flex items-center gap-2.5">
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-500/10 text-cyan-500">
+                  <Cpu className="h-4 w-4" />
+                </span>
+                <div>
+                  <div className="text-sm font-bold">Your device</div>
+                  <div className="font-mono text-[10px] uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
+                    Trusted zone
+                  </div>
+                </div>
+              </div>
+              <ul className="space-y-2 text-xs text-[var(--color-text-secondary)]">
+                {[
+                  "Passphrase entered here, stays here",
+                  "Key derived locally (PBKDF2)",
+                  "Files + names encrypted (AES-256-GCM)",
+                  "Plaintext never leaves",
+                ].map((t) => (
+                  <li key={t} className="flex items-start gap-2">
+                    <Check className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-cyan-500" strokeWidth={3} />
+                    {t}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* boundary */}
+            <div className="flex flex-row items-center justify-center gap-2 md:flex-col">
+              <div className="hidden h-full w-px bg-gradient-to-b from-transparent via-[var(--color-border)] to-transparent md:block" />
+              <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+                <Lock className="h-3 w-3 text-cyan-500" /> Encryption boundary
+              </span>
+              <div className="hidden h-full w-px bg-gradient-to-b from-transparent via-[var(--color-border)] to-transparent md:block" />
+            </div>
+
+            {/* server */}
+            <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+              <div className="mb-4 flex items-center gap-2.5">
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-black/[0.04] text-[var(--color-text-muted)] dark:bg-white/[0.04]">
+                  <Server className="h-4 w-4" />
+                </span>
+                <div>
+                  <div className="text-sm font-bold">Our servers</div>
+                  <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
+                    Ciphertext only
+                  </div>
+                </div>
+              </div>
+              <ul className="space-y-2 text-xs text-[var(--color-text-secondary)]">
+                {[
+                  "Encrypted blobs, that's it",
+                  "No passphrase, no derived key",
+                  "No plaintext file contents",
+                  "No readable file or folder names",
+                ].map((t) => (
+                  <li key={t} className="flex items-start gap-2">
+                    <X className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-rose-500/70" strokeWidth={3} />
+                    {t}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ═══ GUARANTEES ═══ */}
+      <section className="px-4 py-20">
+        <div className="mx-auto max-w-5xl">
+          <div className="mx-auto mb-12 max-w-2xl text-center">
+            <h2 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
+              What zero-knowledge actually means
+            </h2>
+            <p className="mt-3 text-[var(--color-text-secondary)]">
+              Not a privacy policy promise. A cryptographic one — enforced by
+              where the keys live and what code runs where.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {guarantees.map(({ Icon, title, desc }) => (
+              <div
+                key={title}
+                className="card p-6 transition-colors hover:border-cyan-500/30"
+              >
+                <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-500">
+                  <Icon className="h-5 w-5" />
+                </div>
+                <h3 className="text-sm font-bold">{title}</h3>
+                <p className="mt-1.5 text-sm leading-relaxed text-[var(--color-text-secondary)]">
+                  {desc}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ═══ THE PIPELINE ═══ */}
+      <section className="border-y border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-20">
+        <div className="mx-auto max-w-5xl">
+          <div className="mx-auto mb-12 max-w-2xl text-center">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
+              Envelope encryption
+            </p>
+            <h2 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
+              How a file gets sealed
+            </h2>
+            <p className="mt-3 text-[var(--color-text-secondary)]">
+              Every upload runs the same four steps, entirely on your device.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {pipeline.map((p) => (
+              <div key={p.step} className="card relative p-6">
+                <div className="font-heading text-3xl font-bold text-cyan-500/20">
+                  {p.step}
+                </div>
+                <h3 className="mt-3 text-sm font-bold">{p.title}</h3>
+                <p className="mt-1.5 text-sm leading-relaxed text-[var(--color-text-secondary)]">
+                  {p.desc}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          {/* what the server stores */}
+          <div className="mt-10 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-5 font-mono text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+            <div className="mb-2 text-[var(--color-text-secondary)]">// what actually lands on the server</div>
+            <div className="break-all">
+              <span className="text-cyan-600/80 dark:text-cyan-400/80">wrapped_key</span> 8e30dd·91ac0c·77ae3f·b8d40e — sealed under your passphrase
+            </div>
+            <div className="mt-1.5 break-all">
+              <span className="text-cyan-600/80 dark:text-cyan-400/80">name</span> 9f2a1c·b8d40e·7c5b13·f0e2a9 — sealed
+            </div>
+            <div className="mt-1.5 break-all">
+              <span className="text-cyan-600/80 dark:text-cyan-400/80">chunk[0]</span> a4f9c1·0c77ae·3f5b2a·4f9c1e — AES-256-GCM
+            </div>
+            <div className="mt-1.5 break-all">
+              <span className="text-cyan-600/80 dark:text-cyan-400/80">chunk[1]</span> 4d1b6c·77ae3f·5b2a4f·9c1e0c — AES-256-GCM
+            </div>
+            <div className="mt-4 text-emerald-500">✓ no passphrase. no derived key. no plaintext. no readable names.</div>
+          </div>
+        </div>
+      </section>
+
+      {/* ═══ THE TRADE-OFF (HONESTY) ═══ */}
+      <section className="px-4 py-20">
+        <div className="mx-auto grid max-w-5xl items-center gap-10 lg:grid-cols-2">
+          <div>
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
+              The honest trade-off
+            </p>
+            <h2 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
+              Lose your passphrase and even we can&apos;t recover it
+            </h2>
+            <p className="mt-4 leading-relaxed text-[var(--color-text-secondary)]">
+              True zero-knowledge has a price, and we won&apos;t pretend
+              otherwise. Because your key is derived from your passphrase and
+              never reaches us, we have no &ldquo;reset password and get your
+              files back&rdquo; button. If you lose your passphrase, your data
+              stays encrypted forever — to you and to everyone else.
+            </p>
+            <p className="mt-4 leading-relaxed text-[var(--color-text-secondary)]">
+              That is exactly the property that makes the rest of these promises
+              real. A provider who can recover your files for you can also be
+              compelled to hand them over. We can&apos;t do either.
+            </p>
+            <Link
+              href="/docs/security"
+              className="mt-7 inline-flex items-center gap-1.5 text-sm font-semibold text-cyan-600 transition-all hover:gap-2.5 dark:text-cyan-400"
+            >
+              Read the security model
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+          <div className="card p-6">
+            <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-500">
+              <Shield className="h-5 w-5" />
+            </div>
+            <ul className="space-y-3 text-sm text-[var(--color-text-secondary)]">
+              {[
+                "Choose a strong passphrase you won't forget — it is the one key to everything.",
+                "Previews and downloads are decrypted in your browser, then discarded.",
+                "Sharing wraps a file's key for the recipient — without ever exposing your passphrase.",
+                "Password-protected folders add a second key, separate from your vault.",
+              ].map((c) => (
+                <li key={c} className="flex items-start gap-2.5">
+                  <Eye className="mt-0.5 h-4 w-4 flex-shrink-0 text-cyan-500" />
+                  {c}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      {/* ═══ RELATED + CTA ═══ */}
+      <section className="px-4 py-20">
+        <div className="mx-auto max-w-5xl">
+          <h2 className="mb-6 font-heading text-xl font-bold">Keep exploring</h2>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            {[
+              { href: "/features/encrypted-drive", title: "The encrypted drive", desc: "Real folders, search, and previews on top of this encryption layer." },
+              { href: "/docs/zero-knowledge", title: "Zero-knowledge, explained", desc: "What the term means and how we hold ourselves to it." },
+              { href: "/docs/security", title: "Security model", desc: "The full picture: algorithms, key handling, and threat model." },
+            ].map((r) => (
+              <Link key={r.href} href={r.href} className="card group p-5 transition-colors hover:border-cyan-500/40">
+                <h3 className="flex items-center gap-2 text-sm font-bold">
+                  {r.title}
+                  <ArrowRight className="h-3 w-3 text-cyan-500 opacity-0 transition-opacity group-hover:opacity-100" />
+                </h3>
+                <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{r.desc}</p>
+              </Link>
+            ))}
+          </div>
+
+          <div className="mt-16 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-10 text-center">
+            <h2 className="font-heading text-2xl font-bold tracking-tight sm:text-3xl">
+              Encryption you don&apos;t have to trust us about
+            </h2>
+            <p className="mx-auto mt-3 max-w-md text-[var(--color-text-secondary)]">
+              Free and open source. Bring a storage account you already own and
+              encrypt your first file in under a minute.
+            </p>
+            <Link
+              href="/register"
+              className="mt-7 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-[#2de0ed] via-[#00d5e4] to-[#0093a3] px-8 py-3.5 text-base font-semibold text-slate-900 shadow-lg shadow-cyan-500/30 transition-shadow hover:shadow-xl hover:shadow-cyan-500/50"
+            >
+              Create your vault
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </div>
+      </section>
+    </>
+  );
+}

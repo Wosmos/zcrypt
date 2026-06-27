@@ -21,10 +21,16 @@ const fuse = new Fuse(docsSearchIndex, {
 
 const sectionColors: Record<string, { text: string; bg: string }> = {
   "Getting Started": { text: "text-cyan-600 dark:text-cyan-400", bg: "bg-cyan-500/10" },
+  "Organizing files": { text: "text-cyan-600 dark:text-cyan-400", bg: "bg-cyan-500/10" },
   Security: { text: "text-violet-600 dark:text-violet-400", bg: "bg-violet-500/10" },
-  Tools: { text: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/10" },
-  "Platform Adapters": { text: "text-rose-600 dark:text-rose-400", bg: "bg-rose-500/10" },
-  "Terminal App": { text: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/10" },
+  "Storage backends": { text: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/10" },
+  "Sharing & sending": { text: "text-rose-600 dark:text-rose-400", bg: "bg-rose-500/10" },
+  Transfers: { text: "text-blue-600 dark:text-blue-400", bg: "bg-blue-500/10" },
+  "Privacy tools": { text: "text-violet-600 dark:text-violet-400", bg: "bg-violet-500/10" },
+  Account: { text: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/10" },
+  Apps: { text: "text-cyan-600 dark:text-cyan-400", bg: "bg-cyan-500/10" },
+  Developers: { text: "text-blue-600 dark:text-blue-400", bg: "bg-blue-500/10" },
+  Reference: { text: "text-[var(--color-text-secondary)]", bg: "bg-[var(--color-surface-1)]" },
 };
 
 function highlightMatch(text: string, indices: readonly [number, number][] | undefined) {

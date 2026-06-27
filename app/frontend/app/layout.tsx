@@ -46,11 +46,11 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL("https://zcrypt.cloud"),
   title: {
-    default: "zcrypt — Private Encrypted Cloud Storage | Zero-Knowledge Security",
+    default: "zcrypt — The Encrypted Cloud Drive You Actually Own | Zero-Knowledge",
     template: "%s | zcrypt",
   },
   description:
-    "Free zero-knowledge encrypted cloud storage. Military-grade AES-256 encryption, open source, 10 GB free. Your files, your keys, your privacy. Alternative to Dropbox, Google Drive & iCloud.",
+    "zcrypt is a zero-knowledge encrypted cloud drive: real folders, instant in-browser file previews, and per-folder passwords. Files are encrypted on your device with AES-256-GCM and stored in accounts you already own. Free, open source, no artificial limits. The private alternative to Dropbox, Google Drive, and Proton Drive.",
   keywords: [
     "encrypted cloud storage",
     "zero knowledge cloud storage",
@@ -77,6 +77,19 @@ export const metadata: Metadata = {
     "git based cloud storage",
     "cheap cloud storage",
     "affordable encrypted storage",
+    "encrypted drive",
+    "private cloud drive",
+    "encrypted cloud drive",
+    "encrypted file manager",
+    "encrypted folders",
+    "password protected folders",
+    "encrypted file viewer",
+    "preview encrypted files",
+    "secure file organization",
+    "online encrypted drive",
+    "proton drive alternative",
+    "tresorit alternative",
+    "sync.com alternative",
   ],
   authors: [{ name: "zcrypt Team", url: "https://zcrypt.cloud" }],
   creator: "zcrypt",
@@ -92,16 +105,16 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     url: "https://zcrypt.cloud",
-    title: "zcrypt — Private Encrypted Cloud Storage",
+    title: "zcrypt — The Encrypted Cloud Drive You Actually Own",
     description:
-      "Free zero-knowledge encrypted cloud storage with AES-256 encryption. 10 GB free, open source, no credit card required. The private alternative to Dropbox and Google Drive.",
+      "A zero-knowledge encrypted cloud drive with real folders and instant file previews. Encrypted on your device with AES-256-GCM, stored in accounts you already own. Free, open source, no artificial limits.",
     siteName: "zcrypt",
   },
   twitter: {
     card: "summary_large_image",
-    title: "zcrypt — Private Encrypted Cloud Storage",
+    title: "zcrypt — The Encrypted Cloud Drive You Actually Own",
     description:
-      "Free zero-knowledge encrypted cloud storage. 10 GB free, AES-256 encryption, open source.",
+      "A zero-knowledge encrypted cloud drive: real folders, instant previews, AES-256-GCM, your own storage. Free and open source.",
     creator: "@zcryptcloud",
   },
   robots: {

@@ -66,6 +66,7 @@ import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { PassphraseModal } from "@/components/ui/passphrase-modal";
+import { verifyVaultPassphrase } from "@/lib/vault-verify";
 import { FileTypeFilter } from "@/components/files/file-type-filter";
 import {
   Dialog,
@@ -1274,6 +1275,7 @@ export function VaultExplorer({
       {/* Unlock vault to manage encrypted folder names (same as folder-browser) */}
       <PassphraseModal
         open={showUnlock}
+        verify={verifyVaultPassphrase}
         onConfirm={handleUnlock}
         onClose={() => {
           setShowUnlock(false);

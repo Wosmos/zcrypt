@@ -131,7 +131,7 @@ export function HeroSection() {
           >
              <span className="mx-auto block w-fit px-1 pt-1 pb-3 italic leading-[1.2]  via-cyan-600 dark:via-cyan-300              
               bg-gradient-to-r from-cyan-500 to-cyan-400 bg-clip-text text-transparent dark:from-cyan-400 dark:to-cyan-300">
-              Cloud Storage
+              The Encrypted Drive
             </span>
             You{" "}
             <Underlined variant="ink" delay={0.5}>
@@ -146,8 +146,9 @@ export function HeroSection() {
             transition={{ delay: 0.15, duration: 0.5 }}
             className="mt-6 text-base sm:text-lg text-[var(--color-text-secondary)] max-w-xl leading-relaxed"
           >
-            Your files, encrypted before they ever leave your device. <br/>Stored in
-            your own GitHub, GitLab, or Telegram ,{" "} <br />
+            A real drive — folders, instant previews, organized your way —
+            encrypted before anything leaves your device and stored in accounts
+            you already own,{" "}
             <Underlined variant="highlight" delay={0.6} >
               readable only by you
             </Underlined>

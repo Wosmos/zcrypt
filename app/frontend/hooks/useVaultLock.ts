@@ -68,6 +68,8 @@ export interface VaultLockModalProps {
   subtitle: string;
   confirmLabel: string;
   error: string | null;
+  /** Optional wrong-passphrase guard; the modal runs it before caching/closing. */
+  verify?: (passphrase: string) => Promise<boolean>;
   onConfirm: (passphrase: string) => void;
   onClose: () => void;
 }
@@ -77,7 +79,10 @@ const MODAL_SUBTITLE =
   "Enter it once to upload, download, and read your files";
 const MODAL_CONFIRM = "Unlock";
 
-export function useVaultLock(): UseVaultLock {
+export function useVaultLock(opts?: {
+  /** Async wrong-passphrase guard, surfaced through `modalProps.verify`. */
+  verify?: (passphrase: string) => Promise<boolean>;
+}): UseVaultLock {
   // Subscribe to the raw cache fields so this hook (and the pill) re-render on
   // lock / unlock and on TTL expiry. `getPassphrase`/`getRemainingMinutes` are
   // imperative methods and would NOT trigger re-renders on their own.
@@ -182,6 +187,7 @@ export function useVaultLock(): UseVaultLock {
     subtitle: MODAL_SUBTITLE,
     confirmLabel: MODAL_CONFIRM,
     error,
+    verify: opts?.verify,
     onConfirm,
     onClose,
   };

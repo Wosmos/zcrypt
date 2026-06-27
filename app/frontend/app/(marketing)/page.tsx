@@ -19,10 +19,7 @@ import {
 } from "@/lib/data";
 
 // Client animation islands
-import {
-  HeroSection,
-  MagneticButton,
-} from "@/components/marketing/landing/hero-section";
+import { HeroSection } from "@/components/marketing/landing/hero-section";
 import {
   AnimatedTimelineLine,
   TimelineStep,
@@ -43,16 +40,16 @@ import {
 } from "@/components/seo/json-ld";
 
 export const metadata: Metadata = {
-  title: "zcrypt — Cloud Storage You Actually Own",
+  title: "zcrypt — The Encrypted Cloud Drive You Actually Own",
   description:
-    "zcrypt encrypts your files on your device, then stores them inside your own GitHub, GitLab, Hugging Face, or Telegram account. Zero-knowledge AES-256-GCM encryption, open source, no artificial limits.",
+    "zcrypt is a zero-knowledge encrypted cloud drive: real folders, instant in-browser previews, and per-folder passwords. Files are encrypted on your device with AES-256-GCM and stored inside your own GitHub, GitLab, Hugging Face, or Telegram account. Free, open source, no artificial limits.",
   alternates: {
     canonical: "https://zcrypt.cloud",
   },
   openGraph: {
-    title: "zcrypt — Cloud Storage You Actually Own",
+    title: "zcrypt — The Encrypted Cloud Drive You Actually Own",
     description:
-      "Encrypted on your device, stored in storage you already own. Zero-knowledge AES-256-GCM encryption, open source, no artificial limits.",
+      "Real folders, instant previews, encrypted on your device and stored in accounts you already own. Zero-knowledge AES-256-GCM, open source, no artificial limits.",
     url: "https://zcrypt.cloud",
   },
 };
@@ -104,6 +101,40 @@ const objections = [
   },
 ];
 
+// ─── Feature links (internal linking + discovery) ────────────
+const homeFeatures = [
+  {
+    href: "/features/encrypted-drive",
+    title: "A real file & folder system",
+    desc: "Nest folders, drag to organize, search and sort — a proper drive.",
+  },
+  {
+    href: "/features/file-viewers",
+    title: "Preview without downloading",
+    desc: "Open images, video, PDFs, docs, and code — decrypted in your browser.",
+  },
+  {
+    href: "/features/folders",
+    title: "Password-protected folders",
+    desc: "Give any folder its own password, separate from your vault.",
+  },
+  {
+    href: "/features/encryption",
+    title: "Zero-knowledge encryption",
+    desc: "AES-256-GCM on your device. We only ever see ciphertext.",
+  },
+  {
+    href: "/features/bring-your-own-storage",
+    title: "Bring your own storage",
+    desc: "GitHub, GitLab, Hugging Face, or Telegram. No lock-in.",
+  },
+  {
+    href: "/features/transfers",
+    title: "A real transfer manager",
+    desc: "Pause, resume, retry, and track every upload and download.",
+  },
+];
+
 // ─── Page (Server Component) ─────────────────────────────────
 
 export default function LandingPage() {
@@ -129,17 +160,17 @@ export default function LandingPage() {
               Experience
             </p>
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-              See it <em className="italic">in action</em>
+              Your whole drive, <em className="italic">end-to-end encrypted</em>
             </h2>
             <p className="text-[var(--color-text-secondary)] mt-3 max-w-lg mx-auto">
-              A native-feeling experience. Drag, drop, encrypted. It&apos;s that
-              simple.
+              Folders, instant previews, drag-and-drop — a real file explorer
+              where every file is encrypted on your device.
             </p>
           </ScrollReveal>
 
           <MacOSShowcase />
         </div>
-      </section>``
+      </section>
 
       {/* ═══ HOW IT WORKS ═══ */}
       <section id="how-it-works" className="py-28 px-4 scroll-mt-20">
@@ -188,6 +219,51 @@ export default function LandingPage() {
       <BentoGrid />
 
    
+
+      {/* ═══ EXPLORE THE DRIVE — feature links ═══ */}
+      <section className="py-24 px-4 bg-[var(--color-surface)]">
+        <div className="mx-auto max-w-5xl">
+          <ScrollReveal className="text-center mb-12">
+            <p className="text-xs font-semibold text-cyan-600 dark:text-cyan-400 uppercase tracking-wider mb-3">
+              Explore the drive
+            </p>
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
+              Everything it does
+            </h2>
+            <p className="text-[var(--color-text-secondary)] mt-3 max-w-lg mx-auto">
+              A real file manager with a zero-knowledge core. Dig into any part of it.
+            </p>
+          </ScrollReveal>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {homeFeatures.map((f) => (
+              <Link
+                key={f.href}
+                href={f.href}
+                className="card group p-5 transition-colors hover:border-cyan-500/40"
+              >
+                <h3 className="text-sm font-bold flex items-center gap-2">
+                  {f.title}
+                  <ArrowRight className="h-3 w-3 text-cyan-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </h3>
+                <p className="mt-1 text-sm text-[var(--color-text-secondary)] leading-relaxed">
+                  {f.desc}
+                </p>
+              </Link>
+            ))}
+          </div>
+
+          <div className="text-center mt-8">
+            <Link
+              href="/features"
+              className="inline-flex items-center gap-1.5 text-sm font-semibold text-cyan-600 dark:text-cyan-400 hover:gap-2.5 transition-all"
+            >
+              See all features
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+        </div>
+      </section>
 
       {/* ═══ WHY ZCRYPT — TRUST STACK ═══ */}
       <BuiltToTrust />
@@ -325,7 +401,7 @@ export default function LandingPage() {
               Get started today
             </p>
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight">
-              Storage you{" "}
+              The drive you{" "}
               <Underlined variant="highlight">
                 <em className="italic">actually own.</em>
               </Underlined>

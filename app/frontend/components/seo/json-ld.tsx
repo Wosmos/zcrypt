@@ -6,7 +6,7 @@ export function OrganizationJsonLd() {
     url: "https://zcrypt.cloud",
     logo: "https://zcrypt.cloud/favicon.svg",
     description:
-      "Free, open-source, zero-knowledge encrypted cloud storage. Your files are encrypted on your device with AES-256-GCM and stored in your own GitHub, GitLab, Hugging Face, or Telegram account — only you can read them.",
+      "Free, open-source, zero-knowledge encrypted cloud drive. Organize files in real folders, preview them in the browser, and lock individual folders with their own passwords — all encrypted on your device with AES-256-GCM and stored in your own GitHub, GitLab, Hugging Face, or Telegram account. Only you can read them.",
     foundingDate: "2025",
     sameAs: [
       "https://github.com/zcrypt",
@@ -35,7 +35,7 @@ export function SoftwareApplicationJsonLd() {
     applicationCategory: "SecurityApplication",
     operatingSystem: "Web, Windows, macOS, Linux",
     description:
-      "Zero-knowledge encrypted cloud storage. Encrypt files with AES-256-GCM on your device and store them in your own GitHub, GitLab, Hugging Face, or Telegram account. Free and open source.",
+      "A zero-knowledge encrypted cloud drive with real folders, in-browser file previews, and per-folder passwords. Files are encrypted with AES-256-GCM on your device and stored in your own GitHub, GitLab, Hugging Face, or Telegram account. Free and open source.",
     offers: {
       "@type": "Offer",
       price: "0",
@@ -45,12 +45,17 @@ export function SoftwareApplicationJsonLd() {
     featureList: [
       "Zero-knowledge encryption",
       "AES-256-GCM encryption",
-      "Open source",
+      "Real folders and a file explorer",
+      "Encrypted folder names",
+      "Per-folder password protection",
+      "In-browser previews for images, video, audio, PDFs, documents, and code",
+      "Trash with restore",
+      "Unified transfer manager with pause and resume",
+      "Encrypted file sharing with expiring links",
       "Bring Your Own Backend (BYOB)",
       "Stored in your own cloud accounts",
+      "Open source",
       "Terminal app (TUI)",
-      "Real-time upload progress",
-      "Multi-platform support",
     ],
   };
 
@@ -68,7 +73,7 @@ export function WebSiteJsonLd() {
     "@type": "WebSite",
     name: "zcrypt",
     url: "https://zcrypt.cloud",
-    description: "Private, open-source encrypted cloud storage you actually own.",
+    description: "The private, open-source encrypted cloud drive you actually own.",
     potentialAction: {
       "@type": "SearchAction",
       target: {
@@ -172,6 +177,61 @@ export function BreadcrumbJsonLd({
       name: item.name,
       item: item.url,
     })),
+  };
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+    />
+  );
+}
+
+// Structured data for a documentation / how-to page.
+export function TechArticleJsonLd({
+  headline,
+  description,
+  url,
+  section,
+  datePublished = "2026-01-01",
+  dateModified = "2026-06-27",
+}: {
+  headline: string;
+  description: string;
+  url: string;
+  section?: string;
+  datePublished?: string;
+  dateModified?: string;
+}) {
+  const data = {
+    "@context": "https://schema.org",
+    "@type": "TechArticle",
+    headline,
+    description,
+    url,
+    ...(section ? { articleSection: section } : {}),
+    datePublished,
+    dateModified,
+    inLanguage: "en",
+    isPartOf: {
+      "@type": "WebSite",
+      name: "zcrypt",
+      url: "https://zcrypt.cloud",
+    },
+    author: {
+      "@type": "Organization",
+      name: "zcrypt",
+      url: "https://zcrypt.cloud",
+    },
+    publisher: {
+      "@type": "Organization",
+      name: "zcrypt",
+      url: "https://zcrypt.cloud",
+      logo: {
+        "@type": "ImageObject",
+        url: "https://zcrypt.cloud/favicon.svg",
+      },
+    },
   };
 
   return (
