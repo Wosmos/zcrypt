@@ -98,6 +98,7 @@ import type {
   SortField,
   SortDir,
   ViewMode,
+  GridCols,
   ExplorerEntry,
   ExplorerActions,
 } from "./explorer/types";
@@ -226,7 +227,11 @@ export function VaultExplorer({
   };
 
   // ── View / sort / search / selection state (owned here) ────────────────────
-  const [view, setView] = useState<ViewMode>("list");
+  const [view, setView] = useState<ViewMode>("grid");
+  // User-chosen grid density: "auto" = responsive (2/3/4 by width), or a fixed
+  // 1–4 columns the user locks in. Persisted across reloads (loaded after mount,
+  // below, to avoid an SSR/hydration mismatch).
+  const [gridCols, setGridCols] = useState<GridCols>("auto");
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [search, setSearch] = useState("");
@@ -234,6 +239,39 @@ export function VaultExplorer({
 
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Restore persisted view + grid density once on the client (post-mount so the
+  // server-rendered markup matches the first client render).
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem("zcrypt-explorer-view");
+      if (v === "grid" || v === "list") setView(v);
+      const g = localStorage.getItem("zcrypt-explorer-gridcols");
+      if (g === "auto") setGridCols("auto");
+      else if (g && /^[1-6]$/.test(g)) {
+        setGridCols(Number(g) as GridCols);
+      }
+    } catch {
+      /* localStorage unavailable — defaults are fine */
+    }
+  }, []);
+
+  const changeView = (v: ViewMode) => {
+    setView(v);
+    try {
+      localStorage.setItem("zcrypt-explorer-view", v);
+    } catch {
+      /* ignore */
+    }
+  };
+  const changeGridCols = (c: GridCols) => {
+    setGridCols(c);
+    try {
+      localStorage.setItem("zcrypt-explorer-gridcols", String(c));
+    } catch {
+      /* ignore */
+    }
+  };
 
   // Seed search from the ⌘K command palette (same behavior as today's page).
   const vaultQuery = useVaultSearch((s) => s.query);
@@ -428,13 +466,17 @@ export function VaultExplorer({
   useEffect(() => {
     if (view !== "grid" || typeof window === "undefined") return;
     const compute = () => {
+      if (gridCols !== "auto") {
+        gridColsRef.current = gridCols;
+        return;
+      }
       const w = window.innerWidth;
       gridColsRef.current = w >= 1024 ? 4 : w >= 640 ? 3 : 2;
     };
     compute();
     window.addEventListener("resize", compute);
     return () => window.removeEventListener("resize", compute);
-  }, [view]);
+  }, [view, gridCols]);
 
   // Focus the DOM node for a given entry id (data-entry-id is set on each row/card).
   const listContainerRef = useRef<HTMLDivElement>(null);
@@ -908,7 +950,9 @@ export function VaultExplorer({
         search={search}
         onSearchChange={setSearch}
         view={view}
-        onViewChange={setView}
+        onViewChange={changeView}
+        gridCols={gridCols}
+        onGridColsChange={changeGridCols}
         selectMode={selectMode}
         onToggleSelect={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
         onNewFolder={startCreate}
@@ -987,9 +1031,14 @@ export function VaultExplorer({
         <div
           className={cn(
             view === "grid"
-              ? "grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4"
+              ? cn("grid gap-2.5", gridCols === "auto" && "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4")
               : "space-y-px"
           )}
+          style={
+            view === "grid" && gridCols !== "auto"
+              ? { gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))` }
+              : undefined
+          }
         >
           {Array.from({ length: 8 }).map((_, i) => (
             <div
@@ -1100,7 +1149,15 @@ export function VaultExplorer({
             
             onKeyDown={handleContainerKeyDown}
             onClick={handleListingBackgroundClick}
-            className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4"
+            className={cn(
+              "grid gap-2.5",
+              gridCols === "auto" && "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4"
+            )}
+            style={
+              gridCols === "auto"
+                ? undefined
+                : { gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))` }
+            }
           >
             <AnimatePresence initial={false}>
               {entries.map((entry) => {

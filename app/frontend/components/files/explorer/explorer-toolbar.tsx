@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import type { ViewMode } from "./types";
+import type { ViewMode, GridCols } from "./types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { IconButton } from "@/components/ui/icon-button";
@@ -12,8 +12,17 @@ import {
   CheckSquare,
   Plus,
   X,
+  Check,
 } from "@/lib/icons";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+
+const COL_OPTIONS: GridCols[] = ["auto", 1, 2, 3, 4, 5, 6];
 
 interface ExplorerToolbarProps {
   breadcrumb: ReactNode;
@@ -21,6 +30,8 @@ interface ExplorerToolbarProps {
   onSearchChange: (value: string) => void;
   view: ViewMode;
   onViewChange: (view: ViewMode) => void;
+  gridCols: GridCols;
+  onGridColsChange: (cols: GridCols) => void;
   selectMode: boolean;
   onToggleSelect: () => void;
   onNewFolder: () => void;
@@ -38,6 +49,8 @@ export function ExplorerToolbar({
   onSearchChange,
   view,
   onViewChange,
+  gridCols,
+  onGridColsChange,
   selectMode,
   onToggleSelect,
   onNewFolder,
@@ -101,6 +114,41 @@ export function ExplorerToolbar({
             </button>
           ))}
         </div>
+
+        {/* Grid density — user picks the column count (Auto / 1–4). Only in grid
+            view; the choice is persisted by the explorer. */}
+        {view === "grid" && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label={`Grid columns: ${gridCols === "auto" ? "auto" : gridCols}`}
+                title="Grid columns"
+                className={cn(
+                  "flex h-8 flex-shrink-0 items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text)]",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)]"
+                )}
+              >
+                <LayoutGrid className="h-4 w-4" />
+                <span className="text-xs font-medium tabular-nums">
+                  {gridCols === "auto" ? "Auto" : gridCols}
+                </span>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              {COL_OPTIONS.map((opt) => (
+                <DropdownMenuItem key={String(opt)} onClick={() => onGridColsChange(opt)}>
+                  {opt === "auto"
+                    ? "Auto (responsive)"
+                    : `${opt} ${opt === 1 ? "column" : "columns"}`}
+                  {gridCols === opt && (
+                    <Check className="ml-auto h-4 w-4 text-[var(--color-accent)]" />
+                  )}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
 
         {/* Select mode toggle */}
         <Button

@@ -25,6 +25,7 @@ import {
   MoreHorizontal,
   Share2,
 } from "@/lib/icons";
+import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
 import { formatBytes, formatDate, getFileTypeInfo, isImageFile } from "@/lib/utils";
 import { cn } from "@/lib/utils";
