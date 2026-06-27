@@ -23,8 +23,12 @@ fi
 # Clean previous export cache
 rm -rf .next-export
 
-# Build with static export enabled via env var
-NEXT_OUTPUT_EXPORT=1 bun run build
+# Build with static export enabled via env var.
+# The desktop app has no Next.js rewrites, so the backend URL must be baked in.
+# Defaults to the live backend; override NEXT_PUBLIC_API_URL to point elsewhere
+# (e.g. http://localhost:8080 against a local backend).
+NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-https://zcrypt-production-f608.up.railway.app}" \
+  NEXT_OUTPUT_EXPORT=1 bun run build
 
 # Copy the static export to desktop's frontend-dist.
 # next.config.ts sets output:"export" + distDir:".next-export", which keeps the
