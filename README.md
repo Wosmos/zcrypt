@@ -149,7 +149,7 @@ never commit real secrets.
 | `MASTER_KEY`        | 32-byte hex key for envelope encryption of platform tokens |
 | `ZCRYPT_JWT_SECRET` | JWT signing secret (auto-generated if empty)               |
 | `FRONTEND_URL`      | Frontend URL — used for email links AND post-OAuth redirect; also added to the CORS whitelist |
-| `BACKEND_URL`       | Public backend URL (e.g. `https://api.zcrypt.app`), no trailing slash. **Required for OAuth** — it builds the `redirect_uri` and MUST exactly match what is registered with Google/GitHub. If unset, it is derived per-request and usually breaks OAuth. |
+| `BACKEND_URL`       | Public backend URL (e.g. `https://NEXT_PUBLIC_API_URL`), no trailing slash. **Required for OAuth** — it builds the `redirect_uri` and MUST exactly match what is registered with Google/GitHub. If unset, it is derived per-request and usually breaks OAuth. |
 | `ALLOWED_ORIGINS`   | Comma-separated CORS whitelist (defaults to localhost; `FRONTEND_URL` is added automatically) |
 
 ### OAuth (Google / GitHub login)
