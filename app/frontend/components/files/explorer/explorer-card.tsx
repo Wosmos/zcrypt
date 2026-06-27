@@ -4,7 +4,7 @@ import type { ExplorerEntry, ExplorerActions } from "./types";
 import type { DecryptedFolder } from "@/hooks/useFolders";
 import type { FileMetadata } from "@/types";
 import type { RowDragProps } from "./explorer-row";
-import { formatBytes, formatDate, getFileTypeInfo, cn } from "@/lib/utils";
+import { formatBytes, formatDate, getFileTypeInfo, isImageFile, cn } from "@/lib/utils";
 import { useThumbnail } from "@/hooks/useThumbnail";
 import { IconButton } from "@/components/ui/icon-button";
 import {
@@ -232,9 +232,10 @@ function FileCardInner({
   onOpenDetails?: (file: FileMetadata) => void;
   drag: RowDragProps;
 }) {
-  const { thumbnailUrl } = useThumbnail(file.id, file.original_name);
+  const { thumbnailUrl, loading: thumbLoading } = useThumbnail(file.id, file.original_name);
   const typeInfo = getFileTypeInfo(file.original_name);
   const Icon = iconMap[typeInfo.icon] || File;
+  const isImage = isImageFile(file.original_name);
 
   return (
     <div
@@ -250,7 +251,7 @@ function FileCardInner({
       onDragEnd={drag.onDragEnd}
       {...(drag.dropHandlers ?? {})}
       className={cn(
-        "group relative flex flex-col overflow-hidden rounded-2xl border transition-all duration-200 focus-visible:ring-inset",
+        "group relative flex flex-col overflow-hidden rounded-2xl border transition-all duration-200 focus-visible:ring-inset active:scale-[0.99] sm:active:scale-100",
         FOCUS_RING,
         drag.draggable ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
         drag.isBeingDragged && "opacity-50",
@@ -301,48 +302,45 @@ function FileCardInner({
           </div>
         )}
 
-        {/* Type badge */}
-        <span
-          className={cn(
-            "absolute right-2.5 top-2.5 rounded-md border px-2 py-0.5 text-[10px] font-medium backdrop-blur-sm",
-            thumbnailUrl
-              ? "border-white/10 bg-black/50 text-white"
-              : "border-[var(--color-border)] bg-[var(--color-surface)]/80 text-[var(--color-text-secondary)]"
-          )}
-        >
-          {typeInfo.label}
-        </span>
-
-        {/* Hover action overlay */}
+        {/* Type badge — moved to top-LEFT so the always-on kebab owns top-right.
+            (Hidden in select mode, where the checkbox takes the corner.) */}
         {!selectMode && (
-          <div
+          <span
             className={cn(
-              "absolute inset-0 flex items-center justify-center gap-1.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100",
-              thumbnailUrl ? "bg-black/40 backdrop-blur-sm" : "bg-[var(--color-surface)]/80 backdrop-blur-sm"
+              "absolute left-2.5 top-2.5 rounded-md border px-2 py-0.5 text-[10px] font-medium backdrop-blur-sm",
+              thumbnailUrl
+                ? "border-white/4 bg-black/20 text-white"
+                : "border-[var(--color-border)] bg-[var(--color-surface)]/80 text-[var(--color-text-secondary)]"
             )}
           >
-            {actions.onPreview && (
-              <IconButton
-                icon={Eye}
-                label="Preview"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  actions.onPreview?.(file.original_name);
-                }}
-                className="h-10 w-10 rounded-xl bg-[var(--color-surface)]/90 shadow-sm hover:bg-[var(--color-surface)]"
-              />
-            )}
-            <IconButton
-              icon={Download}
-              label="Download"
-              onClick={(e) => {
-                e.stopPropagation();
-                actions.onDownload(file.original_name);
-              }}
-              className="h-10 w-10 rounded-xl bg-[var(--color-surface)]/90 shadow-sm hover:bg-[var(--color-surface)]"
-            />
+            {typeInfo.label}
+          </span>
+        )}
+
+        {/* Encrypted hint — an image whose thumbnail isn't available (locked
+            folder / not yet cached) still reads as a real, encrypted image. */}
+        {isImage && !thumbnailUrl && !thumbLoading && (
+          <span className="absolute bottom-2 left-2.5 flex items-center gap-1 rounded-md border border-[var(--color-border)]/50 bg-[var(--color-surface)]/80 px-1.5 py-0.5 text-[10px] text-[var(--color-text-muted)] backdrop-blur-sm">
+            <Lock className="h-2.5 w-2.5" /> Encrypted
+          </span>
+        )}
+
+        {/* Kebab — pinned top-right. ALWAYS visible on touch, hover-reveal on
+            desktop (CardKebab owns the responsive opacity). This is the fix for
+            mobile: every action is reachable here, since the hover bar below
+            never appears on a touch device. */}
+        {!selectMode && (
+          <div className="absolute right-2.5 top-2.5 z-10">
             <CardKebab label={`More actions for ${file.original_name}`}>
-              <DropdownMenuContent align="end" className="w-44" onClick={(e) => e.stopPropagation()}>
+              <DropdownMenuContent align="end" className="w-48" onClick={(e) => e.stopPropagation()}>
+                {actions.onPreview && (
+                  <DropdownMenuItem onClick={() => actions.onPreview?.(file.original_name)}>
+                    <Eye className="h-4 w-4" /> Preview
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem onClick={() => actions.onDownload(file.original_name)}>
+                  <Download className="h-4 w-4" /> Download
+                </DropdownMenuItem>
                 {onOpenDetails && (
                   <DropdownMenuItem onClick={() => onOpenDetails(file)}>
                     <Info className="h-4 w-4" /> Get info
@@ -367,6 +365,34 @@ function FileCardInner({
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </CardKebab>
+          </div>
+        )}
+
+        {/* Desktop quick actions — a bottom bar revealed on hover that keeps the
+            thumbnail visible (replaces the old full-cover blur). Hidden on touch
+            (sm:flex), where the kebab covers everything. */}
+        {!selectMode && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 hidden items-center justify-end gap-1.5 bg-gradient-to-t from-black/55 to-transparent p-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100 sm:flex">
+            {actions.onPreview && (
+              <IconButton
+                icon={Eye}
+                label="Preview"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  actions.onPreview?.(file.original_name);
+                }}
+                className="pointer-events-auto h-9 w-9 rounded-lg bg-[var(--color-surface)]/90 shadow-sm backdrop-blur-sm hover:bg-[var(--color-surface)]"
+              />
+            )}
+            <IconButton
+              icon={Download}
+              label="Download"
+              onClick={(e) => {
+                e.stopPropagation();
+                actions.onDownload(file.original_name);
+              }}
+              className="pointer-events-auto h-9 w-9 rounded-lg bg-[var(--color-surface)]/90 shadow-sm backdrop-blur-sm hover:bg-[var(--color-surface)]"
+            />
           </div>
         )}
       </div>
