@@ -46,6 +46,19 @@ changelog:
       - "^test:"
       - "^ci:"
       - "^chore:"
+  # Group the auto-generated release notes by conventional-commit type.
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\(.+\))??!?:.+$'
+      order: 0
+    - title: Bug fixes
+      regexp: '^.*?fix(\(.+\))??!?:.+$'
+      order: 1
+    - title: Performance
+      regexp: '^.*?perf(\(.+\))??!?:.+$'
+      order: 2
+    - title: Other changes
+      order: 999
 
 release:
   github:
