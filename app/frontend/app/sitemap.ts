@@ -18,6 +18,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   const staticRoutes = [
     make("", 1, "weekly"),
+    make("/download", 0.9, "weekly"),
     make("/features", 0.8, "monthly"),
     make("/tui", 0.8, "monthly"),
     make("/philosophy", 0.6, "yearly"),
