@@ -409,6 +409,17 @@ func corsMiddleware(next http.Handler) http.Handler {
 		allowedOrigins["http://localhost:3000"] = true
 		allowedOrigins["http://localhost:8080"] = true
 	}
+	// Desktop (Tauri) app webview origins are fixed and first-party. Without
+	// these the desktop app's fetches are blocked by CORS ("Load failed" on
+	// login, OAuth poll never completes). macOS/Linux use the tauri:// scheme;
+	// Windows (WebView2) uses http(s)://tauri.localhost.
+	for _, o := range []string{
+		"tauri://localhost",
+		"http://tauri.localhost",
+		"https://tauri.localhost",
+	} {
+		allowedOrigins[o] = true
+	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
