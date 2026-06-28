@@ -494,9 +494,21 @@ func (s *Server) HandleAdminSetPlan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	validPlans := map[string]bool{"free": true, "plus": true, "pro": true}
-	if !validPlans[req.Plan] {
-		http.Error(w, `{"error":"plan must be 'free', 'plus', or 'pro'"}`, http.StatusBadRequest)
+	// Validate against the actually-configured plans (the same source the admin
+	// UI is built from) plus the standard tiers — a hardcoded list alone rejects
+	// custom/renamed plans the UI legitimately offers, which surfaced as the
+	// "plan must be 'free', 'plus', or 'pro'" error when setting a plan.
+	validPlan := req.Plan == "free" || req.Plan == "plus" || req.Plan == "pro"
+	if !validPlan {
+		for _, p := range s.loadPlanConfigs(ctx).Plans {
+			if p.ID == req.Plan {
+				validPlan = true
+				break
+			}
+		}
+	}
+	if !validPlan {
+		http.Error(w, `{"error":"unknown plan"}`, http.StatusBadRequest)
 		return
 	}
 
