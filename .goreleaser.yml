@@ -68,33 +68,9 @@ release:
   prerelease: auto
   name_template: "v{{.Version}}"
 
-brews:
-  - name: zcrypt
-    repository:
-      owner: Wosmos
-      name: homebrew-zcrypt
-      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
-    commit_author:
-      name: zcrypt-bot
-      email: bot@zcrypt.cloud
-    directory: Formula
-    homepage: "https://zcrypt.cloud"
-    description: "Private cloud storage that costs less — terminal client"
-    license: "MIT"
-    install: |
-      bin.install "zcrypt"
-    test: |
-      system "#{bin}/zcrypt", "--version"
-
-scoops:
-  - name: zcrypt
-    repository:
-      owner: Wosmos
-      name: scoop-zcrypt
-      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
-    commit_author:
-      name: zcrypt-bot
-      email: bot@zcrypt.cloud
-    homepage: "https://zcrypt.cloud"
-    description: "Private cloud storage that costs less — terminal client"
-    license: "MIT"
+# Homebrew + Scoop tap publishing is disabled until a valid HOMEBREW_TAP_TOKEN
+# is set. With an invalid/expired token GoReleaser returns 401 on the tap repos
+# and fails the whole release (which also blocked the npm-publish job). To
+# re-enable: create a PAT with access to Wosmos/homebrew-zcrypt and
+# Wosmos/scoop-zcrypt, set it as the HOMEBREW_TAP_TOKEN secret, then restore the
+# `brews:` and `scoops:` blocks (preferably migrated to `homebrew_casks:`).
