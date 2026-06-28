@@ -55,7 +55,6 @@ function getChartData(files: FileMetadata[], range: Range) {
 
     for (let h = 0; h <= 24; h++) {
       const t = new Date(start.getTime() + h * 60 * 60 * 1000);
-      const hour = t.getHours();
       buckets.set(h, { date: bucketFormat(t), uploads: 0, size: 0 });
 
       for (const f of files) {
@@ -144,11 +143,18 @@ const rangeOptions: { value: Range; label: string }[] = [
 export function UploadChart({ files }: UploadChartProps) {
   const [range, setRange] = useState<Range>(() => bestRange(files));
   const data = useMemo(() => getChartData(files, range), [files, range]);
+  const totalUploads = data.reduce((s, d) => s + d.uploads, 0);
+  const totalSize = data.reduce((s, d) => s + d.size, 0);
 
   return (
     <div className="panel overflow-hidden">
-      <div className="flex flex-col gap-3 border-b border-[var(--color-border)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <h3 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">Upload activity</h3>
+      <div className="flex flex-col gap-3 border-b border-[var(--color-border)] px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h3 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">Upload activity</h3>
+          <p className="mt-0.5 text-xs tabular-nums text-[var(--color-text-muted)]">
+            {totalUploads.toLocaleString()} upload{totalUploads !== 1 ? "s" : ""} &middot; {formatBytes(totalSize)} in range
+          </p>
+        </div>
         <ToggleGroup
           type="single"
           value={range}
