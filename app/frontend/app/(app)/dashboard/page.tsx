@@ -12,7 +12,6 @@ import {
   RemoveFolderPasswordDialog,
 } from "@/components/files/folder-password-dialogs";
 import { DetailsDrawer } from "@/components/files/details-drawer";
-import { InsightsTab } from "@/components/vault/insights-tab";
 import { PlatformHealth } from "@/components/vault/platform-health";
 import { ExportImport } from "@/components/vault/export-import";
 import { FeedbackModal } from "@/components/feedback/feedback-modal";
@@ -34,7 +33,6 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -61,7 +59,6 @@ import {
   Shield,
   AlertTriangle,
   RefreshCw,
-  BarChart3,
   Upload,
   HardDrive,
 } from "@/lib/icons";
@@ -78,7 +75,6 @@ import type { FileMetadata } from "@/types";
  * unlock provided by <VaultLockProvider> (header pill = <VaultLock />).
  */
 export default function VaultPage() {
-  const [activeTab, setActiveTab] = useState<"files" | "insights">("files");
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
 
@@ -344,35 +340,8 @@ export default function VaultPage() {
         }
       />
 
-      {/* Tab switcher + panels */}
-      <Tabs
-        value={activeTab}
-        onValueChange={(v) => setActiveTab(v as "files" | "insights")}
-        className="space-y-6"
-      >
-        <TabsList className="inline-flex h-auto w-fit gap-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-1">
-          {(
-            [
-              { id: "files" as const, label: "Files", icon: Shield },
-              { id: "insights" as const, label: "Insights", icon: BarChart3 },
-            ]
-          ).map(({ id, label, icon: TabIcon }) => (
-            <TabsTrigger
-              key={id}
-              value={id}
-              className="gap-1.5 rounded-lg px-4 py-1.5 text-sm font-medium text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text-secondary)] data-[state=active]:bg-[var(--color-surface)] data-[state=active]:text-[var(--color-text)] data-[state=active]:shadow-sm"
-            >
-              <TabIcon className="h-4 w-4" />
-              {label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-
-        <TabsContent value="insights" className="space-y-6 focus-visible:outline-none">
-          <InsightsTab files={files} repos={repos} quotaInfo={quotaInfo} />
-        </TabsContent>
-
-        <TabsContent value="files" className="space-y-6 focus-visible:outline-none">
+      {/* Vault file browser */}
+      <div className="space-y-6">
           {/* No storage available warning */}
           {quotaInfo && !quotaInfo.can_upload && (
             <div className="flex items-start gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4">
@@ -460,8 +429,7 @@ export default function VaultPage() {
             onClose={dismissFeedback}
             onSubmitted={markFeedbackSubmitted}
           />
-        </TabsContent>
-      </Tabs>
+      </div>
 
       {/* ── Modals the explorer hands control back to ───────────────────────── */}
 

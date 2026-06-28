@@ -15,8 +15,8 @@ export default function AnalyticsLoading() {
       </div>
 
       {/* Headline metrics */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+        {Array.from({ length: 5 }).map((_, i) => (
           <SkeletonStat key={i} />
         ))}
       </div>
@@ -70,29 +70,54 @@ export default function AnalyticsLoading() {
         </div>
       </div>
 
-      {/* Platforms + recent */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="panel space-y-4 p-5">
-          <Skeleton className="h-4 w-36 rounded-md" />
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="space-y-2">
-              <div className="flex items-center justify-between">
+      {/* Storage growth */}
+      <div className="panel space-y-4 p-5">
+        <Skeleton className="h-4 w-32 rounded-md" />
+        <Skeleton className="h-[200px] w-full rounded-xl" />
+      </div>
+
+      {/* Detailed metrics */}
+      <div className="panel grid grid-cols-1 gap-5 p-5 md:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, c) => (
+          <div key={c} className="space-y-2.5">
+            <Skeleton className="h-3 w-16 rounded-md" />
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="flex justify-between">
                 <Skeleton className="h-3.5 w-24 rounded-md" />
-                <Skeleton className="h-3 w-20 rounded-md" />
+                <Skeleton className="h-3.5 w-12 rounded-md" />
               </div>
-              <Skeleton className="h-2 w-full rounded-full" />
-            </div>
-          ))}
-        </div>
-        <div className="panel overflow-hidden lg:col-span-2">
-          <div className="border-b border-[var(--color-border)] px-5 py-4">
-            <Skeleton className="h-4 w-32 rounded-md" />
-          </div>
-          <div className="px-5">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <SkeletonRow key={i} className="border-b border-[var(--color-border)] last:border-0" />
             ))}
           </div>
+        ))}
+      </div>
+
+      {/* Platforms + storage health */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {Array.from({ length: 2 }).map((_, p) => (
+          <div key={p} className="panel space-y-4 p-5">
+            <Skeleton className="h-4 w-36 rounded-md" />
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Skeleton className="h-3.5 w-24 rounded-md" />
+                  <Skeleton className="h-3 w-20 rounded-md" />
+                </div>
+                <Skeleton className="h-2 w-full rounded-full" />
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+
+      {/* Recent uploads */}
+      <div className="panel overflow-hidden">
+        <div className="border-b border-[var(--color-border)] px-5 py-4">
+          <Skeleton className="h-4 w-32 rounded-md" />
+        </div>
+        <div className="px-5">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <SkeletonRow key={i} className="border-b border-[var(--color-border)] last:border-0" />
+          ))}
         </div>
       </div>
     </div>

@@ -59,7 +59,7 @@ export function FileTypeChart({ files }: FileTypeChartProps) {
       </div>
       <div className="p-5 pt-4">
         <div className="flex items-center gap-4">
-          <div className="w-[140px] h-[140px] flex-shrink-0">
+          <div className="relative w-[140px] h-[140px] flex-shrink-0">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -91,6 +91,12 @@ export function FileTypeChart({ files }: FileTypeChartProps) {
                 />
               </PieChart>
             </ResponsiveContainer>
+            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-sm font-semibold tabular-nums text-[var(--color-text)]">
+                {formatBytes(total)}
+              </span>
+              <span className="text-[10px] uppercase tracking-wide text-[var(--color-text-muted)]">total</span>
+            </div>
           </div>
 
           <div className="flex-1 space-y-2">
