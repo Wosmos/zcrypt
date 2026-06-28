@@ -35,6 +35,65 @@ export interface ReleaseData {
   desktop: DesktopPlatform[];
   cli: CliBinary[];
   checksumsUrl: string | null;
+  /** True when this is the hardcoded fallback (GitHub API was unreachable). */
+  isFallback?: boolean;
+}
+
+// Last release known to be fully published. Used only when the live lookup
+// fails (e.g. GitHub API rate limit) so the page never dead-ends — users still
+// get working downloads, just possibly not the newest. Bump on a new release.
+const FALLBACK_VERSION = "0.1.1";
+
+function fallbackUrl(file: string): string {
+  return `${GITHUB_REPO}/releases/download/v${FALLBACK_VERSION}/${file}`;
+}
+
+/** Static, always-available download set for when the live lookup fails. */
+function buildFallbackRelease(): ReleaseData {
+  const v = FALLBACK_VERSION;
+  return {
+    version: v,
+    htmlUrl: `${GITHUB_REPO}/releases/tag/v${v}`,
+    isFallback: true,
+    desktop: [
+      {
+        id: "macos",
+        name: "macOS",
+        blurb: BLURB.macos,
+        options: [
+          { label: "Apple Silicon", sublabel: "M1–M4 · .dmg", href: fallbackUrl(`zcrypt_${v}_aarch64.dmg`), recommended: true },
+        ],
+      },
+      {
+        id: "windows",
+        name: "Windows",
+        blurb: BLURB.windows,
+        options: [
+          { label: "Installer", sublabel: "x64 · .exe", href: fallbackUrl(`zcrypt_${v}_x64-setup.exe`), recommended: true },
+          { label: "MSI package", sublabel: "x64 · .msi", href: fallbackUrl(`zcrypt_${v}_x64_en-US.msi`) },
+        ],
+      },
+      {
+        id: "linux",
+        name: "Linux",
+        blurb: BLURB.linux,
+        options: [
+          { label: "AppImage", sublabel: "x86_64 · portable", href: fallbackUrl(`zcrypt_${v}_amd64.AppImage`), recommended: true },
+          { label: "Debian / Ubuntu", sublabel: "amd64 · .deb", href: fallbackUrl(`zcrypt_${v}_amd64.deb`) },
+          { label: "Fedora / RHEL", sublabel: "x86_64 · .rpm", href: fallbackUrl(`zcrypt-${v}-1.x86_64.rpm`) },
+        ],
+      },
+    ],
+    cli: [
+      { os: "macOS", arch: "Apple Silicon", href: fallbackUrl(`zcrypt_${v}_darwin_arm64.tar.gz`) },
+      { os: "macOS", arch: "Intel", href: fallbackUrl(`zcrypt_${v}_darwin_amd64.tar.gz`) },
+      { os: "Linux", arch: "x64", href: fallbackUrl(`zcrypt_${v}_linux_amd64.tar.gz`) },
+      { os: "Linux", arch: "ARM64", href: fallbackUrl(`zcrypt_${v}_linux_arm64.tar.gz`) },
+      { os: "Windows", arch: "x64", href: fallbackUrl(`zcrypt_${v}_windows_amd64.zip`) },
+      { os: "Windows", arch: "ARM64", href: fallbackUrl(`zcrypt_${v}_windows_arm64.zip`) },
+    ],
+    checksumsUrl: fallbackUrl("checksums.txt"),
+  };
 }
 
 interface RawAsset {
@@ -146,10 +205,13 @@ export function getLatestRelease(): Promise<ReleaseData | null> {
       if (!res.ok) throw new Error(`GitHub API ${res.status}`);
       return res.json();
     })
-    .then((data: { tag_name: string; html_url: string; assets: RawAsset[] }) =>
-      parseAssets(data.assets ?? [], data.tag_name ?? "", data.html_url)
-    )
-    .catch(() => null);
+    .then((data: { tag_name: string; html_url: string; assets: RawAsset[] }) => {
+      const parsed = parseAssets(data.assets ?? [], data.tag_name ?? "", data.html_url);
+      // If the latest release has no desktop installers yet (e.g. mid-build),
+      // fall back so users still get working downloads.
+      return parsed.desktop.length > 0 ? parsed : buildFallbackRelease();
+    })
+    .catch(() => buildFallbackRelease());
   return cache;
 }
 

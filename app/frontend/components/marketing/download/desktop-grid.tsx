@@ -63,8 +63,23 @@ export function DesktopGrid() {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-      {release.desktop.map((platform) => {
+    <>
+      {release.isFallback && (
+        <div className="mx-auto mb-5 max-w-lg rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-center text-xs text-amber-700 dark:text-amber-400">
+          Couldn&apos;t reach GitHub for the latest release — showing{" "}
+          <span className="font-semibold">v{release.version}</span>.{" "}
+          <a
+            href={RELEASES_FALLBACK_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium underline underline-offset-2"
+          >
+            Check for newer
+          </a>
+        </div>
+      )}
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+        {release.desktop.map((platform) => {
         const Glyph = OS_GLYPHS[platform.id];
         const primary =
           platform.options.find((o) => o.recommended) ?? platform.options[0];
@@ -121,7 +136,8 @@ export function DesktopGrid() {
             </div>
           </CardShell>
         );
-      })}
-    </div>
+        })}
+      </div>
+    </>
   );
 }
