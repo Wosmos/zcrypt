@@ -171,10 +171,25 @@ func (g *GithubAdapter) parseRepo(repo string) (owner, name string) {
 func (g *GithubAdapter) Delete(ctx context.Context, ref types.ChunkRef) error {
 	owner, repoName := g.parseRepo(ref.Repo)
 
-	// Get the file SHA first
+	// Get the file SHA first.
 	content, _, _, err := g.client.Repositories.GetContents(ctx, owner, repoName, ref.RemotePath, nil)
 	if err != nil {
+		// Already gone (404) → the chunk is deleted as far as we care; report
+		// success so it leaves the deletion queue instead of retrying forever.
+		if errResp, ok := err.(*github.ErrorResponse); ok && errResp.Response != nil &&
+			errResp.Response.StatusCode == http.StatusNotFound {
+			return nil
+		}
 		return fmt.Errorf("get file for delete: %w", err)
+	}
+
+	// GetContents returns a nil file-content (with no error) when the path isn't a
+	// single file — e.g. it's a directory, or the file is otherwise absent. There
+	// is no SHA to delete, so the chunk is effectively gone. Guard this: a nil
+	// dereference here previously panicked and crash-looped the whole deletion
+	// worker on the entire batch.
+	if content == nil || content.SHA == nil {
+		return nil
 	}
 
 	opts := &github.RepositoryContentFileOptions{

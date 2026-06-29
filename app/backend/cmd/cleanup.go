@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"runtime/debug"
 	"time"
 
 	"github.com/zcrypt/zcrypt/auth"
@@ -65,7 +66,7 @@ func (s *Server) runDeletionWorker(ctx context.Context) {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				log.Printf("deletion worker panic, restarting: %v", r)
+				log.Printf("deletion worker panic, restarting: %v\n%s", r, debug.Stack())
 				if ctx.Err() == nil {
 					s.runDeletionWorker(ctx)
 				}
@@ -211,32 +212,46 @@ func (s *Server) processPendingDeletions(ctx context.Context) bool {
 		default:
 		}
 
-		adapter := s.resolveAdapterForUser(ctx, item.UserID, item.Platform, item.Account)
-		if adapter == nil {
-			log.Printf("deletion: no adapter for %s:%s (user=%s), skipping", item.Platform, item.Account, item.UserID)
-			s.db.MarkDeletionFailed(ctx, item.ID, "no adapter available")
-			continue
-		}
+		// Isolate each item: a panic inside one adapter's Delete (e.g. a nil
+		// dereference on a malformed/already-gone chunk) must NOT take down the
+		// whole batch. Without this, the worker-level recover re-ran the SAME
+		// batch forever, crash-looping and stranding every other deletion too.
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("deletion: recovered panic on item %d (%s:%s %s): %v",
+						item.ID, item.Platform, item.Account, item.RemotePath, r)
+					s.db.MarkDeletionFailed(ctx, item.ID, fmt.Sprintf("panic: %v", r))
+				}
+			}()
 
-		ref := types.ChunkRef{
-			Platform:   item.Platform,
-			Account:    item.Account,
-			Repo:       item.Repo,
-			RemotePath: item.RemotePath,
-		}
+			adapter := s.resolveAdapterForUser(ctx, item.UserID, item.Platform, item.Account)
+			if adapter == nil {
+				log.Printf("deletion: no adapter for %s:%s (user=%s), skipping", item.Platform, item.Account, item.UserID)
+				s.db.MarkDeletionFailed(ctx, item.ID, "no adapter available")
+				return
+			}
 
-		if err := adapter.Delete(ctx, ref); err != nil {
-			log.Printf("deletion: delete %s from %s: %v", item.RemotePath, item.Repo, err)
-			s.db.MarkDeletionFailed(ctx, item.ID, err.Error())
-			time.Sleep(2 * time.Second)
-			continue
-		}
+			ref := types.ChunkRef{
+				Platform:   item.Platform,
+				Account:    item.Account,
+				Repo:       item.Repo,
+				RemotePath: item.RemotePath,
+			}
 
-		if err := s.db.MarkDeletionDone(ctx, item.ID); err != nil {
-			log.Printf("deletion: mark done: %v", err)
-		}
-		log.Printf("deletion: deleted %s from %s", item.RemotePath, item.Repo)
-		time.Sleep(1 * time.Second)
+			if err := adapter.Delete(ctx, ref); err != nil {
+				log.Printf("deletion: delete %s from %s: %v", item.RemotePath, item.Repo, err)
+				s.db.MarkDeletionFailed(ctx, item.ID, err.Error())
+				time.Sleep(2 * time.Second)
+				return
+			}
+
+			if err := s.db.MarkDeletionDone(ctx, item.ID); err != nil {
+				log.Printf("deletion: mark done: %v", err)
+			}
+			log.Printf("deletion: deleted %s from %s", item.RemotePath, item.Repo)
+			time.Sleep(1 * time.Second)
+		}()
 	}
 
 	if remaining, _ := s.db.PendingDeletionCount(ctx); remaining > 0 {
