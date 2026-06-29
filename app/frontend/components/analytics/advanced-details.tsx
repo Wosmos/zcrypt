@@ -11,11 +11,14 @@ const PLATFORM_NAMES: Record<string, string> = {
 };
 
 // Per-repo platform limits (mirrors the backend defaults in cmd/server.go).
+// These are zcrypt's auto-rotation thresholds (when the repo pool spins up a new
+// repo/channel), NOT the platforms' own hard caps — Telegram in particular has
+// no storage limit, so its value is a virtual housekeeping threshold.
 const PLATFORM_THRESHOLDS: { platform: string; limit: string }[] = [
   { platform: "GitHub", limit: "850 MB / repo" },
   { platform: "GitLab", limit: "9 GB / repo" },
   { platform: "Hugging Face", limit: "280 GB / repo" },
-  { platform: "Telegram", limit: "50 GB / channel" },
+  { platform: "Telegram", limit: "~50 GB / channel (virtual)" },
 ];
 
 function Row({ label, value }: { label: string; value: string }) {
@@ -157,7 +160,7 @@ export function AdvancedDetails({
       <div className="panel overflow-hidden">
         <div className="border-b border-[var(--color-border)] px-5 py-4">
           <h3 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
-            Platform limits
+            Repo rotation thresholds
           </h3>
         </div>
         <div className="grid grid-cols-2 gap-px bg-[var(--color-border)] sm:grid-cols-4">

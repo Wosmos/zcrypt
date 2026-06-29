@@ -22,24 +22,30 @@ const platformMeta: Record<string, {
   github: {
     icon: <Github className="h-4 w-4" />,
     repoLimit: "1 GB / repo",
-    fileLimit: "100 MB / file (LFS)",
+    // zcrypt commits chunks via the Contents API (plain git), not LFS — the
+    // limit that applies is GitHub's 100 MB hard per-file push limit.
+    fileLimit: "100 MB / file",
     rateInfo: "5,000 req/hr (authenticated)",
   },
   gitlab: {
     icon: <GitlabIcon className="h-4 w-4 text-orange-500" />,
     repoLimit: "10 GB / repo",
-    fileLimit: "5 GB / file (LFS)",
-    rateInfo: "2,000 req/min (authenticated)",
+    // Plain git commits → GitLab Free's 100 MiB per-file push limit applies.
+    fileLimit: "100 MB / file",
+    rateInfo: "7,200 req/hr (authenticated)",
   },
   huggingface: {
     icon: <HuggingFaceIcon className="h-4 w-4 text-yellow-500" />,
     repoLimit: "300 GB / repo",
+    // HuggingFace genuinely uploads via LFS.
     fileLimit: "50 GB / file (LFS)",
     rateInfo: "No strict rate limits",
   },
   telegram: {
     icon: <TelegramIcon className="h-4 w-4 text-sky-500" />,
-    repoLimit: "50 GB / channel",
+    // Telegram channels have no storage cap — zcrypt's per-channel rotation
+    // threshold is a virtual housekeeping value, not a platform limit.
+    repoLimit: "Unlimited",
     fileLimit: "Unlimited (chunked)",
     rateInfo: "~20 msgs/min per chat",
   },
