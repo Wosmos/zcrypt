@@ -141,9 +141,11 @@ export function TelegramConnect({ onConnect, connecting, hasAccounts }: Telegram
     if (!botUsername) return;
     const param = kind === "channel" ? "startchannel" : "startgroup";
     // Rights the adapter needs: post chunks + delete them on purge. Channels gate
-    // posting behind admin; groups only gate deletion.
+    // posting behind admin; groups only gate deletion. The `=true` value matters:
+    // a valueless startgroup/startchannel triggers a Telegram Desktop bug that
+    // sends a /start DM instead of opening the chat picker.
     const admin = kind === "channel" ? "post_messages+delete_messages" : "delete_messages";
-    window.open(`https://t.me/${botUsername}?${param}&admin=${admin}`, "_blank", "noopener,noreferrer");
+    window.open(`https://t.me/${botUsername}?${param}=true&admin=${admin}`, "_blank", "noopener,noreferrer");
     startPolling();
   };
 
@@ -239,8 +241,9 @@ export function TelegramConnect({ onConnect, connecting, hasAccounts }: Telegram
           {chats.length === 0 ? (
             <div className="space-y-3">
               <p className="text-xs text-[var(--color-text-secondary)]">
-                Add the bot to where you want files stored. Pick a destination — Telegram opens, you choose
-                the channel/group, and we&apos;ll detect it automatically.
+                Add the bot to where you want files stored, then we detect the chat automatically —
+                you never enter a chat ID. On the Telegram <span className="font-medium">mobile app</span> the
+                button below does it in one tap.
               </p>
               <div className="flex flex-col gap-2 sm:flex-row">
                 <Button variant="secondary" onClick={() => openDeepLink("channel")} className="flex-1">
@@ -252,6 +255,25 @@ export function TelegramConnect({ onConnect, connecting, hasAccounts }: Telegram
                   Add to a group
                 </Button>
               </div>
+
+              {/* Telegram Desktop/Web has a known bug where these deep links open
+                  a bot DM instead of the chat picker — give the reliable manual
+                  path so the flow is never a dead end. */}
+              <details className="group rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)]/50 px-3 py-2.5">
+                <summary className="flex cursor-pointer list-none items-center gap-1.5 text-xs font-medium text-[var(--color-text-secondary)] outline-none transition-colors hover:text-[var(--color-text)]">
+                  <ChevronDown className="h-3.5 w-3.5 transition-transform group-open:rotate-180" />
+                  On desktop? The button opens a chat — add the bot manually instead
+                </summary>
+                <ol className="mt-2 list-decimal space-y-1 pl-5 text-xs text-[var(--color-text-secondary)]">
+                  <li>Open (or create) your channel/group in Telegram.</li>
+                  <li>Channel name → <span className="font-medium">Administrators → Add Admin</span>.</li>
+                  <li>
+                    Search <span className="font-medium">@{botUsername}</span>, add it, and leave{" "}
+                    <span className="font-medium">Post Messages</span> enabled.
+                  </li>
+                  <li>Come back here — it&apos;s detected automatically (or hit Check now).</li>
+                </ol>
+              </details>
 
               <div className="flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)]/50 px-3 py-2.5 text-xs text-[var(--color-text-secondary)]">
                 {polling ? (
