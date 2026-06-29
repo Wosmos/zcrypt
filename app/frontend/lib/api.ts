@@ -217,6 +217,31 @@ export function connectPlatform(platform: string, token: string): Promise<{ succ
   });
 }
 
+export interface TelegramDetectedChat {
+  id: string;
+  title: string;
+  type: "channel" | "group" | "supergroup";
+}
+
+export interface TelegramProbeResult {
+  bot_username: string;
+  chats: TelegramDetectedChat[];
+  /** Present when the token is valid but auto-detection couldn't run (e.g. the
+   *  bot has a webhook set) — the UI should suggest the manual fallback. */
+  detect_error?: string;
+}
+
+/** Validate a Telegram bot token and detect channels/groups it was added to.
+ *  Stores nothing — the guided connect flow polls this after the user adds the
+ *  bot to a chat via a deep link, so the chat ID is auto-filled. */
+export function telegramProbe(botToken: string): Promise<TelegramProbeResult> {
+  return request<TelegramProbeResult>("/api/platforms/telegram/probe", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ bot_token: botToken }),
+  });
+}
+
 export function disconnectPlatform(platform: string, username: string): Promise<{ success: boolean }> {
   return request<{ success: boolean }>("/api/platforms/disconnect", {
     method: "DELETE",

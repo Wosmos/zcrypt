@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { connectPlatform } from "@/lib/api";
 import { invalidatePlatforms } from "@/store/platform";
+import { TelegramConnect } from "@/components/settings/telegram-connect";
 import { toast } from "@/store/toast";
 import { GitlabIcon } from "@/components/icons/gitlab";
 import { HuggingFaceIcon } from "@/components/icons/huggingface";
@@ -93,6 +94,25 @@ export default function OnboardingPage() {
       setStep("done");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Connection failed");
+    } finally {
+      setConnecting(false);
+    }
+  };
+
+  // Telegram uses the guided flow (token -> deep link -> auto-detected chat),
+  // which hands us the full BOT_TOKEN|CHAT_ID. Returns true on success so the
+  // guided component can reset.
+  const handleConnectTelegram = async (fullToken: string): Promise<boolean> => {
+    setConnecting(true);
+    try {
+      await connectPlatform("telegram", fullToken);
+      void invalidatePlatforms();
+      toast.success("Telegram connected!");
+      setStep("done");
+      return true;
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Connection failed");
+      return false;
     } finally {
       setConnecting(false);
     }
@@ -259,31 +279,41 @@ export default function OnboardingPage() {
             </div>
 
             <div className="space-y-4">
-              <Input
-                type="password"
-                placeholder={platform.placeholder}
-                value={token}
-                onChange={(e) => setToken(e.target.value)}
-                icon={<Key className="h-4 w-4" />}
-              />
+              {platform.id === "telegram" ? (
+                <TelegramConnect
+                  onConnect={handleConnectTelegram}
+                  connecting={connecting}
+                  hasAccounts={false}
+                />
+              ) : (
+                <>
+                  <Input
+                    type="password"
+                    placeholder={platform.placeholder}
+                    value={token}
+                    onChange={(e) => setToken(e.target.value)}
+                    icon={<Key className="h-4 w-4" />}
+                  />
 
-              <Button
-                className="w-full"
-                size="lg"
-                onClick={handleConnect}
-                disabled={connecting || !token.trim()}
-              >
-                {connecting ? "Connecting..." : "Connect"}
-              </Button>
+                  <Button
+                    className="w-full"
+                    size="lg"
+                    onClick={handleConnect}
+                    disabled={connecting || !token.trim()}
+                  >
+                    {connecting ? "Connecting..." : "Connect"}
+                  </Button>
 
-              <a
-                href={platform.tokenUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block text-center text-xs text-[var(--color-accent)] hover:underline transition-colors"
-              >
-                {platform.tokenLabel}
-              </a>
+                  <a
+                    href={platform.tokenUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block text-center text-xs text-[var(--color-accent)] hover:underline transition-colors"
+                  >
+                    {platform.tokenLabel}
+                  </a>
+                </>
+              )}
 
               <button
                 onClick={() => setStep("platform")}

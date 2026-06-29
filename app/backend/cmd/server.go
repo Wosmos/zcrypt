@@ -483,6 +483,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	// Platforms
 	mux.HandleFunc("GET /api/platforms/status", s.AuthMiddleware(s.HandlePlatformStatus))
 	mux.HandleFunc("POST /api/platforms/connect", maxJSON(s.AuthMiddleware(s.HandleConnectPlatform)))
+	mux.HandleFunc("POST /api/platforms/telegram/probe", maxJSON(s.AuthMiddleware(s.HandleTelegramProbe)))
 	mux.HandleFunc("DELETE /api/platforms/disconnect", maxJSON(s.AuthMiddleware(s.HandleDisconnectPlatform)))
 	mux.HandleFunc("PUT /api/platforms/tokens/{id}/scope", maxJSON(s.AuthMiddleware(s.HandleToggleTokenScope)))
 	mux.HandleFunc("GET /api/repos", s.AuthMiddleware(s.HandleListRepos))

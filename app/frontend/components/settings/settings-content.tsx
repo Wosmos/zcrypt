@@ -25,6 +25,7 @@ import { useFileList } from "@/hooks/useFileList";
 import { GitlabIcon } from "@/components/icons/gitlab";
 import { HuggingFaceIcon } from "@/components/icons/huggingface";
 import { TelegramIcon } from "@/components/icons/telegram";
+import { TelegramConnect } from "@/components/settings/telegram-connect";
 import type { PlatformStatus } from "@/types";
 import {
   Github,
@@ -103,9 +104,9 @@ export function SettingsContent() {
     (s) => s.platform === "telegram" && s.connected
   );
 
-  const handleConnect = async (platform: string, token: string) => {
-    if (!token.trim()) return;
-    if (busyRef.current.has(`connect:${platform}`)) return;
+  const handleConnect = async (platform: string, token: string): Promise<boolean> => {
+    if (!token.trim()) return false;
+    if (busyRef.current.has(`connect:${platform}`)) return false;
     busyRef.current.add(`connect:${platform}`);
     setConnecting(platform);
 
@@ -117,8 +118,10 @@ export function SettingsContent() {
       if (platform === "huggingface") setHuggingfaceToken("");
       if (platform === "telegram") setTelegramToken("");
       refresh();
+      return true;
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Connection failed");
+      return false;
     } finally {
       busyRef.current.delete(`connect:${platform}`);
       setConnecting(null);
@@ -330,7 +333,7 @@ export function SettingsContent() {
               icon={<TelegramIcon className="h-5 w-5 text-sky-500 dark:text-sky-400" />}
               name="Telegram"
               platform="telegram"
-              description="Bot token + channel ID — format: BOT_TOKEN|CHAT_ID — unlimited storage"
+              description="Bot token + channel — guided setup, unlimited storage"
               tokenUrl="https://t.me/BotFather"
               tokenLabel="Create bot via @BotFather"
               placeholder="123456:ABC-DEF|@channel_name"
@@ -343,6 +346,13 @@ export function SettingsContent() {
               disconnecting={disconnecting}
               onToggleScope={handleToggleScope}
               isAdmin={isAdmin}
+              customConnect={
+                <TelegramConnect
+                  onConnect={(token) => handleConnect("telegram", token)}
+                  connecting={connecting === "telegram"}
+                  hasAccounts={telegramAccounts.length > 0}
+                />
+              }
             />
           </div>
         </Section>
@@ -422,6 +432,7 @@ function PlatformSection({
   disconnecting,
   onToggleScope,
   isAdmin,
+  customConnect,
 }: {
   icon: React.ReactNode;
   name: string;
@@ -439,6 +450,9 @@ function PlatformSection({
   disconnecting: string | null;
   onToggleScope: (tokenId: string, currentIsGlobal: boolean) => void;
   isAdmin?: boolean;
+  /** When provided, replaces the default token input + connect button (e.g. the
+   *  guided Telegram flow). The connected-accounts list above stays shared. */
+  customConnect?: React.ReactNode;
 }) {
   return (
     <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-1)]/40">
@@ -515,42 +529,46 @@ function PlatformSection({
           </ul>
         )}
 
-        {/* Token input */}
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <div className="flex-1">
-            <Input
-              type="password"
-              placeholder={placeholder}
-              value={token}
-              onChange={(e) => onTokenChange(e.target.value)}
-              icon={<Key className="h-4 w-4" />}
-              aria-label={`${name} token`}
-            />
-          </div>
-          <Button onClick={onConnect} disabled={connecting || !token.trim()} className="sm:self-start">
-            {connecting ? (
-              <span className="flex items-center gap-2">
-                <LogoSpinner size={14} speed="fast" />
-                Connecting...
-              </span>
-            ) : (
-              <span className="flex items-center gap-1.5">
-                {connectedAccounts.length > 0 ? "Add account" : "Connect"}
-                <ArrowRight className="h-3.5 w-3.5" />
-              </span>
-            )}
-          </Button>
-        </div>
+        {customConnect ?? (
+          <>
+            {/* Token input */}
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <div className="flex-1">
+                <Input
+                  type="password"
+                  placeholder={placeholder}
+                  value={token}
+                  onChange={(e) => onTokenChange(e.target.value)}
+                  icon={<Key className="h-4 w-4" />}
+                  aria-label={`${name} token`}
+                />
+              </div>
+              <Button onClick={onConnect} disabled={connecting || !token.trim()} className="sm:self-start">
+                {connecting ? (
+                  <span className="flex items-center gap-2">
+                    <LogoSpinner size={14} speed="fast" />
+                    Connecting...
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1.5">
+                    {connectedAccounts.length > 0 ? "Add account" : "Connect"}
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </span>
+                )}
+              </Button>
+            </div>
 
-        <a
-          href={tokenUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 rounded text-xs text-[var(--color-accent)] outline-none transition-colors hover:underline focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40"
-        >
-          {tokenLabel}
-          <ExternalLink className="h-3 w-3" />
-        </a>
+            <a
+              href={tokenUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded text-xs text-[var(--color-accent)] outline-none transition-colors hover:underline focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40"
+            >
+              {tokenLabel}
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          </>
+        )}
       </div>
     </div>
   );
