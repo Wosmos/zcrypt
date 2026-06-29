@@ -169,6 +169,7 @@ func main() {
 	mux.HandleFunc("POST /api/files/bulk-delete", maxJSON(server.AuthMiddleware(server.HandleBulkDeleteFiles)))
 	mux.HandleFunc("GET /api/platforms/status", server.AuthMiddleware(server.HandlePlatformStatus))
 	mux.HandleFunc("POST /api/platforms/connect", maxJSON(server.AuthMiddleware(server.HandleConnectPlatform)))
+	mux.HandleFunc("POST /api/platforms/telegram/probe", maxJSON(server.AuthMiddleware(server.HandleTelegramProbe)))
 	mux.HandleFunc("DELETE /api/platforms/disconnect", maxJSON(server.AuthMiddleware(server.HandleDisconnectPlatform)))
 	mux.HandleFunc("PUT /api/platforms/tokens/{id}/scope", maxJSON(server.AuthMiddleware(server.HandleToggleTokenScope)))
 	mux.HandleFunc("GET /api/repos", server.AuthMiddleware(server.HandleListRepos))

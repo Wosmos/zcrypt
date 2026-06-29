@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/zcrypt/zcrypt/adapters"
 	"github.com/zcrypt/zcrypt/crypto"
 	"github.com/zcrypt/zcrypt/types"
 )
@@ -176,6 +177,50 @@ func (s *Server) HandleConnectPlatform(w http.ResponseWriter, r *http.Request) {
 		"success":  true,
 		"username": username,
 	})
+}
+
+// TelegramProbeRequest is the JSON body for the guided Telegram connect flow.
+type TelegramProbeRequest struct {
+	BotToken string `json:"bot_token"`
+}
+
+// HandleTelegramProbe validates a Telegram bot token and reports the
+// channels/groups the bot has been added to, so the guided connect flow can
+// auto-fill the chat ID (the painful manual step) instead of making the user
+// hunt for it. The token is never stored here — it's a transient lookup the UI
+// polls after the user adds the bot to a chat via a deep link.
+// POST /api/platforms/telegram/probe
+func (s *Server) HandleTelegramProbe(w http.ResponseWriter, r *http.Request) {
+	var req TelegramProbeRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
+		return
+	}
+	if strings.TrimSpace(req.BotToken) == "" {
+		http.Error(w, `{"error":"bot token required"}`, http.StatusBadRequest)
+		return
+	}
+
+	username, chats, err := adapters.TelegramProbe(req.BotToken)
+	// An empty username means getMe failed → the token itself is bad (don't log
+	// the token). A non-empty username with an error means the token is valid but
+	// chat detection hit a snag (e.g. the bot has a webhook set, which disables
+	// getUpdates) — that's not fatal; the UI keeps the manual fallback.
+	if username == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]interface{}{
+			"error": "invalid bot token",
+		})
+		return
+	}
+
+	resp := map[string]interface{}{
+		"bot_username": username,
+		"chats":        chats,
+	}
+	if err != nil {
+		resp["detect_error"] = "Couldn't auto-detect a chat. If your bot uses a webhook, add the channel ID manually."
+	}
+	writeJSON(w, http.StatusOK, resp)
 }
 
 // HandleDisconnectPlatform removes a connected account.
