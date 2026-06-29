@@ -5,6 +5,7 @@ import {
   cachedDecrypt,
   clearDecryptCache,
   clearDecryptCacheForFolder,
+  clearDecryptCacheForFile,
 } from "@/lib/decrypt-cache";
 
 const MB = 1024 * 1024;
@@ -126,5 +127,36 @@ describe("decrypt-cache", () => {
     expect(getCachedBlob("a2")).toBeUndefined();
     expect(getCachedBlob("b1")).toBeDefined();
     expect(getCachedBlob("v")).toBeDefined();
+  });
+
+  it("clearDecryptCacheForFile evicts only that file and frees its budget", async () => {
+    await cachedDecrypt("keep", null, async () => sizedBlob(10));
+    await cachedDecrypt("drop", "folderA", async () => sizedBlob(10));
+
+    clearDecryptCacheForFile("drop");
+
+    expect(getCachedBlob("drop")).toBeUndefined();
+    expect(getCachedBlob("keep")).toBeDefined();
+
+    // Budget was decremented, so a later large file still fits without evicting
+    // 'keep' (regression guard: a missed totalBytes decrement would over-count).
+    await cachedDecrypt("big", null, async () => sizedBlob(290 * MB));
+    expect(getCachedBlob("keep")).toBeDefined();
+    expect(getCachedBlob("big")).toBeDefined();
+  });
+
+  it("clearDecryptCacheForFile is a harmless no-op for an unknown id", () => {
+    expect(() => clearDecryptCacheForFile("never-seen")).not.toThrow();
+  });
+
+  it("an in-flight decrypt for a file cleared mid-flight does not repopulate", async () => {
+    const d = deferred<Blob>();
+    const p = cachedDecrypt("f1", null, () => d.promise);
+    expect(isWarmOrInflight("f1")).toBe(true); // in flight
+    clearDecryptCacheForFile("f1"); // bumps generation because it's in flight
+    d.resolve(sizedBlob(10));
+    const blob = await p;
+    expect(blob).toBeDefined(); // caller still receives its blob
+    expect(getCachedBlob("f1")).toBeUndefined(); // but it is NOT retained
   });
 });
