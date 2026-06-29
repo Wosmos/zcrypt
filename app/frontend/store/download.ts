@@ -3,7 +3,7 @@ import { toast } from "@/store/toast";
 import { notifications } from "@/store/notifications";
 import { downloadAndDecryptFile } from "@/lib/download-session";
 import { downloadAsZip, type BulkDownloadFile } from "@/lib/bulk-download";
-import { useFileStore } from "@/store/files";
+import { getFilesData } from "@/store/files";
 import { useFolderRegistry } from "@/store/folder-registry";
 import { useFolderPasswordStore } from "@/store/folder-passwords";
 import { resolveFilePasswordGlobal } from "@/hooks/useFolderProtection";
@@ -62,7 +62,7 @@ export type DownloadPasswordResolver = (fileId: string) => Promise<string> | str
 // scope the wrong-password recovery (clear-cache + re-prompt) to protected files
 // only — unprotected files keep the existing vault wrong-passphrase flow.
 function protectedFolderOf(fileId: string): string | null {
-  const file = useFileStore.getState().files.find((f) => f.id === fileId);
+  const file = getFilesData().find((f) => f.id === fileId);
   const fid = file?.folder_id ?? null;
   if (fid && useFolderRegistry.getState().isProtected(fid)) return fid;
   return null;

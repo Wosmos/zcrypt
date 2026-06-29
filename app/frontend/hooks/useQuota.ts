@@ -1,24 +1,18 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
-import { getQuota } from "@/lib/api";
-import { useQuotaStore } from "@/store/quota";
+import { useCallback } from "react";
+import { useQuotaQuery, invalidateQuota } from "@/store/quota";
 
+/**
+ * Quota adapter — keeps the `{ quota, refresh }` shape every consumer expects
+ * while the source of truth is now the `qk.quota` TanStack query.
+ */
 export function useQuota() {
-  const { quota, setQuota } = useQuotaStore();
+  const query = useQuotaQuery();
 
   const refresh = useCallback(async () => {
-    try {
-      const q = await getQuota();
-      setQuota(q);
-    } catch {
-      // silently fail
-    }
-  }, [setQuota]);
+    await invalidateQuota();
+  }, []);
 
-  useEffect(() => {
-    if (!quota) refresh();
-  }, [quota, refresh]);
-
-  return { quota, refresh };
+  return { quota: query.data ?? null, refresh };
 }

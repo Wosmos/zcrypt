@@ -4,6 +4,7 @@ import { Poppins, Manrope } from "next/font/google";
 import "./globals.css";
 import { ToastContainer } from "@/components/ui/toast-container";
 import { ThemeProvider } from "@/components/providers/theme-provider";
+import { QueryProvider } from "@/components/providers/query-provider";
 import { NavProgress } from "@/components/ui/nav-progress";
 import {
   OrganizationJsonLd,
@@ -188,10 +189,12 @@ export default function RootLayout({
           </div>
         </noscript>
         <ThemeProvider>
-          <NavProgress />
-          {children}
-          <ToastContainer />
-          <Analytics />
+          <QueryProvider>
+            <NavProgress />
+            {children}
+            <ToastContainer />
+            <Analytics />
+          </QueryProvider>
         </ThemeProvider>
       </body>
     </html>

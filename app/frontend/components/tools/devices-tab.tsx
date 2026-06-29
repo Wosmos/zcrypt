@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
-import { listOfflinePins, pinFileOffline, unpinFileOffline, listFiles, pushClipboard, listClipboard, getClipboardContent, deleteClipboardItem, createEventSource, listSyncFolders, createSyncFolder, updateSyncFolder, deleteSyncFolder } from "@/lib/api";
+import { listOfflinePins, pinFileOffline, unpinFileOffline, pushClipboard, listClipboard, getClipboardContent, deleteClipboardItem, createEventSource, listSyncFolders, createSyncFolder, updateSyncFolder, deleteSyncFolder } from "@/lib/api";
+import { ensureFiles } from "@/store/files";
 import { encryptChunk, decryptChunk, toBase64 } from "@/lib/crypto";
 import type { OfflinePin, FileMetadata, ClipboardItem, SyncFolder } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -36,7 +37,7 @@ function OfflinePinsSection() {
   const deviceId = typeof window !== "undefined" ? getDeviceId() : "";
 
   useEffect(() => {
-    Promise.all([listOfflinePins(deviceId), listFiles()])
+    Promise.all([listOfflinePins(deviceId), ensureFiles()])
       .then(([p, f]) => { setPins(p); setFiles(f); })
       .catch(() => {})
       .finally(() => setLoading(false));

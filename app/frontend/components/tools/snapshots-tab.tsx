@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "motion/react";
-import { listVaultSnapshots, createVaultSnapshot, deleteVaultSnapshot, listFiles } from "@/lib/api";
+import { listVaultSnapshots, createVaultSnapshot, deleteVaultSnapshot } from "@/lib/api";
+import { ensureFiles } from "@/store/files";
 import type { VaultSnapshot, FileMetadata } from "@/types";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
@@ -36,7 +37,7 @@ export function SnapshotsTab() {
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    Promise.all([listVaultSnapshots(), listFiles()])
+    Promise.all([listVaultSnapshots(), ensureFiles()])
       .then(([snaps, f]) => { setSnapshots(snaps); setFiles(f); })
       .catch(() => {})
       .finally(() => setLoading(false));

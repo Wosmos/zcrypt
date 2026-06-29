@@ -30,9 +30,19 @@ class OfflineCache {
         encrypted_size INTEGER NOT NULL,
         chunk_count INTEGER NOT NULL,
         sha256 TEXT NOT NULL,
-        created_at TEXT NOT NULL
+        created_at TEXT NOT NULL,
+        folder_id TEXT
       )
     `);
+    // Migrate older caches created before folder_id existed. Without this column
+    // a cache-hydrated mount would render every file at the vault root, so a
+    // moved file appeared to "snap back" to its old location until the network
+    // refetch landed. ALTER fails harmlessly once the column is present.
+    try {
+      this.db.run("ALTER TABLE file_cache ADD COLUMN folder_id TEXT");
+    } catch {
+      // column already exists
+    }
     this.db.run(`
       CREATE TABLE IF NOT EXISTS cache_meta (
         key TEXT PRIMARY KEY,
@@ -46,9 +56,9 @@ class OfflineCache {
     this.db.run("DELETE FROM file_cache WHERE user_id = ?", [userId]);
     for (const f of files) {
       this.db.run(
-        `INSERT OR REPLACE INTO file_cache (id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [f.id, userId, f.original_name, f.original_size, f.compressed_size, f.encrypted_size, f.chunk_count, f.sha256, f.created_at]
+        `INSERT OR REPLACE INTO file_cache (id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, created_at, folder_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [f.id, userId, f.original_name, f.original_size, f.compressed_size, f.encrypted_size, f.chunk_count, f.sha256, f.created_at, f.folder_id ?? null]
       );
     }
     this.setMeta(`files_updated_${userId}`, new Date().toISOString());
@@ -59,7 +69,7 @@ class OfflineCache {
   /** Get cached files for a user. */
   getFiles(userId: string): FileMetadata[] {
     const result = this.db.exec(
-      "SELECT id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, created_at FROM file_cache WHERE user_id = ? ORDER BY created_at DESC",
+      "SELECT id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, created_at, folder_id FROM file_cache WHERE user_id = ? ORDER BY created_at DESC",
       [userId]
     );
     if (!result.length) return [];
@@ -72,6 +82,7 @@ class OfflineCache {
       chunk_count: row[5] as number,
       sha256: row[6] as string,
       created_at: row[7] as string,
+      folder_id: (row[8] as string | null) ?? null,
     }));
   }
 

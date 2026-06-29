@@ -21,7 +21,7 @@ import {
 import { Logo } from "@/components/ui/logo";
 import { MobileNav } from "@/components/ui/mobile-nav";
 import { useAuthStore } from "@/store/auth";
-import { useQuotaStore } from "@/store/quota";
+import { useQuotaQuery } from "@/store/quota";
 
 const primaryLinks = [
   { href: "/dashboard", label: "Vault", icon: Shield },
@@ -39,7 +39,7 @@ export function Sidebar() {
   const { user } = useAuthStore();
   const advancedMode = usePreferencesStore((s) => s.advancedMode);
   const [collapsed, setCollapsed] = useState(false);
-  const quota = useQuotaStore((s) => s.quota);
+  const quota = useQuotaQuery().data ?? null;
 
   const isAdmin = user?.role === Role.Admin;
   const secondaryLinks = useMemo(() => {
