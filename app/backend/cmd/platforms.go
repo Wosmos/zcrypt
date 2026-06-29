@@ -62,7 +62,7 @@ func (s *Server) HandlePlatformStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Add disconnected entries for platforms with no accounts
-	for _, p := range []string{"github", "gitlab", "huggingface"} {
+	for _, p := range []string{"github", "gitlab", "huggingface", "telegram"} {
 		if !platformHasAccount[p] {
 			statuses = append(statuses, types.PlatformStatus{
 				Platform:  p,

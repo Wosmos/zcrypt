@@ -4,6 +4,7 @@ import type { PlatformStatus, RepoInfo } from "@/types";
 import { Github, AlertTriangle, CheckCircle2 } from "@/lib/icons";
 import { GitlabIcon } from "@/components/icons/gitlab";
 import { HuggingFaceIcon } from "@/components/icons/huggingface";
+import { TelegramIcon } from "@/components/icons/telegram";
 import { formatBytes } from "@/lib/utils";
 import { Section } from "@/components/ui/section";
 
@@ -35,6 +36,12 @@ const platformMeta: Record<string, {
     repoLimit: "300 GB / repo",
     fileLimit: "50 GB / file (LFS)",
     rateInfo: "No strict rate limits",
+  },
+  telegram: {
+    icon: <TelegramIcon className="h-4 w-4 text-sky-500" />,
+    repoLimit: "50 GB / channel",
+    fileLimit: "Unlimited (chunked)",
+    rateInfo: "~20 msgs/min per chat",
   },
 };
 

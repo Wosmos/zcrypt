@@ -304,7 +304,7 @@ export default function VaultPage() {
 
   // Mirror PlatformHealth's filter so the "Storage & backup" panel only renders
   // when it has content to show.
-  const hasPersonalPlatform = statuses.some((s) => s.connected && !s.is_global);
+  const hasConnectedPlatform = statuses.some((s) => s.connected);
 
   const uploadHint =
     quotaInfo && !quotaInfo.can_upload
@@ -403,7 +403,7 @@ export default function VaultPage() {
 
           {/* Storage & backup — de-emphasized, collapsed by default. Only render
               when there's content: a personal platform or files to back up. */}
-          {(hasPersonalPlatform || files.length > 0) && (
+          {(hasConnectedPlatform || files.length > 0) && (
             <Accordion type="single" collapsible className="pt-2">
               <AccordionItem
                 value="storage-backup"

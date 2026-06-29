@@ -25,7 +25,7 @@ import AnalyticsLoading from "@/app/(app)/analytics/loading";
 
 export function AnalyticsClient() {
   const { files, loading, error, refresh } = useFileList();
-  const { repos, refresh: refreshPlatforms } = usePlatformHealth();
+  const { repos, statuses, refresh: refreshPlatforms } = usePlatformHealth();
   const { quota: quotaInfo, refresh: refreshQuota } = useQuota();
   const [refreshing, setRefreshing] = useState(false);
   const [advanced, setAdvanced] = useState(false);
@@ -37,7 +37,7 @@ export function AnalyticsClient() {
   const savings = totalOriginal > 0 ? ((1 - totalEncrypted / totalOriginal) * 100).toFixed(1) : "0";
   const spaceSaved = totalOriginal - totalEncrypted;
   const largestFile = files.reduce((m, f) => Math.max(m, f.original_size), 0);
-  const platformCount = new Set(repos.map((r) => r.platform)).size;
+  const platformCount = new Set(statuses.filter((s) => s.connected).map((s) => s.platform)).size;
   const activeRepos = repos.filter((r) => r.active).length;
 
   async function handleRefresh() {
@@ -202,7 +202,7 @@ export function AnalyticsClient() {
 
       {/* Platforms + storage health */}
       <motion.div variants={item} className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <PlatformBreakdown repos={repos} />
+        <PlatformBreakdown statuses={statuses} repos={repos} />
         <StorageHealth repos={repos} />
       </motion.div>
 
