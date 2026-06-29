@@ -201,7 +201,7 @@ func (s *Server) HandleTelegramProbe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	username, chats, err := adapters.TelegramProbe(req.BotToken)
+	username, chats, hint, err := adapters.TelegramProbe(req.BotToken)
 	// An empty username means getMe failed → the token itself is bad (don't log
 	// the token). A non-empty username with an error means the token is valid but
 	// chat detection hit a snag (e.g. the bot has a webhook set, which disables
@@ -217,7 +217,10 @@ func (s *Server) HandleTelegramProbe(w http.ResponseWriter, r *http.Request) {
 		"bot_username": username,
 		"chats":        chats,
 	}
-	if err != nil {
+	if hint != "" {
+		// A specific, actionable hint (e.g. "you only DM'd the bot").
+		resp["detect_error"] = hint
+	} else if err != nil {
 		resp["detect_error"] = "Couldn't auto-detect a chat. If your bot uses a webhook, add the channel ID manually."
 	}
 	writeJSON(w, http.StatusOK, resp)
