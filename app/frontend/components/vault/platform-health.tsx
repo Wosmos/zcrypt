@@ -28,8 +28,8 @@ const platformLabels: Record<string, string> = {
 };
 
 export function PlatformHealth({ statuses, repos }: PlatformHealthProps) {
-  // Only show platforms the user personally connected — hide global/admin tokens entirely
-  const personalStatuses = statuses.filter((s) => s.connected && !s.is_global);
+  // Show every platform the user has connected — personal and shared/global alike.
+  const personalStatuses = statuses.filter((s) => s.connected);
   if (personalStatuses.length === 0) return null;
 
   // Group repos by platform
