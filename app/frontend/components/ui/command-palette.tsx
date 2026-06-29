@@ -11,7 +11,7 @@ import {
   CommandGroup,
   CommandItem,
 } from "@/components/ui/command";
-import { useFileStore } from "@/store/files";
+import { useFilesQuery } from "@/store/files";
 import { Shield, Share2, Settings, Cog, Users, BarChart3, File as FileIcon } from "@/lib/icons";
 
 interface CommandPaletteState {
@@ -50,7 +50,7 @@ export function CommandPalette() {
   const open = useCommandPalette((s) => s.open);
   const setOpen = useCommandPalette((s) => s.setOpen);
   const toggle = useCommandPalette((s) => s.toggle);
-  const files = useFileStore((s) => s.files);
+  const files = useFilesQuery().data ?? [];
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

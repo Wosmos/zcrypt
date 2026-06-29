@@ -11,6 +11,8 @@ import { useOperationStatus } from "@/hooks/useOperationStatus";
 import { useNotifications } from "@/hooks/useNotifications";
 import { notifications as notifActions } from "@/store/notifications";
 import { deleteFile, bulkDeleteFiles, moveFile } from "@/lib/api";
+import { invalidateTrash } from "@/store/trash";
+import { clearDecryptCacheForFile } from "@/lib/decrypt-cache";
 import { toast } from "@/store/toast";
 import { formatBytes } from "@/lib/utils";
 import { useFolderRegistry } from "@/store/folder-registry";
@@ -421,6 +423,9 @@ export function useVaultActions({
       // actually changes. Unprotected→unprotected needs no re-key.
       if (!srcProtected && !destProtected) {
         await moveFile(fileId, destFolderId);
+        // Drop cached plaintext tagged with the old folder (covers the dialog
+        // move path; the drag path evicts optimistically too — both are safe).
+        clearDecryptCacheForFile(fileId);
         return;
       }
 
@@ -431,6 +436,7 @@ export function useVaultActions({
       const destPassword = await passwordForZone(destFolderId);
       await folderProtection.rekeyFileForMove(fileId, sourcePassword, destPassword);
       await moveFile(fileId, destFolderId);
+      clearDecryptCacheForFile(fileId);
     },
     [fileById, passwordForZone, folderProtection]
   );
@@ -444,6 +450,10 @@ export function useVaultActions({
       if ((file.folder_id ?? null) === folderId) return; // already there
       const prev = files;
       setFiles(files.map((f) => (f.id === fileId ? { ...f, folder_id: folderId } : f)));
+      // The cached plaintext is tagged with the file's OLD folder; drop it so a
+      // later folder re-lock can't serve it under the wrong zone, and so it
+      // re-decrypts under the destination folder's key if that changed.
+      clearDecryptCacheForFile(fileId);
       toast.success(
         folderId === null ? `Moved "${file.original_name}" to Root` : `Moved "${file.original_name}"`
       );
@@ -468,15 +478,21 @@ export function useVaultActions({
   const executeDelete = useCallback(
     (target: FileMetadata) => {
       setFiles(files.filter((f) => f.id !== target.id));
+      clearDecryptCacheForFile(target.id);
       toast.success("File deleted");
       refreshQuota();
       // Fire-and-forget; reconcile against the server on failure (refresh, not a
       // captured snapshot, to avoid resurrecting a concurrently-deleted file).
-      deleteFile(target.id).catch((err) => {
-        toast.error(err instanceof Error ? err.message : "Delete failed");
-        refresh();
-        refreshQuota();
-      });
+      deleteFile(target.id)
+        .then(() => {
+          // The row now lives in Trash — keep that view in sync.
+          void invalidateTrash();
+        })
+        .catch((err) => {
+          toast.error(err instanceof Error ? err.message : "Delete failed");
+          refresh();
+          refreshQuota();
+        });
     },
     [files, setFiles, refresh, refreshQuota]
   );
@@ -487,6 +503,7 @@ export function useVaultActions({
       const idSet = new Set(ids);
       // Optimistic: drop the rows instantly — no spinner wait.
       setFiles(files.filter((f) => !idSet.has(f.id)));
+      ids.forEach((id) => clearDecryptCacheForFile(id));
       try {
         const result = await bulkDeleteFiles(ids);
         if (result.failed > 0) {
@@ -495,6 +512,8 @@ export function useVaultActions({
         } else {
           toast.success(`Deleted ${result.deleted} file${result.deleted !== 1 ? "s" : ""}`);
         }
+        // Deleted rows now live in Trash.
+        void invalidateTrash();
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Bulk delete failed");
         refresh();

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { connectPlatform } from "@/lib/api";
+import { invalidatePlatforms } from "@/store/platform";
 import { toast } from "@/store/toast";
 import { GitlabIcon } from "@/components/icons/gitlab";
 import { HuggingFaceIcon } from "@/components/icons/huggingface";
@@ -85,6 +86,9 @@ export default function OnboardingPage() {
 
     try {
       await connectPlatform(selectedPlatform, token.trim());
+      // Refresh the cached platform status so the dashboard doesn't briefly show
+      // "nothing connected" after onboarding hands off.
+      void invalidatePlatforms();
       toast.success(`${platform?.name ?? selectedPlatform} connected!`);
       setStep("done");
     } catch (err) {

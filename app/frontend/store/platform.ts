@@ -1,55 +1,61 @@
-import { create } from "zustand";
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
 import type { PlatformStatus, RepoInfo } from "@/types";
 import { getPlatformStatus, listRepos } from "@/lib/api";
+import { queryClient } from "@/lib/query-client";
+import { qk } from "@/lib/query-keys";
 
-interface PlatformStore {
-  statuses: PlatformStatus[];
-  repos: RepoInfo[];
-  loading: boolean;
-  lastFetched: number | null;
-  setStatuses: (statuses: PlatformStatus[]) => void;
-  setRepos: (repos: RepoInfo[]) => void;
-  setLoading: (loading: boolean) => void;
-  setLastFetched: (ts: number) => void;
+/**
+ * Platform server-state (connected tokens + storage repos), backed by TanStack
+ * Query. Connect/disconnect/scope-toggle invalidate these keys so the status
+ * grid, storage gauges, and onboarding check all read one fresh source instead
+ * of a 30s-stale Zustand snapshot that could disagree across views.
+ */
+export function usePlatformStatusQuery() {
+  return useQuery({
+    queryKey: qk.platforms,
+    queryFn: () => getPlatformStatus(),
+  });
 }
 
-export const usePlatformStore = create<PlatformStore>((set) => ({
-  statuses: [],
-  repos: [],
-  loading: false,
-  lastFetched: null,
-  setStatuses: (statuses) => set({ statuses }),
-  setRepos: (repos) => set({ repos }),
-  setLoading: (loading) => set({ loading }),
-  setLastFetched: (ts) => set({ lastFetched: ts }),
-}));
+export function useReposQuery() {
+  return useQuery({
+    queryKey: qk.repos,
+    queryFn: () => listRepos(),
+  });
+}
 
-const FRESH_MS = 30_000;
-let inFlight: Promise<boolean> | null = null;
+/** Non-reactive snapshot (e.g. the AuthGuard onboarding check). */
+export function getPlatformStatusData(): PlatformStatus[] {
+  return queryClient.getQueryData<PlatformStatus[]>(qk.platforms) ?? [];
+}
 
-// Single deduped fetch of platform status + repos, shared by AuthGuard's
-// onboarding check and usePlatformHealth, so a fresh dashboard load issues ONE
-// request instead of two even when both fire at once. Skips entirely if a recent
-// fetch is cached (unless forced). Resolves true if usable data is in the store.
-export function fetchPlatformHealth(force = false): Promise<boolean> {
-  const store = usePlatformStore.getState();
-  if (!force && store.lastFetched && Date.now() - store.lastFetched < FRESH_MS) {
-    return Promise.resolve(true);
-  }
-  if (inFlight) return inFlight;
-  store.setLoading(true);
-  inFlight = Promise.all([getPlatformStatus(), listRepos()])
-    .then(([s, r]) => {
-      const ps = usePlatformStore.getState();
-      ps.setStatuses(s);
-      ps.setRepos(r);
-      ps.setLastFetched(Date.now());
-      return true;
-    })
-    .catch(() => false)
-    .finally(() => {
-      usePlatformStore.getState().setLoading(false);
-      inFlight = null;
+export function getReposData(): RepoInfo[] {
+  return queryClient.getQueryData<RepoInfo[]>(qk.repos) ?? [];
+}
+
+/** Refetch both platform views after a connect/disconnect/scope change. */
+export function invalidatePlatforms(): Promise<void> {
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: qk.platforms }),
+    queryClient.invalidateQueries({ queryKey: qk.repos }),
+  ]).then(() => undefined);
+}
+
+/**
+ * Fetch-or-cache the platform status, returning it directly. Used by the
+ * AuthGuard onboarding check, which needs the value (not a hook). Resolves to an
+ * empty array if the request fails, so a transient error never bounces the user
+ * to /onboarding.
+ */
+export async function ensurePlatformStatus(): Promise<PlatformStatus[]> {
+  try {
+    return await queryClient.ensureQueryData({
+      queryKey: qk.platforms,
+      queryFn: () => getPlatformStatus(),
     });
-  return inFlight;
+  } catch {
+    return [];
+  }
 }

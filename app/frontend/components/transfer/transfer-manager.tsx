@@ -5,7 +5,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useUploadStore } from "@/store/upload";
 import { useDownloadStore } from "@/store/download";
 import { usePassphraseStore } from "@/store/passphrase";
-import { useFileStore } from "@/store/files";
+import { getFilesData } from "@/store/files";
 import { useFolderRegistry } from "@/store/folder-registry";
 import { useFolderPasswordStore } from "@/store/folder-passwords";
 import { resolveFilePasswordGlobal } from "@/hooks/useFolderProtection";
@@ -119,7 +119,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
   // password for protected files (and clear-cache + re-prompt is handled in the
   // download store on a wrong password).
   const withDownloadPassword = (fileId: string, run: (passphrase: string) => void) => {
-    const file = useFileStore.getState().files.find((f) => f.id === fileId);
+    const file = getFilesData().find((f) => f.id === fileId);
     const folderId = file?.folder_id ?? null;
     const protectedFolder =
       folderId != null && useFolderRegistry.getState().isProtected(folderId);

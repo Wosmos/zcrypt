@@ -9,8 +9,8 @@ import {
   addSharedVaultMember,
   removeSharedVaultMember,
   deleteSharedVault,
-  listFiles,
 } from "@/lib/api";
+import { ensureFiles } from "@/store/files";
 import type { SharedVault, SharedVaultDetail, FileMetadata } from "@/types";
 import { useAuthStore } from "@/store/auth";
 import { Section } from "@/components/ui/section";
@@ -68,7 +68,7 @@ export function SharedVaultsContent() {
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    Promise.all([listSharedVaults(), listFiles()])
+    Promise.all([listSharedVaults(), ensureFiles()])
       .then(([v, f]) => {
         setVaults(v);
         setFiles(f);

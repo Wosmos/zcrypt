@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   listFolders,
   createFolder as apiCreateFolder,
@@ -12,6 +13,9 @@ import { useAuthStore } from "@/store/auth";
 import { usePassphraseStore } from "@/store/passphrase";
 import { useFolderStore } from "@/store/folders";
 import { useFolderRegistry } from "@/store/folder-registry";
+import { queryClient } from "@/lib/query-client";
+import { qk } from "@/lib/query-keys";
+import { invalidateFilesViews } from "@/lib/invalidate";
 import type { Folder } from "@/types";
 
 export interface DecryptedFolder extends Folder {
@@ -20,24 +24,32 @@ export interface DecryptedFolder extends Folder {
   protected: boolean;
 }
 
+/** Invalidate every cached folder listing (any parent). Folder mutations change
+ *  the current parent's children; restoring/cascading can touch others, so we
+ *  reconcile the whole `folders` key space — the lists are small. */
+function invalidateFolders(): Promise<void> {
+  return queryClient.invalidateQueries({ queryKey: ["folders"] });
+}
+
 export function useFolders() {
   const user = useAuthStore((s) => s.user);
   const getPassphrase = usePassphraseStore((s) => s.getPassphrase);
   // Subscribe to the raw cached passphrase (a reactive VALUE, not the stable
-  // getPassphrase fn) so this hook re-runs the moment the vault is unlocked or
-  // locked anywhere — e.g. via the header VaultLock pill. Without this, folder
-  // names stay stuck at "[locked]" after unlocking and `locked` stays
-  // stale-true, which makes folder create/rename re-prompt for a passphrase the
-  // user already entered.
+  // getPassphrase fn) so this hook re-decrypts the moment the vault is unlocked
+  // or locked anywhere — e.g. via the header VaultLock pill.
   const cachedPassphrase = usePassphraseStore((s) => s.cachedPassphrase);
 
   const currentFolderId = useFolderStore((s) => s.currentFolderId);
   const breadcrumb = useFolderStore((s) => s.breadcrumb);
   const setCurrentFolder = useFolderStore((s) => s.setCurrentFolder);
   const navigateToCrumbStore = useFolderStore((s) => s.navigateToCrumb);
-  const setFoldersStore = useFolderStore((s) => s.setFolders);
-  const setLoadingStore = useFolderStore((s) => s.setLoading);
-  const loading = useFolderStore((s) => s.loading);
+
+  // Raw (encrypted) folder list for the current parent — the single source of
+  // truth, cached per parent. Names are decrypted client-side below.
+  const rawQuery = useQuery({
+    queryKey: qk.folders(currentFolderId),
+    queryFn: () => listFolders(currentFolderId),
+  });
 
   const [folders, setFolders] = useState<DecryptedFolder[]>([]);
   const [locked, setLocked] = useState(false);
@@ -59,15 +71,23 @@ export function useFolders() {
     return key;
   }, [user, getPassphrase]);
 
-  const refresh = useCallback(async () => {
-    setLoadingStore(true);
-    try {
-      const raw = await listFolders(currentFolderId);
-      setFoldersStore(raw);
-      // Record each folder's protection metadata so any folder the user has
-      // browsed can be password-routed by id (the backend has no get-by-id).
-      useFolderRegistry.getState().record(raw);
+  // Decrypt folder names whenever the raw list changes OR the vault locks/unlocks
+  // (`cachedPassphrase`). A cancel flag drops a stale in-flight decrypt if the
+  // folder/passphrase changes before it resolves, so the displayed list always
+  // matches the current parent.
+  const raw = rawQuery.data;
+  useEffect(() => {
+    let cancelled = false;
+    if (!raw) {
+      setFolders([]);
+      return;
+    }
+    // Record protection metadata so any browsed folder can be password-routed
+    // by id (the backend has no get-by-id).
+    useFolderRegistry.getState().record(raw);
+    (async () => {
       const key = await getNameKey();
+      if (cancelled) return;
       setLocked(!key);
       const decrypted = await Promise.all(
         raw.map(async (f) => ({
@@ -76,19 +96,16 @@ export function useFolders() {
           protected: f.pw_salt != null,
         }))
       );
-      setFolders(decrypted);
-    } catch {
-      setFolders([]);
-    } finally {
-      setLoadingStore(false);
-    }
-  }, [currentFolderId, getNameKey, setFoldersStore, setLoadingStore]);
+      if (!cancelled) setFolders(decrypted);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [raw, cachedPassphrase, getNameKey]);
 
-  useEffect(() => {
-    refresh();
-    // `cachedPassphrase` is an explicit dep: re-decrypt folder names whenever the
-    // vault locks/unlocks (refresh's own identity doesn't change on unlock).
-  }, [refresh, cachedPassphrase]);
+  const refresh = useCallback(async () => {
+    await invalidateFolders();
+  }, []);
 
   const createFolder = useCallback(
     async (name: string) => {
@@ -96,9 +113,9 @@ export function useFolders() {
       if (!key) throw new Error("Unlock your vault to create folders");
       const encrypted_name = await encryptName(name.trim(), key);
       await apiCreateFolder({ encrypted_name, parent_id: currentFolderId });
-      await refresh();
+      await invalidateFolders();
     },
-    [getNameKey, currentFolderId, refresh]
+    [getNameKey, currentFolderId]
   );
 
   const renameFolder = useCallback(
@@ -107,18 +124,19 @@ export function useFolders() {
       if (!key) throw new Error("Unlock your vault to rename folders");
       const encrypted_name = await encryptName(name.trim(), key);
       await apiRenameFolder(id, encrypted_name);
-      await refresh();
+      await invalidateFolders();
     },
-    [getNameKey, refresh]
+    [getNameKey]
   );
 
-  const deleteFolder = useCallback(
-    async (id: string) => {
-      await apiDeleteFolder(id);
-      await refresh();
-    },
-    [refresh]
-  );
+  const deleteFolder = useCallback(async (id: string) => {
+    await apiDeleteFolder(id);
+    // Deleting a folder soft-deletes its files too (cascade to Trash) — refresh
+    // folders AND the vault list / trash / quota so those files don't linger as
+    // ghosts in the explorer.
+    await invalidateFolders();
+    void invalidateFilesViews();
+  }, []);
 
   const openFolder = useCallback(
     (folder: DecryptedFolder) => {
@@ -136,7 +154,7 @@ export function useFolders() {
 
   return {
     folders,
-    loading,
+    loading: rawQuery.isPending,
     locked,
     refresh,
     createFolder,

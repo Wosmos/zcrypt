@@ -1,7 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { listTrash, restoreFile, purgeFile } from "@/lib/api";
+import { restoreFile, purgeFile } from "@/lib/api";
+import { useTrashQuery, setTrashData, invalidateTrash } from "@/store/trash";
+import { invalidateFilesViews } from "@/lib/invalidate";
+import { invalidateQuota } from "@/store/quota";
+import { clearDecryptCacheForFile } from "@/lib/decrypt-cache";
 import { toast } from "@/store/toast";
 import { formatBytes, formatDate, getFileTypeInfo, cn } from "@/lib/utils";
 import type { FileMetadata } from "@/types";
@@ -44,8 +48,10 @@ const ROW_SELECTED =
   "bg-[var(--color-accent)]/10 ring-1 ring-inset ring-[var(--color-accent)]/40";
 
 export function TrashContent() {
-  const [files, setFiles] = useState<FileMetadata[]>([]);
-  const [loading, setLoading] = useState(true);
+  const trashQuery = useTrashQuery();
+  // Stable ref per data change — many effects/callbacks below depend on `files`.
+  const files = useMemo(() => trashQuery.data ?? [], [trashQuery.data]);
+  const loading = trashQuery.isPending;
   const [busyId, setBusyId] = useState<string | null>(null);
   const [purgeTarget, setPurgeTarget] = useState<FileMetadata | null>(null);
   const [purging, setPurging] = useState(false);
@@ -69,19 +75,8 @@ export function TrashContent() {
   const [viewerIndex, setViewerIndex] = useState(0);
 
   const refresh = useCallback(async () => {
-    try {
-      const data = await listTrash();
-      setFiles(data);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to load trash");
-    } finally {
-      setLoading(false);
-    }
+    await invalidateTrash();
   }, []);
-
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
 
   // Prune selection + clamp focus whenever the visible list changes.
   useEffect(() => {
@@ -164,7 +159,7 @@ export function TrashContent() {
     async (file: FileMetadata) => {
       setBusyId(file.id);
       // Optimistic: drop the row, reconcile on failure.
-      setFiles((prev) => prev.filter((f) => f.id !== file.id));
+      setTrashData((prev) => prev.filter((f) => f.id !== file.id));
       setSelectedIds((prev) => {
         if (!prev.has(file.id)) return prev;
         const next = new Set(prev);
@@ -173,7 +168,12 @@ export function TrashContent() {
       });
       try {
         await restoreFile(file.id);
+        // The file's plaintext was cached under its trashed identity; drop it so
+        // it re-decrypts cleanly back in the vault.
+        clearDecryptCacheForFile(file.id);
         toast.success("File restored");
+        // Cross-view: the file reappears in the vault and quota shifts back.
+        void invalidateFilesViews();
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Restore failed");
         refresh();
@@ -190,7 +190,8 @@ export function TrashContent() {
     setPurging(true);
     try {
       await purgeFile(target.id);
-      setFiles((prev) => prev.filter((f) => f.id !== target.id));
+      clearDecryptCacheForFile(target.id);
+      setTrashData((prev) => prev.filter((f) => f.id !== target.id));
       setSelectedIds((prev) => {
         if (!prev.has(target.id)) return prev;
         const next = new Set(prev);
@@ -199,6 +200,8 @@ export function TrashContent() {
       });
       toast.success("File permanently deleted");
       setPurgeTarget(null);
+      // Chunks were removed from storage — quota frees up.
+      void invalidateQuota();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Permanent delete failed");
     } finally {
@@ -217,10 +220,11 @@ export function TrashContent() {
     const ids = new Set(targets.map((f) => f.id));
     setBulkRestoring(true);
     // Optimistic: drop all selected rows, reconcile via refresh on any failure.
-    setFiles((prev) => prev.filter((f) => !ids.has(f.id)));
+    setTrashData((prev) => prev.filter((f) => !ids.has(f.id)));
     clearSelection();
     try {
       const results = await Promise.allSettled(targets.map((f) => restoreFile(f.id)));
+      targets.forEach((f) => clearDecryptCacheForFile(f.id));
       const failed = results.filter((r) => r.status === "rejected").length;
       if (failed > 0) {
         toast.error(`${failed} file${failed > 1 ? "s" : ""} could not be restored`);
@@ -228,6 +232,8 @@ export function TrashContent() {
       } else {
         toast.success(`Restored ${targets.length} file${targets.length > 1 ? "s" : ""}`);
       }
+      // Restored files reappear in the vault; quota shifts back.
+      void invalidateFilesViews();
     } finally {
       setBulkRestoring(false);
     }
@@ -240,9 +246,10 @@ export function TrashContent() {
     setBulkPurging(true);
     try {
       const results = await Promise.allSettled(targets.map((f) => purgeFile(f.id)));
+      targets.forEach((f) => clearDecryptCacheForFile(f.id));
       const failed = results.filter((r) => r.status === "rejected").length;
       // Drop everything that succeeded; reconcile from the server on partials.
-      setFiles((prev) => prev.filter((f) => !ids.has(f.id)));
+      setTrashData((prev) => prev.filter((f) => !ids.has(f.id)));
       clearSelection();
       setBulkPurgeOpen(false);
       if (failed > 0) {
@@ -251,6 +258,8 @@ export function TrashContent() {
       } else {
         toast.success(`Permanently deleted ${targets.length} file${targets.length > 1 ? "s" : ""}`);
       }
+      // Chunks removed from storage — quota frees up.
+      void invalidateQuota();
     } finally {
       setBulkPurging(false);
     }

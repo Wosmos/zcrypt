@@ -11,7 +11,7 @@ import {
 } from "@/lib/folder-crypto";
 import { useFolderPasswordStore } from "@/store/folder-passwords";
 import { useFolderRegistry } from "@/store/folder-registry";
-import { useFileStore } from "@/store/files";
+import { getFilesData } from "@/store/files";
 import { usePassphraseStore } from "@/store/passphrase";
 import type { UseVaultLock } from "@/hooks/useVaultLock";
 import type { FileMetadata } from "@/types";
@@ -506,7 +506,7 @@ export class FolderPasswordRequired extends Error {
  * server and never logs.
  */
 export async function resolveFilePasswordGlobal(fileId: string): Promise<string> {
-  const file = useFileStore.getState().files.find((f) => f.id === fileId);
+  const file = getFilesData().find((f) => f.id === fileId);
   const fid = file?.folder_id ?? null;
   const protectedFolder = fid != null && useFolderRegistry.getState().isProtected(fid);
 

@@ -1,4 +1,5 @@
-import { listFiles, getFileMeta } from "@/lib/api";
+import { getFileMeta } from "@/lib/api";
+import { ensureFiles } from "@/store/files";
 import { resolveFileKey, fromBase64, IncorrectPassphraseError } from "@/lib/crypto";
 
 /**
@@ -23,7 +24,7 @@ import { resolveFileKey, fromBase64, IncorrectPassphraseError } from "@/lib/cryp
 export async function verifyVaultPassphrase(passphrase: string): Promise<boolean> {
   let files;
   try {
-    files = await listFiles();
+    files = await ensureFiles();
   } catch {
     return true; // couldn't list files — inconclusive, don't block the user
   }

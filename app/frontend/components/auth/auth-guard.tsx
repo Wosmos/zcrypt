@@ -6,7 +6,7 @@ import { useAuthStore } from "@/store/auth";
 import { getMe } from "@/lib/auth-api";
 import { refreshToken as refreshTokenApi } from "@/lib/auth-api";
 import { prefetchFileList } from "@/store/files";
-import { usePlatformStore, fetchPlatformHealth } from "@/store/platform";
+import { ensurePlatformStatus } from "@/store/platform";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { isTauri, startSync } from "@/lib/tauri";
 
@@ -38,10 +38,11 @@ export function AuthGuard({
     // Never blocks initialization, so the dashboard renders immediately.
     const runOnboardingCheck = () => {
       if (skipOnboardingCheck) return;
-      fetchPlatformHealth().then((ok) => {
-        if (!ok) return; // couldn't determine — leave them on the dashboard
-        const { statuses } = usePlatformStore.getState();
-        if (!statuses.some((s) => s.connected)) {
+      ensurePlatformStatus().then((statuses) => {
+        // Empty means either nothing connected OR a transient error; only the
+        // genuinely-empty connected set should bounce to onboarding, and an
+        // error resolves to [] which we treat as "leave them where they are".
+        if (statuses.length > 0 && !statuses.some((s) => s.connected)) {
           setRedirecting(true);
           router.replace("/onboarding");
         }

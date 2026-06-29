@@ -1,28 +1,35 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
-import { usePlatformStore, fetchPlatformHealth } from "@/store/platform";
+import { useCallback } from "react";
+import {
+  usePlatformStatusQuery,
+  useReposQuery,
+  invalidatePlatforms,
+} from "@/store/platform";
 
+/**
+ * Platform health adapter — keeps the `{ statuses, repos, loading, refresh,
+ * isAnyConnected }` shape every consumer expects while the source of truth is
+ * now the `qk.platforms` / `qk.repos` TanStack queries. Window-focus refetch is
+ * handled globally by the QueryClient, so the old manual visibility listener is
+ * gone.
+ */
 export function usePlatformHealth() {
-  const { statuses, repos, loading } = usePlatformStore();
+  const statusesQuery = usePlatformStatusQuery();
+  const reposQuery = useReposQuery();
 
   const refresh = useCallback(async () => {
-    await fetchPlatformHealth(true);
+    await invalidatePlatforms();
   }, []);
 
-  useEffect(() => {
-    // Deduped: skips if AuthGuard (or a sibling page) already fetched recently,
-    // and coalesces with any in-flight fetch — one request on a fresh load.
-    fetchPlatformHealth();
+  const statuses = statusesQuery.data ?? [];
+  const repos = reposQuery.data ?? [];
 
-    function onVisibilityChange() {
-      if (document.visibilityState === "visible") fetchPlatformHealth(true);
-    }
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
-  }, []);
-
-  const isAnyConnected = statuses.some((s) => s.connected);
-
-  return { statuses, repos, loading, refresh, isAnyConnected };
+  return {
+    statuses,
+    repos,
+    loading: statusesQuery.isPending || reposQuery.isPending,
+    refresh,
+    isAnyConnected: statuses.some((s) => s.connected),
+  };
 }

@@ -117,6 +117,23 @@ export function cachedDecrypt(
 }
 
 /**
+ * Drop the plaintext for a single file. Called when a file is deleted, moved, or
+ * restored so its decrypted bytes don't linger in memory keyed by a now-stale id
+ * (and so a moved file's entry, tagged with its OLD folder, can't survive a
+ * later folder re-lock). Cheap no-op if the file was never decrypted.
+ */
+export function clearDecryptCacheForFile(id: string): void {
+  const entry = cache.get(id);
+  if (entry) {
+    totalBytes -= entry.blob.size;
+    cache.delete(id);
+  }
+  // A decrypt may still be in flight for this id; bump the generation so it can't
+  // repopulate the cache after we've evicted it.
+  if (inflight.has(id)) generation++;
+}
+
+/**
  * Drop everything. Called on vault lock / TTL expiry / logout so decrypted
  * plaintext does not linger in memory once the vault re-locks.
  */

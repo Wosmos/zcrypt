@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "motion/react";
-import { listIntegritySnapshots, createIntegritySnapshot, checkFileIntegrity, getChangedFiles, listFiles } from "@/lib/api";
+import { listIntegritySnapshots, createIntegritySnapshot, checkFileIntegrity, getChangedFiles } from "@/lib/api";
+import { ensureFiles } from "@/store/files";
 import type { IntegritySnapshot, FileMetadata } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Section } from "@/components/ui/section";
@@ -40,7 +41,7 @@ export function IntegrityTab() {
   const [checking, setChecking] = useState(false);
 
   useEffect(() => {
-    Promise.all([listIntegritySnapshots(), getChangedFiles(), listFiles()])
+    Promise.all([listIntegritySnapshots(), getChangedFiles(), ensureFiles()])
       .then(([snaps, changed, f]) => { setSnapshots(snaps); setChanges(changed); setFiles(f); })
       .catch(() => {})
       .finally(() => setLoading(false));

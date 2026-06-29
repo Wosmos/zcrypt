@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
-import { listExpiringVaults, createExpiringVault, deleteExpiringVault, listFiles } from "@/lib/api";
+import { listExpiringVaults, createExpiringVault, deleteExpiringVault } from "@/lib/api";
+import { ensureFiles } from "@/store/files";
 import type { ExpiringVault, FileMetadata } from "@/types";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
@@ -55,7 +56,7 @@ export function ExpiringTab() {
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    Promise.all([listExpiringVaults(), listFiles()])
+    Promise.all([listExpiringVaults(), ensureFiles()])
       .then(([v, f]) => { setVaults(v); setFiles(f); })
       .catch(() => {})
       .finally(() => setLoading(false));
