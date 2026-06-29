@@ -79,13 +79,37 @@ func telegramGetMeStandalone(client *http.Client, botToken string) (string, erro
 // telegramDetectChats pulls pending updates and extracts the channels/groups the
 // bot now belongs to. It does NOT advance the update offset, so repeated polls
 // keep seeing the same recent events (Telegram retains updates for ~24h).
+//
+// getUpdates rejects concurrent calls for the same bot with a 409 Conflict; the
+// guided UI serializes its polls, but we retry a couple of times here too so a
+// stray overlap (e.g. two browser tabs) self-heals instead of surfacing an error.
 func telegramDetectChats(client *http.Client, botToken string) ([]DetectedChat, error) {
+	var lastErr error
+	for attempt := 0; attempt < 3; attempt++ {
+		if attempt > 0 {
+			time.Sleep(1200 * time.Millisecond)
+		}
+		chats, conflict, err := telegramGetUpdatesOnce(client, botToken)
+		if err == nil {
+			return chats, nil
+		}
+		lastErr = err
+		if !conflict {
+			break // a non-conflict error won't fix itself by retrying
+		}
+	}
+	return nil, lastErr
+}
+
+// telegramGetUpdatesOnce runs a single getUpdates and reports whether the failure
+// was a transient 409 Conflict (concurrent getUpdates), which is worth retrying.
+func telegramGetUpdatesOnce(client *http.Client, botToken string) (chats []DetectedChat, conflict bool, err error) {
 	q := url.Values{}
 	q.Set("timeout", "0")
 	q.Set("allowed_updates", `["my_chat_member","channel_post","message"]`)
 	resp, err := client.Get(telegramAPIURL(botToken, "getUpdates") + "?" + q.Encode())
 	if err != nil {
-		return nil, fmt.Errorf("getUpdates request: %w", err)
+		return nil, false, fmt.Errorf("getUpdates request: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -113,11 +137,15 @@ func telegramDetectChats(client *http.Client, botToken string) ([]DetectedChat, 
 		Description string `json:"description"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("decode getUpdates: %w", err)
+		return nil, false, fmt.Errorf("decode getUpdates: %w", err)
 	}
 	if !result.OK {
-		// Most common cause: the bot has a webhook set (getUpdates is then 409).
-		return nil, fmt.Errorf("getUpdates failed: %s", result.Description)
+		// A 409 Conflict ("terminated by other getUpdates request") is transient —
+		// two getUpdates ran at once. Other failures (e.g. a webhook is set) are
+		// not worth retrying.
+		desc := strings.ToLower(result.Description)
+		isConflict := strings.Contains(desc, "conflict") || strings.Contains(desc, "terminated")
+		return nil, isConflict, fmt.Errorf("getUpdates failed: %s", result.Description)
 	}
 
 	// Dedup by chat id, keeping the latest title seen. Only channels/groups can
@@ -153,13 +181,13 @@ func telegramDetectChats(client *http.Client, botToken string) ([]DetectedChat, 
 		}
 	}
 
-	chats := make([]DetectedChat, 0, len(order))
+	chats = make([]DetectedChat, 0, len(order))
 	for _, id := range order {
 		if c, ok := seen[id]; ok {
 			chats = append(chats, c)
 		}
 	}
-	return chats, nil
+	return chats, false, nil
 }
 
 func isStorageChatType(t string) bool {

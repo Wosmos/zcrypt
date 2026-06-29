@@ -55,13 +55,16 @@ export function TelegramConnect({ onConnect, connecting, hasAccounts }: Telegram
   const [showManual, setShowManual] = useState(false);
   const [manualToken, setManualToken] = useState("");
 
-  const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const inFlight = useRef(false);
+  const pollActive = useRef(false);
+  const pollNext = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollDeadline = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const stopPolling = useCallback(() => {
-    if (pollTimer.current) clearInterval(pollTimer.current);
+    pollActive.current = false;
+    if (pollNext.current) clearTimeout(pollNext.current);
     if (pollDeadline.current) clearTimeout(pollDeadline.current);
-    pollTimer.current = null;
+    pollNext.current = null;
     pollDeadline.current = null;
     setPolling(false);
   }, []);
@@ -69,34 +72,55 @@ export function TelegramConnect({ onConnect, connecting, hasAccounts }: Telegram
   // Tear down timers on unmount.
   useEffect(() => stopPolling, [stopPolling]);
 
-  // One probe call. `silent` suppresses the invalid-token toast during polling.
+  // ONE probe at a time. Telegram's getUpdates rejects concurrent calls for the
+  // same bot with a 409 Conflict, so overlapping requests would all fail and
+  // look like "couldn't detect". The in-flight guard serializes them.
   const probe = useCallback(
     async (silent: boolean): Promise<boolean> => {
-      const res = await telegramProbe(botToken).catch((e) => {
+      if (inFlight.current) return false;
+      inFlight.current = true;
+      try {
+        const res = await telegramProbe(botToken);
+        setBotUsername(res.bot_username);
+        setDetectHint(res.detect_error ?? null);
+        if (res.chats.length > 0) {
+          setChats(res.chats);
+          // Pre-select the most recently added chat (last in detection order).
+          setSelectedId((cur) => cur ?? res.chats[res.chats.length - 1].id);
+          stopPolling();
+          return true;
+        }
+        return false;
+      } catch (e) {
         if (!silent) toast.error("Invalid bot token. Double-check it and try again.");
         throw e;
-      });
-      setBotUsername(res.bot_username);
-      setDetectHint(res.detect_error ?? null);
-      if (res.chats.length > 0) {
-        setChats(res.chats);
-        // Pre-select the most recently added chat (last in detection order).
-        setSelectedId((cur) => cur ?? res.chats[res.chats.length - 1].id);
-        stopPolling();
-        return true;
+      } finally {
+        inFlight.current = false;
       }
-      return false;
     },
     [botToken, stopPolling]
   );
 
+  // Sequential polling: schedule the NEXT probe only after the current one
+  // resolves, so getUpdates calls never overlap regardless of how slow Telegram
+  // is to respond.
   const startPolling = useCallback(() => {
-    stopPolling();
+    if (pollActive.current) return; // already polling
+    pollActive.current = true;
     setPolling(true);
-    pollTimer.current = setInterval(() => {
-      void probe(true).catch(() => {});
-    }, POLL_MS);
     pollDeadline.current = setTimeout(stopPolling, POLL_TIMEOUT_MS);
+    const tick = async () => {
+      if (!pollActive.current) return;
+      let found = false;
+      try {
+        found = await probe(true);
+      } catch {
+        // transient — keep polling
+      }
+      if (found || !pollActive.current) return;
+      pollNext.current = setTimeout(() => void tick(), POLL_MS);
+    };
+    void tick();
   }, [probe, stopPolling]);
 
   const handleValidate = async () => {
