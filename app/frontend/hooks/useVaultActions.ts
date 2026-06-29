@@ -42,7 +42,7 @@ interface UseVaultActionsArgs {
   selectedPlatform: string | null;
   refresh: () => Promise<void>;
   refreshQuota: () => Promise<void>;
-  setFiles: (files: FileMetadata[]) => void;
+  setFiles: (files: FileMetadata[] | ((prev: FileMetadata[]) => FileMetadata[])) => void;
   /** Open a blob preview (already-decrypted plaintext) via useFilePreview. */
   openPreview: (blob: Blob | null, filename: string, fileSize: number) => void;
   closePreview: () => void;
@@ -447,9 +447,13 @@ export function useVaultActions({
     (fileId: string, folderId: string | null) => {
       const file = files.find((f) => f.id === fileId);
       if (!file) return;
-      if ((file.folder_id ?? null) === folderId) return; // already there
-      const prev = files;
-      setFiles(files.map((f) => (f.id === fileId ? { ...f, folder_id: folderId } : f)));
+      const originalFolderId = file.folder_id ?? null;
+      if (originalFolderId === folderId) return; // already there
+      // Functional update against the LIVE cache — NOT the render-time `files`
+      // snapshot. A bulk drag / folder-merge fires this once per file in the same
+      // tick; mapping over a captured snapshot made each call clobber the last
+      // (only one file actually moved). Composing off `cur` moves every file.
+      setFiles((cur) => cur.map((f) => (f.id === fileId ? { ...f, folder_id: folderId } : f)));
       // The cached plaintext is tagged with the file's OLD folder; drop it so a
       // later folder re-lock can't serve it under the wrong zone, and so it
       // re-decrypts under the destination folder's key if that changed.
@@ -457,17 +461,24 @@ export function useVaultActions({
       toast.success(
         folderId === null ? `Moved "${file.original_name}" to Root` : `Moved "${file.original_name}"`
       );
+      // Revert THIS file only (functionally) on failure — never a whole-list
+      // snapshot, which would undo sibling moves still in flight from the same
+      // bulk action.
+      const revertThisFile = () =>
+        setFiles((cur) =>
+          cur.map((f) => (f.id === fileId ? { ...f, folder_id: originalFolderId } : f))
+        );
       moveFileWithRekey(fileId, folderId).catch((err) => {
-        // FIX-2: the user cancelled the folder-unlock prompt — revert the
-        // optimistic move quietly (a soft, non-error hint), no scary toast and
-        // no reconcile fetch (nothing changed server-side).
+        // FIX-2: the user cancelled the folder-unlock prompt — revert quietly
+        // (a soft, non-error hint), no scary toast and no reconcile fetch
+        // (nothing changed server-side).
         if (err instanceof FolderUnlockCancelled) {
-          setFiles(prev);
+          revertThisFile();
           toast.info("Move cancelled");
           return;
         }
         toast.error(err instanceof Error ? err.message : "Failed to move file");
-        setFiles(prev); // revert the optimistic move
+        revertThisFile();
         void refresh(); // reconcile the row's true folder/key state
       });
     },
@@ -477,7 +488,7 @@ export function useVaultActions({
   // ── Delete (optimistic soft-delete → Trash) ─────────────────────────────────
   const executeDelete = useCallback(
     (target: FileMetadata) => {
-      setFiles(files.filter((f) => f.id !== target.id));
+      setFiles((cur) => cur.filter((f) => f.id !== target.id));
       clearDecryptCacheForFile(target.id);
       toast.success("File deleted");
       refreshQuota();
@@ -502,7 +513,7 @@ export function useVaultActions({
       if (ids.length === 0) return;
       const idSet = new Set(ids);
       // Optimistic: drop the rows instantly — no spinner wait.
-      setFiles(files.filter((f) => !idSet.has(f.id)));
+      setFiles((cur) => cur.filter((f) => !idSet.has(f.id)));
       ids.forEach((id) => clearDecryptCacheForFile(id));
       try {
         const result = await bulkDeleteFiles(ids);
