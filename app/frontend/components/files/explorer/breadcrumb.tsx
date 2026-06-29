@@ -62,6 +62,13 @@ export function ExplorerBreadcrumb({
                 isLast
                   ? "cursor-default text-[var(--color-text)]"
                   : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)]",
+                // Armed: a drag is in progress and this crumb accepts it. A dashed
+                // accent outline appears the moment dragging starts so the
+                // move-up targets are discoverable BEFORE you hover one.
+                isDropTarget &&
+                  !isOver &&
+                  "bg-[var(--color-accent)]/5 text-[var(--color-accent)] outline-dashed outline-1 outline-offset-1 outline-[var(--color-accent)]/50",
+                // Active: hovering a valid target — solid ring, clearly "drop here".
                 isOver &&
                   "bg-[var(--color-accent)]/10 text-[var(--color-accent)] ring-2 ring-inset ring-[var(--color-accent)]"
               )}
