@@ -111,7 +111,7 @@ function StatusGlyph({ entry }: { entry: TransferEntry }) {
   }
 }
 
-function statusText(entry: TransferEntry): string {
+function statusText(entry: TransferEntry, short = false): string {
   if (entry.state === "failed") return entry.error || "Failed";
   if (entry.state === "cancelled") return "Cancelled";
   if (entry.state === "done") return entry.direction === "upload" ? "Uploaded" : "Downloaded";
@@ -119,8 +119,12 @@ function statusText(entry: TransferEntry): string {
   if (entry.state === "queued") return "Queued";
   // active
   const eta = formatEta(entry.startedAt, entry.progress);
-  if (eta) return `${entry.stage || (entry.direction === "upload" ? "Uploading" : "Downloading")} · ${eta}`;
-  return entry.stage || (entry.direction === "upload" ? "Uploading" : "Downloading");
+  const verb = entry.stage || (entry.direction === "upload" ? "Uploading" : "Downloading");
+  // Mobile: the spinner + name already convey direction — show just the ETA when
+  // we have one, so the line stays tight on narrow screens.
+  if (short) return eta || verb;
+  if (eta) return `${verb} · ${eta}`;
+  return verb;
 }
 
 function TransferItemBase({
@@ -197,7 +201,8 @@ function TransferItemBase({
               failedLike ? "text-rose-500 dark:text-rose-400" : "text-[var(--color-text-muted)]",
             )}
           >
-            {statusText(entry)}
+            <span className="sm:hidden">{statusText(entry, true)}</span>
+            <span className="hidden sm:inline">{statusText(entry, false)}</span>
           </p>
         </div>
 

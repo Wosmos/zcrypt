@@ -20,7 +20,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <TopBar />
             <main
               id="main-content"
-              className="panel min-h-0 flex-1 overflow-y-auto pb-24 md:pb-0 "
+              className="panel min-h-0 flex-1 overflow-y-auto pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] md:pb-0"
             >
               <div className="mx-auto max-w-9xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
                 {children}

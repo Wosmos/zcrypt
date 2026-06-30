@@ -60,7 +60,7 @@ export function MobileVaultHeader({ files, quotaInfo, repos, isUnlocked, onUnloc
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Shield className="h-5 w-5 text-white/80" />
-              <span className="text-sm font-semibold text-white/90">Encrypted Vault</span>
+              <span className="text-sm font-semibold text-white/90">Encrypted Drive</span>
             </div>
             <button
               onClick={onUnlock}

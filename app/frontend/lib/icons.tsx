@@ -7,6 +7,7 @@ import {
   Lock as _Lock,
   Unlock as _Unlock,
   Upload as _Upload,
+  FileUploadIcon as _FileUpload,
   Download as _Download,
   Bell as _Bell,
   BellOff as _BellOff,
@@ -21,6 +22,7 @@ import {
   FileText as _FileText,
   Folder as _Folder,
   FolderOpen as _FolderOpen,
+  FolderAddIcon as _FolderAdd,
   Edit as _Edit,
   Trash as _Trash,
   Trash2 as _Trash2,
@@ -142,6 +144,7 @@ export const Shield = makeIcon(_Shield, "Shield");
 export const Lock = makeIcon(_Lock, "Lock");
 export const Unlock = makeIcon(_Unlock, "Unlock");
 export const Upload = makeIcon(_Upload, "Upload");
+export const FileUpload = makeIcon(_FileUpload, "FileUpload");
 export const Download = makeIcon(_Download, "Download");
 export const Bell = makeIcon(_Bell, "Bell");
 export const BellOff = makeIcon(_BellOff, "BellOff");
@@ -156,6 +159,7 @@ export const File = makeIcon(_File, "File");
 export const FileText = makeIcon(_FileText, "FileText");
 export const Folder = makeIcon(_Folder, "Folder");
 export const FolderOpen = makeIcon(_FolderOpen, "FolderOpen");
+export const FolderAdd = makeIcon(_FolderAdd, "FolderAdd");
 export const Edit = makeIcon(_Edit, "Edit");
 export const Trash2 = makeIcon(_Trash2, "Trash2");
 export const Star = makeIcon(_Star, "Star");

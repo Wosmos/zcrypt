@@ -3,7 +3,7 @@
 import type { ExplorerEntry, ExplorerActions } from "./types";
 import type { DecryptedFolder } from "@/hooks/useFolders";
 import type { FileMetadata } from "@/types";
-import { formatBytes, formatDate, getFileTypeInfo, cn } from "@/lib/utils";
+import { formatBytes, formatDate, getFileTypeInfo, cn, midTrunc } from "@/lib/utils";
 import {
   File,
   FileText,
@@ -97,6 +97,8 @@ interface ExplorerRowProps {
   onRemoveFolderPassword?: (folder: DecryptedFolder) => void;
   /** Open the "Move to folder" dialog for a folder (keyboard-reachable C1). */
   onMoveFolderRequest?: (folder: DecryptedFolder) => void;
+  /** Get info / details for a folder (kebab). */
+  onOpenFolderDetails?: (folder: DecryptedFolder) => void;
   /** Get info / details (kebab). Keeps the drawer reachable after click opens viewer. */
   onOpenDetails?: (file: FileMetadata) => void;
   drag: RowDragProps;
@@ -131,6 +133,7 @@ function FolderRow({
   onProtectFolder,
   onRemoveFolderPassword,
   onMoveFolderRequest,
+  onOpenFolderDetails,
   drag,
 }: {
   entry: ExplorerEntry;
@@ -143,6 +146,7 @@ function FolderRow({
   onProtectFolder?: (f: DecryptedFolder) => void;
   onRemoveFolderPassword?: (f: DecryptedFolder) => void;
   onMoveFolderRequest?: (f: DecryptedFolder) => void;
+  onOpenFolderDetails?: (f: DecryptedFolder) => void;
   drag: RowDragProps;
 }) {
   return (
@@ -180,8 +184,8 @@ function FolderRow({
           </span>
         )}
       </div>
-      <span className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--color-text)]">
-        {folder.name}
+      <span className="min-w-0 flex-1 whitespace-nowrap text-sm font-medium text-[var(--color-text)]" title={folder.name}>
+        {midTrunc(folder.name, 16, 6)}
       </span>
       {/* Type column placeholder for visual alignment */}
       <span className="hidden w-[110px] flex-shrink-0 text-sm text-[var(--color-text-secondary)] sm:block">
@@ -219,6 +223,11 @@ function FolderRow({
           {folder.protected && onRemoveFolderPassword && (
             <DropdownMenuItem onClick={() => onRemoveFolderPassword(folder)}>
               <Unlock className="h-4 w-4" /> Remove password…
+            </DropdownMenuItem>
+          )}
+          {onOpenFolderDetails && (
+            <DropdownMenuItem onClick={() => onOpenFolderDetails(folder)}>
+              <Info className="h-4 w-4" /> Get info
             </DropdownMenuItem>
           )}
           <DropdownMenuSeparator />
@@ -324,8 +333,8 @@ function FileRow({
         <Icon className={cn("h-[18px] w-[18px]", typeInfo.color)} />
       </div>
       <div className="flex min-w-0 flex-1 items-center gap-2">
-        <span className="truncate text-sm font-medium text-[var(--color-text)]">
-          {file.original_name}
+        <span className="whitespace-nowrap text-sm font-medium text-[var(--color-text)]" title={file.original_name}>
+          {midTrunc(file.original_name, 16, 6)}
         </span>
       </div>
       <span className="hidden w-[110px] flex-shrink-0 truncate text-sm text-[var(--color-text-secondary)] sm:block">
@@ -402,6 +411,7 @@ export function ExplorerRow({
   onProtectFolder,
   onRemoveFolderPassword,
   onMoveFolderRequest,
+  onOpenFolderDetails,
   onOpenDetails,
   drag,
 }: ExplorerRowProps) {
@@ -418,6 +428,7 @@ export function ExplorerRow({
         onProtectFolder={onProtectFolder}
         onRemoveFolderPassword={onRemoveFolderPassword}
         onMoveFolderRequest={onMoveFolderRequest}
+        onOpenFolderDetails={onOpenFolderDetails}
         drag={drag}
       />
     );

@@ -47,7 +47,7 @@
  * ════════════════════════════════════════════════════════════════════════════
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import type { FileMetadata } from "@/types";
 import { useFolders, type DecryptedFolder } from "@/hooks/useFolders";
@@ -95,6 +95,7 @@ import { ExplorerToolbar } from "./explorer/explorer-toolbar";
 import { ExplorerBreadcrumb } from "./explorer/breadcrumb";
 import { ExplorerRow, type RowDragProps } from "./explorer/explorer-row";
 import { ExplorerCard } from "./explorer/explorer-card";
+import { FolderDetailsDrawer } from "./folder-details-drawer";
 import type {
   SortField,
   SortDir,
@@ -131,6 +132,12 @@ export interface VaultExplorerProps {
   onBulkDownload?: (ids: string[]) => void;
 
   onUploadClick?: () => void;
+
+  /** Controlled search, lifted to the page header (the page renders the search
+   *  input now). When provided, the explorer filters by these instead of its own
+   *  internal search state, and the inline toolbar search is gone. */
+  search?: string;
+  onSearchChange?: (value: string) => void;
 
   // ── Per-folder password protection (spec §3) ────────────────────────────────
   /** Gate opening a folder (e.g. verify a protected folder's password first).
@@ -182,7 +189,11 @@ function ColHeader({
   );
 }
 
-export function VaultExplorer({
+export interface VaultExplorerHandle {
+  startNewFolder: () => void;
+}
+
+export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>(function VaultExplorer({
   files,
   loading,
   error,
@@ -197,11 +208,13 @@ export function VaultExplorer({
   onBulkDelete,
   onBulkDownload,
   onUploadClick,
+  search: searchProp,
+  onSearchChange,
   onOpenFolderRequest,
   onProtectFolder,
   onRemoveFolderPassword,
   onMoveFolderRequest,
-}: VaultExplorerProps) {
+}: VaultExplorerProps, ref) {
   const prefersReducedMotion = useReducedMotion();
 
   // ── Folder tree / current folder / breadcrumb ──────────────────────────────
@@ -235,7 +248,11 @@ export function VaultExplorer({
   const [gridCols, setGridCols] = useState<GridCols>("auto");
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
-  const [search, setSearch] = useState("");
+  // Search is controlled by the page header when `search`/`onSearchChange` are
+  // supplied; otherwise the explorer keeps its own internal state (standalone use).
+  const [internalSearch, setInternalSearch] = useState("");
+  const search = searchProp ?? internalSearch;
+  const setSearch = onSearchChange ?? setInternalSearch;
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
 
   const [selectMode, setSelectMode] = useState(false);
@@ -722,7 +739,7 @@ export function VaultExplorer({
           e.dataTransfer.effectAllowed = "move";
           bulkDragIdsRef.current = [];
           startDrag(folderDragItem);
-          setDragGhost(e, { tilt: !prefersReducedMotion, label: folder.name });
+          setDragGhost(e, { tilt: !prefersReducedMotion, label: folder.name, kind: "folder" });
         },
         onDragEnd: () => endDrag(),
         dropHandlers: dropHandlers(folder.id),
@@ -775,6 +792,8 @@ export function VaultExplorer({
   const [renameTarget, setRenameTarget] = useState<DecryptedFolder | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<DecryptedFolder | null>(null);
+  // "Get info" target — the folder whose details drawer is open.
+  const [detailsFolder, setDetailsFolder] = useState<DecryptedFolder | null>(null);
 
   const [showUnlock, setShowUnlock] = useState(false);
   const pendingAction = useRef<
@@ -790,6 +809,8 @@ export function VaultExplorer({
     setNewName("");
     setShowCreate(true);
   };
+
+  useImperativeHandle(ref, () => ({ startNewFolder: startCreate }));
 
   const startRename = (folder: DecryptedFolder) => {
     if (locked) {
@@ -935,8 +956,8 @@ export function VaultExplorer({
       : plural(folderCount + fileCount, "item", "items");
 
   return (
-    <div className="panel space-y-3 p-3 sm:p-4">
-      {/* Toolbar: breadcrumb + search + view + select + new folder */}
+    <div className="space-y-3">
+      {/* Toolbar: breadcrumb + view + select (search now lives in the page header) */}
       <ExplorerToolbar
         breadcrumb={
           <ExplorerBreadcrumb
@@ -948,16 +969,12 @@ export function VaultExplorer({
             dropHandlers={dropHandlers}
           />
         }
-        search={search}
-        onSearchChange={setSearch}
         view={view}
         onViewChange={changeView}
         gridCols={gridCols}
         onGridColsChange={changeGridCols}
         selectMode={selectMode}
         onToggleSelect={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
-        onNewFolder={startCreate}
-        newFolderLocked={locked}
       />
 
       {/* Type-filter chips (second line). Hidden in select mode for focus. */}
@@ -1134,6 +1151,7 @@ export function VaultExplorer({
                       onProtectFolder={onProtectFolder}
                       onRemoveFolderPassword={onRemoveFolderPassword}
                       onMoveFolderRequest={onMoveFolderRequest}
+                      onOpenFolderDetails={setDetailsFolder}
                       drag={dragPropsFor(entry)}
                     />
                   </motion.div>
@@ -1180,6 +1198,7 @@ export function VaultExplorer({
                       onProtectFolder={onProtectFolder}
                       onRemoveFolderPassword={onRemoveFolderPassword}
                       onMoveFolderRequest={onMoveFolderRequest}
+                      onOpenFolderDetails={setDetailsFolder}
                       drag={dragPropsFor(entry)}
                     />
                   </motion.div>
@@ -1197,6 +1216,14 @@ export function VaultExplorer({
           {countLabel}
         </p>
       )}
+
+      {/* Folder "Get info" drawer (right-click / long-press → Get info). */}
+      <FolderDetailsDrawer
+        folder={detailsFolder}
+        open={!!detailsFolder}
+        onOpenChange={(o) => { if (!o) setDetailsFolder(null); }}
+        files={files}
+      />
 
       {/* Create folder dialog */}
       <Dialog open={showCreate} onOpenChange={(o) => !o && setShowCreate(false)}>
@@ -1287,7 +1314,7 @@ export function VaultExplorer({
       />
     </div>
   );
-}
+});
 
 /**
  * ── DEVIATIONS FROM SPEC ─────────────────────────────────────────────────────

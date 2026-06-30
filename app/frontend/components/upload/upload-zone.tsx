@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState, DragEvent } from "react";
-import { Upload, Cloud } from "@/lib/icons";
+import { FileUpload, Cloud } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
 interface UploadZoneProps {
@@ -77,7 +77,7 @@ export function UploadZone({ onFiles, hint, compact }: UploadZoneProps) {
         {dragOver ? (
           <Cloud className={compact ? "h-5 w-5" : "h-7 w-7"} />
         ) : (
-          <Upload className={compact ? "h-5 w-5" : "h-7 w-7"} />
+          <FileUpload className={compact ? "h-5 w-5" : "h-7 w-7"} />
         )}
       </div>
 
