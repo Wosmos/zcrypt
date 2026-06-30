@@ -254,7 +254,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 24, scale: 0.98 }}
           transition={{ type: "spring", stiffness: 380, damping: 32 }}
-          className="panel fixed bottom-4 right-4 z-40 w-[min(calc(100vw-2rem),380px)] overflow-hidden rounded-2xl shadow-2xl backdrop-blur-sm"
+          className="panel fixed bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] right-4 z-40 w-[min(calc(100vw-2rem),380px)] overflow-hidden rounded-2xl shadow-2xl backdrop-blur-sm md:bottom-4"
           role="region"
           aria-label="Transfers"
         >

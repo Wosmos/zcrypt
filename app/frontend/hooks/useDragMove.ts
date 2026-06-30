@@ -83,6 +83,8 @@ interface DragGhostOptions {
   count?: number;
   /** Label for a single-item ghost (the file/folder name). */
   label?: string;
+  /** "folder" → drag as a mini folder glyph (not the pill). Default "file". */
+  kind?: "file" | "folder";
 }
 
 /**
@@ -94,13 +96,62 @@ interface DragGhostOptions {
  */
 export function setDragGhost(
   e: { dataTransfer: DataTransfer },
-  { tilt, count = 1, label }: DragGhostOptions
+  { tilt, count = 1, label, kind = "file" }: DragGhostOptions
 ): void {
   if (typeof document === "undefined") return;
   const dt = e.dataTransfer;
   if (!dt || typeof dt.setDragImage !== "function") return;
 
   const bulk = count >= 2;
+
+  // A single folder drags as a mini macOS folder glyph (+ name), not the pill —
+  // so the drag image reads as the folder itself, on a transparent backdrop.
+  if (!bulk && kind === "folder") {
+    const root = getComputedStyle(document.documentElement);
+    const accent = root.getPropertyValue("--color-accent").trim() || "#22d3ee";
+    const textColor = root.getPropertyValue("--color-text").trim() || "#e5e7eb";
+
+    const wrap = document.createElement("div");
+    wrap.style.position = "fixed";
+    wrap.style.top = "-1000px";
+    wrap.style.left = "-1000px";
+    wrap.style.pointerEvents = "none";
+    wrap.style.zIndex = "9999";
+    wrap.style.display = "flex";
+    wrap.style.flexDirection = "column";
+    wrap.style.alignItems = "center";
+    wrap.style.gap = "4px";
+    wrap.style.width = "96px";
+    wrap.style.transform = tilt ? "rotate(-4deg) scale(1.04)" : "none";
+    wrap.style.filter = "drop-shadow(0 10px 18px rgba(0,0,0,0.45))";
+    wrap.innerHTML =
+      `<svg width="84" height="70" viewBox="0 0 120 100" fill="none" xmlns="http://www.w3.org/2000/svg">` +
+      `<path d="M10 42 V30 a12 12 0 0 1 12 -12 H44 a6 6 0 0 1 4.24 1.76 L54 23.5 a6 6 0 0 0 4.24 1.76 H98 a12 12 0 0 1 12 12 V44 Z" fill="${accent}" fill-opacity="0.55"/>` +
+      `<path d="M10 40 a12 12 0 0 1 12 -12 H98 a12 12 0 0 1 12 12 V78 a12 12 0 0 1 -12 12 H22 a12 12 0 0 1 -12 -12 Z" fill="${accent}"/>` +
+      `</svg>`;
+
+    if (label) {
+      const text = document.createElement("div");
+      text.textContent = label;
+      text.style.maxWidth = "96px";
+      text.style.overflow = "hidden";
+      text.style.textOverflow = "ellipsis";
+      text.style.whiteSpace = "nowrap";
+      text.style.textAlign = "center";
+      text.style.color = textColor;
+      text.style.font = "500 12px/1.2 ui-sans-serif, system-ui, -apple-system, sans-serif";
+      wrap.appendChild(text);
+    }
+
+    document.body.appendChild(wrap);
+    try {
+      dt.setDragImage(wrap, 42, 35);
+    } catch {
+      // setDragImage can throw in rare engines; the default ghost is fine.
+    }
+    setTimeout(() => wrap.remove(), 0);
+    return;
+  }
 
   const ghost = document.createElement("div");
   // Off-screen container; the browser snapshots it for the drag image.

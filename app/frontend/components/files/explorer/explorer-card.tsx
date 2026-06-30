@@ -1,10 +1,11 @@
 "use client";
 
+import { useId } from "react";
 import type { ExplorerEntry, ExplorerActions } from "./types";
 import type { DecryptedFolder } from "@/hooks/useFolders";
 import type { FileMetadata } from "@/types";
 import type { RowDragProps } from "./explorer-row";
-import { formatBytes, formatDate, getFileTypeInfo, isImageFile, cn } from "@/lib/utils";
+import { formatBytes, formatDate, getFileTypeInfo, isImageFile, cn, midTrunc } from "@/lib/utils";
 import { useThumbnail } from "@/hooks/useThumbnail";
 import { IconButton } from "@/components/ui/icon-button";
 import {
@@ -39,6 +40,13 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+} from "@/components/ui/context-menu";
 
 const iconMap: Record<string, typeof File> = {
   File, FileText, Image, Video, Music, Archive, Code, Cog, Table,
@@ -67,6 +75,7 @@ interface ExplorerCardProps {
   onProtectFolder?: (folder: DecryptedFolder) => void;
   onRemoveFolderPassword?: (folder: DecryptedFolder) => void;
   onMoveFolderRequest?: (folder: DecryptedFolder) => void;
+  onOpenFolderDetails?: (folder: DecryptedFolder) => void;
   onOpenDetails?: (file: FileMetadata) => void;
   drag: RowDragProps;
 }
@@ -92,6 +101,65 @@ function CardKebab({ children, label }: { children: React.ReactNode; label: stri
   );
 }
 
+/**
+ * MacFolder — a big, filled, macOS/iOS-style folder glyph. Two-tone (a darker
+ * back panel + raised tab behind a brighter front pocket), a glassy top sheen,
+ * and a soft drop shadow for depth. Tinted with the accent via `currentColor`,
+ * so it lives on the card surface like a desktop folder icon. ~116px wide.
+ */
+function MacFolder({ className }: { className?: string }) {
+  const id = useId();
+  const sheen = `${id}-sheen`;
+  const shadow = `${id}-shadow`;
+  // Shared rounded-pocket outline reused for the front face + the sheen overlay.
+  const pocket =
+    "M10 40 a12 12 0 0 1 12 -12 H98 a12 12 0 0 1 12 12 V78 a12 12 0 0 1 -12 12 H22 a12 12 0 0 1 -12 -12 Z";
+  return (
+    <svg
+      viewBox="0 0 120 100"
+      className={cn("text-[var(--color-accent)]", className)}
+      fill="none"
+      role="img"
+      aria-hidden="true"
+    >
+      <defs>
+        <linearGradient id={sheen} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#ffffff" stopOpacity="0.25" />
+          <stop offset="0.5" stopColor="#ffffff" stopOpacity="0.05" />
+          <stop offset="1" stopColor="#ffffff" stopOpacity="0" />
+        </linearGradient>
+        <filter id={shadow} x="-25%" y="-25%" width="150%" height="160%">
+          <feDropShadow dx="0" dy="3" stdDeviation="4.5" floodColor="#000000" floodOpacity="0.4" />
+        </filter>
+      </defs>
+      <g filter={`url(#${shadow})`}>
+        {/* Back panel + raised tab (darker, sits behind the front pocket) */}
+        <path
+          d="M10 42 V30 a12 12 0 0 1 12 -12 H44 a6 6 0 0 1 4.24 1.76 L54 23.5 a6 6 0 0 0 4.24 1.76 H98 a12 12 0 0 1 12 12 V44 Z"
+          fill="currentColor"
+          fillOpacity="0.55"
+        />
+        {/* Front pocket */}
+        <path d={pocket} fill="currentColor" />
+        {/* Glassy top sheen */}
+        <path d={pocket} fill={`url(#${sheen})`} />
+      </g>
+    </svg>
+  );
+}
+
+/** A clean, filled padlock — shackle + rounded body with a punched keyhole. */
+function PadlockGlyph({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
+      <path d="M8 10V8a4 4 0 0 1 8 0v2" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+      <rect x="4.5" y="10" width="15" height="11" rx="3" fill="currentColor" />
+      <circle cx="12" cy="14.8" r="1.5" fill="var(--color-surface)" />
+      <rect x="11.25" y="14.8" width="1.5" height="3.4" rx="0.75" fill="var(--color-surface)" />
+    </svg>
+  );
+}
+
 function FolderCard({
   entry,
   folder,
@@ -103,6 +171,7 @@ function FolderCard({
   onProtectFolder,
   onRemoveFolderPassword,
   onMoveFolderRequest,
+  onOpenFolderDetails,
   drag,
 }: {
   entry: ExplorerEntry;
@@ -115,95 +184,94 @@ function FolderCard({
   onProtectFolder?: (f: DecryptedFolder) => void;
   onRemoveFolderPassword?: (f: DecryptedFolder) => void;
   onMoveFolderRequest?: (f: DecryptedFolder) => void;
+  onOpenFolderDetails?: (f: DecryptedFolder) => void;
   drag: RowDragProps;
 }) {
+  // Show the padlock when the folder has its own password OR the vault is locked
+  // (name can't be decrypted → "[locked]", set in useFolders).
+  const isLocked = folder.protected || folder.name === "[locked]";
+
   return (
-    <div
-      role="button"
-      data-entry-id={folder.id}
-      tabIndex={focused ? 0 : -1}
-      aria-label={`Open folder ${folder.name}${folder.protected ? ", password protected" : ""}`}
-      draggable={drag.draggable}
-      onClick={() => onOpenFolder(folder)}
-      onKeyDown={(e) => onEntryKeyDown(entry, e)}
-      onDragStart={drag.onDragStart}
-      onDragEnd={drag.onDragEnd}
-      {...(drag.dropHandlers ?? {})}
-      className={cn(
-        "group relative flex flex-col overflow-hidden rounded-2xl border transition-all duration-200 focus-visible:ring-inset",
-        FOCUS_RING,
-        drag.draggable ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
-        drag.isBeingDragged && "opacity-50",
-        drag.isDropOver
-          ? "border-[var(--color-accent)] bg-[var(--color-accent)]/10 ring-2 ring-inset ring-[var(--color-accent)]"
-          : "border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-border-hover)] hover:shadow-lg"
-      )}
-    >
-      {/* Kebab — pinned top-right, mirrors the file card's overlay controls. */}
-      <div className="absolute right-2.5 top-2.5 z-10">
-        <CardKebab label={`Actions for folder ${folder.name}`}>
-          <DropdownMenuContent align="end" className="w-52" onClick={(e) => e.stopPropagation()}>
-            <DropdownMenuItem onClick={() => onOpenFolder(folder)}>
-              <FolderOpen className="h-4 w-4" /> Open
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onRenameFolder(folder)}>
-              <Edit className="h-4 w-4" /> Rename
-            </DropdownMenuItem>
-            {onMoveFolderRequest && (
-              <DropdownMenuItem onClick={() => onMoveFolderRequest(folder)}>
-                <Folder className="h-4 w-4" /> Move to folder
-              </DropdownMenuItem>
-            )}
-            {!folder.protected && onProtectFolder && (
-              <DropdownMenuItem onClick={() => onProtectFolder(folder)}>
-                <Key className="h-4 w-4" /> Protect with password…
-              </DropdownMenuItem>
-            )}
-            {folder.protected && onRemoveFolderPassword && (
-              <DropdownMenuItem onClick={() => onRemoveFolderPassword(folder)}>
-                <Unlock className="h-4 w-4" /> Remove password…
-              </DropdownMenuItem>
-            )}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => onDeleteFolder(folder)}
-              className="text-red-500 focus:bg-red-500/10 focus:text-red-500"
-            >
-              <Trash2 className="h-4 w-4" /> Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </CardKebab>
-      </div>
-
-      {/* Visual header — large folder glyph occupying the same area as a file
-          card's thumbnail/header, so folders and files form an even grid (M1). */}
-      <div className="flex h-[120px] items-center justify-center bg-gradient-to-b from-[var(--color-accent)]/10 to-[var(--color-accent)]/5">
-        <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--color-surface)]/80 text-[var(--color-accent)] shadow-sm backdrop-blur-sm">
-          <Folder className="h-7 w-7" />
-          {folder.protected && (
-            <span
-              className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--color-surface)] text-[var(--color-accent)] shadow-sm"
-              aria-hidden="true"
-            >
-              <Lock className="h-3 w-3" strokeWidth={2.25} />
-            </span>
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <div
+          role="button"
+          data-entry-id={folder.id}
+          tabIndex={focused ? 0 : -1}
+          aria-label={`Open folder ${folder.name}${folder.protected ? ", password protected" : ""}. Right-click or long-press for actions.`}
+          draggable={drag.draggable}
+          onClick={() => onOpenFolder(folder)}
+          onKeyDown={(e) => onEntryKeyDown(entry, e)}
+          onDragStart={drag.onDragStart}
+          onDragEnd={drag.onDragEnd}
+          {...(drag.dropHandlers ?? {})}
+          className={cn(
+            "group relative flex flex-col items-center gap-1.5 rounded-xl transition-all duration-200 focus-visible:ring-inset",
+            FOCUS_RING,
+            drag.draggable ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
+            drag.isBeingDragged && "opacity-50",
+            drag.isDropOver && "bg-[var(--color-accent)]/10 ring-2 ring-inset ring-[var(--color-accent)]"
           )}
-        </div>
-      </div>
+        >
+          {/* Free-standing macOS folder — moderate size, scales down in narrow cells. */}
+          <div className="relative flex w-full items-center justify-center">
+            <MacFolder className="w-full max-w-[128px] transition-transform duration-200 group-hover:-translate-y-1 group-hover:scale-[1.03]" />
 
-      {/* Info — matches the file card's footer footprint. */}
-      <div className="min-w-0 flex-1 space-y-1 p-3">
-        <p className="truncate text-sm font-medium text-[var(--color-text)]" title={folder.name}>
-          {folder.name}
-        </p>
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-xs text-[var(--color-text-secondary)]">Folder</span>
-          <span className="text-xs text-[var(--color-text-secondary)]">
-            {formatDate(folder.created_at)}
-          </span>
+            {/* Locked/protected → a bare padlock sitting on the folder face. */}
+            {isLocked && (
+              <PadlockGlyph
+                className="absolute left-1/2 top-[58%] h-8 w-8 -translate-x-1/2 -translate-y-1/2 text-white drop-shadow-[0_2px_3px_rgba(0,0,0,0.45)]"
+              />
+            )}
+          </div>
+
+          {/* Name only — the rest lives in Get info (right-click / long-press). */}
+          <p
+            className="w-full truncate text-center text-sm font-medium text-[var(--color-text)]"
+            title={folder.name}
+          >
+            {midTrunc(folder.name, 16, 8)}
+          </p>
         </div>
-      </div>
-    </div>
+      </ContextMenuTrigger>
+
+      {/* Options via right-click (desktop) / long-press (touch). */}
+      <ContextMenuContent className="w-52">
+        <ContextMenuItem className="gap-2" onSelect={() => onOpenFolder(folder)}>
+          <FolderOpen className="h-4 w-4" /> Open
+        </ContextMenuItem>
+        <ContextMenuItem className="gap-2" onSelect={() => onRenameFolder(folder)}>
+          <Edit className="h-4 w-4" /> Rename
+        </ContextMenuItem>
+        {onMoveFolderRequest && (
+          <ContextMenuItem className="gap-2" onSelect={() => onMoveFolderRequest(folder)}>
+            <Folder className="h-4 w-4" /> Move to folder
+          </ContextMenuItem>
+        )}
+        {!folder.protected && onProtectFolder && (
+          <ContextMenuItem className="gap-2" onSelect={() => onProtectFolder(folder)}>
+            <Key className="h-4 w-4" /> Protect with password…
+          </ContextMenuItem>
+        )}
+        {folder.protected && onRemoveFolderPassword && (
+          <ContextMenuItem className="gap-2" onSelect={() => onRemoveFolderPassword(folder)}>
+            <Unlock className="h-4 w-4" /> Remove password…
+          </ContextMenuItem>
+        )}
+        {onOpenFolderDetails && (
+          <ContextMenuItem className="gap-2" onSelect={() => onOpenFolderDetails(folder)}>
+            <Info className="h-4 w-4" /> Get info
+          </ContextMenuItem>
+        )}
+        <ContextMenuSeparator />
+        <ContextMenuItem
+          className="gap-2 text-red-500 focus:bg-red-500/10 focus:text-red-500"
+          onSelect={() => onDeleteFolder(folder)}
+        >
+          <Trash2 className="h-4 w-4" /> Delete
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }
 
@@ -399,8 +467,8 @@ function FileCardInner({
 
       {/* Info */}
       <div className="min-w-0 flex-1 space-y-1 p-3">
-        <p className="truncate text-sm font-medium text-[var(--color-text)]" title={file.original_name}>
-          {file.original_name}
+        <p className="truncate whitespace-nowrap text-sm font-medium text-[var(--color-text)]" title={file.original_name}>
+          {midTrunc(file.original_name, 10, 4)}
         </p>
         <div className="flex items-center justify-between gap-2">
           <span className="text-xs tabular-nums text-[var(--color-text-secondary)]">
@@ -430,6 +498,7 @@ export function ExplorerCard({
   onProtectFolder,
   onRemoveFolderPassword,
   onMoveFolderRequest,
+  onOpenFolderDetails,
   onOpenDetails,
   drag,
 }: ExplorerCardProps) {
@@ -446,6 +515,7 @@ export function ExplorerCard({
         onProtectFolder={onProtectFolder}
         onRemoveFolderPassword={onRemoveFolderPassword}
         onMoveFolderRequest={onMoveFolderRequest}
+        onOpenFolderDetails={onOpenFolderDetails}
         drag={drag}
       />
     );

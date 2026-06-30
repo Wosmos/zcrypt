@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
-import { VaultExplorer } from "@/components/files/vault-explorer";
+import { VaultExplorer, type VaultExplorerHandle } from "@/components/files/vault-explorer";
 import { MoveToFolderDialog } from "@/components/files/move-to-folder-dialog";
 import { FileViewer } from "@/components/viewers/file-viewer";
 import {
@@ -21,9 +21,9 @@ import { PlatformSelector } from "@/components/upload/platform-selector";
 
 import { VaultLock } from "@/components/ui/vault-lock";
 import { EmptyState } from "@/components/ui/empty-state";
-import { PageHeader } from "@/components/ui/page-header";
 import { IconButton } from "@/components/ui/icon-button";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ShareModal } from "@/components/ui/share-modal";
 import { FilePreviewModal, useFilePreview } from "@/components/ui/file-preview-modal";
@@ -59,8 +59,11 @@ import {
   Shield,
   AlertTriangle,
   RefreshCw,
-  Upload,
+  FileUpload,
   HardDrive,
+  FolderAdd,
+  Search,
+  X,
 } from "@/lib/icons";
 import type { FileMetadata } from "@/types";
 
@@ -77,6 +80,26 @@ import type { FileMetadata } from "@/types";
 export default function VaultPage() {
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const explorerRef = useRef<VaultExplorerHandle>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // "/" focuses the search box (GitHub/Slack convention) — unless the user is
+  // already typing in a field. Escape (handled on the input) clears + blurs.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey) return;
+      const el = document.activeElement;
+      const typing =
+        el instanceof HTMLElement &&
+        (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
+      if (typing) return;
+      e.preventDefault();
+      searchRef.current?.focus();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   // Modal targets the explorer hands back to the page.
   const [deleteTarget, setDeleteTarget] = useState<FileMetadata | null>(null);
@@ -318,27 +341,69 @@ export default function VaultPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Page header — title, the single vault-lock pill, refresh, Upload action */}
-      <PageHeader
-        title="My Vault"
-        description="Everything you have encrypted and stored — compressed, end-to-end encrypted, and spread across your connected platforms."
-        actions={
-          <>
-            <VaultLock
-              unlocked={vault.unlocked}
-              remainingSeconds={vault.remainingSeconds}
-              persistent={vault.persistent}
-              onUnlock={() => vault.unlock()}
-              onLock={vault.lock}
-            />
-            <IconButton icon={RefreshCw} label="Refresh" onClick={() => refresh()} />
-            <Button onClick={() => setUploadOpen(true)}>
-              <Upload className="h-4 w-4" />
-              Upload
-            </Button>
-          </>
-        }
-      />
+      {/* Top row — search (left) + vault-lock pill, refresh, New folder, Upload (right) */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative w-full sm:max-w-md">
+          <Input
+            ref={searchRef}
+            type="search"
+            placeholder="Search your vault"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                setSearch("");
+                e.currentTarget.blur();
+              }
+            }}
+            icon={<Search className="h-4 w-4" />}
+            className="h-9 pr-9"
+            aria-label="Search your vault"
+          />
+          {search ? (
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+              aria-label="Clear search"
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)]"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          ) : (
+            <kbd className="pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2 select-none rounded border border-[var(--color-border)] bg-[var(--color-surface-1)] px-1.5 py-0.5 font-mono text-[10px] leading-none text-[var(--color-text-muted)] sm:block">
+              /
+            </kbd>
+          )}
+        </div>
+        <div className="flex flex-shrink-0 items-center gap-2">
+          <VaultLock
+            unlocked={vault.unlocked}
+            remainingSeconds={vault.remainingSeconds}
+            persistent={vault.persistent}
+            modalOpen={vault.modalProps.open}
+            onUnlock={() => vault.unlock()}
+            onLock={vault.lock}
+          />
+          <Button
+            variant="secondary"
+            onClick={() => explorerRef.current?.startNewFolder()}
+            aria-label="New folder"
+          >
+            <FolderAdd className="h-4 w-4" />
+            <span className="hidden sm:inline">New folder</span>
+          </Button>
+          <Button onClick={() => setUploadOpen(true)}>
+            <FileUpload className="h-4 w-4" />
+            Upload
+          </Button>
+          <IconButton
+            icon={RefreshCw}
+            label="Refresh"
+            variant="secondary"
+            onClick={() => refresh()}
+          />
+        </div>
+      </div>
 
       {/* Vault file browser */}
       <div className="space-y-6">
@@ -373,13 +438,16 @@ export default function VaultPage() {
               description="Upload your first file to get started. Files are compressed, encrypted, and stored across your connected platforms."
               action={
                 <Button size="sm" onClick={() => setUploadOpen(true)}>
-                  <Upload className="h-4 w-4" />
+                  <FileUpload className="h-4 w-4" />
                   Upload files
                 </Button>
               }
             />
           ) : (
             <VaultExplorer
+              ref={explorerRef}
+              search={search}
+              onSearchChange={setSearch}
               files={files}
               loading={loading}
               error={error}

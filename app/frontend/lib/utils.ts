@@ -157,3 +157,24 @@ export function easeProgress(raw: number): number {
   if (p >= 100) return 100;
   return Math.round(100 * Math.log10(1 + 9 * p / 100));
 }
+
+/**
+ * Middle-truncate a file or folder name the way Apple does:
+ * "muhammad_wasif_manki.pdf" → "muhammad…ki.pdf"
+ *
+ * Files: the extension is always preserved; truncation happens in the base name.
+ * Folders / names without an extension: plain middle-truncation.
+ *
+ * @param name  - original name
+ * @param start - chars to keep from the start (default 10)
+ * @param end   - chars to keep from the end of the base name, before the extension (default 4)
+ */
+export function midTrunc(name: string, start = 10, end = 4): string {
+  const dotIdx = name.lastIndexOf(".");
+  const hasExt = dotIdx > 0 && dotIdx < name.length - 1 && name.length - dotIdx <= 6;
+  const base = hasExt ? name.slice(0, dotIdx) : name;
+  const ext  = hasExt ? name.slice(dotIdx) : "";
+
+  if (base.length <= start + end + 1) return name;
+  return base.slice(0, start) + "…" + base.slice(-end) + ext;
+}

@@ -1,20 +1,22 @@
 "use client";
 
-import { motion, AnimatePresence, useReducedMotion } from "motion/react";
-import { Lock, Unlock, X } from "@/lib/icons";
+import { useEffect, useRef, useState } from "react";
+import { motion, useReducedMotion } from "motion/react";
 import { cn } from "@/lib/utils";
 
 /**
- * VaultLock — the single header pill for the one-vault-passphrase model
+ * VaultLock — the single header control for the one-vault-passphrase model
  * (REBUILD_SPEC §3). There is exactly ONE vault passphrase; unlocking once
  * unlocks everything for the TTL.
  *
- * - Locked:   "Locked · Unlock"   (cyan unlock affordance)
- * - Unlocked: "Unlocked · MM:SS · Lock"  (tabular-nums countdown, X to re-lock)
+ * Rendered as an iOS-style glassy toggle. Flipping it ON slides the knob first,
+ * and only once the slide COMPLETES does the unlock modal open (`onUnlock`).
+ * While the modal is up the knob stays optimistically ON and the label reads
+ * "Unlocking…"; confirming keeps it on, cancelling slides it back off. Flipping
+ * an unlocked vault OFF re-locks immediately (`onLock`).
  *
- * It is purely presentational: drive it from a single `useVaultLock()` instance
- * owned by the page (which also renders the one PassphraseModal via
- * `modalProps`). This component never touches crypto or the store directly.
+ * Purely presentational: drive it from a single `useVaultLock()` instance owned
+ * by the page (which also renders the one PassphraseModal). Never touches crypto.
  */
 export interface VaultLockProps {
   /** Whether the vault is currently unlocked (a passphrase is cached). */
@@ -26,6 +28,9 @@ export interface VaultLockProps {
    * device" instead of a countdown.
    */
   persistent?: boolean;
+  /** Whether the unlock modal is currently open — lets the switch revert if the
+   *  user cancels instead of entering a passphrase. */
+  modalOpen?: boolean;
   /** Open the single "Unlock your vault" modal. */
   onUnlock: () => void;
   /** Clear the cached passphrase (re-lock). */
@@ -44,75 +49,113 @@ export function VaultLock({
   unlocked,
   remainingSeconds,
   persistent = false,
+  modalOpen = false,
   onUnlock,
   onLock,
   className,
 }: VaultLockProps) {
   const reduceMotion = useReducedMotion();
 
-  const transition = reduceMotion
+  // Optimistic "on" while we slide + wait for the passphrase modal. The knob's
+  // resting position is `unlocked`; `pending` carries the in-between flip.
+  const [pending, setPending] = useState(false);
+  const on = unlocked || pending;
+
+  // Once genuinely unlocked, drop the optimistic flag (knob is already on).
+  useEffect(() => {
+    if (unlocked) setPending(false);
+  }, [unlocked]);
+
+  // If the modal opened for our flip and then closed without unlocking (cancel),
+  // slide the knob back off.
+  const wasModalOpen = useRef(false);
+  useEffect(() => {
+    if (modalOpen) {
+      wasModalOpen.current = true;
+    } else if (wasModalOpen.current) {
+      wasModalOpen.current = false;
+      if (!unlocked) setPending(false);
+    }
+  }, [modalOpen, unlocked]);
+
+  const spring = reduceMotion
     ? { duration: 0 }
-    : { type: "spring" as const, stiffness: 400, damping: 32 };
+    : { type: "spring" as const, stiffness: 700, damping: 36, mass: 0.9 };
+
+  const handleClick = () => {
+    if (on) {
+      setPending(false);
+      onLock();
+    } else {
+      setPending(true); // slide on; modal opens once the slide completes
+    }
+  };
+
+  // Open the modal only after the ON-slide settles (the "switch, then modal" feel).
+  const handleSlideComplete = () => {
+    if (pending && !unlocked) onUnlock();
+  };
 
   return (
-    <div className={cn("inline-flex", className)}>
-      <AnimatePresence mode="wait" initial={false}>
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      onClick={handleClick}
+      aria-label={
+        unlocked
+          ? persistent
+            ? "Vault unlocked on this device — click to lock"
+            : `Vault unlocked, locks in ${formatCountdown(remainingSeconds)} — click to lock`
+          : pending
+            ? "Unlocking vault"
+            : "Vault locked — click to unlock"
+      }
+      className={cn(
+        "group inline-flex items-center gap-2.5 rounded-full p-0.5 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg)]",
+        className
+      )}
+    >
+      {/* Clean iOS-style switch — solid accent when on, subtle track when off */}
+      <span
+        className={cn(
+          "relative inline-block h-6 w-[42px] flex-shrink-0 rounded-full ring-1 ring-inset transition-colors duration-300",
+          on
+            ? "bg-[var(--color-accent)] ring-black/10"
+            : "bg-[var(--color-surface-2)] ring-white/10"
+        )}
+      >
+        <motion.span
+          className="absolute left-[2px] top-[2px] h-5 w-5 rounded-full bg-white shadow-[0_1px_2px_rgba(0,0,0,0.3)]"
+          animate={{ x: on ? 18 : 0 }}
+          transition={spring}
+          onAnimationComplete={handleSlideComplete}
+        />
+      </span>
+
+      {/* Live state label */}
+      {/* Label — hidden on mobile (the switch + aria-label carry the state there). */}
+      <span className="hidden items-center sm:inline-flex">
         {unlocked ? (
-          <motion.div
-            key="unlocked"
-            initial={reduceMotion ? false : { opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -4 }}
-            transition={transition}
-            className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-accent)]/30 bg-[var(--color-accent)]/10 py-1 pl-2.5 pr-1 text-xs font-medium text-[var(--color-accent)]"
-          >
-            <Unlock className="h-3.5 w-3.5" aria-hidden />
-            <span>Unlocked</span>
+          <span className="inline-flex items-center gap-1 text-[var(--color-accent)]">
+            Unlocked
             <span aria-hidden className="text-[var(--color-accent)]/50">
               ·
             </span>
             {persistent ? (
-              <span aria-label="Vault stays unlocked on this device">
-                this device
-              </span>
+              <span>this device</span>
             ) : (
-              <span
-                className="tabular-nums"
-                aria-label={`Vault locks in ${formatCountdown(remainingSeconds)}`}
-              >
-                {formatCountdown(remainingSeconds)}
-              </span>
+              <span className="tabular-nums">{formatCountdown(remainingSeconds)}</span>
             )}
-            <button
-              type="button"
-              onClick={onLock}
-              aria-label="Lock your vault now"
-              className="ml-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full text-[var(--color-accent)]/70 transition-colors hover:bg-[var(--color-accent)]/15 hover:text-[var(--color-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40"
-            >
-              <X className="h-3.5 w-3.5" aria-hidden />
-            </button>
-          </motion.div>
+          </span>
+        ) : pending ? (
+          <span className="text-[var(--color-text-muted)]">Unlocking…</span>
         ) : (
-          <motion.button
-            key="locked"
-            type="button"
-            onClick={onUnlock}
-            initial={reduceMotion ? false : { opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -4 }}
-            transition={transition}
-            aria-label="Unlock your vault"
-            className="group inline-flex items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-1)] py-1 pl-2.5 pr-3 text-xs font-medium text-[var(--color-text-secondary)] transition-colors hover:border-[var(--color-accent)]/30 hover:bg-[var(--color-accent)]/10 hover:text-[var(--color-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40"
-          >
-            <Lock className="h-3.5 w-3.5" aria-hidden />
-            <span>Locked</span>
-            <span aria-hidden className="text-[var(--color-text-muted)]">
-              ·
-            </span>
-            <span className="text-[var(--color-accent)]">Unlock</span>
-          </motion.button>
+          <span className="text-[var(--color-text-secondary)] transition-colors group-hover:text-[var(--color-text)]">
+            Locked
+          </span>
         )}
-      </AnimatePresence>
-    </div>
+      </span>
+    </button>
   );
 }
