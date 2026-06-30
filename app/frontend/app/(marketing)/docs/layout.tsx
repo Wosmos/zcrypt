@@ -1,11 +1,22 @@
-import { DocsSidebar } from "@/components/docs/docs-sidebar";
+import { DocsSidebar, DocsMobileNav } from "@/components/docs/docs-sidebar";
+import { DocsFooter } from "@/components/docs/docs-footer";
 
 export default function DocsLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 pt-24 sm:px-6 md:pt-28 lg:px-8">
-      <div className="lg:grid lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-12">
-        <DocsSidebar />
-        <div className="min-w-0 pt-6 lg:pt-2">{children}</div>
+    <div className="flex min-h-dvh">
+      {/* Desktop sidebar — flush left, full height */}
+      <DocsSidebar />
+
+      {/* Content column */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        {/* Mobile nav bar — sticks below main navbar, hidden on desktop */}
+        <DocsMobileNav />
+
+        <main className="mx-auto w-full max-w-3xl flex-1 px-6 pb-16 pt-24 md:px-10 lg:pt-24">
+          {children}
+        </main>
+
+        <DocsFooter />
       </div>
     </div>
   );
