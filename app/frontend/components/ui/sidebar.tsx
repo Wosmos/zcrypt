@@ -100,9 +100,9 @@ export function Sidebar() {
         {/* Logo */}
         <div className={cn("flex items-center px-1.5 pb-3 pt-1", collapsed && "justify-center px-0")}>
           <Logo
-            size={collapsed ? "xs" : "md"}
+            size={collapsed ? "md" : "xl"}
             iconOnly={collapsed}
-            subtitle={collapsed ? undefined : "encrypted vault"}
+            subtitle={collapsed ? undefined : "Cloud Encrypted Drive"}
           />
         </div>
 

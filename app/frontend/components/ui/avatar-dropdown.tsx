@@ -79,14 +79,23 @@ export function AvatarDropdown() {
         aria-label="Account menu"
         aria-haspopup="menu"
         aria-expanded={open}
+        style={{
+          background: "linear-gradient(135deg, #00b8cc 0%, #0077a8 48%, #5b21b6 100%)",
+          boxShadow: open
+            ? "0 0 0 2.5px rgba(0,184,204,0.5), 0 4px 14px rgba(91,33,182,0.3)"
+            : "0 0 0 2px rgba(0,184,204,0.25), 0 2px 8px rgba(91,33,182,0.2)",
+        }}
         className={cn(
-          "flex items-center justify-center h-8 w-8 rounded-full transition-all",
-          "bg-[var(--color-accent)]/15 text-[var(--color-accent)] text-xs font-bold",
-          "hover:bg-[var(--color-accent)]/25",
-          open && "ring-2 ring-[var(--color-accent)]/30"
+          "group relative flex items-center justify-center h-9 w-9 overflow-hidden rounded-full transition-all duration-200",
+          "text-white text-[13px] font-bold tracking-wide",
+          "hover:scale-105 active:scale-95"
         )}
       >
-        {initial}
+        {/* Shimmer sweep on hover */}
+        <span className="pointer-events-none absolute inset-0 -translate-x-full skew-x-[-20deg] bg-white/25 transition-transform duration-500 ease-out group-hover:translate-x-full" />
+        <span style={{ textShadow: "0 1px 3px rgba(0,0,0,0.35)" }} className="relative select-none">
+          {initial}
+        </span>
       </button>
 
       <AnimatePresence>

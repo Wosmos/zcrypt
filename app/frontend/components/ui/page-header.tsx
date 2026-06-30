@@ -32,7 +32,7 @@ export function PageHeader({ title, description, eyebrow, actions, className }: 
           {title}
         </h1>
         {description && (
-          <p className="max-w-2xl text-sm leading-relaxed text-[var(--color-text-secondary)]">
+          <p className="hidden md:flex max-w-2xl text-sm leading-relaxed text-[var(--color-text-secondary)]">
             {description}
           </p>
         )}

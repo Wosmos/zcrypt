@@ -63,7 +63,7 @@ export function NotificationCenter() {
         )}
         title={unreadCount > 0 ? `${unreadCount} unread notifications` : "Notifications"}
       >
-        <Bell className="h-4 w-4" />
+        <Bell className="h-[18px] w-[18px]" />
         {unreadCount > 0 && (
           <span className={cn(
             "absolute -top-0.5 -right-0.5 flex items-center justify-center h-4 min-w-[16px] px-1 rounded-full text-[10px] font-bold text-white",

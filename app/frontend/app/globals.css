@@ -397,15 +397,15 @@ html.theme-transition {
   /* Dark theme: deep canvas + raised panels. */
   .dark .app-shell {
     --color-bg: #090c16;
-    --color-surface: #12162a;
-    --color-surface-1: #181d33;
-    --color-surface-2: #222843;
-    --color-surface-3: #2e3553;
-    --color-border: #20253f;
-    --color-border-hover: #2f3656;
+    --color-surface: #13172c;
+    --color-surface-1: #1a1f38;
+    --color-surface-2: #242a46;
+    --color-surface-3: #303659;
+    --color-border: #252a45;
+    --color-border-hover: #333b5e;
     --color-text: #f0f2f8;
-    --color-text-secondary: #9ea3c0;
-    --color-text-muted: #767c9d;
+    --color-text-secondary: #a4aac4;
+    --color-text-muted: #818ab0;
     --shell-active: rgba(0, 213, 228, 0.12);
     --shell-active-text: var(--color-accent);
   }
