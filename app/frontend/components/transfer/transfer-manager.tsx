@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useUploadStore } from "@/store/upload";
 import { useDownloadStore } from "@/store/download";
@@ -50,6 +50,9 @@ const STATE_RANK: Record<TransferState, number> = {
 export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
   const reduceMotion = useReducedMotion();
   const [collapsed, setCollapsed] = useState(false);
+  // Swipe-to-dismiss: hide the dock on a sideways flick; it returns when the
+  // set of transfers changes (a new upload/download arrives).
+  const [dismissed, setDismissed] = useState(false);
 
   // Upload store
   const uploadQueue = useUploadStore((s) => s.queue);
@@ -191,6 +194,12 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
     });
   }, [uploadQueue, downloadQueue]);
 
+  // Bring the dock back whenever the number of transfers changes (e.g. a new
+  // upload/download starts) so a dismissed dock isn't stuck hidden.
+  useEffect(() => {
+    setDismissed(false);
+  }, [entries.length]);
+
   const activeCount = entries.filter(
     (e) => e.state === "active" || e.state === "queued" || e.state === "paused",
   ).length;
@@ -247,14 +256,23 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
 
   return (
     <AnimatePresence>
-      {entries.length > 0 && (
+      {entries.length > 0 && !dismissed && (
         <motion.div
           key="transfer-dock"
           initial={reduceMotion ? false : { opacity: 0, y: 24, scale: 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 24, scale: 0.98 }}
+          exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: 40, scale: 0.96 }}
           transition={{ type: "spring", stiffness: 380, damping: 32 }}
-          className="panel fixed bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] right-4 z-40 w-[min(calc(100vw-2rem),380px)] overflow-hidden rounded-2xl shadow-2xl backdrop-blur-sm md:bottom-4"
+          drag={reduceMotion ? false : "x"}
+          dragConstraints={{ left: 0, right: 0 }}
+          dragElastic={{ left: 0.04, right: 0.7 }}
+          dragMomentum={false}
+          onDragEnd={(_e, info) => {
+            // Flick or drag toward the screen edge (right) to dismiss.
+            if (info.offset.x > 110 || info.velocity.x > 600) setDismissed(true);
+          }}
+          whileDrag={{ cursor: "grabbing" }}
+          className="panel fixed bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] right-4 z-40 w-[min(calc(100vw-2rem),380px)] touch-pan-y overflow-hidden rounded-2xl shadow-2xl backdrop-blur-sm md:bottom-4"
           role="region"
           aria-label="Transfers"
         >
