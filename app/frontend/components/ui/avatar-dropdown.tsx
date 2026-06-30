@@ -91,8 +91,8 @@ export function AvatarDropdown() {
           "hover:scale-105 active:scale-95"
         )}
       >
-        {/* Shimmer sweep on hover */}
-        <span className="pointer-events-none absolute inset-0 -translate-x-full skew-x-[-20deg] bg-white/25 transition-transform duration-500 ease-out group-hover:translate-x-full" />
+        {/* Shimmer sweep on hover — a soft band of light, quick + subtle */}
+        <span className="pointer-events-none absolute inset-0 -translate-x-full skew-x-[-20deg] bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-300 ease-out group-hover:translate-x-full" />
         <span style={{ textShadow: "0 1px 3px rgba(0,0,0,0.35)" }} className="relative select-none">
           {initial}
         </span>
