@@ -245,7 +245,7 @@ export function Logo({
             )}
           </span>
           {subtitle && (
-            <span className="text-[10px] text-[var(--color-text-muted)] -mt-0.5 leading-tight">
+            <span className="text-[10px] m-1 text-[var(--color-text-muted)]  leading-tight">
               {subtitle}
             </span>
           )}

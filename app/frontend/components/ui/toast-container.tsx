@@ -24,7 +24,14 @@ export function ToastContainer() {
   if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2 max-w-sm w-full pointer-events-none">
+    <div
+      className={cn(
+        // Mobile: full-width banner pinned near the top, clear of the notch.
+        "fixed inset-x-3 top-[calc(env(safe-area-inset-top,0px)+0.75rem)] z-[100] flex flex-col gap-2 pointer-events-none",
+        // Desktop: compact stack in the top-right.
+        "sm:inset-x-auto sm:right-4 sm:top-4 sm:w-full sm:max-w-sm"
+      )}
+    >
       {toasts.map((t) => {
         const Icon = icons[t.type];
         const assertive = t.type === "error" || t.type === "warning";
@@ -34,17 +41,18 @@ export function ToastContainer() {
             role={assertive ? "alert" : "status"}
             aria-live={assertive ? "assertive" : "polite"}
             className={cn(
-              "pointer-events-auto flex items-start gap-3 rounded-xl border p-3.5 shadow-2xl backdrop-blur-md animate-slide-up",
+              "pointer-events-auto flex items-start gap-3 rounded-2xl border p-3.5 shadow-2xl backdrop-blur-md animate-slide-up sm:rounded-xl",
               styles[t.type]
             )}
           >
-            <Icon className="h-4 w-4 mt-0.5 flex-shrink-0" />
-            <p className="text-sm flex-1 leading-relaxed">{t.message}</p>
+            <Icon className="h-5 w-5 mt-px flex-shrink-0 sm:h-4 sm:w-4 sm:mt-0.5" />
+            <p className="flex-1 text-sm leading-relaxed">{t.message}</p>
             <button
               onClick={() => remove(t.id)}
-              className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] flex-shrink-0 transition-colors"
+              aria-label="Dismiss"
+              className="-m-1 flex-shrink-0 rounded-md p-1 text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)]"
             >
-              <X className="h-3.5 w-3.5" />
+              <X className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
             </button>
           </div>
         );
