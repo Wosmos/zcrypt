@@ -81,17 +81,17 @@ function MegaItem({ item, onClick }: { item: MenuItem; onClick: () => void }) {
       href={item.href}
       role="menuitem"
       onClick={onClick}
-      className="flex items-start gap-3 rounded-xl p-2.5 transition-colors hover:bg-[var(--color-surface-1)]"
+      className="group flex items-start gap-3 rounded-xl p-3 transition-colors hover:bg-[var(--color-surface-1)]"
     >
       {Icon && (
-        <span className="mt-0.5 grid h-8 w-8 flex-shrink-0 place-items-center rounded-lg bg-cyan-500/10 text-cyan-500">
+        <span className="mt-0.5 grid h-9 w-9 flex-shrink-0 place-items-center rounded-xl bg-cyan-500/10 text-cyan-500 transition-colors group-hover:bg-cyan-500/15">
           <Icon className="h-4 w-4" />
         </span>
       )}
       <span className="min-w-0">
-        <span className="block text-[13px] font-medium text-[var(--color-text)]">{item.title}</span>
+        <span className="block text-[13px] font-semibold text-[var(--color-text)]">{item.title}</span>
         {item.desc && (
-          <span className="block text-[11px] leading-snug text-[var(--color-text-muted)]">{item.desc}</span>
+          <span className="mt-0.5 block text-[11px] leading-snug text-[var(--color-text-muted)]">{item.desc}</span>
         )}
       </span>
     </Link>
@@ -100,9 +100,22 @@ function MegaItem({ item, onClick }: { item: MenuItem; onClick: () => void }) {
 
 function MegaHeading({ children }: { children: React.ReactNode }) {
   return (
-    <p className="px-2.5 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+    <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-widest text-[var(--color-text-muted)]">
       {children}
     </p>
+  );
+}
+
+function MegaCtaLink({ href, onClick, children }: { href: string; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-[11px] font-semibold text-cyan-600 transition-all hover:gap-2.5 hover:bg-cyan-500/8 dark:text-cyan-400"
+    >
+      {children}
+      <ArrowRight className="h-3 w-3" />
+    </Link>
   );
 }
 
@@ -126,64 +139,66 @@ function FeaturedCard({
       href={href}
       role="menuitem"
       onClick={onClick}
-      className="group relative flex h-full flex-col justify-between overflow-hidden rounded-2xl border border-white/10 bg-[#0c0f1a] p-5"
+      className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-cyan-500/20 bg-[#060b16] p-6"
     >
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-gradient-to-br from-cyan-500/25 via-cyan-500/5 to-transparent opacity-70 transition-opacity group-hover:opacity-100"
-      />
-      <div className="relative">
-        <span className="inline-flex items-center rounded-full bg-cyan-500/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-cyan-300">
+      {/* Glows */}
+      <div aria-hidden className="pointer-events-none absolute inset-0">
+        <div className="absolute -right-10 -top-10 h-48 w-48 rounded-full bg-cyan-500/20 blur-3xl transition-opacity duration-500 group-hover:opacity-150" />
+        <div className="absolute bottom-0 left-0 h-32 w-32 rounded-full bg-violet-500/10 blur-2xl" />
+      </div>
+
+      <div className="relative flex-1">
+        <span className="inline-flex items-center rounded-full bg-cyan-500/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-cyan-400">
           {tag}
         </span>
-        <h4 className="mt-3 font-heading text-sm font-semibold leading-snug text-white">{title}</h4>
-        <p className="mt-1 text-[11px] leading-snug text-white/60">{desc}</p>
+        <h4 className="mt-5 font-heading text-base font-bold leading-snug text-white">{title}</h4>
+        <p className="mt-2 text-[12px] leading-relaxed text-white/50">{desc}</p>
       </div>
-      <span className="relative mt-4 inline-flex items-center gap-1 text-[11px] font-semibold text-cyan-300">
+
+      <div className="relative mt-6 flex items-center gap-2 rounded-xl border border-cyan-500/20 bg-cyan-500/8 px-4 py-3 text-[12px] font-semibold text-cyan-300 transition-colors group-hover:border-cyan-500/35 group-hover:bg-cyan-500/15">
         {cta}
-        <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
-      </span>
+        <ArrowRight className="ml-auto h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+      </div>
     </Link>
   );
 }
 
 function ProductMega({ onItem }: { onItem: () => void }) {
   return (
-    <div className="grid grid-cols-12 gap-3 p-4">
-      <div className="col-span-6">
-        <MegaHeading>Features</MegaHeading>
-        <div className="grid grid-cols-2 gap-0.5">
-          {productFeatures.map((i) => (
-            <MegaItem key={i.href} item={i} onClick={onItem} />
-          ))}
+    <div className="flex flex-1">
+      {/* Features — widest column */}
+      <div className="flex flex-[2] flex-col justify-between border-r border-[var(--color-border)] px-6 py-7">
+        <div>
+          <MegaHeading>Features</MegaHeading>
+          <div className="grid grid-cols-2 gap-0.5">
+            {productFeatures.map((i) => (
+              <MegaItem key={i.href} item={i} onClick={onItem} />
+            ))}
+          </div>
         </div>
-        <Link
-          href="/features"
-          onClick={onItem}
-          className="mt-1 inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-cyan-600 transition-all hover:gap-2 dark:text-cyan-400"
-        >
-          All features
-          <ArrowRight className="h-3 w-3" />
-        </Link>
+        <MegaCtaLink href="/features" onClick={onItem}>All features</MegaCtaLink>
       </div>
 
-      <div className="col-span-3">
-        <MegaHeading>Tools</MegaHeading>
-        <div className="flex flex-col gap-0.5">
-          {productTools.map((i) => (
-            <MegaItem key={i.href} item={i} onClick={onItem} />
-          ))}
+      {/* Tools + Compare */}
+      <div className="flex flex-1 flex-col justify-between border-r border-[var(--color-border)] px-6 py-7">
+        <div>
+          <MegaHeading>Tools</MegaHeading>
+          <div className="flex flex-col gap-0.5">
+            {productTools.map((i) => (
+              <MegaItem key={i.href} item={i} onClick={onItem} />
+            ))}
+          </div>
         </div>
-        <div className="mt-2">
+        <div>
           <MegaHeading>Compare</MegaHeading>
-          <div className="flex flex-col">
+          <div className="flex flex-col gap-0.5">
             {productCompare.map((i) => (
               <Link
                 key={i.href}
                 href={i.href}
                 role="menuitem"
                 onClick={onItem}
-                className="rounded-lg px-2.5 py-1.5 text-[12px] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)]"
+                className="rounded-xl px-3 py-2 text-[12px] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)]"
               >
                 {i.title}
               </Link>
@@ -192,13 +207,14 @@ function ProductMega({ onItem }: { onItem: () => void }) {
         </div>
       </div>
 
-      <div className="col-span-3">
+      {/* Featured card */}
+      <div className="flex-1 p-5">
         <FeaturedCard
           href="/features/encrypted-drive"
           tag="Featured"
           title="The encrypted drive you actually own"
-          desc="Real folders, instant previews, zero-knowledge by default."
-          cta="Explore"
+          desc="Real folders, instant previews, and zero-knowledge encryption — on every platform."
+          cta="Explore the drive"
           onClick={onItem}
         />
       </div>
@@ -208,39 +224,37 @@ function ProductMega({ onItem }: { onItem: () => void }) {
 
 function DocsMega({ onItem }: { onItem: () => void }) {
   return (
-    <div className="grid grid-cols-12 gap-3 p-4">
-      <div className="col-span-4">
-        <MegaHeading>Start here</MegaHeading>
-        <div className="flex flex-col gap-0.5">
-          {docsStart.map((i) => (
-            <MegaItem key={i.href} item={i} onClick={onItem} />
-          ))}
+    <div className="flex flex-1">
+      {/* Start here */}
+      <div className="flex flex-1 flex-col justify-between border-r border-[var(--color-border)] px-6 py-7">
+        <div>
+          <MegaHeading>Start here</MegaHeading>
+          <div className="flex flex-col gap-0.5">
+            {docsStart.map((i) => (
+              <MegaItem key={i.href} item={i} onClick={onItem} />
+            ))}
+          </div>
         </div>
-        <Link
-          href="/docs"
-          onClick={onItem}
-          className="mt-1 inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-cyan-600 transition-all hover:gap-2 dark:text-cyan-400"
-        >
-          Open the docs
-          <ArrowRight className="h-3 w-3" />
-        </Link>
+        <MegaCtaLink href="/docs" onClick={onItem}>Open the docs</MegaCtaLink>
       </div>
 
-      <div className="col-span-4">
+      {/* Popular */}
+      <div className="flex flex-1 flex-col border-r border-[var(--color-border)] px-6 py-7">
         <MegaHeading>Popular</MegaHeading>
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-1 flex-col justify-between gap-0.5">
           {docsPopular.map((i) => (
             <MegaItem key={i.href} item={i} onClick={onItem} />
           ))}
         </div>
       </div>
 
-      <div className="col-span-4">
+      {/* Featured card */}
+      <div className="flex-1 p-5">
         <FeaturedCard
           href="/docs/api"
           tag="New"
           title="API reference"
-          desc="REST endpoints, authentication, and the SSE event stream."
+          desc="REST endpoints, authentication, and the SSE event stream — fully documented."
           cta="Read the API docs"
           onClick={onItem}
         />
@@ -264,15 +278,23 @@ export function MarketingNav() {
   const [openMenu, setOpenMenu] = useState<MegaKey | null>(null);
   const [scrolled, setScrolled] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const openTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { scrollY } = useScroll();
   useMotionValueEvent(scrollY, "change", (v) => setScrolled(v > 40));
 
   const openMega = (k: MegaKey) => {
     if (closeTimer.current) clearTimeout(closeTimer.current);
-    setOpenMenu(k);
+    if (openTimer.current) clearTimeout(openTimer.current);
+    // Already showing a menu → switch immediately (no flicker between items)
+    if (openMenu !== null) {
+      setOpenMenu(k);
+    } else {
+      openTimer.current = setTimeout(() => setOpenMenu(k), 160);
+    }
   };
   const scheduleClose = () => {
+    if (openTimer.current) clearTimeout(openTimer.current);
     if (closeTimer.current) clearTimeout(closeTimer.current);
     closeTimer.current = setTimeout(() => setOpenMenu(null), 140);
   };
@@ -314,10 +336,10 @@ export function MarketingNav() {
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.4, ease: "easeOut" }}
             className={cn(
-              "pointer-events-auto flex items-center justify-between rounded-3xl corner-squircle px-3 py-2 transition-all duration-300",
+              "pointer-events-auto flex items-center justify-between rounded-3xl corner-squircle border px-3 py-2 transition-all duration-300",
               scrolled || openMenu
-                ? "nav-glass border border-[rgba(0,213,228,0.18)]"
-                : "bg-transparent"
+                ? "nav-glass border-[rgba(0,213,228,0.18)]"
+                : "border-transparent bg-transparent"
             )}
           >
             {/* Logo */}
@@ -421,13 +443,13 @@ export function MarketingNav() {
                 initial={{ opacity: 0, y: 8, scale: 0.985 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 8, scale: 0.985 }}
-                transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                transition={{ duration: 0.75, ease: [0.26, 1, 0.3, 1] }}
                 style={{ transformOrigin: "top center" }}
                 onMouseEnter={cancelClose}
                 onMouseLeave={scheduleClose}
                 role="menu"
                 aria-label={openMenu === "product" ? "Product" : "Documentation"}
-                className="pointer-events-auto absolute inset-x-0 top-full z-50 mt-2 hidden rounded-2xl corner-squircle nav-glass-panel border border-[rgba(0,213,228,0.18)] shadow-2xl shadow-black/20 md:block"
+                className="pointer-events-auto absolute inset-x-0 top-full z-50 mt-2 hidden min-h-[55dvh] flex flex-col rounded-3xl corner-squircle nav-glass-panel border border-[rgba(0,213,228,0.18)] shadow-2xl shadow-black/20 md:block"
               >
                 {openMenu === "product" ? (
                   <ProductMega onItem={() => setOpenMenu(null)} />
