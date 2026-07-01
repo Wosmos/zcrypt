@@ -7,6 +7,7 @@ import type { FileMetadata } from "@/types";
 import type { RowDragProps } from "./explorer-row";
 import { formatBytes, formatDate, getFileTypeInfo, isImageFile, cn, midTrunc } from "@/lib/utils";
 import { useThumbnail } from "@/hooks/useThumbnail";
+import { getFolderIcon, getFolderInitial } from "@/lib/folder-icons";
 import { IconButton } from "@/components/ui/icon-button";
 import {
   File,
@@ -129,7 +130,7 @@ function MacFolder({ className }: { className?: string }) {
           <stop offset="1" stopColor="#ffffff" stopOpacity="0" />
         </linearGradient>
         <filter id={shadow} x="-25%" y="-25%" width="150%" height="160%">
-          <feDropShadow dx="0" dy="3" stdDeviation="4.5" floodColor="#000000" floodOpacity="0.4" />
+          <feDropShadow dx="0" dy="2.5" stdDeviation="3.5" floodColor="#000000" floodOpacity="0.26" />
         </filter>
       </defs>
       <g filter={`url(#${shadow})`}>
@@ -190,6 +191,10 @@ function FolderCard({
   // Show the padlock when the folder has its own password OR the vault is locked
   // (name can't be decrypted → "[locked]", set in useFolders).
   const isLocked = folder.protected || folder.name === "[locked]";
+  // Otherwise mark the folder by name (Documents, Downloads, Music…), falling
+  // back to its initial letter — like macOS special folders.
+  const FolderGlyph = isLocked ? null : getFolderIcon(folder.name);
+  const initial = isLocked ? "" : getFolderInitial(folder.name);
 
   return (
     <ContextMenu>
@@ -213,15 +218,35 @@ function FolderCard({
             drag.isDropOver && "bg-[var(--color-accent)]/10 ring-2 ring-inset ring-[var(--color-accent)]"
           )}
         >
-          {/* Free-standing macOS folder — moderate size, scales down in narrow cells. */}
-          <div className="relative flex w-full items-center justify-center">
-            <MacFolder className="w-full max-w-[128px] transition-transform duration-200 group-hover:-translate-y-1 group-hover:scale-[1.03]" />
+          {/* Free-standing macOS folder. The hover transform lives on this
+              wrapper so the mark moves WITH the folder (it's no longer a
+              detached overlay). */}
+          <div className="relative flex w-full items-center justify-center transition-transform duration-200 ease-out group-hover:-translate-y-0.5 group-hover:scale-[1.02]">
+            <MacFolder className="w-full max-w-[150px]" />
 
-            {/* Locked/protected → a bare padlock sitting on the folder face. */}
-            {isLocked && (
+            {/* Mark on the folder face: padlock when locked, else a sleek
+                Phosphor glyph by name, else the folder's initial letter. */}
+            {isLocked ? (
               <PadlockGlyph
-                className="absolute left-1/2 top-[58%] h-8 w-8 -translate-x-1/2 -translate-y-1/2 text-white drop-shadow-[0_2px_3px_rgba(0,0,0,0.45)]"
+                className="absolute left-1/2 top-[57%] h-8 w-8 -translate-x-1/2 -translate-y-1/2 text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.25)]"
               />
+            ) : FolderGlyph ? (
+              // Debossed/engraved into the folder: a grayish dark fill plus a
+              // light bottom highlight reads as "carved in", and works on any
+              // accent color.
+              <FolderGlyph
+                aria-hidden="true"
+                weight="fill"
+                size={38}
+                className="pointer-events-none absolute left-1/2 top-[58%] -translate-x-1/2 -translate-y-1/2 text-black/25 drop-shadow-[0_1px_0.5px_rgba(255,255,255,0.55)]"
+              />
+            ) : (
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute left-1/2 top-[58%] -translate-x-1/2 -translate-y-1/2 select-none font-heading text-[24px] font-bold leading-none tracking-tight text-black/25 drop-shadow-[0_1px_0.5px_rgba(255,255,255,0.55)]"
+              >
+                {initial}
+              </span>
             )}
           </div>
 
@@ -319,7 +344,7 @@ function FileCardInner({
       onDragEnd={drag.onDragEnd}
       {...(drag.dropHandlers ?? {})}
       className={cn(
-        "group relative flex flex-col overflow-hidden rounded-2xl border transition-all duration-200 focus-visible:ring-inset active:scale-[0.99] sm:active:scale-100",
+        "squircle group relative flex flex-col overflow-hidden rounded-2xl border transition-all duration-200 focus-visible:ring-inset active:scale-[0.99] sm:active:scale-100",
         FOCUS_RING,
         drag.draggable ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
         drag.isBeingDragged && "opacity-50",

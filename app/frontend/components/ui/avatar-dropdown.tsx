@@ -80,10 +80,10 @@ export function AvatarDropdown() {
         aria-haspopup="menu"
         aria-expanded={open}
         style={{
-          background: "linear-gradient(135deg, #00b8cc 0%, #0077a8 48%, #5b21b6 100%)",
+          background: "var(--avatar-gradient)",
           boxShadow: open
-            ? "0 0 0 2.5px rgba(0,184,204,0.5), 0 4px 14px rgba(91,33,182,0.3)"
-            : "0 0 0 2px rgba(0,184,204,0.25), 0 2px 8px rgba(91,33,182,0.2)",
+            ? "var(--avatar-shadow-open)"
+            : "var(--avatar-shadow)",
         }}
         className={cn(
           "group relative flex items-center justify-center h-9 w-9 overflow-hidden rounded-full transition-all duration-200",

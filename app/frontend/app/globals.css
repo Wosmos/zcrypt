@@ -7,6 +7,19 @@
     color-scheme: light;
     --color-accent: #0093a3;
     --color-accent-hover: #00a8ba;
+    --color-on-accent: #04181b;
+    /* Avatar orb (default theme) — overridden per color theme via the
+       derivation block; kept here so the signature look is the fallback. */
+    --avatar-gradient: linear-gradient(135deg, #00b8cc 0%, #0077a8 48%, #5b21b6 100%);
+    --avatar-shadow: 0 0 0 2px rgba(0, 184, 204, 0.25), 0 2px 8px rgba(91, 33, 182, 0.2);
+    --avatar-shadow-open: 0 0 0 2.5px rgba(0, 184, 204, 0.5), 0 4px 14px rgba(91, 33, 182, 0.3);
+    /* Primary button (default theme: navy in light) — themed via the
+       derivation block so CTAs carry each theme's accent. */
+    --btn-primary-bg: #1a1f36;
+    --btn-primary-bg-hover: #252b45;
+    --btn-primary-bg-active: #0f1225;
+    --btn-primary-text: #ffffff;
+    --btn-primary-shadow: 0 10px 15px -3px rgba(26, 31, 54, 0.2);
     --color-bg: #e9ecf4;
     --color-surface: #f7f8fb;
     --color-surface-1: #eceef5;
@@ -29,6 +42,12 @@
     color-scheme: dark;
     --color-accent: #00d5e4;
     --color-accent-hover: #2de0ed;
+    --color-on-accent: #04181b;
+    --btn-primary-bg: #0891b2;
+    --btn-primary-bg-hover: #06b6d4;
+    --btn-primary-bg-active: #0e7490;
+    --btn-primary-text: #ffffff;
+    --btn-primary-shadow: 0 10px 15px -3px rgba(8, 145, 178, 0.28);
     --color-bg: #0c0f1a;
     --color-surface: #141829;
     --color-surface-1: #1c2039;
@@ -379,8 +398,11 @@ html.theme-transition {
    ═══════════════════════════════════════════════════════════════════════ */
 @layer base {
   /* Light theme: neutral gray canvas + crisp white panels (high contrast so
-     panels read as floating cards — the reference look). */
-  .app-shell {
+     panels read as floating cards — the reference look). Scoped to
+     html[data-app] (set by the app shell on mount) so the tokens reach both
+     the shell AND portaled overlays (dropdowns/dialogs/popovers render in
+     <body>, outside .app-shell). Marketing/auth pages never set data-app. */
+  html[data-app] {
     --color-bg: #eceef2;
     --color-surface: #ffffff;
     --color-surface-1: #f4f5f8;
@@ -395,7 +417,7 @@ html.theme-transition {
     --shell-active-text: var(--color-accent);
   }
   /* Dark theme: deep canvas + raised panels. */
-  .dark .app-shell {
+  html.dark[data-app] {
     --color-bg: #090c16;
     --color-surface: #13172c;
     --color-surface-1: #1a1f38;
@@ -410,10 +432,280 @@ html.theme-transition {
     --shell-active-text: var(--color-accent);
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Color themes (internal app only). Each theme defines ~10 base `--t-*`
+   vars for light and dark; the single derivation block below maps them onto
+   zcrypt's full `--color-*` system (surface ladder, sidebar, hovers) using
+   color-mix. Mixing toward --t-fg / --t-bg auto-corrects direction for light
+   vs dark, so one derivation serves both modes.
+
+   Scoping: every selector requires BOTH `[data-app]` (set on <html> by the
+   app shell on mount — see AppScope) and `[data-theme]` (set by ThemeProvider
+   from the per-device preference). data-app gates marketing/auth pages out
+   (they never set it), while putting the tokens on <html> lets portaled
+   overlays in <body> inherit them. The DEFAULT theme sets no data-theme, so
+   the hand-tuned html[data-app] palette above applies untouched.
+   ═══════════════════════════════════════════════════════════════════════ */
+@layer base {
+  /* Derivation: --color-* from --t-* (applies to any themed app). */
+  html[data-app][data-theme] {
+    --color-accent: var(--t-primary);
+    --color-accent-hover: color-mix(in oklab, var(--t-primary) 80%, white);
+    --color-on-accent: var(--t-primary-fg);
+
+    /* Wash the canvas + panels with a little of the theme's hue so each theme
+       reads as a *family*, not "white with a colored button". The surface
+       ladder derives from the already-tinted surface so the tint carries up. */
+    --color-bg: color-mix(in oklab, var(--t-bg) 95%, var(--t-primary));
+    --color-surface: color-mix(in oklab, var(--t-card) 97%, var(--t-primary));
+    --color-surface-1: color-mix(in oklab, var(--color-surface) 95%, var(--t-fg));
+    --color-surface-2: color-mix(in oklab, var(--color-surface) 90%, var(--t-fg));
+    --color-surface-3: color-mix(in oklab, var(--color-surface) 83%, var(--t-fg));
+
+    /* Primary CTA carries the accent in themed mode. */
+    --btn-primary-bg: var(--t-primary);
+    --btn-primary-bg-hover: color-mix(in oklab, var(--t-primary) 85%, black);
+    --btn-primary-bg-active: color-mix(in oklab, var(--t-primary) 72%, black);
+    --btn-primary-text: var(--t-primary-fg);
+    --btn-primary-shadow: 0 10px 15px -3px color-mix(in oklab, var(--t-primary) 32%, transparent);
+
+    --color-border: var(--t-border);
+    --color-border-hover: color-mix(in oklab, var(--t-border) 80%, var(--t-fg));
+
+    --color-text: var(--t-fg);
+    --color-text-secondary: color-mix(in oklab, var(--t-fg) 72%, var(--t-bg));
+    --color-text-muted: var(--t-muted-fg);
+
+    --color-sidebar: var(--t-sidebar);
+    --color-sidebar-hover: color-mix(in oklab, var(--t-sidebar) 90%, var(--t-sidebar-fg));
+    --color-sidebar-active: color-mix(in oklab, var(--t-primary) 18%, transparent);
+    --color-sidebar-text: color-mix(in oklab, var(--t-sidebar-fg) 60%, var(--t-sidebar));
+    --color-sidebar-text-active: var(--t-sidebar-fg);
+    --color-sidebar-border: var(--t-sidebar-border);
+
+    --shell-active: color-mix(in oklab, var(--t-primary) 12%, transparent);
+    --shell-active-text: var(--t-primary);
+
+    /* Avatar orb recolors to the theme accent (default stays cyan→purple). */
+    --avatar-gradient: linear-gradient(140deg, color-mix(in oklab, var(--t-primary) 92%, white) 0%, var(--t-primary) 45%, color-mix(in oklab, var(--t-primary) 58%, black) 100%);
+    --avatar-shadow: 0 0 0 2px color-mix(in oklab, var(--t-primary) 24%, transparent), 0 2px 8px color-mix(in oklab, var(--t-primary) 20%, transparent);
+    --avatar-shadow-open: 0 0 0 2.5px color-mix(in oklab, var(--t-primary) 45%, transparent), 0 4px 14px color-mix(in oklab, var(--t-primary) 30%, transparent);
+  }
+
+  /* ── Enterprise Blue ── */
+  html[data-app][data-theme="enterprise-blue"] {
+    --t-bg: oklch(0.9946 0.0026 286.3519);
+    --t-card: oklch(1.0000 0 0);
+    --t-primary: oklch(0.5828 0.2188 258.8797);
+    --t-primary-fg: oklch(0.9670 0.0029 264.5419);
+    --t-fg: oklch(0.1615 0.0105 285.1663);
+    --t-muted-fg: oklch(0.5052 0.0379 284.9640);
+    --t-border: oklch(0.9163 0.0162 286.0759);
+    --t-sidebar: oklch(0.9946 0.0026 286.3519);
+    --t-sidebar-fg: oklch(0.1615 0.0105 285.1663);
+    --t-sidebar-border: oklch(0.9163 0.0162 286.0759);
+  }
+  html.dark[data-app][data-theme="enterprise-blue"] {
+    --t-bg: oklch(0.1440 0.0028 247.0906);
+    --t-card: oklch(0.1899 0.0051 248.0992);
+    --t-primary: oklch(0.5828 0.2188 258.8797);
+    --t-primary-fg: oklch(0.9670 0.0029 264.5419);
+    --t-fg: oklch(0.9643 0.0083 271.3283);
+    --t-muted-fg: oklch(0.7217 0.0248 277.7984);
+    --t-border: oklch(0.3015 0.0151 269.1828);
+    --t-sidebar: oklch(0.1779 0.0064 271.0422);
+    --t-sidebar-fg: oklch(0.9197 0.0040 286.3202);
+    --t-sidebar-border: oklch(0.2766 0.0039 264.5019);
+  }
+
+  /* ── Caffeine ── */
+  html[data-app][data-theme="caffeine"] {
+    --t-bg: oklch(0.9821 0 0);
+    --t-card: oklch(0.9911 0 0);
+    --t-primary: oklch(0.4341 0.0392 41.9938);
+    --t-primary-fg: oklch(1.0000 0 0);
+    --t-fg: oklch(0.2435 0 0);
+    --t-muted-fg: oklch(0.5032 0 0);
+    --t-border: oklch(0.8822 0 0);
+    --t-sidebar: oklch(0.9881 0 0);
+    --t-sidebar-fg: oklch(0.2645 0 0);
+    --t-sidebar-border: oklch(0.9401 0 0);
+  }
+  html.dark[data-app][data-theme="caffeine"] {
+    --t-bg: oklch(0.1776 0 0);
+    --t-card: oklch(0.2134 0 0);
+    --t-primary: oklch(0.9247 0.0524 66.1732);
+    --t-primary-fg: oklch(0.2029 0.0240 200.1962);
+    --t-fg: oklch(0.9491 0 0);
+    --t-muted-fg: oklch(0.7699 0 0);
+    --t-border: oklch(0.2351 0.0115 91.7467);
+    --t-sidebar: oklch(0.2103 0.0059 285.8852);
+    --t-sidebar-fg: oklch(0.9674 0.0013 286.3752);
+    --t-sidebar-border: oklch(0.2739 0.0055 286.0326);
+  }
+
+  /* ── Claymorphism ── */
+  html[data-app][data-theme="claymorphism"] {
+    --t-bg: oklch(0.9232 0.0026 48.7171);
+    --t-card: oklch(0.9699 0.0013 106.4238);
+    --t-primary: oklch(0.5854 0.2041 277.1173);
+    --t-primary-fg: oklch(1.0000 0 0);
+    --t-fg: oklch(0.2795 0.0368 260.0310);
+    --t-muted-fg: oklch(0.5510 0.0234 264.3637);
+    --t-border: oklch(0.8687 0.0043 56.3660);
+    --t-sidebar: oklch(0.8687 0.0043 56.3660);
+    --t-sidebar-fg: oklch(0.2795 0.0368 260.0310);
+    --t-sidebar-border: oklch(0.8687 0.0043 56.3660);
+  }
+  html.dark[data-app][data-theme="claymorphism"] {
+    --t-bg: oklch(0.2244 0.0074 67.4370);
+    --t-card: oklch(0.2801 0.0080 59.3379);
+    --t-primary: oklch(0.6801 0.1583 276.9349);
+    --t-primary-fg: oklch(0.2244 0.0074 67.4370);
+    --t-fg: oklch(0.9288 0.0126 255.5078);
+    --t-muted-fg: oklch(0.7137 0.0192 261.3246);
+    --t-border: oklch(0.3359 0.0077 59.4197);
+    --t-sidebar: oklch(0.3359 0.0077 59.4197);
+    --t-sidebar-fg: oklch(0.9288 0.0126 255.5078);
+    --t-sidebar-border: oklch(0.3359 0.0077 59.4197);
+  }
+
+  /* ── Cosmic Night ── */
+  html[data-app][data-theme="cosmic-night"] {
+    --t-bg: oklch(0.9730 0.0133 286.1503);
+    --t-card: oklch(1.0000 0 0);
+    --t-primary: oklch(0.5417 0.1790 288.0332);
+    --t-primary-fg: oklch(1.0000 0 0);
+    --t-fg: oklch(0.3015 0.0572 282.4176);
+    --t-muted-fg: oklch(0.5426 0.0465 284.7435);
+    --t-border: oklch(0.9115 0.0216 285.9625);
+    --t-sidebar: oklch(0.9580 0.0133 286.1454);
+    --t-sidebar-fg: oklch(0.3015 0.0572 282.4176);
+    --t-sidebar-border: oklch(0.9115 0.0216 285.9625);
+  }
+  html.dark[data-app][data-theme="cosmic-night"] {
+    --t-bg: oklch(0.1743 0.0227 283.7998);
+    --t-card: oklch(0.2284 0.0384 282.9324);
+    --t-primary: oklch(0.7162 0.1597 290.3962);
+    --t-primary-fg: oklch(0.1743 0.0227 283.7998);
+    --t-fg: oklch(0.9185 0.0257 285.8834);
+    --t-muted-fg: oklch(0.7166 0.0462 285.1741);
+    --t-border: oklch(0.3261 0.0597 282.5832);
+    --t-sidebar: oklch(0.2284 0.0384 282.9324);
+    --t-sidebar-fg: oklch(0.9185 0.0257 285.8834);
+    --t-sidebar-border: oklch(0.3261 0.0597 282.5832);
+  }
+
+  /* ── Cyberpunk ── */
+  html[data-app][data-theme="cyberpunk"] {
+    --t-bg: oklch(0.9816 0.0017 247.8390);
+    --t-card: oklch(1.0000 0 0);
+    --t-primary: oklch(0.6726 0.2904 341.4084);
+    --t-primary-fg: oklch(1.0000 0 0);
+    --t-fg: oklch(0.1649 0.0352 281.8285);
+    --t-muted-fg: oklch(0.4800 0.0400 281.8285);
+    --t-border: oklch(0.9205 0.0086 225.0878);
+    --t-sidebar: oklch(0.9595 0.0200 286.0164);
+    --t-sidebar-fg: oklch(0.1649 0.0352 281.8285);
+    --t-sidebar-border: oklch(0.9205 0.0086 225.0878);
+  }
+  html.dark[data-app][data-theme="cyberpunk"] {
+    --t-bg: oklch(0.1649 0.0352 281.8285);
+    --t-card: oklch(0.2542 0.0611 281.1423);
+    --t-primary: oklch(0.6726 0.2904 341.4084);
+    --t-primary-fg: oklch(1.0000 0 0);
+    --t-fg: oklch(0.9513 0.0074 260.7315);
+    --t-muted-fg: oklch(0.6245 0.0500 278.1046);
+    --t-border: oklch(0.3279 0.0832 280.7890);
+    --t-sidebar: oklch(0.1649 0.0352 281.8285);
+    --t-sidebar-fg: oklch(0.9513 0.0074 260.7315);
+    --t-sidebar-border: oklch(0.3279 0.0832 280.7890);
+  }
+
+  /* ── Elegant Luxury ── */
+  html[data-app][data-theme="elegant-luxury"] {
+    --t-bg: oklch(0.9779 0.0042 56.3756);
+    --t-card: oklch(0.9779 0.0042 56.3756);
+    --t-primary: oklch(0.4650 0.1470 24.9381);
+    --t-primary-fg: oklch(1.0000 0 0);
+    --t-fg: oklch(0.2178 0 0);
+    --t-muted-fg: oklch(0.4444 0.0096 73.6390);
+    --t-border: oklch(0.9355 0.0324 80.9937);
+    --t-sidebar: oklch(0.9431 0.0068 53.4442);
+    --t-sidebar-fg: oklch(0.2178 0 0);
+    --t-sidebar-border: oklch(0.9355 0.0324 80.9937);
+  }
+  html.dark[data-app][data-theme="elegant-luxury"] {
+    --t-bg: oklch(0.2161 0.0061 56.0434);
+    --t-card: oklch(0.2685 0.0063 34.2976);
+    --t-primary: oklch(0.5054 0.1905 27.5181);
+    --t-primary-fg: oklch(0.9779 0.0042 56.3756);
+    --t-fg: oklch(0.9699 0.0013 106.4238);
+    --t-muted-fg: oklch(0.8687 0.0043 56.3660);
+    --t-border: oklch(0.3741 0.0087 67.5582);
+    --t-sidebar: oklch(0.2161 0.0061 56.0434);
+    --t-sidebar-fg: oklch(0.9699 0.0013 106.4238);
+    --t-sidebar-border: oklch(0.3741 0.0087 67.5582);
+  }
+
+  /* ── Pastel Dreams ── */
+  html[data-app][data-theme="pastel-dreams"] {
+    --t-bg: oklch(0.9689 0.0090 314.7819);
+    --t-card: oklch(1.0000 0 0);
+    --t-primary: oklch(0.7090 0.1592 293.5412);
+    --t-primary-fg: oklch(1.0000 0 0);
+    --t-fg: oklch(0.3729 0.0306 259.7328);
+    --t-muted-fg: oklch(0.5510 0.0234 264.3637);
+    --t-border: oklch(0.9073 0.0530 306.0902);
+    --t-sidebar: oklch(0.9073 0.0530 306.0902);
+    --t-sidebar-fg: oklch(0.3729 0.0306 259.7328);
+    --t-sidebar-border: oklch(0.9073 0.0530 306.0902);
+  }
+  html.dark[data-app][data-theme="pastel-dreams"] {
+    --t-bg: oklch(0.2161 0.0061 56.0434);
+    --t-card: oklch(0.2805 0.0309 307.2326);
+    --t-primary: oklch(0.7874 0.1179 295.7538);
+    --t-primary-fg: oklch(0.2161 0.0061 56.0434);
+    --t-fg: oklch(0.9299 0.0334 272.7879);
+    --t-muted-fg: oklch(0.7137 0.0192 261.3246);
+    --t-border: oklch(0.3416 0.0444 308.8496);
+    --t-sidebar: oklch(0.3416 0.0444 308.8496);
+    --t-sidebar-fg: oklch(0.9299 0.0334 272.7879);
+    --t-sidebar-border: oklch(0.3416 0.0444 308.8496);
+  }
+
+  /* ── Twitter ── */
+  html[data-app][data-theme="twitter"] {
+    --t-bg: oklch(1.0000 0 0);
+    --t-card: oklch(0.9784 0.0011 197.1387);
+    --t-primary: oklch(0.6723 0.1606 244.9955);
+    --t-primary-fg: oklch(1.0000 0 0);
+    --t-fg: oklch(0.1884 0.0128 248.5103);
+    --t-muted-fg: oklch(0.4800 0.0128 248.5103);
+    --t-border: oklch(0.9317 0.0118 231.6594);
+    --t-sidebar: oklch(0.9784 0.0011 197.1387);
+    --t-sidebar-fg: oklch(0.1884 0.0128 248.5103);
+    --t-sidebar-border: oklch(0.9271 0.0101 238.5177);
+  }
+  html.dark[data-app][data-theme="twitter"] {
+    --t-bg: oklch(0 0 0);
+    --t-card: oklch(0.2097 0.0080 274.5332);
+    --t-primary: oklch(0.6692 0.1607 245.0110);
+    --t-primary-fg: oklch(1.0000 0 0);
+    --t-fg: oklch(0.9328 0.0025 228.7857);
+    --t-muted-fg: oklch(0.5637 0.0078 247.9662);
+    --t-border: oklch(0.2674 0.0047 248.0045);
+    --t-sidebar: oklch(0.2097 0.0080 274.5332);
+    --t-sidebar-fg: oklch(0.8853 0 0);
+    --t-sidebar-border: oklch(0.3795 0.0220 240.5943);
+  }
+}
+
 @layer components {
   /* Floating panel surface used by the shell + content cards. */
   .panel {
-    border-radius: 1rem;
+    border-radius: 1.25rem;
     border: 1px solid var(--color-border);
     background: var(--color-surface);
     box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 4px 12px -6px rgba(16, 24, 40, 0.08);
@@ -511,6 +803,53 @@ html.theme-transition {
   .app-shell *::after {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Global squircle corners — one knob for the whole app.
+   `--squircle-shape` controls the corner style of every rounded element
+   (cards, dropdowns, modals, popovers, toasts, buttons, inputs …). It applies
+   globally (incl. portaled overlays in <body>, which sit outside .app-shell).
+
+   `corner-shape` is a NO-OP on elements without a border-radius, so we apply
+   it to `*` rather than only `rounded-*` classes. That's deliberate: the most
+   prominent surfaces (.panel, .card) get their radius from `@apply`/CSS, not a
+   `rounded-*` class, so a class-substring selector would skip them — which is
+   the whole reason cards looked un-squircled. Progressive enhancement:
+   browsers without `corner-shape` render the normal rounded radius.
+
+   Perfect circles (avatars, dots, pills via `rounded-full`) are forced back to
+   `round` so they stay circular. Any element can opt out with `.corner-round`
+   / `.corner-*` (the Tailwind plugin utilities, which outrank `*`).
+   ═══════════════════════════════════════════════════════════════════════ */
+:root {
+  --squircle-shape: squircle;
+}
+@supports (corner-shape: squircle) {
+  *,
+  *::before,
+  *::after {
+    corner-shape: var(--squircle-shape);
+  }
+  [class*="rounded-full"] {
+    corner-shape: round;
+  }
+}
+
+/* Cross-browser fallback. Where `corner-shape` is unsupported (Safari,
+   Firefox, older Chromium), clip surfaces to a real superellipse squircle via
+   a shared SVG clipPath (#zc-squircle — defined once in the root layout, with
+   clipPathUnits="objectBoundingBox" so it scales to any element). This is the
+   path that actually renders squircles in those browsers. Use the `.squircle`
+   utility on any element; `.card`/`.card-hover` get it automatically.
+   (clip-path also clips drop shadows, so it's reserved for solid surfaces, not
+   floating overlays whose shadow carries them.) */
+@supports not (corner-shape: squircle) {
+  .squircle,
+  .card,
+  .card-hover {
+    clip-path: url(#zc-squircle);
   }
 }
 

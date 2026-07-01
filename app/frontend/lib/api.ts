@@ -69,6 +69,35 @@ async function request<T>(path: string, options?: RequestInit, retries = 2): Pro
   return res.json() as Promise<T>;
 }
 
+// ─── Per-device UI preferences (color theme + light/dark mode) ───
+
+export interface DevicePreference {
+  device_id: string;
+  color_theme: string;
+  mode: string;
+  updated_at: string;
+  /** False when no row exists yet on the server (fields are then defaults). */
+  saved: boolean;
+}
+
+export function getDevicePreference(deviceId: string): Promise<DevicePreference> {
+  return request<DevicePreference>(
+    `/api/preferences?device_id=${encodeURIComponent(deviceId)}`
+  );
+}
+
+export function saveDevicePreference(pref: {
+  device_id: string;
+  color_theme: string;
+  mode: string;
+}): Promise<DevicePreference> {
+  return request<DevicePreference>(`/api/preferences`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(pref),
+  });
+}
+
 // ─── File Meta & Chunk Download (client-side decryption) ───
 
 export interface FileMetaResponse {

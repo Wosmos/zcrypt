@@ -18,6 +18,7 @@ import { usePreferencesStore } from "@/store/preferences";
 import { connectPlatform, disconnectPlatform, toggleTokenScope } from "@/lib/api";
 import { toast } from "@/store/toast";
 import { RateLimits } from "@/components/settings/rate-limits";
+import { ThemePicker } from "@/components/settings/theme-picker";
 import { ExportImport } from "@/components/vault/export-import";
 import { LinkedAccounts } from "@/components/settings/linked-accounts";
 import { SecurityActivity } from "@/components/settings/security-activity";
@@ -238,6 +239,11 @@ export function SettingsContent() {
                   <ChevronDown className="h-4 w-4" />
                 </div>
               </div>
+            </div>
+
+            {/* Color theme picker */}
+            <div className="border-t border-[var(--color-border)] pt-5">
+              <ThemePicker />
             </div>
 
             {/* Advanced mode toggle */}

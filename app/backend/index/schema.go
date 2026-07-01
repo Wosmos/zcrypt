@@ -511,4 +511,17 @@ CREATE INDEX IF NOT EXISTS idx_files_folder ON files(folder_id);
 -- A folder is "protected" iff pw_salt IS NOT NULL.
 ALTER TABLE folders ADD COLUMN IF NOT EXISTS pw_salt TEXT;
 ALTER TABLE folders ADD COLUMN IF NOT EXISTS pw_verifier TEXT;
+
+-- Per-device UI preferences (color theme + light/dark mode). Keyed by a
+-- client-generated device_id so each device keeps its own look ("per-device
+-- set, per-device consistent"). Display-only and non-sensitive; one row per
+-- (user, device).
+CREATE TABLE IF NOT EXISTS device_preferences (
+	user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	device_id   TEXT NOT NULL,
+	color_theme TEXT NOT NULL DEFAULT 'default',
+	mode        TEXT NOT NULL DEFAULT 'system',
+	updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	PRIMARY KEY (user_id, device_id)
+);
 `

@@ -37,6 +37,20 @@ module.exports = {
   		'2xl': '1536px'
   	},
   	extend: {
+  		// Design-system corner scale — one consistent, generously-rounded ramp
+  		// used for every corner in the app (cards, menus, modals, inputs,
+  		// buttons …). Paired with the global squircle so corners read as smooth
+  		// superellipses, not hard arcs. Tuned to be clearly rounded without
+  		// going pill-shaped ("best mixture").
+  		borderRadius: {
+  			sm: '0.5rem',      // 8px
+  			DEFAULT: '0.625rem', // 10px
+  			md: '0.75rem',     // 12px
+  			lg: '0.875rem',    // 14px
+  			xl: '1.125rem',    // 18px
+  			'2xl': '1.375rem', // 22px
+  			'3xl': '1.75rem',  // 28px
+  		},
   		fontFamily: {
   			heading: [
   				'var(--font-heading)',
@@ -63,7 +77,7 @@ module.exports = {
   			foreground: 'var(--color-text)',
   			primary: {
   				DEFAULT: 'var(--color-accent)',
-  				foreground: '#04181b'
+  				foreground: 'var(--color-on-accent)'
   			},
   			secondary: {
   				DEFAULT: 'var(--color-surface-2)',

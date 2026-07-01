@@ -3,11 +3,18 @@ import { TopBar } from "@/components/ui/top-bar";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { CommandPalette } from "@/components/ui/command-palette";
 import { VaultLockProvider } from "@/components/providers/vault-lock-provider";
+import { AppScope } from "@/components/providers/app-scope";
 import { AppTransfers } from "@/components/transfer/app-transfers";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <AuthGuard>
+    <>
+      {/* Marks <html data-app> so color themes engage for the app (and its
+          portaled overlays) but never for marketing/auth pages. Mounted
+          outside AuthGuard so data-app is set during the auth spinner —
+          before the shell ever paints — avoiding any unthemed flash. */}
+      <AppScope />
+      <AuthGuard>
       {/* One vault-unlock instance + one PassphraseModal for the whole app, so the
           Vault page (header pill + decrypt actions) and the docked transfer
           manager (resume/retry) share the same lock. */}
@@ -33,6 +40,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
         <CommandPalette />
       </VaultLockProvider>
-    </AuthGuard>
+      </AuthGuard>
+    </>
   );
 }
