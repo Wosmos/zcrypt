@@ -15,7 +15,28 @@ const { getState, tryRefreshToken } = vi.hoisted(() => ({
 vi.mock("@/store/auth", () => ({ useAuthStore: { getState } }));
 vi.mock("@/lib/auth-fetch", () => ({ tryRefreshToken }));
 
-import { getConfig } from "@/lib/api";
+import {
+  getConfig,
+  getFileChunk,
+  listFiles,
+  deleteFile,
+  bulkDeleteFiles,
+  getDevicePreference,
+  getMyKey,
+  publishKey,
+  getUserPublicKey,
+  getFileMeta,
+  listSharedVaults,
+  createSharedVault,
+  getSharedVault,
+  addSharedVaultMember,
+  lookupUserKey,
+  removeSharedVaultMember,
+  deleteSharedVault,
+  addFileToSpace,
+  removeFileFromSpace,
+  rotateSpace,
+} from "@/lib/api";
 
 /** A minimal Response stand-in matching what request() reads. */
 function resp(status: number, body: unknown) {
@@ -111,5 +132,93 @@ describe("api request core", () => {
   it("propagates a non-abort network error as-is", async () => {
     fetchMock.mockRejectedValueOnce(new Error("network down"));
     await expect(getConfig()).rejects.toThrow("network down");
+  });
+});
+
+describe("getFileChunk (custom download path)", () => {
+  function chunkResp(status: number, opts: { body?: unknown; bytes?: ArrayBuffer; hdr?: Record<string, string> } = {}) {
+    const text = typeof opts.body === "string" ? opts.body : JSON.stringify(opts.body ?? {});
+    return {
+      ok: status >= 200 && status < 300,
+      status,
+      text: async () => text,
+      arrayBuffer: async () => opts.bytes ?? new ArrayBuffer(8),
+      headers: { get: (k: string) => (opts.hdr ?? {})[k] ?? null },
+    } as unknown as Response;
+  }
+
+  it("returns the bytes and parses the chunk metadata headers", async () => {
+    const bytes = new Uint8Array([1, 2, 3, 4]).buffer;
+    fetchMock.mockResolvedValueOnce(
+      chunkResp(200, { bytes, hdr: { "X-Chunk-SHA256": "abc123", "X-Chunk-Compressed": "true" } })
+    );
+
+    const out = await getFileChunk("file-1", 2);
+
+    expect(String(fetchMock.mock.calls[0][0])).toContain("/api/files/file-1/chunks/2");
+    expect(new Uint8Array(out.data)).toEqual(new Uint8Array([1, 2, 3, 4]));
+    expect(out.sha256).toBe("abc123");
+    expect(out.compressed).toBe(true);
+  });
+
+  it("defaults compressed=false and sha256='' when headers are absent", async () => {
+    fetchMock.mockResolvedValueOnce(chunkResp(200, {}));
+    const out = await getFileChunk("f", 0);
+    expect(out.sha256).toBe("");
+    expect(out.compressed).toBe(false);
+  });
+
+  it("throws the parsed error on a non-OK chunk response", async () => {
+    fetchMock.mockResolvedValueOnce(chunkResp(404, { body: { error: "chunk not found" } }));
+    await expect(getFileChunk("f", 9)).rejects.toThrow("chunk not found");
+  });
+
+  it("attaches the bearer token when present", async () => {
+    fetchMock.mockResolvedValueOnce(chunkResp(200, {}));
+    await getFileChunk("f", 0);
+    const init = fetchMock.mock.calls[0][1];
+    expect((init.headers as Record<string, string>).Authorization).toBe("Bearer access-tok");
+  });
+});
+
+// The spaces + keys endpoints are this feature's API surface: a wrong verb,
+// path, or body shape is a silent break, so pin each one down explicitly.
+describe("shared-space + key API wrappers", () => {
+  interface Case {
+    name: string;
+    run: () => Promise<unknown>;
+    path: string;
+    method?: string;
+    body?: Record<string, unknown>;
+  }
+  const cases: Case[] = [
+    { name: "listSharedVaults", run: () => listSharedVaults(), path: "/api/shared-vaults" },
+    { name: "getSharedVault", run: () => getSharedVault("v1"), path: "/api/shared-vaults/v1" },
+    { name: "createSharedVault", run: () => createSharedVault({ name: "n", description: "d", file_ids: ["a"], wrapped_space_key: "w", size_limit_bytes: 10 }), path: "/api/shared-vaults", method: "POST", body: { name: "n", description: "d", file_ids: ["a"], wrapped_space_key: "w", size_limit_bytes: 10 } },
+    { name: "addSharedVaultMember", run: () => addSharedVaultMember("v1", "e@x.com", "editor", "grant"), path: "/api/shared-vaults/v1/members", method: "POST", body: { email: "e@x.com", role: "editor", wrapped_space_key: "grant" } },
+    { name: "addSharedVaultMember (default grant)", run: () => addSharedVaultMember("v1", "e@x.com", "viewer"), path: "/api/shared-vaults/v1/members", method: "POST", body: { email: "e@x.com", role: "viewer", wrapped_space_key: "" } },
+    { name: "removeSharedVaultMember", run: () => removeSharedVaultMember("v1", "u9"), path: "/api/shared-vaults/v1/members/u9", method: "DELETE" },
+    { name: "deleteSharedVault", run: () => deleteSharedVault("v1"), path: "/api/shared-vaults/v1", method: "DELETE" },
+    { name: "addFileToSpace", run: () => addFileToSpace("v1", "f2", "cek"), path: "/api/shared-vaults/v1/files", method: "POST", body: { file_id: "f2", wrapped_cek: "cek" } },
+    { name: "removeFileFromSpace", run: () => removeFileFromSpace("v1", "f2"), path: "/api/shared-vaults/v1/files/f2", method: "DELETE" },
+    { name: "rotateSpace", run: () => rotateSpace("v1", [{ user_id: "u", wrapped_space_key: "k" }], [{ file_id: "f", wrapped_cek: "c" }]), path: "/api/shared-vaults/v1/rotate", method: "POST", body: { members: [{ user_id: "u", wrapped_space_key: "k" }], files: [{ file_id: "f", wrapped_cek: "c" }] } },
+    { name: "getMyKey", run: () => getMyKey(), path: "/api/keys/me" },
+    { name: "publishKey", run: () => publishKey({ public_key: "p", wrapped_private_key: "w", kdf_salt: "s", fingerprint: "f" }), path: "/api/keys", method: "POST", body: { public_key: "p", wrapped_private_key: "w", kdf_salt: "s", fingerprint: "f" } },
+    { name: "getUserPublicKey", run: () => getUserPublicKey("u 1"), path: "/api/keys/user/u%201" },
+    { name: "lookupUserKey", run: () => lookupUserKey("a@b.com"), path: "/api/keys/lookup?identifier=a%40b.com" },
+    { name: "getFileMeta", run: () => getFileMeta("f5"), path: "/api/files/f5/meta" },
+    { name: "listFiles (filtered)", run: () => listFiles("trash"), path: "/api/files?filter=trash" },
+    { name: "deleteFile", run: () => deleteFile("f5"), path: "/api/files/f5", method: "DELETE" },
+    { name: "bulkDeleteFiles", run: () => bulkDeleteFiles(["a", "b"]), path: "/api/files/bulk-delete", method: "POST", body: { ids: ["a", "b"] } },
+    { name: "getDevicePreference", run: () => getDevicePreference("dev 1"), path: "/api/preferences?device_id=dev%201" },
+  ];
+
+  it.each(cases)("$name -> $method $path", async (c) => {
+    fetchMock.mockResolvedValueOnce(resp(200, {}));
+    await c.run();
+    expect(String(fetchMock.mock.calls[0][0])).toContain(c.path);
+    const init = fetchMock.mock.calls[0][1];
+    expect(init.method).toBe(c.method);
+    if (c.body) expect(JSON.parse(init.body as string)).toEqual(c.body);
   });
 });
