@@ -396,6 +396,8 @@ export interface SharedVault {
   wrapped_space_key?: string;
   /** The caller's role in this space. */
   role?: "viewer" | "editor" | "admin";
+  /** Optional size cap in bytes (sum of shared files' original sizes). 0 = no limit. */
+  size_limit_bytes: number;
 }
 
 export interface SharedVaultMember {

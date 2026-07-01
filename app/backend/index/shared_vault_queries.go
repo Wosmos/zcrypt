@@ -10,11 +10,11 @@ import (
 func (db *DB) CreateSharedVault(ctx context.Context, ownerID string, req types.SharedVaultRequest) (*types.SharedVault, error) {
 	vault := &types.SharedVault{}
 	err := db.pool.QueryRow(ctx, `
-		INSERT INTO shared_vaults (name, owner_id, description, file_ids)
-		VALUES ($1, $2, $3, $4)
-		RETURNING id, name, owner_id, description, file_ids, created_at, updated_at`,
-		req.Name, ownerID, req.Description, req.FileIDs,
-	).Scan(&vault.ID, &vault.Name, &vault.OwnerID, &vault.Description, &vault.FileIDs, &vault.CreatedAt, &vault.UpdatedAt)
+		INSERT INTO shared_vaults (name, owner_id, description, file_ids, size_limit_bytes)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id, name, owner_id, description, file_ids, created_at, updated_at, size_limit_bytes`,
+		req.Name, ownerID, req.Description, req.FileIDs, req.SizeLimitBytes,
+	).Scan(&vault.ID, &vault.Name, &vault.OwnerID, &vault.Description, &vault.FileIDs, &vault.CreatedAt, &vault.UpdatedAt, &vault.SizeLimitBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -31,7 +31,7 @@ func (db *DB) CreateSharedVault(ctx context.Context, ownerID string, req types.S
 func (db *DB) ListSharedVaults(ctx context.Context, userID string) ([]types.SharedVault, error) {
 	rows, err := db.pool.Query(ctx, `
 		SELECT sv.id, sv.name, sv.owner_id, sv.description, sv.file_ids, sv.created_at, sv.updated_at,
-		       svm.wrapped_space_key, svm.role
+		       svm.wrapped_space_key, svm.role, sv.size_limit_bytes
 		FROM shared_vaults sv
 		JOIN shared_vault_members svm ON sv.id = svm.vault_id
 		WHERE svm.user_id = $1
@@ -44,7 +44,7 @@ func (db *DB) ListSharedVaults(ctx context.Context, userID string) ([]types.Shar
 	var vaults []types.SharedVault
 	for rows.Next() {
 		var v types.SharedVault
-		if err := rows.Scan(&v.ID, &v.Name, &v.OwnerID, &v.Description, &v.FileIDs, &v.CreatedAt, &v.UpdatedAt, &v.WrappedSpaceKey, &v.Role); err != nil {
+		if err := rows.Scan(&v.ID, &v.Name, &v.OwnerID, &v.Description, &v.FileIDs, &v.CreatedAt, &v.UpdatedAt, &v.WrappedSpaceKey, &v.Role, &v.SizeLimitBytes); err != nil {
 			return nil, err
 		}
 		vaults = append(vaults, v)
@@ -65,9 +65,9 @@ func (db *DB) GetSharedVault(ctx context.Context, userID, vaultID string) (*type
 
 	vault := &types.SharedVaultDetail{}
 	err = db.pool.QueryRow(ctx, `
-		SELECT id, name, owner_id, description, file_ids, created_at, updated_at
+		SELECT id, name, owner_id, description, file_ids, created_at, updated_at, size_limit_bytes
 		FROM shared_vaults WHERE id = $1`, vaultID,
-	).Scan(&vault.ID, &vault.Name, &vault.OwnerID, &vault.Description, &vault.FileIDs, &vault.CreatedAt, &vault.UpdatedAt)
+	).Scan(&vault.ID, &vault.Name, &vault.OwnerID, &vault.Description, &vault.FileIDs, &vault.CreatedAt, &vault.UpdatedAt, &vault.SizeLimitBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -229,6 +229,22 @@ func (db *DB) RemoveSharedVaultFile(ctx context.Context, vaultID, fileID string)
 		return err
 	}
 	return tx.Commit(ctx)
+}
+
+// SharedVaultUsage returns the space's used bytes (sum of shared files' original
+// sizes) and its size limit (0 = unlimited). excludeFileID is omitted from the
+// sum so re-adding an existing file (e.g. key rotation) isn't double-counted;
+// pass "" to count everything.
+func (db *DB) SharedVaultUsage(ctx context.Context, vaultID, excludeFileID string) (used int64, limit int64, err error) {
+	err = db.pool.QueryRow(ctx, `
+		SELECT
+			COALESCE((SELECT SUM(f.original_size)
+			          FROM shared_vault_files svf JOIN files f ON f.id = svf.file_id
+			          WHERE svf.vault_id = $1 AND ($2 = '' OR svf.file_id <> $2)), 0),
+			COALESCE((SELECT size_limit_bytes FROM shared_vaults WHERE id = $1), 0)`,
+		vaultID, excludeFileID,
+	).Scan(&used, &limit)
+	return used, limit, err
 }
 
 // MemberSpaceFileGrant authorizes a member to read a shared file WITHOUT

@@ -655,6 +655,8 @@ type SharedVault struct {
 	UpdatedAt       time.Time `json:"updated_at"`
 	WrappedSpaceKey string    `json:"wrapped_space_key,omitempty"`
 	Role            string    `json:"role,omitempty"`
+	// Optional size cap in bytes (sum of shared files' original sizes). 0 = no limit.
+	SizeLimitBytes int64 `json:"size_limit_bytes"`
 }
 
 // SharedVaultMember represents a member of a shared vault. WrappedSpaceKey is
@@ -681,6 +683,7 @@ type SharedVaultRequest struct {
 	Description     string   `json:"description"`
 	FileIDs         []string `json:"file_ids"`
 	WrappedSpaceKey string   `json:"wrapped_space_key"`
+	SizeLimitBytes  int64    `json:"size_limit_bytes"`
 }
 
 // SharedVaultDetail includes vault info plus members and shared files (each with

@@ -890,7 +890,7 @@ export function listSharedVaults(): Promise<SharedVault[]> {
   return request<SharedVault[]>("/api/shared-vaults");
 }
 
-export function createSharedVault(data: { name: string; description: string; file_ids: string[]; wrapped_space_key?: string }): Promise<SharedVault> {
+export function createSharedVault(data: { name: string; description: string; file_ids: string[]; wrapped_space_key?: string; size_limit_bytes?: number }): Promise<SharedVault> {
   return request<SharedVault>("/api/shared-vaults", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

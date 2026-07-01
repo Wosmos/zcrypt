@@ -31,7 +31,8 @@ function keyBuffer(u8: Uint8Array): ArrayBuffer {
 export async function createSpace(
   name: string,
   description = "",
-  fileIds: string[] = []
+  fileIds: string[] = [],
+  sizeLimitBytes = 0
 ): Promise<SharedVault> {
   const { publicKey } = useKeysStore.getState();
   if (!publicKey) throw new Error("Your encryption key isn't ready — unlock your vault first.");
@@ -42,6 +43,7 @@ export async function createSpace(
     description,
     file_ids: fileIds,
     wrapped_space_key: wrapped,
+    size_limit_bytes: sizeLimitBytes,
   });
   useSpacesStore.getState().setSpaceKey(vault.id, spaceKey);
   return vault;

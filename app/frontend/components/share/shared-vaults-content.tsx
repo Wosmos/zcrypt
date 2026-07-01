@@ -65,6 +65,7 @@ export function SharedVaultsContent() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
+  const [sizeLimitGb, setSizeLimitGb] = useState("");
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState("");
 
@@ -104,6 +105,7 @@ export function SharedVaultsContent() {
     setName("");
     setDescription("");
     setSelectedFiles([]);
+    setSizeLimitGb("");
     setCreateError("");
   };
 
@@ -117,7 +119,10 @@ export function SharedVaultsContent() {
     try {
       // createSpace generates a random space key and seals it to your own
       // public key, so the space is genuinely end-to-end encrypted.
-      const vault = await createSpace(name.trim(), description.trim(), []);
+      const gb = parseFloat(sizeLimitGb);
+      const limitBytes =
+        sizeLimitGb.trim() && gb > 0 ? Math.round(gb * 1024 * 1024 * 1024) : 0;
+      const vault = await createSpace(name.trim(), description.trim(), [], limitBytes);
       // Re-wrap each selected file's CEK under the space key so members can
       // actually decrypt them (not just list them). Best-effort per file.
       let added = 0;
@@ -281,6 +286,11 @@ export function SharedVaultsContent() {
   const availableFiles = detail
     ? files.filter((f) => !detail.files?.some((sf) => sf.file_id === f.id))
     : [];
+  const usedBytes = detail
+    ? detail.files?.reduce((sum, f) => sum + (f.size ?? 0), 0) ?? 0
+    : 0;
+  const limitBytes = detail?.size_limit_bytes ?? 0;
+  const overLimit = limitBytes > 0 && usedBytes >= limitBytes;
 
   return (
     <Section
@@ -412,6 +422,15 @@ export function SharedVaultsContent() {
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Optional"
             />
+            <Input
+              label="Size limit (GB)"
+              type="number"
+              min="0"
+              step="0.5"
+              value={sizeLimitGb}
+              onChange={(e) => setSizeLimitGb(e.target.value)}
+              placeholder="Optional — leave blank for no limit"
+            />
 
             {files.length > 0 && (
               <div className="space-y-1.5">
@@ -510,7 +529,7 @@ export function SharedVaultsContent() {
                       ({detail.files?.length || 0})
                     </span>
                   </p>
-                  {canEdit && availableFiles.length > 0 && (
+                  {canEdit && availableFiles.length > 0 && !overLimit && (
                     <button
                       type="button"
                       onClick={() => {
@@ -524,6 +543,27 @@ export function SharedVaultsContent() {
                     </button>
                   )}
                 </div>
+
+                {limitBytes > 0 ? (
+                  <div className="space-y-1">
+                    <div className="h-1.5 overflow-hidden rounded-full bg-[var(--color-surface-1)] ring-1 ring-[var(--color-border)]">
+                      <div
+                        className={`h-full rounded-full transition-all ${overLimit ? "bg-red-500" : "bg-[var(--color-accent)]"}`}
+                        style={{ width: `${Math.min(100, (usedBytes / limitBytes) * 100)}%` }}
+                      />
+                    </div>
+                    <p className="text-[11px] tabular-nums text-[var(--color-text-muted)]">
+                      {formatBytes(usedBytes)} of {formatBytes(limitBytes)} used
+                      {overLimit && " — limit reached"}
+                    </p>
+                  </div>
+                ) : (
+                  usedBytes > 0 && (
+                    <p className="text-[11px] tabular-nums text-[var(--color-text-muted)]">
+                      {formatBytes(usedBytes)} · no limit
+                    </p>
+                  )
+                )}
 
                 {detail.files && detail.files.length > 0 ? (
                   <ul className="space-y-1">

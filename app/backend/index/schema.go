@@ -494,6 +494,9 @@ CREATE TABLE IF NOT EXISTS shared_vault_files (
 
 CREATE INDEX IF NOT EXISTS idx_shared_vault_files_file ON shared_vault_files(file_id);
 
+-- Optional per-space size cap (sum of shared files' original sizes). 0 = no limit.
+ALTER TABLE shared_vaults ADD COLUMN IF NOT EXISTS size_limit_bytes BIGINT NOT NULL DEFAULT 0;
+
 -- Offline vault (pinned files for offline access)
 CREATE TABLE IF NOT EXISTS offline_pins (
 	id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
