@@ -410,8 +410,19 @@ export interface SharedVaultMember {
   wrapped_space_key?: string;
 }
 
+export interface SharedVaultFile {
+  file_id: string;
+  /** The file's CEK re-wrapped under the space key (opaque to the server). */
+  wrapped_cek: string;
+  /** Owner's file name/size, joined server-side for member display. */
+  name?: string;
+  size?: number;
+  added_at: string;
+}
+
 export interface SharedVaultDetail extends SharedVault {
   members: SharedVaultMember[];
+  files: SharedVaultFile[];
 }
 
 // Offline pins
