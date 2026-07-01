@@ -17,6 +17,7 @@ const initPromise = ZstdInit().then((codec) => {
 });
 
 export interface WorkerInput {
+  mode?: "encrypt";
   chunkIndex: number;
   plaintext: ArrayBuffer;
   keyBytes: ArrayBuffer;
@@ -34,6 +35,21 @@ export interface WorkerOutput {
   encryptedSize: number;
 }
 
+// Download direction: decrypt (+ decompress) a fetched chunk off the main thread
+// so large downloads don't block the UI and decryption parallelizes across cores.
+export interface DecryptInput {
+  mode: "decrypt";
+  chunkIndex: number;
+  encrypted: ArrayBuffer;
+  keyBytes: ArrayBuffer;
+  compressed: boolean;
+}
+
+export interface DecryptOutput {
+  chunkIndex: number;
+  plaintext: ArrayBuffer;
+}
+
 const IV_SIZE = 12;
 
 async function encryptChunk(keyBytes: ArrayBuffer, plaintext: Uint8Array): Promise<Uint8Array> {
@@ -46,6 +62,14 @@ async function encryptChunk(keyBytes: ArrayBuffer, plaintext: Uint8Array): Promi
   return result;
 }
 
+async function decryptChunk(keyBytes: ArrayBuffer, data: Uint8Array): Promise<Uint8Array> {
+  const key = await crypto.subtle.importKey("raw", keyBytes, "AES-GCM", false, ["decrypt"]);
+  const iv = data.subarray(0, IV_SIZE);
+  const ciphertext = data.subarray(IV_SIZE);
+  const plaintext = await crypto.subtle.decrypt({ name: "AES-GCM", iv: iv as BufferSource }, key, ciphertext as BufferSource);
+  return new Uint8Array(plaintext);
+}
+
 async function sha256Hex(data: Uint8Array): Promise<string> {
   const hash = await crypto.subtle.digest("SHA-256", data as BufferSource);
   return Array.from(new Uint8Array(hash))
@@ -53,8 +77,23 @@ async function sha256Hex(data: Uint8Array): Promise<string> {
     .join("");
 }
 
-self.onmessage = async (e: MessageEvent<WorkerInput>) => {
+self.onmessage = async (e: MessageEvent<WorkerInput | DecryptInput>) => {
   await initPromise;
+
+  // ── Download direction: decrypt (+ decompress) ──
+  if (e.data.mode === "decrypt") {
+    const { chunkIndex, encrypted, keyBytes, compressed } = e.data;
+    let plain = await decryptChunk(keyBytes, new Uint8Array(encrypted));
+    if (compressed && zstd) {
+      plain = zstd.ZstdStream.decompress(plain);
+    }
+    // Copy into an exact-length buffer so the transfer sends only this chunk's
+    // bytes (a WASM-heap view could back a much larger buffer).
+    const out = plain.slice();
+    const output: DecryptOutput = { chunkIndex, plaintext: out.buffer as ArrayBuffer };
+    (self as unknown as Worker).postMessage(output, [out.buffer as ArrayBuffer]);
+    return;
+  }
 
   const { chunkIndex, plaintext, keyBytes, compress, compressionLevel = 3 } = e.data;
   const raw = new Uint8Array(plaintext);
@@ -96,6 +135,5 @@ self.onmessage = async (e: MessageEvent<WorkerInput>) => {
   };
 
   // Transfer the encrypted buffer (zero-copy)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (self as any).postMessage(output, [encrypted.buffer as ArrayBuffer]);
+  (self as unknown as Worker).postMessage(output, [encrypted.buffer as ArrayBuffer]);
 };
