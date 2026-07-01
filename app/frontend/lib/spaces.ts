@@ -14,7 +14,11 @@ import type { SharedVault, SharedVaultMember } from "@/types";
 
 /** Create a shared space: generate its key, seal it to yourself, and create the
  *  vault carrying that grant. Caches the space key for the session. */
-export async function createSpace(name: string, description = ""): Promise<SharedVault> {
+export async function createSpace(
+  name: string,
+  description = "",
+  fileIds: string[] = []
+): Promise<SharedVault> {
   const { publicKey } = useKeysStore.getState();
   if (!publicKey) throw new Error("Your encryption key isn't ready — unlock your vault first.");
   const spaceKey = generateSpaceKey();
@@ -22,7 +26,7 @@ export async function createSpace(name: string, description = ""): Promise<Share
   const vault = await createSharedVault({
     name,
     description,
-    file_ids: [],
+    file_ids: fileIds,
     wrapped_space_key: wrapped,
   });
   useSpacesStore.getState().setSpaceKey(vault.id, spaceKey);

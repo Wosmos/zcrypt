@@ -4,12 +4,13 @@ import { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import {
   listSharedVaults,
-  createSharedVault,
   getSharedVault,
-  addSharedVaultMember,
   removeSharedVaultMember,
   deleteSharedVault,
 } from "@/lib/api";
+import { createSpace, loadSpaceKey, shareSpace } from "@/lib/spaces";
+import { ensureUserKeypair } from "@/lib/keys";
+import { usePassphraseStore } from "@/store/passphrase";
 import { ensureFiles } from "@/store/files";
 import type { SharedVault, SharedVaultDetail, FileMetadata } from "@/types";
 import { useAuthStore } from "@/store/auth";
@@ -77,6 +78,13 @@ export function SharedVaultsContent() {
       .finally(() => setLoading(false));
   }, []);
 
+  // Make sure this device's keypair is loaded so creating/sharing spaces can
+  // seal keys. Uses the cached vault passphrase if the vault is unlocked.
+  useEffect(() => {
+    const passphrase = usePassphraseStore.getState().getPassphrase();
+    if (passphrase) ensureUserKeypair(passphrase);
+  }, []);
+
   const resetCreate = () => {
     setName("");
     setDescription("");
@@ -92,11 +100,9 @@ export function SharedVaultsContent() {
     }
     setCreating(true);
     try {
-      const vault = await createSharedVault({
-        name: name.trim(),
-        description: description.trim(),
-        file_ids: selectedFiles,
-      });
+      // createSpace generates a random space key and seals it to your own
+      // public key, so the space is genuinely end-to-end encrypted.
+      const vault = await createSpace(name.trim(), description.trim(), selectedFiles);
       setVaults((prev) => [vault, ...prev]);
       setShowCreate(false);
       resetCreate();
@@ -123,15 +129,30 @@ export function SharedVaultsContent() {
     setMemberError("");
     setAddingMember(true);
     try {
-      const member = await addSharedVaultMember(
+      // Recover the space key from our own grant, then seal it to the invitee.
+      const spaceKey = await loadSpaceKey(detail);
+      if (!spaceKey) {
+        setMemberError("This space has no key you can share (it predates encrypted sharing). Recreate it.");
+        return;
+      }
+      const member = await shareSpace(
         detail.id,
+        spaceKey,
         memberEmail.trim(),
-        memberRole
+        memberRole as "viewer" | "editor" | "admin"
       );
-      setDetail({ ...detail, members: [...detail.members, member] });
+      setDetail({
+        ...detail,
+        members: [...detail.members.filter((m) => m.user_id !== member.user_id), member],
+      });
       setMemberEmail("");
-    } catch {
-      setMemberError("Failed to add member");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      setMemberError(
+        /no user|not found|404|published key/i.test(msg)
+          ? "That user hasn't set up sharing yet — they need to sign in and unlock their vault once."
+          : "Failed to add member"
+      );
     } finally {
       setAddingMember(false);
     }
