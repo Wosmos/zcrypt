@@ -142,8 +142,22 @@ func (s *Server) HandleAddSharedVaultFile(w http.ResponseWriter, r *http.Request
 	}
 
 	// The caller must own the file — you can only share files you can decrypt.
-	if _, err := s.db.GetFileByID(ctx, userID, req.FileID); err != nil {
+	file, err := s.db.GetFileByID(ctx, userID, req.FileID)
+	if err != nil {
 		http.Error(w, `{"error":"file not found"}`, http.StatusNotFound)
+		return
+	}
+
+	// Enforce the optional per-space size cap. Usage excludes this file so a
+	// re-add (key rotation) isn't counted twice.
+	used, limit, err := s.db.SharedVaultUsage(ctx, vaultID, req.FileID)
+	if err != nil {
+		log.Printf("shared-vaults: usage: %v", err)
+		http.Error(w, `{"error":"failed to check space usage"}`, http.StatusInternalServerError)
+		return
+	}
+	if limit > 0 && used+file.OriginalSize > limit {
+		http.Error(w, `{"error":"space size limit exceeded"}`, http.StatusRequestEntityTooLarge)
 		return
 	}
 
