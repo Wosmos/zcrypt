@@ -221,6 +221,40 @@ func (s *Server) HandleRemoveSharedVaultMember(w http.ResponseWriter, r *http.Re
 	json.NewEncoder(w).Encode(map[string]bool{"success": true})
 }
 
+// HandleRotateSharedVault re-keys a space after a membership change. The caller
+// (admin) generates a new space key client-side, seals it to every remaining
+// member, and re-wraps every shared file's CEK under it; this endpoint just
+// stores the opaque results atomically. This is what makes member removal a
+// true revocation: a removed member gets no new grant and the re-wrapped files
+// render any copy of the old key useless.
+// POST /api/shared-vaults/{id}/rotate
+func (s *Server) HandleRotateSharedVault(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID := GetUserID(r)
+	vaultID := r.PathValue("id")
+
+	role, err := s.db.IsSharedVaultMember(ctx, vaultID, userID)
+	if err != nil || role != "admin" {
+		http.Error(w, `{"error":"only vault admins can rotate the space key"}`, http.StatusForbidden)
+		return
+	}
+
+	var req types.SharedVaultRotateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
+		return
+	}
+
+	if err := s.db.RotateSharedVaultKeys(ctx, vaultID, req.Members, req.Files); err != nil {
+		log.Printf("shared-vaults: rotate: %v", err)
+		http.Error(w, `{"error":"failed to rotate space key"}`, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]bool{"success": true})
+}
+
 // HandleDeleteSharedVault deletes a shared vault (owner only).
 // DELETE /api/shared-vaults/{id}
 func (s *Server) HandleDeleteSharedVault(w http.ResponseWriter, r *http.Request) {

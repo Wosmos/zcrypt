@@ -732,6 +732,28 @@ type SpaceFileGrant struct {
 	WrappedCEK string
 }
 
+// MemberKeyGrant / FileKeyWrap carry re-wrapped keys during a space-key rotation.
+// Both values are opaque base64 the server cannot open.
+type MemberKeyGrant struct {
+	UserID          string `json:"user_id"`
+	WrappedSpaceKey string `json:"wrapped_space_key"`
+}
+
+type FileKeyWrap struct {
+	FileID     string `json:"file_id"`
+	WrappedCEK string `json:"wrapped_cek"`
+}
+
+// SharedVaultRotateRequest re-keys a space after a membership change: a fresh
+// space key is sealed to each REMAINING member's public key, and every shared
+// file's CEK is re-wrapped under the new space key. A removed member is simply
+// absent from Members, so they get no grant for the new key and — because the
+// files are re-wrapped — any copy of the old key they kept becomes useless.
+type SharedVaultRotateRequest struct {
+	Members []MemberKeyGrant `json:"members"`
+	Files   []FileKeyWrap    `json:"files"`
+}
+
 // OfflinePin represents a file pinned for offline access.
 type OfflinePin struct {
 	ID       string    `json:"id"`
