@@ -8,10 +8,18 @@ import {
   removeSharedVaultMember,
   deleteSharedVault,
 } from "@/lib/api";
-import { createSpace, loadSpaceKey, shareSpace } from "@/lib/spaces";
+import {
+  createSpace,
+  loadSpaceKey,
+  shareSpace,
+  shareFileIntoSpace,
+  unshareFileFromSpace,
+  downloadSpaceFile,
+} from "@/lib/spaces";
 import { ensureUserKeypair } from "@/lib/keys";
 import { usePassphraseStore } from "@/store/passphrase";
 import { ensureFiles } from "@/store/files";
+import { formatBytes } from "@/lib/utils";
 import type { SharedVault, SharedVaultDetail, FileMetadata } from "@/types";
 import { useAuthStore } from "@/store/auth";
 import { Section } from "@/components/ui/section";
@@ -36,7 +44,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2, Users, FolderOpen } from "@/lib/icons";
+import { Plus, Trash2, Users, FolderOpen, Download, File as FileIcon, Loader2 } from "@/lib/icons";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", {
@@ -67,6 +75,13 @@ export function SharedVaultsContent() {
 
   const [deleteTarget, setDeleteTarget] = useState<SharedVault | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  const [downloadingFile, setDownloadingFile] = useState<string | null>(null);
+  const [removingFile, setRemovingFile] = useState<string | null>(null);
+  const [fileError, setFileError] = useState("");
+  const [showAddFiles, setShowAddFiles] = useState(false);
+  const [addFileIds, setAddFileIds] = useState<string[]>([]);
+  const [addingFiles, setAddingFiles] = useState(false);
 
   useEffect(() => {
     Promise.all([listSharedVaults(), ensureFiles()])
@@ -102,7 +117,19 @@ export function SharedVaultsContent() {
     try {
       // createSpace generates a random space key and seals it to your own
       // public key, so the space is genuinely end-to-end encrypted.
-      const vault = await createSpace(name.trim(), description.trim(), selectedFiles);
+      const vault = await createSpace(name.trim(), description.trim(), []);
+      // Re-wrap each selected file's CEK under the space key so members can
+      // actually decrypt them (not just list them). Best-effort per file.
+      let added = 0;
+      for (const fid of selectedFiles) {
+        try {
+          await shareFileIntoSpace(vault, fid);
+          added++;
+        } catch {
+          /* skip files we can't re-wrap (e.g. protected-folder files) */
+        }
+      }
+      vault.file_ids = selectedFiles.slice(0, added);
       setVaults((prev) => [vault, ...prev]);
       setShowCreate(false);
       resetCreate();
@@ -117,10 +144,68 @@ export function SharedVaultsContent() {
     setMemberError("");
     setMemberEmail("");
     setMemberRole("viewer");
+    setFileError("");
+    setShowAddFiles(false);
+    setAddFileIds([]);
     try {
       setDetail(await getSharedVault(vaultId));
     } catch {
       /* ignore */
+    }
+  };
+
+  const handleDownloadFile = async (fileId: string, wrappedCek: string) => {
+    if (!detail) return;
+    setFileError("");
+    setDownloadingFile(fileId);
+    try {
+      await downloadSpaceFile(detail, fileId, wrappedCek);
+    } catch (err) {
+      setFileError(err instanceof Error ? err.message : "Download failed");
+    } finally {
+      setDownloadingFile(null);
+    }
+  };
+
+  const handleRemoveFile = async (fileId: string) => {
+    if (!detail) return;
+    setFileError("");
+    setRemovingFile(fileId);
+    try {
+      await unshareFileFromSpace(detail.id, fileId);
+      setDetail({
+        ...detail,
+        files: detail.files.filter((f) => f.file_id !== fileId),
+      });
+    } catch {
+      setFileError("Failed to remove file");
+    } finally {
+      setRemovingFile(null);
+    }
+  };
+
+  const handleAddFiles = async () => {
+    if (!detail || addFileIds.length === 0) return;
+    setFileError("");
+    setAddingFiles(true);
+    try {
+      let failures = 0;
+      for (const fid of addFileIds) {
+        try {
+          await shareFileIntoSpace(detail, fid);
+        } catch {
+          failures++;
+        }
+      }
+      // Refetch so the file list shows names/sizes joined server-side.
+      setDetail(await getSharedVault(detail.id));
+      setShowAddFiles(false);
+      setAddFileIds([]);
+      if (failures > 0) setFileError(`${failures} file(s) couldn't be shared.`);
+    } catch {
+      setFileError("Failed to add files");
+    } finally {
+      setAddingFiles(false);
     }
   };
 
@@ -187,6 +272,15 @@ export function SharedVaultsContent() {
   };
 
   const isOwner = (vault: SharedVault) => vault.owner_id === user?.id;
+
+  // Owners and editors/admins can add or remove files; viewers can only read.
+  const canEdit =
+    !!detail &&
+    (detail.owner_id === user?.id || detail.role === "admin" || detail.role === "editor");
+  // Your own files that aren't already in this space (candidates to add).
+  const availableFiles = detail
+    ? files.filter((f) => !detail.files?.some((sf) => sf.file_id === f.id))
+    : [];
 
   return (
     <Section
@@ -407,7 +501,129 @@ export function SharedVaultsContent() {
 
           {detail && (
             <div className="space-y-4">
+              {/* Files */}
               <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
+                    Files
+                    <span className="ml-1 tabular-nums">
+                      ({detail.files?.length || 0})
+                    </span>
+                  </p>
+                  {canEdit && availableFiles.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFileError("");
+                        setShowAddFiles((v) => !v);
+                        setAddFileIds([]);
+                      }}
+                      className="text-xs font-medium text-[var(--color-accent)] outline-none hover:underline"
+                    >
+                      {showAddFiles ? "Cancel" : "Add files"}
+                    </button>
+                  )}
+                </div>
+
+                {detail.files && detail.files.length > 0 ? (
+                  <ul className="space-y-1">
+                    {detail.files.map((f) => (
+                      <li
+                        key={f.file_id}
+                        className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-[var(--color-surface-1)]"
+                      >
+                        <div className="flex min-w-0 items-center gap-2">
+                          <FileIcon className="h-4 w-4 flex-shrink-0 text-[var(--color-text-muted)]" />
+                          <span className="truncate text-sm text-[var(--color-text)]">
+                            {f.name || f.file_id}
+                          </span>
+                          {typeof f.size === "number" && (
+                            <span className="flex-shrink-0 text-xs tabular-nums text-[var(--color-text-muted)]">
+                              {formatBytes(f.size)}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex flex-shrink-0 items-center gap-0.5">
+                          <IconButton
+                            icon={downloadingFile === f.file_id ? Loader2 : Download}
+                            label="Download"
+                            variant="ghost"
+                            onClick={() => handleDownloadFile(f.file_id, f.wrapped_cek)}
+                            disabled={downloadingFile === f.file_id}
+                            className="h-7 w-7"
+                            iconClassName={
+                              downloadingFile === f.file_id
+                                ? "h-3.5 w-3.5 animate-spin"
+                                : "h-3.5 w-3.5"
+                            }
+                          />
+                          {canEdit && (
+                            <IconButton
+                              icon={Trash2}
+                              label="Remove file"
+                              variant="ghost"
+                              onClick={() => handleRemoveFile(f.file_id)}
+                              disabled={removingFile === f.file_id}
+                              className="h-7 w-7 hover:text-red-500"
+                              iconClassName="h-3.5 w-3.5"
+                            />
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-[var(--color-text-muted)]">
+                    No files shared yet.
+                  </p>
+                )}
+
+                {fileError && (
+                  <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+                    {fileError}
+                  </p>
+                )}
+
+                {showAddFiles && canEdit && (
+                  <div className="space-y-2">
+                    <div className="max-h-40 space-y-0.5 overflow-y-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1.5">
+                      {availableFiles.map((f) => (
+                        <label
+                          key={f.id}
+                          className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-[var(--color-surface-1)]"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={addFileIds.includes(f.id)}
+                            onChange={() =>
+                              setAddFileIds((prev) =>
+                                prev.includes(f.id)
+                                  ? prev.filter((id) => id !== f.id)
+                                  : [...prev, f.id]
+                              )
+                            }
+                            className="h-4 w-4 rounded border-[var(--color-border)] accent-[var(--color-accent)]"
+                          />
+                          <span className="truncate text-sm text-[var(--color-text)]">
+                            {f.original_name}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={handleAddFiles}
+                      disabled={addingFiles || addFileIds.length === 0}
+                    >
+                      {addingFiles
+                        ? "Adding..."
+                        : `Add ${addFileIds.length || ""} file${addFileIds.length === 1 ? "" : "s"}`.trim()}
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2 border-t border-[var(--color-border)] pt-4">
                 <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
                   Members
                   <span className="ml-1 tabular-nums">
