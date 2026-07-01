@@ -12,7 +12,7 @@ import {
   CommandItem,
 } from "@/components/ui/command";
 import { useFilesQuery } from "@/store/files";
-import { Shield, Share2, Settings, Cog, Users, BarChart3, File as FileIcon } from "@/lib/icons";
+import { Shield, Share2, Settings, Cog, Users, BarChart3, Layers, File as FileIcon } from "@/lib/icons";
 
 interface CommandPaletteState {
   open: boolean;
@@ -38,6 +38,7 @@ export const useVaultSearch = create<VaultSearchState>((set) => ({
 
 const NAV = [
   { label: "Vault", href: "/dashboard", icon: Shield },
+  { label: "Spaces", href: "/spaces", icon: Layers },
   { label: "Share", href: "/share", icon: Share2 },
   { label: "Analytics", href: "/analytics", icon: BarChart3 },
   { label: "Settings", href: "/settings", icon: Settings },
