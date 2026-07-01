@@ -115,6 +115,73 @@ func (s *Server) HandleAddSharedVaultMember(w http.ResponseWriter, r *http.Reque
 	json.NewEncoder(w).Encode(member)
 }
 
+// HandleAddSharedVaultFile shares a file into a space. The caller must be an
+// editor/admin member AND own the file (they hold the vault key needed to
+// re-wrap the file CEK under the space key). The server stores only the opaque
+// space-wrapped CEK it cannot open.
+// POST /api/shared-vaults/{id}/files
+func (s *Server) HandleAddSharedVaultFile(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID := GetUserID(r)
+	vaultID := r.PathValue("id")
+
+	role, err := s.db.IsSharedVaultMember(ctx, vaultID, userID)
+	if err != nil || (role != "admin" && role != "editor") {
+		http.Error(w, `{"error":"only editors or admins can add files"}`, http.StatusForbidden)
+		return
+	}
+
+	var req types.SharedVaultAddFileRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
+		return
+	}
+	if req.FileID == "" || req.WrappedCEK == "" {
+		http.Error(w, `{"error":"file_id and wrapped_cek are required"}`, http.StatusBadRequest)
+		return
+	}
+
+	// The caller must own the file — you can only share files you can decrypt.
+	if _, err := s.db.GetFileByID(ctx, userID, req.FileID); err != nil {
+		http.Error(w, `{"error":"file not found"}`, http.StatusNotFound)
+		return
+	}
+
+	if err := s.db.AddSharedVaultFile(ctx, vaultID, req.FileID, userID, req.WrappedCEK); err != nil {
+		log.Printf("shared-vaults: add file: %v", err)
+		http.Error(w, `{"error":"failed to add file"}`, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(map[string]bool{"success": true})
+}
+
+// HandleRemoveSharedVaultFile unshares a file from a space (editor/admin only).
+// DELETE /api/shared-vaults/{id}/files/{fid}
+func (s *Server) HandleRemoveSharedVaultFile(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID := GetUserID(r)
+	vaultID := r.PathValue("id")
+	fileID := r.PathValue("fid")
+
+	role, err := s.db.IsSharedVaultMember(ctx, vaultID, userID)
+	if err != nil || (role != "admin" && role != "editor") {
+		http.Error(w, `{"error":"only editors or admins can remove files"}`, http.StatusForbidden)
+		return
+	}
+
+	if err := s.db.RemoveSharedVaultFile(ctx, vaultID, fileID); err != nil {
+		log.Printf("shared-vaults: remove file: %v", err)
+		http.Error(w, `{"error":"failed to remove file"}`, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]bool{"success": true})
+}
+
 // HandleRemoveSharedVaultMember removes a member from a shared vault.
 // DELETE /api/shared-vaults/{id}/members/{uid}
 func (s *Server) HandleRemoveSharedVaultMember(w http.ResponseWriter, r *http.Request) {

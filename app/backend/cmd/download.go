@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"log"
@@ -10,7 +11,30 @@ import (
 	"strconv"
 
 	"github.com/zcrypt/zcrypt/config"
+	"github.com/zcrypt/zcrypt/types"
 )
+
+// authorizeFileRead resolves a file for reading. It tries the OWNER path first
+// (strict user-scoped query, unchanged behavior); ONLY on an owner miss does it
+// fall back to space-member access. On the member path it returns the file
+// OWNER's id — used to resolve chunks + the storage backend through the owner
+// without ever weakening the owner-scoped queries — and the space-wrapped CEK
+// the member decrypts with. Returns ok=false if neither path authorizes, which
+// callers surface as an indistinguishable 404.
+func (s *Server) authorizeFileRead(ctx context.Context, userID, fileID string) (file *types.FileMetadata, ownerID, wrappedCEK string, ok bool) {
+	if f, err := s.db.GetFileByID(ctx, userID, fileID); err == nil {
+		return f, userID, f.WrappedCEK, true
+	}
+	grant, err := s.db.MemberSpaceFileGrant(ctx, userID, fileID)
+	if err != nil {
+		return nil, "", "", false
+	}
+	f, err := s.db.GetFileByIDUnsafe(ctx, fileID)
+	if err != nil {
+		return nil, "", "", false
+	}
+	return f, grant.OwnerID, grant.WrappedCEK, true
+}
 
 // HandleGetFileMeta returns file metadata needed for client-side decryption.
 // GET /api/files/{id}
@@ -24,12 +48,15 @@ func (s *Server) HandleGetFileMeta(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	file, err := s.db.GetFileByID(ctx, userID, fileID)
-	if err != nil {
+	file, _, wrappedCEK, ok := s.authorizeFileRead(ctx, userID, fileID)
+	if !ok {
 		http.Error(w, `{"error":"file not found"}`, http.StatusNotFound)
 		return
 	}
 
+	// For a space member, wrappedCEK is the CEK re-wrapped under the space key
+	// (unwrapped with the space key, not the owner's vault passphrase); for the
+	// owner it's identical to file.WrappedCEK.
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"id":              file.ID,
@@ -40,7 +67,7 @@ func (s *Server) HandleGetFileMeta(w http.ResponseWriter, r *http.Request) {
 		"chunk_count":     file.ChunkCount,
 		"sha256":          file.SHA256,
 		"salt":            base64.StdEncoding.EncodeToString(file.Salt),
-		"wrapped_cek":     file.WrappedCEK,
+		"wrapped_cek":     wrappedCEK,
 		"status":          file.Status,
 		"created_at":      file.CreatedAt,
 	})
@@ -60,9 +87,11 @@ func (s *Server) HandleGetChunk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verify file belongs to user
-	file, err := s.db.GetFileByID(ctx, userID, fileID)
-	if err != nil {
+	// Authorize as owner first; fall back to space-member access. ownerID is the
+	// account whose storage backend actually holds the chunks — for the owner it
+	// equals userID, for a member it's the file owner.
+	file, ownerID, _, ok := s.authorizeFileRead(ctx, userID, fileID)
+	if !ok {
 		http.Error(w, `{"error":"file not found"}`, http.StatusNotFound)
 		return
 	}
@@ -72,8 +101,9 @@ func (s *Server) HandleGetChunk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get chunk reference (user_id for defense-in-depth isolation)
-	chunk, err := s.db.GetChunkByIndex(ctx, fileID, chunkIndex, userID)
+	// Get chunk reference scoped to the OWNER (chunks are owner-scoped; a member
+	// reads the owner's chunks, never their own namespace).
+	chunk, err := s.db.GetChunkByIndex(ctx, fileID, chunkIndex, ownerID)
 	if err != nil {
 		http.Error(w, `{"error":"chunk not found"}`, http.StatusNotFound)
 		return
@@ -95,8 +125,9 @@ func (s *Server) HandleGetChunk(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else {
-		// Chunk synced — download from git platform
-		adapter := s.resolveAdapterForUser(ctx, userID, chunk.Platform, chunk.Account)
+		// Chunk synced — download from git platform using the OWNER's tokens
+		// (the member has no tokens on the owner's storage accounts).
+		adapter := s.resolveAdapterForUser(ctx, ownerID, chunk.Platform, chunk.Account)
 		if adapter == nil {
 			http.Error(w, `{"error":"platform adapter not available"}`, http.StatusInternalServerError)
 			return
