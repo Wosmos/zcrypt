@@ -7,7 +7,7 @@
  * Supports cancellation via AbortController.
  */
 
-import { getFileMeta, getFileChunk } from "@/lib/api";
+import { getFileMeta, getFileChunk, type FileMetaResponse } from "@/lib/api";
 import { resolveFileKey, decryptChunk, sha256Hex, fromBase64 } from "@/lib/crypto";
 import { getZstdCodec } from "@/lib/zstd";
 import { getDeviceProfile } from "@/lib/device-profile";
@@ -38,6 +38,14 @@ export interface DownloadOptions {
    * behavior is byte-for-byte unchanged (the plain `passphrase` is used).
    */
   resolvePassword?: (fileId: string) => Promise<string> | string;
+  /**
+   * Resolve the raw file key directly from the fetched metadata, bypassing
+   * passphrase derivation entirely. Used for shared-space files: the CEK is
+   * unwrapped with the space key (not the vault passphrase), so `passphrase`
+   * and `resolvePassword` are ignored when this is provided. Omitted by all
+   * vault/folder callers, so their behavior is unchanged.
+   */
+  resolveKey?: (meta: FileMetaResponse) => Promise<ArrayBuffer>;
 }
 
 /**
@@ -49,7 +57,7 @@ export async function downloadAndDecryptFile(
   passphrase: string,
   options?: DownloadOptions
 ): Promise<void> {
-  const { onProgress, signal, resolvePassword } = options ?? {};
+  const { onProgress, signal, resolvePassword, resolveKey } = options ?? {};
 
   // Check abort before starting
   if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
@@ -66,9 +74,16 @@ export async function downloadAndDecryptFile(
   // CEK for envelope files; falls back to the derived key for legacy files).
   // A per-file resolver (folder-protected files) overrides the vault passphrase.
   onProgress?.({ stage: "Deriving key...", percent: 1, chunksDone: 0, chunksTotal: meta.chunk_count });
-  const filePassphrase = resolvePassword ? await resolvePassword(fileId) : passphrase;
-  const salt = fromBase64(meta.salt);
-  const keyBytes = await resolveFileKey(filePassphrase, salt, meta.wrapped_cek);
+  let keyBytes: ArrayBuffer;
+  if (resolveKey) {
+    // Shared-space file: the CEK is unwrapped with the space key, not derived
+    // from a passphrase.
+    keyBytes = await resolveKey(meta);
+  } else {
+    const filePassphrase = resolvePassword ? await resolvePassword(fileId) : passphrase;
+    const salt = fromBase64(meta.salt);
+    keyBytes = await resolveFileKey(filePassphrase, salt, meta.wrapped_cek);
+  }
 
   if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
 
