@@ -31,6 +31,68 @@ export async function keyFingerprint(publicKey: Uint8Array): Promise<string> {
   return (hex.slice(0, 16).toUpperCase().match(/.{4}/g) ?? []).join("-");
 }
 
+function concatBytes(...arrays: Uint8Array[]): Uint8Array {
+  const total = arrays.reduce((n, a) => n + a.length, 0);
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const a of arrays) {
+    out.set(a, offset);
+    offset += a.length;
+  }
+  return out;
+}
+
+// Derive a symmetric AES key from an ECDH shared secret. We never use the raw
+// X25519 output directly — hash it, binding both public keys to the key so a
+// sealed blob is tied to this exact (ephemeral, recipient) pair.
+async function deriveSealKey(
+  shared: Uint8Array,
+  ephemeralPub: Uint8Array,
+  recipientPub: Uint8Array
+): Promise<ArrayBuffer> {
+  return crypto.subtle.digest(
+    "SHA-256",
+    concatBytes(shared, ephemeralPub, recipientPub) as BufferSource
+  );
+}
+
+/** A fresh random 256-bit symmetric key for a shared space. */
+export function generateSpaceKey(): Uint8Array {
+  return crypto.getRandomValues(new Uint8Array(32));
+}
+
+/**
+ * Seal `data` (e.g. a space key) to a recipient's X25519 public key using an
+ * ECIES construction: an ephemeral X25519 keypair does ECDH with the
+ * recipient, the shared secret is hashed into an AES-256-GCM key, and the
+ * ephemeral public key is prepended so the recipient can reconstruct it. Only
+ * the recipient's private key can open it — the server never can.
+ *
+ * Layout (base64): ephemeralPublicKey[32] || AES-GCM([12B IV || ct || 16B tag]).
+ */
+export async function sealTo(recipientPublicKey: Uint8Array, data: Uint8Array): Promise<string> {
+  const eph = x25519.keygen();
+  const shared = x25519.getSharedSecret(eph.secretKey, recipientPublicKey);
+  const aesKey = await deriveSealKey(shared, eph.publicKey, recipientPublicKey);
+  const wrapped = await wrapKey(aesKey, data);
+  return toBase64(concatBytes(eph.publicKey, wrapped));
+}
+
+/**
+ * Open a blob sealed to the current user, using the session private key.
+ * Throws if the keypair isn't loaded or the blob wasn't sealed to us.
+ */
+export async function openSealed(sealed: string): Promise<Uint8Array> {
+  const { privateKey, publicKey } = useKeysStore.getState();
+  if (!privateKey || !publicKey) throw new Error("keypair not loaded");
+  const raw = fromBase64(sealed);
+  const ephemeralPub = raw.slice(0, 32);
+  const wrapped = raw.slice(32);
+  const shared = x25519.getSharedSecret(privateKey, ephemeralPub);
+  const aesKey = await deriveSealKey(shared, ephemeralPub, publicKey);
+  return unwrapKey(aesKey, wrapped);
+}
+
 /**
  * Ensure the user has an X25519 keypair loaded into the session store: fetch +
  * unwrap it if already published, otherwise generate + publish one. Idempotent

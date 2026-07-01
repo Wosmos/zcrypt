@@ -103,7 +103,7 @@ func (s *Server) HandleAddSharedVaultMember(w http.ResponseWriter, r *http.Reque
 		req.Role = "viewer"
 	}
 
-	member, err := s.db.AddSharedVaultMember(ctx, vaultID, req.Email, req.Role)
+	member, err := s.db.AddSharedVaultMember(ctx, vaultID, req.Email, req.Role, req.WrappedSpaceKey)
 	if err != nil {
 		log.Printf("shared-vaults: add member: %v", err)
 		http.Error(w, `{"error":"failed to add member (user may not exist)"}`, http.StatusBadRequest)

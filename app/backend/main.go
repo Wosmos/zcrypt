@@ -300,6 +300,7 @@ func main() {
 	// Per-user X25519 keypairs (zero-knowledge sharing foundation)
 	mux.HandleFunc("GET /api/keys/me", server.AuthMiddleware(server.HandleGetMyKey))
 	mux.HandleFunc("POST /api/keys", maxJSON(server.AuthMiddleware(server.HandlePublishKey)))
+	mux.HandleFunc("GET /api/keys/lookup", server.AuthMiddleware(server.HandleLookupUserKey))
 	mux.HandleFunc("GET /api/keys/user/{id}", server.AuthMiddleware(server.HandleGetUserPublicKey))
 
 	// Real-time device-to-device transfer (WebSocket)

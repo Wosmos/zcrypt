@@ -42,6 +42,26 @@ func (db *DB) UpsertUserKey(ctx context.Context, userID, publicKey, wrappedPriva
 	return err
 }
 
+// ResolveUserPublicKey looks up a user's PUBLIC key by email OR username, so an
+// admin can seal a shared-space key to them before inviting. Returns (nil, nil)
+// when no such user exists or they haven't published a key.
+func (db *DB) ResolveUserPublicKey(ctx context.Context, identifier string) (*types.PublicKey, error) {
+	pk := &types.PublicKey{}
+	err := db.pool.QueryRow(ctx, `
+		SELECT u.id, k.public_key, k.fingerprint
+		FROM users u JOIN user_keys k ON k.user_id = u.id
+		WHERE u.email = $1 OR u.username = $1`,
+		identifier,
+	).Scan(&pk.UserID, &pk.PublicKey, &pk.Fingerprint)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return pk, nil
+}
+
 // GetPublicKey returns only the shareable public fields for a user — never the
 // wrapped private key — for wrapping a space key to them.
 func (db *DB) GetPublicKey(ctx context.Context, userID string) (*types.PublicKey, error) {

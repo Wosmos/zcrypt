@@ -392,6 +392,10 @@ export interface SharedVault {
   file_ids: string[];
   created_at: string;
   updated_at: string;
+  /** The caller's own key grant (space key sealed to their public key), base64. */
+  wrapped_space_key?: string;
+  /** The caller's role in this space. */
+  role?: "viewer" | "editor" | "admin";
 }
 
 export interface SharedVaultMember {
@@ -402,6 +406,8 @@ export interface SharedVaultMember {
   email?: string;
   role: "viewer" | "editor" | "admin";
   joined_at: string;
+  /** Space key sealed to THIS member's public key (opaque to the server). */
+  wrapped_space_key?: string;
 }
 
 export interface SharedVaultDetail extends SharedVault {

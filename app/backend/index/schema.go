@@ -471,6 +471,11 @@ CREATE TABLE IF NOT EXISTS shared_vault_members (
 CREATE INDEX IF NOT EXISTS idx_shared_vault_members_vault ON shared_vault_members(vault_id);
 CREATE INDEX IF NOT EXISTS idx_shared_vault_members_user ON shared_vault_members(user_id);
 
+-- Per-member key grant: the space's symmetric key sealed (ECIES) to this
+-- member's X25519 public key, base64. Opaque to the server; only the member's
+-- private key can open it. Empty for legacy metadata-only memberships.
+ALTER TABLE shared_vault_members ADD COLUMN IF NOT EXISTS wrapped_space_key TEXT NOT NULL DEFAULT '';
+
 -- Offline vault (pinned files for offline access)
 CREATE TABLE IF NOT EXISTS offline_pins (
 	id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),

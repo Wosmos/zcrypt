@@ -54,6 +54,34 @@ func (s *Server) HandlePublishKey(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]bool{"success": true})
 }
 
+// HandleLookupUserKey resolves a user's PUBLIC key by email or username, so an
+// admin can seal a space key to them before inviting. Returns 404 both when no
+// such user exists and when they exist but have no published key (don't
+// distinguish — reduces user enumeration; rate-limiting is the real mitigation).
+// GET /api/keys/lookup?identifier=<email-or-username>
+func (s *Server) HandleLookupUserKey(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	identifier := strings.TrimSpace(r.URL.Query().Get("identifier"))
+	if identifier == "" {
+		http.Error(w, `{"error":"identifier required"}`, http.StatusBadRequest)
+		return
+	}
+
+	pk, err := s.db.ResolveUserPublicKey(ctx, identifier)
+	if err != nil {
+		log.Printf("keys: lookup: %v", err)
+		http.Error(w, `{"error":"lookup failed"}`, http.StatusInternalServerError)
+		return
+	}
+	if pk == nil {
+		http.Error(w, `{"error":"no user with a published key"}`, http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(pk)
+}
+
 // HandleGetUserPublicKey returns another user's PUBLIC key (never the wrapped
 // private key), for wrapping a shared-space key to them.
 // GET /api/keys/user/{id}

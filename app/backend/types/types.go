@@ -642,32 +642,41 @@ type VaultSnapshotRequest struct {
 }
 
 // SharedVault represents a shared encrypted folder.
+// WrappedSpaceKey/Role carry the CALLER's own membership grant on list/get: the
+// space's symmetric key sealed to the caller's public key (base64), which the
+// client unwraps with its private key to decrypt the space's files.
 type SharedVault struct {
-	ID          string    `json:"id"`
-	Name        string    `json:"name"`
-	OwnerID     string    `json:"owner_id"`
-	Description string    `json:"description"`
-	FileIDs     []string  `json:"file_ids"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID              string    `json:"id"`
+	Name            string    `json:"name"`
+	OwnerID         string    `json:"owner_id"`
+	Description     string    `json:"description"`
+	FileIDs         []string  `json:"file_ids"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
+	WrappedSpaceKey string    `json:"wrapped_space_key,omitempty"`
+	Role            string    `json:"role,omitempty"`
 }
 
-// SharedVaultMember represents a member of a shared vault.
+// SharedVaultMember represents a member of a shared vault. WrappedSpaceKey is
+// the space key sealed to THIS member's public key (opaque to the server).
 type SharedVaultMember struct {
-	ID       string    `json:"id"`
-	VaultID  string    `json:"vault_id"`
-	UserID   string    `json:"user_id"`
-	Username string    `json:"username,omitempty"`
-	Email    string    `json:"email,omitempty"`
-	Role     string    `json:"role"` // viewer, editor, admin
-	JoinedAt time.Time `json:"joined_at"`
+	ID              string    `json:"id"`
+	VaultID         string    `json:"vault_id"`
+	UserID          string    `json:"user_id"`
+	Username        string    `json:"username,omitempty"`
+	Email           string    `json:"email,omitempty"`
+	Role            string    `json:"role"` // viewer, editor, admin
+	JoinedAt        time.Time `json:"joined_at"`
+	WrappedSpaceKey string    `json:"wrapped_space_key,omitempty"`
 }
 
-// SharedVaultRequest is the JSON body for creating a shared vault.
+// SharedVaultRequest is the JSON body for creating a shared vault. The owner
+// generates the space key client-side and seals it to their own public key.
 type SharedVaultRequest struct {
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	FileIDs     []string `json:"file_ids"`
+	Name            string   `json:"name"`
+	Description     string   `json:"description"`
+	FileIDs         []string `json:"file_ids"`
+	WrappedSpaceKey string   `json:"wrapped_space_key"`
 }
 
 // SharedVaultDetail includes vault info plus members.
@@ -676,10 +685,12 @@ type SharedVaultDetail struct {
 	Members []SharedVaultMember `json:"members"`
 }
 
-// SharedVaultAddMemberRequest is the JSON body for adding a member.
+// SharedVaultAddMemberRequest is the JSON body for adding a member. The caller
+// (an admin) seals the space key to the target's public key and sends it here.
 type SharedVaultAddMemberRequest struct {
-	Email string `json:"email"`
-	Role  string `json:"role"` // viewer, editor, admin
+	Email           string `json:"email"`
+	Role            string `json:"role"` // viewer, editor, admin
+	WrappedSpaceKey string `json:"wrapped_space_key"`
 }
 
 // OfflinePin represents a file pinned for offline access.
