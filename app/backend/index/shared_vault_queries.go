@@ -75,10 +75,14 @@ func (db *DB) GetSharedVault(ctx context.Context, userID, vaultID string) (*type
 	vault.WrappedSpaceKey = callerWrappedKey
 
 	// Get members (each member's own wrapped key is included for admin views).
+	// LEFT JOIN user_keys so a member's key fingerprint (for out-of-band
+	// verification) rides along; empty when they've not set up a keypair yet.
 	rows, err := db.pool.Query(ctx, `
-		SELECT svm.id, svm.vault_id, svm.user_id, u.username, u.email, svm.role, svm.joined_at, svm.wrapped_space_key
+		SELECT svm.id, svm.vault_id, svm.user_id, u.username, u.email, svm.role, svm.joined_at, svm.wrapped_space_key,
+		       COALESCE(uk.fingerprint, '')
 		FROM shared_vault_members svm
 		JOIN users u ON svm.user_id = u.id
+		LEFT JOIN user_keys uk ON uk.user_id = svm.user_id
 		WHERE svm.vault_id = $1
 		ORDER BY svm.joined_at`, vaultID)
 	if err != nil {
@@ -88,7 +92,7 @@ func (db *DB) GetSharedVault(ctx context.Context, userID, vaultID string) (*type
 
 	for rows.Next() {
 		var m types.SharedVaultMember
-		if err := rows.Scan(&m.ID, &m.VaultID, &m.UserID, &m.Username, &m.Email, &m.Role, &m.JoinedAt, &m.WrappedSpaceKey); err != nil {
+		if err := rows.Scan(&m.ID, &m.VaultID, &m.UserID, &m.Username, &m.Email, &m.Role, &m.JoinedAt, &m.WrappedSpaceKey, &m.Fingerprint); err != nil {
 			return nil, err
 		}
 		vault.Members = append(vault.Members, m)

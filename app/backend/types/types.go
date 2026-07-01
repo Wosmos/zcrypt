@@ -668,6 +668,10 @@ type SharedVaultMember struct {
 	Role            string    `json:"role"` // viewer, editor, admin
 	JoinedAt        time.Time `json:"joined_at"`
 	WrappedSpaceKey string    `json:"wrapped_space_key,omitempty"`
+	// Fingerprint of this member's published public key, for out-of-band
+	// verification against a server that might swap keys (MITM). Empty if the
+	// member hasn't set up their keypair yet.
+	Fingerprint string `json:"fingerprint,omitempty"`
 }
 
 // SharedVaultRequest is the JSON body for creating a shared vault. The owner

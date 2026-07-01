@@ -44,7 +44,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2, Users, FolderOpen, Download, File as FileIcon, Loader2 } from "@/lib/icons";
+import { Plus, Trash2, Users, FolderOpen, Download, File as FileIcon, Loader2, ShieldCheck } from "@/lib/icons";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", {
@@ -635,18 +635,33 @@ export function SharedVaultsContent() {
                     {detail.members.map((m) => (
                       <li
                         key={m.id}
-                        className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-[var(--color-surface-1)]"
+                        className="flex items-start justify-between gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-[var(--color-surface-1)]"
                       >
-                        <div className="flex min-w-0 items-center gap-2">
-                          <span className="truncate text-sm text-[var(--color-text)]">
-                            {m.username || m.email}
-                          </span>
-                          <Badge
-                            variant="secondary"
-                            className="flex-shrink-0 bg-[var(--color-surface-1)] capitalize text-[var(--color-text-muted)] ring-1 ring-[var(--color-border)]"
-                          >
-                            {m.role}
-                          </Badge>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="truncate text-sm text-[var(--color-text)]">
+                              {m.username || m.email}
+                            </span>
+                            <Badge
+                              variant="secondary"
+                              className="flex-shrink-0 bg-[var(--color-surface-1)] capitalize text-[var(--color-text-muted)] ring-1 ring-[var(--color-border)]"
+                            >
+                              {m.role}
+                            </Badge>
+                          </div>
+                          {m.fingerprint ? (
+                            <p
+                              className="mt-0.5 flex items-center gap-1 font-mono text-[11px] text-[var(--color-text-muted)]"
+                              title="Verify this matches the fingerprint in the member's own Encryption key settings. If it does, no one intercepted their key."
+                            >
+                              <ShieldCheck className="h-3 w-3 flex-shrink-0" />
+                              <span className="truncate">{m.fingerprint}</span>
+                            </p>
+                          ) : (
+                            <p className="mt-0.5 text-[11px] text-[var(--color-text-muted)]">
+                              No encryption key yet
+                            </p>
+                          )}
                         </div>
                         {m.user_id !== user?.id &&
                           detail.owner_id === user?.id && (
@@ -667,6 +682,10 @@ export function SharedVaultsContent() {
                     No members yet.
                   </p>
                 )}
+                <p className="flex items-center gap-1 text-[11px] text-[var(--color-text-muted)]">
+                  <ShieldCheck className="h-3 w-3 flex-shrink-0" />
+                  Compare each fingerprint with the member out-of-band to rule out a key swap.
+                </p>
               </div>
 
               {detail.owner_id === user?.id && (
