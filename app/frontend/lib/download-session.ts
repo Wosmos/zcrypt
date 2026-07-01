@@ -8,17 +8,10 @@
  */
 
 import { getFileMeta, getFileChunk, type FileMetaResponse } from "@/lib/api";
-import { resolveFileKey, decryptChunk, sha256Hex, fromBase64 } from "@/lib/crypto";
-import { getZstdCodec } from "@/lib/zstd";
+import { resolveFileKey, sha256Hex, fromBase64 } from "@/lib/crypto";
 import { getDeviceProfile } from "@/lib/device-profile";
-
-// Route through the single app-wide codec (lib/zstd) — never call ZstdInit()
-// directly, or it re-inits the shared wasm and corrupts other in-flight
-// decompression ("ZSTD_ERROR -72").
-let zstdCodec: Awaited<ReturnType<typeof getZstdCodec>> | null = null;
-const zstdReady = getZstdCodec().then((codec) => {
-  zstdCodec = codec;
-});
+import { WorkerPool } from "@/lib/worker-pool";
+import type { DecryptOutput } from "@/workers/crypto-worker";
 
 export type DownloadProgressCallback = (info: {
   stage: string;
@@ -62,8 +55,6 @@ export async function downloadAndDecryptFile(
   // Check abort before starting
   if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
 
-  await zstdReady;
-
   // Step 1: Get file metadata
   onProgress?.({ stage: "Fetching metadata...", percent: 0, chunksDone: 0, chunksTotal: 0 });
   const meta = await getFileMeta(fileId);
@@ -87,76 +78,70 @@ export async function downloadAndDecryptFile(
 
   if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
 
-  // Step 3: Download and decrypt chunks (device-aware concurrency)
+  // Step 3: Download + decrypt chunks. Fetching runs at device-aware concurrency;
+  // decrypt + zstd-decompress is offloaded to a Web Worker pool so it runs across
+  // cores and never blocks the main thread (a big win on mobile, where doing this
+  // inline stalled the UI and serialized decompression).
   const decryptedChunks: Uint8Array[] = new Array(meta.chunk_count);
   let chunksDone = 0;
   const MAX_CONCURRENT = getDeviceProfile().maxConcurrentDownloads;
+  const pool = new WorkerPool();
 
-  const processChunk = async (index: number) => {
-    if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
+  try {
+    const processChunk = async (index: number) => {
+      if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
 
-    const { data, compressed } = await getFileChunk(fileId, index);
+      const { data, compressed } = await getFileChunk(fileId, index);
 
-    if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
+      if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
 
-    const encrypted = new Uint8Array(data);
-
-    // Decrypt
-    let plaintext: Uint8Array;
-    try {
-      plaintext = await decryptChunk(keyBytes, encrypted);
-    } catch {
-      throw new Error("Decryption failed — wrong passphrase?");
-    }
-
-    // Decompress if needed
-    if (compressed && zstdCodec) {
+      // Decrypt (+ decompress) off the main thread. `data` is transferred to the
+      // worker (zero-copy); keyBytes is cloned per call, so it stays valid here.
+      let out: DecryptOutput;
       try {
-        // Use ZstdStream (streaming API) — it doesn't require frame content size,
-        // which ZstdSimple.decompress needs but some frames may not include.
-        plaintext = zstdCodec.ZstdStream.decompress(plaintext);
-      } catch (decompressErr) {
-        console.error(
-          `[download] zstd decompress failed for chunk ${index}:`,
-          `decryptedSize=${plaintext.byteLength}`,
-          `header=[${plaintext.slice(0, 4).join(",")}]`,
-          decompressErr
-        );
-        throw new Error(
-          `Decompression failed on chunk ${index}: ${decompressErr instanceof Error ? decompressErr.message : decompressErr}`
-        );
+        out = await pool.process<DecryptOutput>({
+          mode: "decrypt",
+          chunkIndex: index,
+          encrypted: data,
+          keyBytes,
+          compressed,
+        });
+      } catch {
+        throw new Error("Decryption failed — wrong passphrase?");
       }
+
+      decryptedChunks[index] = new Uint8Array(out.plaintext);
+      chunksDone++;
+
+      const percent = 2 + Math.round((chunksDone / meta.chunk_count) * 90);
+      onProgress?.({
+        stage: `Downloading ${chunksDone}/${meta.chunk_count}`,
+        percent,
+        chunksDone,
+        chunksTotal: meta.chunk_count,
+      });
+    };
+
+    // Fetch with a concurrency limit; each fetched chunk fans out to the pool.
+    const queue = Array.from({ length: meta.chunk_count }, (_, i) => i);
+    const fetchers: Promise<void>[] = [];
+
+    for (let w = 0; w < Math.min(MAX_CONCURRENT, meta.chunk_count); w++) {
+      fetchers.push(
+        (async () => {
+          while (queue.length > 0) {
+            if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
+            const idx = queue.shift()!;
+            await processChunk(idx);
+          }
+        })()
+      );
     }
 
-    decryptedChunks[index] = plaintext;
-    chunksDone++;
-
-    const percent = 2 + Math.round((chunksDone / meta.chunk_count) * 90);
-    onProgress?.({
-      stage: `Downloading ${chunksDone}/${meta.chunk_count}`,
-      percent,
-      chunksDone,
-      chunksTotal: meta.chunk_count,
-    });
-  };
-
-  // Process with concurrency limit
-  const queue = Array.from({ length: meta.chunk_count }, (_, i) => i);
-  const workers: Promise<void>[] = [];
-
-  for (let w = 0; w < Math.min(MAX_CONCURRENT, meta.chunk_count); w++) {
-    workers.push(
-      (async () => {
-        while (queue.length > 0) {
-          if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
-          const idx = queue.shift()!;
-          await processChunk(idx);
-        }
-      })()
-    );
+    await Promise.all(fetchers);
+  } finally {
+    pool.terminate();
   }
-
-  await Promise.all(workers);
 
   if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
 

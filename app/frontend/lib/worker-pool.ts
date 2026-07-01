@@ -5,12 +5,15 @@
  * Queue-based: idle worker picks next chunk from queue.
  */
 
-import type { WorkerInput, WorkerOutput } from "@/workers/crypto-worker";
+import type { WorkerInput, WorkerOutput, DecryptInput, DecryptOutput } from "@/workers/crypto-worker";
 import { getDeviceProfile } from "@/lib/device-profile";
 
+type PoolInput = WorkerInput | DecryptInput;
+type PoolOutput = WorkerOutput | DecryptOutput;
+
 type QueueItem = {
-  input: WorkerInput;
-  resolve: (output: WorkerOutput) => void;
+  input: PoolInput;
+  resolve: (output: PoolOutput) => void;
   reject: (error: Error) => void;
 };
 
@@ -32,14 +35,15 @@ export class WorkerPool {
     }
   }
 
-  /** Process a chunk through the worker pipeline. Returns a promise of the result. */
-  process(input: WorkerInput): Promise<WorkerOutput> {
+  /** Process a chunk through the worker pipeline (encrypt for uploads, decrypt
+   *  for downloads). Returns a promise of the result. */
+  process<TOut extends PoolOutput = WorkerOutput>(input: PoolInput): Promise<TOut> {
     if (this.terminated) {
       return Promise.reject(new Error("Worker pool has been terminated"));
     }
 
-    return new Promise<WorkerOutput>((resolve, reject) => {
-      const item: QueueItem = { input, resolve, reject };
+    return new Promise<TOut>((resolve, reject) => {
+      const item: QueueItem = { input, resolve: resolve as (o: PoolOutput) => void, reject };
 
       const worker = this.idle.pop();
       if (worker) {
@@ -84,9 +88,12 @@ export class WorkerPool {
     worker.addEventListener("message", onMessage);
     worker.addEventListener("error", onError);
 
-    // Transfer plaintext buffer (zero-copy send to worker)
-    const transferable = [item.input.plaintext];
-    worker.postMessage(item.input, transferable);
+    // Zero-copy send: transfer the data buffer this direction carries (the
+    // plaintext for encrypt, the encrypted bytes for decrypt). keyBytes is NOT
+    // transferred — download reuses the same key object across every chunk.
+    const buffer =
+      "encrypted" in item.input ? item.input.encrypted : item.input.plaintext;
+    worker.postMessage(item.input, [buffer]);
   }
 
   /** Terminate all workers and reject pending items. */
