@@ -25,4 +25,6 @@ export const qk = {
   // file you just viewed is instant and they never disagree.
   shares: (fileId: string) => ["shares", fileId] as const,
   fileMeta: (fileId: string) => ["file-meta", fileId] as const,
+  // Public folder links for a given folder.
+  folderShares: (folderId: string) => ["folder-shares", folderId] as const,
 };

@@ -96,6 +96,7 @@ import { ExplorerBreadcrumb } from "./explorer/breadcrumb";
 import { ExplorerRow, type RowDragProps } from "./explorer/explorer-row";
 import { ExplorerCard } from "./explorer/explorer-card";
 import { FolderDetailsDrawer } from "./folder-details-drawer";
+import { FolderShareModal } from "./folder-share-modal";
 import type {
   SortField,
   SortDir,
@@ -794,6 +795,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
   const [deleteTarget, setDeleteTarget] = useState<DecryptedFolder | null>(null);
   // "Get info" target — the folder whose details drawer is open.
   const [detailsFolder, setDetailsFolder] = useState<DecryptedFolder | null>(null);
+  const [shareFolder, setShareFolder] = useState<DecryptedFolder | null>(null);
 
   const [showUnlock, setShowUnlock] = useState(false);
   const pendingAction = useRef<
@@ -1153,6 +1155,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
                       onRemoveFolderPassword={onRemoveFolderPassword}
                       onMoveFolderRequest={onMoveFolderRequest}
                       onOpenFolderDetails={setDetailsFolder}
+                      onShareFolder={setShareFolder}
                       drag={dragPropsFor(entry)}
                     />
                   </motion.div>
@@ -1198,6 +1201,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
                       onRemoveFolderPassword={onRemoveFolderPassword}
                       onMoveFolderRequest={onMoveFolderRequest}
                       onOpenFolderDetails={setDetailsFolder}
+                      onShareFolder={setShareFolder}
                       drag={dragPropsFor(entry)}
                     />
                   </motion.div>
@@ -1221,6 +1225,14 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
         folder={detailsFolder}
         open={!!detailsFolder}
         onOpenChange={(o) => { if (!o) setDetailsFolder(null); }}
+        files={files}
+      />
+
+      {/* Public folder link (right-click / long-press → Share). */}
+      <FolderShareModal
+        folder={shareFolder}
+        open={!!shareFolder}
+        onOpenChange={(o) => { if (!o) setShareFolder(null); }}
         files={files}
       />
 

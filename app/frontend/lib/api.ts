@@ -591,6 +591,106 @@ export async function getShareChunk(token: string, index: number, password?: str
   };
 }
 
+// ─── Folder Shares (public folder links) ───
+
+export interface FolderShareFileEntry {
+  file_id: string;
+  wrapped_cek?: string;
+  name?: string;
+  size?: number;
+  chunk_count?: number;
+}
+
+export interface FolderShareInfo {
+  valid: boolean;
+  has_password: boolean;
+  name: string;
+  reason?: string;
+  files?: FolderShareFileEntry[];
+}
+
+export interface FolderShareLink {
+  id: string;
+  folder_id?: string;
+  name: string;
+  token: string;
+  has_password: boolean;
+  expires_at?: string;
+  max_downloads: number;
+  download_count: number;
+  revoked: boolean;
+  created_at: string;
+  file_count: number;
+}
+
+/** Create a public folder link (authenticated). The folder-share key never
+ *  leaves the browser — only the per-file wrapped CEKs are sent. */
+export function createFolderShare(body: {
+  folder_id?: string;
+  name: string;
+  files: { file_id: string; wrapped_cek: string }[];
+  password?: string;
+  expires_in_hours?: number;
+  max_downloads?: number;
+}): Promise<{ id: string; token: string }> {
+  return request(`/api/folder-shares`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export function listFolderShares(folderId?: string): Promise<FolderShareLink[]> {
+  const params = folderId ? `?folder_id=${folderId}` : "";
+  return request<FolderShareLink[]>(`/api/folder-shares${params}`);
+}
+
+export function revokeFolderShare(id: string): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/api/folder-shares/${id}`, { method: "DELETE" });
+}
+
+// Public folder-link access (no auth, rate-limited). The optional password
+// unlocks the file listing for a password-protected link.
+export async function getFolderShareInfo(token: string, password?: string): Promise<FolderShareInfo> {
+  const headers: Record<string, string> = {};
+  if (password) headers["X-Share-Password"] = password;
+  const res = await fetch(`${API_BASE}/api/folder-share/${token}`, { headers });
+  if (!res.ok) throw new Error("Folder link not found");
+  return res.json();
+}
+
+export async function getFolderShareFileMeta(
+  token: string,
+  fileId: string,
+  password?: string
+): Promise<FileMetaResponse> {
+  const headers: Record<string, string> = {};
+  if (password) headers["X-Share-Password"] = password;
+  const res = await fetch(`${API_BASE}/api/folder-share/${token}/files/${fileId}/meta`, { headers });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || "Failed to get file metadata");
+  }
+  return res.json();
+}
+
+export async function getFolderShareChunk(
+  token: string,
+  fileId: string,
+  index: number,
+  password?: string
+): Promise<{ data: ArrayBuffer; sha256: string; compressed: boolean }> {
+  const headers: Record<string, string> = {};
+  if (password) headers["X-Share-Password"] = password;
+  const res = await fetch(`${API_BASE}/api/folder-share/${token}/files/${fileId}/chunks/${index}`, { headers });
+  if (!res.ok) throw new Error("Failed to download chunk");
+  return {
+    data: await res.arrayBuffer(),
+    sha256: res.headers.get("X-Chunk-SHA256") || "",
+    compressed: res.headers.get("X-Chunk-Compressed") === "true",
+  };
+}
+
 // ─── Anonymous Send API (no auth) ───
 
 export async function sendInit(data: SendInitRequest): Promise<SendInitResponse> {
