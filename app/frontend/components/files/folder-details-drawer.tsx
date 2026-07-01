@@ -24,6 +24,8 @@ import {
   Check,
 } from "@/lib/icons";
 import { listFolders } from "@/lib/api";
+import { queryClient } from "@/lib/query-client";
+import { qk } from "@/lib/query-keys";
 import { toast } from "@/store/toast";
 import { formatBytes, formatDate, cn } from "@/lib/utils";
 import type { DecryptedFolder } from "@/hooks/useFolders";
@@ -40,8 +42,10 @@ interface FolderDetailsDrawerProps {
 
 /**
  * Walk a folder's whole subtree (BFS, one fetch per level) and return the set of
- * folder ids it contains, INCLUDING the root. Folders load per-level from the
- * API, so this is how we discover descendants; names aren't needed (ids only).
+ * folder ids it contains, INCLUDING the root. Each level goes through the shared
+ * folders query cache (same key the explorer uses), so levels you've already
+ * browsed — and repeat opens of this drawer — are served from cache instead of
+ * re-hitting the API on every open.
  */
 async function collectSubtreeIds(rootId: string): Promise<Set<string>> {
   const ids = new Set<string>([rootId]);
@@ -49,7 +53,11 @@ async function collectSubtreeIds(rootId: string): Promise<Set<string>> {
   // Bounded by the folder count; the `ids` guard prevents revisiting.
   while (frontier.length > 0) {
     const childLists = await Promise.all(
-      frontier.map((id) => listFolders(id).catch(() => []))
+      frontier.map((id) =>
+        queryClient
+          .fetchQuery({ queryKey: qk.folders(id), queryFn: () => listFolders(id) })
+          .catch(() => [])
+      )
     );
     const next: string[] = [];
     for (const list of childLists) {

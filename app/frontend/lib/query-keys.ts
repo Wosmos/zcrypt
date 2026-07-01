@@ -20,4 +20,9 @@ export const qk = {
   // keyed by id so opening a space you viewed recently is instant from cache.
   spaces: ["spaces"] as const,
   space: (id: string) => ["space", id] as const,
+  // Per-file share links + immutable file metadata, keyed by file id. The share
+  // modal and the details drawer read the SAME keys, so opening either for a
+  // file you just viewed is instant and they never disagree.
+  shares: (fileId: string) => ["shares", fileId] as const,
+  fileMeta: (fileId: string) => ["file-meta", fileId] as const,
 };
