@@ -679,10 +679,12 @@ type SharedVaultRequest struct {
 	WrappedSpaceKey string   `json:"wrapped_space_key"`
 }
 
-// SharedVaultDetail includes vault info plus members.
+// SharedVaultDetail includes vault info plus members and shared files (each with
+// its space-wrapped CEK, which any member unwraps with the space key).
 type SharedVaultDetail struct {
 	SharedVault
 	Members []SharedVaultMember `json:"members"`
+	Files   []SharedVaultFile   `json:"files"`
 }
 
 // SharedVaultAddMemberRequest is the JSON body for adding a member. The caller
@@ -695,10 +697,14 @@ type SharedVaultAddMemberRequest struct {
 
 // SharedVaultFile is a file shared into a space, carrying its CEK re-wrapped
 // under the space key. WrappedCEK is opaque base64 the server cannot open.
+// Name/Size are joined from the owner's file row for member display (members
+// can't query the owner-scoped files table directly).
 type SharedVaultFile struct {
-	VaultID    string    `json:"vault_id"`
+	VaultID    string    `json:"vault_id,omitempty"`
 	FileID     string    `json:"file_id"`
 	WrappedCEK string    `json:"wrapped_cek"`
+	Name       string    `json:"name,omitempty"`
+	Size       int64     `json:"size,omitempty"`
 	AddedAt    time.Time `json:"added_at"`
 }
 

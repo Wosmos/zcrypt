@@ -93,7 +93,39 @@ func (db *DB) GetSharedVault(ctx context.Context, userID, vaultID string) (*type
 		}
 		vault.Members = append(vault.Members, m)
 	}
+
+	// Shared files, each with its space-wrapped CEK (+ owner's name/size for display).
+	files, err := db.ListSharedVaultFiles(ctx, vaultID)
+	if err != nil {
+		return nil, err
+	}
+	vault.Files = files
 	return vault, nil
+}
+
+// ListSharedVaultFiles returns the files shared into a space, each with its
+// space-wrapped CEK and the owner's file name/size (joined for member display).
+func (db *DB) ListSharedVaultFiles(ctx context.Context, vaultID string) ([]types.SharedVaultFile, error) {
+	rows, err := db.pool.Query(ctx, `
+		SELECT svf.file_id, svf.wrapped_cek, f.original_name, f.original_size, svf.added_at
+		FROM shared_vault_files svf
+		JOIN files f ON f.id = svf.file_id
+		WHERE svf.vault_id = $1
+		ORDER BY svf.added_at DESC`, vaultID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	files := []types.SharedVaultFile{}
+	for rows.Next() {
+		var f types.SharedVaultFile
+		if err := rows.Scan(&f.FileID, &f.WrappedCEK, &f.Name, &f.Size, &f.AddedAt); err != nil {
+			return nil, err
+		}
+		files = append(files, f)
+	}
+	return files, rows.Err()
 }
 
 // AddSharedVaultMember adds (or re-grants) a user to a shared vault by email,
