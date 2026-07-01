@@ -9,6 +9,11 @@ import (
 
 // CreateSharedVault creates a new shared vault.
 func (db *DB) CreateSharedVault(ctx context.Context, ownerID string, req types.SharedVaultRequest) (*types.SharedVault, error) {
+	// file_ids is NOT NULL; a client that omits the field (nil slice) would
+	// otherwise insert NULL and 500. Treat "no files" as an empty array.
+	if req.FileIDs == nil {
+		req.FileIDs = []string{}
+	}
 	vault := &types.SharedVault{}
 	err := db.pool.QueryRow(ctx, `
 		INSERT INTO shared_vaults (name, owner_id, description, file_ids, size_limit_bytes)
@@ -319,7 +324,7 @@ func (db *DB) SharedVaultUsage(ctx context.Context, vaultID, excludeFileID strin
 		SELECT
 			COALESCE((SELECT SUM(f.original_size)
 			          FROM shared_vault_files svf JOIN files f ON f.id = svf.file_id
-			          WHERE svf.vault_id = $1 AND ($2 = '' OR svf.file_id <> $2)), 0),
+			          WHERE svf.vault_id = $1 AND ($2 = '' OR svf.file_id::text <> $2)), 0),
 			COALESCE((SELECT size_limit_bytes FROM shared_vaults WHERE id = $1), 0)`,
 		vaultID, excludeFileID,
 	).Scan(&used, &limit)
