@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo } from "react";
 import { isTauri } from "@/lib/tauri";
-import { batchLoadThumbnails } from "@/hooks/useThumbnail";
+import { primeThumbnails } from "@/hooks/useThumbnail";
 import { useUploadStore } from "@/store/upload";
 import { useDownloadStore } from "@/store/download";
 import { usePassphraseStore } from "@/store/passphrase";
@@ -117,9 +117,8 @@ export function useVaultActions({
     if (!vaultUnlocked || files.length === 0) return;
     const passphrase = usePassphraseStore.getState().getPassphrase();
     if (passphrase) {
-      batchLoadThumbnails(files, passphrase, (fileId) =>
-        thumbnailResolver(fileId, fileById)
-      ).catch(() => {});
+      // Arm lazy generation; each card generates its own thumbnail on render.
+      primeThumbnails(passphrase, (fileId) => thumbnailResolver(fileId, fileById));
     }
   }, [files, vaultUnlocked, folderPwCache, thumbnailResolver, fileById]);
 
@@ -226,9 +225,7 @@ export function useVaultActions({
       // Unprotected (Root or a plain folder): vault passphrase wraps the CEK,
       // exactly as today. Runs immediately if already unlocked.
       vault.withPassphrase((passphrase) => {
-        batchLoadThumbnails(files, passphrase, (fileId) =>
-          thumbnailResolver(fileId, fileById)
-        ).catch(() => {});
+        primeThumbnails(passphrase, (fileId) => thumbnailResolver(fileId, fileById));
         startUpload(uniqueFiles, passphrase, destFolderId);
       });
     },

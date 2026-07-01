@@ -1047,14 +1047,15 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
         </div>
       ) : isLoading ? (
         <div
-          className={cn(
-            view === "grid"
-              ? cn("grid gap-2.5", gridCols === "auto" && "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4")
-              : "space-y-px"
-          )}
+          className={cn(view === "grid" ? "grid gap-2.5" : "space-y-px")}
           style={
-            view === "grid" && gridCols !== "auto"
-              ? { gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))` }
+            view === "grid"
+              ? {
+                  gridTemplateColumns:
+                    gridCols === "auto"
+                      ? "repeat(auto-fill, minmax(118px, 1fr))"
+                      : `repeat(${gridCols}, minmax(0, 1fr))`,
+                }
               : undefined
           }
         >
@@ -1168,15 +1169,13 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
             
             onKeyDown={handleContainerKeyDown}
             onClick={handleListingBackgroundClick}
-            className={cn(
-              "grid gap-2.5",
-              gridCols === "auto" && "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4"
-            )}
-            style={
-              gridCols === "auto"
-                ? undefined
-                : { gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))` }
-            }
+            className="grid gap-2.5"
+            style={{
+              gridTemplateColumns:
+                gridCols === "auto"
+                  ? "repeat(auto-fill, minmax(118px, 1fr))"
+                  : `repeat(${gridCols}, minmax(0, 1fr))`,
+            }}
           >
             <AnimatePresence initial={false}>
               {entries.map((entry) => {

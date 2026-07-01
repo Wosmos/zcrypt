@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
-const COL_OPTIONS: GridCols[] = ["auto", 1, 2, 3, 4, 5, 6];
+const COL_OPTIONS: GridCols[] = ["auto",1, 2, 4, 6, 8,  10, 12];
 
 interface ExplorerToolbarProps {
   breadcrumb: ReactNode;

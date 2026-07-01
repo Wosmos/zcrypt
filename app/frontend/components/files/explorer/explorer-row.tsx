@@ -4,6 +4,7 @@ import type { ExplorerEntry, ExplorerActions } from "./types";
 import type { DecryptedFolder } from "@/hooks/useFolders";
 import type { FileMetadata } from "@/types";
 import { formatBytes, formatDate, getFileTypeInfo, cn, midTrunc } from "@/lib/utils";
+import { useThumbnail } from "@/hooks/useThumbnail";
 import {
   File,
   FileText,
@@ -273,6 +274,7 @@ function FileRow({
 }) {
   const typeInfo = getFileTypeInfo(file.original_name);
   const Icon = iconMap[typeInfo.icon] || File;
+  const { thumbnailUrl } = useThumbnail(file.id, file.original_name, file.original_size);
   const savings =
     file.original_size > 0
       ? ((1 - file.encrypted_size / file.original_size) * 100).toFixed(0)
@@ -326,11 +328,16 @@ function FileRow({
       )}
       <div
         className={cn(
-          "flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg",
-          typeInfo.bg
+          "flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg",
+          !thumbnailUrl && typeInfo.bg
         )}
       >
-        <Icon className={cn("h-[18px] w-[18px]", typeInfo.color)} />
+        {thumbnailUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={thumbnailUrl} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <Icon className={cn("h-[18px] w-[18px]", typeInfo.color)} />
+        )}
       </div>
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <span className="whitespace-nowrap text-sm font-medium text-[var(--color-text)]" title={file.original_name}>

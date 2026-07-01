@@ -5,7 +5,7 @@ export type SortField = "name" | "size" | "date" | "saved" | "type";
 export type SortDir = "asc" | "desc";
 export type ViewMode = "list" | "grid";
 /** Grid density: "auto" = responsive (2/3/4 by width), or a user-locked column count. */
-export type GridCols = "auto" | 1 | 2 | 3 | 4 | 5 | 6;
+export type GridCols = "auto" | 1 | 2 | 4 | 6 | 8 | 10 | 12;
 
 /**
  * A unified entry in the explorer listing. Folders and files coexist under one

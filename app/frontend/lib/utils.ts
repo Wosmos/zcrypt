@@ -125,7 +125,30 @@ export function getFileCategory(filename: string): string {
 
 export function isImageFile(filename: string): boolean {
   const ext = filename.split(".").pop()?.toLowerCase() || "";
-  return ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "ico"].includes(ext);
+  return ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "ico", "avif"].includes(ext);
+}
+
+export function isVideoFile(filename: string): boolean {
+  const ext = filename.split(".").pop()?.toLowerCase() || "";
+  return ["mp4", "m4v", "webm", "mov", "ogv", "mkv", "avi"].includes(ext);
+}
+
+/**
+ * Best-guess MIME type from a file extension. Used to type decrypted Blobs so
+ * the browser will actually decode them — an <img> won't render an SVG (or a
+ * <video> a clip) if the Blob is `application/octet-stream`. Unknown types fall
+ * back to octet-stream.
+ */
+export function mimeForFile(filename: string): string {
+  const ext = filename.split(".").pop()?.toLowerCase() || "";
+  const map: Record<string, string> = {
+    jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", gif: "image/gif",
+    webp: "image/webp", svg: "image/svg+xml", bmp: "image/bmp", ico: "image/x-icon",
+    avif: "image/avif",
+    mp4: "video/mp4", m4v: "video/mp4", webm: "video/webm", mov: "video/quicktime",
+    ogv: "video/ogg", mkv: "video/x-matroska", avi: "video/x-msvideo",
+  };
+  return map[ext] || "application/octet-stream";
 }
 
 // Keep backward compat
