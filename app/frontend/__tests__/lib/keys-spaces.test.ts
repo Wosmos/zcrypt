@@ -14,8 +14,18 @@ import {
   openSealed,
   generateSpaceKey,
   keyFingerprint,
+  ensureUserKeypair,
 } from "@/lib/keys";
-import { wrapKey, unwrapKey, generateCEK } from "@/lib/crypto";
+import {
+  wrapKey,
+  unwrapKey,
+  generateCEK,
+  deriveKeyBytes,
+  generateSalt,
+  toBase64,
+  fromBase64,
+} from "@/lib/crypto";
+import { getMyKey, publishKey } from "@/lib/api";
 import { useKeysStore } from "@/store/keys";
 
 /** A Uint8Array's bytes as a standalone ArrayBuffer (an AES key). */
@@ -34,6 +44,7 @@ function loadKeypair(kp: { secretKey: Uint8Array; publicKey: Uint8Array }) {
 }
 
 beforeEach(() => {
+  vi.clearAllMocks();
   useKeysStore.getState().reset();
 });
 
@@ -139,5 +150,89 @@ describe("space-key CEK re-wrap (P3 sharing + P5 rotation invariants)", () => {
     const other = generateSpaceKey();
     const wrapped = await wrapKey(buf(spaceKey), generateCEK());
     await expect(unwrapKey(buf(other), wrapped)).rejects.toThrow();
+  });
+});
+
+describe("ensureUserKeypair (X25519 bootstrap for sharing)", () => {
+  it("generates + publishes a keypair on first use, with the private key wrapped under the passphrase", async () => {
+    vi.mocked(getMyKey).mockResolvedValue(null);
+    vi.mocked(publishKey).mockResolvedValue({ success: true } as never);
+
+    await ensureUserKeypair("hunter2 hunter2 hunter2");
+
+    // Published exactly one record; the store is now ready with a keypair.
+    expect(publishKey).toHaveBeenCalledTimes(1);
+    const state = useKeysStore.getState();
+    expect(state.ready).toBe(true);
+    expect(state.loading).toBe(false);
+    expect(state.publicKey).toBeInstanceOf(Uint8Array);
+    expect(state.privateKey).toBeInstanceOf(Uint8Array);
+
+    // The published wrapped private key must unwrap, under a KEK derived from the
+    // passphrase + the published salt, back to the in-memory private key.
+    const pub = vi.mocked(publishKey).mock.calls[0][0];
+    const kek = await deriveKeyBytes("hunter2 hunter2 hunter2", fromBase64(pub.kdf_salt));
+    const unwrapped = await unwrapKey(kek, fromBase64(pub.wrapped_private_key));
+    expect(unwrapped).toEqual(state.privateKey);
+    // The published fingerprint matches the public key.
+    expect(pub.fingerprint).toBe(await keyFingerprint(state.publicKey!));
+    expect(pub.public_key).toBe(toBase64(state.publicKey!));
+  });
+
+  it("loads + unwraps an already-published keypair (no re-publish)", async () => {
+    const kp = x25519.keygen();
+    const salt = generateSalt();
+    const kek = await deriveKeyBytes("my passphrase", salt);
+    const wrapped = await wrapKey(kek, kp.secretKey);
+    vi.mocked(getMyKey).mockResolvedValue({
+      user_id: "u",
+      public_key: toBase64(kp.publicKey),
+      wrapped_private_key: toBase64(wrapped),
+      kdf_salt: toBase64(salt),
+      fingerprint: await keyFingerprint(kp.publicKey),
+      updated_at: "",
+    } as never);
+
+    await ensureUserKeypair("my passphrase");
+
+    const state = useKeysStore.getState();
+    expect(state.ready).toBe(true);
+    expect(state.privateKey).toEqual(kp.secretKey);
+    expect(state.publicKey).toEqual(kp.publicKey);
+    expect(publishKey).not.toHaveBeenCalled();
+  });
+
+  it("leaves the store not-ready on a wrong passphrase (and never re-publishes)", async () => {
+    const kp = x25519.keygen();
+    const salt = generateSalt();
+    const kek = await deriveKeyBytes("correct", salt);
+    const wrapped = await wrapKey(kek, kp.secretKey);
+    vi.mocked(getMyKey).mockResolvedValue({
+      user_id: "u",
+      public_key: toBase64(kp.publicKey),
+      wrapped_private_key: toBase64(wrapped),
+      kdf_salt: toBase64(salt),
+      fingerprint: "",
+      updated_at: "",
+    } as never);
+
+    await ensureUserKeypair("wrong");
+
+    const state = useKeysStore.getState();
+    expect(state.ready).toBe(false);
+    expect(state.loading).toBe(false);
+    expect(state.privateKey).toBeNull();
+    expect(publishKey).not.toHaveBeenCalled();
+  });
+
+  it("is a no-op when already ready", async () => {
+    useKeysStore.setState({ ready: true });
+    await ensureUserKeypair("whatever");
+    expect(getMyKey).not.toHaveBeenCalled();
+  });
+
+  it("is a no-op with an empty passphrase", async () => {
+    await ensureUserKeypair("");
+    expect(getMyKey).not.toHaveBeenCalled();
   });
 });
