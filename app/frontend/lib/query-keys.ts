@@ -16,4 +16,8 @@ export const qk = {
   quota: ["quota"] as const,
   platforms: ["platforms"] as const,
   repos: ["repos"] as const,
+  // Shared spaces: the list, and each space's full detail (members + files),
+  // keyed by id so opening a space you viewed recently is instant from cache.
+  spaces: ["spaces"] as const,
+  space: (id: string) => ["space", id] as const,
 };

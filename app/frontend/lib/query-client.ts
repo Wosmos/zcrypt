@@ -16,7 +16,13 @@ export const queryClient = new QueryClient({
       staleTime: 30_000,
       gcTime: 5 * 60_000,
       retry: 1,
-      refetchOnWindowFocus: true,
+      // Do NOT refetch just because the window/tab regained focus. Focus and
+      // visibilitychange events fire constantly during normal use (alt-tab,
+      // clicking into DevTools, OS notifications), and refetching every active
+      // query on each one hammers the API for no user-visible benefit. Freshness
+      // is driven by staleTime + explicit invalidateQueries after mutations.
+      refetchOnWindowFocus: false,
+      // Only refetch on an actual network reconnect (rare, and genuinely useful).
       refetchOnReconnect: true,
     },
   },

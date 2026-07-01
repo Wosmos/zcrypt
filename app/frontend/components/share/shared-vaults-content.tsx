@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion } from "motion/react";
+import { useQuery } from "@tanstack/react-query";
 import {
   listSharedVaults,
   getSharedVault,
   removeSharedVaultMember,
   deleteSharedVault,
+  listFolders,
 } from "@/lib/api";
 import {
   createSpace,
@@ -18,8 +20,11 @@ import {
   rotateSpaceKey,
 } from "@/lib/spaces";
 import { ensureUserKeypair } from "@/lib/keys";
+import { deriveNameKey, decryptNameSafe } from "@/lib/name-crypto";
 import { usePassphraseStore } from "@/store/passphrase";
-import { ensureFiles } from "@/store/files";
+import { useFilesQuery } from "@/store/files";
+import { queryClient } from "@/lib/query-client";
+import { qk } from "@/lib/query-keys";
 import { formatBytes } from "@/lib/utils";
 import type { SharedVault, SharedVaultDetail, FileMetadata } from "@/types";
 import { useAuthStore } from "@/store/auth";
@@ -55,12 +60,70 @@ function formatDate(iso: string): string {
   });
 }
 
-export function SharedVaultsContent() {
-  const [vaults, setVaults] = useState<SharedVault[]>([]);
-  const [files, setFiles] = useState<FileMetadata[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [detail, setDetail] = useState<SharedVaultDetail | null>(null);
+/** Root-level folders that currently contain files, with decrypted names + a
+ *  live file count — the pickable "share a whole folder" options. */
+function useFolderOptions(files: FileMetadata[], enabled: boolean) {
   const user = useAuthStore((s) => s.user);
+  const cachedPassphrase = usePassphraseStore((s) => s.cachedPassphrase);
+
+  const rawQuery = useQuery({
+    queryKey: qk.folders(null),
+    queryFn: () => listFolders(null),
+    enabled,
+  });
+
+  const [names, setNames] = useState<Record<string, string>>({});
+  const raw = rawQuery.data;
+  useEffect(() => {
+    let cancelled = false;
+    const pass = usePassphraseStore.getState().getPassphrase();
+    if (!raw || !user || !pass) {
+      setNames({});
+      return;
+    }
+    (async () => {
+      const key = await deriveNameKey(pass, user.id);
+      if (cancelled) return;
+      const entries = await Promise.all(
+        raw.map(async (f) => [f.id, await decryptNameSafe(f.encrypted_name, key)] as const)
+      );
+      if (!cancelled) setNames(Object.fromEntries(entries));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [raw, user, cachedPassphrase]);
+
+  return useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const f of files) {
+      if (f.folder_id) counts.set(f.folder_id, (counts.get(f.folder_id) ?? 0) + 1);
+    }
+    return (raw ?? [])
+      .filter((f) => (counts.get(f.id) ?? 0) > 0)
+      .map((f) => ({ id: f.id, name: names[f.id] ?? "Folder", count: counts.get(f.id) ?? 0 }));
+  }, [raw, names, files]);
+}
+
+export function SharedVaultsContent() {
+  const user = useAuthStore((s) => s.user);
+
+  // ── Server state (TanStack Query — cached, so re-opening a space is instant) ──
+  const vaultsQuery = useQuery({ queryKey: qk.spaces, queryFn: listSharedVaults });
+  const vaults = vaultsQuery.data ?? [];
+  const loading = vaultsQuery.isPending;
+
+  const { data: files = [] } = useFilesQuery();
+
+  // The open space is identified by id; its detail is a cached query keyed by id.
+  // Opening a space you viewed in the last 30s serves from cache with no refetch.
+  const [openId, setOpenId] = useState<string | null>(null);
+  const detailQuery = useQuery({
+    queryKey: qk.space(openId ?? ""),
+    queryFn: () => getSharedVault(openId as string),
+    enabled: !!openId,
+  });
+  const detail: SharedVaultDetail | null = openId ? detailQuery.data ?? null : null;
 
   const [showCreate, setShowCreate] = useState(false);
   const [name, setName] = useState("");
@@ -86,15 +149,14 @@ export function SharedVaultsContent() {
   const [addFileIds, setAddFileIds] = useState<string[]>([]);
   const [addingFiles, setAddingFiles] = useState(false);
 
-  useEffect(() => {
-    Promise.all([listSharedVaults(), ensureFiles()])
-      .then(([v, f]) => {
-        setVaults(v);
-        setFiles(f);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+  const folderOptions = useFolderOptions(files, showCreate || showAddFiles);
+
+  // Cache helpers so mutations update the ONE cache instead of a second copy.
+  const patchDetail = (id: string, fn: (d: SharedVaultDetail) => SharedVaultDetail) =>
+    queryClient.setQueryData<SharedVaultDetail>(qk.space(id), (d) => (d ? fn(d) : d));
+  const refreshDetail = (id: string) =>
+    queryClient.invalidateQueries({ queryKey: qk.space(id) });
+  const refreshList = () => queryClient.invalidateQueries({ queryKey: qk.spaces });
 
   // Make sure this device's keypair is loaded so creating/sharing spaces can
   // seal keys. Uses the cached vault passphrase if the vault is unlocked.
@@ -111,6 +173,22 @@ export function SharedVaultsContent() {
     setCreateError("");
   };
 
+  /** Toggle every file that lives in `folderId` (within `pool`) in a selection. */
+  const toggleFolderFiles = (
+    folderId: string,
+    pool: FileMetadata[],
+    setSel: React.Dispatch<React.SetStateAction<string[]>>
+  ) => {
+    const ids = pool.filter((f) => f.folder_id === folderId).map((f) => f.id);
+    if (ids.length === 0) return;
+    setSel((prev) => {
+      const allIn = ids.every((id) => prev.includes(id));
+      return allIn
+        ? prev.filter((id) => !ids.includes(id))
+        : Array.from(new Set([...prev, ...ids]));
+    });
+  };
+
   const handleCreate = async () => {
     setCreateError("");
     if (!name.trim()) {
@@ -119,14 +197,12 @@ export function SharedVaultsContent() {
     }
     setCreating(true);
     try {
-      // createSpace generates a random space key and seals it to your own
-      // public key, so the space is genuinely end-to-end encrypted.
       const gb = parseFloat(sizeLimitGb);
       const limitBytes =
         sizeLimitGb.trim() && gb > 0 ? Math.round(gb * 1024 * 1024 * 1024) : 0;
       const vault = await createSpace(name.trim(), description.trim(), [], limitBytes);
       // Re-wrap each selected file's CEK under the space key so members can
-      // actually decrypt them (not just list them). Best-effort per file.
+      // actually decrypt them. Best-effort per file.
       let added = 0;
       for (const fid of selectedFiles) {
         try {
@@ -137,7 +213,9 @@ export function SharedVaultsContent() {
         }
       }
       vault.file_ids = selectedFiles.slice(0, added);
-      setVaults((prev) => [vault, ...prev]);
+      // Prime the list cache with the new space and refresh from the server.
+      queryClient.setQueryData<SharedVault[]>(qk.spaces, (prev) => [vault, ...(prev ?? [])]);
+      void refreshList();
       setShowCreate(false);
       resetCreate();
     } catch (err) {
@@ -147,18 +225,16 @@ export function SharedVaultsContent() {
     }
   };
 
-  const openDetail = async (vaultId: string) => {
+  // Opening a space is now just selecting its id — the cached query serves the
+  // detail instantly if it's warm, and refetches in the background if stale.
+  const openDetail = (vaultId: string) => {
     setMemberError("");
     setMemberEmail("");
     setMemberRole("viewer");
     setFileError("");
     setShowAddFiles(false);
     setAddFileIds([]);
-    try {
-      setDetail(await getSharedVault(vaultId));
-    } catch {
-      /* ignore */
-    }
+    setOpenId(vaultId);
   };
 
   const handleDownloadFile = async (fileId: string, wrappedCek: string) => {
@@ -176,16 +252,17 @@ export function SharedVaultsContent() {
 
   const handleRemoveFile = async (fileId: string) => {
     if (!detail) return;
+    const id = detail.id;
     setFileError("");
     setRemovingFile(fileId);
     try {
-      await unshareFileFromSpace(detail.id, fileId);
-      setDetail({
-        ...detail,
-        files: detail.files.filter((f) => f.file_id !== fileId),
-      });
+      await unshareFileFromSpace(id, fileId);
+      // Optimistic: drop it from the cached detail + the list's file count.
+      patchDetail(id, (d) => ({ ...d, files: d.files.filter((f) => f.file_id !== fileId) }));
+      void refreshList();
     } catch {
       setFileError("Failed to remove file");
+      void refreshDetail(id);
     } finally {
       setRemovingFile(null);
     }
@@ -193,6 +270,7 @@ export function SharedVaultsContent() {
 
   const handleAddFiles = async () => {
     if (!detail || addFileIds.length === 0) return;
+    const id = detail.id;
     setFileError("");
     setAddingFiles(true);
     try {
@@ -205,7 +283,8 @@ export function SharedVaultsContent() {
         }
       }
       // Refetch so the file list shows names/sizes joined server-side.
-      setDetail(await getSharedVault(detail.id));
+      await refreshDetail(id);
+      void refreshList();
       setShowAddFiles(false);
       setAddFileIds([]);
       if (failures > 0) setFileError(`${failures} file(s) couldn't be shared.`);
@@ -218,25 +297,27 @@ export function SharedVaultsContent() {
 
   const handleAddMember = async () => {
     if (!detail || !memberEmail.trim()) return;
+    const id = detail.id;
     setMemberError("");
     setAddingMember(true);
     try {
-      // Recover the space key from our own grant, then seal it to the invitee.
       const spaceKey = await loadSpaceKey(detail);
       if (!spaceKey) {
         setMemberError("This space has no key you can share (it predates encrypted sharing). Recreate it.");
         return;
       }
       const member = await shareSpace(
-        detail.id,
+        id,
         spaceKey,
         memberEmail.trim(),
         memberRole as "viewer" | "editor" | "admin"
       );
-      setDetail({
-        ...detail,
-        members: [...detail.members.filter((m) => m.user_id !== member.user_id), member],
-      });
+      patchDetail(id, (d) => ({
+        ...d,
+        members: [...d.members.filter((m) => m.user_id !== member.user_id), member],
+      }));
+      // Refresh so the member's fingerprint (joined server-side) shows up.
+      void refreshDetail(id);
       setMemberEmail("");
     } catch (err) {
       const msg = err instanceof Error ? err.message : "";
@@ -252,13 +333,14 @@ export function SharedVaultsContent() {
 
   const handleRemoveMember = async (userId: string) => {
     if (!detail) return;
+    const id = detail.id;
     setMemberError("");
     setRotating(true);
     try {
-      await removeSharedVaultMember(detail.id, userId);
+      await removeSharedVaultMember(id, userId);
       const remaining = detail.members.filter((m) => m.user_id !== userId);
-      // True revocation: rotate the space key so a copy the removed member may
-      // have kept becomes useless (every file gets re-wrapped under the new key).
+      // True revocation: rotate the space key so any copy the removed member kept
+      // becomes useless (every file gets re-wrapped under the new key).
       try {
         await rotateSpaceKey(detail, remaining, detail.files);
       } catch {
@@ -266,9 +348,10 @@ export function SharedVaultsContent() {
           "Member removed, but re-keying failed. Unlock this space and use Re-key to finish revoking access."
         );
       }
-      setDetail({ ...detail, members: remaining });
+      patchDetail(id, (d) => ({ ...d, members: remaining }));
     } catch {
       setMemberError("Failed to remove member");
+      void refreshDetail(id);
     } finally {
       setRotating(false);
     }
@@ -276,11 +359,12 @@ export function SharedVaultsContent() {
 
   const handleRotate = async () => {
     if (!detail) return;
+    const id = detail.id;
     setMemberError("");
     setRotating(true);
     try {
       await rotateSpaceKey(detail, detail.members, detail.files);
-      setDetail(await getSharedVault(detail.id));
+      await refreshDetail(id);
     } catch (err) {
       setMemberError(err instanceof Error ? err.message : "Re-key failed");
     } finally {
@@ -293,8 +377,11 @@ export function SharedVaultsContent() {
     setDeleting(true);
     try {
       await deleteSharedVault(deleteTarget.id);
-      setVaults((prev) => prev.filter((v) => v.id !== deleteTarget.id));
-      if (detail?.id === deleteTarget.id) setDetail(null);
+      queryClient.setQueryData<SharedVault[]>(qk.spaces, (prev) =>
+        (prev ?? []).filter((v) => v.id !== deleteTarget.id)
+      );
+      queryClient.removeQueries({ queryKey: qk.space(deleteTarget.id) });
+      if (openId === deleteTarget.id) setOpenId(null);
       setDeleteTarget(null);
     } catch {
       /* ignore */
@@ -305,11 +392,9 @@ export function SharedVaultsContent() {
 
   const isOwner = (vault: SharedVault) => vault.owner_id === user?.id;
 
-  // Owners and editors/admins can add or remove files; viewers can only read.
   const canEdit =
     !!detail &&
     (detail.owner_id === user?.id || detail.role === "admin" || detail.role === "editor");
-  // Your own files that aren't already in this space (candidates to add).
   const availableFiles = detail
     ? files.filter((f) => !detail.files?.some((sf) => sf.file_id === f.id))
     : [];
@@ -318,8 +403,8 @@ export function SharedVaultsContent() {
     : 0;
   const limitBytes = detail?.size_limit_bytes ?? 0;
   const overLimit = limitBytes > 0 && usedBytes >= limitBytes;
-  // Membership + re-key are owner-only (matches the backend's owner gate).
   const isSpaceOwner = !!detail && detail.owner_id === user?.id;
+  const detailLoading = !!openId && detailQuery.isPending;
 
   return (
     <Section
@@ -383,8 +468,9 @@ export function SharedVaultsContent() {
                   onClick={() => openDetail(vault.id)}
                   className="flex min-w-0 flex-1 items-center gap-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)] rounded-lg"
                 >
-                  <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--color-surface-1)] text-[var(--color-text-secondary)] ring-1 ring-[var(--color-border)] group-hover:text-[var(--color-accent)]">
-                    <FolderOpen className="h-4 w-4" />
+                  {/* A space is people-first, not a folder — use the Users glyph. */}
+                  <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--color-accent)]/10 text-[var(--color-accent)] ring-1 ring-[var(--color-accent)]/20">
+                    <Users className="h-4 w-4" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-[var(--color-text)]">
@@ -403,6 +489,14 @@ export function SharedVaultsContent() {
                       </span>
                     </div>
                   </div>
+                  {!isOwner(vault) && (
+                    <Badge
+                      variant="secondary"
+                      className="flex-shrink-0 bg-[var(--color-surface-1)] capitalize text-[var(--color-text-muted)] ring-1 ring-[var(--color-border)]"
+                    >
+                      {vault.role || "member"}
+                    </Badge>
+                  )}
                 </button>
                 {isOwner(vault) && (
                   <IconButton
@@ -461,7 +555,7 @@ export function SharedVaultsContent() {
               placeholder="Optional — leave blank for no limit"
             />
 
-            {files.length > 0 && (
+            {(folderOptions.length > 0 || files.length > 0) && (
               <div className="space-y-1.5">
                 <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
                   Add files
@@ -469,7 +563,31 @@ export function SharedVaultsContent() {
                     (optional)
                   </span>
                 </p>
-                <div className="max-h-40 space-y-0.5 overflow-y-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1.5">
+                <div className="max-h-48 space-y-0.5 overflow-y-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1.5">
+                  {folderOptions.map((folder) => {
+                    const ids = files.filter((f) => f.folder_id === folder.id).map((f) => f.id);
+                    const allIn = ids.length > 0 && ids.every((id) => selectedFiles.includes(id));
+                    return (
+                      <label
+                        key={folder.id}
+                        className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-[var(--color-surface-1)]"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={allIn}
+                          onChange={() => toggleFolderFiles(folder.id, files, setSelectedFiles)}
+                          className="h-4 w-4 rounded border-[var(--color-border)] accent-[var(--color-accent)]"
+                        />
+                        <FolderOpen className="h-4 w-4 flex-shrink-0 text-[var(--color-accent)]" />
+                        <span className="truncate text-sm font-medium text-[var(--color-text)]">
+                          {folder.name}
+                        </span>
+                        <span className="ml-auto flex-shrink-0 text-xs tabular-nums text-[var(--color-text-muted)]">
+                          {folder.count} file{folder.count === 1 ? "" : "s"}
+                        </span>
+                      </label>
+                    );
+                  })}
                   {files.map((f) => (
                     <label
                       key={f.id}
@@ -487,6 +605,7 @@ export function SharedVaultsContent() {
                         }
                         className="h-4 w-4 rounded border-[var(--color-border)] accent-[var(--color-accent)]"
                       />
+                      <FileIcon className="h-4 w-4 flex-shrink-0 text-[var(--color-text-muted)]" />
                       <span className="truncate text-sm text-[var(--color-text)]">
                         {f.original_name}
                       </span>
@@ -531,9 +650,9 @@ export function SharedVaultsContent() {
 
       {/* Vault detail modal */}
       <Dialog
-        open={!!detail}
+        open={!!openId}
         onOpenChange={(o) => {
-          if (!o) setDetail(null);
+          if (!o) setOpenId(null);
         }}
       >
         <DialogContent className="border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)]">
@@ -543,11 +662,17 @@ export function SharedVaultsContent() {
             </DialogTitle>
             <DialogDescription className="text-[var(--color-text-secondary)]">
               {detail?.description ||
-                `${detail?.file_ids?.length || 0} files shared in this vault.`}
+                `${detail?.files?.length ?? detail?.file_ids?.length ?? 0} files · ${detail?.members?.length ?? 0} members`}
             </DialogDescription>
           </DialogHeader>
 
-          {detail && (
+          {detailLoading && !detail ? (
+            <div className="space-y-2 py-2">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <SkeletonRow key={i} />
+              ))}
+            </div>
+          ) : detail ? (
             <div className="space-y-4">
               {/* Files */}
               <div className="space-y-2">
@@ -655,7 +780,39 @@ export function SharedVaultsContent() {
 
                 {showAddFiles && canEdit && (
                   <div className="space-y-2">
-                    <div className="max-h-40 space-y-0.5 overflow-y-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1.5">
+                    <div className="max-h-48 space-y-0.5 overflow-y-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1.5">
+                      {folderOptions
+                        .filter((folder) =>
+                          availableFiles.some((f) => f.folder_id === folder.id)
+                        )
+                        .map((folder) => {
+                          const ids = availableFiles
+                            .filter((f) => f.folder_id === folder.id)
+                            .map((f) => f.id);
+                          const allIn = ids.length > 0 && ids.every((id) => addFileIds.includes(id));
+                          return (
+                            <label
+                              key={folder.id}
+                              className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-[var(--color-surface-1)]"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={allIn}
+                                onChange={() =>
+                                  toggleFolderFiles(folder.id, availableFiles, setAddFileIds)
+                                }
+                                className="h-4 w-4 rounded border-[var(--color-border)] accent-[var(--color-accent)]"
+                              />
+                              <FolderOpen className="h-4 w-4 flex-shrink-0 text-[var(--color-accent)]" />
+                              <span className="truncate text-sm font-medium text-[var(--color-text)]">
+                                {folder.name}
+                              </span>
+                              <span className="ml-auto flex-shrink-0 text-xs tabular-nums text-[var(--color-text-muted)]">
+                                {ids.length} file{ids.length === 1 ? "" : "s"}
+                              </span>
+                            </label>
+                          );
+                        })}
                       {availableFiles.map((f) => (
                         <label
                           key={f.id}
@@ -673,6 +830,7 @@ export function SharedVaultsContent() {
                             }
                             className="h-4 w-4 rounded border-[var(--color-border)] accent-[var(--color-accent)]"
                           />
+                          <FileIcon className="h-4 w-4 flex-shrink-0 text-[var(--color-text-muted)]" />
                           <span className="truncate text-sm text-[var(--color-text)]">
                             {f.original_name}
                           </span>
@@ -813,10 +971,10 @@ export function SharedVaultsContent() {
                 </div>
               )}
             </div>
-          )}
+          ) : null}
 
           <DialogFooter>
-            <Button variant="secondary" onClick={() => setDetail(null)}>
+            <Button variant="secondary" onClick={() => setOpenId(null)}>
               Close
             </Button>
             {detail && detail.owner_id === user?.id && (
