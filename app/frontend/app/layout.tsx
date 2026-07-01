@@ -172,22 +172,6 @@ export default function RootLayout({
         <WebSiteJsonLd />
       </head>
       <body>
-        {/* Shared squircle clip-path (superellipse n=4). Referenced by the
-            `.squircle` utility as the cross-browser fallback where CSS
-            `corner-shape` is unsupported. objectBoundingBox → scales to any
-            element. Rendered once, hidden. */}
-        <svg
-          aria-hidden="true"
-          width="0"
-          height="0"
-          style={{ position: "absolute", width: 0, height: 0, overflow: "hidden" }}
-        >
-          <defs>
-            <clipPath id="zc-squircle" clipPathUnits="objectBoundingBox">
-              <path d="M1.0000,0.5000L0.9969,0.6978L0.9876,0.7779L0.9720,0.8369L0.9497,0.8833L0.9204,0.9204L0.8833,0.9497L0.8369,0.9720L0.7779,0.9876L0.6978,0.9969L0.5000,1.0000L0.3022,0.9969L0.2221,0.9876L0.1631,0.9720L0.1167,0.9497L0.0796,0.9204L0.0503,0.8833L0.0280,0.8369L0.0124,0.7779L0.0031,0.6978L0.0000,0.5000L0.0031,0.3022L0.0124,0.2221L0.0280,0.1631L0.0503,0.1167L0.0796,0.0796L0.1167,0.0503L0.1631,0.0280L0.2221,0.0124L0.3022,0.0031L0.5000,0.0000L0.6978,0.0031L0.7779,0.0124L0.8369,0.0280L0.8833,0.0503L0.9204,0.0796L0.9497,0.1167L0.9720,0.1631L0.9876,0.2221L0.9969,0.3022Z" />
-            </clipPath>
-          </defs>
-        </svg>
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:top-4 focus:left-4 focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-neutral-900 focus:shadow-lg"
