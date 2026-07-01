@@ -519,12 +519,12 @@ func (s *Server) HandleUploadStatus(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"session_id":       session.ID,
-		"file_id":          session.FileID,
-		"status":           session.Status,
-		"chunk_count":      session.ChunkCount,
-		"uploaded_chunks":  uploadedIndices,
-		"completed_count":  len(uploadedIndices),
+		"session_id":      session.ID,
+		"file_id":         session.FileID,
+		"status":          session.Status,
+		"chunk_count":     session.ChunkCount,
+		"uploaded_chunks": uploadedIndices,
+		"completed_count": len(uploadedIndices),
 	})
 }
 

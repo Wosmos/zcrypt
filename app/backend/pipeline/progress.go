@@ -8,7 +8,7 @@ import (
 
 // SSEEvent wraps both progress and audit events for SSE delivery.
 type SSEEvent struct {
-	Type    string      `json:"type"`    // "progress" or "audit"
+	Type    string      `json:"type"` // "progress" or "audit"
 	Payload interface{} `json:"payload"`
 }
 

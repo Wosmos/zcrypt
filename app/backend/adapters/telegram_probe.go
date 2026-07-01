@@ -14,7 +14,7 @@ import (
 // DetectedChat is a channel/group the bot has been added to, surfaced by the
 // guided connect flow so the user never has to find a chat ID by hand.
 type DetectedChat struct {
-	ID    string `json:"id"`    // numeric chat id as a string, e.g. "-1001234567890"
+	ID    string `json:"id"` // numeric chat id as a string, e.g. "-1001234567890"
 	Title string `json:"title"`
 	Type  string `json:"type"` // "channel" | "group" | "supergroup"
 }

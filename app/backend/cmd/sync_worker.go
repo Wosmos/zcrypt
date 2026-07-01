@@ -44,7 +44,7 @@ func resetTimer(t *time.Timer, d time.Duration) {
 // maxSyncAttempts caps how many times the sync worker will retry a single
 // pending chunk before giving up on it. A chunk whose staging file is gone (or
 // that fails every upload) would otherwise be retried forever, starving the
-// queue. Once a chunk hits this cap it's left in place (remote_path still '')
+// queue. Once a chunk hits this cap it's left in place (remote_path still ”)
 // and logged so the data-loss risk is visible rather than silently looping.
 const maxSyncAttempts = 8
 
