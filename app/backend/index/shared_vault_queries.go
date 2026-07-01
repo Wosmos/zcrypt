@@ -146,3 +146,73 @@ func (db *DB) IsSharedVaultMember(ctx context.Context, vaultID, userID string) (
 		SELECT role FROM shared_vault_members WHERE vault_id = $1 AND user_id = $2`, vaultID, userID).Scan(&role)
 	return role, err
 }
+
+// AddSharedVaultFile registers a file in a space with its CEK re-wrapped under
+// the space key. Idempotent (re-adding updates the wrapped CEK, e.g. after a
+// key rotation). Also mirrors the file id into shared_vaults.file_ids so the
+// existing metadata listing stays in sync. Caller must already be authorized as
+// an editor/admin member of the vault (enforced at the handler).
+func (db *DB) AddSharedVaultFile(ctx context.Context, vaultID, fileID, addedBy, wrappedCEK string) error {
+	tx, err := db.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO shared_vault_files (vault_id, file_id, wrapped_cek, added_by)
+		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (vault_id, file_id) DO UPDATE SET wrapped_cek = EXCLUDED.wrapped_cek`,
+		vaultID, fileID, wrappedCEK, addedBy); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `
+		UPDATE shared_vaults SET file_ids = array_append(file_ids, $2), updated_at = NOW()
+		WHERE id = $1 AND NOT ($2 = ANY(file_ids))`, vaultID, fileID); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+// RemoveSharedVaultFile unshares a file from a space (removes the space-wrapped
+// CEK and the file_ids mirror). Caller must be an editor/admin of the vault.
+func (db *DB) RemoveSharedVaultFile(ctx context.Context, vaultID, fileID string) error {
+	tx, err := db.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err := tx.Exec(ctx, `
+		DELETE FROM shared_vault_files WHERE vault_id = $1 AND file_id = $2`, vaultID, fileID); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `
+		UPDATE shared_vaults SET file_ids = array_remove(file_ids, $2), updated_at = NOW()
+		WHERE id = $1`, vaultID, fileID); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+// MemberSpaceFileGrant authorizes a member to read a shared file WITHOUT
+// loosening owner scoping. It returns a grant only if the caller is a member of
+// some space that contains the file: the space-wrapped CEK (which the caller
+// unwraps with the space key) and the file OWNER's id (used to resolve chunks +
+// storage backend through the owner). Returns pgx.ErrNoRows when the caller has
+// no such grant, which callers treat as a plain not-found (no info leak).
+func (db *DB) MemberSpaceFileGrant(ctx context.Context, userID, fileID string) (*types.SpaceFileGrant, error) {
+	g := &types.SpaceFileGrant{}
+	err := db.pool.QueryRow(ctx, `
+		SELECT f.user_id, svf.wrapped_cek
+		FROM shared_vault_files svf
+		JOIN shared_vault_members svm ON svm.vault_id = svf.vault_id AND svm.user_id = $1
+		JOIN files f ON f.id = svf.file_id
+		WHERE svf.file_id = $2
+		LIMIT 1`, userID, fileID,
+	).Scan(&g.OwnerID, &g.WrappedCEK)
+	if err != nil {
+		return nil, err
+	}
+	return g, nil
+}

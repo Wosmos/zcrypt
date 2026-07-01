@@ -693,6 +693,32 @@ type SharedVaultAddMemberRequest struct {
 	WrappedSpaceKey string `json:"wrapped_space_key"`
 }
 
+// SharedVaultFile is a file shared into a space, carrying its CEK re-wrapped
+// under the space key. WrappedCEK is opaque base64 the server cannot open.
+type SharedVaultFile struct {
+	VaultID    string    `json:"vault_id"`
+	FileID     string    `json:"file_id"`
+	WrappedCEK string    `json:"wrapped_cek"`
+	AddedAt    time.Time `json:"added_at"`
+}
+
+// SharedVaultAddFileRequest is the JSON body for adding a file to a space. The
+// caller (owner/editor) unwraps the file CEK with their vault key, re-wraps it
+// under the space key, and sends the opaque envelope here.
+type SharedVaultAddFileRequest struct {
+	FileID     string `json:"file_id"`
+	WrappedCEK string `json:"wrapped_cek"`
+}
+
+// SpaceFileGrant is the server-side authorization result for a member reading a
+// shared file: it proves the caller is a member of a space containing the file
+// and carries the space-wrapped CEK plus the owner's id (used to route chunk +
+// storage-backend resolution through the owner without loosening owner scoping).
+type SpaceFileGrant struct {
+	OwnerID    string
+	WrappedCEK string
+}
+
 // OfflinePin represents a file pinned for offline access.
 type OfflinePin struct {
 	ID       string    `json:"id"`

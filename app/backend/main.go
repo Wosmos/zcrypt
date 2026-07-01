@@ -287,6 +287,8 @@ func main() {
 	mux.HandleFunc("DELETE /api/shared-vaults/{id}", server.AuthMiddleware(server.HandleDeleteSharedVault))
 	mux.HandleFunc("POST /api/shared-vaults/{id}/members", maxJSON(server.AuthMiddleware(server.HandleAddSharedVaultMember)))
 	mux.HandleFunc("DELETE /api/shared-vaults/{id}/members/{uid}", server.AuthMiddleware(server.HandleRemoveSharedVaultMember))
+	mux.HandleFunc("POST /api/shared-vaults/{id}/files", maxJSON(server.AuthMiddleware(server.HandleAddSharedVaultFile)))
+	mux.HandleFunc("DELETE /api/shared-vaults/{id}/files/{fid}", server.AuthMiddleware(server.HandleRemoveSharedVaultFile))
 
 	// Offline pins (authenticated)
 	mux.HandleFunc("GET /api/offline", server.AuthMiddleware(server.HandleListOfflinePins))

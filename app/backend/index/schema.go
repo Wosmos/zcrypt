@@ -476,6 +476,24 @@ CREATE INDEX IF NOT EXISTS idx_shared_vault_members_user ON shared_vault_members
 -- private key can open it. Empty for legacy metadata-only memberships.
 ALTER TABLE shared_vault_members ADD COLUMN IF NOT EXISTS wrapped_space_key TEXT NOT NULL DEFAULT '';
 
+-- Files shared into a space, each with its CEK re-wrapped under the SPACE KEY
+-- (not the owner's vault key), so any member can unwrap it with the space key
+-- and decrypt the file. wrapped_cek is opaque base64; the server never sees the
+-- space key or the plaintext CEK. This is what makes a shared file readable by
+-- members without ever exposing the owner's vault passphrase. The owning file
+-- (and its chunks) stays owner-scoped; membership here only grants read access
+-- routed through the owner's storage backend.
+CREATE TABLE IF NOT EXISTS shared_vault_files (
+	vault_id    UUID NOT NULL REFERENCES shared_vaults(id) ON DELETE CASCADE,
+	file_id     UUID NOT NULL,
+	wrapped_cek TEXT NOT NULL,
+	added_by    UUID REFERENCES users(id) ON DELETE SET NULL,
+	added_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	PRIMARY KEY (vault_id, file_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_shared_vault_files_file ON shared_vault_files(file_id);
+
 -- Offline vault (pinned files for offline access)
 CREATE TABLE IF NOT EXISTS offline_pins (
 	id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
