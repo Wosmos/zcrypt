@@ -51,6 +51,7 @@ import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState }
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import type { FileMetadata } from "@/types";
 import { useFolders, type DecryptedFolder } from "@/hooks/useFolders";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { useDragMove, canDrop, DRAG_MIME, setDragGhost, type DragItem } from "@/hooks/useDragMove";
 import { useVaultSearch } from "@/components/ui/command-palette";
 import { usePassphraseStore } from "@/store/passphrase";
@@ -217,6 +218,10 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
   onMoveFolderRequest,
 }: VaultExplorerProps, ref) {
   const prefersReducedMotion = useReducedMotion();
+  const isMobile = useIsMobile();
+  // Per-item `layout` + entrance animations are measured on every render; on
+  // phones that's needless jank, so treat mobile like reduced-motion for lists.
+  const animateList = !prefersReducedMotion && !isMobile;
 
   // ── Folder tree / current folder / breadcrumb ──────────────────────────────
   const {
@@ -924,14 +929,14 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
   };
 
   // ── Motion (reduced-motion safe stagger) ────────────────────────────────────
-  const itemMotion = prefersReducedMotion
-    ? {}
-    : {
+  const itemMotion = animateList
+    ? {
         initial: { opacity: 0, y: 4 },
         animate: { opacity: 1, y: 0 },
         exit: { opacity: 0, y: -4 },
         transition: { duration: 0.18 },
-      };
+      }
+    : {};
 
   const isLoading = loading || foldersLoading;
   const folderCount = sortedFolders.length;
@@ -1138,7 +1143,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
               {entries.map((entry) => {
                 const id = entry.kind === "folder" ? entry.folder.id : entry.file.id;
                 return (
-                  <motion.div role="listitem" key={`${entry.kind}-${id}`} layout={!prefersReducedMotion} {...itemMotion}>
+                  <motion.div role="listitem" key={`${entry.kind}-${id}`} layout={animateList} {...itemMotion}>
                     <ExplorerRow
                       entry={entry}
                       actions={actions}
@@ -1184,7 +1189,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
               {entries.map((entry) => {
                 const id = entry.kind === "folder" ? entry.folder.id : entry.file.id;
                 return (
-                  <motion.div role="listitem" key={`${entry.kind}-${id}`} layout={!prefersReducedMotion} {...itemMotion}>
+                  <motion.div role="listitem" key={`${entry.kind}-${id}`} layout={animateList} {...itemMotion}>
                     <ExplorerCard
                       entry={entry}
                       actions={actions}
