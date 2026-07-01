@@ -108,7 +108,7 @@ describe("createSpace", () => {
     const cached = useSpacesStore.getState().spaceKeys["vault-1"];
     expect(cached).toBeInstanceOf(Uint8Array);
     expect(cached.length).toBe(32);
-    const opened = await openSealed(req.wrapped_space_key);
+    const opened = await openSealed(req.wrapped_space_key!);
     expect(opened).toEqual(cached);
     expect(v.id).toBe("vault-1");
   });
@@ -312,6 +312,6 @@ describe("shareSpace", () => {
 
     // The grant is sealed to the invitee: only their private key opens it.
     loadKeypair(invitee);
-    expect(await openSealed(wrapped)).toEqual(spaceKey);
+    expect(await openSealed(wrapped!)).toEqual(spaceKey);
   });
 });
