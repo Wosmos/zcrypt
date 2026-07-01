@@ -497,6 +497,44 @@ CREATE INDEX IF NOT EXISTS idx_shared_vault_files_file ON shared_vault_files(fil
 -- Optional per-space size cap (sum of shared files' original sizes). 0 = no limit.
 ALTER TABLE shared_vaults ADD COLUMN IF NOT EXISTS size_limit_bytes BIGINT NOT NULL DEFAULT 0;
 
+-- Public folder share links. Mirrors single-file shares (shares table) but for a
+-- whole folder: one random folder-share key (kept only in the URL #fragment,
+-- never sent here) wraps each contained file's CEK. Anyone with the link + key
+-- can open it — no account needed — exactly like a file link. The name column is
+-- a plaintext label the sharer supplies for the public page (folder names are
+-- otherwise E2E-encrypted and opaque to the server).
+CREATE TABLE IF NOT EXISTS folder_shares (
+	id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+	-- Soft reference to the source folder (no FK: the folders table is created
+	-- later in this schema, and a stale id is harmless — the share stands on its
+	-- own folder_share_files rows).
+	folder_id       UUID,
+	user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	name            TEXT NOT NULL DEFAULT '',
+	token           TEXT NOT NULL UNIQUE,
+	password_hash   TEXT NOT NULL DEFAULT '',
+	expires_at      TIMESTAMPTZ,
+	max_downloads   INTEGER NOT NULL DEFAULT 0,
+	download_count  INTEGER NOT NULL DEFAULT 0,
+	revoked         BOOLEAN NOT NULL DEFAULT FALSE,
+	created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_folder_shares_token ON folder_shares(token);
+CREATE INDEX IF NOT EXISTS idx_folder_shares_user ON folder_shares(user_id);
+
+-- Files carried by a folder share, each with its CEK re-wrapped under the
+-- folder-share key (opaque base64). The file (and its chunks) stays owner-scoped;
+-- the share only grants read access routed through the owner's storage backend.
+CREATE TABLE IF NOT EXISTS folder_share_files (
+	folder_share_id UUID NOT NULL REFERENCES folder_shares(id) ON DELETE CASCADE,
+	file_id         UUID NOT NULL REFERENCES files(id) ON DELETE CASCADE,
+	wrapped_cek     TEXT NOT NULL,
+	PRIMARY KEY (folder_share_id, file_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_folder_share_files_file ON folder_share_files(file_id);
+
 -- Offline vault (pinned files for offline access)
 CREATE TABLE IF NOT EXISTS offline_pins (
 	id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),

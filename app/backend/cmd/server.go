@@ -514,6 +514,15 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/share/{token}/meta", s.ShareRateLimitMiddleware(s.HandleGetShareFileMeta))
 	mux.HandleFunc("GET /api/share/{token}/chunks/{idx}", s.ShareRateLimitMiddleware(s.HandleGetShareChunk))
 
+	// Folder shares — public link for a whole folder (management is authed;
+	// access mirrors the single-file public share above)
+	mux.HandleFunc("POST /api/folder-shares", maxJSON(s.AuthMiddleware(s.HandleCreateFolderShare)))
+	mux.HandleFunc("GET /api/folder-shares", s.AuthMiddleware(s.HandleListFolderShares))
+	mux.HandleFunc("DELETE /api/folder-shares/{id}", s.AuthMiddleware(s.HandleRevokeFolderShare))
+	mux.HandleFunc("GET /api/folder-share/{token}", s.ShareRateLimitMiddleware(s.HandleGetFolderShareInfo))
+	mux.HandleFunc("GET /api/folder-share/{token}/files/{fid}/meta", s.ShareRateLimitMiddleware(s.HandleGetFolderShareFileMeta))
+	mux.HandleFunc("GET /api/folder-share/{token}/files/{fid}/chunks/{idx}", s.ShareRateLimitMiddleware(s.HandleGetFolderShareChunk))
+
 	// Anonymous send (no auth, rate-limited by IP)
 	mux.HandleFunc("POST /api/send/init", maxJSON(s.SendRateLimitMiddleware(s.HandleSendInit)))
 	mux.HandleFunc("PUT /api/send/{sid}/chunk/{idx}", s.ShareRateLimitMiddleware(s.HandleSendChunkUpload))
