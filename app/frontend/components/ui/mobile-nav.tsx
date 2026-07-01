@@ -80,8 +80,10 @@ export function MobileNav() {
           <div
             className={cn(
               "relative overflow-hidden p-1.5 flex items-center justify-around",
-              "bg-[var(--color-surface)]/85 backdrop-blur-2xl",
-              "border border-[var(--color-border)]/50",
+              // Solid (not translucent + backdrop-blur): a large blur under a
+              // fixed, always-on-screen bar is a constant GPU cost on phones.
+              "bg-[var(--color-surface)]",
+              "border border-[var(--color-border)]",
               "shadow-lg shadow-black/10",
               "rounded-[22px]"
             )}
