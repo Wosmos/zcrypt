@@ -17,6 +17,7 @@ import {
   Cog,
   Trash2,
   BarChart3,
+  Layers,
 } from "@/lib/icons";
 import { Logo } from "@/components/ui/logo";
 import { MobileNav } from "@/components/ui/mobile-nav";
@@ -26,6 +27,7 @@ import { useQuotaQuery } from "@/store/quota";
 const primaryLinks = [
   { href: "/dashboard", label: "Vault", icon: Shield },
   { href: "/analytics", label: "Insights", icon: BarChart3 },
+  { href: "/spaces", label: "Spaces", icon: Layers },
   { href: "/share", label: "Share", icon: Share2 },
 ];
 

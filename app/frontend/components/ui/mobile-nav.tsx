@@ -20,6 +20,7 @@ import {
   FileText,
   ArrowRight,
   BarChart3,
+  Layers,
 } from "@/lib/icons";
 import {
   VaultIcon,
@@ -32,6 +33,7 @@ import { Role } from "@/types";
 const NAV_LINKS = [
   { href: "/dashboard", label: "Vault", Icon: VaultIcon },
   { href: "/analytics", label: "Insights", Icon: BarChart3 },
+  { href: "/spaces", label: "Spaces", Icon: Layers },
   { href: "/share", label: "Share", Icon: ShareIcon },
   { href: "/settings", label: "Settings", Icon: GearIcon },
 ];
