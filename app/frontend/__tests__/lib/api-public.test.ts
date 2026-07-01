@@ -122,6 +122,19 @@ describe("anonymous send", () => {
     expect(chunk.sha256).toBe("z");
     expect(chunk.compressed).toBe(false);
   });
+
+  it("sendComplete surfaces the error body on failure", async () => {
+    fetchMock.mockResolvedValueOnce(mk(409, { json: { error: "already completed" } }));
+    await expect(api.sendComplete("s")).rejects.toThrow("already completed");
+  });
+
+  it("getSendInfo / getSendMeta return the parsed body on success", async () => {
+    fetchMock.mockResolvedValueOnce(mk(200, { json: { token: "T", file_count: 2 } }));
+    expect(await api.getSendInfo("T")).toEqual({ token: "T", file_count: 2 });
+
+    fetchMock.mockResolvedValueOnce(mk(200, { json: { name: "bundle.zip" } }));
+    expect(await api.getSendMeta("T")).toEqual({ name: "bundle.zip" });
+  });
 });
 
 describe("pad + clipboard + plans", () => {
@@ -137,6 +150,14 @@ describe("pad + clipboard + plans", () => {
 
     fetchMock.mockResolvedValueOnce(mk(410, { json: { error: "expired" } }));
     await expect(api.getPadContent("P")).rejects.toThrow("expired");
+  });
+
+  it("createPad surfaces the error body; getPadInfo returns the parsed body on success", async () => {
+    fetchMock.mockResolvedValueOnce(mk(400, { json: { error: "content too large" } }));
+    await expect(api.createPad({} as never)).rejects.toThrow("content too large");
+
+    fetchMock.mockResolvedValueOnce(mk(200, { json: { token: "P", has_password: false } }));
+    expect(await api.getPadInfo("P")).toEqual({ token: "P", has_password: false });
   });
 
   it("getClipboardContent attaches the bearer token and returns bytes", async () => {
@@ -157,6 +178,79 @@ describe("pad + clipboard + plans", () => {
 
     fetchMock.mockResolvedValueOnce(mk(503, {}));
     await expect(api.getPlans()).rejects.toThrow("Failed to fetch plans");
+  });
+});
+
+describe("error-fallback + remaining branches", () => {
+  it("getSendChunk throws a fixed message on a non-OK response", async () => {
+    fetchMock.mockResolvedValueOnce(mk(500, {}));
+    await expect(api.getSendChunk("T", 0)).rejects.toThrow("Failed to download chunk");
+  });
+
+  it("uses the hardcoded fallback message when an error body isn't JSON", async () => {
+    // Each of these hits the `body.error || "<default>"` fallback (json rejects).
+    fetchMock.mockResolvedValueOnce(mk(500, { jsonThrows: true }));
+    await expect(api.sendComplete("s")).rejects.toThrow("Failed to complete send");
+
+    fetchMock.mockResolvedValueOnce(mk(500, { jsonThrows: true }));
+    await expect(api.createPad({} as never)).rejects.toThrow("Failed to create pad");
+
+    fetchMock.mockResolvedValueOnce(mk(500, { jsonThrows: true }));
+    await expect(api.getPadContent("P")).rejects.toThrow("Failed to get pad content");
+
+    fetchMock.mockResolvedValueOnce(mk(500, { jsonThrows: true }));
+    await expect(api.getShareFileMeta("t")).rejects.toThrow("Failed to get file metadata");
+
+    fetchMock.mockResolvedValueOnce(mk(500, { jsonThrows: true }));
+    await expect(api.sendInit({} as never)).rejects.toThrow("Failed to start send");
+
+    fetchMock.mockResolvedValueOnce(mk(500, { jsonThrows: true }));
+    await expect(api.sendChunkUpload("s", 0, new Uint8Array([1]), "sha", false)).rejects.toThrow("Failed to upload chunk");
+  });
+
+  it("getClipboardContent works without a token and defaults contentType to 'text'", async () => {
+    getState.mockReturnValue({ accessToken: null }); // no-token branch
+    fetchMock.mockResolvedValueOnce(mk(200, { bytes: new Uint8Array([1]).buffer })); // no X-Content-Type header
+    const out = await api.getClipboardContent("cid");
+    expect(init().headers!["Authorization"]).toBeUndefined();
+    expect(out.contentType).toBe("text");
+  });
+
+  it("getShareChunk / getSendChunk default sha256 to '' when the header is absent", async () => {
+    fetchMock.mockResolvedValueOnce(mk(200, { bytes: new Uint8Array([1]).buffer })); // no headers
+    expect((await api.getShareChunk("t", 0)).sha256).toBe("");
+
+    fetchMock.mockResolvedValueOnce(mk(200, { bytes: new Uint8Array([1]).buffer })); // no headers
+    expect((await api.getSendChunk("t", 0)).sha256).toBe("");
+  });
+
+  it("request() falls back to the raw body when the error JSON has no .error field", async () => {
+    // Valid JSON, but no `error` key -> `parsed.error || body` takes the body side.
+    fetchMock.mockResolvedValueOnce(mk(400, { json: { message: "nope" } }));
+    await expect(api.getConfig()).rejects.toThrow('{"message":"nope"}');
+  });
+
+  it("getFileChunk works without a token and falls back to the raw error body", async () => {
+    getState.mockReturnValue({ accessToken: null }); // no-token branch (line 172)
+    fetchMock.mockResolvedValueOnce(mk(200, { bytes: new Uint8Array([1]).buffer }));
+    const out = await api.getFileChunk("f", 0);
+    expect(init().headers ? (init().headers as Record<string, string>)["Authorization"] : undefined).toBeUndefined();
+    expect(new Uint8Array(out.data)).toEqual(new Uint8Array([1]));
+
+    // Error JSON without an `error` field -> raw-body fallback (line 183).
+    fetchMock.mockResolvedValueOnce(mk(404, { json: { message: "gone" } }));
+    await expect(api.getFileChunk("f", 1)).rejects.toThrow('{"message":"gone"}');
+  });
+
+  it("listFiles (no filter) and listFolders (with parentId) hit both optional-param sides", async () => {
+    fetchMock.mockResolvedValueOnce(mk(200, { json: [] }));
+    await api.listFiles(); // false side of the filter ternary (line 198)
+    expect(url()).toContain("/api/files");
+    expect(url()).not.toContain("?filter=");
+
+    fetchMock.mockResolvedValueOnce(mk(200, { json: [] }));
+    await api.listFolders("parent-1"); // true side of the parentId ternary (line 221)
+    expect(url(1)).toContain("/api/folders"); // second fetch of this test
   });
 });
 
