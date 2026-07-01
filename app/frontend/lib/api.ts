@@ -890,7 +890,7 @@ export function listSharedVaults(): Promise<SharedVault[]> {
   return request<SharedVault[]>("/api/shared-vaults");
 }
 
-export function createSharedVault(data: { name: string; description: string; file_ids: string[] }): Promise<SharedVault> {
+export function createSharedVault(data: { name: string; description: string; file_ids: string[]; wrapped_space_key?: string }): Promise<SharedVault> {
   return request<SharedVault>("/api/shared-vaults", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -902,12 +902,18 @@ export function getSharedVault(id: string): Promise<SharedVaultDetail> {
   return request<SharedVaultDetail>(`/api/shared-vaults/${id}`);
 }
 
-export function addSharedVaultMember(vaultId: string, email: string, role: string): Promise<SharedVaultMember> {
+export function addSharedVaultMember(vaultId: string, email: string, role: string, wrappedSpaceKey?: string): Promise<SharedVaultMember> {
   return request<SharedVaultMember>(`/api/shared-vaults/${vaultId}/members`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, role }),
+    body: JSON.stringify({ email, role, wrapped_space_key: wrappedSpaceKey ?? "" }),
   });
+}
+
+/** Resolve a user's PUBLIC key by email/username (to seal a space key before
+ *  inviting). Rejects (404) if no such user or they have no published key. */
+export function lookupUserKey(identifier: string): Promise<PublicKeyRecord> {
+  return request<PublicKeyRecord>(`/api/keys/lookup?identifier=${encodeURIComponent(identifier)}`);
 }
 
 export function removeSharedVaultMember(vaultId: string, userId: string): Promise<{ success: boolean }> {

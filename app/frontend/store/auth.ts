@@ -3,6 +3,7 @@ import type { AuthUser } from "@/types";
 import { clearDecryptCache } from "@/lib/decrypt-cache";
 import { usePassphraseStore } from "@/store/passphrase";
 import { useKeysStore } from "@/store/keys";
+import { useSpacesStore } from "@/store/spaces";
 
 interface AuthStore {
   user: AuthUser | null;
@@ -51,6 +52,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
     clearDecryptCache();
     usePassphraseStore.getState().clear();
     useKeysStore.getState().reset(); // drop the in-memory private key
+    useSpacesStore.getState().reset(); // drop cached space keys
     set({ user: null, accessToken: null, refreshTokenValue: null });
   },
 }));

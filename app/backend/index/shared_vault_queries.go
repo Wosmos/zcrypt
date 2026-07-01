@@ -19,17 +19,19 @@ func (db *DB) CreateSharedVault(ctx context.Context, ownerID string, req types.S
 		return nil, err
 	}
 
-	// Add owner as admin member
+	// Add owner as admin member, with the space key sealed to their own key.
 	_, err = db.pool.Exec(ctx, `
-		INSERT INTO shared_vault_members (vault_id, user_id, role) VALUES ($1, $2, 'admin')`,
-		vault.ID, ownerID)
+		INSERT INTO shared_vault_members (vault_id, user_id, role, wrapped_space_key) VALUES ($1, $2, 'admin', $3)`,
+		vault.ID, ownerID, req.WrappedSpaceKey)
 	return vault, err
 }
 
-// ListSharedVaults returns all vaults the user is a member of.
+// ListSharedVaults returns all vaults the user is a member of, each carrying
+// the CALLER's own key grant + role so the client can unwrap the space key.
 func (db *DB) ListSharedVaults(ctx context.Context, userID string) ([]types.SharedVault, error) {
 	rows, err := db.pool.Query(ctx, `
-		SELECT sv.id, sv.name, sv.owner_id, sv.description, sv.file_ids, sv.created_at, sv.updated_at
+		SELECT sv.id, sv.name, sv.owner_id, sv.description, sv.file_ids, sv.created_at, sv.updated_at,
+		       svm.wrapped_space_key, svm.role
 		FROM shared_vaults sv
 		JOIN shared_vault_members svm ON sv.id = svm.vault_id
 		WHERE svm.user_id = $1
@@ -42,7 +44,7 @@ func (db *DB) ListSharedVaults(ctx context.Context, userID string) ([]types.Shar
 	var vaults []types.SharedVault
 	for rows.Next() {
 		var v types.SharedVault
-		if err := rows.Scan(&v.ID, &v.Name, &v.OwnerID, &v.Description, &v.FileIDs, &v.CreatedAt, &v.UpdatedAt); err != nil {
+		if err := rows.Scan(&v.ID, &v.Name, &v.OwnerID, &v.Description, &v.FileIDs, &v.CreatedAt, &v.UpdatedAt, &v.WrappedSpaceKey, &v.Role); err != nil {
 			return nil, err
 		}
 		vaults = append(vaults, v)
@@ -52,10 +54,11 @@ func (db *DB) ListSharedVaults(ctx context.Context, userID string) ([]types.Shar
 
 // GetSharedVault returns a shared vault with members (only if user is a member).
 func (db *DB) GetSharedVault(ctx context.Context, userID, vaultID string) (*types.SharedVaultDetail, error) {
-	// Check membership
-	var memberRole string
+	// Check membership + capture the caller's own key grant.
+	var memberRole, callerWrappedKey string
 	err := db.pool.QueryRow(ctx, `
-		SELECT role FROM shared_vault_members WHERE vault_id = $1 AND user_id = $2`, vaultID, userID).Scan(&memberRole)
+		SELECT role, wrapped_space_key FROM shared_vault_members WHERE vault_id = $1 AND user_id = $2`,
+		vaultID, userID).Scan(&memberRole, &callerWrappedKey)
 	if err != nil {
 		return nil, err
 	}
@@ -68,10 +71,12 @@ func (db *DB) GetSharedVault(ctx context.Context, userID, vaultID string) (*type
 	if err != nil {
 		return nil, err
 	}
+	vault.Role = memberRole
+	vault.WrappedSpaceKey = callerWrappedKey
 
-	// Get members
+	// Get members (each member's own wrapped key is included for admin views).
 	rows, err := db.pool.Query(ctx, `
-		SELECT svm.id, svm.vault_id, svm.user_id, u.username, u.email, svm.role, svm.joined_at
+		SELECT svm.id, svm.vault_id, svm.user_id, u.username, u.email, svm.role, svm.joined_at, svm.wrapped_space_key
 		FROM shared_vault_members svm
 		JOIN users u ON svm.user_id = u.id
 		WHERE svm.vault_id = $1
@@ -83,7 +88,7 @@ func (db *DB) GetSharedVault(ctx context.Context, userID, vaultID string) (*type
 
 	for rows.Next() {
 		var m types.SharedVaultMember
-		if err := rows.Scan(&m.ID, &m.VaultID, &m.UserID, &m.Username, &m.Email, &m.Role, &m.JoinedAt); err != nil {
+		if err := rows.Scan(&m.ID, &m.VaultID, &m.UserID, &m.Username, &m.Email, &m.Role, &m.JoinedAt, &m.WrappedSpaceKey); err != nil {
 			return nil, err
 		}
 		vault.Members = append(vault.Members, m)
@@ -91,22 +96,25 @@ func (db *DB) GetSharedVault(ctx context.Context, userID, vaultID string) (*type
 	return vault, nil
 }
 
-// AddSharedVaultMember adds a user to a shared vault by email.
-func (db *DB) AddSharedVaultMember(ctx context.Context, vaultID, email, role string) (*types.SharedVaultMember, error) {
+// AddSharedVaultMember adds (or re-grants) a user to a shared vault by email,
+// storing the space key sealed to that user's public key. Re-inviting updates
+// the role + key grant (supports key rotation / role changes).
+func (db *DB) AddSharedVaultMember(ctx context.Context, vaultID, email, role, wrappedSpaceKey string) (*types.SharedVaultMember, error) {
 	member := &types.SharedVaultMember{}
 	err := db.pool.QueryRow(ctx, `
 		WITH target_user AS (
-			SELECT id, username, email FROM users WHERE email = $2
+			SELECT id FROM users WHERE email = $2
 		)
-		INSERT INTO shared_vault_members (vault_id, user_id, role)
-		SELECT $1, tu.id, $3 FROM target_user tu
-		RETURNING id, vault_id, user_id, role, joined_at`,
-		vaultID, email, role,
-	).Scan(&member.ID, &member.VaultID, &member.UserID, &member.Role, &member.JoinedAt)
+		INSERT INTO shared_vault_members (vault_id, user_id, role, wrapped_space_key)
+		SELECT $1, tu.id, $3, $4 FROM target_user tu
+		ON CONFLICT (vault_id, user_id)
+		DO UPDATE SET role = EXCLUDED.role, wrapped_space_key = EXCLUDED.wrapped_space_key
+		RETURNING id, vault_id, user_id, role, joined_at, wrapped_space_key`,
+		vaultID, email, role, wrappedSpaceKey,
+	).Scan(&member.ID, &member.VaultID, &member.UserID, &member.Role, &member.JoinedAt, &member.WrappedSpaceKey)
 	if err != nil {
 		return nil, err
 	}
-	// Fill in username/email
 	member.Email = email
 	return member, nil
 }
