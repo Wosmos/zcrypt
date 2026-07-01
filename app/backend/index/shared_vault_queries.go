@@ -155,6 +155,37 @@ func (db *DB) AddSharedVaultMember(ctx context.Context, vaultID, email, role, wr
 	return member, nil
 }
 
+// RotateSharedVaultKeys atomically re-keys a space: it overwrites each listed
+// member's wrapped space key and each listed file's wrapped CEK. Only rows that
+// still exist are updated (a stale/removed member's id updates nothing), so a
+// removed member can't regain access. All values are opaque to the server.
+func (db *DB) RotateSharedVaultKeys(ctx context.Context, vaultID string, members []types.MemberKeyGrant, files []types.FileKeyWrap) error {
+	tx, err := db.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	for _, m := range members {
+		if _, err := tx.Exec(ctx,
+			`UPDATE shared_vault_members SET wrapped_space_key = $3 WHERE vault_id = $1 AND user_id = $2`,
+			vaultID, m.UserID, m.WrappedSpaceKey); err != nil {
+			return err
+		}
+	}
+	for _, f := range files {
+		if _, err := tx.Exec(ctx,
+			`UPDATE shared_vault_files SET wrapped_cek = $3 WHERE vault_id = $1 AND file_id = $2`,
+			vaultID, f.FileID, f.WrappedCEK); err != nil {
+			return err
+		}
+	}
+	if _, err := tx.Exec(ctx, `UPDATE shared_vaults SET updated_at = NOW() WHERE id = $1`, vaultID); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
 // RemoveSharedVaultMember removes a user from a shared vault.
 func (db *DB) RemoveSharedVaultMember(ctx context.Context, vaultID, memberUserID string) error {
 	_, err := db.pool.Exec(ctx, `
