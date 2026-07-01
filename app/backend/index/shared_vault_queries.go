@@ -2,6 +2,7 @@ package index
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/zcrypt/zcrypt/types"
 )
@@ -137,12 +138,15 @@ func (db *DB) ListSharedVaultFiles(ctx context.Context, vaultID string) ([]types
 // the role + key grant (supports key rotation / role changes).
 func (db *DB) AddSharedVaultMember(ctx context.Context, vaultID, email, role, wrappedSpaceKey string) (*types.SharedVaultMember, error) {
 	member := &types.SharedVaultMember{}
+	// The WHERE clause forbids targeting the vault owner, so no caller can demote
+	// or re-grant the owner via add-member (a partial-role downgrade attack).
 	err := db.pool.QueryRow(ctx, `
 		WITH target_user AS (
 			SELECT id FROM users WHERE email = $2
 		)
 		INSERT INTO shared_vault_members (vault_id, user_id, role, wrapped_space_key)
 		SELECT $1, tu.id, $3, $4 FROM target_user tu
+		WHERE tu.id <> (SELECT owner_id FROM shared_vaults WHERE id = $1)
 		ON CONFLICT (vault_id, user_id)
 		DO UPDATE SET role = EXCLUDED.role, wrapped_space_key = EXCLUDED.wrapped_space_key
 		RETURNING id, vault_id, user_id, role, joined_at, wrapped_space_key`,
@@ -166,6 +170,36 @@ func (db *DB) RotateSharedVaultKeys(ctx context.Context, vaultID string, members
 	}
 	defer tx.Rollback(ctx)
 
+	// Anti-lockout: the re-key MUST provide a fresh grant for every current
+	// member. Re-wrapping files under a new key while leaving any member on the
+	// old key would permanently lock them out, so reject a partial member set.
+	provided := make(map[string]bool, len(members))
+	for _, m := range members {
+		provided[m.UserID] = true
+	}
+	rows, err := tx.Query(ctx, `SELECT user_id FROM shared_vault_members WHERE vault_id = $1`, vaultID)
+	if err != nil {
+		return err
+	}
+	var current []string
+	for rows.Next() {
+		var uid string
+		if err := rows.Scan(&uid); err != nil {
+			rows.Close()
+			return err
+		}
+		current = append(current, uid)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for _, uid := range current {
+		if !provided[uid] {
+			return fmt.Errorf("rotation must re-key all %d members (missing %s)", len(current), uid)
+		}
+	}
+
 	for _, m := range members {
 		if _, err := tx.Exec(ctx,
 			`UPDATE shared_vault_members SET wrapped_space_key = $3 WHERE vault_id = $1 AND user_id = $2`,
@@ -186,10 +220,13 @@ func (db *DB) RotateSharedVaultKeys(ctx context.Context, vaultID string, members
 	return tx.Commit(ctx)
 }
 
-// RemoveSharedVaultMember removes a user from a shared vault.
+// RemoveSharedVaultMember removes a user from a shared vault. The owner can
+// never be removed (they'd lose access to their own space); use DeleteSharedVault.
 func (db *DB) RemoveSharedVaultMember(ctx context.Context, vaultID, memberUserID string) error {
 	_, err := db.pool.Exec(ctx, `
-		DELETE FROM shared_vault_members WHERE vault_id = $1 AND user_id = $2`, vaultID, memberUserID)
+		DELETE FROM shared_vault_members
+		WHERE vault_id = $1 AND user_id = $2
+		  AND user_id <> (SELECT owner_id FROM shared_vaults WHERE id = $1)`, vaultID, memberUserID)
 	return err
 }
 
@@ -212,6 +249,17 @@ func (db *DB) IsSharedVaultMember(ctx context.Context, vaultID, userID string) (
 	err := db.pool.QueryRow(ctx, `
 		SELECT role FROM shared_vault_members WHERE vault_id = $1 AND user_id = $2`, vaultID, userID).Scan(&role)
 	return role, err
+}
+
+// IsSharedVaultOwner reports whether userID owns the vault. Membership-changing
+// and re-key operations are owner-gated (not merely admin) so a non-owner can't
+// demote/remove the owner or lock members out via a partial re-key.
+func (db *DB) IsSharedVaultOwner(ctx context.Context, vaultID, userID string) (bool, error) {
+	var ok bool
+	err := db.pool.QueryRow(ctx, `
+		SELECT EXISTS (SELECT 1 FROM shared_vaults WHERE id = $1 AND owner_id = $2)`,
+		vaultID, userID).Scan(&ok)
+	return ok, err
 }
 
 // AddSharedVaultFile registers a file in a space with its CEK re-wrapped under

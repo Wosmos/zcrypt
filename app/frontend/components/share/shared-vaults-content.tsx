@@ -318,8 +318,8 @@ export function SharedVaultsContent() {
     : 0;
   const limitBytes = detail?.size_limit_bytes ?? 0;
   const overLimit = limitBytes > 0 && usedBytes >= limitBytes;
-  const isSpaceAdmin =
-    !!detail && (detail.owner_id === user?.id || detail.role === "admin");
+  // Membership + re-key are owner-only (matches the backend's owner gate).
+  const isSpaceOwner = !!detail && detail.owner_id === user?.id;
 
   return (
     <Section
@@ -700,7 +700,7 @@ export function SharedVaultsContent() {
                       ({detail.members?.length || 0})
                     </span>
                   </p>
-                  {isSpaceAdmin && (
+                  {isSpaceOwner && (
                     <button
                       type="button"
                       onClick={handleRotate}

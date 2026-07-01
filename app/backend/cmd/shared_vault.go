@@ -82,10 +82,11 @@ func (s *Server) HandleAddSharedVaultMember(w http.ResponseWriter, r *http.Reque
 	userID := GetUserID(r)
 	vaultID := r.PathValue("id")
 
-	// Check that user is admin of this vault
-	role, err := s.db.IsSharedVaultMember(ctx, vaultID, userID)
-	if err != nil || role != "admin" {
-		http.Error(w, `{"error":"only vault admins can add members"}`, http.StatusForbidden)
+	// Membership changes are owner-only: an admin must not be able to invite
+	// arbitrary accounts or demote/remove the owner.
+	owner, err := s.db.IsSharedVaultOwner(ctx, vaultID, userID)
+	if err != nil || !owner {
+		http.Error(w, `{"error":"only the vault owner can add members"}`, http.StatusForbidden)
 		return
 	}
 
@@ -101,6 +102,10 @@ func (s *Server) HandleAddSharedVaultMember(w http.ResponseWriter, r *http.Reque
 	}
 	if req.Role == "" {
 		req.Role = "viewer"
+	}
+	if req.Role != "viewer" && req.Role != "editor" && req.Role != "admin" {
+		http.Error(w, `{"error":"invalid role"}`, http.StatusBadRequest)
+		return
 	}
 
 	member, err := s.db.AddSharedVaultMember(ctx, vaultID, req.Email, req.Role, req.WrappedSpaceKey)
@@ -156,7 +161,14 @@ func (s *Server) HandleAddSharedVaultFile(w http.ResponseWriter, r *http.Request
 		http.Error(w, `{"error":"failed to check space usage"}`, http.StatusInternalServerError)
 		return
 	}
-	if limit > 0 && used+file.OriginalSize > limit {
+	if file.OriginalSize < 0 {
+		http.Error(w, `{"error":"invalid file size"}`, http.StatusBadRequest)
+		return
+	}
+	// Overflow-safe: compare remaining headroom rather than summing (used+size
+	// could wrap). used may already exceed a lowered limit, hence the used>=limit
+	// short-circuit.
+	if limit > 0 && (used >= limit || limit-used < file.OriginalSize) {
 		http.Error(w, `{"error":"space size limit exceeded"}`, http.StatusRequestEntityTooLarge)
 		return
 	}
@@ -204,10 +216,10 @@ func (s *Server) HandleRemoveSharedVaultMember(w http.ResponseWriter, r *http.Re
 	vaultID := r.PathValue("id")
 	memberUID := r.PathValue("uid")
 
-	// Check that user is admin of this vault
-	role, err := s.db.IsSharedVaultMember(ctx, vaultID, userID)
-	if err != nil || role != "admin" {
-		http.Error(w, `{"error":"only vault admins can remove members"}`, http.StatusForbidden)
+	// Membership changes are owner-only.
+	owner, err := s.db.IsSharedVaultOwner(ctx, vaultID, userID)
+	if err != nil || !owner {
+		http.Error(w, `{"error":"only the vault owner can remove members"}`, http.StatusForbidden)
 		return
 	}
 
@@ -233,9 +245,11 @@ func (s *Server) HandleRotateSharedVault(w http.ResponseWriter, r *http.Request)
 	userID := GetUserID(r)
 	vaultID := r.PathValue("id")
 
-	role, err := s.db.IsSharedVaultMember(ctx, vaultID, userID)
-	if err != nil || role != "admin" {
-		http.Error(w, `{"error":"only vault admins can rotate the space key"}`, http.StatusForbidden)
+	// Owner-only: a re-key that supplies member grants could otherwise be used by
+	// a non-owner admin to hand out garbage grants and lock members out.
+	owner, err := s.db.IsSharedVaultOwner(ctx, vaultID, userID)
+	if err != nil || !owner {
+		http.Error(w, `{"error":"only the vault owner can rotate the space key"}`, http.StatusForbidden)
 		return
 	}
 
