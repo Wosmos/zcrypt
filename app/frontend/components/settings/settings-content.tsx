@@ -15,6 +15,7 @@ import { usePlatformHealth } from "@/hooks/usePlatformHealth";
 import { useAuthStore } from "@/store/auth";
 import { useTheme } from "@/components/providers/theme-provider";
 import { usePreferencesStore } from "@/store/preferences";
+import { useKeysStore } from "@/store/keys";
 import { connectPlatform, disconnectPlatform, toggleTokenScope } from "@/lib/api";
 import { toast } from "@/store/toast";
 import { RateLimits } from "@/components/settings/rate-limits";
@@ -265,6 +266,16 @@ export function SettingsContent() {
               />
             </div>
           </div>
+        </Section>
+      </div>
+
+      {/* Encryption key */}
+      <div className="panel p-6">
+        <Section
+          title="Encryption key"
+          description="Your device's public-key fingerprint. When you share a space with someone, compare this out-of-band (in person, a call) to be sure no one intercepted the key exchange."
+        >
+          <EncryptionKeyInfo />
         </Section>
       </div>
 
@@ -575,6 +586,33 @@ function PlatformSection({
             </a>
           </>
         )}
+      </div>
+    </div>
+  );
+}
+
+function EncryptionKeyInfo() {
+  const fingerprint = useKeysStore((s) => s.fingerprint);
+  const ready = useKeysStore((s) => s.ready);
+
+  if (!ready || !fingerprint) {
+    return (
+      <p className="text-sm text-[var(--color-text-muted)]">
+        Unlock your vault to generate and view your key fingerprint.
+      </p>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-1)]/50 px-4 py-3">
+      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--color-accent)]/10 text-[var(--color-accent)]">
+        <Key className="h-4 w-4" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-xs text-[var(--color-text-muted)]">Your key fingerprint</p>
+        <p className="font-mono text-sm font-semibold tracking-wide text-[var(--color-text)]">
+          {fingerprint}
+        </p>
       </div>
     </div>
   );

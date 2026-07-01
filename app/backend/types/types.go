@@ -714,3 +714,32 @@ type DevicePreferenceRequest struct {
 	ColorTheme string `json:"color_theme"`
 	Mode       string `json:"mode"`
 }
+
+// UserKey is a user's X25519 keypair record for zero-knowledge sharing. The
+// private key is only ever present as client-encrypted ciphertext
+// (WrappedPrivateKey); the server cannot decrypt it.
+type UserKey struct {
+	UserID            string    `json:"user_id"`
+	PublicKey         string    `json:"public_key"`
+	WrappedPrivateKey string    `json:"wrapped_private_key"`
+	KDFSalt           string    `json:"kdf_salt"`
+	Fingerprint       string    `json:"fingerprint"`
+	UpdatedAt         time.Time `json:"updated_at"`
+}
+
+// PublicKey is the shareable, non-secret subset of a UserKey (what other users
+// fetch to wrap a space key to this user). Never includes the wrapped private key.
+type PublicKey struct {
+	UserID      string `json:"user_id"`
+	PublicKey   string `json:"public_key"`
+	Fingerprint string `json:"fingerprint"`
+}
+
+// PublishKeyRequest is the JSON body for publishing/rotating a keypair. All
+// fields are produced client-side; the server stores them verbatim.
+type PublishKeyRequest struct {
+	PublicKey         string `json:"public_key"`
+	WrappedPrivateKey string `json:"wrapped_private_key"`
+	KDFSalt           string `json:"kdf_salt"`
+	Fingerprint       string `json:"fingerprint"`
+}

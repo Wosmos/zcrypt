@@ -2,6 +2,42 @@ import type { NextConfig } from "next";
 
 const isTauriExport = process.env.NEXT_OUTPUT_EXPORT === "1";
 
+// ── Content-Security-Policy ──────────────────────────────────────────────
+// Defense-in-depth against XSS (the #1 threat once users hold private keys in
+// the browser). Rolled out as Report-Only by default so it can never break
+// production; set CSP_ENFORCE=1 once a deploy shows no violations in the
+// console to switch to enforcing.
+//
+// Notes:
+//  - 'unsafe-inline' in script-src is required because Next injects inline
+//    hydration scripts and we can't use per-request nonces here (nonces need
+//    middleware, which is incompatible with the Tauri static export). A
+//    nonce + 'strict-dynamic' policy is the stronger web-only follow-up.
+//  - 'wasm-unsafe-eval' is required by the zstd + sql.js WebAssembly modules.
+//  - connect-src must include the cross-origin API + its WebSocket origin
+//    (device-to-device transfer) + Vercel analytics.
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
+const apiWss = apiUrl.replace(/^https:/, "wss:").replace(/^http:/, "ws:");
+const cspValue = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://va.vercel-scripts.com",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "font-src 'self' data:",
+  `connect-src 'self' ${apiUrl} ${apiWss} https://va.vercel-scripts.com https://vitals.vercel-insights.com`.replace(/\s+/g, " ").trim(),
+  "media-src 'self' blob:",
+  "worker-src 'self' blob:",
+  "frame-src 'self' blob:",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'self'",
+  "upgrade-insecure-requests",
+].join("; ");
+const cspHeaderKey = process.env.CSP_ENFORCE === "1"
+  ? "Content-Security-Policy"
+  : "Content-Security-Policy-Report-Only";
+
 const nextConfig: NextConfig = {
   reactCompiler: true,
   turbopack: {},
@@ -43,6 +79,11 @@ const nextConfig: NextConfig = {
             key: "Strict-Transport-Security",
             value: "max-age=63072000; includeSubDomains; preload",
           },
+          // CSP only in production (dev needs eval/ws for HMR). Report-Only by
+          // default — flip with CSP_ENFORCE=1 after verifying a deploy.
+          ...(process.env.NODE_ENV === "production"
+            ? [{ key: cspHeaderKey, value: cspValue }]
+            : []),
         ],
       },
     ];

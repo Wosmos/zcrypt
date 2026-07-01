@@ -524,4 +524,19 @@ CREATE TABLE IF NOT EXISTS device_preferences (
 	updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	PRIMARY KEY (user_id, device_id)
 );
+
+-- Per-user X25519 keypair for zero-knowledge sharing. The server stores the
+-- PUBLIC key (public by design) plus the private key ONLY as ciphertext
+-- (wrapped_private_key), encrypted client-side under the user's
+-- passphrase-derived key — the server can never read it. fingerprint is a
+-- short public hash of public_key for out-of-band verification (MITM defense).
+CREATE TABLE IF NOT EXISTS user_keys (
+	user_id             UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+	public_key          TEXT NOT NULL,
+	wrapped_private_key TEXT NOT NULL,
+	kdf_salt            TEXT NOT NULL,
+	fingerprint         TEXT NOT NULL,
+	created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 `
