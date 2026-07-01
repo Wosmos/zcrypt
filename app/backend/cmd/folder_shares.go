@@ -170,9 +170,10 @@ func (s *Server) HandleGetFolderShareInfo(w http.ResponseWriter, r *http.Request
 	}
 	if !valid {
 		resp["reason"] = reason
-	} else if !share.HasPassword {
-		// No password: reveal the file listing. Strip the wrapped CEK here (the
-		// public listing shows names/sizes; CEKs come per-file from /meta).
+	} else if !share.HasPassword || validateFolderSharePassword(share, r.Header.Get("X-Share-Password")) {
+		// No password (or the correct one was supplied): reveal the file listing.
+		// Strip the wrapped CEK here (the public listing shows names/sizes; CEKs
+		// come per-file from /meta).
 		files, err := s.db.ListFolderShareFiles(ctx, share.ID)
 		if err != nil {
 			http.Error(w, `{"error":"failed to load folder"}`, http.StatusInternalServerError)
