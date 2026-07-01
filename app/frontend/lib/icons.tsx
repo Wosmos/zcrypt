@@ -116,6 +116,17 @@ import {
   Share01Icon as _Share01,
   Server as _Server,
   Wifi as _Wifi,
+  Briefcase01Icon as _Briefcase,
+  Camera01Icon as _Camera,
+  Book02Icon as _Book,
+  GameController01Icon as _GameController,
+  TextFontIcon as _TextFont,
+  PaintBoardIcon as _PaintBoard,
+  Note01Icon as _Note,
+  Wallet01Icon as _Wallet,
+  AirplaneTakeOff01Icon as _Airplane,
+  ChefHatIcon as _ChefHat,
+  MortarboardIcon as _Mortarboard,
 } from "@hugeicons/core-free-icons";
 
 type IconProps = SVGProps<SVGSVGElement> & {
@@ -159,6 +170,19 @@ export const File = makeIcon(_File, "File");
 export const FileText = makeIcon(_FileText, "FileText");
 export const Folder = makeIcon(_Folder, "Folder");
 export const FolderOpen = makeIcon(_FolderOpen, "FolderOpen");
+// Folder-glyph set (used by lib/folder-icons to mark folders by name).
+export const CloudUpload = makeIcon(_CloudUpload, "CloudUpload");
+export const Briefcase = makeIcon(_Briefcase, "Briefcase");
+export const Camera = makeIcon(_Camera, "Camera");
+export const Book = makeIcon(_Book, "Book");
+export const GameController = makeIcon(_GameController, "GameController");
+export const TextFont = makeIcon(_TextFont, "TextFont");
+export const PaintBoard = makeIcon(_PaintBoard, "PaintBoard");
+export const Note = makeIcon(_Note, "Note");
+export const Wallet = makeIcon(_Wallet, "Wallet");
+export const Airplane = makeIcon(_Airplane, "Airplane");
+export const ChefHat = makeIcon(_ChefHat, "ChefHat");
+export const Mortarboard = makeIcon(_Mortarboard, "Mortarboard");
 export const FolderAdd = makeIcon(_FolderAdd, "FolderAdd");
 export const Edit = makeIcon(_Edit, "Edit");
 export const Trash2 = makeIcon(_Trash2, "Trash2");

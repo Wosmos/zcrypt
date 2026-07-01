@@ -696,3 +696,21 @@ type OfflinePinRequest struct {
 	FileID   string `json:"file_id"`
 	DeviceID string `json:"device_id"`
 }
+
+// DevicePreference is a per-device UI preference: color theme + light/dark mode.
+// Saved is false when no row exists yet (the other fields are then defaults),
+// letting the client tell "server has a choice" from "first sync on this device".
+type DevicePreference struct {
+	DeviceID   string    `json:"device_id"`
+	ColorTheme string    `json:"color_theme"`
+	Mode       string    `json:"mode"`
+	UpdatedAt  time.Time `json:"updated_at"`
+	Saved      bool      `json:"saved"`
+}
+
+// DevicePreferenceRequest is the JSON body for saving a device preference.
+type DevicePreferenceRequest struct {
+	DeviceID   string `json:"device_id"`
+	ColorTheme string `json:"color_theme"`
+	Mode       string `json:"mode"`
+}

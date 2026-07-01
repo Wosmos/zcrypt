@@ -18,6 +18,7 @@
     "@hugeicons/react": "^1.1.6",
     "@noble/hashes": "^2.0.1",
     "@oneidentity/zstd-js": "^1.0.3",
+    "@phosphor-icons/react": "^2.1.10",
     "@radix-ui/react-accordion": "^1.2.14",
     "@radix-ui/react-alert-dialog": "^1.1.17",
     "@radix-ui/react-avatar": "^1.2.0",

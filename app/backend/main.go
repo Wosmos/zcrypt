@@ -293,6 +293,10 @@ func main() {
 	mux.HandleFunc("POST /api/offline", maxJSON(server.AuthMiddleware(server.HandlePinOffline)))
 	mux.HandleFunc("DELETE /api/offline/{fileId}", server.AuthMiddleware(server.HandleUnpinOffline))
 
+	// Per-device UI preferences (color theme + light/dark mode)
+	mux.HandleFunc("GET /api/preferences", server.AuthMiddleware(server.HandleGetPreferences))
+	mux.HandleFunc("PUT /api/preferences", maxJSON(server.AuthMiddleware(server.HandleSavePreferences)))
+
 	// Real-time device-to-device transfer (WebSocket)
 	mux.HandleFunc("GET /api/transfer/ws", server.HandleTransferWS)
 
