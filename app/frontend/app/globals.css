@@ -837,19 +837,12 @@ html.theme-transition {
   }
 }
 
-/* Cross-browser fallback. Where `corner-shape` is unsupported (Safari,
-   Firefox, older Chromium), clip surfaces to a real superellipse squircle via
-   a shared SVG clipPath (#zc-squircle — defined once in the root layout, with
-   clipPathUnits="objectBoundingBox" so it scales to any element). This is the
-   path that actually renders squircles in those browsers. Use the `.squircle`
-   utility on any element; `.card`/`.card-hover` get it automatically.
-   (clip-path also clips drop shadows, so it's reserved for solid surfaces, not
-   floating overlays whose shadow carries them.) */
-@supports not (corner-shape: squircle) {
-  .squircle,
-  .card,
-  .card-hover {
-    clip-path: url(#zc-squircle);
-  }
-}
+/* No fallback clip on non-Chromium browsers. The obvious approach — an SVG
+   clipPath with clipPathUnits="objectBoundingBox" — is a trap: a normalized
+   superellipse stretches to each element's aspect ratio, so wide cards/toolbars
+   turn into grossly distorted lozenges, and clip-path additionally clips away
+   box-shadows and borders (cards look flat and wrong). A fixed-radius squircle
+   simply can't be expressed that way. So Safari/Firefox get clean, normal
+   `border-radius` rounding; the squircle is a progressive enhancement on
+   engines that ship the real `corner-shape` property. */
 
