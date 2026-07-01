@@ -408,6 +408,8 @@ export interface SharedVaultMember {
   joined_at: string;
   /** Space key sealed to THIS member's public key (opaque to the server). */
   wrapped_space_key?: string;
+  /** Fingerprint of the member's public key, for out-of-band verification. */
+  fingerprint?: string;
 }
 
 export interface SharedVaultFile {
