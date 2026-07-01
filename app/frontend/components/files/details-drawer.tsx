@@ -21,9 +21,10 @@ import {
   Share2, Link2, Trash2, Plus,
 } from "@/lib/icons";
 import {
-  getFileMeta, listShares, createShare, revokeShare,
+  getFileMeta, createShare, revokeShare,
   type FileMetaResponse,
 } from "@/lib/api";
+import { useSharesQuery, invalidateShares, useFileMetaQuery } from "@/hooks/useShares";
 import { usePassphraseStore } from "@/store/passphrase";
 import { toast } from "@/store/toast";
 import { formatBytes, formatDate, getFileTypeInfo, cn } from "@/lib/utils";
@@ -105,14 +106,24 @@ function MetaRow({ label, value, icon: Icon }: { label: string; value: React.Rea
 export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) {
   const [tab, setTab] = useState<"details" | "sharing">("details");
 
-  // ── Lazily-loaded server meta (loaded when the drawer opens) ──
-  const [meta, setMeta] = useState<FileMetaResponse | null>(null);
-  const [metaLoading, setMetaLoading] = useState(false);
-  const [metaError, setMetaError] = useState<string | null>(null);
+  const fileId = file?.id ?? "";
+
+  // ── Server meta + shares, cached by file id (shared with the share modal) ──
+  // File metadata is immutable, so reopening a file's drawer never re-hits the
+  // API; shares are invalidated on create/revoke below.
+  const metaQuery = useFileMetaQuery(fileId, open);
+  const meta: FileMetaResponse | null = metaQuery.data ?? null;
+  const metaLoading = open && !!fileId && metaQuery.isPending;
+  const metaError = metaQuery.error
+    ? metaQuery.error instanceof Error
+      ? metaQuery.error.message
+      : "Failed to load file metadata"
+    : null;
+  const sharesQuery = useSharesQuery(fileId, open);
+  const shares: ShareLink[] = sharesQuery.data ?? [];
+  const sharesLoading = open && !!fileId && sharesQuery.isPending;
 
   // ── Sharing ──
-  const [shares, setShares] = useState<ShareLink[]>([]);
-  const [sharesLoading, setSharesLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [usePassword, setUsePassword] = useState(false);
@@ -124,28 +135,13 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
   const [revokeTarget, setRevokeTarget] = useState<ShareLink | null>(null);
   const [revoking, setRevoking] = useState(false);
 
-  const fileId = file?.id ?? "";
-
-  // Load meta + shares lazily when the drawer opens for a file.
+  // Reset the drawer's UI state each time it opens for a file. Data (meta +
+  // shares) is served from the cached queries above — no fetch here.
   useEffect(() => {
     if (!open || !fileId) return;
     setTab("details");
     setShowCreate(false);
     setNewLink(null);
-
-    setMetaLoading(true);
-    setMetaError(null);
-    setMeta(null);
-    getFileMeta(fileId)
-      .then(setMeta)
-      .catch((err) => setMetaError(err instanceof Error ? err.message : "Failed to load file metadata"))
-      .finally(() => setMetaLoading(false));
-
-    setSharesLoading(true);
-    listShares(fileId)
-      .then(setShares)
-      .catch(() => setShares([]))
-      .finally(() => setSharesLoading(false));
   }, [open, fileId]);
 
   const resetCreateForm = useCallback(() => {
@@ -191,9 +187,7 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
       const url = `${window.location.origin}/s/${result.token}#key=${toBase64(shareKey)}`;
       setNewLink(url);
       toast.success("Share link created");
-      listShares(fileId)
-        .then(setShares)
-        .catch((err) => console.warn("details-drawer: refresh shares failed", err));
+      void invalidateShares(fileId);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to create share");
     } finally {
@@ -217,7 +211,7 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
     setRevoking(true);
     try {
       await revokeShare(revokeTarget.id);
-      setShares((prev) => prev.map((s) => (s.id === revokeTarget.id ? { ...s, revoked: true } : s)));
+      void invalidateShares(fileId);
       toast.success("Share link revoked");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to revoke");

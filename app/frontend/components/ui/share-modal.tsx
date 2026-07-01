@@ -5,11 +5,11 @@ import { createPortal } from "react-dom";
 import { X, Share2, Copy, Check, Link2, Lock, Trash2 } from "@/lib/icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { createShare, listShares, revokeShare, getFileMeta } from "@/lib/api";
+import { createShare, revokeShare, getFileMeta } from "@/lib/api";
+import { useSharesQuery, invalidateShares } from "@/hooks/useShares";
 import { toast } from "@/store/toast";
 import { usePassphraseStore } from "@/store/passphrase";
 import { formatBytes, formatDate } from "@/lib/utils";
-import type { ShareLink } from "@/types";
 
 interface ShareModalProps {
   open: boolean;
@@ -46,8 +46,10 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
   const [generatedToken, setGeneratedToken] = useState("");
   const [shareKeyB64, setShareKeyB64] = useState("");
   const [copied, setCopied] = useState(false);
-  const [shares, setShares] = useState<ShareLink[]>([]);
-  const [loadingShares, setLoadingShares] = useState(false);
+  // Share list cached by file id (shared with the details drawer). No refetch on
+  // reopen; create/revoke below invalidate it.
+  const { data: shares = [], isPending: sharesPending } = useSharesQuery(fileId, open);
+  const loadingShares = open && !!fileId && sharesPending;
 
   // The share key lives only in the URL fragment (#key=...) and is never sent
   // to the server, preserving zero-knowledge: the server stores only the CEK
@@ -55,16 +57,6 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
   const shareUrl = generatedToken && shareKeyB64
     ? `${window.location.origin}/s/${generatedToken}#key=${shareKeyB64}`
     : "";
-
-  // Load existing shares
-  useEffect(() => {
-    if (!open || !fileId) return;
-    setLoadingShares(true);
-    listShares(fileId)
-      .then(setShares)
-      .catch(() => {})
-      .finally(() => setLoadingShares(false));
-  }, [open, fileId]);
 
   // Reset on close
   useEffect(() => {
@@ -121,12 +113,8 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
       setShareKeyB64(toBase64(shareKey));
       setStep("link");
       toast.success("Share link created");
-      // Refresh the (secondary) active-shares list. The share itself already
-      // succeeded and its link is shown, so a failed refresh here is non-fatal
-      // — log it rather than alarming the user or swallowing it silently.
-      listShares(fileId)
-        .then(setShares)
-        .catch((err) => console.warn("share-modal: refresh shares failed", err));
+      // Refresh the shared cache so this + the details drawer show the new link.
+      void invalidateShares(fileId);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to create share");
     } finally {
@@ -147,12 +135,12 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
   const handleRevoke = useCallback(async (shareId: string) => {
     try {
       await revokeShare(shareId);
-      setShares((prev) => prev.map((s) => (s.id === shareId ? { ...s, revoked: true } : s)));
+      void invalidateShares(fileId);
       toast.success("Share link revoked");
     } catch {
       toast.error("Failed to revoke");
     }
-  }, []);
+  }, [fileId]);
 
   if (!open) return null;
 
