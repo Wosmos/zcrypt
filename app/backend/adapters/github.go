@@ -3,14 +3,14 @@ package adapters
 import (
 	"context"
 	"fmt"
+	"github.com/google/go-github/v60/github"
+	"github.com/zcrypt/zcrypt/disguise"
+	"github.com/zcrypt/zcrypt/types"
 	"io"
 	"math/rand"
 	"net/http"
 	"strings"
 	"time"
-	"github.com/google/go-github/v60/github"
-	"github.com/zcrypt/zcrypt/disguise"
-	"github.com/zcrypt/zcrypt/types"
 )
 
 // GithubAdapter implements PlatformAdapter for GitHub.

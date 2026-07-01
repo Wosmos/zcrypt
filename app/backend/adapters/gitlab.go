@@ -53,9 +53,9 @@ func (g *GitlabAdapter) GetUsername() string {
 
 func (g *GitlabAdapter) CreateRepo(ctx context.Context, name string) (string, error) {
 	body := map[string]interface{}{
-		"name":                 name,
-		"visibility":           "private",
-		"description":          "Internal build artifacts and cache storage",
+		"name":                   name,
+		"visibility":             "private",
+		"description":            "Internal build artifacts and cache storage",
 		"initialize_with_readme": true,
 	}
 

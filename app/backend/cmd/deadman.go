@@ -75,7 +75,7 @@ func (s *Server) HandleSetupDeadManSwitch(w http.ResponseWriter, r *http.Request
 		Message:      strings.TrimSpace(req.Message),
 		IncludeFiles: req.IncludeFiles,
 		Enabled:      enabled,
-		LastCheckin:   time.Now(),
+		LastCheckin:  time.Now(),
 		CreatedAt:    time.Now(),
 	}
 

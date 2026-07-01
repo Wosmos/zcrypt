@@ -253,9 +253,9 @@ func (s *Server) HandleGetShareFileMeta(w http.ResponseWriter, r *http.Request) 
 		// The CEK wrapped under the share key (from the share, NOT the file's
 		// passphrase-wrapped CEK). The recipient unwraps this with the key in
 		// the share URL fragment — no passphrase needed.
-		"wrapped_cek":     share.WrappedCEK,
-		"status":          file.Status,
-		"created_at":      file.CreatedAt,
+		"wrapped_cek": share.WrappedCEK,
+		"status":      file.Status,
+		"created_at":  file.CreatedAt,
 	})
 }
 
