@@ -3,8 +3,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { getFileMeta, getFileChunk } from "@/lib/api";
 import { resolveFileKey, decryptChunk, fromBase64 } from "@/lib/crypto";
-import { isImageFile } from "@/lib/utils";
-import type { FileMetadata } from "@/types";
+import { isImageFile, isVideoFile, mimeForFile } from "@/lib/utils";
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 const DB_NAME = "zcrypt_thumbs";
@@ -14,10 +13,19 @@ const MAX_CONCURRENT = 3;
 
 // ── In-memory mirror of IndexedDB ────────────────────────────────────
 const memCache = new Map<string, string>();
+const failedSet = new Set<string>(); // files we tried and couldn't thumbnail
+let version = 0; // bumped on every change so per-file hooks re-render
 let listeners: (() => void)[] = [];
-function notify() { for (const l of listeners) l(); }
+function notify() { version++; for (const l of listeners) l(); }
 function subscribe(cb: () => void) { listeners.push(cb); return () => { listeners = listeners.filter((l) => l !== cb); }; }
 function getSnapshot() { return memCache; }
+function getVersion() { return version; }
+
+// Lazy generation context: set once on unlock via primeThumbnails(). Each
+// file's hook then generates its own thumbnail the first time it renders,
+// rather than decrypting the whole vault up front.
+let ctxPassphrase: string | null = null;
+let ctxResolver: ThumbnailPasswordResolver | undefined;
 
 // ── IndexedDB helpers ────────────────────────────────────────────────
 let dbPromise: Promise<IDBDatabase> | null = null;
@@ -91,9 +99,13 @@ async function generateThumbnail(blob: Blob, maxW: number, maxH: number): Promis
     const url = URL.createObjectURL(blob);
     img.onload = () => {
       URL.revokeObjectURL(url);
-      const scale = Math.min(maxW / img.width, maxH / img.height, 1);
-      const w = Math.round(img.width * scale);
-      const h = Math.round(img.height * scale);
+      // SVGs (and some formats) can report 0 intrinsic size — fall back so we
+      // still rasterize something rather than dividing by zero.
+      const iw = img.naturalWidth || img.width || 300;
+      const ih = img.naturalHeight || img.height || 300;
+      const scale = Math.min(maxW / iw, maxH / ih, 1);
+      const w = Math.max(1, Math.round(iw * scale));
+      const h = Math.max(1, Math.round(ih * scale));
       const canvas = document.createElement("canvas");
       canvas.width = w;
       canvas.height = h;
@@ -104,6 +116,66 @@ async function generateThumbnail(blob: Blob, maxW: number, maxH: number): Promis
     };
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("decode failed")); };
     img.src = url;
+  });
+}
+
+// ── Video thumbnail: grab a frame a little way in ────────────────────
+async function generateVideoThumbnail(blob: Blob, maxW: number, maxH: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement("video");
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = "auto";
+    const url = URL.createObjectURL(blob);
+    let settled = false;
+
+    const cleanup = () => {
+      URL.revokeObjectURL(url);
+      video.removeAttribute("src");
+      try { video.load(); } catch { /* ignore */ }
+    };
+    const fail = (msg: string) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(new Error(msg));
+    };
+    const capture = () => {
+      if (settled) return;
+      const vw = video.videoWidth, vh = video.videoHeight;
+      if (!vw || !vh) { fail("no video dimensions"); return; }
+      const scale = Math.min(maxW / vw, maxH / vh, 1);
+      const w = Math.max(1, Math.round(vw * scale));
+      const h = Math.max(1, Math.round(vh * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { fail("no canvas context"); return; }
+      try {
+        ctx.drawImage(video, 0, 0, w, h);
+      } catch {
+        fail("drawImage failed");
+        return;
+      }
+      settled = true;
+      const dataUrl = canvas.toDataURL("image/webp", 0.6);
+      cleanup();
+      resolve(dataUrl);
+    };
+
+    // Once data is available, seek ~10% in (capped at 1s) to skip black frames.
+    video.onloadeddata = () => {
+      const dur = isFinite(video.duration) ? video.duration : 2;
+      const t = Math.min(1, Math.max(0, dur * 0.1));
+      try { video.currentTime = t; } catch { capture(); }
+    };
+    video.onseeked = capture;
+    video.onerror = () => fail("video decode error");
+    // Safety net: never hang a slot on a codec the browser can't decode.
+    setTimeout(() => fail("video thumbnail timeout"), 15000);
+
+    video.src = url;
   });
 }
 
@@ -139,7 +211,8 @@ export type ThumbnailPasswordResolver = (fileId: string) => string | null;
 async function decryptFileToBlob(
   fileId: string,
   passphrase: string,
-  resolvePassword?: ThumbnailPasswordResolver
+  resolvePassword?: ThumbnailPasswordResolver,
+  mime = "application/octet-stream"
 ): Promise<Blob> {
   const filePassphrase = resolvePassword ? resolvePassword(fileId) : passphrase;
   if (filePassphrase == null) {
@@ -169,7 +242,7 @@ async function decryptFileToBlob(
     chunks.push(plain);
   }
 
-  return new Blob(chunks as BlobPart[], { type: "application/octet-stream" });
+  return new Blob(chunks as BlobPart[], { type: mime });
 }
 
 async function fetchAndCacheThumbnail(
@@ -183,14 +256,21 @@ async function fetchAndCacheThumbnail(
 
   await acquireSlot();
   try {
-    const blob = await decryptFileToBlob(fileId, passphrase, resolvePassword);
-    const dataUrl = await generateThumbnail(blob, 300, 300);
+    const video = isVideoFile(filename);
+    const blob = await decryptFileToBlob(fileId, passphrase, resolvePassword, mimeForFile(filename));
+    const dataUrl = video
+      ? await generateVideoThumbnail(blob, 400, 400)
+      : await generateThumbnail(blob, 300, 300);
     memCache.set(fileId, dataUrl);
     notify();
     // Persist to IndexedDB in background
     dbPut(fileId, dataUrl).catch(() => {});
     return dataUrl;
   } catch {
+    // Remember the failure so the lazy hook doesn't retry forever (locked
+    // folder, unsupported codec, decode error, oversized, …).
+    failedSet.add(fileId);
+    notify();
     return null;
   } finally {
     inflight.delete(fileId);
@@ -198,21 +278,18 @@ async function fetchAndCacheThumbnail(
   }
 }
 
-/** Batch-load thumbnails for all image files. Call once after passphrase is entered.
- *  `resolvePassword` (optional) routes protected-folder files to their folder
- *  password and skips locked ones — see ThumbnailPasswordResolver. */
-export async function batchLoadThumbnails(
-  files: FileMetadata[],
+/** Arm lazy thumbnail generation. Call once after the passphrase is entered
+ *  (on unlock). Nothing is decrypted here — each file's `useThumbnail` hook
+ *  generates its own thumbnail the first time its card renders, so we never
+ *  block on decrypting the whole vault. `resolvePassword` routes
+ *  protected-folder files to their folder password (locked ones are skipped). */
+export function primeThumbnails(
   passphrase: string,
   resolvePassword?: ThumbnailPasswordResolver
 ) {
-  const images = files.filter(
-    (f) => isImageFile(f.original_name) && f.original_size < MAX_FILE_SIZE && !memCache.has(f.id) && !inflight.has(f.id)
-  );
-  // Process in parallel with concurrency limit (handled by acquireSlot)
-  await Promise.allSettled(
-    images.map((f) => fetchAndCacheThumbnail(f.id, f.original_name, passphrase, resolvePassword))
-  );
+  ctxPassphrase = passphrase;
+  ctxResolver = resolvePassword;
+  notify(); // wake already-mounted hooks so they start generating
 }
 
 /** Check if a file has a cached thumbnail (no passphrase needed). */
@@ -226,16 +303,38 @@ export function getCachedThumbnailCount(): number {
 }
 
 // ── React hook ───────────────────────────────────────────────────────
-export function useThumbnail(fileId: string, filename: string): {
+export function useThumbnail(
+  fileId: string,
+  filename: string,
+  size?: number
+): {
   thumbnailUrl: string | null;
   loading: boolean;
+  /** True while a thumbnail is expected but not ready yet — show a loader. */
+  pending: boolean;
 } {
-  // Subscribe to memCache changes
-  const cache = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-  const url = cache.get(fileId) ?? null;
-  const loading = inflight.has(fileId);
+  // Re-render on any thumbnail state change (cache / inflight / failed / prime).
+  useSyncExternalStore(subscribe, getVersion, getVersion);
 
-  return { thumbnailUrl: url, loading };
+  const thumbnailUrl = memCache.get(fileId) ?? null;
+  const loading = inflight.has(fileId);
+  const thumbable = isImageFile(filename) || isVideoFile(filename);
+  const withinSize = size === undefined || size < MAX_FILE_SIZE;
+  const ctxReady = ctxPassphrase !== null;
+
+  // Lazy: generate this file's thumbnail the first time it renders after unlock.
+  // The guards keep repeat renders cheap; fetchAndCacheThumbnail queues itself
+  // behind the shared concurrency limit.
+  useEffect(() => {
+    if (!ctxReady || !thumbable || !withinSize) return;
+    if (memCache.has(fileId) || inflight.has(fileId) || failedSet.has(fileId)) return;
+    fetchAndCacheThumbnail(fileId, filename, ctxPassphrase as string, ctxResolver).catch(() => {});
+  }, [fileId, filename, thumbable, withinSize, ctxReady, thumbnailUrl]);
+
+  const pending =
+    thumbable && withinSize && ctxReady && !thumbnailUrl && !failedSet.has(fileId);
+
+  return { thumbnailUrl, loading, pending };
 }
 
 /** Hook to get all cached thumbnails (for listing). */
