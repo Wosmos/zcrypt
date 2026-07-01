@@ -63,6 +63,7 @@ interface ExplorerCardProps {
   onRemoveFolderPassword?: (folder: DecryptedFolder) => void;
   onMoveFolderRequest?: (folder: DecryptedFolder) => void;
   onOpenFolderDetails?: (folder: DecryptedFolder) => void;
+  onShareFolder?: (folder: DecryptedFolder) => void;
   onOpenDetails?: (file: FileMetadata) => void;
   drag: RowDragProps;
 }
@@ -138,6 +139,7 @@ function FolderCard({
   onRemoveFolderPassword,
   onMoveFolderRequest,
   onOpenFolderDetails,
+  onShareFolder,
   drag,
 }: {
   entry: ExplorerEntry;
@@ -151,6 +153,7 @@ function FolderCard({
   onRemoveFolderPassword?: (f: DecryptedFolder) => void;
   onMoveFolderRequest?: (f: DecryptedFolder) => void;
   onOpenFolderDetails?: (f: DecryptedFolder) => void;
+  onShareFolder?: (f: DecryptedFolder) => void;
   drag: RowDragProps;
 }) {
   // Show the padlock when the folder has its own password OR the vault is locked
@@ -246,6 +249,11 @@ function FolderCard({
         {folder.protected && onRemoveFolderPassword && (
           <ContextMenuItem className="gap-2" onSelect={() => onRemoveFolderPassword(folder)}>
             <Unlock className="h-4 w-4" /> Remove password…
+          </ContextMenuItem>
+        )}
+        {onShareFolder && (
+          <ContextMenuItem className="gap-2" onSelect={() => onShareFolder(folder)}>
+            <Share2 className="h-4 w-4" /> Share
           </ContextMenuItem>
         )}
         {onOpenFolderDetails && (
@@ -452,6 +460,7 @@ export function ExplorerCard({
   onRemoveFolderPassword,
   onMoveFolderRequest,
   onOpenFolderDetails,
+  onShareFolder,
   onOpenDetails,
   drag,
 }: ExplorerCardProps) {
@@ -469,6 +478,7 @@ export function ExplorerCard({
         onRemoveFolderPassword={onRemoveFolderPassword}
         onMoveFolderRequest={onMoveFolderRequest}
         onOpenFolderDetails={onOpenFolderDetails}
+        onShareFolder={onShareFolder}
         drag={drag}
       />
     );

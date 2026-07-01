@@ -100,6 +100,8 @@ interface ExplorerRowProps {
   onMoveFolderRequest?: (folder: DecryptedFolder) => void;
   /** Get info / details for a folder (kebab). */
   onOpenFolderDetails?: (folder: DecryptedFolder) => void;
+  /** Create a public link for a folder (kebab). */
+  onShareFolder?: (folder: DecryptedFolder) => void;
   /** Get info / details (kebab). Keeps the drawer reachable after click opens viewer. */
   onOpenDetails?: (file: FileMetadata) => void;
   drag: RowDragProps;
@@ -135,6 +137,7 @@ function FolderRow({
   onRemoveFolderPassword,
   onMoveFolderRequest,
   onOpenFolderDetails,
+  onShareFolder,
   drag,
 }: {
   entry: ExplorerEntry;
@@ -148,6 +151,7 @@ function FolderRow({
   onRemoveFolderPassword?: (f: DecryptedFolder) => void;
   onMoveFolderRequest?: (f: DecryptedFolder) => void;
   onOpenFolderDetails?: (f: DecryptedFolder) => void;
+  onShareFolder?: (f: DecryptedFolder) => void;
   drag: RowDragProps;
 }) {
   return (
@@ -224,6 +228,11 @@ function FolderRow({
           {folder.protected && onRemoveFolderPassword && (
             <DropdownMenuItem onClick={() => onRemoveFolderPassword(folder)}>
               <Unlock className="h-4 w-4" /> Remove password…
+            </DropdownMenuItem>
+          )}
+          {onShareFolder && (
+            <DropdownMenuItem onClick={() => onShareFolder(folder)}>
+              <Share2 className="h-4 w-4" /> Share
             </DropdownMenuItem>
           )}
           {onOpenFolderDetails && (
@@ -419,6 +428,7 @@ export function ExplorerRow({
   onRemoveFolderPassword,
   onMoveFolderRequest,
   onOpenFolderDetails,
+  onShareFolder,
   onOpenDetails,
   drag,
 }: ExplorerRowProps) {
@@ -436,6 +446,7 @@ export function ExplorerRow({
         onRemoveFolderPassword={onRemoveFolderPassword}
         onMoveFolderRequest={onMoveFolderRequest}
         onOpenFolderDetails={onOpenFolderDetails}
+        onShareFolder={onShareFolder}
         drag={drag}
       />
     );
