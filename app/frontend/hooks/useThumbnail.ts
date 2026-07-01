@@ -179,6 +179,20 @@ async function generateVideoThumbnail(blob: Blob, maxW: number, maxH: number): P
   });
 }
 
+/** Reject a promise if it doesn't settle within `ms`, so one stuck thumbnail
+ *  can't hold its concurrency slot forever and freeze every other card in a
+ *  perpetual loading state. The underlying work is abandoned (its result is
+ *  ignored); the file is then marked failed and the slot released. */
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(label + " timed out")), ms);
+    p.then(
+      (v) => { clearTimeout(timer); resolve(v); },
+      (e) => { clearTimeout(timer); reject(e); }
+    );
+  });
+}
+
 // ── Batch loader: fetches all image thumbs when passphrase is available ──
 const inflight = new Set<string>();
 let activeCount = 0;
@@ -257,10 +271,18 @@ async function fetchAndCacheThumbnail(
   await acquireSlot();
   try {
     const video = isVideoFile(filename);
-    const blob = await decryptFileToBlob(fileId, passphrase, resolvePassword, mimeForFile(filename));
+    // Bound both stages: a stalled chunk fetch (getFileChunk has no timeout of
+    // its own) or an image the browser never fires load/error for (Safari is
+    // stricter about odd formats) would otherwise hold this slot forever and
+    // leave every queued card spinning.
+    const blob = await withTimeout(
+      decryptFileToBlob(fileId, passphrase, resolvePassword, mimeForFile(filename)),
+      30_000,
+      "thumbnail decrypt"
+    );
     const dataUrl = video
       ? await generateVideoThumbnail(blob, 400, 400)
-      : await generateThumbnail(blob, 300, 300);
+      : await withTimeout(generateThumbnail(blob, 300, 300), 15_000, "thumbnail render");
     memCache.set(fileId, dataUrl);
     notify();
     // Persist to IndexedDB in background
