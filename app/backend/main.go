@@ -297,6 +297,11 @@ func main() {
 	mux.HandleFunc("GET /api/preferences", server.AuthMiddleware(server.HandleGetPreferences))
 	mux.HandleFunc("PUT /api/preferences", maxJSON(server.AuthMiddleware(server.HandleSavePreferences)))
 
+	// Per-user X25519 keypairs (zero-knowledge sharing foundation)
+	mux.HandleFunc("GET /api/keys/me", server.AuthMiddleware(server.HandleGetMyKey))
+	mux.HandleFunc("POST /api/keys", maxJSON(server.AuthMiddleware(server.HandlePublishKey)))
+	mux.HandleFunc("GET /api/keys/user/{id}", server.AuthMiddleware(server.HandleGetUserPublicKey))
+
 	// Real-time device-to-device transfer (WebSocket)
 	mux.HandleFunc("GET /api/transfer/ws", server.HandleTransferWS)
 

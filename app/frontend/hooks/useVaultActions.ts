@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo } from "react";
 import { isTauri } from "@/lib/tauri";
 import { primeThumbnails } from "@/hooks/useThumbnail";
+import { ensureUserKeypair } from "@/lib/keys";
 import { useUploadStore } from "@/store/upload";
 import { useDownloadStore } from "@/store/download";
 import { usePassphraseStore } from "@/store/passphrase";
@@ -119,6 +120,8 @@ export function useVaultActions({
     if (passphrase) {
       // Arm lazy generation; each card generates its own thumbnail on render.
       primeThumbnails(passphrase, (fileId) => thumbnailResolver(fileId, fileById));
+      // Ensure this account has an X25519 keypair (foundation for sharing).
+      ensureUserKeypair(passphrase);
     }
   }, [files, vaultUnlocked, folderPwCache, thumbnailResolver, fileById]);
 

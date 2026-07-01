@@ -2,6 +2,7 @@ import { create } from "zustand";
 import type { AuthUser } from "@/types";
 import { clearDecryptCache } from "@/lib/decrypt-cache";
 import { usePassphraseStore } from "@/store/passphrase";
+import { useKeysStore } from "@/store/keys";
 
 interface AuthStore {
   user: AuthUser | null;
@@ -49,6 +50,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
     // different user on the same tab can't inherit the prior session's data.
     clearDecryptCache();
     usePassphraseStore.getState().clear();
+    useKeysStore.getState().reset(); // drop the in-memory private key
     set({ user: null, accessToken: null, refreshTokenValue: null });
   },
 }));

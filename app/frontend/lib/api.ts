@@ -98,6 +98,49 @@ export function saveDevicePreference(pref: {
   });
 }
 
+// ─── Per-user keypairs (zero-knowledge sharing foundation) ───
+
+export interface UserKeyRecord {
+  user_id: string;
+  public_key: string;
+  wrapped_private_key: string;
+  kdf_salt: string;
+  fingerprint: string;
+  updated_at: string;
+}
+
+export interface PublicKeyRecord {
+  user_id: string;
+  public_key: string;
+  fingerprint: string;
+}
+
+/** The caller's own key record (incl. the wrapped private key), or null if
+ *  they haven't published a keypair yet. */
+export function getMyKey(): Promise<UserKeyRecord | null> {
+  return request<UserKeyRecord | null>("/api/keys/me");
+}
+
+/** Publish (or rotate) the caller's keypair. Every field is produced
+ *  client-side; wrapped_private_key is opaque ciphertext to the server. */
+export function publishKey(body: {
+  public_key: string;
+  wrapped_private_key: string;
+  kdf_salt: string;
+  fingerprint: string;
+}): Promise<{ success: boolean }> {
+  return request(`/api/keys`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+/** Another user's PUBLIC key (for wrapping a shared-space key to them). */
+export function getUserPublicKey(userId: string): Promise<PublicKeyRecord> {
+  return request<PublicKeyRecord>(`/api/keys/user/${encodeURIComponent(userId)}`);
+}
+
 // ─── File Meta & Chunk Download (client-side decryption) ───
 
 export interface FileMetaResponse {
