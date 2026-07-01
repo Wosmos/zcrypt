@@ -924,6 +924,22 @@ export function deleteSharedVault(id: string): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/shared-vaults/${id}`, { method: "DELETE" });
 }
 
+/** Share a file into a space. wrappedCek is the file's CEK re-wrapped under the
+ *  space key (opaque to the server). Caller must be an editor/admin and own the
+ *  file. */
+export function addFileToSpace(vaultId: string, fileId: string, wrappedCek: string): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/api/shared-vaults/${vaultId}/files`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ file_id: fileId, wrapped_cek: wrappedCek }),
+  });
+}
+
+/** Unshare a file from a space (editor/admin only). */
+export function removeFileFromSpace(vaultId: string, fileId: string): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/api/shared-vaults/${vaultId}/files/${fileId}`, { method: "DELETE" });
+}
+
 // ─── Offline Pins ───────────────────────────────────────────────────────────
 
 export function listOfflinePins(deviceId?: string): Promise<OfflinePin[]> {
