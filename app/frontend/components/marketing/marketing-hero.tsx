@@ -20,7 +20,9 @@ export function MarketingHero({
 }: MarketingHeroProps) {
   return (
     <section
-      className={`relative flex ${minHeight} flex-col items-center justify-center overflow-hidden px-6 py-24 md:py-32`}
+      // -mt-4 cancels the nav's 16px flow spacer so the hero's gradient reaches
+      // the very top of the screen (no plain-background seam above it).
+      className={`relative -mt-4 flex ${minHeight} flex-col items-center justify-center overflow-hidden px-6 py-24 md:py-32`}
     >
       <div className="absolute inset-0 -z-10">
         <div className="absolute inset-0 bg-[var(--color-bg)]" />
