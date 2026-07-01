@@ -20,8 +20,8 @@ var (
 	stringToRole = map[string]Role{"user": RoleUser, "admin": RoleAdmin}
 )
 
-func (r Role) String() string          { return roleToString[r] }
-func (r Role) IsValid() bool           { return r == RoleUser || r == RoleAdmin }
+func (r Role) String() string               { return roleToString[r] }
+func (r Role) IsValid() bool                { return r == RoleUser || r == RoleAdmin }
 func (r Role) MarshalJSON() ([]byte, error) { return json.Marshal(r.String()) }
 
 func (r *Role) UnmarshalJSON(data []byte) error {
@@ -74,21 +74,21 @@ type FileMetadata struct {
 	WrappedCEK     string    `json:"wrapped_cek,omitempty"` // base64 envelope-wrapped Content Encryption Key
 	Status         string    `json:"status"`
 	CreatedAt      time.Time `json:"created_at"`
-	FolderID       *string   `json:"folder_id,omitempty"`   // parent folder; nil = root
-	EncryptedName  string    `json:"encrypted_name"`        // client-side-encrypted (base64) name; opaque to server
-	DeletedAt      *string   `json:"deleted_at,omitempty"`  // non-nil = in trash
+	FolderID       *string   `json:"folder_id,omitempty"`  // parent folder; nil = root
+	EncryptedName  string    `json:"encrypted_name"`       // client-side-encrypted (base64) name; opaque to server
+	DeletedAt      *string   `json:"deleted_at,omitempty"` // non-nil = in trash
 }
 
 // ChunkRef identifies a single chunk stored on a platform.
 type ChunkRef struct {
-	ChunkID    string `json:"chunk_id"`
-	FileID     string `json:"file_id"`
-	UserID     string `json:"user_id,omitempty"`
-	Index      int    `json:"index"`
-	Size       int64  `json:"size"`
-	SHA256     string `json:"sha256"`
-	Platform   string `json:"platform"`
-	Account    string `json:"account"`
+	ChunkID      string `json:"chunk_id"`
+	FileID       string `json:"file_id"`
+	UserID       string `json:"user_id,omitempty"`
+	Index        int    `json:"index"`
+	Size         int64  `json:"size"`
+	SHA256       string `json:"sha256"`
+	Platform     string `json:"platform"`
+	Account      string `json:"account"`
 	Repo         string `json:"repo"`
 	RemotePath   string `json:"remote_path"`
 	Compressed   bool   `json:"compressed"`
@@ -221,8 +221,8 @@ type EmailToken struct {
 type OAuthProvider struct {
 	ID            string    `json:"id"`
 	UserID        string    `json:"user_id"`
-	Provider      string    `json:"provider"`       // "google" or "github"
-	ProviderID    string    `json:"provider_id"`     // unique ID from provider
+	Provider      string    `json:"provider"`    // "google" or "github"
+	ProviderID    string    `json:"provider_id"` // unique ID from provider
 	ProviderEmail string    `json:"provider_email"`
 	CreatedAt     time.Time `json:"created_at"`
 }
@@ -355,6 +355,53 @@ type ShareLink struct {
 	DownloadCount int        `json:"download_count"`
 	Revoked       bool       `json:"revoked"`
 	CreatedAt     time.Time  `json:"created_at"`
+}
+
+// FolderShareFileInput is one file's CEK re-wrapped under the folder-share key,
+// supplied by the client when creating a public folder link. Opaque to the server.
+type FolderShareFileInput struct {
+	FileID     string `json:"file_id"`
+	WrappedCEK string `json:"wrapped_cek"`
+}
+
+// CreateFolderShareRequest is the JSON body for creating a public folder link.
+// The folder-share key lives only in the URL fragment; the server stores just
+// the per-file wrapped CEKs. `name` is a plaintext display label the sharer
+// opts to reveal (folder names are otherwise E2E-encrypted).
+type CreateFolderShareRequest struct {
+	FolderID     string                 `json:"folder_id"`
+	Name         string                 `json:"name"`
+	Files        []FolderShareFileInput `json:"files"`
+	Password     string                 `json:"password,omitempty"`
+	ExpiresHours int                    `json:"expires_in_hours,omitempty"`
+	MaxDownloads int                    `json:"max_downloads,omitempty"`
+}
+
+// FolderShare is a public folder link (mirrors ShareLink, for a whole folder).
+type FolderShare struct {
+	ID            string     `json:"id"`
+	FolderID      *string    `json:"folder_id,omitempty"`
+	UserID        string     `json:"user_id"`
+	Name          string     `json:"name"`
+	Token         string     `json:"token"`
+	PasswordHash  string     `json:"-"`
+	HasPassword   bool       `json:"has_password"`
+	ExpiresAt     *time.Time `json:"expires_at,omitempty"`
+	MaxDownloads  int        `json:"max_downloads"`
+	DownloadCount int        `json:"download_count"`
+	Revoked       bool       `json:"revoked"`
+	CreatedAt     time.Time  `json:"created_at"`
+	FileCount     int        `json:"file_count"`
+}
+
+// FolderShareFile is a file carried by a folder share, joined with display meta
+// for the public listing. WrappedCEK is the file CEK under the folder-share key.
+type FolderShareFile struct {
+	FileID     string `json:"file_id"`
+	WrappedCEK string `json:"wrapped_cek,omitempty"`
+	Name       string `json:"name,omitempty"`
+	Size       int64  `json:"size,omitempty"`
+	ChunkCount int    `json:"chunk_count,omitempty"`
 }
 
 // SystemStats holds system-wide aggregate statistics.
@@ -572,8 +619,8 @@ type NoteRequest struct {
 type Folder struct {
 	ID            string  `json:"id"`
 	UserID        string  `json:"user_id"`
-	ParentID      *string `json:"parent_id,omitempty"`   // nil = root
-	EncryptedName string  `json:"encrypted_name"`        // client-side-encrypted (base64); opaque to server
+	ParentID      *string `json:"parent_id,omitempty"` // nil = root
+	EncryptedName string  `json:"encrypted_name"`      // client-side-encrypted (base64); opaque to server
 	CreatedAt     string  `json:"created_at"`
 	DeletedAt     *string `json:"deleted_at,omitempty"`  // non-nil = in trash
 	PwSalt        *string `json:"pw_salt,omitempty"`     // nil = unprotected; opaque base64, server never derives keys
