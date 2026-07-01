@@ -11,7 +11,7 @@ import {
   verifyFolderPassword,
   rewrapFileKey,
 } from "@/lib/folder-crypto";
-import { generateCEK, generateSalt, deriveKeyBytes, unwrapKey, fromBase64 } from "@/lib/crypto";
+import { generateCEK, generateSalt, deriveKeyBytes, unwrapKey, fromBase64, toBase64, encryptChunk } from "@/lib/crypto";
 
 // Zero-knowledge metadata crypto: filename encryption (name-crypto) and
 // per-folder password protection (folder-crypto). Both are pure client-side
@@ -79,6 +79,24 @@ describe("folder-crypto: per-folder password", () => {
   it("returns false (never throws) on a corrupt verifier", async () => {
     const salt = deriveFolderPwSalt();
     expect(await verifyFolderPassword("whatever", salt, "garbage-not-base64")).toBe(false);
+  });
+
+  it("rejects a verifier that decrypts to the wrong LENGTH (right key, wrong content)", async () => {
+    // Seal a plaintext of a different length than the version constant under the
+    // CORRECT key: it decrypts fine but fails the length check.
+    const salt = deriveFolderPwSalt();
+    const kek = await deriveKeyBytes("pw", fromBase64(salt));
+    const badVerifier = toBase64(await encryptChunk(kek, new TextEncoder().encode("short")));
+    expect(await verifyFolderPassword("pw", salt, badVerifier)).toBe(false);
+  });
+
+  it("rejects a verifier of the right length but wrong bytes (right key)", async () => {
+    // "zcrypt-folder-verify-v1" is 23 bytes; seal a different 23-byte string.
+    const salt = deriveFolderPwSalt();
+    const kek = await deriveKeyBytes("pw", fromBase64(salt));
+    const sameLen = "x".repeat("zcrypt-folder-verify-v1".length);
+    const badVerifier = toBase64(await encryptChunk(kek, new TextEncoder().encode(sameLen)));
+    expect(await verifyFolderPassword("pw", salt, badVerifier)).toBe(false);
   });
 
   it("a verifier is bound to its salt: the same password with a different salt fails", async () => {

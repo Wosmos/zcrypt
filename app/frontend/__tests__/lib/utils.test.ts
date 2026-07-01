@@ -8,6 +8,9 @@ import {
   getFileIcon,
   getFileCategory,
   isImageFile,
+  isVideoFile,
+  mimeForFile,
+  midTrunc,
   easeProgress,
 } from "@/lib/utils";
 
@@ -154,5 +157,51 @@ describe("easeProgress", () => {
     const v = easeProgress(50);
     expect(v).toBeGreaterThan(0);
     expect(v).toBeLessThanOrEqual(100);
+  });
+});
+
+describe("isVideoFile", () => {
+  it("recognizes video extensions (case-insensitive)", () => {
+    expect(isVideoFile("clip.mp4")).toBe(true);
+    expect(isVideoFile("MOVIE.MOV")).toBe(true);
+    expect(isVideoFile("a.webm")).toBe(true);
+  });
+  it("rejects non-video and extension-less names", () => {
+    expect(isVideoFile("photo.png")).toBe(false);
+    expect(isVideoFile("README")).toBe(false);
+  });
+});
+
+describe("mimeForFile", () => {
+  it("maps known image + video extensions to their MIME type", () => {
+    expect(mimeForFile("a.png")).toBe("image/png");
+    expect(mimeForFile("a.JPG")).toBe("image/jpeg");
+    expect(mimeForFile("a.svg")).toBe("image/svg+xml");
+    expect(mimeForFile("a.mp4")).toBe("video/mp4");
+    expect(mimeForFile("a.mkv")).toBe("video/x-matroska");
+  });
+  it("falls back to octet-stream for unknown / missing extensions", () => {
+    expect(mimeForFile("a.xyz")).toBe("application/octet-stream");
+    expect(mimeForFile("noext")).toBe("application/octet-stream");
+  });
+});
+
+describe("midTrunc", () => {
+  it("returns the name unchanged when short enough", () => {
+    expect(midTrunc("short.txt")).toBe("short.txt");
+  });
+  it("middle-truncates a long base name while keeping the extension", () => {
+    const out = midTrunc("a-very-long-file-name-indeed.pdf");
+    expect(out).toContain("…");
+    expect(out.endsWith(".pdf")).toBe(true);
+    expect(out.startsWith("a-very-lon")).toBe(true); // default start = 10 chars
+  });
+  it("handles names with no extension", () => {
+    const out = midTrunc("thisisareallylongnamewithnoextension");
+    expect(out).toContain("…");
+    expect(out).not.toContain(".");
+  });
+  it("respects custom start/end lengths", () => {
+    expect(midTrunc("abcdefghijklmnop.txt", 3, 2)).toBe("abc…op.txt");
   });
 });
