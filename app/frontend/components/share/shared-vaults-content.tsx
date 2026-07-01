@@ -15,6 +15,7 @@ import {
   shareFileIntoSpace,
   unshareFileFromSpace,
   downloadSpaceFile,
+  rotateSpaceKey,
 } from "@/lib/spaces";
 import { ensureUserKeypair } from "@/lib/keys";
 import { usePassphraseStore } from "@/store/passphrase";
@@ -77,6 +78,7 @@ export function SharedVaultsContent() {
   const [deleteTarget, setDeleteTarget] = useState<SharedVault | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  const [rotating, setRotating] = useState(false);
   const [downloadingFile, setDownloadingFile] = useState<string | null>(null);
   const [removingFile, setRemovingFile] = useState<string | null>(null);
   const [fileError, setFileError] = useState("");
@@ -250,14 +252,39 @@ export function SharedVaultsContent() {
 
   const handleRemoveMember = async (userId: string) => {
     if (!detail) return;
+    setMemberError("");
+    setRotating(true);
     try {
       await removeSharedVaultMember(detail.id, userId);
-      setDetail({
-        ...detail,
-        members: detail.members.filter((m) => m.user_id !== userId),
-      });
+      const remaining = detail.members.filter((m) => m.user_id !== userId);
+      // True revocation: rotate the space key so a copy the removed member may
+      // have kept becomes useless (every file gets re-wrapped under the new key).
+      try {
+        await rotateSpaceKey(detail, remaining, detail.files);
+      } catch {
+        setMemberError(
+          "Member removed, but re-keying failed. Unlock this space and use Re-key to finish revoking access."
+        );
+      }
+      setDetail({ ...detail, members: remaining });
     } catch {
-      /* ignore */
+      setMemberError("Failed to remove member");
+    } finally {
+      setRotating(false);
+    }
+  };
+
+  const handleRotate = async () => {
+    if (!detail) return;
+    setMemberError("");
+    setRotating(true);
+    try {
+      await rotateSpaceKey(detail, detail.members, detail.files);
+      setDetail(await getSharedVault(detail.id));
+    } catch (err) {
+      setMemberError(err instanceof Error ? err.message : "Re-key failed");
+    } finally {
+      setRotating(false);
     }
   };
 
@@ -291,6 +318,8 @@ export function SharedVaultsContent() {
     : 0;
   const limitBytes = detail?.size_limit_bytes ?? 0;
   const overLimit = limitBytes > 0 && usedBytes >= limitBytes;
+  const isSpaceAdmin =
+    !!detail && (detail.owner_id === user?.id || detail.role === "admin");
 
   return (
     <Section
@@ -664,12 +693,26 @@ export function SharedVaultsContent() {
               </div>
 
               <div className="space-y-2 border-t border-[var(--color-border)] pt-4">
-                <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
-                  Members
-                  <span className="ml-1 tabular-nums">
-                    ({detail.members?.length || 0})
-                  </span>
-                </p>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
+                    Members
+                    <span className="ml-1 tabular-nums">
+                      ({detail.members?.length || 0})
+                    </span>
+                  </p>
+                  {isSpaceAdmin && (
+                    <button
+                      type="button"
+                      onClick={handleRotate}
+                      disabled={rotating}
+                      title="Generate a new space key and re-wrap every file under it. Use after removing someone, or periodically."
+                      className="flex items-center gap-1 text-xs font-medium text-[var(--color-accent)] outline-none hover:underline disabled:opacity-50"
+                    >
+                      {rotating && <Loader2 className="h-3 w-3 animate-spin" />}
+                      {rotating ? "Re-keying..." : "Re-key"}
+                    </button>
+                  )}
+                </div>
                 {detail.members && detail.members.length > 0 ? (
                   <ul className="space-y-1">
                     {detail.members.map((m) => (
@@ -710,6 +753,7 @@ export function SharedVaultsContent() {
                               label="Remove member"
                               variant="ghost"
                               onClick={() => handleRemoveMember(m.user_id)}
+                              disabled={rotating}
                               className="h-7 w-7 flex-shrink-0 hover:text-red-500"
                               iconClassName="h-3.5 w-3.5"
                             />

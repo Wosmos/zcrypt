@@ -13,13 +13,15 @@ import {
   addFileToSpace,
   removeFileFromSpace,
   getFileMeta,
+  getUserPublicKey,
+  rotateSpace,
 } from "@/lib/api";
 import { fromBase64, toBase64, resolveFileKey, wrapKey, unwrapKey } from "@/lib/crypto";
 import { downloadAndDecryptFile, type DownloadOptions } from "@/lib/download-session";
 import { useKeysStore } from "@/store/keys";
 import { useSpacesStore } from "@/store/spaces";
 import { usePassphraseStore } from "@/store/passphrase";
-import type { SharedVault, SharedVaultMember } from "@/types";
+import type { SharedVault, SharedVaultMember, SharedVaultFile } from "@/types";
 
 /** A Uint8Array's bytes as a standalone ArrayBuffer (used as an AES key). */
 function keyBuffer(u8: Uint8Array): ArrayBuffer {
@@ -103,6 +105,47 @@ export async function downloadSpaceFile(
 ): Promise<void> {
   const keyBytes = await spaceFileKey(vault, spaceWrappedCek);
   await downloadAndDecryptFile(fileId, "", { ...options, resolveKey: async () => keyBytes });
+}
+
+/** Rotate a space's key so a removed member loses access for good. Generates a
+ *  fresh space key, seals it to every REMAINING member's public key, and
+ *  re-wraps every shared file's CEK under it. Call this AFTER removing the
+ *  member. Requires the space to be unlocked (needs the old key to re-wrap).
+ *  Members with no published key are skipped — they have no functional access
+ *  either way. */
+export async function rotateSpaceKey(
+  vault: SharedVault,
+  remainingMembers: SharedVaultMember[],
+  files: SharedVaultFile[]
+): Promise<void> {
+  const oldKey = await loadSpaceKey(vault);
+  if (!oldKey) throw new Error("This space's key isn't available — unlock your vault first.");
+  const newKey = generateSpaceKey();
+
+  const memberGrants: { user_id: string; wrapped_space_key: string }[] = [];
+  for (const m of remainingMembers) {
+    try {
+      const pk = await getUserPublicKey(m.user_id);
+      memberGrants.push({
+        user_id: m.user_id,
+        wrapped_space_key: await sealTo(fromBase64(pk.public_key), newKey),
+      });
+    } catch {
+      /* member has no published key — nothing to seal, and no access to lose */
+    }
+  }
+
+  const fileWraps: { file_id: string; wrapped_cek: string }[] = [];
+  for (const f of files) {
+    const cek = await unwrapKey(keyBuffer(oldKey), fromBase64(f.wrapped_cek));
+    fileWraps.push({
+      file_id: f.file_id,
+      wrapped_cek: toBase64(await wrapKey(keyBuffer(newKey), cek)),
+    });
+  }
+
+  await rotateSpace(vault.id, memberGrants, fileWraps);
+  useSpacesStore.getState().setSpaceKey(vault.id, newKey);
 }
 
 /** Share a space with another user by email: look up their public key, seal the

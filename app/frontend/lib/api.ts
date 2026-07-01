@@ -940,6 +940,20 @@ export function removeFileFromSpace(vaultId: string, fileId: string): Promise<{ 
   return request<{ success: boolean }>(`/api/shared-vaults/${vaultId}/files/${fileId}`, { method: "DELETE" });
 }
 
+/** Rotate a space's key (admin only): new key sealed to each remaining member,
+ *  every file's CEK re-wrapped under it. All values are opaque to the server. */
+export function rotateSpace(
+  vaultId: string,
+  members: { user_id: string; wrapped_space_key: string }[],
+  files: { file_id: string; wrapped_cek: string }[]
+): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/api/shared-vaults/${vaultId}/rotate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ members, files }),
+  });
+}
+
 // ─── Offline Pins ───────────────────────────────────────────────────────────
 
 export function listOfflinePins(deviceId?: string): Promise<OfflinePin[]> {
