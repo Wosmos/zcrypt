@@ -1,7 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   generateSalt,
   deriveKeyBytes,
+  deriveKeyBytesCached,
+  clearDerivedKeyCache,
   encryptChunk,
   decryptChunk,
   sha256Hex,
@@ -279,5 +281,86 @@ describe("sha256File", () => {
       slice: () => ({ arrayBuffer: async () => new Uint8Array(8).buffer }),
     } as unknown as File;
     expect(await sha256File(bigFile)).toMatch(/^[0-9a-f]{64}$/);
+  });
+});
+
+describe("deriveKeyBytesCached (derived-key memo)", () => {
+  // A distinct, deterministic 32-byte salt per index (so distinct cache keys).
+  function saltOf(i: number): Uint8Array {
+    const s = new Uint8Array(32);
+    s[0] = i & 0xff;
+    s[1] = (i >> 8) & 0xff;
+    s[2] = (i >> 16) & 0xff;
+    return s;
+  }
+
+  // Real PBKDF2 at 600k iterations is ~77ms/call; filling the 256-entry cap to
+  // exercise eviction would take ~20s. The memo logic under test is independent
+  // of the KDF, so stub deriveBits with a fast, unique-per-call result and assert
+  // on the deriveBits CALL COUNT to prove hits (no call) vs misses (a call).
+  let deriveSpy: ReturnType<typeof vi.spyOn>;
+  beforeEach(() => {
+    clearDerivedKeyCache();
+    let n = 0;
+    deriveSpy = vi
+      .spyOn(crypto.subtle, "deriveBits")
+      .mockImplementation(async () => {
+        const buf = new Uint8Array(32);
+        buf[0] = n & 0xff;
+        buf[1] = (n >> 8) & 0xff;
+        n++;
+        return buf.buffer;
+      });
+  });
+  afterEach(() => {
+    deriveSpy.mockRestore();
+    clearDerivedKeyCache();
+  });
+
+  it("derives once then serves the cached bytes on a repeat (same salt+passphrase)", async () => {
+    const salt = saltOf(1);
+    const a = await deriveKeyBytesCached("pw", salt);
+    const b = await deriveKeyBytesCached("pw", salt);
+    // Second call was a cache hit — no second derivation.
+    expect(deriveSpy).toHaveBeenCalledTimes(1);
+    // Same bytes, but a FRESH buffer each time so a caller that transfers the
+    // buffer to a worker can never corrupt the cached copy.
+    expect(new Uint8Array(b)).toEqual(new Uint8Array(a));
+    expect(b).not.toBe(a);
+  });
+
+  it("treats distinct salts (and distinct passphrases) as separate cache entries", async () => {
+    await deriveKeyBytesCached("pw", saltOf(1));
+    await deriveKeyBytesCached("pw", saltOf(2)); // different salt → miss
+    await deriveKeyBytesCached("other", saltOf(1)); // different passphrase → miss
+    expect(deriveSpy).toHaveBeenCalledTimes(3);
+  });
+
+  it("clearDerivedKeyCache forces the next call to re-derive", async () => {
+    const salt = saltOf(1);
+    await deriveKeyBytesCached("pw", salt);
+    await deriveKeyBytesCached("pw", salt); // hit
+    expect(deriveSpy).toHaveBeenCalledTimes(1);
+    clearDerivedKeyCache();
+    await deriveKeyBytesCached("pw", salt); // miss again
+    expect(deriveSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it("evicts the oldest entry once the cache is full (insertion-order LRU)", async () => {
+    const MAX = 256; // mirrors DERIVED_KEY_CACHE_MAX
+    for (let i = 0; i < MAX; i++) await deriveKeyBytesCached("pw", saltOf(i));
+    expect(deriveSpy).toHaveBeenCalledTimes(MAX); // all misses
+
+    // The oldest entry (index 0) is still cached — a hit, no new derivation.
+    await deriveKeyBytesCached("pw", saltOf(0));
+    expect(deriveSpy).toHaveBeenCalledTimes(MAX);
+
+    // Adding a fresh 257th entry trips the cap and evicts the oldest (index 0).
+    await deriveKeyBytesCached("pw", saltOf(9999));
+    expect(deriveSpy).toHaveBeenCalledTimes(MAX + 1);
+
+    // Index 0 was evicted, so requesting it again is now a miss (re-derives).
+    await deriveKeyBytesCached("pw", saltOf(0));
+    expect(deriveSpy).toHaveBeenCalledTimes(MAX + 2);
   });
 });

@@ -80,6 +80,60 @@ describe("public share access", () => {
   });
 });
 
+describe("folder-share public access", () => {
+  it("getFolderShareInfo sends the password header only when given, and throws a fixed message on failure", async () => {
+    fetchMock.mockResolvedValueOnce(mk(200, { json: { id: "fs1" } }));
+    await api.getFolderShareInfo("tok", "secret");
+    expect(url()).toContain("/api/folder-share/tok");
+    expect(init().headers!["X-Share-Password"]).toBe("secret");
+
+    fetchMock.mockResolvedValueOnce(mk(200, { json: { id: "fs1" } }));
+    await api.getFolderShareInfo("tok");
+    expect(init(1).headers!["X-Share-Password"]).toBeUndefined();
+
+    fetchMock.mockResolvedValueOnce(mk(404, {}));
+    await expect(api.getFolderShareInfo("tok")).rejects.toThrow("Folder link not found");
+  });
+
+  it("getFolderShareFileMeta sends the password header only when given, and parses errors", async () => {
+    fetchMock.mockResolvedValueOnce(mk(200, { json: { id: "f" } }));
+    await api.getFolderShareFileMeta("tok", "f1", "secret");
+    expect(url()).toContain("/api/folder-share/tok/files/f1/meta");
+    expect(init().headers!["X-Share-Password"]).toBe("secret");
+
+    fetchMock.mockResolvedValueOnce(mk(200, { json: { id: "f" } }));
+    await api.getFolderShareFileMeta("tok", "f1");
+    expect(init(1).headers!["X-Share-Password"]).toBeUndefined();
+
+    fetchMock.mockResolvedValueOnce(mk(403, { json: { error: "bad password" } }));
+    await expect(api.getFolderShareFileMeta("tok", "f1")).rejects.toThrow("bad password");
+
+    // Error body that isn't valid JSON exercises the .catch(() => ({})) fallback.
+    fetchMock.mockResolvedValueOnce(mk(500, { jsonThrows: true }));
+    await expect(api.getFolderShareFileMeta("tok", "f1")).rejects.toThrow("Failed to get file metadata");
+  });
+
+  it("getFolderShareChunk returns bytes + parsed headers (with optional password), and defaults on absent headers", async () => {
+    fetchMock.mockResolvedValueOnce(
+      mk(200, { bytes: new Uint8Array([9, 9]).buffer, hdr: { "X-Chunk-SHA256": "h", "X-Chunk-Compressed": "true" } })
+    );
+    const out = await api.getFolderShareChunk("tok", "f1", 3, "pw");
+    expect(url()).toContain("/api/folder-share/tok/files/f1/chunks/3");
+    expect(init().headers!["X-Share-Password"]).toBe("pw");
+    expect(new Uint8Array(out.data)).toEqual(new Uint8Array([9, 9]));
+    expect(out.sha256).toBe("h");
+    expect(out.compressed).toBe(true);
+
+    fetchMock.mockResolvedValueOnce(mk(200, { bytes: new Uint8Array([1]).buffer })); // no headers
+    const defaulted = await api.getFolderShareChunk("tok", "f1", 0);
+    expect(defaulted.sha256).toBe("");
+    expect(defaulted.compressed).toBe(false);
+
+    fetchMock.mockResolvedValueOnce(mk(500, {}));
+    await expect(api.getFolderShareChunk("tok", "f1", 3)).rejects.toThrow("Failed to download chunk");
+  });
+});
+
 describe("anonymous send", () => {
   it("sendInit posts and parses error bodies", async () => {
     fetchMock.mockResolvedValueOnce(mk(200, { json: { session_id: "s" } }));
@@ -259,6 +313,12 @@ describe("optional-parameter + error branches", () => {
     fetchMock.mockResolvedValueOnce(mk(200, { json: [] }));
     await api.listShares("f9");
     expect(url()).toContain("/api/shares?file_id=f9");
+  });
+
+  it("listFolderShares includes ?folder_id only when a folderId is given", async () => {
+    fetchMock.mockResolvedValueOnce(mk(200, { json: [] }));
+    await api.listFolderShares("fold9");
+    expect(url()).toContain("/api/folder-shares?folder_id=fold9");
   });
 
   it("listOfflinePins includes ?device_id only when given", async () => {
