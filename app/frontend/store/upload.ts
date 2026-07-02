@@ -208,6 +208,21 @@ interface UploadFileOpts {
    * this move just files the row under the folder. null/undefined = stay at Root.
    */
   folderId?: string | null;
+  /**
+   * Batch-shared KEK (startUpload derives it ONCE): PBKDF2 at 600k iterations is
+   * the single most expensive CPU step of an upload, so a 50-photo batch must
+   * not pay it 50 times. Sharing the PBKDF2 salt across a batch is safe —
+   * security rests on the passphrase; each file still gets its own random CEK
+   * and unique AES-GCM nonces. Absent on retry/resume, which derive per-file.
+   */
+  batchKek?: { salt: Uint8Array; kekBytes: ArrayBuffer };
+  /**
+   * Batch-shared WorkerPool (startUpload creates + terminates it): worker
+   * spin-up and zstd WASM init cost real time on mobile, so they're paid once
+   * per batch instead of once per file. Absent on retry/resume, which create
+   * (and own) a transient pool per call.
+   */
+  pool?: WorkerPool;
 }
 
 // Runs one file through the client-side crypto + upload pipeline.
@@ -220,7 +235,11 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
   const { passphrase, platform, profile, onRefresh, folderId } = opts;
   const { updateStatus, setFileId, setError } = useUploadStore.getState();
   const chunkSize = profile.chunkSize;
-  const pool = new WorkerPool();
+  // Use the batch-shared pool when startUpload handed one in; otherwise
+  // (retry/resume) create a transient one. We only terminate a pool we own —
+  // the batch pool is torn down by startUpload once the WHOLE batch settles.
+  const pool = opts.pool ?? new WorkerPool();
+  const ownsPool = opts.pool === undefined;
 
   let resume = itemMeta.get(id)?.resume;
 
@@ -258,8 +277,12 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
       const fileSha256 = await sha256File(file);
 
       updateStatus(id, "encrypting", 2, "Deriving encryption key...");
-      const salt = generateSalt();
-      const kekBytes = await deriveKeyBytes(passphrase, salt);
+      // Batch path: reuse the salt + KEK startUpload derived once for the whole
+      // batch (see UploadFileOpts.batchKek for why sharing the salt is safe).
+      // The file's stored `salt` becomes the shared batch salt. Retry/resume
+      // pass no batchKek and derive per-file, exactly as before.
+      const salt = opts.batchKek?.salt ?? generateSalt();
+      const kekBytes = opts.batchKek?.kekBytes ?? (await deriveKeyBytes(passphrase, salt));
       const cek = generateCEK();
       const wrappedCek = await wrapKey(kekBytes, cek);
       cekBytes = cek.buffer.slice(0) as ArrayBuffer;
@@ -317,6 +340,31 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
     let uploadedChunks = done.size;
     let totalEncryptedSize = 0;
     let totalCompressedSize = 0;
+
+    // Byte-level progress (fed by xhr.upload.onprogress): completed chunks
+    // count their full plaintext size; the in-flight chunk contributes a
+    // partial, scaled from wire bytes sent to plaintext bytes, so the bar moves
+    // smoothly THROUGH a 4-16MB chunk instead of freezing for its whole flight.
+    // Per-chunk values are kept monotonic (Math.max) so a retried chunk doesn't
+    // wind the bar backwards.
+    const plainSizeOfChunk = (i: number) => Math.min(chunkSize, file.size - i * chunkSize);
+    let completedPlainBytes = 0;
+    for (const i of done) completedPlainBytes += plainSizeOfChunk(i);
+    const inFlightPlainBytes = new Map<number, number>();
+
+    const emitByteProgress = () => {
+      // While paused, in-flight chunks must not flip the row back to "uploading".
+      if (pausedIds.has(id)) return;
+      let inFlight = 0;
+      for (const v of inFlightPlainBytes.values()) inFlight += v;
+      const bytes = Math.min(completedPlainBytes + inFlight, file.size);
+      const fraction = file.size > 0 ? bytes / file.size : uploadedChunks / chunkCount;
+      const percent = 3 + Math.round(fraction * 92);
+      // Stage names the chunk currently in flight (falls back to the completed
+      // count between chunks / at the end).
+      const current = Math.min(uploadedChunks + (inFlightPlainBytes.size > 0 ? 1 : 0), chunkCount);
+      updateStatus(id, "uploading", percent, `Uploading chunk ${current}/${chunkCount}`, bytes, file.size);
+    };
 
     // Pipeline depth: let workers pre-process several chunks ahead of uploads.
     const pipelineDepth = Math.min(profile.workers * 3, 12);
@@ -379,13 +427,23 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
         try {
           const encrypted = new Uint8Array(result.encrypted);
 
+          // Intra-chunk progress: scale WIRE bytes sent to PLAINTEXT bytes (the
+          // bar's unit) via the chunk's encrypted/plaintext ratio, then feed the
+          // shared byte accounting. emitByteProgress skips emits while paused.
+          const onChunkProgress = (sentBytes: number) => {
+            const frac = encrypted.byteLength > 0 ? Math.min(sentBytes / encrypted.byteLength, 1) : 1;
+            const prev = inFlightPlainBytes.get(result.chunkIndex) ?? 0;
+            inFlightPlainBytes.set(result.chunkIndex, Math.max(prev, frac * plainSizeOfChunk(result.chunkIndex)));
+            emitByteProgress();
+          };
+
           if (useDirectUpload) {
             // DIRECT MODE: presign -> upload to platform -> confirm
             const presign = await withRetry(() => presignChunk(
               sessionId, result.chunkIndex, result.sha256, encrypted.byteLength
             ));
             if (!presign.already_exists) {
-              await directUploadToURL(presign.upload_url, presign.upload_headers, encrypted);
+              await directUploadToURL(presign.upload_url, presign.upload_headers, encrypted, onChunkProgress);
             }
             await withRetry(() => confirmChunk(
               sessionId, result.chunkIndex, result.sha256, encrypted.byteLength, presign.remote_path, result.compressed
@@ -393,7 +451,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
           } else {
             // RELAY MODE: upload to server (server relays to platform)
             await withRetry(() => uploadChunk(
-              sessionId, result.chunkIndex, encrypted, result.sha256, result.compressed
+              sessionId, result.chunkIndex, encrypted, result.sha256, result.compressed, onChunkProgress
             ));
           }
 
@@ -401,20 +459,13 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
           totalEncryptedSize += result.encryptedSize;
           totalCompressedSize += result.compressed ? result.compressedSize : result.originalSize;
 
-          // If the user paused, an in-flight chunk finishing here must NOT flip the
-          // row back to "uploading" — skip the status emit while paused. The byte
-          // accounting above still runs so resume math (uploaded_chunks) stays correct.
-          if (!pausedIds.has(id)) {
-            const percent = 3 + Math.round((uploadedChunks / chunkCount) * 92);
-            updateStatus(
-              id,
-              "uploading",
-              percent,
-              `Uploading chunk ${uploadedChunks}/${chunkCount}`,
-              uploadedChunks * chunkSize,
-              file.size
-            );
-          }
+          // Move this chunk from in-flight to completed, then emit. The byte
+          // accounting runs even while paused (so resume math stays correct);
+          // emitByteProgress itself skips the status emit while paused so an
+          // in-flight chunk finishing can't flip the row back to "uploading".
+          inFlightPlainBytes.delete(result.chunkIndex);
+          completedPlainBytes += plainSizeOfChunk(result.chunkIndex);
+          emitByteProgress();
         } finally {
           releaseUploadSlot();
         }
@@ -437,7 +488,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
     // completing anyway.
     if (pausedIds.has(id)) {
       const percent = 3 + Math.round((uploadedChunks / chunkCount) * 92);
-      updateStatus(id, "paused", percent, "Paused", uploadedChunks * chunkSize, file.size);
+      updateStatus(id, "paused", percent, "Paused", completedPlainBytes, file.size);
       return;
     }
 
@@ -462,7 +513,9 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
     // resume via Retry (skipping chunks already uploaded). The session is
     // cancelled only when the user dismisses the item (removeFromQueue).
   } finally {
-    pool.terminate();
+    // Batch-shared pools outlive this file — startUpload terminates them once
+    // the whole batch settles. Only tear down a pool this call created.
+    if (ownsPool) pool.terminate();
   }
 }
 
@@ -569,7 +622,20 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
   startUpload: (files, passphrase, platform, maxConcurrent, onRefresh, hfConnected = false, folderId = null) => {
     const { addBatchToQueue } = get();
     const profile = getDeviceProfile();
-    const effectiveConcurrent = maxConcurrent ?? profile.maxConcurrentUploads;
+
+    // Effective file-level concurrency. Mobile profiles allow only 1-2 parallel
+    // files, so a 50-photo batch ran as ~25-50 sequential rounds, each paying
+    // fixed per-file costs (3 serial init/complete RTTs). When EVERY file is
+    // small (under 2 chunks), floor the concurrency at 4 — the heavy per-file
+    // work is batch-amortized (shared KEK + worker pool below), so the extra
+    // parallelism costs little more than network sockets. Mixed or large
+    // batches keep the profile/plan limit so big files don't compete for memory
+    // and bandwidth. (Deliberately the simple "all-small" rule — no median-size
+    // heuristics.) If the raised floor trips the server's concurrent-upload
+    // cap, initUpload's wait-for-slot retry loop absorbs it.
+    const baseLimit = maxConcurrent ?? profile.maxConcurrentUploads;
+    const allSmall = files.length > 0 && files.every((f) => f.size < 2 * profile.chunkSize);
+    const effectiveConcurrent = allSmall ? Math.max(baseLimit, 4) : baseLimit;
 
     // Add all files to queue in a single state update (prevents 10k re-renders)
     const items = addBatchToQueue(files);
@@ -608,20 +674,35 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
       return { done, failed, total: batch.length, percent };
     });
 
-    // Launch all uploads with concurrency control, show summary when done
-    void Promise.all(
-      items.map(async ({ file, id }) => {
-        await acquire();
-        try {
-          const meta = itemMeta.get(id);
-          const target = meta?.platform; // per-file (may be huggingface)
-          await uploadOneFile(file, id, { passphrase, platform: target, profile, onRefresh, folderId: meta?.folderId });
-        } finally {
-          release();
-        }
-      })
-    ).then(() => {
-      stopBackgroundNotifications();
+    // Launch all uploads with concurrency control, show summary when done.
+    // BATCH AMORTIZATION: derive ONE KEK (PBKDF2 600k iterations — the single
+    // most expensive CPU step) and spin up ONE worker pool (workers + zstd WASM
+    // init) for the whole batch, instead of once per file. Both are shared by
+    // every uploadOneFile call and torn down when the batch settles — the
+    // finally runs even if setup or an upload throws. uploadOneFile catches its
+    // own per-file errors (setError), so Promise.all settles when all files do.
+    void (async () => {
+      const pool = new WorkerPool();
+      try {
+        const batchSalt = generateSalt();
+        const batchKek = { salt: batchSalt, kekBytes: await deriveKeyBytes(passphrase, batchSalt) };
+        await Promise.all(
+          items.map(async ({ file, id }) => {
+            await acquire();
+            try {
+              const meta = itemMeta.get(id);
+              const target = meta?.platform; // per-file (may be huggingface)
+              await uploadOneFile(file, id, { passphrase, platform: target, profile, onRefresh, folderId: meta?.folderId, batchKek, pool });
+            } finally {
+              release();
+            }
+          })
+        );
+      } finally {
+        pool.terminate();
+        stopBackgroundNotifications();
+      }
+
       // Batch complete — show a single summary toast
       const { queue } = get();
       const batchItems = queue.filter((q) => batchIds.has(q.id));
@@ -647,7 +728,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
       }
 
       onRefresh?.();
-    });
+    })();
   },
 
   retryUpload: (id, passphrase) => {

@@ -183,6 +183,14 @@ export function useVaultActions({
 
   const handleFilesSelected = useCallback(
     (selectedFiles: File[]) => {
+      // Immediate acknowledgment, before ANY gating. On iOS the OS can spend
+      // many seconds transcoding HEIC/HEVC before this callback even fires —
+      // this toast is the first visible proof that the tap worked and the
+      // batch is in hand, so users stop re-tapping the picker.
+      toast.info(
+        `Preparing ${selectedFiles.length} file${selectedFiles.length === 1 ? "" : "s"} for upload…`
+      );
+
       // Managed storage / personal tokens must be available.
       if (quotaInfo && !quotaInfo.can_upload) {
         toast.warning("No storage platform connected. Go to Settings to connect one.");
