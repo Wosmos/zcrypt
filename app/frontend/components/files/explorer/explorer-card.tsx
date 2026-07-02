@@ -7,6 +7,7 @@ import type { FileMetadata } from "@/types";
 import type { RowDragProps } from "./explorer-row";
 import { formatBytes, getFileTypeInfo, isVideoFile, cn, midTrunc } from "@/lib/utils";
 import { useThumbnail } from "@/hooks/useThumbnail";
+import { prefetchOnHover } from "@/hooks/useFileDecryptor";
 import { getFolderIcon, getFolderInitial } from "@/lib/folder-icons";
 import {
   File,
@@ -317,6 +318,9 @@ function FileCardInner({
           draggable={drag.draggable}
           onClick={(e) => onFileClick(file, e)}
           onKeyDown={(e) => onEntryKeyDown(entry, e)}
+          // Desktop-only hover prefetch: warm the decrypt cache for previewable
+          // files so opening feels instant (guards + dedup live in prefetchOnHover).
+          onPointerEnter={() => prefetchOnHover(file)}
           onDragStart={drag.onDragStart}
           onDragEnd={drag.onDragEnd}
           {...(drag.dropHandlers ?? {})}

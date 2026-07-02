@@ -21,6 +21,8 @@
  * protected folder re-locks, without coupling this module to the file store.
  */
 
+import { clearDerivedKeyCache } from "@/lib/crypto";
+
 const MAX_BYTES = 300 * 1024 * 1024; // 300 MB session budget
 
 interface Entry {
@@ -59,6 +61,15 @@ export function getCachedBlob(id: string): Blob | undefined {
 /** True if a blob is already cached or a decrypt for it is already running. */
 export function isWarmOrInflight(id: string): boolean {
   return cache.has(id) || inflight.has(id);
+}
+
+/**
+ * True while any full-file decrypt is in flight (viewer open, download reuse,
+ * neighbour prefetch). Background work — e.g. the thumbnail queue — uses this
+ * to yield network + CPU to the file the user is actually waiting on.
+ */
+export function isForegroundDecryptActive(): boolean {
+  return inflight.size > 0;
 }
 
 function store(id: string, blob: Blob, folderId: string | null): void {
@@ -142,6 +153,10 @@ export function clearDecryptCache(): void {
   inflight.clear();
   totalBytes = 0;
   generation++; // invalidate any in-flight run so it can't repopulate post-lock
+  // Derived keys are the same exposure class as this plaintext — a lock event
+  // must drop both, or a re-lock would leave 600k-iteration PBKDF2 results
+  // usable in memory.
+  clearDerivedKeyCache();
 }
 
 /**
@@ -161,4 +176,7 @@ export function clearDecryptCacheForFolder(folderId: string): void {
   // generation: any decrypt still running cannot repopulate the cache after this
   // (worst case an unrelated file just misses the cache and re-decrypts later).
   generation++;
+  // Same story for derived keys: there is no folder→salt mapping, so the safe
+  // fallback is a FULL clear — unaffected files merely re-derive on next open.
+  clearDerivedKeyCache();
 }

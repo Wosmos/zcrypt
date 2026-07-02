@@ -81,8 +81,15 @@ export interface FileViewerProps {
   onIndexChange: (index: number) => void;
   /** Close the overlay (Esc, close button, backdrop). */
   onClose: () => void;
-  /** Decrypt a file fully in-browser to a typed Blob. */
-  decrypt: (file: FileMetadata) => Promise<Blob>;
+  /**
+   * Decrypt a file fully in-browser to a typed Blob. The optional second
+   * argument receives chunk-level progress (drives the "Decrypting… X/Y" UI);
+   * callers passing a single-arg function remain compatible.
+   */
+  decrypt: (
+    file: FileMetadata,
+    onProgress?: (done: number, total: number) => void
+  ) => Promise<Blob>;
   /**
    * Optional best-effort cache warm-up for a file (never prompts). When given,
    * the viewer prefetches the next/previous file so navigation is instant.
@@ -105,7 +112,9 @@ const FOCUSABLE =
   'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
 type LoadState =
-  | { status: "loading" }
+  // `done`/`total` are chunk counts from the decrypt pipeline — undefined until
+  // the first chunk lands (metadata / key derivation still in flight).
+  | { status: "loading"; done?: number; total?: number }
   | { status: "ready"; blob: Blob }
   | { status: "error"; kind: "wrong-password" | "integrity" | "generic"; message: string }
   | { status: "cancelled" };
@@ -165,7 +174,15 @@ export function FileViewer({
 
     (async () => {
       try {
-        const blob = await decryptRef.current(file);
+        // Chunk-level progress feeds the "Decrypting… X/Y" loading UI. Only
+        // update while still loading (a stale callback after ready/error would
+        // otherwise resurrect the spinner).
+        const blob = await decryptRef.current(file, (done, total) => {
+          if (cancelled) return;
+          setState((s) =>
+            s.status === "loading" ? { status: "loading", done, total } : s
+          );
+        });
         if (cancelled) return;
         // Some sub-viewers want a URL (image/video/audio), others read the blob
         // directly (pdf via pdf.js, docx/html/md/csv/text). Build the URL eagerly
@@ -522,8 +539,9 @@ function ViewerBody({
             aria-hidden
             className="h-full w-full scale-105 object-contain opacity-60 blur-xl"
           />
-          <div className="absolute inset-0 flex items-center justify-center">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
             <LogoSpinner size="md" speed="fast" />
+            <DecryptProgress done={state.done} total={state.total} />
           </div>
         </div>
       );
@@ -531,7 +549,7 @@ function ViewerBody({
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3">
         <LogoSpinner size="md" speed="fast" />
-        <p className="text-xs text-[var(--color-text-muted)]">Decrypting…</p>
+        <DecryptProgress done={state.done} total={state.total} />
       </div>
     );
   }
@@ -617,6 +635,30 @@ function ViewerBody({
     default:
       return <FallbackBody file={file} onDownload={onDownload} />;
   }
+}
+
+/**
+ * "Decrypting… X/Y" + a thin chunk-progress bar (track/fill styling matches
+ * ui/progress-bar.tsx). Multi-chunk files get real numbers; single-chunk or
+ * pre-first-chunk states fall back to the plain label so nothing flashes.
+ */
+function DecryptProgress({ done, total }: { done?: number; total?: number }) {
+  const showBar = total !== undefined && total > 1;
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <p className="text-xs tabular-nums text-[var(--color-text-muted)]">
+        {showBar ? `Decrypting… ${done ?? 0}/${total}` : "Decrypting…"}
+      </p>
+      {showBar && (
+        <div className="h-1.5 w-40 overflow-hidden rounded-full bg-[var(--color-surface-2)]">
+          <div
+            className="h-full rounded-full bg-[var(--color-accent)] transition-[width] duration-300 ease-out"
+            style={{ width: `${Math.round(((done ?? 0) / total) * 100)}%` }}
+          />
+        </div>
+      )}
+    </div>
+  );
 }
 
 function FallbackBody({
