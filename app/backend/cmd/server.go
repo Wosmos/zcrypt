@@ -2,8 +2,10 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -30,6 +32,13 @@ type Server struct {
 	adapterMu    sync.RWMutex
 	adapterCache map[string]map[string]adapters.PlatformAdapter
 	poolCache    map[string]map[string]*reppool.Manager
+	// adapterCacheExpiry marks cache entries built with ≥1 failed adapter so the
+	// failed tokens get retried after a short TTL instead of being negative-cached
+	// until restart. Entries with zero failures never appear here (no expiry).
+	adapterCacheExpiry map[string]time.Time
+	// adapterErrors records why an adapter failed to build (userID → platform →
+	// short token-free reason) so handlers can surface WHY instead of a generic 500.
+	adapterErrors map[string]map[string]string
 
 	// Cached plan configurations
 	planMu    sync.RWMutex
@@ -97,6 +106,8 @@ func NewServer(db *index.DB, cfg *config.Config, progress *pipeline.ProgressEmit
 		masterKey:           masterKey,
 		adapterCache:        make(map[string]map[string]adapters.PlatformAdapter),
 		poolCache:           make(map[string]map[string]*reppool.Manager),
+		adapterCacheExpiry:  make(map[string]time.Time),
+		adapterErrors:       make(map[string]map[string]string),
 		authLimiter:         newRateLimiter(5, 5*time.Minute),
 		emailLimiter:        newRateLimiter(3, 15*time.Minute),
 		userLimiter:         newRateLimiter(600, time.Minute),
@@ -135,13 +146,23 @@ func (s *Server) signalDeletion() {
 	}
 }
 
+// adapterRetryTTL is how long an adapter map built with ≥1 creation failure is
+// cached before the failed tokens are retried.
+const adapterRetryTTL = 60 * time.Second
+
 // getUserAdapters returns all adapters for a user (own tokens + global tokens).
-// Results are cached per userID.
+// Results are cached per userID. A map built with ≥1 failed adapter (e.g. the
+// platform is unreachable from this server) is still cached — the working
+// adapters stay usable — but only for adapterRetryTTL, so failures aren't
+// negative-cached until process restart.
 func (s *Server) getUserAdapters(ctx context.Context, userID string) (map[string]adapters.PlatformAdapter, error) {
 	s.adapterMu.RLock()
 	if cached, ok := s.adapterCache[userID]; ok {
-		s.adapterMu.RUnlock()
-		return cached, nil
+		expiry, hasExpiry := s.adapterCacheExpiry[userID]
+		if !hasExpiry || time.Now().Before(expiry) {
+			s.adapterMu.RUnlock()
+			return cached, nil
+		}
 	}
 	s.adapterMu.RUnlock()
 
@@ -152,6 +173,7 @@ func (s *Server) getUserAdapters(ctx context.Context, userID string) (map[string
 	}
 
 	userAdapters := make(map[string]adapters.PlatformAdapter)
+	failures := make(map[string]string) // platform → short reason
 
 	for _, tok := range tokens {
 		// Derive KEK for the token owner (not the current user, since global tokens belong to their creator)
@@ -170,6 +192,7 @@ func (s *Server) getUserAdapters(ctx context.Context, userID string) (map[string
 		adapter, err := createAdapter(tok.Platform, plaintext)
 		if err != nil {
 			log.Printf("warn: create adapter for %s/%s: %v", tok.Platform, tok.Username, err)
+			failures[tok.Platform] = shortAdapterError(err)
 			continue
 		}
 
@@ -180,9 +203,68 @@ func (s *Server) getUserAdapters(ctx context.Context, userID string) (map[string
 
 	s.adapterMu.Lock()
 	s.adapterCache[userID] = userAdapters
+	if len(failures) > 0 {
+		s.adapterCacheExpiry[userID] = time.Now().Add(adapterRetryTTL)
+		s.adapterErrors[userID] = failures
+	} else {
+		delete(s.adapterCacheExpiry, userID)
+		delete(s.adapterErrors, userID)
+	}
+	// Pools are derived from the adapter map — drop them so they rebuild from
+	// this fresh map (a retried adapter that now works must get a pool too).
+	delete(s.poolCache, userID)
 	s.adapterMu.Unlock()
 
 	return userAdapters, nil
+}
+
+// adapterError returns the recorded reason an adapter failed to build for
+// user+platform, or "" if none is recorded.
+func (s *Server) adapterError(userID, platform string) string {
+	s.adapterMu.RLock()
+	defer s.adapterMu.RUnlock()
+	return s.adapterErrors[userID][platform]
+}
+
+// adapterErrorsFor returns a copy of the recorded adapter-construction
+// failures for a user (platform → short reason), or nil if none.
+func (s *Server) adapterErrorsFor(userID string) map[string]string {
+	s.adapterMu.RLock()
+	defer s.adapterMu.RUnlock()
+	errs := s.adapterErrors[userID]
+	if len(errs) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(errs))
+	for platform, reason := range errs {
+		out[platform] = reason
+	}
+	return out
+}
+
+// shortAdapterError classifies an adapter-construction failure into a short,
+// token-free reason safe to surface to clients. Never return err.Error()
+// verbatim: transport errors embed the full request URL, which for Telegram
+// contains the bot token.
+func shortAdapterError(err error) string {
+	var netErr net.Error
+	msg := err.Error()
+	switch {
+	case strings.Contains(msg, "no such host"):
+		return "unreachable: DNS lookup failed"
+	case strings.Contains(msg, "connection refused"):
+		return "unreachable: connection refused"
+	case strings.Contains(msg, "TLS handshake timeout"):
+		return "unreachable: TLS handshake timeout"
+	case strings.Contains(msg, "connection reset"):
+		return "unreachable: connection reset"
+	case strings.Contains(msg, "context deadline exceeded"),
+		errors.As(err, &netErr) && netErr.Timeout():
+		return "unreachable: connection timed out"
+	case strings.Contains(msg, "401"), strings.Contains(msg, "Unauthorized"):
+		return "authentication failed (token may be revoked)"
+	}
+	return "connection failed"
 }
 
 // getUserPools returns repo pool managers for a user's adapters.
@@ -234,6 +316,8 @@ func (s *Server) invalidateUserCache(userID string) {
 	s.adapterMu.Lock()
 	delete(s.adapterCache, userID)
 	delete(s.poolCache, userID)
+	delete(s.adapterCacheExpiry, userID)
+	delete(s.adapterErrors, userID)
 	s.adapterMu.Unlock()
 }
 

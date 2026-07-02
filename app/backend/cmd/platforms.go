@@ -32,6 +32,7 @@ func (s *Server) HandlePlatformStatus(w http.ResponseWriter, r *http.Request) {
 	var statuses []types.PlatformStatus
 
 	userAdapters, _ := s.getUserAdapters(ctx, userID)
+	adapterFailures := s.adapterErrorsFor(userID)
 
 	// Fetch token info to include token_id and is_global
 	tokenInfos, _ := s.db.GetUserPlatformTokenInfo(ctx, userID)
@@ -60,6 +61,31 @@ func (s *Server) HandlePlatformStatus(w http.ResponseWriter, r *http.Request) {
 			status.IsGlobal = info.IsGlobal
 		}
 		statuses = append(statuses, status)
+	}
+
+	// Tokens whose adapter failed to build (e.g. the platform is unreachable
+	// from this server) still count as connected — the token exists — but are
+	// flagged unreachable with the recorded reason instead of silently showing
+	// as disconnected.
+	for key, info := range tokenMap {
+		if _, ok := userAdapters[key]; ok {
+			continue
+		}
+		reason, failed := adapterFailures[info.Platform]
+		if !failed {
+			continue
+		}
+		platformHasAccount[info.Platform] = true
+		statuses = append(statuses, types.PlatformStatus{
+			Platform:    info.Platform,
+			Account:     info.Username,
+			Connected:   true,
+			Username:    info.Username,
+			Unreachable: true,
+			Error:       reason,
+			TokenID:     info.ID,
+			IsGlobal:    info.IsGlobal,
+		})
 	}
 
 	// Add disconnected entries for platforms with no accounts

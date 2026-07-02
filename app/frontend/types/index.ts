@@ -63,6 +63,8 @@ export interface PlatformStatus {
   account?: string;
   connected: boolean;
   username?: string;
+  /** Token exists but the platform is unreachable from the server; `error` carries the reason. */
+  unreachable?: boolean;
   error?: string;
   token_id?: string;
   is_global?: boolean;
