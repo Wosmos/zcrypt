@@ -162,7 +162,17 @@ export function getFileMeta(fileId: string): Promise<FileMetaResponse> {
 }
 
 /** Download a single encrypted chunk. Returns raw bytes + metadata headers. */
-export async function getFileChunk(fileId: string, index: number): Promise<{
+// A chunk download is a bare fetch (not the `request()` wrapper), so it must
+// carry its own timeout. Without one, a stalled fetch — e.g. a chunk still
+// syncing from staging to the git platform, or an unresponsive server — hangs
+// forever. Because foreground decrypts (viewer/preview/prefetch) go through
+// here and register in the decrypt cache's in-flight set, one hung fetch pins
+// `isForegroundDecryptActive()` true and starves the whole thumbnail queue
+// (perpetual shimmer). Generous, since chunks can be ~17MB on slow links; the
+// timeout covers the body read too, so it catches a mid-download stall.
+const CHUNK_TIMEOUT_MS = 90_000;
+
+export async function getFileChunk(fileId: string, index: number, signal?: AbortSignal): Promise<{
   data: ArrayBuffer;
   sha256: string;
   compressed: boolean;
@@ -173,25 +183,41 @@ export async function getFileChunk(fileId: string, index: number): Promise<{
     headers["Authorization"] = `Bearer ${accessToken}`;
   }
 
-  const res = await fetch(`${API_BASE}/api/files/${fileId}/chunks/${index}`, { headers });
+  // Use the caller's signal if given (download-session supports cancellation);
+  // otherwise bound the fetch ourselves. Keep the timer alive through the body
+  // read so a stall mid-download aborts too.
+  const controller = signal ? undefined : new AbortController();
+  const timeoutId = controller ? setTimeout(() => controller.abort(), CHUNK_TIMEOUT_MS) : undefined;
+  const useSignal = signal ?? controller?.signal;
 
-  if (!res.ok) {
-    const body = await res.text();
-    let message: string;
-    try {
-      const parsed = JSON.parse(body);
-      message = parsed.error || body;
-    } catch {
-      message = body;
+  try {
+    const res = await fetch(`${API_BASE}/api/files/${fileId}/chunks/${index}`, { headers, signal: useSignal });
+
+    if (!res.ok) {
+      const body = await res.text();
+      let message: string;
+      try {
+        const parsed = JSON.parse(body);
+        message = parsed.error || body;
+      } catch {
+        message = body;
+      }
+      throw new Error(message);
     }
-    throw new Error(message);
-  }
 
-  return {
-    data: await res.arrayBuffer(),
-    sha256: res.headers.get("X-Chunk-SHA256") || "",
-    compressed: res.headers.get("X-Chunk-Compressed") === "true",
-  };
+    return {
+      data: await res.arrayBuffer(),
+      sha256: res.headers.get("X-Chunk-SHA256") || "",
+      compressed: res.headers.get("X-Chunk-Compressed") === "true",
+    };
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new Error(`chunk ${index} download timed out`);
+    }
+    throw err;
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
 }
 
 export function listFiles(filter?: string): Promise<FileMetadata[]> {
