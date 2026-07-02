@@ -178,16 +178,26 @@ const COMPRESSED_EXTENSIONS = new Set([
   "pdf", "docx", "xlsx", "pptx", "woff", "woff2",
 ]);
 
-// Retry wrapper for rate-limited API calls.
+// Retry wrapper for transient chunk-upload failures. Over a multi-GB upload
+// (hundreds/thousands of chunks) a transient blip on any one chunk is likely,
+// so we retry not just rate-limits but network errors, stalls, timeouts and 5xx
+// — with exponential backoff + jitter. Non-transient failures (4xx: invalid,
+// unauthorized, not found) throw immediately so they surface instead of looping.
 async function withRetry<T>(fn: () => Promise<T>, maxRetries = 5): Promise<T> {
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       return await fn();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      const isRateLimit = msg.includes("too many requests") || msg.includes("slow down");
-      if (isRateLimit && attempt < maxRetries) {
-        await new Promise((r) => setTimeout(r, 1000 * (attempt + 1) + Math.random() * 1000));
+      const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
+      const transient =
+        msg.includes("too many requests") || msg.includes("slow down") ||
+        msg.includes("network request failed") || msg.includes("timed out") ||
+        msg.includes("stalled") || msg.includes("aborted") ||
+        msg.includes("temporarily") || msg.includes("unavailable") ||
+        /\b5\d\d\b/.test(msg); // 5xx server errors
+      if (transient && attempt < maxRetries) {
+        const backoff = Math.min(1000 * 2 ** attempt, 15_000) + Math.random() * 500;
+        await new Promise((r) => setTimeout(r, backoff));
         continue;
       }
       throw err;
