@@ -47,6 +47,7 @@ type HuggingFaceAdapter struct {
 // NewHuggingFaceAdapter creates a HuggingFace adapter with the given token.
 func NewHuggingFaceAdapter(token string) (*HuggingFaceAdapter, error) {
 	transport := &http.Transport{
+		Proxy:                 http.ProxyFromEnvironment,
 		TLSHandshakeTimeout:   30 * time.Second,
 		ResponseHeaderTimeout: 120 * time.Second,
 		DialContext: (&net.Dialer{

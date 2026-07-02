@@ -28,6 +28,12 @@ const (
 
 	telegramMaxRetries = 3
 	telegramRetryBase  = 2 * time.Second
+
+	// telegramValidateTimeout bounds the constructor's getMe/getChat validation
+	// calls. The long-lived client has no overall timeout (uploads can be large),
+	// so without this a blocked api.telegram.org would hang adapter creation for
+	// the full dial timeout instead of failing fast.
+	telegramValidateTimeout = 10 * time.Second
 )
 
 // TelegramAdapter implements PlatformAdapter for Telegram.
@@ -57,6 +63,7 @@ func NewTelegramAdapter(token string) (*TelegramAdapter, error) {
 	chatID := strings.TrimSpace(parts[1])
 
 	transport := &http.Transport{
+		Proxy:                 http.ProxyFromEnvironment,
 		TLSHandshakeTimeout:   30 * time.Second,
 		ResponseHeaderTimeout: 120 * time.Second,
 		DialContext: (&net.Dialer{
@@ -205,8 +212,18 @@ func (t *TelegramAdapter) apiURL(method string) string {
 }
 
 // getMe validates the bot token and returns the bot username.
+// Only called at construction — bounded so a blocked/unreachable Telegram
+// fails fast instead of hanging on the timeout-less upload client.
 func (t *TelegramAdapter) getMe() (string, error) {
-	resp, err := t.client.Get(t.apiURL("getMe"))
+	ctx, cancel := context.WithTimeout(context.Background(), telegramValidateTimeout)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, "GET", t.apiURL("getMe"), nil)
+	if err != nil {
+		return "", fmt.Errorf("create getMe request: %w", err)
+	}
+
+	resp, err := t.client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("getMe request: %w", err)
 	}
@@ -231,8 +248,17 @@ func (t *TelegramAdapter) getMe() (string, error) {
 }
 
 // validateChat verifies the bot can access the target chat.
+// Only called at construction — bounded like getMe.
 func (t *TelegramAdapter) validateChat() error {
-	resp, err := t.client.Get(t.apiURL("getChat") + "?chat_id=" + t.chatID)
+	ctx, cancel := context.WithTimeout(context.Background(), telegramValidateTimeout)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, "GET", t.apiURL("getChat")+"?chat_id="+t.chatID, nil)
+	if err != nil {
+		return fmt.Errorf("create getChat request: %w", err)
+	}
+
+	resp, err := t.client.Do(req)
 	if err != nil {
 		return fmt.Errorf("getChat request: %w", err)
 	}

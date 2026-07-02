@@ -120,9 +120,13 @@ type PlatformStatus struct {
 	Account   string `json:"account,omitempty"`
 	Connected bool   `json:"connected"`
 	Username  string `json:"username,omitempty"`
-	Error     string `json:"error,omitempty"`
-	TokenID   string `json:"token_id,omitempty"`
-	IsGlobal  bool   `json:"is_global,omitempty"`
+	// Unreachable is true when a token exists but its adapter couldn't be
+	// built (e.g. the platform API is blocked from the server); Error carries
+	// the short reason.
+	Unreachable bool   `json:"unreachable,omitempty"`
+	Error       string `json:"error,omitempty"`
+	TokenID     string `json:"token_id,omitempty"`
+	IsGlobal    bool   `json:"is_global,omitempty"`
 }
 
 // ProgressEvent is sent to the frontend during operations.
