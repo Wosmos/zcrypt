@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+#
+# pre-push — run the prepush quality GATES before code leaves this machine.
+#
+# Runs `scripts/prepush.sh --gates-only`: the blocking checks only (typecheck,
+# lint, tests+coverage, build, gofmt, vet — front and back). The advisory scans
+# (knip / jscpd / golangci) are skipped here since they never block a push; run
+# `bun run prepush` by hand when you want the full deep-dive + detailed report.
+#
+# Blocks the push if any gate fails. To push anyway (hotfix, WIP branch, etc.):
+#     git push --no-verify
+#
+# Activate once per clone (git does not auto-enable repo hooks):
+#     git config core.hooksPath .githooks
+
+ROOT="$(git rev-parse --show-toplevel)"
+
+if [ ! -f "$ROOT/scripts/prepush.sh" ]; then
+  echo "pre-push: scripts/prepush.sh not found — skipping gate." >&2
+  exit 0
+fi
+
+exec bash "$ROOT/scripts/prepush.sh" --gates-only

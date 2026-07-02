@@ -21,6 +21,12 @@
 
 set -uo pipefail
 
+# --gates-only  skips the advisory INSPECT scans (knip/jscpd/golangci). They
+# never block a push, so the pre-push git hook runs in this fast mode; a manual
+# `bun run prepush` runs the full suite with the detailed report.
+GATES_ONLY=0
+[ "${1:-}" = "--gates-only" ] && GATES_ONLY=1
+
 ROOT="$(git rev-parse --show-toplevel)"
 FE="$ROOT/app/frontend"
 BE="$ROOT/app/backend"
@@ -63,6 +69,13 @@ else
 fi
 
 PASS=(); WARN=(); FAIL=()
+
+# inspect-scan log paths — pre-declared so the report writer is safe under
+# `set -u` even in --gates-only mode, where the INSPECT section is skipped and
+# these files are never created (fence() renders "(no output)" for missing).
+klog="$LOGDIR/knip.log"
+jlog="$LOGDIR/jscpd.log"
+glog="$LOGDIR/golangci.log"
 
 hr()      { printf '%s────────────────────────────────────────────────────────────%s\n' "$DIM" "$RST"; }
 step()    { printf '\n%s▸ %s%s\n' "$BOLD" "$1" "$RST"; }
@@ -116,7 +129,8 @@ echo ""
 printf '%s╔════════════════════════════════════════════════════════════╗%s\n' "$BOLD" "$RST"
 printf '%s║  prepush — quality gate                                    ║%s\n' "$BOLD" "$RST"
 printf '%s╚════════════════════════════════════════════════════════════╝%s\n' "$BOLD" "$RST"
-printf '%sreport v%s · run #%s · commit %s (%s)%s\n' "$CYN" "$VERSION" "$RUN_NO" "$COMMIT_SHA" "$BRANCH" "$RST"
+printf '%sreport v%s · run #%s · commit %s (%s)%s%s\n' "$CYN" "$VERSION" "$RUN_NO" "$COMMIT_SHA" "$BRANCH" \
+  "$([ "$GATES_ONLY" = 1 ] && printf ' · gates-only')" "$RST"
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  GATES — frontend
@@ -176,6 +190,11 @@ fi
 #  INSPECT — advisory quality signals (never block)
 # ══════════════════════════════════════════════════════════════════════════════
 
+if [ "$GATES_ONLY" = 1 ]; then
+  step "inspections ${DIM}(skipped — --gates-only)${RST}"
+  note "run 'bun run prepush' (no flag) for dead-code, duplication & deep-lint scans"
+else
+
 # knip — dead code: unused files, exports, dependencies
 step "frontend dead code ${DIM}(inspect · knip)${RST}"
 klog="$LOGDIR/knip.log"
@@ -220,6 +239,8 @@ if command -v golangci-lint >/dev/null 2>&1; then
 else
   warnln "golangci-lint not installed — skipping (brew install golangci-lint)"
 fi
+
+fi  # end: GATES_ONLY guard around INSPECT
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  VERDICT

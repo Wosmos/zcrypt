@@ -276,21 +276,10 @@ jobs:
         run: go test ./...
 
   # ── Deploy: backend → Railway ─────────────────────────────────────────────────
-  backend-deploy:
-    name: Deploy Backend (Railway)
-    needs: [changes, backend, backend-integration]
-    if: needs.changes.outputs.backend == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Railway CLI
-        run: npm install -g @railway/cli
-
-      - name: Deploy to Railway
-        run: railway up --service zcrypt
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+  # Handled by Railway's own GitHub integration (auto-deploys the Dockerfile on
+  # push to main), NOT by GitHub Actions. The old `railway up` job here was
+  # redundant and kept failing on an invalid RAILWAY_TOKEN, turning every run
+  # red. To gate deploys on CI, enable "Wait for CI" in the Railway dashboard.
 
   # ── Deploy: frontend → Vercel ─────────────────────────────────────────────────
   frontend-deploy:
