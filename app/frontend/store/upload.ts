@@ -2,8 +2,9 @@ import { create } from "zustand";
 import type { UploadItem, UploadStatus } from "@/types";
 import { toast } from "@/store/toast";
 import { WorkerPool } from "@/lib/worker-pool";
-import { generateSalt, deriveKeyBytes, generateCEK, wrapKey, sha256File, toBase64 } from "@/lib/crypto";
+import { generateSalt, deriveKeyBytes, generateCEK, wrapKey, unwrapKey, sha256File, toBase64, fromBase64 } from "@/lib/crypto";
 import { initUpload, uploadChunk, completeUpload, presignChunk, directUploadToURL, confirmChunk, cancelUpload, getUploadStatus } from "@/lib/upload-session";
+import { getFileMeta } from "@/lib/api";
 import { getDeviceProfile } from "@/lib/device-profile";
 
 // --- Debounced refresh to avoid hammering the API ---
@@ -133,8 +134,63 @@ interface ResumeCtx {
   fileId: string;
   cekBytes: ArrayBuffer;
   chunkCount: number;
+  chunkSize: number; // MUST match the original — reslicing at a different size misaligns chunk boundaries
   directUpload: boolean;
   shouldCompress: boolean;
+}
+
+// --- Cross-session upload resume (survives a page reload) --------------------
+// Only session POINTERS are persisted (never the key), keyed by file identity.
+// On re-add, loadPersistedResume rebuilds the in-memory resume context by
+// re-deriving the CEK from the server-stored wrapped_cek + the passphrase, so
+// the raw key is never written to disk (zero-knowledge preserved).
+interface PersistedResume {
+  sessionId: string;
+  fileId: string;
+  chunkCount: number;
+  chunkSize: number;
+  directUpload: boolean;
+  shouldCompress: boolean;
+}
+function resumeStoreKey(file: File): string {
+  return `zc_upl:${file.name}:${file.size}:${file.lastModified}`;
+}
+function savePersistedResume(file: File, rec: PersistedResume): void {
+  try { localStorage.setItem(resumeStoreKey(file), JSON.stringify(rec)); } catch { /* quota / unavailable */ }
+}
+function clearPersistedResume(file: File): void {
+  try { localStorage.removeItem(resumeStoreKey(file)); } catch { /* ignore */ }
+}
+/** Rebuild an in-memory resume context from a persisted record if — and only if
+ *  — the server session is still active and partially complete. Returns
+ *  undefined on any miss (the fresh path then re-inits and overwrites it). */
+async function loadPersistedResume(file: File, passphrase: string): Promise<ResumeCtx | undefined> {
+  let rec: PersistedResume;
+  try {
+    const raw = localStorage.getItem(resumeStoreKey(file));
+    if (!raw) return undefined;
+    rec = JSON.parse(raw) as PersistedResume;
+  } catch { return undefined; }
+  try {
+    const status = await getUploadStatus(rec.sessionId);
+    const uploaded = status.uploaded_chunks?.length ?? 0;
+    if (status.status !== "active" || uploaded === 0 || uploaded >= rec.chunkCount) return undefined;
+    const meta = await getFileMeta(rec.fileId);
+    if (!meta.wrapped_cek) return undefined; // legacy/no envelope — can't rebuild the key
+    const kek = await deriveKeyBytes(passphrase, fromBase64(meta.salt));
+    const cek = await unwrapKey(kek, fromBase64(meta.wrapped_cek));
+    return {
+      sessionId: rec.sessionId,
+      fileId: rec.fileId,
+      cekBytes: cek.buffer.slice(0) as ArrayBuffer,
+      chunkCount: rec.chunkCount,
+      chunkSize: rec.chunkSize,
+      directUpload: rec.directUpload,
+      shouldCompress: rec.shouldCompress,
+    };
+  } catch {
+    return undefined; // session gone / wrong passphrase / transient → fresh upload
+  }
 }
 
 // Per-item upload metadata kept out of the typed queue state: target platform,
@@ -244,14 +300,24 @@ interface UploadFileOpts {
 async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Promise<void> {
   const { passphrase, platform, profile, onRefresh, folderId } = opts;
   const { updateStatus, setFileId, setError } = useUploadStore.getState();
-  const chunkSize = profile.chunkSize;
+  let chunkSize = profile.chunkSize;
   // Use the batch-shared pool when startUpload handed one in; otherwise
   // (retry/resume) create a transient one. We only terminate a pool we own —
   // the batch pool is torn down by startUpload once the WHOLE batch settles.
   const pool = opts.pool ?? new WorkerPool();
   const ownsPool = opts.pool === undefined;
 
+  // In-memory resume (same session) first; otherwise try a cross-session resume
+  // persisted to localStorage so a partially-uploaded file continues after a
+  // page reload instead of restarting from zero.
   let resume = itemMeta.get(id)?.resume;
+  if (!resume) {
+    resume = await loadPersistedResume(file, passphrase);
+    if (resume) itemMeta.set(id, { ...itemMeta.get(id), resume });
+  }
+  // A resumed upload MUST reslice at the original chunk size or the byte ranges
+  // won't line up with the chunks the server already has.
+  if (resume) chunkSize = resume.chunkSize;
 
   try {
     let sessionId: string;
@@ -337,8 +403,11 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
       setFileId(id, session.file_id);
 
       // Persist the resume context NOW so a mid-upload failure can continue.
-      resume = { sessionId, fileId: session.file_id, cekBytes, chunkCount, directUpload: useDirectUpload, shouldCompress };
+      resume = { sessionId, fileId: session.file_id, cekBytes, chunkCount, chunkSize, directUpload: useDirectUpload, shouldCompress };
       itemMeta.set(id, { ...itemMeta.get(id), resume });
+      // Also persist session pointers (NOT the key) so this upload can resume
+      // after a page reload — see loadPersistedResume.
+      savePersistedResume(file, { sessionId, fileId: session.file_id, chunkCount, chunkSize, directUpload: useDirectUpload, shouldCompress });
 
       done = new Set();
     }
@@ -512,6 +581,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
 
     updateStatus(id, "done", 100, "Done");
     itemMeta.set(id, { ...itemMeta.get(id), resume: undefined }); // complete — nothing to resume
+    clearPersistedResume(file); // drop the cross-session resume record
     debouncedRefresh(onRefresh);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Upload failed";
@@ -610,6 +680,8 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
     if (meta?.resume?.sessionId) {
       cancelUpload(meta.resume.sessionId).catch(() => {});
     }
+    const item = get().queue.find((i) => i.id === id);
+    if (item) clearPersistedResume(item.file); // give up — drop the resume record
     itemMeta.delete(id);
     pausedIds.delete(id);
     set((state) => ({
