@@ -301,6 +301,12 @@ export function useVaultActions({
   );
 
   // ── Preview (in-memory decrypt + zstd + SHA-256 integrity check) ────────────
+  // Routed through the SAME parallel pipeline + in-memory blob cache as the
+  // FileViewer (runDecryptPipeline: N concurrent chunk fetchers fanning out to a
+  // WorkerPool for off-main-thread AES-GCM + zstd) — the old bespoke loop here
+  // fetched and decrypted chunks strictly sequentially, which made previews of
+  // multi-chunk files several times slower than downloads of the same file. A
+  // re-open is now a cache hit and shows instantly.
   const startPreview = useCallback(
     async (filename: string) => {
       const file = files.find((f) => f.original_name === filename);
@@ -313,38 +319,11 @@ export function useVaultActions({
         // folder — prompting/verifying if its password isn't cached).
         const passphrase = await folderProtection.passwordForFile(file);
 
-        const { getFileMeta, getFileChunk } = await import("@/lib/api");
-        const { resolveFileKey, decryptChunk, sha256Hex, fromBase64 } = await import("@/lib/crypto");
-        const { getZstdCodec } = await import("@/lib/zstd");
-        const zstd = await getZstdCodec();
-
-        const meta = await getFileMeta(file.id);
-        const salt = fromBase64(meta.salt);
-        const keyBytes = await resolveFileKey(passphrase, salt, meta.wrapped_cek);
-
-        const chunks: Uint8Array[] = [];
-        for (let i = 0; i < meta.chunk_count; i++) {
-          const { data, compressed } = await getFileChunk(file.id, i);
-          let plain = await decryptChunk(keyBytes, new Uint8Array(data));
-          if (compressed && zstd) {
-            // ZstdStream (not ZstdSimple): doesn't require frame content size.
-            plain = zstd.ZstdStream.decompress(plain);
-          }
-          chunks.push(plain);
-        }
-
-        const totalSize = chunks.reduce((s, c) => s + c.byteLength, 0);
-        const full = new Uint8Array(totalSize);
-        let offset = 0;
-        for (const c of chunks) {
-          full.set(c, offset);
-          offset += c.byteLength;
-        }
-
-        const hash = await sha256Hex(full);
-        if (hash !== meta.sha256) throw new Error("File integrity check failed");
-
-        const blob = new Blob([full], { type: "application/octet-stream" });
+        const { cachedDecrypt } = await import("@/lib/decrypt-cache");
+        const { runDecryptPipeline } = await import("@/hooks/useFileDecryptor");
+        const blob = await cachedDecrypt(file.id, file.folder_id ?? null, () =>
+          runDecryptPipeline(file, passphrase)
+        );
         openPreview(blob, filename, file.original_size);
       } catch (err) {
         closePreview();

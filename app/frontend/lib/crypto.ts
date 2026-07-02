@@ -40,6 +40,50 @@ export async function deriveKeyBytes(
   );
 }
 
+/**
+ * Derived-key memo.
+ *
+ * PBKDF2 at 600k iterations costs 0.3–3s per call, and the SAME
+ * (passphrase, salt) pair is re-derived for a file's thumbnail, then its
+ * preview, then its download. Memoize the derived bytes so each pair pays
+ * PBKDF2 exactly once per session.
+ *
+ * SECURITY: the cache holds raw key bytes in memory ONLY — the same exposure
+ * class as the in-memory passphrase cache and the decrypt-cache plaintext. It
+ * is never persisted or logged, and it is cleared on every lock event via
+ * clearDerivedKeyCache() (wired into lib/decrypt-cache's clear paths). The
+ * passphrase appears in the cache key, but it is already held in memory by the
+ * passphrase store, so the composite string adds no new exposure.
+ */
+const DERIVED_KEY_CACHE_MAX = 256;
+const derivedKeyCache = new Map<string, Uint8Array>();
+
+/** Drop every memoized derived key (vault lock / TTL / logout / folder lock). */
+export function clearDerivedKeyCache(): void {
+  derivedKeyCache.clear();
+}
+
+/** deriveKeyBytes, memoized per (salt, passphrase) pair. Returns a FRESH
+ *  ArrayBuffer copy on every call so a caller that transfers/detaches its
+ *  buffer (e.g. to a worker) can never corrupt the cached bytes. */
+export async function deriveKeyBytesCached(
+  passphrase: string,
+  salt: Uint8Array
+): Promise<ArrayBuffer> {
+  const cacheKey = toBase64(salt) + "|" + passphrase;
+  const hit = derivedKeyCache.get(cacheKey);
+  if (hit) return hit.slice().buffer as ArrayBuffer;
+
+  const bytes = await deriveKeyBytes(passphrase, salt);
+  // Cap with simple insertion-order eviction (Map iterates oldest-first).
+  if (derivedKeyCache.size >= DERIVED_KEY_CACHE_MAX) {
+    const oldest = derivedKeyCache.keys().next().value;
+    if (oldest !== undefined) derivedKeyCache.delete(oldest);
+  }
+  derivedKeyCache.set(cacheKey, new Uint8Array(bytes.slice(0)));
+  return bytes;
+}
+
 /** Encrypt a chunk. Returns [12B IV || ciphertext || 16B tag]. */
 export async function encryptChunk(
   keyBytes: ArrayBuffer,
@@ -153,7 +197,9 @@ export async function resolveFileKey(
   salt: Uint8Array,
   wrappedCek?: string | null
 ): Promise<ArrayBuffer> {
-  const kek = await deriveKeyBytes(passphrase, salt);
+  // Memoized: repeated opens of the same (passphrase, salt) pair — thumbnail,
+  // then preview, then download — pay the 600k-iteration PBKDF2 only once.
+  const kek = await deriveKeyBytesCached(passphrase, salt);
   if (!wrappedCek) {
     return kek; // legacy: passphrase-derived key encrypts content directly
   }

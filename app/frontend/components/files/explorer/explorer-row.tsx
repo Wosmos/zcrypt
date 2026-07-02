@@ -5,6 +5,7 @@ import type { DecryptedFolder } from "@/hooks/useFolders";
 import type { FileMetadata } from "@/types";
 import { formatBytes, formatDate, getFileTypeInfo, cn, midTrunc } from "@/lib/utils";
 import { useThumbnail } from "@/hooks/useThumbnail";
+import { prefetchOnHover } from "@/hooks/useFileDecryptor";
 import {
   File,
   FileText,
@@ -299,6 +300,9 @@ function FileRow({
       draggable={drag.draggable}
       onClick={(e) => onFileClick(file, e)}
       onKeyDown={(e) => onEntryKeyDown(entry, e)}
+      // Desktop-only hover prefetch: warm the decrypt cache for previewable
+      // files so opening feels instant (guards + dedup live in prefetchOnHover).
+      onPointerEnter={() => prefetchOnHover(file)}
       onDragStart={drag.onDragStart}
       onDragEnd={drag.onDragEnd}
       {...(drag.dropHandlers ?? {})}

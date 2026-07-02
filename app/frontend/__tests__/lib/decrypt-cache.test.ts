@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
   getCachedBlob,
   isWarmOrInflight,
+  isForegroundDecryptActive,
   cachedDecrypt,
   clearDecryptCache,
   clearDecryptCacheForFolder,
@@ -54,6 +55,25 @@ describe("decrypt-cache", () => {
     d.resolve(sizedBlob(10));
     await p;
     expect(isWarmOrInflight("f1")).toBe(true); // cached
+  });
+
+  it("isForegroundDecryptActive is true only while a decrypt is in flight", async () => {
+    expect(isForegroundDecryptActive()).toBe(false);
+    const d = deferred<Blob>();
+    const p = cachedDecrypt("f1", null, () => d.promise);
+    expect(isForegroundDecryptActive()).toBe(true); // in flight
+    d.resolve(sizedBlob(10));
+    await p;
+    expect(isForegroundDecryptActive()).toBe(false); // cached ≠ in flight
+  });
+
+  it("isForegroundDecryptActive returns false again after a failed decrypt", async () => {
+    const d = deferred<Blob>();
+    const p = cachedDecrypt("f1", null, () => d.promise);
+    expect(isForegroundDecryptActive()).toBe(true);
+    d.reject(new Error("boom"));
+    await expect(p).rejects.toThrow("boom");
+    expect(isForegroundDecryptActive()).toBe(false);
   });
 
   it("de-duplicates concurrent decrypts of the same id", async () => {

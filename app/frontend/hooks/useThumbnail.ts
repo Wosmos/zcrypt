@@ -3,9 +3,13 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { getFileMeta, getFileChunk } from "@/lib/api";
 import { resolveFileKey, decryptChunk, fromBase64 } from "@/lib/crypto";
+import { isForegroundDecryptActive } from "@/lib/decrypt-cache";
 import { isImageFile, isVideoFile, mimeForFile } from "@/lib/utils";
 
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+// A thumbnail decrypts the WHOLE file for one 300px preview, so cap how much a
+// background grid preview is allowed to pull. Files above this just show their
+// type icon.
+const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB
 const DB_NAME = "zcrypt_thumbs";
 const STORE_NAME = "thumbnails";
 const DB_VERSION = 1;
@@ -204,12 +208,28 @@ function releaseSlot() {
   if (next) next();
 }
 
-function acquireSlot(): Promise<void> {
+/** Resolve once no foreground decrypt (file open / preview / neighbour
+ *  prefetch) is in flight. Thumbnails are background polish — while the user is
+ *  waiting on a real file, queued thumbnail starts hold back instead of
+ *  competing for network + CPU. Simple 500ms poll; thumbnails already running
+ *  just finish (they're bounded by their own timeouts). */
+async function waitForForegroundIdle(): Promise<void> {
+  while (isForegroundDecryptActive()) {
+    await new Promise((r) => setTimeout(r, 500));
+  }
+}
+
+async function acquireSlot(): Promise<void> {
+  await waitForForegroundIdle();
   if (activeCount < MAX_CONCURRENT) {
     activeCount++;
-    return Promise.resolve();
+    return;
   }
-  return new Promise((resolve) => queue.push(() => { activeCount++; resolve(); }));
+  await new Promise<void>((resolve) => queue.push(() => { activeCount++; resolve(); }));
+  // A foreground decrypt may have started while this item sat in the queue —
+  // re-check before letting it run. It holds its slot while waiting, which
+  // conveniently pauses the rest of the queue too.
+  await waitForForegroundIdle();
 }
 
 /**
@@ -235,6 +255,9 @@ async function decryptFileToBlob(
   }
   const meta = await getFileMeta(fileId);
   const salt = fromBase64(meta.salt);
+  // resolveFileKey memoizes its PBKDF2 derivation (lib/crypto's derived-key
+  // cache), so a thumbnail no longer pays 600k iterations that the preview /
+  // download of the same file will just re-pay.
   const keyBytes = await resolveFileKey(filePassphrase, salt, meta.wrapped_cek);
 
   // Use the single app-wide zstd codec — NEVER call ZstdInit() here. The
