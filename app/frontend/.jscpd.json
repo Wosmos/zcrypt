@@ -1,0 +1,17 @@
+{
+  "//": "Copy-paste (DRY) detection. Advisory in the prepush gate; run `bun run dupes` for the full clone report.",
+  "path": ["app", "components", "lib", "hooks", "store"],
+  "min-lines": 10,
+  "min-tokens": 50,
+  "reporters": ["console"],
+  "absolute": false,
+  "gitignore": true,
+  "ignore": [
+    "**/node_modules/**",
+    "**/.next/**",
+    "**/.next-export/**",
+    "**/out/**",
+    "**/__tests__/**",
+    "**/*.d.ts"
+  ]
+}
