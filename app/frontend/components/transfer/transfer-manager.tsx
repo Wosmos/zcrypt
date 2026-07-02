@@ -218,6 +218,13 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
       ? Math.round(runningEntries.reduce((sum, e) => sum + (e.progress || 0), 0) / runningEntries.length)
       : 100;
 
+  // Force the dock back whenever work is active OR something has failed — a
+  // dismissed dock must never hide an in-flight or failed transfer. (The
+  // entries.length effect above misses failures, which don't change the count.)
+  useEffect(() => {
+    if (activeCount > 0 || failedCount > 0) setDismissed(false);
+  }, [activeCount, failedCount]);
+
   const controls = {
     onPause: (id: string) => pauseUpload(id),
     // FIX-4: resume/retry of a protected-folder upload re-encrypts the remaining
@@ -263,13 +270,15 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: 40, scale: 0.96 }}
           transition={{ type: "spring", stiffness: 380, damping: 32 }}
-          drag={reduceMotion ? false : "x"}
+          // Swipe-to-dismiss is disabled while any transfer is in flight — an
+          // active upload/download must stay visible so it can't be flicked
+          // away and silently forgotten. Only a fully-settled dock can be swiped.
+          drag={reduceMotion || activeCount > 0 ? false : "x"}
           dragConstraints={{ left: 0, right: 0 }}
           dragElastic={{ left: 0.04, right: 0.7 }}
           dragMomentum={false}
           onDragEnd={(_e, info) => {
-            // Flick or drag toward the screen edge (right) to dismiss.
-            if (info.offset.x > 110 || info.velocity.x > 600) setDismissed(true);
+            if (allSettled && (info.offset.x > 110 || info.velocity.x > 600)) setDismissed(true);
           }}
           whileDrag={{ cursor: "grabbing" }}
           className="panel fixed bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] right-4 z-40 w-[min(calc(100vw-2rem),380px)] touch-pan-y overflow-hidden rounded-2xl shadow-2xl backdrop-blur-sm md:bottom-4"
