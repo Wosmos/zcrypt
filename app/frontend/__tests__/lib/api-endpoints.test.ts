@@ -81,6 +81,10 @@ const cases: Case[] = [
   { name: "createShare", run: () => api.createShare({ file_id: "f" } as never), path: "/api/shares", method: "POST" },
   { name: "listShares", run: () => api.listShares(), path: "/api/shares" },
   { name: "revokeShare", run: () => api.revokeShare("sid"), path: "/api/shares/sid", method: "DELETE" },
+  // folder shares (authenticated management)
+  { name: "createFolderShare", run: () => api.createFolderShare({ name: "n", files: [] }), path: "/api/folder-shares", method: "POST" },
+  { name: "listFolderShares", run: () => api.listFolderShares(), path: "/api/folder-shares" },
+  { name: "revokeFolderShare", run: () => api.revokeFolderShare("fsid"), path: "/api/folder-shares/fsid", method: "DELETE" },
   // clipboard
   { name: "pushClipboard", run: () => api.pushClipboard({} as never), path: "/api/clipboard", method: "POST" },
   { name: "listClipboard", run: () => api.listClipboard(), path: "/api/clipboard" },

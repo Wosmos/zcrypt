@@ -75,10 +75,11 @@ export async function deriveKeyBytesCached(
   if (hit) return hit.slice().buffer as ArrayBuffer;
 
   const bytes = await deriveKeyBytes(passphrase, salt);
-  // Cap with simple insertion-order eviction (Map iterates oldest-first).
+  // Cap with simple insertion-order eviction (Map iterates oldest-first). The
+  // size check guarantees the map is non-empty, so the first key always exists.
   if (derivedKeyCache.size >= DERIVED_KEY_CACHE_MAX) {
-    const oldest = derivedKeyCache.keys().next().value;
-    if (oldest !== undefined) derivedKeyCache.delete(oldest);
+    const oldest = derivedKeyCache.keys().next().value as string;
+    derivedKeyCache.delete(oldest);
   }
   derivedKeyCache.set(cacheKey, new Uint8Array(bytes.slice(0)));
   return bytes;
