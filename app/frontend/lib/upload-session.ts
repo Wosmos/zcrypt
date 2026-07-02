@@ -68,19 +68,38 @@ function xhrPut(
   data: Uint8Array,
   onProgress?: (sentBytes: number) => void
 ): Promise<XhrResult> {
+  // Stall watchdog. A fixed xhr.timeout would false-abort a large chunk on a
+  // slow-but-progressing link, and NOT setting one (the old bug) let a dead
+  // socket hang the promise forever — stalling the whole upload at ~95% with no
+  // error. Instead we abort only when NO progress happens for STALL_MS: reset
+  // the clock on every upload-progress tick, and again once the body is sent
+  // (so a server that never responds is caught too). An abort rejects, so the
+  // caller's retry can re-send the chunk.
+  const STALL_MS = 60_000;
   return new Promise<XhrResult>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("PUT", url);
     for (const [key, value] of Object.entries(headers)) {
       xhr.setRequestHeader(key, value);
     }
-    if (onProgress) {
-      xhr.upload.onprogress = (e: ProgressEvent) => onProgress(e.loaded);
-    }
-    xhr.onload = () => resolve({ status: xhr.status, body: xhr.responseText });
-    xhr.onerror = () => reject(new TypeError("Network request failed"));
-    xhr.onabort = () => reject(new Error("Upload aborted"));
-    xhr.ontimeout = () => reject(new Error("Upload timed out"));
+    let stalled = false;
+    let stallTimer: ReturnType<typeof setTimeout>;
+    const clearStall = () => clearTimeout(stallTimer);
+    const armStall = () => {
+      clearStall();
+      stallTimer = setTimeout(() => {
+        stalled = true;
+        try { xhr.abort(); } catch { /* already settled */ }
+      }, STALL_MS);
+    };
+    // Always track upload progress for the watchdog; forward to the caller too.
+    xhr.upload.onprogress = (e: ProgressEvent) => { armStall(); onProgress?.(e.loaded); };
+    xhr.upload.onload = () => armStall(); // body sent — now watch for the response
+    xhr.onload = () => { clearStall(); resolve({ status: xhr.status, body: xhr.responseText }); };
+    xhr.onerror = () => { clearStall(); reject(new TypeError("Network request failed")); };
+    xhr.onabort = () => { clearStall(); reject(new Error(stalled ? "Upload stalled (no progress for 60s)" : "Upload aborted")); };
+    xhr.ontimeout = () => { clearStall(); reject(new Error("Upload timed out")); };
+    armStall(); // start the clock before the first byte
     xhr.send(data as unknown as XMLHttpRequestBodyInit);
   });
 }

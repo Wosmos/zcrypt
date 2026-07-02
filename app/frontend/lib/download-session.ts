@@ -20,6 +20,38 @@ export type DownloadProgressCallback = (info: {
   chunksTotal: number;
 }) => void;
 
+/** Retry a transient chunk FETCH (network/timeout/stall/5xx) with backoff.
+ *  Mirrors the upload path so one blip over a long download doesn't fail the
+ *  whole file. Aborts (cancellation) and non-transient errors are NOT retried. */
+async function fetchChunkWithRetry(
+  fileId: string,
+  index: number,
+  signal?: AbortSignal,
+  maxRetries = 5
+): Promise<{ data: ArrayBuffer; sha256: string; compressed: boolean }> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
+    try {
+      return await getFileChunk(fileId, index, signal);
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") throw err;
+      const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
+      const transient =
+        msg.includes("network request failed") || msg.includes("timed out") ||
+        msg.includes("timeout") || msg.includes("stalled") ||
+        msg.includes("too many requests") || msg.includes("temporarily") ||
+        msg.includes("unavailable") || /\b5\d\d\b/.test(msg);
+      if (transient && attempt < maxRetries) {
+        const backoff = Math.min(1000 * 2 ** attempt, 15_000) + Math.random() * 500;
+        await new Promise((r) => setTimeout(r, backoff));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new Error("Max retries exceeded");
+}
+
 export interface DownloadOptions {
   onProgress?: DownloadProgressCallback;
   signal?: AbortSignal;
@@ -91,7 +123,7 @@ export async function downloadAndDecryptFile(
     const processChunk = async (index: number) => {
       if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
 
-      const { data, compressed } = await getFileChunk(fileId, index);
+      const { data, compressed } = await fetchChunkWithRetry(fileId, index, signal);
 
       if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
 
