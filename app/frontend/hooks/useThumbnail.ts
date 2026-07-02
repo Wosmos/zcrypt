@@ -214,7 +214,14 @@ function releaseSlot() {
  *  competing for network + CPU. Simple 500ms poll; thumbnails already running
  *  just finish (they're bounded by their own timeouts). */
 async function waitForForegroundIdle(): Promise<void> {
+  // Yield to foreground decrypts — but never indefinitely. If foreground work
+  // stays "active" past this cap (a decrypt hung on some path we don't guard),
+  // proceed anyway rather than starve every thumbnail into a perpetual spinner.
+  // getFileChunk now carries its own timeout, so this is belt-and-suspenders.
+  const MAX_WAIT_MS = 60_000;
+  const start = Date.now();
   while (isForegroundDecryptActive()) {
+    if (Date.now() - start >= MAX_WAIT_MS) return;
     await new Promise((r) => setTimeout(r, 500));
   }
 }
@@ -290,14 +297,20 @@ async function fetchAndCacheThumbnail(
 ): Promise<string | null> {
   if (memCache.has(fileId) || inflight.has(fileId)) return memCache.get(fileId) ?? null;
   inflight.add(fileId);
+  notify(); // surface the loading state to mounted cards right away
 
-  await acquireSlot();
+  // acquireSlot() lives INSIDE the try so the finally always runs and clears
+  // `inflight` — otherwise a slow/blocked acquire would leave the card's
+  // `loading` flag stuck true forever (the perpetual-shimmer bug). releaseSlot
+  // is paired only when a slot was actually taken.
+  let slotHeld = false;
   try {
+    await acquireSlot();
+    slotHeld = true;
     const video = isVideoFile(filename);
-    // Bound both stages: a stalled chunk fetch (getFileChunk has no timeout of
-    // its own) or an image the browser never fires load/error for (Safari is
-    // stricter about odd formats) would otherwise hold this slot forever and
-    // leave every queued card spinning.
+    // Bound both stages: a stalled chunk fetch or an image the browser never
+    // fires load/error for (Safari is stricter about odd formats) would
+    // otherwise hold this slot forever and leave every queued card spinning.
     const blob = await withTimeout(
       decryptFileToBlob(fileId, passphrase, resolvePassword, mimeForFile(filename)),
       30_000,
@@ -307,19 +320,18 @@ async function fetchAndCacheThumbnail(
       ? await generateVideoThumbnail(blob, 400, 400)
       : await withTimeout(generateThumbnail(blob, 300, 300), 15_000, "thumbnail render");
     memCache.set(fileId, dataUrl);
-    notify();
     // Persist to IndexedDB in background
     dbPut(fileId, dataUrl).catch(() => {});
     return dataUrl;
   } catch {
     // Remember the failure so the lazy hook doesn't retry forever (locked
-    // folder, unsupported codec, decode error, oversized, …).
+    // folder, unsupported codec, decode error, oversized, timed-out fetch, …).
     failedSet.add(fileId);
-    notify();
     return null;
   } finally {
     inflight.delete(fileId);
-    releaseSlot();
+    if (slotHeld) releaseSlot();
+    notify(); // always: clears `loading`, and reflects the cached/failed result
   }
 }
 
