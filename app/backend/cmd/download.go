@@ -125,24 +125,46 @@ func (s *Server) HandleGetChunk(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else {
-		// Chunk synced — download from git platform using the OWNER's tokens
-		// (the member has no tokens on the owner's storage accounts).
-		adapter := s.resolveAdapterForUser(ctx, ownerID, chunk.Platform, chunk.Account)
-		if adapter == nil {
-			http.Error(w, `{"error":"platform adapter not available"}`, http.StatusInternalServerError)
-			return
-		}
+		// Chunk synced — try the local ciphertext cache first. Chunks are
+		// immutable (a re-upload mints a new chunk id), so a hit never goes
+		// stale — and it serves even when the platform is unreachable.
+		data = readCachedChunk(chunk.ChunkID)
 
-		data, err = adapter.Download(ctx, *chunk)
-		if err != nil {
-			log.Printf("download: chunk download failed: %v", err)
-			http.Error(w, `{"error":"failed to download chunk"}`, http.StatusInternalServerError)
-			return
+		if data == nil {
+			// Cache miss — download from git platform using the OWNER's tokens
+			// (the member has no tokens on the owner's storage accounts).
+			adapter := s.resolveAdapterForUser(ctx, ownerID, chunk.Platform, chunk.Account)
+			if adapter == nil {
+				// Surface the recorded reason (e.g. the platform is blocked from
+				// this server) instead of a generic 500.
+				if reason := s.adapterError(ownerID, chunk.Platform); reason != "" {
+					writeJSON(w, http.StatusBadGateway, map[string]string{
+						"error":    chunk.Platform + " is unreachable from the server",
+						"platform": chunk.Platform,
+						"reason":   "adapter_unavailable",
+					})
+					return
+				}
+				http.Error(w, `{"error":"platform adapter not available"}`, http.StatusInternalServerError)
+				return
+			}
+
+			data, err = adapter.Download(ctx, *chunk)
+			if err != nil {
+				log.Printf("download: chunk download failed: %v", err)
+				http.Error(w, `{"error":"failed to download chunk"}`, http.StatusInternalServerError)
+				return
+			}
+
+			// Write-through cache — best effort, ciphertext only (zero-knowledge safe).
+			writeCachedChunk(chunk.ChunkID, data)
 		}
 	}
 
-	// Set headers and stream raw encrypted bytes
+	// Set headers and stream raw encrypted bytes. Chunks are immutable by
+	// design — a new upload gets a new file id — so clients may cache forever.
 	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Cache-Control", "private, max-age=31536000, immutable")
 	w.Header().Set("Content-Length", strconv.Itoa(len(data)))
 	w.Header().Set("X-Chunk-SHA256", chunk.SHA256)
 	if chunk.Compressed {

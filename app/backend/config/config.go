@@ -289,6 +289,21 @@ func StagingDir() (string, error) {
 	return p, nil
 }
 
+// ChunkCacheDir returns the directory for the server-side ciphertext chunk
+// cache. Chunks are immutable, so cached entries never go stale; the download
+// handler sweeps oldest files to keep the directory under budget.
+func ChunkCacheDir() (string, error) {
+	dir, err := DefaultDir()
+	if err != nil {
+		return "", err
+	}
+	p := filepath.Join(dir, "chunk-cache")
+	if err := os.MkdirAll(p, 0700); err != nil {
+		return "", fmt.Errorf("create chunk cache dir: %w", err)
+	}
+	return p, nil
+}
+
 // CleanTmp wipes the entire temp directory (crash recovery).
 func CleanTmp() error {
 	tmp, err := TmpDir()
