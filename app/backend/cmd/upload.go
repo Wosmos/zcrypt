@@ -231,27 +231,9 @@ func (s *Server) HandleChunkUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Read chunk body
-	data, err := io.ReadAll(io.LimitReader(r.Body, int64(maxChunkSize)))
-	if err != nil {
-		http.Error(w, `{"error":"failed to read chunk data"}`, http.StatusBadRequest)
-		return
-	}
-
-	if len(data) < 28 { // minimum: 12B IV + 16B tag
-		http.Error(w, `{"error":"chunk too small"}`, http.StatusBadRequest)
-		return
-	}
-
-	// Verify SHA-256
-	hash := sha256.Sum256(data)
-	actualHash := hex.EncodeToString(hash[:])
-	if actualHash != expectedHash {
-		http.Error(w, `{"error":"chunk hash mismatch"}`, http.StatusBadRequest)
-		return
-	}
-
-	// Idempotency: check if chunk already received
+	// Idempotency: check if chunk already received — BEFORE reading the body,
+	// so a duplicate 4-17MB chunk is rejected without receiving it. The response
+	// is written with the body unread; the HTTP server handles draining.
 	existing, _ := s.db.GetChunkByID(ctx, session.FileID+"-"+strconv.Itoa(chunkIndex))
 	if existing != nil {
 		w.Header().Set("Content-Type", "application/json")
@@ -271,6 +253,26 @@ func (s *Server) HandleChunkUpload(w http.ResponseWriter, r *http.Request) {
 			"stored":      true,
 			"duplicate":   true,
 		})
+		return
+	}
+
+	// Read chunk body
+	data, err := io.ReadAll(io.LimitReader(r.Body, int64(maxChunkSize)))
+	if err != nil {
+		http.Error(w, `{"error":"failed to read chunk data"}`, http.StatusBadRequest)
+		return
+	}
+
+	if len(data) < 28 { // minimum: 12B IV + 16B tag
+		http.Error(w, `{"error":"chunk too small"}`, http.StatusBadRequest)
+		return
+	}
+
+	// Verify SHA-256
+	hash := sha256.Sum256(data)
+	actualHash := hex.EncodeToString(hash[:])
+	if actualHash != expectedHash {
+		http.Error(w, `{"error":"chunk hash mismatch"}`, http.StatusBadRequest)
 		return
 	}
 
@@ -316,13 +318,17 @@ func (s *Server) HandleChunkUpload(w http.ResponseWriter, r *http.Request) {
 	default:
 	}
 
-	// Increment session counter
-	if err := s.db.IncrementSessionChunks(ctx, sessionID); err != nil {
+	// Increment session counter. The returned count reflects THIS increment, so
+	// concurrent chunk uploads emit accurate percentages instead of ones computed
+	// from the stale count read at request start.
+	uploadedCount, err := s.db.IncrementSessionChunks(ctx, sessionID)
+	if err != nil {
 		fmt.Printf("warn: increment session chunks: %v\n", err)
+		uploadedCount = session.UploadedChunks + 1
 	}
 
 	// Emit progress
-	percent := int(float64(session.UploadedChunks+1) / float64(session.ChunkCount) * 100)
+	percent := int(float64(uploadedCount) / float64(session.ChunkCount) * 100)
 	s.progress.Emit(types.ProgressEvent{
 		FileID:         session.FileID,
 		UserID:         userID,
@@ -510,7 +516,10 @@ func (s *Server) HandleUploadStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	uploadedIndices, err := s.db.GetUploadedChunkIndices(ctx, session.FileID)
+	// Count all RECEIVED chunks (including staged-but-unsynced ones, matching
+	// HandleUploadComplete) so resume doesn't re-send chunks that are already
+	// staged and merely waiting on the background sync worker.
+	uploadedIndices, err := s.db.GetReceivedChunkIndices(ctx, session.FileID)
 	if err != nil {
 		log.Printf("upload: get chunk status failed: %v", err)
 		http.Error(w, `{"error":"failed to get upload status"}`, http.StatusInternalServerError)
@@ -692,13 +701,16 @@ func (s *Server) HandleConfirmChunk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Increment session counter
-	if err := s.db.IncrementSessionChunks(ctx, sessionID); err != nil {
+	// Increment session counter; the returned count reflects THIS increment
+	// (see HandleChunkUpload).
+	uploadedCount, err := s.db.IncrementSessionChunks(ctx, sessionID)
+	if err != nil {
 		fmt.Printf("warn: increment session chunks: %v\n", err)
+		uploadedCount = session.UploadedChunks + 1
 	}
 
 	// Emit progress
-	percent := int(float64(session.UploadedChunks+1) / float64(session.ChunkCount) * 100)
+	percent := int(float64(uploadedCount) / float64(session.ChunkCount) * 100)
 	s.progress.Emit(types.ProgressEvent{
 		FileID:         session.FileID,
 		UserID:         userID,
