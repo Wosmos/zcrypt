@@ -64,6 +64,8 @@ export interface RowDragProps {
   draggable: boolean;
   onDragStart?: (e: React.DragEvent) => void;
   onDragEnd?: () => void;
+  /** Touch press-start — begins the mobile press-hold-drag gesture. */
+  onTouchStart?: (e: React.TouchEvent) => void;
   /** Drop-target handlers (folder rows only). */
   dropHandlers?: {
     onDragOver: (e: React.DragEvent) => void;
@@ -84,6 +86,8 @@ interface ExplorerRowProps {
   /** Roving focus target (gets tabIndex 0; others -1). */
   focused: boolean;
   onSelect: (id: string) => void;
+  /** Enter select mode with this file pre-selected (touch long-press → Select). */
+  onRequestSelect?: (fileId: string) => void;
   /** Mouse activation on a FILE — explorer decides open vs toggle vs range. */
   onFileClick: (file: FileMetadata, e: React.MouseEvent) => void;
   /** Keyboard on any entry — explorer handles roving arrows / Space / Enter. */
@@ -265,6 +269,7 @@ function FileRow({
   selected,
   focused,
   onSelect,
+  onRequestSelect,
   onFileClick,
   onEntryKeyDown,
   onOpenDetails,
@@ -277,6 +282,7 @@ function FileRow({
   selected: boolean;
   focused: boolean;
   onSelect: (id: string) => void;
+  onRequestSelect?: (fileId: string) => void;
   onFileClick: (file: FileMetadata, e: React.MouseEvent) => void;
   onEntryKeyDown: (entry: ExplorerEntry, e: React.KeyboardEvent) => void;
   onOpenDetails?: (file: FileMetadata) => void;
@@ -377,6 +383,14 @@ function FileRow({
       <DropdownMenu>
         <MenuTrigger label={`Actions for ${file.original_name}`} />
         <DropdownMenuContent align="end" className="w-44" onClick={(e) => e.stopPropagation()}>
+          {onRequestSelect && (
+            <>
+              <DropdownMenuItem onClick={() => onRequestSelect(file.id)}>
+                <CheckSquare className="h-4 w-4" /> Select
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+            </>
+          )}
           {actions.onPreview && (
             <DropdownMenuItem onClick={() => actions.onPreview?.(file.original_name)}>
               <Eye className="h-4 w-4" /> Preview
@@ -423,6 +437,7 @@ export function ExplorerRow({
   selected,
   focused,
   onSelect,
+  onRequestSelect,
   onFileClick,
   onEntryKeyDown,
   onOpenFolder,
@@ -464,6 +479,7 @@ export function ExplorerRow({
       selected={selected}
       focused={focused}
       onSelect={onSelect}
+      onRequestSelect={onRequestSelect}
       onFileClick={onFileClick}
       onEntryKeyDown={onEntryKeyDown}
       onOpenDetails={onOpenDetails ?? actions.onOpenDetails}

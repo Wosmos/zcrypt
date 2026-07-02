@@ -29,7 +29,13 @@ export function ExplorerBreadcrumb({
     <nav
       aria-label="Folder path"
       style={{ scrollbarWidth: "none" }}
-      className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto [&::-webkit-scrollbar]:hidden"
+      className={cn(
+        "flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto [&::-webkit-scrollbar]:hidden",
+        // At the vault root the sole crumb is the redundant "My Vault" label —
+        // hide it on mobile (you're obviously in your vault). Desktop keeps it,
+        // and once you open a folder the full path shows on every width.
+        breadcrumb.length <= 1 && "hidden sm:flex"
+      )}
     >
       {breadcrumb.map((crumb, i) => {
         const isLast = i === breadcrumb.length - 1;
@@ -59,7 +65,11 @@ export function ExplorerBreadcrumb({
               )}
             >
               {isRoot && <Home className="h-3.5 w-3.5 flex-shrink-0" />}
-              <span title={crumb.name}>{crumb.name ? midTrunc(crumb.name, 10, 4) : crumb.name}</span>
+              {/* Root crumb ("My Vault"): on mobile the home icon alone is the
+                  back-to-root target — hide the redundant label. Desktop keeps it. */}
+              <span title={crumb.name} className={isRoot ? "hidden sm:inline" : undefined}>
+                {crumb.name ? midTrunc(crumb.name, 10, 4) : crumb.name}
+              </span>
             </button>
           </div>
         );

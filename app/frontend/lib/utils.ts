@@ -50,6 +50,8 @@ export function getFileTypeInfo(filename: string): FileTypeInfo {
     doc: { icon: "FileText", color: "text-rose-500", bg: "bg-rose-500/10", label: "Document", gradient: "from-rose-500/20 to-rose-500/5" },
     docx: { icon: "FileText", color: "text-rose-500", bg: "bg-rose-500/10", label: "Document", gradient: "from-rose-500/20 to-rose-500/5" },
     txt: { icon: "FileText", color: "text-rose-500", bg: "bg-rose-500/10", label: "Document", gradient: "from-rose-500/20 to-rose-500/5" },
+    md: { icon: "FileText", color: "text-rose-500", bg: "bg-rose-500/10", label: "Document", gradient: "from-rose-500/20 to-rose-500/5" },
+    markdown: { icon: "FileText", color: "text-rose-500", bg: "bg-rose-500/10", label: "Document", gradient: "from-rose-500/20 to-rose-500/5" },
     rtf: { icon: "FileText", color: "text-rose-500", bg: "bg-rose-500/10", label: "Document", gradient: "from-rose-500/20 to-rose-500/5" },
     odt: { icon: "FileText", color: "text-rose-500", bg: "bg-rose-500/10", label: "Document", gradient: "from-rose-500/20 to-rose-500/5" },
     ppt: { icon: "FileText", color: "text-rose-500", bg: "bg-rose-500/10", label: "Document", gradient: "from-rose-500/20 to-rose-500/5" },

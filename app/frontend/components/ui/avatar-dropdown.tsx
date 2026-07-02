@@ -86,8 +86,8 @@ export function AvatarDropdown() {
             : "var(--avatar-shadow)",
         }}
         className={cn(
-          "group relative flex items-center justify-center h-9 w-9 overflow-hidden rounded-full transition-all duration-200",
-          "text-white text-[13px] font-bold tracking-wide",
+          "group relative flex items-center justify-center h-10 w-10 overflow-hidden rounded-full transition-all duration-200",
+          "text-white text-sm font-bold tracking-wide",
           "hover:scale-105 active:scale-95"
         )}
       >

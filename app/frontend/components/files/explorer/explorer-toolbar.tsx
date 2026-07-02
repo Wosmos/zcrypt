@@ -48,8 +48,10 @@ export function ExplorerToolbar({
       {/* Row 1 (mobile) / left side (desktop): breadcrumb */}
       <div className="min-w-0 flex-1">{breadcrumb}</div>
 
-      {/* Row 2 (mobile) / right side (desktop): actions */}
-      <div className="flex w-full items-center gap-1.5 sm:w-auto sm:flex-shrink-0 sm:gap-2">
+      {/* Right side (desktop only): grid density, view toggle, Select. Hidden on
+          mobile — Select/bulk starts from a file's long-press → "Select" there,
+          and grid/view were already desktop-only. */}
+      <div className="hidden items-center gap-2 sm:flex sm:w-auto sm:flex-shrink-0">
         {/* Grid density — user picks the column count (Auto / 1–4). Only in grid
             view; the choice is persisted by the explorer. */}
         {view === "grid" && (

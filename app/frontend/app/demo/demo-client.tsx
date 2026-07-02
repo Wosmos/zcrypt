@@ -10,6 +10,9 @@ import { UploadZone } from "@/components/upload/upload-zone";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Switch } from "@/components/ui/switch";
+import { Toggle } from "@/components/ui/toggle";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { toast } from "@/store/toast";
 import type { FileMetadata, QuotaInfo, RepoInfo } from "@/types";
 import { cn, getFileCategory } from "@/lib/utils";
@@ -21,6 +24,9 @@ import {
   TableProperties,
   CheckSquare,
   Lock,
+  Sun,
+  Moon,
+  AlertCircle,
 } from "@/lib/icons";
 
 const PAGE_SIZE = 12;
@@ -172,6 +178,9 @@ export default function DemoClient() {
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [demoSwitch, setDemoSwitch] = useState(false);
+  const [demoToggle, setDemoToggle] = useState(false);
+  const [demoToggleGroup, setDemoToggleGroup] = useState<string | undefined>("light");
 
   const files = MOCK_FILES;
 
@@ -333,6 +342,49 @@ export default function DemoClient() {
         onCategoryClick={handleTypeFilter}
         activeCategory={typeFilter}
       />
+
+      {/* Component demos — Switch, Toggle, ToggleGroup */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border)]">
+        {/* Switch demo */}
+        <div className="flex flex-col items-center justify-center gap-3 p-3">
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-[var(--color-text-secondary)]">
+              {demoSwitch ? "Enabled" : "Disabled"}
+            </span>
+            <Switch checked={demoSwitch} onCheckedChange={setDemoSwitch} />
+          </div>
+          <p className="text-xs text-[var(--color-text-muted)]">Switch component</p>
+        </div>
+
+        {/* Toggle demo */}
+        <div className="flex flex-col items-center justify-center gap-3 p-3">
+          <Toggle
+            pressed={demoToggle}
+            onPressedChange={setDemoToggle}
+            aria-label="Toggle demo"
+            className={cn(
+              "h-9 px-3",
+              demoToggle && "data-[state=on]:bg-red-500 data-[state=on]:text-white",
+            )}
+          >
+            {demoToggle ? <AlertCircle className="h-4 w-4" /> : <Info className="h-4 w-4" />}
+          </Toggle>
+          <p className="text-xs text-[var(--color-text-muted)]">Toggle component</p>
+        </div>
+
+        {/* ToggleGroup demo */}
+        <div className="flex flex-col items-center justify-center gap-3 p-3">
+          <ToggleGroup type="single" value={demoToggleGroup || ""} onValueChange={setDemoToggleGroup}>
+            <ToggleGroupItem value="light" aria-label="Light mode">
+              <Sun className="h-4 w-4" />
+            </ToggleGroupItem>
+            <ToggleGroupItem value="dark" aria-label="Dark mode">
+              <Moon className="h-4 w-4" />
+            </ToggleGroupItem>
+          </ToggleGroup>
+          <p className="text-xs text-[var(--color-text-muted)]">ToggleGroup component</p>
+        </div>
+      </div>
 
       {/* Search + View toggle */}
       <div className="space-y-3">

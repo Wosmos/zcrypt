@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { motion, useReducedMotion } from "motion/react";
+import { LockKey, LockKeyOpen } from "@phosphor-icons/react";
+import { Toggle } from "@/components/ui/toggle";
 import { cn } from "@/lib/utils";
 
 /**
@@ -9,11 +10,12 @@ import { cn } from "@/lib/utils";
  * (REBUILD_SPEC §3). There is exactly ONE vault passphrase; unlocking once
  * unlocks everything for the TTL.
  *
- * Rendered as an iOS-style glassy toggle. Flipping it ON slides the knob first,
- * and only once the slide COMPLETES does the unlock modal open (`onUnlock`).
- * While the modal is up the knob stays optimistically ON and the label reads
- * "Unlocking…"; confirming keeps it on, cancelling slides it back off. Flipping
- * an unlocked vault OFF re-locks immediately (`onLock`).
+ * Rendered as a lock/unlock Toggle button (reusing the shared <Toggle>), NOT an
+ * iOS-style slider — a padlock icon that clearly reads "locked / unlocked" so it
+ * can't be mistaken for a dark-mode switch. Pressing it while locked opens the
+ * unlock modal (`onUnlock`) and shows an optimistic "Unlocking…" state; if the
+ * modal is cancelled the button reverts. Pressing an unlocked vault re-locks
+ * immediately (`onLock`).
  *
  * Purely presentational: drive it from a single `useVaultLock()` instance owned
  * by the page (which also renders the one PassphraseModal). Never touches crypto.
@@ -28,7 +30,7 @@ export interface VaultLockProps {
    * device" instead of a countdown.
    */
   persistent?: boolean;
-  /** Whether the unlock modal is currently open — lets the switch revert if the
+  /** Whether the unlock modal is currently open — lets the button revert if the
    *  user cancels instead of entering a passphrase. */
   modalOpen?: boolean;
   /** Open the single "Unlock your vault" modal. */
@@ -54,20 +56,18 @@ export function VaultLock({
   onLock,
   className,
 }: VaultLockProps) {
-  const reduceMotion = useReducedMotion();
-
-  // Optimistic "on" while we slide + wait for the passphrase modal. The knob's
-  // resting position is `unlocked`; `pending` carries the in-between flip.
+  // Optimistic "on" while the unlock modal is up. The button's resting position
+  // is `unlocked`; `pending` carries the in-between (modal open, not yet unlocked).
   const [pending, setPending] = useState(false);
   const on = unlocked || pending;
 
-  // Once genuinely unlocked, drop the optimistic flag (knob is already on).
+  // Once genuinely unlocked, drop the optimistic flag.
   useEffect(() => {
     if (unlocked) setPending(false);
   }, [unlocked]);
 
-  // If the modal opened for our flip and then closed without unlocking (cancel),
-  // slide the knob back off.
+  // If the modal opened for our press and then closed without unlocking (cancel),
+  // revert the button to off.
   const wasModalOpen = useRef(false);
   useEffect(() => {
     if (modalOpen) {
@@ -78,30 +78,24 @@ export function VaultLock({
     }
   }, [modalOpen, unlocked]);
 
-  const spring = reduceMotion
-    ? { duration: 0 }
-    : { type: "spring" as const, stiffness: 700, damping: 36, mass: 0.9 };
-
-  const handleClick = () => {
-    if (on) {
-      setPending(false);
-      onLock();
+  const handlePressedChange = (next: boolean) => {
+    if (next) {
+      // Locked → open the unlock modal immediately (optimistic "Unlocking…").
+      setPending(true);
+      onUnlock();
     } else {
-      setPending(true); // slide on; modal opens once the slide completes
+      // Turning off: re-lock only a genuinely unlocked vault; if we were merely
+      // pending (modal open, not yet unlocked), just cancel the optimistic state.
+      setPending(false);
+      if (unlocked) onLock();
     }
   };
 
-  // Open the modal only after the ON-slide settles (the "switch, then modal" feel).
-  const handleSlideComplete = () => {
-    if (pending && !unlocked) onUnlock();
-  };
-
   return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      onClick={handleClick}
+    <Toggle
+      pressed={on}
+      onPressedChange={handlePressedChange}
+      variant="default"
       aria-label={
         unlocked
           ? persistent
@@ -112,50 +106,33 @@ export function VaultLock({
             : "Vault locked — click to unlock"
       }
       className={cn(
-        "group inline-flex items-center gap-2.5 rounded-full p-0.5 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg)]",
+        "h-9 gap-1.5 rounded-full px-3 text-xs font-medium transition-colors",
+        on
+          ? "bg-[var(--color-accent)]/10 text-[var(--color-accent)] hover:bg-[var(--color-accent)]/15 hover:text-[var(--color-accent)] data-[state=on]:bg-[var(--color-accent)]/10 data-[state=on]:text-[var(--color-accent)]"
+          : "text-[var(--color-text-muted)] hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text-muted)]",
         className
       )}
     >
-      {/* Clean iOS-style switch — solid accent when on, subtle track when off */}
-      <span
-        className={cn(
-          "relative inline-block h-6 w-[42px] flex-shrink-0 rounded-full ring-1 ring-inset transition-colors duration-300",
-          on
-            ? "bg-[var(--color-accent)] ring-black/10"
-            : "bg-[var(--color-surface-2)] ring-white/10"
-        )}
-      >
-        <motion.span
-          className="absolute left-[2px] top-[2px] h-5 w-5 rounded-full bg-white shadow-[0_1px_2px_rgba(0,0,0,0.3)]"
-          animate={{ x: on ? 18 : 0 }}
-          transition={spring}
-          onAnimationComplete={handleSlideComplete}
-        />
-      </span>
+      {on ? (
+        <LockKeyOpen weight="bold" className="h-5 w-5" aria-hidden />
+      ) : (
+        <LockKey weight="bold" className="h-5 w-5" aria-hidden />
+      )}
 
-      {/* Live state label */}
-      {/* Label — hidden on mobile (the switch + aria-label carry the state there). */}
+      {/* Label — hidden on mobile (the icon + aria-label carry the state there). */}
       <span className="hidden items-center sm:inline-flex">
         {unlocked ? (
-          <span className="inline-flex items-center gap-1 text-[var(--color-accent)]">
-            Unlocked
-            <span aria-hidden className="text-[var(--color-accent)]/50">
-              ·
-            </span>
-            {persistent ? (
-              <span>this device</span>
-            ) : (
-              <span className="tabular-nums">{formatCountdown(remainingSeconds)}</span>
-            )}
-          </span>
+          persistent ? (
+            <span>this device</span>
+          ) : (
+            <span className="tabular-nums">{formatCountdown(remainingSeconds)}</span>
+          )
         ) : pending ? (
-          <span className="text-[var(--color-text-muted)]">Unlocking…</span>
+          <span>Unlocking…</span>
         ) : (
-          <span className="text-[var(--color-text-secondary)] transition-colors group-hover:text-[var(--color-text)]">
-            Locked
-          </span>
+          <span>Locked</span>
         )}
       </span>
-    </button>
+    </Toggle>
   );
 }
