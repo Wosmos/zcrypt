@@ -1,0 +1,13 @@
+# Deep static analysis for the Go backend. Advisory in the prepush gate
+# (the codebase has pre-existing findings); run `golangci-lint run` for the
+# full list. `go vet` + `gofmt` remain the blocking backend gates.
+version: "2"
+
+linters:
+  default: standard # errcheck, govet, ineffassign, staticcheck, unused
+  enable:
+    - dupl # copy-pasted code blocks (DRY)
+    - gosec # security issues
+    - revive # style / bad-practice / stale-code lint
+    - misspell # typos in comments and strings
+    - unconvert # redundant type conversions

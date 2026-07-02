@@ -10,6 +10,15 @@ export default defineConfig({
     // instrumentation slows them further — enough to blow the 5s default on
     // slower machines and CI runners. Give crypto tests generous headroom.
     testTimeout: 30_000,
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "text-summary"],
+      // Scope to the logic layers that unit tests actually target. UI
+      // components/pages are exercised by Playwright (tests/e2e), not vitest,
+      // so including them would drown the signal in 0%-covered view files.
+      include: ["lib/**", "hooks/**", "store/**"],
+      exclude: ["**/*.d.ts", "**/*.test.{ts,tsx}", "lib/icons.tsx"],
+    },
   },
   resolve: {
     alias: {
