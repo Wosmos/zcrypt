@@ -8,7 +8,7 @@
  */
 
 import { getFileMeta, getFileChunk, type FileMetaResponse } from "@/lib/api";
-import { resolveFileKey, sha256Hex, fromBase64 } from "@/lib/crypto";
+import { resolveFileKey, fromBase64 } from "@/lib/crypto";
 import { getDeviceProfile } from "@/lib/device-profile";
 import { WorkerPool } from "@/lib/worker-pool";
 import type { DecryptOutput } from "@/workers/crypto-worker";
@@ -177,28 +177,30 @@ export async function downloadAndDecryptFile(
 
   if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
 
-  // Step 4: Concatenate and verify
+  // Step 4: Verify integrity — hash the chunks in index order with an
+  // incremental hasher, so we DON'T allocate a second full-file-sized
+  // contiguous buffer. The old `fullFile` concat doubled peak memory (chunks[]
+  // + the copy), which OOMs well before multi-GB files.
   onProgress?.({ stage: "Verifying integrity...", percent: 93, chunksDone: meta.chunk_count, chunksTotal: meta.chunk_count });
 
-  const totalSize = decryptedChunks.reduce((sum, c) => sum + c.byteLength, 0);
-  const fullFile = new Uint8Array(totalSize);
-  let offset = 0;
-  for (const chunk of decryptedChunks) {
-    fullFile.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-
-  const actualHash = await sha256Hex(fullFile);
+  const { sha256: nobleSha256 } = await import("@noble/hashes/sha2.js");
+  const hasher = nobleSha256.create();
+  for (const chunk of decryptedChunks) hasher.update(chunk);
+  const actualHash = Array.from(hasher.digest())
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
   if (actualHash !== meta.sha256) {
     throw new Error("File integrity check failed — SHA-256 mismatch");
   }
 
   if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
 
-  // Step 5: Trigger browser download
+  // Step 5: Trigger browser download. The Blob is built from the chunk array
+  // directly (no extra full-size copy) — the browser backs a large Blob with a
+  // temp file rather than forcing it all into JS heap.
   onProgress?.({ stage: "Saving file...", percent: 97, chunksDone: meta.chunk_count, chunksTotal: meta.chunk_count });
 
-  const blob = new Blob([fullFile], { type: "application/octet-stream" });
+  const blob = new Blob(decryptedChunks as BlobPart[], { type: "application/octet-stream" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
