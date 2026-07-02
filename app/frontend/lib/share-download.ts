@@ -7,6 +7,7 @@
  */
 
 import { getShareFileMeta, getShareChunk } from "@/lib/api";
+import { retryTransient } from "@/lib/retry";
 import { unwrapKey, decryptChunk, sha256Hex, fromBase64 } from "@/lib/crypto";
 import { getZstdCodec } from "@/lib/zstd";
 import { getDeviceProfile } from "@/lib/device-profile";
@@ -82,7 +83,10 @@ export async function downloadSharedFile(
   const processChunk = async (index: number) => {
     if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
 
-    const { data, compressed } = await getShareChunk(token, index, sharePassword);
+    const { data, compressed } = await retryTransient(
+      () => getShareChunk(token, index, sharePassword),
+      { signal }
+    );
 
     if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
 

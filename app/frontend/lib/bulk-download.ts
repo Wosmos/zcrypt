@@ -6,6 +6,7 @@
  */
 
 import { getFileMeta, getFileChunk } from "@/lib/api";
+import { retryTransient } from "@/lib/retry";
 import { resolveFileKey, decryptChunk, sha256Hex, fromBase64 } from "@/lib/crypto";
 import { getZstdCodec } from "@/lib/zstd";
 import { zipSync } from "fflate";
@@ -79,7 +80,10 @@ export async function downloadAsZip(
 
     const processChunk = async (index: number) => {
       if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
-      const { data, compressed } = await getFileChunk(file.fileId, index);
+      const { data, compressed } = await retryTransient(
+        () => getFileChunk(file.fileId, index, signal),
+        { signal }
+      );
 
       let plain: Uint8Array;
       try {
