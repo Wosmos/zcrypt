@@ -8,12 +8,16 @@ app/frontend/.next-export/
 app/frontend/out/
 
 # Go
+app/backend/zcrypt
 app/backend/zcrypt-server
 app/backend/zcrypt-server.exe
 app/tui/zcrypt
 app/tui/zcrypt.exe
 app/tui/test-tui.exe
 app/tui/zstash-tui.exe
+
+# Tauri sidecar binaries
+app/desktop/src-tauri/zcrypt-sidecar-*
 
 # Build output
 dist/
@@ -60,8 +64,19 @@ app/tui/coverage.out
 # Frontend coverage
 app/frontend/coverage/
 
+# prepush quality-gate artifacts (report + versioning state — local only)
+docs/report.md
+docs/state.env
+docs/history.tsv
+
+# TypeScript incremental build cache
+*.tsbuildinfo
+
 # k6 output files
 tests/load/k6/results/
 *.k6.json
 
 /landing-mockups/
+
+# Personal commit-time helper (not for the repo)
+scripts/git-time.sh
