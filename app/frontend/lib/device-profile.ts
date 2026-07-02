@@ -138,24 +138,23 @@ export function getDeviceProfile(): DeviceProfile {
   const cores = navigator.hardwareConcurrency || 2;
   profile.workers = Math.min(profile.workers, cores);
 
-  // Network-aware adjustments
+  // Network-aware adjustments — clamp only on signals that reliably indicate a
+  // slow link: effectiveType 2g/slow-2g/3g or saveData (isConstrainedNetwork),
+  // or a downlink estimate at the very bottom of the range.
   if (isConstrainedNetwork()) {
     profile.maxConcurrentUploads = 1;
     profile.maxConcurrentDownloads = Math.min(profile.maxConcurrentDownloads, 2);
   }
 
-  // If we know the bandwidth, further tune concurrent operations
+  // Chromium CAPS reported downlink at 10 Mbps (anti-fingerprinting), so a
+  // "downlink < 10" rule catches fast connections too and would serialize
+  // uploads/downloads on gigabit links. Only trust the estimate when it reads
+  // clearly slow (< 2 Mbps) — well below the cap.
   const downlink = getDownlinkMbps();
-  if (downlink !== undefined) {
-    if (downlink < 2) {
-      // Very slow connection (< 2 Mbps) — serialize uploads
-      profile.maxConcurrentUploads = 1;
-      profile.maxConcurrentDownloads = 1;
-    } else if (downlink < 10) {
-      // Moderate connection — limit concurrency
-      profile.maxConcurrentUploads = Math.min(profile.maxConcurrentUploads, 1);
-      profile.maxConcurrentDownloads = Math.min(profile.maxConcurrentDownloads, 2);
-    }
+  if (downlink !== undefined && downlink < 2) {
+    // Very slow connection (< 2 Mbps) — serialize transfers
+    profile.maxConcurrentUploads = 1;
+    profile.maxConcurrentDownloads = 1;
   }
 
   cached = profile;

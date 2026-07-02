@@ -1,13 +1,20 @@
 /**
- * Upload session API — thin fetch wrappers for the chunked upload endpoints.
+ * Upload session API — thin wrappers for the chunked upload endpoints.
  *
- * All authenticated calls go through authedFetch, which refreshes the access
- * token on a 401 and retries. This is what lets a large upload survive past the
- * 15-minute access-token lifetime instead of dying mid-stream with
+ * All authenticated calls refresh the access token on a 401 and retry (JSON
+ * calls via authedFetch; chunk PUTs via the XHR helper below, which mirrors the
+ * same contract). This is what lets a large upload survive past the 15-minute
+ * access-token lifetime instead of dying mid-stream with
  * "invalid or expired token".
+ *
+ * Chunk payload PUTs (uploadChunk / directUploadToURL) use XMLHttpRequest
+ * instead of fetch: fetch exposes NO upload progress, so the progress bar froze
+ * for the entire flight of each 4-16MB chunk. xhr.upload.onprogress streams
+ * sent-byte counts to the optional onProgress callback.
  */
 
-import { authedFetch } from "@/lib/auth-fetch";
+import { authedFetch, tryRefreshToken } from "@/lib/auth-fetch";
+import { useAuthStore } from "@/store/auth";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
@@ -37,6 +44,83 @@ async function throwIfNotOk(res: Response): Promise<void> {
       message = body;
     }
     throw new Error(message);
+  }
+}
+
+// Minimal XHR result — enough to reproduce the fetch error-handling shape
+// (status check + server-message extraction) without touching Response.
+interface XhrResult {
+  status: number;
+  body: string;
+}
+
+/**
+ * PUT `data` to `url` via XMLHttpRequest, reporting upload progress.
+ *
+ * Rejects only on transport-level failures (network error / abort / timeout),
+ * matching fetch semantics; HTTP error statuses resolve normally and are
+ * handled by the caller. `onProgress` receives the number of BODY bytes the
+ * browser has sent so far (monotonic within one attempt).
+ */
+function xhrPut(
+  url: string,
+  headers: Record<string, string>,
+  data: Uint8Array,
+  onProgress?: (sentBytes: number) => void
+): Promise<XhrResult> {
+  return new Promise<XhrResult>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", url);
+    for (const [key, value] of Object.entries(headers)) {
+      xhr.setRequestHeader(key, value);
+    }
+    if (onProgress) {
+      xhr.upload.onprogress = (e: ProgressEvent) => onProgress(e.loaded);
+    }
+    xhr.onload = () => resolve({ status: xhr.status, body: xhr.responseText });
+    xhr.onerror = () => reject(new TypeError("Network request failed"));
+    xhr.onabort = () => reject(new Error("Upload aborted"));
+    xhr.ontimeout = () => reject(new Error("Upload timed out"));
+    xhr.send(data as unknown as XMLHttpRequestBodyInit);
+  });
+}
+
+// Extract the server's error message from a non-2xx XHR body — same shape as
+// throwIfNotOk above ({ error } JSON if parseable, raw body otherwise).
+function xhrErrorMessage(body: string): string {
+  try {
+    const parsed = JSON.parse(body);
+    return parsed.error || body;
+  } catch {
+    return body;
+  }
+}
+
+/**
+ * Authenticated XHR PUT — mirrors authedFetch's contract for chunk payloads:
+ * attach the current access token, and on a 401 refresh once (deduped inside
+ * tryRefreshToken, so concurrent chunks can't race a rotating refresh token)
+ * and retry with the new one. Throws Error(serverMessage) on non-2xx.
+ */
+async function authedXhrPut(
+  url: string,
+  headers: Record<string, string>,
+  data: Uint8Array,
+  onProgress?: (sentBytes: number) => void
+): Promise<void> {
+  const { accessToken } = useAuthStore.getState();
+  const send = (token: string | null) =>
+    xhrPut(url, token ? { ...headers, Authorization: `Bearer ${token}` } : headers, data, onProgress);
+
+  let res = await send(accessToken);
+  if (res.status === 401 && accessToken) {
+    const newToken = await tryRefreshToken();
+    if (newToken) {
+      res = await send(newToken);
+    }
+  }
+  if (res.status < 200 || res.status >= 300) {
+    throw new Error(xhrErrorMessage(res.body));
   }
 }
 
@@ -74,13 +158,16 @@ export async function initUpload(params: UploadInitParams): Promise<UploadInitRe
   return handleResponse<UploadInitResponse>(res);
 }
 
-/** PUT /api/upload/{sid}/chunk/{idx} — upload a single encrypted chunk. */
+/** PUT /api/upload/{sid}/chunk/{idx} — upload a single encrypted chunk.
+ *  `onProgress` (optional) receives sent-byte counts as the body streams out,
+ *  so the store can show intra-chunk progress instead of a frozen bar. */
 export async function uploadChunk(
   sessionId: string,
   index: number,
   encryptedData: Uint8Array,
   sha256: string,
-  compressed: boolean
+  compressed: boolean,
+  onProgress?: (sentBytes: number) => void
 ): Promise<void> {
   const headers: Record<string, string> = {
     "Content-Type": "application/octet-stream",
@@ -90,15 +177,12 @@ export async function uploadChunk(
     headers["X-Chunk-Compressed"] = "true";
   }
 
-  const res = await authedFetch(
+  await authedXhrPut(
     `${API_BASE}/api/upload/${sessionId}/chunk/${index}`,
-    {
-      method: "PUT",
-      headers,
-      body: encryptedData as BodyInit,
-    }
+    headers,
+    encryptedData,
+    onProgress
   );
-  await throwIfNotOk(res);
 }
 
 export interface PresignResponse {
@@ -126,24 +210,28 @@ export async function presignChunk(
   return handleResponse<PresignResponse>(res);
 }
 
-/** Upload data directly to a presigned platform URL with retries. */
+/** Upload data directly to a presigned platform URL with retries.
+ *  No Authorization header — the presigned URL/headers carry the credentials.
+ *  `onProgress` (optional) receives sent-byte counts as the body streams out. */
 export async function directUploadToURL(
   url: string,
   headers: Record<string, string> | null,
-  data: Uint8Array
+  data: Uint8Array,
+  onProgress?: (sentBytes: number) => void
 ): Promise<void> {
   let lastError: Error | null = null;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const res = await fetch(url, {
-        method: "PUT",
-        headers: {
+      const res = await xhrPut(
+        url,
+        {
           "Content-Type": "application/octet-stream",
           ...(headers || {}),
         },
-        body: data as BodyInit,
-      });
-      if (res.ok) return;
+        data,
+        onProgress
+      );
+      if (res.status >= 200 && res.status < 300) return;
       lastError = new Error(`Direct upload failed: ${res.status}`);
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));

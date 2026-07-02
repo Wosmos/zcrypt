@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useState, DragEvent } from "react";
-import { FileUpload, Cloud } from "@/lib/icons";
+import { useCallback, useEffect, useRef, useState, DragEvent } from "react";
+import { FileUpload, Cloud, Loader2 } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
 interface UploadZoneProps {
@@ -12,6 +12,33 @@ interface UploadZoneProps {
 
 export function UploadZone({ onFiles, hint, compact }: UploadZoneProps) {
   const [dragOver, setDragOver] = useState(false);
+
+  // "Preparing" covers the window between opening the native picker and the
+  // input's change event. On iOS that window can be LONG: the OS transcodes
+  // HEIC/HEVC ("preparing" the files) BEFORE change fires, with no feedback —
+  // users re-tapped, spawning new pickers and orphaning their selection. While
+  // preparing we show a spinner and ignore further clicks.
+  const [preparing, setPreparing] = useState(false);
+  // Synchronous mirror of `preparing` — React state updates are async, so a
+  // rapid double-tap could slip past a state-only guard and open two pickers.
+  const preparingRef = useRef(false);
+  const focusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // The file input is a PERSISTENT hidden element in the JSX (same pattern as
+  // components/vault/upload-fab.tsx). The previous implementation created a
+  // detached input via document.createElement that was never appended to the
+  // DOM — WebKit could garbage-collect it while the picker was open, so
+  // onchange never fired and selecting 10-50 photos did nothing.
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const clearPreparing = useCallback(() => {
+    preparingRef.current = false;
+    setPreparing(false);
+    if (focusTimerRef.current) {
+      clearTimeout(focusTimerRef.current);
+      focusTimerRef.current = null;
+    }
+  }, []);
 
   const handleDrop = useCallback(
     (e: DragEvent) => {
@@ -33,20 +60,62 @@ export function UploadZone({ onFiles, hint, compact }: UploadZoneProps) {
   }, []);
 
   const handleClick = useCallback(() => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.multiple = true;
-    input.onchange = () => {
-      if (input.files) onFiles(Array.from(input.files));
+    if (preparingRef.current) return; // picker already open / files preparing
+    // Set BEFORE opening the picker so the guard is up the instant the (modal,
+    // possibly slow-to-appear) native UI takes over.
+    preparingRef.current = true;
+    setPreparing(true);
+    inputRef.current?.click();
+  }, []);
+
+  const handleChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      clearPreparing();
+      const files = e.target.files;
+      if (files && files.length > 0) onFiles(Array.from(files));
+      // Reset so re-selecting the SAME files fires change again.
+      e.target.value = "";
+    },
+    [onFiles, clearPreparing]
+  );
+
+  // Picker dismissed without a selection: modern browsers (iOS 16.4+) fire a
+  // "cancel" event on the input. React has no onCancel prop for inputs, so we
+  // attach it natively.
+  useEffect(() => {
+    const input = inputRef.current;
+    if (!input) return;
+    const onCancel = () => clearPreparing();
+    input.addEventListener("cancel", onCancel);
+    return () => input.removeEventListener("cancel", onCancel);
+  }, [clearPreparing]);
+
+  // Fallback for older iOS with no "cancel" event: when the window regains
+  // focus (picker closed) and no change event arrives within 3s, assume the
+  // picker was dismissed and clear the preparing state. A slow HEIC/HEVC
+  // transcode can outlive the 3s — worst case the spinner clears early and the
+  // zone becomes clickable again, which is safe.
+  useEffect(() => {
+    const onFocus = () => {
+      if (!preparingRef.current) return;
+      if (focusTimerRef.current) clearTimeout(focusTimerRef.current);
+      focusTimerRef.current = setTimeout(() => {
+        if (preparingRef.current) clearPreparing();
+      }, 3000);
     };
-    input.click();
-  }, [onFiles]);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      if (focusTimerRef.current) clearTimeout(focusTimerRef.current);
+    };
+  }, [clearPreparing]);
 
   return (
     <div
       role="button"
       tabIndex={0}
       aria-label="Upload files — drop files here or click to browse"
+      aria-busy={preparing}
       onDrop={handleDrop}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
@@ -65,6 +134,14 @@ export function UploadZone({ onFiles, hint, compact }: UploadZoneProps) {
           : "border-[var(--color-border)] hover:border-[var(--color-border-hover)] bg-[var(--color-surface)]/50 hover:bg-[var(--color-surface-1)]/60"
       )}
     >
+      <input
+        ref={inputRef}
+        type="file"
+        multiple
+        onChange={handleChange}
+        className="hidden"
+      />
+
       <div
         className={cn(
           "flex items-center justify-center rounded-2xl transition-all duration-200",
@@ -74,7 +151,9 @@ export function UploadZone({ onFiles, hint, compact }: UploadZoneProps) {
             : "bg-[var(--color-surface-1)] text-[var(--color-text-muted)] group-hover:text-[var(--color-text-secondary)]"
         )}
       >
-        {dragOver ? (
+        {preparing ? (
+          <Loader2 className={cn("animate-spin", compact ? "h-5 w-5" : "h-7 w-7")} />
+        ) : dragOver ? (
           <Cloud className={compact ? "h-5 w-5" : "h-7 w-7"} />
         ) : (
           <FileUpload className={compact ? "h-5 w-5" : "h-7 w-7"} />
@@ -89,10 +168,16 @@ export function UploadZone({ onFiles, hint, compact }: UploadZoneProps) {
             dragOver ? "text-[var(--color-accent)]" : ""
           )}
         >
-          {dragOver ? "Drop to upload" : "Drop files here or click to browse"}
+          {preparing
+            ? "Preparing your files…"
+            : dragOver
+              ? "Drop to upload"
+              : "Drop files here or click to browse"}
         </p>
         <p className="text-xs text-[var(--color-text-muted)] mt-1.5 max-w-xs mx-auto leading-relaxed">
-          {hint || "Files are compressed, encrypted, and chunked before upload"}
+          {preparing
+            ? "Large videos can take a minute — keep this page open"
+            : hint || "Files are compressed, encrypted, and chunked before upload"}
         </p>
       </div>
     </div>
