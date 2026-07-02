@@ -55,6 +55,8 @@ interface ExplorerCardProps {
   selected: boolean;
   focused: boolean;
   onSelect: (id: string) => void;
+  /** Enter select mode with this file pre-selected (touch long-press → Select). */
+  onRequestSelect?: (fileId: string) => void;
   onFileClick: (file: FileMetadata, e: React.MouseEvent) => void;
   onEntryKeyDown: (entry: ExplorerEntry, e: React.KeyboardEvent) => void;
   onOpenFolder: (folder: DecryptedFolder) => void;
@@ -171,6 +173,7 @@ function FolderCard({
         <div
           role="button"
           data-entry-id={folder.id}
+          data-folder-drop={folder.id}
           tabIndex={focused ? 0 : -1}
           aria-label={`Open folder ${folder.name}${folder.protected ? ", password protected" : ""}. Right-click or long-press for actions.`}
           draggable={drag.draggable}
@@ -178,6 +181,7 @@ function FolderCard({
           onKeyDown={(e) => onEntryKeyDown(entry, e)}
           onDragStart={drag.onDragStart}
           onDragEnd={drag.onDragEnd}
+          onTouchStart={drag.onTouchStart}
           {...(drag.dropHandlers ?? {})}
           className={cn(
             "group relative flex flex-col items-center gap-1.5 rounded-xl transition-all duration-200 focus-visible:ring-inset",
@@ -282,6 +286,7 @@ function FileCardInner({
   selected,
   focused,
   onSelect,
+  onRequestSelect,
   onFileClick,
   onEntryKeyDown,
   onOpenDetails,
@@ -294,6 +299,7 @@ function FileCardInner({
   selected: boolean;
   focused: boolean;
   onSelect: (id: string) => void;
+  onRequestSelect?: (fileId: string) => void;
   onFileClick: (file: FileMetadata, e: React.MouseEvent) => void;
   onEntryKeyDown: (entry: ExplorerEntry, e: React.KeyboardEvent) => void;
   onOpenDetails?: (file: FileMetadata) => void;
@@ -323,6 +329,7 @@ function FileCardInner({
           onPointerEnter={() => prefetchOnHover(file)}
           onDragStart={drag.onDragStart}
           onDragEnd={drag.onDragEnd}
+          onTouchStart={drag.onTouchStart}
           {...(drag.dropHandlers ?? {})}
           className={cn(
             "group relative flex flex-col items-center gap-1.5 rounded-xl p-1.5 transition-all duration-200 focus-visible:ring-inset",
@@ -413,6 +420,14 @@ function FileCardInner({
 
       {/* Right-click (desktop) / long-press (touch) actions. */}
       <ContextMenuContent className="w-52">
+        {onRequestSelect && (
+          <>
+            <ContextMenuItem className="gap-2" onSelect={() => onRequestSelect(file.id)}>
+              <CheckSquare className="h-4 w-4" /> Select
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+          </>
+        )}
         {actions.onPreview && (
           <ContextMenuItem className="gap-2" onSelect={() => actions.onPreview?.(file.original_name)}>
             <Eye className="h-4 w-4" /> Preview
@@ -455,6 +470,7 @@ export function ExplorerCard({
   selected,
   focused,
   onSelect,
+  onRequestSelect,
   onFileClick,
   onEntryKeyDown,
   onOpenFolder,
@@ -496,6 +512,7 @@ export function ExplorerCard({
       selected={selected}
       focused={focused}
       onSelect={onSelect}
+      onRequestSelect={onRequestSelect}
       onFileClick={onFileClick}
       onEntryKeyDown={onEntryKeyDown}
       onOpenDetails={onOpenDetails ?? actions.onOpenDetails}

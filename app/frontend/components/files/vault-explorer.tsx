@@ -52,6 +52,7 @@ import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import type { FileMetadata } from "@/types";
 import { useFolders, type DecryptedFolder } from "@/hooks/useFolders";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { useTouchDragMove } from "@/hooks/useTouchDragMove";
 import { useDragMove, canDrop, DRAG_MIME, setDragGhost, type DragItem } from "@/hooks/useDragMove";
 import { useVaultSearch } from "@/components/ui/command-palette";
 import { usePassphraseStore } from "@/store/passphrase";
@@ -483,6 +484,16 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
     anchorRef.current = null;
   };
 
+  // Enter select mode with one file already selected — the touch entry point
+  // (long-press a file → "Select"). On desktop the toolbar Select toggle handles
+  // this; on mobile that toggle is hidden, so this is the way in.
+  const enterSelectWith = (fileId: string) => {
+    if (!selectMode) setSelectMode(true);
+    setSelectedIds(new Set([fileId]));
+    anchorRef.current = fileId;
+    setFocusedId(fileId);
+  };
+
   // ── Keyboard navigation + selection (OWNER 2, a11y) ─────────────────────────
   // Grid column count (matches the grid template: 2 / sm:3 / lg:4) so ↑/↓ jump a
   // row in grid mode. List mode is a single column → step of 1.
@@ -723,6 +734,29 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
     },
   });
 
+  // Touch drag-and-drop (mobile only). Drives the SAME useDragMove store as the
+  // desktop HTML5 path — folder drop-highlighting via `overTarget` is unchanged —
+  // and on release moves the file/folder into the folder under the finger. The
+  // press-hold-then-move gesture coexists with the long-press context menu.
+  const touchDrag = useTouchDragMove({
+    enabled: isMobile,
+    canDropOn: (item, destId) => (item.kind === "folder" ? canDrop(item, destId) : true),
+    onDrop: (item, destId) => {
+      if (item.kind === "folder") {
+        if (!canDrop(item, destId)) return;
+        const prevName = item.name;
+        moveFolder(item.id, destId)
+          .then(() => refreshFolders())
+          .catch((err) => {
+            toast.error(err instanceof Error ? err.message : `Couldn't move "${prevName}"`);
+            refreshFolders();
+          });
+        return;
+      }
+      onMoveFile?.(item.id, destId);
+    },
+  });
+
   // Build the per-entry drag props. Folders: drag disabled when locked / in
   // select mode (unchanged). Files: always draggable (drag is the move gesture),
   // now also drop targets (file-on-file merge) and bulk-drag aware.
@@ -748,6 +782,10 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
           setDragGhost(e, { tilt: !prefersReducedMotion, label: folder.name, kind: "folder" });
         },
         onDragEnd: () => endDrag(),
+        onTouchStart:
+          !locked && !selectMode
+            ? (e) => touchDrag.onPressStart(folderDragItem, e)
+            : undefined,
         dropHandlers: dropHandlers(folder.id),
         isBeingDragged,
         isDropOver,
@@ -785,6 +823,8 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
         setCombineOver(null);
         endDrag();
       },
+      onTouchStart: (e) =>
+        touchDrag.onPressStart({ kind: "file", id: file.id, name: file.original_name }, e),
       dropHandlers: fileDropHandlers(file),
       isBeingDragged,
       isDropOver: combineOver === file.id,
@@ -984,10 +1024,21 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
         onToggleSelect={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
       />
 
-      {/* Type-filter chips (second line). Hidden in select mode for focus. */}
-      {!selectMode && (
-        <FileTypeFilter files={folderFiles} activeFilter={typeFilter} onFilter={setTypeFilter} />
-      )}
+      {/* Type-filter chips (second line). Hidden in select mode for focus.
+          DESKTOP renders the chips exactly as before (bare — nothing when there's
+          ≤1 type). On MOBILE the chips get icon glyphs and stick under the search
+          bar; New folder + Upload live in the floating "+" FAB (VaultFab). */}
+      {!selectMode &&
+        (isMobile ? (
+          // Sticks just under the sticky search bar (top matches its stuck
+          // height). Full-bleed solid bg + border so vault content scrolls
+          // cleanly beneath it with no leak.
+          <div className="sticky top-[55px] z-10 -mx-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">
+            <FileTypeFilter compact files={folderFiles} activeFilter={typeFilter} onFilter={setTypeFilter} />
+          </div>
+        ) : (
+          <FileTypeFilter files={folderFiles} activeFilter={typeFilter} onFilter={setTypeFilter} />
+        ))}
 
       {/* Locked hint — non-blocking; listing still works. This is the single
           contextual lock affordance in the listing (M6/L11 removed the noisy
@@ -1137,7 +1188,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
             
             onKeyDown={handleContainerKeyDown}
             onClick={handleListingBackgroundClick}
-            className="max-h-[62vh] overflow-y-auto"
+            className="sm:max-h-[62vh] sm:overflow-y-auto"
           >
             <AnimatePresence initial={false}>
               {entries.map((entry) => {
@@ -1151,6 +1202,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
                       selected={entry.kind === "file" && selectedIds.has(entry.file.id)}
                       focused={rovingId === id}
                       onSelect={toggleSelect}
+                      onRequestSelect={isMobile ? enterSelectWith : undefined}
                       onFileClick={handleFileClick}
                       onEntryKeyDown={handleEntryKeyDown}
                       onOpenFolder={openFolderGated}
@@ -1170,7 +1222,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
           </div>
         </div>
       ) : (
-        <div className="max-h-[62vh] overflow-y-auto">
+        <div className="sm:max-h-[62vh] sm:overflow-y-auto">
           <div
             ref={listContainerRef}
             role="list"
@@ -1197,6 +1249,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
                       selected={entry.kind === "file" && selectedIds.has(entry.file.id)}
                       focused={rovingId === id}
                       onSelect={toggleSelect}
+                      onRequestSelect={isMobile ? enterSelectWith : undefined}
                       onFileClick={handleFileClick}
                       onEntryKeyDown={handleEntryKeyDown}
                       onOpenFolder={openFolderGated}

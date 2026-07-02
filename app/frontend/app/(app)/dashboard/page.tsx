@@ -14,6 +14,7 @@ import {
 import { DetailsDrawer } from "@/components/files/details-drawer";
 import { PlatformHealth } from "@/components/vault/platform-health";
 import { ExportImport } from "@/components/vault/export-import";
+import { VaultFab } from "@/components/vault/vault-fab";
 import { FeedbackModal } from "@/components/feedback/feedback-modal";
 
 import { UploadZone } from "@/components/upload/upload-zone";
@@ -340,10 +341,20 @@ export default function VaultPage() {
           : undefined;
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Top row — search (left) + vault-lock pill, refresh, New folder, Upload (right) */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative w-full sm:max-w-md">
+    // No animate-fade-in anywhere on this tree: it leaves a lingering `transform`
+    // that becomes the containing block for position:sticky, which breaks BOTH
+    // sticky mobile rows (search bar here + the filter row inside the explorer)
+    // and lets content leak past them. Correct sticky beats a 0.25s entrance.
+    <div className="space-y-6">
+      {/* Top row — search + actions. DESKTOP (sm+): search with the vault-lock
+          toggle hugging its right edge, then [New folder, Upload, refresh] far right.
+          On MOBILE this row is sticky and carries only search — the vault-lock toggle
+          lives in the global TopBar and refresh is replaced by pull-to-refresh; New
+          folder + Upload move beside the type filters. */}
+      <div className="sticky -top-1 z-20 -mx-3 flex flex-row items-center gap-2 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-3 sm:static sm:z-auto sm:mx-0 sm:justify-between sm:gap-3 sm:border-b-0 sm:bg-transparent sm:p-0">
+        {/* Left group: search + the vault lock hugging its right edge (desktop). */}
+        <div className="flex min-w-0 flex-1 items-center gap-2 sm:flex-initial">
+          <div className="relative w-full min-w-0 flex-1 sm:w-80">
           <Input
             ref={searchRef}
             type="search"
@@ -374,8 +385,7 @@ export default function VaultPage() {
               /
             </kbd>
           )}
-        </div>
-        <div className="flex flex-shrink-0 items-center gap-2">
+          </div>
           <VaultLock
             unlocked={vault.unlocked}
             remainingSeconds={vault.remainingSeconds}
@@ -383,7 +393,11 @@ export default function VaultPage() {
             modalOpen={vault.modalProps.open}
             onUnlock={() => vault.unlock()}
             onLock={vault.lock}
+            className="hidden flex-shrink-0 sm:inline-flex"
           />
+        </div>
+        {/* Desktop actions — New folder, Upload, refresh. Hidden on mobile (moved to TopBar + filters). */}
+        <div className="hidden flex-shrink-0 items-center gap-2 sm:flex">
           <Button
             variant="secondary"
             onClick={() => explorerRef.current?.startNewFolder()}
@@ -403,6 +417,8 @@ export default function VaultPage() {
             onClick={() => refresh()}
           />
         </div>
+        {/* Mobile has no refresh button — native pull-to-refresh (drag down at the
+            top) reloads the vault. The desktop refresh above stays. */}
       </div>
 
       {/* Vault file browser */}
@@ -470,9 +486,11 @@ export default function VaultPage() {
           )}
 
           {/* Storage & backup — de-emphasized, collapsed by default. Only render
-              when there's content: a personal platform or files to back up. */}
+              when there's content: a personal platform or files to back up.
+              Hidden on mobile (md-): platform storage lives in Insights and vault
+              export/import in Settings, so it'd only clutter the phone. */}
           {(hasConnectedPlatform || files.length > 0) && (
-            <Accordion type="single" collapsible className="pt-2">
+            <Accordion type="single" collapsible className="hidden pt-2 md:block">
               <AccordionItem
                 value="storage-backup"
                 className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4"
@@ -498,6 +516,15 @@ export default function VaultPage() {
             onSubmitted={markFeedbackSubmitted}
           />
       </div>
+
+      {/* Floating "+" — the single mobile entry to New folder / Upload. Hidden
+          while the full-screen viewer is open so it doesn't float over it. */}
+      {!viewerOpen && (
+        <VaultFab
+          onNewFolder={() => explorerRef.current?.startNewFolder()}
+          onUpload={() => setUploadOpen(true)}
+        />
+      )}
 
       {/* ── Modals the explorer hands control back to ───────────────────────── */}
 

@@ -54,7 +54,7 @@ export function NotificationCenter() {
       <button
         onClick={() => setOpen(!open)}
         className={cn(
-          "relative flex items-center justify-center h-9 w-9 rounded-lg transition-colors",
+          "relative flex items-center justify-center h-10 w-10 rounded-full transition-colors",
           hasErrors
             ? "text-red-500 bg-red-500/10"
             : unreadCount > 0
@@ -63,7 +63,7 @@ export function NotificationCenter() {
         )}
         title={unreadCount > 0 ? `${unreadCount} unread notifications` : "Notifications"}
       >
-        <Bell className="h-[18px] w-[18px]" />
+        <Bell className="h-5 w-5" />
         {unreadCount > 0 && (
           <span className={cn(
             "absolute -top-0.5 -right-0.5 flex items-center justify-center h-4 min-w-[16px] px-1 rounded-full text-[10px] font-bold text-white",
