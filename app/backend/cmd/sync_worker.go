@@ -182,6 +182,17 @@ func (s *Server) syncOneChunk(ctx context.Context, chunk types.ChunkRef, staging
 		return
 	}
 
+	// Per-platform push rate limit (e.g. GitHub ~7GB/hour). Wait BEFORE taking a
+	// repo slot so throttling doesn't hold the slot idle and block other repos.
+	if delay := s.pushLimiter.reserve(chunk.Platform, chunk.Size); delay > 0 {
+		log.Printf("sync-worker: throttling %s (rate cap) — holding chunk %s for %s", chunk.Platform, chunk.ChunkID, delay.Round(time.Second))
+		select {
+		case <-time.After(delay):
+		case <-ctx.Done():
+			return // shutdown — not a failed attempt
+		}
+	}
+
 	// Acquire per-repo slot to prevent GitHub 409 storms
 	releaseRepo, err := acquireRepoSlot(ctx, chunk.Repo)
 	if err != nil {
