@@ -1,12 +1,27 @@
 import { create } from "zustand";
 import { toast } from "@/store/toast";
 import { notifications } from "@/store/notifications";
-import { downloadAndDecryptFile } from "@/lib/download-session";
+import { downloadAndDecryptFile, type DiskWritable } from "@/lib/download-session";
 import { downloadAsZip, type BulkDownloadFile } from "@/lib/bulk-download";
 import { getFilesData } from "@/store/files";
 import { useFolderRegistry } from "@/store/folder-registry";
 import { useFolderPasswordStore } from "@/store/folder-passwords";
 import { resolveFilePasswordGlobal } from "@/hooks/useFolderProtection";
+
+// Files at/above this size stream to disk (a Save-As prompt) instead of being
+// assembled in memory — the only way to download something too big to hold in a
+// browser tab. Smaller files keep the silent, no-prompt download.
+const STREAM_TO_DISK_MIN_BYTES = 1024 * 1024 * 1024; // 1 GB
+
+// showSaveFilePicker isn't in the default TS DOM lib — declare the bit we use.
+interface SaveFilePickerOptions {
+  suggestedName?: string;
+}
+type ShowSaveFilePicker = (options?: SaveFilePickerOptions) => Promise<{ createWritable(): Promise<DiskWritable> }>;
+function getSaveFilePicker(): ShowSaveFilePicker | undefined {
+  if (typeof window === "undefined") return undefined;
+  return (window as unknown as { showSaveFilePicker?: ShowSaveFilePicker }).showSaveFilePicker;
+}
 
 export type DownloadStatus = "queued" | "downloading" | "done" | "failed" | "cancelled";
 
@@ -146,6 +161,25 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
         scheduleFlush();
       };
 
+      // Large file → stream straight to disk. The Save-As picker MUST be called
+      // on the click's activation (before any other await), so it's the very
+      // first thing here. User cancels the dialog → cancel the download; an
+      // unsupported browser / lost gesture → fall back to the in-memory path.
+      let disk: DiskWritable | undefined;
+      const picker = getSaveFilePicker();
+      if (fileSize >= STREAM_TO_DISK_MIN_BYTES && picker) {
+        try {
+          const handle = await picker({ suggestedName: filename });
+          disk = await handle.createWritable();
+        } catch (e) {
+          if (e instanceof DOMException && e.name === "AbortError") {
+            updateProgress("cancelled", undefined, "Cancelled");
+            return;
+          }
+          disk = undefined; // unsupported / gesture lost → in-memory fallback
+        }
+      }
+
       try {
         updateProgress("downloading", 0, "Starting...");
 
@@ -159,6 +193,7 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
           },
           signal: controller.signal,
           resolvePassword: resolvePassword ?? resolveFilePasswordGlobal,
+          saveToDisk: disk,
         });
 
         updateProgress("done", 100, "Done");

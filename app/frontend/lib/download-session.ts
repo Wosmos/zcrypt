@@ -11,7 +11,16 @@ import { getFileMeta, getFileChunk, type FileMetaResponse } from "@/lib/api";
 import { resolveFileKey, fromBase64 } from "@/lib/crypto";
 import { getDeviceProfile } from "@/lib/device-profile";
 import { WorkerPool } from "@/lib/worker-pool";
+import { OrderedWriter } from "@/lib/ordered-writer";
 import type { DecryptOutput } from "@/workers/crypto-worker";
+
+/** The subset of FileSystemWritableFileStream we use — structural so this module
+ *  doesn't depend on lib.dom File System Access typings. */
+export interface DiskWritable {
+  write(data: Uint8Array): Promise<void>;
+  close(): Promise<void>;
+  abort?(): Promise<void>;
+}
 
 export type DownloadProgressCallback = (info: {
   stage: string;
@@ -71,6 +80,14 @@ export interface DownloadOptions {
    * vault/folder callers, so their behavior is unchanged.
    */
   resolveKey?: (meta: FileMetaResponse) => Promise<ArrayBuffer>;
+  /**
+   * When provided, decrypted chunks are STREAMED to this disk writable (from
+   * showSaveFilePicker().createWritable()) in order, instead of being assembled
+   * in memory — the only way to download a file too big to hold in a browser
+   * tab (e.g. 25GB). On integrity failure / cancel the writable is aborted so a
+   * corrupt/partial file is never committed.
+   */
+  saveToDisk?: DiskWritable;
 }
 
 /**
@@ -82,7 +99,7 @@ export async function downloadAndDecryptFile(
   passphrase: string,
   options?: DownloadOptions
 ): Promise<void> {
-  const { onProgress, signal, resolvePassword, resolveKey } = options ?? {};
+  const { onProgress, signal, resolvePassword, resolveKey, saveToDisk } = options ?? {};
 
   // Check abort before starting
   if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
@@ -114,10 +131,30 @@ export async function downloadAndDecryptFile(
   // decrypt + zstd-decompress is offloaded to a Web Worker pool so it runs across
   // cores and never blocks the main thread (a big win on mobile, where doing this
   // inline stalled the UI and serialized decompression).
-  const decryptedChunks: Uint8Array[] = new Array(meta.chunk_count);
+  const hex = (bytes: Uint8Array) =>
+    Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+  const { sha256: nobleSha256 } = await import("@noble/hashes/sha2.js");
+  const hasher = nobleSha256.create();
+
+  const streaming = !!saveToDisk;
   let chunksDone = 0;
   const MAX_CONCURRENT = getDeviceProfile().maxConcurrentDownloads;
   const pool = new WorkerPool();
+
+  // STREAMING: chunks go straight to disk in order (hashed as written) so the
+  // whole file is never held in memory. IN-MEMORY: fall back to the chunk array.
+  const decryptedChunks: Uint8Array[] = streaming ? [] : new Array(meta.chunk_count);
+  const writer = streaming
+    ? new OrderedWriter(
+        {
+          async write(d: Uint8Array) {
+            hasher.update(d);
+            await saveToDisk!.write(d);
+          },
+        },
+        Math.max(4, MAX_CONCURRENT * 2)
+      )
+    : null;
 
   try {
     const processChunk = async (index: number) => {
@@ -142,7 +179,12 @@ export async function downloadAndDecryptFile(
         throw new Error("Decryption failed — wrong passphrase?");
       }
 
-      decryptedChunks[index] = new Uint8Array(out.plaintext);
+      const plain = new Uint8Array(out.plaintext);
+      if (writer) {
+        await writer.put(index, plain); // streamed to disk in index order + hashed
+      } else {
+        decryptedChunks[index] = plain;
+      }
       chunksDone++;
 
       const percent = 2 + Math.round((chunksDone / meta.chunk_count) * 90);
@@ -171,44 +213,50 @@ export async function downloadAndDecryptFile(
     }
 
     await Promise.all(fetchers);
+    if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
+
+    // Step 4: Verify integrity. Streaming hashes in write-order as chunks land;
+    // in-memory hashes the array in index order. Either way, no second
+    // full-file-sized buffer (the old concat doubled peak memory and OOM'd).
+    onProgress?.({ stage: "Verifying integrity...", percent: 93, chunksDone: meta.chunk_count, chunksTotal: meta.chunk_count });
+
+    if (streaming && writer) {
+      await writer.close(meta.chunk_count); // drain + assert every chunk was written
+    } else {
+      for (const chunk of decryptedChunks) hasher.update(chunk);
+    }
+    const actualHash = hex(hasher.digest());
+    if (actualHash !== meta.sha256) {
+      throw new Error("File integrity check failed — SHA-256 mismatch");
+    }
+
+    // Step 5: Finalize. Streaming commits the on-disk file; in-memory triggers a
+    // Blob download (the browser backs a large Blob with a temp file).
+    onProgress?.({ stage: "Saving file...", percent: 97, chunksDone: meta.chunk_count, chunksTotal: meta.chunk_count });
+
+    if (streaming) {
+      await saveToDisk!.close(); // commit — the file is already on disk
+    } else {
+      const blob = new Blob(decryptedChunks as BlobPart[], { type: "application/octet-stream" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = meta.original_name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    onProgress?.({ stage: "Done", percent: 100, chunksDone: meta.chunk_count, chunksTotal: meta.chunk_count });
+  } catch (err) {
+    // Discard a partially-written disk file so we never leave a corrupt/partial
+    // download committed (integrity failure, cancel, decrypt error, …).
+    if (saveToDisk?.abort) {
+      try { await saveToDisk.abort(); } catch { /* already closed/aborted */ }
+    }
+    throw err;
   } finally {
     pool.terminate();
   }
-
-  if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
-
-  // Step 4: Verify integrity — hash the chunks in index order with an
-  // incremental hasher, so we DON'T allocate a second full-file-sized
-  // contiguous buffer. The old `fullFile` concat doubled peak memory (chunks[]
-  // + the copy), which OOMs well before multi-GB files.
-  onProgress?.({ stage: "Verifying integrity...", percent: 93, chunksDone: meta.chunk_count, chunksTotal: meta.chunk_count });
-
-  const { sha256: nobleSha256 } = await import("@noble/hashes/sha2.js");
-  const hasher = nobleSha256.create();
-  for (const chunk of decryptedChunks) hasher.update(chunk);
-  const actualHash = Array.from(hasher.digest())
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-  if (actualHash !== meta.sha256) {
-    throw new Error("File integrity check failed — SHA-256 mismatch");
-  }
-
-  if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
-
-  // Step 5: Trigger browser download. The Blob is built from the chunk array
-  // directly (no extra full-size copy) — the browser backs a large Blob with a
-  // temp file rather than forcing it all into JS heap.
-  onProgress?.({ stage: "Saving file...", percent: 97, chunksDone: meta.chunk_count, chunksTotal: meta.chunk_count });
-
-  const blob = new Blob(decryptedChunks as BlobPart[], { type: "application/octet-stream" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = meta.original_name;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-
-  onProgress?.({ stage: "Done", percent: 100, chunksDone: meta.chunk_count, chunksTotal: meta.chunk_count });
 }
