@@ -12,10 +12,14 @@ import { AlertTriangle, ChevronDown, Clock, Play, Trash2, X } from "@/lib/icons"
 function expiresInLabel(expiresAt: string, now: number): string {
   const ms = new Date(expiresAt).getTime() - now;
   if (ms <= 0) return "expiring now";
-  const hours = Math.floor(ms / 3_600_000);
-  if (hours >= 1) return `expires in ${hours}h`;
-  const mins = Math.max(1, Math.floor(ms / 60_000));
-  return `expires in ${mins}m`;
+  const mins = Math.round(ms / 60_000);
+  if (mins < 60) return `expires in ${mins} min`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `expires in ${hours} hour${hours === 1 ? "" : "s"}`;
+  const days = Math.round(hours / 24);
+  if (days < 14) return `expires in ${days} day${days === 1 ? "" : "s"}`;
+  const weeks = Math.round(days / 7);
+  return `expires in ${weeks} week${weeks === 1 ? "" : "s"}`;
 }
 
 const PLATFORM_LABELS: Record<string, string> = {

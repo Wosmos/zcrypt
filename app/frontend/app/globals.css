@@ -846,3 +846,15 @@ html.theme-transition {
    `border-radius` rounding; the squircle is a progressive enhancement on
    engines that ship the real `corner-shape` property. */
 
+/* iOS Safari zooms into any focused field whose font-size is < 16px. Force
+   >=16px on touch devices so tapping an input never triggers that jarring
+   auto-zoom (Android is unaffected). We deliberately do NOT set maximum-scale
+   on the viewport — that would disable pinch-zoom and hurt accessibility. */
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
