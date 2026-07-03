@@ -583,6 +583,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/upload/{sid}/complete", maxJSON(s.AuthMiddleware(s.HandleUploadComplete)))
 	mux.HandleFunc("DELETE /api/upload/{sid}", s.AuthMiddleware(s.HandleUploadCancel))
 	mux.HandleFunc("GET /api/upload/{sid}/status", s.AuthMiddleware(s.HandleUploadStatus))
+	mux.HandleFunc("GET /api/upload/incomplete", s.AuthMiddleware(s.HandleListIncompleteUploads))
 
 	// Client-side decrypted download (chunked)
 	mux.HandleFunc("GET /api/files/{id}/meta", s.AuthMiddleware(s.HandleGetFileMeta))

@@ -459,6 +459,43 @@ func (s *Server) HandleUploadComplete(w http.ResponseWriter, r *http.Request) {
 	}()
 }
 
+// HandleListIncompleteUploads returns the caller's active (not-yet-complete,
+// unexpired) upload sessions so the UI can show unfinished uploads — filename,
+// platform, progress and expiry — and offer Resume / Discard.
+// GET /api/upload/incomplete
+func (s *Server) HandleListIncompleteUploads(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID := GetUserID(r)
+
+	sessions, err := s.db.ListActiveUploadSessions(ctx, userID)
+	if err != nil {
+		log.Printf("upload: list incomplete: %v", err)
+		http.Error(w, `{"error":"failed to list incomplete uploads"}`, http.StatusInternalServerError)
+		return
+	}
+
+	out := make([]map[string]interface{}, 0, len(sessions))
+	for _, sess := range sessions {
+		out = append(out, map[string]interface{}{
+			"session_id":      sess.ID,
+			"file_id":         sess.FileID,
+			"filename":        sess.Filename,
+			"original_size":   sess.OriginalSize,
+			"platform":        sess.Platform,
+			"account":         sess.Account,
+			"chunk_count":     sess.ChunkCount,
+			"uploaded_chunks": sess.UploadedChunks,
+			"created_at":      sess.CreatedAt,
+			"expires_at":      sess.ExpiresAt,
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"uploads": out,
+	})
+}
+
 // HandleUploadCancel cancels an active upload session.
 // DELETE /api/upload/{sid}
 func (s *Server) HandleUploadCancel(w http.ResponseWriter, r *http.Request) {

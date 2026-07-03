@@ -225,6 +225,26 @@ export function listFiles(filter?: string): Promise<FileMetadata[]> {
   return request<FileMetadata[]>(`/api/files${params}`);
 }
 
+/** An upload that was started but never finished — the data behind the
+ *  "unfinished uploads" UI. `platform` is the storage the user picked, so the
+ *  section can show it even after they've forgotten. Auto-removed after 24h. */
+export interface IncompleteUpload {
+  session_id: string;
+  file_id: string;
+  filename: string;
+  original_size: number;
+  platform: string;
+  account: string;
+  chunk_count: number;
+  uploaded_chunks: number;
+  created_at: string;
+  expires_at: string;
+}
+
+export function getIncompleteUploads(): Promise<{ uploads: IncompleteUpload[] }> {
+  return request<{ uploads: IncompleteUpload[] }>("/api/upload/incomplete");
+}
+
 export function deleteFile(id: string): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/files/${id}`, { method: "DELETE" });
 }
