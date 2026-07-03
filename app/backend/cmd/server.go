@@ -88,6 +88,20 @@ type Server struct {
 
 	// devMode disables all per-route rate limiting when DEV_MODE=true.
 	devMode bool
+
+	// pushLimiter throttles the sync worker's per-platform push volume to stay
+	// under a platform's rate cap (e.g. GitHub's ~7GB/hour), so a large upload
+	// can't blow the budget and get the whole account throttled/blocked.
+	pushLimiter *pushLimiter
+}
+
+// defaultPushLimits caps bytes pushed per platform per hour. GitHub enforces a
+// ~7GB/hour push rate; other platforms are unlimited here (absent = no cap).
+func defaultPushLimits() map[string]int64 {
+	const gb = int64(1) << 30
+	return map[string]int64{
+		"github": 7 * gb,
+	}
 }
 
 type desktopOAuthResult struct {
@@ -108,6 +122,7 @@ func NewServer(db *index.DB, cfg *config.Config, progress *pipeline.ProgressEmit
 		poolCache:           make(map[string]map[string]*reppool.Manager),
 		adapterCacheExpiry:  make(map[string]time.Time),
 		adapterErrors:       make(map[string]map[string]string),
+		pushLimiter:         newPushLimiter(defaultPushLimits(), time.Hour),
 		authLimiter:         newRateLimiter(5, 5*time.Minute),
 		emailLimiter:        newRateLimiter(3, 15*time.Minute),
 		userLimiter:         newRateLimiter(600, time.Minute),
