@@ -19,6 +19,7 @@ import { FeedbackModal } from "@/components/feedback/feedback-modal";
 
 import { UploadZone } from "@/components/upload/upload-zone";
 import { PlatformSelector } from "@/components/upload/platform-selector";
+import { IncompleteUploads } from "@/components/upload/incomplete-uploads";
 
 import { VaultLock } from "@/components/ui/vault-lock";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -444,6 +445,9 @@ export default function VaultPage() {
               </div>
             </div>
           )}
+
+          {/* Unfinished uploads (started but never completed) — resume or discard. */}
+          <IncompleteUploads onResume={(file) => actions.handleFilesSelected([file])} />
 
           {/* Empty vault → CTA; otherwise the unified explorer. The explorer
               renders its own loading / locked / no-results states. */}

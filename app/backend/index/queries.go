@@ -648,6 +648,37 @@ func (db *DB) GetUploadSession(ctx context.Context, sessionID, userID string) (*
 	return s, nil
 }
 
+// ListActiveUploadSessions returns a user's not-yet-complete, unexpired upload
+// sessions — the data behind the "unfinished uploads" UI (filename, platform,
+// progress, expiry). Newest first. Selects only display fields (no salt/sha256).
+func (db *DB) ListActiveUploadSessions(ctx context.Context, userID string) ([]types.UploadSession, error) {
+	rows, err := db.pool.Query(ctx,
+		`SELECT id, file_id, filename, original_size, platform, account, chunk_count, uploaded_chunks, created_at, expires_at
+		 FROM upload_sessions
+		 WHERE user_id = $1 AND status = 'active' AND expires_at > NOW()
+		 ORDER BY created_at DESC`,
+		userID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list active upload sessions: %w", err)
+	}
+	defer rows.Close()
+
+	var sessions []types.UploadSession
+	for rows.Next() {
+		var s types.UploadSession
+		if err := rows.Scan(&s.ID, &s.FileID, &s.Filename, &s.OriginalSize, &s.Platform, &s.Account,
+			&s.ChunkCount, &s.UploadedChunks, &s.CreatedAt, &s.ExpiresAt); err != nil {
+			return nil, fmt.Errorf("scan upload session: %w", err)
+		}
+		sessions = append(sessions, s)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate upload sessions: %w", err)
+	}
+	return sessions, nil
+}
+
 // IncrementSessionChunks atomically increments the uploaded_chunks counter and
 // returns the new count, so concurrent uploaders can compute progress from the
 // post-increment value instead of a stale read.
