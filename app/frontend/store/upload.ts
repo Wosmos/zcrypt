@@ -435,9 +435,12 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
     const emitByteProgress = () => {
       // While paused, in-flight chunks must not flip the row back to "uploading".
       if (pausedIds.has(id)) return;
-      let inFlight = 0;
-      for (const v of inFlightPlainBytes.values()) inFlight += v;
-      const bytes = Math.min(completedPlainBytes + inFlight, file.size);
+      // Progress reflects DURABLY-uploaded (confirmed) chunks only. Counting
+      // bytes still in flight (sent but not yet confirmed by the platform)
+      // badly overstated it — e.g. "32%" while only ~9% of chunks were actually
+      // stored — which read as misleading. completedPlainBytes accumulates on
+      // each chunk's confirm, so the % now agrees with the chunk counter below.
+      const bytes = Math.min(completedPlainBytes, file.size);
       const fraction = file.size > 0 ? bytes / file.size : uploadedChunks / chunkCount;
       const percent = 3 + Math.round(fraction * 92);
       // Stage names the chunk currently in flight (falls back to the completed
