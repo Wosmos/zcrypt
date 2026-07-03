@@ -109,7 +109,8 @@ interface UploadStore {
   setFileId: (id: string, fileId: string) => void;
   updateStatus: (id: string, status: UploadStatus, progress?: number, stage?: string, bytesProcessed?: number, totalBytes?: number) => void;
   setError: (id: string, error: string) => void;
-  removeFromQueue: (id: string) => void;
+  removeFromQueue: (id: string) => void;         // DESTRUCTIVE: cancels the session + deletes staged data. Explicit "Cancel" only.
+  dismissUpload: (id: string) => void;           // NON-destructive: clears the dock row but keeps the upload recoverable.
   clearCompleted: () => void;
   findByFileId: (fileId: string) => UploadItem | undefined;
   /** Destination folder for a queued/in-flight upload item, or null for Root.
@@ -673,15 +674,29 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
   },
 
   removeFromQueue: (id) => {
-    // If the item has a live session (failed mid-upload), cancel it server-side
-    // so it stops holding a concurrent-upload slot. This is the "give up" path —
-    // distinct from Retry, which keeps the session to resume.
+    // DESTRUCTIVE — the explicit "Cancel/Discard" path. Cancels the session
+    // server-side (deletes staged data) and drops the resume record, so the
+    // upload is intentionally, permanently gone. Must ONLY be reached from an
+    // explicit Cancel button — never from swipe/dismiss (that's dismissUpload).
     const meta = itemMeta.get(id);
     if (meta?.resume?.sessionId) {
       cancelUpload(meta.resume.sessionId).catch(() => {});
     }
     const item = get().queue.find((i) => i.id === id);
-    if (item) clearPersistedResume(item.file); // give up — drop the resume record
+    if (item) clearPersistedResume(item.file);
+    itemMeta.delete(id);
+    pausedIds.delete(id);
+    set((state) => ({
+      queue: state.queue.filter((item) => item.id !== id),
+    }));
+  },
+
+  dismissUpload: (id) => {
+    // NON-destructive — just clears the row from the transfer dock. Leaves the
+    // server session ALIVE and keeps the resume record, so an interrupted or
+    // failed upload stays recoverable in the unfinished-uploads section (and
+    // re-adding the same file resumes). This is what swipe / the dock ✕ do now,
+    // so a stray swipe can never destroy a 90%-done upload again.
     itemMeta.delete(id);
     pausedIds.delete(id);
     set((state) => ({
