@@ -59,7 +59,8 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
   const pauseUpload = useUploadStore((s) => s.pauseUpload);
   const resumeUpload = useUploadStore((s) => s.resumeUpload);
   const retryUpload = useUploadStore((s) => s.retryUpload);
-  const removeUpload = useUploadStore((s) => s.removeFromQueue);
+  const removeUpload = useUploadStore((s) => s.removeFromQueue); // destructive (explicit Cancel)
+  const dismissUpload = useUploadStore((s) => s.dismissUpload);  // non-destructive (dock ✕ / swipe)
   const clearUploads = useUploadStore((s) => s.clearCompleted);
   const getItemFolderId = useUploadStore((s) => s.getItemFolderId);
 
@@ -246,8 +247,11 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
         retryDownload(id, pass, resolveFilePasswordGlobal)
       );
     },
+    // Dismiss is NON-destructive for uploads — it clears the dock row but keeps
+    // the session recoverable (a stray swipe must never delete a partial
+    // upload). Downloads have no server state, so removing the row is safe.
     onDismiss: (entry: TransferEntry) =>
-      entry.direction === "upload" ? removeUpload(entry.id) : removeDownload(entry.id),
+      entry.direction === "upload" ? dismissUpload(entry.id) : removeDownload(entry.id),
   };
 
   const clearCompleted = () => {

@@ -190,7 +190,9 @@ CREATE TABLE IF NOT EXISTS upload_sessions (
 	uploaded_chunks INTEGER NOT NULL DEFAULT 0,
 	status          TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'complete', 'cancelled')),
 	created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-	expires_at      TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '24 hours'
+	-- Incomplete uploads are kept for 7 days so an interrupted multi-GB upload
+	-- stays resumable, instead of evaporating overnight.
+	expires_at      TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '7 days'
 );
 
 CREATE INDEX IF NOT EXISTS idx_upload_sessions_user ON upload_sessions(user_id);
@@ -219,6 +221,10 @@ ALTER TABLE files ADD COLUMN IF NOT EXISTS wrapped_cek TEXT NOT NULL DEFAULT '';
 ALTER TABLE email_tokens DROP CONSTRAINT IF EXISTS email_tokens_kind_check;
 ALTER TABLE email_tokens ADD CONSTRAINT email_tokens_kind_check
 	CHECK (kind IN ('verify', 'reset', 'magic_link'));
+
+-- Keep incomplete uploads resumable for 7 days (was 24h) so an interrupted
+-- large upload isn't auto-deleted overnight. Applies to newly-created sessions.
+ALTER TABLE upload_sessions ALTER COLUMN expires_at SET DEFAULT NOW() + INTERVAL '7 days';
 
 -- Migrate platform_tokens platform constraint to allow telegram
 ALTER TABLE platform_tokens DROP CONSTRAINT IF EXISTS platform_tokens_platform_check;
