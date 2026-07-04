@@ -17,13 +17,55 @@ const MAX_CONCURRENT = 3;
 
 // ── In-memory mirror of IndexedDB ────────────────────────────────────
 const memCache = new Map<string, string>();
-const failedSet = new Set<string>(); // files we tried and couldn't thumbnail
+// Files whose thumbnail generation failed, with a bounded RETRY schedule rather
+// than a permanent blacklist. This matters most right after an upload: the
+// file's chunks may still be syncing to the storage platform when the thumbnail
+// first tries to fetch them, so the first attempt fails — a permanent blacklist
+// then left the file iconless until a full page reload. With retry, the shimmer
+// simply resolves into the real thumbnail once the chunk lands (a few seconds),
+// no reload needed; a genuinely un-thumbnailable file gives up after MAX_ATTEMPTS.
+const MAX_THUMB_ATTEMPTS = 3;
+const failed = new Map<string, { attempts: number; nextRetryAt: number }>();
+const retryTimers = new Map<string, ReturnType<typeof setTimeout>>();
 let version = 0; // bumped on every change so per-file hooks re-render
 let listeners: (() => void)[] = [];
 function notify() { version++; for (const l of listeners) l(); }
 function subscribe(cb: () => void) { listeners.push(cb); return () => { listeners = listeners.filter((l) => l !== cb); }; }
 function getSnapshot() { return memCache; }
 function getVersion() { return version; }
+
+/** Given up after MAX_THUMB_ATTEMPTS — show the type icon, stop retrying. */
+function isPermanentlyFailed(id: string): boolean {
+  const f = failed.get(id);
+  return !!f && f.attempts >= MAX_THUMB_ATTEMPTS;
+}
+/** May a (re)generation run now — never tried, or a prior failure's backoff has
+ *  elapsed and attempts remain. */
+function canGenerateNow(id: string): boolean {
+  const f = failed.get(id);
+  if (!f) return true;
+  if (f.attempts >= MAX_THUMB_ATTEMPTS) return false;
+  return Date.now() >= f.nextRetryAt;
+}
+/** Record a failed attempt. `permanent` (render/decode/locked) gives up
+ *  immediately → type icon. A transient failure (fetch/decrypt/timeout) gets a
+ *  bounded backoff and schedules a wake-up so mounted cards retry once it
+ *  elapses (effects only re-fire on state change, so without this notify the
+ *  retry would wait for an unrelated re-render). Gives up after MAX attempts. */
+function markThumbFailed(id: string, permanent: boolean): void {
+  if (permanent) {
+    failed.set(id, { attempts: MAX_THUMB_ATTEMPTS, nextRetryAt: 0 });
+    return;
+  }
+  const attempts = (failed.get(id)?.attempts ?? 0) + 1;
+  const backoff = Math.min(30_000, 3_000 * 2 ** (attempts - 1)); // 3s, 6s, 12s (cap 30s)
+  failed.set(id, { attempts, nextRetryAt: Date.now() + backoff });
+  const existing = retryTimers.get(id);
+  if (existing) clearTimeout(existing);
+  if (attempts < MAX_THUMB_ATTEMPTS) {
+    retryTimers.set(id, setTimeout(() => { retryTimers.delete(id); notify(); }, backoff + 50));
+  }
+}
 
 // Lazy generation context: set once on unlock via primeThumbnails(). Each
 // file's hook then generates its own thumbnail the first time it renders,
@@ -287,25 +329,46 @@ async function fetchAndCacheThumbnail(
     await acquireSlot();
     slotHeld = true;
     const video = isVideoFile(filename);
-    // Bound both stages: a stalled chunk fetch or an image the browser never
-    // fires load/error for (Safari is stricter about odd formats) would
-    // otherwise hold this slot forever and leave every queued card spinning.
-    const blob = await withTimeout(
-      decryptFileToBlob(fileId, passphrase, resolvePassword, mimeForFile(filename)),
-      30_000,
-      "thumbnail decrypt"
-    );
-    const dataUrl = video
-      ? await generateVideoThumbnail(blob, 400, 400)
-      : await withTimeout(generateThumbnail(blob, 300, 300), 15_000, "thumbnail render");
+
+    // STAGE 1 — fetch + decrypt. Failures here (a chunk still syncing to the
+    // platform right after upload, a network blip, a slow-link timeout) are
+    // TRANSIENT: mark with a bounded backoff so the shimmer resolves into the
+    // real thumbnail on a retry a few seconds later — no page reload needed. A
+    // locked protected folder is the one permanent case (don't re-poll it).
+    let blob: Blob;
+    try {
+      blob = await withTimeout(
+        decryptFileToBlob(fileId, passphrase, resolvePassword, mimeForFile(filename)),
+        30_000,
+        "thumbnail decrypt"
+      );
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      markThumbFailed(fileId, /* permanent */ msg === "locked");
+      return null;
+    }
+
+    // STAGE 2 — rasterize. Failures here (unsupported codec, undecodable image,
+    // no canvas context) are PERMANENT: the bytes are fine but this file can't
+    // become a thumbnail, so fall straight back to the type icon rather than
+    // burning retries re-decrypting a file that will never render.
+    let dataUrl: string;
+    try {
+      dataUrl = video
+        ? await generateVideoThumbnail(blob, 400, 400)
+        : await withTimeout(generateThumbnail(blob, 300, 300), 15_000, "thumbnail render");
+    } catch {
+      markThumbFailed(fileId, /* permanent */ true);
+      return null;
+    }
     memCache.set(fileId, dataUrl);
     // Persist to IndexedDB in background
     dbPut(fileId, dataUrl).catch(() => {});
     return dataUrl;
   } catch {
-    // Remember the failure so the lazy hook doesn't retry forever (locked
-    // folder, unsupported codec, decode error, oversized, timed-out fetch, …).
-    failedSet.add(fileId);
+    // acquireSlot (or something unexpected) threw — treat as transient so a
+    // retry can still succeed once the queue frees up.
+    markThumbFailed(fileId, /* permanent */ false);
     return null;
   } finally {
     inflight.delete(fileId);
@@ -358,17 +421,26 @@ export function useThumbnail(
   const withinSize = size === undefined || size < MAX_FILE_SIZE;
   const ctxReady = ctxPassphrase !== null;
 
-  // Lazy: generate this file's thumbnail the first time it renders after unlock.
-  // The guards keep repeat renders cheap; fetchAndCacheThumbnail queues itself
-  // behind the shared concurrency limit.
-  useEffect(() => {
-    if (!ctxReady || !thumbable || !withinSize) return;
-    if (memCache.has(fileId) || inflight.has(fileId) || failedSet.has(fileId)) return;
-    fetchAndCacheThumbnail(fileId, filename, ctxPassphrase as string, ctxResolver).catch(() => {});
-  }, [fileId, filename, thumbable, withinSize, ctxReady, thumbnailUrl]);
+  // Whether a (re)generation should run right now. Recomputed every render —
+  // including the notify() the retry timer fires — so `canGenerateNow` flips
+  // false→true when a failed attempt's backoff elapses and the effect re-runs.
+  const shouldGenerate =
+    ctxReady && thumbable && withinSize && !thumbnailUrl && canGenerateNow(fileId);
 
+  // Lazy: generate this file's thumbnail the first time it renders after unlock,
+  // and again after a transient failure's backoff. fetchAndCacheThumbnail queues
+  // itself behind the shared concurrency limit and guards against double-starts.
+  useEffect(() => {
+    if (!shouldGenerate) return;
+    if (memCache.has(fileId) || inflight.has(fileId)) return;
+    fetchAndCacheThumbnail(fileId, filename, ctxPassphrase as string, ctxResolver).catch(() => {});
+  }, [shouldGenerate, fileId, filename]);
+
+  // Still expecting a thumbnail (show the shimmer) until it lands or we give up
+  // for good. A file in backoff between retries keeps shimmering — it's about to
+  // try again — rather than flickering to an icon and back.
   const pending =
-    thumbable && withinSize && ctxReady && !thumbnailUrl && !failedSet.has(fileId);
+    thumbable && withinSize && ctxReady && !thumbnailUrl && !isPermanentlyFailed(fileId);
 
   return { thumbnailUrl, loading, pending };
 }

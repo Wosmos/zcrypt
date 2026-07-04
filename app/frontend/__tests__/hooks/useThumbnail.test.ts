@@ -393,21 +393,29 @@ describe("useThumbnail", () => {
     expect(getFileMetaMock).not.toHaveBeenCalled();
   });
 
-  it("marks a file failed (and stops retrying) when the chunk fetch errors", async () => {
+  it("retries a transient chunk-fetch failure, then gives up after MAX attempts", async () => {
+    vi.useFakeTimers();
     const { primeThumbnails, useThumbnail, hasCachedThumbnail } = await loadModule();
     getFileMetaMock.mockResolvedValue(makeMeta());
     getFileChunkMock.mockRejectedValue(new Error("network down"));
 
     act(() => primeThumbnails("vault-pass"));
-    const { result, rerender } = renderHook(() => useThumbnail("f1", "photo.jpg"));
+    const { result } = renderHook(() => useThumbnail("f1", "photo.jpg"));
 
-    await waitFor(() => expect(result.current.pending).toBe(false));
+    // First attempt fails — but a chunk-fetch error is TRANSIENT (e.g. a
+    // freshly-uploaded chunk still syncing), so the card keeps shimmering and a
+    // retry is scheduled rather than immediately falling back to an icon.
+    await act(async () => { await vi.advanceTimersByTimeAsync(100); });
+    expect(getFileMetaMock.mock.calls.length).toBe(1);
+    expect(result.current.pending).toBe(true);
+
+    // Advance through both backoffs (3s, then 6s) to exhaust all 3 attempts.
+    await act(async () => { await vi.advanceTimersByTimeAsync(3_000 + 6_000 + 300); });
+
+    expect(getFileMetaMock.mock.calls.length).toBe(3); // attempted exactly MAX times
+    expect(result.current.pending).toBe(false); // gave up → type icon
     expect(result.current.thumbnailUrl).toBeNull();
     expect(hasCachedThumbnail("f1")).toBe(false);
-
-    const callsAfterFailure = getFileMetaMock.mock.calls.length;
-    rerender();
-    expect(getFileMetaMock.mock.calls.length).toBe(callsAfterFailure); // no retry
   });
 
   it("marks a file failed when the image fails to decode", async () => {
@@ -500,7 +508,33 @@ describe("useThumbnail", () => {
     expect(result.current.thumbnailUrl).toBeNull();
   });
 
-  it("marks a file failed when the decrypt stage exceeds its safety-net timeout", async () => {
+  it("recovers WITHOUT a reload: fails once (chunk not synced), then succeeds on retry", async () => {
+    // The reported bug: a just-uploaded file's chunk is still syncing when the
+    // thumbnail first tries to fetch it, so attempt 1 fails — previously that
+    // blacklisted the file until a full page reload. Now the retry, seconds
+    // later (once the chunk lands), produces the thumbnail with no reload.
+    vi.useFakeTimers();
+    const { primeThumbnails, useThumbnail } = await loadModule();
+    getFileMetaMock.mockResolvedValue(makeMeta());
+    getFileChunkMock
+      .mockRejectedValueOnce(new Error("chunk not available yet")) // still syncing
+      .mockResolvedValue({ data: new ArrayBuffer(4), sha256: "x", compressed: false });
+
+    act(() => primeThumbnails("vault-pass"));
+    const { result } = renderHook(() => useThumbnail("f1", "photo.jpg"));
+
+    // Attempt 1 fails but the card keeps shimmering (transient, retry scheduled).
+    await act(async () => { await vi.advanceTimersByTimeAsync(100); });
+    expect(result.current.thumbnailUrl).toBeNull();
+    expect(result.current.pending).toBe(true);
+
+    // The 3s backoff elapses → retry → the chunk is now available → thumbnail.
+    await act(async () => { await vi.advanceTimersByTimeAsync(3_000 + 300); });
+    expect(result.current.thumbnailUrl).toBe("data:image/webp;base64,FAKE");
+    expect(result.current.pending).toBe(false);
+  });
+
+  it("retries a transient decrypt-stage timeout, then gives up after MAX attempts", async () => {
     vi.useFakeTimers();
     const { primeThumbnails, useThumbnail } = await loadModule();
     getFileMetaMock.mockResolvedValue(makeMeta());
@@ -509,9 +543,13 @@ describe("useThumbnail", () => {
     act(() => primeThumbnails("vault-pass"));
     const { result } = renderHook(() => useThumbnail("f1", "photo.jpg"));
 
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(30_000);
-    });
+    // A 30s decrypt-stage timeout (a stuck/slow chunk fetch) is TRANSIENT — the
+    // card keeps shimmering and retries rather than iconing out after one stall.
+    await act(async () => { await vi.advanceTimersByTimeAsync(30_000 + 200); });
+    expect(result.current.pending).toBe(true);
+
+    // Drive the remaining attempts: 3s backoff + 30s timeout + 6s backoff + 30s.
+    await act(async () => { await vi.advanceTimersByTimeAsync(3_000 + 30_000 + 6_000 + 30_000 + 500); });
 
     expect(result.current.pending).toBe(false);
     expect(result.current.thumbnailUrl).toBeNull();
@@ -882,7 +920,8 @@ describe("useThumbnail", () => {
     expect(getZstdCodecMock).toHaveBeenCalledTimes(1); // fetched once, reused for chunk 2
   });
 
-  it("still cleans up (failedSet, inflight, notify) if acquiring a concurrency slot itself throws", async () => {
+  it("still cleans up (inflight, loading, notify) if acquiring a concurrency slot itself throws", async () => {
+    vi.useFakeTimers();
     isForegroundDecryptActiveMock.mockImplementation(() => {
       throw new Error("boom");
     });
@@ -891,8 +930,16 @@ describe("useThumbnail", () => {
     act(() => primeThumbnails("vault-pass"));
     const { result } = renderHook(() => useThumbnail("f1", "photo.jpg"));
 
-    await waitFor(() => expect(result.current.pending).toBe(false));
+    // Even though acquireSlot threw, inflight/loading are cleared (the finally
+    // always runs) — this is the fix for the perpetual-shimmer-on-stuck-slot bug.
+    await act(async () => { await vi.advanceTimersByTimeAsync(100); });
+    expect(result.current.loading).toBe(false);
     expect(result.current.thumbnailUrl).toBeNull();
+
+    // A slot-acquire failure is transient, so it retries; drive both backoffs to
+    // exhaust the attempts and confirm it eventually gives up.
+    await act(async () => { await vi.advanceTimersByTimeAsync(3_000 + 6_000 + 300); });
+    expect(result.current.pending).toBe(false);
     expect(result.current.loading).toBe(false);
   });
 });
