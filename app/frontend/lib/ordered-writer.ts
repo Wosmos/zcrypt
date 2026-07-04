@@ -15,14 +15,19 @@ export interface ChunkSink {
 
 export class OrderedWriter {
   private buffer = new Map<number, Uint8Array>();
-  private cursor = 0;
+  private cursor: number;
   // Serialize flushes via a promise chain so concurrent put()s can't interleave
   // writes or race the cursor (JS is single-threaded but flush awaits I/O).
   private lock: Promise<void> = Promise.resolve();
   private readonly maxBuffer: number;
 
-  constructor(private sink: ChunkSink, maxBuffer = 8) {
+  /** `startAt` lets a RESUMED download begin at the high-water mark of a paused
+   *  run: chunks 0..startAt-1 are already on disk (and already hashed), so the
+   *  fresh writer's cursor starts there and the first chunk it expects is
+   *  `startAt`, not 0. */
+  constructor(private sink: ChunkSink, maxBuffer = 8, startAt = 0) {
     this.maxBuffer = Math.max(1, maxBuffer);
+    this.cursor = startAt;
   }
 
   /**
@@ -30,13 +35,19 @@ export class OrderedWriter {
    * any now-contiguous run has been flushed to the sink. Applies backpressure:
    * if the reorder buffer is full it waits — unless this chunk is the one the
    * cursor is waiting for, which is always accepted so it can never deadlock.
+   *
+   * `signal` breaks the backpressure wait on pause/cancel: without it, a put
+   * for a high index parked behind a missing low index (whose fetch was just
+   * aborted) would spin forever, hanging the pause. Aborting throws so the
+   * chunk is simply re-fetched on resume (it's ahead of the cursor anyway).
    */
-  async put(index: number, data: Uint8Array): Promise<void> {
+  async put(index: number, data: Uint8Array, signal?: AbortSignal): Promise<void> {
     while (
       this.buffer.size >= this.maxBuffer &&
       index !== this.cursor &&
       !this.buffer.has(this.cursor)
     ) {
+      if (signal?.aborted) throw new DOMException("Download aborted", "AbortError");
       await new Promise((r) => setTimeout(r, 15));
     }
     this.buffer.set(index, data);

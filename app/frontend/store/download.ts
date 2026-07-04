@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { toast } from "@/store/toast";
 import { notifications } from "@/store/notifications";
-import { downloadAndDecryptFile, type DiskWritable } from "@/lib/download-session";
+import { downloadAndDecryptFile, DownloadPausedError, type DiskWritable, type DownloadResumeState } from "@/lib/download-session";
 import { downloadAsZip, type BulkDownloadFile } from "@/lib/bulk-download";
 import { getFilesData } from "@/store/files";
 import { useFolderRegistry } from "@/store/folder-registry";
@@ -23,7 +23,7 @@ function getSaveFilePicker(): ShowSaveFilePicker | undefined {
   return (window as unknown as { showSaveFilePicker?: ShowSaveFilePicker }).showSaveFilePicker;
 }
 
-export type DownloadStatus = "queued" | "downloading" | "done" | "failed" | "cancelled";
+export type DownloadStatus = "queued" | "downloading" | "paused" | "done" | "failed" | "cancelled";
 
 export interface DownloadItem {
   id: string;
@@ -64,18 +64,22 @@ function scheduleFlush() {
   });
 }
 
+/** Set a terminal / paused status directly (bypassing the rAF throttle) AND
+ *  purge any still-queued progress write for this id — otherwise a throttled
+ *  frame already scheduled from the last onProgress tick lands afterward and
+ *  stomps the terminal status back to "downloading". */
+function setStatusNow(id: string, patch: Partial<DownloadItem> & { status: DownloadStatus }) {
+  pendingUpdates.delete(id);
+  useDownloadStore.setState((state) => ({
+    queue: state.queue.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+  }));
+}
+
 /**
  * Optional per-file password resolver, threaded through to the decrypt pipeline.
- * For a file in a password-protected folder it returns the cached folder
- * password (the caller having already unlocked the folder); for everything else
- * it returns the vault passphrase. Omitted ⇒ the plain `passphrase` is used, so
- * unprotected downloads are byte-for-byte unchanged.
  */
 export type DownloadPasswordResolver = (fileId: string) => Promise<string> | string;
 
-// True iff `fileId` lives in a folder known to be password-protected. Used to
-// scope the wrong-password recovery (clear-cache + re-prompt) to protected files
-// only — unprotected files keep the existing vault wrong-passphrase flow.
 function protectedFolderOf(fileId: string): string | null {
   const file = getFilesData().find((f) => f.id === fileId);
   const fid = file?.folder_id ?? null;
@@ -83,19 +87,11 @@ function protectedFolderOf(fileId: string): string | null {
   return null;
 }
 
-// Heuristic match for a wrong/stale-key decrypt failure (mirrors the preview
-// recovery in useVaultActions). The decrypt pipelines surface AES-GCM failures
-// as "Decryption failed — wrong passphrase?".
 function looksLikeWrongKey(msg: string): boolean {
   const m = msg.toLowerCase();
   return m.includes("decrypt") || m.includes("passphrase") || m.includes("cipher") || m.includes("wrong");
 }
 
-// On a wrong-password failure for a PROTECTED-folder file, clear that folder's
-// cached password (FIX-4) so the next attempt re-prompts + re-verifies — exactly
-// like the preview recovery. Returns true if it was a protected-folder
-// wrong-key case (so the caller can show a re-prompt hint instead of a generic
-// failure toast). Unprotected files are left to the existing vault flow.
 function recoverWrongFolderPassword(fileId: string, msg: string): boolean {
   if (!looksLikeWrongKey(msg)) return false;
   const fid = protectedFolderOf(fileId);
@@ -104,12 +100,42 @@ function recoverWrongFolderPassword(fileId: string, msg: string): boolean {
   return true;
 }
 
+// Per-single-download state kept OUT of the typed queue (mirrors upload's
+// itemMeta): the params needed to (re)run, the resumable pipeline state, the
+// current run's abort controller, and a generation token so a stale run that's
+// draining after pause can't finalize over a newer one.
+interface SingleSession {
+  fileId: string;
+  filename: string;
+  fileSize: number;
+  passphrase: string;
+  resolvePassword?: DownloadPasswordResolver;
+  resume: DownloadResumeState;
+  abort: AbortController;
+  runToken: symbol;
+  runPromise?: Promise<void>;
+}
+const sessions = new Map<string, SingleSession>();
+// Ids the user has paused — the pipeline's `pausing()` reads this to preserve
+// state (keep the disk writable open) instead of discarding on abort.
+const pausedIds = new Set<string>();
+
+// A ZIP download has no resume pipeline; it keeps just an abort controller and
+// its params so a retry can restart it.
+interface ZipSession {
+  files: BulkDownloadFile[];
+  passphrase: string;
+  resolvePassword?: DownloadPasswordResolver;
+  abort: AbortController;
+}
+const zipSessions = new Map<string, ZipSession>();
+
 interface DownloadStore {
   queue: DownloadItem[];
-  // Map of download id -> AbortController (for cancellation)
-  controllers: Map<string, AbortController>;
   startDownload: (fileId: string, filename: string, fileSize: number, passphrase: string, resolvePassword?: DownloadPasswordResolver) => void;
   startBulkZipDownload: (files: BulkDownloadFile[], passphrase: string, resolvePassword?: DownloadPasswordResolver) => void;
+  pauseDownload: (id: string) => void;
+  resumeDownload: (id: string, passphrase: string, resolvePassword?: DownloadPasswordResolver) => void;
   cancelDownload: (id: string) => void;
   retryDownload: (id: string, passphrase: string, resolvePassword?: DownloadPasswordResolver) => void;
   removeFromQueue: (id: string) => void;
@@ -118,130 +144,132 @@ interface DownloadStore {
 
 let counter = 0;
 
+function updateProgress(id: string, status: DownloadStatus, progress?: number, stage?: string) {
+  if (status === "done" || status === "failed" || status === "cancelled" || status === "paused") {
+    setStatusNow(id, { status, ...(progress !== undefined ? { progress } : {}), ...(stage !== undefined ? { stage } : {}) });
+    return;
+  }
+  pendingUpdates.set(id, { status, progress, stage });
+  scheduleFlush();
+}
+
+// Execute one run of a single-file download from its session. Shared by
+// start / resume / retry — each gives the session a fresh abort controller +
+// run token, then interprets the outcome (done / paused / cancelled / failed).
+function runSingleDownload(id: string): Promise<void> {
+  const session = sessions.get(id);
+  if (!session) return Promise.resolve();
+
+  const abort = new AbortController();
+  const runToken = Symbol("dlRun");
+  session.abort = abort;
+  session.runToken = runToken;
+  const isCurrentRun = () => sessions.get(id)?.runToken === runToken;
+
+  const p = (async () => {
+    try {
+      updateProgress(id, "downloading", undefined, "Starting...");
+      await downloadAndDecryptFile(session.fileId, session.passphrase, {
+        onProgress: (info) => {
+          // A stale draining run (after pause/resume replaced it) must not paint
+          // the row; and a paused row must not be flipped back to "downloading".
+          if (!isCurrentRun() || pausedIds.has(id)) return;
+          updateProgress(id, "downloading", info.percent, info.stage);
+        },
+        signal: abort.signal,
+        resolvePassword: session.resolvePassword ?? resolveFilePasswordGlobal,
+        resume: session.resume,
+        pausing: () => pausedIds.has(id),
+      });
+
+      if (!isCurrentRun()) return;
+      updateProgress(id, "done", 100, "Done");
+      sessions.delete(id);
+      pausedIds.delete(id);
+      toast.success(`${session.filename} downloaded`);
+      notifications.downloadComplete(session.filename);
+      if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted" && document.hidden) {
+        const n = new Notification("Download complete", { body: session.filename, icon: "/favicon.ico", tag: "download-done" });
+        setTimeout(() => n.close(), 5000);
+        n.onclick = () => { window.focus(); n.close(); };
+      }
+    } catch (err) {
+      if (err instanceof DownloadPausedError) {
+        // Keep the session (resume state intact); the row shows "paused".
+        const item = useDownloadStore.getState().queue.find((i) => i.id === id);
+        updateProgress(id, "paused", item?.progress, "Paused");
+        return;
+      }
+      if (err instanceof DOMException && err.name === "AbortError") {
+        // Explicit cancel: the pipeline already aborted the disk file.
+        sessions.delete(id);
+        pausedIds.delete(id);
+        updateProgress(id, "cancelled", undefined, "Cancelled");
+        return;
+      }
+      if (!isCurrentRun()) return;
+      const msg = err instanceof Error ? err.message : "Download failed";
+      // Keep the session so Retry continues from what's already decrypted.
+      const recovered = recoverWrongFolderPassword(session.fileId, msg);
+      setStatusNow(id, { status: "failed", error: msg, stage: "Failed" });
+      if (recovered) {
+        toast.error(`Wrong folder password for ${session.filename}. Retry to re-enter it.`);
+      } else {
+        toast.error(`Download failed: ${msg}`);
+      }
+      notifications.downloadFailed(session.filename, msg);
+    }
+  })();
+
+  session.runPromise = p;
+  return p;
+}
+
 export const useDownloadStore = create<DownloadStore>((set, get) => ({
   queue: [],
-  controllers: new Map(),
 
   startDownload: (fileId, filename, fileSize, passphrase, resolvePassword) => {
     const id = `dl_${++counter}_${Date.now()}`;
-    const controller = new AbortController();
 
     set((state) => ({
       queue: [
         ...state.queue,
-        {
-          id,
-          fileId,
-          filename,
-          fileSize,
-          status: "queued" as const,
-          progress: 0,
-          stage: "Queued",
-          startedAt: Date.now(),
-        },
+        { id, fileId, filename, fileSize, status: "queued" as const, progress: 0, stage: "Queued", startedAt: Date.now() },
       ],
-      controllers: new Map(state.controllers).set(id, controller),
     }));
 
-    // Fire and forget
     void (async () => {
-      const updateProgress = (status: DownloadStatus, progress?: number, stage?: string) => {
-        if (status === "done" || status === "failed" || status === "cancelled") {
-          pendingUpdates.delete(id);
-          set((state) => ({
-            queue: state.queue.map((item) =>
-              item.id === id
-                ? { ...item, status, progress: progress ?? item.progress, stage: stage ?? item.stage }
-                : item
-            ),
-          }));
-          return;
-        }
-        pendingUpdates.set(id, { status, progress, stage });
-        scheduleFlush();
-      };
+      const resume: DownloadResumeState = {};
 
       // Large file → stream straight to disk. The Save-As picker MUST be called
       // on the click's activation (before any other await), so it's the very
       // first thing here. User cancels the dialog → cancel the download; an
       // unsupported browser / lost gesture → fall back to the in-memory path.
-      let disk: DiskWritable | undefined;
       const picker = getSaveFilePicker();
       if (fileSize >= STREAM_TO_DISK_MIN_BYTES && picker) {
         try {
           const handle = await picker({ suggestedName: filename });
-          disk = await handle.createWritable();
+          resume.saveToDisk = await handle.createWritable();
         } catch (e) {
           if (e instanceof DOMException && e.name === "AbortError") {
-            updateProgress("cancelled", undefined, "Cancelled");
+            updateProgress(id, "cancelled", undefined, "Cancelled");
             return;
           }
-          disk = undefined; // unsupported / gesture lost → in-memory fallback
+          // unsupported / gesture lost → in-memory fallback
         }
       }
 
-      try {
-        updateProgress("downloading", 0, "Starting...");
-
-        // FIX-4: route decryption through the folder-aware resolver. The page
-        // passes its prompting resolver; callers without one (e.g. the transfer
-        // manager retry) fall back to the global non-prompting resolver so a
-        // protected-folder file still uses its folder password, not the vault pass.
-        await downloadAndDecryptFile(fileId, passphrase, {
-          onProgress: (info) => {
-            updateProgress("downloading", info.percent, info.stage);
-          },
-          signal: controller.signal,
-          resolvePassword: resolvePassword ?? resolveFilePasswordGlobal,
-          saveToDisk: disk,
-        });
-
-        updateProgress("done", 100, "Done");
-        toast.success(`${filename} downloaded`);
-        notifications.downloadComplete(filename);
-
-        // Web notification when tab is hidden
-        if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted" && document.hidden) {
-          const n = new Notification("Download complete", { body: filename, icon: "/favicon.ico", tag: "download-done" });
-          setTimeout(() => n.close(), 5000);
-          n.onclick = () => { window.focus(); n.close(); };
-        }
-      } catch (err) {
-        if (err instanceof DOMException && err.name === "AbortError") {
-          updateProgress("cancelled", undefined, "Cancelled");
-          return;
-        }
-        const msg = err instanceof Error ? err.message : "Download failed";
-        // FIX-4: wrong/stale password on a PROTECTED-folder file → clear that
-        // folder's cache so a retry re-prompts + re-verifies (mirrors the preview
-        // recovery), and surface a re-prompt hint instead of a generic failure.
-        const recovered = recoverWrongFolderPassword(fileId, msg);
-        // This branch sets state directly instead of through updateProgress(),
-        // so it must also purge any still-queued throttled write for this id —
-        // otherwise a requestAnimationFrame flush already in flight from the
-        // last onProgress call lands afterward and stomps this failed status
-        // back to "downloading" (see updateProgress's done/cancelled branch,
-        // which does the same delete).
-        pendingUpdates.delete(id);
-        set((state) => ({
-          queue: state.queue.map((item) =>
-            item.id === id ? { ...item, status: "failed" as const, error: msg, stage: "Failed" } : item
-          ),
-        }));
-        if (recovered) {
-          toast.error(`Wrong folder password for ${filename}. Retry to re-enter it.`);
-        } else {
-          toast.error(`Download failed: ${msg}`);
-        }
-        notifications.downloadFailed(filename, msg);
-      } finally {
-        // Clean up controller
-        set((state) => {
-          const controllers = new Map(state.controllers);
-          controllers.delete(id);
-          return { controllers };
-        });
-      }
+      sessions.set(id, {
+        fileId,
+        filename,
+        fileSize,
+        passphrase,
+        resolvePassword,
+        resume,
+        abort: new AbortController(),
+        runToken: Symbol("dlRun"),
+      });
+      await runSingleDownload(id);
     })();
   },
 
@@ -253,124 +281,136 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
     set((state) => ({
       queue: [
         ...state.queue,
-        {
-          id,
-          fileId: "zip",
-          filename: `${files.length} files as ZIP`,
-          fileSize: totalSize,
-          status: "queued" as const,
-          progress: 0,
-          stage: "Queued",
-          startedAt: Date.now(),
-        },
+        { id, fileId: "zip", filename: `${files.length} files as ZIP`, fileSize: totalSize, status: "queued" as const, progress: 0, stage: "Queued", startedAt: Date.now() },
       ],
-      controllers: new Map(state.controllers).set(id, controller),
     }));
+    zipSessions.set(id, { files, passphrase, resolvePassword, abort: controller });
 
     void (async () => {
-      const updateProgress = (status: DownloadStatus, progress?: number, stage?: string) => {
-        if (status === "done" || status === "failed" || status === "cancelled") {
-          pendingUpdates.delete(id);
-          set((state) => ({
-            queue: state.queue.map((item) =>
-              item.id === id
-                ? { ...item, status, progress: progress ?? item.progress, stage: stage ?? item.stage }
-                : item
-            ),
-          }));
-          return;
-        }
-        pendingUpdates.set(id, { status, progress, stage });
-        scheduleFlush();
-      };
-
       try {
-        updateProgress("downloading", 0, "Starting ZIP...");
-
-        // FIX-4: same folder-aware resolver as single download, with the global
-        // fallback so each file in the ZIP uses its own folder password.
+        updateProgress(id, "downloading", 0, "Starting ZIP...");
         await downloadAsZip(files, passphrase, {
-          onProgress: (info) => {
-            updateProgress("downloading", info.percent, info.stage);
-          },
+          onProgress: (info) => updateProgress(id, "downloading", info.percent, info.stage),
           signal: controller.signal,
           resolvePassword: resolvePassword ?? resolveFilePasswordGlobal,
         });
 
-        updateProgress("done", 100, "Done");
+        updateProgress(id, "done", 100, "Done");
+        zipSessions.delete(id);
         toast.success(`ZIP with ${files.length} files downloaded`);
         notifications.downloadComplete(`${files.length} files (ZIP)`);
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") {
-          updateProgress("cancelled", undefined, "Cancelled");
+          zipSessions.delete(id);
+          updateProgress(id, "cancelled", undefined, "Cancelled");
           return;
         }
         const msg = err instanceof Error ? err.message : "ZIP download failed";
-        // FIX-4: a wrong-key failure inside the ZIP → clear the cache of every
-        // protected folder among the bulk files so a retry re-prompts for the
-        // right password(s). Unprotected-only ZIPs are unaffected.
         let recovered = false;
         if (looksLikeWrongKey(msg)) {
           for (const f of files) {
             if (recoverWrongFolderPassword(f.fileId, msg)) recovered = true;
           }
         }
-        // Same stale-frame hazard as the single-file failure path — purge the
-        // pending throttled write before setting state directly.
-        pendingUpdates.delete(id);
-        set((state) => ({
-          queue: state.queue.map((item) =>
-            item.id === id ? { ...item, status: "failed" as const, error: msg, stage: "Failed" } : item
-          ),
-        }));
+        setStatusNow(id, { status: "failed", error: msg, stage: "Failed" });
         if (recovered) {
           toast.error("Wrong folder password in this ZIP. Retry to re-enter it.");
         } else {
           toast.error(`ZIP download failed: ${msg}`);
         }
-      } finally {
-        set((state) => {
-          const controllers = new Map(state.controllers);
-          controllers.delete(id);
-          return { controllers };
-        });
       }
     })();
   },
 
+  // Pause a running single-file download: flag it, then abort the run's
+  // in-flight fetches. The pipeline sees pausing()===true and throws
+  // DownloadPausedError instead of discarding — the disk writable stays open
+  // and the resume state (decrypted-so-far / high-water mark) is preserved.
+  pauseDownload: (id) => {
+    const item = get().queue.find((i) => i.id === id);
+    if (!item || item.status === "done" || item.status === "failed" || item.status === "cancelled" || item.status === "paused") return;
+    if (!sessions.has(id)) return; // ZIP downloads aren't pausable
+    pausedIds.add(id);
+    sessions.get(id)!.abort.abort();
+    updateProgress(id, "paused", item.progress, "Paused");
+  },
+
+  // Resume a paused download: clear the flag, wait for the old run to fully
+  // settle (its aborted fetches reject promptly), then run again — the pipeline
+  // continues from the resume state on the same open disk writable.
+  resumeDownload: (id, passphrase, resolvePassword) => {
+    const session = sessions.get(id);
+    if (!session) return;
+    pausedIds.delete(id);
+    session.passphrase = passphrase;
+    if (resolvePassword) session.resolvePassword = resolvePassword;
+    set((state) => ({
+      queue: state.queue.map((i) => (i.id === id ? { ...i, status: "downloading" as const, stage: "Resuming…", error: undefined } : i)),
+    }));
+    const prior = session.runPromise;
+    void (async () => {
+      try { await prior; } catch { /* previous run settled (paused/aborted) — fine */ }
+      await runSingleDownload(id);
+    })();
+  },
+
   cancelDownload: (id) => {
-    const { controllers } = get();
-    const controller = controllers.get(id);
-    if (controller) {
-      controller.abort();
-    }
+    // Explicit stop. Not a pause (pausedIds stays clear), so the pipeline aborts
+    // the disk file and the run lands "cancelled".
+    pausedIds.delete(id);
+    sessions.get(id)?.abort.abort();
+    zipSessions.get(id)?.abort.abort();
   },
 
   retryDownload: (id, passphrase, resolvePassword) => {
     const item = get().queue.find((i) => i.id === id);
     if (!item) return;
 
-    // Remove old entry
-    get().removeFromQueue(id);
+    const session = sessions.get(id);
+    if (session) {
+      // Single download: continue from what's already decrypted, don't restart.
+      pausedIds.delete(id);
+      session.passphrase = passphrase;
+      if (resolvePassword) session.resolvePassword = resolvePassword;
+      set((state) => ({
+        queue: state.queue.map((i) => (i.id === id ? { ...i, status: "downloading" as const, stage: "Retrying…", error: undefined } : i)),
+      }));
+      const prior = session.runPromise;
+      void (async () => {
+        try { await prior; } catch { /* settled */ }
+        await runSingleDownload(id);
+      })();
+      return;
+    }
 
-    // Start fresh
+    // ZIP download (no resume pipeline): restart it fresh.
+    const zip = zipSessions.get(id);
+    if (zip) {
+      get().removeFromQueue(id);
+      get().startBulkZipDownload(zip.files, passphrase, resolvePassword ?? zip.resolvePassword);
+      return;
+    }
+
+    // Fallback (session already gone): restart a plain single download.
+    get().removeFromQueue(id);
     get().startDownload(item.fileId, item.filename, item.fileSize, passphrase, resolvePassword);
   },
 
   removeFromQueue: (id) => {
-    // Cancel if still running
-    const { controllers } = get();
-    const controller = controllers.get(id);
-    if (controller) controller.abort();
+    // Explicit dismiss/cancel: abort the run AND discard any partial disk file
+    // that a pause/failure left open, so we never strand a locked writable.
+    const session = sessions.get(id);
+    if (session) {
+      pausedIds.delete(id);
+      session.abort.abort();
+      const disk = session.resume.saveToDisk;
+      if (disk?.abort) { void disk.abort().catch(() => {}); }
+      sessions.delete(id);
+    }
+    const zip = zipSessions.get(id);
+    if (zip) { zip.abort.abort(); zipSessions.delete(id); }
 
-    set((state) => {
-      const newControllers = new Map(state.controllers);
-      newControllers.delete(id);
-      return {
-        queue: state.queue.filter((item) => item.id !== id),
-        controllers: newControllers,
-      };
-    });
+    set((state) => ({ queue: state.queue.filter((item) => item.id !== id) }));
   },
 
   clearCompleted: () => {
