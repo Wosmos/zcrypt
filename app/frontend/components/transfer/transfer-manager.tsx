@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useUploadStore } from "@/store/upload";
 import { useDownloadStore } from "@/store/download";
@@ -10,6 +10,7 @@ import { useFolderRegistry } from "@/store/folder-registry";
 import { useFolderPasswordStore } from "@/store/folder-passwords";
 import { resolveFilePasswordGlobal } from "@/hooks/useFolderProtection";
 import { toast } from "@/store/toast";
+import { useTransferDockStore } from "@/store/transfer-dock";
 import { ChevronDown, CheckCircle2, AlertCircle, ArrowUpDown } from "@/lib/icons";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { cn } from "@/lib/utils";
@@ -302,11 +303,32 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
       : "Transfers complete"
     : `${activeCount} active`;
 
+  // Publish the dock's live footprint so the mobile FAB can hop above it instead
+  // of overlapping. Height is remeasured on collapse/expand and item changes.
+  const shown = entries.length > 0 && !dismissed;
+  const dockRef = useRef<HTMLDivElement>(null);
+  const reportDock = useTransferDockStore((s) => s.report);
+
+  useLayoutEffect(() => {
+    if (!shown) {
+      reportDock(false, 0);
+      return;
+    }
+    const el = dockRef.current;
+    if (!el) return;
+    const measure = () => reportDock(true, el.offsetHeight);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [shown, collapsed, entries.length, reportDock]);
+
   return (
     <AnimatePresence>
       {entries.length > 0 && !dismissed && (
         <motion.div
           key="transfer-dock"
+          ref={dockRef}
           initial={reduceMotion ? false : { opacity: 0, y: 24, scale: 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: 40, scale: 0.96 }}
