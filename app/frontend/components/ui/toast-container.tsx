@@ -11,11 +11,17 @@ const icons = {
   warning: AlertTriangle,
 };
 
-const styles = {
-  success: "border-cyan-500/20 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300",
-  error: "border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-300",
-  info: "border-cyan-500/20 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300",
-  warning: "border-yellow-500/20 bg-yellow-500/10 text-yellow-700 dark:text-yellow-300",
+// Per-type accent: a colored left bar + matching icon + a faint tinted chip
+// behind the icon. The CARD itself sits on the solid theme surface (readable on
+// any background) — the colour conveys type without turning the whole toast into
+// a see-through wash. `info` uses the app accent so it feels on-brand; the
+// others use semantic colours (success = emerald, error = rose, warning = amber)
+// that read the same in light and dark.
+const accents: Record<string, { bar: string; icon: string; chip: string }> = {
+  success: { bar: "bg-emerald-500", icon: "text-emerald-500", chip: "bg-emerald-500/10" },
+  error: { bar: "bg-rose-500", icon: "text-rose-500", chip: "bg-rose-500/10" },
+  info: { bar: "bg-[var(--color-accent)]", icon: "text-[var(--color-accent)]", chip: "bg-[var(--color-accent)]/10" },
+  warning: { bar: "bg-amber-500", icon: "text-amber-500", chip: "bg-amber-500/10" },
 };
 
 export function ToastContainer() {
@@ -34,6 +40,7 @@ export function ToastContainer() {
     >
       {toasts.map((t) => {
         const Icon = icons[t.type];
+        const accent = accents[t.type];
         const assertive = t.type === "error" || t.type === "warning";
         return (
           <div
@@ -41,12 +48,17 @@ export function ToastContainer() {
             role={assertive ? "alert" : "status"}
             aria-live={assertive ? "assertive" : "polite"}
             className={cn(
-              "pointer-events-auto flex items-start gap-3 rounded-2xl border p-3.5 shadow-2xl backdrop-blur-md animate-slide-up sm:rounded-xl",
-              styles[t.type]
+              // Solid theme surface (readable on any background), crisp border +
+              // elevation, a light frost, and a colored accent bar down the left.
+              "pointer-events-auto relative flex items-start gap-3 overflow-hidden rounded-xl border border-[var(--color-border)]",
+              "bg-[var(--color-surface)]/95 py-3 pl-4 pr-3 text-[var(--color-text)] shadow-2xl backdrop-blur-md animate-slide-up sm:rounded-xl"
             )}
           >
-            <Icon className="h-5 w-5 mt-px flex-shrink-0 sm:h-4 sm:w-4 sm:mt-0.5" />
-            <p className="flex-1 text-sm leading-relaxed">{t.message}</p>
+            <span className={cn("absolute inset-y-0 left-0 w-1", accent.bar)} aria-hidden="true" />
+            <span className={cn("mt-px flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg", accent.chip)}>
+              <Icon className={cn("h-4 w-4", accent.icon)} />
+            </span>
+            <p className="flex-1 pt-0.5 text-sm leading-relaxed text-[var(--color-text-secondary)]">{t.message}</p>
             <button
               onClick={() => remove(t.id)}
               aria-label="Dismiss"
