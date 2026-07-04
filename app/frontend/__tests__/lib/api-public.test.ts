@@ -3,9 +3,29 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 // Coverage for the api client's raw-fetch surface (public share / anonymous send
 // / pad / clipboard content / plans) which bypasses the request() core, plus the
 // optional-parameter and error branches the endpoint sweep doesn't reach.
-const { getState } = vi.hoisted(() => ({ getState: vi.fn(() => ({ accessToken: "t" as string | null })) }));
+const { getState, authedFetch } = vi.hoisted(() => {
+  const getState = vi.fn(() => ({ accessToken: "t" as string | null }));
+  const tryRefreshToken = vi.fn(async () => null as string | null);
+  // Mirror the real authedFetch: attach the token, refresh + retry on a 401.
+  // getFileChunk now routes through it (the download token-refresh fix).
+  const authedFetch = vi.fn(async (input: string, init?: RequestInit) => {
+    const { accessToken } = getState();
+    const headers: Record<string, string> = { ...(init?.headers as Record<string, string>) };
+    if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
+    let res = await fetch(input, { ...init, headers });
+    if (res.status === 401 && accessToken) {
+      const newToken = await tryRefreshToken();
+      if (newToken) {
+        headers["Authorization"] = `Bearer ${newToken}`;
+        res = await fetch(input, { ...init, headers });
+      }
+    }
+    return res;
+  });
+  return { getState, authedFetch };
+});
 vi.mock("@/store/auth", () => ({ useAuthStore: { getState } }));
-vi.mock("@/lib/auth-fetch", () => ({ tryRefreshToken: vi.fn() }));
+vi.mock("@/lib/auth-fetch", () => ({ tryRefreshToken: vi.fn(), authedFetch }));
 
 import * as api from "@/lib/api";
 

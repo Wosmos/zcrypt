@@ -1,6 +1,6 @@
 import type { FileMetadata, Folder, FolderRequest, PlatformStatus, RepoInfo, AppConfig, AdminUser, SystemStats, PlatformTokenInfo, QuotaInfo, PlanConfigs, AdminUserDetail, ShareLink, ShareInfo, SendInitRequest, SendInitResponse, SendInfo, SendMeta, PadCreateRequest, PadInfo, ClipboardItem, ClipboardPushRequest, SyncFolder, SyncFolderRequest, DecoyStatus, DecoyFile, DeadManSwitch, DeadManSwitchRequest, ExpiringVault, ExpiringVaultRequest, IntegritySnapshot, VaultSnapshot, SharedVault, SharedVaultDetail, SharedVaultMember, OfflinePin } from "@/types";
 import { useAuthStore } from "@/store/auth";
-import { tryRefreshToken } from "@/lib/auth-fetch";
+import { authedFetch, tryRefreshToken } from "@/lib/auth-fetch";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
@@ -177,12 +177,6 @@ export async function getFileChunk(fileId: string, index: number, signal?: Abort
   sha256: string;
   compressed: boolean;
 }> {
-  const { accessToken } = useAuthStore.getState();
-  const headers: Record<string, string> = {};
-  if (accessToken) {
-    headers["Authorization"] = `Bearer ${accessToken}`;
-  }
-
   // Use the caller's signal if given (download-session supports cancellation);
   // otherwise bound the fetch ourselves. Keep the timer alive through the body
   // read so a stall mid-download aborts too.
@@ -191,7 +185,13 @@ export async function getFileChunk(fileId: string, index: number, signal?: Abort
   const useSignal = signal ?? controller?.signal;
 
   try {
-    const res = await fetch(`${API_BASE}/api/files/${fileId}/chunks/${index}`, { headers, signal: useSignal });
+    // authedFetch attaches the access token AND refreshes it on a 401, then
+    // retries — so a download that outlives the ~15-min access-token lifetime
+    // (a long/big transfer, a resume that skips the meta call, or just a tab
+    // left open) keeps going instead of every chunk failing with a 401. A bare
+    // fetch here (no refresh) was why downloads failed "pretty much every time"
+    // once the token went stale; this matches the upload path.
+    const res = await authedFetch(`${API_BASE}/api/files/${fileId}/chunks/${index}`, { signal: useSignal });
 
     if (!res.ok) {
       const body = await res.text();
@@ -212,6 +212,10 @@ export async function getFileChunk(fileId: string, index: number, signal?: Abort
     };
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") {
+      // Our own timeout fired → surface a retryable "timed out". The caller's
+      // cancel/pause must instead stay an AbortError so the pipeline treats it
+      // as a stop (not a transient failure) — re-throw it unchanged.
+      if (signal?.aborted) throw err;
       throw new Error(`chunk ${index} download timed out`);
     }
     throw err;
