@@ -62,6 +62,25 @@ describe("device-vault", () => {
     expect(await loadPassphrase()).toBeNull();
   });
 
+  it("swallows an openDB failure (e.g. a version conflict) as a safe no-op", async () => {
+    // The module always opens at version 1. Pre-opening the same DB at version 2
+    // ourselves means the module's own indexedDB.open() then fails with a
+    // VersionError instead of succeeding, exercising openDB's onerror -> reject
+    // path (persistPassphrase's try/catch is what makes this a safe no-op).
+    await new Promise<void>((resolve, reject) => {
+      const req = indexedDB.open("zcrypt-device-vault", 2);
+      req.onupgradeneeded = () => req.result.createObjectStore("kv");
+      req.onsuccess = () => {
+        req.result.close();
+        resolve();
+      };
+      req.onerror = () => reject(req.error);
+    });
+
+    await expect(persistPassphrase("x")).resolves.toBeUndefined();
+    expect(await loadPassphrase()).toBeNull();
+  });
+
   it("is a safe no-op when IndexedDB is unavailable", async () => {
     const saved = globalThis.indexedDB;
     // @ts-expect-error force the !available() branch

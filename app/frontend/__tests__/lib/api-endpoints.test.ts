@@ -34,6 +34,8 @@ interface Case {
 const cases: Case[] = [
   // preferences
   { name: "saveDevicePreference", run: () => api.saveDevicePreference({ device_id: "d", color_theme: "c", mode: "dark" }), path: "/api/preferences", method: "PUT" },
+  // uploads
+  { name: "getIncompleteUploads", run: () => api.getIncompleteUploads(), path: "/api/upload/incomplete" },
   // files + folders
   { name: "listFolders", run: () => api.listFolders(), path: "/api/folders" },
   { name: "createFolder", run: () => api.createFolder({ name: "n" } as never), path: "/api/folders", method: "POST" },

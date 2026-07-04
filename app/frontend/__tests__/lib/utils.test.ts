@@ -63,6 +63,10 @@ describe("getFileTypeInfo", () => {
     const noExt = getFileTypeInfo("Makefile");
     expect(noExt.icon).toBe("File");
   });
+
+  it("treats a trailing bare dot (empty extension) as unknown", () => {
+    expect(getFileTypeInfo("archive.").icon).toBe("File");
+  });
 });
 
 describe("getFileIcon", () => {
@@ -128,6 +132,11 @@ describe("formatDate", () => {
     expect(result).not.toMatch(/ago|Just now/);
     expect(result.length).toBeGreaterThan(0);
   });
+
+  it("includes the year when the date falls in a different calendar year", () => {
+    const result = formatDate(new Date(Date.now() - 400 * 86_400_000).toISOString());
+    expect(result).toMatch(/\d{4}/);
+  });
 });
 
 describe("getFileCategory / isImageFile", () => {
@@ -142,6 +151,10 @@ describe("getFileCategory / isImageFile", () => {
     expect(isImageFile("scan.jpeg")).toBe(true);
     expect(isImageFile("report.pdf")).toBe(false);
     expect(isImageFile("noextension")).toBe(false);
+  });
+
+  it("isImageFile returns false for a filename ending in a bare dot", () => {
+    expect(isImageFile("photo.")).toBe(false);
   });
 });
 
@@ -170,6 +183,9 @@ describe("isVideoFile", () => {
     expect(isVideoFile("photo.png")).toBe(false);
     expect(isVideoFile("README")).toBe(false);
   });
+  it("rejects a filename ending in a bare dot", () => {
+    expect(isVideoFile("clip.")).toBe(false);
+  });
 });
 
 describe("mimeForFile", () => {
@@ -183,6 +199,9 @@ describe("mimeForFile", () => {
   it("falls back to octet-stream for unknown / missing extensions", () => {
     expect(mimeForFile("a.xyz")).toBe("application/octet-stream");
     expect(mimeForFile("noext")).toBe("application/octet-stream");
+  });
+  it("falls back to octet-stream for a filename ending in a bare dot", () => {
+    expect(mimeForFile("video.")).toBe("application/octet-stream");
   });
 });
 
