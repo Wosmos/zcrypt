@@ -204,6 +204,11 @@ func (s *Server) HandleAdminDeleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// DeleteUser queued the user's synced chunks into pending_deletions (the
+	// rows survive the user cascade via ON DELETE SET NULL) — wake the deletion
+	// worker so the platform blobs actually get removed.
+	s.signalDeletion()
+
 	// Clean up any cached adapters for this user
 	s.invalidateUserCache(userID)
 

@@ -96,9 +96,12 @@ CREATE TABLE IF NOT EXISTS repos (
 CREATE INDEX IF NOT EXISTS idx_repos_platform ON repos(platform);
 CREATE INDEX IF NOT EXISTS idx_repos_user ON repos(user_id);
 
+-- user_id is nullable and detached from the user cascade (SET NULL): queued
+-- platform deletions must survive account deletion, or every chunk the user
+-- ever stored orphans on the platforms the moment the users row goes away.
 CREATE TABLE IF NOT EXISTS pending_deletions (
 	id          BIGSERIAL PRIMARY KEY,
-	user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	user_id     UUID REFERENCES users(id) ON DELETE SET NULL,
 	platform    TEXT NOT NULL,
 	account     TEXT NOT NULL DEFAULT '',
 	repo        TEXT NOT NULL,
@@ -187,6 +190,9 @@ CREATE TABLE IF NOT EXISTS upload_sessions (
 	account         TEXT NOT NULL DEFAULT '',
 	repo_id         TEXT NOT NULL,
 	repo_url        TEXT NOT NULL,
+	-- Plaintext chunk size the client is slicing with, so a cross-device resume
+	-- can rebuild identical chunk boundaries. 0 = unknown (legacy client).
+	chunk_size      BIGINT NOT NULL DEFAULT 0,
 	uploaded_chunks INTEGER NOT NULL DEFAULT 0,
 	status          TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'complete', 'cancelled')),
 	created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -230,6 +236,21 @@ ALTER TABLE upload_sessions ALTER COLUMN expires_at SET DEFAULT NOW() + INTERVAL
 ALTER TABLE platform_tokens DROP CONSTRAINT IF EXISTS platform_tokens_platform_check;
 ALTER TABLE platform_tokens ADD CONSTRAINT platform_tokens_platform_check
 	CHECK (platform IN ('github', 'gitlab', 'huggingface', 'telegram'));
+
+-- Server-authoritative upload resume: persist the client's plaintext chunk size
+-- on the session so a resume from any device slices the file identically.
+ALTER TABLE upload_sessions ADD COLUMN IF NOT EXISTS chunk_size BIGINT NOT NULL DEFAULT 0;
+
+-- pending_deletions must survive account deletion (queued platform deletions are
+-- the ONLY remaining reference to the user's remote chunks once the users row is
+-- gone). Replace the ON DELETE CASCADE FK with ON DELETE SET NULL and drop the
+-- NOT NULL so orphaned queue items (and send-transfer deletions, which have no
+-- user) are representable. Same drop-and-recreate pattern as the CHECK
+-- constraints above; both statements are no-op-safe on an already-migrated DB.
+ALTER TABLE pending_deletions DROP CONSTRAINT IF EXISTS pending_deletions_user_id_fkey;
+ALTER TABLE pending_deletions ADD CONSTRAINT pending_deletions_user_id_fkey
+	FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE pending_deletions ALTER COLUMN user_id DROP NOT NULL;
 
 -- Refresh token client binding (IP + User-Agent)
 ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS ip TEXT NOT NULL DEFAULT '';

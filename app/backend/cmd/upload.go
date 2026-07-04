@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -17,6 +18,7 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/zcrypt/zcrypt/adapters"
 	"github.com/zcrypt/zcrypt/config"
 	"github.com/zcrypt/zcrypt/disguise"
@@ -68,6 +70,12 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"filename, original_size, sha256, salt, and chunk_count are required"}`, http.StatusBadRequest)
 		return
 	}
+	// chunk_size is optional (0 = legacy client that doesn't send it) but must
+	// not be negative — it is persisted for cross-device resume.
+	if req.ChunkSize < 0 {
+		http.Error(w, `{"error":"chunk_size must be non-negative"}`, http.StatusBadRequest)
+		return
+	}
 
 	// Validate filename
 	if strings.Contains(req.Filename, "..") || strings.Contains(req.Filename, "/") ||
@@ -81,6 +89,45 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 	if err != nil || len(salt) != 32 {
 		http.Error(w, `{"error":"salt must be 32 bytes base64-encoded"}`, http.StatusBadRequest)
 		return
+	}
+
+	// Server-authoritative resume: if an active, unexpired session for this
+	// exact file (user + sha256 + size) already exists, hand it back instead of
+	// creating a duplicate. This pins the resume to the ORIGINAL session and
+	// platform with zero client-side state — a re-init from another device (or
+	// after cleared localStorage) resumes instead of restarting from byte 0 and
+	// orphaning the old session's staged chunks. The request's fresh salt and
+	// wrapped_cek are deliberately discarded; the client fetches the stored
+	// envelope via the file meta endpoint. A client that can't use the resumed
+	// session (e.g. wrong passphrase for the stored envelope) cancels it via
+	// DELETE /api/upload/{sid} and re-inits fresh.
+	if existing, ferr := s.db.FindActiveUploadSession(ctx, userID, req.SHA256, req.OriginalSize); ferr == nil {
+		adapter := s.resolveAdapterForUser(ctx, userID, existing.Platform, existing.Account)
+		_, directUpload := adapter.(adapters.DirectUploader)
+
+		s.audit(r, &userID, "upload_resume", map[string]interface{}{
+			"file_id":    existing.FileID,
+			"session_id": existing.ID,
+			"filename":   existing.Filename,
+			"size":       existing.OriginalSize,
+			"chunks":     existing.ChunkCount,
+		})
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"session_id":    existing.ID,
+			"file_id":       existing.FileID,
+			"repo_url":      existing.RepoURL,
+			"platform":      existing.Platform,
+			"chunk_size":    existing.ChunkSize,
+			"chunk_count":   existing.ChunkCount,
+			"direct_upload": directUpload,
+			"resumed":       true,
+		})
+		return
+	} else if !errors.Is(ferr, pgx.ErrNoRows) {
+		// A real lookup failure must not block uploads — log and init fresh.
+		log.Printf("upload: find resumable session for user %s: %v", userID, ferr)
 	}
 
 	// zcrypt is free and open source: there are no artificial plan/quota
@@ -149,6 +196,7 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		Salt:         salt,
 		SHA256:       req.SHA256,
 		ChunkCount:   req.ChunkCount,
+		ChunkSize:    req.ChunkSize,
 		Platform:     platform,
 		Account:      account,
 		RepoID:       repo.ID,
@@ -180,7 +228,10 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		"file_id":       fileID,
 		"repo_url":      repo.URL,
 		"platform":      platform,
+		"chunk_size":    req.ChunkSize,
+		"chunk_count":   req.ChunkCount,
 		"direct_upload": directUpload,
+		"resumed":       false,
 	})
 }
 
@@ -443,18 +494,29 @@ func (s *Server) HandleUploadComplete(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		// Verify and update sizes
+		// Verify and update sizes. The client-reported sizes are written first;
+		// the server-computed chunk total then overwrites encrypted_size so the
+		// verified value wins (writing them in the other order let the client
+		// value clobber the verified one).
+		s.db.UpdateFileSizes(bgCtx, bgSession.FileID, compressedSize, encryptedSize)
 		actualEncrypted, err := s.db.GetTotalReceivedChunkSize(bgCtx, bgSession.FileID)
 		if err == nil {
 			s.db.UpdateFileOriginalSizeVerified(bgCtx, bgSession.FileID, actualEncrypted)
 		}
-		s.db.UpdateFileSizes(bgCtx, bgSession.FileID, compressedSize, encryptedSize)
 
-		// Update repo usage
+		// Update repo usage with the SERVER-computed total, not the client-reported
+		// req.EncryptedSize — a client reporting 0 (or lying) must not keep the
+		// repo pool from rotating at the real platform thresholds.
+		usageBytes := encryptedSize
+		if err == nil {
+			usageBytes = actualEncrypted
+		} else {
+			log.Printf("upload: WARNING falling back to client-reported encrypted size for repo usage (file %s): %v", bgSession.FileID, err)
+		}
 		pools, _ := s.getUserPools(bgCtx, bgUserID)
 		key := bgSession.Platform + ":" + bgSession.Account
 		if pool, ok := pools[key]; ok {
-			pool.UpdateUsage(bgSession.RepoID, encryptedSize)
+			pool.UpdateUsage(bgSession.RepoID, usageBytes)
 		}
 	}()
 }
@@ -484,6 +546,7 @@ func (s *Server) HandleListIncompleteUploads(w http.ResponseWriter, r *http.Requ
 			"platform":        sess.Platform,
 			"account":         sess.Account,
 			"chunk_count":     sess.ChunkCount,
+			"chunk_size":      sess.ChunkSize,
 			"uploaded_chunks": sess.UploadedChunks,
 			"created_at":      sess.CreatedAt,
 			"expires_at":      sess.ExpiresAt,
@@ -521,10 +584,12 @@ func (s *Server) HandleUploadCancel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Delete file and queue chunks for remote deletion
-	if err := s.db.DeleteFile(ctx, userID, session.FileID); err != nil {
+	// Delete file and queue synced chunks for remote deletion; staged-but-unsynced
+	// chunks never reached a platform, so their .enc files are removed locally.
+	if staged, err := s.db.DeleteFile(ctx, userID, session.FileID); err != nil {
 		fmt.Printf("warn: delete file on cancel: %v\n", err)
 	} else {
+		removeStagedChunkFiles(staged)
 		s.signalDeletion()
 	}
 
@@ -568,7 +633,9 @@ func (s *Server) HandleUploadStatus(w http.ResponseWriter, r *http.Request) {
 		"session_id":      session.ID,
 		"file_id":         session.FileID,
 		"status":          session.Status,
+		"platform":        session.Platform,
 		"chunk_count":     session.ChunkCount,
+		"chunk_size":      session.ChunkSize,
 		"uploaded_chunks": uploadedIndices,
 		"completed_count": len(uploadedIndices),
 	})
@@ -629,8 +696,15 @@ func (s *Server) HandlePresignChunk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Generate disguised remote path
-	remotePath, err := disguise.ChunkFilename()
+	// Generate disguised remote path. Git platforms get a 2-hex-char shard
+	// directory so no folder ever approaches HuggingFace's hard 10k-entries-
+	// per-folder limit; Telegram keeps the flat name (a chat has no folders).
+	var remotePath string
+	if session.Platform == "telegram" {
+		remotePath, err = disguise.ChunkFilename()
+	} else {
+		remotePath, err = disguise.ShardedChunkFilename()
+	}
 	if err != nil {
 		log.Printf("upload: generate filename failed: %v", err)
 		http.Error(w, `{"error":"upload failed"}`, http.StatusInternalServerError)

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -49,6 +50,9 @@ type TelegramAdapter struct {
 	chatID   string
 	botUser  string // bot username from getMe
 	client   *http.Client
+	// apiBase is the Bot API root, telegramAPIBase in production; overridable
+	// so tests can point the adapter at a local httptest server.
+	apiBase string
 }
 
 // NewTelegramAdapter creates a Telegram adapter.
@@ -78,6 +82,7 @@ func NewTelegramAdapter(token string) (*TelegramAdapter, error) {
 	adapter := &TelegramAdapter{
 		botToken: botToken,
 		chatID:   chatID,
+		apiBase:  telegramAPIBase,
 		client: &http.Client{
 			Transport: transport,
 			Timeout:   0, // no overall timeout — uploads can be large
@@ -175,22 +180,45 @@ func (t *TelegramAdapter) Download(ctx context.Context, ref types.ChunkRef) ([]b
 	return allData, nil
 }
 
+// Delete removes every message part of a chunk from the chat. Each part is
+// attempted (a failure on one part doesn't skip the rest), and per-part errors
+// are collected: any real failure is returned so the deletion worker's
+// MarkDeletionFailed retries within Telegram's 48-hour deletion window instead
+// of recording a false success and orphaning the messages in the chat forever.
+// "message to delete not found" (already gone) and "message can't be deleted"
+// (permanently undeletable — e.g. past the 48h window in a non-admin chat) are
+// treated as success: retrying can never improve on either.
 func (t *TelegramAdapter) Delete(ctx context.Context, ref types.ChunkRef) error {
 	parts := strings.Split(ref.RemotePath, ",")
 
+	var errs []error
 	for i, part := range parts {
 		msgID, _, err := parsePartRef(part)
 		if err != nil {
-			return fmt.Errorf("parse part ref %d: %w", i, err)
+			errs = append(errs, fmt.Errorf("parse part ref %d: %w", i, err))
+			continue
 		}
 
 		if err := t.deleteMessage(ctx, msgID); err != nil {
-			// Log but continue — best effort deletion
+			if isTelegramDeleteFinal(err) {
+				log.Printf("telegram: message %d already gone or undeletable, treating as deleted: %v", msgID, err)
+				continue
+			}
 			log.Printf("telegram: failed to delete message %d: %v", msgID, err)
+			errs = append(errs, fmt.Errorf("delete message %d: %w", msgID, err))
 		}
 	}
 
-	return nil
+	return errors.Join(errs...)
+}
+
+// isTelegramDeleteFinal reports whether a deleteMessage failure is terminal —
+// the message is already gone or the Bot API will never allow deleting it —
+// so the deletion should be recorded as done rather than retried.
+func isTelegramDeleteFinal(err error) bool {
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "message to delete not found") ||
+		strings.Contains(msg, "message can't be deleted")
 }
 
 func (t *TelegramAdapter) GetRepoSize(ctx context.Context, repo string) (int64, error) {
@@ -208,7 +236,7 @@ func (t *TelegramAdapter) ListChunks(ctx context.Context, repo string) ([]types.
 // --- Telegram Bot API helpers ---
 
 func (t *TelegramAdapter) apiURL(method string) string {
-	return fmt.Sprintf("%s/bot%s/%s", telegramAPIBase, t.botToken, method)
+	return fmt.Sprintf("%s/bot%s/%s", t.apiBase, t.botToken, method)
 }
 
 // getMe validates the bot token and returns the bot username.
@@ -410,7 +438,7 @@ func (t *TelegramAdapter) downloadFile(ctx context.Context, fileID string) ([]by
 	}
 
 	// Step 2: Download the actual file content
-	downloadURL := fmt.Sprintf("%s/file/bot%s/%s", telegramAPIBase, t.botToken, result.Result.FilePath)
+	downloadURL := fmt.Sprintf("%s/file/bot%s/%s", t.apiBase, t.botToken, result.Result.FilePath)
 	dlReq, err := http.NewRequestWithContext(ctx, "GET", downloadURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create download request: %w", err)

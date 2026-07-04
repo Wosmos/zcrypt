@@ -175,8 +175,15 @@ func (s *Server) syncOneChunk(ctx context.Context, chunk types.ChunkRef, staging
 		return
 	}
 
-	// Generate disguised remote path
-	remotePath, err := disguise.ChunkFilename()
+	// Generate disguised remote path. Git platforms get a 2-hex-char shard
+	// directory so no folder ever approaches HuggingFace's hard 10k-entries-
+	// per-folder limit; Telegram keeps the flat name (a chat has no folders).
+	var remotePath string
+	if chunk.Platform == "telegram" {
+		remotePath, err = disguise.ChunkFilename()
+	} else {
+		remotePath, err = disguise.ShardedChunkFilename()
+	}
 	if err != nil {
 		failAttempt("generate filename: %v", err)
 		return

@@ -233,11 +233,15 @@ func (db *DB) GetChunksForFile(ctx context.Context, fileID string, userIDs ...st
 	return chunks, nil
 }
 
-// DeleteFile removes a file from the index and queues its chunks for deferred deletion.
-func (db *DB) DeleteFile(ctx context.Context, userID, fileID string) error {
+// DeleteFile removes a file from the index and queues its synced chunks for
+// deferred remote deletion. It returns the chunk IDs of NOT-yet-synced chunks
+// (remote_path = ”): those never reached a platform, so there is nothing to
+// queue — but their staged .enc files still sit in the staging dir and the
+// caller must remove them (best-effort) or they leak server disk forever.
+func (db *DB) DeleteFile(ctx context.Context, userID, fileID string) ([]string, error) {
 	tx, err := db.pool.Begin(ctx)
 	if err != nil {
-		return fmt.Errorf("begin tx: %w", err)
+		return nil, fmt.Errorf("begin tx: %w", err)
 	}
 	defer tx.Rollback(ctx)
 
@@ -249,7 +253,7 @@ func (db *DB) DeleteFile(ctx context.Context, userID, fileID string) error {
 		fileID, userID,
 	)
 	if err != nil {
-		return fmt.Errorf("aggregate chunk sizes: %w", err)
+		return nil, fmt.Errorf("aggregate chunk sizes: %w", err)
 	}
 	type repoUsage struct {
 		repoURL string
@@ -260,13 +264,13 @@ func (db *DB) DeleteFile(ctx context.Context, userID, fileID string) error {
 		var ru repoUsage
 		if err := rows.Scan(&ru.repoURL, &ru.size); err != nil {
 			rows.Close()
-			return fmt.Errorf("scan repo usage: %w", err)
+			return nil, fmt.Errorf("scan repo usage: %w", err)
 		}
 		decrements = append(decrements, ru)
 	}
 	rows.Close()
 	if err := rows.Err(); err != nil {
-		return fmt.Errorf("iterate repo usage: %w", err)
+		return nil, fmt.Errorf("iterate repo usage: %w", err)
 	}
 
 	for _, d := range decrements {
@@ -275,27 +279,55 @@ func (db *DB) DeleteFile(ctx context.Context, userID, fileID string) error {
 			 WHERE url = $2 AND user_id = $3`,
 			d.size, d.repoURL, userID,
 		); err != nil {
-			return fmt.Errorf("decrement repo usage: %w", err)
+			return nil, fmt.Errorf("decrement repo usage: %w", err)
 		}
 	}
 
-	// Move chunks to pending_deletions before removing them
+	// Move SYNCED chunks to pending_deletions before removing them. Unsynced
+	// chunks (remote_path = '') have nothing on any platform — queueing them
+	// would just burn the deletion worker's retry attempts on no-op work.
 	if _, err := tx.Exec(ctx,
 		`INSERT INTO pending_deletions (user_id, platform, account, repo, remote_path)
-		 SELECT user_id, platform, account, repo, remote_path FROM chunks WHERE file_id = $1 AND user_id = $2`,
+		 SELECT user_id, platform, account, repo, remote_path FROM chunks
+		 WHERE file_id = $1 AND user_id = $2 AND remote_path != ''`,
 		fileID, userID,
 	); err != nil {
-		return fmt.Errorf("queue deletions: %w", err)
+		return nil, fmt.Errorf("queue deletions: %w", err)
+	}
+
+	// Collect the unsynced chunk IDs so the caller can remove their staged files.
+	stagedRows, err := tx.Query(ctx,
+		`SELECT chunk_id FROM chunks WHERE file_id = $1 AND user_id = $2 AND remote_path = ''`,
+		fileID, userID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list staged chunks: %w", err)
+	}
+	var staged []string
+	for stagedRows.Next() {
+		var id string
+		if err := stagedRows.Scan(&id); err != nil {
+			stagedRows.Close()
+			return nil, fmt.Errorf("scan staged chunk: %w", err)
+		}
+		staged = append(staged, id)
+	}
+	stagedRows.Close()
+	if err := stagedRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate staged chunks: %w", err)
 	}
 
 	if _, err := tx.Exec(ctx, `DELETE FROM chunks WHERE file_id = $1 AND user_id = $2`, fileID, userID); err != nil {
-		return fmt.Errorf("delete chunks: %w", err)
+		return nil, fmt.Errorf("delete chunks: %w", err)
 	}
 	if _, err := tx.Exec(ctx, `DELETE FROM files WHERE id = $1 AND user_id = $2`, fileID, userID); err != nil {
-		return fmt.Errorf("delete file: %w", err)
+		return nil, fmt.Errorf("delete file: %w", err)
 	}
 
-	return tx.Commit(ctx)
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("commit: %w", err)
+	}
+	return staged, nil
 }
 
 // DeleteFilesBatch deletes many files in a single transaction using set-based SQL,
@@ -331,11 +363,12 @@ func (db *DB) DeleteFilesBatch(ctx context.Context, userID string, fileIDs []str
 		return 0, fmt.Errorf("decrement repo usage: %w", err)
 	}
 
-	// Queue remote chunk deletions before deleting the chunk rows.
+	// Queue remote chunk deletions before deleting the chunk rows. Unsynced
+	// chunks (remote_path = '') have nothing on any platform to delete.
 	if _, err := tx.Exec(ctx,
 		`INSERT INTO pending_deletions (user_id, platform, account, repo, remote_path)
 		 SELECT user_id, platform, account, repo, remote_path FROM chunks
-		 WHERE user_id = $1 AND file_id = ANY($2::uuid[])`,
+		 WHERE user_id = $1 AND file_id = ANY($2::uuid[]) AND remote_path != ''`,
 		userID, fileIDs,
 	); err != nil {
 		return 0, fmt.Errorf("queue deletions: %w", err)
@@ -363,6 +396,9 @@ func (db *DB) DeleteFilesBatch(ctx context.Context, userID string, fileIDs []str
 }
 
 // PendingDeletion represents a chunk queued for remote deletion.
+// UserID is "" for orphaned items whose user has since been deleted (the FK
+// sets user_id NULL on user deletion) and for anonymous-send chunk deletions;
+// the worker falls back to the global adapter set for those.
 type PendingDeletion struct {
 	ID         int64
 	UserID     string
@@ -380,10 +416,24 @@ type PendingDeletion struct {
 // instead of re-fetching and re-failing the same oldest batch every pass (head-of-line
 // blocking). It also matches the (attempts, created_at) index for an index-ordered scan.
 func (db *DB) GetPendingDeletions(ctx context.Context, limit, maxAttempts int) ([]PendingDeletion, error) {
+	return db.getPendingDeletionsRange(ctx, limit, 0, maxAttempts)
+}
+
+// GetStalePendingDeletions is the slow retry lane: items that already exhausted
+// the fast worker's attempt budget (attempts >= minAttempts) but are still under
+// the hard cap. The 6-hourly cleanup batch gives these a second chance — e.g. a
+// platform outage that outlasted the fast retries — instead of stranding the
+// remote blob forever after 5 quick failures.
+func (db *DB) GetStalePendingDeletions(ctx context.Context, limit, minAttempts, maxAttempts int) ([]PendingDeletion, error) {
+	return db.getPendingDeletionsRange(ctx, limit, minAttempts, maxAttempts)
+}
+
+func (db *DB) getPendingDeletionsRange(ctx context.Context, limit, minAttempts, maxAttempts int) ([]PendingDeletion, error) {
 	rows, err := db.pool.Query(ctx,
-		`SELECT id, user_id, platform, account, repo, remote_path, attempts
-		 FROM pending_deletions WHERE attempts < $1 ORDER BY attempts ASC, created_at ASC LIMIT $2`,
-		maxAttempts, limit,
+		`SELECT id, COALESCE(user_id::text, ''), platform, account, repo, remote_path, attempts
+		 FROM pending_deletions WHERE attempts >= $1 AND attempts < $2
+		 ORDER BY attempts ASC, created_at ASC LIMIT $3`,
+		minAttempts, maxAttempts, limit,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("get pending deletions: %w", err)
@@ -620,10 +670,10 @@ func (db *DB) GetPendingChunksForFile(ctx context.Context, fileID string) ([]typ
 func (db *DB) CreateUploadSession(ctx context.Context, s *types.UploadSession) (string, error) {
 	var id string
 	err := db.pool.QueryRow(ctx,
-		`INSERT INTO upload_sessions (user_id, file_id, filename, original_size, salt, sha256, chunk_count, platform, account, repo_id, repo_url)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		`INSERT INTO upload_sessions (user_id, file_id, filename, original_size, salt, sha256, chunk_count, chunk_size, platform, account, repo_id, repo_url)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 		 RETURNING id`,
-		s.UserID, s.FileID, s.Filename, s.OriginalSize, s.Salt, s.SHA256, s.ChunkCount,
+		s.UserID, s.FileID, s.Filename, s.OriginalSize, s.Salt, s.SHA256, s.ChunkCount, s.ChunkSize,
 		s.Platform, s.Account, s.RepoID, s.RepoURL,
 	).Scan(&id)
 	if err != nil {
@@ -636,14 +686,43 @@ func (db *DB) CreateUploadSession(ctx context.Context, s *types.UploadSession) (
 func (db *DB) GetUploadSession(ctx context.Context, sessionID, userID string) (*types.UploadSession, error) {
 	s := &types.UploadSession{}
 	err := db.pool.QueryRow(ctx,
-		`SELECT id, user_id, file_id, filename, original_size, salt, sha256, chunk_count,
+		`SELECT id, user_id, file_id, filename, original_size, salt, sha256, chunk_count, chunk_size,
 		        platform, account, repo_id, repo_url, uploaded_chunks, status, created_at, expires_at
 		 FROM upload_sessions WHERE id = $1 AND user_id = $2`,
 		sessionID, userID,
-	).Scan(&s.ID, &s.UserID, &s.FileID, &s.Filename, &s.OriginalSize, &s.Salt, &s.SHA256, &s.ChunkCount,
+	).Scan(&s.ID, &s.UserID, &s.FileID, &s.Filename, &s.OriginalSize, &s.Salt, &s.SHA256, &s.ChunkCount, &s.ChunkSize,
 		&s.Platform, &s.Account, &s.RepoID, &s.RepoURL, &s.UploadedChunks, &s.Status, &s.CreatedAt, &s.ExpiresAt)
 	if err != nil {
 		return nil, fmt.Errorf("get upload session: %w", err)
+	}
+	return s, nil
+}
+
+// FindActiveUploadSession returns the newest active, unexpired upload session
+// for the exact file identity (user + content sha256 + original size), or an
+// error wrapping pgx.ErrNoRows when none exists. The join to files guarantees
+// the session's file row still exists (i.e. the session is actually resumable).
+// This is what makes upload resume server-authoritative: a re-init of the same
+// file from any device lands back on the original session — and therefore the
+// original platform — with no client-side state needed.
+func (db *DB) FindActiveUploadSession(ctx context.Context, userID, sha256 string, originalSize int64) (*types.UploadSession, error) {
+	s := &types.UploadSession{}
+	err := db.pool.QueryRow(ctx,
+		`SELECT us.id, us.user_id, us.file_id, us.filename, us.original_size, us.salt, us.sha256,
+		        us.chunk_count, us.chunk_size, us.platform, us.account, us.repo_id, us.repo_url,
+		        us.uploaded_chunks, us.status, us.created_at, us.expires_at
+		 FROM upload_sessions us
+		 JOIN files f ON f.id = us.file_id
+		 WHERE us.user_id = $1 AND f.sha256 = $2 AND us.original_size = $3
+		   AND us.status = 'active' AND us.expires_at > NOW()
+		 ORDER BY us.created_at DESC
+		 LIMIT 1`,
+		userID, sha256, originalSize,
+	).Scan(&s.ID, &s.UserID, &s.FileID, &s.Filename, &s.OriginalSize, &s.Salt, &s.SHA256,
+		&s.ChunkCount, &s.ChunkSize, &s.Platform, &s.Account, &s.RepoID, &s.RepoURL,
+		&s.UploadedChunks, &s.Status, &s.CreatedAt, &s.ExpiresAt)
+	if err != nil {
+		return nil, fmt.Errorf("find active upload session: %w", err)
 	}
 	return s, nil
 }
@@ -653,7 +732,7 @@ func (db *DB) GetUploadSession(ctx context.Context, sessionID, userID string) (*
 // progress, expiry). Newest first. Selects only display fields (no salt/sha256).
 func (db *DB) ListActiveUploadSessions(ctx context.Context, userID string) ([]types.UploadSession, error) {
 	rows, err := db.pool.Query(ctx,
-		`SELECT id, file_id, filename, original_size, platform, account, chunk_count, uploaded_chunks, created_at, expires_at
+		`SELECT id, file_id, filename, original_size, platform, account, chunk_count, chunk_size, uploaded_chunks, created_at, expires_at
 		 FROM upload_sessions
 		 WHERE user_id = $1 AND status = 'active' AND expires_at > NOW()
 		 ORDER BY created_at DESC`,
@@ -668,7 +747,7 @@ func (db *DB) ListActiveUploadSessions(ctx context.Context, userID string) ([]ty
 	for rows.Next() {
 		var s types.UploadSession
 		if err := rows.Scan(&s.ID, &s.FileID, &s.Filename, &s.OriginalSize, &s.Platform, &s.Account,
-			&s.ChunkCount, &s.UploadedChunks, &s.CreatedAt, &s.ExpiresAt); err != nil {
+			&s.ChunkCount, &s.ChunkSize, &s.UploadedChunks, &s.CreatedAt, &s.ExpiresAt); err != nil {
 			return nil, fmt.Errorf("scan upload session: %w", err)
 		}
 		sessions = append(sessions, s)
@@ -759,27 +838,92 @@ func (db *DB) CountActiveUploadSessions(ctx context.Context, userID string) (int
 	return count, err
 }
 
-// CleanupExpiredUploadSessions cancels expired active sessions and marks their files for cleanup.
-// Returns the number of sessions cleaned up.
-func (db *DB) CleanupExpiredUploadSessions(ctx context.Context) (int, error) {
+// CleanupExpiredUploadSessions cancels expired active sessions and hard-deletes
+// their orphaned 'uploading' files — queueing every already-synced chunk into
+// pending_deletions FIRST (all in one transaction), exactly like DeleteFile.
+// Without the queueing step, the chunks.file_id CASCADE silently erased the only
+// reference to chunks the sync worker had already pushed to the platforms,
+// orphaning them there forever.
+//
+// Returns the number of sessions cancelled plus the chunk IDs of UNsynced
+// chunks (remote_path = ”): those never left the server, so the caller must
+// remove their staged .enc files from the staging dir (best-effort).
+func (db *DB) CleanupExpiredUploadSessions(ctx context.Context) (int, []string, error) {
+	tx, err := db.pool.Begin(ctx)
+	if err != nil {
+		return 0, nil, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
 	// Mark expired sessions as cancelled
-	tag, err := db.pool.Exec(ctx,
+	tag, err := tx.Exec(ctx,
 		`UPDATE upload_sessions SET status = 'cancelled' WHERE status = 'active' AND expires_at < NOW()`,
 	)
 	if err != nil {
-		return 0, fmt.Errorf("cleanup expired sessions: %w", err)
+		return 0, nil, fmt.Errorf("cleanup expired sessions: %w", err)
 	}
 	count := int(tag.RowsAffected())
 
-	// Delete orphaned files from expired sessions (status still 'uploading')
-	if count > 0 {
-		_, _ = db.pool.Exec(ctx,
-			`DELETE FROM files WHERE status = 'uploading' AND id IN (
-				SELECT file_id FROM upload_sessions WHERE status = 'cancelled' AND expires_at < NOW()
-			)`,
-		)
+	// The affected file set: still-'uploading' files whose session is cancelled
+	// and expired. Deliberately the same predicate as the old DELETE (not just
+	// this pass's UPDATE) so leftovers from earlier releases get cleaned too.
+	const expiredFiles = `SELECT id FROM files WHERE status = 'uploading' AND id IN (
+		SELECT file_id FROM upload_sessions WHERE status = 'cancelled' AND expires_at < NOW()
+	)`
+
+	// Decrement repos.used_bytes for the synced chunks, matching DeleteFile.
+	if _, err := tx.Exec(ctx,
+		`UPDATE repos r SET used_bytes = GREATEST(r.used_bytes - agg.total, 0)
+		 FROM (
+		     SELECT user_id, repo, SUM(size) AS total FROM chunks
+		     WHERE file_id IN (`+expiredFiles+`) AND remote_path != ''
+		     GROUP BY user_id, repo
+		 ) agg
+		 WHERE r.url = agg.repo AND r.user_id = agg.user_id`,
+	); err != nil {
+		return 0, nil, fmt.Errorf("decrement repo usage: %w", err)
 	}
-	return count, nil
+
+	// Queue synced chunks for remote deletion BEFORE the file delete cascades
+	// the chunk rows away.
+	if _, err := tx.Exec(ctx,
+		`INSERT INTO pending_deletions (user_id, platform, account, repo, remote_path)
+		 SELECT user_id, platform, account, repo, remote_path FROM chunks
+		 WHERE file_id IN (`+expiredFiles+`) AND remote_path != ''`,
+	); err != nil {
+		return 0, nil, fmt.Errorf("queue deletions: %w", err)
+	}
+
+	// Collect unsynced chunk IDs so the caller can remove their staged files.
+	rows, err := tx.Query(ctx,
+		`SELECT chunk_id FROM chunks WHERE file_id IN (`+expiredFiles+`) AND remote_path = ''`,
+	)
+	if err != nil {
+		return 0, nil, fmt.Errorf("list staged chunks: %w", err)
+	}
+	var staged []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			return 0, nil, fmt.Errorf("scan staged chunk: %w", err)
+		}
+		staged = append(staged, id)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return 0, nil, fmt.Errorf("iterate staged chunks: %w", err)
+	}
+
+	// Delete the orphaned files; chunks cascade via chunks.file_id.
+	if _, err := tx.Exec(ctx, `DELETE FROM files WHERE id IN (`+expiredFiles+`)`); err != nil {
+		return 0, nil, fmt.Errorf("delete expired files: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return 0, nil, fmt.Errorf("commit: %w", err)
+	}
+	return count, staged, nil
 }
 
 // InsertClientChunk inserts a chunk uploaded by the client (already encrypted).
@@ -904,6 +1048,36 @@ func (db *DB) GetChunkByID(ctx context.Context, chunkID string) (*types.ChunkRef
 		return nil, fmt.Errorf("get chunk by id: %w", err)
 	}
 	return c, nil
+}
+
+// FilterExistingChunkIDs returns the subset of the candidate chunk IDs that
+// still have a chunks row. Used by the boot-time staging sweeper to tell live
+// staged files apart from orphans left behind by cancel/purge/expiry paths
+// that deleted the DB rows without touching the staging dir.
+func (db *DB) FilterExistingChunkIDs(ctx context.Context, chunkIDs []string) (map[string]bool, error) {
+	existing := make(map[string]bool, len(chunkIDs))
+	if len(chunkIDs) == 0 {
+		return existing, nil
+	}
+	rows, err := db.pool.Query(ctx,
+		`SELECT chunk_id FROM chunks WHERE chunk_id = ANY($1::uuid[])`, chunkIDs,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("filter existing chunk ids: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scan chunk id: %w", err)
+		}
+		existing[id] = true
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate chunk ids: %w", err)
+	}
+	return existing, nil
 }
 
 // CleanExpiredSessions deletes expired upload sessions and their associated incomplete data.

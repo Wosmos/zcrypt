@@ -83,10 +83,14 @@ func DefaultConfig() *Config {
 	return &Config{
 		DefaultPlatform: "github",
 		Thresholds: map[string]int64{
-			"github":      850 * 1024 * 1024,    // 850MB
-			"gitlab":      9000 * 1024 * 1024,   // 9GB
-			"huggingface": 280000 * 1024 * 1024, // 280GB
-			"telegram":    50000 * 1024 * 1024,  // 50GB (virtual — Telegram has no hard repo limit)
+			"github": 850 * 1024 * 1024,  // 850MB
+			"gitlab": 9000 * 1024 * 1024, // 9GB
+			// HF free tier is 100 GB TOTAL private storage per ACCOUNT (not per
+			// repo) — rotating to a new repo adds NO capacity. Keep the per-repo
+			// threshold safely under the whole-account allowance so a single
+			// repo can never claim more than the account can actually hold.
+			"huggingface": 90 * 1024 * 1024 * 1024, // 90GiB (real limit: 100GB/account)
+			"telegram":    50000 * 1024 * 1024,     // 50GB (virtual — Telegram has no hard repo limit)
 		},
 	}
 }
