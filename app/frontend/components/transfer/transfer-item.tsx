@@ -46,7 +46,9 @@ export interface TransferEntry {
   bytesProcessed?: number;
   /** Total bytes to upload (uploads only) — drives the true-ratio bar width. */
   totalBytes?: number;
-  /** For ETA math — kept raw, never eased. */
+  /** Smoothed transfer rate in bytes/sec (uploads only) — speed + ETA display. */
+  rateBps?: number;
+  /** For download ETA math — kept raw, never eased. */
   startedAt: number;
 }
 
@@ -111,14 +113,38 @@ function StatusGlyph({ entry }: { entry: TransferEntry }) {
   }
 }
 
+// "~40s left" from a seconds estimate (rate-based, so it doesn't inherit the
+// queue-wait/pause time the old percent-extrapolation ETA did).
+function formatRemaining(seconds: number): string | undefined {
+  if (!isFinite(seconds) || seconds <= 0) return undefined;
+  if (seconds < 60) return `~${Math.ceil(seconds)}s left`;
+  if (seconds < 3600) return `~${Math.ceil(seconds / 60)}m left`;
+  const h = Math.floor(seconds / 3600);
+  const m = Math.ceil((seconds % 3600) / 60);
+  return `~${h}h ${m}m left`;
+}
+
 function statusText(entry: TransferEntry, short = false): string {
   if (entry.state === "failed") return entry.error || "Failed";
   if (entry.state === "cancelled") return "Cancelled";
   if (entry.state === "done") return entry.direction === "upload" ? "Uploaded" : "Downloaded";
   if (entry.state === "paused") return entry.stage || "Paused";
   if (entry.state === "queued") return "Queued";
-  // active
-  const eta = formatEta(entry.startedAt, entry.progress);
+  // active. Uploads: speed + ETA from the smoothed byte rate (accurate, stable).
+  // Downloads: the old elapsed/percent extrapolation (no byte rate available).
+  let eta: string | undefined;
+  if (
+    entry.direction === "upload" &&
+    typeof entry.rateBps === "number" && entry.rateBps > 0 &&
+    typeof entry.bytesProcessed === "number" &&
+    typeof entry.totalBytes === "number" && entry.totalBytes > 0
+  ) {
+    const speed = `${formatBytes(entry.rateBps)}/s`;
+    const left = formatRemaining((entry.totalBytes - entry.bytesProcessed) / entry.rateBps);
+    eta = left ? `${speed} · ${left}` : speed;
+  } else if (entry.direction === "download") {
+    eta = formatEta(entry.startedAt, entry.progress);
+  }
   const verb = entry.stage || (entry.direction === "upload" ? "Uploading" : "Downloading");
   // Mobile: the spinner + name already convey direction — show just the ETA when
   // we have one, so the line stays tight on narrow screens.
@@ -136,20 +162,27 @@ function TransferItemBase({
 }) {
   const reduceMotion = useReducedMotion();
   const showBar = entry.state === "active" || entry.state === "paused";
-  const eased = easeProgress(entry.progress);
   const failedLike = entry.state === "failed" || entry.state === "cancelled";
 
-  // Bar width = TRUE ratio so it never appears to stall (M5-progress). The
-  // log-eased value above is display-only and stays on the % label. For uploads
-  // with real byte counts, use bytesProcessed/totalBytes; otherwise (and for all
-  // downloads) fall back to the raw item.progress.
-  const barProgress =
+  // Bar width = TRUE byte ratio so it never appears to stall (M5-progress). For
+  // uploads with real byte counts, use bytesProcessed/totalBytes; otherwise (and
+  // for all downloads) fall back to the raw item.progress.
+  const hasBytes =
     entry.direction === "upload" &&
     typeof entry.bytesProcessed === "number" &&
     typeof entry.totalBytes === "number" &&
-    entry.totalBytes > 0
-      ? Math.min(100, Math.max(0, (entry.bytesProcessed / entry.totalBytes) * 100))
-      : entry.progress;
+    entry.totalBytes > 0;
+  const barProgress = hasBytes
+    ? Math.min(100, Math.max(0, ((entry.bytesProcessed as number) / (entry.totalBytes as number)) * 100))
+    : entry.progress;
+  // The % label MATCHES the bar when real bytes exist (the old log-eased label
+  // said 74% while the bar showed half-width — two different lies). The eased
+  // curve remains only for byte-less phases (encrypting) and downloads. Capped
+  // at 99 while active so "100%" can only ever mean done.
+  const labelPct = Math.min(99, Math.round(hasBytes && (entry.bytesProcessed as number) > 0 ? barProgress : easeProgress(entry.progress)));
+  // Finalize is a short server round-trip with no byte movement — show an
+  // indeterminate full bar instead of a frozen 97%.
+  const isFinalizing = entry.state === "active" && (entry.stage?.startsWith("Finalizing") ?? false);
 
   return (
     <motion.div
@@ -179,16 +212,16 @@ function TransferItemBase({
               {typeof entry.sizeBytes === "number" && entry.sizeBytes > 0 && (
                 <span>{formatBytes(entry.sizeBytes)}</span>
               )}
-              {entry.state === "active" && <span>{eased}%</span>}
+              {entry.state === "active" && <span>{labelPct}%</span>}
             </div>
           </div>
 
           {showBar && (
             <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-[var(--color-surface-2)]">
               <motion.div
-                className="h-full rounded-full bg-[var(--color-accent)]"
+                className={cn("h-full rounded-full bg-[var(--color-accent)]", isFinalizing && "animate-pulse")}
                 initial={false}
-                animate={{ width: `${barProgress}%` }}
+                animate={{ width: isFinalizing ? "100%" : `${barProgress}%` }}
                 transition={reduceMotion ? { duration: 0 } : { duration: 0.45, ease: "easeOut" }}
               />
             </div>

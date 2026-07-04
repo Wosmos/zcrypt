@@ -96,6 +96,8 @@ export interface UploadItem {
   startedAt: number;
   bytesProcessed?: number;
   totalBytes?: number;
+  /** Smoothed transfer rate in bytes/sec (EMA) — drives the speed + ETA display. */
+  rateBps?: number;
   error?: string;
 }
 
