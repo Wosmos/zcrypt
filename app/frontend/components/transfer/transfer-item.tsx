@@ -13,7 +13,6 @@ import {
   RotateCcw,
   X,
 } from "@/lib/icons";
-import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { cn, formatBytes, formatEta, easeProgress } from "@/lib/utils";
 
 // A single unified view-model the manager builds from the upload + download
@@ -57,6 +56,8 @@ export interface TransferItemControls {
   onResume: (id: string) => void;
   onCancelUpload: (id: string) => void;
   onRetryUpload: (id: string) => void;
+  onPauseDownload: (id: string) => void;
+  onResumeDownload: (id: string) => void;
   onStopDownload: (id: string) => void;
   onRetryDownload: (id: string) => void;
   onDismiss: (entry: TransferEntry) => void;
@@ -106,7 +107,20 @@ function StatusGlyph({ entry }: { entry: TransferEntry }) {
     case "paused":
       return <Pause className="h-4 w-4 text-[var(--color-text-secondary)]" />;
     case "active":
-      return <LogoSpinner size={16} speed="fast" />;
+      // Direction-explicit + animated: an upload arrow drifts up in the accent
+      // colour, a download arrow drifts down in cyan — so "which way is this
+      // going" is obvious at a glance without reading the stage text. (The dock
+      // header still shows the brand spinner for overall "working" state.)
+      return (
+        <DirIcon
+          className={cn(
+            "h-4 w-4",
+            entry.direction === "upload"
+              ? "text-[var(--color-accent)] animate-nudge-up"
+              : "text-cyan-500 animate-nudge-down",
+          )}
+        />
+      );
     case "queued":
     default:
       return <DirIcon className="h-4 w-4 text-[var(--color-text-muted)]" />;
@@ -219,11 +233,21 @@ function TransferItemBase({
           {showBar && (
             <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-[var(--color-surface-2)]">
               <motion.div
-                className={cn("h-full rounded-full bg-[var(--color-accent)]", isFinalizing && "animate-pulse")}
+                className={cn(
+                  "relative h-full overflow-hidden rounded-full bg-[var(--color-accent)]",
+                  isFinalizing && "animate-pulse",
+                )}
                 initial={false}
                 animate={{ width: isFinalizing ? "100%" : `${barProgress}%` }}
                 transition={reduceMotion ? { duration: 0 } : { duration: 0.45, ease: "easeOut" }}
-              />
+              >
+                {/* Microsoft-style sheen swept across the fill while actively
+                    transferring (not while paused/finalizing) — reads as motion
+                    even when a chunk is momentarily stalled. */}
+                {entry.state === "active" && !isFinalizing && !reduceMotion && (
+                  <span className="animate-bar-sheen absolute inset-y-0 left-0 w-1/2 bg-gradient-to-r from-transparent via-white/50 to-transparent" />
+                )}
+              </motion.div>
             </div>
           )}
 
@@ -269,9 +293,25 @@ function TransferItemBase({
             </>
           )}
 
-          {/* Download — active/queued: Stop */}
-          {entry.direction === "download" && (entry.state === "active" || entry.state === "queued") && (
+          {/* Download — active: Pause + Stop */}
+          {entry.direction === "download" && entry.state === "active" && (
+            <>
+              <ControlButton icon={Pause} label="Pause download" tone="accent" onClick={() => controls.onPauseDownload(entry.id)} />
+              <ControlButton icon={StopCircle} label="Stop download" tone="danger" onClick={() => controls.onStopDownload(entry.id)} />
+            </>
+          )}
+
+          {/* Download — queued: only Stop (nothing to pause yet) */}
+          {entry.direction === "download" && entry.state === "queued" && (
             <ControlButton icon={StopCircle} label="Stop download" tone="danger" onClick={() => controls.onStopDownload(entry.id)} />
+          )}
+
+          {/* Download — paused: Resume + Stop */}
+          {entry.direction === "download" && entry.state === "paused" && (
+            <>
+              <ControlButton icon={Play} label="Resume download" tone="accent" onClick={() => controls.onResumeDownload(entry.id)} />
+              <ControlButton icon={StopCircle} label="Stop download" tone="danger" onClick={() => controls.onStopDownload(entry.id)} />
+            </>
           )}
 
           {/* Download — failed/cancelled: Retry + Dismiss */}

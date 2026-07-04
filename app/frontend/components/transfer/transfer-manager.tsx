@@ -66,6 +66,8 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
 
   // Download store
   const downloadQueue = useDownloadStore((s) => s.queue);
+  const pauseDownload = useDownloadStore((s) => s.pauseDownload);
+  const resumeDownload = useDownloadStore((s) => s.resumeDownload);
   const cancelDownload = useDownloadStore((s) => s.cancelDownload);
   const retryDownload = useDownloadStore((s) => s.retryDownload);
   const removeDownload = useDownloadStore((s) => s.removeFromQueue);
@@ -172,6 +174,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
         case "done": state = "done"; break;
         case "failed": state = "failed"; break;
         case "cancelled": state = "cancelled"; break;
+        case "paused": state = "paused"; break;
         case "queued": state = "queued"; break;
         default: state = "active"; // "downloading"
       }
@@ -258,6 +261,18 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
     onCancelUpload: (id: string) => removeUpload(id),
     onRetryUpload: (id: string) => withUploadPassword(id, (pass) => retryUpload(id, pass)),
     onStopDownload: (id: string) => cancelDownload(id),
+    // Pause needs no password (it just stops fetching). Resume/retry do — same
+    // folder-aware routing as the initial download: the vault gate covers the
+    // unprotected/base case, and the global resolver swaps in the folder
+    // password per file so a protected-folder download continues correctly.
+    onPauseDownload: (id: string) => pauseDownload(id),
+    onResumeDownload: (id: string) => {
+      const item = downloadQueue.find((d) => d.id === id);
+      if (!item) return;
+      withDownloadPassword(item.fileId, (pass) =>
+        resumeDownload(id, pass, resolveFilePasswordGlobal)
+      );
+    },
     // FIX-4: retry of a protected-folder download decrypts under the FOLDER
     // password. withDownloadPassword gates the vault for the base/unprotected
     // case; we always pass the folder-aware global resolver so per-file routing
