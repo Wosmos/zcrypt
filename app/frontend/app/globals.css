@@ -36,6 +36,12 @@
     --color-sidebar-text: #8f95b2;
     --color-sidebar-text-active: #ffffff;
     --color-sidebar-border: #252b45;
+    /* Toast semantic colours — darker -600 shades so the icon + drain bar clear
+       the WCAG 3:1 graphical-contrast bar on a near-white surface. (info uses
+       --color-accent, which is already light-tuned.) */
+    --toast-success: #059669;
+    --toast-error: #e11d48;
+    --toast-warning: #d97706;
   }
 
   .dark {
@@ -64,6 +70,11 @@
     --color-sidebar-text: #5c6184;
     --color-sidebar-text-active: #e0e4f0;
     --color-sidebar-border: #1a1f38;
+    /* Toast semantic colours — bright -400 shades (the reference values), which
+       read at ~10:1 on the deep dark surface. */
+    --toast-success: #34d399;
+    --toast-error: #fb7185;
+    --toast-warning: #fbbf24;
   }
 
   * {
@@ -220,6 +231,17 @@
   }
   100% {
     background-position: 200% 0;
+  }
+}
+
+/* Toast countdown drain — the thin bar under each toast, scales from full to
+   empty over its lifetime. Cosmetic; dismissal is driven by the store timer. */
+@keyframes toast-drain {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
   }
 }
 

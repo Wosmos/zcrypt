@@ -16,12 +16,20 @@ interface ToastStore {
 
 let counter = 0;
 
+// Hard cap on concurrent toasts. Capping at the data level (rather than only in
+// the renderer) means an over-cap toast is dropped outright — so it can never
+// re-surface later and restart its countdown bar out of sync with its timer.
+const MAX_TOASTS = 5;
+
 export const useToastStore = create<ToastStore>((set) => ({
   toasts: [],
 
   add: (type, message) => {
     const id = `toast_${++counter}`;
-    set((s) => ({ toasts: [...s.toasts, { id, type, message }] }));
+    set((s) => {
+      const next = [...s.toasts, { id, type, message }];
+      return { toasts: next.slice(-MAX_TOASTS) };
+    });
     setTimeout(() => {
       set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }));
     }, 4000);
