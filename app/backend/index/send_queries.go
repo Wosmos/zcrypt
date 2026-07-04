@@ -164,15 +164,42 @@ func (db *DB) GetTotalSendChunkSize(ctx context.Context, transferID string) (int
 	return total, nil
 }
 
-// CleanupExpiredSendTransfers deletes expired send transfers and returns the count deleted.
-func (db *DB) CleanupExpiredSendTransfers(ctx context.Context) (int, error) {
-	tag, err := db.pool.Exec(ctx,
-		`DELETE FROM send_transfers WHERE expires_at < NOW() OR (status = 'uploading' AND created_at < NOW() - INTERVAL '2 hours')`,
+// CleanupExpiredSendTransfers queues the expired transfers' synced chunks into
+// pending_deletions (user_id NULL — the deletion worker resolves those via the
+// global adapter set) and then deletes the transfer rows, in one transaction.
+// Routing send-chunk cleanup through the durable retry queue replaces the old
+// inline best-effort adapter.Delete loop, whose failures orphaned the platform
+// blobs permanently because the DB refs were deleted regardless. Returns the
+// number of transfers deleted and the number of chunk deletions queued; the
+// caller should signalDeletion() when queued > 0.
+func (db *DB) CleanupExpiredSendTransfers(ctx context.Context) (int, int, error) {
+	tx, err := db.pool.Begin(ctx)
+	if err != nil {
+		return 0, 0, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	const expiredTransfers = `SELECT id FROM send_transfers
+		WHERE expires_at < NOW() OR (status = 'uploading' AND created_at < NOW() - INTERVAL '2 hours')`
+
+	queueTag, err := tx.Exec(ctx,
+		`INSERT INTO pending_deletions (user_id, platform, account, repo, remote_path)
+		 SELECT NULL, platform, account, repo, remote_path FROM send_chunks
+		 WHERE transfer_id IN (`+expiredTransfers+`) AND remote_path != ''`,
 	)
 	if err != nil {
-		return 0, fmt.Errorf("cleanup expired send transfers: %w", err)
+		return 0, 0, fmt.Errorf("queue send chunk deletions: %w", err)
 	}
-	return int(tag.RowsAffected()), nil
+
+	tag, err := tx.Exec(ctx, `DELETE FROM send_transfers WHERE id IN (`+expiredTransfers+`)`)
+	if err != nil {
+		return 0, 0, fmt.Errorf("cleanup expired send transfers: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return 0, 0, fmt.Errorf("commit: %w", err)
+	}
+	return int(tag.RowsAffected()), int(queueTag.RowsAffected()), nil
 }
 
 // GetExpiredSendChunks returns chunk info for expired transfers (for remote cleanup before deletion).

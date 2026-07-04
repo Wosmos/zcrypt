@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -310,7 +311,10 @@ func (s *Server) getUserPools(ctx context.Context, userID string) (map[string]*r
 			case "gitlab":
 				threshold = 9000 * 1024 * 1024
 			case "huggingface":
-				threshold = 280000 * 1024 * 1024
+				// HF free tier = 100 GB TOTAL private storage per ACCOUNT (not
+				// per repo), so rotation adds no capacity. Keep the per-repo
+				// threshold under the whole-account allowance. See config.go.
+				threshold = 90 * 1024 * 1024 * 1024
 			case "telegram":
 				threshold = 50000 * 1024 * 1024
 			}
@@ -351,20 +355,56 @@ func (s *Server) selectAdapter(ctx context.Context, userID, targetPlatform strin
 		return "", nil, nil, fmt.Errorf("no platform connected")
 	}
 
-	// Find a matching adapter
-	for key, adapter := range userAdapters {
-		if targetPlatform != "" && !strings.HasPrefix(key, targetPlatform+":") {
-			continue
-		}
-		if pool, ok := pools[key]; ok {
-			return key, adapter, pool, nil
+	// Candidate keys are sorted so the choice is deterministic even among
+	// multiple accounts on the same platform (map iteration order is random).
+	keys := make([]string, 0, len(userAdapters))
+	for key := range userAdapters {
+		if _, ok := pools[key]; ok {
+			keys = append(keys, key)
 		}
 	}
+	sort.Strings(keys)
 
 	if targetPlatform != "" {
+		for _, key := range keys {
+			if strings.HasPrefix(key, targetPlatform+":") {
+				return key, userAdapters[key], pools[key], nil
+			}
+		}
 		return "", nil, nil, fmt.Errorf("no %s account connected", targetPlatform)
 	}
+
+	// No explicit platform: pick by fixed preference order instead of random
+	// map iteration. Telegram first — it is the primary storage backend
+	// (effectively unlimited capacity); the git platforms are fallbacks.
+	if key := preferredAdapterKey(keys); key != "" {
+		return key, userAdapters[key], pools[key], nil
+	}
 	return "", nil, nil, fmt.Errorf("no platform connected")
+}
+
+// adapterPreferenceOrder is the product decision for "Auto" uploads: Telegram
+// is the primary storage backend (no capacity ceiling), then github, gitlab,
+// huggingface (HF last — its free tier is a 100 GB per-ACCOUNT cap).
+var adapterPreferenceOrder = []string{"telegram", "github", "gitlab", "huggingface"}
+
+// preferredAdapterKey picks the first key (from a pre-sorted "platform:account"
+// list) whose platform appears earliest in adapterPreferenceOrder. Keys for
+// unknown platforms are considered last, in sorted order. Returns "" when keys
+// is empty.
+func preferredAdapterKey(keys []string) string {
+	for _, platform := range adapterPreferenceOrder {
+		for _, key := range keys {
+			if strings.HasPrefix(key, platform+":") {
+				return key
+			}
+		}
+	}
+	// Unknown platform keys (future adapters): fall back to the first sorted key.
+	if len(keys) > 0 {
+		return keys[0]
+	}
+	return ""
 }
 
 // resolveAdapterForUser finds the right adapter for a platform:account key.

@@ -61,7 +61,7 @@ func (g *GithubAdapter) Upload(ctx context.Context, repo string, chunk types.Chu
 	remotePath := chunk.Ref.RemotePath
 	if remotePath == "" {
 		var err error
-		remotePath, err = disguise.ChunkFilename()
+		remotePath, err = disguise.ShardedChunkFilename()
 		if err != nil {
 			return types.ChunkRef{}, fmt.Errorf("generate filename: %w", err)
 		}
@@ -85,7 +85,7 @@ func (g *GithubAdapter) Upload(ctx context.Context, repo string, chunk types.Chu
 			case <-time.After(base + jitter):
 			}
 			// Generate new filename on 409 (path collision)
-			newPath, err := disguise.ChunkFilename()
+			newPath, err := disguise.ShardedChunkFilename()
 			if err != nil {
 				return types.ChunkRef{}, fmt.Errorf("generate filename: %w", err)
 			}

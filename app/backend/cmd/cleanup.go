@@ -4,10 +4,17 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 	"runtime/debug"
+	"strings"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/zcrypt/zcrypt/adapters"
 	"github.com/zcrypt/zcrypt/auth"
+	"github.com/zcrypt/zcrypt/config"
+	"github.com/zcrypt/zcrypt/index"
 	"github.com/zcrypt/zcrypt/types"
 )
 
@@ -25,6 +32,11 @@ const (
 	cleanupInterval     = 6 * time.Hour
 	batchSize           = 10
 	maxAttempts         = 5
+	// slowLaneMaxAttempts is the hard cap for the slow retry lane: items that
+	// exhausted the fast worker's maxAttempts get one more try per 6-hourly
+	// cleanup cycle until they reach this cap, after which they are dead-lettered
+	// (left in the table, loudly logged) instead of silently stranded at 5.
+	slowLaneMaxAttempts = 15
 )
 
 // StartCleanupWorker runs two background goroutines:
@@ -34,6 +46,19 @@ func (s *Server) StartCleanupWorker(ctx context.Context) {
 	// Deletion worker — users expect deleted files to disappear "soon". Event-driven
 	// via deletionCh (a delete wakes it immediately) with an idle-backoff safety poll.
 	s.runDeletionWorker(ctx)
+
+	// One-shot boot-time staging sweeper: removes orphaned .enc files whose
+	// chunk rows are gone (left behind by historical cancel/purge/expiry paths
+	// that deleted DB rows without touching the staging dir).
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("staging sweeper panic: %v", r)
+			}
+		}()
+		time.Sleep(20 * time.Second)
+		s.sweepOrphanedStagingFiles(ctx)
+	}()
 
 	// Cleanup worker — non-urgent expiry, 6 hours is plenty
 	go func() {
@@ -112,13 +137,23 @@ func (s *Server) runDeletionWorker(ctx context.Context) {
 
 // runCleanupBatch handles non-urgent expiry tasks (runs every 6 hours).
 func (s *Server) runCleanupBatch(ctx context.Context) {
-	if cleaned, err := s.db.CleanupExpiredUploadSessions(ctx); err != nil {
+	// Expire upload sessions. Synced chunks are queued into pending_deletions
+	// inside the same transaction (wake the worker); unsynced chunks only exist
+	// as staged .enc files, which are removed here.
+	if cleaned, staged, err := s.db.CleanupExpiredUploadSessions(ctx); err != nil {
 		log.Printf("cleanup: expired sessions: %v", err)
-	} else if cleaned > 0 {
-		log.Printf("cleanup: cancelled %d expired upload sessions", cleaned)
+	} else if cleaned > 0 || len(staged) > 0 {
+		removeStagedChunkFiles(staged)
+		s.signalDeletion()
+		log.Printf("cleanup: cancelled %d expired upload sessions (%d staged chunk files removed)", cleaned, len(staged))
 	}
 
 	s.cleanupExpiredSendTransfers(ctx)
+
+	// Slow retry lane: give deletions that exhausted the fast worker's attempt
+	// budget (e.g. a platform outage that outlasted 5 quick retries) one more
+	// chance per cleanup cycle, up to slowLaneMaxAttempts.
+	s.retryStaleDeletions(ctx)
 
 	if cleaned, err := s.db.CleanupExpiredPads(ctx); err != nil {
 		log.Printf("cleanup: expired pads: %v", err)
@@ -211,47 +246,7 @@ func (s *Server) processPendingDeletions(ctx context.Context) bool {
 			return false
 		default:
 		}
-
-		// Isolate each item: a panic inside one adapter's Delete (e.g. a nil
-		// dereference on a malformed/already-gone chunk) must NOT take down the
-		// whole batch. Without this, the worker-level recover re-ran the SAME
-		// batch forever, crash-looping and stranding every other deletion too.
-		func() {
-			defer func() {
-				if r := recover(); r != nil {
-					log.Printf("deletion: recovered panic on item %d (%s:%s %s): %v",
-						item.ID, item.Platform, item.Account, item.RemotePath, r)
-					s.db.MarkDeletionFailed(ctx, item.ID, fmt.Sprintf("panic: %v", r))
-				}
-			}()
-
-			adapter := s.resolveAdapterForUser(ctx, item.UserID, item.Platform, item.Account)
-			if adapter == nil {
-				log.Printf("deletion: no adapter for %s:%s (user=%s), skipping", item.Platform, item.Account, item.UserID)
-				s.db.MarkDeletionFailed(ctx, item.ID, "no adapter available")
-				return
-			}
-
-			ref := types.ChunkRef{
-				Platform:   item.Platform,
-				Account:    item.Account,
-				Repo:       item.Repo,
-				RemotePath: item.RemotePath,
-			}
-
-			if err := adapter.Delete(ctx, ref); err != nil {
-				log.Printf("deletion: delete %s from %s: %v", item.RemotePath, item.Repo, err)
-				s.db.MarkDeletionFailed(ctx, item.ID, err.Error())
-				time.Sleep(2 * time.Second)
-				return
-			}
-
-			if err := s.db.MarkDeletionDone(ctx, item.ID); err != nil {
-				log.Printf("deletion: mark done: %v", err)
-			}
-			log.Printf("deletion: deleted %s from %s", item.RemotePath, item.Repo)
-			time.Sleep(1 * time.Second)
-		}()
+		s.processDeletionItem(ctx, item)
 	}
 
 	if remaining, _ := s.db.PendingDeletionCount(ctx); remaining > 0 {
@@ -262,42 +257,212 @@ func (s *Server) processPendingDeletions(ctx context.Context) bool {
 	return len(pending) == batchSize
 }
 
-// cleanupExpiredSendTransfers deletes remote chunks for expired send transfers,
-// then removes the DB records. Returns true if any transfers were cleaned up.
-func (s *Server) cleanupExpiredSendTransfers(ctx context.Context) bool {
-	expiredChunks, err := s.db.GetExpiredSendChunks(ctx)
+// processDeletionItem attempts one queued platform deletion with per-item panic
+// isolation: a panic inside one adapter's Delete (e.g. a nil dereference on a
+// malformed/already-gone chunk) must NOT take down the whole batch. Without
+// this, the worker-level recover re-ran the SAME batch forever, crash-looping
+// and stranding every other deletion too.
+func (s *Server) processDeletionItem(ctx context.Context, item index.PendingDeletion) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("deletion: recovered panic on item %d (%s:%s %s): %v",
+				item.ID, item.Platform, item.Account, item.RemotePath, r)
+			s.markDeletionFailed(ctx, item, fmt.Sprintf("panic: %v", r))
+		}
+	}()
+
+	// Resolve the adapter. Items whose user was deleted (user_id NULL → "")
+	// and anonymous-send deletions have no per-user tokens; and a per-user
+	// lookup can also come back empty when the user row is gone. Fall back to
+	// the global adapter set in both cases, mirroring send-transfer cleanup.
+	var adapter adapters.PlatformAdapter
+	if item.UserID != "" {
+		adapter = s.resolveAdapterForUser(ctx, item.UserID, item.Platform, item.Account)
+	}
+	if adapter == nil {
+		if ga, err := s.resolveGlobalAdapter(ctx, item.Platform, item.Account); err == nil {
+			adapter = ga
+		}
+	}
+	if adapter == nil {
+		log.Printf("deletion: no adapter for %s:%s (user=%q), skipping", item.Platform, item.Account, item.UserID)
+		s.markDeletionFailed(ctx, item, "no adapter available")
+		return
+	}
+
+	ref := types.ChunkRef{
+		Platform:   item.Platform,
+		Account:    item.Account,
+		Repo:       item.Repo,
+		RemotePath: item.RemotePath,
+	}
+
+	if err := adapter.Delete(ctx, ref); err != nil {
+		log.Printf("deletion: delete %s from %s: %v", item.RemotePath, item.Repo, err)
+		s.markDeletionFailed(ctx, item, err.Error())
+		time.Sleep(2 * time.Second)
+		return
+	}
+
+	if err := s.db.MarkDeletionDone(ctx, item.ID); err != nil {
+		log.Printf("deletion: mark done: %v", err)
+	}
+	log.Printf("deletion: deleted %s from %s", item.RemotePath, item.Repo)
+	time.Sleep(1 * time.Second)
+}
+
+// markDeletionFailed records a failed attempt and surfaces dead-letter
+// transitions loudly: hitting maxAttempts moves the item to the slow retry
+// lane; hitting slowLaneMaxAttempts permanently strands the platform blob,
+// which is a real orphan and must be visible in the logs, not just a row
+// quietly ageing in pending_deletions.
+func (s *Server) markDeletionFailed(ctx context.Context, item index.PendingDeletion, msg string) {
+	if err := s.db.MarkDeletionFailed(ctx, item.ID, msg); err != nil {
+		log.Printf("deletion: mark failed for item %d: %v", item.ID, err)
+		return
+	}
+	attempts := item.Attempts + 1
+	switch {
+	case attempts >= slowLaneMaxAttempts:
+		log.Printf("deletion: WARNING item %d exhausted all %d attempts — platform=%s account=%s repo=%s remote_path=%s is ORPHANED on the platform and needs manual cleanup (last error: %s)",
+			item.ID, slowLaneMaxAttempts, item.Platform, item.Account, item.Repo, item.RemotePath, msg)
+	case attempts == maxAttempts:
+		log.Printf("deletion: WARNING item %d hit %d attempts — platform=%s account=%s repo=%s remote_path=%s moves to the slow retry lane (one attempt per %s, cap %d)",
+			item.ID, maxAttempts, item.Platform, item.Account, item.Repo, item.RemotePath, cleanupInterval, slowLaneMaxAttempts)
+	}
+}
+
+// retryStaleDeletions is the slow retry lane, run once per cleanup cycle: it
+// re-attempts deletions that already exhausted the fast worker's maxAttempts
+// but are still under slowLaneMaxAttempts.
+func (s *Server) retryStaleDeletions(ctx context.Context) {
+	items, err := s.db.GetStalePendingDeletions(ctx, batchSize, maxAttempts, slowLaneMaxAttempts)
 	if err != nil {
-		log.Printf("cleanup: get expired send chunks: %v", err)
+		log.Printf("deletion: get stale deletions: %v", err)
+		return
 	}
-
-	for _, chunk := range expiredChunks {
-		// Resolve per-chunk so each delete uses the account that actually stored it
-		// (a random global adapter could target a repo its token can't see).
-		adapter, aErr := s.resolveGlobalAdapter(ctx, chunk.Platform, chunk.Account)
-		if aErr != nil {
-			log.Printf("cleanup: no global adapter for send chunk %s (%s:%s): %v", chunk.RemotePath, chunk.Platform, chunk.Account, aErr)
-			continue
-		}
-		ref := types.ChunkRef{
-			Platform:   chunk.Platform,
-			Account:    chunk.Account,
-			Repo:       chunk.Repo,
-			RemotePath: chunk.RemotePath,
-		}
-		if dErr := adapter.Delete(ctx, ref); dErr != nil {
-			log.Printf("cleanup: delete send chunk %s: %v", chunk.RemotePath, dErr)
-		}
-		time.Sleep(500 * time.Millisecond) // rate limit
+	if len(items) == 0 {
+		return
 	}
+	log.Printf("deletion: slow lane retrying %d stale deletions", len(items))
+	for _, item := range items {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+		s.processDeletionItem(ctx, item)
+	}
+}
 
-	cleaned, err := s.db.CleanupExpiredSendTransfers(ctx)
+// cleanupExpiredSendTransfers queues expired send transfers' remote chunks into
+// pending_deletions (user_id NULL → the deletion worker resolves them via the
+// global adapter set) and removes the DB records, in one transaction inside the
+// index layer. The durable retry queue replaces the old inline best-effort
+// delete loop, whose failures orphaned the platform blobs permanently. Returns
+// true if any transfers were cleaned up.
+func (s *Server) cleanupExpiredSendTransfers(ctx context.Context) bool {
+	cleaned, queued, err := s.db.CleanupExpiredSendTransfers(ctx)
 	if err != nil {
 		log.Printf("cleanup: expired send transfers: %v", err)
 		return false
 	}
+	if queued > 0 {
+		s.signalDeletion()
+	}
 	if cleaned > 0 {
-		log.Printf("cleanup: deleted %d expired send transfers (%d remote chunks)", cleaned, len(expiredChunks))
+		log.Printf("cleanup: deleted %d expired send transfers (%d remote chunk deletions queued)", cleaned, queued)
 		return true
 	}
 	return false
+}
+
+// removeStagedChunkFiles best-effort deletes the staging-dir .enc files for
+// chunks whose DB rows were just deleted before the chunk ever synced to a
+// platform (upload cancel, purge, session expiry). Missing files are fine —
+// the sync worker may have raced us — anything else is logged.
+func removeStagedChunkFiles(chunkIDs []string) {
+	if len(chunkIDs) == 0 {
+		return
+	}
+	stagingDir, err := config.StagingDir()
+	if err != nil {
+		log.Printf("cleanup: staging dir: %v", err)
+		return
+	}
+	for _, id := range chunkIDs {
+		p := filepath.Join(stagingDir, id+".enc")
+		if err := os.Remove(p); err != nil && !os.IsNotExist(err) {
+			log.Printf("cleanup: remove staged chunk file %s: %v", p, err)
+		}
+	}
+}
+
+// sweepOrphanedStagingFiles removes staged .enc files that no longer have a
+// chunks row — orphans accumulated by every historical cancel/purge/expiry
+// that deleted DB rows without touching the staging dir. Runs once at boot.
+// Files younger than an hour are skipped: HandleChunkUpload stages the file
+// BEFORE inserting its chunk row, so a very fresh file can be live yet not in
+// the DB for a moment.
+func (s *Server) sweepOrphanedStagingFiles(ctx context.Context) {
+	stagingDir, err := config.StagingDir()
+	if err != nil {
+		log.Printf("cleanup: staging sweeper: staging dir: %v", err)
+		return
+	}
+	entries, err := os.ReadDir(stagingDir)
+	if err != nil {
+		log.Printf("cleanup: staging sweeper: read dir: %v", err)
+		return
+	}
+
+	const minAge = time.Hour
+	var ids []string
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".enc") {
+			continue
+		}
+		id := strings.TrimSuffix(e.Name(), ".enc")
+		// chunk_id is a UUID; anything else isn't ours to judge (and would break
+		// the uuid[] cast in the batch lookup).
+		if _, err := uuid.Parse(id); err != nil {
+			continue
+		}
+		if info, err := e.Info(); err != nil || time.Since(info.ModTime()) < minAge {
+			continue
+		}
+		ids = append(ids, id)
+	}
+	if len(ids) == 0 {
+		return
+	}
+
+	removed := 0
+	const lookupBatch = 500
+	for start := 0; start < len(ids); start += lookupBatch {
+		if ctx.Err() != nil {
+			return
+		}
+		end := min(start+lookupBatch, len(ids))
+		batch := ids[start:end]
+		existing, err := s.db.FilterExistingChunkIDs(ctx, batch)
+		if err != nil {
+			log.Printf("cleanup: staging sweeper: check chunk ids: %v", err)
+			return
+		}
+		for _, id := range batch {
+			if existing[id] {
+				continue
+			}
+			p := filepath.Join(stagingDir, id+".enc")
+			if err := os.Remove(p); err != nil && !os.IsNotExist(err) {
+				log.Printf("cleanup: staging sweeper: remove %s: %v", p, err)
+				continue
+			}
+			removed++
+		}
+	}
+	if removed > 0 {
+		log.Printf("cleanup: staging sweeper removed %d orphaned chunk files", removed)
+	}
 }

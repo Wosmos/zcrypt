@@ -156,6 +156,7 @@ type UploadSession struct {
 	Salt           []byte    `json:"-"`
 	SHA256         string    `json:"sha256"`
 	ChunkCount     int       `json:"chunk_count"`
+	ChunkSize      int64     `json:"chunk_size"` // plaintext chunk size the client slices with; 0 = unknown (legacy)
 	Platform       string    `json:"platform"`
 	Account        string    `json:"account"`
 	RepoID         string    `json:"repo_id"`
@@ -174,6 +175,7 @@ type UploadInitRequest struct {
 	Salt         string  `json:"salt"`        // base64-encoded 32 bytes
 	WrappedCEK   string  `json:"wrapped_cek"` // base64 envelope-wrapped Content Encryption Key
 	ChunkCount   int     `json:"chunk_count"`
+	ChunkSize    int64   `json:"chunk_size,omitempty"` // plaintext chunk size the client slices with; enables cross-device resume
 	Platform     string  `json:"platform,omitempty"`
 	FolderID     *string `json:"folder_id,omitempty"` // optional target folder; nil/omitted = root. Ownership-validated server-side.
 }

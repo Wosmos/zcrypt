@@ -139,10 +139,34 @@ func (db *DB) SetUserPlan(ctx context.Context, userID, plan string) error {
 	return err
 }
 
-// DeleteUser removes a user and all associated data (cascade).
+// DeleteUser removes a user and all associated data (cascade). Before the row
+// delete cascades the chunks table away, every synced chunk is queued into
+// pending_deletions — the ONLY surviving reference to the user's remote blobs —
+// so the deletion worker can remove them from the platforms. The queued rows
+// outlive the user because pending_deletions.user_id is ON DELETE SET NULL;
+// the worker resolves NULL-user items via the global adapter set. The caller
+// should signalDeletion() afterwards so the worker wakes.
 func (db *DB) DeleteUser(ctx context.Context, userID string) error {
-	_, err := db.pool.Exec(ctx, `DELETE FROM users WHERE id = $1`, userID)
-	return err
+	tx, err := db.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err := tx.Exec(ctx,
+		`INSERT INTO pending_deletions (user_id, platform, account, repo, remote_path)
+		 SELECT user_id, platform, account, repo, remote_path FROM chunks
+		 WHERE user_id = $1 AND remote_path != ''`,
+		userID,
+	); err != nil {
+		return fmt.Errorf("queue chunk deletions: %w", err)
+	}
+
+	if _, err := tx.Exec(ctx, `DELETE FROM users WHERE id = $1`, userID); err != nil {
+		return fmt.Errorf("delete user: %w", err)
+	}
+
+	return tx.Commit(ctx)
 }
 
 // ListUsers returns all users with file count and storage stats.

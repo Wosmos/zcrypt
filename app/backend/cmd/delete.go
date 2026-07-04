@@ -46,13 +46,17 @@ func (s *Server) HandlePurgeFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.db.DeleteFile(ctx, userID, fileID); err != nil {
+	staged, err := s.db.DeleteFile(ctx, userID, fileID)
+	if err != nil {
 		log.Printf("files: purge failed: %v", err)
 		http.Error(w, `{"error":"failed to delete file"}`, http.StatusInternalServerError)
 		return
 	}
 
-	// Chunk refs are now queued in pending_deletions — wake the deletion worker.
+	// Unsynced chunks never reached a platform — remove their staged .enc files.
+	removeStagedChunkFiles(staged)
+
+	// Synced chunk refs are now queued in pending_deletions — wake the deletion worker.
 	s.signalDeletion()
 
 	s.audit(r, &userID, "file_purge", map[string]interface{}{"file_id": fileID})

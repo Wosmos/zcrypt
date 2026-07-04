@@ -83,7 +83,7 @@ func (g *GitlabAdapter) Upload(ctx context.Context, repo string, chunk types.Chu
 	remotePath := chunk.Ref.RemotePath
 	if remotePath == "" {
 		var err error
-		remotePath, err = disguise.ChunkFilename()
+		remotePath, err = disguise.ShardedChunkFilename()
 		if err != nil {
 			return types.ChunkRef{}, fmt.Errorf("generate filename: %w", err)
 		}
