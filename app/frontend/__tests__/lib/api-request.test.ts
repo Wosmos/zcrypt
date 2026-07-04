@@ -179,6 +179,19 @@ describe("getFileChunk (custom download path)", () => {
     const init = fetchMock.mock.calls[0][1];
     expect((init.headers as Record<string, string>).Authorization).toBe("Bearer access-tok");
   });
+
+  it("forwards a caller-provided signal instead of creating its own timeout controller", async () => {
+    fetchMock.mockResolvedValueOnce(chunkResp(200, {}));
+    const controller = new AbortController();
+    await getFileChunk("f", 0, controller.signal);
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(init.signal).toBe(controller.signal);
+  });
+
+  it("maps an aborted chunk fetch to a chunk-specific timeout error", async () => {
+    fetchMock.mockRejectedValueOnce(new DOMException("aborted", "AbortError"));
+    await expect(getFileChunk("f", 4)).rejects.toThrow("chunk 4 download timed out");
+  });
 });
 
 // The spaces + keys endpoints are this feature's API surface: a wrong verb,

@@ -216,6 +216,13 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
         // folder's cache so a retry re-prompts + re-verifies (mirrors the preview
         // recovery), and surface a re-prompt hint instead of a generic failure.
         const recovered = recoverWrongFolderPassword(fileId, msg);
+        // This branch sets state directly instead of through updateProgress(),
+        // so it must also purge any still-queued throttled write for this id —
+        // otherwise a requestAnimationFrame flush already in flight from the
+        // last onProgress call lands afterward and stomps this failed status
+        // back to "downloading" (see updateProgress's done/cancelled branch,
+        // which does the same delete).
+        pendingUpdates.delete(id);
         set((state) => ({
           queue: state.queue.map((item) =>
             item.id === id ? { ...item, status: "failed" as const, error: msg, stage: "Failed" } : item
@@ -308,6 +315,9 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
             if (recoverWrongFolderPassword(f.fileId, msg)) recovered = true;
           }
         }
+        // Same stale-frame hazard as the single-file failure path — purge the
+        // pending throttled write before setting state directly.
+        pendingUpdates.delete(id);
         set((state) => ({
           queue: state.queue.map((item) =>
             item.id === id ? { ...item, status: "failed" as const, error: msg, stage: "Failed" } : item

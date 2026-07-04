@@ -84,9 +84,8 @@ export function useTouchDragMove({
   const updateHover = useCallback(
     (x: number, y: number) => {
       const s = st.current;
-      if (!s.item) return;
       const dest = folderIdAt(x, y);
-      if (dest && cbRef.current.canDropOn(s.item, dest)) setOverTarget(dest);
+      if (dest && cbRef.current.canDropOn(s.item!, dest)) setOverTarget(dest);
       else setOverTarget(undefined);
     },
     [setOverTarget]
@@ -112,8 +111,7 @@ export function useTouchDragMove({
 
   // ── imperative drag preview (no React re-render on finger move) ──────────────
   const moveGhost = (x: number, y: number) => {
-    const g = st.current.ghost;
-    if (g) g.style.transform = `translate(${x}px, ${y}px) translate(-50%, -150%)`;
+    st.current.ghost!.style.transform = `translate(${x}px, ${y}px) translate(-50%, -150%)`;
   };
   const createGhost = (label: string) => {
     const g = document.createElement("div");
@@ -140,9 +138,13 @@ export function useTouchDragMove({
   };
 
   // ── stable document listeners (added on press, removed on cleanup) ───────────
-  const onMoveRef = useRef<(e: TouchEvent) => void>(() => {});
-  const onEndRef = useRef<(e: TouchEvent) => void>(() => {});
-  const onCtxRef = useRef<(e: Event) => void>(() => {});
+  // Shared placeholder: overwritten by the wiring effect below before any press
+  // can occur, so it's never actually invoked — just a type-satisfying initial
+  // value for each ref.
+  const noop = () => {};
+  const onMoveRef = useRef<(e: TouchEvent) => void>(noop);
+  const onEndRef = useRef<(e: TouchEvent) => void>(noop);
+  const onCtxRef = useRef<(e: Event) => void>(noop);
 
   const teardown = useCallback(() => {
     const s = st.current;
@@ -167,15 +169,19 @@ export function useTouchDragMove({
     }
   }, [endDrag, setOverTarget]);
 
+  // Sole call site (below) only ever invokes this once per press — after
+  // `!s.dragging` was just checked — and only while `s.item` is set (checked at
+  // the top of the same handler), so both are guaranteed true here; likewise
+  // `s.raf` is null whenever a press isn't dragging (teardown always nulls it
+  // alongside `dragging`), so it can't already be scheduled.
   const beginDrag = useCallback(() => {
     const s = st.current;
-    if (!s.item || s.dragging) return;
     s.dragging = true;
     s.scroller = document.getElementById(scrollContainerId);
-    startDrag(s.item);
-    createGhost(s.item.name);
+    startDrag(s.item!);
+    createGhost(s.item!.name);
     moveGhost(s.lastX, s.lastY);
-    if (s.raf == null) s.raf = requestAnimationFrame(tickAutoScroll);
+    s.raf = requestAnimationFrame(tickAutoScroll);
   }, [scrollContainerId, startDrag, tickAutoScroll]);
 
   // Wire the listener refs once.

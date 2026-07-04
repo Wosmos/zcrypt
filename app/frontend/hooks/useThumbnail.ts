@@ -45,37 +45,15 @@ function openDB(): Promise<IDBDatabase> {
   return dbPromise;
 }
 
-async function dbGet(key: string): Promise<string | undefined> {
-  const db = await openDB();
-  return new Promise((resolve) => {
-    const tx = db.transaction(STORE_NAME, "readonly");
-    const req = tx.objectStore(STORE_NAME).get(key);
-    req.onsuccess = () => resolve(req.result as string | undefined);
-    req.onerror = () => resolve(undefined);
-  });
-}
-
 async function dbPut(key: string, value: string) {
   const db = await openDB();
   const tx = db.transaction(STORE_NAME, "readwrite");
   tx.objectStore(STORE_NAME).put(value, key);
 }
 
-async function dbGetAllKeys(): Promise<string[]> {
-  const db = await openDB();
-  return new Promise((resolve) => {
-    const tx = db.transaction(STORE_NAME, "readonly");
-    const req = tx.objectStore(STORE_NAME).getAllKeys();
-    req.onsuccess = () => resolve(req.result as string[]);
-    req.onerror = () => resolve([]);
-  });
-}
-
 // ── Boot: hydrate memCache from IndexedDB ────────────────────────────
-let hydrated = false;
+// Only ever invoked once, below — no re-entrancy guard needed.
 async function hydrate() {
-  if (hydrated) return;
-  hydrated = true;
   try {
     const db = await openDB();
     const tx = db.transaction(STORE_NAME, "readonly");
@@ -295,7 +273,8 @@ async function fetchAndCacheThumbnail(
   passphrase: string,
   resolvePassword?: ThumbnailPasswordResolver
 ): Promise<string | null> {
-  if (memCache.has(fileId) || inflight.has(fileId)) return memCache.get(fileId) ?? null;
+  // Sole caller (the hook's effect) already checks memCache/inflight/failedSet
+  // synchronously right before calling — no gap for that state to change.
   inflight.add(fileId);
   notify(); // surface the loading state to mounted cards right away
 

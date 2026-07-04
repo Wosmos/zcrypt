@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { OrderedWriter, type ChunkSink } from "@/lib/ordered-writer";
 
 // A sink that records the ORDER it received chunks (each chunk is tagged with
@@ -54,5 +54,36 @@ describe("OrderedWriter", () => {
     await Promise.all(pending);
     await w.close(4);
     expect(order).toEqual([0, 1, 2, 3]);
+  });
+
+  it("actually blocks in the backpressure loop when full and not holding the cursor, then drains once room frees up", async () => {
+    vi.useFakeTimers();
+    try {
+      const { sink, order } = recordingSink();
+      const w = new OrderedWriter(sink, 2);
+      await w.put(5, chunk(5));
+      await w.put(6, chunk(6)); // buffer full (2/2) with non-cursor chunks; cursor (0) missing
+
+      let settled = false;
+      const blocked = w.put(7, chunk(7)).then(() => {
+        settled = true;
+      });
+      await Promise.resolve();
+      expect(settled).toBe(false); // must poll-wait, not resolve immediately
+
+      await w.put(0, chunk(0));
+      await w.put(1, chunk(1));
+      await w.put(2, chunk(2));
+      await w.put(3, chunk(3));
+      await w.put(4, chunk(4)); // cascades the drain through the buffered 5 and 6
+
+      await vi.advanceTimersByTimeAsync(15); // let put(7)'s poll re-check and proceed
+      await blocked;
+      await w.close(8);
+
+      expect(order).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

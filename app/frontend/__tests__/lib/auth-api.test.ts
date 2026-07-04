@@ -56,6 +56,11 @@ describe("authRequest core", () => {
     await expect(authApi.login("e", "p")).rejects.toThrow("upstream exploded");
   });
 
+  it("falls back to the raw body when the error JSON has no .error field", async () => {
+    fetchMock.mockResolvedValueOnce(resp(400, { message: "nope" }));
+    await expect(authApi.login("e", "p")).rejects.toThrow('{"message":"nope"}');
+  });
+
   it("maps an aborted request to a backend-down timeout message", async () => {
     fetchMock.mockRejectedValueOnce(new DOMException("aborted", "AbortError"));
     await expect(authApi.login("e", "p")).rejects.toThrow(/Request timed out/);

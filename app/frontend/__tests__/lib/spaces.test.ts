@@ -213,6 +213,13 @@ describe("downloadSpaceFile", () => {
     const resolved = await opts!.resolveKey!({} as never);
     expect(new Uint8Array(resolved)).toEqual(cek);
   });
+
+  it("throws when the space's key isn't available", async () => {
+    await expect(downloadSpaceFile(vault("locked"), "file-9", "irrelevant")).rejects.toThrow(
+      "This space's key isn't available"
+    );
+    expect(downloadAndDecryptFile).not.toHaveBeenCalled();
+  });
 });
 
 describe("rotateSpaceKey (revocation)", () => {

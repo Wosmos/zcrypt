@@ -179,4 +179,28 @@ describe("decrypt-cache", () => {
     expect(blob).toBeDefined(); // caller still receives its blob
     expect(getCachedBlob("f1")).toBeUndefined(); // but it is NOT retained
   });
+
+  it("store() protects a re-entrant same-id write from double-counting and self-eviction", async () => {
+    // decrypt() calling cachedDecrypt for its OWN id (and another id) before
+    // returning means the outer store() eventually runs against a cache that
+    // ALREADY holds an entry for `id` -- the one case the initial cache-hit
+    // guard can't prevent, since that guard only runs once, before decrypt()
+    // starts. This exercises store()'s defence against that: back out the
+    // stale byte count instead of double-counting it, and never evict the
+    // entry it is in the middle of (re)writing, even though that entry sits at
+    // the LRU-oldest position once eviction runs.
+    const smallF1 = sizedBlob(10 * MB);
+    const smallX = sizedBlob(10 * MB);
+    const bigF1 = sizedBlob(295 * MB);
+    const outer = async () => {
+      await cachedDecrypt("f1", "inner", async () => smallF1);
+      await cachedDecrypt("x", "xFolder", async () => smallX);
+      return bigF1;
+    };
+
+    await cachedDecrypt("f1", "outer", outer);
+
+    expect(getCachedBlob("f1")).toBe(bigF1); // re-written, not double-counted away
+    expect(getCachedBlob("x")).toBeUndefined(); // evicted instead of the just-written f1
+  });
 });

@@ -194,6 +194,20 @@ describe("usePassphraseStore", () => {
       ).not.toThrow();
       spy.mockRestore();
     });
+
+    it("clears a leftover pending timer when opting out from a force-set persistent state", () => {
+      const s = usePassphraseStore.getState();
+      s.setPassphrase("pw", 5); // session mode: leaves a real pending clearTimer
+      // The public API always clears any pending timer before persistent becomes
+      // true, so `persistent: true` with a live timer can't happen through it.
+      // Force that combination directly to exercise the opt-out path's defensive
+      // `if (clearTimer)` cleanup.
+      usePassphraseStore.setState({ persistent: true });
+      expect(() => s.setRememberDevice(false)).not.toThrow();
+      const after = usePassphraseStore.getState();
+      expect(after.persistent).toBe(false);
+      expect(after.cacheUntil).not.toBeNull();
+    });
   });
 
   describe("getter edge cases", () => {
@@ -214,6 +228,37 @@ describe("usePassphraseStore", () => {
         persistent: false,
       });
       expect(usePassphraseStore.getState().getRemainingMinutes()).toBe(0);
+    });
+
+    it("clears the cache on lazy expiry even when no timer is pending (state set directly)", () => {
+      usePassphraseStore.setState({
+        cachedPassphrase: "x",
+        cacheUntil: Date.now() - 1000,
+        persistent: false,
+      });
+      expect(usePassphraseStore.getState().getPassphrase()).toBeNull();
+      expect(usePassphraseStore.getState().cachedPassphrase).toBeNull();
+    });
+  });
+
+  describe("SSR safety (no window)", () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it("writeRememberPref no-ops under SSR instead of throwing", () => {
+      vi.stubGlobal("window", undefined);
+      expect(() =>
+        usePassphraseStore.getState().setRememberDevice(true)
+      ).not.toThrow();
+    });
+
+    it("readRememberPref defaults rememberDevice to false at SSR module-init time", async () => {
+      vi.resetModules();
+      vi.stubGlobal("window", undefined);
+      const mod = await import("@/store/passphrase");
+      expect(mod.usePassphraseStore.getState().rememberDevice).toBe(false);
+      vi.resetModules();
     });
   });
 });

@@ -72,6 +72,16 @@ describe("keyFingerprint", () => {
     const b = await keyFingerprint(x25519.keygen().publicKey);
     expect(a).not.toBe(b);
   });
+
+  it("falls back to no groups if the digest ever yielded under 4 hex chars", async () => {
+    // A real SHA-256 digest is always 32 bytes (64 hex chars), so `.slice(0, 16)`
+    // can never come up short and the `?? []` fallback is unreachable with a real
+    // digest. Stub crypto.subtle.digest for this one call to prove the fallback
+    // itself is correct, in case that guarantee is ever violated upstream.
+    const digestSpy = vi.spyOn(crypto.subtle, "digest").mockResolvedValueOnce(new ArrayBuffer(0));
+    await expect(keyFingerprint(new Uint8Array([1]))).resolves.toBe("");
+    digestSpy.mockRestore();
+  });
 });
 
 describe("sealTo / openSealed (ECIES sharing primitive)", () => {
@@ -115,6 +125,12 @@ describe("sealTo / openSealed (ECIES sharing primitive)", () => {
     const bytes = atob(sealed);
     const tampered = btoa("\x00" + bytes.slice(1));
     await expect(openSealed(tampered)).rejects.toThrow();
+  });
+
+  it("openSealed throws when no keypair is loaded", async () => {
+    const recipient = x25519.keygen();
+    const sealed = await sealTo(recipient.publicKey, generateSpaceKey());
+    await expect(openSealed(sealed)).rejects.toThrow("keypair not loaded");
   });
 });
 
