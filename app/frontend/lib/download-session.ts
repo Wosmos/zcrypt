@@ -234,7 +234,14 @@ export async function downloadAndDecryptFile(
     resume.done ??= new Set<number>();
   }
 
-  const doneCount = () => (streaming ? (resume.writtenCount ?? 0) : (resume.done?.size ?? 0));
+  // Progress is measured by chunks DECRYPTED (network + CPU work actually done),
+  // not by the in-order disk-write cursor. On the streaming path a slow early
+  // chunk holds the write cursor (writtenCount) back while later chunks are
+  // already downloaded + decrypted — driving the bar off writtenCount made it
+  // freeze ("stuck at ~4%") then jump when the laggard landed. Counting decrypts
+  // reflects true download progress; writtenCount stays the resume high-water
+  // mark. Seeded from writtenCount so a resumed run continues the count.
+  let decryptedCount = streaming ? (resume.writtenCount ?? 0) : (resume.done?.size ?? 0);
 
   try {
     const processChunk = async (index: number) => {
@@ -267,12 +274,15 @@ export async function downloadAndDecryptFile(
         resume.done!.add(index);
       }
 
-      const done = doneCount();
-      const percent = 2 + Math.round((done / meta.chunk_count) * 90);
+      // Count this chunk as done for the PROGRESS display the moment it's
+      // decrypted (and, streaming, handed to the reorder buffer) — independent
+      // of when it's flushed to disk in order.
+      decryptedCount++;
+      const percent = 2 + Math.round((decryptedCount / meta.chunk_count) * 90);
       onProgress?.({
-        stage: `Downloading ${done}/${meta.chunk_count}`,
+        stage: `Downloading ${decryptedCount}/${meta.chunk_count}`,
         percent,
-        chunksDone: done,
+        chunksDone: decryptedCount,
         chunksTotal: meta.chunk_count,
       });
     };
@@ -301,9 +311,15 @@ export async function downloadAndDecryptFile(
     }
 
     const settled = await Promise.allSettled(fetchers);
+    // An abort wins over whatever a fetcher happened to reject with. A paused
+    // run aborts its in-flight chunk fetches, which reject with a RAW AbortError
+    // (fetchChunkWithRetry re-throws it verbatim). If we surfaced that rejection
+    // we'd throw AbortError → the store reads it as "cancelled". Re-deriving the
+    // stop reason from the signal here yields DownloadPausedError while pausing,
+    // so a pause stays a pause (and a real cancel stays a cancel).
+    if (signal?.aborted) throw stopError();
     const rejection = settled.find((r) => r.status === "rejected") as PromiseRejectedResult | undefined;
     if (rejection) throw rejection.reason;
-    if (signal?.aborted) throw stopError();
 
     // Every chunk is in hand — verify integrity. Streaming has been hashing in
     // write-order as chunks landed; in-memory hashes the full array now. No

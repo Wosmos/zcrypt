@@ -1,6 +1,6 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import {
   Upload,
@@ -175,7 +175,26 @@ function TransferItemBase({
   controls: TransferItemControls;
 }) {
   const reduceMotion = useReducedMotion();
-  const showBar = entry.state === "active" || entry.state === "paused";
+
+  // A tiny file (a few hundred bytes) finishes in a couple of milliseconds, so
+  // its "active" phase — and thus the progress bar — would flash in and vanish
+  // before the fill animation could play ("woop"). Hold the bar for a short beat
+  // after completion so it animates to a satisfying 100% and settles, instead of
+  // blinking out. Only triggered on the active/paused → done transition.
+  const [settling, setSettling] = useState(false);
+  const prevState = useRef(entry.state);
+  useEffect(() => {
+    const was = prevState.current;
+    prevState.current = entry.state;
+    if (entry.state === "done" && (was === "active" || was === "paused")) {
+      if (reduceMotion) return;
+      setSettling(true);
+      const t = setTimeout(() => setSettling(false), 700);
+      return () => clearTimeout(t);
+    }
+  }, [entry.state, reduceMotion]);
+
+  const showBar = entry.state === "active" || entry.state === "paused" || settling;
   const failedLike = entry.state === "failed" || entry.state === "cancelled";
 
   // Bar width = TRUE byte ratio so it never appears to stall (M5-progress). For
@@ -186,7 +205,9 @@ function TransferItemBase({
     typeof entry.bytesProcessed === "number" &&
     typeof entry.totalBytes === "number" &&
     entry.totalBytes > 0;
-  const barProgress = hasBytes
+  const barProgress = entry.state === "done"
+    ? 100 // settling: animate the last stretch to a full bar before it collapses
+    : hasBytes
     ? Math.min(100, Math.max(0, ((entry.bytesProcessed as number) / (entry.totalBytes as number)) * 100))
     : entry.progress;
   // The % label MATCHES the bar when real bytes exist (the old log-eased label

@@ -8,12 +8,31 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 
 // vi.mock is hoisted above module init, so the mock fns must come from
 // vi.hoisted() to exist when the factories run.
-const { getState, tryRefreshToken } = vi.hoisted(() => ({
-  getState: vi.fn(),
-  tryRefreshToken: vi.fn(),
-}));
+const { getState, tryRefreshToken, authedFetch } = vi.hoisted(() => {
+  const getState = vi.fn();
+  const tryRefreshToken = vi.fn();
+  // Mirror the real authedFetch (lib/auth-fetch): attach the access token and,
+  // on a 401, refresh once and retry with the new token — against the mocked
+  // global fetch. getFileChunk now goes through this, so it must exercise the
+  // same header + refresh behavior the request() core does.
+  const authedFetch = vi.fn(async (input: string, init?: RequestInit) => {
+    const { accessToken } = getState();
+    const headers: Record<string, string> = { ...(init?.headers as Record<string, string>) };
+    if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
+    let res = await fetch(input, { ...init, headers });
+    if (res.status === 401 && accessToken) {
+      const newToken = await tryRefreshToken();
+      if (newToken) {
+        headers["Authorization"] = `Bearer ${newToken}`;
+        res = await fetch(input, { ...init, headers });
+      }
+    }
+    return res;
+  });
+  return { getState, tryRefreshToken, authedFetch };
+});
 vi.mock("@/store/auth", () => ({ useAuthStore: { getState } }));
-vi.mock("@/lib/auth-fetch", () => ({ tryRefreshToken }));
+vi.mock("@/lib/auth-fetch", () => ({ tryRefreshToken, authedFetch }));
 
 import {
   getConfig,
@@ -191,6 +210,20 @@ describe("getFileChunk (custom download path)", () => {
   it("maps an aborted chunk fetch to a chunk-specific timeout error", async () => {
     fetchMock.mockRejectedValueOnce(new DOMException("aborted", "AbortError"));
     await expect(getFileChunk("f", 4)).rejects.toThrow("chunk 4 download timed out");
+  });
+
+  it("refreshes the token on a 401 and retries the chunk (long/stale-token downloads)", async () => {
+    fetchMock
+      .mockResolvedValueOnce(chunkResp(401, { body: { error: "expired" } }))
+      .mockResolvedValueOnce(chunkResp(200, { bytes: new Uint8Array([9]).buffer }));
+    tryRefreshToken.mockResolvedValueOnce("fresh-tok");
+
+    const out = await getFileChunk("f", 0);
+
+    expect(tryRefreshToken).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect((fetchMock.mock.calls[1][1].headers as Record<string, string>).Authorization).toBe("Bearer fresh-tok");
+    expect(new Uint8Array(out.data)).toEqual(new Uint8Array([9]));
   });
 });
 

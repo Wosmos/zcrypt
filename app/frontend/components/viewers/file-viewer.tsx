@@ -117,7 +117,10 @@ type LoadState =
   | { status: "loading"; done?: number; total?: number }
   | { status: "ready"; blob: Blob }
   | { status: "error"; kind: "wrong-password" | "integrity" | "generic"; message: string }
-  | { status: "cancelled" };
+  | { status: "cancelled" }
+  // Non-previewable type (archive, binary, …): intentionally NOT decrypted on
+  // open — the download card is shown instead, and Download decrypts on demand.
+  | { status: "skipped" };
 
 export function FileViewer({
   open,
@@ -170,6 +173,16 @@ export function FileViewer({
     if (!open || !file) return;
     let cancelled = false;
     revokeUrl();
+
+    // Non-previewable types have no in-browser viewer, so decrypting on open
+    // would grind through the entire file (hundreds of chunks for a large .zip)
+    // only to land on the "No preview available" card. Skip it — the download
+    // action decrypts on demand instead.
+    if (viewerKindFor(file.original_name) === "fallback") {
+      setState({ status: "skipped" });
+      return;
+    }
+
     setState({ status: "loading" });
 
     (async () => {
@@ -525,6 +538,13 @@ function ViewerBody({
   currentIndex: number;
   onSelectTrack: (index: number) => void;
 }) {
+  // Non-previewable types are never decrypted (the viewer effect short-circuits
+  // to "skipped"), so show the download card straight away rather than a spinner
+  // that would never resolve.
+  if (kind === "fallback") {
+    return <FallbackBody file={file} onDownload={onDownload} />;
+  }
+
   if (state.status === "loading") {
     // For an image with a cached thumbnail, show it blurred immediately (instead
     // of a bare spinner) so the decrypt wait feels instant — it then crossfades
@@ -584,6 +604,12 @@ function ViewerBody({
         </div>
       </div>
     );
+  }
+
+  // "skipped" only ever pairs with a fallback kind (handled at the top), but
+  // guard it so the ready-path narrowing holds.
+  if (state.status === "skipped") {
+    return <FallbackBody file={file} onDownload={onDownload} />;
   }
 
   // state.status === "ready"
