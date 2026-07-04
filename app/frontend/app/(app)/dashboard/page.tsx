@@ -446,8 +446,10 @@ export default function VaultPage() {
             </div>
           )}
 
-          {/* Unfinished uploads (started but never completed) — resume or discard. */}
-          <IncompleteUploads onResume={(file) => actions.handleFilesSelected([file])} />
+          {/* Unfinished uploads (started but never completed) — resume or discard.
+              Resume goes through handleResumeIncomplete so the ORIGINAL session's
+              platform is pinned (never re-resolved through the picker). */}
+          <IncompleteUploads onResume={(file, upload) => actions.handleResumeIncomplete(file, upload)} />
 
           {/* Empty vault → CTA; otherwise the unified explorer. The explorer
               renders its own loading / locked / no-results states. */}

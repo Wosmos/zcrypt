@@ -7,11 +7,10 @@ import { ensureUserKeypair } from "@/lib/keys";
 import { useUploadStore } from "@/store/upload";
 import { useDownloadStore } from "@/store/download";
 import { usePassphraseStore } from "@/store/passphrase";
-import { usePlatformHealth } from "@/hooks/usePlatformHealth";
 import { useOperationStatus } from "@/hooks/useOperationStatus";
 import { useNotifications } from "@/hooks/useNotifications";
 import { notifications as notifActions } from "@/store/notifications";
-import { deleteFile, bulkDeleteFiles, moveFile } from "@/lib/api";
+import { deleteFile, bulkDeleteFiles, moveFile, type IncompleteUpload } from "@/lib/api";
 import { invalidateTrash } from "@/store/trash";
 import { clearDecryptCacheForFile } from "@/lib/decrypt-cache";
 import { toast } from "@/store/toast";
@@ -57,6 +56,9 @@ interface UseVaultActionsArgs {
 export interface VaultActions {
   /** Upload entry point — dupe detection + quota guard + vault unlock. */
   handleFilesSelected: (selectedFiles: File[]) => void;
+  /** Resume an unfinished upload from the banner — pinned to the ORIGINAL
+   *  session's platform (the already-uploaded chunks live there). */
+  handleResumeIncomplete: (file: File, upload: IncompleteUpload) => void;
   /** Single-file download (filename-keyed, matches the explorer callback). */
   handleDownload: (filename: string) => void;
   /** In-memory decrypt + integrity check + media preview. */
@@ -87,7 +89,6 @@ export function useVaultActions({
   folderProtection,
   currentFolderId,
 }: UseVaultActionsArgs): VaultActions {
-  const { statuses } = usePlatformHealth();
   const { startUpload: storeStartUpload, startDesktopUpload } = useUploadStore();
   const updateStatus = useUploadStore((s) => s.updateStatus);
   const setUploadError = useUploadStore((s) => s.setError);
@@ -126,6 +127,12 @@ export function useVaultActions({
   }, [files, vaultUnlocked, folderPwCache, thumbnailResolver, fileById]);
 
   // ── SSE events from the backend pipeline → upload store ─────────────────────
+  // TERMINAL events only (done / error). Intermediate progress events are
+  // deliberately dropped: the local upload pipeline owns progress for uploads
+  // this tab is running, and the backend's numbers use a different formula
+  // (staged chunks, 0-100 scale, single-chunk bytes_processed) — letting them
+  // through made the percent oscillate (60→70→60), snapped the bar to ~1%
+  // between local emits, and flipped paused rows back to "uploading".
   useOperationStatus((event) => {
     if (!event.file_id) return;
     const { findByFileId } = useUploadStore.getState();
@@ -140,14 +147,8 @@ export function useVaultActions({
       return;
     }
 
-    const status =
-      stageLower === "done"
-        ? ("done" as const)
-        : stageLower.includes("encrypt")
-          ? ("encrypting" as const)
-          : ("uploading" as const);
-    updateStatus(target.id, status, event.percent, event.stage, event.bytes_processed, event.total_bytes);
     if (stageLower === "done") {
+      updateStatus(target.id, "done", event.percent, event.stage, event.bytes_processed, event.total_bytes);
       notify(`Upload complete`, { body: target.file.name, tag: "upload-done" });
       notifActions.uploadComplete(target.file.name);
     }
@@ -158,7 +159,7 @@ export function useVaultActions({
   // current folder, else the vault passphrase. `folderId` files the upload into
   // the current folder. Unprotected uploads pass the vault pass exactly as today.
   const startUpload = useCallback(
-    (uploadFiles: File[], wrapPassphrase: string, folderId: string | null) => {
+    (uploadFiles: File[], wrapPassphrase: string, folderId: string | null, platformOverride?: string) => {
       // Desktop: native picker + sidecar (no browser File data transfer).
       if (isTauri) {
         startDesktopUpload(wrapPassphrase, refresh);
@@ -166,19 +167,19 @@ export function useVaultActions({
       }
       // 0/unset means "unlimited" → defer to the device-profile default.
       const maxConcurrent = quotaInfo?.max_concurrent_uploads || undefined;
-      // Large files prefer HuggingFace direct upload when connected.
-      const hfConnected = statuses.some((s) => s.platform === "huggingface" && s.connected);
+      // The user's picker choice is honored as-is (no size-based re-routing —
+      // "Auto" resolves server-side, Telegram first). `platformOverride` pins a
+      // resume to its original platform.
       storeStartUpload(
         uploadFiles,
         wrapPassphrase,
-        selectedPlatform ?? undefined,
+        platformOverride ?? selectedPlatform ?? undefined,
         maxConcurrent,
         refresh,
-        hfConnected,
         folderId
       );
     },
-    [selectedPlatform, storeStartUpload, startDesktopUpload, refresh, quotaInfo, statuses]
+    [selectedPlatform, storeStartUpload, startDesktopUpload, refresh, quotaInfo]
   );
 
   const handleFilesSelected = useCallback(
@@ -241,6 +242,20 @@ export function useVaultActions({
       });
     },
     [quotaInfo, files, vault, startUpload, currentFolderId, folderProtection, thumbnailResolver, fileById]
+  );
+
+  // Resume an unfinished upload from the banner. The platform is passed
+  // EXPLICITLY from the server session, so even if the resume misses (the
+  // server session expired between listing and clicking), the restart stays on
+  // the original platform — never a silent switch. The store's server-side
+  // resume (init → resumed:true) picks up the session's chunks and CEK.
+  const handleResumeIncomplete = useCallback(
+    (file: File, upload: IncompleteUpload) => {
+      vault.withPassphrase((passphrase) => {
+        startUpload([file], passphrase, null, upload.platform);
+      });
+    },
+    [vault, startUpload]
   );
 
   // A per-file resolver passed into the decrypt pipeline. For a protected-folder
@@ -524,6 +539,7 @@ export function useVaultActions({
 
   return {
     handleFilesSelected,
+    handleResumeIncomplete,
     handleDownload,
     handlePreview,
     handleMoveFileTo,

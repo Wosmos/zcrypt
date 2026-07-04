@@ -161,6 +161,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
         sizeBytes: item.file.size,
         bytesProcessed: item.bytesProcessed,
         totalBytes: item.totalBytes,
+        rateBps: item.rateBps,
         startedAt: item.startedAt,
       };
     });
@@ -210,13 +211,18 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
   );
   const allSettled = activeCount === 0;
 
-  // Aggregate progress over still-running work (paused counts as in-progress).
-  const runningEntries = entries.filter(
-    (e) => e.state === "active" || e.state === "paused" || e.state === "queued",
-  );
+  // Aggregate progress over ALL entries, with settled ones counted at 100 — so
+  // a file finishing (leaving the "running" set) can never make the collapsed
+  // number DROP, which read as yet another "percent went down" bug.
   const aggregateProgress =
-    runningEntries.length > 0
-      ? Math.round(runningEntries.reduce((sum, e) => sum + (e.progress || 0), 0) / runningEntries.length)
+    entries.length > 0
+      ? Math.round(
+          entries.reduce(
+            (sum, e) =>
+              sum + (e.state === "done" || e.state === "failed" || e.state === "cancelled" ? 100 : (e.progress || 0)),
+            0,
+          ) / entries.length,
+        )
       : 100;
 
   // Force the dock back whenever work is active OR something has failed — a
@@ -225,6 +231,22 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
   useEffect(() => {
     if (activeCount > 0 || failedCount > 0) setDismissed(false);
   }, [activeCount, failedCount]);
+
+  // Warn before closing the tab while transfers are actually moving — closing
+  // kills every in-flight chunk. Paused uploads are safe to close over (their
+  // session + resume record survive), so they don't trigger the warning.
+  const transferring = entries.some(
+    (e) => e.state === "active" || e.state === "queued",
+  );
+  useEffect(() => {
+    if (!transferring) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [transferring]);
 
   const controls = {
     onPause: (id: string) => pauseUpload(id),

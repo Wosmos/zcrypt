@@ -222,11 +222,14 @@ export async function sha256Hex(data: Uint8Array): Promise<string> {
     .join("");
 }
 
-/** Compute SHA-256 hex digest of a File using streaming (constant ~4MB RAM). */
-export async function sha256File(file: File): Promise<string> {
+/** Compute SHA-256 hex digest of a File using streaming (constant ~4MB RAM).
+ *  `onProgress` (optional) receives cumulative bytes hashed, so a multi-GB
+ *  pre-hash can show movement instead of a dead progress row. */
+export async function sha256File(file: File, onProgress?: (bytesHashed: number) => void): Promise<string> {
   // Small files: read all at once (fast path)
   if (file.size <= 50 * 1024 * 1024) {
     const buf = await file.arrayBuffer();
+    onProgress?.(file.size);
     return sha256Hex(new Uint8Array(buf));
   }
 
@@ -239,6 +242,7 @@ export async function sha256File(file: File): Promise<string> {
     const slice = file.slice(offset, Math.min(offset + STREAM_CHUNK, file.size));
     const buf = await slice.arrayBuffer();
     hasher.update(new Uint8Array(buf));
+    onProgress?.(Math.min(offset + STREAM_CHUNK, file.size));
   }
 
   const hash = hasher.digest();

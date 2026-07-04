@@ -66,7 +66,8 @@ function xhrPut(
   url: string,
   headers: Record<string, string>,
   data: Uint8Array,
-  onProgress?: (sentBytes: number) => void
+  onProgress?: (sentBytes: number) => void,
+  signal?: AbortSignal
 ): Promise<XhrResult> {
   // Stall watchdog. A fixed xhr.timeout would false-abort a large chunk on a
   // slow-but-progressing link, and NOT setting one (the old bug) let a dead
@@ -75,18 +76,35 @@ function xhrPut(
   // the clock on every upload-progress tick, and again once the body is sent
   // (so a server that never responds is caught too). An abort rejects, so the
   // caller's retry can re-send the chunk.
+  //
+  // `signal` is the caller's pause/cancel abort: it kills the transfer
+  // immediately and rejects with "Upload paused" — a message the store's retry
+  // wrapper treats as a stop, never as a transient error to retry.
   const STALL_MS = 60_000;
   return new Promise<XhrResult>((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new Error("Upload paused"));
+      return;
+    }
     const xhr = new XMLHttpRequest();
     xhr.open("PUT", url);
     for (const [key, value] of Object.entries(headers)) {
       xhr.setRequestHeader(key, value);
     }
     let stalled = false;
+    let externallyAborted = false;
     let stallTimer: ReturnType<typeof setTimeout>;
-    const clearStall = () => clearTimeout(stallTimer);
+    const onSignalAbort = () => {
+      externallyAborted = true;
+      try { xhr.abort(); } catch { /* already settled */ }
+    };
+    signal?.addEventListener("abort", onSignalAbort, { once: true });
+    const clearStall = () => {
+      clearTimeout(stallTimer);
+      signal?.removeEventListener("abort", onSignalAbort);
+    };
     const armStall = () => {
-      clearStall();
+      clearTimeout(stallTimer);
       stallTimer = setTimeout(() => {
         stalled = true;
         try { xhr.abort(); } catch { /* already settled */ }
@@ -97,7 +115,10 @@ function xhrPut(
     xhr.upload.onload = () => armStall(); // body sent — now watch for the response
     xhr.onload = () => { clearStall(); resolve({ status: xhr.status, body: xhr.responseText }); };
     xhr.onerror = () => { clearStall(); reject(new TypeError("Network request failed")); };
-    xhr.onabort = () => { clearStall(); reject(new Error(stalled ? "Upload stalled (no progress for 60s)" : "Upload aborted")); };
+    xhr.onabort = () => {
+      clearStall();
+      reject(new Error(externallyAborted ? "Upload paused" : stalled ? "Upload stalled (no progress for 60s)" : "Upload aborted"));
+    };
     xhr.ontimeout = () => { clearStall(); reject(new Error("Upload timed out")); };
     armStall(); // start the clock before the first byte
     xhr.send(data as unknown as XMLHttpRequestBodyInit);
@@ -125,11 +146,12 @@ async function authedXhrPut(
   url: string,
   headers: Record<string, string>,
   data: Uint8Array,
-  onProgress?: (sentBytes: number) => void
+  onProgress?: (sentBytes: number) => void,
+  signal?: AbortSignal
 ): Promise<void> {
   const { accessToken } = useAuthStore.getState();
   const send = (token: string | null) =>
-    xhrPut(url, token ? { ...headers, Authorization: `Bearer ${token}` } : headers, data, onProgress);
+    xhrPut(url, token ? { ...headers, Authorization: `Bearer ${token}` } : headers, data, onProgress, signal);
 
   let res = await send(accessToken);
   if (res.status === 401 && accessToken) {
@@ -150,6 +172,9 @@ export interface UploadInitParams {
   salt: string; // base64
   wrapped_cek: string; // base64 envelope-wrapped Content Encryption Key
   chunk_count: number;
+  /** Chunk size this client will slice at — stored server-side so a resume from
+   *  ANY device can reslice at the same boundaries. */
+  chunk_size?: number;
   platform?: string;
   /**
    * Destination folder (FIX-1b). When set, the backend creates the file row IN
@@ -165,6 +190,16 @@ export interface UploadInitResponse {
   file_id: string;
   platform: string;
   direct_upload: boolean;
+  /**
+   * true ⇒ the server found an ACTIVE session for this exact file (same
+   * sha256 + size) and returned it instead of creating a new one. The client
+   * must then adopt that session: unwrap its stored envelope for the CEK and
+   * reslice at its chunk_size. This is what pins a resume to the ORIGINAL
+   * platform — the server, not localStorage, is the source of truth.
+   */
+  resumed?: boolean;
+  chunk_size?: number;
+  chunk_count?: number;
 }
 
 /** POST /api/upload/init — start a new chunked upload session. */
@@ -186,7 +221,8 @@ export async function uploadChunk(
   encryptedData: Uint8Array,
   sha256: string,
   compressed: boolean,
-  onProgress?: (sentBytes: number) => void
+  onProgress?: (sentBytes: number) => void,
+  signal?: AbortSignal
 ): Promise<void> {
   const headers: Record<string, string> = {
     "Content-Type": "application/octet-stream",
@@ -200,7 +236,8 @@ export async function uploadChunk(
     `${API_BASE}/api/upload/${sessionId}/chunk/${index}`,
     headers,
     encryptedData,
-    onProgress
+    onProgress,
+    signal
   );
 }
 
@@ -236,10 +273,14 @@ export async function directUploadToURL(
   url: string,
   headers: Record<string, string> | null,
   data: Uint8Array,
-  onProgress?: (sentBytes: number) => void
+  onProgress?: (sentBytes: number) => void,
+  signal?: AbortSignal
 ): Promise<void> {
   let lastError: Error | null = null;
   for (let attempt = 0; attempt < 3; attempt++) {
+    // A pause/cancel abort must stop the internal retry loop immediately —
+    // never re-send a chunk the user just paused.
+    if (signal?.aborted) throw new Error("Upload paused");
     try {
       const res = await xhrPut(
         url,
@@ -248,12 +289,14 @@ export async function directUploadToURL(
           ...(headers || {}),
         },
         data,
-        onProgress
+        onProgress,
+        signal
       );
       if (res.status >= 200 && res.status < 300) return;
       lastError = new Error(`Direct upload failed: ${res.status}`);
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
+      if (lastError.message === "Upload paused") throw lastError;
     }
     await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
   }
@@ -321,6 +364,10 @@ export interface UploadStatusResponse {
   chunk_count: number;
   uploaded_chunks: number[]; // indices of chunks the server already has
   completed_count: number;
+  /** Original chunk size + platform of this session (server-stored), so any
+   *  device can resume with the right slicing on the right platform. */
+  chunk_size?: number;
+  platform?: string;
 }
 
 /** GET /api/upload/{sid}/status — check upload session progress. */

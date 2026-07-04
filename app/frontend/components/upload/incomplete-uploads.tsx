@@ -7,8 +7,8 @@ import { formatBytes } from "@/lib/utils";
 import { toast } from "@/store/toast";
 import { AlertTriangle, ChevronDown, Clock, Play, Trash2, X } from "@/lib/icons";
 
-// Human-friendly "expires in ~Xh" from an ISO timestamp. Server keeps unfinished
-// uploads for 24h, so this is always a small, positive window.
+// Human-friendly "expires in ..." from an ISO timestamp. Server keeps unfinished
+// uploads for 7 days, so natural units run from minutes up to about a week.
 function expiresInLabel(expiresAt: string, now: number): string {
   const ms = new Date(expiresAt).getTime() - now;
   if (ms <= 0) return "expiring now";
@@ -33,14 +33,15 @@ const PLATFORM_LABELS: Record<string, string> = {
  * Shows uploads that were started but never finished (from the server's active
  * upload sessions), so a user can see WHAT is pending — including which storage
  * platform it was going to — resume it, or discard it. Unfinished uploads are
- * auto-removed after 24h; that caution is shown so their disappearance isn't a
- * surprise.
+ * auto-removed after 7 days; that caution is shown so their disappearance isn't
+ * a surprise.
  *
  * Resume needs the file's bytes, which the browser can't re-read on its own — so
- * Resume prompts to re-select the file, then hands it to the normal upload flow
- * (which continues from the server's already-received chunks).
+ * Resume prompts to re-select the file, then hands it (WITH the session record,
+ * so the platform pin survives) to the upload flow, which continues from the
+ * server's already-received chunks on the session's original platform.
  */
-export function IncompleteUploads({ onResume }: { onResume: (file: File) => void }) {
+export function IncompleteUploads({ onResume }: { onResume: (file: File, upload: IncompleteUpload) => void }) {
   const [uploads, setUploads] = useState<IncompleteUpload[]>([]);
   const [expanded, setExpanded] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -77,7 +78,7 @@ export function IncompleteUploads({ onResume }: { onResume: (file: File) => void
       toast.warning(`That's not the same file — pick "${target.filename}" (${formatBytes(target.original_size)}) to resume.`);
       return;
     }
-    onResume(file); // hands off to the normal upload flow, which auto-resumes
+    onResume(file, target); // upload flow resumes the session on its ORIGINAL platform
     setUploads((prev) => prev.filter((u) => u.session_id !== target.session_id));
     toast.info(`Resuming "${target.filename}"…`);
   };
@@ -121,7 +122,7 @@ export function IncompleteUploads({ onResume }: { onResume: (file: File) => void
         <div className="border-t border-amber-500/20">
           <div className="flex items-center gap-1.5 px-4 py-2 text-[11px] text-[var(--color-text-muted)]">
             <Clock className="h-3 w-3" />
-            Unfinished uploads are kept for 24 hours, then automatically removed.
+            Unfinished uploads are kept for 7 days, then automatically removed.
           </div>
 
           <ul className="divide-y divide-[var(--color-border)]">
