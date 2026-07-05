@@ -7,6 +7,8 @@
  * Pure (no React, no DOM) so it can be imported by both the dispatcher and tests.
  */
 
+import { AUDIO_EXTENSIONS, VIDEO_EXTENSIONS } from "@/lib/media-formats";
+
 export type ViewerKind =
   | "image"
   | "video"
@@ -20,10 +22,6 @@ export type ViewerKind =
   | "fallback";
 
 const IMAGE_EXT = ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "ico"];
-// Mirrors media-player.tsx VIDEO_EXT/AUDIO_EXT so audio/video dispatch matches
-// what the player can actually skin (incl. avi/m4v/ogv/oga/opus).
-const VIDEO_EXT = ["mp4", "mov", "webm", "mkv", "m4v", "ogv", "avi"];
-const AUDIO_EXT = ["mp3", "wav", "flac", "aac", "ogg", "m4a", "oga", "opus"];
 const MARKDOWN_EXT = ["md", "markdown", "mdown", "mkd"];
 const CSV_EXT = ["csv", "tsv"];
 // Text/code that renders as a monospace pane with optional highlight.js.
@@ -39,8 +37,8 @@ const TEXT_EXT = [
 export function viewerKindFor(filename: string): ViewerKind {
   const ext = filename.split(".").pop()?.toLowerCase() ?? "";
   if (IMAGE_EXT.includes(ext)) return "image";
-  if (VIDEO_EXT.includes(ext)) return "video";
-  if (AUDIO_EXT.includes(ext)) return "audio";
+  if (VIDEO_EXTENSIONS.has(ext)) return "video";
+  if (AUDIO_EXTENSIONS.has(ext)) return "audio";
   if (ext === "pdf") return "pdf";
   if (ext === "docx") return "docx";
   if (ext === "html" || ext === "htm") return "html";
