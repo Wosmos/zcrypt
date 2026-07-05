@@ -1,8 +1,25 @@
-"use client";
-
+import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight } from "@/lib/icons";
+import { ArrowRight, ArrowUpRight } from "@/lib/icons";
 import { Section, PullQuote } from "@/components/marketing/prose";
+import { WOSMO, WosmoMark } from "@/components/marketing/wosmo";
+
+// Server Component (statically generated) — metadata lives here; the only client
+// parts are the <Section>/<PullQuote> scroll-reveal islands from prose.tsx.
+export const metadata: Metadata = {
+  title: "Our Philosophy — Why We Built zcrypt",
+  description:
+    "The zcrypt manifesto. Why cloud storage is overpriced, why zero-knowledge encryption matters, and why your data should belong to you. Open source, free, and private.",
+  alternates: {
+    canonical: "https://zcrypt.cloud/philosophy",
+  },
+  openGraph: {
+    title: "Our Philosophy — Why We Built zcrypt",
+    description:
+      "The zcrypt manifesto. Cloud storage is overpriced. Your data should belong to you.",
+    url: "https://zcrypt.cloud/philosophy",
+  },
+};
 
 export default function PhilosophyPage() {
   return (
@@ -223,6 +240,47 @@ export default function PhilosophyPage() {
           <PullQuote>
             They had every incentive to never build this. So we did.
           </PullQuote>
+        </Section>
+
+        {/* Who's behind this */}
+        <Section className="mt-20">
+          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
+            So Who&apos;s &ldquo;We&rdquo;?
+          </h2>
+          <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
+            <p>
+              Mostly one person. I&apos;m {WOSMO.name} &mdash; a{" "}
+              {WOSMO.role.toLowerCase()} who got tired of paying rent on his own
+              files and built the alternative. zcrypt is mine end to end: the
+              encryption, the upload pipeline, the drive, and this page
+              you&apos;re reading right now.
+            </p>
+            <p>
+              I say &ldquo;we&rdquo; out of habit, not to hide behind a logo. And
+              that matters here: a tool that asks you to trust it with your keys
+              should tell you exactly who wrote the code that holds them. No
+              anonymous founder, no shell company. Just my name, on the record.
+            </p>
+          </div>
+
+          <Link
+            href="/about"
+            className="group mt-8 flex items-center gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 transition-colors hover:border-cyan-500/40"
+          >
+            <WosmoMark className="h-12 w-auto flex-shrink-0 rounded-xl" />
+            <div className="min-w-0">
+              <p className="font-bold tracking-tight text-[var(--color-text)]">
+                {WOSMO.name}{" "}
+                <span className="font-normal text-[var(--color-text-muted)]">
+                  / {WOSMO.handle}
+                </span>
+              </p>
+              <p className="mt-0.5 inline-flex items-center gap-1 text-sm font-semibold text-cyan-600 dark:text-cyan-400">
+                More about the maker
+                <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+              </p>
+            </div>
+          </Link>
         </Section>
 
         {/* CTA */}

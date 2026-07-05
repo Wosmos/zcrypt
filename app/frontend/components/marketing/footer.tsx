@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Logo } from "@/components/ui/logo";
 import { Github } from "@/lib/icons";
+import { WOSMO, WosmoWordmark } from "@/components/marketing/wosmo";
 
 const GITHUB_REPO_URL = "https://github.com/Wosmos/zcrypt";
 
@@ -39,6 +40,7 @@ const FOOTER_COLUMNS: { title: string; links: FooterLink[] }[] = [
   {
     title: "Company",
     links: [
+      { label: "About the maker", href: "/about" },
       { label: "Philosophy", href: "/philosophy" },
       { label: "Privacy", href: "/privacy" },
       { label: "Terms", href: "/terms" },
@@ -142,6 +144,19 @@ export function MarketingFooter() {
             <p className="text-[0.82rem] text-[var(--color-text-muted)]">
               &copy; {new Date().getFullYear()} zcrypt — your files, your keys.
             </p>
+
+            {/* Built by Wosmo */}
+            <a
+              href={WOSMO.portfolio}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`Built by ${WOSMO.name}`}
+              className="group inline-flex items-center gap-2 text-[0.82rem] text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)]"
+            >
+              <span>Built by</span>
+              <WosmoWordmark className="h-3.5 w-auto opacity-80 transition-opacity group-hover:opacity-100" />
+            </a>
+
             <div className="flex gap-[0.7rem]">
               <a
                 href={GITHUB_REPO_URL}
