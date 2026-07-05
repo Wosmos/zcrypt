@@ -94,7 +94,7 @@ export function ExpiringTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-[var(--color-text-secondary)]">Group files behind an auto-destruction timer.</p>
+        <p className="text-sm text-[var(--color-text-secondary)]">Group files under a shared countdown. When it runs out the vault is flagged expired — your files stay put.</p>
         <Button onClick={() => { setShowCreate(!showCreate); setError(""); }} size="sm" variant={showCreate ? "secondary" : "primary"}>
           {showCreate ? "Cancel" : <><Plus className="h-3.5 w-3.5" /> Create vault</>}
         </Button>
@@ -109,7 +109,7 @@ export function ExpiringTab() {
             className="overflow-hidden"
           >
             <div className="panel space-y-4 p-6">
-              <h3 className="text-sm font-semibold text-[var(--color-text)]">New expiring vault</h3>
+              <h3 className="text-sm font-semibold text-[var(--color-text)]">New timed vault</h3>
               <div className="space-y-1.5">
                 <label className={labelClass}>Name *</label>
                 <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Tax Documents 2025" className={inputClass} />
@@ -166,8 +166,8 @@ export function ExpiringTab() {
         <div className="panel">
           <EmptyState
             icon={<Clock className="h-7 w-7 text-[var(--color-text-muted)]" />}
-            title="No expiring vaults yet"
-            description="Create one to group files with an auto-destruction timer. The files themselves stay in your vault."
+            title="No timed vaults yet"
+            description="Create one to group files under a countdown. When it expires the vault is flagged — the files themselves stay in your vault."
           />
         </div>
       ) : vaults.length > 0 ? (
@@ -215,7 +215,7 @@ export function ExpiringTab() {
         open={!!pendingDelete}
         onOpenChange={(o) => { if (!o) setPendingDelete(null); }}
         destructive
-        title="Delete expiring vault?"
+        title="Delete timed vault?"
         description={
           <>
             This removes the vault{pendingDelete?.name ? <> &ldquo;{pendingDelete.name}&rdquo;</> : null} and its timer. The files themselves are not deleted.
