@@ -90,6 +90,50 @@ func (db *DB) ListFolders(ctx context.Context, userID string, parentID *string) 
 	return folders, nil
 }
 
+// ListFolderSubtree returns the root folder plus EVERY live descendant (any
+// depth) in a single query. Used by folder sharing to build each file's relative
+// path in one round trip instead of walking the tree one listing at a time — the
+// per-folder walk could silently drop a branch if any one request hiccupped,
+// flattening those files in the recipient's zip.
+func (db *DB) ListFolderSubtree(ctx context.Context, userID, rootID string) ([]types.Folder, error) {
+	rows, err := db.pool.Query(ctx, `
+		WITH RECURSIVE subtree AS (
+			SELECT id, user_id, parent_id, encrypted_name, created_at, deleted_at, pw_salt, pw_verifier
+			FROM folders
+			WHERE id = $2 AND user_id = $1 AND deleted_at IS NULL
+			UNION ALL
+			SELECT f.id, f.user_id, f.parent_id, f.encrypted_name, f.created_at, f.deleted_at, f.pw_salt, f.pw_verifier
+			FROM folders f
+			JOIN subtree s ON f.parent_id = s.id
+			WHERE f.user_id = $1 AND f.deleted_at IS NULL
+		)
+		SELECT id, user_id, parent_id, encrypted_name, created_at, deleted_at, pw_salt, pw_verifier
+		FROM subtree`, userID, rootID)
+	if err != nil {
+		return nil, fmt.Errorf("list folder subtree: %w", err)
+	}
+	defer rows.Close()
+
+	var folders []types.Folder
+	for rows.Next() {
+		var (
+			f         types.Folder
+			createdAt time.Time
+			deletedAt *time.Time
+		)
+		if err := rows.Scan(&f.ID, &f.UserID, &f.ParentID, &f.EncryptedName, &createdAt, &deletedAt, &f.PwSalt, &f.PwVerifier); err != nil {
+			return nil, fmt.Errorf("scan folder: %w", err)
+		}
+		f.CreatedAt = createdAt.Format(time.RFC3339)
+		f.DeletedAt = folderTimeStr(deletedAt)
+		folders = append(folders, f)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate folder subtree: %w", err)
+	}
+	return folders, nil
+}
+
 // RenameFolder updates a folder's encrypted name, scoped to the owning user.
 func (db *DB) RenameFolder(ctx context.Context, userID, folderID, encryptedName string) error {
 	_, err := db.pool.Exec(ctx,

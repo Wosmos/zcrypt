@@ -718,6 +718,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 
 	// Folders + trash (soft-delete) + file moves (authenticated)
 	mux.HandleFunc("GET /api/folders", s.AuthMiddleware(s.HandleListFolders))
+	mux.HandleFunc("GET /api/folders/tree", s.AuthMiddleware(s.HandleListFolderSubtree))
 	mux.HandleFunc("POST /api/folders", maxJSON(s.AuthMiddleware(s.HandleCreateFolder)))
 	mux.HandleFunc("PATCH /api/folders/{id}", maxJSON(s.AuthMiddleware(s.HandleRenameFolder)))
 	mux.HandleFunc("PATCH /api/folders/{id}/move", maxJSON(s.AuthMiddleware(s.HandleMoveFolder)))

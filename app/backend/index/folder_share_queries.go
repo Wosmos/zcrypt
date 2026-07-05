@@ -3,6 +3,7 @@ package index
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/zcrypt/zcrypt/types"
 )
@@ -28,14 +29,23 @@ func (db *DB) CreateFolderShare(ctx context.Context, s *types.FolderShare, files
 	); err != nil {
 		return fmt.Errorf("create folder share: %w", err)
 	}
-	for _, f := range files {
-		if _, err := tx.Exec(ctx, `
-			INSERT INTO folder_share_files (folder_share_id, file_id, wrapped_cek)
-			VALUES ($1, $2, $3)
-			ON CONFLICT (folder_share_id, file_id) DO UPDATE SET wrapped_cek = EXCLUDED.wrapped_cek`,
-			s.ID, f.FileID, f.WrappedCEK,
-		); err != nil {
-			return fmt.Errorf("add folder share file: %w", err)
+	// Insert every file in ONE multi-row statement rather than a query per file.
+	// A folder can carry hundreds of files, and one round trip per file to a
+	// remote (Neon) DB dominates share-creation latency — this collapses it to a
+	// single round trip.
+	if len(files) > 0 {
+		values := make([]string, 0, len(files))
+		args := make([]interface{}, 0, len(files)*3)
+		for i, f := range files {
+			b := i * 3
+			values = append(values, fmt.Sprintf("($%d, $%d, $%d)", b+1, b+2, b+3))
+			args = append(args, s.ID, f.FileID, f.WrappedCEK)
+		}
+		query := `INSERT INTO folder_share_files (folder_share_id, file_id, wrapped_cek) VALUES ` +
+			strings.Join(values, ", ") +
+			` ON CONFLICT (folder_share_id, file_id) DO UPDATE SET wrapped_cek = EXCLUDED.wrapped_cek`
+		if _, err := tx.Exec(ctx, query, args...); err != nil {
+			return fmt.Errorf("add folder share files: %w", err)
 		}
 	}
 	return tx.Commit(ctx)
