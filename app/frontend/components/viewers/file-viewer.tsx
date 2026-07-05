@@ -21,6 +21,7 @@ import {
 import { IconButton } from "@/components/ui/icon-button";
 import { Button } from "@/components/ui/button";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
+import { motion, useReducedMotion } from "motion/react";
 import { getFileTypeInfo, cn } from "@/lib/utils";
 import { mimeForFilename, WrongPasswordError, IntegrityError } from "@/hooks/useFileDecryptor";
 import { FolderUnlockCancelled } from "@/hooks/useFolderProtection";
@@ -183,7 +184,9 @@ export function FileViewer({
       return;
     }
 
-    setState({ status: "loading" });
+    // Seed the total from the file's chunk count so the progress bar shows
+    // "0/N" immediately, instead of a blind spinner until the first chunk lands.
+    setState({ status: "loading", done: 0, total: file.chunk_count });
 
     (async () => {
       try {
@@ -637,6 +640,7 @@ function ViewerBody({
           filename={file.original_name}
           mime={mime}
           kind={kind}
+          poster={thumbnailUrl ?? undefined}
           tracks={mediaTracks}
           currentIndex={currentIndex}
           onSelectTrack={onSelectTrack}
@@ -664,25 +668,36 @@ function ViewerBody({
 }
 
 /**
- * "Decrypting… X/Y" + a thin chunk-progress bar (track/fill styling matches
- * ui/progress-bar.tsx). Multi-chunk files get real numbers; single-chunk or
- * pre-first-chunk states fall back to the plain label so nothing flashes.
+ * Progressive decrypt indicator. Multi-chunk files get a determinate bar with
+ * "X/Y · NN%" that fills as chunks land (total is seeded from chunk_count, so it
+ * appears immediately). A single large chunk has no sub-progress, so it shows an
+ * indeterminate sweeping bar instead of a frozen 0% — the wait still feels alive.
  */
 function DecryptProgress({ done, total }: { done?: number; total?: number }) {
-  const showBar = total !== undefined && total > 1;
+  const reduce = useReducedMotion() ?? false;
+  const determinate = total !== undefined && total > 1;
+  const pct = determinate ? Math.round(((done ?? 0) / (total as number)) * 100) : 0;
   return (
     <div className="flex flex-col items-center gap-2">
       <p className="text-xs tabular-nums text-[var(--color-text-muted)]">
-        {showBar ? `Decrypting… ${done ?? 0}/${total}` : "Decrypting…"}
+        {determinate ? `Decrypting… ${done ?? 0}/${total} · ${pct}%` : "Decrypting…"}
       </p>
-      {showBar && (
-        <div className="h-1.5 w-40 overflow-hidden rounded-full bg-[var(--color-surface-2)]">
+      <div className="h-1.5 w-40 overflow-hidden rounded-full bg-[var(--color-surface-2)]">
+        {determinate ? (
           <div
             className="h-full rounded-full bg-[var(--color-accent)] transition-[width] duration-300 ease-out"
-            style={{ width: `${Math.round(((done ?? 0) / total) * 100)}%` }}
+            style={{ width: `${pct}%` }}
           />
-        </div>
-      )}
+        ) : reduce ? (
+          <div className="h-full w-1/3 rounded-full bg-[var(--color-accent)]" />
+        ) : (
+          <motion.div
+            className="h-full w-1/3 rounded-full bg-[var(--color-accent)]"
+            animate={{ x: ["-120%", "360%"] }}
+            transition={{ duration: 1.1, repeat: Infinity, ease: "easeInOut" }}
+          />
+        )}
+      </div>
     </div>
   );
 }
