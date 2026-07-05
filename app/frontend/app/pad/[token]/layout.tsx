@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 
+// See s/[token]/layout.tsx: output:export needs a non-empty param set; the
+// page is client-rendered and stripped from the desktop bundle.
 export function generateStaticParams() {
-  return [];
+  return [{ token: "placeholder" }];
 }
 
 export const metadata: Metadata = {
