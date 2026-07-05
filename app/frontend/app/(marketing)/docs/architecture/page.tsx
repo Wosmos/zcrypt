@@ -12,12 +12,12 @@ import {
 export const metadata: Metadata = {
   title: "Architecture | zcrypt Docs",
   description:
-    "How zcrypt fits together: a client-side compress-encrypt-chunk pipeline, a chunked HTTP API, durable disk staging plus a background sync worker, pluggable platform adapters, repo-pool auto-rotation, and a PostgreSQL index — all behind a strict zero-knowledge boundary.",
+    "How zcrypt fits together: a client-side compress-encrypt-chunk pipeline that runs in a Web Worker pool, a chunked HTTP API, streaming download-to-disk, durable disk staging plus a background sync worker, pluggable platform adapters, repo-pool auto-rotation, a PostgreSQL index, and end-to-end shared spaces — all behind a strict zero-knowledge boundary.",
   alternates: { canonical: "https://zcrypt.cloud/docs/architecture" },
   openGraph: {
     title: "Architecture | zcrypt Docs",
     description:
-      "The zcrypt pipeline, staging and sync worker, platform adapters, repo-pool rotation, and the zero-knowledge boundary.",
+      "The zcrypt worker-pool pipeline, streaming downloads, staging and sync worker, platform adapters, shared spaces, and the zero-knowledge boundary.",
     url: "https://zcrypt.cloud/docs/architecture",
   },
 };
@@ -26,10 +26,12 @@ const toc = [
   { id: "overview", title: "Overview" },
   { id: "diagram", title: "The big picture" },
   { id: "client", title: "Client pipeline" },
+  { id: "download", title: "Download & streaming to disk" },
   { id: "api", title: "Chunked HTTP API" },
   { id: "staging", title: "Staging & the sync worker" },
   { id: "adapters", title: "Platform adapters & repo pool" },
   { id: "index", title: "The index (PostgreSQL)" },
+  { id: "spaces", title: "Shared spaces & key grants" },
   { id: "boundary", title: "The zero-knowledge boundary" },
   { id: "next", title: "Where to go next" },
 ];
@@ -97,8 +99,42 @@ export default function ArchitectureDocPage() {
           ]}
         />
         <DocP>
+          In the web app this pipeline runs in a pool of Web Workers, so
+          compression, encryption, and hashing happen off the main thread and in
+          parallel across CPU cores. Chunk buffers are handed to and from the
+          workers by transfer (zero-copy, no duplicate allocation), and the pool
+          size scales to the device&rsquo;s cores and memory. The same worker pool
+          runs the reverse pipeline on download.
+        </DocP>
+        <DocP>
           The same pipeline runs in the web app and the Go terminal app (TUI), so
           a file uploaded from one decrypts cleanly in the other.
+        </DocP>
+      </DocSection>
+
+      <DocSection id="download" title="Download & streaming to disk">
+        <DocP>
+          Downloads run the client pipeline in reverse. The app fetches each
+          encrypted chunk, verifies its SHA-256, then decrypts and (where needed)
+          decompresses it in the same Web Worker pool &mdash; so a large download
+          parallelizes across cores instead of freezing the tab.
+        </DocP>
+        <DocP>
+          Small files are reassembled in memory and saved as a download. A file
+          too large to hold in a browser tab is instead{" "}
+          <strong>streamed straight to disk</strong>: using the browser&rsquo;s
+          File System Access API, the app opens a writable to the file you pick,
+          writes chunks in order as they are decrypted, and hashes them in
+          write-order &mdash; so peak memory stays flat no matter how large the
+          file. The whole-file hash is checked before the file is committed; an
+          integrity mismatch or a cancel discards the partial file rather than
+          leaving a corrupt one behind.
+        </DocP>
+        <DocP>
+          Downloads are resumable within a session: a pause or a transient network
+          failure keeps what has already been decrypted (or written to disk), so a
+          later run continues from the high-water mark instead of restarting at
+          chunk zero.
         </DocP>
       </DocSection>
 
@@ -183,6 +219,35 @@ export default function ArchitectureDocPage() {
           shares, and more. Every record about a file is metadata or ciphertext —
           the database holds no readable file contents and no passphrase. The
           schema is applied automatically on startup.
+        </DocP>
+      </DocSection>
+
+      <DocSection id="spaces" title="Shared spaces & key grants">
+        <DocP>
+          Sharing keeps the zero-knowledge boundary intact by moving keys, never
+          plaintext. Every user has an X25519 keypair generated on their device;
+          the private key is wrapped under their passphrase-derived key, so the
+          server stores only ciphertext, while the public key and a short
+          fingerprint are public so others can seal grants to them.
+        </DocP>
+        <DocP>
+          A shared space (&ldquo;shared vault&rdquo;) has its own random symmetric
+          key. To grant a member access, that space key is{" "}
+          <strong>sealed</strong> to the member&rsquo;s public key with an ECIES
+          construction &mdash; an ephemeral X25519 key does ECDH with the
+          recipient, and the shared secret is hashed into an AES-256-GCM
+          wrapping key &mdash; and each shared file&rsquo;s content key is
+          re-wrapped under the space key. The server holds only these opaque
+          grants: it can store, hand out, and delete them, but can never open one.
+          Removing a member and rotating the space key re-seals a fresh key to the
+          people who remain and re-wraps every file under it, so the old grant is
+          dead.
+        </DocP>
+        <DocP>
+          Public folder links work the same way: the link key is generated on the
+          client and lives only in the URL fragment, and each file&rsquo;s content
+          key is re-wrapped under it &mdash; the server serving the link never sees
+          the key.
         </DocP>
       </DocSection>
 

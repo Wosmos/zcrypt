@@ -12,7 +12,7 @@ import {
 export const metadata: Metadata = {
   title: "Viewing & previewing files | zcrypt Docs",
   description:
-    "Open images, video, audio, PDF, DOCX, HTML, Markdown, CSV, and code in zcrypt's full-screen viewer — decrypted on the fly so plaintext stays on your device. Page through a folder with keyboard shortcuts.",
+    "See image and video thumbnails generated on your device, then open images, video, audio, PDF, DOCX, HTML, Markdown, CSV, and code in zcrypt's full-screen viewer — decrypted on the fly, with keyboard paging, so plaintext never leaves your device.",
   alternates: { canonical: "https://zcrypt.cloud/docs/viewing-files" },
   openGraph: {
     title: "Viewing & previewing files | zcrypt Docs",
@@ -23,6 +23,7 @@ export const metadata: Metadata = {
 };
 
 const toc = [
+  { id: "thumbnails", title: "Thumbnails & type icons" },
   { id: "overlay", title: "The full-screen viewer" },
   { id: "types", title: "What it can preview" },
   { id: "zero-knowledge", title: "Decrypted on the fly" },
@@ -37,6 +38,45 @@ export default function ViewingFilesDocPage() {
       description="Open a file to read or watch it right in the browser — no download, no plaintext leaving your device."
       toc={toc}
     >
+      <DocSection id="thumbnails" title="Thumbnails & type icons">
+        <DocP>
+          Before you even open a file, the grid shows you what it is. Images and
+          videos get a real <strong>thumbnail</strong> — a small preview of the
+          file itself — and everything else gets a crisp, macOS-style{" "}
+          <strong>type icon</strong>: a colored glyph and label (Document,
+          Image, Video, Audio, Spreadsheet, Code, Archive, and so on) on a little
+          page tile.
+        </DocP>
+        <DocList
+          items={[
+            <>
+              <strong>Generated on your device.</strong> A thumbnail is built by
+              decrypting the file in your browser, drawing it to a canvas, and
+              encoding a tiny preview — the same zero-knowledge path as the
+              viewer. For a video, zcrypt grabs a frame a little way in so you get
+              a representative still rather than a black opening frame.
+            </>,
+            <>
+              <strong>Lazy and cached.</strong> Each preview is generated the
+              first time its card comes into view, then cached locally on your
+              device — so it appears instantly next time without decrypting the
+              file again.
+            </>,
+            <>
+              <strong>Icons for the rest.</strong> Files that aren&rsquo;t images
+              or video — and very large files that aren&rsquo;t worth decrypting
+              just for a preview — fall back to their type icon instead.
+            </>,
+          ]}
+        />
+        <DocNote type="security" title="Previews never leave your device">
+          Thumbnails are made from the decrypted file{" "}
+          <strong>in your browser</strong> and kept only in your browser&rsquo;s
+          local cache. They are never uploaded — your storage platform and our
+          servers only ever hold the encrypted chunks.
+        </DocNote>
+      </DocSection>
+
       <DocSection id="overlay" title="The full-screen viewer">
         <DocP>
           Click a file to open the <strong>full-screen viewer</strong>, an

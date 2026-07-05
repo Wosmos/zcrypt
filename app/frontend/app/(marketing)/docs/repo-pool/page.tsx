@@ -3,6 +3,7 @@ import Link from "next/link";
 import {
   DocPage,
   DocSection,
+  DocSubsection,
   DocP,
   DocList,
   DocNote,
@@ -26,7 +27,9 @@ const toc = [
   { id: "why", title: "Why a pool" },
   { id: "rotation", title: "How rotation works" },
   { id: "thresholds", title: "Per-platform thresholds" },
+  { id: "throttling", title: "Push throttling" },
   { id: "tracking", title: "Usage tracking" },
+  { id: "durability", title: "Resume & chunk cleanup" },
   { id: "next", title: "Where to go next" },
 ];
 
@@ -41,7 +44,7 @@ export default function RepoPoolDocPage() {
       <DocSection id="why" title="Why a pool">
         <DocP>
           Every backend caps how much one repository can comfortably hold — about
-          850 MB on GitHub, 9 GB on GitLab, 280 GB on a Hugging Face dataset. If a
+          850 MB on GitHub, 9 GB on GitLab, 90 GiB on a Hugging Face dataset. If a
           vault were tied to one repo, that cap would be your ceiling. Instead,
           zcrypt keeps a <strong>pool</strong> of repositories per account and
           adds to it as needed.
@@ -102,8 +105,50 @@ export default function RepoPoolDocPage() {
           rows={[
             [<strong key="t">GitHub</strong>, "~850 MB per repo"],
             [<strong key="t">GitLab</strong>, "~9 GB per repo"],
-            [<strong key="t">Hugging Face</strong>, "~280 GB per repo (Git LFS)"],
+            [<strong key="t">Hugging Face</strong>, "~90 GiB per repo (Git LFS)"],
             [<strong key="t">Telegram</strong>, "Virtual — spreads files across the channel"],
+          ]}
+        />
+        <DocNote type="warning" title="Hugging Face doesn't grow by rotating">
+          Hugging Face&apos;s free tier is 100 GB for the entire account, not per
+          repo, so spinning up another Hugging Face repo adds no real space. The
+          per-repo threshold is kept under that account-wide ceiling, and when
+          zcrypt picks a backend automatically it prefers Telegram (no ceiling)
+          and lists Hugging Face last. To grow Hugging Face capacity, connect
+          another account.
+        </DocNote>
+      </DocSection>
+
+      <DocSection id="throttling" title="Push throttling">
+        <DocP>
+          Some platforms limit how fast you can push, not just how much you can
+          store. GitHub, for instance, throttles sustained pushes at roughly{" "}
+          <strong>7 GB per hour</strong>. To avoid tripping that ceiling
+          mid-transfer, zcrypt paces its own writes to each platform rather than
+          hammering the API and getting rate-limited.
+        </DocP>
+        <DocP>
+          Before sending each chunk, the background sync worker checks a
+          per-platform budget over a trailing one-hour window. If pushing the
+          chunk would exceed the limit, the worker holds it just long enough for
+          earlier bytes to age out of the window, then sends — so short bursts go
+          straight through and only sustained, over-cap volume is slowed.
+        </DocP>
+        <DocList
+          items={[
+            <>
+              Only GitHub is throttled by default (~7 GB/hour); Telegram, GitLab,
+              and Hugging Face are not rate-limited by zcrypt.
+            </>,
+            <>
+              Budgets are tracked <strong>per platform</strong>, so saturating
+              GitHub never slows a push to GitLab or Telegram.
+            </>,
+            <>
+              The wait happens <em>before</em> a chunk claims a repo upload slot,
+              so a throttled push never holds a slot idle or blocks other repos
+              from making progress.
+            </>,
           ]}
         />
       </DocSection>
@@ -117,6 +162,40 @@ export default function RepoPoolDocPage() {
           precisely when to rotate and lets your total capacity add up across all
           of them.
         </DocP>
+      </DocSection>
+
+      <DocSection id="durability" title="Resume & chunk cleanup">
+        <DocSubsection title="Server-side resume">
+          <DocP>
+            Chunks are staged on the server and pushed to your backend by a
+            background worker, so a transfer doesn&apos;t depend on your browser
+            staying open for every byte. If the server restarts, the worker
+            re-drains any chunks still waiting and finishes pushing them.
+          </DocP>
+          <DocP>
+            Resume is server-authoritative. zcrypt keys each upload to{" "}
+            <strong>(you, the file&apos;s hash, its size)</strong>, so restarting
+            the same file — even from another device or after clearing local
+            storage — hands back the original session instead of starting over.
+            Chunks already pushed aren&apos;t re-sent or orphaned, and the
+            transfer continues on the same platform it began on.
+          </DocP>
+        </DocSubsection>
+        <DocSubsection title="Cleaning chunks off the platform">
+          <DocP>
+            Deleting a file — or cancelling an upload — queues its chunks for
+            removal from the backend. A deletion worker drains that queue and
+            calls each platform&apos;s delete API to erase the encrypted blobs;
+            chunks that were staged but never pushed are simply removed from the
+            server&apos;s staging area.
+          </DocP>
+          <DocP>
+            Failed deletions are retried with backoff. If a chunk still can&apos;t
+            be removed after repeated attempts it&apos;s flagged in the logs as an
+            orphan needing manual cleanup, rather than being silently forgotten,
+            and a startup sweep clears staging files whose database rows are gone.
+          </DocP>
+        </DocSubsection>
       </DocSection>
 
       <DocSection id="next" title="Where to go next">

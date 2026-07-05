@@ -13,12 +13,12 @@ import {
 export const metadata: Metadata = {
   title: "Passphrase & key management | zcrypt Docs",
   description:
-    "How keys flow through zcrypt: the vault passphrase that never leaves your device, account login secured with bcrypt and TOTP, JWTs with algorithm-confusion defenses and version-based revocation, and IP-bound refresh tokens.",
+    "How keys flow through zcrypt: the vault passphrase that never leaves your device, a per-user X25519 sharing keypair whose private half is wrapped under that passphrase, account login secured with bcrypt and TOTP, JWTs with algorithm-confusion defenses and version-based revocation, and IP-bound refresh tokens.",
   alternates: { canonical: "https://zcrypt.cloud/docs/key-management" },
   openGraph: {
     title: "Passphrase & key management | zcrypt Docs",
     description:
-      "The two secrets in zcrypt — your vault passphrase and your account password — and exactly how each is handled, hardened, and revoked.",
+      "The two secrets in zcrypt — your vault passphrase and your account password — plus the X25519 sharing keypair derived from your passphrase, and exactly how each is handled, hardened, and revoked.",
     url: "https://zcrypt.cloud/docs/key-management",
   },
 };
@@ -26,6 +26,7 @@ export const metadata: Metadata = {
 const toc = [
   { id: "two-secrets", title: "Two different secrets" },
   { id: "passphrase", title: "The vault passphrase" },
+  { id: "sharing-keypair", title: "Your sharing keypair" },
   { id: "account", title: "Account login security" },
   { id: "sessions", title: "Tokens & sessions" },
   { id: "revocation", title: "Revocation & recovery" },
@@ -94,6 +95,65 @@ export default function KeyManagementPage() {
           would defeat zero-knowledge. If you lose your passphrase, your
           encrypted data cannot be recovered by anyone — including us. This is the
           deliberate cost of the guarantee.
+        </DocNote>
+      </DocSection>
+
+      <DocSection id="sharing-keypair" title="Your sharing keypair">
+        <DocP>
+          To share with another zcrypt user without ever handing a usable key to
+          the server, every account is bootstrapped with its own{" "}
+          <strong>X25519 keypair</strong>. It is not a third secret for you to
+          remember — it rides on your passphrase, the same way your file keys do.
+          The keypair is generated on your device the first time an unlocked
+          session needs it.
+        </DocP>
+        <DocList
+          items={[
+            <>
+              <strong>The public key is published</strong> to a small registry
+              the server keeps in the clear, alongside a short fingerprint, so
+              other members can wrap a shared key <em>to</em> you. It reveals
+              nothing sensitive — that is what public keys are for.
+            </>,
+            <>
+              <strong>The private key never leaves your device in the clear.</strong>{" "}
+              It is wrapped under your passphrase-derived key using the same
+              PBKDF2 &rarr; AES-256-GCM envelope as your file keys, and only that
+              ciphertext is stored. The server cannot unwrap it.
+            </>,
+            <>
+              <strong>Unlocking rehydrates it locally.</strong> When you unlock,
+              the client fetches your wrapped private key and opens it with your
+              passphrase in memory; if you have never published one, it generates
+              and publishes a keypair on the spot.
+            </>,
+          ]}
+        />
+        <DocP>
+          Because your private key is decrypted into the browser while you are
+          unlocked, a cross-site-scripting bug becomes the threat that matters
+          most. As defense-in-depth against it, the web app serves a strict{" "}
+          <strong>Content-Security-Policy</strong> in production. It is currently
+          deployed in <strong>Report-Only</strong> mode — it reports policy
+          violations without blocking anything — and is built to flip to full
+          enforcement once a clean window confirms it breaks nothing legitimate.
+        </DocP>
+        <DocNote type="security" title="Fingerprints defend against a swapped key">
+          Because the registry is served by us, a dishonest server could in
+          principle hand a collaborator the wrong public key and interpose
+          itself. Each key carries a short SHA-256 fingerprint you can compare
+          out of band (in person, over a call) to catch exactly that. The
+          sealing mechanics — an ephemeral-ECDH ECIES sealed-box — are in the{" "}
+          <Link href="/docs/security" className="text-cyan-600 hover:underline dark:text-cyan-400">
+            encryption model
+          </Link>
+          .
+        </DocNote>
+        <DocNote type="warning" title="It shares the passphrase's fate">
+          Since the private key is wrapped under your passphrase, losing the
+          passphrase means it can no longer be unwrapped either — consistent with
+          the rest of zero-knowledge: nothing derived from your passphrase is
+          recoverable without it.
         </DocNote>
       </DocSection>
 
@@ -198,6 +258,9 @@ export default function KeyManagementPage() {
           items={[
             <Link key="a" href="/docs/folder-encryption" className="text-cyan-600 hover:underline dark:text-cyan-400">
               Per-folder encryption — add a second password to a sensitive folder
+            </Link>,
+            <Link key="d" href="/docs/shared-vaults" className="text-cyan-600 hover:underline dark:text-cyan-400">
+              Shared vaults — how your keypair seals a space key to collaborators
             </Link>,
             <Link key="b" href="/docs/threat-model" className="text-cyan-600 hover:underline dark:text-cyan-400">
               Threat model — where a weak passphrase or compromised device leaves you

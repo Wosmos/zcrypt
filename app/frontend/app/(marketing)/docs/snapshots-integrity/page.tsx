@@ -39,7 +39,8 @@ export default function SnapshotsIntegrityDocPage() {
     >
       <DocSection id="snapshots" title="Snapshots">
         <DocP>
-          A snapshot captures a <strong>point-in-time manifest of your current
+          Snapshots live under the <strong>Inventory</strong> tab in Tools. A
+          snapshot captures a <strong>point-in-time manifest of your current
           file list</strong> — a labelled record of what files existed in your
           vault when you took it. You can create snapshots, label them, list
           them, and delete them, giving you a timeline of how your vault&rsquo;s
@@ -60,11 +61,12 @@ export default function SnapshotsIntegrityDocPage() {
 
       <DocSection id="integrity" title="Integrity monitor">
         <DocP>
-          The integrity monitor records each file&rsquo;s <strong>SHA-256 hash
-          and size</strong> as a reference point, then compares the current file
-          against that reference to flag anything whose hash has{" "}
-          <strong>changed</strong>. Because the hash is computed over the
-          file&rsquo;s exact bytes, even a single altered byte changes it.
+          The integrity monitor — the <strong>Verify Files</strong> tab in
+          Tools — records each file&rsquo;s <strong>SHA-256 hash and size</strong>{" "}
+          as a reference point, then compares the current file against that
+          reference to flag anything whose hash has <strong>changed</strong>.
+          Because the hash is computed over the file&rsquo;s exact bytes, even a
+          single altered byte changes it.
         </DocP>
         <DocList
           items={[
@@ -96,10 +98,13 @@ export default function SnapshotsIntegrityDocPage() {
       <DocSection id="next" title="Where to go next">
         <DocList
           items={[
-            <Link key="a" href="/docs/downloading" className="text-cyan-600 hover:underline dark:text-cyan-400">
+            <Link key="a" href="/docs/timed-vaults" className="text-cyan-600 hover:underline dark:text-cyan-400">
+              Timed vaults — group files under a countdown label (Timed Vaults tab)
+            </Link>,
+            <Link key="b" href="/docs/downloading" className="text-cyan-600 hover:underline dark:text-cyan-400">
               Downloading — how files are fetched, verified, and decrypted
             </Link>,
-            <Link key="b" href="/docs/shared-vaults" className="text-cyan-600 hover:underline dark:text-cyan-400">
+            <Link key="c" href="/docs/shared-vaults" className="text-cyan-600 hover:underline dark:text-cyan-400">
               Shared vaults — collaborative vaults with role-based access
             </Link>,
           ]}

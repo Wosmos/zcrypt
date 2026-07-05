@@ -26,8 +26,10 @@ export const metadata: Metadata = {
 const toc = [
   { id: "byo", title: "Bring your own storage" },
   { id: "backends", title: "The four backends" },
+  { id: "routing", title: "How Auto picks a backend" },
   { id: "tokens", title: "Tokens & scopes" },
   { id: "telegram", title: "Telegram's token format" },
+  { id: "reachability", title: "When a backend can't be reached" },
   { id: "multiple", title: "Multiple accounts & managed storage" },
   { id: "next", title: "Where to go next" },
 ];
@@ -80,23 +82,69 @@ export default function PlatformAdaptersDocPage() {
             ],
             [
               <strong key="t">Hugging Face</strong>,
-              "~280 GB per repo",
+              "~90 GiB per repo",
               "Git LFS, private datasets",
-              "Highest per-repo capacity. Supports presigned direct upload, so large files stream straight to LFS storage instead of relaying through our server.",
+              "Free tier is 100 GB total per account (not per repo), so it fills fastest and zcrypt picks it last for automatic uploads. Supports presigned direct upload, so large files stream straight to LFS storage instead of relaying through our server.",
             ],
             [
               <strong key="t">Telegram</strong>,
-              "~50 MB per file",
+              "Unlimited — no repos",
               "Bot uploads to a chat/channel",
-              "No Git repos — your chat or channel is the storage. The Bot API caps uploads at 50 MB and downloads at 20 MB, so zcrypt transparently splits and reassembles parts.",
+              "The default primary backend: your chat or channel has no storage ceiling. The Bot API caps a single message at 50 MB up / 20 MB down, so zcrypt transparently splits chunks into ~19 MB parts and reassembles them on download.",
             ],
           ]}
         />
         <DocNote type="info" title="Capacities are guidance, not hard caps">
           These figures are the conservative thresholds zcrypt rotates at, chosen
-          to stay comfortably inside each platform&apos;s real limits. Your total
-          space is not one repo — it grows across as many repositories as you
-          need.
+          to stay comfortably inside each platform&apos;s real limits. On GitHub,
+          GitLab, and Telegram your total space is not one repo — it grows across
+          as many repositories (or, on Telegram, messages) as you need.
+        </DocNote>
+        <DocNote type="warning" title="Hugging Face is capped per account, not per repo">
+          Hugging Face&apos;s free tier is 100 GB of private storage for the whole
+          account, so adding more repos there adds no real capacity — the per-repo
+          threshold is kept under that account-wide ceiling on purpose. For more
+          Hugging Face room, connect another account, or lean on Telegram, which
+          has no ceiling at all.
+        </DocNote>
+      </DocSection>
+
+      <DocSection id="routing" title="How Auto picks a backend">
+        <DocP>
+          Each file lives on a single backend. When you upload without naming a
+          platform — the default &quot;Auto&quot; mode — zcrypt doesn&apos;t
+          choose at random, and it doesn&apos;t shove large files onto whichever
+          platform looks emptiest. It follows a fixed preference order:
+        </DocP>
+        <DocList
+          ordered
+          items={[
+            <>
+              <strong>Telegram</strong> — the primary backend, because its
+              storage is effectively unlimited.
+            </>,
+            <>
+              <strong>GitHub</strong>, then <strong>GitLab</strong> — capable git
+              fallbacks when no Telegram account is connected.
+            </>,
+            <>
+              <strong>Hugging Face</strong> — deliberately last, because its free
+              tier is a fixed 100 GB per account rather than per repo.
+            </>,
+          ]}
+        />
+        <DocP>
+          The practical upshot: a large file is kept on Telegram rather than being
+          auto-routed onto capacity-limited Hugging Face. If you&apos;d rather a
+          file land somewhere specific, pick the platform explicitly at upload
+          time — that always overrides Auto.
+        </DocP>
+        <DocNote type="info" title="Resume stays on the original platform">
+          Once an upload starts, zcrypt records the chosen platform and account
+          with the session on the server. If the transfer is interrupted and
+          picked back up — even from another device, or after clearing your
+          browser&apos;s storage — it resumes on that same platform from where it
+          left off, never restarting on a different backend.
         </DocNote>
       </DocSection>
 
@@ -176,6 +224,39 @@ export default function PlatformAdaptersDocPage() {
             </>,
           ]}
         />
+      </DocSection>
+
+      <DocSection id="reachability" title="When a backend can't be reached">
+        <DocP>
+          A connected token can still fail at runtime — the platform&apos;s API
+          might be down, DNS might not resolve, or the token might have been
+          revoked. When zcrypt can&apos;t build a working connection for a token,
+          it doesn&apos;t silently drop the account or pretend an upload
+          succeeded.
+        </DocP>
+        <DocList
+          items={[
+            <>
+              In <strong>Settings → Platform Tokens</strong> the account still
+              shows as connected but is flagged <strong>unreachable</strong>, with
+              a short reason such as &quot;unreachable: connection timed out&quot;,
+              &quot;unreachable: DNS lookup failed&quot;, or &quot;authentication
+              failed (token may be revoked)&quot;.
+            </>,
+            <>
+              A failed token isn&apos;t written off — it&apos;s only cached as
+              unreachable briefly (about a minute) and then retried, so a
+              transient outage clears on its own without you reconnecting.
+            </>,
+          ]}
+        />
+        <DocNote type="security" title="Error messages never leak your token">
+          The reason string is deliberately scrubbed of the underlying request
+          details. Telegram bot tokens live inside the API URL, so echoing a raw
+          transport error would expose them — zcrypt maps every failure to a fixed
+          set of safe, generic reasons instead of surfacing the platform&apos;s
+          error verbatim.
+        </DocNote>
       </DocSection>
 
       <DocSection id="multiple" title="Multiple accounts & managed storage">
