@@ -105,7 +105,7 @@ export function FolderShareModal({ folder, open, onOpenChange, files }: FolderSh
     setError("");
     setCreating(true);
     try {
-      const { url, shared, skipped } = await createFolderShareLink(
+      const { url, shared, skipped, nestingIncomplete } = await createFolderShareLink(
         folder.id,
         folder.name,
         folderFiles,
@@ -116,11 +116,17 @@ export function FolderShareModal({ folder, open, onOpenChange, files }: FolderSh
         }
       );
       setLink(url);
-      toast.success(
-        skipped > 0
-          ? `Folder link created — ${shared} file${shared === 1 ? "" : "s"} shared, ${skipped} skipped`
-          : `Folder link created — ${shared} file${shared === 1 ? "" : "s"}`
-      );
+      if (nestingIncomplete) {
+        toast.error(
+          "Link created, but the folder layout couldn't be read — its download will be flat. Recreate the link to include the folder structure."
+        );
+      } else {
+        toast.success(
+          skipped > 0
+            ? `Folder link created — ${shared} file${shared === 1 ? "" : "s"} shared, ${skipped} skipped`
+            : `Folder link created — ${shared} file${shared === 1 ? "" : "s"}`
+        );
+      }
       void queryClient.invalidateQueries({ queryKey: qk.folderShares(folder.id) });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create folder link");
@@ -152,7 +158,7 @@ export function FolderShareModal({ folder, open, onOpenChange, files }: FolderSh
 
   return (
     <Dialog open={open} onOpenChange={(o) => !creating && onOpenChange(o)}>
-      <DialogContent className="border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)]">
+      <DialogContent className="max-w-lg overflow-hidden border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FolderOpen className="h-4 w-4 text-[var(--color-accent)]" />
@@ -166,16 +172,21 @@ export function FolderShareModal({ folder, open, onOpenChange, files }: FolderSh
         </DialogHeader>
 
         {link ? (
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2">
+          <div className="min-w-0 space-y-3">
+            <div className="flex min-w-0 items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2">
               <Link2 className="h-4 w-4 flex-shrink-0 text-[var(--color-accent)]" />
-              <span className="min-w-0 flex-1 truncate font-mono text-xs text-[var(--color-text)]">{link}</span>
+              <input
+                readOnly
+                value={link}
+                onFocus={(e) => e.currentTarget.select()}
+                className="min-w-0 flex-1 select-all truncate bg-transparent font-mono text-xs text-[var(--color-text)] outline-none"
+              />
               <IconButton
                 icon={copied ? Check : Copy}
                 label="Copy link"
                 variant="ghost"
                 onClick={() => handleCopy(link)}
-                className="h-7 w-7"
+                className="h-7 w-7 flex-shrink-0"
                 iconClassName="h-3.5 w-3.5"
               />
             </div>

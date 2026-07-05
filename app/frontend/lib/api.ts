@@ -272,6 +272,11 @@ export function listFolders(parentId?: string | null): Promise<Folder[]> {
   return request<Folder[]>(`/api/folders${params}`);
 }
 
+/** A folder plus all of its live descendants (any depth) in one request. */
+export function listFolderSubtree(rootId: string): Promise<Folder[]> {
+  return request<Folder[]>(`/api/folders/tree?root=${encodeURIComponent(rootId)}`);
+}
+
 export function createFolder(data: FolderRequest): Promise<Folder> {
   return request<Folder>("/api/folders", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify(data) });
 }
@@ -699,6 +704,42 @@ export function revokeFolderShare(id: string): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/folder-shares/${id}`, { method: "DELETE" });
 }
 
+const shareSleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Fetch a public share endpoint with retries. Downloading a folder fires many
+ * requests concurrently, so a transient rate-limit (429) must not fail an
+ * otherwise-healthy file:
+ *   - 429      → wait (honoring Retry-After) and retry, up to a few times.
+ *   - network  → short backoff, retried a couple times.
+ *   - other    → returned as-is (a real 4xx/5xx like a missing chunk fails fast,
+ *                so the caller can skip it immediately).
+ */
+async function shareFetchRetry(url: string, headers: Record<string, string>): Promise<Response> {
+  const RL_MAX = 5; // rate-limit retries
+  const ERR_MAX = 2; // transient network retries
+  let rl = 0;
+  let err = 0;
+  for (;;) {
+    let res: Response;
+    try {
+      res = await fetch(url, { headers });
+    } catch (e) {
+      if (err++ >= ERR_MAX) throw e;
+      await shareSleep(Math.min(4000, 400 * 2 ** err));
+      continue;
+    }
+    if (res.status === 429 && rl < RL_MAX) {
+      rl++;
+      const ra = Number(res.headers.get("Retry-After"));
+      await res.arrayBuffer().catch(() => {}); // drain so the connection frees
+      await shareSleep(Number.isFinite(ra) && ra > 0 ? ra * 1000 : Math.min(8000, 500 * 2 ** rl));
+      continue;
+    }
+    return res;
+  }
+}
+
 // Public folder-link access (no auth, rate-limited). The optional password
 // unlocks the file listing for a password-protected link.
 export async function getFolderShareInfo(token: string, password?: string): Promise<FolderShareInfo> {
@@ -716,7 +757,7 @@ export async function getFolderShareFileMeta(
 ): Promise<FileMetaResponse> {
   const headers: Record<string, string> = {};
   if (password) headers["X-Share-Password"] = password;
-  const res = await fetch(`${API_BASE}/api/folder-share/${token}/files/${fileId}/meta`, { headers });
+  const res = await shareFetchRetry(`${API_BASE}/api/folder-share/${token}/files/${fileId}/meta`, headers);
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error || "Failed to get file metadata");
@@ -732,7 +773,7 @@ export async function getFolderShareChunk(
 ): Promise<{ data: ArrayBuffer; sha256: string; compressed: boolean }> {
   const headers: Record<string, string> = {};
   if (password) headers["X-Share-Password"] = password;
-  const res = await fetch(`${API_BASE}/api/folder-share/${token}/files/${fileId}/chunks/${index}`, { headers });
+  const res = await shareFetchRetry(`${API_BASE}/api/folder-share/${token}/files/${fileId}/chunks/${index}`, headers);
   if (!res.ok) throw new Error("Failed to download chunk");
   return {
     data: await res.arrayBuffer(),

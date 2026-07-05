@@ -24,6 +24,26 @@ function keyFromFragment(): string | null {
   return match ? match[1] : null;
 }
 
+/**
+ * Read the optional per-file directory manifest from the URL fragment
+ * (`&paths=<gzip+base64>`). Maps file_id -> relative directory so "Download all"
+ * can rebuild the exact folder tree. Stays entirely client-side. Returns {} if
+ * absent or unreadable — callers then fall back to a flat zip.
+ */
+async function readPathManifest(): Promise<Record<string, string>> {
+  if (typeof window === "undefined") return {};
+  const m = window.location.hash.match(/paths=([A-Za-z0-9+/=]+)/);
+  if (!m) return {};
+  try {
+    const { gunzipSync, strFromU8 } = await import("fflate");
+    const { fromBase64 } = await import("@/lib/crypto");
+    const parsed = JSON.parse(strFromU8(gunzipSync(fromBase64(m[1]))));
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
+
 function mimeForFile(filename: string): string {
   const ext = filename.split(".").pop()?.toLowerCase() || "";
   const map: Record<string, string> = {
@@ -31,6 +51,21 @@ function mimeForFile(filename: string): string {
     pdf: "application/pdf", txt: "text/plain", mp4: "video/mp4", mp3: "audio/mpeg", zip: "application/zip",
   };
   return map[ext] || "application/octet-stream";
+}
+
+/** Trigger a browser "save as" for a set of bytes. */
+function saveBlob(name: string, bytes: Uint8Array, mime: string) {
+  // Copy into a fresh ArrayBuffer so Blob gets contiguous, offset-free bytes.
+  const buf = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(buf).set(bytes);
+  const url = URL.createObjectURL(new Blob([buf], { type: mime }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 export default function FolderSharePage() {
@@ -41,6 +76,8 @@ export default function FolderSharePage() {
   const [password, setPassword] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [busy, setBusy] = useState<string | null>(null); // file_id currently downloading, or "all"
+  const [zipProgress, setZipProgress] = useState<{ done: number; total: number } | null>(null);
+  const [noticeMsg, setNoticeMsg] = useState("");
 
   // Initial load: needs the key from the fragment.
   useEffect(() => {
@@ -86,10 +123,10 @@ export default function FolderSharePage() {
     }
   }, [token, password]);
 
-  /** Download + decrypt one file, then save it to disk. */
-  const downloadFile = useCallback(
-    async (file: FolderShareFileEntry) => {
-      if (!token || !folderKey) return;
+  /** Download + decrypt one file's bytes (no save). Returns the plaintext + its name. */
+  const fetchDecryptFile = useCallback(
+    async (file: FolderShareFileEntry): Promise<{ name: string; bytes: Uint8Array }> => {
+      if (!token || !folderKey) throw new Error("This link is missing its decryption key.");
       const { unwrapKey, decryptChunk, sha256Hex, fromBase64 } = await import("@/lib/crypto");
       const { getZstdCodec } = await import("@/lib/zstd");
       const zstd = await getZstdCodec();
@@ -120,18 +157,18 @@ export default function FolderSharePage() {
       if ((await sha256Hex(full)) !== meta.sha256) {
         throw new Error("Integrity check failed for " + meta.original_name);
       }
-
-      const blob = new Blob([full], { type: mimeForFile(meta.original_name) });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = meta.original_name;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      return { name: meta.original_name, bytes: full };
     },
     [token, folderKey, password]
+  );
+
+  /** Decrypt one file and save it straight to disk. */
+  const downloadFile = useCallback(
+    async (file: FolderShareFileEntry) => {
+      const { name, bytes } = await fetchDecryptFile(file);
+      saveBlob(name, bytes, mimeForFile(name));
+    },
+    [fetchDecryptFile]
   );
 
   const handleDownloadOne = useCallback(
@@ -152,17 +189,92 @@ export default function FolderSharePage() {
   const handleDownloadAll = useCallback(async () => {
     if (!info?.files) return;
     setErrorMsg("");
+    setNoticeMsg("");
     setBusy("all");
+    setZipProgress({ done: 0, total: info.files.length });
     try {
-      for (const f of info.files) {
-        await downloadFile(f);
+      const { zipSync } = await import("fflate");
+      const manifest = await readPathManifest();
+      const entries: Record<string, Uint8Array> = {};
+      const used = new Set<string>();
+      const failed: string[] = [];
+
+      // Assemble one zip entry (relative path + de-duped name). Runs synchronously
+      // right after a file resolves, so `used`/`entries` stay consistent even
+      // though files are fetched concurrently.
+      const addEntry = (fileId: string, name: string, bytes: Uint8Array) => {
+        // Nest under the file's relative directory when the share carries one;
+        // otherwise the file lands at the zip root. fflate treats "/" as a
+        // directory boundary, so "sub/nested/report.pdf" recreates the tree.
+        const dir = (manifest[fileId] || "").replace(/^\/+|\/+$/g, "");
+        const safeName = name.replace(/[/\\]/g, "_") || fileId;
+        let entry = dir ? `${dir}/${safeName}` : safeName;
+        if (used.has(entry)) {
+          // De-dup collisions, preserving any directory prefix and extension.
+          const slash = entry.lastIndexOf("/");
+          const prefix = slash >= 0 ? entry.slice(0, slash + 1) : "";
+          const base = slash >= 0 ? entry.slice(slash + 1) : entry;
+          const dot = base.lastIndexOf(".");
+          const stem = dot > 0 ? base.slice(0, dot) : base;
+          const ext = dot > 0 ? base.slice(dot) : "";
+          let n = 1;
+          while (used.has(`${prefix}${stem} (${n})${ext}`)) n++;
+          entry = `${prefix}${stem} (${n})${ext}`;
+        }
+        used.add(entry);
+        entries[entry] = bytes;
+      };
+
+      // Fetch/decrypt several files at once — the slow part is per-file network +
+      // the backend fetching from the storage platform, so overlapping them cuts
+      // wall-clock roughly Nx. A broken file (missing from storage) is skipped,
+      // not fatal. fflate needs every file's bytes in memory to build the zip, so
+      // concurrency is capped to keep peak memory bounded on large folders.
+      const queue = [...info.files];
+      const runWorker = async () => {
+        for (;;) {
+          const f = queue.shift();
+          if (!f) return;
+          try {
+            const { name, bytes } = await fetchDecryptFile(f);
+            addEntry(f.file_id, name, bytes);
+          } catch {
+            failed.push(f.name || f.file_id);
+          } finally {
+            setZipProgress((p) => (p ? { ...p, done: p.done + 1 } : p));
+          }
+        }
+      };
+      const CONCURRENCY = 4;
+      await Promise.all(
+        Array.from({ length: Math.min(CONCURRENCY, info.files.length) }, runWorker)
+      );
+
+      const okCount = Object.keys(entries).length;
+      if (okCount === 0) {
+        throw new Error(
+          `None of the ${info.files.length} files could be downloaded — they may be missing from storage.`
+        );
+      }
+
+      const zipped = zipSync(entries);
+      const zipName = `${(info.name || "shared-folder").replace(/[/\\]/g, "_")}.zip`;
+      saveBlob(zipName, zipped, "application/zip");
+
+      if (failed.length > 0) {
+        const shown = failed.slice(0, 4).join(", ");
+        const more = failed.length > 4 ? ` and ${failed.length - 4} more` : "";
+        setNoticeMsg(
+          `Downloaded ${okCount} of ${info.files.length} files. Couldn't fetch ${shown}${more} — those files appear to be missing from storage (an incomplete upload).`
+        );
       }
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : "Download failed");
     } finally {
       setBusy(null);
+      setZipProgress(null);
     }
-  }, [info, downloadFile]);
+  }, [info, fetchDecryptFile]);
 
   return (
     <div className="w-full max-w-lg animate-fade-in">
@@ -262,16 +374,24 @@ export default function FolderSharePage() {
             </ul>
 
             {errorMsg && <p className="text-sm text-red-500">{errorMsg}</p>}
+            {noticeMsg && (
+              <p className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-600 dark:text-amber-400">
+                {noticeMsg}
+              </p>
+            )}
 
             {(info.files?.length ?? 0) > 1 && (
               <Button onClick={handleDownloadAll} disabled={busy !== null} className="w-full">
                 {busy === "all" ? (
                   <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Downloading…
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />{" "}
+                    {zipProgress
+                      ? `Preparing zip… ${zipProgress.done}/${zipProgress.total}`
+                      : "Preparing zip…"}
                   </>
                 ) : (
                   <>
-                    <Download className="h-3.5 w-3.5" /> Download all
+                    <Download className="h-3.5 w-3.5" /> Download all (.zip)
                   </>
                 )}
               </Button>

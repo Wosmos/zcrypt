@@ -37,6 +37,35 @@ func (s *Server) HandleListFolders(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(folders)
 }
 
+// HandleListFolderSubtree returns a folder and all of its live descendants (any
+// depth) in one response. Used by folder sharing to assign each file its
+// relative path reliably in a single request.
+// GET /api/folders/tree?root=<folderId>
+func (s *Server) HandleListFolderSubtree(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID := GetUserID(r)
+
+	rootID := r.URL.Query().Get("root")
+	if rootID == "" {
+		http.Error(w, `{"error":"root required"}`, http.StatusBadRequest)
+		return
+	}
+
+	folders, err := s.db.ListFolderSubtree(ctx, userID, rootID)
+	if err != nil {
+		log.Printf("folders: subtree: %v", err)
+		http.Error(w, `{"error":"failed to list folder subtree"}`, http.StatusInternalServerError)
+		return
+	}
+
+	if folders == nil {
+		folders = []types.Folder{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(folders)
+}
+
 // HandleCreateFolder creates a new folder.
 // POST /api/folders
 func (s *Server) HandleCreateFolder(w http.ResponseWriter, r *http.Request) {
