@@ -37,10 +37,10 @@ const tabs: TabDef[] = [
   { id: "send", label: "Send File", icon: Send, Content: SendTool },
   { id: "pad", label: "Text Pad", icon: FileText, Content: PadTool },
   { id: "transfer", label: "Transfer", icon: Wifi, Content: TransferTool },
-  { id: "snapshots", label: "Snapshots", icon: Layers, Content: SnapshotsTab },
-  { id: "integrity", label: "Integrity", icon: ShieldCheck, Content: IntegrityTab },
-  { id: "expiring", label: "Expiring", icon: Clock, Content: ExpiringTab },
-  { id: "devices", label: "Devices", icon: MonitorSmartphone, Content: DevicesTab },
+  { id: "snapshots", label: "Inventory", icon: Layers, Content: SnapshotsTab },
+  { id: "integrity", label: "Verify Files", icon: ShieldCheck, Content: IntegrityTab },
+  { id: "expiring", label: "Timed Vaults", icon: Clock, Content: ExpiringTab },
+  { id: "devices", label: "Sync & Offline", icon: MonitorSmartphone, Content: DevicesTab },
 ];
 
 export default function ToolsPage() {
