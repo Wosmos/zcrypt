@@ -47,6 +47,10 @@ function coverGradient(seed: string): string {
 let lastVolume = 1;
 let lastSpeed = 1;
 let lastLoop = false;
+// Whether the user intends playback. Set only by explicit play/pause (not by
+// the pause the browser fires when an element unmounts on track switch), so the
+// next track auto-continues if you were listening, and stays put if you weren't.
+let keepPlaying = false;
 
 function formatTime(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
@@ -101,7 +105,10 @@ function useMediaController() {
     };
     const onPlay = () => setPlaying(true);
     const onPause = () => setPlaying(false);
-    const onEnded = () => setPlaying(false);
+    const onEnded = () => {
+      setPlaying(false);
+      keepPlaying = false;
+    };
     const onVolume = () => {
       setVolume(el.volume);
       setMuted(el.muted);
@@ -150,8 +157,10 @@ function useMediaController() {
     const el = mediaRef.current;
     if (!el) return;
     if (el.paused) {
+      keepPlaying = true;
       void el.play().catch(() => setPlaying(false));
     } else {
+      keepPlaying = false;
       el.pause();
     }
   }, [mediaRef]);
@@ -673,6 +682,7 @@ function AudioPlayer({
         ref={controller.ref as React.RefObject<HTMLAudioElement>}
         src={src}
         preload="metadata"
+        autoPlay={keepPlaying}
         className="hidden"
       />
     </div>
@@ -800,6 +810,7 @@ function VideoPlayer({
         poster={poster}
         preload="metadata"
         playsInline
+        autoPlay={keepPlaying}
         onClick={togglePlay}
         className="h-full w-full bg-black object-contain"
       >
