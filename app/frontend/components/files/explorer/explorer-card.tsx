@@ -352,7 +352,7 @@ function FileCardInner({
             onSelect(file.id);
           }}
           className={cn(
-            "absolute left-2.5 top-2.5 z-10 flex h-6 w-6 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface)]/90 backdrop-blur-sm transition-colors hover:border-[var(--color-accent)]",
+            "absolute left-2.5 top-2.5 z-10 flex h-6 w-6 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] transition-colors hover:border-[var(--color-accent)]",
             FOCUS_RING
           )}
           aria-label={selected ? `Deselect ${file.original_name}` : `Select ${file.original_name}`}
