@@ -13,12 +13,12 @@ import {
 export const metadata: Metadata = {
   title: "API reference | zcrypt Docs",
   description:
-    "The zcrypt REST API: base URL, Bearer-JWT authentication, JSON request and response bodies, the chunked upload and download endpoints, sharing, the SSE event stream, and admin routes.",
+    "The zcrypt REST API: base URL, Bearer-JWT authentication, JSON request and response bodies, chunked upload and download, file and folder sharing, shared vaults and per-user keys, timed vaults, snapshots and integrity, offline pins, the encrypted clipboard, sync folders, the SSE event stream, and admin routes.",
   alternates: { canonical: "https://zcrypt.cloud/docs/api" },
   openGraph: {
     title: "API reference | zcrypt Docs",
     description:
-      "REST endpoints, Bearer-JWT auth, chunked upload/download, sharing, and the SSE event stream for zcrypt.",
+      "REST endpoints, Bearer-JWT auth, chunked upload/download, sharing, shared vaults, per-user keys, and the SSE event stream for zcrypt.",
     url: "https://zcrypt.cloud/docs/api",
   },
 };
@@ -30,7 +30,14 @@ const toc = [
   { id: "upload", title: "Upload (chunked)" },
   { id: "download", title: "Download (chunked)" },
   { id: "sharing", title: "Sharing" },
+  { id: "folder-shares", title: "Folder links" },
+  { id: "spaces", title: "Shared vaults (spaces)" },
+  { id: "keys", title: "User keys" },
   { id: "send-pad", title: "Send & Pad" },
+  { id: "vaults", title: "Timed vaults" },
+  { id: "snapshots", title: "Snapshots & integrity" },
+  { id: "devices", title: "Offline & clipboard" },
+  { id: "sync", title: "Sync folders" },
   { id: "events", title: "Events (SSE)" },
   { id: "config", title: "Quota & config" },
   { id: "admin", title: "Admin" },
@@ -71,7 +78,8 @@ export default function ApiDocPage() {
         <DocNote type="info" title="Stability">
           This documents the routes the web and terminal apps use today. zcrypt
           is open source and pre-1.0 — treat the surface as evolving, and read{" "}
-          <code>app/backend/main.go</code> as the authoritative route table.
+          <code>RegisterRoutes</code> in <code>app/backend/cmd/server.go</code>{" "}
+          as the authoritative route table.
         </DocNote>
       </DocSection>
 
@@ -196,6 +204,82 @@ export default function ApiDocPage() {
         />
       </DocSection>
 
+      <DocSection id="folder-shares" title="Folder links">
+        <DocP>
+          A folder link publishes a set of files behind a single public token.
+          The link key is generated on the client and lives only in the URL
+          fragment &mdash; it is never sent to the server &mdash; and each
+          file&rsquo;s content key is re-wrapped under it, so the public routes
+          only ever return opaque ciphertext. A link can carry a password (sent
+          in the <code>X-Share-Password</code> header), an expiry, and a download
+          cap. The public read routes are unauthenticated and rate-limited.
+        </DocP>
+        <DocTable
+          head={["Method", "Path", "Purpose"]}
+          rows={[
+            ["POST", <code key="p">/api/folder-shares</code>, "Create a folder link (authenticated)."],
+            ["GET", <code key="p">/api/folder-shares</code>, "List your folder links."],
+            ["DELETE", <code key="p">/api/folder-shares/{`{id}`}</code>, "Revoke a folder link."],
+            ["GET", <code key="p">/api/folder-share/{`{token}`}</code>, "Public: link info and the file listing."],
+            ["GET", <code key="p">/api/folder-share/{`{token}`}/files/{`{fid}`}/meta</code>, "Public: one file's metadata + wrapped key."],
+            ["GET", <code key="p">/api/folder-share/{`{token}`}/files/{`{fid}`}/chunks/{`{idx}`}</code>, "Public: fetch a chunk of a linked file."],
+          ]}
+        />
+      </DocSection>
+
+      <DocSection id="spaces" title="Shared vaults (spaces)">
+        <DocP>
+          A shared vault (a &ldquo;space&rdquo;) lets several accounts share
+          files under role-based access. The space has its own random key that
+          the client seals to each member&rsquo;s public key (see{" "}
+          <em>User keys</em> below), and every shared file&rsquo;s content key is
+          re-wrapped under the space key. The server only ever stores these
+          opaque grants &mdash; it can add, remove, and rotate them but never
+          open them. Membership changes are owner-only; adding or removing files
+          is limited to editors and admins.
+        </DocP>
+        <DocTable
+          head={["Method", "Path", "Purpose"]}
+          rows={[
+            ["GET", <code key="p">/api/shared-vaults</code>, "List spaces you belong to."],
+            ["POST", <code key="p">/api/shared-vaults</code>, "Create a space."],
+            ["GET", <code key="p">/api/shared-vaults/{`{id}`}</code>, "Space detail with members and files."],
+            ["DELETE", <code key="p">/api/shared-vaults/{`{id}`}</code>, "Delete a space (owner)."],
+            ["POST", <code key="p">/api/shared-vaults/{`{id}`}/members</code>, "Add a member with a sealed grant (owner)."],
+            ["DELETE", <code key="p">/api/shared-vaults/{`{id}`}/members/{`{uid}`}</code>, "Remove a member (owner)."],
+            ["POST", <code key="p">/api/shared-vaults/{`{id}`}/files</code>, "Share a file into the space (editor/admin)."],
+            ["DELETE", <code key="p">/api/shared-vaults/{`{id}`}/files/{`{fid}`}</code>, "Unshare a file (editor/admin)."],
+            ["POST", <code key="p">/api/shared-vaults/{`{id}`}/rotate</code>, "Rotate the space key after a change (owner)."],
+          ]}
+        />
+        <DocNote type="security" title="Rotation is what makes removal a revocation">
+          Rotating re-seals a fresh space key to the remaining members and
+          re-wraps every file&rsquo;s key under it, so a removed member&rsquo;s
+          old grant &mdash; and any copy of the old key &mdash; can no longer
+          open the space&rsquo;s files.
+        </DocNote>
+      </DocSection>
+
+      <DocSection id="keys" title="User keys">
+        <DocP>
+          To seal a space key to another account, every user gets an X25519
+          keypair generated on the client. The private key is wrapped under your
+          passphrase-derived key and stored only as ciphertext the server
+          can&rsquo;t read; the public key and a short fingerprint are stored in
+          the clear so others can seal grants to you. These routes never return
+          anyone else&rsquo;s private key.
+        </DocP>
+        <DocTable
+          head={["Method", "Path", "Purpose"]}
+          rows={[
+            ["GET", <code key="p">/api/keys/me</code>, "Your key record (incl. the wrapped private key), or null."],
+            ["POST", <code key="p">/api/keys</code>, "Publish or rotate your keypair."],
+            ["GET", <code key="p">/api/keys/lookup</code>, "Resolve a user's public key by email or username (identifier query)."],
+            ["GET", <code key="p">/api/keys/user/{`{id}`}</code>, "Fetch another user's public key by id."],
+          ]}
+        />
+      </DocSection>
+
       <DocSection id="send-pad" title="Send & Pad">
         <DocP>
           <strong>Send</strong> lets anyone upload an encrypted file without an
@@ -215,6 +299,90 @@ export default function ApiDocPage() {
         />
       </DocSection>
 
+      <DocSection id="vaults" title="Timed vaults">
+        <DocP>
+          A timed vault groups files under a name and a countdown. The expiry is
+          a label, not a delete trigger &mdash; deleting a vault never deletes the
+          files it references. The expiry must be at least an hour out.
+        </DocP>
+        <DocTable
+          head={["Method", "Path", "Purpose"]}
+          rows={[
+            ["GET", <code key="p">/api/vaults</code>, "List your timed vaults."],
+            ["POST", <code key="p">/api/vaults</code>, "Create one (name, expires_at, file ids)."],
+            ["GET", <code key="p">/api/vaults/{`{id}`}</code>, "Get a timed vault."],
+            ["DELETE", <code key="p">/api/vaults/{`{id}`}</code>, "Delete the vault (not its files)."],
+          ]}
+        />
+      </DocSection>
+
+      <DocSection id="snapshots" title="Snapshots & integrity">
+        <DocP>
+          Snapshots capture a point-in-time manifest of your file list; the
+          integrity monitor records each file&rsquo;s SHA-256 and size so a later
+          check can flag a hash that changed. Both are metadata-only &mdash; no
+          file contents are stored or restored. See{" "}
+          <Link href="/docs/snapshots-integrity" className="text-cyan-600 hover:underline dark:text-cyan-400">
+            Snapshots &amp; integrity
+          </Link>
+          .
+        </DocP>
+        <DocTable
+          head={["Method", "Path", "Purpose"]}
+          rows={[
+            ["GET", <code key="p">/api/snapshots</code>, "List vault snapshots."],
+            ["POST", <code key="p">/api/snapshots</code>, "Capture a new snapshot."],
+            ["GET", <code key="p">/api/snapshots/{`{id}`}</code>, "Get one snapshot."],
+            ["DELETE", <code key="p">/api/snapshots/{`{id}`}</code>, "Delete a snapshot."],
+            ["GET", <code key="p">/api/integrity</code>, "List integrity references."],
+            ["POST", <code key="p">/api/integrity</code>, "Record a file's hash + size reference."],
+            ["POST", <code key="p">/api/integrity/check</code>, "Check a file against its latest reference."],
+            ["GET", <code key="p">/api/integrity/changes</code>, "List files whose hash no longer matches."],
+          ]}
+        />
+      </DocSection>
+
+      <DocSection id="devices" title="Offline & clipboard">
+        <DocP>
+          Offline pins mark files to keep available on a device; the encrypted
+          clipboard syncs small snippets between your own devices. Clipboard
+          items are encrypted on the client (the server stores only ciphertext,
+          capped at 512&nbsp;KB per item) and a push notifies your other devices
+          over the event stream.
+        </DocP>
+        <DocTable
+          head={["Method", "Path", "Purpose"]}
+          rows={[
+            ["GET", <code key="p">/api/offline</code>, "List offline pins (optional device_id)."],
+            ["POST", <code key="p">/api/offline</code>, "Pin a file for offline access."],
+            ["DELETE", <code key="p">/api/offline/{`{fileId}`}</code>, "Unpin a file."],
+            ["POST", <code key="p">/api/clipboard</code>, "Push an encrypted clipboard item (text / image / link)."],
+            ["GET", <code key="p">/api/clipboard</code>, "List recent clipboard items."],
+            ["GET", <code key="p">/api/clipboard/{`{id}`}</code>, "Fetch an item's encrypted bytes."],
+            ["DELETE", <code key="p">/api/clipboard/{`{id}`}</code>, "Delete a clipboard item."],
+          ]}
+        />
+      </DocSection>
+
+      <DocSection id="sync" title="Sync folders">
+        <DocP>
+          Sync folders are a per-device registry of local folders the desktop or
+          terminal client keeps in sync. The server stores only the configuration
+          and the stats a client reports back &mdash; the actual file syncing
+          happens on your machine.
+        </DocP>
+        <DocTable
+          head={["Method", "Path", "Purpose"]}
+          rows={[
+            ["GET", <code key="p">/api/sync/folders</code>, "List sync-folder configs."],
+            ["POST", <code key="p">/api/sync/folders</code>, "Register a folder for sync."],
+            ["PUT", <code key="p">/api/sync/folders/{`{id}`}</code>, "Update a folder (enable/label)."],
+            ["PUT", <code key="p">/api/sync/folders/{`{id}`}/stats</code>, "Report sync results (file count, total size)."],
+            ["DELETE", <code key="p">/api/sync/folders/{`{id}`}</code>, "Remove a folder config."],
+          ]}
+        />
+      </DocSection>
+
       <DocSection id="events" title="Events (SSE)">
         <DocP>
           Real-time progress (uploads, syncs) streams over Server-Sent Events.
@@ -224,9 +392,12 @@ export default function ApiDocPage() {
         </DocP>
         <DocCode label="text/event-stream">{`GET /api/events?token=<access-token>`}</DocCode>
         <DocP>
-          A separate WebSocket endpoint, <code>GET /api/transfer/ws</code>, backs
-          live device-to-device transfer. Both long-lived endpoints bypass the
-          per-request rate limiter.
+          The stream carries upload and sync progress plus a{" "}
+          <code>clipboard</code> event, emitted to your other connections when a
+          new clipboard item is pushed. A separate WebSocket endpoint,{" "}
+          <code>GET /api/transfer/ws</code>, backs live device-to-device
+          transfer. Both long-lived endpoints bypass the per-request rate
+          limiter.
         </DocP>
       </DocSection>
 

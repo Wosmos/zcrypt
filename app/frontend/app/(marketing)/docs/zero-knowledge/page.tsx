@@ -12,12 +12,12 @@ import {
 export const metadata: Metadata = {
   title: "Zero-knowledge architecture | zcrypt Docs",
   description:
-    "What zcrypt can and cannot see. An honest, line-by-line account of what the server stores — encrypted file contents, encrypted folder names, file metadata — and the single non-zero-knowledge surface: your storage-provider tokens.",
+    "What zcrypt can and cannot see. An honest, line-by-line account of what the server stores — encrypted file contents, encrypted folder names, file metadata, a registry of public keys for sharing — and the single non-zero-knowledge surface: your storage-provider tokens.",
   alternates: { canonical: "https://zcrypt.cloud/docs/zero-knowledge" },
   openGraph: {
     title: "Zero-knowledge architecture | zcrypt Docs",
     description:
-      "Exactly what the zcrypt server stores and what it can never read — including the one honest exception involving storage-provider tokens.",
+      "Exactly what the zcrypt server stores and what it can never read — including how sharing stays zero-knowledge and the one honest exception involving storage-provider tokens.",
     url: "https://zcrypt.cloud/docs/zero-knowledge",
   },
 };
@@ -26,6 +26,7 @@ const toc = [
   { id: "meaning", title: "What zero-knowledge means here" },
   { id: "stored", title: "What the server stores" },
   { id: "never", title: "What the server never sees" },
+  { id: "sharing", title: "Sharing stays zero-knowledge" },
   { id: "names", title: "The honest nuance: file names" },
   { id: "tokens", title: "The one exception: storage tokens" },
   { id: "next", title: "Where to go next" },
@@ -80,6 +81,21 @@ export default function ZeroKnowledgePage() {
               "Folder names are encrypted client-side; we store only ciphertext",
             ],
             [
+              "Your public key + fingerprint",
+              "Yes",
+              "Published so others can share to you; a public key reveals nothing sensitive",
+            ],
+            [
+              "Your wrapped private key",
+              "No",
+              "X25519 sharing key, encrypted under your passphrase-derived key",
+            ],
+            [
+              "Sealed sharing grants",
+              "No",
+              "A shared-space key sealed to each member's public key; only they can open it",
+            ],
+            [
               "File sizes & chunk count",
               "Yes",
               "Original, compressed, and encrypted sizes; number of chunks",
@@ -130,6 +146,19 @@ export default function ZeroKnowledgePage() {
               device before upload.
             </>,
             <>
+              <strong>Your X25519 private key.</strong> The private half of your
+              sharing keypair is wrapped under your passphrase before it is
+              stored; we hold only ciphertext we cannot open.
+            </>,
+            <>
+              <strong>Shared-space keys.</strong> When you share, the key is{" "}
+              <em>sealed</em> to the recipient&apos;s public key; only their
+              private key can open it, never the server. See{" "}
+              <Link href="#sharing" className="text-cyan-600 hover:underline dark:text-cyan-400">
+                below
+              </Link>.
+            </>,
+            <>
               <strong>Any per-folder password.</strong> A protected folder is
               verified locally; the password never reaches us. See{" "}
               <Link href="/docs/folder-encryption" className="text-cyan-600 hover:underline dark:text-cyan-400">
@@ -144,6 +173,48 @@ export default function ZeroKnowledgePage() {
           metadata. They cannot decrypt a single file. A subpoena produces the
           same useless set — we cannot comply with a demand to read your data
           because we have no means to.
+        </DocNote>
+      </DocSection>
+
+      <DocSection id="sharing" title="Sharing stays zero-knowledge">
+        <DocP>
+          Sharing with another zcrypt user does not open a back door. Every
+          account publishes an <strong>X25519 public key</strong> to a registry
+          we keep in the clear, while the matching private key is wrapped under
+          that user&apos;s passphrase and is opaque to us. To share a{" "}
+          <Link href="/docs/shared-vaults" className="text-cyan-600 hover:underline dark:text-cyan-400">
+            space
+          </Link>{" "}
+          and its files, your device <em>seals</em> the space key to the
+          recipient&apos;s public key — an operation only their private key can
+          reverse.
+        </DocP>
+        <DocList
+          items={[
+            <>
+              We store the sealed grant and the space-wrapped file envelopes, and
+              can read <strong>neither</strong>. The plaintext space key exists
+              only on members&apos; devices.
+            </>,
+            <>
+              The server is a <strong>directory of public keys and a courier for
+              sealed blobs</strong> — never a party to the key exchange itself.
+            </>,
+            <>
+              Removing a member <strong>rotates</strong> the space key and
+              re-seals it to whoever remains, so a revoked grant opens nothing.
+            </>,
+          ]}
+        />
+        <DocNote type="security" title="Trust the fingerprint, not just the server">
+          Because we serve the public-key registry, a dishonest server could try
+          to substitute a key it controls. Each key carries a short SHA-256
+          fingerprint members can compare out of band to catch that. The exact
+          sealed-box construction is in the{" "}
+          <Link href="/docs/security" className="text-cyan-600 hover:underline dark:text-cyan-400">
+            encryption model
+          </Link>
+          .
         </DocNote>
       </DocSection>
 

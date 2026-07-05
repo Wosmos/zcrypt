@@ -11,7 +11,7 @@ import {
 export const metadata: Metadata = {
   title: "Folders & the File Explorer | zcrypt Docs",
   description:
-    "How folders work in zcrypt: create and nest them, navigate with breadcrumbs, switch between grid and list views, sort, and search — with folder names encrypted on your device.",
+    "How folders work in zcrypt: create and nest them, navigate with breadcrumbs, switch between grid and list views, sort, and search — with macOS-style folder icons and folder names encrypted on your device.",
   alternates: { canonical: "https://zcrypt.cloud/docs/folders" },
   openGraph: {
     title: "Folders & the File Explorer | zcrypt Docs",
@@ -25,6 +25,7 @@ const toc = [
   { id: "creating", title: "Creating folders" },
   { id: "navigating", title: "Navigating with breadcrumbs" },
   { id: "views", title: "Grid, list, and sorting" },
+  { id: "appearance", title: "How your drive looks" },
   { id: "search", title: "Searching and filtering" },
   { id: "names", title: "Encrypted folder names" },
   { id: "next", title: "Where to go next" },
@@ -79,6 +80,28 @@ export default function FoldersDocPage() {
           type, size, modified date, or <em>Saved</em> — how much space compression
           reclaimed for each file. A footer tallies the folders and files in the
           current location.
+        </DocP>
+      </DocSection>
+
+      <DocSection id="appearance" title="How your drive looks">
+        <DocP>
+          Folders are drawn as big, filled <strong>macOS-style folder
+          icons</strong>, tinted with your theme&rsquo;s accent color. zcrypt
+          marks each one by name: a folder called <em>Documents</em>,{" "}
+          <em>Downloads</em>, <em>Music</em>, <em>Pictures</em>, <em>Code</em>,
+          or <em>Work</em> — and dozens of other common names — gets a matching
+          glyph, and anything unrecognized falls back to its initial letter. A
+          password-protected or locked folder shows a <strong>padlock</strong>{" "}
+          instead.
+        </DocP>
+        <DocP>
+          Files sit alongside them as macOS-style tiles: image and video files
+          show a live thumbnail, while other types show a page tile with a
+          colored type icon and the file&rsquo;s extension. You can also pick a{" "}
+          <strong>color theme</strong> for the app in Settings — the choice is
+          saved per device — and the interface uses soft <em>squircle</em>{" "}
+          corners on browsers that support them, with clean rounded corners
+          everywhere else.
         </DocP>
       </DocSection>
 

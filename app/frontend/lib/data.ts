@@ -531,9 +531,10 @@ export const docsNav: DocsNavGroup[] = [
     summary: "Get files to other people and your other devices.",
     links: [
       { title: "Share links", href: "/docs/sharing", desc: "Share a file with an optional password, expiry, and download limit." },
+      { title: "Share a folder", href: "/docs/folder-sharing", desc: "One public link for a whole folder, read-only and still end-to-end encrypted.", badge: "New" },
       { title: "Anonymous Send", href: "/docs/send", desc: "Send an encrypted file without an account." },
       { title: "Encrypted Pad", href: "/docs/pad", desc: "Share a one-time encrypted note." },
-      { title: "Sync & device transfer", href: "/docs/sync-transfer", desc: "Encrypted clipboard sync and device-to-device transfer." },
+      { title: "Sync & device transfer", href: "/docs/sync-transfer", desc: "Offline pins, encrypted clipboard sync, folder sync, and device-to-device transfer." },
     ],
   },
   {
@@ -542,7 +543,7 @@ export const docsNav: DocsNavGroup[] = [
     links: [
       { title: "How it works", href: "/docs/how-it-works", desc: "A file's journey: compress, encrypt, chunk, upload." },
       { title: "Uploading", href: "/docs/uploading", desc: "Compression, encryption, chunking, and direct uploads." },
-      { title: "Downloading", href: "/docs/downloading", desc: "Fetching, verifying, and decrypting your files." },
+      { title: "Downloading", href: "/docs/downloading", desc: "Fetching, decrypting, and streaming large files to disk." },
       { title: "Transfer manager", href: "/docs/transfer-manager", desc: "Pause, resume, retry, and track every transfer." },
       { title: "Bulk operations", href: "/docs/bulk", desc: "Download many files as a ZIP, or bulk-delete." },
     ],
@@ -554,7 +555,8 @@ export const docsNav: DocsNavGroup[] = [
       { title: "Decoy profile", href: "/docs/decoy-profile", desc: "A second password that opens an innocent-looking decoy vault." },
       { title: "Dead man's switch", href: "/docs/dead-mans-switch", desc: "Notify a trusted contact if you stop checking in." },
       { title: "Snapshots & integrity", href: "/docs/snapshots-integrity", desc: "Point-in-time manifests and tamper detection.", badge: "Beta" },
-      { title: "Shared vaults", href: "/docs/shared-vaults", desc: "Collaborative vaults with role-based access.", badge: "Beta" },
+      { title: "Timed vaults", href: "/docs/timed-vaults", desc: "Group files under a countdown; expiry flags the vault without deleting files.", badge: "Beta" },
+      { title: "Shared vaults", href: "/docs/shared-vaults", desc: "End-to-end encrypted spaces: named members, per-member key grants, and revocation.", badge: "Beta" },
     ],
   },
   {

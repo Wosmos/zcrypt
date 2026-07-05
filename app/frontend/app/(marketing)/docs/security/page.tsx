@@ -13,12 +13,12 @@ import {
 export const metadata: Metadata = {
   title: "Encryption model | zcrypt Docs",
   description:
-    "The exact cryptography behind zcrypt: AES-256-GCM with envelope encryption, PBKDF2-HMAC-SHA256 at 600,000 iterations, a random per-file content key, and client-side zstd compression — all performed on your device before anything leaves it.",
+    "The exact cryptography behind zcrypt: AES-256-GCM with envelope encryption, PBKDF2-HMAC-SHA256 at 600,000 iterations, a random per-file content key, X25519 ECIES sealed-boxes for zero-knowledge sharing, and client-side zstd compression — all performed on your device before anything leaves it.",
   alternates: { canonical: "https://zcrypt.cloud/docs/security" },
   openGraph: {
     title: "Encryption model | zcrypt Docs",
     description:
-      "AES-256-GCM, envelope encryption, PBKDF2 at 600k iterations, and per-file content keys — the precise cryptography zcrypt runs on your device.",
+      "AES-256-GCM, envelope encryption, PBKDF2 at 600k iterations, per-file content keys, and X25519 sealed-boxes for sharing — the precise cryptography zcrypt runs on your device.",
     url: "https://zcrypt.cloud/docs/security",
   },
 };
@@ -26,6 +26,7 @@ export const metadata: Metadata = {
 const toc = [
   { id: "primitives", title: "The primitives" },
   { id: "envelope", title: "Envelope encryption" },
+  { id: "sharing", title: "Sealing keys to other people" },
   { id: "derivation", title: "Key derivation" },
   { id: "pipeline", title: "The upload pipeline" },
   { id: "chunks", title: "Chunks & integrity" },
@@ -67,6 +68,11 @@ export default function EncryptionModelPage() {
               "Integrity",
               <span key="c" className="font-mono">SHA-256</span>,
               "Per-chunk and whole-file digests",
+            ],
+            [
+              "Sharing keys to other users (client-side)",
+              <span key="e" className="font-mono">X25519 + AES-256-GCM</span>,
+              "ECIES sealed-box: ephemeral ECDH, SHA-256-derived wrap key",
             ],
             [
               "Token wrapping (server-side)",
@@ -124,11 +130,14 @@ export default function EncryptionModelPage() {
             per-folder passwords
           </Link>{" "}
           possible without ever exposing your passphrase: zcrypt can re-wrap a
-          file&apos;s CEK under a different key — a one-time share key, or a
-          folder-password key — so a recipient (or a different password) can
-          decrypt that one file while your master passphrase never moves. The
-          underlying chunks are untouched; only the small wrapped CEK changes.
-          See{" "}
+          file&apos;s CEK under a different key — a link&apos;s one-time share
+          key, a folder-password key, or a key{" "}
+          <Link href="#sharing" className="text-cyan-600 hover:underline dark:text-cyan-400">
+            sealed to another user&apos;s public key
+          </Link>{" "}
+          — so a recipient (or a different password) can decrypt that one file
+          while your master passphrase never moves. The underlying chunks are
+          untouched; only the small wrapped CEK changes. See{" "}
           <Link href="/docs/key-management" className="text-cyan-600 hover:underline dark:text-cyan-400">
             passphrase &amp; key management
           </Link>{" "}
@@ -140,6 +149,54 @@ export default function EncryptionModelPage() {
           detects this automatically on download — a file with no stored wrapped
           CEK uses the passphrase-derived key as the content key directly — so
           either path just works and you never have to think about it.
+        </DocNote>
+      </DocSection>
+
+      <DocSection id="sharing" title="Sealing keys to other people">
+        <DocP>
+          The same envelope idea extends to sharing with another zcrypt account
+          without ever handing a usable key to the server. Every account is
+          bootstrapped with its own <strong>X25519 keypair</strong>. The public
+          half is published to a registry the server keeps in the clear, so
+          anyone can wrap a key <em>to</em> you; the private half is wrapped
+          under your passphrase-derived key — the very same PBKDF2 &rarr;
+          AES-256-GCM envelope used for file CEKs — so the server stores only
+          ciphertext it cannot open.
+        </DocP>
+        <DocP>
+          To grant access — for example, to a{" "}
+          <Link href="/docs/shared-vaults" className="text-cyan-600 hover:underline dark:text-cyan-400">
+            shared space
+          </Link>{" "}
+          and its files — the client seals the relevant symmetric key to the
+          recipient&apos;s public key with an <strong>ECIES sealed-box</strong>:
+          a fresh ephemeral keypair performs an X25519 Diffie&ndash;Hellman with
+          the recipient, the shared secret is hashed with SHA-256 into an
+          AES-256-GCM key, and the ephemeral public key is prepended so the
+          recipient can reconstruct the secret.
+        </DocP>
+        <DocCode label="sealing a key to a recipient (conceptual)">{`eph     = X25519 keygen()                          // fresh per seal
+shared  = X25519(eph.private, recipientPublicKey)  // ECDH
+aesKey  = SHA-256(shared || eph.public || recipientPublicKey)
+sealed  = eph.public || AES-256-GCM(key = aesKey, plaintext = spaceKey)`}</DocCode>
+        <DocP>
+          Only the recipient&apos;s private key can reproduce the shared secret,
+          so only they can unseal the key. The server stores the sealed blob and
+          the re-wrapped file envelopes and can read neither. Revoking a member
+          is a key rotation: a new space key is generated, re-sealed to the
+          remaining members, and every shared file&apos;s CEK re-wrapped under
+          it, so a removed member&apos;s old grant opens nothing.
+        </DocP>
+        <DocNote type="security" title="Verify a fingerprint out of band">
+          Each published public key carries a short SHA-256 fingerprint. Compare
+          it with your collaborator over a channel that isn&apos;t zcrypt (in
+          person, a phone call) to rule out a substituted key — the only way an
+          honest-but-curious server could interpose itself in the exchange. How
+          the keypair is derived and held is covered in{" "}
+          <Link href="/docs/key-management" className="text-cyan-600 hover:underline dark:text-cyan-400">
+            passphrase &amp; key management
+          </Link>
+          .
         </DocNote>
       </DocSection>
 
@@ -228,6 +285,12 @@ wrappedCEK = AES-256-GCM(key = KEK, plaintext = CEK)`}</DocCode>
             <>
               Because each chunk is encrypted on its own, large files stream
               through memory in bounded windows rather than being held whole.
+            </>,
+            <>
+              On the way back down, decryption and zstd decompression run across
+              a device-aware pool of Web Workers, off the main thread — the same
+              client-side pipeline as upload, just in reverse. Plaintext never
+              leaves your device.
             </>,
           ]}
         />

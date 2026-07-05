@@ -53,6 +53,14 @@ export default function SharingDocPage() {
         </DocP>
         <DocCode label="Anatomy of a share link">{`https://zcrypt.cloud/s/<token>#<decryption-key>
                          └── sent to server   └── never sent`}</DocCode>
+        <DocP>
+          Need to hand over more than one file? See{" "}
+          <Link href="/docs/folder-sharing" className="text-cyan-600 hover:underline dark:text-cyan-400">
+            Share a folder
+          </Link>{" "}
+          for a single public link that covers a whole folder, the same
+          zero-knowledge way.
+        </DocP>
       </DocSection>
 
       <DocSection id="key-in-fragment" title="The key lives in the link, not on our servers">
@@ -152,6 +160,9 @@ export default function SharingDocPage() {
         <DocP>Other ways to get data to people and devices:</DocP>
         <DocList
           items={[
+            <Link key="d" href="/docs/folder-sharing" className="text-cyan-600 hover:underline dark:text-cyan-400">
+              Share a folder — one public link for a whole folder
+            </Link>,
             <Link key="a" href="/docs/send" className="text-cyan-600 hover:underline dark:text-cyan-400">
               Anonymous Send — send a file with no account at all
             </Link>,

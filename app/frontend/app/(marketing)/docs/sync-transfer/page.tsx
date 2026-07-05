@@ -5,27 +5,29 @@ import {
   DocSection,
   DocP,
   DocList,
+  DocCode,
   DocNote,
 } from "@/components/docs/doc-page";
 
 export const metadata: Metadata = {
   title: "Sync & device transfer | zcrypt Docs",
   description:
-    "Two ways zcrypt moves data between your own devices: encrypted clipboard sync that pushes text, images, and links live over SSE, and a real-time device-to-device file transfer using a 6-digit room code with the server as a blind relay.",
+    "How zcrypt moves data between your own devices: offline pins that keep chosen files on hand per device, end-to-end encrypted clipboard sync pushed live over SSE, folder sync configured for the zcrypt desktop client, and real-time device-to-device file transfer over a 6-digit room code.",
   alternates: { canonical: "https://zcrypt.cloud/docs/sync-transfer" },
   openGraph: {
     title: "Sync & device transfer | zcrypt Docs",
     description:
-      "Encrypted clipboard sync and end-to-end device-to-device transfer — the server relays, it never reads.",
+      "Offline pins, encrypted clipboard sync, folder sync, and device-to-device transfer — the server holds ciphertext and metadata, never your plaintext.",
     url: "https://zcrypt.cloud/docs/sync-transfer",
   },
 };
 
 const toc = [
+  { id: "offline", title: "Offline pins" },
   { id: "clipboard", title: "Encrypted clipboard sync" },
   { id: "clipboard-how", title: "How clipboard sync works" },
+  { id: "folders", title: "Folder sync" },
   { id: "transfer", title: "Device-to-device transfer" },
-  { id: "transfer-how", title: "How transfer works" },
   { id: "next", title: "Where to go next" },
 ];
 
@@ -34,28 +36,59 @@ export default function SyncTransferDocPage() {
     <DocPage
       href="/docs/sync-transfer"
       title="Sync & device transfer"
-      description="Move data between your own devices without it passing through anyone's reach. Clipboard sync keeps recent snippets live across your sessions; device transfer streams a file straight from one device to another with the server acting only as a blind relay."
+      description="Keep your own devices in step without handing anyone your plaintext. The Sync & Offline tab holds three tools — offline pins, encrypted clipboard sync, and folder sync — while a separate Transfer tab streams a file straight from one device to another."
       toc={toc}
     >
-      <DocSection id="clipboard" title="Encrypted clipboard sync">
+      <DocSection id="offline" title="Offline pins">
         <DocP>
-          Clipboard sync keeps a short, shared history of small items — text, an
-          image, or a link — available across the devices where you&rsquo;re
-          signed in. Copy something on one device and it shows up on the others,
-          ready to paste.
+          Offline pins let you mark specific files to keep available on a given
+          device. Pinning is <strong>per device</strong>: each browser is given
+          its own random device id (kept locally on that device), and your pins
+          are recorded against that device &mdash; so every device keeps its own
+          list, and pinning or unpinning on one doesn&rsquo;t change the others.
         </DocP>
         <DocList
           items={[
             <>
-              <strong>Item types:</strong> text, image, or link.
+              <strong>Pick a device:</strong> the tab shows the current
+              device&rsquo;s short id, so you can tell which device you&rsquo;re
+              pinning for.
             </>,
             <>
-              <strong>Size:</strong> up to about <strong>512 KB</strong> per
-              item.
+              <strong>Pin or unpin:</strong> toggle any file in your vault to add
+              or remove it from that device&rsquo;s offline list.
             </>,
             <>
-              <strong>History:</strong> roughly the last <strong>30 items</strong>{" "}
-              are retained; older ones are pruned automatically.
+              <strong>Stays private:</strong> a pin only records <em>which</em>{" "}
+              file you want kept on hand &mdash; the file itself stays encrypted,
+              exactly as it is in your vault.
+            </>,
+          ]}
+        />
+      </DocSection>
+
+      <DocSection id="clipboard" title="Encrypted clipboard sync">
+        <DocP>
+          Clipboard sync keeps a short, shared history of small snippets
+          available across the sessions where you&rsquo;re signed in. Add a
+          snippet on one device and it appears on the others in real time, ready
+          to copy.
+        </DocP>
+        <DocList
+          items={[
+            <>
+              <strong>Item types:</strong> text and links. A snippet that is a
+              lone <code>http(s)</code> URL is tagged as a link; everything else
+              is text. The web tool captures typed or pasted text only &mdash;
+              there is no image capture.
+            </>,
+            <>
+              <strong>Size:</strong> up to <strong>512 KB</strong> per snippet.
+            </>,
+            <>
+              <strong>Retention:</strong> each snippet is deleted automatically{" "}
+              <strong>24 hours</strong> after you add it, and only your most
+              recent snippets are kept (the server retains the latest 30).
             </>,
           ]}
         />
@@ -63,56 +96,81 @@ export default function SyncTransferDocPage() {
 
       <DocSection id="clipboard-how" title="How clipboard sync works">
         <DocP>
-          Each item is encrypted on your device before it&rsquo;s stored. When a
-          new item arrives, zcrypt notifies your other signed-in devices live
-          over an <strong>SSE</strong> (server-sent events) stream so they can
-          fetch it. The notification carries only metadata — the item&rsquo;s id,
-          type, size, and timestamp — never the plaintext.
+          Each snippet is encrypted <strong>in your browser</strong> with a
+          256-bit AES-GCM key before it&rsquo;s sent. That key is generated on
+          your device and stored only in the browser &mdash; it never leaves the
+          device and is never sent to the server. When you add a snippet, the
+          server stores only the <strong>ciphertext</strong> plus lightweight
+          metadata (its id, type, size, and timestamp) and pushes a live{" "}
+          <strong>SSE</strong> (server-sent events) &ldquo;clipboard&rdquo; event
+          to your other signed-in sessions so they can pull it. Fetching a
+          snippet returns the ciphertext, which is decrypted locally.
         </DocP>
         <DocNote type="security" title="What the server sees">
-          The server relays <strong>metadata</strong> to wake up your other
-          devices, and stores the item as ciphertext. The actual content is
-          decrypted only on your devices.
+          The server only ever holds the snippet as <strong>ciphertext</strong>{" "}
+          and the metadata it needs to wake up your other sessions. It never
+          receives the encryption key and cannot read a snippet&rsquo;s
+          contents.
+        </DocNote>
+        <DocNote type="info" title="Each device needs the same key">
+          Because the key lives only in the browser and isn&rsquo;t synced by the
+          server, a device has to hold the matching key to read a snippet. A
+          device without it will show a &ldquo;different device key&rdquo; notice
+          instead of the plaintext &mdash; the trade-off of keeping the key
+          entirely on your side.
+        </DocNote>
+      </DocSection>
+
+      <DocSection id="folders" title="Folder sync">
+        <DocP>
+          Folder sync lets you register local folder paths that the{" "}
+          <strong>zcrypt desktop client</strong> should back up automatically.
+          The web app is only for <strong>configuration</strong>: you add a
+          folder path and an optional label, and toggle each one active or
+          paused. The browser never reads or uploads the files in those folders
+          &mdash; that work is done by the desktop client.
+        </DocP>
+        <DocP>
+          To run the actual backup, run the sync command on each device where
+          those folders live:
+        </DocP>
+        <DocCode label="Terminal">zcrypt sync</DocCode>
+        <DocNote type="info" title="Removing a folder">
+          Deleting a folder configuration only stops future syncing for it. Files
+          that were already backed up stay in your vault.
         </DocNote>
       </DocSection>
 
       <DocSection id="transfer" title="Device-to-device transfer">
         <DocP>
-          Device transfer streams a file directly from one device to another in
-          real time. The sending device gets a <strong>6-digit room code</strong>
-          ; enter that code on the receiving device to pair them, and the file
-          flows between them while both stay connected.
-        </DocP>
-      </DocSection>
-
-      <DocSection id="transfer-how" title="How transfer works">
-        <DocP>
-          Pairing and streaming run over a <strong>WebSocket</strong> relay. The
-          file is <strong>end-to-end encrypted</strong> between the two devices;
-          the server simply forwards the encrypted messages from sender to
-          receiver. It is a <strong>blind relay</strong> — it stores nothing and
-          cannot read what passes through.
+          The separate <strong>Transfer</strong> tab streams a file directly from
+          one device to another in real time. The sending device gets a{" "}
+          <strong>6-digit room code</strong>; enter that code on the receiving
+          device to pair them, and the file flows between them while both stay
+          connected.
         </DocP>
         <DocList
           items={[
             <>
-              <strong>Pairing:</strong> a 6-digit code links exactly one sender
-              to one receiver.
+              <strong>Encrypted before it leaves:</strong> the file is encrypted
+              in your browser and streamed in small chunks over a WebSocket
+              relay.
             </>,
             <>
-              <strong>Short-lived:</strong> rooms expire automatically after a
-              few minutes, so a code can&rsquo;t be reused later.
+              <strong>Nothing stored:</strong> the relay keeps the pairing room
+              only in memory &mdash; it is torn down as soon as the transfer
+              finishes, and an unclaimed room expires after about 10 minutes.
             </>,
             <>
-              <strong>Nothing stored:</strong> unlike Send, transfer keeps no
-              copy — if the connection drops mid-transfer, just start a new room.
+              <strong>Both online at once:</strong> because the file streams
+              straight between the two devices, both must be connected at the same
+              time. If the connection drops mid-transfer, just start a new room.
             </>,
           ]}
         />
-        <DocNote type="info" title="Both devices online at once">
-          Because the file streams directly between devices, both must be
-          connected at the same time. If you need a recipient to pick the file
-          up later, use{" "}
+        <DocNote type="info" title="Recipient not online?">
+          Device-to-device transfer needs both ends connected together. If you
+          need someone to pick a file up later, use{" "}
           <Link href="/docs/send" className="text-cyan-600 hover:underline dark:text-cyan-400">
             Anonymous Send
           </Link>{" "}
@@ -120,7 +178,8 @@ export default function SyncTransferDocPage() {
           <Link href="/docs/sharing" className="text-cyan-600 hover:underline dark:text-cyan-400">
             share link
           </Link>{" "}
-          instead.
+          instead &mdash; both store the encrypted file so the recipient can
+          fetch it on their own schedule.
         </DocNote>
       </DocSection>
 
@@ -130,7 +189,10 @@ export default function SyncTransferDocPage() {
             <Link key="a" href="/docs/send" className="text-cyan-600 hover:underline dark:text-cyan-400">
               Anonymous Send — store-and-forward file sharing
             </Link>,
-            <Link key="b" href="/docs/pad" className="text-cyan-600 hover:underline dark:text-cyan-400">
+            <Link key="b" href="/docs/sharing" className="text-cyan-600 hover:underline dark:text-cyan-400">
+              Share links — password, expiry, and download limits
+            </Link>,
+            <Link key="c" href="/docs/pad" className="text-cyan-600 hover:underline dark:text-cyan-400">
               Encrypted Pad — share a one-time encrypted note
             </Link>,
           ]}
