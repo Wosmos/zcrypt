@@ -27,7 +27,12 @@ async function authRequest<T>(
       } catch {
         message = body;
       }
-      throw new Error(message);
+      // Carry the HTTP status on the error so callers can tell a DEFINITIVE auth
+      // failure (401/403) from a transient one (5xx/network) — the token-refresh
+      // path must only log out on the former.
+      const err = new Error(message) as Error & { status?: number };
+      err.status = res.status;
+      throw err;
     }
 
     return res.json() as Promise<T>;

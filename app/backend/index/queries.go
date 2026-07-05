@@ -957,10 +957,15 @@ func (db *DB) GetChunkByIndex(ctx context.Context, fileID string, index int, use
 	return c, nil
 }
 
-// GetReceivedChunkIndices returns indices of all chunks received for a file (including pending sync).
+// GetReceivedChunkIndices returns the DISTINCT indices of all chunks received for
+// a file (including pending sync). DISTINCT is load-bearing: there is no
+// UNIQUE(file_id, idx) constraint, so a racing duplicate PUT can insert a second
+// row for the same index. A raw row count would then either (a) exceed ChunkCount
+// and FALSELY fail completion ("not all chunks have been uploaded"), or (b) mask a
+// genuinely-missing index and FALSELY pass completion on a corrupt file.
 func (db *DB) GetReceivedChunkIndices(ctx context.Context, fileID string) ([]int, error) {
 	rows, err := db.pool.Query(ctx,
-		`SELECT idx FROM chunks WHERE file_id = $1 ORDER BY idx`, fileID,
+		`SELECT DISTINCT idx FROM chunks WHERE file_id = $1 ORDER BY idx`, fileID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("get received chunk indices: %w", err)

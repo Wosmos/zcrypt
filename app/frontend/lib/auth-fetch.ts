@@ -18,8 +18,15 @@ export async function tryRefreshToken(): Promise<string | null> {
       setTokens(data.access_token, data.refresh_token);
       return data.access_token;
     })
-    .catch(() => {
-      clearAuth();
+    .catch((err: unknown) => {
+      // Only a DEFINITIVE auth failure (the refresh token itself is invalid/
+      // expired → 401/403) should log the user out. A transient failure — network
+      // blip, timeout, or 5xx during a long upload — must NOT clearAuth, or the
+      // whole transfer dies and the user is bounced to login mid-upload (the prod
+      // bug). On a transient miss we return null; the caller keeps the old token
+      // and the next chunk simply retries the refresh.
+      const status = (err as { status?: number })?.status;
+      if (status === 401 || status === 403) clearAuth();
       return null;
     })
     .finally(() => {
