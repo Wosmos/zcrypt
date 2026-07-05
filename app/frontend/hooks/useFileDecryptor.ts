@@ -8,6 +8,7 @@ import {
 } from "@/lib/decrypt-cache";
 import { getDeviceProfile } from "@/lib/device-profile";
 import { WorkerPool } from "@/lib/worker-pool";
+import { mediaMimeFor } from "@/lib/media-formats";
 import { viewerKindFor } from "@/components/viewers/viewer-kind";
 import {
   resolveFilePasswordGlobal,
@@ -132,7 +133,9 @@ const MIME_BY_EXT: Record<string, string> = {
 /** Derive a MIME type from a filename's extension (octet-stream fallback). */
 export function mimeForFilename(filename: string): string {
   const ext = filename.split(".").pop()?.toLowerCase() ?? "";
-  return MIME_BY_EXT[ext] ?? "application/octet-stream";
+  // Prefer the local table, then the shared media table (broad audio/video
+  // coverage — mpeg/wma/mkv/etc.), then octet-stream.
+  return MIME_BY_EXT[ext] ?? mediaMimeFor(filename) ?? "application/octet-stream";
 }
 
 /** Heuristic: does this thrown error look like a wrong-key failure? */

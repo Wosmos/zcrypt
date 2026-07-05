@@ -1,5 +1,10 @@
 import clsx, { type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { isAudioFile, isVideoFile, mediaMimeFor } from "@/lib/media-formats";
+
+// Re-exported so existing importers of `@/lib/utils` keep working while the
+// canonical lists live in lib/media-formats.
+export { isAudioFile, isVideoFile };
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -118,7 +123,16 @@ export function getFileTypeInfo(filename: string): FileTypeInfo {
     woff2: { icon: "File", color: "text-fuchsia-500", bg: "bg-fuchsia-500/10", label: "Font", gradient: "from-fuchsia-500/20 to-fuchsia-500/5" },
   };
 
-  return typeMap[ext] || { icon: "File", color: "text-[var(--color-text-muted)]", bg: "bg-[var(--color-surface-1)]", label: "File", gradient: "from-gray-500/20 to-gray-500/5" };
+  if (typeMap[ext]) return typeMap[ext];
+  // Broad audio/video recognition (mpeg, wma, mkv, flv, 3gp, …) beyond the
+  // explicit entries above, so any known media gets the right icon + label.
+  if (isVideoFile(filename)) {
+    return { icon: "Video", color: "text-blue-500", bg: "bg-blue-500/10", label: "Video", gradient: "from-blue-500/20 to-blue-500/5" };
+  }
+  if (isAudioFile(filename)) {
+    return { icon: "Music", color: "text-pink-500", bg: "bg-pink-500/10", label: "Audio", gradient: "from-pink-500/20 to-pink-500/5" };
+  }
+  return { icon: "File", color: "text-[var(--color-text-muted)]", bg: "bg-[var(--color-surface-1)]", label: "File", gradient: "from-gray-500/20 to-gray-500/5" };
 }
 
 export function getFileCategory(filename: string): string {
@@ -130,10 +144,7 @@ export function isImageFile(filename: string): boolean {
   return ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "ico", "avif"].includes(ext);
 }
 
-export function isVideoFile(filename: string): boolean {
-  const ext = filename.split(".").pop()?.toLowerCase() || "";
-  return ["mp4", "m4v", "webm", "mov", "ogv", "mkv", "avi"].includes(ext);
-}
+// isVideoFile is re-exported at the top of this file from lib/media-formats.
 
 /**
  * Best-guess MIME type from a file extension. Used to type decrypted Blobs so
@@ -147,10 +158,8 @@ export function mimeForFile(filename: string): string {
     jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", gif: "image/gif",
     webp: "image/webp", svg: "image/svg+xml", bmp: "image/bmp", ico: "image/x-icon",
     avif: "image/avif",
-    mp4: "video/mp4", m4v: "video/mp4", webm: "video/webm", mov: "video/quicktime",
-    ogv: "video/ogg", mkv: "video/x-matroska", avi: "video/x-msvideo",
   };
-  return map[ext] || "application/octet-stream";
+  return map[ext] || mediaMimeFor(filename) || "application/octet-stream";
 }
 
 // Keep backward compat
