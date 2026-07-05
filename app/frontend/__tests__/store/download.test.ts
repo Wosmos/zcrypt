@@ -190,6 +190,70 @@ describe("useDownloadStore", () => {
       expect(toast.error).toHaveBeenCalledWith("Wrong folder password for secret.txt. Retry to re-enter it.");
     });
 
+    it("reports a generic failure (no password cleared) when a wrong-key error hits a non-protected file", async () => {
+      // File lives in a folder that is NOT in the protected registry, so
+      // protectedFolderOf() falls through to `return null` — recovery is skipped
+      // even though the message looks like a decrypt failure.
+      queryClient.setQueryData(qk.files, [file({ id: "f1", folder_id: "folder-1" })]);
+      useFolderPasswordStore.getState().set("folder-1", "cached-pw");
+      (downloadAndDecryptFile as Mock).mockRejectedValue(new Error("Decryption failed — wrong passphrase?"));
+
+      useDownloadStore.getState().startDownload("f1", "plain.txt", 10, "pw");
+      const id = firstId();
+      await flush();
+
+      expect(getItem(id)?.status).toBe("failed");
+      // Not protected → password untouched, and the generic (not recovery) toast.
+      expect(useFolderPasswordStore.getState().get("folder-1")).toBe("cached-pw");
+      expect(toast.error).toHaveBeenCalledWith("Download failed: Decryption failed — wrong passphrase?");
+    });
+
+    it("paints progress from the pipeline's onProgress callback", async () => {
+      let onProgress: DownloadOptions["onProgress"];
+      (downloadAndDecryptFile as Mock).mockImplementation((_id, _pp, opts: DownloadOptions) => {
+        onProgress = opts.onProgress;
+        return new Promise<void>(() => {}); // stays downloading so the tick lands
+      });
+      useDownloadStore.getState().startDownload("f1", "a.bin", 10, "pw");
+      const id = firstId();
+      await flush();
+
+      onProgress!({ percent: 42, stage: "Decrypting", chunksDone: 1, chunksTotal: 2 });
+      await flush();
+
+      const item = getItem(id)!;
+      expect(item.status).toBe("downloading");
+      expect(item.progress).toBe(42);
+      expect(item.stage).toBe("Decrypting");
+    });
+
+    it("ignores onProgress ticks once the download is paused", async () => {
+      let onProgress: DownloadOptions["onProgress"];
+      (downloadAndDecryptFile as Mock).mockImplementation((_id, _pp, opts: DownloadOptions) => {
+        onProgress = opts.onProgress;
+        return new Promise<void>((_res, rej) => {
+          opts.signal!.addEventListener("abort", () => rej(new FakeDownloadPausedError()));
+        });
+      });
+      useDownloadStore.getState().startDownload("f1", "a.bin", 10, "pw");
+      const id = firstId();
+      await flush();
+
+      onProgress!({ percent: 20, stage: "Downloading", chunksDone: 0, chunksTotal: 2 });
+      await flush();
+      expect(getItem(id)?.progress).toBe(20);
+
+      useDownloadStore.getState().pauseDownload(id);
+      await flush();
+      expect(getItem(id)?.status).toBe("paused");
+
+      // A late tick from the draining run must NOT flip it back or repaint progress.
+      onProgress!({ percent: 80, stage: "Downloading", chunksDone: 1, chunksTotal: 2 });
+      await flush();
+      expect(getItem(id)?.status).toBe("paused");
+      expect(getItem(id)?.progress).toBe(20);
+    });
+
     it("fires a web notification when the tab is hidden", async () => {
       const ctorSpy = vi.fn();
       vi.stubGlobal("Notification", class {
@@ -406,6 +470,21 @@ describe("useDownloadStore", () => {
       await flush();
       expect(getItem(item.id)?.status).toBe("done");
       expect(toast.success).toHaveBeenCalledWith("ZIP with 2 files downloaded");
+    });
+
+    it("paints ZIP progress from downloadAsZip's onProgress callback", async () => {
+      (downloadAsZip as Mock).mockImplementation((_f, _pp, opts) => {
+        opts.onProgress({ percent: 33, stage: "Zipping" });
+        return new Promise<void>(() => {}); // stays downloading so the tick lands
+      });
+      useDownloadStore.getState().startBulkZipDownload(files, "pw");
+      const id = firstId();
+      await flush();
+
+      const item = getItem(id)!;
+      expect(item.status).toBe("downloading");
+      expect(item.progress).toBe(33);
+      expect(item.stage).toBe("Zipping");
     });
 
     it("cancels cleanly when aborted mid-zip", async () => {
