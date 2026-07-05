@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Sheet,
   SheetContent,
@@ -10,6 +11,7 @@ import {
 } from "@/components/ui/sheet";
 import { IconButton } from "@/components/ui/icon-button";
 import { SkeletonText } from "@/components/ui/skeletons";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   Folder,
   File,
@@ -22,8 +24,11 @@ import {
   ShieldCheck,
   Copy,
   Check,
+  Share2,
+  Link2,
+  Trash2,
 } from "@/lib/icons";
-import { listFolders } from "@/lib/api";
+import { listFolders, listFolderShares, revokeFolderShare, type FolderShareLink } from "@/lib/api";
 import { queryClient } from "@/lib/query-client";
 import { qk } from "@/lib/query-keys";
 import { toast } from "@/store/toast";
@@ -136,6 +141,35 @@ export function FolderDetailsDrawer({ folder, open, onOpenChange, files }: Folde
 
   const folderId = folder?.id ?? "";
 
+  // Active folder-share links — the folder equivalent of the file drawer's
+  // sharing history. Same query key as the share modal, so a link created or
+  // revoked there is reflected here instantly.
+  const sharesQuery = useQuery({
+    queryKey: qk.folderShares(folderId),
+    queryFn: () => listFolderShares(folderId),
+    enabled: open && !!folderId,
+  });
+  const activeShares = (sharesQuery.data ?? []).filter((s) => !s.revoked);
+  const sharesLoading = open && !!folderId && sharesQuery.isPending;
+
+  const [revokeTarget, setRevokeTarget] = useState<FolderShareLink | null>(null);
+  const [revoking, setRevoking] = useState(false);
+
+  const handleRevoke = useCallback(async () => {
+    if (!revokeTarget) return;
+    setRevoking(true);
+    try {
+      await revokeFolderShare(revokeTarget.id);
+      void queryClient.invalidateQueries({ queryKey: qk.folderShares(folderId) });
+      toast.success("Folder link revoked");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to revoke");
+    } finally {
+      setRevoking(false);
+      setRevokeTarget(null);
+    }
+  }, [revokeTarget, folderId]);
+
   // Discover the subtree (lazy, when the drawer opens for a folder).
   useEffect(() => {
     if (!open || !folderId) return;
@@ -178,6 +212,7 @@ export function FolderDetailsDrawer({ folder, open, onOpenChange, files }: Folde
       : "0";
 
   return (
+    <>
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
@@ -258,6 +293,64 @@ export function FolderDetailsDrawer({ folder, open, onOpenChange, files }: Folde
             <CopyField label="Folder ID" value={folder.id} />
           </div>
 
+          {/* Share links — the same sharing history the file drawer shows */}
+          <div className="space-y-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-4">
+            <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+              <Share2 className="h-3.5 w-3.5" /> Share links
+              {activeShares.length > 0 && (
+                <span className="ml-0.5 rounded-full bg-[var(--color-accent)]/15 px-1.5 text-[10px] font-semibold tabular-nums text-[var(--color-accent)]">
+                  {activeShares.length}
+                </span>
+              )}
+            </p>
+            {sharesLoading ? (
+              <div className="space-y-2">
+                <SkeletonText />
+                <SkeletonText w="w-3/4" />
+              </div>
+            ) : activeShares.length === 0 ? (
+              <p className="text-sm text-[var(--color-text-secondary)]">
+                No active folder links. Use “Share” on this folder to create one.
+              </p>
+            ) : (
+              <div className="space-y-1.5">
+                {activeShares.map((s) => (
+                  <div
+                    key={s.id}
+                    className="flex items-center justify-between gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <Link2 className="h-3 w-3 flex-shrink-0 text-[var(--color-accent)]" />
+                        <code className="truncate font-mono text-[11px] text-[var(--color-text-secondary)]">
+                          …{s.token.slice(-8)}
+                        </code>
+                        {s.has_password && (
+                          <Lock className="h-3 w-3 flex-shrink-0 text-amber-500" aria-label="Password protected" />
+                        )}
+                      </div>
+                      <p className="text-[11px] tabular-nums text-[var(--color-text-muted)]">
+                        {s.file_count} file{s.file_count === 1 ? "" : "s"}
+                        {" · "}
+                        {s.download_count}
+                        {s.max_downloads > 0 ? `/${s.max_downloads}` : ""} downloads
+                        {s.expires_at && ` · expires ${formatDate(s.expires_at)}`}
+                      </p>
+                    </div>
+                    <IconButton
+                      icon={Trash2}
+                      label="Revoke link"
+                      variant="ghost"
+                      onClick={() => setRevokeTarget(s)}
+                      iconClassName="h-3.5 w-3.5 text-red-500"
+                      className="h-7 w-7 flex-shrink-0 hover:bg-red-500/10"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Encryption assurance */}
           <div className="flex items-start gap-3 rounded-xl border border-[var(--color-accent)]/20 bg-[var(--color-accent)]/5 p-4">
             <ShieldCheck className="mt-0.5 h-4 w-4 flex-shrink-0 text-[var(--color-accent)]" />
@@ -273,5 +366,17 @@ export function FolderDetailsDrawer({ folder, open, onOpenChange, files }: Folde
         </div>
       </SheetContent>
     </Sheet>
+
+    <ConfirmDialog
+      open={!!revokeTarget}
+      onOpenChange={(o) => { if (!o) setRevokeTarget(null); }}
+      destructive
+      title="Revoke folder link?"
+      description="Anyone holding this link will immediately lose access to this folder's files. This cannot be undone."
+      confirmLabel="Revoke"
+      loading={revoking}
+      onConfirm={handleRevoke}
+    />
+    </>
   );
 }

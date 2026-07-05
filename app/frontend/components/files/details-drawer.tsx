@@ -236,7 +236,7 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent
           side="right"
-          className="flex w-full flex-col gap-0 border-l border-[var(--color-border)] bg-[var(--color-surface)] p-0 text-[var(--color-text)] sm:max-w-md"
+          className="flex w-full flex-col gap-0 border-l border-[var(--color-border)] bg-[var(--color-surface)] p-0 text-[var(--color-text)] sm:max-w-xl"
         >
           {/* Header */}
           <SheetHeader className="space-y-0 border-b border-[var(--color-border)] p-5 text-left">
@@ -291,7 +291,15 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
                     icon={Database}
                   />
                   <MetaRow label="Chunks" value={file.chunk_count} icon={Layers} />
-                  <MetaRow label="Modified" value={formatDate(file.created_at)} icon={Clock} />
+                  <MetaRow
+                    label="Created"
+                    value={
+                      <span title={new Date(file.created_at).toLocaleString()}>
+                        {new Date(file.created_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
+                      </span>
+                    }
+                    icon={Clock}
+                  />
                 </div>
 
                 {/* Lazy server meta */}
@@ -316,7 +324,6 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
                             label="Status"
                             value={<span className="capitalize">{meta.status || "stored"}</span>}
                           />
-                          <MetaRow label="Created" value={formatDate(meta.created_at)} />
                         </>
                       )}
                       <p className="pt-1 text-[11px] text-[var(--color-text-muted)]">

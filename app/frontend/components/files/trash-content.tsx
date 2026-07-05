@@ -500,7 +500,15 @@ export function TrashContent() {
                   </p>
                   <p className="text-xs text-[var(--color-text-muted)]">
                     {formatBytes(file.original_size)}
-                    {file.deleted_at && <> &middot; deleted {formatDate(file.deleted_at)}</>}
+                    {file.deleted_at && (
+                      <>
+                        {" "}&middot;{" "}
+                        <span title={new Date(file.deleted_at).toLocaleString()}>
+                          deleted {formatDate(file.deleted_at)}
+                        </span>
+                        {" "}&middot; kept until you delete it
+                      </>
+                    )}
                   </p>
                 </div>
 
