@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getIncompleteUploads, type IncompleteUpload } from "@/lib/api";
 import { cancelUpload } from "@/lib/upload-session";
 import { formatBytes } from "@/lib/utils";
 import { toast } from "@/store/toast";
+import { useUploadStore } from "@/store/upload";
 import { AlertTriangle, ChevronDown, Clock, Play, Trash2, X } from "@/lib/icons";
 
 // Human-friendly "expires in ..." from an ISO timestamp. Server keeps unfinished
@@ -61,6 +62,23 @@ export function IncompleteUploads({ onResume }: { onResume: (file: File, upload:
     void refresh();
   }, [refresh]);
 
+  // Hide sessions the transfer dock is still handling in THIS tab. An in-progress
+  // upload is an "active" server session, so without this cross-reference it wrongly
+  // appears here as "unfinished / resume or discard" while it's plainly still going.
+  const queue = useUploadStore((s) => s.queue);
+  const liveKeys = useMemo(
+    () => new Set(queue.filter((i) => i.status !== "done").map((i) => `${i.file.name}::${i.file.size}`)),
+    [queue],
+  );
+  // When an in-tab upload finishes, its server session flips to complete — re-fetch
+  // so it drops off the list instead of lingering as "unfinished".
+  const doneCount = queue.filter((i) => i.status === "done").length;
+  useEffect(() => {
+    void refresh();
+  }, [doneCount, refresh]);
+
+  const visible = uploads.filter((u) => !liveKeys.has(`${u.filename}::${u.original_size}`));
+
   const onResumeClick = (u: IncompleteUpload) => {
     resumeTargetRef.current = u;
     fileInputRef.current?.click();
@@ -96,7 +114,7 @@ export function IncompleteUploads({ onResume }: { onResume: (file: File, upload:
     }
   };
 
-  if (uploads.length === 0) return null;
+  if (visible.length === 0) return null;
 
   const now = Date.now();
 
@@ -110,7 +128,7 @@ export function IncompleteUploads({ onResume }: { onResume: (file: File, upload:
       >
         <AlertTriangle className="h-4 w-4 flex-shrink-0 text-amber-500" />
         <span className="text-sm font-medium text-[var(--color-text)]">
-          {uploads.length} unfinished upload{uploads.length > 1 ? "s" : ""}
+          {visible.length} unfinished upload{visible.length > 1 ? "s" : ""}
         </span>
         <span className="text-xs text-[var(--color-text-muted)]">— resume or discard</span>
         <ChevronDown
@@ -126,8 +144,8 @@ export function IncompleteUploads({ onResume }: { onResume: (file: File, upload:
           </div>
 
           <ul className="divide-y divide-[var(--color-border)]">
-            {uploads.map((u) => {
-              const pct = u.chunk_count > 0 ? Math.round((u.uploaded_chunks / u.chunk_count) * 100) : 0;
+            {visible.map((u) => {
+              const pct = u.chunk_count > 0 ? Math.min(100, Math.round((u.uploaded_chunks / u.chunk_count) * 100)) : 0;
               const platform = PLATFORM_LABELS[u.platform] ?? u.platform;
               return (
                 <li key={u.session_id} className="px-4 py-3">

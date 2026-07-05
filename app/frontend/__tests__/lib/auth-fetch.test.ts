@@ -53,8 +53,20 @@ describe("tryRefreshToken", () => {
     expect(clearAuth).not.toHaveBeenCalled();
   });
 
-  it("clears auth and returns null when the refresh call fails", async () => {
-    refreshTokenApi.mockRejectedValueOnce(new Error("refresh failed"));
+  it("does NOT clear auth on a transient refresh failure (network/timeout/5xx) — keeps the session so a long upload survives", async () => {
+    refreshTokenApi.mockRejectedValueOnce(new Error("network error")); // no .status => transient
+
+    const result = await tryRefreshToken();
+
+    expect(result).toBeNull();
+    expect(clearAuth).not.toHaveBeenCalled(); // the fix: a blip must not log the user out mid-transfer
+    expect(setTokens).not.toHaveBeenCalled();
+  });
+
+  it("clears auth and returns null only when the refresh is DEFINITIVELY rejected (401/403)", async () => {
+    const err = new Error("invalid refresh token") as Error & { status?: number };
+    err.status = 401;
+    refreshTokenApi.mockRejectedValueOnce(err);
 
     const result = await tryRefreshToken();
 
