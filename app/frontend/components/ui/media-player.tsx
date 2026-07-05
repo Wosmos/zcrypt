@@ -9,7 +9,8 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { motion, useReducedMotion } from "motion/react";
-import { Play, Pause, Volume2, Gauge, Music, Monitor } from "@/lib/icons";
+import { Play, Pause, Volume2, Gauge, Music, Monitor, Video, Download, SkipForward, RefreshCw } from "@/lib/icons";
+import { mediaKindFor } from "@/lib/media-formats";
 import { IconButton } from "@/components/ui/icon-button";
 import {
   Tooltip,
@@ -20,6 +21,32 @@ import {
 import { cn } from "@/lib/utils";
 
 const SPEEDS = [0.5, 1, 1.5, 2] as const;
+
+// Default "album cover" gradients for audio (which has no real thumbnail). Each
+// track gets a stable one derived from its filename, so a file always looks the
+// same but the library shows variety.
+const COVER_GRADIENTS = [
+  "from-fuchsia-500 to-purple-700",
+  "from-cyan-500 to-blue-700",
+  "from-amber-500 to-rose-600",
+  "from-emerald-500 to-teal-700",
+  "from-pink-500 to-rose-700",
+  "from-indigo-500 to-violet-700",
+];
+
+function coverGradient(seed: string): string {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  return COVER_GRADIENTS[h % COVER_GRADIENTS.length];
+}
+
+// Session-persisted playback settings. The player remounts on every track
+// switch (keyed by src, so old blob URLs are revoked cleanly), which would
+// otherwise reset volume/speed/loop to defaults each time — so we carry the
+// user's last choices onto the next track within the session.
+let lastVolume = 1;
+let lastSpeed = 1;
+let lastLoop = false;
 
 function formatTime(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
@@ -43,20 +70,32 @@ function useMediaController() {
   const [current, setCurrent] = useState(0);
   const [duration, setDuration] = useState(0);
   const [buffered, setBuffered] = useState(0);
-  const [volume, setVolume] = useState(1);
+  const [volume, setVolume] = useState(lastVolume);
   const [muted, setMuted] = useState(false);
-  const [speed, setSpeed] = useState<number>(1);
+  const [speed, setSpeed] = useState<number>(lastSpeed);
   const [ready, setReady] = useState(false);
   const [scrubbing, setScrubbing] = useState(false);
+  // True when the browser can't decode this source (unsupported codec/container
+  // for a recognised-but-unplayable format) — the skin swaps to a Download panel.
+  const [error, setError] = useState(false);
+  const [loop, setLoop] = useState(lastLoop);
 
   useEffect(() => {
     const el = mediaRef.current;
     if (!el) return;
 
+    // Restore session-persisted settings onto this (freshly mounted) element so
+    // volume / speed / loop carry across track switches.
+    el.volume = lastVolume;
+    el.playbackRate = lastSpeed;
+    el.loop = lastLoop;
+
     const onLoaded = () => {
       setDuration(Number.isFinite(el.duration) ? el.duration : 0);
       setReady(true);
+      setError(false);
     };
+    const onError = () => setError(true);
     const onTime = () => {
       if (!scrubbing) setCurrent(el.currentTime);
     };
@@ -87,6 +126,7 @@ function useMediaController() {
     el.addEventListener("volumechange", onVolume);
     el.addEventListener("progress", onProgress);
     el.addEventListener("ratechange", onRate);
+    el.addEventListener("error", onError);
 
     // Sync initial state in case metadata is already available.
     if (el.readyState >= 1) onLoaded();
@@ -102,6 +142,7 @@ function useMediaController() {
       el.removeEventListener("volumechange", onVolume);
       el.removeEventListener("progress", onProgress);
       el.removeEventListener("ratechange", onRate);
+      el.removeEventListener("error", onError);
     };
   }, [mediaRef, scrubbing]);
 
@@ -144,6 +185,7 @@ function useMediaController() {
       el.muted = clamped === 0;
       setVolume(clamped);
       setMuted(clamped === 0);
+      lastVolume = clamped;
     },
     [mediaRef]
   );
@@ -167,6 +209,16 @@ function useMediaController() {
     const next = SPEEDS[(idx + 1) % SPEEDS.length] ?? 1;
     el.playbackRate = next;
     setSpeed(next);
+    lastSpeed = next;
+  }, [mediaRef]);
+
+  const toggleLoop = useCallback(() => {
+    const el = mediaRef.current;
+    if (!el) return;
+    const next = !el.loop;
+    el.loop = next;
+    setLoop(next);
+    lastLoop = next;
   }, [mediaRef]);
 
   return {
@@ -179,6 +231,8 @@ function useMediaController() {
     muted,
     speed,
     ready,
+    error,
+    loop,
     scrubbing,
     setScrubbing,
     setCurrent,
@@ -188,6 +242,7 @@ function useMediaController() {
     changeVolume,
     toggleMute,
     cycleSpeed,
+    toggleLoop,
   };
 }
 
@@ -429,6 +484,45 @@ function TimeReadout({ current, duration }: { current: number; duration: number 
 }
 
 /* -------------------------------------------------------------------------- */
+/* Unplayable-format fallback                                                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Shown when the browser can't decode a recognised media file (e.g. avi, wmv,
+ * mkv, or an MPEG-video container). Recognition still gave it the right icon
+ * and routed it here; this offers a clean download instead of a broken player.
+ */
+function MediaErrorFallback({
+  src,
+  filename,
+  kind,
+}: {
+  src: string;
+  filename: string;
+  kind: "audio" | "video";
+}) {
+  return (
+    <div className="flex w-full flex-col items-center justify-center gap-3 px-6 py-12 text-center">
+      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--color-surface-1)] text-[var(--color-text-muted)]">
+        {kind === "video" ? <Video className="h-7 w-7" /> : <Music className="h-7 w-7" />}
+      </div>
+      <p className="max-w-full truncate text-sm font-medium text-[var(--color-text)]">{filename}</p>
+      <p className="max-w-xs text-xs leading-relaxed text-[var(--color-text-muted)]">
+        This format can&rsquo;t be played in the browser. Download it to open in a native player.
+      </p>
+      <a
+        href={src}
+        download={filename}
+        className="mt-1 inline-flex items-center gap-2 rounded-xl bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-cyan-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)]"
+      >
+        <Download className="h-4 w-4" />
+        Download
+      </a>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
 /* Audio player                                                               */
 /* -------------------------------------------------------------------------- */
 
@@ -436,10 +530,14 @@ function AudioPlayer({
   src,
   filename,
   controller,
+  onPrev,
+  onNext,
 }: {
   src: string;
   filename: string;
   controller: Controller;
+  onPrev?: () => void;
+  onNext?: () => void;
 }) {
   const reduce = useReducedMotion() ?? false;
   const {
@@ -450,6 +548,8 @@ function AudioPlayer({
     volume,
     muted,
     speed,
+    error,
+    loop,
     setScrubbing,
     setCurrent,
     togglePlay,
@@ -457,25 +557,43 @@ function AudioPlayer({
     changeVolume,
     toggleMute,
     cycleSpeed,
+    toggleLoop,
   } = controller;
 
   return (
     <div className="flex flex-col items-stretch gap-6 py-2">
-      {/* Artwork / identity */}
-      <div className="flex flex-col items-center gap-4 py-4">
+      {error ? (
+        <MediaErrorFallback src={src} filename={filename} kind="audio" />
+      ) : (
+        <>
+      {/* Album cover — a default gradient (audio has no real thumbnail), with
+          an equalizer that dances while playing. Deliberately unlike the
+          video's black cinematic frame. */}
+      <div className="flex flex-col items-center gap-5 py-4">
         <div
           aria-hidden
-          className="relative flex h-28 w-28 items-center justify-center rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface-1)]"
+          className={cn(
+            // Cap by viewport height too, so a short mobile player area doesn't
+            // clip the square cover.
+            "relative flex aspect-square w-full max-w-[min(248px,42vh)] items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br shadow-[0_10px_30px_rgba(0,0,0,0.25)]",
+            coverGradient(filename)
+          )}
         >
-          <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-cyan-500/10 to-transparent" />
-          <Music className="h-12 w-12 text-cyan-500" />
+          {/* depth + gloss */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-white/10" />
+          <Music className="h-20 w-20 text-white/90 drop-shadow-[0_2px_6px_rgba(0,0,0,0.35)]" />
           {playing && !reduce && (
-            <motion.span
-              className="absolute -inset-1 rounded-[1.75rem] ring-2 ring-cyan-500/30"
-              initial={{ opacity: 0.6, scale: 1 }}
-              animate={{ opacity: 0, scale: 1.12 }}
-              transition={{ duration: 1.6, repeat: Infinity, ease: "easeOut" }}
-            />
+            <div className="absolute bottom-5 left-1/2 flex -translate-x-1/2 items-end gap-1.5">
+              {[0, 1, 2, 3, 4].map((i) => (
+                <motion.span
+                  key={i}
+                  className="w-1.5 rounded-full bg-white/90"
+                  style={{ height: 8 }}
+                  animate={{ height: [8, 22, 8] }}
+                  transition={{ duration: 0.9, repeat: Infinity, ease: "easeInOut", delay: i * 0.13 }}
+                />
+              ))}
+            </div>
           )}
         </div>
         <p className="max-w-full truncate px-4 text-center text-sm font-medium text-[var(--color-text)]">
@@ -498,20 +616,43 @@ function AudioPlayer({
         />
 
         <div className="flex items-center justify-between gap-2">
-          <div className="flex w-24 justify-start">
+          <div className="flex w-16 justify-start sm:w-20">
             <TimeReadout current={current} duration={duration} />
           </div>
 
-          <IconButton
-            icon={playing ? Pause : Play}
-            label={playing ? "Pause" : "Play"}
-            variant="primary"
-            onClick={togglePlay}
-            className="h-11 w-11 rounded-full"
-            iconClassName="h-5 w-5"
-          />
+          <div className="flex items-center gap-1 sm:gap-1.5">
+            <IconButton
+              icon={RefreshCw}
+              label={loop ? "Loop on" : "Loop"}
+              aria-pressed={loop}
+              onClick={toggleLoop}
+              iconClassName={cn("h-4 w-4", loop && "text-[var(--color-accent)]")}
+            />
+            <IconButton
+              icon={SkipForward}
+              label="Previous track"
+              onClick={onPrev}
+              disabled={!onPrev}
+              iconClassName="h-4 w-4 -scale-x-100"
+            />
+            <IconButton
+              icon={playing ? Pause : Play}
+              label={playing ? "Pause" : "Play"}
+              variant="primary"
+              onClick={togglePlay}
+              className="h-11 w-11 rounded-full"
+              iconClassName="h-5 w-5"
+            />
+            <IconButton
+              icon={SkipForward}
+              label="Next track"
+              onClick={onNext}
+              disabled={!onNext}
+              iconClassName="h-4 w-4"
+            />
+          </div>
 
-          <div className="flex w-24 items-center justify-end gap-1">
+          <div className="flex w-16 items-center justify-end gap-1 sm:w-20">
             <SpeedControl speed={speed} onCycle={cycleSpeed} />
           </div>
         </div>
@@ -525,6 +666,8 @@ function AudioPlayer({
           />
         </div>
       </div>
+        </>
+      )}
 
       <audio
         ref={controller.ref as React.RefObject<HTMLAudioElement>}
@@ -542,13 +685,21 @@ function AudioPlayer({
 
 function VideoPlayer({
   src,
+  filename,
+  poster,
   controller,
 }: {
   src: string;
+  filename: string;
+  poster?: string;
   controller: Controller;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [showControls, setShowControls] = useState(true);
+  // Intrinsic aspect ratio (w/h) read from the decoded video, so the frame hugs
+  // the real shape — portrait (9:16), square (1:1), landscape (16:9) — instead
+  // of floating pillarboxed in a fixed landscape box. Null until metadata loads.
+  const [aspect, setAspect] = useState<number | null>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const {
     playing,
@@ -558,6 +709,7 @@ function VideoPlayer({
     volume,
     muted,
     speed,
+    error,
     setScrubbing,
     setCurrent,
     togglePlay,
@@ -582,6 +734,25 @@ function VideoPlayer({
     };
   }, [playing]);
 
+  // Read the true aspect ratio once metadata is available (and on `resize`,
+  // which fires if the dimensions change for a source that reports late).
+  useEffect(() => {
+    const el = controller.ref.current as HTMLVideoElement | null;
+    if (!el) return;
+    const read = () => {
+      if (el.videoWidth > 0 && el.videoHeight > 0) {
+        setAspect(el.videoWidth / el.videoHeight);
+      }
+    };
+    el.addEventListener("loadedmetadata", read);
+    el.addEventListener("resize", read);
+    if (el.readyState >= 1) read();
+    return () => {
+      el.removeEventListener("loadedmetadata", read);
+      el.removeEventListener("resize", read);
+    };
+  }, [controller.ref, src]);
+
   const toggleFullscreen = useCallback(() => {
     const node = containerRef.current;
     if (!node) return;
@@ -592,6 +763,23 @@ function VideoPlayer({
     }
   }, []);
 
+  // Portrait / square videos are pinned by HEIGHT so they don't stretch to the
+  // full landscape width; wider-than-tall videos fill the available width and
+  // cap their height. The container carries the real aspect-ratio so the frame
+  // matches the content and object-contain never has to add black bands.
+  const isPortrait = aspect !== null && aspect <= 1;
+
+  // The <video> mounts on first render and fires `error` if the codec/container
+  // is unsupported; we then swap to a neutral download panel (the black
+  // cinematic frame would clash with themed fallback text).
+  if (error) {
+    return (
+      <div className="mx-auto w-full overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)]">
+        <MediaErrorFallback src={src} filename={filename} kind="video" />
+      </div>
+    );
+  }
+
   return (
     <div
       ref={containerRef}
@@ -599,18 +787,21 @@ function VideoPlayer({
       onPointerLeave={() => {
         if (playing) setShowControls(false);
       }}
+      style={{ aspectRatio: String(aspect ?? 16 / 9) }}
       className={cn(
-        "group relative mx-auto flex w-full max-w-full items-center justify-center overflow-hidden rounded-xl bg-black",
+        "group relative mx-auto flex items-center justify-center overflow-hidden rounded-xl bg-black",
+        isPortrait ? "h-[70vh] w-auto max-w-full" : "max-h-[70vh] w-full",
         !showControls && playing ? "cursor-none" : "cursor-default"
       )}
     >
       <video
         ref={controller.ref as React.RefObject<HTMLVideoElement>}
         src={src}
+        poster={poster}
         preload="metadata"
         playsInline
         onClick={togglePlay}
-        className="max-h-[60vh] w-full bg-black object-contain"
+        className="h-full w-full bg-black object-contain"
       >
         Your browser does not support video playback.
       </video>
@@ -714,19 +905,18 @@ export interface MediaPlayerProps {
   mime?: string;
   /** Force a specific kind; otherwise inferred from `mime`/`filename`. */
   kind?: "audio" | "video";
+  /** Optional still frame (the cached grid thumbnail) shown before video play. */
+  poster?: string;
+  /** Playlist navigation — go to the previous / next track (undefined at ends). */
+  onPrev?: () => void;
+  onNext?: () => void;
 }
-
-const AUDIO_EXT = ["mp3", "wav", "flac", "aac", "ogg", "m4a", "oga", "opus"];
-const VIDEO_EXT = ["mp4", "mov", "webm", "mkv", "m4v", "ogv"];
 
 function resolveKind(props: MediaPlayerProps): "audio" | "video" {
   if (props.kind) return props.kind;
   if (props.mime?.startsWith("video/")) return "video";
   if (props.mime?.startsWith("audio/")) return "audio";
-  const ext = props.filename.split(".").pop()?.toLowerCase() ?? "";
-  if (VIDEO_EXT.includes(ext)) return "video";
-  if (AUDIO_EXT.includes(ext)) return "audio";
-  return "audio";
+  return mediaKindFor(props.filename) ?? "audio";
 }
 
 /**
@@ -735,7 +925,7 @@ function resolveKind(props: MediaPlayerProps): "audio" | "video" {
  * object URL + filename. Keyboard accessible and reduced-motion safe.
  */
 export function MediaPlayer(props: MediaPlayerProps) {
-  const { src, filename } = props;
+  const { src, filename, poster, onPrev, onNext } = props;
   const kind = useMemo(
     () => resolveKind(props),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -769,9 +959,9 @@ export function MediaPlayer(props: MediaPlayerProps) {
   return (
     <div onKeyDown={onKeyDown} tabIndex={-1} className="w-full outline-none">
       {kind === "video" ? (
-        <VideoPlayer src={src} controller={controller} />
+        <VideoPlayer src={src} filename={filename} poster={poster} controller={controller} />
       ) : (
-        <AudioPlayer src={src} filename={filename} controller={controller} />
+        <AudioPlayer src={src} filename={filename} controller={controller} onPrev={onPrev} onNext={onNext} />
       )}
     </div>
   );
