@@ -1194,7 +1194,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
               {entries.map((entry) => {
                 const id = entry.kind === "folder" ? entry.folder.id : entry.file.id;
                 return (
-                  <motion.div role="listitem" key={`${entry.kind}-${id}`} layout={animateList} {...itemMotion}>
+                  <motion.div role="listitem" key={`${entry.kind}-${id}`} {...itemMotion}>
                     <ExplorerRow
                       entry={entry}
                       actions={actions}
@@ -1241,7 +1241,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
               {entries.map((entry) => {
                 const id = entry.kind === "folder" ? entry.folder.id : entry.file.id;
                 return (
-                  <motion.div role="listitem" key={`${entry.kind}-${id}`} layout={animateList} {...itemMotion}>
+                  <motion.div role="listitem" key={`${entry.kind}-${id}`} {...itemMotion}>
                     <ExplorerCard
                       entry={entry}
                       actions={actions}
