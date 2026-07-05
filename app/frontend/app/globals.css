@@ -258,14 +258,17 @@
 }
 
 .animate-shimmer {
+  /* A tight diagonal glint sweeping over a calm surface-1 base — reads as a
+     moving light rather than a pulsing block. surface-2 peak keeps it subtle. */
   background: linear-gradient(
-    90deg,
-    var(--color-surface-1) 25%,
+    100deg,
+    var(--color-surface-1) 40%,
     var(--color-surface-2) 50%,
-    var(--color-surface-1) 75%
+    var(--color-surface-1) 60%
   );
   background-size: 200% 100%;
-  animation: shimmer 1.5s ease-in-out infinite;
+  animation: shimmer 1.6s ease-in-out infinite;
+  will-change: background-position;
 }
 
 @keyframes progress-shimmer {
@@ -784,6 +787,11 @@ html.theme-transition {
   .animate-nudge-down,
   .animate-circuit-flow {
     animation: none !important;
+  }
+  /* With no sweep, flatten the shimmer gradient to a solid surface so it never
+     freezes mid-glint as a static diagonal band. */
+  .animate-shimmer {
+    background: var(--color-surface-1) !important;
   }
   .animate-fade-in,
   .animate-slide-up {

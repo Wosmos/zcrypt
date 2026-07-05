@@ -1,43 +1,58 @@
 import { Skeleton } from "@/components/ui/skeleton";
 
-export default function DashboardLoading() {
+/**
+ * Skeleton for the vault page. Mirrors the real silhouette: the top search +
+ * actions row, then <VaultExplorer/>'s toolbar (breadcrumb + view/select), the
+ * type-filter chip line, and the default GRID listing (matches the explorer's
+ * own 8-card loading grid). Sidebar / global chrome live in the (app) shell.
+ */
+export default function VaultLoading() {
   return (
-    <div className="space-y-8 animate-fade-in">
-      {/* Header */}
-      <div className="flex items-center gap-2.5">
-        <Skeleton className="h-10 w-10 rounded-xl" />
-        <div className="space-y-1.5">
-          <Skeleton className="h-2.5 w-20" />
-          <Skeleton className="h-6 w-32" />
+    <div className="space-y-6 animate-fade-in">
+      {/* Top row — search on the left (with the vault-lock pill hugging it on
+          desktop), [New folder, Upload, refresh] far right. */}
+      <div className="flex flex-row items-center gap-2 sm:justify-between sm:gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-2 sm:flex-initial">
+          <Skeleton className="h-9 w-full min-w-0 flex-1 rounded-xl sm:w-80" />
+          <Skeleton className="hidden h-9 w-28 flex-shrink-0 rounded-lg sm:block" />
         </div>
-      </div>
-
-      {/* Upload area */}
-      <Skeleton className="h-40 w-full rounded-2xl" />
-
-      {/* File table header */}
-      <div className="flex items-center justify-between">
-        <Skeleton className="h-4 w-24" />
-        <div className="flex gap-2">
+        <div className="hidden flex-shrink-0 items-center gap-2 sm:flex">
+          <Skeleton className="h-9 w-28 rounded-xl" />
           <Skeleton className="h-9 w-24 rounded-xl" />
           <Skeleton className="h-9 w-9 rounded-xl" />
         </div>
       </div>
 
-      {/* File rows */}
-      <div className="space-y-2">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="card p-4 flex items-center gap-4">
-            <Skeleton className="h-9 w-9 rounded-xl flex-shrink-0" />
-            <div className="flex-1 space-y-1.5">
-              <Skeleton className="h-3.5 w-48" />
-              <Skeleton className="h-2.5 w-32" />
-            </div>
-            <Skeleton className="h-3 w-16 hidden sm:block" />
-            <Skeleton className="h-3 w-20 hidden sm:block" />
-            <Skeleton className="h-7 w-7 rounded-lg" />
+      {/* Explorer */}
+      <div className="space-y-3">
+        {/* Toolbar — breadcrumb (left) + grid density / view toggle / Select (right, desktop) */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+          <div className="min-w-0 flex-1">
+            <Skeleton className="h-5 w-28 rounded-md" />
           </div>
-        ))}
+          <div className="hidden flex-shrink-0 items-center gap-2 sm:flex">
+            <Skeleton className="h-8 w-16 rounded-lg" />
+            <Skeleton className="h-8 w-16 rounded-lg" />
+            <Skeleton className="h-8 w-20 rounded-lg" />
+          </div>
+        </div>
+
+        {/* Type-filter chips (desktop) */}
+        <div className="hidden flex-wrap gap-2 sm:flex">
+          {["w-16", "w-20", "w-14", "w-24", "w-16"].map((w, i) => (
+            <Skeleton key={i} className={`h-7 ${w} rounded-full`} />
+          ))}
+        </div>
+
+        {/* Listing — default GRID view (mirrors the explorer's own loading grid) */}
+        <div
+          className="grid gap-2.5"
+          style={{ gridTemplateColumns: "repeat(auto-fill, minmax(118px, 1fr))" }}
+        >
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Skeleton key={i} className="h-[180px] rounded-xl" />
+          ))}
+        </div>
       </div>
     </div>
   );
