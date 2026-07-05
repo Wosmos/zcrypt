@@ -34,6 +34,7 @@ import { BentoGrid } from "@/components/marketing/landing/bento-grid";
 import { EncryptionBoundary } from "@/components/marketing/landing/encryption-boundary";
 import { BringYourOwnStorage } from "@/components/marketing/landing/bring-your-own-storage";
 import { BuiltToTrust } from "@/components/marketing/landing/built-to-trust";
+import { BuiltBy } from "@/components/marketing/landing/built-by";
 import {
   FAQJsonLd,
   SoftwareApplicationJsonLd,
@@ -386,6 +387,9 @@ export default function LandingPage() {
           </ScrollReveal>
         </div>
       </section> */}
+
+      {/* ═══ BUILT BY (maker signature) ═══ */}
+      <BuiltBy />
 
       {/* ═══ CTA ═══ */}
       <section className="py-32 px-4 relative overflow-hidden">

@@ -73,6 +73,8 @@ import {
   Send as _Send,
   ArrowLeft as _ArrowLeft,
   ArrowRight as _ArrowRight,
+  ArrowUpRight01Icon as _ArrowUpRight,
+  Location01Icon as _Location,
   ShieldAlert as _ShieldAlert,
   ShieldCheck as _ShieldCheck,
   LogIn as _LogIn,
@@ -231,6 +233,8 @@ export const MessageSquare = makeIcon(_MessageSquare, "MessageSquare");
 export const Send = makeIcon(_Send, "Send");
 export const ArrowLeft = makeIcon(_ArrowLeft, "ArrowLeft");
 export const ArrowRight = makeIcon(_ArrowRight, "ArrowRight");
+export const ArrowUpRight = makeIcon(_ArrowUpRight, "ArrowUpRight");
+export const MapPin = makeIcon(_Location, "MapPin");
 export const ShieldAlert = makeIcon(_ShieldAlert, "ShieldAlert");
 export const ShieldCheck = makeIcon(_ShieldCheck, "ShieldCheck");
 export const LogIn = makeIcon(_LogIn, "LogIn");

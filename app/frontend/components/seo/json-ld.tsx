@@ -26,6 +26,53 @@ export function OrganizationJsonLd() {
   );
 }
 
+// Structured data for the maker behind zcrypt — powers rich results for
+// "who built zcrypt" and links the founder's verified profiles (sameAs).
+export function PersonJsonLd() {
+  const data = {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    name: "Wasif Malik",
+    alternateName: "Wosmo",
+    url: "https://wosmos.vercel.app",
+    jobTitle: "Full-stack engineer",
+    email: "mailto:m.wasifmalik17@gmail.com",
+    address: {
+      "@type": "PostalAddress",
+      addressLocality: "Karachi",
+      addressCountry: "PK",
+    },
+    knowsAbout: [
+      "Cryptography",
+      "Zero-knowledge systems",
+      "Go",
+      "Next.js",
+      "React",
+      "PostgreSQL",
+      "Distributed systems",
+    ],
+    sameAs: [
+      "https://github.com/Wosmos",
+      "https://www.linkedin.com/in/wasif-m-79205a1bb/",
+      "https://www.instagram.com/wosmo_tech/",
+      "https://hashnode.com/@Wosmo",
+    ],
+    mainEntityOfPage: "https://zcrypt.cloud/about",
+    worksFor: {
+      "@type": "Organization",
+      name: "zcrypt",
+      url: "https://zcrypt.cloud",
+    },
+  };
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+    />
+  );
+}
+
 export function SoftwareApplicationJsonLd() {
   const data = {
     "@context": "https://schema.org",
