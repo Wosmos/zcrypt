@@ -67,6 +67,30 @@ describe("getFileTypeInfo", () => {
   it("treats a trailing bare dot (empty extension) as unknown", () => {
     expect(getFileTypeInfo("archive.").icon).toBe("File");
   });
+
+  it("labels broad video formats (beyond the explicit map) via the fallback", () => {
+    // flv/wmv/3gp are recognized by VIDEO_EXTENSIONS but absent from typeMap,
+    // so they hit the isVideoFile fallback branch.
+    const flv = getFileTypeInfo("clip.flv");
+    expect(flv.icon).toBe("Video");
+    expect(flv.label).toBe("Video");
+    expect(flv.color).toContain("blue");
+
+    expect(getFileTypeInfo("home-movie.3gp").label).toBe("Video");
+    expect(getFileTypeInfo("recording.m2ts").icon).toBe("Video");
+  });
+
+  it("labels broad audio formats (beyond the explicit map) via the fallback", () => {
+    // wma/opus/mpeg are recognized by AUDIO_EXTENSIONS but absent from typeMap,
+    // so they hit the isAudioFile fallback branch.
+    const wma = getFileTypeInfo("track.wma");
+    expect(wma.icon).toBe("Music");
+    expect(wma.label).toBe("Audio");
+    expect(wma.color).toContain("pink");
+
+    expect(getFileTypeInfo("voice-note.mpeg").label).toBe("Audio");
+    expect(getFileTypeInfo("sound.opus").icon).toBe("Music");
+  });
 });
 
 describe("getFileIcon", () => {

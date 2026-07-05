@@ -209,6 +209,22 @@ describe("downloadAndDecryptFile — in-memory path", () => {
     expect(resolveFileKey).not.toHaveBeenCalled();
   });
 
+  it("reuses a cached resume.keyBytes and skips all key resolution", async () => {
+    const chunk = chunkBytes(0);
+    const hash = expectedHash([chunk]);
+    getFileMeta.mockResolvedValueOnce(baseMeta(1, hash));
+    getFileChunk.mockResolvedValueOnce({ data: chunk.buffer, sha256: "", compressed: false });
+    const resolveKey = vi.fn();
+    const resume = { keyBytes: new ArrayBuffer(32) };
+
+    await downloadAndDecryptFile("f1", "pw", { resume, resolveKey });
+
+    // The cached key short-circuits both derivation paths entirely.
+    expect(resolveFileKey).not.toHaveBeenCalled();
+    expect(resolveKey).not.toHaveBeenCalled();
+    expect(resume.keyBytes).toBeInstanceOf(ArrayBuffer);
+  });
+
   it("uses resolvePassword to derive a per-file passphrase instead of the shared one", async () => {
     const chunk = chunkBytes(0);
     const hash = expectedHash([chunk]);
@@ -337,6 +353,29 @@ describe("downloadAndDecryptFile — abort/cancel", () => {
     ).rejects.toMatchObject({ name: "AbortError" });
 
     expect(saveToDisk.abort).toHaveBeenCalledTimes(1);
+  });
+
+  it("throws DownloadPausedError (not AbortError) when the abort is a pause", async () => {
+    const controller = new AbortController();
+    getFileMeta.mockResolvedValueOnce(baseMeta(1, "irrelevant-since-paused"));
+    getFileChunk.mockImplementationOnce(async () => {
+      controller.abort();
+      return { data: chunkBytes(0).buffer, sha256: "", compressed: false };
+    });
+    const saveToDisk = fakeDiskWritable();
+
+    const err = await downloadAndDecryptFile("f1", "pw", {
+      signal: controller.signal,
+      saveToDisk,
+      pausing: () => true,
+    }).catch((e) => e);
+
+    expect(err).toBeInstanceOf(Error);
+    expect((err as Error).name).toBe("DownloadPausedError");
+    expect((err as Error).message).toBe("Download paused");
+    // Pause keeps the writable OPEN (not a cancel) so a resume can keep appending.
+    expect(saveToDisk.abort).not.toHaveBeenCalled();
+    expect(saveToDisk.close).not.toHaveBeenCalled();
   });
 
   it("catches an abort that lands between chunk processing finishing and the final signal check", async () => {
