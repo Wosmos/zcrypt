@@ -356,7 +356,8 @@ func (s *Server) HandleChunkUpload(w http.ResponseWriter, r *http.Request) {
 		Compressed: compressed,
 	}
 
-	if err := s.db.InsertClientChunk(ctx, userID, dbChunk); err != nil {
+	inserted, err := s.db.InsertClientChunk(ctx, userID, dbChunk)
+	if err != nil {
 		os.Remove(stagingPath) // clean up staging file
 		log.Printf("upload: store chunk ref failed: %v", err)
 		http.Error(w, `{"error":"failed to store chunk"}`, http.StatusInternalServerError)
@@ -369,13 +370,18 @@ func (s *Server) HandleChunkUpload(w http.ResponseWriter, r *http.Request) {
 	default:
 	}
 
-	// Increment session counter. The returned count reflects THIS increment, so
-	// concurrent chunk uploads emit accurate percentages instead of ones computed
-	// from the stale count read at request start.
-	uploadedCount, err := s.db.IncrementSessionChunks(ctx, sessionID)
-	if err != nil {
-		fmt.Printf("warn: increment session chunks: %v\n", err)
-		uploadedCount = session.UploadedChunks + 1
+	// Only a NEW chunk row advances the counter. A duplicate re-PUT of the same
+	// index (racy client / retry) hits ON CONFLICT DO NOTHING and must NOT
+	// double-count — double-counting produced >100% progress and false
+	// "not all chunks" completion failures.
+	uploadedCount := session.UploadedChunks
+	if inserted {
+		if c, incErr := s.db.IncrementSessionChunks(ctx, sessionID); incErr != nil {
+			fmt.Printf("warn: increment session chunks: %v\n", incErr)
+			uploadedCount = session.UploadedChunks + 1
+		} else {
+			uploadedCount = c
+		}
 	}
 
 	// Emit progress
@@ -806,18 +812,24 @@ func (s *Server) HandleConfirmChunk(w http.ResponseWriter, r *http.Request) {
 		Compressed: req.Compressed,
 	}
 
-	if err := s.db.InsertClientChunk(ctx, userID, dbChunk); err != nil {
+	inserted, err := s.db.InsertClientChunk(ctx, userID, dbChunk)
+	if err != nil {
 		log.Printf("upload: store chunk ref failed: %v", err)
 		http.Error(w, `{"error":"failed to store chunk"}`, http.StatusInternalServerError)
 		return
 	}
 
-	// Increment session counter; the returned count reflects THIS increment
+	// Increment session counter only for a NEW chunk; a duplicate re-PUT of the
+	// same index hits ON CONFLICT DO NOTHING and must not double-count
 	// (see HandleChunkUpload).
-	uploadedCount, err := s.db.IncrementSessionChunks(ctx, sessionID)
-	if err != nil {
-		fmt.Printf("warn: increment session chunks: %v\n", err)
-		uploadedCount = session.UploadedChunks + 1
+	uploadedCount := session.UploadedChunks
+	if inserted {
+		if c, incErr := s.db.IncrementSessionChunks(ctx, sessionID); incErr != nil {
+			fmt.Printf("warn: increment session chunks: %v\n", incErr)
+			uploadedCount = session.UploadedChunks + 1
+		} else {
+			uploadedCount = c
+		}
 	}
 
 	// Emit progress

@@ -77,6 +77,7 @@ type FileMetadata struct {
 	FolderID       *string   `json:"folder_id,omitempty"`  // parent folder; nil = root
 	EncryptedName  string    `json:"encrypted_name"`       // client-side-encrypted (base64) name; opaque to server
 	DeletedAt      *string   `json:"deleted_at,omitempty"` // non-nil = in trash
+	Platform       string    `json:"platform,omitempty"`   // storage platform of the file's chunks (telegram/github/…); display-only
 }
 
 // ChunkRef identifies a single chunk stored on a platform.
