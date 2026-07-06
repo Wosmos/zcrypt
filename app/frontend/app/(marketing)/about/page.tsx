@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, ArrowUpRight, MapPin, ShieldCheck } from "@/lib/icons";
 import { Section, PullQuote } from "@/components/marketing/prose";
-import { WOSMO, WOSMO_SOCIALS, WosmoMark } from "@/components/marketing/wosmo";
+import { WOSMO, WOSMO_SOCIALS, WosmoWordmark } from "@/components/marketing/wosmo";
 import { PersonJsonLd, BreadcrumbJsonLd } from "@/components/seo/json-ld";
 
 // Server Component (statically generated) — metadata lives here, and the only
@@ -93,31 +93,31 @@ export default function AboutPage() {
       <article className="mx-auto max-w-3xl px-4">
         {/* ─── Hero ─────────────────────────────────────────── */}
         <Section>
-          <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
-            The person behind zcrypt
+          <WosmoWordmark className="h-8 w-auto text-[var(--color-text)]" />
+
+          <p className="mt-8 mb-4 text-xs font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
+            Who&apos;s actually behind this
           </p>
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
-            <WosmoMark className="h-16 w-auto flex-shrink-0 rounded-2xl shadow-lg shadow-cyan-500/10" />
-            <div>
-              <h1 className="text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl">
-                Hi, I&apos;m Wasif.
-                <br />
-                <span className="text-[var(--color-text-secondary)]">
-                  I built zcrypt.
-                </span>
-              </h1>
-            </div>
-          </div>
+          <h1 className="text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl">
+            Hi, I&apos;m Wasif.
+            <br />
+            <span className="text-[var(--color-text-secondary)]">
+              I just wanted free storage.
+            </span>
+          </h1>
 
           <p className="mt-7 max-w-2xl text-lg leading-relaxed text-[var(--color-text-secondary)]">
-            {WOSMO.name} — better known online as{" "}
+            {WOSMO.name} &mdash;{" "}
             <span className="font-semibold text-[var(--color-text)]">
               {WOSMO.handle}
-            </span>
-            . A {WOSMO.role.toLowerCase()} who&apos;s obsessed with building
-            high-performance, real-world systems. zcrypt is one of them, built
-            end to end: the crypto, the pipeline, the drive, and every pixel of
-            this site.
+            </span>{" "}
+            to the internet. A {WOSMO.role.toLowerCase()} in {WOSMO.location} who
+            needed somewhere to put a lot of files, couldn&apos;t find storage
+            that didn&apos;t also want to read them, and &mdash; instead of
+            letting it go like a reasonable person &mdash; spent a few months
+            building his own. That&apos;s zcrypt. It&apos;s just me back here: no
+            team, no investors, no &ldquo;zcrypt family.&rdquo; Which mostly means
+            when something breaks, I already know whose fault it is.
           </p>
 
           {/* Identity chips */}
@@ -169,45 +169,82 @@ export default function AboutPage() {
               </span>
             </div>
             <p className="text-base leading-relaxed text-[var(--color-text-secondary)] sm:text-lg">
-              A tool that holds the keys to your files should tell you who&apos;s
-              behind it. I&apos;m not a faceless &ldquo;we,&rdquo; and I&apos;m
-              not the anonymous founder who ships a privacy app and vanishes.
-              I&apos;m a real person, with a name, a face, and a track record you
-              can check &mdash; and every line of zcrypt is open source, so you
-              never have to take my word for any of it.
+              A tool that holds your keys should at least tell you who to blame
+              &mdash; so, that&apos;s me. Right here. There&apos;s no mysterious
+              &ldquo;we&rdquo; to vanish behind when something breaks, no
+              &ldquo;the team is looking into it.&rdquo; There is a team. It&apos;s
+              me. The encryption runs on your device before anything uploads, so I
+              can&apos;t read your files. I&apos;ve tried it on my own test data.
+              Can&apos;t. That&apos;s the entire point.
             </p>
           </div>
         </Section>
 
-        {/* ─── Why I built it ───────────────────────────────── */}
+        {/* ─── The origin story ─────────────────────────────── */}
         <Section className="mt-16">
           <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-            Why I built zcrypt
+            How zcrypt actually happened
           </h2>
           <div className="mt-6 space-y-4 text-base leading-relaxed text-[var(--color-text-secondary)]">
             <p>
-              I kept running into the same wall: cloud storage is absurdly
-              expensive, and the &ldquo;free&rdquo; tiers pay for themselves by
-              reading your data. Meanwhile I already had gigabytes of free space
-              sitting unused across accounts I owned — GitHub, GitLab, Hugging
-              Face, Telegram.
+              A couple of months ago I was moving my whole life between machines
+              &mdash; 50-something gigabytes of projects, RAW photos, and
+              half-finished edits I keep swearing I&apos;ll get back to. The kind
+              of files you can&apos;t just re-download.
             </p>
             <p>
-              So I built the thing I wanted to exist: a real encrypted drive that
-              lives inside storage you already own, where files are encrypted on
-              your device before they ever leave it. No rent, no lock-in, nothing
-              I can read.
+              Google Drive tapped me on the shoulder at 15GB and asked for my
+              card. So I did the very reasonable thing: I made a second account.
+              Then a third. For about a week I was splitting one folder across
+              three logins like a low-budget digital smuggler, quietly proud of a
+              system held together with tape.
+            </p>
+            <p>
+              Then I tried TeraBox. &ldquo;One terabyte, free,&rdquo; they said.
+              What they didn&apos;t say: the download button is hidden like a
+              state secret, your files quietly live on <em>their</em> servers, and
+              the fine print treats your data as theirs to scan and learn from. It
+              really clicked when I uploaded a 4GB folder, watched it crawl to
+              80%, and watched it fail. My first thought wasn&apos;t &ldquo;let me
+              retry.&rdquo; It was &ldquo;why am I handing my entire life to a
+              company whose whole business is knowing what&apos;s inside it?&rdquo;
+            </p>
+            <p>
+              And here&apos;s the part I genuinely can&apos;t take credit for,
+              because it&apos;s just true: free storage was never free. I just
+              hadn&apos;t read the price tag &mdash; because the price tag is me.
+              These are billion-dollar companies; privacy isn&apos;t a feature
+              they forgot to add, it&apos;s the thing they quietly sell against.
+            </p>
+            <p>
+              So I stopped complaining online and started building, which is
+              really just complaining with extra steps. The idea was simple even
+              though the code very much wasn&apos;t: encrypt your files on your
+              device before they leave, so not even I can read them, then store
+              them across the infrastructure you already own and trust. No new
+              data empire. No &ldquo;we value your privacy&rdquo; banner that
+              means the exact opposite. Just your files, locked, yours.
             </p>
           </div>
           <PullQuote>
-            I didn&apos;t want to trust a cloud provider. So I made sure you
-            never have to trust me either.
+            Free storage was never free. I just hadn&apos;t read the price tag
+            &mdash; because the price tag was me.
           </PullQuote>
+          <div className="space-y-4 text-base leading-relaxed text-[var(--color-text-secondary)]">
+            <p>
+              I&apos;m building it in public &mdash; the wins, the bugs, and the
+              2AM &ldquo;why is this WASM module re-initialising&rdquo; commits.
+              It&apos;s me and a concerning amount of coffee, so yes, there will be
+              rough edges. The encryption isn&apos;t one of them: it&apos;s open
+              source, and I can&apos;t read your files even if I wanted to. (I
+              don&apos;t. But I couldn&apos;t.)
+            </p>
+          </div>
           <Link
             href="/philosophy"
-            className="inline-flex items-center gap-1.5 text-sm font-semibold text-cyan-600 transition-all hover:gap-2.5 dark:text-cyan-400"
+            className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-cyan-600 transition-all hover:gap-2.5 dark:text-cyan-400"
           >
-            Read the full philosophy
+            The longer, ranty version lives on the philosophy page
             <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </Section>
@@ -215,11 +252,12 @@ export default function AboutPage() {
         {/* ─── Other things I've built ──────────────────────── */}
         <Section className="mt-20">
           <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-            Other things I&apos;ve shipped
+            Other things I&apos;ve built
           </h2>
           <p className="mt-3 text-base leading-relaxed text-[var(--color-text-secondary)]">
-            zcrypt isn&apos;t a one-off. I ship end-to-end products across web,
-            mobile, and backend — here&apos;s a sample.
+            I have a bad habit of building the whole thing myself &mdash;
+            frontend, backend, and the awkward bits in between. A few others that
+            (mostly) work:
           </p>
 
           <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -263,10 +301,11 @@ export default function AboutPage() {
         {/* ─── The stack ────────────────────────────────────── */}
         <Section className="mt-20">
           <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-            What I work with
+            The usual suspects
           </h2>
           <p className="mt-3 text-base leading-relaxed text-[var(--color-text-secondary)]">
-            Frontend to infrastructure — comfortable across the whole stack.
+            The tools I reach for, from the browser all the way down to the bytes
+            on disk:
           </p>
           <div className="mt-6 flex flex-wrap gap-2.5">
             {STACK.map((tech) => (
@@ -283,13 +322,14 @@ export default function AboutPage() {
         {/* ─── Contact / CTA ────────────────────────────────── */}
         <Section className="mt-20 border-t border-[var(--color-border)] pt-12">
           <div className="rounded-3xl border border-[var(--color-border)] bg-gradient-to-b from-[var(--color-surface-1)] to-[var(--color-surface)] p-8 text-center sm:p-10">
-            <WosmoMark className="mx-auto h-12 w-auto rounded-xl shadow-lg shadow-cyan-500/10" />
+            <WosmoWordmark className="mx-auto h-8 w-auto text-[var(--color-text)]" />
             <h2 className="mt-6 text-2xl font-bold tracking-tight sm:text-3xl">
               Let&apos;s build something.
             </h2>
             <p className="mx-auto mt-3 max-w-md text-base leading-relaxed text-[var(--color-text-secondary)]">
-              Open to new projects and consulting. The fastest way to reach me is
-              anywhere below.
+              I&apos;m open to new projects and freelance work &mdash; and I
+              answer my own messages, mostly because there&apos;s no one else to
+              pass them to. Pick a door:
             </p>
 
             <div className="mt-8 flex flex-wrap justify-center gap-2.5">

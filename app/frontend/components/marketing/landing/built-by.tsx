@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ArrowRight, ArrowUpRight } from "@/lib/icons";
 import { ScrollReveal } from "./scroll-reveal";
-import { WOSMO, WosmoMark } from "@/components/marketing/wosmo";
+import { WOSMO, WosmoWordmark } from "@/components/marketing/wosmo";
 
 /**
  * Landing "built by" strip — a personal signature band that names the maker
@@ -26,24 +26,25 @@ export function BuiltBy() {
               }}
             />
 
-            <div className="relative flex flex-col items-center gap-8 text-center sm:flex-row sm:items-center sm:gap-9 sm:text-left">
-              <WosmoMark className="h-20 w-auto flex-shrink-0 rounded-2xl shadow-lg shadow-cyan-500/10" />
+            <div className="relative flex flex-col items-center gap-8 text-center sm:flex-row sm:items-center sm:gap-10 sm:text-left">
+              <WosmoWordmark className="h-9 w-auto flex-shrink-0 text-[var(--color-text)] sm:h-11" />
 
               <div className="min-w-0 flex-1">
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
                   The human behind it
                 </p>
                 <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-                  Built by one person, in the open.
+                  Built by one guy who just wanted free storage.
                 </h2>
                 <p className="mx-auto mt-3 max-w-xl leading-relaxed text-[var(--color-text-secondary)] sm:mx-0">
                   zcrypt is designed, built, and maintained by{" "}
                   <span className="font-semibold text-[var(--color-text)]">
                     {WOSMO.name}
                   </span>{" "}
-                  &mdash; a {WOSMO.role.toLowerCase()} from {WOSMO.location}. Not a
-                  faceless company. Every line is open source, so you never have
-                  to take his word for it.
+                  &mdash; a {WOSMO.role.toLowerCase()} from {WOSMO.location} who
+                  got tired of clouds reading his files and built one that
+                  can&apos;t. It&apos;s open source, so you never have to take his
+                  word for it.
                 </p>
 
                 <div className="mt-7 flex flex-wrap items-center justify-center gap-3 sm:justify-start">

@@ -392,6 +392,13 @@ export function MarketingNav() {
               >
                 Why zcrypt
               </Link>
+
+              <Link
+                href="/about"
+                className={cn(triggerClass(pathname === "/about"))}
+              >
+                About
+              </Link>
             </nav>
 
             {/* Actions */}
@@ -573,6 +580,14 @@ export function MarketingNav() {
                   className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)]"
                 >
                   Why zcrypt
+                </Link>
+
+                <Link
+                  href="/about"
+                  onClick={() => setMobileOpen(false)}
+                  className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)]"
+                >
+                  About
                 </Link>
               </div>
 
