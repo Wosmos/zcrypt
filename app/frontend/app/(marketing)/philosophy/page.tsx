@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, ArrowUpRight } from "@/lib/icons";
 import { Section, PullQuote } from "@/components/marketing/prose";
-import { WOSMO, WosmoMark } from "@/components/marketing/wosmo";
+import { WOSMO, WosmoWordmark } from "@/components/marketing/wosmo";
 
 // Server Component (statically generated) — metadata lives here; the only client
 // parts are the <Section>/<PullQuote> scroll-reveal islands from prose.tsx.
@@ -249,37 +249,36 @@ export default function PhilosophyPage() {
           </h2>
           <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
             <p>
-              Mostly one person. I&apos;m {WOSMO.name} &mdash; a{" "}
-              {WOSMO.role.toLowerCase()} who got tired of paying rent on his own
-              files and built the alternative. zcrypt is mine end to end: the
-              encryption, the upload pipeline, the drive, and this page
-              you&apos;re reading right now.
+              Honestly? Mostly one guy. I&apos;m {WOSMO.name} &mdash; a{" "}
+              {WOSMO.role.toLowerCase()} who wanted a lot of free storage,
+              couldn&apos;t find any that wouldn&apos;t read his files, and got
+              annoyed enough to build the alternative instead of just posting
+              about it. zcrypt is mine end to end: the encryption, the upload
+              pipeline, the drive, and this exact page you&apos;re reading.
             </p>
             <p>
-              I say &ldquo;we&rdquo; out of habit, not to hide behind a logo. And
-              that matters here: a tool that asks you to trust it with your keys
-              should tell you exactly who wrote the code that holds them. No
-              anonymous founder, no shell company. Just my name, on the record.
+              I say &ldquo;we&rdquo; out of habit, not to hide behind a logo
+              &mdash; and here of all places, that matters. A tool that asks you
+              to trust it with your keys should tell you exactly who wrote the
+              code that holds them. No anonymous founder. No shell company. Just
+              my name, on the record, right here.
             </p>
           </div>
 
           <Link
             href="/about"
-            className="group mt-8 flex items-center gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 transition-colors hover:border-cyan-500/40"
+            className="group mt-8 flex items-center justify-between gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 transition-colors hover:border-cyan-500/40"
           >
-            <WosmoMark className="h-12 w-auto flex-shrink-0 rounded-xl" />
             <div className="min-w-0">
-              <p className="font-bold tracking-tight text-[var(--color-text)]">
-                {WOSMO.name}{" "}
-                <span className="font-normal text-[var(--color-text-muted)]">
-                  / {WOSMO.handle}
-                </span>
-              </p>
-              <p className="mt-0.5 inline-flex items-center gap-1 text-sm font-semibold text-cyan-600 dark:text-cyan-400">
-                More about the maker
-                <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+              <WosmoWordmark className="h-6 w-auto text-[var(--color-text)]" />
+              <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
+                {WOSMO.name} &mdash; the one-person company behind zcrypt.
               </p>
             </div>
+            <span className="inline-flex flex-shrink-0 items-center gap-1 text-sm font-semibold text-cyan-600 dark:text-cyan-400">
+              Read the story
+              <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+            </span>
           </Link>
         </Section>
 
