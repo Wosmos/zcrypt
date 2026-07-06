@@ -630,4 +630,23 @@ CREATE TABLE IF NOT EXISTS user_keys (
 	created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Deduplicate chunk rows and enforce exactly one row per (file_id, idx). A racy
+-- check-then-insert historically allowed a second row for the same index, which
+-- over-counted uploaded_chunks (>100% progress) and could mask a missing index
+-- at completion. Keep the most-likely-valid duplicate: prefer a non-empty
+-- remote_path (a synced locator over a pending/broken one), then the larger
+-- size, then a stable chunk_id. Idempotent — after the first run there are no
+-- duplicates left to remove, and the unique index is a no-op.
+DELETE FROM chunks c USING (
+	SELECT chunk_id,
+	       row_number() OVER (
+	         PARTITION BY file_id, idx
+	         ORDER BY (remote_path <> '') DESC, size DESC, chunk_id
+	       ) AS rn
+	FROM chunks
+) ranked
+WHERE c.chunk_id = ranked.chunk_id AND ranked.rn > 1;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_chunks_file_idx ON chunks (file_id, idx);
 `

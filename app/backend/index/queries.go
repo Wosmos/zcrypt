@@ -126,7 +126,8 @@ func (db *DB) UpdateFileKey(ctx context.Context, userID, fileID string, salt []b
 // explicit cap. Search uses ILIKE (case-insensitive) to match the frontend's
 // case-insensitive client-side filter and is backed by the pg_trgm GIN index when present.
 func (db *DB) ListFiles(ctx context.Context, userID, filter string, limit int) ([]types.FileMetadata, error) {
-	query := `SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, wrapped_cek, status, created_at, folder_id, encrypted_name, deleted_at
+	query := `SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, wrapped_cek, status, created_at, folder_id, encrypted_name, deleted_at,
+	                 COALESCE((SELECT c.platform FROM chunks c WHERE c.file_id = files.id LIMIT 1), '') AS platform
 	          FROM files WHERE user_id = $1 AND status = 'complete' AND deleted_at IS NULL`
 	args := []interface{}{userID}
 
@@ -154,7 +155,7 @@ func (db *DB) ListFiles(ctx context.Context, userID, filter string, limit int) (
 		)
 		if err := rows.Scan(&f.ID, &f.UserID, &f.OriginalName, &f.OriginalSize, &f.CompressedSize,
 			&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.Salt, &f.IV, &f.WrappedCEK, &f.Status, &f.CreatedAt,
-			&f.FolderID, &f.EncryptedName, &deletedAt); err != nil {
+			&f.FolderID, &f.EncryptedName, &deletedAt, &f.Platform); err != nil {
 			return nil, fmt.Errorf("scan file: %w", err)
 		}
 		f.DeletedAt = folderTimeStr(deletedAt)
@@ -171,7 +172,8 @@ func (db *DB) ListFiles(ctx context.Context, userID, filter string, limit int) (
 // IS NOT DISTINCT FROM. This is a sibling of ListFiles so existing callers stay untouched.
 func (db *DB) ListFilesInFolder(ctx context.Context, userID string, folderID *string) ([]types.FileMetadata, error) {
 	rows, err := db.pool.Query(ctx,
-		`SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, wrapped_cek, status, created_at, folder_id, encrypted_name, deleted_at
+		`SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, wrapped_cek, status, created_at, folder_id, encrypted_name, deleted_at,
+		        COALESCE((SELECT c.platform FROM chunks c WHERE c.file_id = files.id LIMIT 1), '') AS platform
 		 FROM files
 		 WHERE user_id = $1 AND status = 'complete' AND deleted_at IS NULL AND folder_id IS NOT DISTINCT FROM $2
 		 ORDER BY created_at DESC`,
@@ -190,7 +192,7 @@ func (db *DB) ListFilesInFolder(ctx context.Context, userID string, folderID *st
 		)
 		if err := rows.Scan(&f.ID, &f.UserID, &f.OriginalName, &f.OriginalSize, &f.CompressedSize,
 			&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.Salt, &f.IV, &f.WrappedCEK, &f.Status, &f.CreatedAt,
-			&f.FolderID, &f.EncryptedName, &deletedAt); err != nil {
+			&f.FolderID, &f.EncryptedName, &deletedAt, &f.Platform); err != nil {
 			return nil, fmt.Errorf("scan file: %w", err)
 		}
 		f.DeletedAt = folderTimeStr(deletedAt)
@@ -927,16 +929,20 @@ func (db *DB) CleanupExpiredUploadSessions(ctx context.Context) (int, []string, 
 }
 
 // InsertClientChunk inserts a chunk uploaded by the client (already encrypted).
-func (db *DB) InsertClientChunk(ctx context.Context, userID string, c *types.ChunkRef) error {
-	_, err := db.pool.Exec(ctx,
+// Returns inserted=false when a row for this (file_id, idx) already exists — a
+// racy duplicate PUT — so the caller can avoid double-counting uploaded_chunks.
+// Relies on the uq_chunks_file_idx unique index (see schema.go).
+func (db *DB) InsertClientChunk(ctx context.Context, userID string, c *types.ChunkRef) (bool, error) {
+	tag, err := db.pool.Exec(ctx,
 		`INSERT INTO chunks (chunk_id, file_id, user_id, idx, size, sha256, platform, account, repo, remote_path, compressed)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		 ON CONFLICT (file_id, idx) DO NOTHING`,
 		c.ChunkID, c.FileID, userID, c.Index, c.Size, c.SHA256, c.Platform, c.Account, c.Repo, c.RemotePath, c.Compressed,
 	)
 	if err != nil {
-		return fmt.Errorf("insert client chunk: %w", err)
+		return false, fmt.Errorf("insert client chunk: %w", err)
 	}
-	return nil
+	return tag.RowsAffected() > 0, nil
 }
 
 // GetChunkByIndex returns a single chunk by file ID and index (including pending-sync chunks).
