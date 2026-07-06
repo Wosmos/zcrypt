@@ -111,22 +111,33 @@ export function useFolders() {
     async (name: string) => {
       const key = await getNameKey();
       if (!key) throw new Error("Unlock your vault to create folders");
-      const encrypted_name = await encryptName(name.trim(), key);
+      const trimmed = name.trim();
+      // Block a duplicate sibling name (case-insensitive). Folder names are
+      // E2E-encrypted so the server can't enforce this — the guard runs here
+      // against the decrypted listing of the current folder.
+      if (folders.some((f) => f.name.trim().toLowerCase() === trimmed.toLowerCase())) {
+        throw new Error(`A folder named "${trimmed}" already exists here.`);
+      }
+      const encrypted_name = await encryptName(trimmed, key);
       await apiCreateFolder({ encrypted_name, parent_id: currentFolderId });
       await invalidateFolders();
     },
-    [getNameKey, currentFolderId]
+    [getNameKey, currentFolderId, folders]
   );
 
   const renameFolder = useCallback(
     async (id: string, name: string) => {
       const key = await getNameKey();
       if (!key) throw new Error("Unlock your vault to rename folders");
-      const encrypted_name = await encryptName(name.trim(), key);
+      const trimmed = name.trim();
+      if (folders.some((f) => f.id !== id && f.name.trim().toLowerCase() === trimmed.toLowerCase())) {
+        throw new Error(`A folder named "${trimmed}" already exists here.`);
+      }
+      const encrypted_name = await encryptName(trimmed, key);
       await apiRenameFolder(id, encrypted_name);
       await invalidateFolders();
     },
-    [getNameKey]
+    [getNameKey, folders]
   );
 
   const deleteFolder = useCallback(async (id: string) => {
