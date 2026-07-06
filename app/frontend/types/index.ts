@@ -12,6 +12,8 @@ export interface FileMetadata {
   folder_id?: string | null;
   encrypted_name?: string;
   deleted_at?: string | null;
+  /** Storage platform of the file's chunks (telegram/github/huggingface/…). Display-only. */
+  platform?: string;
 }
 
 /** A nested folder. `encrypted_name` is the AES-GCM-encrypted (base64) name —

@@ -18,8 +18,19 @@ import { LogoSpinner } from "@/components/ui/logo-spinner";
 import {
   File, FileText, Image, Video, Music, Archive, Code, Cog, Table,
   Lock, Copy, Check, Layers, Key, Clock, HardDrive, Database, ShieldCheck,
-  Share2, Link2, Trash2, Plus,
+  Share2, Link2, Trash2, Plus, Cloud,
 } from "@/lib/icons";
+
+/** Human label for a storage platform code (from FileMetadata.platform). */
+const PLATFORM_LABELS: Record<string, string> = {
+  telegram: "Telegram",
+  github: "GitHub",
+  gitlab: "GitLab",
+  huggingface: "Hugging Face",
+};
+function platformLabel(p: string): string {
+  return PLATFORM_LABELS[p.toLowerCase()] ?? p.charAt(0).toUpperCase() + p.slice(1);
+}
 import {
   getFileMeta, createShare, revokeShare,
   type FileMetaResponse,
@@ -300,6 +311,17 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
                     }
                     icon={Clock}
                   />
+                  {file.platform && (
+                    <MetaRow
+                      label="Stored on"
+                      value={
+                        <span className="rounded-md bg-[var(--color-surface-2)] px-2 py-0.5 text-xs font-medium text-[var(--color-text)]">
+                          {platformLabel(file.platform)}
+                        </span>
+                      }
+                      icon={Cloud}
+                    />
+                  )}
                 </div>
 
                 {/* Lazy server meta */}
