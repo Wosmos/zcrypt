@@ -942,8 +942,15 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
       throw new Error("locked");
     }
     try {
+      const trimmed = folderName.trim();
+      // Same dup-name guard as useFolders.createFolder — this path calls the API
+      // directly (it needs the new folder's id to move files in), so it must
+      // check siblings itself. Names are E2E-encrypted; the server can't.
+      if (folders.some((f) => f.name.trim().toLowerCase() === trimmed.toLowerCase())) {
+        throw new Error(`A folder named "${trimmed}" already exists here.`);
+      }
       const key = await deriveNameKey(passphrase, user.id);
-      const encrypted_name = await encryptName(folderName.trim(), key);
+      const encrypted_name = await encryptName(trimmed, key);
       const folder = await apiCreateFolder({ encrypted_name, parent_id: currentFolderId });
       await refreshFolders();
       // Move both files into the new (unprotected) folder. The page's onMoveFile
