@@ -28,6 +28,12 @@ const MAX_THUMB_ATTEMPTS = 3;
 const failed = new Map<string, { attempts: number; nextRetryAt: number }>();
 const retryTimers = new Map<string, ReturnType<typeof setTimeout>>();
 let version = 0; // bumped on every change so per-file hooks re-render
+// False until the IndexedDB cache has finished loading into memCache. Cards must
+// NOT shimmer or start (re)generating before this — otherwise on every reload a
+// card sees an empty memCache, re-decrypts a thumbnail that's actually cached on
+// disk, and shimmers through it. Gating on this makes cached thumbnails appear
+// instantly across reloads/logouts (the cache itself already survives both).
+let hydrated = false;
 let listeners: (() => void)[] = [];
 function notify() { version++; for (const l of listeners) l(); }
 function subscribe(cb: () => void) { listeners.push(cb); return () => { listeners = listeners.filter((l) => l !== cb); }; }
@@ -95,7 +101,15 @@ async function dbPut(key: string, value: string) {
 
 // ── Boot: hydrate memCache from IndexedDB ────────────────────────────
 // Only ever invoked once, below — no re-entrancy guard needed.
+function markHydrated() {
+  if (hydrated) return;
+  hydrated = true;
+  notify();
+}
+
 async function hydrate() {
+  // Safety net: never block thumbnails forever if IndexedDB open/cursor hangs.
+  setTimeout(markHydrated, 3000);
   try {
     const db = await openDB();
     const tx = db.transaction(STORE_NAME, "readonly");
@@ -107,11 +121,13 @@ async function hydrate() {
         memCache.set(cursor.key as string, cursor.value as string);
         cursor.continue();
       } else {
-        notify();
+        markHydrated(); // cache fully loaded — a memCache miss is now trustworthy
       }
     };
+    req.onerror = () => markHydrated();
   } catch {
     // IndexedDB unavailable - fallback to memory-only
+    markHydrated();
   }
 }
 if (typeof window !== "undefined") hydrate();
@@ -425,7 +441,7 @@ export function useThumbnail(
   // including the notify() the retry timer fires — so `canGenerateNow` flips
   // false→true when a failed attempt's backoff elapses and the effect re-runs.
   const shouldGenerate =
-    ctxReady && thumbable && withinSize && !thumbnailUrl && canGenerateNow(fileId);
+    hydrated && ctxReady && thumbable && withinSize && !thumbnailUrl && canGenerateNow(fileId);
 
   // Lazy: generate this file's thumbnail the first time it renders after unlock,
   // and again after a transient failure's backoff. fetchAndCacheThumbnail queues
@@ -439,8 +455,12 @@ export function useThumbnail(
   // Still expecting a thumbnail (show the shimmer) until it lands or we give up
   // for good. A file in backoff between retries keeps shimmering — it's about to
   // try again — rather than flickering to an icon and back.
+  // Don't shimmer until the disk cache has hydrated — otherwise every reload
+  // flashes a shimmer over thumbnails that are actually cached and about to
+  // appear instantly. After hydration, a genuine miss still shimmers while it
+  // generates.
   const pending =
-    thumbable && withinSize && ctxReady && !thumbnailUrl && !isPermanentlyFailed(fileId);
+    hydrated && thumbable && withinSize && ctxReady && !thumbnailUrl && !isPermanentlyFailed(fileId);
 
   return { thumbnailUrl, loading, pending };
 }
