@@ -91,12 +91,20 @@ export function AuthGuard({
           prefetchFileList();
           runOnboardingCheck();
           return;
-        } catch {
-          // refresh failed
+        } catch (err) {
+          // Only a DEFINITIVE rejection (refresh token invalid/expired) should
+          // log out. A transient failure on load (offline, 5xx, timeout) must
+          // NOT nuke a valid session — keep the tokens and let authedFetch
+          // refresh on the next real request. Mirrors the auth-fetch.ts fix.
+          const status = (err as { status?: number })?.status;
+          if (status !== 401 && status !== 403) {
+            setInitialized(true);
+            return;
+          }
         }
       }
 
-      // All attempts failed
+      // No credentials at all, or the refresh token was definitively rejected.
       clearAuth();
       setInitialized(true);
       router.replace("/login");
