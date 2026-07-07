@@ -142,6 +142,61 @@ describe("getDeviceProfile — caching", () => {
   });
 });
 
+describe("recommendedUploadConcurrency — network-bound, decoupled from CPU tier", () => {
+  const MB = 1024 * 1024;
+
+  it("fans a small-file batch out to 6 regardless of a weak CPU tier", async () => {
+    // deviceMemory:1 → 'low' tier (maxConcurrentUploads:1). Upload concurrency
+    // must NOT inherit that — a batch of small photos should still fan out wide.
+    const { recommendedUploadConcurrency } = await loadProfile({ deviceMemory: 1 });
+    const sizes = Array.from({ length: 20 }, () => 4 * MB); // 20 × 4MB photos
+    expect(recommendedUploadConcurrency(sizes)).toBe(6);
+  });
+
+  it("keeps a heavy (median ≥100MB) batch lean at 2", async () => {
+    const { recommendedUploadConcurrency } = await loadProfile({ deviceMemory: 8 });
+    const sizes = Array.from({ length: 5 }, () => 150 * MB);
+    expect(recommendedUploadConcurrency(sizes)).toBe(2);
+  });
+
+  it("uses a moderate 4 for a mid-size (16MB–100MB median) batch", async () => {
+    const { recommendedUploadConcurrency } = await loadProfile({ deviceMemory: 8 });
+    const sizes = Array.from({ length: 8 }, () => 50 * MB);
+    expect(recommendedUploadConcurrency(sizes)).toBe(4);
+  });
+
+  it("decides by the MEDIAN, so a few big files don't serialize a mostly-small batch", async () => {
+    const { recommendedUploadConcurrency } = await loadProfile({ deviceMemory: 4 });
+    // 98 small photos + 2 huge files → median is small → still fans out to 6
+    // (the old "every file must be small" rule would have dropped this to 1-2).
+    const sizes = [...Array.from({ length: 98 }, () => 4 * MB), 500 * MB, 800 * MB];
+    expect(recommendedUploadConcurrency(sizes)).toBe(6);
+  });
+
+  it("serializes on a data-saver / slow (2g/3g) connection", async () => {
+    const { recommendedUploadConcurrency } = await loadProfile({
+      deviceMemory: 8,
+      connection: { effectiveType: "3g" },
+    });
+    expect(recommendedUploadConcurrency(Array.from({ length: 20 }, () => 4 * MB))).toBe(1);
+  });
+
+  it("serializes when the downlink estimate is very slow (<2 Mbps)", async () => {
+    const { recommendedUploadConcurrency } = await loadProfile({
+      deviceMemory: 8,
+      connection: { downlink: 1.2 },
+    });
+    expect(recommendedUploadConcurrency(Array.from({ length: 10 }, () => 4 * MB))).toBe(1);
+  });
+
+  it("never exceeds the number of files in the batch, and is 1 for an empty batch", async () => {
+    const { recommendedUploadConcurrency } = await loadProfile({ deviceMemory: 8 });
+    expect(recommendedUploadConcurrency([])).toBe(1);
+    expect(recommendedUploadConcurrency([4 * MB])).toBe(1);
+    expect(recommendedUploadConcurrency([4 * MB, 4 * MB, 4 * MB])).toBe(3);
+  });
+});
+
 describe("getChunkSize", () => {
   it("returns the chunk size for the low tier", async () => {
     const { getChunkSize } = await loadProfile({ deviceMemory: 1 });

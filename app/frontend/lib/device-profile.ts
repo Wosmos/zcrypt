@@ -168,3 +168,44 @@ export function getDeviceProfile(): DeviceProfile {
 export function getChunkSize(): number {
   return getDeviceProfile().chunkSize;
 }
+
+/**
+ * Recommended number of PARALLEL FILE uploads for a batch.
+ *
+ * Deliberately DECOUPLED from the CPU tier (`maxConcurrentUploads`, which stays
+ * for the crypto worker pool): upload throughput is network-bound, not CPU-
+ * bound — a 4 MB photo barely touches the CPU, and the real win of parallelism
+ * is amortizing each file's fixed init/complete round-trips. Tying file
+ * concurrency to CPU/RAM made phones upload ~1-2 at a time even on fast Wi-Fi.
+ *
+ * Driven by the batch's TYPICAL (median) file size, not the largest — one big
+ * file in a 100-photo batch must not serialize the other 99 (the old "every
+ * file must be small" rule did exactly that):
+ *   - median small (≤16 MB)  → fan out wide (6)
+ *   - median large (≥100 MB) → keep it lean (2): bandwidth + memory
+ *   - in between             → moderate (4)
+ * Slow / data-saver links serialize regardless (parallel streams only contend).
+ *
+ * The server enforces its own limits (per-user cap when set + a global chunk
+ * semaphore), so the caller still clamps this to any server-provided cap. The
+ * ceiling of 6 stays within that global chunk budget for a single active user.
+ */
+export function recommendedUploadConcurrency(fileSizes: number[]): number {
+  if (fileSizes.length === 0) return 1;
+  if (isConstrainedNetwork()) return 1;
+
+  const sorted = [...fileSizes].sort((a, b) => a - b);
+  const median = sorted[Math.floor(sorted.length / 2)];
+  const SMALL = 16 * 1024 * 1024; // ≤16MB typical → small-file batch
+  const LARGE = 100 * 1024 * 1024; // ≥100MB typical → heavy batch
+
+  let want = median <= SMALL ? 6 : median >= LARGE ? 2 : 4;
+
+  // A very slow link (well below Chromium's 10 Mbps anti-fingerprint cap):
+  // serialize so the single stream gets all the uplink.
+  const downlink = getDownlinkMbps();
+  if (downlink !== undefined && downlink < 2) want = 1;
+
+  // Never exceed the number of files in the batch.
+  return Math.max(1, Math.min(want, fileSizes.length));
+}
