@@ -392,6 +392,86 @@ describe("useDownloadStore", () => {
     });
   });
 
+  describe("autoResumeInterrupted", () => {
+    it("resumes a transiently-failed download from its OWN session (no re-supplied passphrase)", async () => {
+      let firstResume: unknown;
+      (downloadAndDecryptFile as Mock)
+        .mockImplementationOnce((_id, _pp, opts: DownloadOptions) => {
+          firstResume = opts.resume;
+          return Promise.reject(new Error("network blip")); // interruption
+        })
+        .mockResolvedValueOnce(undefined);
+
+      useDownloadStore.getState().startDownload("f1", "a.bin", 10, "pw");
+      const id = firstId();
+      await flush();
+      expect(getItem(id)?.status).toBe("failed");
+
+      // No passphrase passed — it reuses the session's stored one + resume state.
+      useDownloadStore.getState().autoResumeInterrupted();
+      await flush();
+
+      expect(useDownloadStore.getState().queue).toHaveLength(1);
+      expect(lastCallOptions().resume).toBe(firstResume); // continuation, not restart
+      expect(getItem(id)?.status).toBe("done");
+    });
+
+    it("does NOT auto-resume a permanent (integrity) failure — avoids a re-fail/re-toast loop", async () => {
+      (downloadAndDecryptFile as Mock).mockRejectedValueOnce(
+        new Error("File integrity check failed — content hash mismatch")
+      );
+      useDownloadStore.getState().startDownload("f1", "a.bin", 10, "pw");
+      const id = firstId();
+      await flush();
+      expect(getItem(id)?.status).toBe("failed");
+
+      (downloadAndDecryptFile as Mock).mockClear();
+      useDownloadStore.getState().autoResumeInterrupted();
+      await flush();
+
+      expect(downloadAndDecryptFile).not.toHaveBeenCalled(); // stayed failed, no retry
+      expect(getItem(id)?.status).toBe("failed");
+    });
+
+    it("does NOT auto-resume a wrong-password failure", async () => {
+      (downloadAndDecryptFile as Mock).mockRejectedValueOnce(new Error("wrong passphrase"));
+      useDownloadStore.getState().startDownload("f1", "a.bin", 10, "pw");
+      const id = firstId();
+      await flush();
+      expect(getItem(id)?.status).toBe("failed");
+
+      (downloadAndDecryptFile as Mock).mockClear();
+      useDownloadStore.getState().autoResumeInterrupted();
+      await flush();
+      expect(downloadAndDecryptFile).not.toHaveBeenCalled();
+    });
+
+    it("skips ZIP downloads (no resume pipeline / no single session)", async () => {
+      (downloadAsZip as Mock).mockRejectedValueOnce(new Error("network blip"));
+      useDownloadStore.getState().startBulkZipDownload([{ fileId: "f1", filename: "a", fileSize: 1 }], "pw");
+      const id = firstId();
+      await flush();
+      expect(getItem(id)?.status).toBe("failed");
+
+      (downloadAsZip as Mock).mockClear();
+      useDownloadStore.getState().autoResumeInterrupted();
+      await flush();
+      expect(downloadAsZip).not.toHaveBeenCalled(); // ZIP is not auto-resumed
+    });
+
+    it("leaves a done/downloading download untouched", async () => {
+      useDownloadStore.getState().startDownload("f1", "a.bin", 10, "pw");
+      const id = firstId();
+      await flush();
+      expect(getItem(id)?.status).toBe("done");
+
+      (downloadAndDecryptFile as Mock).mockClear();
+      useDownloadStore.getState().autoResumeInterrupted();
+      await flush();
+      expect(downloadAndDecryptFile).not.toHaveBeenCalled();
+    });
+  });
+
   describe("cancel / remove", () => {
     it("cancelDownload aborts as a CANCEL (pausing stays false) and lands cancelled", async () => {
       (downloadAndDecryptFile as Mock).mockImplementation((_id, _pp, opts: DownloadOptions) =>

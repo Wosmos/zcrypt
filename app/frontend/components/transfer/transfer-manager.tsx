@@ -72,6 +72,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
   const resumeDownload = useDownloadStore((s) => s.resumeDownload);
   const cancelDownload = useDownloadStore((s) => s.cancelDownload);
   const retryDownload = useDownloadStore((s) => s.retryDownload);
+  const autoResumeDownloads = useDownloadStore((s) => s.autoResumeInterrupted);
   const removeDownload = useDownloadStore((s) => s.removeFromQueue);
   const clearDownloads = useDownloadStore((s) => s.clearCompleted);
 
@@ -166,6 +167,9 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
         const pass = silentUploadPassword(id);
         if (pass) resumeUpload(id, pass);
       }
+      // Downloads resume from their own stored session (passphrase + high-water
+      // mark), so no password plumbing here — the store handles it.
+      autoResumeDownloads();
     };
     const onVisible = () => {
       if (document.visibilityState === "visible") resumeInterrupted();
@@ -176,7 +180,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("online", resumeInterrupted);
     };
-  }, [getResumableUploadIds, getItemFolderId, resumeUpload]);
+  }, [getResumableUploadIds, getItemFolderId, resumeUpload, autoResumeDownloads]);
 
   const entries = useMemo<TransferEntry[]>(() => {
     const up: TransferEntry[] = uploadQueue.map((item) => {
