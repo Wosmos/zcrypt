@@ -136,6 +136,10 @@ interface DownloadStore {
   startBulkZipDownload: (files: BulkDownloadFile[], passphrase: string, resolvePassword?: DownloadPasswordResolver) => void;
   pauseDownload: (id: string) => void;
   resumeDownload: (id: string, passphrase: string, resolvePassword?: DownloadPasswordResolver) => void;
+  /** Resume single-file downloads that died mid-transfer (tab suspended /
+   *  network drop), reusing each session's own passphrase + resume state.
+   *  Called when the tab returns to visible or the network reconnects. */
+  autoResumeInterrupted: () => void;
   cancelDownload: (id: string) => void;
   retryDownload: (id: string, passphrase: string, resolvePassword?: DownloadPasswordResolver) => void;
   removeFromQueue: (id: string) => void;
@@ -143,6 +147,15 @@ interface DownloadStore {
 }
 
 let counter = 0;
+
+// A download that FAILED for a transient reason (network drop / suspended tab)
+// is safe to auto-resume; one that failed on a crypto/auth problem is NOT — it
+// would just re-fail (and re-toast) on every tab focus. Unknown → assume
+// transient (network is the overwhelmingly common interruption cause).
+function isTransientDownloadFailure(error?: string): boolean {
+  if (!error) return true;
+  return !/integrity|corrupt|hash|password|passphrase|decrypt|wrong key/i.test(error);
+}
 
 function updateProgress(id: string, status: DownloadStatus, progress?: number, stage?: string) {
   if (status === "done" || status === "failed" || status === "cancelled" || status === "paused") {
@@ -352,6 +365,33 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
       try { await prior; } catch { /* previous run settled (paused/aborted) — fine */ }
       await runSingleDownload(id);
     })();
+  },
+
+  // Auto-resume single-file downloads that died mid-transfer (tab suspended /
+  // network drop). Reuses each session's OWN stored passphrase + resume state
+  // (decrypted-so-far / disk high-water mark) — no re-prompt. Skips ZIP
+  // downloads (no resume pipeline / session gone) and permanent crypto/auth
+  // failures that would only re-fail. Idempotent: sets status to "downloading"
+  // synchronously, so a second call skips anything already resuming.
+  autoResumeInterrupted: () => {
+    if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+    const failed = get().queue.filter((i) => i.status === "failed");
+    for (const item of failed) {
+      const session = sessions.get(item.id);
+      if (!session) continue; // ZIP or discarded session — nothing to resume from
+      if (!isTransientDownloadFailure(item.error)) continue; // permanent — don't loop
+      pausedIds.delete(item.id);
+      set((state) => ({
+        queue: state.queue.map((i) =>
+          i.id === item.id ? { ...i, status: "downloading" as const, stage: "Resuming…", error: undefined } : i
+        ),
+      }));
+      const prior = session.runPromise;
+      void (async () => {
+        try { await prior; } catch { /* previous run settled — fine */ }
+        await runSingleDownload(item.id);
+      })();
+    }
   },
 
   cancelDownload: (id) => {
