@@ -64,6 +64,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
   const dismissUpload = useUploadStore((s) => s.dismissUpload);  // non-destructive (dock ✕ / swipe)
   const clearUploads = useUploadStore((s) => s.clearCompleted);
   const getItemFolderId = useUploadStore((s) => s.getItemFolderId);
+  const getResumableUploadIds = useUploadStore((s) => s.getResumableUploadIds);
 
   // Download store
   const downloadQueue = useDownloadStore((s) => s.queue);
@@ -141,6 +142,41 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
     }
     withPassphrase(run);
   };
+
+  // Auto-resume uploads that died mid-transfer when the phone slept or lost
+  // connection. When the tab becomes visible again or the network returns, pick
+  // up any FAILED-with-session upload from where it stopped. The password is
+  // resolved SILENTLY (cached vault pass, or cached folder password for a
+  // protected folder); anything that would need a prompt is skipped — auto-resume
+  // must never pop a modal. Deliberately paused items are left alone (they aren't
+  // in getResumableUploadIds). The wake lock (held during active uploads) already
+  // prevents auto-lock while the user is watching; this covers manual lock, app
+  // switches, and connection drops.
+  useEffect(() => {
+    const silentUploadPassword = (id: string): string | null => {
+      const folderId = getItemFolderId(id);
+      if (folderId != null && useFolderRegistry.getState().isProtected(folderId)) {
+        return useFolderPasswordStore.getState().get(folderId) ?? null;
+      }
+      return usePassphraseStore.getState().getPassphrase();
+    };
+    const resumeInterrupted = () => {
+      if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+      for (const id of getResumableUploadIds()) {
+        const pass = silentUploadPassword(id);
+        if (pass) resumeUpload(id, pass);
+      }
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") resumeInterrupted();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("online", resumeInterrupted);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("online", resumeInterrupted);
+    };
+  }, [getResumableUploadIds, getItemFolderId, resumeUpload]);
 
   const entries = useMemo<TransferEntry[]>(() => {
     const up: TransferEntry[] = uploadQueue.map((item) => {
