@@ -197,6 +197,68 @@ describe("recommendedUploadConcurrency — network-bound, decoupled from CPU tie
   });
 });
 
+describe("tierFromThroughput", () => {
+  it("maps measured MB/s to tiers at the documented thresholds", async () => {
+    const { tierFromThroughput } = await loadProfile({ deviceMemory: 4 });
+    expect(tierFromThroughput(30)).toBe("low");
+    expect(tierFromThroughput(69)).toBe("low");
+    expect(tierFromThroughput(70)).toBe("medium");
+    expect(tierFromThroughput(179)).toBe("medium");
+    expect(tierFromThroughput(180)).toBe("high");
+    expect(tierFromThroughput(399)).toBe("high");
+    expect(tierFromThroughput(400)).toBe("ultra");
+    expect(tierFromThroughput(5000)).toBe("ultra");
+  });
+});
+
+describe("calibrateDeviceProfile — measured capability upgrades (never downgrades) the tier", () => {
+  it("upgrades an under-detected device (e.g. iPhone: no deviceMemory, few cores) when it benchmarks fast", async () => {
+    // deviceMemory undefined + 2 cores → heuristic 'low'. A fast benchmark
+    // (ultra throughput) should upgrade it — the exact iPhone-under-detection fix.
+    const { getDeviceProfile, calibrateDeviceProfile } = await loadProfile({ hardwareConcurrency: 2 });
+    expect(getDeviceProfile().tier).toBe("low");
+
+    const upgraded = await calibrateDeviceProfile(async () => 500); // ultra-class MB/s
+    expect(upgraded.tier).toBe("ultra");
+    expect(getDeviceProfile().tier).toBe("ultra"); // cache updated in place
+    expect(getDeviceProfile().chunkSize).toBe(16 * 1024 * 1024);
+  });
+
+  it("never downgrades a device the heuristic already rated highly", async () => {
+    // deviceMemory 8 → 'ultra'. A slow/throttled benchmark must NOT drop it.
+    const { getDeviceProfile, calibrateDeviceProfile } = await loadProfile({ deviceMemory: 8 });
+    expect(getDeviceProfile().tier).toBe("ultra");
+
+    const after = await calibrateDeviceProfile(async () => 50); // low-class MB/s
+    expect(after.tier).toBe("ultra");
+  });
+
+  it("leaves the heuristic profile untouched when the benchmark is unavailable (null)", async () => {
+    const { getDeviceProfile, calibrateDeviceProfile } = await loadProfile({ deviceMemory: 2 });
+    expect(getDeviceProfile().tier).toBe("medium");
+    const after = await calibrateDeviceProfile(async () => null);
+    expect(after.tier).toBe("medium");
+  });
+
+  it("is idempotent — only measures once", async () => {
+    const { calibrateDeviceProfile } = await loadProfile({ hardwareConcurrency: 2 });
+    const measure = vi.fn(async () => 500);
+    await calibrateDeviceProfile(measure);
+    await calibrateDeviceProfile(measure);
+    expect(measure).toHaveBeenCalledTimes(1);
+  });
+
+  it("still honors a slow-network clamp after an upgrade (upload stays serialized)", async () => {
+    const { calibrateDeviceProfile } = await loadProfile({
+      hardwareConcurrency: 2,
+      connection: { effectiveType: "3g" },
+    });
+    const upgraded = await calibrateDeviceProfile(async () => 500);
+    expect(upgraded.tier).toBe("ultra");
+    expect(upgraded.maxConcurrentUploads).toBe(1); // network clamp preserved via buildProfile
+  });
+});
+
 describe("getChunkSize", () => {
   it("returns the chunk size for the low tier", async () => {
     const { getChunkSize } = await loadProfile({ deviceMemory: 1 });

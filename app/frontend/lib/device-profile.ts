@@ -121,17 +121,12 @@ const PROFILES: Record<DeviceTier, DeviceProfile> = {
   },
 };
 
-// Cached profile — computed once per page load (hardware doesn't change mid-session)
-let cached: DeviceProfile | null = null;
+const TIER_ORDER: DeviceTier[] = ["low", "medium", "high", "ultra"];
 
-/**
- * Returns the device profile for the current hardware.
- * Computed once and cached for the session.
- */
-export function getDeviceProfile(): DeviceProfile {
-  if (cached) return cached;
-
-  const tier = detectTier();
+// Build a profile for a tier with the worker cap + network clamps applied.
+// Shared by the heuristic path (getDeviceProfile) and the measured path
+// (calibrateDeviceProfile) so both post-process identically.
+function buildProfile(tier: DeviceTier): DeviceProfile {
   const profile = { ...PROFILES[tier] };
 
   // Cap workers to actual core count (never exceed physical capability)
@@ -152,13 +147,98 @@ export function getDeviceProfile(): DeviceProfile {
   // clearly slow (< 2 Mbps) — well below the cap.
   const downlink = getDownlinkMbps();
   if (downlink !== undefined && downlink < 2) {
-    // Very slow connection (< 2 Mbps) — serialize transfers
     profile.maxConcurrentUploads = 1;
     profile.maxConcurrentDownloads = 1;
   }
 
-  cached = profile;
   return profile;
+}
+
+// Cached profile — computed once per page load (hardware doesn't change
+// mid-session), then optionally UPGRADED once by calibrateDeviceProfile().
+let cached: DeviceProfile | null = null;
+let calibrated = false;
+
+/**
+ * Returns the device profile for the current hardware.
+ * Computed once (heuristic) and cached; calibrateDeviceProfile may upgrade it.
+ */
+export function getDeviceProfile(): DeviceProfile {
+  if (cached) return cached;
+  cached = buildProfile(detectTier());
+  return cached;
+}
+
+/**
+ * Map measured crypto throughput (MB/s of AES-GCM + SHA-256 over the bench
+ * buffer) to a tier. Thresholds are intentionally generous: this only ever
+ * UPGRADES the heuristic tier, so a strong device that the heuristic under-rated
+ * (notably iPhones — Safari doesn't expose navigator.deviceMemory, so they fall
+ * back to the core-count guess) gets the profile its hardware can actually run.
+ */
+export function tierFromThroughput(mbps: number): DeviceTier {
+  if (mbps >= 400) return "ultra";
+  if (mbps >= 180) return "high";
+  if (mbps >= 70) return "medium";
+  return "low";
+}
+
+/**
+ * Measure real crypto throughput: encrypt + hash a fixed buffer a few times and
+ * report MB/s. AES-GCM/SHA run off the main thread inside Web Crypto, so this
+ * doesn't jank the UI. Returns null if Web Crypto is unavailable or it throws.
+ */
+async function measureCryptoThroughput(): Promise<number | null> {
+  if (typeof crypto === "undefined" || !crypto.subtle || typeof performance === "undefined") {
+    return null;
+  }
+  try {
+    const SIZE = 2 * 1024 * 1024; // 2MB
+    const ITERS = 4; // ~8MB of work total
+    const data = new Uint8Array(SIZE);
+    crypto.getRandomValues(data.subarray(0, 65536)); // seed a little; timing is data-independent
+    const key = await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, false, ["encrypt"]);
+    const iv = new Uint8Array(12);
+    const start = performance.now();
+    for (let i = 0; i < ITERS; i++) {
+      const enc = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, data as BufferSource);
+      await crypto.subtle.digest("SHA-256", enc);
+    }
+    const elapsedSec = (performance.now() - start) / 1000;
+    if (elapsedSec <= 0) return null;
+    return (SIZE * ITERS) / (1024 * 1024) / elapsedSec;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * One-time capability calibration. Runs a crypto micro-benchmark and, if the
+ * device measures FASTER than the heuristic guessed, upgrades the cached profile
+ * to the measured tier (bigger chunks, more workers, better compression). Only
+ * ever upgrades — the RAM/core heuristic stays a floor, so a noisy or throttled
+ * benchmark can never make a good device worse. Idempotent and fire-and-forget:
+ * call once at app start. `measure` is injectable for tests.
+ *
+ * Safe to run alongside uploads: chunk size increasing only affects NEW uploads
+ * (a resumed session reads its own persisted chunk size), and worker count is
+ * read per operation.
+ */
+export async function calibrateDeviceProfile(
+  measure: () => Promise<number | null> = measureCryptoThroughput
+): Promise<DeviceProfile> {
+  const base = getDeviceProfile();
+  if (calibrated) return cached as DeviceProfile;
+  calibrated = true;
+
+  const mbps = await measure();
+  if (mbps != null) {
+    const measuredTier = tierFromThroughput(mbps);
+    if (TIER_ORDER.indexOf(measuredTier) > TIER_ORDER.indexOf(base.tier)) {
+      cached = buildProfile(measuredTier);
+    }
+  }
+  return cached as DeviceProfile;
 }
 
 /**

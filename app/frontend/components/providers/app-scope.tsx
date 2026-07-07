@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { calibrateDeviceProfile } from "@/lib/device-profile";
 
 /**
  * Marks <html> with `data-app` while the authenticated app shell is mounted.
@@ -16,6 +17,11 @@ export function AppScope() {
   useEffect(() => {
     const el = document.documentElement;
     el.dataset.app = "";
+    // One-time device capability calibration (fire-and-forget, idempotent). A
+    // quick crypto micro-benchmark upgrades the tuning tier when the device is
+    // faster than the RAM/core heuristic guessed — matters most on iPhones,
+    // where Safari hides navigator.deviceMemory so the heuristic under-rates them.
+    void calibrateDeviceProfile();
     return () => {
       delete el.dataset.app;
     };
