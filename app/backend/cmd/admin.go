@@ -199,6 +199,25 @@ func (s *Server) HandleAdminDeleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Destructive-op friction: a valid admin token is not enough to erase an
+	// account. Re-verify the acting admin (password + TOTP if they have 2FA),
+	// rate-limited per IP so a stolen token can't brute-force the password here.
+	if !s.devMode && !s.authLimiter.allow(s.clientIP(r)) {
+		http.Error(w, `{"error":"too many attempts, please try again later"}`, http.StatusTooManyRequests)
+		return
+	}
+	var body struct {
+		Password string `json:"password"`
+		Code     string `json:"code"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&body)
+	if err := s.reauthActingUser(ctx, r, body.Password, body.Code); err != nil {
+		adminID := GetUserID(r)
+		s.audit(r, &adminID, "admin_user_delete_denied", map[string]interface{}{"target_user": userID, "reason": err.Error()})
+		http.Error(w, fmt.Sprintf(`{"error":"re-authentication required: %s"}`, err), http.StatusUnauthorized)
+		return
+	}
+
 	if err := s.db.DeleteUser(ctx, userID); err != nil {
 		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)
 		return
@@ -563,6 +582,21 @@ func (s *Server) HandleAdminAuditLog(w http.ResponseWriter, r *http.Request) {
 		"limit":  limit,
 		"offset": offset,
 	})
+}
+
+// HandleAdminVerifyAuditChain recomputes the audit-log hash chain and reports
+// whether it is intact. A break means a row was edited, deleted, or reordered —
+// tamper evidence that survives even an actor with direct DB write access.
+// GET /api/admin/audit/verify
+func (s *Server) HandleAdminVerifyAuditChain(w http.ResponseWriter, r *http.Request) {
+	res, err := s.db.VerifyAuditChain(r.Context())
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)
+		return
+	}
+	adminID := GetUserID(r)
+	s.audit(r, &adminID, "admin_audit_verify", map[string]interface{}{"valid": res.Valid, "checked": res.Checked})
+	writeJSON(w, http.StatusOK, res)
 }
 
 // HandleUserActivity returns the authenticated user's own recent auth events.

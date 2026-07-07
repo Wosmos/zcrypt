@@ -594,6 +594,40 @@ func (s *Server) HandleResendVerification(w http.ResponseWriter, r *http.Request
 	writeJSON(w, http.StatusOK, genericResp)
 }
 
+// reauthActingUser re-verifies the currently-authenticated user's identity for a
+// sensitive action (e.g. an admin deleting another account): a valid access token
+// alone is not enough — they must re-enter their password, and a fresh TOTP code
+// if they have 2FA. Returns a human-readable reason on failure. This is the
+// "destructive-op friction" that keeps a stolen/borrowed admin session from
+// quietly nuking data. The TOTP code is claimed (one-time) to prevent replay.
+func (s *Server) reauthActingUser(ctx context.Context, r *http.Request, password, code string) error {
+	user, err := s.db.GetUserByID(ctx, GetUserID(r))
+	if err != nil {
+		return fmt.Errorf("user not found")
+	}
+	if auth.CheckPassword(password, user.PasswordHash) != nil {
+		return fmt.Errorf("password is incorrect")
+	}
+	if user.TOTPEnabled {
+		secret, err := s.totpSecret(user)
+		if err != nil {
+			return fmt.Errorf("internal error")
+		}
+		counter, ok := auth.ValidateTOTPCodeCounter(secret, code)
+		if !ok {
+			return fmt.Errorf("invalid 2FA code")
+		}
+		claimed, err := s.db.ClaimTOTPCounter(ctx, user.ID, counter)
+		if err != nil {
+			return fmt.Errorf("internal error")
+		}
+		if !claimed {
+			return fmt.Errorf("this 2FA code was already used — wait for the next one")
+		}
+	}
+	return nil
+}
+
 // totpSecret returns the user's TOTP secret in plaintext. Secrets are sealed
 // at rest with the user's KEK (a DB dump alone can't clone authenticators);
 // rows written before encryption-at-rest existed pass through as-is and get

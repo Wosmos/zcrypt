@@ -176,6 +176,28 @@ CREATE INDEX IF NOT EXISTS idx_audit_events_user ON audit_events(user_id);
 CREATE INDEX IF NOT EXISTS idx_audit_events_type ON audit_events(event_type);
 CREATE INDEX IF NOT EXISTS idx_audit_events_time ON audit_events(created_at DESC);
 
+-- Tamper-evident audit log: each event carries a monotonic seq and a hash that
+-- chains the previous event's hash (hash = sha256(prev_hash || canonical fields)).
+-- Editing or deleting any row breaks the chain from that point on, which a verify
+-- sweep detects — so even someone with DB write access can't silently rewrite
+-- history. Inserts serialize on an advisory lock (see InsertAuditEvent) to keep
+-- the chain linear. Pre-existing rows are backfilled a seq for stable ordering
+-- but keep an empty hash (legacy, pre-chain — not retroactively verifiable).
+-- The audit log must be immutable and outlive the users it references. The
+-- original FK used ON DELETE SET NULL, so deleting a user REWROTE user_id on
+-- their audit rows — which both destroys accountability AND (now that user_id
+-- is hashed) silently breaks the tamper-evidence chain for a legitimate reason.
+-- Drop the FK: audit rows retain the actor id verbatim even after the user row
+-- is gone. (user_id is a UUID, not PII; retaining it is the point of an audit log.)
+ALTER TABLE audit_events DROP CONSTRAINT IF EXISTS audit_events_user_id_fkey;
+ALTER TABLE audit_events ADD COLUMN IF NOT EXISTS seq BIGINT;
+ALTER TABLE audit_events ADD COLUMN IF NOT EXISTS prev_hash TEXT NOT NULL DEFAULT '';
+ALTER TABLE audit_events ADD COLUMN IF NOT EXISTS hash TEXT NOT NULL DEFAULT '';
+UPDATE audit_events a SET seq = o.rn FROM (
+	SELECT id, row_number() OVER (ORDER BY created_at, id) AS rn FROM audit_events WHERE seq IS NULL
+) o WHERE a.id = o.id AND a.seq IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_audit_events_seq ON audit_events(seq);
+
 -- Upload sessions for chunked client-side encrypted uploads
 CREATE TABLE IF NOT EXISTS upload_sessions (
 	id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
