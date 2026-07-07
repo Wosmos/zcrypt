@@ -286,6 +286,12 @@ func (h *HuggingFaceAdapter) Delete(ctx context.Context, ref types.ChunkRef) err
 	}
 	defer resp.Body.Close()
 
+	// 404 → the file (or repo) is already gone: a planned-but-never-uploaded
+	// chunk, or a retry after a prior successful delete. Report success so it
+	// leaves the deletion queue instead of retrying to a dead-letter forever.
+	if resp.StatusCode == http.StatusNotFound {
+		return nil
+	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("delete commit returned %d: %s", resp.StatusCode, string(body))
@@ -325,34 +331,87 @@ func (h *HuggingFaceAdapter) ListChunks(ctx context.Context, repo string) ([]typ
 	if !strings.Contains(repo, "/") {
 		repo = h.username + "/" + repo
 	}
-	apiURL := fmt.Sprintf("%s/api/models/%s/tree/main", hfEndpoint, repo)
-	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
-	if err != nil {
-		return nil, fmt.Errorf("create list request: %w", err)
-	}
 
-	var items []struct {
-		Type string `json:"type"`
-		Path string `json:"path"`
-		Size int64  `json:"size"`
-	}
-	if err := h.doJSON(req, &items); err != nil {
-		return nil, fmt.Errorf("list tree: %w", err)
-	}
+	// recursive=true walks the shard subdirectories (chunks live under a 2-hex
+	// prefix like "02/abc.bin") and returns each file's full `path`, matching what
+	// chunks.remote_path stores so a reconciliation diff lines up. limit=1000 is
+	// the API max; the response's Link header carries a rel="next" cursor when a
+	// repo has more, which we follow so nothing is silently under-reported.
+	nextURL := fmt.Sprintf("%s/api/models/%s/tree/main?recursive=true&limit=1000", hfEndpoint, repo)
 
 	var refs []types.ChunkRef
-	for _, item := range items {
-		if item.Type == "file" && strings.HasSuffix(item.Path, ".bin") {
-			refs = append(refs, types.ChunkRef{
-				Platform:   "huggingface",
-				Repo:       repo,
-				RemotePath: item.Path,
-				Size:       item.Size,
-			})
+	for nextURL != "" {
+		req, err := http.NewRequestWithContext(ctx, "GET", nextURL, nil)
+		if err != nil {
+			return nil, fmt.Errorf("create list request: %w", err)
+		}
+		h.setAuth(req)
+
+		resp, err := h.client.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("list tree: %w", err)
+		}
+
+		var items []struct {
+			Type string `json:"type"`
+			Path string `json:"path"`
+			Size int64  `json:"size"`
+		}
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			body, _ := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			return nil, fmt.Errorf("list tree: huggingface API %d: %s", resp.StatusCode, string(body))
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&items); err != nil {
+			resp.Body.Close()
+			return nil, fmt.Errorf("decode tree: %w", err)
+		}
+		nextURL = parseNextLink(resp.Header.Get("Link"))
+		resp.Body.Close()
+
+		for _, item := range items {
+			if item.Type == "file" && strings.HasSuffix(item.Path, ".bin") {
+				refs = append(refs, types.ChunkRef{
+					Platform:   "huggingface",
+					Repo:       repo,
+					RemotePath: item.Path,
+					Size:       item.Size,
+				})
+			}
 		}
 	}
 
 	return refs, nil
+}
+
+// parseNextLink extracts the rel="next" URL from an RFC 5988 Link header, as
+// used by the HuggingFace tree API for cursor pagination. Returns "" when there
+// is no next page.
+func parseNextLink(header string) string {
+	if header == "" {
+		return ""
+	}
+	for _, part := range strings.Split(header, ",") {
+		segs := strings.Split(part, ";")
+		if len(segs) < 2 {
+			continue
+		}
+		isNext := false
+		for _, s := range segs[1:] {
+			if strings.Contains(s, `rel="next"`) {
+				isNext = true
+				break
+			}
+		}
+		if !isNext {
+			continue
+		}
+		url := strings.TrimSpace(segs[0])
+		url = strings.TrimPrefix(url, "<")
+		url = strings.TrimSuffix(url, ">")
+		return url
+	}
+	return ""
 }
 
 // isRetryable returns true for transient network errors worth retrying.

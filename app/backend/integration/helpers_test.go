@@ -88,12 +88,15 @@ func setupTestServer(t *testing.T) *testServer {
 // enableMockStorage attaches an in-memory storage adapter to the given user so
 // upload-pipeline tests can run without a real git platform connected. Call it
 // after the user has been registered (e.g. via registerAndLogin) and before any
-// /api/upload/init request.
-func (ts *testServer) enableMockStorage(email string) {
+// /api/upload/init request. It returns the adapter so a test can inspect the
+// blob store (e.g. assert a purge actually removed the chunks).
+func (ts *testServer) enableMockStorage(email string) *mockAdapter {
 	ts.t.Helper()
 	user, err := ts.db.GetUserByEmail(context.Background(), strings.ToLower(email))
 	require.NoError(ts.t, err, "look up user to enable mock storage")
-	ts.srv.InjectTestAdapter(user.ID, "mock", "testacct", &mockAdapter{}, 10<<30)
+	m := newMockAdapter()
+	ts.srv.InjectTestAdapter(user.ID, "mock", "testacct", m, 10<<30)
+	return m
 }
 
 // POST sends a JSON POST request and returns the response.

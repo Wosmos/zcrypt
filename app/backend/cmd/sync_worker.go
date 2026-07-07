@@ -175,18 +175,51 @@ func (s *Server) syncOneChunk(ctx context.Context, chunk types.ChunkRef, staging
 		return
 	}
 
-	// Generate disguised remote path. Git platforms get a 2-hex-char shard
-	// directory so no folder ever approaches HuggingFace's hard 10k-entries-
-	// per-folder limit; Telegram keeps the flat name (a chat has no folders).
-	var remotePath string
-	if chunk.Platform == "telegram" {
-		remotePath, err = disguise.ChunkFilename()
-	} else {
-		remotePath, err = disguise.ShardedChunkFilename()
+	// Resolve the disguised remote path. Reuse a path already planned on a prior
+	// attempt so a retry targets the SAME path instead of leaking a second blob.
+	// Only generate a fresh path the first time, and persist it BEFORE uploading:
+	// remote_path is written only after a successful upload, so without a
+	// pre-recorded plan a crash between Upload succeeding and that write would
+	// strand the blob at a random, unknowable path — a permanent orphan. With the
+	// plan persisted, deletion can always find it. Git platforms get a 2-hex-char
+	// shard directory so no folder ever approaches HuggingFace's hard
+	// 10k-entries-per-folder limit; Telegram keeps the flat name (a chat has no
+	// folders).
+	remotePath := chunk.PlannedRemotePath
+	isRetry := remotePath != ""
+	if remotePath == "" {
+		if chunk.Platform == "telegram" {
+			remotePath, err = disguise.ChunkFilename()
+		} else {
+			remotePath, err = disguise.ShardedChunkFilename()
+		}
+		if err != nil {
+			failAttempt("generate filename: %v", err)
+			return
+		}
+		if err := s.db.SetPlannedRemotePath(ctx, chunk.ChunkID, remotePath); err != nil {
+			failAttempt("record planned remote path for %s: %v", chunk.ChunkID, err)
+			return
+		}
 	}
-	if err != nil {
-		failAttempt("generate filename: %v", err)
-		return
+
+	// Retry on a previously-planned git path: a prior attempt may have actually
+	// landed the blob (a lost/timed-out response, or a crash before the
+	// remote_path write). GitHub/GitLab reject a *create* over an existing path
+	// (422 / "already exists"), which would brick the chunk on every retry. So
+	// best-effort delete the planned path first, making the re-upload a clean
+	// create. A 404 delete is a harmless no-op, and the git adapters treat it as
+	// success. Telegram is skipped: its planned path is a filename, not a message
+	// locator, so there is nothing to delete and re-upload just makes a new message.
+	if isRetry && chunk.Platform != "telegram" {
+		if delErr := adapter.Delete(ctx, types.ChunkRef{
+			Platform:   chunk.Platform,
+			Account:    chunk.Account,
+			Repo:       chunk.Repo,
+			RemotePath: remotePath,
+		}); delErr != nil {
+			log.Printf("sync-worker: pre-retry cleanup of %s at %s failed (continuing): %v", chunk.ChunkID, remotePath, delErr)
+		}
 	}
 
 	// Per-platform push rate limit (e.g. GitHub ~7GB/hour). Wait BEFORE taking a
@@ -223,10 +256,25 @@ func (s *Server) syncOneChunk(ctx context.Context, chunk types.ChunkRef, staging
 		return
 	}
 
-	// Update remote_path in DB (marks chunk as synced)
-	if err := s.db.UpdateChunkRemotePath(ctx, chunk.ChunkID, ref.RemotePath); err != nil {
+	// Update remote_path in DB (marks chunk as synced).
+	rows, err := s.db.UpdateChunkRemotePath(ctx, chunk.ChunkID, ref.RemotePath)
+	if err != nil {
 		failAttempt("update remote path for %s: %v", chunk.ChunkID, err)
 		return
+	}
+	if rows == 0 {
+		// The chunk row vanished while this upload was in flight — the file was
+		// purged (its planned path was queued for deletion and already processed
+		// as a 404 no-op) before the blob actually landed. The blob now exists at
+		// ref.RemotePath with no DB record, so queue it for deletion directly;
+		// otherwise it is an orphan (invisible forever on Telegram, reconcile-only
+		// on git). Then fall through to remove staging.
+		log.Printf("sync-worker: chunk %s gone at mark time (purged mid-flight) — queueing orphan blob %s for deletion", chunk.ChunkID, ref.RemotePath)
+		if qErr := s.db.QueueChunkDeletion(ctx, chunk.UserID, chunk.Platform, chunk.Account, chunk.Repo, ref.RemotePath); qErr != nil {
+			log.Printf("sync-worker: failed to queue orphan blob %s for deletion: %v", ref.RemotePath, qErr)
+		} else {
+			s.signalDeletion()
+		}
 	}
 
 	// Delete staging file

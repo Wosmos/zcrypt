@@ -8,6 +8,18 @@ import (
 	"github.com/zcrypt/zcrypt/types"
 )
 
+// deletionLocatorExpr yields the platform locator to queue for a chunk's remote
+// deletion, or NULL when there is nothing deletable. For Telegram it is ONLY the
+// confirmed remote_path (comma-joined message IDs): the planned path is a
+// disguised .bin filename the Telegram adapter cannot parse into message IDs, so
+// queuing it would make the deletion worker fail that item forever. For git
+// platforms a planned-but-unsynced path is a valid target (a 404 delete is a
+// harmless no-op), so fall back to it to cover the crash window between a
+// successful Upload and the remote_path write.
+const deletionLocatorExpr = `CASE WHEN platform = 'telegram' ` +
+	`THEN NULLIF(remote_path, '') ` +
+	`ELSE COALESCE(NULLIF(remote_path, ''), NULLIF(planned_remote_path, '')) END`
+
 // InsertFile stores file metadata in the index.
 //
 // folder_id assignment is atomic and ownership-validated in the same INSERT: the
@@ -285,13 +297,17 @@ func (db *DB) DeleteFile(ctx context.Context, userID, fileID string) ([]string, 
 		}
 	}
 
-	// Move SYNCED chunks to pending_deletions before removing them. Unsynced
-	// chunks (remote_path = '') have nothing on any platform — queueing them
-	// would just burn the deletion worker's retry attempts on no-op work.
+	// Move chunks that have (or may have) a platform blob to pending_deletions
+	// before removing them. A chunk is deletable if it synced (remote_path set)
+	// OR if it was planned for upload (planned_remote_path set) — the latter
+	// covers the crash window where Upload succeeded but the remote_path write
+	// didn't, which would otherwise strand an untrackable blob. The effective
+	// path prefers the confirmed remote_path and falls back to the planned one.
+	// Deleting a planned-but-never-uploaded path is a harmless no-op.
 	if _, err := tx.Exec(ctx,
 		`INSERT INTO pending_deletions (user_id, platform, account, repo, remote_path)
-		 SELECT user_id, platform, account, repo, remote_path FROM chunks
-		 WHERE file_id = $1 AND user_id = $2 AND remote_path != ''`,
+		 SELECT user_id, platform, account, repo, `+deletionLocatorExpr+` FROM chunks
+		 WHERE file_id = $1 AND user_id = $2 AND `+deletionLocatorExpr+` IS NOT NULL`,
 		fileID, userID,
 	); err != nil {
 		return nil, fmt.Errorf("queue deletions: %w", err)
@@ -365,12 +381,14 @@ func (db *DB) DeleteFilesBatch(ctx context.Context, userID string, fileIDs []str
 		return 0, fmt.Errorf("decrement repo usage: %w", err)
 	}
 
-	// Queue remote chunk deletions before deleting the chunk rows. Unsynced
-	// chunks (remote_path = '') have nothing on any platform to delete.
+	// Queue remote chunk deletions before deleting the chunk rows. A chunk is
+	// deletable if it synced (remote_path set) or was planned for upload
+	// (planned_remote_path set — covers the crash window); the effective path
+	// prefers remote_path and falls back to the planned one.
 	if _, err := tx.Exec(ctx,
 		`INSERT INTO pending_deletions (user_id, platform, account, repo, remote_path)
-		 SELECT user_id, platform, account, repo, remote_path FROM chunks
-		 WHERE user_id = $1 AND file_id = ANY($2::uuid[]) AND remote_path != ''`,
+		 SELECT user_id, platform, account, repo, `+deletionLocatorExpr+` FROM chunks
+		 WHERE user_id = $1 AND file_id = ANY($2::uuid[]) AND `+deletionLocatorExpr+` IS NOT NULL`,
 		userID, fileIDs,
 	); err != nil {
 		return 0, fmt.Errorf("queue deletions: %w", err)
@@ -591,10 +609,108 @@ func (db *DB) ListIncompleteFiles(ctx context.Context) ([]types.FileMetadata, er
 }
 
 // UpdateChunkRemotePath sets the remote_path for a chunk after successful upload.
-func (db *DB) UpdateChunkRemotePath(ctx context.Context, chunkID, remotePath string) error {
-	_, err := db.pool.Exec(ctx, `UPDATE chunks SET remote_path = $1 WHERE chunk_id = $2`, remotePath, chunkID)
+// UpdateChunkRemotePath sets the remote_path for a chunk after successful upload
+// and returns the number of rows updated. Zero means the chunk row is gone —
+// typically because the file was purged while the upload was in flight — which
+// the sync worker treats as a signal to queue the just-uploaded blob for deletion
+// instead of leaking it.
+func (db *DB) UpdateChunkRemotePath(ctx context.Context, chunkID, remotePath string) (int64, error) {
+	tag, err := db.pool.Exec(ctx, `UPDATE chunks SET remote_path = $1 WHERE chunk_id = $2`, remotePath, chunkID)
 	if err != nil {
-		return fmt.Errorf("update chunk remote path: %w", err)
+		return 0, fmt.Errorf("update chunk remote path: %w", err)
+	}
+	return tag.RowsAffected(), nil
+}
+
+// QueueChunkDeletion enqueues a single remote blob for asynchronous deletion.
+// Used by the sync worker when an upload lands but its chunk row has vanished
+// (purged mid-flight), so the orphaned blob is still cleaned up. remotePath must
+// be a real platform locator (never a Telegram planned filename).
+func (db *DB) QueueChunkDeletion(ctx context.Context, userID, platform, account, repo, remotePath string) error {
+	if remotePath == "" {
+		return nil
+	}
+	var uid interface{}
+	if userID != "" {
+		uid = userID
+	}
+	_, err := db.pool.Exec(ctx,
+		`INSERT INTO pending_deletions (user_id, platform, account, repo, remote_path)
+		 VALUES ($1, $2, $3, $4, $5)`,
+		uid, platform, account, repo, remotePath,
+	)
+	if err != nil {
+		return fmt.Errorf("queue chunk deletion: %w", err)
+	}
+	return nil
+}
+
+// KnownRemotePaths returns the set of remote paths the DB legitimately accounts
+// for in a repo: every chunk's confirmed remote_path (or, if not yet synced, its
+// planned_remote_path), plus anything already queued in pending_deletions for
+// that repo. A blob physically present on the platform but NOT in this set is an
+// orphan — nothing in the DB references it and nothing is scheduled to remove it.
+// Used by the report-only reconciliation sweep. pending_deletions is matched by
+// (platform, account, repo) because its user_id can be NULL (account-deleted or
+// anonymous-send items).
+func (db *DB) KnownRemotePaths(ctx context.Context, userID, platform, account, repoURL string) (map[string]bool, error) {
+	known := make(map[string]bool)
+
+	chunkRows, err := db.pool.Query(ctx,
+		`SELECT COALESCE(NULLIF(remote_path, ''), planned_remote_path) FROM chunks
+		 WHERE user_id = $1 AND repo = $2
+		   AND COALESCE(NULLIF(remote_path, ''), planned_remote_path) <> ''`,
+		userID, repoURL,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("query chunk paths: %w", err)
+	}
+	for chunkRows.Next() {
+		var p string
+		if err := chunkRows.Scan(&p); err != nil {
+			chunkRows.Close()
+			return nil, fmt.Errorf("scan chunk path: %w", err)
+		}
+		known[p] = true
+	}
+	chunkRows.Close()
+	if err := chunkRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate chunk paths: %w", err)
+	}
+
+	pendRows, err := db.pool.Query(ctx,
+		`SELECT remote_path FROM pending_deletions WHERE platform = $1 AND account = $2 AND repo = $3`,
+		platform, account, repoURL,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("query pending deletion paths: %w", err)
+	}
+	for pendRows.Next() {
+		var p string
+		if err := pendRows.Scan(&p); err != nil {
+			pendRows.Close()
+			return nil, fmt.Errorf("scan pending path: %w", err)
+		}
+		known[p] = true
+	}
+	pendRows.Close()
+	if err := pendRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate pending paths: %w", err)
+	}
+
+	return known, nil
+}
+
+// SetPlannedRemotePath records the disguised path the sync worker is ABOUT to
+// upload a chunk to, before the upload call. Because remote_path is only written
+// after a successful upload, this is the only durable record of a blob written in
+// the crash window between adapter.Upload succeeding and UpdateChunkRemotePath
+// committing — deletion falls back to it so such a blob is still purgeable.
+func (db *DB) SetPlannedRemotePath(ctx context.Context, chunkID, plannedPath string) error {
+	_, err := db.pool.Exec(ctx,
+		`UPDATE chunks SET planned_remote_path = $1 WHERE chunk_id = $2`, plannedPath, chunkID)
+	if err != nil {
+		return fmt.Errorf("set planned remote path: %w", err)
 	}
 	return nil
 }
@@ -886,12 +1002,14 @@ func (db *DB) CleanupExpiredUploadSessions(ctx context.Context) (int, []string, 
 		return 0, nil, fmt.Errorf("decrement repo usage: %w", err)
 	}
 
-	// Queue synced chunks for remote deletion BEFORE the file delete cascades
-	// the chunk rows away.
+	// Queue chunks with a real-or-planned platform blob for remote deletion
+	// BEFORE the file delete cascades the chunk rows away. Falling back to
+	// planned_remote_path covers the crash window (Upload succeeded, remote_path
+	// not yet written) so an abandoned-session blob is never stranded.
 	if _, err := tx.Exec(ctx,
 		`INSERT INTO pending_deletions (user_id, platform, account, repo, remote_path)
-		 SELECT user_id, platform, account, repo, remote_path FROM chunks
-		 WHERE file_id IN (`+expiredFiles+`) AND remote_path != ''`,
+		 SELECT user_id, platform, account, repo, `+deletionLocatorExpr+` FROM chunks
+		 WHERE file_id IN (`+expiredFiles+`) AND `+deletionLocatorExpr+` IS NOT NULL`,
 	); err != nil {
 		return 0, nil, fmt.Errorf("queue deletions: %w", err)
 	}
@@ -1005,7 +1123,7 @@ func (db *DB) GetTotalReceivedChunkSize(ctx context.Context, fileID string) (int
 // returned first so a single stuck chunk can't block fresh ones.
 func (db *DB) GetPendingChunks(ctx context.Context, limit, maxAttempts int) ([]types.ChunkRef, error) {
 	rows, err := db.pool.Query(ctx,
-		`SELECT chunk_id, file_id, user_id, idx, size, sha256, platform, account, repo, compressed, sync_attempts
+		`SELECT chunk_id, file_id, user_id, idx, size, sha256, platform, account, repo, remote_path, planned_remote_path, compressed, sync_attempts
 		 FROM chunks WHERE remote_path = '' AND sync_attempts < $1
 		 ORDER BY sync_attempts, chunk_id LIMIT $2`, maxAttempts, limit,
 	)
@@ -1018,7 +1136,7 @@ func (db *DB) GetPendingChunks(ctx context.Context, limit, maxAttempts int) ([]t
 	for rows.Next() {
 		var c types.ChunkRef
 		if err := rows.Scan(&c.ChunkID, &c.FileID, &c.UserID, &c.Index, &c.Size, &c.SHA256,
-			&c.Platform, &c.Account, &c.Repo, &c.Compressed, &c.SyncAttempts); err != nil {
+			&c.Platform, &c.Account, &c.Repo, &c.RemotePath, &c.PlannedRemotePath, &c.Compressed, &c.SyncAttempts); err != nil {
 			return nil, fmt.Errorf("scan pending chunk: %w", err)
 		}
 		chunks = append(chunks, c)
