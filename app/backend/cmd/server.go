@@ -798,6 +798,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("PUT /api/admin/users/{id}/quota", maxJSON(s.AdminMiddleware(s.HandleAdminSetUserQuota)))
 	mux.HandleFunc("PUT /api/admin/users/{id}/plan", maxJSON(s.AdminMiddleware(s.HandleAdminSetPlan)))
 	mux.HandleFunc("GET /api/admin/audit", s.AdminMiddleware(s.HandleAdminAuditLog))
+	mux.HandleFunc("GET /api/admin/audit/verify", s.AdminMiddleware(s.HandleAdminVerifyAuditChain))
 	mux.HandleFunc("GET /api/admin/feedback", s.AdminMiddleware(s.HandleAdminListFeedback))
 	mux.HandleFunc("GET /api/admin/plans", s.AdminMiddleware(s.HandleAdminGetPlans))
 	mux.HandleFunc("PUT /api/admin/plans", maxJSON(s.AdminMiddleware(s.HandleAdminSetPlans)))
