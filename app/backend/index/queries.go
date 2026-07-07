@@ -33,16 +33,25 @@ func (db *DB) InsertFile(ctx context.Context, userID string, f *types.FileMetada
 		status = "complete"
 	}
 	_, err := db.pool.Exec(ctx,
-		`INSERT INTO files (id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, wrapped_cek, status, folder_id)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-		         (SELECT id FROM folders WHERE id = $13::uuid AND user_id = $2 AND deleted_at IS NULL))`,
+		`INSERT INTO files (id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, sha256_scheme, salt, iv, wrapped_cek, status, folder_id)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
+		         (SELECT id FROM folders WHERE id = $14::uuid AND user_id = $2 AND deleted_at IS NULL))`,
 		f.ID, userID, f.OriginalName, f.OriginalSize, f.CompressedSize, f.EncryptedSize,
-		f.ChunkCount, f.SHA256, f.Salt, f.IV, f.WrappedCEK, status, f.FolderID,
+		f.ChunkCount, f.SHA256, sha256SchemeOrDefault(f.SHA256Scheme), f.Salt, f.IV, f.WrappedCEK, status, f.FolderID,
 	)
 	if err != nil {
 		return fmt.Errorf("insert file: %w", err)
 	}
 	return nil
+}
+
+// sha256SchemeOrDefault normalizes an empty scheme to the legacy 'plain' label,
+// so an old client (or any caller that doesn't set it) is stored as plaintext-SHA.
+func sha256SchemeOrDefault(s string) string {
+	if s == "" {
+		return "plain"
+	}
+	return s
 }
 
 // InsertChunk stores a chunk reference in the index.
@@ -104,13 +113,13 @@ func (db *DB) GetFile(ctx context.Context, userID, originalName string) (*types.
 // GetFileByID retrieves file metadata by ID, scoped to user.
 func (db *DB) GetFileByID(ctx context.Context, userID, id string) (*types.FileMetadata, error) {
 	row := db.pool.QueryRow(ctx,
-		`SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, wrapped_cek, status, created_at
+		`SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, sha256_scheme, salt, iv, wrapped_cek, status, created_at
 		 FROM files WHERE id = $1 AND user_id = $2`, id, userID,
 	)
 
 	f := &types.FileMetadata{}
 	err := row.Scan(&f.ID, &f.UserID, &f.OriginalName, &f.OriginalSize, &f.CompressedSize,
-		&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.Salt, &f.IV, &f.WrappedCEK, &f.Status, &f.CreatedAt)
+		&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.SHA256Scheme, &f.Salt, &f.IV, &f.WrappedCEK, &f.Status, &f.CreatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("get file by id: %w", err)
 	}
@@ -138,7 +147,7 @@ func (db *DB) UpdateFileKey(ctx context.Context, userID, fileID string, salt []b
 // explicit cap. Search uses ILIKE (case-insensitive) to match the frontend's
 // case-insensitive client-side filter and is backed by the pg_trgm GIN index when present.
 func (db *DB) ListFiles(ctx context.Context, userID, filter string, limit int) ([]types.FileMetadata, error) {
-	query := `SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, wrapped_cek, status, created_at, folder_id, encrypted_name, deleted_at,
+	query := `SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, sha256_scheme, salt, iv, wrapped_cek, status, created_at, folder_id, encrypted_name, deleted_at,
 	                 COALESCE((SELECT c.platform FROM chunks c WHERE c.file_id = files.id LIMIT 1), '') AS platform
 	          FROM files WHERE user_id = $1 AND status = 'complete' AND deleted_at IS NULL`
 	args := []interface{}{userID}
@@ -166,7 +175,7 @@ func (db *DB) ListFiles(ctx context.Context, userID, filter string, limit int) (
 			deletedAt *time.Time
 		)
 		if err := rows.Scan(&f.ID, &f.UserID, &f.OriginalName, &f.OriginalSize, &f.CompressedSize,
-			&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.Salt, &f.IV, &f.WrappedCEK, &f.Status, &f.CreatedAt,
+			&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.SHA256Scheme, &f.Salt, &f.IV, &f.WrappedCEK, &f.Status, &f.CreatedAt,
 			&f.FolderID, &f.EncryptedName, &deletedAt, &f.Platform); err != nil {
 			return nil, fmt.Errorf("scan file: %w", err)
 		}
@@ -184,7 +193,7 @@ func (db *DB) ListFiles(ctx context.Context, userID, filter string, limit int) (
 // IS NOT DISTINCT FROM. This is a sibling of ListFiles so existing callers stay untouched.
 func (db *DB) ListFilesInFolder(ctx context.Context, userID string, folderID *string) ([]types.FileMetadata, error) {
 	rows, err := db.pool.Query(ctx,
-		`SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, wrapped_cek, status, created_at, folder_id, encrypted_name, deleted_at,
+		`SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, sha256_scheme, salt, iv, wrapped_cek, status, created_at, folder_id, encrypted_name, deleted_at,
 		        COALESCE((SELECT c.platform FROM chunks c WHERE c.file_id = files.id LIMIT 1), '') AS platform
 		 FROM files
 		 WHERE user_id = $1 AND status = 'complete' AND deleted_at IS NULL AND folder_id IS NOT DISTINCT FROM $2
@@ -203,7 +212,7 @@ func (db *DB) ListFilesInFolder(ctx context.Context, userID string, folderID *st
 			deletedAt *time.Time
 		)
 		if err := rows.Scan(&f.ID, &f.UserID, &f.OriginalName, &f.OriginalSize, &f.CompressedSize,
-			&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.Salt, &f.IV, &f.WrappedCEK, &f.Status, &f.CreatedAt,
+			&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.SHA256Scheme, &f.Salt, &f.IV, &f.WrappedCEK, &f.Status, &f.CreatedAt,
 			&f.FolderID, &f.EncryptedName, &deletedAt, &f.Platform); err != nil {
 			return nil, fmt.Errorf("scan file: %w", err)
 		}
@@ -728,10 +737,10 @@ func (db *DB) InsertFileWithChunks(ctx context.Context, userID string, f *types.
 		status = "complete"
 	}
 	if _, err := tx.Exec(ctx,
-		`INSERT INTO files (id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, wrapped_cek, status)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+		`INSERT INTO files (id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, sha256_scheme, salt, iv, wrapped_cek, status)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
 		f.ID, userID, f.OriginalName, f.OriginalSize, f.CompressedSize, f.EncryptedSize,
-		f.ChunkCount, f.SHA256, f.Salt, f.IV, f.WrappedCEK, status,
+		f.ChunkCount, f.SHA256, sha256SchemeOrDefault(f.SHA256Scheme), f.Salt, f.IV, f.WrappedCEK, status,
 	); err != nil {
 		return fmt.Errorf("insert file: %w", err)
 	}
@@ -788,10 +797,10 @@ func (db *DB) GetPendingChunksForFile(ctx context.Context, fileID string) ([]typ
 func (db *DB) CreateUploadSession(ctx context.Context, s *types.UploadSession) (string, error) {
 	var id string
 	err := db.pool.QueryRow(ctx,
-		`INSERT INTO upload_sessions (user_id, file_id, filename, original_size, salt, sha256, chunk_count, chunk_size, platform, account, repo_id, repo_url)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+		`INSERT INTO upload_sessions (user_id, file_id, filename, original_size, salt, sha256, sha256_scheme, chunk_count, chunk_size, platform, account, repo_id, repo_url)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 		 RETURNING id`,
-		s.UserID, s.FileID, s.Filename, s.OriginalSize, s.Salt, s.SHA256, s.ChunkCount, s.ChunkSize,
+		s.UserID, s.FileID, s.Filename, s.OriginalSize, s.Salt, s.SHA256, sha256SchemeOrDefault(s.SHA256Scheme), s.ChunkCount, s.ChunkSize,
 		s.Platform, s.Account, s.RepoID, s.RepoURL,
 	).Scan(&id)
 	if err != nil {
@@ -804,11 +813,11 @@ func (db *DB) CreateUploadSession(ctx context.Context, s *types.UploadSession) (
 func (db *DB) GetUploadSession(ctx context.Context, sessionID, userID string) (*types.UploadSession, error) {
 	s := &types.UploadSession{}
 	err := db.pool.QueryRow(ctx,
-		`SELECT id, user_id, file_id, filename, original_size, salt, sha256, chunk_count, chunk_size,
+		`SELECT id, user_id, file_id, filename, original_size, salt, sha256, sha256_scheme, chunk_count, chunk_size,
 		        platform, account, repo_id, repo_url, uploaded_chunks, status, created_at, expires_at
 		 FROM upload_sessions WHERE id = $1 AND user_id = $2`,
 		sessionID, userID,
-	).Scan(&s.ID, &s.UserID, &s.FileID, &s.Filename, &s.OriginalSize, &s.Salt, &s.SHA256, &s.ChunkCount, &s.ChunkSize,
+	).Scan(&s.ID, &s.UserID, &s.FileID, &s.Filename, &s.OriginalSize, &s.Salt, &s.SHA256, &s.SHA256Scheme, &s.ChunkCount, &s.ChunkSize,
 		&s.Platform, &s.Account, &s.RepoID, &s.RepoURL, &s.UploadedChunks, &s.Status, &s.CreatedAt, &s.ExpiresAt)
 	if err != nil {
 		return nil, fmt.Errorf("get upload session: %w", err)
@@ -826,7 +835,7 @@ func (db *DB) GetUploadSession(ctx context.Context, sessionID, userID string) (*
 func (db *DB) FindActiveUploadSession(ctx context.Context, userID, sha256 string, originalSize int64) (*types.UploadSession, error) {
 	s := &types.UploadSession{}
 	err := db.pool.QueryRow(ctx,
-		`SELECT us.id, us.user_id, us.file_id, us.filename, us.original_size, us.salt, us.sha256,
+		`SELECT us.id, us.user_id, us.file_id, us.filename, us.original_size, us.salt, us.sha256, us.sha256_scheme,
 		        us.chunk_count, us.chunk_size, us.platform, us.account, us.repo_id, us.repo_url,
 		        us.uploaded_chunks, us.status, us.created_at, us.expires_at
 		 FROM upload_sessions us
@@ -836,7 +845,7 @@ func (db *DB) FindActiveUploadSession(ctx context.Context, userID, sha256 string
 		 ORDER BY us.created_at DESC
 		 LIMIT 1`,
 		userID, sha256, originalSize,
-	).Scan(&s.ID, &s.UserID, &s.FileID, &s.Filename, &s.OriginalSize, &s.Salt, &s.SHA256,
+	).Scan(&s.ID, &s.UserID, &s.FileID, &s.Filename, &s.OriginalSize, &s.Salt, &s.SHA256, &s.SHA256Scheme,
 		&s.ChunkCount, &s.ChunkSize, &s.Platform, &s.Account, &s.RepoID, &s.RepoURL,
 		&s.UploadedChunks, &s.Status, &s.CreatedAt, &s.ExpiresAt)
 	if err != nil {
@@ -1248,10 +1257,10 @@ func (db *DB) UpdateFileOriginalSizeVerified(ctx context.Context, fileID string,
 func (db *DB) GetFileByIDUnsafe(ctx context.Context, fileID string) (*types.FileMetadata, error) {
 	f := &types.FileMetadata{}
 	err := db.pool.QueryRow(ctx,
-		`SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, wrapped_cek, status, created_at
+		`SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, sha256_scheme, salt, iv, wrapped_cek, status, created_at
 		 FROM files WHERE id = $1`, fileID,
 	).Scan(&f.ID, &f.UserID, &f.OriginalName, &f.OriginalSize, &f.CompressedSize,
-		&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.Salt, &f.IV, &f.WrappedCEK, &f.Status, &f.CreatedAt)
+		&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.SHA256Scheme, &f.Salt, &f.IV, &f.WrappedCEK, &f.Status, &f.CreatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("get file by id (unsafe): %w", err)
 	}

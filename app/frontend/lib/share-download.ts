@@ -152,9 +152,17 @@ export async function downloadSharedFile(
     offset += chunk.byteLength;
   }
 
-  const actualHash = await sha256Hex(fullFile);
-  if (actualHash !== meta.sha256) {
-    throw new Error("File integrity check failed — SHA-256 mismatch");
+  // A recipient holds only the share key, never the owner's passphrase, so it
+  // cannot recompute an 'hmac_v1' keyed MAC. Integrity for those files rests on
+  // the per-chunk AES-GCM auth tags (every one of meta.chunk_count chunks was
+  // fetched and decrypted above — a tampered or missing chunk already throws),
+  // so there is no file-level hash to check. Legacy 'plain' files still verify
+  // their SHA-256 end to end.
+  if (meta.sha256_scheme !== "hmac_v1") {
+    const actualHash = await sha256Hex(fullFile);
+    if (actualHash !== meta.sha256) {
+      throw new Error("File integrity check failed — SHA-256 mismatch");
+    }
   }
 
   if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");

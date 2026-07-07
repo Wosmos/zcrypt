@@ -184,6 +184,7 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		OriginalSize: req.OriginalSize,
 		ChunkCount:   req.ChunkCount,
 		SHA256:       req.SHA256,
+		SHA256Scheme: req.SHA256Scheme, // '' → stored as 'plain' (legacy); 'hmac_v1' from upgraded clients
 		Salt:         salt,
 		IV:           []byte{}, // not used for client-side encryption
 		WrappedCEK:   req.WrappedCEK,
@@ -205,6 +206,7 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		OriginalSize: req.OriginalSize,
 		Salt:         salt,
 		SHA256:       req.SHA256,
+		SHA256Scheme: req.SHA256Scheme,
 		ChunkCount:   req.ChunkCount,
 		ChunkSize:    req.ChunkSize,
 		Platform:     platform,

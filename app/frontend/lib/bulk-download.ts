@@ -7,7 +7,7 @@
 
 import { getFileMeta, getFileChunk } from "@/lib/api";
 import { retryTransient } from "@/lib/retry";
-import { resolveFileKey, decryptChunk, sha256Hex, fromBase64 } from "@/lib/crypto";
+import { resolveFileKey, decryptChunk, sha256Hex, contentMacBytes, deriveDedupKeyBytes, fromBase64 } from "@/lib/crypto";
 import { getZstdCodec } from "@/lib/zstd";
 import { zipSync } from "fflate";
 import { getDeviceProfile } from "@/lib/device-profile";
@@ -121,8 +121,20 @@ export async function downloadAsZip(
       offset += chunk.byteLength;
     }
 
-    const hash = await sha256Hex(fullFile);
-    if (hash !== meta.sha256) {
+    // Integrity: 'hmac_v1' files verify against the per-user keyed MAC (recomputed
+    // with the same passphrase that decrypted them); legacy files against SHA-256.
+    let contentHash: string;
+    if (meta.sha256_scheme === "hmac_v1") {
+      // Lazy import so this module (and its tests) don't eagerly load the auth
+      // store — only an actual hmac_v1 download needs the current user id.
+      const { useAuthStore } = await import("@/store/auth");
+      const uid = useAuthStore.getState().user?.id;
+      if (!uid) throw new Error(`Integrity check failed for ${file.filename} — not signed in`);
+      contentHash = await contentMacBytes(fullFile, await deriveDedupKeyBytes(filePassphrase, uid));
+    } else {
+      contentHash = await sha256Hex(fullFile);
+    }
+    if (contentHash !== meta.sha256) {
       throw new Error(`Integrity check failed for ${file.filename}`);
     }
 

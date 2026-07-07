@@ -244,6 +244,7 @@ func (s *Server) HandleGetFolderShareFileMeta(w http.ResponseWriter, r *http.Req
 		"encrypted_size":  file.EncryptedSize,
 		"chunk_count":     file.ChunkCount,
 		"sha256":          file.SHA256,
+		"sha256_scheme":   file.SHA256Scheme,
 		"salt":            base64.StdEncoding.EncodeToString(file.Salt),
 		"wrapped_cek":     wrapped,
 		"status":          file.Status,

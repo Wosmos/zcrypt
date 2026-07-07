@@ -222,6 +222,76 @@ export async function sha256Hex(data: Uint8Array): Promise<string> {
     .join("");
 }
 
+// --- Content MAC (confirmation-of-file defeat) ---
+//
+// The file-level content hash used for dedup/resume and integrity was SHA-256 of
+// the PLAINTEXT, which let anyone with DB access confirm a user stores a known
+// file. We replace it (scheme 'hmac_v1') with a per-user KEYED MAC: HMAC-SHA256
+// under a passphrase-derived key with a stable per-user salt. It stays
+// deterministic over (user, passphrase, content) — so single-user dedup/resume
+// still matches on the stored value — but a passphrase-less attacker cannot
+// compute it for a known file, and two users storing the same bytes get
+// different MACs. Mirrors the name-key derivation ("zcrypt-names-<uid>").
+
+/** Derive the per-user dedup/MAC key bytes (32B). Memoized per (salt,passphrase).
+ *  deriveKeyBytesCached yields an ArrayBuffer; wrap it as a Uint8Array so noble's
+ *  HMAC (and its strict byte-assert) accepts it directly. */
+export async function deriveDedupKeyBytes(passphrase: string, userId: string): Promise<Uint8Array> {
+  const salt = new TextEncoder().encode("zcrypt-dedup-" + userId);
+  return new Uint8Array(await deriveKeyBytesCached(passphrase, salt));
+}
+
+function hex(bytes: Uint8Array): string {
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+/** HMAC-SHA256 hex of in-memory bytes under keyBytes. */
+export async function contentMacBytes(data: Uint8Array, keyBytes: Uint8Array): Promise<string> {
+  const key = await crypto.subtle.importKey("raw", keyBytes as BufferSource, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const mac = await crypto.subtle.sign("HMAC", key, data as BufferSource);
+  return hex(new Uint8Array(mac));
+}
+
+/** HMAC-SHA256 hex of a File, streaming for large files (Web Crypto HMAC can't
+ *  stream, so >50MB uses @noble/hashes incrementally — mirrors sha256File). */
+export async function contentMacFile(file: File, keyBytes: Uint8Array, onProgress?: (bytesHashed: number) => void): Promise<string> {
+  if (file.size <= 50 * 1024 * 1024) {
+    const buf = await file.arrayBuffer();
+    onProgress?.(file.size);
+    return contentMacBytes(new Uint8Array(buf), keyBytes);
+  }
+  const hasher = await createContentHasher("hmac_v1", keyBytes);
+  const STREAM_CHUNK = 4 * 1024 * 1024;
+  for (let offset = 0; offset < file.size; offset += STREAM_CHUNK) {
+    const slice = file.slice(offset, Math.min(offset + STREAM_CHUNK, file.size));
+    hasher.update(new Uint8Array(await slice.arrayBuffer()));
+    onProgress?.(Math.min(offset + STREAM_CHUNK, file.size));
+  }
+  return hex(hasher.digest());
+}
+
+/** An incremental hasher (update/digest) matching the scheme, for the streaming
+ *  download-verify path: 'hmac_v1' → keyed HMAC-SHA256, anything else → SHA-256.
+ *  Feeding it the plaintext chunks in order and comparing digest() to the stored
+ *  value verifies integrity for both legacy and keyed files. */
+export async function createContentHasher(
+  scheme: string | undefined,
+  keyBytes?: Uint8Array,
+): Promise<{ update: (d: Uint8Array) => void; digest: () => Uint8Array }> {
+  if (scheme === "hmac_v1") {
+    if (!keyBytes) throw new Error("hmac_v1 content hasher requires a key");
+    const { hmac } = await import("@noble/hashes/hmac.js");
+    const { sha256: nobleSha256 } = await import("@noble/hashes/sha2.js");
+    const h = hmac.create(nobleSha256, keyBytes);
+    return { update: (d) => h.update(d), digest: () => h.digest() };
+  }
+  const { sha256: nobleSha256 } = await import("@noble/hashes/sha2.js");
+  const h = nobleSha256.create();
+  return { update: (d) => h.update(d), digest: () => h.digest() };
+}
+
 /** Compute SHA-256 hex digest of a File using streaming (constant ~4MB RAM).
  *  `onProgress` (optional) receives cumulative bytes hashed, so a multi-GB
  *  pre-hash can show movement instead of a dead progress row. */
