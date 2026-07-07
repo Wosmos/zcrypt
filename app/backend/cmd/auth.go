@@ -12,11 +12,19 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/zcrypt/zcrypt/auth"
+	"github.com/zcrypt/zcrypt/crypto"
 	"github.com/zcrypt/zcrypt/types"
 )
 
 var emailRe = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
 var usernameRe = regexp.MustCompile(`^[a-zA-Z0-9_]{3,32}$`)
+
+// dummyPasswordHash is a bcrypt hash (same cost as auth.HashPassword) of a
+// random throwaway string. Login compares against it when the email is
+// unknown, so the request burns the same ~quarter second as a real password
+// check — otherwise the fast unknown-email path would let an attacker
+// enumerate which emails have accounts by timing responses.
+const dummyPasswordHash = "$2a$12$jwwcg/vWlmCOz/dPW1to.OtzGR8q8t7A4OlpzO7f9PTPsjOBCi6rS"
 
 // audit logs an audit event asynchronously and emits it via SSE.
 func (s *Server) audit(r *http.Request, userID *string, eventType string, metadata map[string]interface{}) {
@@ -248,6 +256,7 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 
 	user, err := s.db.GetUserByEmail(ctx, req.Email)
 	if err != nil {
+		_ = auth.CheckPassword(req.Password, dummyPasswordHash) // timing equalization — see dummyPasswordHash
 		log.Printf("auth: login failed email=%s ip=%s reason=not_found", req.Email, clientIP)
 		s.audit(r, nil, "login_failed", map[string]interface{}{"email": req.Email, "reason": "not_found"})
 		http.Error(w, `{"error":"invalid email or password"}`, http.StatusUnauthorized)
@@ -415,9 +424,16 @@ func (s *Server) HandleForgotPassword(w http.ResponseWriter, r *http.Request) {
 		ExpiresAt: time.Now().Add(1 * time.Hour),
 	})
 
-	if err := auth.SendPasswordResetEmail(s.emailCfg(), req.Email, token, s.baseURL(r)); err != nil {
-		log.Printf("send password reset email to %s: %v", req.Email, err)
-	}
+	// Send asynchronously (like register/magic-link do): a synchronous send
+	// makes known emails measurably slower than the instant generic response
+	// for unknown ones — a timing oracle on account existence.
+	emailCfg := s.emailCfg()
+	baseURL := s.baseURL(r)
+	go func() {
+		if err := auth.SendPasswordResetEmail(emailCfg, req.Email, token, baseURL); err != nil {
+			log.Printf("send password reset email to %s: %v", req.Email, err)
+		}
+	}()
 
 	s.audit(r, &user.ID, "password_reset_requested", map[string]interface{}{"email": req.Email})
 
@@ -564,13 +580,33 @@ func (s *Server) HandleResendVerification(w http.ResponseWriter, r *http.Request
 		ExpiresAt: time.Now().Add(24 * time.Hour),
 	})
 
-	if err := auth.SendVerificationEmail(s.emailCfg(), req.Email, token, s.baseURL(r)); err != nil {
-		log.Printf("resend verification email to %s: %v", req.Email, err)
-		http.Error(w, `{"error":"failed to send verification email"}`, http.StatusInternalServerError)
-		return
-	}
+	// Async send + the same generic body as every other branch: a synchronous
+	// send (and its 500-on-failure) only ever happened for real unverified
+	// accounts, which distinguished them from the instant generic response.
+	emailCfg := s.emailCfg()
+	baseURL := s.baseURL(r)
+	go func() {
+		if err := auth.SendVerificationEmail(emailCfg, req.Email, token, baseURL); err != nil {
+			log.Printf("resend verification email to %s: %v", req.Email, err)
+		}
+	}()
 
-	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
+	writeJSON(w, http.StatusOK, genericResp)
+}
+
+// totpSecret returns the user's TOTP secret in plaintext. Secrets are sealed
+// at rest with the user's KEK (a DB dump alone can't clone authenticators);
+// rows written before encryption-at-rest existed pass through as-is and get
+// re-sealed on the next successful verification.
+func (s *Server) totpSecret(user *types.User) (string, error) {
+	if user.TOTPSecret == "" {
+		return "", nil
+	}
+	kek, err := crypto.DeriveUserKEK(s.masterKey, user.ID)
+	if err != nil {
+		return "", err
+	}
+	return crypto.OpenSecret(kek, user.TOTPSecret)
 }
 
 // Handle2FASetup generates a TOTP secret for the user.
@@ -582,13 +618,39 @@ func (s *Server) Handle2FASetup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	user, err := s.db.GetUserByID(ctx, claims.Sub)
+	if err != nil {
+		http.Error(w, `{"error":"user not found"}`, http.StatusNotFound)
+		return
+	}
+
+	// A stolen access token must not be able to silently rotate the secret of
+	// an already-protected account (locking the owner out of their authenticator).
+	if user.TOTPEnabled {
+		http.Error(w, `{"error":"2FA is already enabled — disable it first to generate a new secret"}`, http.StatusBadRequest)
+		return
+	}
+
 	secret, err := auth.GenerateTOTPSecret()
 	if err != nil {
 		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
 		return
 	}
 
-	if err := s.db.SetTOTPSecret(ctx, claims.Sub, secret); err != nil {
+	// Seal before storing — the plaintext secret goes only to the user's
+	// authenticator app (below), never to the database.
+	kek, err := crypto.DeriveUserKEK(s.masterKey, claims.Sub)
+	if err != nil {
+		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
+		return
+	}
+	sealed, err := crypto.SealSecret(kek, secret)
+	if err != nil {
+		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
+		return
+	}
+
+	if err := s.db.SetTOTPSecret(ctx, claims.Sub, sealed); err != nil {
 		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
 		return
 	}
@@ -629,8 +691,30 @@ func (s *Server) Handle2FAEnable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !auth.ValidateTOTPCode(user.TOTPSecret, req.Code) {
+	if !s.devMode && !s.twoFAUserLimiter.allow(user.ID) {
+		http.Error(w, `{"error":"too many 2FA attempts, please try again later"}`, http.StatusTooManyRequests)
+		return
+	}
+
+	secret, err := s.totpSecret(user)
+	if err != nil {
+		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
+		return
+	}
+
+	counter, ok := auth.ValidateTOTPCodeCounter(secret, req.Code)
+	if !ok {
 		http.Error(w, `{"error":"invalid code"}`, http.StatusBadRequest)
+		return
+	}
+
+	claimed, err := s.db.ClaimTOTPCounter(ctx, user.ID, counter)
+	if err != nil {
+		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
+		return
+	}
+	if !claimed {
+		http.Error(w, `{"error":"this code was already used — wait for the next one"}`, http.StatusBadRequest)
 		return
 	}
 
@@ -639,14 +723,112 @@ func (s *Server) Handle2FAEnable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Mint one-time recovery codes so a lost authenticator can't permanently lock
+	// the user out. Returned once, here — only their hashes are stored.
+	codes, err := s.issueBackupCodes(ctx, user.ID)
+	if err != nil {
+		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
+		return
+	}
+
 	s.audit(r, &user.ID, "2fa_enable", nil)
 
-	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
+	writeJSON(w, http.StatusOK, map[string]interface{}{"success": true, "backup_codes": codes})
+}
+
+// issueBackupCodes generates a fresh set of recovery codes, stores their hashes
+// (replacing any existing set), and returns the plaintext codes to show once.
+func (s *Server) issueBackupCodes(ctx context.Context, userID string) ([]string, error) {
+	codes, err := auth.GenerateBackupCodes(auth.BackupCodeCount)
+	if err != nil {
+		return nil, err
+	}
+	hashes := make([]string, len(codes))
+	for i, c := range codes {
+		hashes[i] = auth.HashToken(auth.NormalizeBackupCode(c))
+	}
+	if err := s.db.ReplaceBackupCodes(ctx, userID, hashes); err != nil {
+		return nil, err
+	}
+	return codes, nil
+}
+
+// Handle2FARegenerateBackupCodes issues a fresh set of recovery codes after
+// verifying the user's current TOTP code, invalidating any previous set. Used
+// when a user has consumed most of their codes or wants to rotate them.
+func (s *Server) Handle2FARegenerateBackupCodes(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	claims := GetUserClaims(r)
+	if claims == nil {
+		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+		return
+	}
+
+	var req struct {
+		Code string `json:"code"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+		return
+	}
+
+	user, err := s.db.GetUserByID(ctx, claims.Sub)
+	if err != nil {
+		http.Error(w, `{"error":"user not found"}`, http.StatusNotFound)
+		return
+	}
+	if !user.TOTPEnabled {
+		http.Error(w, `{"error":"2fa is not enabled"}`, http.StatusBadRequest)
+		return
+	}
+
+	if !s.devMode && !s.twoFAUserLimiter.allow(user.ID) {
+		http.Error(w, `{"error":"too many 2FA attempts, please try again later"}`, http.StatusTooManyRequests)
+		return
+	}
+
+	secret, err := s.totpSecret(user)
+	if err != nil {
+		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Require a fresh, unused TOTP code — same replay guard as the login step, so
+	// a stolen access token alone can't rotate (and reveal) the recovery codes.
+	counter, ok := auth.ValidateTOTPCodeCounter(secret, req.Code)
+	if !ok {
+		http.Error(w, `{"error":"invalid 2FA code"}`, http.StatusUnauthorized)
+		return
+	}
+	claimed, err := s.db.ClaimTOTPCounter(ctx, user.ID, counter)
+	if err != nil {
+		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
+		return
+	}
+	if !claimed {
+		http.Error(w, `{"error":"this code was already used — wait for the next one"}`, http.StatusUnauthorized)
+		return
+	}
+
+	codes, err := s.issueBackupCodes(ctx, user.ID)
+	if err != nil {
+		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
+		return
+	}
+
+	s.audit(r, &user.ID, "2fa_backup_codes_regenerated", nil)
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{"success": true, "backup_codes": codes})
 }
 
 // Handle2FAVerify validates a TOTP code during login (after password was correct).
 func (s *Server) Handle2FAVerify(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+
+	if !s.devMode && !s.twoFAIPLimiter.allow(s.clientIP(r)) {
+		http.Error(w, `{"error":"too many 2FA attempts, please try again later"}`, http.StatusTooManyRequests)
+		return
+	}
 
 	var req struct {
 		TempToken string `json:"temp_token"`
@@ -663,15 +845,70 @@ func (s *Server) Handle2FAVerify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Per-account cap, keyed by the temp token's subject: rotating IPs doesn't
+	// buy an attacker more guesses against one account.
+	if !s.devMode && !s.twoFAUserLimiter.allow(claims.Sub) {
+		uid := claims.Sub
+		s.audit(r, &uid, "2fa_ratelimited", nil)
+		http.Error(w, `{"error":"too many 2FA attempts, please try again later"}`, http.StatusTooManyRequests)
+		return
+	}
+
 	user, err := s.db.GetUserByID(ctx, claims.Sub)
 	if err != nil {
 		http.Error(w, `{"error":"user not found"}`, http.StatusNotFound)
 		return
 	}
 
-	if !auth.ValidateTOTPCode(user.TOTPSecret, req.Code) {
-		http.Error(w, `{"error":"invalid 2FA code"}`, http.StatusUnauthorized)
+	secret, err := s.totpSecret(user)
+	if err != nil {
+		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
 		return
+	}
+
+	counter, ok := auth.ValidateTOTPCodeCounter(secret, req.Code)
+	if !ok {
+		// Not a live TOTP code — try it as a one-time recovery code. Consuming is
+		// atomic (used_at guard), so a backup code works exactly once.
+		consumed, cErr := s.db.ConsumeBackupCode(ctx, user.ID, auth.HashToken(auth.NormalizeBackupCode(req.Code)))
+		if cErr != nil {
+			http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
+			return
+		}
+		if !consumed {
+			s.audit(r, &user.ID, "2fa_failed", map[string]interface{}{"email": user.Email})
+			http.Error(w, `{"error":"invalid 2FA code"}`, http.StatusUnauthorized)
+			return
+		}
+		remaining, _ := s.db.CountUnusedBackupCodes(ctx, user.ID)
+		s.audit(r, &user.ID, "login", map[string]interface{}{"email": user.Email, "method": "backup_code", "backup_codes_remaining": remaining})
+		s.issueTokens(w, r, user)
+		return
+	}
+
+	claimed, err := s.db.ClaimTOTPCounter(ctx, user.ID, counter)
+	if err != nil {
+		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
+		return
+	}
+	if !claimed {
+		// Correct code, but its time step was already consumed — a replayed or
+		// intercepted code. Refuse it and leave a trace.
+		s.audit(r, &user.ID, "2fa_replay", map[string]interface{}{"email": user.Email})
+		http.Error(w, `{"error":"this code was already used — wait for the next one"}`, http.StatusUnauthorized)
+		return
+	}
+
+	// Legacy row (plaintext at rest, pre-encryption): re-seal it now that the
+	// user has proven the code. Best-effort — a failure must not block login.
+	if !crypto.IsSealed(user.TOTPSecret) {
+		if kek, kekErr := crypto.DeriveUserKEK(s.masterKey, user.ID); kekErr == nil {
+			if sealed, sealErr := crypto.SealSecret(kek, secret); sealErr == nil {
+				if dbErr := s.db.SetTOTPSecret(ctx, user.ID, sealed); dbErr != nil {
+					log.Printf("2fa: re-seal legacy totp secret for %s: %v", user.ID, dbErr)
+				}
+			}
+		}
 	}
 
 	s.audit(r, &user.ID, "login", map[string]interface{}{"email": user.Email, "method": "2fa"})
@@ -707,8 +944,30 @@ func (s *Server) Handle2FADisable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !auth.ValidateTOTPCode(user.TOTPSecret, req.Code) {
+	if !s.devMode && !s.twoFAUserLimiter.allow(user.ID) {
+		http.Error(w, `{"error":"too many 2FA attempts, please try again later"}`, http.StatusTooManyRequests)
+		return
+	}
+
+	secret, err := s.totpSecret(user)
+	if err != nil {
+		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
+		return
+	}
+
+	counter, ok := auth.ValidateTOTPCodeCounter(secret, req.Code)
+	if !ok {
 		http.Error(w, `{"error":"invalid 2FA code"}`, http.StatusUnauthorized)
+		return
+	}
+
+	claimed, err := s.db.ClaimTOTPCounter(ctx, user.ID, counter)
+	if err != nil {
+		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
+		return
+	}
+	if !claimed {
+		http.Error(w, `{"error":"this code was already used — wait for the next one"}`, http.StatusUnauthorized)
 		return
 	}
 
