@@ -7,6 +7,12 @@ import { initUpload, uploadChunk, completeUpload, presignChunk, directUploadToUR
 import { getFileMeta } from "@/lib/api";
 import { setFilesData } from "@/store/files";
 import { getDeviceProfile } from "@/lib/device-profile";
+import { formatBytes } from "@/lib/utils";
+
+// Mirrors the server's per-file cap (HandleUploadInit rejects larger with
+// 413). Checked before queueing so a 30GB drop fails instantly with a clear
+// message instead of after minutes of hashing.
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024 * 1024;
 
 // --- Debounced refresh to avoid hammering the API ---
 // Trailing debounce WITH a max-wait: a busy batch used to reset the timer on
@@ -987,6 +993,16 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
   startUpload: (files, passphrase, platform, maxConcurrent, onRefresh, folderId = null) => {
     const { addBatchToQueue } = get();
     const profile = getDeviceProfile();
+
+    // Per-file size cap — reject oversized files up front, keep the rest.
+    const tooBig = files.filter((f) => f.size > MAX_UPLOAD_BYTES);
+    if (tooBig.length > 0) {
+      files = files.filter((f) => f.size <= MAX_UPLOAD_BYTES);
+      const names = tooBig.slice(0, 3).map((f) => `"${f.name}" (${formatBytes(f.size)})`).join(", ");
+      const more = tooBig.length > 3 ? ` and ${tooBig.length - 3} more` : "";
+      toast.error(`${names}${more} exceed${tooBig.length === 1 ? "s" : ""} the ${formatBytes(MAX_UPLOAD_BYTES)} per-file limit.`);
+      if (files.length === 0) return;
+    }
 
     // Effective file-level concurrency. Mobile profiles allow only 1-2 parallel
     // files, so a 50-photo batch ran as ~25-50 sequential rounds, each paying

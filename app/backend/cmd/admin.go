@@ -472,8 +472,8 @@ func (s *Server) HandleGetQuota(w http.ResponseWriter, r *http.Request) {
 		HasPersonalKey:       hasPersonal,
 		IsUnlimited:          true,
 		Plan:                 plan,
-		MaxConcurrentUploads: 0, // 0 = unlimited
-		MaxFileSize:          0, // 0 = unlimited
+		MaxConcurrentUploads: 0,              // 0 = unlimited
+		MaxFileSize:          maxUploadBytes, // per-file cap enforced by HandleUploadInit
 		CanUpload:            canUpload,
 		AllowsBYOB:           true,
 	}
