@@ -11,7 +11,22 @@ const { resolveFileKey, fromBase64 } = vi.hoisted(() => ({
   resolveFileKey: vi.fn(),
   fromBase64: vi.fn(),
 }));
-vi.mock("@/lib/crypto", () => ({ resolveFileKey, fromBase64 }));
+vi.mock("@/lib/crypto", async () => {
+  // Provide a REAL sha256 incremental hasher for createContentHasher so the
+  // legacy ('plain') integrity path these tests exercise matches the expected
+  // hash computed with nobleSha256. deriveDedupKeyBytes is only hit on the
+  // 'hmac_v1' path (not exercised here), so a stub suffices.
+  const { sha256 } = await import("@noble/hashes/sha2.js");
+  return {
+    resolveFileKey,
+    fromBase64,
+    deriveDedupKeyBytes: vi.fn(),
+    createContentHasher: async () => {
+      const h = sha256.create();
+      return { update: (d: Uint8Array) => h.update(d), digest: () => h.digest() };
+    },
+  };
+});
 
 const { getDeviceProfile } = vi.hoisted(() => ({ getDeviceProfile: vi.fn() }));
 vi.mock("@/lib/device-profile", () => ({ getDeviceProfile }));
@@ -123,7 +138,7 @@ describe("downloadAndDecryptFile — in-memory path", () => {
     getFileMeta.mockResolvedValueOnce(baseMeta(1, "0".repeat(64)));
     getFileChunk.mockResolvedValueOnce({ data: chunkBytes(0).buffer, sha256: "", compressed: false });
 
-    await expect(downloadAndDecryptFile("f1", "pw")).rejects.toThrow(/SHA-256 mismatch/);
+    await expect(downloadAndDecryptFile("f1", "pw")).rejects.toThrow(/content hash mismatch/);
     expect(terminateMock).toHaveBeenCalledTimes(1);
   });
 
@@ -268,7 +283,7 @@ describe("downloadAndDecryptFile — streaming-to-disk path", () => {
     getFileChunk.mockResolvedValueOnce({ data: chunkBytes(0).buffer, sha256: "", compressed: false });
     const saveToDisk = fakeDiskWritable();
 
-    await expect(downloadAndDecryptFile("f1", "pw", { saveToDisk })).rejects.toThrow(/SHA-256 mismatch/);
+    await expect(downloadAndDecryptFile("f1", "pw", { saveToDisk })).rejects.toThrow(/content hash mismatch/);
 
     expect(saveToDisk.abort).toHaveBeenCalledTimes(1);
     expect(saveToDisk.close).not.toHaveBeenCalled();
@@ -279,7 +294,7 @@ describe("downloadAndDecryptFile — streaming-to-disk path", () => {
     getFileChunk.mockResolvedValueOnce({ data: chunkBytes(0).buffer, sha256: "", compressed: false });
     const saveToDisk: DiskWritable = { write: vi.fn(async () => {}), close: vi.fn(async () => {}) };
 
-    await expect(downloadAndDecryptFile("f1", "pw", { saveToDisk })).rejects.toThrow(/SHA-256 mismatch/);
+    await expect(downloadAndDecryptFile("f1", "pw", { saveToDisk })).rejects.toThrow(/content hash mismatch/);
   });
 
   it("swallows an error thrown by an already-closed saveToDisk.abort()", async () => {
@@ -293,7 +308,7 @@ describe("downloadAndDecryptFile — streaming-to-disk path", () => {
       }),
     };
 
-    await expect(downloadAndDecryptFile("f1", "pw", { saveToDisk })).rejects.toThrow(/SHA-256 mismatch/);
+    await expect(downloadAndDecryptFile("f1", "pw", { saveToDisk })).rejects.toThrow(/content hash mismatch/);
     expect(saveToDisk.abort).toHaveBeenCalledTimes(1);
   });
 });

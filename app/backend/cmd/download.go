@@ -66,6 +66,7 @@ func (s *Server) HandleGetFileMeta(w http.ResponseWriter, r *http.Request) {
 		"encrypted_size":  file.EncryptedSize,
 		"chunk_count":     file.ChunkCount,
 		"sha256":          file.SHA256,
+		"sha256_scheme":   file.SHA256Scheme,
 		"salt":            base64.StdEncoding.EncodeToString(file.Salt),
 		"wrapped_cek":     wrappedCEK,
 		"status":          file.Status,

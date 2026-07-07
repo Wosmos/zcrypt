@@ -256,6 +256,18 @@ DROP INDEX IF EXISTS idx_files_status;
 -- directly with the passphrase-derived key.
 ALTER TABLE files ADD COLUMN IF NOT EXISTS wrapped_cek TEXT NOT NULL DEFAULT '';
 
+-- Content-hash scheme discriminator. 'plain' = files.sha256 is SHA-256 of the
+-- PLAINTEXT (legacy — lets anyone with DB access confirm a user stores a known
+-- file: the confirmation-of-file leak). 'hmac_v1' = a per-user keyed MAC
+-- (HMAC-SHA256 under a passphrase-derived key) the client computes; it stays
+-- deterministic per (user, passphrase, content) so single-user dedup/resume
+-- still matches on sha256+size, but a passphrase-less DB attacker cannot compute
+-- it for a known file. DEFAULT 'plain' labels every existing row as legacy with
+-- no backfill (the server is zero-knowledge and cannot recompute old hashes).
+-- Values are intentionally unconstrained so a future hmac_v2 needs no migration.
+ALTER TABLE files ADD COLUMN IF NOT EXISTS sha256_scheme TEXT NOT NULL DEFAULT 'plain';
+ALTER TABLE upload_sessions ADD COLUMN IF NOT EXISTS sha256_scheme TEXT NOT NULL DEFAULT 'plain';
+
 -- Migrate email_tokens kind constraint for magic links
 ALTER TABLE email_tokens DROP CONSTRAINT IF EXISTS email_tokens_kind_check;
 ALTER TABLE email_tokens ADD CONSTRAINT email_tokens_kind_check

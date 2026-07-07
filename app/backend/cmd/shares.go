@@ -249,6 +249,7 @@ func (s *Server) HandleGetShareFileMeta(w http.ResponseWriter, r *http.Request) 
 		"encrypted_size":  file.EncryptedSize,
 		"chunk_count":     file.ChunkCount,
 		"sha256":          file.SHA256,
+		"sha256_scheme":   file.SHA256Scheme,
 		"salt":            base64.StdEncoding.EncodeToString(file.Salt),
 		// The CEK wrapped under the share key (from the share, NOT the file's
 		// passphrase-wrapped CEK). The recipient unwraps this with the key in

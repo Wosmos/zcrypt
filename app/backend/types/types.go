@@ -69,6 +69,7 @@ type FileMetadata struct {
 	EncryptedSize  int64     `json:"encrypted_size"`
 	ChunkCount     int       `json:"chunk_count"`
 	SHA256         string    `json:"sha256"`
+	SHA256Scheme   string    `json:"sha256_scheme"` // 'plain' = SHA256(plaintext) (legacy); 'hmac_v1' = per-user keyed MAC
 	Salt           []byte    `json:"-"`
 	IV             []byte    `json:"-"`
 	WrappedCEK     string    `json:"wrapped_cek,omitempty"` // base64 envelope-wrapped Content Encryption Key
@@ -161,6 +162,7 @@ type UploadSession struct {
 	OriginalSize   int64     `json:"original_size"`
 	Salt           []byte    `json:"-"`
 	SHA256         string    `json:"sha256"`
+	SHA256Scheme   string    `json:"sha256_scheme"` // 'plain' (legacy) or 'hmac_v1' — see FileMetadata.SHA256Scheme
 	ChunkCount     int       `json:"chunk_count"`
 	ChunkSize      int64     `json:"chunk_size"` // plaintext chunk size the client slices with; 0 = unknown (legacy)
 	Platform       string    `json:"platform"`
@@ -178,8 +180,9 @@ type UploadInitRequest struct {
 	Filename     string  `json:"filename"`
 	OriginalSize int64   `json:"original_size"`
 	SHA256       string  `json:"sha256"`
-	Salt         string  `json:"salt"`        // base64-encoded 32 bytes
-	WrappedCEK   string  `json:"wrapped_cek"` // base64 envelope-wrapped Content Encryption Key
+	SHA256Scheme string  `json:"sha256_scheme,omitempty"` // 'hmac_v1' from upgraded clients; empty/absent → stored as 'plain'
+	Salt         string  `json:"salt"`                    // base64-encoded 32 bytes
+	WrappedCEK   string  `json:"wrapped_cek"`             // base64 envelope-wrapped Content Encryption Key
 	ChunkCount   int     `json:"chunk_count"`
 	ChunkSize    int64   `json:"chunk_size,omitempty"` // plaintext chunk size the client slices with; enables cross-device resume
 	Platform     string  `json:"platform,omitempty"`

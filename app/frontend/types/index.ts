@@ -6,6 +6,8 @@ export interface FileMetadata {
   encrypted_size: number;
   chunk_count: number;
   sha256: string;
+  /** 'hmac_v1' = per-user keyed content MAC; 'plain'/undefined = legacy plaintext SHA-256. */
+  sha256_scheme?: string;
   created_at: string;
   // Folders + trash + encrypted names (added 2026-06). Optional so legacy
   // call sites and decoy files (which omit them) keep type-checking.

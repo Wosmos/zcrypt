@@ -2,7 +2,8 @@ import { create } from "zustand";
 import type { FileMetadata, UploadItem, UploadStatus } from "@/types";
 import { toast } from "@/store/toast";
 import { WorkerPool } from "@/lib/worker-pool";
-import { generateSalt, deriveKeyBytes, generateCEK, wrapKey, unwrapKey, sha256File, toBase64, fromBase64 } from "@/lib/crypto";
+import { generateSalt, deriveKeyBytes, generateCEK, wrapKey, unwrapKey, sha256File, contentMacFile, deriveDedupKeyBytes, toBase64, fromBase64 } from "@/lib/crypto";
+import { useAuthStore } from "@/store/auth";
 import { initUpload, uploadChunk, completeUpload, presignChunk, directUploadToURL, confirmChunk, cancelUpload, getUploadStatus } from "@/lib/upload-session";
 import { getFileMeta } from "@/lib/api";
 import { setFilesData } from "@/store/files";
@@ -396,7 +397,8 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
     let useDirectUpload = false;
     let shouldCompress = true;
     let done = new Set<number>();
-    let fileSha256 = ""; // known on the fresh path only (used for the optimistic row)
+    let fileSha256 = ""; // per-user keyed content MAC (hmac_v1); known on the fresh path only
+    let fileScheme = "plain"; // 'hmac_v1' once the MAC is computed below
     let fileId = "";
     let wasResumed = false;
 
@@ -406,14 +408,30 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
       // Envelope encryption: chunks are encrypted with a random CEK; the CEK is
       // wrapped with the passphrase-derived KEK and stored alongside the file, so
       // a file can be shared (by re-wrapping its CEK) without revealing the passphrase.
+      //
+      // Content hash: a per-user KEYED MAC (HMAC-SHA256 under a passphrase-derived
+      // key), NOT a plaintext SHA-256. It stays deterministic per (user,
+      // passphrase, content) so server-authoritative dedup/resume still matches on
+      // it, but a passphrase-less DB attacker can't recompute it for a known file
+      // (defeats confirmation-of-file). Falls back to plain SHA only if we can't
+      // resolve the user id (should not happen for an authenticated upload).
       updateStatus(id, "encrypting", 1, "Hashing file…", 0, file.size);
-      fileSha256 = await sha256File(file, (hashed) => {
+      const dedupUserId = useAuthStore.getState().user?.id;
+      const onHashProgress = (hashed: number) => {
         // Feed hash progress into the STAGE text (the bar's byte unit stays
         // reserved for upload bytes) so a multi-GB pre-hash visibly moves.
         if (!isCurrentRun() || isPaused()) return;
         const frac = file.size > 0 ? hashed / file.size : 1;
         updateStatus(id, "encrypting", 1 + Math.round(frac * 2), `Hashing file… ${Math.round(frac * 100)}%`, 0, file.size);
-      });
+      };
+      if (dedupUserId) {
+        const dedupKey = await deriveDedupKeyBytes(passphrase, dedupUserId);
+        fileSha256 = await contentMacFile(file, dedupKey, onHashProgress);
+        fileScheme = "hmac_v1";
+      } else {
+        fileSha256 = await sha256File(file, onHashProgress);
+        fileScheme = "plain";
+      }
       if (pauseCheckpoint()) return;
 
       updateStatus(id, "encrypting", 2, "Deriving encryption key...");
@@ -444,6 +462,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
               filename: file.name,
               original_size: file.size,
               sha256: fileSha256,
+              sha256_scheme: fileScheme,
               salt: toBase64(salt),
               wrapped_cek: toBase64(wrappedCek),
               chunk_count: chunkCount,
@@ -789,6 +808,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
             encrypted_size: totalEncryptedSize,
             chunk_count: chunkCount,
             sha256: fileSha256,
+            sha256_scheme: fileScheme,
             created_at: new Date().toISOString(),
             folder_id: itemMeta.get(id)?.folderId ?? folderId ?? null,
           } satisfies FileMetadata, ...prev]);

@@ -14,7 +14,7 @@
  */
 
 import { getFileMeta, getFileChunk, type FileMetaResponse } from "@/lib/api";
-import { resolveFileKey, fromBase64 } from "@/lib/crypto";
+import { resolveFileKey, fromBase64, deriveDedupKeyBytes, createContentHasher } from "@/lib/crypto";
 import { getDeviceProfile } from "@/lib/device-profile";
 import { WorkerPool } from "@/lib/worker-pool";
 import { OrderedWriter } from "@/lib/ordered-writer";
@@ -187,12 +187,14 @@ export async function downloadAndDecryptFile(
   // overrides the vault passphrase.
   onProgress?.({ stage: "Deriving key...", percent: 1, chunksDone: resume.done?.size ?? resume.writtenCount ?? 0, chunksTotal: meta.chunk_count });
   let keyBytes: ArrayBuffer;
+  let dedupPassphrase: string | undefined; // set only when we hold the passphrase (owner/folder path)
   if (resume.keyBytes) {
     keyBytes = resume.keyBytes;
   } else if (resolveKey) {
     keyBytes = await resolveKey(meta);
   } else {
     const filePassphrase = resolvePassword ? await resolvePassword(fileId) : passphrase;
+    dedupPassphrase = filePassphrase;
     const salt = fromBase64(meta.salt);
     keyBytes = await resolveFileKey(filePassphrase, salt, meta.wrapped_cek);
   }
@@ -202,7 +204,20 @@ export async function downloadAndDecryptFile(
 
   const hex = (bytes: Uint8Array) =>
     Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
-  const { sha256: nobleSha256 } = await import("@noble/hashes/sha2.js");
+
+  // Integrity scheme. 'hmac_v1' files verify against a per-user keyed MAC, which
+  // requires the passphrase — available on the owner/folder path but NOT on the
+  // shared-space (resolveKey) path. When we can't recompute the MAC, we skip the
+  // file-level compare and rely on per-chunk AES-GCM auth tags + the chunk-count
+  // assertion (writer.close) for integrity, exactly like the public share path.
+  let macKey: Uint8Array | undefined;
+  if (meta.sha256_scheme === "hmac_v1" && dedupPassphrase) {
+    const { useAuthStore } = await import("@/store/auth"); // lazy — keep module load test-safe
+    const uid = useAuthStore.getState().user?.id;
+    if (uid) macKey = await deriveDedupKeyBytes(dedupPassphrase, uid);
+  }
+  const hashScheme = macKey ? "hmac_v1" : "plain"; // what the hasher actually computes
+  const canVerifyHash = meta.sha256_scheme !== "hmac_v1" || !!macKey;
 
   const streaming = !!saveToDisk;
   const MAX_CONCURRENT = getDeviceProfile().maxConcurrentDownloads;
@@ -213,7 +228,7 @@ export async function downloadAndDecryptFile(
   // IN-MEMORY: the decrypted-chunk array persists; we hash it at finalize.
   let writer: OrderedWriter | null = null;
   if (streaming) {
-    resume.hasher ??= nobleSha256.create() as unknown as IncrementalHasher;
+    resume.hasher ??= (await createContentHasher(hashScheme, macKey)) as unknown as IncrementalHasher;
     resume.writtenCount ??= 0;
     const hasher = resume.hasher;
     let written = resume.writtenCount;
@@ -331,12 +346,15 @@ export async function downloadAndDecryptFile(
       await writer.close(meta.chunk_count); // drain + assert every chunk written
       actualHash = hex(resume.hasher!.digest());
     } else {
-      const hasher = nobleSha256.create();
+      const hasher = await createContentHasher(hashScheme, macKey);
       for (const chunk of resume.decryptedChunks!) hasher.update(chunk);
       actualHash = hex(hasher.digest());
     }
-    if (actualHash !== meta.sha256) {
-      throw new Error("File integrity check failed — SHA-256 mismatch");
+    // Skip the file-level compare only when we genuinely can't recompute the MAC
+    // (hmac_v1 file downloaded without the passphrase, e.g. shared space); per-chunk
+    // GCM + the chunk-count assertion above still guarantee integrity there.
+    if (canVerifyHash && actualHash !== meta.sha256) {
+      throw new Error("File integrity check failed — content hash mismatch");
     }
 
     // Finalize. Streaming commits the on-disk file; in-memory triggers a Blob

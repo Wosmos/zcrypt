@@ -169,6 +169,9 @@ export interface UploadInitParams {
   filename: string;
   original_size: number;
   sha256: string;
+  /** Content-hash scheme: 'hmac_v1' (per-user keyed MAC) for upgraded clients,
+   *  'plain'/omitted = legacy SHA-256 of the plaintext. */
+  sha256_scheme?: string;
   salt: string; // base64
   wrapped_cek: string; // base64 envelope-wrapped Content Encryption Key
   chunk_count: number;
