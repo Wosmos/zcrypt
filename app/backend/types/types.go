@@ -82,18 +82,23 @@ type FileMetadata struct {
 
 // ChunkRef identifies a single chunk stored on a platform.
 type ChunkRef struct {
-	ChunkID      string `json:"chunk_id"`
-	FileID       string `json:"file_id"`
-	UserID       string `json:"user_id,omitempty"`
-	Index        int    `json:"index"`
-	Size         int64  `json:"size"`
-	SHA256       string `json:"sha256"`
-	Platform     string `json:"platform"`
-	Account      string `json:"account"`
-	Repo         string `json:"repo"`
-	RemotePath   string `json:"remote_path"`
-	Compressed   bool   `json:"compressed"`
-	SyncAttempts int    `json:"sync_attempts,omitempty"`
+	ChunkID    string `json:"chunk_id"`
+	FileID     string `json:"file_id"`
+	UserID     string `json:"user_id,omitempty"`
+	Index      int    `json:"index"`
+	Size       int64  `json:"size"`
+	SHA256     string `json:"sha256"`
+	Platform   string `json:"platform"`
+	Account    string `json:"account"`
+	Repo       string `json:"repo"`
+	RemotePath string `json:"remote_path"`
+	// PlannedRemotePath is the disguised path the sync worker intends to upload
+	// this chunk to, persisted BEFORE the upload so a crash mid-upload never
+	// strands an untrackable blob. Reused across retries so a re-sync overwrites
+	// the same path instead of leaking a second blob. Empty until first planned.
+	PlannedRemotePath string `json:"planned_remote_path,omitempty"`
+	Compressed        bool   `json:"compressed"`
+	SyncAttempts      int    `json:"sync_attempts,omitempty"`
 }
 
 // Chunk holds chunk data for upload/download.

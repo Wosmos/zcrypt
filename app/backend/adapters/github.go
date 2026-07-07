@@ -72,7 +72,11 @@ func (g *GithubAdapter) Upload(ctx context.Context, repo string, chunk types.Chu
 	// Retry on 409 (SHA conflict from concurrent commits) with exponential backoff + jitter.
 	// GitHub Contents API creates one commit per CreateFile — concurrent uploads to the same
 	// repo race on HEAD SHA. With the server-side per-repo semaphore limiting to 2 concurrent,
-	// 10 retries with jitter handles residual contention reliably.
+	// 10 retries with jitter handles residual contention reliably. The path is held STABLE
+	// across retries: a 409 is a HEAD-SHA race, not a path collision, so re-committing the
+	// same path after backoff resolves it. Rotating the path here would break the sync
+	// worker's invariant that the caller-planned path is authoritative — a rotated-then-lost
+	// path (crash before return) would strand the blob where deletion can never find it.
 	var lastErr error
 	for attempt := 0; attempt < 10; attempt++ {
 		if attempt > 0 {
@@ -84,12 +88,6 @@ func (g *GithubAdapter) Upload(ctx context.Context, repo string, chunk types.Chu
 				return types.ChunkRef{}, ctx.Err()
 			case <-time.After(base + jitter):
 			}
-			// Generate new filename on 409 (path collision)
-			newPath, err := disguise.ShardedChunkFilename()
-			if err != nil {
-				return types.ChunkRef{}, fmt.Errorf("generate filename: %w", err)
-			}
-			remotePath = newPath
 		}
 
 		opts := &github.RepositoryContentFileOptions{
@@ -224,22 +222,41 @@ func (g *GithubAdapter) ListChunks(ctx context.Context, repo string) ([]types.Ch
 		repoName = parts[1]
 	}
 
-	_, dirContent, _, err := g.client.Repositories.GetContents(ctx, owner, repoName, "", nil)
+	// Use the recursive Git Trees API rather than GetContents on the root: chunks
+	// are stored under a 2-hex-char shard directory (e.g. "02/abc.bin"), so a
+	// root-only listing would miss every blob. recursive=true returns the whole
+	// tree in one call and each entry's Path is the full sharded path, which is
+	// exactly what chunks.remote_path stores — so a reconciliation diff matches.
+	tree, resp, err := g.client.Git.GetTree(ctx, owner, repoName, "HEAD", true)
 	if err != nil {
-		return nil, fmt.Errorf("list contents: %w", err)
+		// An empty repo (no commits yet) has no tree → nothing stored, not an error.
+		if resp != nil && resp.StatusCode == http.StatusNotFound {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("get tree: %w", err)
 	}
 
 	var refs []types.ChunkRef
-	for _, item := range dirContent {
-		name := item.GetName()
-		if strings.HasSuffix(name, ".bin") {
+	for _, entry := range tree.Entries {
+		if entry.GetType() != "blob" {
+			continue
+		}
+		path := entry.GetPath()
+		if strings.HasSuffix(path, ".bin") {
 			refs = append(refs, types.ChunkRef{
 				Platform:   "github",
 				Repo:       repo,
-				RemotePath: name,
-				Size:       int64(item.GetSize()),
+				RemotePath: path,
+				Size:       int64(entry.GetSize()),
 			})
 		}
+	}
+	// GitHub truncates the tree response above ~100k entries / 7MB. Our repos cap
+	// far below that (GitHub threshold 850MB of ~10-17MB chunks ≈ <90 blobs), so
+	// truncation should never happen — but surface it rather than silently
+	// under-reporting, which for a reconciliation sweep would hide real orphans.
+	if tree.GetTruncated() {
+		return refs, fmt.Errorf("tree listing truncated for %s: results incomplete", repo)
 	}
 	return refs, nil
 }

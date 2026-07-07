@@ -3,6 +3,8 @@
 package cmd
 
 import (
+	"context"
+
 	"github.com/zcrypt/zcrypt/adapters"
 	"github.com/zcrypt/zcrypt/reppool"
 )
@@ -32,4 +34,26 @@ func (s *Server) InjectTestAdapter(userID, platform, account string, adapter ada
 		s.poolCache[userID] = make(map[string]*reppool.Manager)
 	}
 	s.poolCache[userID][key] = reppool.NewManager(s.db, adapter, userID, account, threshold)
+}
+
+// SyncAllChunks synchronously pushes every staged chunk to its platform adapter,
+// draining the sync worker's queue in-line so a test doesn't depend on the
+// background goroutine's timing. After it returns, synced chunks carry a
+// remote_path and are therefore eligible for platform deletion on purge.
+//
+// integration build tag only — never in a production binary.
+func (s *Server) SyncAllChunks(ctx context.Context) {
+	for s.syncPendingChunks(ctx) {
+	}
+}
+
+// DrainDeletions synchronously processes the pending_deletions queue to
+// completion (invoking each adapter's Delete), so a test can assert the platform
+// blobs are gone without waiting on the background deletion worker. Items that
+// fail are left queued with a bumped attempt count, exactly as in production.
+//
+// integration build tag only — never in a production binary.
+func (s *Server) DrainDeletions(ctx context.Context) {
+	for s.processPendingDeletions(ctx) {
+	}
 }

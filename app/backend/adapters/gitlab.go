@@ -181,6 +181,12 @@ func (g *GitlabAdapter) Delete(ctx context.Context, ref types.ChunkRef) error {
 	}
 	defer resp.Body.Close()
 
+	// 404 → the file is already gone (e.g. a planned-but-never-uploaded chunk, or
+	// a retry after a prior delete succeeded). Report success so it leaves the
+	// deletion queue instead of retrying to a dead-letter forever.
+	if resp.StatusCode == http.StatusNotFound {
+		return nil
+	}
 	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("delete returned %d: %s", resp.StatusCode, string(respBody))
@@ -212,29 +218,45 @@ func (g *GitlabAdapter) GetRepoSize(ctx context.Context, repo string) (int64, er
 
 func (g *GitlabAdapter) ListChunks(ctx context.Context, repo string) ([]types.ChunkRef, error) {
 	encodedProject := url.PathEscape(repo)
-	apiURL := fmt.Sprintf("%s/projects/%s/repository/tree?ref=main&per_page=100", gitlabAPI, encodedProject)
 
-	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
-	if err != nil {
-		return nil, fmt.Errorf("create list request: %w", err)
-	}
-
-	var items []struct {
-		Name string `json:"name"`
-		Type string `json:"type"`
-	}
-	if err := g.doJSON(req, &items); err != nil {
-		return nil, fmt.Errorf("list tree: %w", err)
-	}
-
+	// recursive=true walks the shard subdirectories (chunks live under a 2-hex
+	// prefix like "02/abc.bin"), and each entry's `path` is the full sharded path
+	// that chunks.remote_path stores — so a reconciliation diff lines up. Page
+	// through with offset pagination until a short page signals the end; a
+	// non-recursive or single-page listing would silently under-report and hide
+	// real orphans.
+	const perPage = 100
 	var refs []types.ChunkRef
-	for _, item := range items {
-		if item.Type == "blob" && strings.HasSuffix(item.Name, ".bin") {
-			refs = append(refs, types.ChunkRef{
-				Platform:   "gitlab",
-				Repo:       repo,
-				RemotePath: item.Name,
-			})
+	for page := 1; ; page++ {
+		apiURL := fmt.Sprintf("%s/projects/%s/repository/tree?ref=main&recursive=true&per_page=%d&page=%d",
+			gitlabAPI, encodedProject, perPage, page)
+
+		req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+		if err != nil {
+			return nil, fmt.Errorf("create list request: %w", err)
+		}
+
+		var items []struct {
+			Path string `json:"path"`
+			Type string `json:"type"`
+		}
+		if err := g.doJSON(req, &items); err != nil {
+			return nil, fmt.Errorf("list tree page %d: %w", page, err)
+		}
+
+		for _, item := range items {
+			if item.Type == "blob" && strings.HasSuffix(item.Path, ".bin") {
+				refs = append(refs, types.ChunkRef{
+					Platform:   "gitlab",
+					Repo:       repo,
+					RemotePath: item.Path,
+				})
+			}
+		}
+
+		// A short (or empty) page is the last one.
+		if len(items) < perPage {
+			break
 		}
 	}
 
