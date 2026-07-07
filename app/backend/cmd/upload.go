@@ -29,6 +29,12 @@ import (
 // Max encrypted chunk size: 16MB data (ultra tier) + 12B IV + 16B tag + margin
 const maxChunkSize = 17 * 1024 * 1024
 
+// maxUploadBytes caps a single file at 10 GiB. Not a monetization limit —
+// browser-side encrypt/chunk beyond that is unreliable (tab memory pressure,
+// eviction mid-upload) and repos rotate long before one file that size pays
+// off. A future desktop/MTProto path can lift this per-client.
+const maxUploadBytes = int64(10) << 30
+
 // chunkUploadSem limits concurrent chunk uploads being processed server-wide.
 // Each chunk can use ~35MB (raw data + base64 for GitHub API), so 10 concurrent = ~350MB.
 // Suitable for containers with 1-4GB RAM. For direct upload platforms (HuggingFace),
@@ -68,6 +74,10 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 
 	if req.Filename == "" || req.OriginalSize <= 0 || req.SHA256 == "" || req.Salt == "" || req.ChunkCount <= 0 {
 		http.Error(w, `{"error":"filename, original_size, sha256, salt, and chunk_count are required"}`, http.StatusBadRequest)
+		return
+	}
+	if req.OriginalSize > maxUploadBytes {
+		http.Error(w, `{"error":"file exceeds the 10 GB per-file limit"}`, http.StatusRequestEntityTooLarge)
 		return
 	}
 	// chunk_size is optional (0 = legacy client that doesn't send it) but must
