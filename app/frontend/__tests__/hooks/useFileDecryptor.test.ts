@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { renderHook, cleanup } from "@testing-library/react";
+import { hmac } from "@noble/hashes/hmac.js";
+import { sha256 as nobleSha256 } from "@noble/hashes/sha2.js";
 import type { FileMetadata } from "@/types";
 import { IncorrectPassphraseError } from "@/lib/crypto";
 
@@ -9,6 +11,7 @@ const {
   resolveFileKeyMock,
   decryptChunkMock,
   sha256HexMock,
+  deriveDedupKeyBytesMock,
   processMock,
   terminateMock,
   workerPoolCtorMock,
@@ -23,6 +26,7 @@ const {
   resolveFileKeyMock: vi.fn(),
   decryptChunkMock: vi.fn(),
   sha256HexMock: vi.fn(),
+  deriveDedupKeyBytesMock: vi.fn(),
   processMock: vi.fn(),
   terminateMock: vi.fn(),
   workerPoolCtorMock: vi.fn(),
@@ -45,8 +49,16 @@ vi.mock("@/lib/crypto", async (importOriginal) => {
     resolveFileKey: resolveFileKeyMock,
     decryptChunk: decryptChunkMock,
     sha256Hex: sha256HexMock,
+    deriveDedupKeyBytes: deriveDedupKeyBytesMock,
+    // createContentHasher stays REAL (noble HMAC-SHA256) so the hmac_v1 tests
+    // verify against a genuinely-computed keyed MAC.
   };
 });
+
+// The hmac_v1 verify path reads the signed-in user id to derive the MAC key.
+vi.mock("@/store/auth", () => ({
+  useAuthStore: { getState: () => ({ user: { id: "user-1" } }) },
+}));
 
 vi.mock("@/lib/worker-pool", () => ({
   WorkerPool: workerPoolCtorMock,
@@ -303,6 +315,47 @@ describe("runDecryptPipeline", () => {
     await expect(runDecryptPipeline(file, "pw")).rejects.toBeInstanceOf(
       IntegrityError
     );
+  });
+
+  it("verifies an hmac_v1 file against its per-user KEYED MAC, not a plain SHA-256 (regression: viewer falsely reported 'corrupted')", async () => {
+    // Every recently-uploaded file stores its content hash as a per-user HMAC
+    // (sha256_scheme='hmac_v1'). The viewer used to compute a PLAIN sha256Hex and
+    // compare — which can never equal the HMAC — so it threw IntegrityError on
+    // perfectly good files ("the file may be corrupted"). It must recompute the
+    // keyed MAC instead. This test's stored hash IS an HMAC; it only passes if the
+    // scheme-aware branch runs.
+    const macKey = new Uint8Array(32).fill(7);
+    deriveDedupKeyBytesMock.mockResolvedValue(macKey);
+    const full = new Uint8Array(chunkPlaintext(0)); // reassembled plaintext = "chunk-0"
+    const expectedMac = Array.from(hmac(nobleSha256, macKey, full))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+
+    const file = makeFile({ chunk_count: 1 });
+    const meta = makeMeta({ chunk_count: 1, sha256_scheme: "hmac_v1", sha256: expectedMac });
+    getFileMetaMock.mockResolvedValue(meta);
+    getFileChunkMock.mockResolvedValue({ data: new ArrayBuffer(4), sha256: "x", compressed: false });
+    processMock.mockResolvedValue({ chunkIndex: 0, plaintext: chunkPlaintext(0) });
+    // If the code wrongly took the plain-SHA-256 branch, THIS non-matching value
+    // would be compared → IntegrityError. Resolving proves the HMAC branch ran.
+    sha256HexMock.mockResolvedValue("plain-sha-would-never-match-an-hmac");
+
+    const blob = await runDecryptPipeline(file, "vault-pass");
+
+    expect(blob).toBeInstanceOf(Blob);
+    expect(deriveDedupKeyBytesMock).toHaveBeenCalledWith("vault-pass", "user-1");
+    expect(sha256HexMock).not.toHaveBeenCalled(); // hmac_v1 must NOT use the plain hasher
+  });
+
+  it("throws IntegrityError when an hmac_v1 file's keyed MAC does not match", async () => {
+    deriveDedupKeyBytesMock.mockResolvedValue(new Uint8Array(32).fill(7));
+    const file = makeFile({ chunk_count: 1 });
+    const meta = makeMeta({ chunk_count: 1, sha256_scheme: "hmac_v1", sha256: "not-the-real-mac" });
+    getFileMetaMock.mockResolvedValue(meta);
+    getFileChunkMock.mockResolvedValue({ data: new ArrayBuffer(4), sha256: "x", compressed: false });
+    processMock.mockResolvedValue({ chunkIndex: 0, plaintext: chunkPlaintext(0) });
+
+    await expect(runDecryptPipeline(file, "vault-pass")).rejects.toBeInstanceOf(IntegrityError);
   });
 
   it("handles a zero-chunk file without fanning out any fetchers", async () => {
