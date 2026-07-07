@@ -152,6 +152,7 @@ export interface FileMetaResponse {
   chunk_count: number;
   sha256: string;
   sha256_scheme?: string; // 'hmac_v1' = per-user keyed MAC; 'plain'/undefined = legacy SHA-256
+  encrypted_name?: string; // zero-knowledge file name (base64); '' for legacy files
   salt: string; // base64
   wrapped_cek?: string; // base64 envelope-wrapped Content Encryption Key (empty for legacy files)
   status: string;

@@ -167,6 +167,9 @@ async function authedXhrPut(
 
 export interface UploadInitParams {
   filename: string;
+  /** Zero-knowledge file name (base64). When set, filename is sent empty and the
+   *  server stores only this opaque value. */
+  encrypted_name?: string;
   original_size: number;
   sha256: string;
   /** Content-hash scheme: 'hmac_v1' (per-user keyed MAC) for upgraded clients,

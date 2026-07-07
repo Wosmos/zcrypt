@@ -174,7 +174,11 @@ export async function downloadSharedFile(
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = meta.original_name;
+  // A recipient has only the share key, not the owner's vault passphrase, so a
+  // zero-knowledge file's name (encrypted under the vault key) can't be resolved
+  // here — fall back to a generic name. TODO: carry the name re-encrypted under
+  // the share key (shares.enc_name) so recipients see the real filename.
+  a.download = meta.original_name || "download";
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

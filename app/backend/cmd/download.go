@@ -61,6 +61,7 @@ func (s *Server) HandleGetFileMeta(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"id":              file.ID,
 		"original_name":   file.OriginalName,
+		"encrypted_name":  file.EncryptedName,
 		"original_size":   file.OriginalSize,
 		"compressed_size": file.CompressedSize,
 		"encrypted_size":  file.EncryptedSize,

@@ -159,6 +159,7 @@ type UploadSession struct {
 	UserID         string    `json:"user_id"`
 	FileID         string    `json:"file_id"`
 	Filename       string    `json:"filename"`
+	EncryptedName  string    `json:"encrypted_name"` // client-encrypted (base64) name; '' for legacy sessions
 	OriginalSize   int64     `json:"original_size"`
 	Salt           []byte    `json:"-"`
 	SHA256         string    `json:"sha256"`
@@ -177,16 +178,17 @@ type UploadSession struct {
 
 // UploadInitRequest is the JSON body for initiating a chunked upload.
 type UploadInitRequest struct {
-	Filename     string  `json:"filename"`
-	OriginalSize int64   `json:"original_size"`
-	SHA256       string  `json:"sha256"`
-	SHA256Scheme string  `json:"sha256_scheme,omitempty"` // 'hmac_v1' from upgraded clients; empty/absent → stored as 'plain'
-	Salt         string  `json:"salt"`                    // base64-encoded 32 bytes
-	WrappedCEK   string  `json:"wrapped_cek"`             // base64 envelope-wrapped Content Encryption Key
-	ChunkCount   int     `json:"chunk_count"`
-	ChunkSize    int64   `json:"chunk_size,omitempty"` // plaintext chunk size the client slices with; enables cross-device resume
-	Platform     string  `json:"platform,omitempty"`
-	FolderID     *string `json:"folder_id,omitempty"` // optional target folder; nil/omitted = root. Ownership-validated server-side.
+	Filename      string  `json:"filename"`
+	EncryptedName string  `json:"encrypted_name,omitempty"` // client-encrypted (base64) name; when set, filename is left empty and the server never sees the plaintext
+	OriginalSize  int64   `json:"original_size"`
+	SHA256        string  `json:"sha256"`
+	SHA256Scheme  string  `json:"sha256_scheme,omitempty"` // 'hmac_v1' from upgraded clients; empty/absent → stored as 'plain'
+	Salt          string  `json:"salt"`                    // base64-encoded 32 bytes
+	WrappedCEK    string  `json:"wrapped_cek"`             // base64 envelope-wrapped Content Encryption Key
+	ChunkCount    int     `json:"chunk_count"`
+	ChunkSize     int64   `json:"chunk_size,omitempty"` // plaintext chunk size the client slices with; enables cross-device resume
+	Platform      string  `json:"platform,omitempty"`
+	FolderID      *string `json:"folder_id,omitempty"` // optional target folder; nil/omitted = root. Ownership-validated server-side.
 }
 
 // UploadCompleteRequest is the JSON body for finalizing a chunked upload.
