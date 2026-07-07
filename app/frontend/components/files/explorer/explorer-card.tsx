@@ -184,7 +184,7 @@ function FolderCard({
           onTouchStart={drag.onTouchStart}
           {...(drag.dropHandlers ?? {})}
           className={cn(
-            "group relative flex flex-col items-center gap-1.5 rounded-xl transition-all duration-200 focus-visible:ring-inset",
+            "group relative flex select-none flex-col items-center gap-1.5 rounded-xl transition-all duration-200 [-webkit-touch-callout:none] focus-visible:ring-inset",
             FOCUS_RING,
             drag.draggable ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
             drag.isBeingDragged && "opacity-50",
@@ -223,9 +223,10 @@ function FolderCard({
             )}
           </div>
 
-          {/* Name only — the rest lives in Get info (right-click / long-press). */}
+          {/* Name only — the rest lives in Get info (right-click / long-press).
+              Matches the file card's smaller mobile name size. */}
           <p
-            className="w-full truncate text-center text-sm font-medium text-[var(--color-text)]"
+            className="w-full truncate text-center text-[11px] font-medium text-[var(--color-text)] sm:text-sm"
             title={folder.name}
           >
             {midTrunc(folder.name, 16, 8)}
@@ -332,7 +333,7 @@ function FileCardInner({
           onTouchStart={drag.onTouchStart}
           {...(drag.dropHandlers ?? {})}
           className={cn(
-            "group relative flex flex-col items-center gap-1.5 rounded-xl p-1.5 transition-all duration-200 focus-visible:ring-inset",
+            "group relative flex select-none flex-col items-center gap-1.5 rounded-xl p-1.5 transition-all duration-200 [-webkit-touch-callout:none] focus-visible:ring-inset",
             FOCUS_RING,
             drag.draggable ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
             drag.isBeingDragged && "opacity-50",
@@ -369,14 +370,14 @@ function FileCardInner({
           {/* Preview — free-standing, sized to the file's own aspect ratio
               (landscape stays landscape, portrait stays portrait), macOS-icon
               style: a photo for image/video, a small document tile otherwise. */}
-          <div className="flex h-[92px] w-full items-end justify-center">
+          <div className="flex h-[104px] w-full items-end justify-center sm:h-[92px]">
             {thumbnailUrl ? (
               <div className="relative inline-flex">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={thumbnailUrl}
                   alt=""
-                  className="h-auto max-h-[92px] w-auto max-w-full rounded-[10px] object-contain shadow-[0_3px_9px_rgba(0,0,0,0.20)] ring-1 ring-black/10 dark:ring-white/10"
+                  className="h-auto max-h-[104px] w-auto max-w-full rounded-[10px] object-contain shadow-[0_3px_9px_rgba(0,0,0,0.20)] ring-1 ring-black/10 dark:ring-white/10 sm:max-h-[92px]"
                 />
                 {isVideo && (
                   <span className="pointer-events-none absolute left-1/2 top-1/2 flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-black/45 ring-1 ring-white/25 backdrop-blur-sm">
@@ -389,11 +390,11 @@ function FileCardInner({
             ) : pending ? (
               /* Brief loader — a clean shimmer (not a blurry placeholder) while
                  this file's thumbnail decrypts + generates lazily on render. */
-              <div className="h-[76px] w-[76px] animate-shimmer rounded-[10px] ring-1 ring-black/5 dark:ring-white/10" />
+              <div className="h-[88px] w-[88px] animate-shimmer rounded-[10px] ring-1 ring-black/5 dark:ring-white/10 sm:h-[76px] sm:w-[76px]" />
             ) : (
               /* Document tile — a small white page with a folded corner, the
                  file-type glyph, and its extension. */
-              <div className="relative flex h-[88px] w-[68px] flex-col items-center justify-center gap-1.5 rounded-[10px] bg-[var(--color-surface)] shadow-[0_3px_9px_rgba(0,0,0,0.18)] ring-1 ring-black/5 dark:ring-white/10">
+              <div className="relative flex h-[100px] w-[76px] flex-col items-center justify-center gap-1.5 rounded-[10px] bg-[var(--color-surface)] shadow-[0_3px_9px_rgba(0,0,0,0.18)] ring-1 ring-black/5 dark:ring-white/10 sm:h-[88px] sm:w-[68px]">
                 <span
                   className="absolute right-0 top-0 h-4 w-4 rounded-tr-[10px] bg-[var(--color-surface-2)]"
                   style={{ clipPath: "polygon(0 0, 100% 0, 100% 100%)" }}
@@ -408,9 +409,10 @@ function FileCardInner({
             )}
           </div>
 
-          {/* Name — bottom, wraps to 2 lines like macOS Finder. */}
+          {/* Name — bottom, wraps to 2 lines like macOS Finder. Smaller on phones
+              (11px) so long names don't dominate the tighter 2-column grid. */}
           <p
-            className="line-clamp-2 w-full break-words text-center text-[12.5px] font-medium leading-tight text-[var(--color-text)]"
+            className="line-clamp-2 w-full break-words text-center text-[11px] font-medium leading-tight text-[var(--color-text)] sm:text-[12.5px]"
             title={file.original_name}
           >
             {file.original_name}

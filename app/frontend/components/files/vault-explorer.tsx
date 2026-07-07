@@ -53,6 +53,7 @@ import type { FileMetadata } from "@/types";
 import { useFolders, type DecryptedFolder } from "@/hooks/useFolders";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useTouchDragMove } from "@/hooks/useTouchDragMove";
+import { useTouchRangeSelect } from "@/hooks/useTouchRangeSelect";
 import { useDragMove, canDrop, DRAG_MIME, setDragGhost, type DragItem } from "@/hooks/useDragMove";
 import { useVaultSearch } from "@/components/ui/command-palette";
 import { usePassphraseStore } from "@/store/passphrase";
@@ -61,6 +62,7 @@ import { moveFolder, createFolder as apiCreateFolder } from "@/lib/api";
 import { deriveNameKey, encryptName } from "@/lib/name-crypto";
 import { toast } from "@/store/toast";
 import { getFileCategory, cn } from "@/lib/utils";
+import { haptic } from "@/lib/haptics";
 import { CreateFolderFromFilesDialog } from "@/components/files/create-folder-from-files-dialog";
 
 import { Button } from "@/components/ui/button";
@@ -492,6 +494,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
     setSelectedIds(new Set([fileId]));
     anchorRef.current = fileId;
     setFocusedId(fileId);
+    haptic(12); // confirm select-mode entry with a soft tick (Android)
   };
 
   // ── Keyboard navigation + selection (OWNER 2, a11y) ─────────────────────────
@@ -757,9 +760,46 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
     },
   });
 
+  // ── Mobile drag-to-select (gallery-style range sweep, select mode only) ─────
+  // The selection captured the instant a sweep begins, so a sweep ADDS its range
+  // on top of what was already selected (and shrinking the sweep releases only
+  // the newly-added range, never the pre-existing selection).
+  const sweepBaseRef = useRef<Set<string>>(new Set());
+  const sweepSizeRef = useRef(0);
+  const rangeSelect = useTouchRangeSelect({
+    enabled: isMobile && selectMode,
+    fileIdAt: (x, y) => {
+      const el = document.elementFromPoint(x, y) as HTMLElement | null;
+      const id = el?.closest<HTMLElement>("[data-entry-id]")?.getAttribute("data-entry-id") ?? null;
+      // Only files are selectable — ignore folder cards under the finger.
+      return id && fileIds.includes(id) ? id : null;
+    },
+    onSweepStart: () => {
+      sweepBaseRef.current = new Set(selectedIds);
+      sweepSizeRef.current = selectedIds.size;
+    },
+    onSweep: (anchorId, currentId) => {
+      const a = fileIds.indexOf(anchorId);
+      const b = fileIds.indexOf(currentId);
+      if (a === -1 || b === -1) return;
+      const [lo, hi] = a <= b ? [a, b] : [b, a];
+      const next = new Set([...sweepBaseRef.current, ...fileIds.slice(lo, hi + 1)]);
+      // Soft tick each time the count changes (grows or shrinks) — gallery feel.
+      if (next.size !== sweepSizeRef.current) {
+        sweepSizeRef.current = next.size;
+        haptic(8);
+      }
+      setSelectedIds(next);
+    },
+  });
+
   // Build the per-entry drag props. Folders: drag disabled when locked / in
-  // select mode (unchanged). Files: always draggable (drag is the move gesture),
-  // now also drop targets (file-on-file merge) and bulk-drag aware.
+  // select mode (unchanged). Files: draggable to move (desktop), drop targets
+  // (file-on-file merge), and bulk-drag aware. Native HTML5 `draggable` is OFF on
+  // mobile — touchscreens don't fire it, and leaving it on made Android start its
+  // own drag on long-press (the "cutout" ghost) AND broke Radix's long-press
+  // cancellation so a second context menu opened. Mobile uses the touch gestures
+  // below (move-drag out of select mode; range-select in it).
   const dragPropsFor = (entry: ExplorerEntry): RowDragProps => {
     if (entry.kind === "folder") {
       const folder = entry.folder;
@@ -773,7 +813,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
         parentId: currentFolderId,
       };
       return {
-        draggable: !locked && !selectMode,
+        draggable: !isMobile && !locked && !selectMode,
         onDragStart: (e) => {
           e.dataTransfer.setData(DRAG_MIME, folder.id);
           e.dataTransfer.effectAllowed = "move";
@@ -799,7 +839,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
       (dragging.id === file.id ||
         (isInBulk && bulkDragIdsRef.current.includes(file.id)));
     return {
-      draggable: true,
+      draggable: !isMobile,
       onDragStart: (e) => {
         // Decide the dragged set: the whole selection for a bulk drag, else one.
         const ids =
@@ -823,8 +863,13 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
         setCombineOver(null);
         endDrag();
       },
+      // In select mode a touch sweep RANGE-SELECTS (gallery style); otherwise it
+      // begins the move-drag. Both are mutually exclusive by mode, so neither
+      // collides with the long-press context menu.
       onTouchStart: (e) =>
-        touchDrag.onPressStart({ kind: "file", id: file.id, name: file.original_name }, e),
+        selectMode
+          ? rangeSelect.onPressStart(file.id, e)
+          : touchDrag.onPressStart({ kind: "file", id: file.id, name: file.original_name }, e),
       dropHandlers: fileDropHandlers(file),
       isBeingDragged,
       isDropOver: combineOver === file.id,
@@ -1112,13 +1157,15 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
         </div>
       ) : isLoading ? (
         <div
-          className={cn(view === "grid" ? "grid gap-2.5" : "space-y-px")}
+          className={cn(view === "grid" ? "grid gap-1.5 sm:gap-2.5" : "space-y-px")}
           style={
             view === "grid"
               ? {
                   gridTemplateColumns:
                     gridCols === "auto"
-                      ? "repeat(auto-fill, minmax(118px, 1fr))"
+                      ? isMobile
+                        ? "repeat(2, minmax(0, 1fr))"
+                        : "repeat(auto-fill, minmax(118px, 1fr))"
                       : `repeat(${gridCols}, minmax(0, 1fr))`,
                 }
               : undefined
@@ -1236,11 +1283,13 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
             
             onKeyDown={handleContainerKeyDown}
             onClick={handleListingBackgroundClick}
-            className="grid gap-2.5"
+            className="grid gap-1.5 sm:gap-2.5"
             style={{
               gridTemplateColumns:
                 gridCols === "auto"
-                  ? "repeat(auto-fill, minmax(118px, 1fr))"
+                  ? isMobile
+                    ? "repeat(2, minmax(0, 1fr))"
+                    : "repeat(auto-fill, minmax(118px, 1fr))"
                   : `repeat(${gridCols}, minmax(0, 1fr))`,
             }}
           >
