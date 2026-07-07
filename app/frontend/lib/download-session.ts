@@ -365,11 +365,30 @@ export async function downloadAndDecryptFile(
       await saveToDisk!.close(); // commit — the file is already on disk
       resume.saveToDisk = undefined; // committed; nothing left to abort
     } else {
+      // Save name: a zero-knowledge file has an empty original_name, so decrypt
+      // encrypted_name with the VAULT name key — the name is always encrypted
+      // under the vault passphrase (even for a folder-protected file, whose
+      // CONTENT key differs), matching upload and decryptFileNames.
+      let saveName = meta.original_name;
+      if (meta.encrypted_name) {
+        const { useAuthStore } = await import("@/store/auth");
+        const { usePassphraseStore } = await import("@/store/passphrase");
+        const uid = useAuthStore.getState().user?.id;
+        const vaultPass = usePassphraseStore.getState().getPassphrase();
+        if (uid && vaultPass) {
+          try {
+            const { deriveNameKey, decryptName } = await import("@/lib/name-crypto");
+            saveName = await decryptName(meta.encrypted_name, await deriveNameKey(vaultPass, uid));
+          } catch {
+            /* keep meta.original_name (possibly '') */
+          }
+        }
+      }
       const blob = new Blob(resume.decryptedChunks as BlobPart[], { type: "application/octet-stream" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = meta.original_name;
+      a.download = saveName || "download";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

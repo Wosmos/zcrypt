@@ -6,6 +6,14 @@ import { listFiles } from "@/lib/api";
 import { queryClient } from "@/lib/query-client";
 import { qk } from "@/lib/query-keys";
 import { useAuthStore } from "@/store/auth";
+import { decryptFileNames } from "@/lib/file-names";
+
+// Fetch the file list and resolve zero-knowledge names in one place, so every
+// consumer of qk.files sees decrypted (or "[locked]") names without its own
+// decrypt step. Legacy plaintext-name files pass through untouched.
+function fetchFiles(): Promise<FileMetadata[]> {
+  return listFiles().then(decryptFileNames);
+}
 
 /**
  * Files server-state, backed by TanStack Query.
@@ -25,7 +33,7 @@ import { useAuthStore } from "@/store/auth";
 export function useFilesQuery() {
   return useQuery({
     queryKey: qk.files,
-    queryFn: () => listFiles(),
+    queryFn: fetchFiles,
   });
 }
 
@@ -59,7 +67,7 @@ export function invalidateFiles(): Promise<void> {
  * independent `/api/files`.
  */
 export function ensureFiles(): Promise<FileMetadata[]> {
-  return queryClient.ensureQueryData({ queryKey: qk.files, queryFn: () => listFiles() });
+  return queryClient.ensureQueryData({ queryKey: qk.files, queryFn: fetchFiles });
 }
 
 // Single deduped initial fetch, shared by AuthGuard's prefetch and useFileList's
@@ -70,7 +78,7 @@ export function prefetchFileList(force = false): Promise<void> {
   if (force) {
     return queryClient.invalidateQueries({ queryKey: qk.files, refetchType: "all" });
   }
-  return queryClient.prefetchQuery({ queryKey: qk.files, queryFn: () => listFiles() });
+  return queryClient.prefetchQuery({ queryKey: qk.files, queryFn: fetchFiles });
 }
 
 // ── Offline cache (OPFS) integration ─────────────────────────────────────────
@@ -92,13 +100,39 @@ export async function hydrateFilesFromCache(): Promise<void> {
   try {
     const { getOfflineCache } = await import("@/lib/offline-cache");
     const cache = await getOfflineCache();
-    const cached = cache.getFiles(userId);
+    // OPFS stores ciphertext names (see the write-through below); decrypt on the
+    // way in so an offline cold start shows real names when the vault is unlocked.
+    const cached = await decryptFileNames(cache.getFiles(userId));
     if (cached.length > 0 && getFilesData().length === 0) {
       queryClient.setQueryData<FileMetadata[]>(qk.files, cached);
     }
   } catch {
     // OPFS unavailable — fall back to the network fetch only
   }
+}
+
+// Blank the decrypted name of zero-knowledge files before they touch disk, so the
+// OPFS cache never persists plaintext names (it holds only the opaque
+// encrypted_name, exactly like the server). Legacy plaintext-name files are
+// unaffected — their name is already plaintext on the server.
+function stripDecryptedNames(files: FileMetadata[]): FileMetadata[] {
+  return files.map((f) => (f.encrypted_name ? { ...f, original_name: "" } : f));
+}
+
+// Re-resolve names when the vault locks or unlocks: encrypted-name files must
+// flip between "[locked]" and their real name. A dynamic import avoids any load
+// cycle; the passphrase store fires on unlock (cache set) and lock (cache clear).
+if (typeof window !== "undefined") {
+  let lastUnlocked: boolean | null = null;
+  void import("@/store/passphrase").then(({ usePassphraseStore }) => {
+    usePassphraseStore.subscribe((s) => {
+      const unlocked = s.cachedPassphrase != null;
+      if (unlocked !== lastUnlocked) {
+        lastUnlocked = unlocked;
+        void invalidateFiles(); // refetch → fetchFiles re-runs decryptFileNames
+      }
+    });
+  });
 }
 
 // Write-through: whenever the files cache changes (network refetch OR an
@@ -114,7 +148,7 @@ if (typeof window !== "undefined") {
     queueMicrotask(() => {
       persistScheduled = false;
       const userId = useAuthStore.getState().user?.id;
-      const data = getFilesData();
+      const data = stripDecryptedNames(getFilesData());
       if (!userId) return;
       void import("@/lib/offline-cache")
         .then(({ getOfflineCache }) => getOfflineCache())

@@ -72,8 +72,10 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Filename == "" || req.OriginalSize <= 0 || req.SHA256 == "" || req.Salt == "" || req.ChunkCount <= 0 {
-		http.Error(w, `{"error":"filename, original_size, sha256, salt, and chunk_count are required"}`, http.StatusBadRequest)
+	// A zero-knowledge client sends encrypted_name (opaque base64) and an empty
+	// filename; a legacy client sends the plaintext filename. Require at least one.
+	if (req.Filename == "" && req.EncryptedName == "") || req.OriginalSize <= 0 || req.SHA256 == "" || req.Salt == "" || req.ChunkCount <= 0 {
+		http.Error(w, `{"error":"a name (filename or encrypted_name), original_size, sha256, salt, and chunk_count are required"}`, http.StatusBadRequest)
 		return
 	}
 	if req.OriginalSize > maxUploadBytes {
@@ -87,9 +89,11 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate filename
-	if strings.Contains(req.Filename, "..") || strings.Contains(req.Filename, "/") ||
-		strings.Contains(req.Filename, "\\") || len(req.Filename) > 255 {
+	// Path-safety validation applies ONLY to a legacy plaintext filename. It must
+	// NOT run on encrypted_name: standard base64 contains '/' and '+' and is long,
+	// so it would falsely reject every encrypted name.
+	if req.Filename != "" && (strings.Contains(req.Filename, "..") || strings.Contains(req.Filename, "/") ||
+		strings.Contains(req.Filename, "\\") || len(req.Filename) > 255) {
 		http.Error(w, `{"error":"invalid filename"}`, http.StatusBadRequest)
 		return
 	}
@@ -115,10 +119,11 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		adapter := s.resolveAdapterForUser(ctx, userID, existing.Platform, existing.Account)
 		_, directUpload := adapter.(adapters.DirectUploader)
 
+		// Deliberately no filename: for a zero-knowledge upload it is empty, and
+		// logging a legacy plaintext name would persist it in audit_events.
 		s.audit(r, &userID, "upload_resume", map[string]interface{}{
 			"file_id":    existing.FileID,
 			"session_id": existing.ID,
-			"filename":   existing.Filename,
 			"size":       existing.OriginalSize,
 			"chunks":     existing.ChunkCount,
 		})
@@ -178,18 +183,19 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 	// upload, so a stale client folder reference can never block an upload.
 	fileID := uuid.New().String()
 	fileMeta := &types.FileMetadata{
-		ID:           fileID,
-		UserID:       userID,
-		OriginalName: req.Filename,
-		OriginalSize: req.OriginalSize,
-		ChunkCount:   req.ChunkCount,
-		SHA256:       req.SHA256,
-		SHA256Scheme: req.SHA256Scheme, // '' → stored as 'plain' (legacy); 'hmac_v1' from upgraded clients
-		Salt:         salt,
-		IV:           []byte{}, // not used for client-side encryption
-		WrappedCEK:   req.WrappedCEK,
-		Status:       "uploading",
-		FolderID:     req.FolderID,
+		ID:            fileID,
+		UserID:        userID,
+		OriginalName:  req.Filename,      // '' for zero-knowledge uploads (name lives in EncryptedName)
+		EncryptedName: req.EncryptedName, // opaque base64; server never decrypts it
+		OriginalSize:  req.OriginalSize,
+		ChunkCount:    req.ChunkCount,
+		SHA256:        req.SHA256,
+		SHA256Scheme:  req.SHA256Scheme, // '' → stored as 'plain' (legacy); 'hmac_v1' from upgraded clients
+		Salt:          salt,
+		IV:            []byte{}, // not used for client-side encryption
+		WrappedCEK:    req.WrappedCEK,
+		Status:        "uploading",
+		FolderID:      req.FolderID,
 	}
 
 	if err := s.db.InsertFile(ctx, userID, fileMeta); err != nil {
@@ -200,19 +206,20 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 
 	// Create upload session
 	session := &types.UploadSession{
-		UserID:       userID,
-		FileID:       fileID,
-		Filename:     req.Filename,
-		OriginalSize: req.OriginalSize,
-		Salt:         salt,
-		SHA256:       req.SHA256,
-		SHA256Scheme: req.SHA256Scheme,
-		ChunkCount:   req.ChunkCount,
-		ChunkSize:    req.ChunkSize,
-		Platform:     platform,
-		Account:      account,
-		RepoID:       repo.ID,
-		RepoURL:      repo.URL,
+		UserID:        userID,
+		FileID:        fileID,
+		Filename:      req.Filename,
+		EncryptedName: req.EncryptedName,
+		OriginalSize:  req.OriginalSize,
+		Salt:          salt,
+		SHA256:        req.SHA256,
+		SHA256Scheme:  req.SHA256Scheme,
+		ChunkCount:    req.ChunkCount,
+		ChunkSize:     req.ChunkSize,
+		Platform:      platform,
+		Account:       account,
+		RepoID:        repo.ID,
+		RepoURL:       repo.URL,
 	}
 
 	sessionID, err := s.db.CreateUploadSession(ctx, session)
@@ -226,10 +233,11 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 	adapter := s.resolveAdapterForUser(ctx, userID, platform, account)
 	_, directUpload := adapter.(adapters.DirectUploader)
 
+	// No filename in the audit trail — a zero-knowledge upload has none, and a
+	// legacy plaintext name must not be persisted in audit_events.
 	s.audit(r, &userID, "upload_init", map[string]interface{}{
 		"file_id":    fileID,
 		"session_id": sessionID,
-		"filename":   req.Filename,
 		"size":       req.OriginalSize,
 		"chunks":     req.ChunkCount,
 	})
@@ -476,7 +484,6 @@ func (s *Server) HandleUploadComplete(w http.ResponseWriter, r *http.Request) {
 	s.audit(r, &userID, "upload_complete", map[string]interface{}{
 		"file_id":    session.FileID,
 		"session_id": sessionID,
-		"filename":   session.Filename,
 		"chunks":     session.ChunkCount,
 	})
 
@@ -559,7 +566,8 @@ func (s *Server) HandleListIncompleteUploads(w http.ResponseWriter, r *http.Requ
 		out = append(out, map[string]interface{}{
 			"session_id":      sess.ID,
 			"file_id":         sess.FileID,
-			"filename":        sess.Filename,
+			"filename":        sess.Filename,      // '' for zk sessions; client dual-reads encrypted_name
+			"encrypted_name":  sess.EncryptedName, // client decrypts for the "unfinished uploads" UI
 			"original_size":   sess.OriginalSize,
 			"platform":        sess.Platform,
 			"account":         sess.Account,

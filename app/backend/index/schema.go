@@ -286,6 +286,12 @@ ALTER TABLE platform_tokens ADD CONSTRAINT platform_tokens_platform_check
 -- on the session so a resume from any device slices the file identically.
 ALTER TABLE upload_sessions ADD COLUMN IF NOT EXISTS chunk_size BIGINT NOT NULL DEFAULT 0;
 
+-- Zero-knowledge file names: the client-encrypted (base64) name, mirrored onto
+-- the session so a cross-device resume and the "unfinished uploads" UI carry it.
+-- files.encrypted_name already exists (see the folders/files name-encryption
+-- column). '' = legacy plaintext-name upload (original_name/filename populated).
+ALTER TABLE upload_sessions ADD COLUMN IF NOT EXISTS encrypted_name TEXT NOT NULL DEFAULT '';
+
 -- pending_deletions must survive account deletion (queued platform deletions are
 -- the ONLY remaining reference to the user's remote chunks once the users row is
 -- gone). Replace the ON DELETE CASCADE FK with ON DELETE SET NULL and drop the

@@ -3,7 +3,9 @@ import type { FileMetadata, UploadItem, UploadStatus } from "@/types";
 import { toast } from "@/store/toast";
 import { WorkerPool } from "@/lib/worker-pool";
 import { generateSalt, deriveKeyBytes, generateCEK, wrapKey, unwrapKey, sha256File, contentMacFile, deriveDedupKeyBytes, toBase64, fromBase64 } from "@/lib/crypto";
+import { deriveNameKey, encryptName } from "@/lib/name-crypto";
 import { useAuthStore } from "@/store/auth";
+import { usePassphraseStore } from "@/store/passphrase";
 import { initUpload, uploadChunk, completeUpload, presignChunk, directUploadToURL, confirmChunk, cancelUpload, getUploadStatus } from "@/lib/upload-session";
 import { getFileMeta } from "@/lib/api";
 import { setFilesData } from "@/store/files";
@@ -399,6 +401,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
     let done = new Set<number>();
     let fileSha256 = ""; // per-user keyed content MAC (hmac_v1); known on the fresh path only
     let fileScheme = "plain"; // 'hmac_v1' once the MAC is computed below
+    let encryptedName = ""; // zero-knowledge file name (base64); '' → send plaintext filename
     let fileId = "";
     let wasResumed = false;
 
@@ -434,6 +437,18 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
       }
       if (pauseCheckpoint()) return;
 
+      // Zero-knowledge file name: encrypt it under the per-user NAME key derived
+      // from the VAULT passphrase (getPassphrase) — NOT the upload `passphrase`,
+      // which for a protected folder is the folder password. This keeps it
+      // decryptable by decryptFileNames (which also uses the vault passphrase),
+      // and independent of the file's content key. If the vault passphrase or
+      // user id isn't available, fall back to the legacy plaintext filename.
+      const vaultPass = usePassphraseStore.getState().getPassphrase();
+      if (dedupUserId && vaultPass) {
+        const nameKey = await deriveNameKey(vaultPass, dedupUserId);
+        encryptedName = await encryptName(file.name, nameKey);
+      }
+
       updateStatus(id, "encrypting", 2, "Deriving encryption key...");
       // Batch path: reuse the salt + KEK startUpload derived once for the whole
       // batch (see UploadFileOpts.batchKek for why sharing the salt is safe).
@@ -459,7 +474,10 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
           if (isPaused()) return null;
           try {
             return await initUpload({
-              filename: file.name,
+              // Zero-knowledge: when the name is encrypted, send an EMPTY filename
+              // so the server never sees the plaintext; otherwise fall back to it.
+              filename: encryptedName ? "" : file.name,
+              encrypted_name: encryptedName,
               original_size: file.size,
               sha256: fileSha256,
               sha256_scheme: fileScheme,
@@ -802,7 +820,8 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
         ? prev
         : [{
             id: fileId,
-            original_name: file.name,
+            original_name: file.name, // plaintext for instant local display; server stores only encrypted_name
+            encrypted_name: encryptedName,
             original_size: file.size,
             compressed_size: totalCompressedSize,
             encrypted_size: totalEncryptedSize,
