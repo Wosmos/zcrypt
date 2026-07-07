@@ -80,3 +80,6 @@ tests/load/k6/results/
 
 # Personal commit-time helper (not for the repo)
 scripts/git-time.sh
+
+# Railway usage export (local artifact, may contain account details)
+railway-usage.json
