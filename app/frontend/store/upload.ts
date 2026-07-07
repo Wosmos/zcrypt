@@ -10,6 +10,7 @@ import { initUpload, uploadChunk, completeUpload, presignChunk, directUploadToUR
 import { getFileMeta } from "@/lib/api";
 import { setFilesData } from "@/store/files";
 import { getDeviceProfile } from "@/lib/device-profile";
+import { acquireWakeLock, releaseWakeLock } from "@/lib/wake-lock";
 import { formatBytes } from "@/lib/utils";
 
 // Mirrors the server's per-file cap (HandleUploadInit rejects larger with
@@ -146,6 +147,11 @@ interface UploadStore {
   retryUpload: (id: string, passphrase: string) => void;
   pauseUpload: (id: string) => void;                        // aborts in-flight chunks; preserves resume context (does NOT cancel session)
   resumeUpload: (id: string, passphrase: string) => void;   // continue from getUploadStatus uploaded_chunks
+  /** Ids of uploads that FAILED mid-transfer but still have a live server
+   *  session to continue from — used to auto-resume after the phone wakes /
+   *  reconnects. Excludes deliberately paused items and permanent pre-session
+   *  failures (oversized, no storage connected), which never got a session. */
+  getResumableUploadIds: () => string[];
   startDesktopUpload: (passphrase: string, onRefresh?: () => void) => void;
 }
 
@@ -891,8 +897,12 @@ async function adoptServerSession(
 
 // Launch a run and record its promise so resume/retry can await the previous
 // run before starting a new one (prevents two runs racing over one item).
+// Holds a screen wake lock for the run's lifetime so the phone doesn't
+// auto-lock mid-upload (which suspends the tab and kills in-flight chunks);
+// ref-counted, so a whole batch shares one lock released when the last settles.
 function launchRun(file: File, id: string, opts: UploadFileOpts): Promise<void> {
-  const p = uploadOneFile(file, id, opts);
+  acquireWakeLock();
+  const p = uploadOneFile(file, id, opts).finally(releaseWakeLock);
   const m = itemMeta.get(id);
   if (m) m.runPromise = p;
   return p;
@@ -1221,6 +1231,11 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
       });
     })();
   },
+
+  getResumableUploadIds: () =>
+    get().queue
+      .filter((i) => i.status === "failed" && !!itemMeta.get(i.id)?.resume?.sessionId)
+      .map((i) => i.id),
 
   // Desktop-only: opens native file picker, encrypts locally via sidecar.
   // No browser File objects, no IPC data transfer — sidecar reads from disk path.
