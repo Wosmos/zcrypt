@@ -3,7 +3,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { getFileMeta, getFileChunk } from "@/lib/api";
 import { resolveFileKey, decryptChunk, fromBase64 } from "@/lib/crypto";
-import { isForegroundDecryptActive } from "@/lib/decrypt-cache";
+import { isForegroundDecryptActive, onDecryptCacheClear } from "@/lib/decrypt-cache";
 import { isImageFile, isVideoFile, mimeForFile } from "@/lib/utils";
 
 // A thumbnail decrypts the WHOLE file for one 300px preview, so cap how much a
@@ -28,6 +28,10 @@ const MAX_THUMB_ATTEMPTS = 3;
 const failed = new Map<string, { attempts: number; nextRetryAt: number }>();
 const retryTimers = new Map<string, ReturnType<typeof setTimeout>>();
 let version = 0; // bumped on every change so per-file hooks re-render
+// Bumped on every vault lock / logout. An in-flight decrypt captures the current
+// value; if it changes before the thumbnail lands, the result is DROPPED instead
+// of repopulating memCache/IndexedDB after a lock (the post-lock repopulation gap).
+let generation = 0;
 // False until the IndexedDB cache has finished loading into memCache. Cards must
 // NOT shimmer or start (re)generating before this — otherwise on every reload a
 // card sees an empty memCache, re-decrypts a thumbnail that's actually cached on
@@ -97,6 +101,18 @@ async function dbPut(key: string, value: string) {
   const db = await openDB();
   const tx = db.transaction(STORE_NAME, "readwrite");
   tx.objectStore(STORE_NAME).put(value, key);
+}
+
+/** Wipe every persisted thumbnail from disk. Called on lock/logout so no
+ *  decrypted preview survives at rest (readable straight from IndexedDB). */
+async function dbClear() {
+  try {
+    const db = await openDB();
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    tx.objectStore(STORE_NAME).clear();
+  } catch {
+    /* IndexedDB unavailable — memory eviction below is the real guarantee */
+  }
 }
 
 // ── Boot: hydrate memCache from IndexedDB ────────────────────────────
@@ -336,6 +352,11 @@ async function fetchAndCacheThumbnail(
   inflight.add(fileId);
   notify(); // surface the loading state to mounted cards right away
 
+  // Snapshot the lock generation: if the vault locks (or logs out) while this
+  // decrypt is in flight, the result is discarded rather than written back to
+  // the cache — otherwise a lock could leave a fresh plaintext preview behind.
+  const gen = generation;
+
   // acquireSlot() lives INSIDE the try so the finally always runs and clears
   // `inflight` — otherwise a slow/blocked acquire would leave the card's
   // `loading` flag stuck true forever (the perpetual-shimmer bug). releaseSlot
@@ -377,6 +398,8 @@ async function fetchAndCacheThumbnail(
       markThumbFailed(fileId, /* permanent */ true);
       return null;
     }
+    // Vault re-locked / logged out mid-decrypt → drop the plaintext, don't cache.
+    if (gen !== generation) return null;
     memCache.set(fileId, dataUrl);
     // Persist to IndexedDB in background
     dbPut(fileId, dataUrl).catch(() => {});
@@ -406,6 +429,37 @@ export function primeThumbnails(
   ctxResolver = resolvePassword;
   notify(); // wake already-mounted hooks so they start generating
 }
+
+/**
+ * Evict every decrypted thumbnail on a vault LOCK / logout, so the "locked" state
+ * is genuine — not merely a CSS overlay hiding plaintext previews that a devtools
+ * / IndexedDB peek could still read.
+ *
+ * Drops: the armed passphrase (`ctxPassphrase`) so no NEW thumbnails generate
+ * while locked; the in-memory mirror + failure/retry bookkeeping; and the
+ * on-disk `zcrypt_thumbs` store. Bumps `generation` so any decrypt already in
+ * flight is discarded instead of repopulating the cache after the lock.
+ *
+ * `useVaultActions` re-arms via `primeThumbnails()` on the next unlock, so
+ * previews come back the moment the vault is unlocked again.
+ */
+export function clearThumbnails() {
+  ctxPassphrase = null;
+  ctxResolver = undefined;
+  generation++; // invalidate any in-flight decrypt so it can't repopulate
+  memCache.clear();
+  inflight.clear();
+  failed.clear();
+  for (const t of retryTimers.values()) clearTimeout(t);
+  retryTimers.clear();
+  void dbClear();
+  notify();
+}
+
+// A vault lock / TTL expiry / logout goes through clearDecryptCache(); piggyback
+// on that single eviction event so thumbnails are dropped in lockstep with the
+// blob cache — no store→hook import (which would cycle through lib/api).
+onDecryptCacheClear(clearThumbnails);
 
 /** Check if a file has a cached thumbnail (no passphrase needed). */
 export function hasCachedThumbnail(fileId: string): boolean {

@@ -145,6 +145,19 @@ export function clearDecryptCacheForFile(id: string): void {
 }
 
 /**
+ * Modules that hold their OWN decrypted plaintext-at-rest (e.g. the thumbnail
+ * cache in useThumbnail) register a clearer here. `clearDecryptCache()` — the one
+ * lock / TTL / logout eviction call the stores already make — then drops their
+ * plaintext too. This inversion keeps the stores from importing those modules
+ * directly (which pulled lib/api → store/auth into store/passphrase's graph and
+ * both created an import cycle and eagerly ran store/auth's module init).
+ */
+const clearListeners: Array<() => void> = [];
+export function onDecryptCacheClear(cb: () => void): void {
+  clearListeners.push(cb);
+}
+
+/**
  * Drop everything. Called on vault lock / TTL expiry / logout so decrypted
  * plaintext does not linger in memory once the vault re-locks.
  */
@@ -157,6 +170,8 @@ export function clearDecryptCache(): void {
   // must drop both, or a re-lock would leave 600k-iteration PBKDF2 results
   // usable in memory.
   clearDerivedKeyCache();
+  // Fan out to registered plaintext holders (thumbnails) — same eviction event.
+  for (const cb of clearListeners) cb();
 }
 
 /**
