@@ -38,6 +38,9 @@ vi.mock("@/lib/zstd", () => ({
 
 vi.mock("@/lib/decrypt-cache", () => ({
   isForegroundDecryptActive: isForegroundDecryptActiveMock,
+  // useThumbnail registers its clearer here at module load; stub it so the
+  // registration call doesn't hit an undefined export.
+  onDecryptCacheClear: () => {},
 }));
 
 // ── Fake browser media/canvas primitives ────────────────────────────────

@@ -2,6 +2,13 @@ import { create } from "zustand";
 import { persistPassphrase, loadPassphrase, clearPersistedPassphrase } from "@/lib/device-vault";
 import { clearDecryptCache } from "@/lib/decrypt-cache";
 
+// clearDecryptCache() drops the in-memory blob cache + derived KEKs AND fans out
+// to registered plaintext holders (notably the decrypted-thumbnail cache, memory
+// + the on-disk `zcrypt_thumbs` store, via useThumbnail's onDecryptCacheClear).
+// So every lock path below that calls it leaves NO readable plaintext anywhere —
+// memory or IndexedDB — and this store never imports useThumbnail (which would
+// pull lib/api → store/auth into its module graph and cycle).
+
 let clearTimer: ReturnType<typeof setTimeout> | null = null;
 
 const REMEMBER_KEY = "zcrypt-remember-device";
@@ -106,7 +113,7 @@ export const usePassphraseStore = create<PassphraseStore>((set, get) => ({
     // but keeps the rememberDevice PREFERENCE so the next unlock re-persists.
     set({ cachedPassphrase: null, cacheUntil: null, persistent: false });
     void clearPersistedPassphrase();
-    // Drop all decrypted plaintext blobs when the vault re-locks.
+    // Drop all decrypted plaintext (blobs, derived keys, thumbnails) on re-lock.
     clearDecryptCache();
   },
 

@@ -15,6 +15,7 @@ import { DetailsDrawer } from "@/components/files/details-drawer";
 import { PlatformHealth } from "@/components/vault/platform-health";
 import { ExportImport } from "@/components/vault/export-import";
 import { VaultFab } from "@/components/vault/vault-fab";
+import { VaultLockOverlay } from "@/components/vault/vault-lock-overlay";
 import { FeedbackModal } from "@/components/feedback/feedback-modal";
 
 import { UploadZone } from "@/components/upload/upload-zone";
@@ -341,6 +342,13 @@ export default function VaultPage() {
           ? "Vault unlocked — drop files to upload instantly"
           : undefined;
 
+  // Full-screen lock mask: shown ONLY once the rehydrate attempt has settled
+  // (`vault.ready`, so a remembered-device session never flashes it), the vault
+  // is locked, and there are actually encrypted files to protect (a brand-new
+  // empty vault keeps its normal onboarding — no forced unlock wall). The real
+  // protection is the plaintext eviction on lock; this is the visible signal.
+  const showLockOverlay = vault.ready && !vault.unlocked && files.length > 0;
+
   return (
     // No animate-fade-in anywhere on this tree: it leaves a lingering `transform`
     // that becomes the containing block for position:sticky, which breaks BOTH
@@ -524,13 +532,18 @@ export default function VaultPage() {
       </div>
 
       {/* Floating "+" — the single mobile entry to New folder / Upload. Hidden
-          while the full-screen viewer is open so it doesn't float over it. */}
-      {!viewerOpen && (
+          while the full-screen viewer is open, or while the lock mask is up (it
+          would poke through the mask at z-50). */}
+      {!viewerOpen && !showLockOverlay && (
         <VaultFab
           onNewFolder={() => explorerRef.current?.startNewFolder()}
           onUpload={() => setUploadOpen(true)}
         />
       )}
+
+      {/* Full-screen lock mask over the vault (blur + lock + Unlock CTA). Sits
+          below the PassphraseModal (z-50), which the click opens on top. */}
+      {showLockOverlay && <VaultLockOverlay onUnlock={() => vault.unlock()} />}
 
       {/* ── Modals the explorer hands control back to ───────────────────────── */}
 
