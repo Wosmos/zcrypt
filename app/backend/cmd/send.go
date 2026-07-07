@@ -404,7 +404,7 @@ func (s *Server) HandleGetSendInfo(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"valid":           true,
 		"file_name":       transfer.OriginalName,
-		"file_size":       transfer.OriginalSize,
+		"file_size":       SizeBucket(transfer.OriginalSize), // coarse band on a public endpoint
 		"burn_after_read": transfer.BurnAfterRead,
 		"expires_at":      transfer.ExpiresAt,
 	})

@@ -237,18 +237,17 @@ func (s *Server) HandleGetFolderShareFileMeta(w http.ResponseWriter, r *http.Req
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"id":              file.ID,
-		"original_name":   file.OriginalName,
-		"original_size":   file.OriginalSize,
-		"compressed_size": file.CompressedSize,
-		"encrypted_size":  file.EncryptedSize,
-		"chunk_count":     file.ChunkCount,
-		"sha256":          file.SHA256,
-		"sha256_scheme":   file.SHA256Scheme,
-		"salt":            base64.StdEncoding.EncodeToString(file.Salt),
-		"wrapped_cek":     wrapped,
-		"status":          file.Status,
-		"created_at":      file.CreatedAt,
+		"id":            file.ID,
+		"original_name": file.OriginalName,
+		// Public endpoint: coarsen size + drop the precision-leaking size fields.
+		"original_size": SizeBucket(file.OriginalSize),
+		"chunk_count":   file.ChunkCount,
+		"sha256":        file.SHA256,
+		"sha256_scheme": file.SHA256Scheme,
+		"salt":          base64.StdEncoding.EncodeToString(file.Salt),
+		"wrapped_cek":   wrapped,
+		"status":        file.Status,
+		"created_at":    CoarsenTimeUTC(file.CreatedAt),
 	})
 }
 
