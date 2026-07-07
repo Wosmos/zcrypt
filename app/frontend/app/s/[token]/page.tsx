@@ -168,9 +168,15 @@ export default function SharePage() {
       offset += chunk.byteLength;
     }
 
-    const actualHash = await sha256Hex(fullFile);
-    if (actualHash !== meta.sha256) {
-      throw new Error("File integrity check failed — SHA-256 mismatch");
+    // 'hmac_v1' files store a per-user KEYED MAC that only the owner (who holds
+    // the vault passphrase) can recompute. A public share recipient has no
+    // passphrase, so the file-level compare is impossible — skip it and rely on
+    // the per-chunk AES-GCM auth tags. Legacy 'plain'/undefined files still verify.
+    if (meta.sha256_scheme !== "hmac_v1") {
+      const actualHash = await sha256Hex(fullFile);
+      if (actualHash !== meta.sha256) {
+        throw new Error("File integrity check failed — SHA-256 mismatch");
+      }
     }
 
     const mime = getMimeType(meta.original_name) || "application/octet-stream";

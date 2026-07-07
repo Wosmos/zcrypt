@@ -37,7 +37,8 @@ import type { FileMetadata } from "@/types";
  *        pull getFileChunk, each fanning out to a WorkerPool whose 'decrypt'
  *        mode does AES-GCM + zstd-decompress off the main thread — mirroring
  *        lib/download-session.ts. `onProgress(done, total)` fires per chunk.
- *     5. concat → sha256Hex must equal meta.sha256 (else integrity error)
+ *     5. concat → content hash must equal meta.sha256 (else integrity error);
+ *        keyed HMAC for 'hmac_v1' files, plain SHA-256 for legacy ones
  *     6. new Blob([full], { type: <mime derived from extension> })
  *   The decrypted blob is cached in memory (see lib/decrypt-cache) keyed by
  *   file id, so re-opening / navigating back to a file is instant. The whole
@@ -55,7 +56,7 @@ import type { FileMetadata } from "@/types";
  * Errors from `decryptToBlob` (so callers — e.g. <FileViewer> — can react):
  *   - `WrongPasswordError`  → a wrong vault/folder password. Carries `folderId`
  *     (null for the vault). The caller may clear the cache + re-prompt + retry.
- *   - `IntegrityError`      → SHA-256 mismatch (corruption / tampering).
+ *   - `IntegrityError`      → content-hash mismatch (corruption / tampering).
  *   - `FolderUnlockCancelled` → the user cancelled an unlock prompt; callers
  *     treat it as a clean no-op, not an error.
  *   - any other Error       → network / decode failure (show retry + download).
@@ -169,7 +170,7 @@ export async function runDecryptPipeline(
   onProgress?: (done: number, total: number) => void
 ): Promise<Blob> {
   const { getFileMeta, getFileChunk } = await import("@/lib/api");
-  const { resolveFileKey, decryptChunk, sha256Hex, fromBase64 } = await import("@/lib/crypto");
+  const { resolveFileKey, decryptChunk, sha256Hex, fromBase64, createContentHasher, deriveDedupKeyBytes } = await import("@/lib/crypto");
 
   const meta = await getFileMeta(file.id);
   const salt = fromBase64(meta.salt);
@@ -247,8 +248,29 @@ export async function runDecryptPipeline(
     offset += c.byteLength;
   }
 
-  const hash = await sha256Hex(full);
-  if (hash !== meta.sha256) throw new IntegrityError();
+  // Integrity check — scheme-aware, mirroring lib/download-session.ts. 'hmac_v1'
+  // files store a per-user KEYED MAC, NOT a plain SHA-256, so hashing with
+  // sha256Hex would never match meta.sha256 (that was the "file may be corrupted"
+  // bug in the in-app viewer). The viewer runs on the owner/folder path, which
+  // holds the passphrase (`password`) + user id, so recompute the MAC and verify
+  // for real. Legacy 'plain'/undefined files keep the SHA-256 compare. If the
+  // signed-in user id is unavailable we can't recompute the MAC — skip the
+  // file-level compare and rely on the per-chunk AES-GCM auth tags (which already
+  // threw above on any tampered chunk), exactly as the download/share paths do.
+  if (meta.sha256_scheme === "hmac_v1") {
+    const { useAuthStore } = await import("@/store/auth");
+    const uid = useAuthStore.getState().user?.id;
+    if (uid) {
+      const macKey = await deriveDedupKeyBytes(password, uid);
+      const hasher = await createContentHasher("hmac_v1", macKey);
+      hasher.update(full);
+      const mac = Array.from(hasher.digest()).map((b) => b.toString(16).padStart(2, "0")).join("");
+      if (mac !== meta.sha256) throw new IntegrityError();
+    }
+  } else {
+    const hash = await sha256Hex(full);
+    if (hash !== meta.sha256) throw new IntegrityError();
+  }
 
   // Stamp the real MIME so viewers can render/play directly.
   return new Blob([full as BlobPart], { type: mimeForFilename(file.original_name) });

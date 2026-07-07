@@ -154,7 +154,10 @@ export default function FolderSharePage() {
         full.set(p, off);
         off += p.byteLength;
       }
-      if ((await sha256Hex(full)) !== meta.sha256) {
+      // 'hmac_v1' files store a per-user KEYED MAC only the owner can recompute;
+      // a public folder-share recipient has no passphrase, so skip the file-level
+      // compare and rely on per-chunk AES-GCM. Legacy 'plain' files still verify.
+      if (meta.sha256_scheme !== "hmac_v1" && (await sha256Hex(full)) !== meta.sha256) {
         throw new Error("Integrity check failed for " + meta.original_name);
       }
       return { name: meta.original_name, bytes: full };
