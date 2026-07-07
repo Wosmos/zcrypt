@@ -115,12 +115,90 @@ func (db *DB) EnableTOTP(ctx context.Context, userID string) error {
 	return err
 }
 
-// DisableTOTP disables TOTP 2FA and clears the secret.
+// DisableTOTP disables TOTP 2FA, clears the secret, and drops all recovery codes.
 func (db *DB) DisableTOTP(ctx context.Context, userID string) error {
-	_, err := db.pool.Exec(ctx,
-		`UPDATE users SET totp_enabled = FALSE, totp_secret = '', updated_at = NOW() WHERE id = $1`, userID,
+	tx, err := db.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin disable totp tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err := tx.Exec(ctx,
+		`UPDATE users SET totp_enabled = FALSE, totp_secret = '', totp_last_counter = 0, updated_at = NOW() WHERE id = $1`, userID,
+	); err != nil {
+		return fmt.Errorf("disable totp: %w", err)
+	}
+	if _, err := tx.Exec(ctx, `DELETE FROM totp_backup_codes WHERE user_id = $1`, userID); err != nil {
+		return fmt.Errorf("clear backup codes: %w", err)
+	}
+	return tx.Commit(ctx)
+}
+
+// ReplaceBackupCodes atomically replaces a user's 2FA recovery codes with the
+// given hashes (sha256 of the normalized plaintext). Used on enable and
+// regenerate — any previously-issued codes are invalidated.
+func (db *DB) ReplaceBackupCodes(ctx context.Context, userID string, codeHashes []string) error {
+	tx, err := db.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin backup codes tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err := tx.Exec(ctx, `DELETE FROM totp_backup_codes WHERE user_id = $1`, userID); err != nil {
+		return fmt.Errorf("clear backup codes: %w", err)
+	}
+	for _, h := range codeHashes {
+		if _, err := tx.Exec(ctx,
+			`INSERT INTO totp_backup_codes (user_id, code_hash) VALUES ($1, $2)`, userID, h,
+		); err != nil {
+			return fmt.Errorf("insert backup code: %w", err)
+		}
+	}
+	return tx.Commit(ctx)
+}
+
+// ConsumeBackupCode marks a single unused recovery code as used and returns true
+// iff one matched. The UPDATE ... WHERE used_at IS NULL makes it atomic: a code
+// can be redeemed exactly once even under concurrent verification attempts.
+func (db *DB) ConsumeBackupCode(ctx context.Context, userID, codeHash string) (bool, error) {
+	tag, err := db.pool.Exec(ctx,
+		`UPDATE totp_backup_codes SET used_at = NOW()
+		 WHERE user_id = $1 AND code_hash = $2 AND used_at IS NULL`,
+		userID, codeHash,
 	)
-	return err
+	if err != nil {
+		return false, fmt.Errorf("consume backup code: %w", err)
+	}
+	return tag.RowsAffected() > 0, nil
+}
+
+// CountUnusedBackupCodes returns how many recovery codes remain unused, so the
+// UI can warn the user to regenerate before they run out.
+func (db *DB) CountUnusedBackupCodes(ctx context.Context, userID string) (int, error) {
+	var n int
+	err := db.pool.QueryRow(ctx,
+		`SELECT count(*) FROM totp_backup_codes WHERE user_id = $1 AND used_at IS NULL`, userID,
+	).Scan(&n)
+	if err != nil {
+		return 0, fmt.Errorf("count backup codes: %w", err)
+	}
+	return n, nil
+}
+
+// ClaimTOTPCounter records a TOTP time-step counter as consumed, enforcing
+// one-time use. The WHERE guard makes concurrent verifications of the same
+// code race-safe: only one request can claim a given counter, so a replayed
+// (or intercepted) code is rejected even if both arrive simultaneously.
+func (db *DB) ClaimTOTPCounter(ctx context.Context, userID string, counter int64) (bool, error) {
+	tag, err := db.pool.Exec(ctx,
+		`UPDATE users SET totp_last_counter = $1, updated_at = NOW()
+		 WHERE id = $2 AND totp_last_counter < $1`,
+		counter, userID,
+	)
+	if err != nil {
+		return false, fmt.Errorf("claim totp counter: %w", err)
+	}
+	return tag.RowsAffected() > 0, nil
 }
 
 // SetUserRole updates a user's role.
@@ -153,10 +231,12 @@ func (db *DB) DeleteUser(ctx context.Context, userID string) error {
 	}
 	defer tx.Rollback(ctx)
 
+	// Include planned-but-unconfirmed blobs (crash window) via the planned_remote_path
+	// fallback so account deletion never strands a blob on any platform.
 	if _, err := tx.Exec(ctx,
 		`INSERT INTO pending_deletions (user_id, platform, account, repo, remote_path)
-		 SELECT user_id, platform, account, repo, remote_path FROM chunks
-		 WHERE user_id = $1 AND remote_path != ''`,
+		 SELECT user_id, platform, account, repo, COALESCE(NULLIF(remote_path, ''), planned_remote_path) FROM chunks
+		 WHERE user_id = $1 AND COALESCE(NULLIF(remote_path, ''), planned_remote_path) != ''`,
 		userID,
 	); err != nil {
 		return fmt.Errorf("queue chunk deletions: %w", err)

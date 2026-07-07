@@ -213,6 +213,17 @@ ALTER TABLE chunks ADD COLUMN IF NOT EXISTS compressed BOOLEAN NOT NULL DEFAULT 
 -- chunk (e.g. its staging file is gone) instead of looping on it forever.
 ALTER TABLE chunks ADD COLUMN IF NOT EXISTS sync_attempts INTEGER NOT NULL DEFAULT 0;
 
+-- Planned remote path: the disguised path the sync worker WILL upload a chunk to,
+-- recorded BEFORE the upload call. remote_path is only set AFTER a successful
+-- upload (it doubles as the "synced" sentinel), so without this a crash between
+-- adapter.Upload succeeding and the remote_path write would strand the blob on the
+-- platform with no DB record of its (random) path — a permanent, untrackable
+-- orphan. With planned_remote_path persisted first, deletion can always locate the
+-- blob via COALESCE(NULLIF(remote_path,''), planned_remote_path), so a crash-window
+-- blob is still cleaned up on purge. Deleting a planned-but-never-uploaded path is
+-- a harmless no-op (adapters treat a missing blob as a successful delete).
+ALTER TABLE chunks ADD COLUMN IF NOT EXISTS planned_remote_path TEXT NOT NULL DEFAULT '';
+
 -- Drop the standalone status index: 'status' has only two values ('uploading','complete'),
 -- so it is too low-cardinality to help. The file-list query is fully served by the partial
 -- composite idx_files_user_created_complete above.
@@ -258,6 +269,24 @@ ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS user_agent TEXT NOT NULL DEF
 
 -- Token version for JWT revocation
 ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0;
+
+-- TOTP replay protection: the last accepted time-step counter (RFC 6238 §5.2).
+-- A code is one-time-use — verification only succeeds if its counter is
+-- strictly greater than this value.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_last_counter BIGINT NOT NULL DEFAULT 0;
+
+-- One-time 2FA recovery codes. Only the sha256 hash is stored; the plaintext is
+-- shown to the user once at enable/regenerate. A code is consumed by setting
+-- used_at, so it can never be replayed. Rows are cleared when 2FA is disabled.
+CREATE TABLE IF NOT EXISTS totp_backup_codes (
+	id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+	user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	code_hash  TEXT NOT NULL,
+	used_at    TIMESTAMPTZ,
+	created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_totp_backup_codes_user ON totp_backup_codes(user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_totp_backup_codes_user_hash ON totp_backup_codes(user_id, code_hash);
 
 -- User feedback
 CREATE TABLE IF NOT EXISTS feedback (
@@ -631,13 +660,54 @@ CREATE TABLE IF NOT EXISTS user_keys (
 	updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Deduplicate chunk rows and enforce exactly one row per (file_id, idx). A racy
--- check-then-insert historically allowed a second row for the same index, which
--- over-counted uploaded_chunks (>100% progress) and could mask a missing index
--- at completion. Keep the most-likely-valid duplicate: prefer a non-empty
--- remote_path (a synced locator over a pending/broken one), then the larger
--- size, then a stable chunk_id. Idempotent — after the first run there are no
--- duplicates left to remove, and the unique index is a no-op.
+` + dedupeChunksSQL
+
+// dedupeChunksSQL collapses chunk rows to exactly one per (file_id, idx) and then
+// enforces it with a unique index. It is appended to schemaSQL (so it runs at
+// every boot) but kept as its own const so it is individually testable — a test
+// can drop the index, plant duplicates, and re-run this to assert the behavior.
+//
+// A racy check-then-insert historically allowed a second row for the same index,
+// which over-counted uploaded_chunks (>100% progress) and could mask a missing
+// index at completion. Keep the most-likely-valid duplicate: prefer a non-empty
+// remote_path (a synced locator over a pending/broken one), then the larger size,
+// then a stable chunk_id. Idempotent — after the first run there are no duplicates
+// left and the index creation is a no-op.
+//
+// The losing duplicates were often ALSO synced (the sync worker uploads every
+// pending row), so each may hold the only locator of a live platform blob. Queue
+// those locators for deletion BEFORE dropping the rows — otherwise the blobs are
+// stranded, irreversibly on Telegram where the remote_path (chat + message IDs)
+// cannot be rediscovered by any sweep. Planned-but-unsynced paths are queued too
+// for git platforms (a 404 delete is a no-op) but never for Telegram, whose
+// planned paths are filenames the deletion worker cannot act on.
+// DedupeChunksSQL exposes the chunk-dedupe migration statements for tests, which
+// drop the unique index, plant duplicates, and re-run this to assert both the
+// collapse and the loser-blob queueing (including the Telegram exclusion).
+func DedupeChunksSQL() string { return dedupeChunksSQL }
+
+const dedupeChunksSQL = `
+INSERT INTO pending_deletions (user_id, platform, account, repo, remote_path)
+SELECT c.user_id, c.platform, c.account, c.repo,
+       CASE WHEN c.platform = 'telegram'
+            THEN NULLIF(c.remote_path, '')
+            ELSE COALESCE(NULLIF(c.remote_path, ''), NULLIF(c.planned_remote_path, ''))
+       END
+FROM chunks c
+JOIN (
+	SELECT chunk_id,
+	       row_number() OVER (
+	         PARTITION BY file_id, idx
+	         ORDER BY (remote_path <> '') DESC, size DESC, chunk_id
+	       ) AS rn
+	FROM chunks
+) ranked ON ranked.chunk_id = c.chunk_id
+WHERE ranked.rn > 1
+  AND CASE WHEN c.platform = 'telegram'
+           THEN NULLIF(c.remote_path, '')
+           ELSE COALESCE(NULLIF(c.remote_path, ''), NULLIF(c.planned_remote_path, ''))
+      END IS NOT NULL;
+
 DELETE FROM chunks c USING (
 	SELECT chunk_id,
 	       row_number() OVER (

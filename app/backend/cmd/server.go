@@ -53,6 +53,11 @@ type Server struct {
 	userLimiter *rateLimiter
 	// Share endpoint rate limiter: 30 req per 1 min per IP (prevents brute-force)
 	shareLimiter *rateLimiter
+	// 2FA code limiters: per-IP caps code-spraying across accounts; per-user
+	// caps brute-forcing one account across rotating IPs. Deliberately separate
+	// from authLimiter so a 2FA login doesn't consume login-attempt budget.
+	twoFAIPLimiter   *rateLimiter
+	twoFAUserLimiter *rateLimiter
 	// Send init rate limiter: 5 inits per hour per IP (anonymous upload)
 	sendLimiter *rateLimiter
 	// Pad create rate limiter: 10 creates per hour per IP
@@ -128,6 +133,8 @@ func NewServer(db *index.DB, cfg *config.Config, progress *pipeline.ProgressEmit
 		emailLimiter:        newRateLimiter(3, 15*time.Minute),
 		userLimiter:         newRateLimiter(600, time.Minute),
 		shareLimiter:        newRateLimiter(30, time.Minute),
+		twoFAIPLimiter:      newRateLimiter(10, 5*time.Minute),
+		twoFAUserLimiter:    newRateLimiter(5, 5*time.Minute),
 		sendLimiter:         newRateLimiter(5, time.Hour),
 		padLimiter:          newRateLimiter(10, time.Hour),
 		transferJoinLimiter: newRateLimiter(5, 10*time.Minute),
@@ -610,6 +617,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/auth/2fa/setup", maxJSON(s.AuthMiddleware(s.Handle2FASetup)))
 	mux.HandleFunc("POST /api/auth/2fa/enable", maxJSON(s.AuthMiddleware(s.Handle2FAEnable)))
 	mux.HandleFunc("POST /api/auth/2fa/disable", maxJSON(s.AuthMiddleware(s.Handle2FADisable)))
+	mux.HandleFunc("POST /api/auth/2fa/backup-codes", maxJSON(s.AuthMiddleware(s.Handle2FARegenerateBackupCodes)))
 	mux.HandleFunc("GET /api/auth/me", s.AuthMiddleware(s.HandleGetMe))
 	mux.HandleFunc("GET /api/auth/activity", s.AdminMiddleware(s.HandleUserActivity))
 	mux.HandleFunc("GET /api/auth/linked-accounts", s.AuthMiddleware(s.HandleLinkedAccounts))
@@ -778,6 +786,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	// Admin routes
 	mux.HandleFunc("GET /api/admin/users", s.AdminMiddleware(s.HandleAdminListUsers))
 	mux.HandleFunc("GET /api/admin/stats", s.AdminMiddleware(s.HandleAdminStats))
+	mux.HandleFunc("GET /api/admin/reconcile", s.AdminMiddleware(s.HandleAdminReconcile))
 	mux.HandleFunc("PUT /api/admin/users/{id}/role", maxJSON(s.AdminMiddleware(s.HandleAdminSetRole)))
 	mux.HandleFunc("DELETE /api/admin/users/{id}", s.AdminMiddleware(s.HandleAdminDeleteUser))
 	mux.HandleFunc("GET /api/admin/tokens", s.AdminMiddleware(s.HandleAdminListTokens))
