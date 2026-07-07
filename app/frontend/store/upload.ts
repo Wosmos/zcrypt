@@ -9,7 +9,7 @@ import { usePassphraseStore } from "@/store/passphrase";
 import { initUpload, uploadChunk, completeUpload, presignChunk, directUploadToURL, confirmChunk, cancelUpload, getUploadStatus } from "@/lib/upload-session";
 import { getFileMeta } from "@/lib/api";
 import { setFilesData } from "@/store/files";
-import { getDeviceProfile } from "@/lib/device-profile";
+import { getDeviceProfile, recommendedUploadConcurrency } from "@/lib/device-profile";
 import { acquireWakeLock, releaseWakeLock } from "@/lib/wake-lock";
 import { formatBytes } from "@/lib/utils";
 
@@ -1053,19 +1053,19 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
       if (files.length === 0) return;
     }
 
-    // Effective file-level concurrency. Mobile profiles allow only 1-2 parallel
-    // files, so a 50-photo batch ran as ~25-50 sequential rounds, each paying
-    // fixed per-file costs (3 serial init/complete RTTs). When EVERY file is
-    // small (under 2 chunks), floor the concurrency at 4 — the heavy per-file
-    // work is batch-amortized (shared KEK + worker pool below), so the extra
-    // parallelism costs little more than network sockets. Mixed or large
-    // batches keep the profile/plan limit so big files don't compete for memory
-    // and bandwidth. (Deliberately the simple "all-small" rule — no median-size
-    // heuristics.) If the raised floor trips the server's concurrent-upload
-    // cap, initUpload's wait-for-slot retry loop absorbs it.
-    const baseLimit = maxConcurrent ?? profile.maxConcurrentUploads;
-    const allSmall = files.length > 0 && files.every((f) => f.size < 2 * profile.chunkSize);
-    const effectiveConcurrent = allSmall ? Math.max(baseLimit, 4) : baseLimit;
+    // Effective file-level concurrency. This is NETWORK-bound, not CPU-bound, so
+    // it's driven by recommendedUploadConcurrency (batch median size + network),
+    // NOT the CPU tier's maxConcurrentUploads — tying it to CPU/RAM made phones
+    // crawl at 1-2 parallel files even on fast Wi-Fi, so a 100-photo batch ran as
+    // ~50-100 sequential rounds each paying fixed init/complete RTTs. The median-
+    // based rule also stops one big file in a photo batch from serializing the
+    // rest (the old "every file small" floor did). `maxConcurrent`, when set, is
+    // the server's per-user cap and stays a HARD ceiling; when unset (free plan =
+    // unlimited) we use the full recommendation. initUpload's wait-for-slot retry
+    // still absorbs any server-side backpressure.
+    const recommended = recommendedUploadConcurrency(files.map((f) => f.size));
+    const serverCap = maxConcurrent && maxConcurrent > 0 ? maxConcurrent : Infinity;
+    const effectiveConcurrent = Math.max(1, Math.min(recommended, serverCap));
 
     // Add all files to queue in a single state update (prevents 10k re-renders)
     const items = addBatchToQueue(files);

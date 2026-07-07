@@ -136,6 +136,9 @@ const SMALL_PROFILE = {
 };
 vi.mock("@/lib/device-profile", () => ({
   getDeviceProfile: vi.fn(() => ({ ...SMALL_PROFILE })),
+  // Network/size-aware file concurrency (decoupled from the CPU tier). The store
+  // clamps this to the server cap; here we just echo a small-batch fan-out.
+  recommendedUploadConcurrency: vi.fn((sizes: number[]) => Math.min(6, Math.max(1, sizes.length))),
 }));
 
 function makeFile(name: string, size: number, content?: string): File {
@@ -387,8 +390,20 @@ describe("useUploadStore", () => {
       expect(useUploadStore.getState().queue.every((i) => i.status === "done")).toBe(true);
     });
 
-    it("floors concurrency at 4 when every file in the batch is small", async () => {
+    it("drives file concurrency from the network/size policy, not the CPU tier", async () => {
+      const { recommendedUploadConcurrency } = await import("@/lib/device-profile");
       const files = Array.from({ length: 6 }, (_, i) => makeFile(`f${i}.txt`, 10));
+      // No explicit server cap → the batch's file concurrency comes from
+      // recommendedUploadConcurrency(sizes), NOT profile.maxConcurrentUploads (2).
+      useUploadStore.getState().startUpload(files, "pw", "telegram", undefined, undefined, null);
+      await flush();
+      expect(recommendedUploadConcurrency as Mock).toHaveBeenCalledWith([10, 10, 10, 10, 10, 10]);
+      expect(useUploadStore.getState().queue.every((i) => i.status === "done")).toBe(true);
+    });
+
+    it("treats an explicit server cap as a hard ceiling on file concurrency", async () => {
+      // maxConcurrent=1 (an admin-capped user) must clamp below the recommendation.
+      const files = Array.from({ length: 4 }, (_, i) => makeFile(`f${i}.txt`, 10));
       useUploadStore.getState().startUpload(files, "pw", "telegram", 1, undefined, null);
       await flush();
       expect(useUploadStore.getState().queue.every((i) => i.status === "done")).toBe(true);
