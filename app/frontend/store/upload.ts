@@ -12,6 +12,9 @@ import { setFilesData } from "@/store/files";
 import { getDeviceProfile, recommendedUploadConcurrency } from "@/lib/device-profile";
 import { acquireWakeLock, releaseWakeLock } from "@/lib/wake-lock";
 import { formatBytes } from "@/lib/utils";
+import { createSemaphore } from "@/lib/async/semaphore";
+import { relaunchAfterPrior } from "@/lib/async/relaunch";
+import { genId } from "@/lib/id";
 
 // Mirrors the server's per-file cap (HandleUploadInit rejects larger with
 // 413). Checked before queueing so a 30GB drop fails instantly with a clear
@@ -154,8 +157,6 @@ interface UploadStore {
   getResumableUploadIds: () => string[];
   startDesktopUpload: (passphrase: string, onRefresh?: () => void) => void;
 }
-
-let counter = 0;
 
 // Resume context for an in-flight upload. Holds the raw CEK so a retry re-encrypts
 // remaining chunks with the SAME key as the chunks already uploaded — a fresh key
@@ -665,31 +666,11 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
 
     // Pipeline depth: let workers pre-process several chunks ahead of uploads.
     const pipelineDepth = Math.min(profile.workers * 3, 12);
-    let pipelineSlots = 0;
-    const pipelineWaiters: (() => void)[] = [];
-    const acquirePipelineSlot = (): Promise<void> => {
-      if (pipelineSlots < pipelineDepth) { pipelineSlots++; return Promise.resolve(); }
-      return new Promise<void>((resolve) => pipelineWaiters.push(resolve));
-    };
-    const releasePipelineSlot = () => {
-      pipelineSlots--;
-      const next = pipelineWaiters.shift();
-      if (next) { pipelineSlots++; next(); }
-    };
+    const pipelineSem = createSemaphore(pipelineDepth);
 
     // Upload concurrency: limit simultaneous network uploads.
     const maxUploads = useDirectUpload ? 6 : 5;
-    let activeUploads = 0;
-    const uploadWaiters: (() => void)[] = [];
-    const acquireUploadSlot = (): Promise<void> => {
-      if (activeUploads < maxUploads) { activeUploads++; return Promise.resolve(); }
-      return new Promise<void>((resolve) => uploadWaiters.push(resolve));
-    };
-    const releaseUploadSlot = () => {
-      activeUploads--;
-      const next = uploadWaiters.shift();
-      if (next) { activeUploads++; next(); }
-    };
+    const uploadSem = createSemaphore(maxUploads);
 
     const chunkPromises: Promise<void>[] = [];
     let firstError: Error | null = null;
@@ -702,7 +683,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
       if (done.has(i)) continue; // resume: server already has this chunk
 
       // Backpressure: don't read ahead more than pipelineDepth chunks
-      await acquirePipelineSlot();
+      await pipelineSem.acquire();
 
       const start = i * chunkSize;
       const end = Math.min(start + chunkSize, file.size);
@@ -721,7 +702,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
         // and sends it then.
         if (shouldStop()) return;
         // Wait for upload slot (limits concurrent network requests)
-        await acquireUploadSlot();
+        await uploadSem.acquire();
 
         try {
           if (shouldStop()) return; // paused while waiting for a slot
@@ -767,9 +748,9 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
           completedPlainBytes += plainSizeOfChunk(result.chunkIndex);
           emitByteProgress();
         } finally {
-          releaseUploadSlot();
+          uploadSem.release();
         }
-      }).finally(releasePipelineSlot).catch((err) => {
+      }).finally(() => pipelineSem.release()).catch((err) => {
         // A pause-triggered abort is a stop, not a failure — swallow it here so
         // the finalize guard (uploadedChunks < chunkCount) handles the pause.
         if (isPauseError(err)) {
@@ -912,7 +893,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
   queue: [],
 
   addToQueue: (file: File) => {
-    const id = `upload_${++counter}_${Date.now()}`;
+    const id = genId("upload");
     set((state) => ({
       queue: [
         ...state.queue,
@@ -926,7 +907,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
     const now = Date.now();
     const items = files.map((file) => ({
       file,
-      id: `upload_${++counter}_${now}`,
+      id: genId("upload"),
     }));
     set((state) => ({
       queue: [
@@ -1080,17 +1061,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
     }
 
     // Semaphore-based concurrency limiter
-    let running = 0;
-    const waiting: (() => void)[] = [];
-    const acquire = async () => {
-      if (running < effectiveConcurrent) { running++; return; }
-      await new Promise<void>((resolve) => waiting.push(resolve));
-    };
-    const release = () => {
-      running--;
-      const next = waiting.shift();
-      if (next) { running++; next(); }
-    };
+    const sem = createSemaphore(effectiveConcurrent);
 
     // Start background push notifications for when user switches away
     const batchIds = new Set(items.map((i) => i.id));
@@ -1119,12 +1090,12 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
         const batchKek = { salt: batchSalt, kekBytes: await deriveKeyBytes(passphrase, batchSalt) };
         await Promise.all(
           items.map(async ({ file, id }) => {
-            await acquire();
+            await sem.acquire();
             try {
               const meta = itemMeta.get(id);
               await launchRun(file, id, { passphrase, platform: meta?.platform, profile, onRefresh, folderId: meta?.folderId, batchKek, pool });
             } finally {
-              release();
+              sem.release();
             }
           })
         );
@@ -1173,18 +1144,17 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
         i.id === id ? { ...i, status: "queued" as const, error: undefined, stage: "Retrying..." } : i
       ),
     }));
+    // Never race a still-draining previous run over the same item.
     const prior = meta?.runPromise;
-    void (async () => {
-      // Never race a still-draining previous run over the same item.
-      try { await prior; } catch { /* previous run settled with an error — fine */ }
-      await launchRun(item.file, id, {
+    relaunchAfterPrior(prior, () =>
+      launchRun(item.file, id, {
         passphrase,
         platform: meta?.resume?.platform ?? meta?.platform,
         profile: getDeviceProfile(),
         onRefresh: meta?.onRefresh,
         folderId: meta?.folderId,
-      });
-    })();
+      })
+    );
   },
 
   // Pause an in-progress upload. Three-layer stop: (1) the chunk loop stops
@@ -1220,16 +1190,15 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
       ),
     }));
     const prior = meta?.runPromise;
-    void (async () => {
-      try { await prior; } catch { /* previous run settled with an error — fine */ }
-      await launchRun(item.file, id, {
+    relaunchAfterPrior(prior, () =>
+      launchRun(item.file, id, {
         passphrase,
         platform: meta?.resume?.platform ?? meta?.platform,
         profile: getDeviceProfile(),
         onRefresh: meta?.onRefresh,
         folderId: meta?.folderId,
-      });
-    })();
+      })
+    );
   },
 
   getResumableUploadIds: () =>

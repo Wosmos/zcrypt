@@ -14,12 +14,14 @@
  */
 
 import { getFileMeta, getFileChunk, type FileMetaResponse } from "@/lib/api";
-import { resolveFileKey, fromBase64, deriveDedupKeyBytes, createContentHasher } from "@/lib/crypto";
+import { resolveFileKey, fromBase64, deriveDedupKeyBytes, createContentHasher, bytesToHex } from "@/lib/crypto";
 import { getDeviceProfile } from "@/lib/device-profile";
 import { WorkerPool } from "@/lib/worker-pool";
 import { OrderedWriter } from "@/lib/ordered-writer";
 import { retryTransient } from "@/lib/retry";
 import { decryptChunkInPool } from "@/lib/decrypt-chunk";
+import { saveBlob } from "@/lib/utils";
+import type { DownloadPasswordResolver } from "@/store/download";
 
 /** The subset of FileSystemWritableFileStream we use — structural so this module
  *  doesn't depend on lib.dom File System Access typings. */
@@ -95,7 +97,7 @@ export interface DownloadOptions {
    * vault passphrase. Omitted by all unprotected/legacy callers, so their
    * behavior is byte-for-byte unchanged (the plain `passphrase` is used).
    */
-  resolvePassword?: (fileId: string) => Promise<string> | string;
+  resolvePassword?: DownloadPasswordResolver;
   /**
    * Resolve the raw file key directly from the fetched metadata, bypassing
    * passphrase derivation entirely. Used for shared-space files: the CEK is
@@ -178,9 +180,6 @@ export async function downloadAndDecryptFile(
   resume.keyBytes = keyBytes;
 
   if (signal?.aborted) throw stopError();
-
-  const hex = (bytes: Uint8Array) =>
-    Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
 
   // Integrity scheme. 'hmac_v1' files verify against a per-user keyed MAC, which
   // requires the passphrase — available on the owner/folder path but NOT on the
@@ -319,11 +318,11 @@ export async function downloadAndDecryptFile(
     let actualHash: string;
     if (streaming && writer) {
       await writer.close(meta.chunk_count); // drain + assert every chunk written
-      actualHash = hex(assertSet(hasher, "hasher").digest());
+      actualHash = bytesToHex(assertSet(hasher, "hasher").digest());
     } else {
       const fullFileHasher = await createContentHasher(hashScheme, macKey);
       for (const chunk of assertSet(decryptedChunks, "decryptedChunks")) fullFileHasher.update(chunk);
-      actualHash = hex(fullFileHasher.digest());
+      actualHash = bytesToHex(fullFileHasher.digest());
     }
     // Skip the file-level compare only when we genuinely can't recompute the MAC
     // (hmac_v1 file downloaded without the passphrase, e.g. shared space); per-chunk
@@ -360,14 +359,7 @@ export async function downloadAndDecryptFile(
         }
       }
       const blob = new Blob(assertSet(decryptedChunks, "decryptedChunks") as BlobPart[], { type: "application/octet-stream" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = saveName || "download";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      saveBlob(saveName || "download", blob);
     }
 
     onProgress?.({ stage: "Done", percent: 100, chunksDone: meta.chunk_count, chunksTotal: meta.chunk_count });

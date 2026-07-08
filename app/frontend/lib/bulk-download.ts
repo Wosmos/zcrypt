@@ -9,9 +9,11 @@ import { getFileMeta, getFileChunk } from "@/lib/api";
 import { retryTransient } from "@/lib/retry";
 import { runWithConcurrency } from "@/lib/concurrent";
 import { resolveFileKey, decryptChunk, sha256Hex, contentMacBytes, deriveDedupKeyBytes, fromBase64 } from "@/lib/crypto";
-import { getZstdCodec } from "@/lib/zstd";
+import { zstdDecompress } from "@/lib/zstd";
 import { zipSync } from "fflate";
 import { getDeviceProfile } from "@/lib/device-profile";
+import { concatChunks, saveBlob } from "@/lib/utils";
+import type { DownloadPasswordResolver } from "@/store/download";
 
 export interface BulkDownloadFile {
   fileId: string;
@@ -36,7 +38,7 @@ export interface BulkDownloadOptions {
    * instead of the shared `passphrase`. Omitted by unprotected callers, so the
    * existing all-vault-passphrase ZIP path is byte-for-byte unchanged.
    */
-  resolvePassword?: (fileId: string) => Promise<string> | string;
+  resolvePassword?: DownloadPasswordResolver;
 }
 
 /**
@@ -51,7 +53,6 @@ export async function downloadAsZip(
 
   if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
 
-  const zstd = await getZstdCodec();
   const totalFiles = files.length;
   let filesDone = 0;
   const zipEntries: Array<{ name: string; data: Uint8Array }> = [];
@@ -92,8 +93,8 @@ export async function downloadAsZip(
         throw new Error(`Decryption failed for ${file.filename} — wrong passphrase?`);
       }
 
-      if (compressed && zstd) {
-        plain = zstd.ZstdStream.decompress(plain);
+      if (compressed) {
+        plain = await zstdDecompress(plain);
       }
       chunkResults[index] = plain;
     };
@@ -101,13 +102,7 @@ export async function downloadAsZip(
     await runWithConcurrency(meta.chunk_count, MAX_CONCURRENT, processChunk, signal);
 
     // Assemble and verify
-    const totalSize = chunkResults.reduce((s, c) => s + c.byteLength, 0);
-    const fullFile = new Uint8Array(totalSize);
-    let offset = 0;
-    for (const chunk of chunkResults) {
-      fullFile.set(chunk, offset);
-      offset += chunk.byteLength;
-    }
+    const fullFile = concatChunks(chunkResults);
 
     // Integrity: 'hmac_v1' files verify against the per-user keyed MAC (recomputed
     // with the same passphrase that decrypted them); legacy files against SHA-256.
@@ -168,17 +163,7 @@ export async function downloadAsZip(
     filesTotal: totalFiles,
   });
 
-  const zipBuffer = new ArrayBuffer(zipped.byteLength);
-  new Uint8Array(zipBuffer).set(zipped);
-  const blob = new Blob([zipBuffer], { type: "application/zip" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `zcrypt-${totalFiles}-files.zip`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  saveBlob(`zcrypt-${totalFiles}-files.zip`, zipped, "application/zip");
 
   onProgress?.({
     stage: "Done",

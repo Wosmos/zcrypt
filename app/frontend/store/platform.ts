@@ -5,6 +5,7 @@ import type { PlatformStatus, RepoInfo } from "@/types";
 import { getPlatformStatus, listRepos } from "@/lib/api";
 import { queryClient } from "@/lib/query-client";
 import { qk } from "@/lib/query-keys";
+import { getQueryData, invalidateKey } from "@/lib/query-cache";
 
 /**
  * Platform server-state (connected tokens + storage repos), backed by TanStack
@@ -28,18 +29,18 @@ export function useReposQuery() {
 
 /** Non-reactive snapshot (e.g. the AuthGuard onboarding check). */
 export function getPlatformStatusData(): PlatformStatus[] {
-  return queryClient.getQueryData<PlatformStatus[]>(qk.platforms) ?? [];
+  return getQueryData<PlatformStatus[]>(qk.platforms, []);
 }
 
 export function getReposData(): RepoInfo[] {
-  return queryClient.getQueryData<RepoInfo[]>(qk.repos) ?? [];
+  return getQueryData<RepoInfo[]>(qk.repos, []);
 }
 
 /** Refetch both platform views after a connect/disconnect/scope change. */
 export function invalidatePlatforms(): Promise<void> {
   return Promise.all([
-    queryClient.invalidateQueries({ queryKey: qk.platforms }),
-    queryClient.invalidateQueries({ queryKey: qk.repos }),
+    invalidateKey(qk.platforms),
+    invalidateKey(qk.repos),
   ]).then(() => undefined);
 }
 

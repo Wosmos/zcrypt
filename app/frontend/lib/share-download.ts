@@ -9,24 +9,15 @@
 import { getShareFileMeta, getShareChunk } from "@/lib/api";
 import { retryTransient } from "@/lib/retry";
 import { runWithConcurrency } from "@/lib/concurrent";
-import { unwrapKey, decryptChunk, sha256Hex, fromBase64 } from "@/lib/crypto";
-import { getZstdCodec } from "@/lib/zstd";
+import { unwrapKey, decryptChunk, sha256Hex, fromBase64, toArrayBuffer } from "@/lib/crypto";
+import { zstdDecompress } from "@/lib/zstd";
 import { getDeviceProfile } from "@/lib/device-profile";
+import { concatChunks, saveBlob } from "@/lib/utils";
+import type { DownloadProgressCallback } from "@/lib/download-session";
 
-// Route through the single app-wide codec (lib/zstd) — never call ZstdInit()
-// directly, or it re-inits the shared wasm and corrupts other in-flight
-// decompression ("ZSTD_ERROR -72").
-let zstdCodec: Awaited<ReturnType<typeof getZstdCodec>> | null = null;
-const zstdReady = getZstdCodec().then((codec) => {
-  zstdCodec = codec;
-});
-
-export type ShareDownloadProgressCallback = (info: {
-  stage: string;
-  percent: number;
-  chunksDone: number;
-  chunksTotal: number;
-}) => void;
+// Byte-identical to DownloadProgressCallback — aliased to the canonical type in
+// lib/download-session so the two can never drift.
+export type ShareDownloadProgressCallback = DownloadProgressCallback;
 
 export interface ShareDownloadOptions {
   onProgress?: ShareDownloadProgressCallback;
@@ -52,8 +43,6 @@ export async function downloadSharedFile(
 
   if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
 
-  await zstdReady;
-
   // Step 1: Get file metadata via share endpoint
   onProgress?.({ stage: "Fetching metadata...", percent: 0, chunksDone: 0, chunksTotal: 0 });
   const meta = await getShareFileMeta(token, sharePassword);
@@ -68,8 +57,8 @@ export async function downloadSharedFile(
   let keyBytes: ArrayBuffer;
   try {
     const shareKey = fromBase64(shareKeyB64);
-    const cek = await unwrapKey(shareKey.buffer.slice(0) as ArrayBuffer, fromBase64(meta.wrapped_cek));
-    keyBytes = cek.buffer.slice(0) as ArrayBuffer;
+    const cek = await unwrapKey(toArrayBuffer(shareKey), fromBase64(meta.wrapped_cek));
+    keyBytes = toArrayBuffer(cek);
   } catch {
     throw new Error("Invalid or corrupt share key — check that you copied the full link.");
   }
@@ -100,9 +89,9 @@ export async function downloadSharedFile(
       throw new Error("Decryption failed — the share key may be wrong or the link incomplete.");
     }
 
-    if (compressed && zstdCodec) {
+    if (compressed) {
       try {
-        plaintext = zstdCodec.ZstdStream.decompress(plaintext);
+        plaintext = await zstdDecompress(plaintext);
       } catch (decompressErr) {
         throw new Error(
           `Decompression failed on chunk ${index}: ${decompressErr instanceof Error ? decompressErr.message : decompressErr}`
@@ -130,13 +119,7 @@ export async function downloadSharedFile(
   // Step 4: Concatenate and verify
   onProgress?.({ stage: "Verifying integrity...", percent: 93, chunksDone: meta.chunk_count, chunksTotal: meta.chunk_count });
 
-  const totalSize = decryptedChunks.reduce((sum, c) => sum + c.byteLength, 0);
-  const fullFile = new Uint8Array(totalSize);
-  let offset = 0;
-  for (const chunk of decryptedChunks) {
-    fullFile.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
+  const fullFile = concatChunks(decryptedChunks);
 
   // A recipient holds only the share key, never the owner's passphrase, so it
   // cannot recompute an 'hmac_v1' keyed MAC. Integrity for those files rests on
@@ -156,19 +139,11 @@ export async function downloadSharedFile(
   // Step 5: Trigger browser download
   onProgress?.({ stage: "Saving file...", percent: 97, chunksDone: meta.chunk_count, chunksTotal: meta.chunk_count });
 
-  const blob = new Blob([fullFile], { type: "application/octet-stream" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
   // A recipient has only the share key, not the owner's vault passphrase, so a
   // zero-knowledge file's name (encrypted under the vault key) can't be resolved
   // here — fall back to a generic name. TODO: carry the name re-encrypted under
   // the share key (shares.enc_name) so recipients see the real filename.
-  a.download = meta.original_name || "download";
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  saveBlob(meta.original_name || "download", fullFile);
 
   onProgress?.({ stage: "Done", percent: 100, chunksDone: meta.chunk_count, chunksTotal: meta.chunk_count });
 }

@@ -214,12 +214,29 @@ export async function resolveFileKey(
   return cek.buffer.slice(0) as ArrayBuffer;
 }
 
+/** Lowercase hex encoding of raw bytes. The ONE hex encoder — sha256Hex,
+ *  sha256File, and the content-MAC helpers below all route through it, and
+ *  external hex sites (download-session, useFileDecryptor, oauth-buttons) should
+ *  import it. (The crypto worker keeps its own copy — separate bundle.) */
+export function bytesToHex(bytes: Uint8Array): string {
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+/** A Uint8Array's bytes as a standalone ArrayBuffer, honoring byteOffset /
+ *  byteLength (a subarray/view is copied out correctly). Use this instead of the
+ *  `.buffer.slice(0)` pattern, which silently copies the WHOLE backing buffer of
+ *  a view rather than just its window — a latent corruption bug for any
+ *  Uint8Array that isn't a full-buffer view. */
+export function toArrayBuffer(u8: Uint8Array): ArrayBuffer {
+  return u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength) as ArrayBuffer;
+}
+
 /** Compute SHA-256 hex digest of data. */
 export async function sha256Hex(data: Uint8Array): Promise<string> {
   const hash = await crypto.subtle.digest("SHA-256", data as BufferSource);
-  return Array.from(new Uint8Array(hash))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+  return bytesToHex(new Uint8Array(hash));
 }
 
 // --- Content MAC (confirmation-of-file defeat) ---
@@ -241,17 +258,11 @@ export async function deriveDedupKeyBytes(passphrase: string, userId: string): P
   return new Uint8Array(await deriveKeyBytesCached(passphrase, salt));
 }
 
-function hex(bytes: Uint8Array): string {
-  return Array.from(bytes)
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
-
 /** HMAC-SHA256 hex of in-memory bytes under keyBytes. */
 export async function contentMacBytes(data: Uint8Array, keyBytes: Uint8Array): Promise<string> {
   const key = await crypto.subtle.importKey("raw", keyBytes as BufferSource, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   const mac = await crypto.subtle.sign("HMAC", key, data as BufferSource);
-  return hex(new Uint8Array(mac));
+  return bytesToHex(new Uint8Array(mac));
 }
 
 /** HMAC-SHA256 hex of a File, streaming for large files (Web Crypto HMAC can't
@@ -269,7 +280,7 @@ export async function contentMacFile(file: File, keyBytes: Uint8Array, onProgres
     hasher.update(new Uint8Array(await slice.arrayBuffer()));
     onProgress?.(Math.min(offset + STREAM_CHUNK, file.size));
   }
-  return hex(hasher.digest());
+  return bytesToHex(hasher.digest());
 }
 
 /** An incremental hasher (update/digest) matching the scheme, for the streaming
@@ -315,10 +326,7 @@ export async function sha256File(file: File, onProgress?: (bytesHashed: number) 
     onProgress?.(Math.min(offset + STREAM_CHUNK, file.size));
   }
 
-  const hash = hasher.digest();
-  return Array.from(hash)
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+  return bytesToHex(hasher.digest());
 }
 
 /** Encode bytes to base64 string. */

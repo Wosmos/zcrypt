@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persistPassphrase, loadPassphrase, clearPersistedPassphrase } from "@/lib/device-vault";
 import { clearDecryptCache } from "@/lib/decrypt-cache";
+import { ttlDeadline, minutesUntil } from "@/lib/ttl";
 
 // clearDecryptCache() drops the in-memory blob cache + derived KEKs AND fans out
 // to registered plaintext holders (notably the decrypted-thumbnail cache, memory
@@ -75,7 +76,7 @@ export const usePassphraseStore = create<PassphraseStore>((set, get) => ({
     }
 
     // Session unlock: cached in memory only, auto-clears after the TTL.
-    const cacheUntil = Date.now() + ttlMinutes * 60 * 1000;
+    const cacheUntil = ttlDeadline(ttlMinutes);
     set({ cachedPassphrase: passphrase, cacheUntil, persistent: false });
     clearTimer = setTimeout(() => {
       set({ cachedPassphrase: null, cacheUntil: null });
@@ -120,10 +121,7 @@ export const usePassphraseStore = create<PassphraseStore>((set, get) => ({
   getRemainingMinutes: () => {
     const { cacheUntil, persistent } = get();
     if (persistent) return Infinity; // no expiry while remembered on this device
-    if (!cacheUntil) return 0;
-    const remaining = cacheUntil - Date.now();
-    if (remaining <= 0) return 0;
-    return Math.ceil(remaining / 60000);
+    return minutesUntil(cacheUntil);
   },
 
   setRememberDevice: (on) => {
@@ -146,7 +144,7 @@ export const usePassphraseStore = create<PassphraseStore>((set, get) => ({
       // 15-min session so the user isn't abruptly logged out of their vault.
       void clearPersistedPassphrase();
       if (get().persistent && pp) {
-        const cacheUntil = Date.now() + SESSION_TTL_MIN * 60 * 1000;
+        const cacheUntil = ttlDeadline(SESSION_TTL_MIN);
         set({ persistent: false, cacheUntil });
         if (clearTimer) clearTimeout(clearTimer);
         clearTimer = setTimeout(() => {

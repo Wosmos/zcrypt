@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { clearDecryptCacheForFolder } from "@/lib/decrypt-cache";
+import { ttlDeadline, minutesUntil } from "@/lib/ttl";
 
 /**
  * In-memory per-folder password cache, mirroring `store/passphrase.ts` but keyed
@@ -51,7 +52,7 @@ export const useFolderPasswordStore = create<FolderPasswordStore>((set, get) => 
   cache: {},
 
   set: (folderId, password, ttlMinutes = 15) => {
-    const cacheUntil = Date.now() + ttlMinutes * 60 * 1000;
+    const cacheUntil = ttlDeadline(ttlMinutes);
     set((s) => ({ cache: { ...s.cache, [folderId]: { password, cacheUntil } } }));
 
     cancelTimer(folderId);
@@ -89,9 +90,7 @@ export const useFolderPasswordStore = create<FolderPasswordStore>((set, get) => 
   getRemainingMinutes: (folderId) => {
     const entry = get().cache[folderId];
     if (!entry) return 0;
-    const remaining = entry.cacheUntil - Date.now();
-    if (remaining <= 0) return 0;
-    return Math.ceil(remaining / 60000);
+    return minutesUntil(entry.cacheUntil);
   },
 
   clear: (folderId) => {

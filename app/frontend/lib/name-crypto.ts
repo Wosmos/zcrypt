@@ -10,7 +10,7 @@
  * exactly like note titles/bodies.
  */
 
-import { deriveKeyBytes } from "@/lib/crypto";
+import { deriveKeyBytes, toBase64, fromBase64 } from "@/lib/crypto";
 
 /** Derive the AES-GCM key used to encrypt/decrypt names for a given user. */
 export async function deriveNameKey(passphrase: string, userId: string): Promise<CryptoKey> {
@@ -26,12 +26,12 @@ export async function encryptName(name: string, key: CryptoKey): Promise<string>
   const combined = new Uint8Array(iv.length + new Uint8Array(enc).length);
   combined.set(iv);
   combined.set(new Uint8Array(enc), iv.length);
-  return btoa(String.fromCharCode(...combined));
+  return toBase64(combined);
 }
 
 /** Decrypt a base64 [iv || ciphertext+tag] name. Throws on wrong key / corruption. */
 export async function decryptName(b64: string, key: CryptoKey): Promise<string> {
-  const data = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+  const data = fromBase64(b64);
   const iv = data.slice(0, 12);
   const cipher = data.slice(12);
   const dec = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, cipher);

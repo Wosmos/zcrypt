@@ -1,6 +1,10 @@
 import { create } from "zustand";
+import type { Severity } from "@/lib/utils";
+import { genId } from "@/lib/id";
 
-export type ToastType = "success" | "error" | "info" | "warning";
+// The 4-member severity union is shared app-wide — aliased to Severity so toasts
+// and notifications can't drift.
+export type ToastType = Severity;
 
 export interface Toast {
   id: string;
@@ -14,8 +18,6 @@ interface ToastStore {
   remove: (id: string) => void;
 }
 
-let counter = 0;
-
 // Hard cap on concurrent toasts. Capping at the data level (rather than only in
 // the renderer) means an over-cap toast is dropped outright — so it can never
 // re-surface later and restart its countdown bar out of sync with its timer.
@@ -25,7 +27,7 @@ export const useToastStore = create<ToastStore>((set) => ({
   toasts: [],
 
   add: (type, message) => {
-    const id = `toast_${++counter}`;
+    const id = genId("toast", { time: false });
     set((s) => {
       const next = [...s.toasts, { id, type, message }];
       return { toasts: next.slice(-MAX_TOASTS) };

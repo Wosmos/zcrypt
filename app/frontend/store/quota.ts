@@ -3,8 +3,8 @@
 import { useQuery } from "@tanstack/react-query";
 import type { QuotaInfo } from "@/types";
 import { getQuota } from "@/lib/api";
-import { queryClient } from "@/lib/query-client";
 import { qk } from "@/lib/query-keys";
+import { getQueryData, invalidateKey } from "@/lib/query-cache";
 
 /**
  * Quota server-state, backed by TanStack Query so a delete/move/restore/upload
@@ -22,9 +22,9 @@ export function useQuotaQuery() {
 }
 
 export function getQuotaData(): QuotaInfo | null {
-  return queryClient.getQueryData<QuotaInfo>(qk.quota) ?? null;
+  return getQueryData<QuotaInfo | null>(qk.quota, null);
 }
 
 export function invalidateQuota(): Promise<void> {
-  return queryClient.invalidateQueries({ queryKey: qk.quota });
+  return invalidateKey(qk.quota);
 }

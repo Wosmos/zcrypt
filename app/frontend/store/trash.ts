@@ -3,8 +3,8 @@
 import { useQuery } from "@tanstack/react-query";
 import type { FileMetadata } from "@/types";
 import { listTrash } from "@/lib/api";
-import { queryClient } from "@/lib/query-client";
 import { qk } from "@/lib/query-keys";
+import { setListData, invalidateKey } from "@/lib/query-cache";
 
 /**
  * Trash server-state, backed by TanStack Query. Previously this lived in a
@@ -23,14 +23,9 @@ export function useTrashQuery() {
 export function setTrashData(
   updater: FileMetadata[] | ((prev: FileMetadata[]) => FileMetadata[])
 ): void {
-  queryClient.setQueryData<FileMetadata[]>(qk.trash, (prev) => {
-    const base = prev ?? [];
-    return typeof updater === "function"
-      ? (updater as (p: FileMetadata[]) => FileMetadata[])(base)
-      : updater;
-  });
+  setListData<FileMetadata>(qk.trash, updater);
 }
 
 export function invalidateTrash(): Promise<void> {
-  return queryClient.invalidateQueries({ queryKey: qk.trash });
+  return invalidateKey(qk.trash);
 }

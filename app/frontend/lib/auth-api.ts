@@ -1,4 +1,9 @@
-import type { AuthUser } from "@/types";
+import type { AuthUser, AuditEvent } from "@/types";
+
+// AuditEvent now lives in types/ (so admin types can reference it without a
+// types→lib inversion) — re-exported here so its existing consumers keep
+// importing it from "@/lib/auth-api".
+export type { AuditEvent };
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
@@ -196,12 +201,17 @@ export function verifyMagicLink(token: string): Promise<LoginResponse> {
 
 // --- Register with breach detection ---
 
-export interface RegisterResponse {
+// The common shape returned by the breach-aware auth endpoints (register +
+// reset-password): a success flag plus optional breach warning fields.
+export interface BreachCheckResponse {
   success?: boolean;
-  user?: AuthUser;
   warning?: string;
   breach_count?: number;
   requires?: string;
+}
+
+export interface RegisterResponse extends BreachCheckResponse {
+  user?: AuthUser;
 }
 
 export function registerWithBreachCheck(
@@ -220,7 +230,7 @@ export function resetPasswordWithBreachCheck(
   token: string,
   new_password: string,
   force = false
-): Promise<{ success?: boolean; warning?: string; breach_count?: number; requires?: string }> {
+): Promise<BreachCheckResponse> {
   return authRequest("/api/auth/reset-password", {
     method: "POST",
     body: JSON.stringify({ token, new_password, force }),
@@ -258,16 +268,7 @@ export function unlinkAccount(
 }
 
 // --- Activity ---
-
-export interface AuditEvent {
-  id: string;
-  user_id?: string;
-  event_type: string;
-  ip: string;
-  user_agent: string;
-  metadata: Record<string, unknown>;
-  created_at: string;
-}
+// (AuditEvent is re-exported from "@/types" at the top of this file.)
 
 export function getUserActivity(
   accessToken: string
