@@ -1,10 +1,9 @@
 "use client";
 
 import type { PlatformStatus, RepoInfo } from "@/types";
-import { Github, AlertTriangle, CheckCircle2 } from "@/lib/icons";
-import { GitlabIcon } from "@/components/icons/gitlab";
-import { HuggingFaceIcon } from "@/components/icons/huggingface";
-import { TelegramIcon } from "@/components/icons/telegram";
+import { AlertTriangle, CheckCircle2 } from "@/lib/icons";
+import { PlatformIcon } from "@/components/icons/platform-icon";
+import { PLATFORM_BY_ID, type PlatformId } from "@/lib/platforms";
 import { formatBytes } from "@/lib/utils";
 import { Section } from "@/components/ui/section";
 
@@ -12,44 +11,6 @@ interface RateLimitsProps {
   statuses: PlatformStatus[];
   repos: RepoInfo[];
 }
-
-const platformMeta: Record<string, {
-  icon: React.ReactNode;
-  repoLimit: string;
-  fileLimit: string;
-  rateInfo: string;
-}> = {
-  github: {
-    icon: <Github className="h-4 w-4" />,
-    repoLimit: "1 GB / repo",
-    // zcrypt commits chunks via the Contents API (plain git), not LFS — the
-    // limit that applies is GitHub's 100 MB hard per-file push limit.
-    fileLimit: "100 MB / file",
-    rateInfo: "5,000 req/hr (authenticated)",
-  },
-  gitlab: {
-    icon: <GitlabIcon className="h-4 w-4 text-orange-500" />,
-    repoLimit: "10 GB / repo",
-    // Plain git commits → GitLab Free's 100 MiB per-file push limit applies.
-    fileLimit: "100 MB / file",
-    rateInfo: "7,200 req/hr (authenticated)",
-  },
-  huggingface: {
-    icon: <HuggingFaceIcon className="h-4 w-4 text-yellow-500" />,
-    repoLimit: "300 GB / repo",
-    // HuggingFace genuinely uploads via LFS.
-    fileLimit: "50 GB / file (LFS)",
-    rateInfo: "No strict rate limits",
-  },
-  telegram: {
-    icon: <TelegramIcon className="h-4 w-4 text-sky-500" />,
-    // Telegram channels have no storage cap — zcrypt's per-channel rotation
-    // threshold is a virtual housekeeping value, not a platform limit.
-    repoLimit: "Unlimited",
-    fileLimit: "Unlimited (chunked)",
-    rateInfo: "~20 msgs/min per chat",
-  },
-};
 
 export function RateLimits({ statuses, repos }: RateLimitsProps) {
   const connectedPlatforms = statuses.filter((s) => s.connected);
@@ -72,7 +33,7 @@ export function RateLimits({ statuses, repos }: RateLimitsProps) {
       >
         <ul className="divide-y divide-[var(--color-border)]">
           {connectedPlatforms.map((status) => {
-            const meta = platformMeta[status.platform];
+            const meta = PLATFORM_BY_ID[status.platform as PlatformId];
             if (!meta) return null;
 
             const pRepos = platformRepos.get(status.platform) || [];
@@ -85,7 +46,7 @@ export function RateLimits({ statuses, repos }: RateLimitsProps) {
               <li key={`${status.platform}:${status.username}`} className="space-y-3 py-4 first:pt-0 last:pb-0">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex min-w-0 items-center gap-2">
-                    {meta.icon}
+                    <PlatformIcon platform={status.platform} className="h-4 w-4" />
                     <span className="text-sm font-medium capitalize text-[var(--color-text)]">
                       {status.platform}
                     </span>
@@ -112,7 +73,7 @@ export function RateLimits({ statuses, repos }: RateLimitsProps) {
                 {/* Quota details */}
                 <div className="grid grid-cols-1 gap-2 xs:grid-cols-3">
                   {[
-                    { label: "Repo limit", value: meta.repoLimit },
+                    { label: "Repo limit", value: meta.capacity },
                     { label: "File limit", value: meta.fileLimit },
                     { label: "Rate limit", value: meta.rateInfo },
                   ].map((item) => (

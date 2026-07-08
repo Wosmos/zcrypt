@@ -8,11 +8,9 @@ import { connectPlatform } from "@/lib/api";
 import { invalidatePlatforms } from "@/store/platform";
 import { TelegramConnect } from "@/components/settings/telegram-connect";
 import { toast } from "@/store/toast";
-import { GitlabIcon } from "@/components/icons/gitlab";
-import { HuggingFaceIcon } from "@/components/icons/huggingface";
-import { TelegramIcon } from "@/components/icons/telegram";
+import { PlatformIcon } from "@/components/icons/platform-icon";
+import { PLATFORMS } from "@/lib/platforms";
 import {
-  Github,
   ArrowRight,
   Lock,
   Zap,
@@ -26,51 +24,7 @@ import { cn } from "@/lib/utils";
 
 type Step = "welcome" | "platform" | "token" | "done";
 
-const platforms = [
-  {
-    id: "github",
-    name: "GitHub",
-    icon: Github,
-    description: "Up to 1GB per repo",
-    placeholder: "ghp_xxxxxxxxxxxx",
-    scope: "repo",
-    tokenUrl: "https://github.com/settings/tokens/new?scopes=repo&description=zcrypt",
-    tokenLabel: "Generate token on GitHub",
-  },
-  {
-    id: "gitlab",
-    name: "GitLab",
-    icon: null,
-    customIcon: "gitlab",
-    description: "Up to 10GB per repo",
-    placeholder: "glpat-xxxxxxxxxxxx",
-    scope: "api",
-    tokenUrl: "https://gitlab.com/-/user_settings/personal_access_tokens?name=zcrypt&scopes=api",
-    tokenLabel: "Generate token on GitLab",
-  },
-  {
-    id: "huggingface",
-    name: "Hugging Face",
-    icon: null,
-    customIcon: "huggingface",
-    description: "Up to 300GB per repo",
-    placeholder: "hf_xxxxxxxxxxxx",
-    scope: "write",
-    tokenUrl: "https://huggingface.co/settings/tokens/new?tokenType=write",
-    tokenLabel: "Generate token on Hugging Face",
-  },
-  {
-    id: "telegram",
-    name: "Telegram",
-    icon: null,
-    customIcon: "telegram",
-    description: "Unlimited storage via channels",
-    placeholder: "123456:ABC-DEF|@channel_name",
-    scope: "bot token + channel",
-    tokenUrl: "https://t.me/BotFather",
-    tokenLabel: "Create bot via @BotFather",
-  },
-] as const;
+const platforms = PLATFORMS;
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -218,14 +172,11 @@ export default function OnboardingPage() {
                     )}
                   >
                     <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-[var(--color-surface-1)] flex-shrink-0">
-                      {p.id === "github" && <Github className="h-5 w-5" />}
-                      {p.id === "gitlab" && <GitlabIcon className="h-5 w-5 text-orange-500 dark:text-orange-400" />}
-                      {p.id === "huggingface" && <HuggingFaceIcon className="h-5 w-5 text-yellow-500 dark:text-yellow-400" />}
-                      {p.id === "telegram" && <TelegramIcon className="h-5 w-5 text-sky-500 dark:text-sky-400" />}
+                      <PlatformIcon platform={p.id} className="h-5 w-5" />
                     </div>
                     <div className="flex-1">
                       <p className="text-sm font-medium">{p.name}</p>
-                      <p className="text-xs text-[var(--color-text-muted)]">{p.description}</p>
+                      <p className="text-xs text-[var(--color-text-muted)]">{p.tagline}</p>
                     </div>
                     {isSelected && (
                       <div className="h-5 w-5 rounded-full bg-[var(--color-accent)] flex items-center justify-center">
@@ -261,10 +212,7 @@ export default function OnboardingPage() {
           <div className="space-y-6 animate-fade-in">
             <div className="text-center space-y-3">
               <div className="inline-flex items-center justify-center h-14 w-14 rounded-2xl bg-[var(--color-surface-1)] mx-auto">
-                {platform.id === "github" && <Github className="h-7 w-7" />}
-                {platform.id === "gitlab" && <GitlabIcon className="h-7 w-7 text-orange-500 dark:text-orange-400" />}
-                {platform.id === "huggingface" && <HuggingFaceIcon className="h-7 w-7 text-yellow-500 dark:text-yellow-400" />}
-                {platform.id === "telegram" && <TelegramIcon className="h-7 w-7 text-sky-500 dark:text-sky-400" />}
+                <PlatformIcon platform={platform.id} className="h-7 w-7" />
               </div>
               <h2 className="text-2xl font-bold">
                 Connect {platform.name}

@@ -24,13 +24,10 @@ import { ExportImport } from "@/components/vault/export-import";
 import { LinkedAccounts } from "@/components/settings/linked-accounts";
 import { SecurityActivity } from "@/components/settings/security-activity";
 import { useFileList } from "@/hooks/useFileList";
-import { GitlabIcon } from "@/components/icons/gitlab";
-import { HuggingFaceIcon } from "@/components/icons/huggingface";
-import { TelegramIcon } from "@/components/icons/telegram";
+import { PlatformIcon } from "@/components/icons/platform-icon";
 import { TelegramConnect } from "@/components/settings/telegram-connect";
 import type { PlatformStatus } from "@/types";
 import {
-  Github,
   CheckCircle2,
   Key,
   ExternalLink,
@@ -52,13 +49,10 @@ import {
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
-import { platformName } from "@/lib/platforms";
+import { PLATFORMS, platformName } from "@/lib/platforms";
 
 export function SettingsContent() {
-  const [githubToken, setGithubToken] = useState("");
-  const [gitlabToken, setGitlabToken] = useState("");
-  const [huggingfaceToken, setHuggingfaceToken] = useState("");
-  const [telegramToken, setTelegramToken] = useState("");
+  const [tokens, setTokens] = useState<Record<string, string>>({});
   const [connecting, setConnecting] = useState<string | null>(null);
   const [disconnecting, setDisconnecting] = useState<string | null>(null);
   const [scopeOverrides, setScopeOverrides] = useState<Record<string, boolean>>({});
@@ -87,18 +81,8 @@ export function SettingsContent() {
     ? effectiveStatuses
     : effectiveStatuses.filter((s) => !s.is_global);
 
-  const githubAccounts = visibleStatuses.filter(
-    (s) => s.platform === "github" && s.connected
-  );
-  const gitlabAccounts = visibleStatuses.filter(
-    (s) => s.platform === "gitlab" && s.connected
-  );
-  const huggingfaceAccounts = visibleStatuses.filter(
-    (s) => s.platform === "huggingface" && s.connected
-  );
-  const telegramAccounts = visibleStatuses.filter(
-    (s) => s.platform === "telegram" && s.connected
-  );
+  const accountsFor = (platform: string) =>
+    visibleStatuses.filter((s) => s.platform === platform && s.connected);
 
   const handleConnect = async (platform: string, token: string): Promise<boolean> => {
     if (!token.trim()) return false;
@@ -109,10 +93,7 @@ export function SettingsContent() {
     try {
       await connectPlatform(platform, token.trim());
       toast.success(`${platformName(platform)} connected!`);
-      if (platform === "github") setGithubToken("");
-      if (platform === "gitlab") setGitlabToken("");
-      if (platform === "huggingface") setHuggingfaceToken("");
-      if (platform === "telegram") setTelegramToken("");
+      setTokens((prev) => ({ ...prev, [platform]: "" }));
       refresh();
       return true;
     } catch (err) {
@@ -283,88 +264,36 @@ export function SettingsContent() {
           description="Connect storage backends. zcrypt distributes encrypted, disguised chunks across your connected accounts."
         >
           <div className="space-y-4">
-            <PlatformSection
-              icon={<Github className="h-5 w-5" />}
-              name="GitHub"
-              platform="github"
-              description="Personal access token with repo scope — up to 1 GB per repo"
-              tokenUrl="https://github.com/settings/tokens/new?scopes=repo&description=zcrypt"
-              tokenLabel="Generate token on GitHub"
-              placeholder="ghp_xxxxxxxxxxxx"
-              token={githubToken}
-              onTokenChange={setGithubToken}
-              onConnect={() => handleConnect("github", githubToken)}
-              connecting={connecting === "github"}
-              connectedAccounts={githubAccounts}
-              onDisconnect={(username) => handleDisconnectClick("github", username)}
-              disconnecting={disconnecting}
-              onToggleScope={handleToggleScope}
-              isAdmin={isAdmin}
-            />
-
-            <PlatformSection
-              icon={<GitlabIcon className="h-5 w-5 text-orange-500 dark:text-orange-400" />}
-              name="GitLab"
-              platform="gitlab"
-              description="Personal access token with api scope — up to 10 GB per repo"
-              tokenUrl="https://gitlab.com/-/user_settings/personal_access_tokens?name=zcrypt&scopes=api"
-              tokenLabel="Generate token on GitLab"
-              placeholder="glpat-xxxxxxxxxxxx"
-              token={gitlabToken}
-              onTokenChange={setGitlabToken}
-              onConnect={() => handleConnect("gitlab", gitlabToken)}
-              connecting={connecting === "gitlab"}
-              connectedAccounts={gitlabAccounts}
-              onDisconnect={(username) => handleDisconnectClick("gitlab", username)}
-              disconnecting={disconnecting}
-              onToggleScope={handleToggleScope}
-              isAdmin={isAdmin}
-            />
-
-            <PlatformSection
-              icon={<HuggingFaceIcon className="h-5 w-5 text-yellow-500 dark:text-yellow-400" />}
-              name="Hugging Face"
-              platform="huggingface"
-              description="Access token with write permission — up to 300 GB per repo"
-              tokenUrl="https://huggingface.co/settings/tokens/new?tokenType=write"
-              tokenLabel="Generate token on Hugging Face"
-              placeholder="hf_xxxxxxxxxxxx"
-              token={huggingfaceToken}
-              onTokenChange={setHuggingfaceToken}
-              onConnect={() => handleConnect("huggingface", huggingfaceToken)}
-              connecting={connecting === "huggingface"}
-              connectedAccounts={huggingfaceAccounts}
-              onDisconnect={(username) => handleDisconnectClick("huggingface", username)}
-              disconnecting={disconnecting}
-              onToggleScope={handleToggleScope}
-              isAdmin={isAdmin}
-            />
-
-            <PlatformSection
-              icon={<TelegramIcon className="h-5 w-5 text-sky-500 dark:text-sky-400" />}
-              name="Telegram"
-              platform="telegram"
-              description="Bot token + channel — guided setup, unlimited storage"
-              tokenUrl="https://t.me/BotFather"
-              tokenLabel="Create bot via @BotFather"
-              placeholder="123456:ABC-DEF|@channel_name"
-              token={telegramToken}
-              onTokenChange={setTelegramToken}
-              onConnect={() => handleConnect("telegram", telegramToken)}
-              connecting={connecting === "telegram"}
-              connectedAccounts={telegramAccounts}
-              onDisconnect={(username) => handleDisconnectClick("telegram", username)}
-              disconnecting={disconnecting}
-              onToggleScope={handleToggleScope}
-              isAdmin={isAdmin}
-              customConnect={
-                <TelegramConnect
-                  onConnect={(token) => handleConnect("telegram", token)}
-                  connecting={connecting === "telegram"}
-                  hasAccounts={telegramAccounts.length > 0}
-                />
-              }
-            />
+            {PLATFORMS.map((p) => (
+              <PlatformSection
+                key={p.id}
+                icon={<PlatformIcon platform={p.id} className="h-5 w-5" />}
+                name={p.name}
+                platform={p.id}
+                description={p.description}
+                tokenUrl={p.tokenUrl}
+                tokenLabel={p.tokenLabel}
+                placeholder={p.placeholder}
+                token={tokens[p.id] ?? ""}
+                onTokenChange={(v) => setTokens((prev) => ({ ...prev, [p.id]: v }))}
+                onConnect={() => handleConnect(p.id, tokens[p.id] ?? "")}
+                connecting={connecting === p.id}
+                connectedAccounts={accountsFor(p.id)}
+                onDisconnect={(username) => handleDisconnectClick(p.id, username)}
+                disconnecting={disconnecting}
+                onToggleScope={handleToggleScope}
+                isAdmin={isAdmin}
+                customConnect={
+                  p.id === "telegram" ? (
+                    <TelegramConnect
+                      onConnect={(token) => handleConnect("telegram", token)}
+                      connecting={connecting === "telegram"}
+                      hasAccounts={accountsFor("telegram").length > 0}
+                    />
+                  ) : undefined
+                }
+              />
+            ))}
           </div>
         </Section>
       </div>
