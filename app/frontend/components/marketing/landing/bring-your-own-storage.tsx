@@ -1,27 +1,20 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Github, GitBranch, Layers, Send, Monitor } from "@/lib/icons";
-import { motion, useReducedMotion } from "motion/react";
+import { Monitor } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { ScrollReveal } from "./scroll-reveal";
+import { STORAGE_PLATFORMS } from "./storage-platforms";
 
 // BYOB is the core of the model: zcrypt never sells storage. Encrypted chunks
 // fan out into accounts the user already owns — shown literally as a beam
 // diagram from "your device" to the platforms (each with its real capacity).
 
-const backends = [
-  { Icon: Github, name: "GitHub", limit: "up to 850 MB / repo", color: "text-[var(--color-text)]" },
-  { Icon: GitBranch, name: "GitLab", limit: "up to 9 GB / repo", color: "text-[#fc6d26]" },
-  { Icon: Layers, name: "Hugging Face", limit: "up to 280 GB / repo", color: "text-[#ffd21e]" },
-  { Icon: Send, name: "Telegram", limit: "50 MB / file · unlimited", color: "text-[#26a5e4]" },
-];
-
 // Beams drawn in real pixel coordinates (viewBox = measured size) so the node
 // stays a true circle and the curves aren't distorted.
 const TARGET_FRACTIONS = [0.12, 0.37, 0.63, 0.88];
 
-function FanBeams({ reduce }: { reduce: boolean }) {
+function FanBeams() {
   const ref = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState({ w: 0, h: 0 });
 
@@ -63,25 +56,19 @@ function FanBeams({ reduce }: { reduce: boolean }) {
               strokeWidth={1.5}
             />
           ))}
-          {!reduce &&
-            targets.map((y, i) => (
-              <motion.path
-                key={`flow-${i}`}
-                d={path(y)}
-                fill="none"
-                stroke="rgb(6 182 212)"
-                strokeWidth={2}
-                strokeLinecap="round"
-                strokeDasharray="6 16"
-                animate={{ strokeDashoffset: [0, -22] }}
-                transition={{
-                  duration: 1.8,
-                  repeat: Infinity,
-                  ease: "linear",
-                  delay: i * 0.16,
-                }}
-              />
-            ))}
+          {targets.map((y, i) => (
+            <path
+              key={`flow-${i}`}
+              d={path(y)}
+              fill="none"
+              stroke="rgb(6 182 212)"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeDasharray="6 16"
+              className="animate-flow-dash"
+              style={{ "--delay": `${i * 0.16}s` } as React.CSSProperties}
+            />
+          ))}
           <circle cx={splitX} cy={midY} r={4} fill="rgb(6 182 212)" />
         </svg>
       )}
@@ -90,8 +77,6 @@ function FanBeams({ reduce }: { reduce: boolean }) {
 }
 
 export function BringYourOwnStorage() {
-  const reduce = useReducedMotion() ?? false;
-
   return (
     <section className="px-4 py-24 sm:py-28">
       <div className="mx-auto max-w-6xl">
@@ -126,12 +111,12 @@ export function BringYourOwnStorage() {
                 </span>
               </div>
 
-              <FanBeams reduce={reduce} />
+              <FanBeams />
             </div>
 
             {/* Platform targets */}
             <div className="flex w-full flex-col gap-3 lg:w-[380px] lg:flex-shrink-0">
-              {backends.map((b) => {
+              {STORAGE_PLATFORMS.map((b) => {
                 const Icon = b.Icon;
                 return (
                   <div
@@ -141,7 +126,7 @@ export function BringYourOwnStorage() {
                     <div
                       className={cn(
                         "grid h-11 w-11 flex-shrink-0 place-items-center rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)]",
-                        b.color
+                        b.colorClass
                       )}
                     >
                       <Icon className="h-5 w-5" />
@@ -149,7 +134,7 @@ export function BringYourOwnStorage() {
                     <div className="min-w-0 flex-1">
                       <h3 className="text-sm font-bold tracking-tight">{b.name}</h3>
                       <p className="font-mono text-[0.7rem] text-[var(--color-text-muted)]">
-                        {b.limit}
+                        {b.capacity}
                       </p>
                     </div>
                   </div>
