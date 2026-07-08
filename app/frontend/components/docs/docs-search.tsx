@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useClickOutside } from "@/hooks/useClickOutside";
 import Fuse from "fuse.js";
 import { Search, ArrowRight } from "@/lib/icons";
 import { docsSearchIndex, type SearchEntry } from "@/lib/docs-search-index";
@@ -81,15 +82,7 @@ export default function DocsSearch() {
   }, [results]);
 
   // Click outside to close
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
+  useClickOutside(containerRef, () => setOpen(false));
 
   // Keyboard shortcut: / to focus
   useEffect(() => {

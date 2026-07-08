@@ -52,13 +52,7 @@ import {
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
-
-const platformNames: Record<string, string> = {
-  github: "GitHub",
-  gitlab: "GitLab",
-  huggingface: "Hugging Face",
-  telegram: "Telegram",
-};
+import { platformName } from "@/lib/platforms";
 
 export function SettingsContent() {
   const [githubToken, setGithubToken] = useState("");
@@ -114,7 +108,7 @@ export function SettingsContent() {
 
     try {
       await connectPlatform(platform, token.trim());
-      toast.success(`${platformNames[platform] ?? platform} connected!`);
+      toast.success(`${platformName(platform)} connected!`);
       if (platform === "github") setGithubToken("");
       if (platform === "gitlab") setGitlabToken("");
       if (platform === "huggingface") setHuggingfaceToken("");
@@ -144,7 +138,7 @@ export function SettingsContent() {
     try {
       await disconnectPlatform(platform, username);
       toast.success(
-        `${platformNames[platform] ?? platform} @${username} disconnected`
+        `${platformName(platform)} @${username} disconnected`
       );
       setDisconnectTarget(null);
       refresh();
@@ -421,7 +415,7 @@ export function SettingsContent() {
         title="Disconnect platform?"
         description={
           disconnectTarget
-            ? `Disconnect ${platformNames[disconnectTarget.platform] ?? disconnectTarget.platform} account @${disconnectTarget.username}? Files stored on this platform will remain but may become inaccessible.`
+            ? `Disconnect ${platformName(disconnectTarget.platform)} account @${disconnectTarget.username}? Files stored on this platform will remain but may become inaccessible.`
             : ""
         }
         confirmLabel="Disconnect"

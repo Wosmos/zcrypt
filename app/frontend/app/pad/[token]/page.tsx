@@ -9,17 +9,10 @@ import {
   FileText, Copy, Check, AlertTriangle, CheckCircle2, Clock, Shield,
 } from "@/lib/icons";
 import { formatBytes } from "@/lib/utils";
+import { keyFromFragment } from "@/lib/share-link";
 import type { PadInfo } from "@/types";
 
 type PageState = "loading" | "ready" | "decrypting" | "viewing" | "error";
-
-function getKeyFromFragment(): string | null {
-  if (typeof window === "undefined") return null;
-  const hash = window.location.hash;
-  if (!hash) return null;
-  const match = hash.match(/key=([A-Za-z0-9+/=]+)/);
-  return match ? match[1] : null;
-}
 
 function formatExpiry(expiresAt: string): string {
   const diff = new Date(expiresAt).getTime() - Date.now();
@@ -41,7 +34,7 @@ export default function PadViewPage() {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    setEncryptionKey(getKeyFromFragment());
+    setEncryptionKey(keyFromFragment());
   }, []);
 
   useEffect(() => {

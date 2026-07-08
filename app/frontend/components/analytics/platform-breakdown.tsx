@@ -6,6 +6,7 @@ import { Github } from "@/lib/icons";
 import { GitlabIcon } from "@/components/icons/gitlab";
 import { HuggingFaceIcon } from "@/components/icons/huggingface";
 import { TelegramIcon } from "@/components/icons/telegram";
+import { PLATFORM_COLORS, platformName } from "@/lib/platforms";
 
 interface PlatformBreakdownProps {
   statuses: PlatformStatus[];
@@ -17,20 +18,6 @@ const platformIcons: Record<string, React.ReactNode> = {
   gitlab: <GitlabIcon className="h-4 w-4 text-orange-500" />,
   huggingface: <HuggingFaceIcon className="h-4 w-4 text-yellow-500" />,
   telegram: <TelegramIcon className="h-4 w-4 text-sky-500" />,
-};
-
-const platformColors: Record<string, string> = {
-  github: "#6366f1",
-  gitlab: "#f97316",
-  huggingface: "#eab308",
-  telegram: "#0ea5e9",
-};
-
-const platformLabels: Record<string, string> = {
-  github: "GitHub",
-  gitlab: "GitLab",
-  huggingface: "Hugging Face",
-  telegram: "Telegram",
 };
 
 export function PlatformBreakdown({ statuses, repos }: PlatformBreakdownProps) {
@@ -67,8 +54,8 @@ export function PlatformBreakdown({ statuses, repos }: PlatformBreakdownProps) {
           platforms.map((platform) => {
             const data = usage.get(platform) || { used: 0, max: 0, repoCount: 0 };
             const percent = data.max > 0 ? Math.min(100, (data.used / data.max) * 100) : 0;
-            const color = platformColors[platform] || "#6b7280";
-            const label = platformLabels[platform] ?? platform;
+            const color = PLATFORM_COLORS[platform] || "#6b7280";
+            const label = platformName(platform);
             const hasUploads = data.repoCount > 0;
 
             return (
