@@ -21,18 +21,7 @@ import { cn } from "@/lib/utils";
 import { Key, Trash2, Globe, User, Plus, X } from "@/lib/icons";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import type { PlatformTokenInfo } from "@/types";
-
-const platformNames: Record<string, string> = {
-  github: "GitHub",
-  gitlab: "GitLab",
-  huggingface: "Hugging Face",
-};
-
-const platformShort: Record<string, string> = {
-  github: "GH",
-  gitlab: "GL",
-  huggingface: "HF",
-};
+import { PLATFORM_NAMES as platformNames, PLATFORM_SHORT as platformShort } from "@/lib/platforms";
 
 export function TokenManagement({
   tokens,
