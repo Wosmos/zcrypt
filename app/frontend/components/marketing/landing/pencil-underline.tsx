@@ -1,9 +1,10 @@
 "use client";
 
-import { motion } from "motion/react";
+import { useInViewOnce } from "@/hooks/useInViewOnce";
 
 /**
- * Gel-pen ink-style SVG decoration that animates in with scaleX.
+ * Gel-pen ink-style SVG decoration that reveals with a scaleX/scale transition
+ * the first time it scrolls into view.
  *
  * Variants:
  * - "ink"       — tapered filled underline, like a gel-pen stroke
@@ -48,6 +49,7 @@ export function PencilUnderline({
   delay?: number;
   width?: string;
 }) {
+  const { ref, isVisible } = useInViewOnce<SVGPathElement | SVGEllipseElement>("0px");
   const showFilter = !filterRendered;
   if (showFilter) filterRendered = true;
 
@@ -63,16 +65,18 @@ export function PencilUnderline({
           preserveAspectRatio="none"
           style={{ width, height: "0.4em", display: "block" }}
         >
-          <motion.path
+          <path
+            ref={ref as React.Ref<SVGPathElement>}
             d="M0,4 C30,2 60,6 100,3 C140,0 170,5 200,3 L200,17 C170,19 140,14 100,17 C60,20 30,15 0,17 Z"
             fill={color}
             opacity="0.25"
             filter="url(#ink-bleed)"
-            style={{ transformOrigin: "left" }}
-            initial={{ scaleX: 0 }}
-            whileInView={{ scaleX: 1 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.7, delay, ease: [0.16, 1, 0.3, 1] }}
+            className="pencil-reveal"
+            style={{
+              transformOrigin: "left",
+              transform: isVisible ? "scaleX(1)" : "scaleX(0)",
+              transitionDelay: `${delay}s`,
+            }}
           />
         </svg>
       </span>
@@ -92,7 +96,8 @@ export function PencilUnderline({
           fill="none"
           style={{ width: "100%", height: "100%", display: "block" }}
         >
-          <motion.ellipse
+          <ellipse
+            ref={ref as React.Ref<SVGEllipseElement>}
             cx="100"
             cy="50"
             rx="92"
@@ -102,14 +107,13 @@ export function PencilUnderline({
             stroke={color}
             strokeWidth="2"
             strokeLinecap="round"
-            opacity="0.5"
-            filter="url(#ink-bleed)"
-            transform="rotate(-1.5 100 50)"
-            style={{ transformOrigin: "center" }}
-            initial={{ scale: 0, opacity: 0 }}
-            whileInView={{ scale: 1, opacity: 0.5 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6, delay, ease: [0.16, 1, 0.3, 1] }}
+            className="pencil-reveal"
+            style={{
+              transformOrigin: "center",
+              transform: isVisible ? "rotate(-1.5deg) scale(1)" : "rotate(-1.5deg) scale(0)",
+              opacity: isVisible ? 0.5 : 0,
+              transitionDelay: `${delay}s`,
+            }}
           />
         </svg>
       </span>
@@ -134,15 +138,17 @@ export function PencilUnderline({
           transform: "rotate(-0.5deg)",
         }}
       >
-        <motion.path
+        <path
+          ref={ref as React.Ref<SVGPathElement>}
           d="M2,18 C40,17 80,19 120,16 C150,14 185,12 196,10 C200,10 202,22 195,24 C150,26 80,24 2,18 Z"
           fill={color}
           opacity="0.75"
-          style={{ transformOrigin: "left" }}
-          initial={{ scaleX: 0 }}
-          whileInView={{ scaleX: 1 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.7, delay, ease: [0.16, 1, 0.3, 1] }}
+          className="pencil-reveal"
+          style={{
+            transformOrigin: "left",
+            transform: isVisible ? "scaleX(1)" : "scaleX(0)",
+            transitionDelay: `${delay}s`,
+          }}
         />
       </svg>
     </span>
