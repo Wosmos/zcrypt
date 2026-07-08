@@ -1,9 +1,6 @@
-"use client";
-
 import Link from "next/link";
 import { Download, ShieldCheck, ChevronRight } from "@/lib/icons";
-import { RELEASES_FALLBACK_URL, type CliBinary } from "@/lib/releases";
-import { useLatestRelease } from "./use-release";
+import { RELEASES_FALLBACK_URL, type CliBinary, type ReleaseData } from "@/lib/releases";
 
 function group(binaries: CliBinary[]) {
   const order: CliBinary["os"][] = ["macOS", "Linux", "Windows"];
@@ -13,8 +10,7 @@ function group(binaries: CliBinary[]) {
 }
 
 /** Prebuilt CLI/TUI binary downloads + checksums, from the latest release. */
-export function CliBinaries() {
-  const release = useLatestRelease();
+export function CliBinaries({ release }: { release: ReleaseData | null }) {
   const groups = release ? group(release.cli) : [];
 
   return (
