@@ -1,7 +1,8 @@
 "use client";
 
-import { useId } from "react";
+import { memo, useId } from "react";
 import type { ExplorerEntry, ExplorerActions } from "./types";
+import { explorerItemPropsEqual } from "./types";
 import type { DecryptedFolder } from "@/hooks/useFolders";
 import type { FileMetadata } from "@/types";
 import type { RowDragProps } from "./explorer-row";
@@ -373,6 +374,16 @@ function FileCardInner({
           <div className="flex h-[104px] w-full items-end justify-center sm:h-[92px]">
             {thumbnailUrl ? (
               <div className="relative inline-flex">
+                {/* Intentionally a raw <img>, NOT next/image. This preview is
+                    sized by its OWN intrinsic aspect ratio (w-auto/h-auto +
+                    max-h): a portrait thumb renders tall, a landscape one wide,
+                    macOS-icon style. next/image needs known width+height or a
+                    `fill` container — `fill` would stretch every preview to a
+                    fixed box and destroy that intrinsic sizing, and the real
+                    pixel dimensions of the decrypted thumbnail aren't known at
+                    render time. The src is already an unoptimizable client-side
+                    data: URI anyway (see next.config zero-knowledge note), so
+                    next/image would add zero benefit here. */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={thumbnailUrl}
@@ -465,7 +476,7 @@ function FileCardInner({
   );
 }
 
-export function ExplorerCard({
+function ExplorerCardImpl({
   entry,
   actions,
   selectMode,
@@ -522,3 +533,11 @@ export function ExplorerCard({
     />
   );
 }
+
+/**
+ * Memoized so a parent (vault-explorer) re-render doesn't re-render every card
+ * in the `.map()` — only cards whose entry / selection / focus / drag-visual
+ * state actually changed. See `explorerItemPropsEqual` for why callback identity
+ * is intentionally excluded from the comparison.
+ */
+export const ExplorerCard = memo(ExplorerCardImpl, explorerItemPropsEqual);

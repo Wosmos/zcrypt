@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import NextImage from "next/image";
 import {
   X,
   Download,
@@ -555,12 +556,15 @@ function ViewerBody({
     if (kind === "image" && thumbnailUrl) {
       return (
         <div className="relative flex h-full w-full items-center justify-center overflow-hidden">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          {/* Blurred cached thumbnail (data:/blob:) shown while the full image
+              decrypts — unoptimized via next.config; `fill` covers the box. */}
+          <NextImage
             src={thumbnailUrl}
             alt=""
             aria-hidden
-            className="h-full w-full scale-105 object-contain opacity-60 blur-xl"
+            fill
+            sizes="100vw"
+            className="scale-105 object-contain opacity-60 blur-xl"
           />
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
             <LogoSpinner size="md" speed="fast" />

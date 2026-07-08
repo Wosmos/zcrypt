@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { usePassphraseStore } from "@/store/passphrase";
 import { Lock, X, Loader2 } from "@/lib/icons";
 import { PassphraseStrength } from "@/components/ui/passphrase-strength";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface PassphraseModalProps {
   open: boolean;
@@ -167,11 +168,9 @@ export function PassphraseModal({
           <PassphraseStrength passphrase={passphrase} />
 
           <label className="flex items-center gap-2 mt-3 cursor-pointer select-none">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={remember}
-              onChange={(e) => setRemember(e.target.checked)}
-              className="h-3.5 w-3.5 rounded border-[var(--color-border)] accent-cyan-500"
+              onCheckedChange={(checked) => setRemember(checked === true)}
             />
             <span className="text-xs text-[var(--color-text-secondary)]">
               Keep me unlocked on this device

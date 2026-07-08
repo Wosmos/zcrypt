@@ -122,8 +122,12 @@ describe("sealTo / openSealed (ECIES sharing primitive)", () => {
     const sealed = await sealTo(recipient.publicKey, generateSpaceKey());
 
     // Flip a byte in the base64 blob's first chunk (the ephemeral pub key).
+    // XOR the first byte so the result is guaranteed to differ from the
+    // original (unconditionally writing "\x00" flakes ~1/256 when the first
+    // byte is already 0x00, leaving the blob unchanged and decryptable).
     const bytes = atob(sealed);
-    const tampered = btoa("\x00" + bytes.slice(1));
+    const flipped = String.fromCharCode(bytes.charCodeAt(0) ^ 0xff);
+    const tampered = btoa(flipped + bytes.slice(1));
     await expect(openSealed(tampered)).rejects.toThrow();
   });
 

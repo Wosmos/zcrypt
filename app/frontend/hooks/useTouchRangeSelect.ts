@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
+import { createEdgeAutoScroll, type EdgeAutoScroll } from "@/hooks/edge-auto-scroll";
 
 /**
  * Drag-to-select for the Vault grid (mobile), like the phone gallery: while
@@ -21,8 +22,6 @@ import { useCallback, useEffect, useRef } from "react";
  */
 
 const MOVE_START_PX = 8; // move past this to commit to a sweep (vs a tap)
-const EDGE_ZONE = 72; // px from the scroller edge that auto-scrolls
-const EDGE_SPEED = 14; // px per frame while in the edge zone
 
 interface Options {
   /** Gate to touch + select mode. When false this is a no-op. */
@@ -57,16 +56,16 @@ export function useTouchRangeSelect({
     lastId: null as string | null, // last file id we dispatched a sweep to (dedup)
     sweeping: false,
     scroller: null as HTMLElement | null,
-    raf: null as number | null,
   });
 
   const noop = () => {};
   const onMoveRef = useRef<(e: TouchEvent) => void>(noop);
   const onEndRef = useRef<(e: TouchEvent) => void>(noop);
+  const autoScroll = useRef<EdgeAutoScroll | null>(null);
 
   const teardown = useCallback(() => {
     const s = st.current;
-    if (s.raf) cancelAnimationFrame(s.raf);
+    autoScroll.current?.stop();
     document.removeEventListener("touchmove", onMoveRef.current);
     document.removeEventListener("touchend", onEndRef.current);
     document.removeEventListener("touchcancel", onEndRef.current);
@@ -74,7 +73,6 @@ export function useTouchRangeSelect({
     s.lastId = null;
     s.sweeping = false;
     s.scroller = null;
-    s.raf = null;
   }, []);
 
   // Dispatch a range select only when the finger has entered a DIFFERENT file
@@ -89,22 +87,14 @@ export function useTouchRangeSelect({
 
   // Auto-scroll while sweeping near a scroller edge, re-selecting under the
   // (stationary) finger as new cards slide into view.
-  const tick = useCallback(() => {
-    const s = st.current;
-    if (!s.sweeping || !s.scroller) {
-      s.raf = null;
-      return;
-    }
-    const rect = s.scroller.getBoundingClientRect();
-    let dy = 0;
-    if (s.lastY < rect.top + EDGE_ZONE) dy = -EDGE_SPEED;
-    else if (s.lastY > rect.bottom - EDGE_ZONE) dy = EDGE_SPEED;
-    if (dy !== 0) {
-      s.scroller.scrollTop += dy;
-      sweepTo(s.lastX, s.lastY);
-    }
-    s.raf = requestAnimationFrame(tick);
-  }, []);
+  if (!autoScroll.current) {
+    autoScroll.current = createEdgeAutoScroll({
+      isActive: () => st.current.sweeping,
+      getScroller: () => st.current.scroller,
+      getPoint: () => ({ x: st.current.lastX, y: st.current.lastY }),
+      onScrolled: (x, y) => sweepTo(x, y),
+    });
+  }
 
   useEffect(() => {
     onMoveRef.current = (e: TouchEvent) => {
@@ -123,7 +113,7 @@ export function useTouchRangeSelect({
         cbRef.current.onSweepStart?.();
         // The anchor card itself is part of the range from the very first move.
         sweepTo(s.startX, s.startY);
-        s.raf = requestAnimationFrame(tick);
+        autoScroll.current?.start();
       }
       // Own the gesture: stop the list from scrolling under the sweep.
       e.preventDefault();
@@ -131,7 +121,7 @@ export function useTouchRangeSelect({
     };
 
     onEndRef.current = () => teardown();
-  }, [scrollContainerId, teardown, tick]);
+  }, [scrollContainerId, teardown]);
 
   // Attach to each file card's onTouchStart while in select mode.
   const onPressStart = useCallback(

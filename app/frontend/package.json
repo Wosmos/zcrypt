@@ -50,7 +50,6 @@
     "@tanstack/react-query-devtools": "^5.101.2",
     "@tauri-apps/api": "^2.0.0",
     "@tauri-apps/plugin-dialog": "^2.0.0",
-    "@tauri-apps/plugin-fs": "^2.0.0",
     "@tauri-apps/plugin-shell": "^2.0.0",
     "@vercel/analytics": "^2.0.1",
     "class-variance-authority": "^0.7.1",
@@ -60,7 +59,6 @@
     "fflate": "^0.8.2",
     "fuse.js": "^7.1.0",
     "highlight.js": "^11.11.1",
-    "lucide-react": "^1.21.0",
     "mammoth": "^1.12.0",
     "marked": "^18.0.5",
     "motion": "^12.0.0",
@@ -76,9 +74,7 @@
     "zustand": "^5.0.0"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
     "@next/eslint-plugin-next": "^16.0.0",
-    "@tauri-apps/cli": "^2.0.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/node": "^22.0.0",

@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { IconButton } from "@/components/ui/icon-button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { SkeletonText } from "@/components/ui/skeletons";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import {
@@ -403,11 +404,9 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
                 {showCreate ? (
                   <div className="space-y-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-4">
                     <label className="flex cursor-pointer items-center gap-2">
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={usePassword}
-                        onChange={(e) => setUsePassword(e.target.checked)}
-                        className="rounded border-[var(--color-border)] accent-[var(--color-accent)]"
+                        onCheckedChange={(checked) => setUsePassword(checked === true)}
                       />
                       <span className="text-sm">Password protect</span>
                     </label>

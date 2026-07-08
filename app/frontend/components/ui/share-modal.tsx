@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { X, Share2, Copy, Check, Link2, Lock, Trash2 } from "@/lib/icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { createShare, revokeShare, getFileMeta } from "@/lib/api";
 import { useSharesQuery, invalidateShares } from "@/hooks/useShares";
 import { toast } from "@/store/toast";
@@ -179,11 +180,9 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
               {/* Password toggle */}
               <div className="space-y-2">
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={usePassword}
-                    onChange={(e) => setUsePassword(e.target.checked)}
-                    className="rounded border-[var(--color-border)] accent-[var(--color-accent)]"
+                    onCheckedChange={(checked) => setUsePassword(checked === true)}
                   />
                   <span className="text-sm">Password protect</span>
                 </label>

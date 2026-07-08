@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import NextImage from "next/image";
 import { FileMetadata } from "@/types";
 import {
   File,
@@ -25,7 +26,6 @@ import {
   MoreHorizontal,
   Share2,
 } from "@/lib/icons";
-import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
 import { formatBytes, formatDate, getFileTypeInfo, isImageFile } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -120,8 +120,9 @@ export function FileCard({ file, downloadState = "idle", onDownload, onDelete, o
       {/* Thumbnail / Icon */}
       <div className="flex-shrink-0">
         {thumbnailUrl ? (
-          <div className="h-10 w-10 rounded-lg overflow-hidden bg-[var(--color-surface-1)]">
-            <img src={thumbnailUrl} alt="" className="h-full w-full object-cover" />
+          <div className="relative h-10 w-10 rounded-lg overflow-hidden bg-[var(--color-surface-1)]">
+            {/* Decrypted thumbnail (data:/blob:) — unoptimized via next.config. */}
+            <NextImage src={thumbnailUrl} alt="" fill sizes="40px" className="object-cover" />
           </div>
         ) : (
           <div className={cn(
@@ -267,9 +268,9 @@ export function FileCard({ file, downloadState = "idle", onDownload, onDelete, o
         "relative flex items-center justify-center h-[130px] overflow-hidden",
         !thumbnailUrl && `bg-gradient-to-b ${typeInfo.gradient}`
       )}>
-        {/* Image thumbnail */}
+        {/* Image thumbnail — decrypted data:/blob:, unoptimized via next.config. */}
         {thumbnailUrl ? (
-          <img src={thumbnailUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
+          <NextImage src={thumbnailUrl} alt="" fill sizes="(max-width: 768px) 50vw, 240px" className="object-cover" />
         ) : thumbLoading && isImage ? (
           <div className="absolute inset-0 bg-[var(--color-surface-1)] flex items-center justify-center">
             <LogoSpinner size={20} speed="fast" />
