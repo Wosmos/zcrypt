@@ -3,22 +3,13 @@
 import { memo } from "react";
 import NextImage from "next/image";
 import type { ExplorerEntry, ExplorerActions } from "./types";
-import { explorerItemPropsEqual } from "./types";
+import { explorerItemPropsEqual, FOCUS_RING, ROW_SELECTED } from "./types";
 import type { DecryptedFolder } from "@/hooks/useFolders";
 import type { FileMetadata } from "@/types";
-import { formatBytes, formatDate, getFileTypeInfo, cn, midTrunc } from "@/lib/utils";
+import { formatBytes, formatDate, getFileTypeInfo, cn, midTrunc, fileIconFor, savingsPercent } from "@/lib/utils";
 import { useThumbnail } from "@/hooks/useThumbnail";
 import { prefetchOnHover } from "@/hooks/useFileDecryptor";
 import {
-  File,
-  FileText,
-  Image,
-  Video,
-  Music,
-  Archive,
-  Code,
-  Cog,
-  Table,
   Folder,
   FolderOpen,
   Eye,
@@ -42,25 +33,6 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-
-const iconMap: Record<string, typeof File> = {
-  File, FileText, Image, Video, Music, Archive, Code, Cog, Table,
-};
-
-/**
- * Solid focus ring shared across every interactive explorer element (a11y-H3),
- * mirroring the transfer dock: a high-contrast accent ring with an offset that
- * reads against the surface. Use everywhere instead of the old faint `/40` ring.
- */
-const FOCUS_RING =
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)]";
-
-/**
- * Accent selection treatment (M4) — one consistent look shared by list rows and
- * grid cards: a soft accent tint plus an inset accent ring.
- */
-const ROW_SELECTED =
-  "bg-[var(--color-accent)]/10 ring-1 ring-inset ring-[var(--color-accent)]/40";
 
 /** Drag/drop wiring passed down from the explorer (mirrors folder-browser). */
 export interface RowDragProps {
@@ -292,12 +264,9 @@ function FileRow({
   drag: RowDragProps;
 }) {
   const typeInfo = getFileTypeInfo(file.original_name);
-  const Icon = iconMap[typeInfo.icon] || File;
+  const Icon = fileIconFor(file.original_name);
   const { thumbnailUrl } = useThumbnail(file.id, file.original_name, file.original_size);
-  const savings =
-    file.original_size > 0
-      ? ((1 - file.encrypted_size / file.original_size) * 100).toFixed(0)
-      : "0";
+  const savings = savingsPercent(file.original_size, file.encrypted_size);
 
   return (
     <div

@@ -17,10 +17,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { SkeletonText } from "@/components/ui/skeletons";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import {
-  File, FileText, Image, Video, Music, Archive, Code, Cog, Table,
-  Lock, Copy, Check, Layers, Key, Clock, HardDrive, Database, ShieldCheck,
-  Share2, Link2, Trash2, Plus, Cloud,
+  Lock, Copy, Check, Layers, Key, Clock, HardDrive, Database,
+  Share2, Link2, Plus, Cloud,
 } from "@/lib/icons";
+import { MetaRow, CopyField, EncryptionAssuranceCard, ShareLinkRow } from "@/components/files/details-shared";
 
 /** Human label for a storage platform code (from FileMetadata.platform). */
 const PLATFORM_LABELS: Record<string, string> = {
@@ -32,19 +32,14 @@ const PLATFORM_LABELS: Record<string, string> = {
 function platformLabel(p: string): string {
   return PLATFORM_LABELS[p.toLowerCase()] ?? p.charAt(0).toUpperCase() + p.slice(1);
 }
-import {
-  getFileMeta, createShare, revokeShare,
-  type FileMetaResponse,
-} from "@/lib/api";
+import { revokeShare, type FileMetaResponse } from "@/lib/api";
+import { createFileShareLink } from "@/lib/file-share";
 import { useSharesQuery, invalidateShares, useFileMetaQuery } from "@/hooks/useShares";
 import { usePassphraseStore } from "@/store/passphrase";
 import { toast } from "@/store/toast";
-import { formatBytes, formatDate, getFileTypeInfo, cn } from "@/lib/utils";
+import { copyToClipboard } from "@/lib/clipboard";
+import { formatBytes, getFileTypeInfo, cn, savingsPercent, truncateMiddle, fileIconFor } from "@/lib/utils";
 import type { FileMetadata, ShareLink } from "@/types";
-
-const iconMap: Record<string, typeof File> = {
-  File, FileText, Image, Video, Music, Archive, Code, Cog, Table,
-};
 
 const EXPIRY_OPTIONS = [
   { label: "Never", value: 0 },
@@ -68,51 +63,6 @@ interface DetailsDrawerProps {
   file: FileMetadata | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}
-
-/** A copyable monospace value with an IconButton copy affordance. */
-function CopyField({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
-  const [copied, setCopied] = useState(false);
-  const copy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      toast.error("Failed to copy");
-    }
-  }, [value]);
-
-  return (
-    <div className="flex items-center justify-between gap-2">
-      <span className="text-sm text-[var(--color-text-muted)]">{label}</span>
-      <div className="flex min-w-0 items-center gap-1">
-        <span className={cn("truncate text-sm text-[var(--color-text)]", mono && "font-mono text-xs")}>
-          {value}
-        </span>
-        <IconButton
-          icon={copied ? Check : Copy}
-          label={copied ? "Copied" : `Copy ${label.toLowerCase()}`}
-          onClick={copy}
-          iconClassName={cn("h-3.5 w-3.5", copied && "text-[var(--color-accent)]")}
-          className="h-7 w-7 flex-shrink-0"
-        />
-      </div>
-    </div>
-  );
-}
-
-/** A plain label/value row (no copy). */
-function MetaRow({ label, value, icon: Icon }: { label: string; value: React.ReactNode; icon?: typeof File }) {
-  return (
-    <div className="flex items-center justify-between gap-2">
-      <span className="flex items-center gap-2 text-sm text-[var(--color-text-muted)]">
-        {Icon && <Icon className="h-3.5 w-3.5" />}
-        {label}
-      </span>
-      <span className="truncate text-sm tabular-nums text-[var(--color-text)]">{value}</span>
-    </div>
-  );
 }
 
 export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) {
@@ -173,33 +123,15 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
     }
     setCreating(true);
     try {
-      const { resolveFileKey, generateCEK, wrapKey, fromBase64, toBase64 } = await import("@/lib/crypto");
-
-      // Recover this file's CEK, then re-wrap it under a fresh share key. The
-      // share key lives only in the URL #fragment and never reaches the server.
-      const m = await getFileMeta(fileId);
-      if (!m.wrapped_cek) {
-        throw new Error("This file was uploaded before sharing was supported. Re-upload it to share.");
-      }
-      const salt = fromBase64(m.salt);
-      const cekBuf = await resolveFileKey(passphrase, salt, m.wrapped_cek);
-      const cek = new Uint8Array(cekBuf);
-
-      const shareKey = generateCEK();
-      const shareWrappedCek = await wrapKey(shareKey.buffer.slice(0) as ArrayBuffer, cek);
-
-      const result = await createShare({
-        file_id: fileId,
-        wrapped_cek: toBase64(shareWrappedCek),
+      // Recover this file's CEK, re-wrap it under a fresh share key (which lives
+      // only in the URL #fragment), create the share, and refresh the cache.
+      const { url } = await createFileShareLink(fileId, {
         password: usePassword ? password : undefined,
-        expires_in_hours: expiryHours || undefined,
-        max_downloads: maxDownloads || undefined,
+        expiresHours: expiryHours,
+        maxDownloads,
       });
-
-      const url = `${window.location.origin}/s/${result.token}#key=${toBase64(shareKey)}`;
       setNewLink(url);
       toast.success("Share link created");
-      void invalidateShares(fileId);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to create share");
     } finally {
@@ -209,11 +141,11 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
 
   const copyNewLink = useCallback(async () => {
     if (!newLink) return;
-    try {
-      await navigator.clipboard.writeText(newLink);
+    const ok = await copyToClipboard(newLink);
+    if (ok) {
       setLinkCopied(true);
       setTimeout(() => setLinkCopied(false), 2000);
-    } catch {
+    } else {
       toast.error("Failed to copy");
     }
   }, [newLink]);
@@ -236,11 +168,9 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
   if (!file) return null;
 
   const typeInfo = getFileTypeInfo(file.original_name);
-  const Icon = iconMap[typeInfo.icon] || File;
-  const savings = file.original_size > 0
-    ? Math.max(0, (1 - file.encrypted_size / file.original_size) * 100).toFixed(0)
-    : "0";
-  const shortSha = file.sha256 ? `${file.sha256.slice(0, 16)}…${file.sha256.slice(-8)}` : "—";
+  const Icon = fileIconFor(file.original_name);
+  const savings = savingsPercent(file.original_size, file.encrypted_size);
+  const shortSha = file.sha256 ? truncateMiddle(file.sha256, 16, 8) : "—";
   const activeShares = shares.filter((s) => !s.revoked);
 
   return (
@@ -357,17 +287,10 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
                 </div>
 
                 {/* Encryption assurance */}
-                <div className="flex items-start gap-3 rounded-xl border border-[var(--color-accent)]/20 bg-[var(--color-accent)]/5 p-4">
-                  <ShieldCheck className="mt-0.5 h-4 w-4 flex-shrink-0 text-[var(--color-accent)]" />
-                  <div className="space-y-0.5">
-                    <p className="text-sm font-medium text-[var(--color-text)]">
-                      Encrypted &middot; AES-256-GCM
-                    </p>
-                    <p className="text-xs text-[var(--color-text-secondary)]">
-                      The decryption key never leaves your device. We only ever store ciphertext.
-                    </p>
-                  </div>
-                </div>
+                <EncryptionAssuranceCard
+                  title="Encrypted · AES-256-GCM"
+                  description="The decryption key never leaves your device. We only ever store ciphertext."
+                />
               </div>
             </TabsContent>
 
@@ -505,33 +428,16 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
                   ) : (
                     <div className="space-y-1.5">
                       {activeShares.map((s) => (
-                        <div
+                        <ShareLinkRow
                           key={s.id}
-                          className="flex items-center justify-between gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2"
-                        >
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-1.5">
-                              <code className="truncate font-mono text-[11px] text-[var(--color-text-secondary)]">
-                                …{s.token.slice(-8)}
-                              </code>
-                              {s.has_password && (
-                                <Lock className="h-3 w-3 flex-shrink-0 text-amber-500" aria-label="Password protected" />
-                              )}
-                            </div>
-                            <p className="text-[11px] tabular-nums text-[var(--color-text-muted)]">
-                              {s.download_count}{s.max_downloads > 0 ? `/${s.max_downloads}` : ""} downloads
-                              {s.expires_at && ` · expires ${formatDate(s.expires_at)}`}
-                            </p>
-                          </div>
-                          <IconButton
-                            icon={Trash2}
-                            label="Revoke link"
-                            variant="ghost"
-                            onClick={() => setRevokeTarget(s)}
-                            iconClassName="h-3.5 w-3.5 text-red-500"
-                            className="h-7 w-7 flex-shrink-0 hover:bg-red-500/10"
-                          />
-                        </div>
+                          token={s.token}
+                          hasPassword={s.has_password}
+                          downloadCount={s.download_count}
+                          maxDownloads={s.max_downloads}
+                          expiresAt={s.expires_at}
+                          containerClassName="bg-[var(--color-surface-1)]"
+                          onRevoke={() => setRevokeTarget(s)}
+                        />
                       ))}
                     </div>
                   )}

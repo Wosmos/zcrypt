@@ -33,6 +33,9 @@ export function getZstdCodec(): Promise<ZstdCodec> {
 /** Decompress one complete zstd frame (one stored chunk) via the shared codec. */
 export async function zstdDecompress(payload: Uint8Array): Promise<Uint8Array> {
   const codec = await getZstdCodec();
+  // Codec unavailable — skip decompression and return the payload unchanged,
+  // matching the pre-refactor `compressed && codec` guard the callers used.
+  if (!codec) return payload;
   return codec.ZstdStream.decompress(payload);
 }
 

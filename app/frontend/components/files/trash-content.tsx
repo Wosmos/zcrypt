@@ -7,7 +7,7 @@ import { invalidateFilesViews } from "@/lib/invalidate";
 import { invalidateQuota } from "@/store/quota";
 import { clearDecryptCacheForFile } from "@/lib/decrypt-cache";
 import { toast } from "@/store/toast";
-import { formatBytes, formatDate, getFileTypeInfo, cn } from "@/lib/utils";
+import { formatBytes, formatDate, getFileTypeInfo, cn, fileIconFor } from "@/lib/utils";
 import type { FileMetadata } from "@/types";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
@@ -28,13 +28,8 @@ import { useFileDecryptor } from "@/hooks/useFileDecryptor";
 import { useFolderProtection } from "@/hooks/useFolderProtection";
 import { useVaultLockContext } from "@/components/providers/vault-lock-provider";
 import {
-  File, FileText, Image, Video, Music, Archive, Code, Cog, Table,
   Trash2, RotateCcw, RefreshCw, Eye, MoreHorizontal, CheckSquare, Square, X,
 } from "@/lib/icons";
-
-const iconMap: Record<string, typeof File> = {
-  File, FileText, Image, Video, Music, Archive, Code, Cog, Table,
-};
 
 /**
  * Solid focus ring shared with the explorer rows (a11y) — a high-contrast accent
@@ -434,7 +429,7 @@ export function TrashContent() {
         >
           {files.map((file, index) => {
             const typeInfo = getFileTypeInfo(file.original_name);
-            const Icon = iconMap[typeInfo.icon] || File;
+            const Icon = fileIconFor(file.original_name);
             const busy = busyId === file.id;
             const selected = selectedIds.has(file.id);
             return (

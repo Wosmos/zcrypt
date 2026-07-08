@@ -11,27 +11,10 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { getFileTypeInfo, cn } from "@/lib/utils";
-import {
-  Folder as FolderIcon,
-  File,
-  FileText,
-  Image,
-  Video,
-  Music,
-  Archive,
-  Code,
-  Cog,
-  Table,
-} from "@/lib/icons";
+import { getFileTypeInfo, fileIconFor, cn } from "@/lib/utils";
+import { Folder as FolderIcon } from "@/lib/icons";
+import { DIALOG_PANEL } from "./explorer/types";
 import type { FileMetadata } from "@/types";
-
-const iconMap: Record<string, typeof File> = {
-  File, FileText, Image, Video, Music, Archive, Code, Cog, Table,
-};
-
-const DIALOG_PANEL =
-  "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] rounded-2xl shadow-2xl";
 
 /**
  * ── <CreateFolderFromFilesDialog> (OWNER 2) ──────────────────────────────────
@@ -67,7 +50,7 @@ function baseName(filename: string): string {
 
 function FilePill({ file }: { file: FileMetadata }) {
   const info = getFileTypeInfo(file.original_name);
-  const Icon = iconMap[info.icon] ?? File;
+  const Icon = fileIconFor(file.original_name);
   return (
     <div className="flex min-w-0 items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-2.5 py-1.5">
       <span className={cn("flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md", info.bg)}>

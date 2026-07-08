@@ -8,6 +8,25 @@ export type ViewMode = "list" | "grid";
 export type GridCols = "auto" | 1 | 2 | 4 | 6 | 8 | 10 | 12;
 
 /**
+ * Solid focus ring shared across every interactive explorer element (a11y-H3),
+ * mirroring the transfer dock: a high-contrast accent ring with an offset that
+ * reads against the surface. Use everywhere instead of the old faint `/40` ring.
+ */
+export const FOCUS_RING =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)]";
+
+/**
+ * Accent selection treatment (M4) — one consistent look shared by list rows and
+ * grid cards: a soft accent tint plus an inset accent ring.
+ */
+export const ROW_SELECTED =
+  "bg-[var(--color-accent)]/10 ring-1 ring-inset ring-[var(--color-accent)]/40";
+
+/** Shared dialog panel surface: border + surface bg + text color + rounding + shadow. */
+export const DIALOG_PANEL =
+  "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] rounded-2xl shadow-2xl";
+
+/**
  * A unified entry in the explorer listing. Folders and files coexist under one
  * breadcrumb; `kind` discriminates which payload is present. The explorer sorts
  * folders first (always by name) then files (by the chosen sort field).

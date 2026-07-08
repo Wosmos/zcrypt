@@ -2,24 +2,15 @@
 
 import { memo, useId } from "react";
 import type { ExplorerEntry, ExplorerActions } from "./types";
-import { explorerItemPropsEqual } from "./types";
+import { explorerItemPropsEqual, FOCUS_RING } from "./types";
 import type { DecryptedFolder } from "@/hooks/useFolders";
 import type { FileMetadata } from "@/types";
 import type { RowDragProps } from "./explorer-row";
-import { formatBytes, getFileTypeInfo, isVideoFile, cn, midTrunc } from "@/lib/utils";
+import { formatBytes, getFileTypeInfo, isVideoFile, cn, midTrunc, fileIconFor, extOf } from "@/lib/utils";
 import { useThumbnail } from "@/hooks/useThumbnail";
 import { prefetchOnHover } from "@/hooks/useFileDecryptor";
 import { getFolderIcon, getFolderInitial } from "@/lib/folder-icons";
 import {
-  File,
-  FileText,
-  Image,
-  Video,
-  Music,
-  Archive,
-  Code,
-  Cog,
-  Table,
   Folder,
   FolderOpen,
   Eye,
@@ -40,14 +31,6 @@ import {
   ContextMenuItem,
   ContextMenuSeparator,
 } from "@/components/ui/context-menu";
-
-const iconMap: Record<string, typeof File> = {
-  File, FileText, Image, Video, Music, Archive, Code, Cog, Table,
-};
-
-/** Shared solid focus ring (a11y-H3), matching explorer-row + the transfer dock. */
-const FOCUS_RING =
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)]";
 
 interface ExplorerCardProps {
   entry: ExplorerEntry;
@@ -309,10 +292,10 @@ function FileCardInner({
 }) {
   const { thumbnailUrl, pending } = useThumbnail(file.id, file.original_name, file.original_size);
   const typeInfo = getFileTypeInfo(file.original_name);
-  const Icon = iconMap[typeInfo.icon] || File;
+  const Icon = fileIconFor(file.original_name);
   const isVideo = isVideoFile(file.original_name);
 
-  const ext = (file.original_name.split(".").pop() || "").toUpperCase().slice(0, 4);
+  const ext = extOf(file.original_name).toUpperCase().slice(0, 4);
 
   return (
     <ContextMenu>

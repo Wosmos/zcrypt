@@ -5,7 +5,8 @@ import { adminGetAuditLog, type AdminAuditResponse } from "@/lib/api";
 import { useOperationStatus } from "@/hooks/useOperationStatus";
 import type { AuditEvent } from "@/lib/auth-api";
 import { cn } from "@/lib/utils";
-import { formatBytes } from "@/lib/utils";
+import { formatBytes, formatDateTime } from "@/lib/utils";
+import { EVENT_ICONS, eventColorClass } from "@/lib/audit-events";
 import { Pagination } from "@/components/ui/pagination";
 import { IconButton } from "@/components/ui/icon-button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -19,16 +20,6 @@ import {
 } from "@/components/ui/select";
 import {
   Shield,
-  LogIn,
-  LogOut,
-  UserPlus,
-  Key,
-  Link2,
-  HardDrive,
-  Upload,
-  Download,
-  Trash2,
-  Settings,
   Pause,
   Play,
   FileText,
@@ -39,50 +30,6 @@ import {
 } from "@/lib/icons";
 
 const PAGE_SIZE = 20;
-
-const eventColors: Record<string, string> = {
-  login: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
-  login_failed: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20",
-  register: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20",
-  logout: "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20",
-  oauth_login: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
-  oauth_register: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20",
-  oauth_link: "bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20",
-  oauth_unlink: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
-  magic_link_sent: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
-  magic_link_used: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
-  file_upload: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20",
-  file_download: "bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20",
-  file_delete: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20",
-  platform_connect: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20",
-  platform_disconnect: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
-  admin_role_change: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
-  admin_user_delete: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20",
-  admin_plan_change: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
-};
-
-const eventIcons: Record<string, typeof Shield> = {
-  login: LogIn,
-  login_failed: LogIn,
-  register: UserPlus,
-  logout: LogOut,
-  oauth_login: LogIn,
-  oauth_register: UserPlus,
-  oauth_link: Link2,
-  oauth_unlink: Link2,
-  magic_link_sent: Key,
-  magic_link_used: Key,
-  file_upload: Upload,
-  file_download: Download,
-  file_delete: Trash2,
-  platform_connect: HardDrive,
-  platform_disconnect: HardDrive,
-  "2fa_enable": Shield,
-  "2fa_disable": Shield,
-  admin_role_change: Settings,
-  admin_user_delete: Trash2,
-  admin_plan_change: Settings,
-};
 
 const eventLabels: Record<string, string> = {
   login: "User Login",
@@ -118,17 +65,6 @@ function formatRelativeTime(dateStr: string) {
   const days = Math.floor(hours / 24);
   if (days < 30) return `${days}d ago`;
   return new Date(dateStr).toLocaleDateString();
-}
-
-function formatFullTime(dateStr: string) {
-  return new Date(dateStr).toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
 }
 
 // Parse user agent into readable browser/OS/device info
@@ -370,8 +306,8 @@ export function AuditLog() {
           />
         ) : (
           events.map((event) => {
-            const Icon = eventIcons[event.event_type] ?? Shield;
-            const color = eventColors[event.event_type] ?? "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20";
+            const Icon = EVENT_ICONS[event.event_type] ?? Shield;
+            const color = eventColorClass(event.event_type, { border: true });
             const label = eventLabels[event.event_type] ?? event.event_type.replace(/_/g, " ");
             const isExpanded = expandedId === event.id;
             const ua = parseUserAgent(event.user_agent);
@@ -449,7 +385,7 @@ export function AuditLog() {
                           </div>
                           <div className="text-xs">
                             <span className="text-[var(--color-text-muted)]">Time: </span>
-                            <span className="text-[var(--color-text-secondary)]">{formatFullTime(event.created_at)}</span>
+                            <span className="text-[var(--color-text-secondary)]">{formatDateTime(event.created_at, { seconds: true })}</span>
                           </div>
                         </div>
 

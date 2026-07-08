@@ -47,7 +47,16 @@ const { getZstdCodec, decompressRef } = vi.hoisted(() => {
   const getZstdCodec = vi.fn(async () => ({ ZstdStream: { decompress: (d: Uint8Array) => decompressRef.fn(d) } }));
   return { getZstdCodec, decompressRef };
 });
-vi.mock("@/lib/zstd", () => ({ getZstdCodec }));
+vi.mock("@/lib/zstd", () => ({
+  getZstdCodec,
+  // Mirror the real zstdDecompress: route through the codec (so decompressRef
+  // and the null-codec case both drive behavior exactly like production).
+  zstdDecompress: async (payload: Uint8Array) => {
+    const c = await getZstdCodec();
+    if (!c) return payload;
+    return c.ZstdStream.decompress(payload);
+  },
+}));
 
 const { getDeviceProfile } = vi.hoisted(() => ({ getDeviceProfile: vi.fn() }));
 vi.mock("@/lib/device-profile", () => ({ getDeviceProfile }));

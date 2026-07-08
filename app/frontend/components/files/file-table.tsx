@@ -2,9 +2,8 @@
 
 import type { FileMetadata } from "@/types";
 import type { DownloadState } from "./file-card";
-import { formatBytes, formatDate, getFileTypeInfo } from "@/lib/utils";
+import { formatBytes, formatDate, getFileTypeInfo, fileIconFor, savingsPercent } from "@/lib/utils";
 import {
-  File, FileText, Image, Video, Music, Archive, Code, Cog, Table,
   Download, Trash2, Eye, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown,
   CheckSquare, Square, Share2, MoreHorizontal, Lock, FolderOpen,
 } from "@/lib/icons";
@@ -19,8 +18,10 @@ import {
 import { cn } from "@/lib/utils";
 import { useDragMove, DRAG_MIME } from "@/hooks/useDragMove";
 
-export type SortField = "name" | "size" | "date" | "saved" | "type";
-export type SortDir = "asc" | "desc";
+// Canonical definitions live in ./explorer/types — imported for local use and
+// re-exported so existing importers of these names from file-table keep working.
+import type { SortField, SortDir } from "./explorer/types";
+export type { SortField, SortDir };
 
 interface FileTableProps {
   files: FileMetadata[];
@@ -41,10 +42,6 @@ interface FileTableProps {
   /** Enable drag-to-move. Rows become drag sources carrying the file id. */
   draggable?: boolean;
 }
-
-const iconMap: Record<string, typeof File> = {
-  File, FileText, Image, Video, Music, Archive, Code, Cog, Table,
-};
 
 function SortIcon({ field, activeField, dir }: { field: SortField; activeField: SortField; dir: SortDir }) {
   if (field !== activeField) return <ArrowUpDown className="h-3 w-3 opacity-40" />;
@@ -164,10 +161,8 @@ export function FileTable({ files, downloadStates, sortField, sortDir, onSort, o
           <tbody>
             {files.map((file) => {
               const typeInfo = getFileTypeInfo(file.original_name);
-              const Icon = iconMap[typeInfo.icon] || File;
-              const savings = file.original_size > 0
-                ? ((1 - file.encrypted_size / file.original_size) * 100).toFixed(0)
-                : "0";
+              const Icon = fileIconFor(file.original_name);
+              const savings = savingsPercent(file.original_size, file.encrypted_size);
               const ds = downloadStates[file.id] || "idle";
               const isDownloading = ds === "downloading";
               const isDone = ds === "done";
@@ -245,10 +240,8 @@ export function FileTable({ files, downloadStates, sortField, sortDir, onSort, o
       <div className="max-h-[65vh] divide-y divide-[var(--color-border)] overflow-y-auto sm:hidden">
         {files.map((file) => {
           const typeInfo = getFileTypeInfo(file.original_name);
-          const Icon = iconMap[typeInfo.icon] || File;
-          const savings = file.original_size > 0
-            ? ((1 - file.encrypted_size / file.original_size) * 100).toFixed(0)
-            : "0";
+          const Icon = fileIconFor(file.original_name);
+          const savings = savingsPercent(file.original_size, file.encrypted_size);
 
           return (
             <div
