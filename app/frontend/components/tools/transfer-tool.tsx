@@ -8,10 +8,13 @@ import { IconButton } from "@/components/ui/icon-button";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { QRShare } from "@/components/ui/qr-code";
 import {
-  Send, Download, File, AlertTriangle, CheckCircle2,
-  Lock, Copy, Check,
+  Send, Download, Lock, Copy, Check,
 } from "@/lib/icons";
 import { formatBytes } from "@/lib/utils";
+import { copyToClipboard } from "@/lib/clipboard";
+import { SelectedFileCard } from "./shared/selected-file-card";
+import { ProgressBar } from "./shared/progress-bar";
+import { ToolErrorState, ToolSuccessState } from "./shared/tool-states";
 
 const WS_URL = (process.env.NEXT_PUBLIC_API_URL || "")
   .replace(/^http/, "ws") + "/api/transfer/ws";
@@ -145,11 +148,10 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
 
   const handleCopyCode = useCallback(async () => {
     if (!code) return;
-    try {
-      await navigator.clipboard.writeText(code);
+    if (await copyToClipboard(code)) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {}
+    }
   }, [code]);
 
   useEffect(() => { return () => { wsRef.current?.close(); }; }, []);
@@ -162,16 +164,11 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
             <UploadZone onFiles={handleFiles} hint="Select a file to send to another device" compact />
           ) : (
             <>
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-[var(--color-surface-1)]">
-                <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-[var(--color-accent)]/10 flex-shrink-0">
-                  <File className="h-5 w-5 text-[var(--color-accent)]" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium truncate">{selectedFile.name}</p>
-                  <p className="text-xs text-[var(--color-text-muted)]">{formatBytes(selectedFile.size)}</p>
-                </div>
-                <button onClick={() => setSelectedFile(null)} className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors">Change</button>
-              </div>
+              <SelectedFileCard
+                name={selectedFile.name}
+                size={selectedFile.size}
+                onRemove={() => setSelectedFile(null)}
+              />
               <Button onClick={handleStart} className="w-full">
                 <Lock className="h-4 w-4 mr-2" /> Start Transfer
               </Button>
@@ -215,38 +212,21 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
               <p className="text-xs text-[var(--color-text-muted)]">{formatBytes(selectedFile?.size || 0)}</p>
             </div>
           </div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-[var(--color-text-muted)]">{progress.stage || "Preparing..."}</span>
-              <span className="font-medium tabular-nums">{progress.percent}%</span>
-            </div>
-            <div className="h-2 rounded-full bg-[var(--color-surface-1)] overflow-hidden">
-              <div className="h-full rounded-full bg-[var(--color-accent)] transition-all duration-300" style={{ width: `${progress.percent}%` }} />
-            </div>
-          </div>
+          <ProgressBar stage={progress.stage || "Preparing..."} percent={progress.percent} />
         </div>
       )}
 
       {state === "done" && (
-        <div className="flex flex-col items-center gap-3 py-4 text-center">
-          <div className="flex items-center justify-center h-12 w-12 rounded-xl bg-cyan-500/10">
-            <CheckCircle2 className="h-6 w-6 text-cyan-500" />
-          </div>
-          <h3 className="text-sm font-semibold">Transfer Complete</h3>
-          <p className="text-xs text-[var(--color-text-muted)]">{selectedFile?.name} sent successfully</p>
-          <Button variant="secondary" onClick={onBack} className="mt-2">Send Another</Button>
-        </div>
+        <ToolSuccessState
+          title="Transfer Complete"
+          message={<>{selectedFile?.name} sent successfully</>}
+          actionLabel="Send Another"
+          onAction={onBack}
+        />
       )}
 
       {state === "error" && (
-        <div className="flex flex-col items-center gap-3 py-4 text-center">
-          <div className="flex items-center justify-center h-12 w-12 rounded-xl bg-red-500/10">
-            <AlertTriangle className="h-6 w-6 text-red-500" />
-          </div>
-          <h3 className="text-sm font-semibold">Transfer Failed</h3>
-          <p className="text-xs text-[var(--color-text-muted)]">{errorMsg}</p>
-          <Button variant="secondary" onClick={onBack} className="mt-2">Try Again</Button>
-        </div>
+        <ToolErrorState title="Transfer Failed" message={errorMsg} onAction={onBack} />
       )}
     </div>
   );
@@ -394,38 +374,21 @@ function TransferReceiveMode({ onBack }: { onBack: () => void }) {
               <p className="text-xs text-[var(--color-text-muted)]">{formatBytes(fileInfo.size)}</p>
             </div>
           </div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-[var(--color-text-muted)]">{progress.stage}</span>
-              <span className="font-medium tabular-nums">{progress.percent}%</span>
-            </div>
-            <div className="h-2 rounded-full bg-[var(--color-surface-1)] overflow-hidden">
-              <div className="h-full rounded-full bg-[var(--color-accent)] transition-all duration-300" style={{ width: `${progress.percent}%` }} />
-            </div>
-          </div>
+          <ProgressBar stage={progress.stage} percent={progress.percent} />
         </div>
       )}
 
       {state === "done" && (
-        <div className="flex flex-col items-center gap-3 py-4 text-center">
-          <div className="flex items-center justify-center h-12 w-12 rounded-xl bg-cyan-500/10">
-            <CheckCircle2 className="h-6 w-6 text-cyan-500" />
-          </div>
-          <h3 className="text-sm font-semibold">Transfer Complete</h3>
-          <p className="text-xs text-[var(--color-text-muted)]">{fileInfo?.name} received and saved</p>
-          <Button variant="secondary" onClick={onBack} className="mt-2">Receive Another</Button>
-        </div>
+        <ToolSuccessState
+          title="Transfer Complete"
+          message={<>{fileInfo?.name} received and saved</>}
+          actionLabel="Receive Another"
+          onAction={onBack}
+        />
       )}
 
       {state === "error" && (
-        <div className="flex flex-col items-center gap-3 py-4 text-center">
-          <div className="flex items-center justify-center h-12 w-12 rounded-xl bg-red-500/10">
-            <AlertTriangle className="h-6 w-6 text-red-500" />
-          </div>
-          <h3 className="text-sm font-semibold">Connection Failed</h3>
-          <p className="text-xs text-[var(--color-text-muted)]">{errorMsg}</p>
-          <Button variant="secondary" onClick={onBack} className="mt-2">Try Again</Button>
-        </div>
+        <ToolErrorState title="Connection Failed" message={errorMsg} onAction={onBack} />
       )}
     </div>
   );

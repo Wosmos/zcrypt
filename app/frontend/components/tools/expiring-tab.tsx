@@ -12,21 +12,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SkeletonRow } from "@/components/ui/skeletons";
 import { Plus, Trash2, Clock } from "@/lib/icons";
-import { cn } from "@/lib/utils";
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
-}
-
-function timeUntil(iso: string): string {
-  const diff = new Date(iso).getTime() - Date.now();
-  if (diff <= 0) return "Expired";
-  const days = Math.floor(diff / 86400000);
-  const hours = Math.floor((diff % 86400000) / 3600000);
-  if (days > 0) return `${days}d ${hours}h`;
-  const minutes = Math.floor((diff % 3600000) / 60000);
-  return `${hours}h ${minutes}m`;
-}
+import { cn, formatDateTime, formatExpiry, fileNameById } from "@/lib/utils";
 
 const EXPIRY_CHOICES = [
   { value: "1", label: "1 hour" },
@@ -89,8 +75,6 @@ export function ExpiringTab() {
     } catch { /* ignore */ }
     finally { setDeleting(false); }
   };
-
-  const getFileName = (fileId: string) => files.find((f) => f.id === fileId)?.original_name || fileId.slice(0, 8);
 
   return (
     <div className="space-y-4">
@@ -186,18 +170,18 @@ export function ExpiringTab() {
                       "flex-shrink-0 rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide tabular-nums",
                       vault.expired ? "bg-red-500/10 text-red-600 dark:text-red-400" : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
                     )}>
-                      {vault.expired ? "Expired" : timeUntil(vault.expires_at)}
+                      {vault.expired ? "Expired" : formatExpiry(vault.expires_at)}
                     </span>
                   </div>
                   {vault.description && <p className="mt-0.5 truncate text-xs text-[var(--color-text-secondary)]">{vault.description}</p>}
                   <div className="mt-2 flex items-center gap-4 text-xs text-[var(--color-text-muted)]">
                     <span className="tabular-nums">{vault.file_ids.length} file(s)</span>
-                    <span>Expires {formatDate(vault.expires_at)}</span>
+                    <span>Expires {formatDateTime(vault.expires_at)}</span>
                   </div>
                   {vault.file_ids.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-1">
                       {vault.file_ids.slice(0, 5).map((fid) => (
-                        <span key={fid} className="max-w-[150px] truncate rounded-md bg-[var(--color-surface-1)] px-2 py-0.5 text-[10px] text-[var(--color-text-muted)]">{getFileName(fid)}</span>
+                        <span key={fid} className="max-w-[150px] truncate rounded-md bg-[var(--color-surface-1)] px-2 py-0.5 text-[10px] text-[var(--color-text-muted)]">{fileNameById(files, fid)}</span>
                       ))}
                       {vault.file_ids.length > 5 && <span className="px-1 py-0.5 text-[10px] text-[var(--color-text-muted)]">+{vault.file_ids.length - 5} more</span>}
                     </div>

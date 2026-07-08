@@ -13,7 +13,8 @@ import { Section } from "@/components/ui/section";
 import { Separator } from "@/components/ui/separator";
 import { SkeletonRow } from "@/components/ui/skeletons";
 import { Trash2, Lock, Unlock } from "@/lib/icons";
-import { cn } from "@/lib/utils";
+import { cn, formatRelativeTime } from "@/lib/utils";
+import { copyToClipboard } from "@/lib/clipboard";
 
 const MAX_SIZE = 512 * 1024;
 
@@ -196,21 +197,14 @@ function ClipboardSyncSection() {
   const handleCopy = async (id: string) => {
     const text = decryptedCache[id];
     if (!text) return;
-    await navigator.clipboard.writeText(text);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
+    if (await copyToClipboard(text)) {
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+    }
   };
 
   const handleDelete = async (id: string) => {
     try { await deleteClipboardItem(id); setItems((prev) => prev.filter((i) => i.id !== id)); } catch { /* ignore */ }
-  };
-
-  const formatTime = (iso: string) => {
-    const diff = Date.now() - new Date(iso).getTime();
-    if (diff < 60_000) return "just now";
-    if (diff < 3600_000) return `${Math.floor(diff / 60_000)}m ago`;
-    if (diff < 86400_000) return `${Math.floor(diff / 3600_000)}h ago`;
-    return new Date(iso).toLocaleDateString();
   };
 
   return (
@@ -250,7 +244,7 @@ function ClipboardSyncSection() {
                       "rounded-full px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide",
                       item.content_type === "link" ? "bg-blue-500/10 text-blue-600 dark:text-blue-400" : "bg-[var(--color-accent)]/10 text-[var(--color-accent)]"
                     )}>{item.content_type}</span>
-                    <span className="text-xs text-[var(--color-text-muted)]">{formatTime(item.created_at)}</span>
+                    <span className="text-xs text-[var(--color-text-muted)]">{formatRelativeTime(item.created_at)}</span>
                   </div>
                   <div className="flex flex-shrink-0 items-center gap-1">
                     {decryptedCache[item.id] ? (

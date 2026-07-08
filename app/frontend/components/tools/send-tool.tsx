@@ -3,28 +3,21 @@
 import { useCallback, useRef, useState } from "react";
 import { UploadZone } from "@/components/upload/upload-zone";
 import { Button } from "@/components/ui/button";
-import { IconButton } from "@/components/ui/icon-button";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
-import { Switch } from "@/components/ui/switch";
-import {
-  Shield, Lock, Copy, Check, Clock, Link2, File,
-  AlertTriangle, CheckCircle2, Upload,
-} from "@/lib/icons";
+import { Lock, Upload } from "@/lib/icons";
 import { formatBytes, easeProgress } from "@/lib/utils";
+import { copyToClipboard } from "@/lib/clipboard";
 import { sendInit, sendChunkUpload, sendComplete } from "@/lib/api";
-import { QRShare } from "@/components/ui/qr-code";
+import { SelectedFileCard } from "./shared/selected-file-card";
+import { ExpirySelector } from "./shared/expiry-selector";
+import { BurnAfterReadToggle } from "./shared/burn-after-read-toggle";
+import { ProgressBar } from "./shared/progress-bar";
+import { ShareResult } from "./shared/share-result";
+import { ToolErrorState } from "./shared/tool-states";
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
 type SendState = "idle" | "uploading" | "done" | "error";
-
-interface ExpiryOption { label: string; hours: number }
-
-const EXPIRY_OPTIONS: ExpiryOption[] = [
-  { label: "1 hour", hours: 1 },
-  { label: "24 hours", hours: 24 },
-  { label: "7 days", hours: 168 },
-];
 
 export function SendTool() {
   const [state, setState] = useState<SendState>("idle");
@@ -115,20 +108,9 @@ export function SendTool() {
 
   const handleCopy = useCallback(async () => {
     if (!shareUrl) return;
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      const ta = document.createElement("textarea");
-      ta.value = shareUrl;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand("copy");
-      document.body.removeChild(ta);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
+    await copyToClipboard(shareUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   }, [shareUrl]);
 
   const handleReset = useCallback(() => {
@@ -154,43 +136,18 @@ export function SendTool() {
 
       {state === "idle" && selectedFile && (
         <div className="p-6 space-y-5">
-          <div className="flex items-center gap-3 p-3 rounded-xl bg-[var(--color-surface-1)]">
-            <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-[var(--color-accent)]/10 flex-shrink-0">
-              <File className="h-5 w-5 text-[var(--color-accent)]" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium truncate">{selectedFile.name}</p>
-              <p className="text-xs text-[var(--color-text-muted)]">{formatBytes(selectedFile.size)}</p>
-            </div>
-            <button onClick={() => setSelectedFile(null)} className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors">
-              Change
-            </button>
-          </div>
+          <SelectedFileCard
+            name={selectedFile.name}
+            size={selectedFile.size}
+            onRemove={() => setSelectedFile(null)}
+          />
           <div className="space-y-3">
-            <div className="space-y-1.5">
-              <label className="flex items-center gap-1.5 text-xs font-medium text-[var(--color-text-secondary)]">
-                <Clock className="h-3.5 w-3.5" /> Expires after
-              </label>
-              <div className="flex gap-2">
-                {EXPIRY_OPTIONS.map((opt) => (
-                  <button key={opt.hours} onClick={() => setExpiryHours(opt.hours)}
-                    className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg border transition-all ${
-                      expiryHours === opt.hours
-                        ? "border-[var(--color-accent)] bg-[var(--color-accent)]/10 text-[var(--color-accent)]"
-                        : "border-[var(--color-border)] hover:border-[var(--color-border-hover)] text-[var(--color-text-muted)]"
-                    }`}>
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <label className="flex items-center gap-3 p-3 rounded-xl border border-[var(--color-border)] hover:border-[var(--color-border-hover)] cursor-pointer transition-colors">
-              <Switch checked={burnAfterRead} onCheckedChange={setBurnAfterRead} />
-              <div>
-                <p className="text-sm font-medium">Burn after read</p>
-                <p className="text-xs text-[var(--color-text-muted)]">File is deleted after first download</p>
-              </div>
-            </label>
+            <ExpirySelector value={expiryHours} onChange={setExpiryHours} />
+            <BurnAfterReadToggle
+              checked={burnAfterRead}
+              onCheckedChange={setBurnAfterRead}
+              description="File is deleted after first download"
+            />
           </div>
           <Button onClick={handleUpload} className="w-full">
             <Lock className="h-4 w-4 mr-2" /> Encrypt &amp; Send
@@ -217,79 +174,32 @@ export function SendTool() {
             </div>
           </div>
           <div className="p-6">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-[var(--color-text-muted)]">{progress.stage}</span>
-                <span className="font-medium tabular-nums">{easeProgress(progress.percent)}%</span>
-              </div>
-              <div className="h-2 rounded-full bg-[var(--color-surface-1)] overflow-hidden">
-                <div className="h-full rounded-full bg-[var(--color-accent)] transition-all duration-500 ease-in-out" style={{ width: `${easeProgress(progress.percent)}%` }} />
-              </div>
-            </div>
+            <ProgressBar
+              stage={progress.stage}
+              percent={easeProgress(progress.percent)}
+              transitionClassName="transition-all duration-500 ease-in-out"
+            />
           </div>
         </>
       )}
 
       {state === "done" && (
-        <div className="p-6 space-y-5">
-          <div className="flex flex-col items-center gap-3 text-center">
-            <div className="flex items-center justify-center h-12 w-12 rounded-xl bg-cyan-500/10">
-              <CheckCircle2 className="h-6 w-6 text-cyan-500" />
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold">File Encrypted &amp; Uploaded</h3>
-              <p className="text-xs text-[var(--color-text-muted)] mt-1">Share this link. The recipient can download and decrypt in their browser.</p>
-            </div>
-          </div>
-          <div className="space-y-2">
-            <label className="flex items-center gap-1.5 text-xs font-medium text-[var(--color-text-secondary)]">
-              <Link2 className="h-3.5 w-3.5" /> Share Link
-            </label>
-            <div className="flex gap-2">
-              <div className="flex-1 p-3 rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border)] text-xs font-mono break-all select-all leading-relaxed">{shareUrl}</div>
-              <IconButton
-                icon={copied ? Check : Copy}
-                label={copied ? "Copied" : "Copy link"}
-                variant="secondary"
-                onClick={handleCopy}
-                className="flex-shrink-0 self-start"
-                iconClassName={copied ? "h-4 w-4 text-cyan-500" : "h-4 w-4"}
-              />
-            </div>
-          </div>
-          <QRShare url={shareUrl} />
-          <div className="flex gap-2 text-[10px] text-[var(--color-text-muted)]">
-            <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-[var(--color-surface-1)]">
-              <Clock className="h-3 w-3" /> Expires in {EXPIRY_OPTIONS.find(o => o.hours === expiryHours)?.label || `${expiryHours}h`}
-            </span>
-            {burnAfterRead && (
-              <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-red-500/10 text-red-500">
-                <AlertTriangle className="h-3 w-3" /> Burns after read
-              </span>
-            )}
-            <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-[var(--color-surface-1)]">
-              <Shield className="h-3 w-3" /> E2E encrypted
-            </span>
-          </div>
-          <Button variant="secondary" onClick={handleReset} className="w-full">
-            <Upload className="h-4 w-4 mr-2" /> Send Another File
-          </Button>
-        </div>
+        <ShareResult
+          title="File Encrypted &amp; Uploaded"
+          subtitle="Share this link. The recipient can download and decrypt in their browser."
+          shareUrl={shareUrl}
+          copied={copied}
+          onCopy={handleCopy}
+          expiryHours={expiryHours}
+          burnAfterRead={burnAfterRead}
+          resetIcon={Upload}
+          resetLabel="Send Another File"
+          onReset={handleReset}
+        />
       )}
 
       {state === "error" && (
-        <div className="p-6">
-          <div className="flex flex-col items-center gap-3 py-4 text-center">
-            <div className="flex items-center justify-center h-12 w-12 rounded-xl bg-red-500/10">
-              <AlertTriangle className="h-6 w-6 text-red-500" />
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold">Upload Failed</h3>
-              <p className="text-xs text-[var(--color-text-muted)] mt-1 max-w-xs">{errorMsg}</p>
-            </div>
-            <Button variant="secondary" onClick={handleReset} className="mt-2">Try Again</Button>
-          </div>
-        </div>
+        <ToolErrorState title="Upload Failed" message={errorMsg} onAction={handleReset} wrapped />
       )}
     </div>
   );

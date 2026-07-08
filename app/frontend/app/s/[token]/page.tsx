@@ -5,11 +5,17 @@ import { useParams } from "next/navigation";
 import { getShareInfo, getShareFileMeta, getShareChunk } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { LogoSpinner } from "@/components/ui/logo-spinner";
-import { Shield, Lock, Download, File, AlertTriangle, CheckCircle2, Eye, Music } from "@/lib/icons";
-import { formatBytes, easeProgress } from "@/lib/utils";
+import { Shield, Lock, Download, File, CheckCircle2, Eye } from "@/lib/icons";
+import { formatBytes, saveBlob, concatChunks, extOf } from "@/lib/utils";
+import { keyFromFragment } from "@/lib/share-link";
+import {
+  ViewerCard,
+  ViewerLoading,
+  ViewerError,
+  ViewerDecryptProgress,
+  MediaPreview,
+} from "@/components/tokens/viewer";
 import type { ShareInfo } from "@/types";
-import Image from "next/image";
 
 type PageState =
   | "loading"
@@ -21,24 +27,15 @@ type PageState =
   | "error";
 
 function getPreviewType(filename: string): "image" | "video" | "audio" | "none" {
-  const ext = filename.split(".").pop()?.toLowerCase() || "";
+  const ext = extOf(filename);
   if (["jpg", "jpeg", "png", "gif", "webp", "bmp", "svg", "ico"].includes(ext)) return "image";
   if (["mp4", "webm", "ogg", "mov"].includes(ext)) return "video";
   if (["mp3", "wav", "aac", "flac", "m4a"].includes(ext)) return "audio";
   return "none";
 }
 
-/** Extract the base64 share key from the URL fragment (#key=...). */
-function getShareKeyFromFragment(): string | null {
-  if (typeof window === "undefined") return null;
-  const hash = window.location.hash;
-  if (!hash) return null;
-  const match = hash.match(/key=([A-Za-z0-9+/=]+)/);
-  return match ? match[1] : null;
-}
-
 function getMimeType(filename: string): string | undefined {
-  const ext = filename.split(".").pop()?.toLowerCase() || "";
+  const ext = extOf(filename);
   const map: Record<string, string> = {
     jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", gif: "image/gif",
     webp: "image/webp", bmp: "image/bmp", svg: "image/svg+xml", ico: "image/x-icon",
@@ -66,7 +63,7 @@ export default function SharePage() {
     if (!token) return;
     // The share key lives in the URL fragment; without it the file can't be
     // decrypted no matter what, so surface that immediately.
-    const key = getShareKeyFromFragment();
+    const key = keyFromFragment();
     setShareKey(key);
 
     getShareInfo(token)
@@ -160,13 +157,7 @@ export default function SharePage() {
     await Promise.all(workers);
 
     setProgress({ stage: "Verifying integrity...", percent: 93 });
-    const totalSize = decryptedChunks.reduce((sum, c) => sum + c.byteLength, 0);
-    const fullFile = new Uint8Array(totalSize);
-    let offset = 0;
-    for (const chunk of decryptedChunks) {
-      fullFile.set(chunk, offset);
-      offset += chunk.byteLength;
-    }
+    const fullFile = concatChunks(decryptedChunks);
 
     // 'hmac_v1' files store a per-user KEYED MAC that only the owner (who holds
     // the vault passphrase) can recompute. A public share recipient has no
@@ -180,7 +171,7 @@ export default function SharePage() {
     }
 
     const mime = getMimeType(meta.original_name) || "application/octet-stream";
-    const blob = new Blob([fullFile], { type: mime });
+    const blob = new Blob([fullFile as BlobPart], { type: mime });
     return { blob, originalName: meta.original_name };
   }, [token, shareKey, sharePassword]);
 
@@ -222,14 +213,7 @@ export default function SharePage() {
 
   const handleSaveToDevice = useCallback(() => {
     if (!decryptedBlob) return;
-    const url = URL.createObjectURL(decryptedBlob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = fileName || info?.file_name || "download";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    saveBlob(fileName || info?.file_name || "download", decryptedBlob);
   }, [decryptedBlob, fileName, info]);
 
   // Direct download (for non-previewable files, or from the ready state)
@@ -243,14 +227,7 @@ export default function SharePage() {
       if (!result) return;
 
       const { blob, originalName } = result;
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = originalName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      saveBlob(originalName, blob);
 
       setPageState("done");
       setFileName(originalName);
@@ -280,22 +257,13 @@ export default function SharePage() {
         <span className="text-xl font-bold font-heading tracking-tight">zcrypt</span>
       </div>
 
-      <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-xl overflow-hidden">
+      <ViewerCard>
         {pageState === "loading" && (
-          <div className="flex flex-col items-center justify-center py-16 gap-3">
-            <LogoSpinner size={32} />
-            <p className="text-sm text-[var(--color-text-muted)]">Loading share info...</p>
-          </div>
+          <ViewerLoading message="Loading share info..." />
         )}
 
         {pageState === "error" && (
-          <div className="flex flex-col items-center justify-center py-16 px-6 gap-3 text-center">
-            <div className="flex items-center justify-center h-12 w-12 rounded-xl bg-red-500/10">
-              <AlertTriangle className="h-6 w-6 text-red-500" />
-            </div>
-            <h2 className="text-lg font-semibold">Link Unavailable</h2>
-            <p className="text-sm text-[var(--color-text-muted)] max-w-xs">{errorMsg}</p>
-          </div>
+          <ViewerError title="Link Unavailable" message={errorMsg} />
         )}
 
         {pageState === "ready" && info && (
@@ -384,33 +352,12 @@ export default function SharePage() {
         )}
 
         {pageState === "decrypting" && info && (
-          <>
-            <div className="px-6 pt-6 pb-4 border-b border-[var(--color-border)]">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center h-12 w-12 rounded-xl bg-[var(--color-accent)]/10 flex-shrink-0">
-                  <LogoSpinner size={24} speed="fast" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold truncate">{info.file_name}</p>
-                  <p className="text-xs text-[var(--color-text-muted)]">{formatBytes(info.file_size)}</p>
-                </div>
-              </div>
-            </div>
-            <div className="p-6">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-[var(--color-text-muted)]">{progress.stage}</span>
-                  <span className="font-medium tabular-nums">{easeProgress(progress.percent)}%</span>
-                </div>
-                <div className="h-2 rounded-full bg-[var(--color-surface-1)] overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-[var(--color-accent)] transition-all duration-500 ease-in-out"
-                    style={{ width: `${easeProgress(progress.percent)}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-          </>
+          <ViewerDecryptProgress
+            fileName={info.file_name}
+            fileSize={info.file_size}
+            stage={progress.stage}
+            percent={progress.percent}
+          />
         )}
 
         {pageState === "preview" && info && (
@@ -431,51 +378,12 @@ export default function SharePage() {
             </div>
 
             {/* Preview content */}
-            <div className="p-4">
-              {previewType === "image" && previewUrl && (
-                <div className="flex items-center justify-center rounded-xl overflow-hidden bg-[var(--color-surface-1)]">
-                  <Image
-                    src={previewUrl}
-                    alt={fileName || info.file_name}
-                    className="max-w-full max-h-[60vh] object-contain"
-                  />
-                </div>
-              )}
-
-              {previewType === "video" && previewUrl && (
-                <div className="flex items-center justify-center rounded-xl overflow-hidden bg-black">
-                  <video
-                    src={previewUrl}
-                    controls
-                    autoPlay={false}
-                    playsInline
-                    className="max-w-full max-h-[60vh]"
-                  />
-                </div>
-              )}
-
-              {previewType === "audio" && previewUrl && (
-                <div className="flex flex-col items-center gap-4 py-6 rounded-xl bg-[var(--color-surface-1)]">
-                  <div className="flex items-center justify-center h-16 w-16 rounded-2xl bg-[var(--color-accent)]/10">
-                    <Music className="h-8 w-8 text-[var(--color-accent)]" />
-                  </div>
-                  <p className="text-sm font-medium text-[var(--color-text-secondary)]">{fileName || info.file_name}</p>
-                  <audio src={previewUrl} controls className="w-full max-w-sm" />
-                </div>
-              )}
-
-              {previewType === "none" && (
-                <div className="flex flex-col items-center gap-3 py-8 text-center">
-                  <CheckCircle2 className="h-8 w-8 text-cyan-500" />
-                  <p className="text-sm font-medium">File decrypted successfully</p>
-                  <p className="text-xs text-[var(--color-text-muted)]">No preview available for this file type.</p>
-                  <Button onClick={handleSaveToDevice} className="mt-2">
-                    <Download className="h-4 w-4 mr-2" />
-                    Save to Device
-                  </Button>
-                </div>
-              )}
-            </div>
+            <MediaPreview
+              previewType={previewType}
+              previewUrl={previewUrl}
+              name={fileName || info.file_name}
+              onSave={handleSaveToDevice}
+            />
 
             {/* Bottom bar */}
             <div className="px-5 py-3 border-t border-[var(--color-border)] flex items-center justify-between">
@@ -524,7 +432,7 @@ export default function SharePage() {
             </div>
           </div>
         )}
-      </div>
+      </ViewerCard>
 
       {/* Footer */}
       <p className="text-center text-[10px] text-[var(--color-text-muted)] mt-6">
