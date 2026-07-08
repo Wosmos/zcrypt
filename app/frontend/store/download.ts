@@ -7,6 +7,8 @@ import { getFilesData } from "@/store/files";
 import { useFolderRegistry } from "@/store/folder-registry";
 import { useFolderPasswordStore } from "@/store/folder-passwords";
 import { resolveFilePasswordGlobal } from "@/hooks/useFolderProtection";
+import { genId } from "@/lib/id";
+import { relaunchAfterPrior } from "@/lib/async/relaunch";
 
 // Files at/above this size stream to disk (a Save-As prompt) instead of being
 // assembled in memory — the only way to download something too big to hold in a
@@ -146,8 +148,6 @@ interface DownloadStore {
   clearCompleted: () => void;
 }
 
-let counter = 0;
-
 // A download that FAILED for a transient reason (network drop / suspended tab)
 // is safe to auto-resume; one that failed on a crypto/auth problem is NOT — it
 // would just re-fail (and re-toast) on every tab focus. Unknown → assume
@@ -242,7 +242,7 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
   queue: [],
 
   startDownload: (fileId, filename, fileSize, passphrase, resolvePassword) => {
-    const id = `dl_${++counter}_${Date.now()}`;
+    const id = genId("dl");
 
     set((state) => ({
       queue: [
@@ -287,7 +287,7 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
   },
 
   startBulkZipDownload: (files, passphrase, resolvePassword) => {
-    const id = `zip_${++counter}_${Date.now()}`;
+    const id = genId("zip");
     const controller = new AbortController();
     const totalSize = files.reduce((s, f) => s + f.fileSize, 0);
 
@@ -361,10 +361,7 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
       queue: state.queue.map((i) => (i.id === id ? { ...i, status: "downloading" as const, stage: "Resuming…", error: undefined } : i)),
     }));
     const prior = session.runPromise;
-    void (async () => {
-      try { await prior; } catch { /* previous run settled (paused/aborted) — fine */ }
-      await runSingleDownload(id);
-    })();
+    relaunchAfterPrior(prior, () => runSingleDownload(id));
   },
 
   // Auto-resume single-file downloads that died mid-transfer (tab suspended /
@@ -387,10 +384,7 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
         ),
       }));
       const prior = session.runPromise;
-      void (async () => {
-        try { await prior; } catch { /* previous run settled — fine */ }
-        await runSingleDownload(item.id);
-      })();
+      relaunchAfterPrior(prior, () => runSingleDownload(item.id));
     }
   },
 
@@ -416,10 +410,7 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
         queue: state.queue.map((i) => (i.id === id ? { ...i, status: "downloading" as const, stage: "Retrying…", error: undefined } : i)),
       }));
       const prior = session.runPromise;
-      void (async () => {
-        try { await prior; } catch { /* settled */ }
-        await runSingleDownload(id);
-      })();
+      relaunchAfterPrior(prior, () => runSingleDownload(id));
       return;
     }
 

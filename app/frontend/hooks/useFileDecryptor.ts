@@ -8,7 +8,8 @@ import {
 } from "@/lib/decrypt-cache";
 import { getDeviceProfile } from "@/lib/device-profile";
 import { WorkerPool } from "@/lib/worker-pool";
-import { mediaMimeFor } from "@/lib/media-formats";
+import { mediaMimeFor, extOf } from "@/lib/media-formats";
+import { concatChunks } from "@/lib/utils";
 import { viewerKindFor } from "@/components/viewers/viewer-kind";
 import {
   resolveFilePasswordGlobal,
@@ -133,7 +134,7 @@ const MIME_BY_EXT: Record<string, string> = {
 
 /** Derive a MIME type from a filename's extension (octet-stream fallback). */
 export function mimeForFilename(filename: string): string {
-  const ext = filename.split(".").pop()?.toLowerCase() ?? "";
+  const ext = extOf(filename);
   // Prefer the local table, then the shared media table (broad audio/video
   // coverage — mpeg/wma/mkv/etc.), then octet-stream.
   return MIME_BY_EXT[ext] ?? mediaMimeFor(filename) ?? "application/octet-stream";
@@ -170,7 +171,7 @@ export async function runDecryptPipeline(
   onProgress?: (done: number, total: number) => void
 ): Promise<Blob> {
   const { getFileMeta, getFileChunk } = await import("@/lib/api");
-  const { resolveFileKey, decryptChunk, sha256Hex, fromBase64, createContentHasher, deriveDedupKeyBytes } = await import("@/lib/crypto");
+  const { resolveFileKey, decryptChunk, sha256Hex, fromBase64, createContentHasher, deriveDedupKeyBytes, bytesToHex } = await import("@/lib/crypto");
 
   const meta = await getFileMeta(file.id);
   const salt = fromBase64(meta.salt);
@@ -240,13 +241,7 @@ export async function runDecryptPipeline(
     pool.terminate();
   }
 
-  const totalSize = decrypted.reduce((s, c) => s + c.byteLength, 0);
-  const full = new Uint8Array(totalSize);
-  let offset = 0;
-  for (const c of decrypted) {
-    full.set(c, offset);
-    offset += c.byteLength;
-  }
+  const full = concatChunks(decrypted);
 
   // Integrity check — scheme-aware, mirroring lib/download-session.ts. 'hmac_v1'
   // files store a per-user KEYED MAC, NOT a plain SHA-256, so hashing with
@@ -264,7 +259,7 @@ export async function runDecryptPipeline(
       const macKey = await deriveDedupKeyBytes(password, uid);
       const hasher = await createContentHasher("hmac_v1", macKey);
       hasher.update(full);
-      const mac = Array.from(hasher.digest()).map((b) => b.toString(16).padStart(2, "0")).join("");
+      const mac = bytesToHex(hasher.digest());
       if (mac !== meta.sha256) throw new IntegrityError();
     }
   } else {

@@ -1,10 +1,28 @@
 import clsx, { type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { isAudioFile, isVideoFile, mediaMimeFor } from "@/lib/media-formats";
+import { isAudioFile, isVideoFile, mediaMimeFor, extOf } from "@/lib/media-formats";
+import {
+  File as FileIcon,
+  FileText,
+  Table,
+  Image as ImageIcon,
+  Video,
+  Music,
+  Archive,
+  Code,
+  Cog,
+} from "@/lib/icons";
+import type { FileMetadata } from "@/types";
 
 // Re-exported so existing importers of `@/lib/utils` keep working while the
 // canonical lists live in lib/media-formats.
 export { isVideoFile };
+
+// Re-exported from lib/utils for import ergonomics so the many inline
+// `filename.split('.').pop()` sites can adopt the ONE canonical extractor
+// without reaching into lib/media-formats directly. Canonical impl still lives
+// in lib/media-formats.
+export { extOf };
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -211,4 +229,222 @@ export function midTrunc(name: string, start = 10, end = 4): string {
 
   if (base.length <= start + end + 1) return name;
   return base.slice(0, start) + "…" + base.slice(-end) + ext;
+}
+
+// ─── Shared severity union ───────────────────────────────────────────────────
+
+/** The one 4-member severity union shared by toasts, notifications, and any
+ *  other status-styled UI. Store-local aliases (ToastType, NotificationType)
+ *  should be `= Severity`. */
+export type Severity = "success" | "error" | "warning" | "info";
+
+// ─── Date / time formatting ──────────────────────────────────────────────────
+
+/**
+ * ABSOLUTE date + time, e.g. "Jul 8, 2026, 09:41 PM". THE canonical replacement
+ * for the hand-copied local `formatDate(iso)` absolute formatters (integrity /
+ * snapshots / expiring tabs, dead-man switch, details drawer). Distinct from the
+ * RELATIVE `formatDate` in this same file — do NOT route one through the other.
+ * `opts.seconds` adds a 2-digit seconds field (covers audit-log's formatFullTime;
+ * note that adopting this also forces the "en-US" locale on that site).
+ */
+export function formatDateTime(iso: string | number | Date, opts?: { seconds?: boolean }): string {
+  return new Date(iso).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    ...(opts?.seconds ? { second: "2-digit" } : {}),
+  });
+}
+
+/**
+ * Date-only, e.g. "Jul 8, 2026". For date-only displays and the bare
+ * `.toLocaleDateString()` admin/settings sites — adopting this forces "en-US"
+ * on those locale-default sites (intended).
+ */
+export function formatDateShort(iso: string | number | Date): string {
+  return new Date(iso).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+/**
+ * ONE relative "X ago" policy. Accepts an ISO string, an epoch-ms number, or a
+ * Date. Lowercase "just now"; single 30-day cutoff after which it falls back to
+ * formatDateShort. Distinct from the RELATIVE `formatDate` (which uses "Just
+ * now" and a 7-day cutoff) — that one may optionally delegate here later, but
+ * they are not merged.
+ */
+export function formatRelativeTime(input: string | number | Date): string {
+  const ts = input instanceof Date ? input.getTime() : typeof input === "number" ? input : new Date(input).getTime();
+  const diff = Date.now() - ts;
+  const seconds = Math.floor(diff / 1000);
+  if (seconds < 60) return "just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return formatDateShort(ts);
+}
+
+/**
+ * Seconds -> clock string. Options-driven so both callers adopt without any
+ * visual change:
+ *   - media player: `formatDuration(s)` → "m:ss" (unpadded minutes), or
+ *     "h:mm:ss" once an hour is present. Non-finite / negative → "0:00".
+ *   - vault-lock countdown: `formatDuration(s, { padMinutes: true, showHours: false })`
+ *     → "mm:ss" (padded minutes, never rolls into an hours field, e.g. 90:00).
+ */
+export function formatDuration(totalSeconds: number, opts?: { padMinutes?: boolean; showHours?: boolean }): string {
+  const { padMinutes = false, showHours = true } = opts ?? {};
+  const safe = !Number.isFinite(totalSeconds) || totalSeconds < 0 ? 0 : Math.floor(totalSeconds);
+  const s = safe % 60;
+  const ss = String(s).padStart(2, "0");
+  if (showHours && safe >= 3600) {
+    const h = Math.floor(safe / 3600);
+    const m = Math.floor((safe % 3600) / 60);
+    return `${h}:${String(m).padStart(2, "0")}:${ss}`;
+  }
+  const m = showHours ? Math.floor((safe % 3600) / 60) : Math.floor(safe / 60);
+  const mm = padMinutes ? String(m).padStart(2, "0") : String(m);
+  return `${mm}:${ss}`;
+}
+
+/**
+ * Future timestamp -> coarse countdown: "Xd Xh" (>= a day out), "Xh Xm"
+ * (otherwise), or "Expired" once elapsed. Sits beside formatEta; also covers the
+ * expiring-tab `timeUntil` helper.
+ */
+export function formatExpiry(expiresAt: string): string {
+  const diff = new Date(expiresAt).getTime() - Date.now();
+  if (diff <= 0) return "Expired";
+  const days = Math.floor(diff / 86400000);
+  const hours = Math.floor((diff % 86400000) / 3600000);
+  if (days > 0) return `${days}d ${hours}h`;
+  const minutes = Math.floor((diff % 3600000) / 60000);
+  return `${hours}h ${minutes}m`;
+}
+
+/** YYYY-MM-DD in LOCAL time (avoids the UTC drift toISOString() causes). */
+export function localDateKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// ─── Size / number formatting ────────────────────────────────────────────────
+
+/** bytes/sec -> "X MB/s" / "X KB/s" / "X B/s" (its own rounding, NOT formatBytes).
+ *  Callers keep their own elapsed / "--" guard and pass a computed rate. */
+export function formatSpeed(bytesPerSecond: number): string {
+  const bps = bytesPerSecond;
+  if (bps >= 1024 * 1024) return `${(bps / (1024 * 1024)).toFixed(1)} MB/s`;
+  if (bps >= 1024) return `${(bps / 1024).toFixed(0)} KB/s`;
+  return `${Math.round(bps)} B/s`;
+}
+
+/** Clamped space-saving percentage as a whole-number string (no "%" suffix).
+ *  `((1 - compared/original) * 100)`, floored at 0, with an original<=0 guard.
+ *  Callers pass their own field (encrypted_size vs compressed_size) so the
+ *  semantics stay per-site. */
+export function savingsPercent(original: number, compared: number): string {
+  if (original <= 0) return "0";
+  return Math.max(0, (1 - compared / original) * 100).toFixed(0);
+}
+
+/** GB -> bytes (*1024^3). */
+export function gbToBytes(gb: number): number {
+  return gb * 1024 * 1024 * 1024;
+}
+
+/** bytes -> GB (/1024^3). */
+export function bytesToGb(bytes: number): number {
+  return bytes / (1024 * 1024 * 1024);
+}
+
+/** used/max as a 0-100 percentage, clamped at 100; 0 when max<=0. */
+export function usagePercent(used: number, max: number): number {
+  return max > 0 ? Math.min(100, (used / max) * 100) : 0;
+}
+
+// ─── String helpers ──────────────────────────────────────────────────────────
+
+/** Middle-truncate an opaque string (hash / id / token) as "head…tail". NOT the
+ *  extension-aware midTrunc (that one stays for filenames). Returns the input
+ *  unchanged when it's already short enough. */
+export function truncateMiddle(s: string, head = 6, tail = 6): string {
+  if (s.length <= head + tail + 1) return s;
+  return s.slice(0, head) + "…" + s.slice(-tail);
+}
+
+// ─── File helpers ────────────────────────────────────────────────────────────
+
+/** Map getFileTypeInfo(filename).icon (a string) to the Hugeicon component via
+ *  ONE internal table, falling back to File. Replaces the 8+ local `iconMap` +
+ *  `|| File` copies. */
+const FILE_ICON_MAP: Record<string, typeof FileIcon> = {
+  File: FileIcon,
+  FileText,
+  Table,
+  Image: ImageIcon,
+  Video,
+  Music,
+  Archive,
+  Code,
+  Cog,
+};
+
+export function fileIconFor(filename: string): typeof FileIcon {
+  return FILE_ICON_MAP[getFileTypeInfo(filename).icon] ?? FileIcon;
+}
+
+/** Look up a file's display name by id, falling back to the first 8 chars of the
+ *  id — folds the identical snapshots/expiring-tab `getFileName` helper. */
+export function fileNameById(files: FileMetadata[], id: string): string {
+  return files.find((f) => f.id === id)?.original_name || id.slice(0, 8);
+}
+
+// ─── Binary helpers ──────────────────────────────────────────────────────────
+
+/** Concatenate decrypted chunks into one contiguous Uint8Array (sum lengths,
+ *  then set at running offset). download-session intentionally streams and is
+ *  excluded from this. */
+export function concatChunks(chunks: Uint8Array[]): Uint8Array {
+  const total = chunks.reduce((sum, c) => sum + c.byteLength, 0);
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const c of chunks) {
+    out.set(c, offset);
+    offset += c.byteLength;
+  }
+  return out;
+}
+
+/** Trigger a browser "save as": createObjectURL -> hidden <a download> -> click
+ *  -> revoke. For a Uint8Array the bytes are copied into a FRESH ArrayBuffer so
+ *  the Blob gets contiguous, offset-free bytes (matches the app/f hand-roll).
+ *  The single home for the ~12 copy-pasted download triggers. */
+export function saveBlob(name: string, data: Blob | BlobPart | Uint8Array, mime?: string): void {
+  let blob: Blob;
+  if (data instanceof Blob) {
+    blob = mime ? new Blob([data], { type: mime }) : data;
+  } else if (data instanceof Uint8Array) {
+    const buf = new ArrayBuffer(data.byteLength);
+    new Uint8Array(buf).set(data);
+    blob = new Blob([buf], { type: mime ?? "application/octet-stream" });
+  } else {
+    blob = new Blob([data], { type: mime ?? "application/octet-stream" });
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }

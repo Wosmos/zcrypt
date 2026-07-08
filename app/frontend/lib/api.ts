@@ -1,7 +1,7 @@
-import type { FileMetadata, Folder, FolderRequest, PlatformStatus, RepoInfo, AppConfig, AdminUser, SystemStats, PlatformTokenInfo, QuotaInfo, PlanConfigs, AdminUserDetail, ShareLink, ShareInfo, SendInitRequest, SendInitResponse, SendInfo, SendMeta, PadCreateRequest, PadInfo, ClipboardItem, ClipboardPushRequest, SyncFolder, SyncFolderRequest, DecoyStatus, DecoyFile, DeadManSwitch, DeadManSwitchRequest, ExpiringVault, ExpiringVaultRequest, IntegritySnapshot, VaultSnapshot, SharedVault, SharedVaultDetail, SharedVaultMember, OfflinePin } from "@/types";
+import type { FileMetadata, Folder, FolderRequest, PlatformStatus, RepoInfo, AppConfig, AdminUser, SystemStats, PlatformTokenInfo, QuotaInfo, PlanConfigs, AdminUserDetail, ShareLink, ShareInfo, SendInitRequest, SendInitResponse, SendInfo, SendMeta, PadCreateRequest, PadInfo, ClipboardItem, ClipboardPushRequest, SyncFolder, SyncFolderRequest, DecoyStatus, DecoyFile, DeadManSwitch, DeadManSwitchRequest, ExpiringVault, ExpiringVaultRequest, IntegritySnapshot, VaultSnapshot, SharedVault, SharedVaultDetail, SharedVaultMember, OfflinePin, PublicResourceInfo } from "@/types";
 import { useAuthStore } from "@/store/auth";
 import { authedFetch, tryRefreshToken } from "@/lib/auth-fetch";
-import { throwResponseError } from "@/lib/http-error";
+import { throwResponseError, parseErrorJson } from "@/lib/http-error";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
@@ -102,19 +102,19 @@ export function saveDevicePreference(pref: {
 
 // ─── Per-user keypairs (zero-knowledge sharing foundation) ───
 
-export interface UserKeyRecord {
-  user_id: string;
-  public_key: string;
-  wrapped_private_key: string;
-  kdf_salt: string;
-  fingerprint: string;
-  updated_at: string;
-}
-
 export interface PublicKeyRecord {
   user_id: string;
   public_key: string;
   fingerprint: string;
+}
+
+// The caller's own record is exactly the public record plus the private-key
+// material — so it extends PublicKeyRecord rather than restating the shared
+// fields.
+export interface UserKeyRecord extends PublicKeyRecord {
+  wrapped_private_key: string;
+  kdf_salt: string;
+  updated_at: string;
 }
 
 /** The caller's own key record (incl. the wrapped private key), or null if
@@ -613,10 +613,7 @@ export async function getShareFileMeta(token: string, password?: string): Promis
   const headers: Record<string, string> = {};
   if (password) headers["X-Share-Password"] = password;
   const res = await fetch(`${API_BASE}/api/share/${token}/meta`, { headers });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || "Failed to get file metadata");
-  }
+  if (!res.ok) throw new Error(await parseErrorJson(res, "Failed to get file metadata"));
   return res.json();
 }
 
@@ -642,11 +639,9 @@ export interface FolderShareFileEntry {
   chunk_count?: number;
 }
 
-export interface FolderShareInfo {
-  valid: boolean;
+export interface FolderShareInfo extends PublicResourceInfo {
   has_password: boolean;
   name: string;
-  reason?: string;
   files?: FolderShareFileEntry[];
 }
 
@@ -744,10 +739,7 @@ export async function getFolderShareFileMeta(
   const headers: Record<string, string> = {};
   if (password) headers["X-Share-Password"] = password;
   const res = await shareFetchRetry(`${API_BASE}/api/folder-share/${token}/files/${fileId}/meta`, headers);
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || "Failed to get file metadata");
-  }
+  if (!res.ok) throw new Error(await parseErrorJson(res, "Failed to get file metadata"));
   return res.json();
 }
 
@@ -772,10 +764,7 @@ export async function sendInit(data: SendInitRequest): Promise<SendInitResponse>
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || "Failed to start send");
-  }
+  if (!res.ok) throw new Error(await parseErrorJson(res, "Failed to start send"));
   return res.json();
 }
 
@@ -796,10 +785,7 @@ export async function sendChunkUpload(
     headers,
     body: chunk as unknown as BodyInit,
   });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || "Failed to upload chunk");
-  }
+  if (!res.ok) throw new Error(await parseErrorJson(res, "Failed to upload chunk"));
 }
 
 export async function sendComplete(sessionId: string): Promise<{ token: string }> {
@@ -808,10 +794,7 @@ export async function sendComplete(sessionId: string): Promise<{ token: string }
     headers: { "Content-Type": "application/json" },
     body: "{}",
   });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || "Failed to complete send");
-  }
+  if (!res.ok) throw new Error(await parseErrorJson(res, "Failed to complete send"));
   return res.json();
 }
 
@@ -823,10 +806,7 @@ export async function getSendInfo(token: string): Promise<SendInfo> {
 
 export async function getSendMeta(token: string): Promise<SendMeta> {
   const res = await fetch(`${API_BASE}/api/send/${token}/meta`);
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || "Failed to get transfer metadata");
-  }
+  if (!res.ok) throw new Error(await parseErrorJson(res, "Failed to get transfer metadata"));
   return res.json();
 }
 
@@ -848,10 +828,7 @@ export async function createPad(data: PadCreateRequest): Promise<{ token: string
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || "Failed to create pad");
-  }
+  if (!res.ok) throw new Error(await parseErrorJson(res, "Failed to create pad"));
   return res.json();
 }
 
@@ -863,10 +840,7 @@ export async function getPadInfo(token: string): Promise<PadInfo> {
 
 export async function getPadContent(token: string): Promise<ArrayBuffer> {
   const res = await fetch(`${API_BASE}/api/pad/${token}/content`);
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || "Failed to get pad content");
-  }
+  if (!res.ok) throw new Error(await parseErrorJson(res, "Failed to get pad content"));
   return res.arrayBuffer();
 }
 

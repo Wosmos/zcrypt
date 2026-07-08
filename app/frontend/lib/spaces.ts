@@ -16,17 +16,12 @@ import {
   getUserPublicKey,
   rotateSpace,
 } from "@/lib/api";
-import { fromBase64, toBase64, resolveFileKey, wrapKey, unwrapKey } from "@/lib/crypto";
+import { fromBase64, toBase64, resolveFileKey, wrapKey, unwrapKey, toArrayBuffer } from "@/lib/crypto";
 import { downloadAndDecryptFile, type DownloadOptions } from "@/lib/download-session";
 import { useKeysStore } from "@/store/keys";
 import { useSpacesStore } from "@/store/spaces";
 import { usePassphraseStore } from "@/store/passphrase";
 import type { SharedVault, SharedVaultMember, SharedVaultFile } from "@/types";
-
-/** A Uint8Array's bytes as a standalone ArrayBuffer (used as an AES key). */
-function keyBuffer(u8: Uint8Array): ArrayBuffer {
-  return u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength) as ArrayBuffer;
-}
 
 /** Create a shared space: generate its key, seal it to yourself, and create the
  *  vault carrying that grant. Caches the space key for the session. */
@@ -68,8 +63,8 @@ export async function loadSpaceKey(vault: SharedVault): Promise<Uint8Array | nul
 async function spaceFileKey(vault: SharedVault, spaceWrappedCek: string): Promise<ArrayBuffer> {
   const spaceKey = await loadSpaceKey(vault);
   if (!spaceKey) throw new Error("This space's key isn't available — unlock your vault first.");
-  const cek = await unwrapKey(keyBuffer(spaceKey), fromBase64(spaceWrappedCek));
-  return keyBuffer(cek);
+  const cek = await unwrapKey(toArrayBuffer(spaceKey), fromBase64(spaceWrappedCek));
+  return toArrayBuffer(cek);
 }
 
 /** Share a file you own into a space: resolve its CEK with your vault passphrase,
@@ -85,7 +80,7 @@ export async function shareFileIntoSpace(vault: SharedVault, fileId: string): Pr
   // The file key under the OWNER's protection (CEK for envelope files, or the
   // derived key for legacy files) — whatever decrypts this file's chunks.
   const fileKey = await resolveFileKey(passphrase, fromBase64(meta.salt), meta.wrapped_cek);
-  const rewrapped = await wrapKey(keyBuffer(spaceKey), new Uint8Array(fileKey));
+  const rewrapped = await wrapKey(toArrayBuffer(spaceKey), new Uint8Array(fileKey));
   await addFileToSpace(vault.id, fileId, toBase64(rewrapped));
 }
 
@@ -137,10 +132,10 @@ export async function rotateSpaceKey(
 
   const fileWraps: { file_id: string; wrapped_cek: string }[] = [];
   for (const f of files) {
-    const cek = await unwrapKey(keyBuffer(oldKey), fromBase64(f.wrapped_cek));
+    const cek = await unwrapKey(toArrayBuffer(oldKey), fromBase64(f.wrapped_cek));
     fileWraps.push({
       file_id: f.file_id,
-      wrapped_cek: toBase64(await wrapKey(keyBuffer(newKey), cek)),
+      wrapped_cek: toBase64(await wrapKey(toArrayBuffer(newKey), cek)),
     });
   }
 

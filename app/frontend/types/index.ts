@@ -212,9 +212,18 @@ export interface ShareLink {
   created_at: string;
 }
 
-export interface ShareInfo {
+/**
+ * Common head of every public-link info response (share / send / pad / folder
+ * share): whether the link resolved and, if not, why. Each concrete type keeps
+ * its own distinct tail — this base is extracted ONLY to share those two fields,
+ * NOT to collapse them into one type.
+ */
+export interface PublicResourceInfo {
   valid: boolean;
   reason?: string;
+}
+
+export interface ShareInfo extends PublicResourceInfo {
   file_name: string;
   file_size: number;
   chunk_count: number;
@@ -238,9 +247,7 @@ export interface SendInitResponse {
   platform: string;
 }
 
-export interface SendInfo {
-  valid: boolean;
-  reason?: string;
+export interface SendInfo extends PublicResourceInfo {
   file_name: string;
   file_size: number;
   burn_after_read: boolean;
@@ -262,9 +269,7 @@ export interface PadCreateRequest {
   expires_hours?: number;
 }
 
-export interface PadInfo {
-  valid: boolean;
-  reason?: string;
+export interface PadInfo extends PublicResourceInfo {
   content_size: number;
   burn_after_read: boolean;
   expires_at: string;
@@ -446,19 +451,26 @@ export interface OfflinePin {
   pinned_at: string;
 }
 
+/**
+ * A single audit / security-log entry. Lives in types/ (not lib/auth-api) so
+ * AdminUserDetail can reference it without a types→lib import inversion;
+ * re-exported from lib/auth-api for its existing consumers.
+ */
+export interface AuditEvent {
+  id: string;
+  user_id?: string;
+  event_type: string;
+  ip: string;
+  user_agent: string;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
 // Admin user detail (matches backend JSON keys exactly)
 export interface AdminUserDetail {
   user: AdminUser;
   file_count: number;
   used_bytes: number;
   quota_bytes: number;
-  events: Array<{
-    id: string;
-    user_id?: string;
-    event_type: string;
-    ip: string;
-    user_agent: string;
-    metadata: Record<string, unknown>;
-    created_at: string;
-  }>;
+  events: AuditEvent[];
 }

@@ -1,6 +1,10 @@
 import { create } from "zustand";
+import type { Severity } from "@/lib/utils";
+import { genId } from "@/lib/id";
 
-export type NotificationType = "success" | "error" | "warning" | "info";
+// Aliased to the app-wide Severity union (see lib/utils) so toast + notification
+// severities stay in lockstep.
+export type NotificationType = Severity;
 export type NotificationCategory = "upload" | "download" | "server" | "system";
 
 export interface AppNotification {
@@ -23,15 +27,18 @@ interface NotificationStore {
   clearAll: () => void;
 }
 
-let counter = 0;
 const MAX_NOTIFICATIONS = 50;
+
+function countUnread(list: AppNotification[]): number {
+  return list.filter((x) => !x.read).length;
+}
 
 export const useNotificationStore = create<NotificationStore>((set) => ({
   notifications: [],
   unreadCount: 0,
 
   add: (n) => {
-    const id = `notif_${++counter}_${Date.now()}`;
+    const id = genId("notif");
     set((s) => {
       const next = [
         { ...n, id, timestamp: Date.now(), read: false },
@@ -39,7 +46,7 @@ export const useNotificationStore = create<NotificationStore>((set) => ({
       ].slice(0, MAX_NOTIFICATIONS);
       return {
         notifications: next,
-        unreadCount: next.filter((x) => !x.read).length,
+        unreadCount: countUnread(next),
       };
     });
   },
@@ -51,7 +58,7 @@ export const useNotificationStore = create<NotificationStore>((set) => ({
       );
       return {
         notifications: next,
-        unreadCount: next.filter((x) => !x.read).length,
+        unreadCount: countUnread(next),
       };
     });
   },
@@ -68,7 +75,7 @@ export const useNotificationStore = create<NotificationStore>((set) => ({
       const next = s.notifications.filter((n) => n.id !== id);
       return {
         notifications: next,
-        unreadCount: next.filter((x) => !x.read).length,
+        unreadCount: countUnread(next),
       };
     });
   },

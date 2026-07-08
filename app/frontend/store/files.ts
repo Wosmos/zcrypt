@@ -5,6 +5,7 @@ import type { FileMetadata } from "@/types";
 import { listFiles } from "@/lib/api";
 import { queryClient } from "@/lib/query-client";
 import { qk } from "@/lib/query-keys";
+import { setListData, getQueryData, invalidateKey } from "@/lib/query-cache";
 import { useAuthStore } from "@/store/auth";
 import { decryptFileNames } from "@/lib/file-names";
 
@@ -39,24 +40,19 @@ export function useFilesQuery() {
 
 /** Non-reactive snapshot for stores/handlers outside the React tree. */
 export function getFilesData(): FileMetadata[] {
-  return queryClient.getQueryData<FileMetadata[]>(qk.files) ?? [];
+  return getQueryData<FileMetadata[]>(qk.files, []);
 }
 
 /** Optimistically write the files cache (mutations + drag-to-move/delete). */
 export function setFilesData(
   updater: FileMetadata[] | ((prev: FileMetadata[]) => FileMetadata[])
 ): void {
-  queryClient.setQueryData<FileMetadata[]>(qk.files, (prev) => {
-    const base = prev ?? [];
-    return typeof updater === "function"
-      ? (updater as (p: FileMetadata[]) => FileMetadata[])(base)
-      : updater;
-  });
+  setListData<FileMetadata>(qk.files, updater);
 }
 
 /** Force a refetch + reconcile of the files list (used as `refresh()`). */
 export function invalidateFiles(): Promise<void> {
-  return queryClient.invalidateQueries({ queryKey: qk.files });
+  return invalidateKey(qk.files);
 }
 
 /**
