@@ -1,8 +1,6 @@
-"use client";
-
 import Link from "next/link";
 import { ArrowRight } from "@/lib/icons";
-import { Section } from "@/components/marketing/prose";
+import { Section } from "@/components/marketing/section-reveal";
 
 // Shared page scaffold for the long-form legal pages (privacy, terms) so the
 // header chrome and footer CTA stay identical instead of each page redefining

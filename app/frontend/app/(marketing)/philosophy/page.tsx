@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, ArrowUpRight } from "@/lib/icons";
-import { Section, PullQuote } from "@/components/marketing/prose";
+import { PullQuote } from "@/components/marketing/prose";
+import { Section } from "@/components/marketing/section-reveal";
 import { WOSMO, WosmoWordmark } from "@/components/marketing/wosmo";
 
 // Server Component (statically generated) — metadata lives here; the only client

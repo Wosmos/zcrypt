@@ -1,5 +1,3 @@
-"use client";
-
 import Link from "next/link";
 import { Shield, ArrowRight } from "@/lib/icons";
 import { Underlined } from "./pencil-underline";

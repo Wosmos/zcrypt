@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, ArrowUpRight, MapPin, ShieldCheck } from "@/lib/icons";
-import { Section, PullQuote } from "@/components/marketing/prose";
+import { PullQuote } from "@/components/marketing/prose";
+import { Section } from "@/components/marketing/section-reveal";
 import { WOSMO, WOSMO_SOCIALS, WosmoWordmark } from "@/components/marketing/wosmo";
 import { PersonJsonLd, BreadcrumbJsonLd } from "@/components/seo/json-ld";
 
