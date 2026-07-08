@@ -22,16 +22,12 @@ import {
 } from "@/lib/icons";
 import { MetaRow, CopyField, EncryptionAssuranceCard, ShareLinkRow } from "@/components/files/details-shared";
 
-/** Human label for a storage platform code (from FileMetadata.platform). */
-const PLATFORM_LABELS: Record<string, string> = {
-  telegram: "Telegram",
-  github: "GitHub",
-  gitlab: "GitLab",
-  huggingface: "Hugging Face",
-};
+/** Human label for a storage platform code (from FileMetadata.platform).
+ *  Uses the shared platform name map; falls back to a capitalized raw id. */
 function platformLabel(p: string): string {
-  return PLATFORM_LABELS[p.toLowerCase()] ?? p.charAt(0).toUpperCase() + p.slice(1);
+  return PLATFORM_NAMES[p.toLowerCase()] ?? p.charAt(0).toUpperCase() + p.slice(1);
 }
+import { PLATFORM_NAMES } from "@/lib/platforms";
 import { revokeShare, type FileMetaResponse } from "@/lib/api";
 import { createFileShareLink } from "@/lib/file-share";
 import { useSharesQuery, invalidateShares, useFileMetaQuery } from "@/hooks/useShares";
