@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import {
   ArrowRight,
-  ChevronRight,
   HardDrive,
   Github,
   GitBranch,
@@ -15,9 +14,11 @@ import {
   Lock,
   Check,
   Server,
-  FileText,
 } from "@/lib/icons";
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
+import { FeatureHero } from "@/components/marketing/features/feature-hero";
+import { RelatedLinks } from "@/components/marketing/features/related-links";
+import { CtaSection } from "@/components/marketing/features/cta-section";
 
 export const metadata: Metadata = {
   title: "Bring Your Own Storage — Your Data, Your Infrastructure",
@@ -102,6 +103,24 @@ const capabilities = [
   },
 ];
 
+const related = [
+  {
+    href: "/features/encrypted-drive",
+    title: "The encrypted drive",
+    desc: "What sits on top of your storage — a real, sealed file explorer.",
+  },
+  {
+    href: "/docs/platform-adapters",
+    title: "Docs: Platform adapters",
+    desc: "Connect GitHub, GitLab, Hugging Face, and Telegram accounts.",
+  },
+  {
+    href: "/docs/repo-pool",
+    title: "Docs: Repo pool",
+    desc: "How chunks distribute and repos auto-rotate as they fill.",
+  },
+];
+
 export default function BringYourOwnStoragePage() {
   return (
     <>
@@ -117,45 +136,21 @@ export default function BringYourOwnStoragePage() {
       />
 
       {/* ═══ HERO ═══ */}
-      <section className="relative overflow-hidden px-6 pt-32 pb-16 md:pt-36">
-        <div className="absolute inset-0 -z-10 pointer-events-none">
-          <div className="absolute left-1/2 top-0 h-[500px] w-[700px] -translate-x-1/2 rounded-full bg-cyan-500/10 blur-[120px]" />
-        </div>
-        <div className="mx-auto max-w-3xl text-center">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
-            Bring your own storage
-          </p>
-          <h1 className="font-heading text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl md:text-6xl">
-            We don&apos;t sell you storage.
-            <br />
-            <span className="bg-gradient-to-r from-cyan-500 to-cyan-400 bg-clip-text italic text-transparent dark:from-cyan-400 dark:to-cyan-300">
-              You already have it.
-            </span>
-          </h1>
-          <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-[var(--color-text-secondary)]">
+      <FeatureHero
+        eyebrow="Bring your own storage"
+        headlineTop="We don't sell you storage."
+        headlineGradient="You already have it."
+        subtext={
+          <>
             Connect accounts you own — GitHub, GitLab, Hugging Face, Telegram — and your
             encrypted chunks fan out across them. Repos rotate automatically as they
             fill, so your space grows on its own. Your data, your infrastructure, no
             lock-in.
-          </p>
-          <div className="mt-9 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <Link
-              href="/register"
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-[#2de0ed] via-[#00d5e4] to-[#0093a3] px-8 py-3.5 text-base font-semibold text-slate-900 shadow-lg shadow-cyan-500/30 transition-shadow hover:shadow-xl hover:shadow-cyan-500/50"
-            >
-              Create your vault
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link
-              href="/docs/platform-adapters"
-              className="inline-flex items-center gap-2 px-5 py-3.5 text-sm font-semibold text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text)]"
-            >
-              Read the docs
-              <ChevronRight className="h-3.5 w-3.5" />
-            </Link>
-          </div>
-        </div>
-
+          </>
+        }
+        secondaryLabel="Read the docs"
+        secondaryHref="/docs/platform-adapters"
+      >
         {/* Adapters mock */}
         <div className="mx-auto mt-16 max-w-4xl">
           <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] shadow-2xl shadow-black/20 dark:shadow-black/40">
@@ -204,7 +199,7 @@ export default function BringYourOwnStoragePage() {
             </div>
           </div>
         </div>
-      </section>
+      </FeatureHero>
 
       {/* ═══ ADAPTERS DETAIL ═══ */}
       <section className="px-4 py-20">
@@ -343,60 +338,11 @@ export default function BringYourOwnStoragePage() {
       {/* ═══ RELATED + CTA ═══ */}
       <section className="px-4 py-20">
         <div className="mx-auto max-w-5xl">
-          <h2 className="mb-6 font-heading text-xl font-bold">Keep exploring</h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            {[
-              {
-                href: "/features/encrypted-drive",
-                title: "The encrypted drive",
-                desc: "What sits on top of your storage — a real, sealed file explorer.",
-                Icon: HardDrive,
-              },
-              {
-                href: "/docs/platform-adapters",
-                title: "Docs: Platform adapters",
-                desc: "Connect GitHub, GitLab, Hugging Face, and Telegram accounts.",
-                Icon: Server,
-              },
-              {
-                href: "/docs/repo-pool",
-                title: "Docs: Repo pool",
-                desc: "How chunks distribute and repos auto-rotate as they fill.",
-                Icon: FileText,
-              },
-            ].map((r) => (
-              <Link
-                key={r.href}
-                href={r.href}
-                className="card group p-5 transition-colors hover:border-cyan-500/40"
-              >
-                <h3 className="flex items-center gap-2 text-sm font-bold">
-                  {r.title}
-                  <ArrowRight className="h-3 w-3 text-cyan-500 opacity-0 transition-opacity group-hover:opacity-100" />
-                </h3>
-                <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-                  {r.desc}
-                </p>
-              </Link>
-            ))}
-          </div>
-
-          <div className="mt-16 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-10 text-center">
-            <h2 className="font-heading text-2xl font-bold tracking-tight sm:text-3xl">
-              Storage you own, encryption you trust
-            </h2>
-            <p className="mx-auto mt-3 max-w-md text-[var(--color-text-secondary)]">
-              Free and open source. Connect an account you already have and start in
-              under a minute.
-            </p>
-            <Link
-              href="/register"
-              className="mt-7 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-[#2de0ed] via-[#00d5e4] to-[#0093a3] px-8 py-3.5 text-base font-semibold text-slate-900 shadow-lg shadow-cyan-500/30 transition-shadow hover:shadow-xl hover:shadow-cyan-500/50"
-            >
-              Create your vault
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
+          <RelatedLinks heading="Keep exploring" items={related} />
+          <CtaSection
+            heading="Storage you own, encryption you trust"
+            subtext="Free and open source. Connect an account you already have and start in under a minute."
+          />
         </div>
       </section>
     </>

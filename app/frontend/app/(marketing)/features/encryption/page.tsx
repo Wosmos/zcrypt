@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import {
   ArrowRight,
-  ChevronRight,
   Lock,
   Key,
   Shield,
@@ -15,6 +14,10 @@ import {
   X,
 } from "@/lib/icons";
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
+import { FeatureHero } from "@/components/marketing/features/feature-hero";
+import { CapabilityGrid } from "@/components/marketing/features/capability-grid";
+import { RelatedLinks } from "@/components/marketing/features/related-links";
+import { CtaSection } from "@/components/marketing/features/cta-section";
 
 export const metadata: Metadata = {
   title: "Zero-Knowledge Encryption — AES-256-GCM, Encrypted on Your Device",
@@ -96,6 +99,12 @@ const pipeline = [
   },
 ];
 
+const related = [
+  { href: "/features/encrypted-drive", title: "The encrypted drive", desc: "Real folders, search, and previews on top of this encryption layer." },
+  { href: "/docs/zero-knowledge", title: "Zero-knowledge, explained", desc: "What the term means and how we hold ourselves to it." },
+  { href: "/docs/security", title: "Security model", desc: "The full picture: algorithms, key handling, and threat model." },
+];
+
 export default function EncryptionPage() {
   return (
     <>
@@ -108,45 +117,21 @@ export default function EncryptionPage() {
       />
 
       {/* ═══ HERO ═══ */}
-      <section className="relative overflow-hidden px-6 pt-32 pb-16 md:pt-36">
-        <div className="absolute inset-0 -z-10 pointer-events-none">
-          <div className="absolute left-1/2 top-0 h-[500px] w-[700px] -translate-x-1/2 rounded-full bg-cyan-500/10 blur-[120px]" />
-        </div>
-        <div className="mx-auto max-w-3xl text-center">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
-            Zero-knowledge encryption
-          </p>
-          <h1 className="font-heading text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl md:text-6xl">
-            We can&apos;t read your files.
-            <br />
-            <span className="bg-gradient-to-r from-cyan-500 to-cyan-400 bg-clip-text italic text-transparent dark:from-cyan-400 dark:to-cyan-300">
-              That&apos;s the whole point.
-            </span>
-          </h1>
-          <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-[var(--color-text-secondary)]">
+      <FeatureHero
+        eyebrow="Zero-knowledge encryption"
+        headlineTop="We can't read your files."
+        headlineGradient="That's the whole point."
+        subtext={
+          <>
             Your files are encrypted on your own device with AES-256-GCM before
             they ever leave it. The key is derived from your passphrase and never
             transmitted. We store ciphertext and nothing else — no keys, no
             plaintext, not even your folder names.
-          </p>
-          <div className="mt-9 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <Link
-              href="/register"
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-[#2de0ed] via-[#00d5e4] to-[#0093a3] px-8 py-3.5 text-base font-semibold text-slate-900 shadow-lg shadow-cyan-500/30 transition-shadow hover:shadow-xl hover:shadow-cyan-500/50"
-            >
-              Create your vault
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link
-              href="/docs/zero-knowledge"
-              className="inline-flex items-center gap-2 px-5 py-3.5 text-sm font-semibold text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text)]"
-            >
-              Read the docs
-              <ChevronRight className="h-3.5 w-3.5" />
-            </Link>
-          </div>
-        </div>
-
+          </>
+        }
+        secondaryLabel="Read the docs"
+        secondaryHref="/docs/zero-knowledge"
+      >
         {/* Encryption boundary diagram */}
         <div className="mx-auto mt-16 max-w-4xl">
           <div className="grid gap-4 md:grid-cols-[1fr_auto_1fr] md:items-stretch">
@@ -216,38 +201,14 @@ export default function EncryptionPage() {
             </div>
           </div>
         </div>
-      </section>
+      </FeatureHero>
 
       {/* ═══ GUARANTEES ═══ */}
-      <section className="px-4 py-20">
-        <div className="mx-auto max-w-5xl">
-          <div className="mx-auto mb-12 max-w-2xl text-center">
-            <h2 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
-              What zero-knowledge actually means
-            </h2>
-            <p className="mt-3 text-[var(--color-text-secondary)]">
-              Not a privacy policy promise. A cryptographic one — enforced by
-              where the keys live and what code runs where.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {guarantees.map(({ Icon, title, desc }) => (
-              <div
-                key={title}
-                className="card p-6 transition-colors hover:border-cyan-500/30"
-              >
-                <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-500">
-                  <Icon className="h-5 w-5" />
-                </div>
-                <h3 className="text-sm font-bold">{title}</h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-[var(--color-text-secondary)]">
-                  {desc}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <CapabilityGrid
+        heading="What zero-knowledge actually means"
+        subheading="Not a privacy policy promise. A cryptographic one — enforced by where the keys live and what code runs where."
+        items={guarantees}
+      />
 
       {/* ═══ THE PIPELINE ═══ */}
       <section className="border-y border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-20">
@@ -351,39 +312,11 @@ export default function EncryptionPage() {
       {/* ═══ RELATED + CTA ═══ */}
       <section className="px-4 py-20">
         <div className="mx-auto max-w-5xl">
-          <h2 className="mb-6 font-heading text-xl font-bold">Keep exploring</h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            {[
-              { href: "/features/encrypted-drive", title: "The encrypted drive", desc: "Real folders, search, and previews on top of this encryption layer." },
-              { href: "/docs/zero-knowledge", title: "Zero-knowledge, explained", desc: "What the term means and how we hold ourselves to it." },
-              { href: "/docs/security", title: "Security model", desc: "The full picture: algorithms, key handling, and threat model." },
-            ].map((r) => (
-              <Link key={r.href} href={r.href} className="card group p-5 transition-colors hover:border-cyan-500/40">
-                <h3 className="flex items-center gap-2 text-sm font-bold">
-                  {r.title}
-                  <ArrowRight className="h-3 w-3 text-cyan-500 opacity-0 transition-opacity group-hover:opacity-100" />
-                </h3>
-                <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{r.desc}</p>
-              </Link>
-            ))}
-          </div>
-
-          <div className="mt-16 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-10 text-center">
-            <h2 className="font-heading text-2xl font-bold tracking-tight sm:text-3xl">
-              Encryption you don&apos;t have to trust us about
-            </h2>
-            <p className="mx-auto mt-3 max-w-md text-[var(--color-text-secondary)]">
-              Free and open source. Bring a storage account you already own and
-              encrypt your first file in under a minute.
-            </p>
-            <Link
-              href="/register"
-              className="mt-7 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-[#2de0ed] via-[#00d5e4] to-[#0093a3] px-8 py-3.5 text-base font-semibold text-slate-900 shadow-lg shadow-cyan-500/30 transition-shadow hover:shadow-xl hover:shadow-cyan-500/50"
-            >
-              Create your vault
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
+          <RelatedLinks heading="Keep exploring" items={related} />
+          <CtaSection
+            heading="Encryption you don't have to trust us about"
+            subtext="Free and open source. Bring a storage account you already own and encrypt your first file in under a minute."
+          />
         </div>
       </section>
     </>

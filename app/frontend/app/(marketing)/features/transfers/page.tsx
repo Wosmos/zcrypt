@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import {
   ArrowRight,
-  ChevronRight,
   Upload,
   Download,
   Pause,
@@ -17,6 +16,10 @@ import {
   ChevronDown,
 } from "@/lib/icons";
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
+import { FeatureHero } from "@/components/marketing/features/feature-hero";
+import { CapabilityGrid } from "@/components/marketing/features/capability-grid";
+import { RelatedLinks } from "@/components/marketing/features/related-links";
+import { CtaSection } from "@/components/marketing/features/cta-section";
 
 export const metadata: Metadata = {
   title: "Transfer Manager — Pause, Resume & Track Every Upload",
@@ -112,6 +115,12 @@ const stateStyles: Record<string, string> = {
   done: "bg-emerald-500",
 };
 
+const related = [
+  { href: "/features/encrypted-drive", title: "The encrypted drive", desc: "Where your transfers land — real folders, search, and previews." },
+  { href: "/docs/transfer-manager", title: "Transfer manager docs", desc: "Every control in the docked panel, explained." },
+  { href: "/docs/uploading", title: "Uploading guide", desc: "How files are compressed, encrypted, chunked, and sent." },
+];
+
 export default function TransfersPage() {
   return (
     <>
@@ -124,44 +133,20 @@ export default function TransfersPage() {
       />
 
       {/* ═══ HERO ═══ */}
-      <section className="relative overflow-hidden px-6 pt-32 pb-16 md:pt-36">
-        <div className="absolute inset-0 -z-10 pointer-events-none">
-          <div className="absolute left-1/2 top-0 h-[500px] w-[700px] -translate-x-1/2 rounded-full bg-cyan-500/10 blur-[120px]" />
-        </div>
-        <div className="mx-auto max-w-3xl text-center">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
-            The transfer manager
-          </p>
-          <h1 className="font-heading text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl md:text-6xl">
-            Start it. Walk away.
-            <br />
-            <span className="bg-gradient-to-r from-cyan-500 to-cyan-400 bg-clip-text italic text-transparent dark:from-cyan-400 dark:to-cyan-300">
-              It picks up where it stopped.
-            </span>
-          </h1>
-          <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-[var(--color-text-secondary)]">
+      <FeatureHero
+        eyebrow="The transfer manager"
+        headlineTop="Start it. Walk away."
+        headlineGradient="It picks up where it stopped."
+        subtext={
+          <>
             One docked panel tracks every upload and download. Live progress and
             ETA, pause and resume without re-encrypting, retry on failure, and
             bulk ZIP downloads — and it keeps running as you move around the app.
-          </p>
-          <div className="mt-9 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <Link
-              href="/register"
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-[#2de0ed] via-[#00d5e4] to-[#0093a3] px-8 py-3.5 text-base font-semibold text-slate-900 shadow-lg shadow-cyan-500/30 transition-shadow hover:shadow-xl hover:shadow-cyan-500/50"
-            >
-              Create your vault
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link
-              href="/docs/transfer-manager"
-              className="inline-flex items-center gap-2 px-5 py-3.5 text-sm font-semibold text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text)]"
-            >
-              Read the docs
-              <ChevronRight className="h-3.5 w-3.5" />
-            </Link>
-          </div>
-        </div>
-
+          </>
+        }
+        secondaryLabel="Read the docs"
+        secondaryHref="/docs/transfer-manager"
+      >
         {/* Docked transfer panel mock */}
         <div className="mx-auto mt-16 max-w-md">
           <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] shadow-2xl shadow-black/20 dark:shadow-black/40">
@@ -208,38 +193,14 @@ export default function TransfersPage() {
             </div>
           </div>
         </div>
-      </section>
+      </FeatureHero>
 
       {/* ═══ CAPABILITIES ═══ */}
-      <section className="px-4 py-20">
-        <div className="mx-auto max-w-5xl">
-          <div className="mx-auto mb-12 max-w-2xl text-center">
-            <h2 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
-              Built for big files and flaky networks
-            </h2>
-            <p className="mt-3 text-[var(--color-text-secondary)]">
-              Because everything is encrypted on your device first, transfers
-              have to be resilient. So they are.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {capabilities.map(({ Icon, title, desc }) => (
-              <div
-                key={title}
-                className="card p-6 transition-colors hover:border-cyan-500/30"
-              >
-                <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-500">
-                  <Icon className="h-5 w-5" />
-                </div>
-                <h3 className="text-sm font-bold">{title}</h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-[var(--color-text-secondary)]">
-                  {desc}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <CapabilityGrid
+        heading="Built for big files and flaky networks"
+        subheading="Because everything is encrypted on your device first, transfers have to be resilient. So they are."
+        items={capabilities}
+      />
 
       {/* ═══ RESUME DEEP-DIVE ═══ */}
       <section className="border-y border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-20">
@@ -355,39 +316,11 @@ export default function TransfersPage() {
       {/* ═══ RELATED + CTA ═══ */}
       <section className="px-4 py-20">
         <div className="mx-auto max-w-5xl">
-          <h2 className="mb-6 font-heading text-xl font-bold">Keep exploring</h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            {[
-              { href: "/features/encrypted-drive", title: "The encrypted drive", desc: "Where your transfers land — real folders, search, and previews." },
-              { href: "/docs/transfer-manager", title: "Transfer manager docs", desc: "Every control in the docked panel, explained." },
-              { href: "/docs/uploading", title: "Uploading guide", desc: "How files are compressed, encrypted, chunked, and sent." },
-            ].map((r) => (
-              <Link key={r.href} href={r.href} className="card group p-5 transition-colors hover:border-cyan-500/40">
-                <h3 className="flex items-center gap-2 text-sm font-bold">
-                  {r.title}
-                  <ArrowRight className="h-3 w-3 text-cyan-500 opacity-0 transition-opacity group-hover:opacity-100" />
-                </h3>
-                <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{r.desc}</p>
-              </Link>
-            ))}
-          </div>
-
-          <div className="mt-16 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-10 text-center">
-            <h2 className="font-heading text-2xl font-bold tracking-tight sm:text-3xl">
-              Move big files without babysitting them
-            </h2>
-            <p className="mx-auto mt-3 max-w-md text-[var(--color-text-secondary)]">
-              Free and open source. Bring a storage account you already own and
-              start your first upload in under a minute.
-            </p>
-            <Link
-              href="/register"
-              className="mt-7 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-[#2de0ed] via-[#00d5e4] to-[#0093a3] px-8 py-3.5 text-base font-semibold text-slate-900 shadow-lg shadow-cyan-500/30 transition-shadow hover:shadow-xl hover:shadow-cyan-500/50"
-            >
-              Create your vault
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
+          <RelatedLinks heading="Keep exploring" items={related} />
+          <CtaSection
+            heading="Move big files without babysitting them"
+            subtext="Free and open source. Bring a storage account you already own and start your first upload in under a minute."
+          />
         </div>
       </section>
     </>
