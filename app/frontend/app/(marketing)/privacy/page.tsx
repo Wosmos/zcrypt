@@ -1,7 +1,6 @@
-"use client";
-
 import { LegalPage, LegalCta } from "@/components/marketing/legal-page";
-import { Section, PullQuote, BulletList } from "@/components/marketing/prose";
+import { PullQuote, BulletList } from "@/components/marketing/prose";
+import { Section } from "@/components/marketing/section-reveal";
 
 export default function PrivacyPage() {
   return (
