@@ -7,6 +7,7 @@
 
 import { getFileMeta, getFileChunk } from "@/lib/api";
 import { retryTransient } from "@/lib/retry";
+import { runWithConcurrency } from "@/lib/concurrent";
 import { resolveFileKey, decryptChunk, sha256Hex, contentMacBytes, deriveDedupKeyBytes, fromBase64 } from "@/lib/crypto";
 import { getZstdCodec } from "@/lib/zstd";
 import { zipSync } from "fflate";
@@ -76,7 +77,6 @@ export async function downloadAsZip(
     // Download and decrypt all chunks with concurrency
     const MAX_CONCURRENT = Math.min(getDeviceProfile().maxConcurrentDownloads, 3);
     const chunkResults: Uint8Array[] = new Array(meta.chunk_count);
-    const queue = Array.from({ length: meta.chunk_count }, (_, i) => i);
 
     const processChunk = async (index: number) => {
       if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
@@ -98,19 +98,7 @@ export async function downloadAsZip(
       chunkResults[index] = plain;
     };
 
-    const workers: Promise<void>[] = [];
-    for (let w = 0; w < Math.min(MAX_CONCURRENT, meta.chunk_count); w++) {
-      workers.push(
-        (async () => {
-          while (queue.length > 0) {
-            if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
-            const idx = queue.shift()!;
-            await processChunk(idx);
-          }
-        })()
-      );
-    }
-    await Promise.all(workers);
+    await runWithConcurrency(meta.chunk_count, MAX_CONCURRENT, processChunk, signal);
 
     // Assemble and verify
     const totalSize = chunkResults.reduce((s, c) => s + c.byteLength, 0);

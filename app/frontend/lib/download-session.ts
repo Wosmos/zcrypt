@@ -18,7 +18,8 @@ import { resolveFileKey, fromBase64, deriveDedupKeyBytes, createContentHasher } 
 import { getDeviceProfile } from "@/lib/device-profile";
 import { WorkerPool } from "@/lib/worker-pool";
 import { OrderedWriter } from "@/lib/ordered-writer";
-import type { DecryptOutput } from "@/workers/crypto-worker";
+import { retryTransient } from "@/lib/retry";
+import { decryptChunkInPool } from "@/lib/decrypt-chunk";
 
 /** The subset of FileSystemWritableFileStream we use — structural so this module
  *  doesn't depend on lib.dom File System Access typings. */
@@ -76,36 +77,12 @@ export type DownloadProgressCallback = (info: {
   chunksTotal: number;
 }) => void;
 
-/** Retry a transient chunk FETCH (network/timeout/stall/5xx) with backoff.
- *  Mirrors the upload path so one blip over a long download doesn't fail the
- *  whole file. Aborts (cancellation) and non-transient errors are NOT retried. */
-async function fetchChunkWithRetry(
-  fileId: string,
-  index: number,
-  signal?: AbortSignal,
-  maxRetries = 5
-): Promise<{ data: ArrayBuffer; sha256: string; compressed: boolean }> {
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
-    try {
-      return await getFileChunk(fileId, index, signal);
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") throw err;
-      const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
-      const transient =
-        msg.includes("network request failed") || msg.includes("timed out") ||
-        msg.includes("timeout") || msg.includes("stalled") ||
-        msg.includes("too many requests") || msg.includes("temporarily") ||
-        msg.includes("unavailable") || /\b5\d\d\b/.test(msg);
-      if (transient && attempt < maxRetries) {
-        const backoff = Math.min(1000 * 2 ** attempt, 15_000) + Math.random() * 500;
-        await new Promise((r) => setTimeout(r, backoff));
-        continue;
-      }
-      throw err;
-    }
-  }
-  throw new Error("Max retries exceeded");
+/** Narrows an optional value that a prior branch guarantees is set by this point
+ *  in the pipeline, failing loudly (instead of a bare `!` crashing on `undefined`
+ *  access) if that invariant is ever violated. */
+function assertSet<T>(value: T | undefined, what: string): T {
+  if (value === undefined) throw new Error(`download-session: expected ${what} to be set`);
+  return value;
 }
 
 export interface DownloadOptions {
@@ -227,16 +204,22 @@ export async function downloadAndDecryptFile(
   // stays accounted for; a fresh OrderedWriter resumes at the high-water mark.
   // IN-MEMORY: the decrypted-chunk array persists; we hash it at finalize.
   let writer: OrderedWriter | null = null;
+  // Once set on this branch, these are guaranteed defined for the rest of this
+  // call — captured into locals so downstream code doesn't need `resume.x!`.
+  let hasher: IncrementalHasher | undefined;
+  let decryptedChunks: Uint8Array[] | undefined;
+  let done: Set<number> | undefined;
   if (streaming) {
     resume.hasher ??= (await createContentHasher(hashScheme, macKey)) as unknown as IncrementalHasher;
     resume.writtenCount ??= 0;
-    const hasher = resume.hasher;
+    hasher = resume.hasher;
+    const diskWriter = saveToDisk as DiskWritable;
     let written = resume.writtenCount;
     writer = new OrderedWriter(
       {
         async write(d: Uint8Array) {
-          hasher.update(d);
-          await saveToDisk!.write(d);
+          assertSet(hasher, "hasher").update(d);
+          await diskWriter.write(d);
           written++;
           resume.writtenCount = written; // persist high-water on every disk write
         },
@@ -247,6 +230,8 @@ export async function downloadAndDecryptFile(
   } else {
     resume.decryptedChunks ??= new Array(meta.chunk_count);
     resume.done ??= new Set<number>();
+    decryptedChunks = resume.decryptedChunks;
+    done = resume.done;
   }
 
   // Progress is measured by chunks DECRYPTED (network + CPU work actually done),
@@ -262,31 +247,21 @@ export async function downloadAndDecryptFile(
     const processChunk = async (index: number) => {
       if (signal?.aborted) throw stopError();
 
-      const { data, compressed } = await fetchChunkWithRetry(fileId, index, signal);
+      const { data, compressed } = await retryTransient(
+        () => getFileChunk(fileId, index, signal),
+        { signal },
+      );
 
       if (signal?.aborted) throw stopError();
 
       // Decrypt (+ decompress) off the main thread. `data` is transferred to the
       // worker (zero-copy); keyBytes is cloned per call, so it stays valid here.
-      let out: DecryptOutput;
-      try {
-        out = await pool.process<DecryptOutput>({
-          mode: "decrypt",
-          chunkIndex: index,
-          encrypted: data,
-          keyBytes,
-          compressed,
-        });
-      } catch {
-        throw new Error("Decryption failed — wrong passphrase?");
-      }
-
-      const plain = new Uint8Array(out.plaintext);
+      const plain = await decryptChunkInPool(pool, index, data, keyBytes, compressed);
       if (writer) {
         await writer.put(index, plain, signal); // streamed to disk in order + hashed
       } else {
-        resume.decryptedChunks![index] = plain;
-        resume.done!.add(index);
+        assertSet(decryptedChunks, "decryptedChunks")[index] = plain;
+        assertSet(done, "done").add(index);
       }
 
       // Count this chunk as done for the PROGRESS display the moment it's
@@ -306,7 +281,7 @@ export async function downloadAndDecryptFile(
     // mark; in-memory skips indices already decrypted.
     const queue = streaming
       ? Array.from({ length: meta.chunk_count }, (_, i) => i).filter((i) => i >= (resume.writtenCount ?? 0))
-      : Array.from({ length: meta.chunk_count }, (_, i) => i).filter((i) => !resume.done!.has(i));
+      : Array.from({ length: meta.chunk_count }, (_, i) => i).filter((i) => !assertSet(done, "done").has(i));
 
     // Fan out fetchers up to the concurrency limit. Use allSettled (not
     // Promise.all's fail-fast) so EVERY fetcher finishes before we read the
@@ -328,7 +303,7 @@ export async function downloadAndDecryptFile(
     const settled = await Promise.allSettled(fetchers);
     // An abort wins over whatever a fetcher happened to reject with. A paused
     // run aborts its in-flight chunk fetches, which reject with a RAW AbortError
-    // (fetchChunkWithRetry re-throws it verbatim). If we surfaced that rejection
+    // (retryTransient re-throws it verbatim). If we surfaced that rejection
     // we'd throw AbortError → the store reads it as "cancelled". Re-deriving the
     // stop reason from the signal here yields DownloadPausedError while pausing,
     // so a pause stays a pause (and a real cancel stays a cancel).
@@ -344,11 +319,11 @@ export async function downloadAndDecryptFile(
     let actualHash: string;
     if (streaming && writer) {
       await writer.close(meta.chunk_count); // drain + assert every chunk written
-      actualHash = hex(resume.hasher!.digest());
+      actualHash = hex(assertSet(hasher, "hasher").digest());
     } else {
-      const hasher = await createContentHasher(hashScheme, macKey);
-      for (const chunk of resume.decryptedChunks!) hasher.update(chunk);
-      actualHash = hex(hasher.digest());
+      const fullFileHasher = await createContentHasher(hashScheme, macKey);
+      for (const chunk of assertSet(decryptedChunks, "decryptedChunks")) fullFileHasher.update(chunk);
+      actualHash = hex(fullFileHasher.digest());
     }
     // Skip the file-level compare only when we genuinely can't recompute the MAC
     // (hmac_v1 file downloaded without the passphrase, e.g. shared space); per-chunk
@@ -362,7 +337,7 @@ export async function downloadAndDecryptFile(
     onProgress?.({ stage: "Saving file...", percent: 97, chunksDone: meta.chunk_count, chunksTotal: meta.chunk_count });
 
     if (streaming) {
-      await saveToDisk!.close(); // commit — the file is already on disk
+      await assertSet(saveToDisk, "saveToDisk").close(); // commit — the file is already on disk
       resume.saveToDisk = undefined; // committed; nothing left to abort
     } else {
       // Save name: a zero-knowledge file has an empty original_name, so decrypt
@@ -384,7 +359,7 @@ export async function downloadAndDecryptFile(
           }
         }
       }
-      const blob = new Blob(resume.decryptedChunks as BlobPart[], { type: "application/octet-stream" });
+      const blob = new Blob(assertSet(decryptedChunks, "decryptedChunks") as BlobPart[], { type: "application/octet-stream" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;

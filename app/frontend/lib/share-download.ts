@@ -8,6 +8,7 @@
 
 import { getShareFileMeta, getShareChunk } from "@/lib/api";
 import { retryTransient } from "@/lib/retry";
+import { runWithConcurrency } from "@/lib/concurrent";
 import { unwrapKey, decryptChunk, sha256Hex, fromBase64 } from "@/lib/crypto";
 import { getZstdCodec } from "@/lib/zstd";
 import { getDeviceProfile } from "@/lib/device-profile";
@@ -122,22 +123,7 @@ export async function downloadSharedFile(
   };
 
   // Process with concurrency limit
-  const queue = Array.from({ length: meta.chunk_count }, (_, i) => i);
-  const workers: Promise<void>[] = [];
-
-  for (let w = 0; w < Math.min(MAX_CONCURRENT, meta.chunk_count); w++) {
-    workers.push(
-      (async () => {
-        while (queue.length > 0) {
-          if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
-          const idx = queue.shift()!;
-          await processChunk(idx);
-        }
-      })()
-    );
-  }
-
-  await Promise.all(workers);
+  await runWithConcurrency(meta.chunk_count, MAX_CONCURRENT, processChunk, signal);
 
   if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
 
