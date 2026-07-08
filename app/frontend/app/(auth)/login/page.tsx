@@ -2,15 +2,15 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { login, requestMagicLink, getMe } from "@/lib/auth-api";
 import { OAuthButtons, DESKTOP_OAUTH_SESSION_KEY } from "@/components/auth/oauth-buttons";
+import { AuthStatusCard } from "@/components/auth/auth-status-card";
+import { AuthLink, AUTH_LINK_CLASS, AUTH_LINK_COLORS } from "@/components/auth/auth-link";
+import { SubmitButton } from "@/components/auth/submit-button";
 import { useAuthStore } from "@/store/auth";
 import { toast } from "@/store/toast";
 import { Mail, Lock, ArrowRight, Wand2 } from "@/lib/icons";
-import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { isTauri } from "@/lib/tauri";
 
 export default function LoginPage() {
@@ -124,13 +124,33 @@ export default function LoginPage() {
 
   if (magicLinkSent) {
     return (
-      <div className="text-center animate-fade-in">
-        <div className="flex justify-center mb-4">
-          <div className="h-12 w-12 rounded-full bg-cyan-500/10 flex items-center justify-center">
-            <Mail className="h-6 w-6 text-cyan-500" />
+      <AuthStatusCard
+        icon={Mail}
+        tone="cyan"
+        title="Check your email"
+        action={
+          <div className="flex flex-col items-center gap-2 mt-5">
+            <AuthLink
+              onClick={() => {
+                setMagicLinkSent(false);
+                setMagicLinkLoading(false);
+              }}
+              className={`text-sm ${AUTH_LINK_CLASS}`}
+            >
+              Send again
+            </AuthLink>
+            <button
+              onClick={() => {
+                setMagicLinkSent(false);
+                setMode("password");
+              }}
+              className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors"
+            >
+              Back to login
+            </button>
           </div>
-        </div>
-        <h2 className="text-xl font-bold">Check your email</h2>
+        }
+      >
         <p className="text-sm text-[var(--color-text-secondary)] mt-2 leading-relaxed">
           We sent a login link to{" "}
           <strong className="text-[var(--color-text)]">{email}</strong>. Click
@@ -139,27 +159,7 @@ export default function LoginPage() {
         <p className="text-xs text-[var(--color-text-muted)] mt-2">
           Didn&apos;t get it? Check your spam folder.
         </p>
-        <div className="flex flex-col items-center gap-2 mt-5">
-          <button
-            onClick={() => {
-              setMagicLinkSent(false);
-              setMagicLinkLoading(false);
-            }}
-            className="text-sm text-cyan-600 hover:text-cyan-500 dark:text-cyan-400 dark:hover:text-cyan-300 font-medium transition-colors"
-          >
-            Send again
-          </button>
-          <button
-            onClick={() => {
-              setMagicLinkSent(false);
-              setMode("password");
-            }}
-            className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors"
-          >
-            Back to login
-          </button>
-        </div>
-      </div>
+      </AuthStatusCard>
     );
   }
 
@@ -224,31 +224,23 @@ export default function LoginPage() {
             />
 
             <div className="flex justify-end">
-              <Link
+              <AuthLink
                 href="/forgot-password"
-                className="text-xs text-cyan-600 hover:text-cyan-500 dark:text-cyan-400 dark:hover:text-cyan-300 transition-colors"
+                className={`text-xs ${AUTH_LINK_COLORS} transition-colors`}
               >
                 Forgot password?
-              </Link>
+              </AuthLink>
             </div>
 
-            <Button
+            <SubmitButton
               type="submit"
-              className="w-full"
-              size="lg"
+              loading={loading}
               disabled={loading || !email.trim() || !password}
+              loadingLabel="Signing in..."
+              icon={ArrowRight}
             >
-              {loading ? (
-                <span className="flex items-center gap-2">
-                  <LogoSpinner size={16} speed="fast" />
-                  Signing in...
-                </span>
-              ) : (
-                <span className="flex items-center gap-2">
-                  Sign in <ArrowRight className="h-4 w-4" />
-                </span>
-              )}
-            </Button>
+              Sign in
+            </SubmitButton>
           </form>
         ) : (
           <form
@@ -271,36 +263,23 @@ export default function LoginPage() {
               needed.
             </p>
 
-            <Button
+            <SubmitButton
               type="submit"
-              className="w-full"
-              size="lg"
+              loading={magicLinkLoading}
               disabled={magicLinkLoading || !email.trim()}
+              loadingLabel="Sending link..."
+              icon={Wand2}
+              iconPosition="before"
             >
-              {magicLinkLoading ? (
-                <span className="flex items-center gap-2">
-                  <LogoSpinner size={16} speed="fast" />
-                  Sending link...
-                </span>
-              ) : (
-                <span className="flex items-center gap-2">
-                  <Wand2 className="h-4 w-4" />
-                  Send login link
-                </span>
-              )}
-            </Button>
+              Send login link
+            </SubmitButton>
           </form>
         )}
       </div>
 
       <p className="text-center text-sm text-[var(--color-text-secondary)] mt-6">
         Don&apos;t have an account?{" "}
-        <Link
-          href="/register"
-          className="text-cyan-600 hover:text-cyan-500 dark:text-cyan-400 dark:hover:text-cyan-300 font-medium transition-colors"
-        >
-          Sign up
-        </Link>
+        <AuthLink href="/register">Sign up</AuthLink>
       </p>
     </div>
   );

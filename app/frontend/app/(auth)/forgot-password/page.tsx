@@ -5,9 +5,11 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { forgotPassword } from "@/lib/auth-api";
+import { AuthStatusCard } from "@/components/auth/auth-status-card";
+import { AuthLink, AUTH_LINK_CLASS } from "@/components/auth/auth-link";
+import { SubmitButton } from "@/components/auth/submit-button";
 import { toast } from "@/store/toast";
 import { Mail, ArrowRight, ArrowLeft, CheckCircle2 } from "@/lib/icons";
-import { LogoSpinner } from "@/components/ui/logo-spinner";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -31,24 +33,24 @@ export default function ForgotPasswordPage() {
 
   if (sent) {
     return (
-      <div className="text-center animate-fade-in">
-        <div className="flex justify-center mb-4">
-          <div className="h-12 w-12 rounded-full bg-cyan-500/10 flex items-center justify-center">
-            <CheckCircle2 className="h-6 w-6 text-cyan-500" />
-          </div>
-        </div>
-        <h2 className="text-xl font-bold">Check your email</h2>
+      <AuthStatusCard
+        icon={CheckCircle2}
+        tone="cyan"
+        title="Check your email"
+        action={
+          <Link href="/login">
+            <Button variant="secondary" className="mt-5">
+              <ArrowLeft className="h-4 w-4" /> Back to login
+            </Button>
+          </Link>
+        }
+      >
         <p className="text-sm text-[var(--color-text-secondary)] mt-2 leading-relaxed">
           If an account exists for{" "}
           <strong className="text-[var(--color-text)]">{email}</strong>,
           you&apos;ll receive a password reset link shortly.
         </p>
-        <Link href="/login">
-          <Button variant="secondary" className="mt-5">
-            <ArrowLeft className="h-4 w-4" /> Back to login
-          </Button>
-        </Link>
-      </div>
+      </AuthStatusCard>
     );
   }
 
@@ -73,27 +75,24 @@ export default function ForgotPasswordPage() {
           autoComplete="email"
         />
 
-        <Button type="submit" className="w-full" size="lg" disabled={loading || !email.trim()}>
-          {loading ? (
-            <span className="flex items-center gap-2">
-              <LogoSpinner size={16} speed="fast" />
-              Sending...
-            </span>
-          ) : (
-            <span className="flex items-center gap-2">
-              Send reset link <ArrowRight className="h-4 w-4" />
-            </span>
-          )}
-        </Button>
+        <SubmitButton
+          type="submit"
+          loading={loading}
+          disabled={loading || !email.trim()}
+          loadingLabel="Sending..."
+          icon={ArrowRight}
+        >
+          Send reset link
+        </SubmitButton>
       </form>
 
       <p className="text-center text-sm text-[var(--color-text-secondary)] mt-6">
-        <Link
+        <AuthLink
           href="/login"
-          className="text-cyan-600 hover:text-cyan-500 dark:text-cyan-400 dark:hover:text-cyan-300 font-medium transition-colors inline-flex items-center gap-1"
+          className={`${AUTH_LINK_CLASS} inline-flex items-center gap-1`}
         >
           <ArrowLeft className="h-3.5 w-3.5" /> Back to login
-        </Link>
+        </AuthLink>
       </p>
     </div>
   );

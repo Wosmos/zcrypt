@@ -6,6 +6,8 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { resetPassword } from "@/lib/auth-api";
+import { AuthStatusCard } from "@/components/auth/auth-status-card";
+import { SubmitButton } from "@/components/auth/submit-button";
 import { toast } from "@/store/toast";
 import { Lock, ArrowRight, CheckCircle2, AlertTriangle } from "@/lib/icons";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
@@ -20,43 +22,43 @@ function ResetPasswordForm() {
 
   if (!token) {
     return (
-      <div className="text-center animate-fade-in">
-        <div className="flex justify-center mb-4">
-          <div className="h-12 w-12 rounded-full bg-amber-500/10 flex items-center justify-center">
-            <AlertTriangle className="h-6 w-6 text-amber-500" />
-          </div>
-        </div>
-        <h2 className="text-xl font-bold">Invalid link</h2>
+      <AuthStatusCard
+        icon={AlertTriangle}
+        tone="amber"
+        title="Invalid link"
+        action={
+          <Link href="/forgot-password">
+            <Button variant="secondary" className="mt-5">
+              Request a new link
+            </Button>
+          </Link>
+        }
+      >
         <p className="text-sm text-[var(--color-text-secondary)] mt-2">
           This password reset link is invalid or has expired.
         </p>
-        <Link href="/forgot-password">
-          <Button variant="secondary" className="mt-5">
-            Request a new link
-          </Button>
-        </Link>
-      </div>
+      </AuthStatusCard>
     );
   }
 
   if (success) {
     return (
-      <div className="text-center animate-fade-in">
-        <div className="flex justify-center mb-4">
-          <div className="h-12 w-12 rounded-full bg-cyan-500/10 flex items-center justify-center">
-            <CheckCircle2 className="h-6 w-6 text-cyan-500" />
-          </div>
-        </div>
-        <h2 className="text-xl font-bold">Password updated</h2>
+      <AuthStatusCard
+        icon={CheckCircle2}
+        tone="cyan"
+        title="Password updated"
+        action={
+          <Link href="/login">
+            <Button className="mt-5">
+              Sign in <ArrowRight className="h-4 w-4" />
+            </Button>
+          </Link>
+        }
+      >
         <p className="text-sm text-[var(--color-text-secondary)] mt-2">
           Your password has been reset. You can now sign in.
         </p>
-        <Link href="/login">
-          <Button className="mt-5">
-            Sign in <ArrowRight className="h-4 w-4" />
-          </Button>
-        </Link>
-      </div>
+      </AuthStatusCard>
     );
   }
 
@@ -109,18 +111,15 @@ function ResetPasswordForm() {
           autoComplete="new-password"
         />
 
-        <Button type="submit" className="w-full" size="lg" disabled={loading || !password || !confirmPassword}>
-          {loading ? (
-            <span className="flex items-center gap-2">
-              <LogoSpinner size={16} speed="fast" />
-              Resetting...
-            </span>
-          ) : (
-            <span className="flex items-center gap-2">
-              Reset password <ArrowRight className="h-4 w-4" />
-            </span>
-          )}
-        </Button>
+        <SubmitButton
+          type="submit"
+          loading={loading}
+          disabled={loading || !password || !confirmPassword}
+          loadingLabel="Resetting..."
+          icon={ArrowRight}
+        >
+          Reset password
+        </SubmitButton>
       </form>
     </div>
   );

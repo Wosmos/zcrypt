@@ -7,6 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { registerWithBreachCheck, login as loginApi } from "@/lib/auth-api";
 import { OAuthButtons } from "@/components/auth/oauth-buttons";
+import { AuthStatusCard } from "@/components/auth/auth-status-card";
+import { AuthLink } from "@/components/auth/auth-link";
+import { SubmitButton } from "@/components/auth/submit-button";
 import { useAuthStore } from "@/store/auth";
 import { toast } from "@/store/toast";
 import {
@@ -17,7 +20,6 @@ import {
   CheckCircle2,
   AlertTriangle,
 } from "@/lib/icons";
-import { LogoSpinner } from "@/components/ui/logo-spinner";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -84,45 +86,45 @@ export default function RegisterPage() {
 
   if (success === "verified") {
     return (
-      <div className="text-center animate-fade-in">
-        <div className="flex justify-center mb-4">
-          <div className="h-12 w-12 rounded-full bg-cyan-500/10 flex items-center justify-center">
-            <CheckCircle2 className="h-6 w-6 text-cyan-500" />
-          </div>
-        </div>
-        <h2 className="text-xl font-bold">Account created!</h2>
+      <AuthStatusCard
+        icon={CheckCircle2}
+        tone="cyan"
+        title="Account created!"
+        action={
+          <Link href="/login">
+            <Button className="mt-5">
+              Sign in <ArrowRight className="h-4 w-4" />
+            </Button>
+          </Link>
+        }
+      >
         <p className="text-sm text-[var(--color-text-secondary)] mt-2 leading-relaxed">
           Redirecting you to sign in...
         </p>
-        <Link href="/login">
-          <Button className="mt-5">
-            Sign in <ArrowRight className="h-4 w-4" />
-          </Button>
-        </Link>
-      </div>
+      </AuthStatusCard>
     );
   }
 
   if (success === "pending") {
     return (
-      <div className="text-center animate-fade-in">
-        <div className="flex justify-center mb-4">
-          <div className="h-12 w-12 rounded-full bg-cyan-500/10 flex items-center justify-center">
-            <CheckCircle2 className="h-6 w-6 text-cyan-500" />
-          </div>
-        </div>
-        <h2 className="text-xl font-bold">Check your email</h2>
+      <AuthStatusCard
+        icon={CheckCircle2}
+        tone="cyan"
+        title="Check your email"
+        action={
+          <Link href="/login">
+            <Button variant="secondary" className="mt-5">
+              Back to login
+            </Button>
+          </Link>
+        }
+      >
         <p className="text-sm text-[var(--color-text-secondary)] mt-2 leading-relaxed">
           We sent a verification link to{" "}
           <strong className="text-[var(--color-text)]">{email}</strong>. Click
           it to activate your account.
         </p>
-        <Link href="/login">
-          <Button variant="secondary" className="mt-5">
-            Back to login
-          </Button>
-        </Link>
-      </div>
+      </AuthStatusCard>
     );
   }
 
@@ -204,34 +206,21 @@ export default function RegisterPage() {
             </div>
           )}
 
-          <Button
+          <SubmitButton
             type="submit"
-            className="w-full"
-            size="lg"
+            loading={loading}
             disabled={loading || !email.trim() || !username.trim() || !password || !confirmPassword}
+            loadingLabel="Creating account..."
+            icon={ArrowRight}
           >
-            {loading ? (
-              <span className="flex items-center gap-2">
-                <LogoSpinner size={16} speed="fast" />
-                Creating account...
-              </span>
-            ) : (
-              <span className="flex items-center gap-2">
-                Create account <ArrowRight className="h-4 w-4" />
-              </span>
-            )}
-          </Button>
+            Create account
+          </SubmitButton>
         </form>
       </div>
 
       <p className="text-center text-sm text-[var(--color-text-secondary)] mt-5">
         Already have an account?{" "}
-        <Link
-          href="/login"
-          className="text-cyan-600 hover:text-cyan-500 dark:text-cyan-400 dark:hover:text-cyan-300 font-medium transition-colors"
-        >
-          Sign in
-        </Link>
+        <AuthLink href="/login">Sign in</AuthLink>
       </p>
     </div>
   );
