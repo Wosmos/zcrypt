@@ -1,8 +1,20 @@
 import type { FileMetadata, Folder, FolderRequest, PlatformStatus, RepoInfo, AppConfig, AdminUser, SystemStats, PlatformTokenInfo, QuotaInfo, PlanConfigs, AdminUserDetail, ShareLink, ShareInfo, SendInitRequest, SendInitResponse, SendInfo, SendMeta, PadCreateRequest, PadInfo, ClipboardItem, ClipboardPushRequest, SyncFolder, SyncFolderRequest, DecoyStatus, DecoyFile, DeadManSwitch, DeadManSwitchRequest, ExpiringVault, ExpiringVaultRequest, IntegritySnapshot, VaultSnapshot, SharedVault, SharedVaultDetail, SharedVaultMember, OfflinePin } from "@/types";
 import { useAuthStore } from "@/store/auth";
 import { authedFetch, tryRefreshToken } from "@/lib/auth-fetch";
+import { throwResponseError } from "@/lib/http-error";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
+
+/** Build the chunk-download return payload from a response (body + chunk headers). */
+async function readChunkResponse(
+  res: Response
+): Promise<{ data: ArrayBuffer; sha256: string; compressed: boolean }> {
+  return {
+    data: await res.arrayBuffer(),
+    sha256: res.headers.get("X-Chunk-SHA256") || "",
+    compressed: res.headers.get("X-Chunk-Compressed") === "true",
+  };
+}
 
 async function request<T>(path: string, options?: RequestInit, retries = 2): Promise<T> {
   const { accessToken } = useAuthStore.getState();
@@ -54,17 +66,7 @@ async function request<T>(path: string, options?: RequestInit, retries = 2): Pro
     return request<T>(path, options, retries - 1);
   }
 
-  if (!res.ok) {
-    const body = await res.text();
-    let message: string;
-    try {
-      const parsed = JSON.parse(body);
-      message = parsed.error || body;
-    } catch {
-      message = body;
-    }
-    throw new Error(message);
-  }
+  if (!res.ok) await throwResponseError(res);
 
   return res.json() as Promise<T>;
 }
@@ -195,23 +197,9 @@ export async function getFileChunk(fileId: string, index: number, signal?: Abort
     // once the token went stale; this matches the upload path.
     const res = await authedFetch(`${API_BASE}/api/files/${fileId}/chunks/${index}`, { signal: useSignal });
 
-    if (!res.ok) {
-      const body = await res.text();
-      let message: string;
-      try {
-        const parsed = JSON.parse(body);
-        message = parsed.error || body;
-      } catch {
-        message = body;
-      }
-      throw new Error(message);
-    }
+    if (!res.ok) await throwResponseError(res);
 
-    return {
-      data: await res.arrayBuffer(),
-      sha256: res.headers.get("X-Chunk-SHA256") || "",
-      compressed: res.headers.get("X-Chunk-Compressed") === "true",
-    };
+    return readChunkResponse(res);
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") {
       // Our own timeout fired → surface a retryable "timed out". The caller's
@@ -641,11 +629,7 @@ export async function getShareChunk(token: string, index: number, password?: str
   if (password) headers["X-Share-Password"] = password;
   const res = await fetch(`${API_BASE}/api/share/${token}/chunks/${index}`, { headers });
   if (!res.ok) throw new Error("Failed to download chunk");
-  return {
-    data: await res.arrayBuffer(),
-    sha256: res.headers.get("X-Chunk-SHA256") || "",
-    compressed: res.headers.get("X-Chunk-Compressed") === "true",
-  };
+  return readChunkResponse(res);
 }
 
 // ─── Folder Shares (public folder links) ───
@@ -777,11 +761,7 @@ export async function getFolderShareChunk(
   if (password) headers["X-Share-Password"] = password;
   const res = await shareFetchRetry(`${API_BASE}/api/folder-share/${token}/files/${fileId}/chunks/${index}`, headers);
   if (!res.ok) throw new Error("Failed to download chunk");
-  return {
-    data: await res.arrayBuffer(),
-    sha256: res.headers.get("X-Chunk-SHA256") || "",
-    compressed: res.headers.get("X-Chunk-Compressed") === "true",
-  };
+  return readChunkResponse(res);
 }
 
 // ─── Anonymous Send API (no auth) ───
@@ -857,11 +837,7 @@ export async function getSendChunk(token: string, idx: number): Promise<{
 }> {
   const res = await fetch(`${API_BASE}/api/send/${token}/chunks/${idx}`);
   if (!res.ok) throw new Error("Failed to download chunk");
-  return {
-    data: await res.arrayBuffer(),
-    sha256: res.headers.get("X-Chunk-SHA256") || "",
-    compressed: res.headers.get("X-Chunk-Compressed") === "true",
-  };
+  return readChunkResponse(res);
 }
 
 // ─── Pad (anonymous encrypted text sharing) ─────────────────────────────────
