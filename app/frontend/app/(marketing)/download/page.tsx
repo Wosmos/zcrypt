@@ -19,6 +19,7 @@ import { InstallCommands } from "@/components/marketing/download/install-command
 import { DesktopGrid } from "@/components/marketing/download/desktop-grid";
 import { CliBinaries } from "@/components/marketing/download/cli-binaries";
 import { MarketingHero } from "@/components/marketing/marketing-hero";
+import { getLatestRelease } from "@/lib/releases";
 
 export const metadata: Metadata = {
   title: "Download zcrypt — Desktop Apps for macOS, Windows & Linux, plus the CLI",
@@ -54,7 +55,9 @@ export const metadata: Metadata = {
   },
 };
 
-export default function DownloadPage() {
+export default async function DownloadPage() {
+  const release = await getLatestRelease();
+
   return (
     <>
       <SoftwareApplicationJsonLd />
@@ -83,7 +86,7 @@ export default function DownloadPage() {
           </h1>
         }
         subtext="Native desktop apps, a single-binary terminal client, and a web app that needs no install. Same zero-knowledge vault, every platform."
-        cta={<DownloadCta />}
+        cta={<DownloadCta release={release} />}
         trustItems={["Free & open source", "Zero-knowledge", "No telemetry", "macOS · Windows · Linux"]}
       />
 
@@ -100,7 +103,7 @@ export default function DownloadPage() {
             </p>
           </div>
 
-          <DesktopGrid />
+          <DesktopGrid release={release} />
 
           <p className="mx-auto mt-6 max-w-xl text-center text-xs text-[var(--color-text-muted)]">
             Looking for a specific build or an older version? Browse{" "}
@@ -136,7 +139,7 @@ export default function DownloadPage() {
 
           <InstallCommands methods={tuiInstallMethods} />
 
-          <CliBinaries />
+          <CliBinaries release={release} />
         </div>
       </section>
 

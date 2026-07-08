@@ -1,9 +1,6 @@
-"use client";
-
 import { Download, ArrowRight } from "@/lib/icons";
-import { RELEASES_FALLBACK_URL, type PlatformId } from "@/lib/releases";
+import { RELEASES_FALLBACK_URL, type PlatformId, type ReleaseData } from "@/lib/releases";
 import { OS_GLYPHS } from "./os-glyphs";
-import { useLatestRelease } from "./use-release";
 
 const glyphColor: Record<PlatformId, string> = {
   macos: "text-[var(--color-text)]",
@@ -19,29 +16,13 @@ const glow: Record<PlatformId, string> = {
 
 function CardShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="group relative flex flex-col overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-[var(--color-border-hover)] hover:shadow-xl hover:shadow-black/5 dark:hover:shadow-black/30">
+    <li className="group relative flex flex-col overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-[var(--color-border-hover)] hover:shadow-xl hover:shadow-black/5 dark:hover:shadow-black/30">
       {children}
-    </div>
+    </li>
   );
 }
 
-export function DesktopGrid() {
-  const release = useLatestRelease();
-
-  // Loading skeleton.
-  if (release === undefined) {
-    return (
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-        {[0, 1, 2].map((i) => (
-          <div
-            key={i}
-            className="h-[260px] animate-pulse rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]"
-          />
-        ))}
-      </div>
-    );
-  }
-
+export function DesktopGrid({ release }: { release: ReleaseData | null }) {
   // API unavailable → send people to the releases page rather than show nothing.
   if (release === null || release.desktop.length === 0) {
     return (
@@ -78,7 +59,7 @@ export function DesktopGrid() {
           </a>
         </div>
       )}
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+      <ul className="grid grid-cols-1 gap-5 md:grid-cols-3 list-none">
         {release.desktop.map((platform) => {
         const Glyph = OS_GLYPHS[platform.id];
         const primary =
@@ -137,7 +118,7 @@ export function DesktopGrid() {
           </CardShell>
         );
         })}
-      </div>
+      </ul>
     </>
   );
 }

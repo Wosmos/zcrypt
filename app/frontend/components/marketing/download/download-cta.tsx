@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { Download, ChevronDown } from "@/lib/icons";
-import { RELEASES_FALLBACK_URL, type PlatformId, type DownloadOption } from "@/lib/releases";
+import { RELEASES_FALLBACK_URL, type PlatformId, type DownloadOption, type ReleaseData } from "@/lib/releases";
 import { OS_GLYPHS } from "./os-glyphs";
-import { useLatestRelease } from "./use-release";
 
 const OS_LABEL: Record<PlatformId, string> = {
   macos: "macOS",
@@ -30,8 +29,7 @@ const PRIMARY_BTN =
  * links to the matching asset from the latest release. Falls back to the
  * platform grid / releases page while loading or when detection fails.
  */
-export function DownloadCta() {
-  const release = useLatestRelease();
+export function DownloadCta({ release }: { release: ReleaseData | null }) {
   const [os, setOs] = useState<PlatformId | null>(null);
   const [macIntel, setMacIntel] = useState(false);
 
