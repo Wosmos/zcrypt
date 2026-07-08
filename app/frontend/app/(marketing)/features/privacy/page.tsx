@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import {
   ArrowRight,
-  ChevronRight,
   Eye,
   Shield,
   ShieldCheck,
@@ -17,6 +16,9 @@ import {
   X,
 } from "@/lib/icons";
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
+import { FeatureHero } from "@/components/marketing/features/feature-hero";
+import { RelatedLinks } from "@/components/marketing/features/related-links";
+import { CtaSection } from "@/components/marketing/features/cta-section";
 
 export const metadata: Metadata = {
   title: "Privacy Tools — Decoy Profile & Dead Man's Switch",
@@ -89,6 +91,24 @@ const betaTools = [
   },
 ];
 
+const related = [
+  {
+    href: "/features/encrypted-drive",
+    title: "The encrypted drive",
+    desc: "Real folders and a file explorer — every name encrypted on your device.",
+  },
+  {
+    href: "/docs/dead-mans-switch",
+    title: "Dead man's switch",
+    desc: "Set the contact, timeout, and message for your inactivity alert.",
+  },
+  {
+    href: "/docs/security",
+    title: "Security model",
+    desc: "How zero-knowledge encryption and our threat model fit together.",
+  },
+];
+
 export default function PrivacyToolsPage() {
   return (
     <>
@@ -101,49 +121,27 @@ export default function PrivacyToolsPage() {
       />
 
       {/* ═══ HERO ═══ */}
-      <section className="relative overflow-hidden px-6 pt-32 pb-16 md:pt-36">
-        <div className="absolute inset-0 -z-10 pointer-events-none">
-          <div className="absolute left-1/2 top-0 h-[500px] w-[700px] -translate-x-1/2 rounded-full bg-cyan-500/10 blur-[120px]" />
-        </div>
-        <div className="mx-auto max-w-3xl text-center">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
-            Privacy tools
-          </p>
-          <h1 className="font-heading text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl md:text-6xl">
-            Privacy for the
-            <br />
-            <span className="bg-gradient-to-r from-cyan-500 to-cyan-400 bg-clip-text italic text-transparent dark:from-cyan-400 dark:to-cyan-300">
-              moments that matter.
-            </span>
-          </h1>
-          <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-[var(--color-text-secondary)]">
+      <FeatureHero
+        eyebrow="Privacy tools"
+        headlineTop="Privacy for the"
+        headlineGradient="moments that matter."
+        subtext={
+          <>
             Encryption keeps your files unreadable. These tools go a step further —
             for being pressured to unlock, for going quiet unexpectedly, and for the
             edge cases real privacy has to plan for. Built on the same zero-knowledge
             core, and honest about what each one actually does.
-          </p>
-          <div className="mt-9 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <Link
-              href="/register"
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-[#2de0ed] via-[#00d5e4] to-[#0093a3] px-8 py-3.5 text-base font-semibold text-slate-900 shadow-lg shadow-cyan-500/30 transition-shadow hover:shadow-xl hover:shadow-cyan-500/50"
-            >
-              Create your vault
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link
-              href="/docs/decoy-profile"
-              className="inline-flex items-center gap-2 px-5 py-3.5 text-sm font-semibold text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text)]"
-            >
-              Read the docs
-              <ChevronRight className="h-3.5 w-3.5" />
-            </Link>
-          </div>
-          <p className="mx-auto mt-6 inline-flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
+          </>
+        }
+        secondaryLabel="Read the docs"
+        secondaryHref="/docs/decoy-profile"
+        trustLine={
+          <>
             <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
             Zero-knowledge by design — we never hold your keys or your plaintext.
-          </p>
-        </div>
-      </section>
+          </>
+        }
+      />
 
       {/* ═══ DECOY PROFILE ═══ */}
       <section className="px-4 py-16">
@@ -401,55 +399,11 @@ export default function PrivacyToolsPage() {
       {/* ═══ RELATED + CTA ═══ */}
       <section className="px-4 py-20">
         <div className="mx-auto max-w-5xl">
-          <h2 className="mb-6 font-heading text-xl font-bold">Keep exploring</h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            {[
-              {
-                href: "/features/encrypted-drive",
-                title: "The encrypted drive",
-                desc: "Real folders and a file explorer — every name encrypted on your device.",
-              },
-              {
-                href: "/docs/dead-mans-switch",
-                title: "Dead man's switch",
-                desc: "Set the contact, timeout, and message for your inactivity alert.",
-              },
-              {
-                href: "/docs/security",
-                title: "Security model",
-                desc: "How zero-knowledge encryption and our threat model fit together.",
-              },
-            ].map((r) => (
-              <Link
-                key={r.href}
-                href={r.href}
-                className="card group p-5 transition-colors hover:border-cyan-500/40"
-              >
-                <h3 className="flex items-center gap-2 text-sm font-bold">
-                  {r.title}
-                  <ArrowRight className="h-3 w-3 text-cyan-500 opacity-0 transition-opacity group-hover:opacity-100" />
-                </h3>
-                <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{r.desc}</p>
-              </Link>
-            ))}
-          </div>
-
-          <div className="mt-16 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-10 text-center">
-            <h2 className="font-heading text-2xl font-bold tracking-tight sm:text-3xl">
-              Privacy you can actually reason about
-            </h2>
-            <p className="mx-auto mt-3 max-w-md text-[var(--color-text-secondary)]">
-              Free and open source. Bring a storage account you already own, set a
-              decoy password, and arm your safety net in minutes.
-            </p>
-            <Link
-              href="/register"
-              className="mt-7 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-[#2de0ed] via-[#00d5e4] to-[#0093a3] px-8 py-3.5 text-base font-semibold text-slate-900 shadow-lg shadow-cyan-500/30 transition-shadow hover:shadow-xl hover:shadow-cyan-500/50"
-            >
-              Create your vault
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
+          <RelatedLinks heading="Keep exploring" items={related} />
+          <CtaSection
+            heading="Privacy you can actually reason about"
+            subtext="Free and open source. Bring a storage account you already own, set a decoy password, and arm your safety net in minutes."
+          />
         </div>
       </section>
     </>

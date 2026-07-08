@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import {
   ArrowRight,
-  ChevronRight,
   Globe,
   Monitor,
   Terminal,
@@ -11,6 +10,9 @@ import {
   Check,
 } from "@/lib/icons";
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
+import { FeatureHero } from "@/components/marketing/features/feature-hero";
+import { RelatedLinks } from "@/components/marketing/features/related-links";
+import { CtaSection } from "@/components/marketing/features/cta-section";
 
 export const metadata: Metadata = {
   title: "Web, Desktop & Terminal — One Encrypted Vault, Three Surfaces",
@@ -91,6 +93,12 @@ const comparison = [
   },
 ];
 
+const related = [
+  { href: "/features/encrypted-drive", title: "The encrypted drive", desc: "The file explorer at the heart of every surface." },
+  { href: "/docs/web-app", title: "Web app guide", desc: "Get going in the browser in under a minute." },
+  { href: "/docs/desktop-app", title: "Desktop app guide", desc: "Install the native build for your platform." },
+];
+
 export default function AppsPage() {
   return (
     <>
@@ -103,45 +111,21 @@ export default function AppsPage() {
       />
 
       {/* ═══ HERO ═══ */}
-      <section className="relative overflow-hidden px-6 pt-32 pb-16 md:pt-36">
-        <div className="absolute inset-0 -z-10 pointer-events-none">
-          <div className="absolute left-1/2 top-0 h-[500px] w-[700px] -translate-x-1/2 rounded-full bg-cyan-500/10 blur-[120px]" />
-        </div>
-        <div className="mx-auto max-w-3xl text-center">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
-            Web, desktop &amp; terminal
-          </p>
-          <h1 className="font-heading text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl md:text-6xl">
-            One vault.
-            <br />
-            <span className="bg-gradient-to-r from-cyan-500 to-cyan-400 bg-clip-text italic text-transparent dark:from-cyan-400 dark:to-cyan-300">
-              Three ways to reach it.
-            </span>
-          </h1>
-          <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-[var(--color-text-secondary)]">
+      <FeatureHero
+        eyebrow="Web, desktop & terminal"
+        headlineTop="One vault."
+        headlineGradient="Three ways to reach it."
+        subtext={
+          <>
             The same zero-knowledge core, wherever you work: a web app in any
             browser, a native desktop app for macOS, Windows and Linux, and a
             single-binary terminal app that runs over SSH. The encryption never
             changes — only the interface does.
-          </p>
-          <div className="mt-9 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <Link
-              href="/register"
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-[#2de0ed] via-[#00d5e4] to-[#0093a3] px-8 py-3.5 text-base font-semibold text-slate-900 shadow-lg shadow-cyan-500/30 transition-shadow hover:shadow-xl hover:shadow-cyan-500/50"
-            >
-              Create your vault
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link
-              href="/tui"
-              className="inline-flex items-center gap-2 px-5 py-3.5 text-sm font-semibold text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text)]"
-            >
-              See the terminal app
-              <ChevronRight className="h-3.5 w-3.5" />
-            </Link>
-          </div>
-        </div>
-
+          </>
+        }
+        secondaryLabel="See the terminal app"
+        secondaryHref="/tui"
+      >
         {/* Three-surface mock */}
         <div className="mx-auto mt-16 max-w-4xl">
           <div className="grid gap-4 sm:grid-cols-3">
@@ -203,7 +187,7 @@ export default function AppsPage() {
             </div>
           </div>
         </div>
-      </section>
+      </FeatureHero>
 
       {/* ═══ SHARED CORE ═══ */}
       <section className="px-4 pb-4 pt-8">
@@ -351,39 +335,11 @@ export default function AppsPage() {
       {/* ═══ RELATED + CTA ═══ */}
       <section className="px-4 py-20">
         <div className="mx-auto max-w-5xl">
-          <h2 className="mb-6 font-heading text-xl font-bold">Keep exploring</h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            {[
-              { href: "/features/encrypted-drive", title: "The encrypted drive", desc: "The file explorer at the heart of every surface." },
-              { href: "/docs/web-app", title: "Web app guide", desc: "Get going in the browser in under a minute." },
-              { href: "/docs/desktop-app", title: "Desktop app guide", desc: "Install the native build for your platform." },
-            ].map((r) => (
-              <Link key={r.href} href={r.href} className="card group p-5 transition-colors hover:border-cyan-500/40">
-                <h3 className="flex items-center gap-2 text-sm font-bold">
-                  {r.title}
-                  <ArrowRight className="h-3 w-3 text-cyan-500 opacity-0 transition-opacity group-hover:opacity-100" />
-                </h3>
-                <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{r.desc}</p>
-              </Link>
-            ))}
-          </div>
-
-          <div className="mt-16 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-10 text-center">
-            <h2 className="font-heading text-2xl font-bold tracking-tight sm:text-3xl">
-              The same vault, wherever you are
-            </h2>
-            <p className="mx-auto mt-3 max-w-md text-[var(--color-text-secondary)]">
-              Free and open source. Create an account once and reach it from the
-              web, your desktop, or a terminal.
-            </p>
-            <Link
-              href="/register"
-              className="mt-7 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-[#2de0ed] via-[#00d5e4] to-[#0093a3] px-8 py-3.5 text-base font-semibold text-slate-900 shadow-lg shadow-cyan-500/30 transition-shadow hover:shadow-xl hover:shadow-cyan-500/50"
-            >
-              Create your vault
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
+          <RelatedLinks heading="Keep exploring" items={related} />
+          <CtaSection
+            heading="The same vault, wherever you are"
+            subtext="Free and open source. Create an account once and reach it from the web, your desktop, or a terminal."
+          />
         </div>
       </section>
     </>
