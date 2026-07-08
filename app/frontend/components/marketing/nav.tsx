@@ -170,11 +170,13 @@ function ProductMega({ onItem }: { onItem: () => void }) {
       <div className="flex flex-[2] flex-col justify-between border-r border-[var(--color-border)] px-6 py-7">
         <div>
           <MegaHeading>Features</MegaHeading>
-          <div className="grid grid-cols-2 gap-0.5">
+          <ul className="grid grid-cols-2 gap-0.5 list-none">
             {productFeatures.map((i) => (
-              <MegaItem key={i.href} item={i} onClick={onItem} />
+              <li key={i.href}>
+                <MegaItem item={i} onClick={onItem} />
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
         <MegaCtaLink href="/features" onClick={onItem}>All features</MegaCtaLink>
       </div>
@@ -183,27 +185,30 @@ function ProductMega({ onItem }: { onItem: () => void }) {
       <div className="flex flex-1 flex-col justify-between border-r border-[var(--color-border)] px-6 py-7">
         <div>
           <MegaHeading>Tools</MegaHeading>
-          <div className="flex flex-col gap-0.5">
+          <ul className="flex flex-col gap-0.5 list-none">
             {productTools.map((i) => (
-              <MegaItem key={i.href} item={i} onClick={onItem} />
+              <li key={i.href}>
+                <MegaItem item={i} onClick={onItem} />
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
         <div>
           <MegaHeading>Compare</MegaHeading>
-          <div className="flex flex-col gap-0.5">
+          <ul className="flex flex-col gap-0.5 list-none">
             {productCompare.map((i) => (
-              <Link
-                key={i.href}
-                href={i.href}
-                role="menuitem"
-                onClick={onItem}
-                className="rounded-xl px-3 py-2 text-[12px] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)]"
-              >
-                {i.title}
-              </Link>
+              <li key={i.href}>
+                <Link
+                  href={i.href}
+                  role="menuitem"
+                  onClick={onItem}
+                  className="block rounded-xl px-3 py-2 text-[12px] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)]"
+                >
+                  {i.title}
+                </Link>
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
       </div>
 
@@ -229,11 +234,13 @@ function DocsMega({ onItem }: { onItem: () => void }) {
       <div className="flex flex-1 flex-col justify-between border-r border-[var(--color-border)] px-6 py-7">
         <div>
           <MegaHeading>Start here</MegaHeading>
-          <div className="flex flex-col gap-0.5">
+          <ul className="flex flex-col gap-0.5 list-none">
             {docsStart.map((i) => (
-              <MegaItem key={i.href} item={i} onClick={onItem} />
+              <li key={i.href}>
+                <MegaItem item={i} onClick={onItem} />
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
         <MegaCtaLink href="/docs" onClick={onItem}>Open the docs</MegaCtaLink>
       </div>
@@ -241,11 +248,13 @@ function DocsMega({ onItem }: { onItem: () => void }) {
       {/* Popular */}
       <div className="flex flex-1 flex-col border-r border-[var(--color-border)] px-6 py-7">
         <MegaHeading>Popular</MegaHeading>
-        <div className="flex flex-1 flex-col justify-between gap-0.5">
+        <ul className="flex flex-1 flex-col justify-between gap-0.5 list-none">
           {docsPopular.map((i) => (
-            <MegaItem key={i.href} item={i} onClick={onItem} />
+            <li key={i.href}>
+              <MegaItem item={i} onClick={onItem} />
+            </li>
           ))}
-        </div>
+        </ul>
       </div>
 
       {/* Featured card */}
@@ -501,61 +510,73 @@ export function MarketingNav() {
                 <p className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
                   Features
                 </p>
-                {productFeatures.map((i) => (
-                  <Link
-                    key={i.href}
-                    href={i.href}
-                    onClick={() => setMobileOpen(false)}
-                    className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)]"
-                  >
-                    {i.icon && <i.icon className="h-4 w-4 text-cyan-500" />}
-                    {i.title}
-                  </Link>
-                ))}
+                <ul className="list-none">
+                  {productFeatures.map((i) => (
+                    <li key={i.href}>
+                      <Link
+                        href={i.href}
+                        onClick={() => setMobileOpen(false)}
+                        className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)]"
+                      >
+                        {i.icon && <i.icon className="h-4 w-4 text-cyan-500" />}
+                        {i.title}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
 
                 <p className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
                   Tools
                 </p>
-                {productTools.map((i) => (
-                  <Link
-                    key={i.href}
-                    href={i.href}
-                    onClick={() => setMobileOpen(false)}
-                    className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)]"
-                  >
-                    {i.icon && <i.icon className="h-4 w-4 text-cyan-500" />}
-                    {i.title}
-                  </Link>
-                ))}
+                <ul className="list-none">
+                  {productTools.map((i) => (
+                    <li key={i.href}>
+                      <Link
+                        href={i.href}
+                        onClick={() => setMobileOpen(false)}
+                        className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)]"
+                      >
+                        {i.icon && <i.icon className="h-4 w-4 text-cyan-500" />}
+                        {i.title}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
 
                 <p className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
                   Compare
                 </p>
-                {productCompare.map((i) => (
-                  <Link
-                    key={i.href}
-                    href={i.href}
-                    onClick={() => setMobileOpen(false)}
-                    className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)]"
-                  >
-                    {i.title}
-                  </Link>
-                ))}
+                <ul className="list-none">
+                  {productCompare.map((i) => (
+                    <li key={i.href}>
+                      <Link
+                        href={i.href}
+                        onClick={() => setMobileOpen(false)}
+                        className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)]"
+                      >
+                        {i.title}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
 
                 <p className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
                   Docs
                 </p>
-                {docsStart.map((i) => (
-                  <Link
-                    key={i.href}
-                    href={i.href}
-                    onClick={() => setMobileOpen(false)}
-                    className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)]"
-                  >
-                    {i.icon && <i.icon className="h-4 w-4 text-cyan-500" />}
-                    {i.title}
-                  </Link>
-                ))}
+                <ul className="list-none">
+                  {docsStart.map((i) => (
+                    <li key={i.href}>
+                      <Link
+                        href={i.href}
+                        onClick={() => setMobileOpen(false)}
+                        className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)]"
+                      >
+                        {i.icon && <i.icon className="h-4 w-4 text-cyan-500" />}
+                        {i.title}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
                 <Link
                   href="/docs"
                   onClick={() => setMobileOpen(false)}

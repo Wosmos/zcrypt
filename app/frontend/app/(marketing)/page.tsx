@@ -287,9 +287,9 @@ export default function LandingPage() {
 
           {/* Quick objections row */}
           <ScrollReveal className="mb-6">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <ul className="grid grid-cols-1 sm:grid-cols-3 gap-3 list-none">
               {objections.map((o) => (
-                <div
+                <li
                   key={o.q}
                   className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5"
                 >
@@ -299,9 +299,9 @@ export default function LandingPage() {
                   <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed">
                     {o.a}
                   </p>
-                </div>
+                </li>
               ))}
-            </div>
+            </ul>
           </ScrollReveal>
 
           <ScrollReveal>
@@ -330,31 +330,33 @@ export default function LandingPage() {
             </p>
           </ScrollReveal>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-4 list-none">
             {roadmapItems.map((item, i) => {
               const Icon = roadmapIconMap[item.icon];
               return (
-                <ScrollReveal key={i} delay={i * 0.1}>
-                  <div className="card p-5 h-full flex gap-4 items-start group">
-                    <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-cyan-500/10 text-cyan-500 flex-shrink-0 group-hover:scale-110 transition-transform">
-                      {Icon && <Icon className="h-5 w-5" />}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-sm font-bold">{item.title}</h3>
-                        <span className="text-[10px] font-bold text-cyan-500 bg-cyan-500/10 px-2 py-0.5 rounded-full">
-                          {item.badge}
-                        </span>
+                <li key={i}>
+                  <ScrollReveal delay={i * 0.1}>
+                    <div className="card p-5 h-full flex gap-4 items-start group">
+                      <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-cyan-500/10 text-cyan-500 flex-shrink-0 group-hover:scale-110 transition-transform">
+                        {Icon && <Icon className="h-5 w-5" />}
                       </div>
-                      <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
-                        {item.desc}
-                      </p>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="text-sm font-bold">{item.title}</h3>
+                          <span className="text-[10px] font-bold text-cyan-500 bg-cyan-500/10 px-2 py-0.5 rounded-full">
+                            {item.badge}
+                          </span>
+                        </div>
+                        <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
+                          {item.desc}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                </ScrollReveal>
+                  </ScrollReveal>
+                </li>
               );
             })}
-          </div>
+          </ul>
         </div>
       </section>
 

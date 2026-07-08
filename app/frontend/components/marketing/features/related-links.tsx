@@ -32,25 +32,26 @@ export function RelatedLinks({
   return (
     <>
       <h2 className="mb-6 font-heading text-xl font-bold">{heading}</h2>
-      <div className={gridClassName}>
+      <ul className={`${gridClassName} list-none`}>
         {items.map((item) => {
           const { Icon } = item;
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="card group p-5 transition-colors hover:border-cyan-500/40"
-            >
-              <h3 className="flex items-center gap-2 text-sm font-bold">
-                {Icon && <Icon className="h-4 w-4 text-cyan-500" />}
-                {item.title}
-                <ArrowRight className="h-3 w-3 text-cyan-500 opacity-0 transition-opacity group-hover:opacity-100" />
-              </h3>
-              <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{item.desc}</p>
-            </Link>
+            <li key={item.href}>
+              <Link
+                href={item.href}
+                className="card group block h-full p-5 transition-colors hover:border-cyan-500/40"
+              >
+                <h3 className="flex items-center gap-2 text-sm font-bold">
+                  {Icon && <Icon className="h-4 w-4 text-cyan-500" />}
+                  {item.title}
+                  <ArrowRight className="h-3 w-3 text-cyan-500 opacity-0 transition-opacity group-hover:opacity-100" />
+                </h3>
+                <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{item.desc}</p>
+              </Link>
+            </li>
           );
         })}
-      </div>
+      </ul>
     </>
   );
 }

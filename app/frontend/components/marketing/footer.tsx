@@ -132,9 +132,13 @@ export function MarketingFooter() {
                 <h4 className="mb-4 font-heading text-[0.74rem] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
                   {column.title}
                 </h4>
-                {column.links.map((link) => (
-                  <FooterNavLink key={link.label} {...link} />
-                ))}
+                <ul className="list-none">
+                  {column.links.map((link) => (
+                    <li key={link.label}>
+                      <FooterNavLink {...link} />
+                    </li>
+                  ))}
+                </ul>
               </div>
             ))}
           </div>

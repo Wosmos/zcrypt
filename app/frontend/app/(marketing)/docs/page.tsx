@@ -51,7 +51,7 @@ function LinkCard({ link }: { link: DocsNavLink }) {
   );
 
   const className =
-    "card group p-4 transition-colors hover:border-cyan-500/40";
+    "card group block h-full p-4 transition-colors hover:border-cyan-500/40";
 
   return link.external ? (
     <a href={link.href} className={className}>
@@ -112,11 +112,13 @@ export default function DocsPage() {
               <h2 className="font-heading text-lg font-bold tracking-tight">{group.title}</h2>
               <p className="mt-0.5 text-sm text-[var(--color-text-secondary)]">{group.summary}</p>
             </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 list-none">
               {group.links.map((link) => (
-                <LinkCard key={link.href + link.title} link={link} />
+                <li key={link.href + link.title}>
+                  <LinkCard link={link} />
+                </li>
               ))}
-            </div>
+            </ul>
           </section>
         ))}
       </div>
