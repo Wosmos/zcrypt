@@ -4,15 +4,6 @@ import { useState } from "react";
 import NextImage from "next/image";
 import { FileMetadata } from "@/types";
 import {
-  File,
-  FileText,
-  Image,
-  Video,
-  Music,
-  Archive,
-  Code,
-  Cog,
-  Table,
   Download,
   Trash2,
   CheckCircle2,
@@ -27,8 +18,9 @@ import {
   Share2,
 } from "@/lib/icons";
 import { IconButton } from "@/components/ui/icon-button";
-import { formatBytes, formatDate, getFileTypeInfo, isImageFile } from "@/lib/utils";
+import { formatBytes, formatDate, getFileTypeInfo, isImageFile, fileIconFor, savingsPercent } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import { copyToClipboard } from "@/lib/clipboard";
 import { useThumbnail } from "@/hooks/useThumbnail";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 
@@ -47,10 +39,6 @@ interface FileCardProps {
   onSelect?: (id: string) => void;
 }
 
-const iconMap: Record<string, typeof File> = {
-  File, FileText, Image, Video, Music, Archive, Code, Cog, Table,
-};
-
 export function FileCard({ file, downloadState = "idle", onDownload, onDelete, onPreview, onShare, onOpen, selectable, selected, onSelect }: FileCardProps) {
   const [copied, setCopied] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -59,20 +47,17 @@ export function FileCard({ file, downloadState = "idle", onDownload, onDelete, o
   const { thumbnailUrl, loading: thumbLoading } = useThumbnail(file.id, file.original_name);
 
   const wasCompressed = file.compressed_size < file.original_size;
-  const ratio =
-    file.original_size > 0 && wasCompressed
-      ? ((1 - file.compressed_size / file.original_size) * 100).toFixed(0)
-      : "0";
+  const ratio = savingsPercent(file.original_size, file.compressed_size);
 
   const typeInfo = getFileTypeInfo(file.original_name);
-  const Icon = iconMap[typeInfo.icon] || File;
+  const Icon = fileIconFor(file.original_name);
   const isDownloading = downloadState === "downloading";
   const isDone = downloadState === "done";
   const isImage = isImageFile(file.original_name);
 
   const copyHash = (e: React.MouseEvent) => {
     e.stopPropagation();
-    navigator.clipboard.writeText(file.sha256);
+    copyToClipboard(file.sha256);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };

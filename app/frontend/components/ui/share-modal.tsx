@@ -6,11 +6,13 @@ import { X, Share2, Copy, Check, Link2, Lock, Trash2 } from "@/lib/icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { createShare, revokeShare, getFileMeta } from "@/lib/api";
+import { revokeShare } from "@/lib/api";
 import { useSharesQuery, invalidateShares } from "@/hooks/useShares";
 import { toast } from "@/store/toast";
 import { usePassphraseStore } from "@/store/passphrase";
-import { formatBytes, formatDate } from "@/lib/utils";
+import { createFileShareLink } from "@/lib/file-share";
+import { copyToClipboard } from "@/lib/clipboard";
+import { formatBytes, formatDateTime } from "@/lib/utils";
 
 interface ShareModalProps {
   open: boolean;
@@ -84,38 +86,20 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
 
     setLoading(true);
     try {
-      const { resolveFileKey, generateCEK, wrapKey, fromBase64, toBase64 } = await import("@/lib/crypto");
-
-      // 1. Recover this file's CEK using the owner's passphrase.
-      const meta = await getFileMeta(fileId);
-      if (!meta.wrapped_cek) {
-        throw new Error("This file was uploaded before sharing was supported. Re-upload it to share.");
-      }
-      const salt = fromBase64(meta.salt);
-      // resolveFileKey returns the CEK for envelope files.
-      const cekBuf = await resolveFileKey(passphrase, salt, meta.wrapped_cek);
-      const cek = new Uint8Array(cekBuf);
-
-      // 2. Wrap the CEK under a fresh random share key.
-      const shareKey = generateCEK();
-      const shareWrappedCek = await wrapKey(shareKey.buffer.slice(0) as ArrayBuffer, cek);
-
-      // 3. Create the share storing only the share-wrapped CEK. The share key
-      //    itself never leaves the browser except in the URL fragment below.
-      const result = await createShare({
-        file_id: fileId,
-        wrapped_cek: toBase64(shareWrappedCek),
+      // Recover the CEK, re-wrap it under a fresh share key, and create the
+      // share — the share key never leaves the browser except in the URL
+      // fragment. createFileShareLink also refreshes the shares cache so this
+      // modal + the details drawer show the new link.
+      const { token, shareKey } = await createFileShareLink(fileId, {
         password: usePassword ? password : undefined,
-        expires_in_hours: expiryHours || undefined,
-        max_downloads: maxDownloads || undefined,
+        expiresHours: expiryHours || undefined,
+        maxDownloads: maxDownloads || undefined,
       });
 
-      setGeneratedToken(result.token);
-      setShareKeyB64(toBase64(shareKey));
+      setGeneratedToken(token);
+      setShareKeyB64(shareKey);
       setStep("link");
       toast.success("Share link created");
-      // Refresh the shared cache so this + the details drawer show the new link.
-      void invalidateShares(fileId);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to create share");
     } finally {
@@ -124,11 +108,10 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
   }, [fileId, usePassword, password, expiryHours, maxDownloads]);
 
   const handleCopy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(shareUrl);
+    if (await copyToClipboard(shareUrl)) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {
+    } else {
       toast.error("Failed to copy");
     }
   }, [shareUrl]);
@@ -292,7 +275,7 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
                         </div>
                         <p className="text-[10px] text-[var(--color-text-muted)]">
                           {s.download_count}{s.max_downloads > 0 ? `/${s.max_downloads}` : ""} downloads
-                          {s.expires_at && ` · Expires ${formatDate(s.expires_at)}`}
+                          {s.expires_at && ` · Expires ${formatDateTime(s.expires_at)}`}
                         </p>
                       </div>
                       {!s.revoked && (

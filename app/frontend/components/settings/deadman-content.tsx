@@ -10,6 +10,7 @@ import {
   deleteDeadManSwitch,
 } from "@/lib/api";
 import type { DeadManSwitch } from "@/types";
+import { formatDateTime } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -33,16 +34,6 @@ import {
 function daysUntil(date: string): number {
   const diff = new Date(date).getTime() - Date.now();
   return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
-}
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }
 
 const TIMEOUT_OPTIONS = [7, 14, 30, 60, 90, 180, 365];
@@ -207,7 +198,7 @@ export function DeadManContent() {
             <p className="text-sm font-medium text-red-500 dark:text-red-400">Switch triggered</p>
             <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-secondary)]">
               Your dead man&apos;s switch was triggered on{" "}
-              {dms.triggered_at ? formatDate(dms.triggered_at) : "an unknown date"}. Your contact (
+              {dms.triggered_at ? formatDateTime(dms.triggered_at) : "an unknown date"}. Your contact (
               {dms.contact_email}) has been notified.
             </p>
           </div>
@@ -261,7 +252,7 @@ export function DeadManContent() {
                     </span>
                   }
                   icon={dms.contact_name ? User : Mail}
-                  hint={`Last check-in: ${formatDate(dms.last_checkin)}`}
+                  hint={`Last check-in: ${formatDateTime(dms.last_checkin)}`}
                 />
               </div>
               <Button onClick={handleCheckin} disabled={checkinLoading} className="w-full">

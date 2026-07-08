@@ -5,12 +5,15 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuthStore } from "@/store/auth";
 import { adminGetUser, adminSetUserRole, adminDeleteUser, adminSetUserQuota, adminSetUserPlan, adminGetPlans } from "@/lib/api";
-import { formatBytes, cn } from "@/lib/utils";
+import { formatBytes, cn, bytesToGb, usagePercent } from "@/lib/utils";
+import { quotaModeFor, parseQuotaInput, formatQuotaDisplay, type QuotaMode } from "@/lib/quota";
+import { EVENT_ICONS } from "@/lib/audit-events";
 import { toast } from "@/store/toast";
 import { Role } from "@/types";
 import type { AdminUserDetail, PlanConfig } from "@/types";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { UserDetailSkeleton } from "@/components/admin/skeletons";
+import { RoleBadge, PlanBadge } from "@/components/admin/badges";
 import { Button } from "@/components/ui/button";
 import { Section } from "@/components/ui/section";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -26,44 +29,10 @@ import {
   Shield,
   Mail,
   Clock,
-  HardDrive,
-  Crown,
-  ShieldCheck,
   User,
   Trash2,
-  LogIn,
-  LogOut,
-  UserPlus,
-  Key,
-  Link2,
-  Upload,
-  Download,
-  Settings,
   FileText,
 } from "@/lib/icons";
-
-const eventIcons: Record<string, typeof Shield> = {
-  login: LogIn,
-  login_failed: LogIn,
-  register: UserPlus,
-  logout: LogOut,
-  oauth_login: LogIn,
-  oauth_register: UserPlus,
-  oauth_link: Link2,
-  oauth_unlink: Link2,
-  magic_link_sent: Key,
-  magic_link_used: Key,
-  file_upload: Upload,
-  file_download: Download,
-  file_delete: Trash2,
-  platform_connect: HardDrive,
-  platform_disconnect: HardDrive,
-  "2fa_enable": Shield,
-  "2fa_disable": Shield,
-  admin_role_change: Settings,
-  admin_user_delete: Trash2,
-  admin_plan_change: Settings,
-};
 
 const eventColors: Record<string, string> = {
   login: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
@@ -109,7 +78,7 @@ export function AdminUserDetailContent() {
   } | null>(null);
 
   const [editingQuota, setEditingQuota] = useState(false);
-  const [quotaMode, setQuotaMode] = useState<"default" | "custom" | "unlimited">("default");
+  const [quotaMode, setQuotaMode] = useState<QuotaMode>("default");
   const [quotaInput, setQuotaInput] = useState("");
 
   const fetchUser = async () => {
@@ -162,7 +131,7 @@ export function AdminUserDetailContent() {
 
   const u = data.user;
   const isSelf = u.id === currentUser.id;
-  const storagePercent = data.quota_bytes > 0 ? Math.min((data.used_bytes / data.quota_bytes) * 100, 100) : 0;
+  const storagePercent = usagePercent(data.used_bytes, data.quota_bytes);
   const events = data.events ?? [];
   const userPlanConfig = planConfigs.find((p) => p.id === (u.plan || "free"));
 
@@ -221,33 +190,21 @@ export function AdminUserDetailContent() {
 
   const startEditQuota = () => {
     setEditingQuota(true);
-    if (u.storage_quota === null) {
-      setQuotaMode("default");
-      setQuotaInput("");
-    } else if (u.storage_quota === 0) {
-      setQuotaMode("unlimited");
-      setQuotaInput("");
-    } else {
-      setQuotaMode("custom");
-      setQuotaInput((u.storage_quota / (1024 * 1024 * 1024)).toString());
-    }
+    const mode = quotaModeFor(u.storage_quota);
+    setQuotaMode(mode);
+    setQuotaInput(mode === "custom" ? bytesToGb(u.storage_quota!).toString() : "");
   };
 
   const saveQuota = async () => {
     setBusy(true);
     try {
-      let quotaBytes: number | null = null;
-      if (quotaMode === "unlimited") quotaBytes = 0;
-      else if (quotaMode === "custom") {
-        const gb = parseFloat(quotaInput);
-        if (isNaN(gb) || gb <= 0) {
-          toast.error("Enter a valid quota in GB");
-          setBusy(false);
-          return;
-        }
-        quotaBytes = Math.round(gb * 1024 * 1024 * 1024);
+      const parsed = parseQuotaInput(quotaMode, quotaInput);
+      if (!parsed.ok) {
+        toast.error(parsed.error);
+        setBusy(false);
+        return;
       }
-      await adminSetUserQuota(u.id, quotaBytes);
+      await adminSetUserQuota(u.id, parsed.bytes);
       toast.success("Quota updated");
       setEditingQuota(false);
       fetchUser();
@@ -310,26 +267,8 @@ export function AdminUserDetailContent() {
                   </span>
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <span className={cn(
-                    "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium",
-                    u.role === Role.Admin
-                      ? "border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400"
-                      : "border-[var(--color-border)] bg-[var(--color-surface-2)] text-[var(--color-text-muted)]"
-                  )}>
-                    {u.role === Role.Admin ? <ShieldCheck className="h-3 w-3" /> : <User className="h-3 w-3" />}
-                    {u.role}
-                  </span>
-                  <span className={cn(
-                    "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium",
-                    (u.plan || "free") === "pro"
-                      ? "border-violet-500/20 bg-violet-500/10 text-violet-600 dark:text-violet-400"
-                      : (u.plan || "free") === "plus"
-                        ? "border-blue-500/20 bg-blue-500/10 text-blue-600 dark:text-blue-400"
-                        : "border-[var(--color-border)] bg-[var(--color-surface-2)] text-[var(--color-text-muted)]"
-                  )}>
-                    {["pro", "plus"].includes(u.plan || "free") && <Crown className="h-3 w-3" />}
-                    {u.plan || "free"}
-                  </span>
+                  <RoleBadge role={u.role} bordered />
+                  <PlanBadge plan={u.plan || "free"} bordered />
                   {u.totp_enabled && (
                     <span className="inline-flex items-center gap-1 rounded-full border border-green-500/20 bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-600 dark:text-green-400">
                       <Shield className="h-3 w-3" />
@@ -448,7 +387,7 @@ export function AdminUserDetailContent() {
                 <div>
                   <p className="text-xs text-[var(--color-text-muted)]">Quota</p>
                   <p className="text-lg font-semibold tabular-nums">
-                    {data.quota_bytes === 0 ? "Unlimited" : formatBytes(data.quota_bytes)}
+                    {formatQuotaDisplay(data.quota_bytes)}
                   </p>
                 </div>
                 <div>
@@ -489,7 +428,7 @@ export function AdminUserDetailContent() {
           ) : (
             <div className="divide-y divide-[var(--color-border)]">
               {events.map((event) => {
-                const Icon = eventIcons[event.event_type] ?? Shield;
+                const Icon = EVENT_ICONS[event.event_type] ?? Shield;
                 const color = eventColors[event.event_type] ?? "bg-slate-500/10 text-slate-600 dark:text-slate-400";
                 return (
                   <div key={event.id} className="flex items-center gap-3 px-5 py-3">

@@ -3,7 +3,8 @@
 import { memo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { adminSetUserRole, adminDeleteUser, adminSetUserQuota, adminSetUserPlan } from "@/lib/api";
-import { formatBytes, cn } from "@/lib/utils";
+import { formatBytes, cn, bytesToGb } from "@/lib/utils";
+import { quotaModeFor, parseQuotaInput, formatQuotaDisplay, type QuotaMode } from "@/lib/quota";
 import { toast } from "@/store/toast";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
@@ -15,16 +16,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
-import { Badge } from "@/components/ui/badge";
-import { Trash2, ShieldCheck, User, Crown, Check, X } from "@/lib/icons";
+import { RoleBadge, PlanBadge } from "./badges";
+import { Trash2, Check, X } from "@/lib/icons";
 import { Role } from "@/types";
 import type { AdminUser, PlanConfig } from "@/types";
-
-// Pill shape shared by the admin badges (rounded-full, tighter padding, medium weight)
-const pillClass = "gap-1 rounded-full px-2 font-medium";
-
-const planVariant = (plan: string) =>
-  plan === "pro" ? "violet" : plan === "plus" ? "blue" : "muted";
 
 const planSelectClass = (plan: string) =>
   cn(
@@ -36,26 +31,7 @@ const planSelectClass = (plan: string) =>
         : ""
   );
 
-type QuotaMode = "default" | "custom" | "unlimited";
 type PlanDetails = Record<string, { label: string; uploads: number; storage: string; fileSize: string }>;
-
-function RoleBadge({ role }: { role: Role }) {
-  return (
-    <Badge variant={role === Role.Admin ? "amber" : "muted"} className={pillClass}>
-      {role === Role.Admin ? <ShieldCheck className="h-3 w-3" /> : <User className="h-3 w-3" />}
-      {role}
-    </Badge>
-  );
-}
-
-function PlanBadge({ plan }: { plan: string }) {
-  return (
-    <Badge variant={planVariant(plan)} className={pillClass}>
-      {["pro", "plus"].includes(plan) && <Crown className="h-3 w-3" />}
-      {plan}
-    </Badge>
-  );
-}
 
 /**
  * Callbacks + derived data a row/card needs from the parent. Bundled into one
@@ -386,33 +362,21 @@ export function UserTable({
 
   const startEditQuota = (u: AdminUser) => {
     setEditingQuota(u.id);
-    if (u.storage_quota === null) {
-      setQuotaMode("default");
-      setQuotaInput("");
-    } else if (u.storage_quota === 0) {
-      setQuotaMode("unlimited");
-      setQuotaInput("");
-    } else {
-      setQuotaMode("custom");
-      setQuotaInput((u.storage_quota / (1024 * 1024 * 1024)).toString());
-    }
+    const mode = quotaModeFor(u.storage_quota);
+    setQuotaMode(mode);
+    setQuotaInput(mode === "custom" ? bytesToGb(u.storage_quota!).toString() : "");
   };
 
   const saveQuota = async (userId: string) => {
     setBusy(userId);
     try {
-      let quotaBytes: number | null = null;
-      if (quotaMode === "unlimited") quotaBytes = 0;
-      else if (quotaMode === "custom") {
-        const gb = parseFloat(quotaInput);
-        if (isNaN(gb) || gb <= 0) {
-          toast.error("Enter a valid quota in GB");
-          setBusy(null);
-          return;
-        }
-        quotaBytes = Math.round(gb * 1024 * 1024 * 1024);
+      const parsed = parseQuotaInput(quotaMode, quotaInput);
+      if (!parsed.ok) {
+        toast.error(parsed.error);
+        setBusy(null);
+        return;
       }
-      await adminSetUserQuota(userId, quotaBytes);
+      await adminSetUserQuota(userId, parsed.bytes);
       toast.success("Quota updated");
       setEditingQuota(null);
       onRefresh();
@@ -424,13 +388,11 @@ export function UserTable({
   };
 
   const getQuotaDisplay = (u: AdminUser) => {
-    if (u.storage_quota === null) {
-      const planConfig = planConfigs?.find((p) => p.id === (u.plan || "free"));
-      if (planConfig) return planConfig.storage_display;
-      return defaultQuotaBytes > 0 ? formatBytes(defaultQuotaBytes) : "Unlimited";
-    }
-    if (u.storage_quota === 0) return "Unlimited";
-    return formatBytes(u.storage_quota);
+    const planConfig = planConfigs?.find((p) => p.id === (u.plan || "free"));
+    return formatQuotaDisplay(u.storage_quota, {
+      planDisplay: planConfig?.storage_display,
+      defaultBytes: defaultQuotaBytes,
+    });
   };
 
   const getQuotaLabel = (u: AdminUser) => (u.storage_quota === null ? "plan" : "override");

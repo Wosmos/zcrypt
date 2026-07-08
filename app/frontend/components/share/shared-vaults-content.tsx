@@ -25,7 +25,7 @@ import { usePassphraseStore } from "@/store/passphrase";
 import { useFilesQuery } from "@/store/files";
 import { queryClient } from "@/lib/query-client";
 import { qk } from "@/lib/query-keys";
-import { formatBytes } from "@/lib/utils";
+import { formatBytes, formatDateShort } from "@/lib/utils";
 import type { SharedVault, SharedVaultDetail, FileMetadata } from "@/types";
 import { useAuthStore } from "@/store/auth";
 import { Section } from "@/components/ui/section";
@@ -52,14 +52,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Plus, Trash2, Users, FolderOpen, Download, File as FileIcon, Loader2, ShieldCheck } from "@/lib/icons";
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
 
 /** Root-level folders that currently contain files, with decrypted names + a
  *  live file count — the pickable "share a whole folder" options. */
@@ -486,7 +478,7 @@ export function SharedVaultsContent() {
                       </span>
                       <span className="text-[var(--color-border-hover)]">·</span>
                       <span className="tabular-nums">
-                        {formatDate(vault.created_at)}
+                        {formatDateShort(vault.created_at)}
                       </span>
                     </div>
                   </div>

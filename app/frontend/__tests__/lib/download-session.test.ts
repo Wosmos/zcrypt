@@ -25,6 +25,10 @@ vi.mock("@/lib/crypto", async () => {
       const h = sha256.create();
       return { update: (d: Uint8Array) => h.update(d), digest: () => h.digest() };
     },
+    bytesToHex: (bytes: Uint8Array) =>
+      Array.from(bytes)
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join(""),
   };
 });
 

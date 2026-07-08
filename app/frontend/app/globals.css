@@ -351,9 +351,38 @@
   animation-direction: var(--dir, normal);
 }
 
-/* Smooth theme transitions — CSS custom property approach (GPU-friendly, no per-element transitions) */
-html.theme-transition {
-  transition: color 0.15s ease, background-color 0.15s ease !important;
+/* ═══ Theme toggle: circular reveal (View Transitions API) ═══
+   Replaces the old whole-page color crossfade. On toggle the incoming theme is
+   revealed as a circle growing from the toggle button — origin (--theme-vt-x/y)
+   and radius (--theme-vt-r) are set on <html> in the theme provider. Scoped to
+   html.theme-vt (set only during the transition); browsers without the API, or
+   users who prefer reduced motion, get an instant flip instead. */
+html.theme-vt::view-transition-old(root),
+html.theme-vt::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+html.theme-vt::view-transition-old(root) {
+  z-index: 1;
+}
+html.theme-vt::view-transition-new(root) {
+  z-index: 2;
+  animation: theme-circle-reveal 0.42s ease-out;
+}
+@keyframes theme-circle-reveal {
+  from {
+    clip-path: circle(0 at var(--theme-vt-x, 50%) var(--theme-vt-y, 50%));
+  }
+  to {
+    clip-path: circle(
+      var(--theme-vt-r, 150vmax) at var(--theme-vt-x, 50%) var(--theme-vt-y, 50%)
+    );
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html.theme-vt::view-transition-new(root) {
+    animation: none;
+  }
 }
 
 /* ═══ Cipher Draw Spinner ═══ */

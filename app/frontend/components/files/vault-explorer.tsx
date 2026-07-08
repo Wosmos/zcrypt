@@ -101,6 +101,7 @@ import { ExplorerRow, type RowDragProps } from "./explorer/explorer-row";
 import { ExplorerCard } from "./explorer/explorer-card";
 import { FolderDetailsDrawer } from "./folder-details-drawer";
 import { FolderShareModal } from "./folder-share-modal";
+import { DIALOG_PANEL } from "./explorer/types";
 import type {
   SortField,
   SortDir,
@@ -109,9 +110,6 @@ import type {
   ExplorerEntry,
   ExplorerActions,
 } from "./explorer/types";
-
-const DIALOG_PANEL =
-  "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] rounded-2xl shadow-2xl";
 
 export interface VaultExplorerProps {
   files: FileMetadata[];

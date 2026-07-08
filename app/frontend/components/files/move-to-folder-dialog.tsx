@@ -20,6 +20,7 @@ import {
 import { Folder, FolderOpen, Home, Lock, ChevronRight } from "@/lib/icons";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { cn } from "@/lib/utils";
+import { DIALOG_PANEL } from "./explorer/types";
 
 interface MoveToFolderDialogProps {
   open: boolean;
@@ -263,7 +264,7 @@ export function MoveToFolderDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] rounded-2xl shadow-2xl">
+      <DialogContent className={DIALOG_PANEL}>
         <DialogHeader>
           <DialogTitle>{movingFolder ? "Move folder" : "Move to folder"}</DialogTitle>
           <DialogDescription className="text-[var(--color-text-secondary)]">

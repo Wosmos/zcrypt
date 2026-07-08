@@ -9,7 +9,6 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
-import { IconButton } from "@/components/ui/icon-button";
 import { SkeletonText } from "@/components/ui/skeletons";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
@@ -21,18 +20,15 @@ import {
   Database,
   Clock,
   Key,
-  ShieldCheck,
-  Copy,
-  Check,
   Share2,
-  Link2,
-  Trash2,
 } from "@/lib/icons";
-import { listFolders, listFolderShares, revokeFolderShare, type FolderShareLink } from "@/lib/api";
+import { MetaRow, CopyField, EncryptionAssuranceCard, ShareLinkRow } from "@/components/files/details-shared";
+import { listFolderShares, revokeFolderShare, type FolderShareLink } from "@/lib/api";
+import { collectSubtreeFolderIds } from "@/lib/folder-tree";
 import { queryClient } from "@/lib/query-client";
 import { qk } from "@/lib/query-keys";
 import { toast } from "@/store/toast";
-import { formatBytes, formatDate, cn } from "@/lib/utils";
+import { formatBytes, formatDate, savingsPercent } from "@/lib/utils";
 import type { DecryptedFolder } from "@/hooks/useFolders";
 import type { FileMetadata } from "@/types";
 
@@ -43,90 +39,6 @@ interface FolderDetailsDrawerProps {
   onOpenChange: (open: boolean) => void;
   /** The full vault file list — stats aggregate every file under `folder`. */
   files: FileMetadata[];
-}
-
-/**
- * Walk a folder's whole subtree (BFS, one fetch per level) and return the set of
- * folder ids it contains, INCLUDING the root. Each level goes through the shared
- * folders query cache (same key the explorer uses), so levels you've already
- * browsed — and repeat opens of this drawer — are served from cache instead of
- * re-hitting the API on every open.
- */
-async function collectSubtreeIds(rootId: string): Promise<Set<string>> {
-  const ids = new Set<string>([rootId]);
-  let frontier = [rootId];
-  // Bounded by the folder count; the `ids` guard prevents revisiting.
-  while (frontier.length > 0) {
-    const childLists = await Promise.all(
-      frontier.map((id) =>
-        queryClient
-          .fetchQuery({ queryKey: qk.folders(id), queryFn: () => listFolders(id) })
-          .catch(() => [])
-      )
-    );
-    const next: string[] = [];
-    for (const list of childLists) {
-      for (const f of list) {
-        if (!ids.has(f.id)) {
-          ids.add(f.id);
-          next.push(f.id);
-        }
-      }
-    }
-    frontier = next;
-  }
-  return ids;
-}
-
-/** A plain label/value row. */
-function MetaRow({
-  label,
-  value,
-  icon: Icon,
-}: {
-  label: string;
-  value: React.ReactNode;
-  icon?: typeof File;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-2">
-      <span className="flex items-center gap-2 text-sm text-[var(--color-text-muted)]">
-        {Icon && <Icon className="h-3.5 w-3.5" />}
-        {label}
-      </span>
-      <span className="truncate text-sm tabular-nums text-[var(--color-text)]">{value}</span>
-    </div>
-  );
-}
-
-/** A copyable monospace value. */
-function CopyField({ label, value }: { label: string; value: string }) {
-  const [copied, setCopied] = useState(false);
-  const copy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      toast.error("Failed to copy");
-    }
-  }, [value]);
-
-  return (
-    <div className="flex items-center justify-between gap-2">
-      <span className="text-sm text-[var(--color-text-muted)]">{label}</span>
-      <div className="flex min-w-0 items-center gap-1">
-        <span className="truncate font-mono text-xs text-[var(--color-text)]">{value}</span>
-        <IconButton
-          icon={copied ? Check : Copy}
-          label={copied ? "Copied" : `Copy ${label.toLowerCase()}`}
-          onClick={copy}
-          iconClassName={cn("h-3.5 w-3.5", copied && "text-[var(--color-accent)]")}
-          className="h-7 w-7 flex-shrink-0"
-        />
-      </div>
-    </div>
-  );
 }
 
 /**
@@ -176,7 +88,7 @@ export function FolderDetailsDrawer({ folder, open, onOpenChange, files }: Folde
     let cancelled = false;
     setLoading(true);
     setSubtreeIds(null);
-    collectSubtreeIds(folderId)
+    collectSubtreeFolderIds(folderId)
       .then((ids) => {
         if (!cancelled) setSubtreeIds(ids);
       })
@@ -206,10 +118,7 @@ export function FolderDetailsDrawer({ folder, open, onOpenChange, files }: Folde
   if (!folder) return null;
 
   const ready = !loading && stats !== null;
-  const savings =
-    stats && stats.originalBytes > 0
-      ? Math.max(0, (1 - stats.encryptedBytes / stats.originalBytes) * 100).toFixed(0)
-      : "0";
+  const savings = stats ? savingsPercent(stats.originalBytes, stats.encryptedBytes) : "0";
 
   return (
     <>
@@ -290,7 +199,7 @@ export function FolderDetailsDrawer({ folder, open, onOpenChange, files }: Folde
                 )
               }
             />
-            <CopyField label="Folder ID" value={folder.id} />
+            <CopyField label="Folder ID" value={folder.id} mono />
           </div>
 
           {/* Share links — the same sharing history the file drawer shows */}
@@ -315,54 +224,28 @@ export function FolderDetailsDrawer({ folder, open, onOpenChange, files }: Folde
             ) : (
               <div className="space-y-1.5">
                 {activeShares.map((s) => (
-                  <div
+                  <ShareLinkRow
                     key={s.id}
-                    className="flex items-center justify-between gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <Link2 className="h-3 w-3 flex-shrink-0 text-[var(--color-accent)]" />
-                        <code className="truncate font-mono text-[11px] text-[var(--color-text-secondary)]">
-                          …{s.token.slice(-8)}
-                        </code>
-                        {s.has_password && (
-                          <Lock className="h-3 w-3 flex-shrink-0 text-amber-500" aria-label="Password protected" />
-                        )}
-                      </div>
-                      <p className="text-[11px] tabular-nums text-[var(--color-text-muted)]">
-                        {s.file_count} file{s.file_count === 1 ? "" : "s"}
-                        {" · "}
-                        {s.download_count}
-                        {s.max_downloads > 0 ? `/${s.max_downloads}` : ""} downloads
-                        {s.expires_at && ` · expires ${formatDate(s.expires_at)}`}
-                      </p>
-                    </div>
-                    <IconButton
-                      icon={Trash2}
-                      label="Revoke link"
-                      variant="ghost"
-                      onClick={() => setRevokeTarget(s)}
-                      iconClassName="h-3.5 w-3.5 text-red-500"
-                      className="h-7 w-7 flex-shrink-0 hover:bg-red-500/10"
-                    />
-                  </div>
+                    token={s.token}
+                    hasPassword={s.has_password}
+                    downloadCount={s.download_count}
+                    maxDownloads={s.max_downloads}
+                    expiresAt={s.expires_at}
+                    fileCount={s.file_count}
+                    showLinkIcon
+                    containerClassName="bg-[var(--color-surface)]"
+                    onRevoke={() => setRevokeTarget(s)}
+                  />
                 ))}
               </div>
             )}
           </div>
 
           {/* Encryption assurance */}
-          <div className="flex items-start gap-3 rounded-xl border border-[var(--color-accent)]/20 bg-[var(--color-accent)]/5 p-4">
-            <ShieldCheck className="mt-0.5 h-4 w-4 flex-shrink-0 text-[var(--color-accent)]" />
-            <div className="space-y-0.5">
-              <p className="text-sm font-medium text-[var(--color-text)]">
-                Folder name encrypted &middot; AES-256-GCM
-              </p>
-              <p className="text-xs text-[var(--color-text-secondary)]">
-                The folder name is encrypted on your device. We only ever store ciphertext.
-              </p>
-            </div>
-          </div>
+          <EncryptionAssuranceCard
+            title="Folder name encrypted · AES-256-GCM"
+            description="The folder name is encrypted on your device. We only ever store ciphertext."
+          />
         </div>
       </SheetContent>
     </Sheet>

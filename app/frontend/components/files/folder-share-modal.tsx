@@ -24,6 +24,7 @@ import {
 import { Link2, Copy, Check, Lock, Loader2, Trash2, FolderOpen } from "@/lib/icons";
 import { listFolderShares, revokeFolderShare, type FolderShareLink } from "@/lib/api";
 import { createFolderShareLink } from "@/lib/folder-share";
+import { copyToClipboard } from "@/lib/clipboard";
 import { collectSubtreeFolderIds } from "@/lib/folder-tree";
 import { queryClient } from "@/lib/query-client";
 import { qk } from "@/lib/query-keys";
@@ -137,11 +138,10 @@ export function FolderShareModal({ folder, open, onOpenChange, files }: FolderSh
   };
 
   const handleCopy = async (value: string) => {
-    try {
-      await navigator.clipboard.writeText(value);
+    if (await copyToClipboard(value)) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {
+    } else {
       toast.error("Failed to copy");
     }
   };
