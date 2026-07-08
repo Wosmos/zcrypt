@@ -4,7 +4,7 @@ import { isAudioFile, isVideoFile, mediaMimeFor } from "@/lib/media-formats";
 
 // Re-exported so existing importers of `@/lib/utils` keep working while the
 // canonical lists live in lib/media-formats.
-export { isAudioFile, isVideoFile };
+export { isVideoFile };
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));

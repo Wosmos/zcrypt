@@ -41,6 +41,15 @@ const cspHeaderKey = process.env.CSP_ENFORCE === "1"
 const nextConfig: NextConfig = {
   reactCompiler: true,
   turbopack: {},
+  // Zero-knowledge: every image the app renders is a client-side blob: object
+  // URL or a canvas-generated data: URI holding DECRYPTED plaintext. The Vercel
+  // image optimizer can neither fetch those (they only exist in the browser) nor
+  // be trusted with plaintext (it's a third-party server — routing previews
+  // through it would break the zero-knowledge model). The Tauri static export
+  // also has no optimizer. So all `next/image` usage runs unoptimized: it
+  // renders a plain <img> under the hood while keeping one consistent image
+  // component (and satisfying @next/next/no-img-element).
+  images: { unoptimized: true },
   // Keep navigated page segments in the App Router client cache so going
   // back to a page (e.g. Dashboard -> Settings -> Dashboard) is instant and
   // doesn't re-render from the server. Next's default is 0s for dynamic

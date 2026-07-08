@@ -15,6 +15,17 @@ const badgeVariants = cva(
         destructive:
           "border-transparent bg-destructive text-destructive-foreground shadow hover:bg-destructive/80",
         outline: "text-foreground",
+        // App-specific color variants (ported from hand-rolled admin badges)
+        violet:
+          "border-violet-500/20 bg-violet-500/10 text-violet-600 dark:text-violet-400",
+        blue:
+          "border-blue-500/20 bg-blue-500/10 text-blue-600 dark:text-blue-400",
+        amber:
+          "border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400",
+        accent:
+          "border-[var(--color-accent)]/20 bg-[var(--color-accent)]/10 text-[var(--color-accent)]",
+        muted:
+          "border-[var(--color-border)] bg-[var(--color-surface-2)] text-[var(--color-text-muted)]",
       },
     },
     defaultVariants: {

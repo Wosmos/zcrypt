@@ -10,6 +10,7 @@ import type { PlanConfig, PlanFeature } from "@/types";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -441,11 +442,9 @@ export default function AdminPricingPage() {
                     {/* Toggles */}
                     <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
                       <label className="flex cursor-pointer items-center gap-2">
-                        <input
-                          type="checkbox"
+                        <Checkbox
                           checked={plan.highlight}
-                          onChange={(e) => updatePlan(plan.id, { highlight: e.target.checked })}
-                          className="h-4 w-4 rounded border-[var(--color-border)] accent-[var(--color-accent)]"
+                          onCheckedChange={(checked) => updatePlan(plan.id, { highlight: checked === true })}
                         />
                         <span className="text-xs text-[var(--color-text-secondary)]">Highlighted</span>
                       </label>

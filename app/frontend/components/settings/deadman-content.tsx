@@ -17,6 +17,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Section } from "@/components/ui/section";
 import { StatCard } from "@/components/ui/stat-card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import {
   ArrowLeft,
@@ -342,11 +343,9 @@ export function DeadManContent() {
               />
             </div>
             <label className="flex cursor-pointer items-center gap-3">
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={includeFiles}
-                onChange={(e) => setIncludeFiles(e.target.checked)}
-                className="h-4 w-4 rounded accent-[var(--color-accent)]"
+                onCheckedChange={(checked) => setIncludeFiles(checked === true)}
               />
               <span className="text-sm text-[var(--color-text)]">
                 Include file listing in notification

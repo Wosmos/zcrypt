@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { IconButton } from "@/components/ui/icon-button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
   Select,
@@ -13,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Badge, badgeVariants } from "@/components/ui/badge";
 import { adminCreateToken, adminDeleteToken, adminToggleTokenScope } from "@/lib/api";
 import { toast } from "@/store/toast";
 import { cn } from "@/lib/utils";
@@ -103,17 +105,14 @@ export function TokenManagement({
     }
   };
 
-  const scopeBadgeClass = (t: PlatformTokenInfo) => {
+  // Pill shape shared by the scope badges (rounded-full, gap, py-1, medium weight)
+  const scopePillClass = "gap-1.5 rounded-full py-1 font-medium";
+
+  const scopeVariant = (t: PlatformTokenInfo) => {
     const isOwner = t.user_id === currentUserId;
     const isGlobalResolved = resolveGlobal(t);
-    return cn(
-      "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
-      isGlobalResolved
-        ? "border-[var(--color-accent)]/20 bg-[var(--color-accent)]/10 text-[var(--color-accent)]"
-        : isOwner
-          ? "border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400"
-          : "border-[var(--color-border)] bg-[var(--color-surface-2)] text-[var(--color-text-muted)]"
-    );
+    if (isGlobalResolved) return "accent" as const;
+    return isOwner ? ("amber" as const) : ("muted" as const);
   };
 
   return (
@@ -163,11 +162,9 @@ export function TokenManagement({
             </div>
             <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
               <label className="flex cursor-pointer items-center gap-2">
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={isGlobal}
-                  onChange={(e) => setIsGlobal(e.target.checked)}
-                  className="h-4 w-4 rounded border-[var(--color-border)] accent-[var(--color-accent)]"
+                  onCheckedChange={(checked) => setIsGlobal(checked === true)}
                 />
                 <span className="text-sm text-[var(--color-text-secondary)]">
                   Global token <span className="hidden sm:inline">(available to all users)</span>
@@ -224,18 +221,21 @@ export function TokenManagement({
                       title={isGlobalResolved ? "Click to make local (owner-only)" : "Click to make global (all users)"}
                       aria-label={isGlobalResolved ? "Make token local" : "Make token global"}
                       className={cn(
-                        scopeBadgeClass(t),
-                        "cursor-pointer hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40"
+                        badgeVariants({ variant: scopeVariant(t) }),
+                        scopePillClass,
+                        // Neutralize badgeVariants' base focus: ring (fires on mouse click);
+                        // keep only the intended focus-visible accent ring.
+                        "cursor-pointer hover:opacity-80 focus:ring-0 focus:ring-offset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40"
                       )}
                     >
                       {isGlobalResolved ? <Globe className="h-3.5 w-3.5" /> : <User className="h-3.5 w-3.5" />}
                       <span className="hidden sm:inline">{isGlobalResolved ? "Global" : "Local"}</span>
                     </button>
                   ) : (
-                    <span className={scopeBadgeClass(t)}>
+                    <Badge variant={scopeVariant(t)} className={scopePillClass}>
                       {isGlobalResolved ? <Globe className="h-3.5 w-3.5" /> : <User className="h-3.5 w-3.5" />}
                       <span className="hidden sm:inline">{isGlobalResolved ? "Global" : "Local"}</span>
-                    </span>
+                    </Badge>
                   )}
                   {isOwner && (
                     <IconButton

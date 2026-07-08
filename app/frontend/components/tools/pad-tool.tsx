@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
+import { Switch } from "@/components/ui/switch";
 import {
   Shield, Lock, Copy, Check, Clock, Link2, FileText,
   AlertTriangle, CheckCircle2,
@@ -130,10 +131,7 @@ export function PadTool() {
               </div>
             </div>
             <label className="flex items-center gap-3 p-3 rounded-xl border border-[var(--color-border)] hover:border-[var(--color-border-hover)] cursor-pointer transition-colors">
-              <input type="checkbox" checked={burnAfterRead} onChange={(e) => setBurnAfterRead(e.target.checked)} className="sr-only peer" />
-              <div className="relative h-5 w-9 rounded-full bg-[var(--color-surface-1)] border border-[var(--color-border)] peer-checked:bg-[var(--color-accent)] peer-checked:border-[var(--color-accent)] transition-colors">
-                <div className={`absolute top-0.5 left-0.5 h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${burnAfterRead ? "translate-x-4" : ""}`} />
-              </div>
+              <Switch checked={burnAfterRead} onCheckedChange={setBurnAfterRead} />
               <div>
                 <p className="text-sm font-medium">Burn after read</p>
                 <p className="text-xs text-[var(--color-text-muted)]">Text is deleted after first view</p>

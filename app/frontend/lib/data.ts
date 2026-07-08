@@ -140,7 +140,7 @@ export const features: Feature[] = [
     large: false,
   },
   {
-    icon: "HeartHandshake",
+    icon: "Heart",
     title: "Free and Open Source",
     desc: "zcrypt is free and open source. Bring your own storage account and keep full control of your data.",
     accent: "cyan",

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Checkbox } from "@/components/ui/checkbox";
 import { SkeletonRow } from "@/components/ui/skeletons";
 import { Plus, Trash2, Clock } from "@/lib/icons";
 import { cn } from "@/lib/utils";
@@ -132,11 +133,9 @@ export function ExpiringTab() {
                   <div className="max-h-48 space-y-0.5 overflow-y-auto rounded-xl border border-[var(--color-border)] p-2">
                     {files.map((file) => (
                       <label key={file.id} className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-[var(--color-surface-1)]">
-                        <input
-                          type="checkbox"
+                        <Checkbox
                           checked={selectedFiles.includes(file.id)}
-                          onChange={() => setSelectedFiles((prev) => prev.includes(file.id) ? prev.filter((id) => id !== file.id) : [...prev, file.id])}
-                          className="h-4 w-4 rounded accent-[var(--color-accent)]"
+                          onCheckedChange={() => setSelectedFiles((prev) => prev.includes(file.id) ? prev.filter((id) => id !== file.id) : [...prev, file.id])}
                         />
                         <span className="truncate text-sm text-[var(--color-text)]">{file.original_name}</span>
                       </label>

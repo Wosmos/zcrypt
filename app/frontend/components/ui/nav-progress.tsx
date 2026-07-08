@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
 /**
  * Thin progress bar shown at the top of the viewport during route transitions.
@@ -48,21 +48,4 @@ export function NavProgress() {
       />
     </div>
   );
-}
-
-/**
- * Hook for components to trigger navigation with progress indication.
- * Wraps router.push in startTransition to keep current page visible.
- */
-export function useNavigation() {
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
-
-  const navigate = (href: string) => {
-    startTransition(() => {
-      router.push(href);
-    });
-  };
-
-  return { navigate, isPending };
 }

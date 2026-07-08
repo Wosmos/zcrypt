@@ -1,6 +1,9 @@
 "use client";
 
+import { memo } from "react";
+import NextImage from "next/image";
 import type { ExplorerEntry, ExplorerActions } from "./types";
+import { explorerItemPropsEqual } from "./types";
 import type { DecryptedFolder } from "@/hooks/useFolders";
 import type { FileMetadata } from "@/types";
 import { formatBytes, formatDate, getFileTypeInfo, cn, midTrunc } from "@/lib/utils";
@@ -347,13 +350,15 @@ function FileRow({
       )}
       <div
         className={cn(
-          "flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg",
+          "relative flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg",
           !thumbnailUrl && typeInfo.bg
         )}
       >
         {thumbnailUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={thumbnailUrl} alt="" className="h-full w-full object-cover" />
+          // Decrypted thumbnail (data: URI / blob object URL) — unoptimized via
+          // next.config (see zero-knowledge note there). `fill` matches the
+          // fixed 36×36 box.
+          <NextImage src={thumbnailUrl} alt="" fill sizes="36px" className="object-cover" />
         ) : (
           <Icon className={cn("h-[18px] w-[18px]", typeInfo.color)} />
         )}
@@ -430,7 +435,7 @@ function FileRow({
   );
 }
 
-export function ExplorerRow({
+function ExplorerRowImpl({
   entry,
   actions,
   selectMode,
@@ -487,3 +492,11 @@ export function ExplorerRow({
     />
   );
 }
+
+/**
+ * Memoized so a parent (vault-explorer) re-render doesn't re-render every row in
+ * the `.map()` — only rows whose entry / selection / focus / drag-visual state
+ * actually changed. See `explorerItemPropsEqual` for why callback identity is
+ * intentionally excluded from the comparison.
+ */
+export const ExplorerRow = memo(ExplorerRowImpl, explorerItemPropsEqual);

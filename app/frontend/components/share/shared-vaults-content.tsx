@@ -33,6 +33,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { IconButton } from "@/components/ui/icon-button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { SkeletonRow } from "@/components/ui/skeletons";
 import {
@@ -572,11 +573,9 @@ export function SharedVaultsContent() {
                         key={folder.id}
                         className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-[var(--color-surface-1)]"
                       >
-                        <input
-                          type="checkbox"
+                        <Checkbox
                           checked={allIn}
-                          onChange={() => toggleFolderFiles(folder.id, files, setSelectedFiles)}
-                          className="h-4 w-4 rounded border-[var(--color-border)] accent-[var(--color-accent)]"
+                          onCheckedChange={() => toggleFolderFiles(folder.id, files, setSelectedFiles)}
                         />
                         <FolderOpen className="h-4 w-4 flex-shrink-0 text-[var(--color-accent)]" />
                         <span className="truncate text-sm font-medium text-[var(--color-text)]">
@@ -593,17 +592,15 @@ export function SharedVaultsContent() {
                       key={f.id}
                       className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-[var(--color-surface-1)]"
                     >
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={selectedFiles.includes(f.id)}
-                        onChange={() =>
+                        onCheckedChange={() =>
                           setSelectedFiles((prev) =>
                             prev.includes(f.id)
                               ? prev.filter((id) => id !== f.id)
                               : [...prev, f.id]
                           )
                         }
-                        className="h-4 w-4 rounded border-[var(--color-border)] accent-[var(--color-accent)]"
                       />
                       <FileIcon className="h-4 w-4 flex-shrink-0 text-[var(--color-text-muted)]" />
                       <span className="truncate text-sm text-[var(--color-text)]">
@@ -795,13 +792,11 @@ export function SharedVaultsContent() {
                               key={folder.id}
                               className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-[var(--color-surface-1)]"
                             >
-                              <input
-                                type="checkbox"
+                              <Checkbox
                                 checked={allIn}
-                                onChange={() =>
+                                onCheckedChange={() =>
                                   toggleFolderFiles(folder.id, availableFiles, setAddFileIds)
                                 }
-                                className="h-4 w-4 rounded border-[var(--color-border)] accent-[var(--color-accent)]"
                               />
                               <FolderOpen className="h-4 w-4 flex-shrink-0 text-[var(--color-accent)]" />
                               <span className="truncate text-sm font-medium text-[var(--color-text)]">
@@ -818,17 +813,15 @@ export function SharedVaultsContent() {
                           key={f.id}
                           className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-[var(--color-surface-1)]"
                         >
-                          <input
-                            type="checkbox"
+                          <Checkbox
                             checked={addFileIds.includes(f.id)}
-                            onChange={() =>
+                            onCheckedChange={() =>
                               setAddFileIds((prev) =>
                                 prev.includes(f.id)
                                   ? prev.filter((id) => id !== f.id)
                                   : [...prev, f.id]
                               )
                             }
-                            className="h-4 w-4 rounded border-[var(--color-border)] accent-[var(--color-accent)]"
                           />
                           <FileIcon className="h-4 w-4 flex-shrink-0 text-[var(--color-text-muted)]" />
                           <span className="truncate text-sm text-[var(--color-text)]">

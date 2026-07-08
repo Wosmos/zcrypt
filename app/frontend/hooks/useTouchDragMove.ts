@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { useDragMove, type DragItem } from "@/hooks/useDragMove";
+import { createEdgeAutoScroll, type EdgeAutoScroll } from "@/hooks/edge-auto-scroll";
 
 /**
  * Touch drag-and-drop for the Vault explorer (mobile).
@@ -32,8 +33,6 @@ import { useDragMove, type DragItem } from "@/hooks/useDragMove";
 const HOLD_MS = 220; // press this long before a drag can begin
 const MOVE_CANCEL_PX = 12; // moved farther than this before the hold → treat as scroll
 const DRAG_START_PX = 6; // after the hold, moving this far commits to a drag
-const EDGE_ZONE = 72; // px from the scroller's top/bottom that auto-scrolls
-const EDGE_SPEED = 14; // px per frame while in the edge zone
 
 interface TouchDragOptions {
   /** Gate the whole thing to touch/mobile. When false, this is a no-op. */
@@ -70,10 +69,10 @@ export function useTouchDragMove({
     held: false, // hold timer fired
     dragging: false,
     timer: null as ReturnType<typeof setTimeout> | null,
-    raf: null as number | null,
     scroller: null as HTMLElement | null,
     ghost: null as HTMLElement | null,
   });
+  const autoScroll = useRef<EdgeAutoScroll | null>(null);
 
   const folderIdAt = (x: number, y: number): string | null => {
     const el = document.elementFromPoint(x, y) as HTMLElement | null;
@@ -92,22 +91,14 @@ export function useTouchDragMove({
   );
 
   // ── edge auto-scroll (runs while dragging near a scroller edge) ──────────────
-  const tickAutoScroll = useCallback(() => {
-    const s = st.current;
-    if (!s.dragging || !s.scroller) {
-      s.raf = null;
-      return;
-    }
-    const rect = s.scroller.getBoundingClientRect();
-    let dy = 0;
-    if (s.lastY < rect.top + EDGE_ZONE) dy = -EDGE_SPEED;
-    else if (s.lastY > rect.bottom - EDGE_ZONE) dy = EDGE_SPEED;
-    if (dy !== 0) {
-      s.scroller.scrollTop += dy;
-      updateHover(s.lastX, s.lastY); // content moved under a stationary finger
-    }
-    s.raf = requestAnimationFrame(tickAutoScroll);
-  }, [updateHover]);
+  if (!autoScroll.current) {
+    autoScroll.current = createEdgeAutoScroll({
+      isActive: () => st.current.dragging,
+      getScroller: () => st.current.scroller,
+      getPoint: () => ({ x: st.current.lastX, y: st.current.lastY }),
+      onScrolled: (x, y) => updateHover(x, y), // content moved under a stationary finger
+    });
+  }
 
   // ── imperative drag preview (no React re-render on finger move) ──────────────
   const moveGhost = (x: number, y: number) => {
@@ -149,7 +140,7 @@ export function useTouchDragMove({
   const teardown = useCallback(() => {
     const s = st.current;
     if (s.timer) clearTimeout(s.timer);
-    if (s.raf) cancelAnimationFrame(s.raf);
+    autoScroll.current?.stop();
     document.removeEventListener("touchmove", onMoveRef.current);
     document.removeEventListener("touchend", onEndRef.current);
     document.removeEventListener("touchcancel", onEndRef.current);
@@ -160,7 +151,6 @@ export function useTouchDragMove({
     s.held = false;
     s.dragging = false;
     s.timer = null;
-    s.raf = null;
     s.scroller = null;
     s.ghost = null;
     if (wasDragging) {
@@ -171,9 +161,9 @@ export function useTouchDragMove({
 
   // Sole call site (below) only ever invokes this once per press — after
   // `!s.dragging` was just checked — and only while `s.item` is set (checked at
-  // the top of the same handler), so both are guaranteed true here; likewise
-  // `s.raf` is null whenever a press isn't dragging (teardown always nulls it
-  // alongside `dragging`), so it can't already be scheduled.
+  // the top of the same handler), so both are guaranteed true here; the edge
+  // auto-scroll's own `start()` is idempotent, so a stray re-entry can't stack
+  // a second rAF loop.
   const beginDrag = useCallback(() => {
     const s = st.current;
     s.dragging = true;
@@ -181,8 +171,8 @@ export function useTouchDragMove({
     startDrag(s.item!);
     createGhost(s.item!.name);
     moveGhost(s.lastX, s.lastY);
-    s.raf = requestAnimationFrame(tickAutoScroll);
-  }, [scrollContainerId, startDrag, tickAutoScroll]);
+    autoScroll.current?.start();
+  }, [scrollContainerId, startDrag]);
 
   // Wire the listener refs once.
   useEffect(() => {

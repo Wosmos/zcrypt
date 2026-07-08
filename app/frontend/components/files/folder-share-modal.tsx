@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { IconButton } from "@/components/ui/icon-button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -204,11 +205,9 @@ export function FolderShareModal({ folder, open, onOpenChange, files }: FolderSh
             </p>
 
             <label className="flex items-center gap-2.5 text-sm text-[var(--color-text)]">
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={usePassword}
-                onChange={(e) => setUsePassword(e.target.checked)}
-                className="h-4 w-4 rounded border-[var(--color-border)] accent-[var(--color-accent)]"
+                onCheckedChange={(checked) => setUsePassword(checked === true)}
               />
               <Lock className="h-3.5 w-3.5 text-[var(--color-text-muted)]" />
               Require a password

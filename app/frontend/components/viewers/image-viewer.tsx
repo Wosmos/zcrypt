@@ -9,6 +9,7 @@ import {
   type WheelEvent as ReactWheelEvent,
 } from "react";
 import { useReducedMotion } from "motion/react";
+import NextImage from "next/image";
 import { Plus, ChevronDown, RotateCcw, RefreshCcw, Image as ImageIcon } from "@/lib/icons";
 import { IconButton } from "@/components/ui/icon-button";
 import { cn } from "@/lib/utils";
@@ -115,16 +116,28 @@ export function ImageViewer({
         {/* LQIP: the cached thumbnail, blurred, shown until the full image decodes
             then crossfaded out. Same object-contain box so it lines up. */}
         {placeholderUrl && !loaded && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          // Cached thumbnail (data:/blob:), blurred, as an LQIP — unoptimized via
+          // next.config; `fill` covers the same object-contain box below.
+          <NextImage
             src={placeholderUrl}
             alt=""
             aria-hidden
             draggable={false}
-            className="pointer-events-none absolute inset-0 h-full w-full scale-105 object-contain blur-xl"
+            fill
+            sizes="100vw"
+            className="pointer-events-none scale-105 object-contain blur-xl"
           />
         )}
-        {/* Decrypted blob object URL; alt set, no external network. */}
+        {/* Intentionally a raw <img>, NOT next/image. The whole zoom/pan/rotate
+            interaction below is built on the image's INTRINSIC size:
+            `max-h-full max-w-full object-contain` centers it at natural aspect,
+            and pan bounds + the live `transform` (translate/scale/rotate) are
+            computed against that intrinsic box. next/image needs known
+            width+height or a `fill` container — `fill` stretches to the parent
+            and would break the object-contain geometry the gestures rely on, and
+            the decrypted image's real pixel size isn't known at render time. The
+            src is an unoptimizable client-side blob: URL anyway (zero-knowledge;
+            see next.config), so next/image would add no benefit here. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={url}
