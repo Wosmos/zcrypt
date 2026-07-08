@@ -1,7 +1,9 @@
 "use client";
 
 import { useRef } from "react";
-import { motion, useScroll, useSpring, useTransform, useInView } from "motion/react";
+import { motion, useScroll, useSpring, useTransform } from "motion/react";
+import { useInViewOnce } from "@/hooks/useInViewOnce";
+import { cn } from "@/lib/utils";
 
 export function AnimatedTimelineLine() {
   const ref = useRef<HTMLDivElement>(null);
@@ -41,30 +43,28 @@ export function TimelineStep({
   step: { num: string; title: string; desc: string };
   index: number;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, margin: "-80px" });
+  const { ref, isVisible } = useInViewOnce<HTMLDivElement>("-80px");
 
   return (
-    <motion.div
+    <div
       ref={ref}
-      initial={{ opacity: 0, x: -20 }}
-      animate={isInView ? { opacity: 1, x: 0 } : {}}
-      transition={{ duration: 0.5, delay: index * 0.1, ease: "easeOut" }}
+      style={{ transitionDelay: `${index * 0.1}s` }}
+      className={cn(
+        "transition-[opacity,transform] duration-500 ease-out",
+        isVisible ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-5"
+      )}
     >
       <div className="relative flex gap-5 py-7">
-        <motion.div
-          className="relative z-10 flex items-center justify-center h-12 w-12 rounded-xl bg-[var(--color-bg)] border border-cyan-500/20 text-xs font-bold text-cyan-600 dark:text-cyan-400 flex-shrink-0 shadow-sm"
-          initial={{ scale: 0.5, opacity: 0 }}
-          animate={isInView ? { scale: 1, opacity: 1 } : {}}
-          transition={{
-            duration: 0.4,
-            delay: 0.1 + index * 0.1,
-            type: "spring",
-            stiffness: 300,
-          }}
+        <div
+          style={{ transitionDelay: `${0.1 + index * 0.1}s` }}
+          className={cn(
+            "relative z-10 flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl border border-cyan-500/20 bg-[var(--color-bg)] text-xs font-bold text-cyan-600 shadow-sm dark:text-cyan-400",
+            "transition-[opacity,transform] duration-[400ms] ease-[cubic-bezier(0.34,1.56,0.64,1)]",
+            isVisible ? "opacity-100 scale-100" : "opacity-0 scale-50"
+          )}
         >
           {step.num}
-        </motion.div>
+        </div>
         <div className="pt-0.5">
           <h3 className="text-base font-bold tracking-tight font-heading">
             {step.title}
@@ -74,6 +74,6 @@ export function TimelineStep({
           </p>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
