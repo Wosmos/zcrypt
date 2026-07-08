@@ -35,29 +35,6 @@ export function VaultIcon({ filled, className, ...props }: NavIconProps) {
 }
 
 /**
- * Premium Tech Notes: Replaced simple lines with a 
- * "grid-terminal" feel and a dynamic page fold.
- */
-export function NotesIcon({ filled, className, ...props }: NavIconProps) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={className} {...props}>
-      <path
-        d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h10l4 4v12a2 2 0 01-2 2z"
-        stroke="currentColor"
-        strokeWidth={filled ? 1.8 : 1.5}
-        strokeLinejoin="round"
-        fill={filled ? "currentColor" : "none"}
-        fillOpacity={filled ? 0.1 : 0}
-      />
-      {/* Tech 'lines' - varied lengths feel like code/data */}
-      <path d="M7 8h4M7 12h10M7 16h7" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" />
-      <path d="M15 3v4h4" stroke="currentColor" strokeWidth={1.2} strokeLinejoin="round" />
-      {filled && <rect x="15" y="11" width="2" height="2" fill="currentColor" opacity={0.5} />}
-    </svg>
-  );
-}
-
-/**
  * Premium Share: Designed to look like a "Node Cluster."
  * Uses concentric circles to give it a techy, network-depth feel.
  */

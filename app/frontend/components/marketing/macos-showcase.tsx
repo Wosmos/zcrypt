@@ -53,6 +53,16 @@ function useIsMobile(breakpoint = 768) {
 }
 
 // ─── Battery hook ──────────────────────────────────────────
+// The Battery Status API is non-standard and not in TS's lib.dom, so there's
+// no built-in BatteryManager type — declare the minimal shape we use.
+interface BatteryManager extends EventTarget {
+  charging: boolean;
+  level: number;
+}
+interface NavigatorWithBattery extends Navigator {
+  getBattery: () => Promise<BatteryManager>;
+}
+
 function useBatteryStatus() {
   const [battery, setBattery] = useState({
     charging: false,
@@ -60,8 +70,7 @@ function useBatteryStatus() {
     supported: false,
   });
   useEffect(() => {
-    /* eslint-disable @typescript-eslint/no-explicit-any */
-    let batt: any = null;
+    let batt: BatteryManager | null = null;
     const update = () => {
       if (!batt) return;
       setBattery({
@@ -71,9 +80,9 @@ function useBatteryStatus() {
       });
     };
     if ("getBattery" in navigator) {
-      (navigator as any)
+      (navigator as NavigatorWithBattery)
         .getBattery()
-        .then((b: any) => {
+        .then((b) => {
           batt = b;
           update();
           batt.addEventListener("chargingchange", update);
@@ -81,7 +90,6 @@ function useBatteryStatus() {
         })
         .catch(() => {});
     }
-    /* eslint-enable @typescript-eslint/no-explicit-any */
     return () => {
       if (batt) {
         batt.removeEventListener("chargingchange", update);

@@ -20,26 +20,6 @@ export function SkeletonRow({ className }: { className?: string }) {
   );
 }
 
-/** A panel-shaped card placeholder with a header line and stacked body lines. */
-export function SkeletonCard({ className, lines = 3 }: { className?: string; lines?: number }) {
-  return (
-    <div className={cn("panel space-y-4 p-5", className)}>
-      <div className="flex items-center gap-3">
-        <Skeleton className="h-10 w-10 flex-shrink-0 rounded-xl" />
-        <Skeleton className="h-4 w-1/3 rounded-md" />
-      </div>
-      <div className="space-y-2.5">
-        {Array.from({ length: lines }).map((_, i) => (
-          <Skeleton
-            key={i}
-            className={cn("h-3 rounded-md", i === lines - 1 ? "w-2/3" : "w-full")}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
 /** A StatCard-shaped placeholder: icon chip, label line and value line. */
 export function SkeletonStat({ className }: { className?: string }) {
   return (

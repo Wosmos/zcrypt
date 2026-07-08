@@ -1,7 +1,7 @@
 "use client";
 
 import { forwardRef, type SVGProps } from "react";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import {
   Shield as _Shield,
   Lock as _Lock,
@@ -15,8 +15,10 @@ import {
   CheckCircle as _CheckCircle,
   X as _X,
   ChevronDown as _ChevronDown,
+  ChevronUp as _ChevronUp,
   ChevronLeft as _ChevronLeft,
   ChevronRight as _ChevronRight,
+  Circle as _Circle,
   Eye as _Eye,
   File as _File,
   FileText as _FileText,
@@ -110,25 +112,12 @@ import {
   Volume2 as _Volume2,
   GridTableIcon as _GridTable,
   Scissors as _Scissors,
-  Handshake as _Handshake,
-  Quote as _Quote,
   HelpCircleIcon as _HelpCircle,
   Terminal as _Terminal,
   Smartphone as _Smartphone,
   Share01Icon as _Share01,
   Server as _Server,
   Wifi as _Wifi,
-  Briefcase01Icon as _Briefcase,
-  Camera01Icon as _Camera,
-  Book02Icon as _Book,
-  GameController01Icon as _GameController,
-  TextFontIcon as _TextFont,
-  PaintBoardIcon as _PaintBoard,
-  Note01Icon as _Note,
-  Wallet01Icon as _Wallet,
-  AirplaneTakeOff01Icon as _Airplane,
-  ChefHatIcon as _ChefHat,
-  MortarboardIcon as _Mortarboard,
 } from "@hugeicons/core-free-icons";
 
 type IconProps = SVGProps<SVGSVGElement> & {
@@ -136,7 +125,7 @@ type IconProps = SVGProps<SVGSVGElement> & {
   strokeWidth?: number;
 };
 
-function makeIcon(iconData: any, displayName: string) {
+function makeIcon(iconData: IconSvgElement, displayName: string) {
   const Icon = forwardRef<SVGSVGElement, IconProps>(
     ({ size = 24, className, strokeWidth = 1.5, ...props }, ref) => (
       <HugeiconsIcon
@@ -167,24 +156,13 @@ export const X = makeIcon(_X, "X");
 export const ChevronDown = makeIcon(_ChevronDown, "ChevronDown");
 export const ChevronLeft = makeIcon(_ChevronLeft, "ChevronLeft");
 export const ChevronRight = makeIcon(_ChevronRight, "ChevronRight");
+export const ChevronUp = makeIcon(_ChevronUp, "ChevronUp");
+export const Circle = makeIcon(_Circle, "Circle");
 export const Eye = makeIcon(_Eye, "Eye");
 export const File = makeIcon(_File, "File");
 export const FileText = makeIcon(_FileText, "FileText");
 export const Folder = makeIcon(_Folder, "Folder");
 export const FolderOpen = makeIcon(_FolderOpen, "FolderOpen");
-// Folder-glyph set (used by lib/folder-icons to mark folders by name).
-export const CloudUpload = makeIcon(_CloudUpload, "CloudUpload");
-export const Briefcase = makeIcon(_Briefcase, "Briefcase");
-export const Camera = makeIcon(_Camera, "Camera");
-export const Book = makeIcon(_Book, "Book");
-export const GameController = makeIcon(_GameController, "GameController");
-export const TextFont = makeIcon(_TextFont, "TextFont");
-export const PaintBoard = makeIcon(_PaintBoard, "PaintBoard");
-export const Note = makeIcon(_Note, "Note");
-export const Wallet = makeIcon(_Wallet, "Wallet");
-export const Airplane = makeIcon(_Airplane, "Airplane");
-export const ChefHat = makeIcon(_ChefHat, "ChefHat");
-export const Mortarboard = makeIcon(_Mortarboard, "Mortarboard");
 export const FolderAdd = makeIcon(_FolderAdd, "FolderAdd");
 export const Edit = makeIcon(_Edit, "Edit");
 export const Trash2 = makeIcon(_Trash2, "Trash2");
@@ -227,7 +205,6 @@ export const Layers = makeIcon(_Layers, "Layers");
 export const HardDrive = makeIcon(_HardDrive, "HardDrive");
 export const Gauge = makeIcon(_DashboardSpeed, "Gauge");
 export const TrendingDown = makeIcon(_TrendingDown, "TrendingDown");
-export const TrendingUp = makeIcon(_TrendingUp, "TrendingUp");
 export const BarChart3 = makeIcon(_BarChart, "BarChart3");
 export const MessageSquare = makeIcon(_MessageSquare, "MessageSquare");
 export const Send = makeIcon(_Send, "Send");
@@ -271,8 +248,6 @@ export const TableProperties = makeIcon(_GridTable, "TableProperties");
 export const UploadCloud = makeIcon(_CloudUpload, "UploadCloud");
 export const Volume2 = makeIcon(_Volume2, "Volume2");
 export const Scissors = makeIcon(_Scissors, "Scissors");
-export const HeartHandshake = makeIcon(_Handshake, "HeartHandshake");
-export const Quote = makeIcon(_Quote, "Quote");
 export const HelpCircle = makeIcon(_HelpCircle, "HelpCircle");
 export const Terminal = makeIcon(_Terminal, "Terminal");
 export const Smartphone = makeIcon(_Smartphone, "Smartphone");
