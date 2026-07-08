@@ -59,18 +59,30 @@ export function CapabilityGrid({
           </div>
         )}
 
-        <div className={gridClassName}>
+        <ul className={`${gridClassName} list-none`}>
           {items.map((item, i) => {
             const { Icon } = item;
             if (variant === "accent") {
               return (
-                <article
-                  key={i}
-                  className="card group p-6 transition-colors hover:border-cyan-500/30"
-                >
-                  <div
-                    className={`mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br ${item.accent ?? ""} ${item.color ?? ""} transition-transform group-hover:scale-110`}
-                  >
+                <li key={i}>
+                  <article className="card group p-6 transition-colors hover:border-cyan-500/30">
+                    <div
+                      className={`mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br ${item.accent ?? ""} ${item.color ?? ""} transition-transform group-hover:scale-110`}
+                    >
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <h3 className="text-sm font-bold">{item.title}</h3>
+                    <p className="mt-1.5 text-sm leading-relaxed text-[var(--color-text-secondary)]">
+                      {item.desc}
+                    </p>
+                  </article>
+                </li>
+              );
+            }
+            return (
+              <li key={i}>
+                <article className="card p-6 transition-colors hover:border-cyan-500/30">
+                  <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-500">
                     <Icon className="h-5 w-5" />
                   </div>
                   <h3 className="text-sm font-bold">{item.title}</h3>
@@ -78,21 +90,10 @@ export function CapabilityGrid({
                     {item.desc}
                   </p>
                 </article>
-              );
-            }
-            return (
-              <div key={i} className="card p-6 transition-colors hover:border-cyan-500/30">
-                <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-500">
-                  <Icon className="h-5 w-5" />
-                </div>
-                <h3 className="text-sm font-bold">{item.title}</h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-[var(--color-text-secondary)]">
-                  {item.desc}
-                </p>
-              </div>
+              </li>
             );
           })}
-        </div>
+        </ul>
       </div>
     </section>
   );

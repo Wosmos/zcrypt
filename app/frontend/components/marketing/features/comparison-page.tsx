@@ -121,7 +121,7 @@ export function ComparisonPage({
               )}
             </div>
           )}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 list-none">
             {pillars.map((pillar, i) => {
               const { Icon } = pillar;
               // proton (the page that passes a pillars heading) demoted these
@@ -129,18 +129,20 @@ export function ComparisonPage({
               // no section heading so their pillar titles stay <h2>.
               const PillarTitle = hasPillarsHeading ? "h3" : "h2";
               return (
-                <div key={i} className="card p-6 transition-colors hover:border-cyan-500/30">
-                  <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-500">
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <PillarTitle className="font-heading text-base font-bold">{pillar.title}</PillarTitle>
-                  <p className="mt-1.5 text-sm leading-relaxed text-[var(--color-text-secondary)]">
-                    {pillar.desc}
-                  </p>
-                </div>
+                <li key={i}>
+                  <article className="card p-6 transition-colors hover:border-cyan-500/30">
+                    <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-500">
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <PillarTitle className="font-heading text-base font-bold">{pillar.title}</PillarTitle>
+                    <p className="mt-1.5 text-sm leading-relaxed text-[var(--color-text-secondary)]">
+                      {pillar.desc}
+                    </p>
+                  </article>
+                </li>
               );
             })}
-          </div>
+          </ul>
         </div>
       </section>
 

@@ -100,16 +100,17 @@ function NavGroup({
         )}
       >
         {/* Left rail + links */}
-        <div className="ml-2.5 mt-1 flex flex-col gap-0.5 border-l border-[var(--color-border)] pl-2 pb-1">
+        <ul className="ml-2.5 mt-1 flex flex-col gap-0.5 border-l border-[var(--color-border)] pl-2 pb-1 list-none">
           {group.links.map((link) => (
-            <SidebarLink
-              key={link.href + link.title}
-              link={link}
-              active={!link.external && pathname === link.href}
-              onNavigate={onNavigate}
-            />
+            <li key={link.href + link.title}>
+              <SidebarLink
+                link={link}
+                active={!link.external && pathname === link.href}
+                onNavigate={onNavigate}
+              />
+            </li>
           ))}
-        </div>
+        </ul>
       </div>
     </div>
   );
@@ -118,10 +119,14 @@ function NavGroup({
 // ─── Nav tree ────────────────────────────────────────────────
 function NavTree({ pathname, onNavigate }: { pathname: string; onNavigate: () => void }) {
   return (
-    <nav aria-label="Documentation" className="flex flex-col">
-      {docsNav.map((group, i) => (
-        <NavGroup key={group.title} group={group} pathname={pathname} onNavigate={onNavigate} isFirst={i === 0} />
-      ))}
+    <nav aria-label="Documentation">
+      <ul className="flex flex-col list-none">
+        {docsNav.map((group, i) => (
+          <li key={group.title}>
+            <NavGroup group={group} pathname={pathname} onNavigate={onNavigate} isFirst={i === 0} />
+          </li>
+        ))}
+      </ul>
     </nav>
   );
 }

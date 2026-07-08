@@ -220,9 +220,9 @@ export default function AppsPage() {
               moment — or all three.
             </p>
           </div>
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <ul className="grid grid-cols-1 gap-4 lg:grid-cols-3 list-none">
             {surfaces.map((s) => (
-              <div
+              <li
                 key={s.name}
                 className="card flex flex-col p-6 transition-colors hover:border-cyan-500/30"
               >
@@ -251,9 +251,9 @@ export default function AppsPage() {
                   {s.cta}
                   <ArrowRight className="h-3.5 w-3.5" />
                 </Link>
-              </div>
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
       </section>
 

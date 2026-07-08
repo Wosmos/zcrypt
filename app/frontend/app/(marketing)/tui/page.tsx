@@ -325,11 +325,11 @@ export default function TUIPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 list-none">
             {tuiFeatures.map((f, i) => {
               const Icon = featureIconMap[f.icon];
               return (
-                <div
+                <li
                   key={i}
                   className="relative card p-6 group hover:border-[var(--color-border-hover)] transition-all duration-200 hover:shadow-lg hover:shadow-slate-900/5 dark:hover:shadow-black/20 overflow-hidden"
                 >
@@ -345,10 +345,10 @@ export default function TUIPage() {
                   <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
                     {f.desc}
                   </p>
-                </div>
+                </li>
               );
             })}
-          </div>
+          </ul>
         </div>
       </section>
 
@@ -373,9 +373,9 @@ export default function TUIPage() {
                   Dashboard keys
                 </span>
               </div>
-              <div className="divide-y divide-white/5">
+              <ul className="divide-y divide-white/5 list-none">
                 {tuiShortcuts.map((s) => (
-                  <div
+                  <li
                     key={s.keys}
                     className="flex items-center justify-between px-4 py-2"
                   >
@@ -383,9 +383,9 @@ export default function TUIPage() {
                     <kbd className="text-[11px] font-mono text-cyan-400/80 bg-white/5 rounded px-2 py-0.5">
                       {s.keys}
                     </kbd>
-                  </div>
+                  </li>
                 ))}
-              </div>
+              </ul>
             </div>
 
             {/* Commands */}
@@ -399,9 +399,9 @@ export default function TUIPage() {
                   :
                 </kbd>
               </div>
-              <div className="divide-y divide-white/5">
+              <ul className="divide-y divide-white/5 list-none">
                 {tuiCommands.map((c) => (
-                  <div
+                  <li
                     key={c.cmd}
                     className="flex items-center justify-between px-4 py-2"
                   >
@@ -409,9 +409,9 @@ export default function TUIPage() {
                     <code className="text-[11px] font-mono text-cyan-400/80">
                       {c.cmd}
                     </code>
-                  </div>
+                  </li>
                 ))}
-              </div>
+              </ul>
             </div>
           </div>
         </div>
@@ -429,9 +429,9 @@ export default function TUIPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 list-none">
             {tuiProfiles.map((p) => (
-              <div
+              <li
                 key={p.name}
                 className="card p-5 group hover:border-[var(--color-border-hover)] transition-all"
               >
@@ -478,9 +478,9 @@ export default function TUIPage() {
                 <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
                   {p.desc}
                 </p>
-              </div>
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
       </section>
 

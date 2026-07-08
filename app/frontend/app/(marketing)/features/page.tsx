@@ -73,26 +73,27 @@ export default function FeaturesPage() {
       </section>
 
       <section className="px-4 pb-24">
-        <div className="mx-auto grid max-w-5xl grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="mx-auto grid max-w-5xl grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 list-none">
           {features.map(({ href, Icon, title, desc }) => (
-            <Link
-              key={href}
-              href={href}
-              className="card group p-6 transition-colors hover:border-cyan-500/40"
-            >
-              <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-500">
-                <Icon className="h-5 w-5" />
-              </div>
-              <h2 className="flex items-center gap-2 text-sm font-bold">
-                {title}
-                <ArrowRight className="h-3 w-3 text-cyan-500 opacity-0 transition-opacity group-hover:opacity-100" />
-              </h2>
-              <p className="mt-1.5 text-sm leading-relaxed text-[var(--color-text-secondary)]">
-                {desc}
-              </p>
-            </Link>
+            <li key={href}>
+              <Link
+                href={href}
+                className="card group block h-full p-6 transition-colors hover:border-cyan-500/40"
+              >
+                <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-500">
+                  <Icon className="h-5 w-5" />
+                </div>
+                <h2 className="flex items-center gap-2 text-sm font-bold">
+                  {title}
+                  <ArrowRight className="h-3 w-3 text-cyan-500 opacity-0 transition-opacity group-hover:opacity-100" />
+                </h2>
+                <p className="mt-1.5 text-sm leading-relaxed text-[var(--color-text-secondary)]">
+                  {desc}
+                </p>
+              </Link>
+            </li>
           ))}
-        </div>
+        </ul>
 
         <div className="mx-auto mt-12 max-w-5xl rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-10 text-center">
           <h2 className="font-heading text-2xl font-bold tracking-tight sm:text-3xl">

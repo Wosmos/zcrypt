@@ -67,11 +67,11 @@ export function EncryptionBoundary() {
                 </span>
               </div>
 
-              <div className="space-y-3">
+              <ol className="space-y-3 list-none">
                 {deviceSteps.map((step, i) => {
                   const Icon = step.icon;
                   return (
-                    <div key={step.title} className={`flex gap-4 rounded-xl p-4 ${inset}`}>
+                    <li key={step.title} className={`flex gap-4 rounded-xl p-4 ${inset}`}>
                       <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-cyan-500/10 text-cyan-600 dark:text-cyan-400">
                         <Icon className="h-4 w-4" />
                       </div>
@@ -86,10 +86,10 @@ export function EncryptionBoundary() {
                           {step.desc}
                         </p>
                       </div>
-                    </div>
+                    </li>
                   );
                 })}
-              </div>
+              </ol>
             </div>
           </ScrollReveal>
 
