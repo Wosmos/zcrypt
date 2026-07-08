@@ -3,13 +3,7 @@
 import { formatBytes } from "@/lib/utils";
 import type { RepoInfo } from "@/types";
 import { AlertTriangle, CheckCircle2 } from "@/lib/icons";
-
-const PLATFORM_NAMES: Record<string, string> = {
-  github: "GitHub",
-  gitlab: "GitLab",
-  huggingface: "Hugging Face",
-  telegram: "Telegram",
-};
+import { platformName } from "@/lib/platforms";
 
 /**
  * Plain-language storage health: flags repos approaching their platform limit.
@@ -73,7 +67,7 @@ export function StorageHealth({ repos }: { repos: RepoInfo[] }) {
                       style={{ color: accent }}
                     />
                     <span className="truncate text-sm font-medium text-[var(--color-text)]">
-                      {PLATFORM_NAMES[r.platform] || r.platform}
+                      {platformName(r.platform)}
                       {r.account ? ` · ${r.account}` : ""}
                     </span>
                   </div>

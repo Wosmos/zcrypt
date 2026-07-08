@@ -1,14 +1,8 @@
 "use client";
 
 import { formatBytes } from "@/lib/utils";
+import { platformName } from "@/lib/platforms";
 import type { FileMetadata, RepoInfo, QuotaInfo } from "@/types";
-
-const PLATFORM_NAMES: Record<string, string> = {
-  github: "GitHub",
-  gitlab: "GitLab",
-  huggingface: "Hugging Face",
-  telegram: "Telegram",
-};
 
 // Per-repo platform limits (mirrors the backend defaults in cmd/server.go).
 // These are zcrypt's auto-rotation thresholds (when the repo pool spins up a new
@@ -129,7 +123,7 @@ export function AdvancedDetails({
                   return (
                     <tr key={r.id} className="text-[var(--color-text-secondary)]">
                       <td className="px-5 py-2.5 text-[var(--color-text)]">
-                        {PLATFORM_NAMES[r.platform] || r.platform}
+                        {platformName(r.platform)}
                       </td>
                       <td className="px-3 py-2.5">{r.account || "—"}</td>
                       <td className="max-w-[180px] truncate px-3 py-2.5 font-mono text-xs">{r.name}</td>

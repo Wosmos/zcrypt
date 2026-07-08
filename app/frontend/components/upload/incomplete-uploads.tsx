@@ -7,6 +7,7 @@ import { formatBytes } from "@/lib/utils";
 import { toast } from "@/store/toast";
 import { useUploadStore } from "@/store/upload";
 import { AlertTriangle, ChevronDown, Clock, Play, Trash2, X } from "@/lib/icons";
+import { platformName } from "@/lib/platforms";
 
 // Human-friendly "expires in ..." from an ISO timestamp. Server keeps unfinished
 // uploads for 7 days, so natural units run from minutes up to about a week.
@@ -23,12 +24,6 @@ function expiresInLabel(expiresAt: string, now: number): string {
   return `expires in ${weeks} week${weeks === 1 ? "" : "s"}`;
 }
 
-const PLATFORM_LABELS: Record<string, string> = {
-  github: "GitHub",
-  gitlab: "GitLab",
-  huggingface: "HuggingFace",
-  telegram: "Telegram",
-};
 
 /**
  * Shows uploads that were started but never finished (from the server's active
@@ -146,7 +141,7 @@ export function IncompleteUploads({ onResume }: { onResume: (file: File, upload:
           <ul className="divide-y divide-[var(--color-border)]">
             {visible.map((u) => {
               const pct = u.chunk_count > 0 ? Math.min(100, Math.round((u.uploaded_chunks / u.chunk_count) * 100)) : 0;
-              const platform = PLATFORM_LABELS[u.platform] ?? u.platform;
+              const platform = platformName(u.platform);
               return (
                 <li key={u.session_id} className="px-4 py-3">
                   <div className="flex items-center gap-3">
