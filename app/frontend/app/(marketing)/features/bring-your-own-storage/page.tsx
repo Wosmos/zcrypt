@@ -3,10 +3,6 @@ import Link from "next/link";
 import {
   ArrowRight,
   HardDrive,
-  Github,
-  GitBranch,
-  Send,
-  Cloud,
   Box,
   RefreshCw,
   Layers,
@@ -19,6 +15,7 @@ import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { FeatureHero } from "@/components/marketing/features/feature-hero";
 import { RelatedLinks } from "@/components/marketing/features/related-links";
 import { CtaSection } from "@/components/marketing/features/cta-section";
+import { STORAGE_PLATFORMS } from "@/components/marketing/landing/storage-platforms";
 
 export const metadata: Metadata = {
   title: "Bring Your Own Storage — Your Data, Your Infrastructure",
@@ -43,32 +40,7 @@ export const metadata: Metadata = {
   },
 };
 
-const adapters = [
-  {
-    Icon: Github,
-    name: "GitHub",
-    capacity: "~850 MB / repo",
-    note: "The default. Spin up as many repos as you like.",
-  },
-  {
-    Icon: GitBranch,
-    name: "GitLab",
-    capacity: "~9 GB / repo",
-    note: "Roomier repos for heavier vaults.",
-  },
-  {
-    Icon: Cloud,
-    name: "Hugging Face",
-    capacity: "~280 GB / repo",
-    note: "Built for large files — serious headroom.",
-  },
-  {
-    Icon: Send,
-    name: "Telegram",
-    capacity: "~50 MB / file",
-    note: "Many small chunks, spread wide.",
-  },
-];
+const adapters = STORAGE_PLATFORMS;
 
 const capabilities = [
   {
@@ -213,25 +185,24 @@ export default function BringYourOwnStoragePage() {
               more you connect, the more room you have.
             </p>
           </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 list-none">
             {adapters.map((a) => (
-              <article
-                key={a.name}
-                className="card p-6 transition-colors hover:border-cyan-500/30"
-              >
-                <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-500">
-                  <a.Icon className="h-5 w-5" />
-                </div>
-                <h3 className="text-sm font-bold">{a.name}</h3>
-                <p className="mt-1 font-mono text-xs text-cyan-600 dark:text-cyan-400">
-                  {a.capacity}
-                </p>
-                <p className="mt-2 text-sm leading-relaxed text-[var(--color-text-secondary)]">
-                  {a.note}
-                </p>
-              </article>
+              <li key={a.name}>
+                <article className="card p-6 transition-colors hover:border-cyan-500/30">
+                  <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-500">
+                    <a.Icon className="h-5 w-5" />
+                  </div>
+                  <h3 className="text-sm font-bold">{a.name}</h3>
+                  <p className="mt-1 font-mono text-xs text-cyan-600 dark:text-cyan-400">
+                    {a.capacity}
+                  </p>
+                  <p className="mt-2 text-sm leading-relaxed text-[var(--color-text-secondary)]">
+                    {a.note}
+                  </p>
+                </article>
+              </li>
             ))}
-          </div>
+          </ul>
           <p className="mx-auto mt-6 max-w-2xl text-center text-xs text-[var(--color-text-muted)]">
             Capacities are approximate, per-repo or per-file platform limits and can
             change at the providers&apos; discretion. zcrypt works within whatever each
@@ -243,22 +214,21 @@ export default function BringYourOwnStoragePage() {
       {/* ═══ HOW IT GROWS ═══ */}
       <section className="px-4 pb-4">
         <div className="mx-auto max-w-5xl">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 list-none">
             {capabilities.map(({ Icon, title, desc }) => (
-              <div
-                key={title}
-                className="card p-6 transition-colors hover:border-cyan-500/30"
-              >
-                <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-500">
-                  <Icon className="h-5 w-5" />
-                </div>
-                <h3 className="text-sm font-bold">{title}</h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-[var(--color-text-secondary)]">
-                  {desc}
-                </p>
-              </div>
+              <li key={title}>
+                <article className="card p-6 transition-colors hover:border-cyan-500/30">
+                  <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-500">
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <h3 className="text-sm font-bold">{title}</h3>
+                  <p className="mt-1.5 text-sm leading-relaxed text-[var(--color-text-secondary)]">
+                    {desc}
+                  </p>
+                </article>
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
       </section>
 

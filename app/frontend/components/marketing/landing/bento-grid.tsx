@@ -1,12 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "motion/react";
+import { useInViewOnce } from "@/hooks/useInViewOnce";
 import {
-  Github,
-  GitBranch,
-  Layers,
-  Send,
   Globe,
   Monitor,
   Terminal,
@@ -18,17 +14,9 @@ import {
   Database,
 } from "@/lib/icons";
 import { cn } from "@/lib/utils";
+import { STORAGE_PLATFORMS } from "./storage-platforms";
 
 // ─── Card content ────────────────────────────────────────────
-// Brand colors kept on the platform glyphs (same icon mapping the
-// rest of the landing uses — see bring-your-own-storage.tsx).
-const platforms = [
-  { name: "GitHub", limit: "850 MB / repo", Icon: Github, color: "text-[var(--color-text)]" },
-  { name: "GitLab", limit: "9 GB / repo", Icon: GitBranch, color: "text-[#fc6d26]" },
-  { name: "Hugging Face", limit: "280 GB / repo", Icon: Layers, color: "text-[#ffd21e]" },
-  { name: "Telegram", limit: "50 MB / file", Icon: Send, color: "text-[#26a5e4]" },
-];
-
 const appTiles = [
   { Icon: Globe, title: "Web app", sub: "Right in your browser", tag: null },
   { Icon: Monitor, title: "Desktop app", sub: "macOS · Windows · Linux", tag: null },
@@ -69,13 +57,18 @@ function BentoCard({
   index: number;
   children: React.ReactNode;
 }) {
+  const { ref, isVisible } = useInViewOnce<HTMLElement>("-60px");
+
   return (
-    <motion.article
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-60px" }}
-      transition={{ duration: 0.5, delay: index * 0.08 }}
-      className={cn(cardBase, className)}
+    <article
+      ref={ref}
+      style={{ transitionDelay: `${index * 0.08}s` }}
+      className={cn(
+        "transition-[opacity,transform] duration-500 ease-out",
+        isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-5",
+        cardBase,
+        className
+      )}
     >
       {/* hover glow — brightens from 0.5 → 1 on hover (matches mockup .bglow) */}
       <div
@@ -84,7 +77,7 @@ function BentoCard({
         style={{ background: glow }}
       />
       {children}
-    </motion.article>
+    </article>
   );
 }
 
@@ -198,7 +191,7 @@ export function BentoGrid() {
             </div>
             <div className="relative z-[2] flex min-w-0 flex-1 flex-col justify-center">
               <div className="flex flex-col gap-2">
-                {platforms.map(({ name, limit, Icon, color }) => (
+                {STORAGE_PLATFORMS.map(({ name, capacity, Icon, colorClass }) => (
                   <div
                     key={name}
                     className={cn(
@@ -211,14 +204,14 @@ export function BentoGrid() {
                       className={cn(
                         "grid h-7 w-7 flex-shrink-0 place-items-center rounded-lg border border-[var(--color-border)]",
                         subtleFill,
-                        color
+                        colorClass
                       )}
                     >
                       <Icon className="h-4 w-4" />
                     </span>
                     {name}
                     <span className="ml-auto font-mono text-[0.68rem] text-[var(--color-text-muted)]">
-                      {limit}
+                      {capacity}
                     </span>
                   </div>
                 ))}
