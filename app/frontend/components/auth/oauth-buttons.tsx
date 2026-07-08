@@ -4,11 +4,11 @@ import { Github } from "@/lib/icons";
 import { GoogleIcon } from "@/components/icons/google";
 import { getOAuthURL } from "@/lib/auth-api";
 import { isTauri } from "@/lib/tauri";
+import { bytesToHex } from "@/lib/crypto";
 
 /** Generate a random session ID for desktop OAuth polling. */
 function randomSessionId() {
-  const bytes = crypto.getRandomValues(new Uint8Array(16));
-  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+  return bytesToHex(crypto.getRandomValues(new Uint8Array(16)));
 }
 
 /** Event dispatched when a desktop OAuth session starts, so the login page can poll. */
