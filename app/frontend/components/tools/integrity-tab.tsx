@@ -10,11 +10,7 @@ import { Section } from "@/components/ui/section";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SkeletonRow } from "@/components/ui/skeletons";
 import { AlertTriangle, ShieldCheck } from "@/lib/icons";
-import { cn } from "@/lib/utils";
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
-}
+import { cn, formatDateTime } from "@/lib/utils";
 
 const STATUS_STYLES: Record<string, string> = {
   ok: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
@@ -137,7 +133,7 @@ export function IntegrityTab() {
                 </div>
                 <div className="flex flex-shrink-0 items-center gap-3">
                   <StatusBadge status={snap.status} />
-                  <span className="text-xs tabular-nums text-[var(--color-text-muted)]">{formatDate(snap.checked_at)}</span>
+                  <span className="text-xs tabular-nums text-[var(--color-text-muted)]">{formatDateTime(snap.checked_at)}</span>
                 </div>
               </motion.div>
             ))}

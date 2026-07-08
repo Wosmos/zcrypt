@@ -12,19 +12,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Section } from "@/components/ui/section";
 import { SkeletonRow } from "@/components/ui/skeletons";
 import { Layers, Trash2, ChevronDown } from "@/lib/icons";
-import { cn } from "@/lib/utils";
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return "0 B";
-  const k = 1024;
-  const sizes = ["B", "KB", "MB", "GB", "TB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
-}
+import { cn, formatBytes, formatDateTime, fileNameById } from "@/lib/utils";
 
 export function SnapshotsTab() {
   const [snapshots, setSnapshots] = useState<VaultSnapshot[]>([]);
@@ -63,8 +51,6 @@ export function SnapshotsTab() {
     } catch { /* ignore */ }
     finally { setDeleting(false); }
   };
-
-  const getFileName = (fileId: string) => files.find((f) => f.id === fileId)?.original_name || fileId.slice(0, 8);
 
   return (
     <div className="space-y-4">
@@ -112,7 +98,7 @@ export function SnapshotsTab() {
                     <div className="mt-1 flex items-center gap-4 text-xs text-[var(--color-text-muted)]">
                       <span className="tabular-nums">{snap.file_count} files</span>
                       <span className="tabular-nums">{formatBytes(snap.total_size)}</span>
-                      <span className="tabular-nums">{formatDate(snap.created_at)}</span>
+                      <span className="tabular-nums">{formatDateTime(snap.created_at)}</span>
                     </div>
                   </div>
                   <div className="flex flex-shrink-0 items-center gap-1">
@@ -131,7 +117,7 @@ export function SnapshotsTab() {
                   <div className="border-t border-[var(--color-border)] px-4 pb-4 pt-3">
                     <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
                       {snap.file_ids.map((fid) => (
-                        <span key={fid} className="truncate text-xs text-[var(--color-text-muted)]">{getFileName(fid)}</span>
+                        <span key={fid} className="truncate text-xs text-[var(--color-text-muted)]">{fileNameById(files, fid)}</span>
                       ))}
                     </div>
                   </div>

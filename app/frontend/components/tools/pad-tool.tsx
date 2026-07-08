@@ -2,28 +2,19 @@
 
 import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { IconButton } from "@/components/ui/icon-button";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
-import { Switch } from "@/components/ui/switch";
-import {
-  Shield, Lock, Copy, Check, Clock, Link2, FileText,
-  AlertTriangle, CheckCircle2,
-} from "@/lib/icons";
+import { Lock, FileText } from "@/lib/icons";
 import { formatBytes } from "@/lib/utils";
+import { copyToClipboard } from "@/lib/clipboard";
 import { createPad } from "@/lib/api";
-import { QRShare } from "@/components/ui/qr-code";
+import { ExpirySelector } from "./shared/expiry-selector";
+import { BurnAfterReadToggle } from "./shared/burn-after-read-toggle";
+import { ShareResult } from "./shared/share-result";
+import { ToolErrorState } from "./shared/tool-states";
 
 const MAX_PAD_SIZE = 1024 * 1024;
 
 type PadState = "editing" | "encrypting" | "done" | "error";
-
-interface ExpiryOption { label: string; hours: number }
-
-const EXPIRY_OPTIONS: ExpiryOption[] = [
-  { label: "1 hour", hours: 1 },
-  { label: "24 hours", hours: 24 },
-  { label: "7 days", hours: 168 },
-];
 
 export function PadTool() {
   const [state, setState] = useState<PadState>("editing");
@@ -70,20 +61,9 @@ export function PadTool() {
 
   const handleCopy = useCallback(async () => {
     if (!shareUrl) return;
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      const ta = document.createElement("textarea");
-      ta.value = shareUrl;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand("copy");
-      document.body.removeChild(ta);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
+    await copyToClipboard(shareUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   }, [shareUrl]);
 
   const handleReset = useCallback(() => {
@@ -113,30 +93,12 @@ export function PadTool() {
             </div>
           </div>
           <div className="space-y-3">
-            <div className="space-y-1.5">
-              <label className="flex items-center gap-1.5 text-xs font-medium text-[var(--color-text-secondary)]">
-                <Clock className="h-3.5 w-3.5" /> Expires after
-              </label>
-              <div className="flex gap-2">
-                {EXPIRY_OPTIONS.map((opt) => (
-                  <button key={opt.hours} onClick={() => setExpiryHours(opt.hours)}
-                    className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg border transition-all ${
-                      expiryHours === opt.hours
-                        ? "border-[var(--color-accent)] bg-[var(--color-accent)]/10 text-[var(--color-accent)]"
-                        : "border-[var(--color-border)] hover:border-[var(--color-border-hover)] text-[var(--color-text-muted)]"
-                    }`}>
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <label className="flex items-center gap-3 p-3 rounded-xl border border-[var(--color-border)] hover:border-[var(--color-border-hover)] cursor-pointer transition-colors">
-              <Switch checked={burnAfterRead} onCheckedChange={setBurnAfterRead} />
-              <div>
-                <p className="text-sm font-medium">Burn after read</p>
-                <p className="text-xs text-[var(--color-text-muted)]">Text is deleted after first view</p>
-              </div>
-            </label>
+            <ExpirySelector value={expiryHours} onChange={setExpiryHours} />
+            <BurnAfterReadToggle
+              checked={burnAfterRead}
+              onCheckedChange={setBurnAfterRead}
+              description="Text is deleted after first view"
+            />
           </div>
           <Button onClick={handleEncryptAndShare} disabled={!text.trim() || isOverLimit} className="w-full">
             <Lock className="h-4 w-4 mr-2" /> Encrypt &amp; Share
@@ -157,65 +119,22 @@ export function PadTool() {
       )}
 
       {state === "done" && (
-        <div className="p-6 space-y-5">
-          <div className="flex flex-col items-center gap-3 text-center">
-            <div className="flex items-center justify-center h-12 w-12 rounded-xl bg-cyan-500/10">
-              <CheckCircle2 className="h-6 w-6 text-cyan-500" />
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold">Pad Created</h3>
-              <p className="text-xs text-[var(--color-text-muted)] mt-1">Share this link. Recipients can view the encrypted text in their browser.</p>
-            </div>
-          </div>
-          <div className="space-y-2">
-            <label className="flex items-center gap-1.5 text-xs font-medium text-[var(--color-text-secondary)]">
-              <Link2 className="h-3.5 w-3.5" /> Share Link
-            </label>
-            <div className="flex gap-2">
-              <div className="flex-1 p-3 rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border)] text-xs font-mono break-all select-all leading-relaxed">{shareUrl}</div>
-              <IconButton
-                icon={copied ? Check : Copy}
-                label={copied ? "Copied" : "Copy link"}
-                variant="secondary"
-                onClick={handleCopy}
-                className="flex-shrink-0 self-start"
-                iconClassName={copied ? "h-4 w-4 text-cyan-500" : "h-4 w-4"}
-              />
-            </div>
-          </div>
-          <QRShare url={shareUrl} />
-          <div className="flex gap-2 text-[10px] text-[var(--color-text-muted)]">
-            <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-[var(--color-surface-1)]">
-              <Clock className="h-3 w-3" /> Expires in {EXPIRY_OPTIONS.find(o => o.hours === expiryHours)?.label || `${expiryHours}h`}
-            </span>
-            {burnAfterRead && (
-              <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-red-500/10 text-red-500">
-                <AlertTriangle className="h-3 w-3" /> Burns after read
-              </span>
-            )}
-            <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-[var(--color-surface-1)]">
-              <Shield className="h-3 w-3" /> E2E encrypted
-            </span>
-          </div>
-          <Button variant="secondary" onClick={handleReset} className="w-full">
-            <FileText className="h-4 w-4 mr-2" /> Create Another Pad
-          </Button>
-        </div>
+        <ShareResult
+          title="Pad Created"
+          subtitle="Share this link. Recipients can view the encrypted text in their browser."
+          shareUrl={shareUrl}
+          copied={copied}
+          onCopy={handleCopy}
+          expiryHours={expiryHours}
+          burnAfterRead={burnAfterRead}
+          resetIcon={FileText}
+          resetLabel="Create Another Pad"
+          onReset={handleReset}
+        />
       )}
 
       {state === "error" && (
-        <div className="p-6">
-          <div className="flex flex-col items-center gap-3 py-4 text-center">
-            <div className="flex items-center justify-center h-12 w-12 rounded-xl bg-red-500/10">
-              <AlertTriangle className="h-6 w-6 text-red-500" />
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold">Failed</h3>
-              <p className="text-xs text-[var(--color-text-muted)] mt-1 max-w-xs">{errorMsg}</p>
-            </div>
-            <Button variant="secondary" onClick={handleReset} className="mt-2">Try Again</Button>
-          </div>
-        </div>
+        <ToolErrorState title="Failed" message={errorMsg} onAction={handleReset} wrapped />
       )}
     </div>
   );
