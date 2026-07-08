@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
+import { useClickOutside } from "@/hooks/useClickOutside";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
@@ -48,16 +49,7 @@ export function AvatarDropdown() {
   const isAdmin = user?.role === Role.Admin;
   const isDark = resolvedTheme === "dark";
 
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
+  useClickOutside(dropdownRef, () => setOpen(false), open);
 
   const handleLogout = async () => {
     try {

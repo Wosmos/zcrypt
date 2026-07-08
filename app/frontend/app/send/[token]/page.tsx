@@ -9,6 +9,7 @@ import {
   Shield, Send, Download, File, AlertTriangle, CheckCircle2, Eye, Music, Clock,
 } from "@/lib/icons";
 import { formatBytes, easeProgress } from "@/lib/utils";
+import { keyFromFragment } from "@/lib/share-link";
 import type { SendInfo } from "@/types";
 import Image from "next/image";
 
@@ -39,13 +40,6 @@ function getMimeType(filename: string): string | undefined {
   return map[ext];
 }
 
-function getKeyFromFragment(): string | null {
-  if (typeof window === "undefined") return null;
-  const hash = window.location.hash;
-  if (!hash) return null;
-  const match = hash.match(/key=([A-Za-z0-9+/=]+)/);
-  return match ? match[1] : null;
-}
 
 function formatExpiry(expiresAt: string): string {
   const diff = new Date(expiresAt).getTime() - Date.now();
@@ -71,7 +65,7 @@ export default function SendDownloadPage() {
 
   // Extract key from fragment on mount
   useEffect(() => {
-    setEncryptionKey(getKeyFromFragment());
+    setEncryptionKey(keyFromFragment());
   }, []);
 
   // Fetch send info

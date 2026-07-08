@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
+import { useClickOutside } from "@/hooks/useClickOutside";
 import { Bell, BellOff, CheckCircle2, AlertCircle, AlertTriangle, Info, X, Check, Trash2 } from "@/lib/icons";
 import { useNotificationStore, type NotificationType } from "@/store/notifications";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -35,16 +36,7 @@ export function NotificationCenter() {
   const { requestPermission, isSupported, isGranted } = useNotifications();
 
   // Close on outside click
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
+  useClickOutside(dropdownRef, () => setOpen(false), open);
 
   const hasErrors = notifications.some((n) => n.type === "error" && !n.read);
 
