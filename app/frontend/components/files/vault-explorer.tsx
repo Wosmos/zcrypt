@@ -97,8 +97,9 @@ import {
 
 import { ExplorerToolbar } from "./explorer/explorer-toolbar";
 import { ExplorerBreadcrumb } from "./explorer/breadcrumb";
-import { ExplorerRow, type RowDragProps } from "./explorer/explorer-row";
+import { ExplorerRow } from "./explorer/explorer-row";
 import { ExplorerCard } from "./explorer/explorer-card";
+import type { RowDragProps } from "./explorer/types";
 import { FolderDetailsDrawer } from "./folder-details-drawer";
 import { FolderShareModal } from "./folder-share-modal";
 import { DIALOG_PANEL } from "./explorer/types";
@@ -302,7 +303,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
   const vaultQuery = useVaultSearch((s) => s.query);
   useEffect(() => {
     if (vaultQuery) setSearch(vaultQuery);
-  }, [vaultQuery]);
+  }, [vaultQuery, setSearch]);
 
   const handleSort = (field: SortField) => {
     if (field === sortField) {
@@ -659,6 +660,19 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
     }
   };
 
+  // Move a dragged folder into `destId` — shared by the desktop HTML5 drop and
+  // the touch drag-move path below, which drive the same store.
+  const moveFolderTo = (item: DragItem, destId: string | null) => {
+    if (!canDrop(item, destId)) return;
+    const prevName = item.name;
+    moveFolder(item.id, destId)
+      .then(() => refreshFolders())
+      .catch((err) => {
+        toast.error(err instanceof Error ? err.message : `Couldn't move "${prevName}"`);
+        refreshFolders();
+      });
+  };
+
   const handleDropOnto = (destId: string | null, e: React.DragEvent) => {
     e.preventDefault();
     setOverTarget(undefined);
@@ -666,14 +680,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
     endDrag();
     const fileId = e.dataTransfer.getData(DRAG_MIME);
     if (item?.kind === "folder") {
-      if (!canDrop(item, destId)) return;
-      const prevName = item.name;
-      moveFolder(item.id, destId)
-        .then(() => refreshFolders())
-        .catch((err) => {
-          toast.error(err instanceof Error ? err.message : `Couldn't move "${prevName}"`);
-          refreshFolders();
-        });
+      moveFolderTo(item, destId);
       return;
     }
     if (item?.kind === "file" || fileId) {
@@ -744,14 +751,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
     canDropOn: (item, destId) => (item.kind === "folder" ? canDrop(item, destId) : true),
     onDrop: (item, destId) => {
       if (item.kind === "folder") {
-        if (!canDrop(item, destId)) return;
-        const prevName = item.name;
-        moveFolder(item.id, destId)
-          .then(() => refreshFolders())
-          .catch((err) => {
-            toast.error(err instanceof Error ? err.message : `Couldn't move "${prevName}"`);
-            refreshFolders();
-          });
+        moveFolderTo(item, destId);
         return;
       }
       onMoveFile?.(item.id, destId);
@@ -1052,6 +1052,41 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
       ? `${plural(folderCount, "folder", "folders")} · ${plural(fileCount, "file", "files")}`
       : plural(folderCount + fileCount, "item", "items");
 
+  // ExplorerRow and ExplorerCard share the exact same prop contract (list vs
+  // grid is purely a layout choice) — one map, dispatching on which renders.
+  const ExplorerItem = view === "list" ? ExplorerRow : ExplorerCard;
+  const explorerItems = (
+    <AnimatePresence initial={false}>
+      {entries.map((entry) => {
+        const id = entry.kind === "folder" ? entry.folder.id : entry.file.id;
+        return (
+          <motion.div role="listitem" key={`${entry.kind}-${id}`} {...itemMotion}>
+            <ExplorerItem
+              entry={entry}
+              actions={actions}
+              selectMode={selectMode}
+              selected={entry.kind === "file" && selectedIds.has(entry.file.id)}
+              focused={rovingId === id}
+              onSelect={toggleSelect}
+              onRequestSelect={isMobile ? enterSelectWith : undefined}
+              onFileClick={handleFileClick}
+              onEntryKeyDown={handleEntryKeyDown}
+              onOpenFolder={openFolderGated}
+              onRenameFolder={startRename}
+              onDeleteFolder={setDeleteTarget}
+              onProtectFolder={onProtectFolder}
+              onRemoveFolderPassword={onRemoveFolderPassword}
+              onMoveFolderRequest={onMoveFolderRequest}
+              onOpenFolderDetails={setDetailsFolder}
+              onShareFolder={setShareFolder}
+              drag={dragPropsFor(entry)}
+            />
+          </motion.div>
+        );
+      })}
+    </AnimatePresence>
+  );
+
   return (
     <div className="space-y-3">
       {/* Toolbar: breadcrumb + view + select (search now lives in the page header) */}
@@ -1242,35 +1277,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
             onClick={handleListingBackgroundClick}
             className="sm:max-h-[62vh] sm:overflow-y-auto"
           >
-            <AnimatePresence initial={false}>
-              {entries.map((entry) => {
-                const id = entry.kind === "folder" ? entry.folder.id : entry.file.id;
-                return (
-                  <motion.div role="listitem" key={`${entry.kind}-${id}`} {...itemMotion}>
-                    <ExplorerRow
-                      entry={entry}
-                      actions={actions}
-                      selectMode={selectMode}
-                      selected={entry.kind === "file" && selectedIds.has(entry.file.id)}
-                      focused={rovingId === id}
-                      onSelect={toggleSelect}
-                      onRequestSelect={isMobile ? enterSelectWith : undefined}
-                      onFileClick={handleFileClick}
-                      onEntryKeyDown={handleEntryKeyDown}
-                      onOpenFolder={openFolderGated}
-                      onRenameFolder={startRename}
-                      onDeleteFolder={setDeleteTarget}
-                      onProtectFolder={onProtectFolder}
-                      onRemoveFolderPassword={onRemoveFolderPassword}
-                      onMoveFolderRequest={onMoveFolderRequest}
-                      onOpenFolderDetails={setDetailsFolder}
-                      onShareFolder={setShareFolder}
-                      drag={dragPropsFor(entry)}
-                    />
-                  </motion.div>
-                );
-              })}
-            </AnimatePresence>
+            {explorerItems}
           </div>
         </div>
       ) : (
@@ -1291,35 +1298,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
                   : `repeat(${gridCols}, minmax(0, 1fr))`,
             }}
           >
-            <AnimatePresence initial={false}>
-              {entries.map((entry) => {
-                const id = entry.kind === "folder" ? entry.folder.id : entry.file.id;
-                return (
-                  <motion.div role="listitem" key={`${entry.kind}-${id}`} {...itemMotion}>
-                    <ExplorerCard
-                      entry={entry}
-                      actions={actions}
-                      selectMode={selectMode}
-                      selected={entry.kind === "file" && selectedIds.has(entry.file.id)}
-                      focused={rovingId === id}
-                      onSelect={toggleSelect}
-                      onRequestSelect={isMobile ? enterSelectWith : undefined}
-                      onFileClick={handleFileClick}
-                      onEntryKeyDown={handleEntryKeyDown}
-                      onOpenFolder={openFolderGated}
-                      onRenameFolder={startRename}
-                      onDeleteFolder={setDeleteTarget}
-                      onProtectFolder={onProtectFolder}
-                      onRemoveFolderPassword={onRemoveFolderPassword}
-                      onMoveFolderRequest={onMoveFolderRequest}
-                      onOpenFolderDetails={setDetailsFolder}
-                      onShareFolder={setShareFolder}
-                      drag={dragPropsFor(entry)}
-                    />
-                  </motion.div>
-                );
-              })}
-            </AnimatePresence>
+            {explorerItems}
           </div>
         </div>
       )}

@@ -1,11 +1,9 @@
 "use client";
 
 import { memo, useId } from "react";
-import type { ExplorerEntry, ExplorerActions } from "./types";
+import type { ExplorerItemProps, FolderItemProps, FileItemProps } from "./types";
 import { explorerItemPropsEqual, FOCUS_RING } from "./types";
-import type { DecryptedFolder } from "@/hooks/useFolders";
-import type { FileMetadata } from "@/types";
-import type { RowDragProps } from "./explorer-row";
+import { ExplorerEntryDispatch, SelectCheckbox } from "./entry-dispatch";
 import { formatBytes, getFileTypeInfo, isVideoFile, cn, midTrunc, fileIconFor, extOf } from "@/lib/utils";
 import { useThumbnail } from "@/hooks/useThumbnail";
 import { prefetchOnHover } from "@/hooks/useFileDecryptor";
@@ -20,7 +18,6 @@ import {
   Trash2,
   Edit,
   CheckSquare,
-  Square,
   Key,
   Unlock,
 } from "@/lib/icons";
@@ -31,29 +28,6 @@ import {
   ContextMenuItem,
   ContextMenuSeparator,
 } from "@/components/ui/context-menu";
-
-interface ExplorerCardProps {
-  entry: ExplorerEntry;
-  actions: ExplorerActions;
-  selectMode: boolean;
-  selected: boolean;
-  focused: boolean;
-  onSelect: (id: string) => void;
-  /** Enter select mode with this file pre-selected (touch long-press → Select). */
-  onRequestSelect?: (fileId: string) => void;
-  onFileClick: (file: FileMetadata, e: React.MouseEvent) => void;
-  onEntryKeyDown: (entry: ExplorerEntry, e: React.KeyboardEvent) => void;
-  onOpenFolder: (folder: DecryptedFolder) => void;
-  onRenameFolder: (folder: DecryptedFolder) => void;
-  onDeleteFolder: (folder: DecryptedFolder) => void;
-  onProtectFolder?: (folder: DecryptedFolder) => void;
-  onRemoveFolderPassword?: (folder: DecryptedFolder) => void;
-  onMoveFolderRequest?: (folder: DecryptedFolder) => void;
-  onOpenFolderDetails?: (folder: DecryptedFolder) => void;
-  onShareFolder?: (folder: DecryptedFolder) => void;
-  onOpenDetails?: (file: FileMetadata) => void;
-  drag: RowDragProps;
-}
 
 /**
  * MacFolder — a big, filled, macOS/iOS-style folder glyph. Two-tone (a darker
@@ -128,21 +102,7 @@ function FolderCard({
   onOpenFolderDetails,
   onShareFolder,
   drag,
-}: {
-  entry: ExplorerEntry;
-  folder: DecryptedFolder;
-  focused: boolean;
-  onOpenFolder: (f: DecryptedFolder) => void;
-  onEntryKeyDown: (entry: ExplorerEntry, e: React.KeyboardEvent) => void;
-  onRenameFolder: (f: DecryptedFolder) => void;
-  onDeleteFolder: (f: DecryptedFolder) => void;
-  onProtectFolder?: (f: DecryptedFolder) => void;
-  onRemoveFolderPassword?: (f: DecryptedFolder) => void;
-  onMoveFolderRequest?: (f: DecryptedFolder) => void;
-  onOpenFolderDetails?: (f: DecryptedFolder) => void;
-  onShareFolder?: (f: DecryptedFolder) => void;
-  drag: RowDragProps;
-}) {
+}: FolderItemProps) {
   // Show the padlock when the folder has its own password OR the vault is locked
   // (name can't be decrypted → "[locked]", set in useFolders).
   const isLocked = folder.protected || folder.name === "[locked]";
@@ -276,20 +236,7 @@ function FileCardInner({
   onEntryKeyDown,
   onOpenDetails,
   drag,
-}: {
-  entry: ExplorerEntry;
-  file: FileMetadata;
-  actions: ExplorerActions;
-  selectMode: boolean;
-  selected: boolean;
-  focused: boolean;
-  onSelect: (id: string) => void;
-  onRequestSelect?: (fileId: string) => void;
-  onFileClick: (file: FileMetadata, e: React.MouseEvent) => void;
-  onEntryKeyDown: (entry: ExplorerEntry, e: React.KeyboardEvent) => void;
-  onOpenDetails?: (file: FileMetadata) => void;
-  drag: RowDragProps;
-}) {
+}: FileItemProps) {
   const { thumbnailUrl, pending } = useThumbnail(file.id, file.original_name, file.original_size);
   const typeInfo = getFileTypeInfo(file.original_name);
   const Icon = fileIconFor(file.original_name);
@@ -330,25 +277,12 @@ function FileCardInner({
         >
       {/* Selection checkbox */}
       {selectMode && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onSelect(file.id);
-          }}
-          className={cn(
-            "absolute left-2.5 top-2.5 z-10 flex h-6 w-6 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] transition-colors hover:border-[var(--color-accent)]",
-            FOCUS_RING
-          )}
-          aria-label={selected ? `Deselect ${file.original_name}` : `Select ${file.original_name}`}
-          aria-pressed={selected}
-        >
-          {selected ? (
-            <CheckSquare className="h-4 w-4 text-[var(--color-accent)]" />
-          ) : (
-            <Square className="h-4 w-4 text-[var(--color-text-muted)]" />
-          )}
-        </button>
+        <SelectCheckbox
+          file={file}
+          selected={selected}
+          onSelect={onSelect}
+          className="absolute left-2.5 top-2.5 z-10 flex h-6 w-6 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] transition-colors hover:border-[var(--color-accent)]"
+        />
       )}
 
           {/* Preview — free-standing, sized to the file's own aspect ratio
@@ -459,62 +393,8 @@ function FileCardInner({
   );
 }
 
-function ExplorerCardImpl({
-  entry,
-  actions,
-  selectMode,
-  selected,
-  focused,
-  onSelect,
-  onRequestSelect,
-  onFileClick,
-  onEntryKeyDown,
-  onOpenFolder,
-  onRenameFolder,
-  onDeleteFolder,
-  onProtectFolder,
-  onRemoveFolderPassword,
-  onMoveFolderRequest,
-  onOpenFolderDetails,
-  onShareFolder,
-  onOpenDetails,
-  drag,
-}: ExplorerCardProps) {
-  if (entry.kind === "folder") {
-    return (
-      <FolderCard
-        entry={entry}
-        folder={entry.folder}
-        focused={focused}
-        onOpenFolder={onOpenFolder}
-        onEntryKeyDown={onEntryKeyDown}
-        onRenameFolder={onRenameFolder}
-        onDeleteFolder={onDeleteFolder}
-        onProtectFolder={onProtectFolder}
-        onRemoveFolderPassword={onRemoveFolderPassword}
-        onMoveFolderRequest={onMoveFolderRequest}
-        onOpenFolderDetails={onOpenFolderDetails}
-        onShareFolder={onShareFolder}
-        drag={drag}
-      />
-    );
-  }
-  return (
-    <FileCardInner
-      entry={entry}
-      file={entry.file}
-      actions={actions}
-      selectMode={selectMode}
-      selected={selected}
-      focused={focused}
-      onSelect={onSelect}
-      onRequestSelect={onRequestSelect}
-      onFileClick={onFileClick}
-      onEntryKeyDown={onEntryKeyDown}
-      onOpenDetails={onOpenDetails ?? actions.onOpenDetails}
-      drag={drag}
-    />
-  );
+function ExplorerCardImpl(props: ExplorerItemProps) {
+  return <ExplorerEntryDispatch {...props} FolderView={FolderCard} FileView={FileCardInner} />;
 }
 
 /**
