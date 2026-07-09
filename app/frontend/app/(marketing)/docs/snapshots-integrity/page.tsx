@@ -36,6 +36,7 @@ export default function SnapshotsIntegrityDocPage() {
       title="Snapshots & integrity"
       description="Lightweight tools for keeping an eye on the shape of your vault: a snapshot records what was in it at a moment in time, and the integrity monitor watches for files whose contents change unexpectedly."
       badge="Beta"
+      toc={toc}
     >
       <DocSection id="snapshots" title="Snapshots">
         <DocP>

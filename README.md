@@ -40,7 +40,7 @@ Frontend (Next.js 16 / Vercel)         Backend (Go / Railway)           Storage
 |  React 19 + Tailwind     |  <---->   |  stdlib net/http       | ----> | GitHub (850MB) |
 |  Zustand state mgmt      |  JSON/SSE |  AES-256-GCM crypto    | ----> | GitLab (9GB)   |
 |  XHR upload + progress   |           |  zstd compression      | ----> | HuggingFace    |
-|  Passphrase never leaves |           |  pgxpool (Neon PG)     |       |   (280GB/repo) |
+|  Passphrase never leaves |           |  pgxpool (Neon PG)     |       |   (90GB/repo)  |
 |    the client            |           |  JWT + bcrypt + TOTP   | ----> | Telegram       |
 +--------------------------+           +------------------------+       +----------------+
                                               |

@@ -164,7 +164,7 @@ func (m SettingsModel) renderProfileSection() string {
 		indicator := "  "
 		nameStyle := theme.MutedStyle
 		if selected {
-			indicator = theme.KeyStyle.Render(">")+ " "
+			indicator = theme.KeyStyle.Render(">") + " "
 			nameStyle = lipgloss.NewStyle().Foreground(theme.ColorBrand).Bold(true)
 		}
 

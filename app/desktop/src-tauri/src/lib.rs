@@ -1,4 +1,7 @@
 use tauri::{Listener, Manager};
+// Only needed for the `.deep_link()` call below, which is itself macOS-gated
+// (macOS registers the scheme via the .app bundle's Info.plist instead).
+#[cfg(not(target_os = "macos"))]
 use tauri_plugin_deep_link::DeepLinkExt;
 
 mod sidecar;

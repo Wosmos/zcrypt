@@ -109,7 +109,7 @@ type PresignResponse struct {
 	UploadURL     string            `json:"upload_url"`
 	UploadHeaders map[string]string `json:"upload_headers"`
 	RemotePath    string            `json:"remote_path"`
-	AlreadyExists bool             `json:"already_exists"`
+	AlreadyExists bool              `json:"already_exists"`
 }
 
 type ConfirmChunkRequest struct {

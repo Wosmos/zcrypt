@@ -42,6 +42,7 @@ export default function SharedVaultsDocPage() {
       title="Shared vaults"
       description="Shared vaults — spaces — let a group work on the same set of end-to-end encrypted files. Each space carries its own key, sealed to every member so only members can open its files, and the server only ever holds ciphertext it cannot read."
       badge="Beta"
+      toc={toc}
     >
       <DocSection id="what" title="What shared vaults are">
         <DocP>
