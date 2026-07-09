@@ -2,11 +2,12 @@
 
 import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { Lock, FileText } from "@/lib/icons";
 import { formatBytes } from "@/lib/utils";
-import { copyToClipboard } from "@/lib/clipboard";
 import { createPad } from "@/lib/api";
+import { useCopyFeedback } from "@/hooks/useCopyFeedback";
 import { ExpirySelector } from "./shared/expiry-selector";
 import { BurnAfterReadToggle } from "./shared/burn-after-read-toggle";
 import { ShareResult } from "./shared/share-result";
@@ -22,8 +23,8 @@ export function PadTool() {
   const [burnAfterRead, setBurnAfterRead] = useState(false);
   const [expiryHours, setExpiryHours] = useState(24);
   const [shareUrl, setShareUrl] = useState("");
-  const [copied, setCopied] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const { copied, handleCopy, reset } = useCopyFeedback(shareUrl);
 
   const textSize = new TextEncoder().encode(text).length;
   const isOverLimit = textSize > MAX_PAD_SIZE;
@@ -59,31 +60,24 @@ export function PadTool() {
     }
   }, [text, isOverLimit, burnAfterRead, expiryHours]);
 
-  const handleCopy = useCallback(async () => {
-    if (!shareUrl) return;
-    await copyToClipboard(shareUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }, [shareUrl]);
-
   const handleReset = useCallback(() => {
     setState("editing");
     setText("");
     setShareUrl("");
     setErrorMsg("");
-    setCopied(false);
-  }, []);
+    reset();
+  }, [reset]);
 
   return (
     <div className="panel overflow-hidden">
       {state === "editing" && (
         <div className="p-6 space-y-4">
           <div className="space-y-1.5">
-            <textarea
+            <Textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
               placeholder="Type or paste your text here..."
-              className="w-full h-56 p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)]/50 text-sm font-mono resize-none focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/30 focus:border-[var(--color-accent)]/50 placeholder:text-[var(--color-text-muted)]"
+              className="h-56 p-4 bg-[var(--color-surface-1)]/50 font-mono resize-none focus:ring-[var(--color-accent)]/30 focus:border-[var(--color-accent)]/50"
             />
             <div className="flex items-center justify-between text-[10px] text-[var(--color-text-muted)]">
               <span>{text.length} characters</span>
