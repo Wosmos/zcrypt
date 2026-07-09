@@ -38,7 +38,10 @@ import { getFileMeta } from "@/lib/api";
 import { setFilesData } from "@/store/files";
 import { toast } from "@/store/toast";
 import { getDeviceProfile } from "@/lib/device-profile";
-import { generateSalt, deriveKeyBytes, generateCEK, wrapKey, unwrapKey, sha256File, toBase64, fromBase64 } from "@/lib/crypto";
+import { generateSalt, deriveKeyBytes, generateCEK, wrapKey, unwrapKey, sha256File, deriveDedupKeyBytes, contentMacFile, toBase64, fromBase64 } from "@/lib/crypto";
+import { useAuthStore } from "@/store/auth";
+import { usePassphraseStore } from "@/store/passphrase";
+import { deriveNameKey, encryptName } from "@/lib/name-crypto";
 
 vi.mock("@/lib/upload-session", () => ({
   initUpload: vi.fn(),
@@ -86,8 +89,29 @@ vi.mock("@/lib/crypto", () => ({
     onProgress?.(file.size);
     return `sha-${file.name}-${file.size}`;
   }),
+  // Content-addressed dedup path (only reached when a user id is present).
+  deriveDedupKeyBytes: vi.fn(async () => new Uint8Array([1, 2, 3, 4])),
+  contentMacFile: vi.fn(async (file: File, _key: Uint8Array, onProgress?: (n: number) => void) => {
+    onProgress?.(file.size);
+    return `hmac-${file.name}-${file.size}`;
+  }),
   toBase64: vi.fn((data: Uint8Array) => `b64:${Array.from(data).join(",")}`),
   fromBase64: vi.fn((b64: string) => new Uint8Array(b64.replace("b64:", "").split(",").map(Number))),
+}));
+
+// Auth / passphrase stores drive the zero-knowledge dedup + encrypted-name
+// path (upload.ts:429-456). DEFAULTS here reproduce the current real behavior
+// under an empty localStorage (no user, locked vault) so every existing test is
+// unaffected; the dedup test overrides them.
+vi.mock("@/store/auth", () => ({
+  useAuthStore: { getState: vi.fn(() => ({ user: undefined })) },
+}));
+vi.mock("@/store/passphrase", () => ({
+  usePassphraseStore: { getState: vi.fn(() => ({ getPassphrase: () => null })) },
+}));
+vi.mock("@/lib/name-crypto", () => ({
+  deriveNameKey: vi.fn(async () => ({}) as CryptoKey),
+  encryptName: vi.fn(async (name: string) => `enc:${name}`),
 }));
 
 // WorkerPool spins up REAL Web Workers in its constructor — mock the whole
@@ -197,6 +221,10 @@ describe("useUploadStore", () => {
     (wrapKey as Mock).mockClear();
     (unwrapKey as Mock).mockClear();
     (sha256File as Mock).mockClear();
+    (deriveDedupKeyBytes as Mock).mockClear();
+    (contentMacFile as Mock).mockClear();
+    (deriveNameKey as Mock).mockClear();
+    (encryptName as Mock).mockClear();
     (toBase64 as Mock).mockClear();
     (fromBase64 as Mock).mockClear();
     // Deterministic backoff/jitter/wait-for-slot delays (withRetry, doInit) —
@@ -1567,6 +1595,115 @@ describe("useUploadStore", () => {
       releaseChunk();
       await flush();
       delete (document as { hidden?: boolean }).hidden;
+    });
+  });
+
+  describe("zero-knowledge dedup + encrypted filename", () => {
+    afterEach(() => {
+      // Restore the empty-vault defaults so nothing leaks into later tests.
+      (useAuthStore.getState as Mock).mockReturnValue({ user: undefined });
+      (usePassphraseStore.getState as Mock).mockReturnValue({ getPassphrase: () => null });
+    });
+
+    it("uses the HMAC dedup scheme and encrypts the filename when a user id + unlocked vault are present", async () => {
+      (useAuthStore.getState as Mock).mockReturnValue({ user: { id: "user-42" } });
+      (usePassphraseStore.getState as Mock).mockReturnValue({ getPassphrase: () => "vault-pass" });
+
+      const file = makeFile("secret.txt", 10, "0123456789");
+      // The upload passphrase (folder password) is distinct from the vault pass.
+      useUploadStore.getState().startUpload([file], "folder-pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      // Content MAC (HMAC) hashing keyed off the vault-derived dedup key.
+      expect(deriveDedupKeyBytes).toHaveBeenCalledWith("folder-pw", "user-42");
+      expect(contentMacFile).toHaveBeenCalled();
+      // Zero-knowledge filename: derived from the VAULT passphrase, not the upload one.
+      expect(deriveNameKey).toHaveBeenCalledWith("vault-pass", "user-42");
+      expect(encryptName).toHaveBeenCalledWith("secret.txt", expect.anything());
+      // The hmac scheme + encrypted name (empty plaintext filename) reach the server.
+      expect(initUpload).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sha256: "hmac-secret.txt-10",
+          sha256_scheme: "hmac_v1",
+          encrypted_name: "enc:secret.txt",
+          filename: "",
+        })
+      );
+      expect(getItem(id)?.status).toBe("done");
+    });
+
+    it("keeps the plain sha256 scheme when there is no user id (dedup path skipped)", async () => {
+      const file = makeFile("plain.txt", 10, "0123456789");
+      useUploadStore.getState().startUpload([file], "pw", "telegram", undefined, undefined, null);
+      await flush();
+
+      expect(deriveDedupKeyBytes).not.toHaveBeenCalled();
+      expect(deriveNameKey).not.toHaveBeenCalled();
+      expect(initUpload).toHaveBeenCalledWith(
+        expect.objectContaining({ sha256_scheme: "plain", filename: "plain.txt" })
+      );
+    });
+  });
+
+  describe("startUpload — per-file size cap", () => {
+    function oversized(name: string): File {
+      const f = new File(["x"], name);
+      Object.defineProperty(f, "size", { value: 11 * 1024 * 1024 * 1024, configurable: true });
+      return f;
+    }
+
+    it("rejects a single oversized file, toasts, and never starts an upload", async () => {
+      useUploadStore.getState().startUpload([oversized("huge.bin")], "pw", "telegram", undefined, undefined, null);
+      await flush();
+
+      expect(toast.error).toHaveBeenCalledTimes(1);
+      const msg = (toast.error as Mock).mock.calls[0][0] as string;
+      expect(msg).toContain('"huge.bin"');
+      expect(msg).toContain("exceeds");
+      expect(msg).toContain("per-file limit");
+      expect(initUpload).not.toHaveBeenCalled();
+    });
+
+    it("drops the oversized files (with an 'and N more' summary) but still uploads the valid ones", async () => {
+      const files = [
+        oversized("a.bin"),
+        oversized("b.bin"),
+        oversized("c.bin"),
+        oversized("d.bin"),
+        makeFile("ok.txt", 10, "0123456789"),
+      ];
+      useUploadStore.getState().startUpload(files, "pw", "telegram", undefined, undefined, null);
+      await flush();
+
+      const msg = (toast.error as Mock).mock.calls[0][0] as string;
+      expect(msg).toContain("and 1 more");
+      expect(msg).toContain("exceed"); // plural form: no trailing "s"
+      // The one valid file still uploads.
+      expect(initUpload).toHaveBeenCalledWith(expect.objectContaining({ filename: "ok.txt" }));
+    });
+  });
+
+  describe("getResumableUploadIds", () => {
+    it("returns the ids of failed uploads that still hold a resumable session", async () => {
+      // Init succeeds (records a resume session), then the chunk upload fails
+      // non-transiently — leaving the item failed but resumable.
+      (uploadChunk as Mock).mockRejectedValue(new Error("bad request: invalid chunk"));
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(getItem(id)?.status).toBe("failed");
+      expect(useUploadStore.getState().getResumableUploadIds()).toContain(id);
+    });
+
+    it("excludes done uploads (no resumable session)", async () => {
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10, "0123456789")], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(getItem(id)?.status).toBe("done");
+      expect(useUploadStore.getState().getResumableUploadIds()).not.toContain(id);
     });
   });
 });
