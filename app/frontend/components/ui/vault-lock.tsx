@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { LockKey, LockKeyOpen } from "@phosphor-icons/react";
 import { Toggle } from "@/components/ui/toggle";
-import { cn } from "@/lib/utils";
+import { cn, formatDuration } from "@/lib/utils";
 
 /**
  * VaultLock — the single header control for the one-vault-passphrase model
@@ -40,12 +40,8 @@ export interface VaultLockProps {
   className?: string;
 }
 
-function formatCountdown(totalSeconds: number): string {
-  const safe = Math.max(0, totalSeconds);
-  const minutes = Math.floor(safe / 60);
-  const seconds = safe % 60;
-  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-}
+const formatCountdown = (totalSeconds: number) =>
+  formatDuration(totalSeconds, { padMinutes: true, showHours: false });
 
 export function VaultLock({
   unlocked,

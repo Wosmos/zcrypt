@@ -331,21 +331,21 @@ export function formatExpiry(expiresAt: string): string {
   return `${hours}h ${minutes}m`;
 }
 
+/** Share-link expiry choices, shared by the file details drawer and both share modals. */
+export const EXPIRY_OPTIONS = [
+  { label: "Never", value: 0 },
+  { label: "1 hour", value: 1 },
+  { label: "24 hours", value: 24 },
+  { label: "7 days", value: 168 },
+  { label: "30 days", value: 720 },
+];
+
 /** YYYY-MM-DD in LOCAL time (avoids the UTC drift toISOString() causes). */
 export function localDateKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 // ─── Size / number formatting ────────────────────────────────────────────────
-
-/** bytes/sec -> "X MB/s" / "X KB/s" / "X B/s" (its own rounding, NOT formatBytes).
- *  Callers keep their own elapsed / "--" guard and pass a computed rate. */
-export function formatSpeed(bytesPerSecond: number): string {
-  const bps = bytesPerSecond;
-  if (bps >= 1024 * 1024) return `${(bps / (1024 * 1024)).toFixed(1)} MB/s`;
-  if (bps >= 1024) return `${(bps / 1024).toFixed(0)} KB/s`;
-  return `${Math.round(bps)} B/s`;
-}
 
 /** Clamped space-saving percentage as a whole-number string (no "%" suffix).
  *  `((1 - compared/original) * 100)`, floored at 0, with an original<=0 guard.

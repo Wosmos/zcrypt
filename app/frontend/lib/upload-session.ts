@@ -18,32 +18,26 @@ import { useAuthStore } from "@/store/auth";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
+async function extractErrorMessage(res: Response): Promise<string> {
+  const body = await res.text();
+  try {
+    const parsed = JSON.parse(body);
+    return parsed.error || body;
+  } catch {
+    return body;
+  }
+}
+
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
-    const body = await res.text();
-    let message: string;
-    try {
-      const parsed = JSON.parse(body);
-      message = parsed.error || body;
-    } catch {
-      message = body;
-    }
-    throw new Error(message);
+    throw new Error(await extractErrorMessage(res));
   }
   return res.json() as Promise<T>;
 }
 
 async function throwIfNotOk(res: Response): Promise<void> {
   if (!res.ok) {
-    const body = await res.text();
-    let message: string;
-    try {
-      const parsed = JSON.parse(body);
-      message = parsed.error || body;
-    } catch {
-      message = body;
-    }
-    throw new Error(message);
+    throw new Error(await extractErrorMessage(res));
   }
 }
 

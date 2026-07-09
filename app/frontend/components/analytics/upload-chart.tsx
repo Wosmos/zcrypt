@@ -10,8 +10,9 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { formatBytes } from "@/lib/utils";
+import { formatBytes, localDateKey } from "@/lib/utils";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { CHART_TOOLTIP_STYLE, CHART_TOOLTIP_LABEL_STYLE, CHART_TOOLTIP_CURSOR } from "./chart-theme";
 import type { FileMetadata } from "@/types";
 
 interface UploadChartProps {
@@ -20,10 +21,7 @@ interface UploadChartProps {
 
 type Range = "1d" | "7d" | "30d" | "all";
 
-/** Local YYYY-MM-DD key — avoids UTC drift that toISOString() causes */
-function localDateKey(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
+
 
 function getChartData(files: FileMetadata[], range: Range) {
   if (files.length === 0) return [];
@@ -202,17 +200,9 @@ export function UploadChart({ files }: UploadChartProps) {
                 allowDecimals={false}
               />
               <Tooltip
-                cursor={{ stroke: "var(--color-border)", strokeWidth: 1 }}
-                contentStyle={{
-                  backgroundColor: "var(--color-surface)",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: "12px",
-                  fontSize: "12px",
-                  padding: "8px 12px",
-                  color: "var(--color-text)",
-                  boxShadow: "0 4px 12px -6px rgba(16, 24, 40, 0.16)",
-                }}
-                labelStyle={{ color: "var(--color-text-secondary)" }}
+                cursor={CHART_TOOLTIP_CURSOR}
+                contentStyle={CHART_TOOLTIP_STYLE}
+                labelStyle={CHART_TOOLTIP_LABEL_STYLE}
                 formatter={(value, name) => {
                   if (name === "size") return [formatBytes(Number(value)), "Size"];
                   return [value, "Uploads"];
