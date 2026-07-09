@@ -10,19 +10,11 @@ import {
 } from "@/lib/icons";
 import { formatBytes } from "@/lib/utils";
 import { keyFromFragment } from "@/lib/share-link";
+import { ViewerIncompleteLink } from "@/components/tokens/viewer";
+import { formatShortExpiry as formatExpiry } from "@/components/tokens/token-layout";
 import type { PadInfo } from "@/types";
 
 type PageState = "loading" | "ready" | "decrypting" | "viewing" | "error";
-
-function formatExpiry(expiresAt: string): string {
-  const diff = new Date(expiresAt).getTime() - Date.now();
-  if (diff <= 0) return "Expired";
-  const hours = Math.floor(diff / (1000 * 60 * 60));
-  const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-  if (hours > 24) return `${Math.floor(hours / 24)}d ${hours % 24}h`;
-  if (hours > 0) return `${hours}h ${mins}m`;
-  return `${mins}m`;
-}
 
 export default function PadViewPage() {
   const { token } = useParams<{ token: string }>();
@@ -133,17 +125,7 @@ export default function PadViewPage() {
             </div>
           )}
 
-          {noKey && (
-            <div className="flex flex-col items-center justify-center py-16 px-6 gap-3 text-center">
-              <div className="flex items-center justify-center h-12 w-12 rounded-xl bg-amber-500/10">
-                <AlertTriangle className="h-6 w-6 text-amber-500" />
-              </div>
-              <h2 className="text-lg font-semibold">Incomplete Link</h2>
-              <p className="text-sm text-[var(--color-text-muted)] max-w-xs">
-                This link is missing the encryption key. Make sure you copied the full URL including the <code className="text-[var(--color-text-secondary)]">#key=...</code> part.
-              </p>
-            </div>
-          )}
+          {noKey && <ViewerIncompleteLink />}
 
           {pageState === "ready" && info && !noKey && (
             <div className="p-6 space-y-4">

@@ -5,15 +5,18 @@ import { useParams } from "next/navigation";
 import { getShareInfo, getShareFileMeta, getShareChunk } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Shield, Lock, Download, File, CheckCircle2, Eye } from "@/lib/icons";
+import { Shield, Lock, Download, Eye } from "@/lib/icons";
 import { formatBytes, saveBlob, concatChunks, extOf } from "@/lib/utils";
 import { keyFromFragment } from "@/lib/share-link";
 import {
   ViewerCard,
   ViewerLoading,
   ViewerError,
+  TokenFileHeader,
   ViewerDecryptProgress,
+  PreviewHeader,
   MediaPreview,
+  DownloadCompletePanel,
 } from "@/components/tokens/viewer";
 import type { ShareInfo } from "@/types";
 
@@ -25,6 +28,29 @@ type PageState =
   | "downloading"  // saving to disk (already decrypted)
   | "done"
   | "error";
+
+/**
+ * Shared catch-block handling for both decrypt entry points below: a
+ * password/unauthorized failure bounces back to the credential form for a
+ * retry, anything else is terminal.
+ */
+function reportDecryptError(
+  err: unknown,
+  fallbackMsg: string,
+  setPageState: (s: PageState) => void,
+  setErrorMsg: (s: string) => void,
+  setSharePassword: (s: string) => void
+) {
+  const msg = err instanceof Error ? err.message : fallbackMsg;
+  if (msg.toLowerCase().includes("password") || msg.toLowerCase().includes("unauthorized")) {
+    setPageState("ready");
+    setErrorMsg("Incorrect share password.");
+    setSharePassword("");
+  } else {
+    setPageState("error");
+    setErrorMsg(msg);
+  }
+}
 
 function getPreviewType(filename: string): "image" | "video" | "audio" | "none" {
   const ext = extOf(filename);
@@ -175,41 +201,45 @@ export default function SharePage() {
     return { blob, originalName: meta.original_name };
   }, [token, shareKey, sharePassword]);
 
-  const handleDecryptAndPreview = useCallback(async () => {
-    if (!token || !shareKey) return;
-    setPageState("decrypting");
-    setErrorMsg("");
+  // Shared entry-point wrapper for both actions below: guard the key, flip to
+  // the decrypting state, run decryptFile(), and route failures through
+  // reportDecryptError. Only what happens with a successful result differs.
+  const runDecrypt = useCallback(
+    async (onSuccess: (blob: Blob, originalName: string) => void, fallbackMsg: string) => {
+      if (!token || !shareKey) return;
+      setPageState("decrypting");
+      setErrorMsg("");
 
-    try {
-      const result = await decryptFile();
-      if (!result) return;
-
-      const { blob, originalName } = result;
-      setDecryptedBlob(blob);
-      setFileName(originalName);
-
-      // Create preview URL for previewable types
-      const pType = getPreviewType(originalName);
-      if (pType !== "none") {
-        if (prevUrlRef.current) URL.revokeObjectURL(prevUrlRef.current);
-        const url = URL.createObjectURL(blob);
-        prevUrlRef.current = url;
-        setPreviewUrl(url);
+      try {
+        const result = await decryptFile();
+        if (!result) return;
+        onSuccess(result.blob, result.originalName);
+      } catch (err) {
+        reportDecryptError(err, fallbackMsg, setPageState, setErrorMsg, setSharePassword);
       }
+    },
+    [token, shareKey, decryptFile]
+  );
 
-      setPageState("preview");
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Decryption failed";
-      if (msg.toLowerCase().includes("password") || msg.toLowerCase().includes("unauthorized")) {
-        setPageState("ready");
-        setErrorMsg("Incorrect share password.");
-        setSharePassword("");
-      } else {
-        setPageState("error");
-        setErrorMsg(msg);
-      }
-    }
-  }, [token, shareKey, decryptFile]);
+  const handleDecryptAndPreview = useCallback(
+    () =>
+      runDecrypt((blob, originalName) => {
+        setDecryptedBlob(blob);
+        setFileName(originalName);
+
+        // Create preview URL for previewable types
+        const pType = getPreviewType(originalName);
+        if (pType !== "none") {
+          if (prevUrlRef.current) URL.revokeObjectURL(prevUrlRef.current);
+          const url = URL.createObjectURL(blob);
+          prevUrlRef.current = url;
+          setPreviewUrl(url);
+        }
+
+        setPageState("preview");
+      }, "Decryption failed"),
+    [runDecrypt]
+  );
 
   const handleSaveToDevice = useCallback(() => {
     if (!decryptedBlob) return;
@@ -217,32 +247,15 @@ export default function SharePage() {
   }, [decryptedBlob, fileName, info]);
 
   // Direct download (for non-previewable files, or from the ready state)
-  const handleDirectDownload = useCallback(async () => {
-    if (!token || !shareKey) return;
-    setPageState("decrypting");
-    setErrorMsg("");
-
-    try {
-      const result = await decryptFile();
-      if (!result) return;
-
-      const { blob, originalName } = result;
-      saveBlob(originalName, blob);
-
-      setPageState("done");
-      setFileName(originalName);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Download failed";
-      if (msg.toLowerCase().includes("password") || msg.toLowerCase().includes("unauthorized")) {
-        setPageState("ready");
-        setErrorMsg("Incorrect share password.");
-        setSharePassword("");
-      } else {
-        setPageState("error");
-        setErrorMsg(msg);
-      }
-    }
-  }, [token, shareKey, decryptFile]);
+  const handleDirectDownload = useCallback(
+    () =>
+      runDecrypt((blob, originalName) => {
+        saveBlob(originalName, blob);
+        setPageState("done");
+        setFileName(originalName);
+      }, "Download failed"),
+    [runDecrypt]
+  );
 
   const previewType = info ? getPreviewType(info.file_name) : "none";
   const isPreviewable = previewType !== "none";
@@ -268,25 +281,7 @@ export default function SharePage() {
 
         {pageState === "ready" && info && (
           <>
-            {/* File info header */}
-            <div className="px-6 pt-6 pb-4 border-b border-[var(--color-border)]">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center h-12 w-12 rounded-xl bg-[var(--color-accent)]/10 flex-shrink-0">
-                  <File className="h-6 w-6 text-[var(--color-accent)]" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold truncate">{info.file_name}</p>
-                  <p className="text-xs text-[var(--color-text-muted)]">
-                    {formatBytes(info.file_size)}
-                    {isPreviewable && (
-                      <span className="ml-1.5 text-[var(--color-accent)]">
-                        &middot; {previewType === "image" ? "Image" : previewType === "video" ? "Video" : "Audio"} preview available
-                      </span>
-                    )}
-                  </p>
-                </div>
-              </div>
-            </div>
+            <TokenFileHeader fileName={info.file_name} fileSize={info.file_size} previewType={previewType} />
 
             <div className="p-6 space-y-4">
               {/* Share password (only if required) */}
@@ -362,20 +357,7 @@ export default function SharePage() {
 
         {pageState === "preview" && info && (
           <>
-            {/* Preview header */}
-            <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--color-border)]">
-              <div className="flex items-center gap-2 min-w-0">
-                <Eye className="h-4 w-4 text-[var(--color-accent)] flex-shrink-0" />
-                <p className="text-sm font-semibold truncate">{fileName || info.file_name}</p>
-              </div>
-              <button
-                onClick={handleSaveToDevice}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[var(--color-accent)]/10 text-[var(--color-accent)] hover:bg-[var(--color-accent)]/20 transition-colors flex-shrink-0"
-              >
-                <Download className="h-3.5 w-3.5" />
-                Save
-              </button>
-            </div>
+            <PreviewHeader name={fileName || info.file_name} onSave={handleSaveToDevice} />
 
             {/* Preview content */}
             <MediaPreview
@@ -409,28 +391,17 @@ export default function SharePage() {
         )}
 
         {pageState === "done" && (
-          <div className="p-6">
-            <div className="flex flex-col items-center gap-3 py-4 text-center">
-              <div className="flex items-center justify-center h-12 w-12 rounded-xl bg-cyan-500/10">
-                <CheckCircle2 className="h-6 w-6 text-cyan-500" />
-              </div>
-              <div>
-                <h3 className="text-sm font-semibold">Download Complete</h3>
-                <p className="text-xs text-[var(--color-text-muted)] mt-1">
-                  {fileName || "File"} decrypted and saved to your device.
-                </p>
-              </div>
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setPageState("ready");
-                }}
-                className="mt-2"
-              >
-                Download Again
-              </Button>
-            </div>
-          </div>
+          <DownloadCompletePanel fileName={fileName}>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setPageState("ready");
+              }}
+              className="mt-2"
+            >
+              Download Again
+            </Button>
+          </DownloadCompletePanel>
         )}
       </ViewerCard>
 

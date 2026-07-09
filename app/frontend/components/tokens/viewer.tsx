@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
-import { AlertTriangle, Music, CheckCircle2, Download } from "@/lib/icons";
+import { AlertTriangle, Music, CheckCircle2, Download, File, Eye } from "@/lib/icons";
 import { formatBytes, easeProgress } from "@/lib/utils";
 
 /**
@@ -62,6 +62,39 @@ export function ViewerIncompleteLink() {
   );
 }
 
+/** Icon + filename + size (with an optional preview-available badge) atop the
+ *  credential/ready state — shared by every public token page. */
+export function TokenFileHeader({
+  fileName,
+  fileSize,
+  previewType,
+}: {
+  fileName: string;
+  fileSize: number;
+  previewType: "image" | "video" | "audio" | "none";
+}) {
+  return (
+    <div className="px-6 pt-6 pb-4 border-b border-[var(--color-border)]">
+      <div className="flex items-center gap-3">
+        <div className="flex items-center justify-center h-12 w-12 rounded-xl bg-[var(--color-accent)]/10 flex-shrink-0">
+          <File className="h-6 w-6 text-[var(--color-accent)]" />
+        </div>
+        <div className="min-w-0">
+          <p className="text-sm font-semibold truncate">{fileName}</p>
+          <p className="text-xs text-[var(--color-text-muted)]">
+            {formatBytes(fileSize)}
+            {previewType !== "none" && (
+              <span className="ml-1.5 text-[var(--color-accent)]">
+                &middot; {previewType === "image" ? "Image" : previewType === "video" ? "Video" : "Audio"} preview available
+              </span>
+            )}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** File header + eased progress bar during in-browser decryption. */
 export function ViewerDecryptProgress({
   fileName,
@@ -102,6 +135,52 @@ export function ViewerDecryptProgress({
         </div>
       </div>
     </>
+  );
+}
+
+/** Preview pane title bar: filename + a "Save" shortcut, above the media itself. */
+export function PreviewHeader({ name, onSave }: { name: string; onSave: () => void }) {
+  return (
+    <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--color-border)]">
+      <div className="flex items-center gap-2 min-w-0">
+        <Eye className="h-4 w-4 text-[var(--color-accent)] flex-shrink-0" />
+        <p className="text-sm font-semibold truncate">{name}</p>
+      </div>
+      <button
+        onClick={onSave}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[var(--color-accent)]/10 text-[var(--color-accent)] hover:bg-[var(--color-accent)]/20 transition-colors flex-shrink-0"
+      >
+        <Download className="h-3.5 w-3.5" />
+        Save
+      </button>
+    </div>
+  );
+}
+
+/** "Download Complete" confirmation panel. `children` holds any extra action
+ *  (e.g. a "Download Again" button) below the message. */
+export function DownloadCompletePanel({
+  fileName,
+  children,
+}: {
+  fileName: string;
+  children?: ReactNode;
+}) {
+  return (
+    <div className="p-6">
+      <div className="flex flex-col items-center gap-3 py-4 text-center">
+        <div className="flex items-center justify-center h-12 w-12 rounded-xl bg-cyan-500/10">
+          <CheckCircle2 className="h-6 w-6 text-cyan-500" />
+        </div>
+        <div>
+          <h3 className="text-sm font-semibold">Download Complete</h3>
+          <p className="text-xs text-[var(--color-text-muted)] mt-1">
+            {fileName || "File"} decrypted and saved to your device.
+          </p>
+        </div>
+        {children}
+      </div>
+    </div>
   );
 }
 
