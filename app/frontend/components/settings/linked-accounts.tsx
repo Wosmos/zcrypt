@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getLinkedAccounts, unlinkAccount, getOAuthURL, type LinkedAccountsResponse } from "@/lib/auth-api";
 import { useAuthStore } from "@/store/auth";
 import { toast } from "@/store/toast";
@@ -18,15 +18,15 @@ export function LinkedAccounts() {
   const [loading, setLoading] = useState(true);
   const [unlinking, setUnlinking] = useState<string | null>(null);
 
-  const refresh = () => {
+  const refresh = useCallback(() => {
     if (!accessToken) return;
     getLinkedAccounts(accessToken)
       .then(setData)
       .catch(() => {})
       .finally(() => setLoading(false));
-  };
+  }, [accessToken]);
 
-  useEffect(() => { refresh(); }, [accessToken]);
+  useEffect(() => { refresh(); }, [refresh]);
 
   const handleUnlink = async (provider: string) => {
     if (!accessToken) return;

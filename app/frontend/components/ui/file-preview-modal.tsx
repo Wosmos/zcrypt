@@ -64,7 +64,7 @@ export function FilePreviewModal({ open, onClose, blob, filename, fileSize }: Fi
       const url = URL.createObjectURL(typedBlob);
       setObjectUrl(url);
     }
-  }, [blob, previewType]);
+  }, [blob, previewType, filename]);
 
   // Trigger preview generation when modal opens with new blob
   if (open && blob && !textContent && !objectUrl) {

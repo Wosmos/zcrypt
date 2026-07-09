@@ -507,7 +507,7 @@ export function useVaultActions({
           refreshQuota();
         });
     },
-    [files, setFiles, refresh, refreshQuota]
+    [setFiles, refresh, refreshQuota]
   );
 
   const executeBulkDelete = useCallback(
@@ -534,7 +534,7 @@ export function useVaultActions({
         refreshQuota();
       }
     },
-    [files, setFiles, refresh, refreshQuota]
+    [setFiles, refresh, refreshQuota]
   );
 
   return {
