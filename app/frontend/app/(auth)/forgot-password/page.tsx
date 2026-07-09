@@ -8,7 +8,6 @@ import { forgotPassword } from "@/lib/auth-api";
 import { AuthStatusCard } from "@/components/auth/auth-status-card";
 import { AuthLink, AUTH_LINK_CLASS } from "@/components/auth/auth-link";
 import { SubmitButton } from "@/components/auth/submit-button";
-import { toast } from "@/store/toast";
 import { Mail, ArrowRight, ArrowLeft, CheckCircle2 } from "@/lib/icons";
 
 export default function ForgotPasswordPage() {

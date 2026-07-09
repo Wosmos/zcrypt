@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { X, AlertTriangle, Trash2, ShieldAlert, Info } from "@/lib/icons";
+import { X, AlertTriangle, Trash2, Info } from "@/lib/icons";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { cn } from "@/lib/utils";
 

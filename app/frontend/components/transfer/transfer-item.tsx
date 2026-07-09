@@ -18,7 +18,7 @@ import { cn, formatBytes, formatEta, easeProgress } from "@/lib/utils";
 // A single unified view-model the manager builds from the upload + download
 // stores. The manager owns store wiring; this component is presentational and
 // only calls back the handlers it's given.
-export type TransferDirection = "upload" | "download";
+type TransferDirection = "upload" | "download";
 export type TransferState =
   | "queued"
   | "active"

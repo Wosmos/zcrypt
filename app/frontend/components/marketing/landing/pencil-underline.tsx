@@ -36,7 +36,7 @@ function InkBleedFilter() {
 
 let filterRendered = false;
 
-export function PencilUnderline({
+function PencilUnderline({
   variant = "ink",
   color = "var(--color-accent)",
   className,

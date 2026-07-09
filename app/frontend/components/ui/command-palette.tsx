@@ -20,7 +20,7 @@ interface CommandPaletteState {
   toggle: () => void;
 }
 
-export const useCommandPalette = create<CommandPaletteState>((set) => ({
+const useCommandPalette = create<CommandPaletteState>((set) => ({
   open: false,
   setOpen: (open) => set({ open }),
   toggle: () => set((s) => ({ open: !s.open })),

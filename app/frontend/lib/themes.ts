@@ -11,7 +11,7 @@
  * `default` is the original zcrypt palette (no `data-theme` attribute set).
  */
 
-export interface ThemeSwatch {
+interface ThemeSwatch {
   /** Brand / action color (maps to --color-accent). */
   accent: string;
   /** App canvas (maps to --color-bg). */

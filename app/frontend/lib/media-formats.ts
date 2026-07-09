@@ -35,7 +35,7 @@ export const VIDEO_EXTENSIONS = new Set([
 ]);
 
 /** MIME type by extension for media only (octet-stream fallback handled by callers). */
-export const MEDIA_MIME_BY_EXT: Record<string, string> = {
+const MEDIA_MIME_BY_EXT: Record<string, string> = {
   // audio
   mp3: "audio/mpeg", mpeg: "audio/mpeg", mpg: "audio/mpeg", mpe: "audio/mpeg", mpga: "audio/mpeg",
   m4a: "audio/mp4", m4b: "audio/mp4", aac: "audio/aac", wav: "audio/wav", wave: "audio/wav",

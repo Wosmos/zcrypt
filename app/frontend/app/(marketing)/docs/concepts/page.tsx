@@ -4,7 +4,6 @@ import {
   DocPage,
   DocSection,
   DocP,
-  DocList,
   DocNote,
   DocTable,
 } from "@/components/docs/doc-page";

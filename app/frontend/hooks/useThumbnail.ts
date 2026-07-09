@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { getFileMeta, getFileChunk } from "@/lib/api";
 import { resolveFileKey, decryptChunk, fromBase64 } from "@/lib/crypto";
 import { isForegroundDecryptActive, onDecryptCacheClear } from "@/lib/decrypt-cache";

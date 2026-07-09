@@ -2,7 +2,6 @@
 
 import { useTheme } from "@/components/providers/theme-provider";
 import { useEffect, useState } from "react";
-import { cn } from "@/lib/utils";
 
 const CIRCUITS = [
   // col 1 (x=40)
