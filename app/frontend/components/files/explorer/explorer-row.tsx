@@ -2,10 +2,9 @@
 
 import { memo } from "react";
 import NextImage from "next/image";
-import type { ExplorerEntry, ExplorerActions } from "./types";
+import type { ExplorerItemProps, FolderItemProps, FileItemProps, RowDragProps } from "./types";
 import { explorerItemPropsEqual, FOCUS_RING, ROW_SELECTED } from "./types";
-import type { DecryptedFolder } from "@/hooks/useFolders";
-import type { FileMetadata } from "@/types";
+import { ExplorerEntryDispatch, SelectCheckbox } from "./entry-dispatch";
 import { formatBytes, formatDate, getFileTypeInfo, cn, midTrunc, fileIconFor, savingsPercent } from "@/lib/utils";
 import { useThumbnail } from "@/hooks/useThumbnail";
 import { prefetchOnHover } from "@/hooks/useFileDecryptor";
@@ -20,7 +19,6 @@ import {
   Edit,
   MoreHorizontal,
   CheckSquare,
-  Square,
   ChevronRight,
   Lock,
   Key,
@@ -33,59 +31,6 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-
-/** Drag/drop wiring passed down from the explorer (mirrors folder-browser). */
-export interface RowDragProps {
-  draggable: boolean;
-  onDragStart?: (e: React.DragEvent) => void;
-  onDragEnd?: () => void;
-  /** Touch press-start — begins the mobile press-hold-drag gesture. */
-  onTouchStart?: (e: React.TouchEvent) => void;
-  /** Drop-target handlers (folder rows only). */
-  dropHandlers?: {
-    onDragOver: (e: React.DragEvent) => void;
-    onDragLeave: (e: React.DragEvent) => void;
-    onDrop: (e: React.DragEvent) => void;
-  };
-  /** Visual states. */
-  isBeingDragged?: boolean;
-  isDropOver?: boolean;
-}
-
-interface ExplorerRowProps {
-  entry: ExplorerEntry;
-  actions: ExplorerActions;
-  /** Selection (files only). */
-  selectMode: boolean;
-  selected: boolean;
-  /** Roving focus target (gets tabIndex 0; others -1). */
-  focused: boolean;
-  onSelect: (id: string) => void;
-  /** Enter select mode with this file pre-selected (touch long-press → Select). */
-  onRequestSelect?: (fileId: string) => void;
-  /** Mouse activation on a FILE — explorer decides open vs toggle vs range. */
-  onFileClick: (file: FileMetadata, e: React.MouseEvent) => void;
-  /** Keyboard on any entry — explorer handles roving arrows / Space / Enter. */
-  onEntryKeyDown: (entry: ExplorerEntry, e: React.KeyboardEvent) => void;
-  /** Open: folder → nest in; file → details drawer. */
-  onOpenFolder: (folder: DecryptedFolder) => void;
-  /** Folder kebab actions. */
-  onRenameFolder: (folder: DecryptedFolder) => void;
-  onDeleteFolder: (folder: DecryptedFolder) => void;
-  /** Protect an unprotected folder with a password. */
-  onProtectFolder?: (folder: DecryptedFolder) => void;
-  /** Remove protection from a protected folder. */
-  onRemoveFolderPassword?: (folder: DecryptedFolder) => void;
-  /** Open the "Move to folder" dialog for a folder (keyboard-reachable C1). */
-  onMoveFolderRequest?: (folder: DecryptedFolder) => void;
-  /** Get info / details for a folder (kebab). */
-  onOpenFolderDetails?: (folder: DecryptedFolder) => void;
-  /** Create a public link for a folder (kebab). */
-  onShareFolder?: (folder: DecryptedFolder) => void;
-  /** Get info / details (kebab). Keeps the drawer reachable after click opens viewer. */
-  onOpenDetails?: (file: FileMetadata) => void;
-  drag: RowDragProps;
-}
 
 function MenuTrigger({ label }: { label: string }) {
   return (
@@ -105,6 +50,19 @@ function MenuTrigger({ label }: { label: string }) {
   );
 }
 
+/** Shared interactive-row container styling for FolderRow and FileRow. */
+function rowContainerClassName(drag: RowDragProps, idleClassName: string) {
+  return cn(
+    "group flex items-center gap-3 border-b border-[var(--color-border)] px-3 py-3 transition-all last:border-0 focus-visible:ring-inset",
+    FOCUS_RING,
+    drag.draggable ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
+    drag.isBeingDragged && "opacity-50",
+    drag.isDropOver
+      ? "bg-[var(--color-accent)]/10 ring-2 ring-inset ring-[var(--color-accent)]"
+      : idleClassName
+  );
+}
+
 function FolderRow({
   entry,
   folder,
@@ -119,21 +77,7 @@ function FolderRow({
   onOpenFolderDetails,
   onShareFolder,
   drag,
-}: {
-  entry: ExplorerEntry;
-  folder: DecryptedFolder;
-  focused: boolean;
-  onOpenFolder: (f: DecryptedFolder) => void;
-  onEntryKeyDown: (entry: ExplorerEntry, e: React.KeyboardEvent) => void;
-  onRenameFolder: (f: DecryptedFolder) => void;
-  onDeleteFolder: (f: DecryptedFolder) => void;
-  onProtectFolder?: (f: DecryptedFolder) => void;
-  onRemoveFolderPassword?: (f: DecryptedFolder) => void;
-  onMoveFolderRequest?: (f: DecryptedFolder) => void;
-  onOpenFolderDetails?: (f: DecryptedFolder) => void;
-  onShareFolder?: (f: DecryptedFolder) => void;
-  drag: RowDragProps;
-}) {
+}: FolderItemProps) {
   return (
     <div
       role="button"
@@ -146,15 +90,7 @@ function FolderRow({
       onDragStart={drag.onDragStart}
       onDragEnd={drag.onDragEnd}
       {...(drag.dropHandlers ?? {})}
-      className={cn(
-        "group flex items-center gap-3 border-b border-[var(--color-border)] px-3 py-3 transition-all last:border-0 focus-visible:ring-inset",
-        FOCUS_RING,
-        drag.draggable ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
-        drag.isBeingDragged && "opacity-50",
-        drag.isDropOver
-          ? "bg-[var(--color-accent)]/10 ring-2 ring-inset ring-[var(--color-accent)]"
-          : "hover:bg-[var(--color-surface-1)] hover:shadow-sm"
-      )}
+      className={rowContainerClassName(drag, "hover:bg-[var(--color-surface-1)] hover:shadow-sm")}
     >
       {/* Folder glyph; a small lock badge on protected folders conveys real
           state (allowed by the spec, unlike the per-file glyph we removed). */}
@@ -249,20 +185,7 @@ function FileRow({
   onEntryKeyDown,
   onOpenDetails,
   drag,
-}: {
-  entry: ExplorerEntry;
-  file: FileMetadata;
-  actions: ExplorerActions;
-  selectMode: boolean;
-  selected: boolean;
-  focused: boolean;
-  onSelect: (id: string) => void;
-  onRequestSelect?: (fileId: string) => void;
-  onFileClick: (file: FileMetadata, e: React.MouseEvent) => void;
-  onEntryKeyDown: (entry: ExplorerEntry, e: React.KeyboardEvent) => void;
-  onOpenDetails?: (file: FileMetadata) => void;
-  drag: RowDragProps;
-}) {
+}: FileItemProps) {
   const typeInfo = getFileTypeInfo(file.original_name);
   const Icon = fileIconFor(file.original_name);
   const { thumbnailUrl } = useThumbnail(file.id, file.original_name, file.original_size);
@@ -284,38 +207,15 @@ function FileRow({
       onDragStart={drag.onDragStart}
       onDragEnd={drag.onDragEnd}
       {...(drag.dropHandlers ?? {})}
-      className={cn(
-        "group flex items-center gap-3 border-b border-[var(--color-border)] px-3 py-3 transition-all last:border-0 focus-visible:ring-inset",
-        FOCUS_RING,
-        drag.draggable ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
-        drag.isBeingDragged && "opacity-50",
-        drag.isDropOver
-          ? "bg-[var(--color-accent)]/10 ring-2 ring-inset ring-[var(--color-accent)]"
-          : selected
-            ? ROW_SELECTED
-            : "hover:bg-[var(--color-surface-1)] hover:shadow-sm"
-      )}
+      className={rowContainerClassName(drag, selected ? ROW_SELECTED : "hover:bg-[var(--color-surface-1)] hover:shadow-sm")}
     >
       {selectMode && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onSelect(file.id);
-          }}
-          className={cn(
-            "flex flex-shrink-0 items-center justify-center rounded",
-            FOCUS_RING
-          )}
-          aria-label={selected ? `Deselect ${file.original_name}` : `Select ${file.original_name}`}
-          aria-pressed={selected}
-        >
-          {selected ? (
-            <CheckSquare className="h-4 w-4 text-[var(--color-accent)]" />
-          ) : (
-            <Square className="h-4 w-4 text-[var(--color-text-muted)]" />
-          )}
-        </button>
+        <SelectCheckbox
+          file={file}
+          selected={selected}
+          onSelect={onSelect}
+          className="flex flex-shrink-0 items-center justify-center rounded"
+        />
       )}
       <div
         className={cn(
@@ -404,62 +304,8 @@ function FileRow({
   );
 }
 
-function ExplorerRowImpl({
-  entry,
-  actions,
-  selectMode,
-  selected,
-  focused,
-  onSelect,
-  onRequestSelect,
-  onFileClick,
-  onEntryKeyDown,
-  onOpenFolder,
-  onRenameFolder,
-  onDeleteFolder,
-  onProtectFolder,
-  onRemoveFolderPassword,
-  onMoveFolderRequest,
-  onOpenFolderDetails,
-  onShareFolder,
-  onOpenDetails,
-  drag,
-}: ExplorerRowProps) {
-  if (entry.kind === "folder") {
-    return (
-      <FolderRow
-        entry={entry}
-        folder={entry.folder}
-        focused={focused}
-        onOpenFolder={onOpenFolder}
-        onEntryKeyDown={onEntryKeyDown}
-        onRenameFolder={onRenameFolder}
-        onDeleteFolder={onDeleteFolder}
-        onProtectFolder={onProtectFolder}
-        onRemoveFolderPassword={onRemoveFolderPassword}
-        onMoveFolderRequest={onMoveFolderRequest}
-        onOpenFolderDetails={onOpenFolderDetails}
-        onShareFolder={onShareFolder}
-        drag={drag}
-      />
-    );
-  }
-  return (
-    <FileRow
-      entry={entry}
-      file={entry.file}
-      actions={actions}
-      selectMode={selectMode}
-      selected={selected}
-      focused={focused}
-      onSelect={onSelect}
-      onRequestSelect={onRequestSelect}
-      onFileClick={onFileClick}
-      onEntryKeyDown={onEntryKeyDown}
-      onOpenDetails={onOpenDetails ?? actions.onOpenDetails}
-      drag={drag}
-    />
-  );
+function ExplorerRowImpl(props: ExplorerItemProps) {
+  return <ExplorerEntryDispatch {...props} FolderView={FolderRow} FileView={FileRow} />;
 }
 
 /**

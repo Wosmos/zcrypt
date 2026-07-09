@@ -48,6 +48,98 @@ export interface ExplorerActions {
   onMoveRequest?: (fileId: string) => void;
 }
 
+/** Drag/drop wiring passed down from the explorer (mirrors folder-browser). */
+export interface RowDragProps {
+  draggable: boolean;
+  onDragStart?: (e: React.DragEvent) => void;
+  onDragEnd?: () => void;
+  /** Touch press-start — begins the mobile press-hold-drag gesture. */
+  onTouchStart?: (e: React.TouchEvent) => void;
+  /** Drop-target handlers (folder rows only). */
+  dropHandlers?: {
+    onDragOver: (e: React.DragEvent) => void;
+    onDragLeave: (e: React.DragEvent) => void;
+    onDrop: (e: React.DragEvent) => void;
+  };
+  /** Visual states. */
+  isBeingDragged?: boolean;
+  isDropOver?: boolean;
+}
+
+/**
+ * Full prop contract shared by ExplorerRow and ExplorerCard — the list and grid
+ * renderers for the same explorer entry. Byte-identical between the two (list
+ * vs grid is purely a layout choice), so it lives here once: adding a field to
+ * one view without the other would silently drift otherwise.
+ */
+export interface ExplorerItemProps {
+  entry: ExplorerEntry;
+  actions: ExplorerActions;
+  /** Selection (files only). */
+  selectMode: boolean;
+  selected: boolean;
+  /** Roving focus target (gets tabIndex 0; others -1). */
+  focused: boolean;
+  onSelect: (id: string) => void;
+  /** Enter select mode with this file pre-selected (touch long-press → Select). */
+  onRequestSelect?: (fileId: string) => void;
+  /** Mouse activation on a FILE — explorer decides open vs toggle vs range. */
+  onFileClick: (file: FileMetadata, e: React.MouseEvent) => void;
+  /** Keyboard on any entry — explorer handles roving arrows / Space / Enter. */
+  onEntryKeyDown: (entry: ExplorerEntry, e: React.KeyboardEvent) => void;
+  /** Open: folder → nest in; file → details drawer. */
+  onOpenFolder: (folder: DecryptedFolder) => void;
+  /** Folder kebab actions. */
+  onRenameFolder: (folder: DecryptedFolder) => void;
+  onDeleteFolder: (folder: DecryptedFolder) => void;
+  /** Protect an unprotected folder with a password. */
+  onProtectFolder?: (folder: DecryptedFolder) => void;
+  /** Remove protection from a protected folder. */
+  onRemoveFolderPassword?: (folder: DecryptedFolder) => void;
+  /** Open the "Move to folder" dialog for a folder (keyboard-reachable C1). */
+  onMoveFolderRequest?: (folder: DecryptedFolder) => void;
+  /** Get info / details for a folder (kebab). */
+  onOpenFolderDetails?: (folder: DecryptedFolder) => void;
+  /** Create a public link for a folder (kebab). */
+  onShareFolder?: (folder: DecryptedFolder) => void;
+  /** Get info / details (kebab). Keeps the drawer reachable after click opens viewer. */
+  onOpenDetails?: (file: FileMetadata) => void;
+  drag: RowDragProps;
+}
+
+/** Folder-only subset of ExplorerItemProps — shared by FolderCard and FolderRow. */
+export type FolderItemProps = Pick<
+  ExplorerItemProps,
+  | "entry"
+  | "focused"
+  | "onOpenFolder"
+  | "onEntryKeyDown"
+  | "onRenameFolder"
+  | "onDeleteFolder"
+  | "onProtectFolder"
+  | "onRemoveFolderPassword"
+  | "onMoveFolderRequest"
+  | "onOpenFolderDetails"
+  | "onShareFolder"
+  | "drag"
+> & { folder: DecryptedFolder };
+
+/** File-only subset of ExplorerItemProps — shared by FileCardInner and FileRow. */
+export type FileItemProps = Pick<
+  ExplorerItemProps,
+  | "entry"
+  | "actions"
+  | "selectMode"
+  | "selected"
+  | "focused"
+  | "onSelect"
+  | "onRequestSelect"
+  | "onFileClick"
+  | "onEntryKeyDown"
+  | "onOpenDetails"
+  | "drag"
+> & { file: FileMetadata };
+
 /**
  * Shared `React.memo` comparator for ExplorerRow / ExplorerCard.
  *
