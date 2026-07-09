@@ -156,6 +156,23 @@ const pillars: CapabilityItem[] = [
   },
 ];
 
+/** "Go deeper" links shown at the bottom of every vs/* page — the same two
+ *  feature deep-dives regardless of which competitor the page compares against. */
+export const VS_RELATED_LINKS: RelatedLinkItem[] = [
+  {
+    href: "/features/encrypted-drive",
+    Icon: FolderOpen,
+    title: "The encrypted drive",
+    desc: "Real folders, search, and previews — with a zero-knowledge layer underneath.",
+  },
+  {
+    href: "/features/encryption",
+    Icon: Eye,
+    title: "How the encryption works",
+    desc: "AES-256-GCM, client-side keys, and what the server can and can't see.",
+  },
+];
+
 export const dropbox: VsData = {
   slug: "dropbox",
   otherName: "Dropbox",
@@ -235,20 +252,7 @@ export const dropbox: VsData = {
       </>,
     ],
   },
-  related: [
-    {
-      href: "/features/encrypted-drive",
-      Icon: FolderOpen,
-      title: "The encrypted drive",
-      desc: "Real folders, search, and previews — with a zero-knowledge layer underneath.",
-    },
-    {
-      href: "/features/encryption",
-      Icon: Eye,
-      title: "How the encryption works",
-      desc: "AES-256-GCM, client-side keys, and what the server can and can't see.",
-    },
-  ],
+  related: VS_RELATED_LINKS,
   closing: {
     heading: "Keep the convenience. Drop the access.",
     subtext:

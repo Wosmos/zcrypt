@@ -503,9 +503,8 @@ export default function DemoClient() {
       ) : (
         <>
           <div>
-            {/* Mobile: compact list */}
-            <div className="space-y-1.5 md:hidden">
-              {paginatedFiles.map((file) => (
+            {(() => {
+              const cards = paginatedFiles.map((file) => (
                 <FileCard
                   key={file.id}
                   file={file}
@@ -517,24 +516,16 @@ export default function DemoClient() {
                   selected={selectedIds.has(file.id)}
                   onSelect={toggleSelect}
                 />
-              ))}
-            </div>
-            {/* Desktop: grid */}
-            <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {paginatedFiles.map((file) => (
-                <FileCard
-                  key={file.id}
-                  file={file}
-                  downloadState={downloadStates[file.id] || "idle"}
-                  onDownload={readOnlyStr}
-                  onDelete={readOnlyStr}
-                  onPreview={readOnlyStr}
-                  selectable={selectionMode}
-                  selected={selectedIds.has(file.id)}
-                  onSelect={toggleSelect}
-                />
-              ))}
-            </div>
+              ));
+              return (
+                <>
+                  {/* Mobile: compact list */}
+                  <div className="space-y-1.5 md:hidden">{cards}</div>
+                  {/* Desktop: grid */}
+                  <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-3">{cards}</div>
+                </>
+              );
+            })()}
           </div>
           <Pagination
             currentPage={safePage}

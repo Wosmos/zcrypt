@@ -1,7 +1,7 @@
-import { Lock, HardDrive, Eye, FolderOpen, Github, Terminal } from "@/lib/icons";
+import { Lock, HardDrive, Github, Terminal } from "@/lib/icons";
 import type { ComparisonRow } from "@/components/marketing/features/comparison-table";
 import type { CapabilityItem } from "@/components/marketing/features/capability-grid";
-import type { VsData } from "./dropbox";
+import { type VsData, VS_RELATED_LINKS } from "./dropbox";
 
 const rows: ComparisonRow[] = [
   {
@@ -239,20 +239,7 @@ export const protonDrive: VsData = {
       </>,
     ],
   },
-  related: [
-    {
-      href: "/features/encrypted-drive",
-      Icon: FolderOpen,
-      title: "The encrypted drive",
-      desc: "Real folders, search, and previews — with a zero-knowledge layer underneath.",
-    },
-    {
-      href: "/features/encryption",
-      Icon: Eye,
-      title: "How the encryption works",
-      desc: "AES-256-GCM, client-side keys, and what the server can and can't see.",
-    },
-  ],
+  related: VS_RELATED_LINKS,
   closing: {
     heading: "End-to-end encrypted, and entirely yours",
     subtext:

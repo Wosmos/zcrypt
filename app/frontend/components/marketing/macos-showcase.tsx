@@ -514,13 +514,27 @@ function DockIcon({
   );
 }
 
-// ─── Video Modal ───────────────────────────────────────────
-function VideoModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+/**
+ * Dimmed, blurred backdrop shared by every centered "dialog" scene (Video,
+ * Website, Easter Egg, About This Mac) — fades in/out, click-to-close on the
+ * backdrop itself. `className` carries each scene's own flex/padding needs.
+ */
+function ModalBackdrop({
+  open,
+  onClose,
+  className = "",
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  className?: string;
+  children: React.ReactNode;
+}) {
   return (
     <AnimatePresence>
       {open && (
         <motion.div
-          className="absolute inset-0 z-50 flex items-center justify-center"
+          className={`absolute inset-0 z-50 flex items-center justify-center ${className}`}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -534,26 +548,57 @@ function VideoModal({ open, onClose }: { open: boolean; onClose: () => void }) {
               backdropFilter: "blur(8px)",
             }}
           />
-          <motion.div
-            className="relative w-[85%] max-w-xl"
-            initial={{ scale: 0.15, opacity: 0, y: 180 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.15, opacity: 0, y: 180 }}
-            transition={{
-              type: "spring",
-              stiffness: 400,
-              damping: 32,
-              mass: 0.7,
-            }}
-            style={
-              {
-                borderRadius: 10,
-                boxShadow:
-                  "0 24px 80px -12px rgba(0,0,0,0.6), 0 0 0 0.5px rgba(255,255,255,0.1)",
-              } as React.CSSProperties
-            }
-          >
-            <div
+          {children}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+/**
+ * The "drop and bounce" panel entrance shared by Video and Easter Egg
+ * modals (Website and About This Mac use a subtler scale-up and stay
+ * separate). `style` merges on top of the shared radius/shadow.
+ */
+function BouncePanel({
+  className,
+  style,
+  children,
+}: {
+  className?: string;
+  style?: React.CSSProperties;
+  children: React.ReactNode;
+}) {
+  return (
+    <motion.div
+      className={className}
+      initial={{ scale: 0.15, opacity: 0, y: 180 }}
+      animate={{ scale: 1, opacity: 1, y: 0 }}
+      exit={{ scale: 0.15, opacity: 0, y: 180 }}
+      transition={{
+        type: "spring",
+        stiffness: 400,
+        damping: 32,
+        mass: 0.7,
+      }}
+      style={{
+        borderRadius: 10,
+        boxShadow:
+          "0 24px 80px -12px rgba(0,0,0,0.6), 0 0 0 0.5px rgba(255,255,255,0.1)",
+        ...style,
+      }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+// ─── Video Modal ───────────────────────────────────────────
+function VideoModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  return (
+    <ModalBackdrop open={open} onClose={onClose}>
+      <BouncePanel className="relative w-[85%] max-w-xl">
+        <div
               className="flex items-center px-3.5 py-2 rounded-t-[10px]"
               style={{
                 background: "linear-gradient(180deg, #3a3a3c 0%, #2c2c2e 100%)",
@@ -600,10 +645,8 @@ function VideoModal({ open, onClose }: { open: boolean; onClose: () => void }) {
                 </p>
               </div>
             </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+      </BouncePanel>
+    </ModalBackdrop>
   );
 }
 
@@ -616,65 +659,47 @@ function WebsiteModal({
   onClose: () => void;
 }) {
   return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          className="absolute inset-0 z-50 flex items-center justify-center p-4 pointer-events-auto"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.15 }}
+    <ModalBackdrop open={open} onClose={onClose} className="p-4 pointer-events-auto">
+      <motion.div
+        className="relative w-[95%] h-[90%] max-w-5xl flex flex-col pointer-events-auto"
+        initial={{ scale: 0.9, opacity: 0, y: 50 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.9, opacity: 0, y: 50 }}
+        transition={{
+          type: "spring",
+          stiffness: 400,
+          damping: 32,
+          mass: 0.7,
+        }}
+        style={{
+          borderRadius: 10,
+          boxShadow:
+            "0 24px 80px -12px rgba(0,0,0,0.6), 0 0 0 0.5px rgba(255,255,255,0.1)",
+          background: "#ffffff",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          className="flex items-center px-3.5 py-2 shrink-0"
+          style={{
+            background: "linear-gradient(180deg, #e5e5ea 0%, #d1d1d6 100%)",
+            borderBottom: "1px solid rgba(0,0,0,0.15)",
+          }}
         >
-          <div
-            className="absolute inset-0"
-            onClick={onClose}
-            style={{
-              background: "rgba(0,0,0,0.45)",
-              backdropFilter: "blur(8px)",
-            }}
-          />
-          <motion.div
-            className="relative w-[95%] h-[90%] max-w-5xl flex flex-col pointer-events-auto"
-            initial={{ scale: 0.9, opacity: 0, y: 50 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.9, opacity: 0, y: 50 }}
-            transition={{
-              type: "spring",
-              stiffness: 400,
-              damping: 32,
-              mass: 0.7,
-            }}
-            style={{
-              borderRadius: 10,
-              boxShadow:
-                "0 24px 80px -12px rgba(0,0,0,0.6), 0 0 0 0.5px rgba(255,255,255,0.1)",
-              background: "#ffffff",
-              overflow: "hidden",
-            }}
-          >
-            <div
-              className="flex items-center px-3.5 py-2 shrink-0"
-              style={{
-                background: "linear-gradient(180deg, #e5e5ea 0%, #d1d1d6 100%)",
-                borderBottom: "1px solid rgba(0,0,0,0.15)",
-              }}
-            >
-              <TrafficLights onClose={onClose} />
-              <div className="flex-1 flex justify-center">
-                <div className="bg-white text-black text-[11px] px-8 py-1.5 rounded-md shadow-sm border border-black/10 flex items-center gap-2">
-                  <Shield className="w-3 h-3 text-gray-500" />
-                  zcrypt.com
-                </div>
-              </div>
-              <div style={{ width: TRAFFIC_LIGHTS_W }} className="shrink-0" />
+          <TrafficLights onClose={onClose} />
+          <div className="flex-1 flex justify-center">
+            <div className="bg-white text-black text-[11px] px-8 py-1.5 rounded-md shadow-sm border border-black/10 flex items-center gap-2">
+              <Shield className="w-3 h-3 text-gray-500" />
+              zcrypt.com
             </div>
-            <div className="flex-1 w-full bg-white relative">
-              <iframe src="/" className="w-full h-full border-none" />
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+          </div>
+          <div style={{ width: TRAFFIC_LIGHTS_W }} className="shrink-0" />
+        </div>
+        <div className="flex-1 w-full bg-white relative">
+          <iframe src="/" className="w-full h-full border-none" />
+        </div>
+      </motion.div>
+    </ModalBackdrop>
   );
 }
 
@@ -687,103 +712,73 @@ function EasterEggModal({
   onClose: () => void;
 }) {
   return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          className="absolute inset-0 z-50 flex items-center justify-center p-4"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.15 }}
+    <ModalBackdrop open={open} onClose={onClose} className="p-4">
+      <BouncePanel
+        className="relative w-[70%] max-w-lg"
+        style={{
+          background: "rgba(30, 30, 30, 0.85)",
+          backdropFilter: "blur(20px)",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          className="flex items-center px-3.5 py-2 rounded-t-[10px]"
+          style={{
+            background:
+              "linear-gradient(180deg, rgba(60,60,60,0.6) 0%, rgba(40,40,40,0.6) 100%)",
+            borderBottom: "0.5px solid rgba(0,0,0,0.4)",
+          }}
         >
-          <div
-            className="absolute inset-0"
-            onClick={onClose}
-            style={{
-              background: "rgba(0,0,0,0.45)",
-              backdropFilter: "blur(8px)",
-            }}
-          />
+          <TrafficLights onClose={onClose} />
+          <span className="flex-1 text-center text-[11px] text-gray-300 font-mono">
+            zcrypt_secrets.sh
+          </span>
+          <div style={{ width: TRAFFIC_LIGHTS_W }} className="shrink-0" />
+        </div>
+        <div className="p-6 font-mono text-xs text-green-400 h-[250px] overflow-auto flex flex-col justify-end">
           <motion.div
-            className="relative w-[70%] max-w-lg"
-            initial={{ scale: 0.15, opacity: 0, y: 180 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.15, opacity: 0, y: 180 }}
-            transition={{
-              type: "spring",
-              stiffness: 400,
-              damping: 32,
-              mass: 0.7,
-            }}
-            style={{
-              borderRadius: 10,
-              boxShadow:
-                "0 24px 80px -12px rgba(0,0,0,0.6), 0 0 0 0.5px rgba(255,255,255,0.1)",
-              background: "rgba(30, 30, 30, 0.85)",
-              backdropFilter: "blur(20px)",
-              overflow: "hidden",
-            }}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
           >
-            <div
-              className="flex items-center px-3.5 py-2 rounded-t-[10px]"
-              style={{
-                background:
-                  "linear-gradient(180deg, rgba(60,60,60,0.6) 0%, rgba(40,40,40,0.6) 100%)",
-                borderBottom: "0.5px solid rgba(0,0,0,0.4)",
-              }}
+            <p>$ ./zcrypt_secrets.sh</p>
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 1 }}
+              className="mt-2 text-blue-400"
             >
-              <TrafficLights onClose={onClose} />
-              <span className="flex-1 text-center text-[11px] text-gray-300 font-mono">
-                zcrypt_secrets.sh
+              Loading classified data...
+            </motion.p>
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 2 }}
+              className="mt-1 text-yellow-400"
+            >
+              Decrypting mainframe...
+            </motion.p>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 3, type: "spring" }}
+              className="mt-4 text-white text-center"
+            >
+              <span className="text-4xl block mb-2">🚀</span>
+              <span className="font-bold text-sm tracking-wider uppercase text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">
+                You found the secret!
               </span>
-              <div style={{ width: TRAFFIC_LIGHTS_W }} className="shrink-0" />
-            </div>
-            <div className="p-6 font-mono text-xs text-green-400 h-[250px] overflow-auto flex flex-col justify-end">
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-              >
-                <p>$ ./zcrypt_secrets.sh</p>
-                <motion.p
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 1 }}
-                  className="mt-2 text-blue-400"
-                >
-                  Loading classified data...
-                </motion.p>
-                <motion.p
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 2 }}
-                  className="mt-1 text-yellow-400"
-                >
-                  Decrypting mainframe...
-                </motion.p>
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 3, type: "spring" }}
-                  className="mt-4 text-white text-center"
-                >
-                  <span className="text-4xl block mb-2">🚀</span>
-                  <span className="font-bold text-sm tracking-wider uppercase text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">
-                    You found the secret!
-                  </span>
-                  <p className="mt-2 text-cyan-400 font-normal">
-                    Antigravity FTW.
-                  </p>
-                </motion.div>
-                <div className="flex items-center gap-2 mt-4 text-gray-400">
-                  <span className="animate-pulse">_</span>
-                </div>
-              </motion.div>
+              <p className="mt-2 text-cyan-400 font-normal">
+                Antigravity FTW.
+              </p>
+            </motion.div>
+            <div className="flex items-center gap-2 mt-4 text-gray-400">
+              <span className="animate-pulse">_</span>
             </div>
           </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+        </div>
+      </BouncePanel>
+    </ModalBackdrop>
   );
 }
 
@@ -796,43 +791,27 @@ function AboutThisMacModal({
   onClose: () => void;
 }) {
   return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          className="absolute inset-0 z-50 flex items-center justify-center p-4"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.15 }}
-        >
-          <div
-            className="absolute inset-0"
-            onClick={onClose}
-            style={{
-              background: "rgba(0,0,0,0.45)",
-              backdropFilter: "blur(8px)",
-            }}
-          />
-          <motion.div
-            className="relative w-[65%] max-w-sm"
-            initial={{ scale: 0.9, opacity: 0, y: 30 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.9, opacity: 0, y: 30 }}
-            transition={{
-              type: "spring",
-              stiffness: 400,
-              damping: 32,
-              mass: 0.7,
-            }}
-            style={{
-              borderRadius: 12,
-              boxShadow:
-                "0 24px 80px -12px rgba(0,0,0,0.6), 0 0 0 0.5px rgba(255,255,255,0.1)",
-              background: "rgba(30,30,30,0.92)",
-              backdropFilter: "blur(40px)",
-              overflow: "hidden",
-            }}
-          >
+    <ModalBackdrop open={open} onClose={onClose} className="p-4">
+      <motion.div
+        className="relative w-[65%] max-w-sm"
+        initial={{ scale: 0.9, opacity: 0, y: 30 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.9, opacity: 0, y: 30 }}
+        transition={{
+          type: "spring",
+          stiffness: 400,
+          damping: 32,
+          mass: 0.7,
+        }}
+        style={{
+          borderRadius: 12,
+          boxShadow:
+            "0 24px 80px -12px rgba(0,0,0,0.6), 0 0 0 0.5px rgba(255,255,255,0.1)",
+          background: "rgba(30,30,30,0.92)",
+          backdropFilter: "blur(40px)",
+          overflow: "hidden",
+        }}
+      >
             {/* Title bar */}
             <div
               className="flex items-center px-3.5 py-2"
@@ -938,10 +917,8 @@ function AboutThisMacModal({
                 </div>
               </div>
             </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+      </motion.div>
+    </ModalBackdrop>
   );
 }
 
@@ -967,6 +944,39 @@ const SPOTLIGHT_RESULTS = [
     subtitle: "Application",
   },
 ];
+
+/**
+ * Invisible click-catching scrim shared by the menu-bar-style dropdowns
+ * (Spotlight, Control Center) — unlike ModalBackdrop's dialogs, the desktop
+ * stays visible behind these, matching real macOS. Each panel keeps its own
+ * position/entrance animation as `children`.
+ */
+function DropdownScrim({
+  open,
+  onClose,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          className="absolute inset-0 z-50"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.1 }}
+        >
+          <div className="absolute inset-0" onClick={onClose} />
+          {children}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
 
 function SpotlightOverlay({
   open,
@@ -1001,87 +1011,76 @@ function SpotlightOverlay({
     : SPOTLIGHT_RESULTS.slice(0, 5);
 
   return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          className="absolute inset-0 z-50"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.1 }}
+    <DropdownScrim open={open} onClose={onClose}>
+      <motion.div
+        className="absolute left-1/2 -translate-x-1/2 w-[55%] max-w-md"
+        style={{ top: 45 }}
+        initial={{ opacity: 0, scale: 0.95, y: -10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: -10 }}
+        transition={{ duration: 0.15 }}
+      >
+        <div
+          className="rounded-xl overflow-hidden"
+          style={{
+            background: "rgba(30,30,32,0.92)",
+            backdropFilter: "blur(40px) saturate(1.8)",
+            boxShadow:
+              "0 24px 80px -12px rgba(0,0,0,0.5), 0 0 0 0.5px rgba(255,255,255,0.1)",
+          }}
         >
-          <div className="absolute inset-0" onClick={onClose} />
-          <motion.div
-            className="absolute left-1/2 -translate-x-1/2 w-[55%] max-w-md"
-            style={{ top: 45 }}
-            initial={{ opacity: 0, scale: 0.95, y: -10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: -10 }}
-            transition={{ duration: 0.15 }}
-          >
-            <div
-              className="rounded-xl overflow-hidden"
-              style={{
-                background: "rgba(30,30,32,0.92)",
-                backdropFilter: "blur(40px) saturate(1.8)",
-                boxShadow:
-                  "0 24px 80px -12px rgba(0,0,0,0.5), 0 0 0 0.5px rgba(255,255,255,0.1)",
-              }}
-            >
-              {/* Search input */}
-              <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/[0.06]">
-                <Search className="w-4 h-4 text-gray-500 shrink-0" />
-                <input
-                  ref={inputRef}
-                  type="text"
-                  placeholder="Spotlight Search"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  className="flex-1 bg-transparent text-[13px] text-white placeholder-gray-500 outline-none"
-                />
-              </div>
+          {/* Search input */}
+          <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/[0.06]">
+            <Search className="w-4 h-4 text-gray-500 shrink-0" />
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder="Spotlight Search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="flex-1 bg-transparent text-[13px] text-white placeholder-gray-500 outline-none"
+            />
+          </div>
 
-              {/* Results */}
-              {filtered.length > 0 && (
-                <div className="py-1.5 max-h-[240px] overflow-auto">
-                  <p className="px-3 py-1 text-[10px] text-gray-500 font-semibold uppercase tracking-wider">
-                    Top Results
-                  </p>
-                  {filtered.map((result) => {
-                    const Icon = result.icon;
-                    return (
-                      <button
-                        key={result.label}
-                        onClick={onClose}
-                        className="w-full flex items-center gap-3 px-3 py-2 hover:bg-blue-500/20 transition-colors text-left"
-                      >
-                        <div className="w-7 h-7 rounded-lg bg-white/[0.06] flex items-center justify-center shrink-0">
-                          <Icon className="w-3.5 h-3.5 text-gray-400" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-[12px] text-gray-200 truncate">
-                            {result.label}
-                          </p>
-                          <p className="text-[10px] text-gray-500 truncate">
-                            {result.subtitle}
-                          </p>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-
-              {query && filtered.length === 0 && (
-                <div className="py-6 text-center">
-                  <p className="text-[12px] text-gray-500">No results found</p>
-                </div>
-              )}
+          {/* Results */}
+          {filtered.length > 0 && (
+            <div className="py-1.5 max-h-[240px] overflow-auto">
+              <p className="px-3 py-1 text-[10px] text-gray-500 font-semibold uppercase tracking-wider">
+                Top Results
+              </p>
+              {filtered.map((result) => {
+                const Icon = result.icon;
+                return (
+                  <button
+                    key={result.label}
+                    onClick={onClose}
+                    className="w-full flex items-center gap-3 px-3 py-2 hover:bg-blue-500/20 transition-colors text-left"
+                  >
+                    <div className="w-7 h-7 rounded-lg bg-white/[0.06] flex items-center justify-center shrink-0">
+                      <Icon className="w-3.5 h-3.5 text-gray-400" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[12px] text-gray-200 truncate">
+                        {result.label}
+                      </p>
+                      <p className="text-[10px] text-gray-500 truncate">
+                        {result.subtitle}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+          )}
+
+          {query && filtered.length === 0 && (
+            <div className="py-6 text-center">
+              <p className="text-[12px] text-gray-500">No results found</p>
+            </div>
+          )}
+        </div>
+      </motion.div>
+    </DropdownScrim>
   );
 }
 
@@ -1106,38 +1105,29 @@ function ControlCenterPanel({
   }, [online]);
 
   return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          className="absolute inset-0 z-50"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.1 }}
+    <DropdownScrim open={open} onClose={onClose}>
+      <motion.div
+        className="absolute right-3 w-[200px]"
+        style={{ top: 30 }}
+        initial={{ opacity: 0, scale: 0.9, y: -8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.9, y: -8 }}
+        transition={{
+          type: "spring",
+          stiffness: 500,
+          damping: 30,
+          mass: 0.5,
+        }}
+      >
+        <div
+          className="rounded-2xl overflow-hidden p-2.5 space-y-2"
+          style={{
+            background: "rgba(30,30,32,0.88)",
+            backdropFilter: "blur(40px) saturate(1.8)",
+            boxShadow:
+              "0 24px 80px -12px rgba(0,0,0,0.5), 0 0 0 0.5px rgba(255,255,255,0.1)",
+          }}
         >
-          <div className="absolute inset-0" onClick={onClose} />
-          <motion.div
-            className="absolute right-3 w-[200px]"
-            style={{ top: 30 }}
-            initial={{ opacity: 0, scale: 0.9, y: -8 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: -8 }}
-            transition={{
-              type: "spring",
-              stiffness: 500,
-              damping: 30,
-              mass: 0.5,
-            }}
-          >
-            <div
-              className="rounded-2xl overflow-hidden p-2.5 space-y-2"
-              style={{
-                background: "rgba(30,30,32,0.88)",
-                backdropFilter: "blur(40px) saturate(1.8)",
-                boxShadow:
-                  "0 24px 80px -12px rgba(0,0,0,0.5), 0 0 0 0.5px rgba(255,255,255,0.1)",
-              }}
-            >
               {/* Toggle grid */}
               <div className="grid grid-cols-2 gap-2">
                 {/* Wi-Fi */}
@@ -1251,10 +1241,8 @@ function ControlCenterPanel({
                 </div>
               </div>
             </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+      </motion.div>
+    </DropdownScrim>
   );
 }
 
@@ -1344,7 +1332,18 @@ function MenuBarDropdown({
 }
 
 // ─── Scaled App iFrame ─────────────────────────────────────
-function ScaledAppFrame({ visible }: { visible: boolean }) {
+/** Scales a logical-pixel-sized `/demo` iframe down to fit its wrapper's
+ *  measured width — shared by the desktop and iPad showcase scenes, which
+ *  differ only in which logical width/height they scale from. */
+function ScaledIframeFrame({
+  visible,
+  logicalWidth,
+  logicalHeight,
+}: {
+  visible: boolean;
+  logicalWidth: number;
+  logicalHeight: number;
+}) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
 
@@ -1353,13 +1352,13 @@ function ScaledAppFrame({ visible }: { visible: boolean }) {
     if (!el) return;
     const obs = new ResizeObserver(([entry]) => {
       const w = entry.contentRect.width;
-      setScale(w / IFRAME_LOGICAL_W);
+      setScale(w / logicalWidth);
     });
     obs.observe(el);
     return () => obs.disconnect();
-  }, []);
+  }, [logicalWidth]);
 
-  const scaledH = Math.round(IFRAME_LOGICAL_H * scale);
+  const scaledH = Math.round(logicalHeight * scale);
 
   return (
     <div
@@ -1376,55 +1375,8 @@ function ScaledAppFrame({ visible }: { visible: boolean }) {
           src="/demo"
           title="zcrypt app"
           style={{
-            width: IFRAME_LOGICAL_W,
-            height: IFRAME_LOGICAL_H,
-            border: "none",
-            transformOrigin: "top left",
-            transform: `scale(${scale})`,
-            pointerEvents: scale > 0 ? "auto" : "none",
-          }}
-          sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-        />
-      )}
-    </div>
-  );
-}
-
-// ─── Scaled iPad iFrame ────────────────────────────────────
-function ScaledIPadFrame({ visible }: { visible: boolean }) {
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(1);
-
-  useEffect(() => {
-    const el = wrapRef.current;
-    if (!el) return;
-    const obs = new ResizeObserver(([entry]) => {
-      const w = entry.contentRect.width;
-      setScale(w / IPAD_LOGICAL_W);
-    });
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
-
-  const scaledH = Math.round(IPAD_LOGICAL_H * scale);
-
-  return (
-    <div
-      ref={wrapRef}
-      style={{
-        width: "100%",
-        height: scaledH,
-        overflow: "hidden",
-        position: "relative",
-      }}
-    >
-      {visible && (
-        <iframe
-          src="/demo"
-          title="zcrypt app"
-          style={{
-            width: IPAD_LOGICAL_W,
-            height: IPAD_LOGICAL_H,
+            width: logicalWidth,
+            height: logicalHeight,
             border: "none",
             transformOrigin: "top left",
             transform: `scale(${scale})`,
@@ -1552,7 +1504,7 @@ function IPadShowcase({
           </div>
 
           {/* iPad iframe */}
-          <ScaledIPadFrame visible={isInView} />
+          <ScaledIframeFrame visible={isInView} logicalWidth={IPAD_LOGICAL_W} logicalHeight={IPAD_LOGICAL_H} />
         </div>
 
         {/* Home indicator */}
@@ -1876,7 +1828,7 @@ export function MacOSShowcase() {
                 </div>
 
                 {/* ── REAL APP IFRAME ── */}
-                <ScaledAppFrame visible={isInView} />
+                <ScaledIframeFrame visible={isInView} logicalWidth={IFRAME_LOGICAL_W} logicalHeight={IFRAME_LOGICAL_H} />
 
                 {/* ── DOCK ── */}
                 <div
