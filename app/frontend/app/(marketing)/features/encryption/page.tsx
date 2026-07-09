@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import {
-  ArrowRight,
   Lock,
   Key,
   Shield,
@@ -10,7 +8,6 @@ import {
   Server,
   Folder,
   Eye,
-  Check,
   X,
 } from "@/lib/icons";
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
@@ -18,6 +15,9 @@ import { FeatureHero } from "@/components/marketing/features/feature-hero";
 import { CapabilityGrid } from "@/components/marketing/features/capability-grid";
 import { RelatedLinks } from "@/components/marketing/features/related-links";
 import { CtaSection } from "@/components/marketing/features/cta-section";
+import { TieInSection } from "@/components/marketing/features/tie-in-section";
+import { IconList } from "@/components/marketing/features/icon-list";
+import { CodePanel } from "@/components/marketing/features/code-panel";
 
 export const metadata: Metadata = {
   title: "Zero-Knowledge Encryption — AES-256-GCM, Encrypted on Your Device",
@@ -148,19 +148,17 @@ export default function EncryptionPage() {
                   </div>
                 </div>
               </div>
-              <ul className="space-y-2 text-xs text-[var(--color-text-secondary)]">
-                {[
+              <IconList
+                items={[
                   "Passphrase entered here, stays here",
                   "Key derived locally (PBKDF2)",
                   "Files + names encrypted (AES-256-GCM)",
                   "Plaintext never leaves",
-                ].map((t) => (
-                  <li key={t} className="flex items-start gap-2">
-                    <Check className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-cyan-500" strokeWidth={3} />
-                    {t}
-                  </li>
-                ))}
-              </ul>
+                ]}
+                iconClassName="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-cyan-500"
+                itemClassName="flex items-start gap-2"
+                className="space-y-2 text-xs text-[var(--color-text-secondary)]"
+              />
             </div>
 
             {/* boundary */}
@@ -185,19 +183,18 @@ export default function EncryptionPage() {
                   </div>
                 </div>
               </div>
-              <ul className="space-y-2 text-xs text-[var(--color-text-secondary)]">
-                {[
+              <IconList
+                items={[
                   "Encrypted blobs, that's it",
                   "No passphrase, no derived key",
                   "No plaintext file contents",
                   "No readable file or folder names",
-                ].map((t) => (
-                  <li key={t} className="flex items-start gap-2">
-                    <X className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-rose-500/70" strokeWidth={3} />
-                    {t}
-                  </li>
-                ))}
-              </ul>
+                ]}
+                icon={X}
+                iconClassName="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-rose-500/70"
+                itemClassName="flex items-start gap-2"
+                className="space-y-2 text-xs text-[var(--color-text-secondary)]"
+              />
             </div>
           </div>
         </div>
@@ -239,75 +236,72 @@ export default function EncryptionPage() {
           </div>
 
           {/* what the server stores */}
-          <div className="mt-10 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-5 font-mono text-[11px] leading-relaxed text-[var(--color-text-muted)]">
-            <div className="mb-2 text-[var(--color-text-secondary)]">// what actually lands on the server</div>
-            <div className="break-all">
-              <span className="text-cyan-600/80 dark:text-cyan-400/80">wrapped_key</span> 8e30dd·91ac0c·77ae3f·b8d40e — sealed under your passphrase
-            </div>
-            <div className="mt-1.5 break-all">
-              <span className="text-cyan-600/80 dark:text-cyan-400/80">name</span> 9f2a1c·b8d40e·7c5b13·f0e2a9 — sealed
-            </div>
-            <div className="mt-1.5 break-all">
-              <span className="text-cyan-600/80 dark:text-cyan-400/80">chunk[0]</span> a4f9c1·0c77ae·3f5b2a·4f9c1e — AES-256-GCM
-            </div>
-            <div className="mt-1.5 break-all">
-              <span className="text-cyan-600/80 dark:text-cyan-400/80">chunk[1]</span> 4d1b6c·77ae3f·5b2a4f·9c1e0c — AES-256-GCM
-            </div>
-            <div className="mt-4 text-emerald-500">✓ no passphrase. no derived key. no plaintext. no readable names.</div>
+          <div className="mt-10">
+            <CodePanel
+              comment="// what actually lands on the server"
+              success="✓ no passphrase. no derived key. no plaintext. no readable names."
+            >
+              <div className="break-all">
+                <span className="text-cyan-600/80 dark:text-cyan-400/80">wrapped_key</span> 8e30dd·91ac0c·77ae3f·b8d40e — sealed under your passphrase
+              </div>
+              <div className="mt-1.5 break-all">
+                <span className="text-cyan-600/80 dark:text-cyan-400/80">name</span> 9f2a1c·b8d40e·7c5b13·f0e2a9 — sealed
+              </div>
+              <div className="mt-1.5 break-all">
+                <span className="text-cyan-600/80 dark:text-cyan-400/80">chunk[0]</span> a4f9c1·0c77ae·3f5b2a·4f9c1e — AES-256-GCM
+              </div>
+              <div className="mt-1.5 break-all">
+                <span className="text-cyan-600/80 dark:text-cyan-400/80">chunk[1]</span> 4d1b6c·77ae3f·5b2a4f·9c1e0c — AES-256-GCM
+              </div>
+            </CodePanel>
           </div>
         </div>
       </section>
 
       {/* ═══ THE TRADE-OFF (HONESTY) ═══ */}
-      <section className="px-4 py-20">
-        <div className="mx-auto grid max-w-5xl items-center gap-10 lg:grid-cols-2">
-          <div>
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
-              The honest trade-off
-            </p>
-            <h2 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
-              Lose your passphrase and even we can&apos;t recover it
-            </h2>
-            <p className="mt-4 leading-relaxed text-[var(--color-text-secondary)]">
-              True zero-knowledge has a price, and we won&apos;t pretend
-              otherwise. Because your key is derived from your passphrase and
-              never reaches us, we have no &ldquo;reset password and get your
-              files back&rdquo; button. If you lose your passphrase, your data
-              stays encrypted forever — to you and to everyone else.
-            </p>
-            <p className="mt-4 leading-relaxed text-[var(--color-text-secondary)]">
-              That is exactly the property that makes the rest of these promises
-              real. A provider who can recover your files for you can also be
-              compelled to hand them over. We can&apos;t do either.
-            </p>
-            <Link
-              href="/docs/security"
-              className="mt-7 inline-flex items-center gap-1.5 text-sm font-semibold text-cyan-600 transition-all hover:gap-2.5 dark:text-cyan-400"
-            >
-              Read the security model
-              <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
-          </div>
+      <TieInSection
+        surface={false}
+        eyebrow="The honest trade-off"
+        heading={<>Lose your passphrase and even we can&apos;t recover it</>}
+        body={
+          <>
+            True zero-knowledge has a price, and we won&apos;t pretend
+            otherwise. Because your key is derived from your passphrase and
+            never reaches us, we have no &ldquo;reset password and get your
+            files back&rdquo; button. If you lose your passphrase, your data
+            stays encrypted forever — to you and to everyone else.
+          </>
+        }
+        checklist={
+          <p className="mt-4 leading-relaxed text-[var(--color-text-secondary)]">
+            That is exactly the property that makes the rest of these promises
+            real. A provider who can recover your files for you can also be
+            compelled to hand them over. We can&apos;t do either.
+          </p>
+        }
+        linkLabel="Read the security model"
+        linkHref="/docs/security"
+        panel={
           <div className="card p-6">
             <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-500">
               <Shield className="h-5 w-5" />
             </div>
-            <ul className="space-y-3 text-sm text-[var(--color-text-secondary)]">
-              {[
+            <IconList
+              items={[
                 "Choose a strong passphrase you won't forget — it is the one key to everything.",
                 "Previews and downloads are decrypted in your browser, then discarded.",
                 "Sharing wraps a file's key for the recipient — without ever exposing your passphrase.",
                 "Password-protected folders add a second key, separate from your vault.",
-              ].map((c) => (
-                <li key={c} className="flex items-start gap-2.5">
-                  <Eye className="mt-0.5 h-4 w-4 flex-shrink-0 text-cyan-500" />
-                  {c}
-                </li>
-              ))}
-            </ul>
+              ]}
+              icon={Eye}
+              iconClassName="mt-0.5 h-4 w-4 flex-shrink-0 text-cyan-500"
+              iconStrokeWidth={1.5}
+              itemClassName="flex items-start gap-2.5"
+              className="space-y-3 text-sm text-[var(--color-text-secondary)]"
+            />
           </div>
-        </div>
-      </section>
+        }
+      />
 
       {/* ═══ RELATED + CTA ═══ */}
       <section className="px-4 py-20">

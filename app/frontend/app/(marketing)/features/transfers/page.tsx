@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import {
-  ArrowRight,
   Upload,
   Download,
   Pause,
@@ -11,7 +9,6 @@ import {
   Clock,
   Smartphone,
   Shield,
-  Check,
   CheckCircle2,
   ChevronDown,
 } from "@/lib/icons";
@@ -20,6 +17,10 @@ import { FeatureHero } from "@/components/marketing/features/feature-hero";
 import { CapabilityGrid } from "@/components/marketing/features/capability-grid";
 import { RelatedLinks } from "@/components/marketing/features/related-links";
 import { CtaSection } from "@/components/marketing/features/cta-section";
+import { MockWindowFrame } from "@/components/marketing/features/mock-window";
+import { TieInSection } from "@/components/marketing/features/tie-in-section";
+import { IconList } from "@/components/marketing/features/icon-list";
+import { CodePanel } from "@/components/marketing/features/code-panel";
 
 export const metadata: Metadata = {
   title: "Transfer Manager — Pause, Resume & Track Every Upload",
@@ -148,10 +149,12 @@ export default function TransfersPage() {
         secondaryHref="/docs/transfer-manager"
       >
         {/* Docked transfer panel mock */}
-        <div className="mx-auto mt-16 max-w-md">
-          <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] shadow-2xl shadow-black/20 dark:shadow-black/40">
-            {/* panel header */}
-            <div className="flex items-center gap-2.5 border-b border-[var(--color-border)] bg-black/[0.02] px-4 py-3 dark:bg-white/[0.02]">
+        <MockWindowFrame
+          maxWidth="max-w-md"
+          contentClassName=""
+          dots={false}
+          leading={
+            <>
               <span className="relative flex h-2 w-2">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-500/60" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-500" />
@@ -161,38 +164,39 @@ export default function TransfersPage() {
                 2 active · 1 paused
               </span>
               <ChevronDown className="ml-auto h-4 w-4 text-[var(--color-text-muted)]" />
-            </div>
-            {/* rows */}
-            <div className="divide-y divide-[var(--color-border)]">
-              {queue.map((q) => (
-                <div key={q.name} className="px-4 py-3">
-                  <div className="flex items-center gap-2.5">
-                    <q.Icon className="h-4 w-4 flex-shrink-0 text-[var(--color-text-muted)]" />
-                    <span className="min-w-0 flex-1 truncate text-xs font-medium">
-                      {q.name}
-                    </span>
-                    {q.state === "done" ? (
-                      <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-emerald-500" />
-                    ) : q.state === "paused" ? (
-                      <Play className="h-3.5 w-3.5 flex-shrink-0 text-[var(--color-text-muted)]" />
-                    ) : (
-                      <Pause className="h-3.5 w-3.5 flex-shrink-0 text-[var(--color-text-muted)]" />
-                    )}
-                  </div>
-                  <div className="mt-2 h-1 overflow-hidden rounded-full bg-[var(--color-border)]">
-                    <div
-                      className={`h-full rounded-full ${stateStyles[q.state]}`}
-                      style={{ width: `${q.pct}%` }}
-                    />
-                  </div>
-                  <div className="mt-1.5 font-mono text-[10px] text-[var(--color-text-muted)]">
-                    {q.stage}
-                  </div>
+            </>
+          }
+        >
+          {/* rows */}
+          <div className="divide-y divide-[var(--color-border)]">
+            {queue.map((q) => (
+              <div key={q.name} className="px-4 py-3">
+                <div className="flex items-center gap-2.5">
+                  <q.Icon className="h-4 w-4 flex-shrink-0 text-[var(--color-text-muted)]" />
+                  <span className="min-w-0 flex-1 truncate text-xs font-medium">
+                    {q.name}
+                  </span>
+                  {q.state === "done" ? (
+                    <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-emerald-500" />
+                  ) : q.state === "paused" ? (
+                    <Play className="h-3.5 w-3.5 flex-shrink-0 text-[var(--color-text-muted)]" />
+                  ) : (
+                    <Pause className="h-3.5 w-3.5 flex-shrink-0 text-[var(--color-text-muted)]" />
+                  )}
                 </div>
-              ))}
-            </div>
+                <div className="mt-2 h-1 overflow-hidden rounded-full bg-[var(--color-border)]">
+                  <div
+                    className={`h-full rounded-full ${stateStyles[q.state]}`}
+                    style={{ width: `${q.pct}%` }}
+                  />
+                </div>
+                <div className="mt-1.5 font-mono text-[10px] text-[var(--color-text-muted)]">
+                  {q.stage}
+                </div>
+              </div>
+            ))}
           </div>
-        </div>
+        </MockWindowFrame>
       </FeatureHero>
 
       {/* ═══ CAPABILITIES ═══ */}
@@ -203,54 +207,46 @@ export default function TransfersPage() {
       />
 
       {/* ═══ RESUME DEEP-DIVE ═══ */}
-      <section className="border-y border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-20">
-        <div className="mx-auto grid max-w-5xl items-center gap-10 lg:grid-cols-2">
-          <div>
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
-              Resume that actually resumes
-            </p>
-            <h2 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
-              No re-encrypting. No re-uploading.
-            </h2>
-            <p className="mt-4 leading-relaxed text-[var(--color-text-secondary)]">
-              When you pause or hit a network hiccup, the upload stops at a clean
-              chunk boundary and holds onto its session. Resuming reuses the very
-              same content key, so the chunks already on the server still line up
-              — it simply continues with the chunks that are missing.
-            </p>
-            <ul className="mt-6 space-y-2.5">
-              {[
-                "Pauses at a chunk boundary, keeps the session alive",
-                "Resumes with the same key — already-encrypted chunks stay valid",
-                "Skips chunks the server already confirmed",
-                "Retry after a failure continues from the last confirmed chunk",
-              ].map((c) => (
-                <li key={c} className="flex items-start gap-2.5 text-sm text-[var(--color-text-secondary)]">
-                  <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-cyan-500" strokeWidth={3} />
-                  {c}
-                </li>
-              ))}
-            </ul>
-            <Link
-              href="/docs/uploading"
-              className="mt-7 inline-flex items-center gap-1.5 text-sm font-semibold text-cyan-600 transition-all hover:gap-2.5 dark:text-cyan-400"
-            >
-              How uploading works
-              <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
-          </div>
-          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-5 font-mono text-[11px] leading-relaxed text-[var(--color-text-muted)]">
-            <div className="mb-2 text-[var(--color-text-secondary)]">// resuming a paused 24-chunk upload</div>
+      <TieInSection
+        sectionClassName="border-y border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-20"
+        eyebrow="Resume that actually resumes"
+        heading="No re-encrypting. No re-uploading."
+        body={
+          <>
+            When you pause or hit a network hiccup, the upload stops at a clean
+            chunk boundary and holds onto its session. Resuming reuses the very
+            same content key, so the chunks already on the server still line up
+            — it simply continues with the chunks that are missing.
+          </>
+        }
+        checklist={
+          <IconList
+            items={[
+              "Pauses at a chunk boundary, keeps the session alive",
+              "Resumes with the same key — already-encrypted chunks stay valid",
+              "Skips chunks the server already confirmed",
+              "Retry after a failure continues from the last confirmed chunk",
+            ]}
+            itemClassName="flex items-start gap-2.5 text-sm text-[var(--color-text-secondary)]"
+            iconClassName="mt-0.5 h-4 w-4 flex-shrink-0 text-cyan-500"
+          />
+        }
+        linkLabel="How uploading works"
+        linkHref="/docs/uploading"
+        panel={
+          <CodePanel
+            comment="// resuming a paused 24-chunk upload"
+            success="✓ complete — 18 chunks never re-sent"
+          >
             <div><span className="text-cyan-600/80 dark:text-cyan-400/80">session</span> reused — same content key</div>
             <div className="mt-1.5 text-emerald-500">chunk[0..17] already on server → skipped</div>
             <div className="mt-1.5">chunk[18] encrypt → upload <span className="text-cyan-600/80 dark:text-cyan-400/80">✓</span></div>
             <div className="mt-1.5">chunk[19] encrypt → upload <span className="text-cyan-600/80 dark:text-cyan-400/80">✓</span></div>
             <div className="mt-1.5 text-[var(--color-text-muted)]">…</div>
             <div className="mt-1.5">chunk[23] encrypt → upload <span className="text-cyan-600/80 dark:text-cyan-400/80">✓</span></div>
-            <div className="mt-4 text-emerald-500">✓ complete — 18 chunks never re-sent</div>
-          </div>
-        </div>
-      </section>
+          </CodePanel>
+        }
+      />
 
       {/* ═══ DEVICE-TO-DEVICE ═══ */}
       <section className="px-4 py-20">
@@ -274,18 +270,15 @@ export default function TransfersPage() {
                   end-to-end encrypted — our server is a blind relay that passes
                   along ciphertext it can&apos;t read.
                 </p>
-                <ul className="mt-6 space-y-2.5">
-                  {[
+                <IconList
+                  items={[
                     "Pair with a 6-digit code",
                     "End-to-end encrypted, the relay only sees ciphertext",
                     "Nothing has to land in your vault first",
-                  ].map((c) => (
-                    <li key={c} className="flex items-center gap-2.5 text-sm text-[var(--color-text-secondary)]">
-                      <Shield className="h-4 w-4 flex-shrink-0 text-cyan-500" />
-                      {c}
-                    </li>
-                  ))}
-                </ul>
+                  ]}
+                  icon={Shield}
+                  iconStrokeWidth={1.5}
+                />
               </div>
               <div className="flex items-center justify-center border-t border-[var(--color-border)] bg-[var(--color-bg)] p-8 md:border-l md:border-t-0">
                 <div className="w-full max-w-[240px] text-center">

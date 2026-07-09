@@ -26,6 +26,8 @@ export interface CapabilityGridProps {
   surface?: boolean;
   /** Max-width of the inner wrapper. Default "max-w-5xl". */
   className?: string;
+  /** Override the outer `<section>` className entirely (ignores `surface`). */
+  sectionClassName?: string;
 }
 
 /**
@@ -42,13 +44,16 @@ export function CapabilityGrid({
   gridClassName = "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3",
   surface = false,
   className = "max-w-5xl",
+  sectionClassName,
 }: CapabilityGridProps) {
-  const sectionClassName = surface
-    ? "border-y border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-20"
-    : "px-4 py-20";
+  const resolvedSectionClassName =
+    sectionClassName ??
+    (surface
+      ? "border-y border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-20"
+      : "px-4 py-20");
 
   return (
-    <section className={sectionClassName}>
+    <section className={resolvedSectionClassName}>
       <div className={`mx-auto ${className}`}>
         {(heading || subheading) && (
           <div className="mx-auto mb-12 max-w-2xl text-center">
