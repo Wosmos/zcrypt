@@ -7,6 +7,7 @@ import { ensureFiles } from "@/store/files";
 import { encryptChunk, decryptChunk, toBase64 } from "@/lib/crypto";
 import type { OfflinePin, FileMetadata, ClipboardItem, SyncFolder } from "@/types";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { IconButton } from "@/components/ui/icon-button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Section } from "@/components/ui/section";
@@ -43,6 +44,7 @@ function OfflinePinsSection() {
       .catch(() => {})
       .finally(() => setLoading(false));
     // deviceId is stable for the session; run once on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const isPinned = (fileId: string) => pins.some((p) => p.file_id === fileId);
@@ -210,10 +212,10 @@ function ClipboardSyncSection() {
   return (
     <Section title="Clipboard sync" description="End-to-end encrypted snippets that sync across your devices. Items auto-delete after 24h.">
       <div className="space-y-2">
-        <textarea
+        <Textarea
           value={input} onChange={(e) => setInput(e.target.value)}
           placeholder="Paste or type content to sync across devices..."
-          className={cn(inputClass, "h-24 resize-none py-2.5 font-mono")}
+          className="h-24 resize-none font-mono"
           maxLength={MAX_SIZE}
           onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handlePush(); } }}
         />

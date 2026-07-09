@@ -10,10 +10,10 @@ import { OAuthButtons } from "@/components/auth/oauth-buttons";
 import { AuthStatusCard } from "@/components/auth/auth-status-card";
 import { AuthLink } from "@/components/auth/auth-link";
 import { SubmitButton } from "@/components/auth/submit-button";
+import { EmailField } from "@/components/auth/email-field";
 import { useAuthStore } from "@/store/auth";
 import { toast } from "@/store/toast";
 import {
-  Mail,
   Lock,
   User,
   ArrowRight,
@@ -136,17 +136,7 @@ export default function RegisterPage() {
         <OAuthButtons />
 
         <form onSubmit={handleSubmit} className="space-y-3">
-          <Input
-            label="Email"
-            type="email"
-            name="email"
-            placeholder="you@example.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            icon={<Mail className="h-4 w-4" />}
-            required
-            autoComplete="email"
-          />
+          <EmailField value={email} onChange={setEmail} />
           <Input
             label="Username"
             type="text"

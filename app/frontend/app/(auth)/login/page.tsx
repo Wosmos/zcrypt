@@ -8,6 +8,7 @@ import { OAuthButtons, DESKTOP_OAUTH_SESSION_KEY } from "@/components/auth/oauth
 import { AuthStatusCard } from "@/components/auth/auth-status-card";
 import { AuthLink, AUTH_LINK_CLASS, AUTH_LINK_COLORS } from "@/components/auth/auth-link";
 import { SubmitButton } from "@/components/auth/submit-button";
+import { EmailField } from "@/components/auth/email-field";
 import { useAuthStore } from "@/store/auth";
 import { toast } from "@/store/toast";
 import { Mail, Lock, ArrowRight, Wand2 } from "@/lib/icons";
@@ -200,17 +201,7 @@ export default function LoginPage() {
 
         {mode === "password" ? (
           <form onSubmit={handleSubmit} className="space-y-3 animate-fade-in">
-            <Input
-              label="Email"
-              type="email"
-              name="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              icon={<Mail className="h-4 w-4" />}
-              required
-              autoComplete="email"
-            />
+            <EmailField value={email} onChange={setEmail} />
             <Input
               label="Password"
               type="password"

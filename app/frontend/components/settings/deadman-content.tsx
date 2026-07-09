@@ -12,6 +12,7 @@ import {
 import type { DeadManSwitch } from "@/types";
 import { formatDateTime } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
@@ -324,13 +325,13 @@ export function DeadManContent() {
               >
                 Message to contact
               </label>
-              <textarea
+              <Textarea
                 id="dms-message"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 placeholder="Optional message sent when the switch triggers..."
                 rows={3}
-                className="w-full resize-none rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-2.5 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] outline-none transition-all focus:border-[var(--color-accent)]/40 focus:ring-2 focus:ring-[var(--color-accent)]/10"
+                className="resize-none"
               />
             </div>
             <label className="flex cursor-pointer items-center gap-3">

@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { X, Star, Send, Heart } from "@/lib/icons";
 import { submitFeedback } from "@/lib/api";
 import { toast } from "@/store/toast";
+import { Textarea } from "@/components/ui/textarea";
 
 interface FeedbackModalProps {
   open: boolean;
@@ -136,12 +137,12 @@ export function FeedbackModal({ open, onClose, onSubmitted }: FeedbackModalProps
                   </div>
 
                   {/* Message */}
-                  <textarea
+                  <Textarea
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     placeholder="Tell us what you think... (optional)"
                     rows={3}
-                    className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-cyan-500/30 resize-none"
+                    className="bg-[var(--color-bg)] px-4 py-3 resize-none focus:ring-cyan-500/30 focus:border-[var(--color-border)]"
                   />
 
                   {/* Actions */}
