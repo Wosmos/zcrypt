@@ -24,7 +24,7 @@ export function useInViewOnce<T extends Element>(rootMargin = "0px") {
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, []);
+  }, [rootMargin]);
 
   return { ref, isVisible };
 }

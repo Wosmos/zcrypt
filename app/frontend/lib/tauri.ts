@@ -49,7 +49,7 @@ export async function pickSaveLocation(
 export async function sidecarUpload(
   filePath: string,
   passphrase: string,
-  onProgress?: (progress: SidecarProgress) => void
+  _onProgress?: (progress: SidecarProgress) => void
 ): Promise<void> {
   return tauriInvoke("upload_file", {
     filePath,
@@ -88,7 +88,7 @@ export async function sidecarDownload(
   fileId: string,
   passphrase: string,
   savePath: string,
-  onProgress?: (progress: SidecarProgress) => void
+  _onProgress?: (progress: SidecarProgress) => void
 ): Promise<void> {
   return tauriInvoke("download_file", {
     fileId,
