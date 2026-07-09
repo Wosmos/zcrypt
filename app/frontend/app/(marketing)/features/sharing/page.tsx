@@ -1,14 +1,11 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import {
-  ArrowRight,
   Link2,
   Lock,
   Clock,
   Download,
   XCircle,
   Eye,
-  Check,
   FileText,
   Zap,
 } from "@/lib/icons";
@@ -17,6 +14,10 @@ import { FeatureHero } from "@/components/marketing/features/feature-hero";
 import { CapabilityGrid } from "@/components/marketing/features/capability-grid";
 import { RelatedLinks } from "@/components/marketing/features/related-links";
 import { CtaSection } from "@/components/marketing/features/cta-section";
+import { MockWindowFrame } from "@/components/marketing/features/mock-window";
+import { TieInSection } from "@/components/marketing/features/tie-in-section";
+import { IconList } from "@/components/marketing/features/icon-list";
+import { CodePanel } from "@/components/marketing/features/code-panel";
 
 export const metadata: Metadata = {
   title: "Encrypted File Sharing — Keys That Stay in the Link",
@@ -119,66 +120,58 @@ export default function SharingPage() {
         secondaryHref="/docs/sharing"
       >
         {/* Share-link mock */}
-        <div className="mx-auto mt-16 max-w-3xl">
-          <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] shadow-2xl shadow-black/20 dark:shadow-black/40">
-            <div className="flex items-center gap-2 border-b border-[var(--color-border)] bg-black/[0.02] px-4 py-3 dark:bg-white/[0.02]">
-              <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
-              <span className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
-              <span className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
-              <div className="ml-3 flex items-center gap-1.5 font-mono text-[11px] text-[var(--color-text-muted)]">
-                <Link2 className="h-3 w-3" /> Share link
-              </div>
-              <span className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[10px] font-semibold text-cyan-600 dark:text-cyan-400">
-                <Lock className="h-2.5 w-2.5" /> End-to-end
-              </span>
+        <MockWindowFrame
+          maxWidth="max-w-3xl"
+          contentClassName="p-4 sm:p-5"
+          label="Share link"
+          labelIcon={Link2}
+          badgeIcon={Lock}
+          badgeLabel="End-to-end"
+        >
+          {/* the url, with the fragment highlighted */}
+          <div className="rounded-xl border border-[var(--color-border)] bg-black/[0.02] p-3 font-mono text-[11px] leading-relaxed break-all dark:bg-white/[0.02]">
+            <span className="text-[var(--color-text-muted)]">
+              https://zcrypt.cloud/s/
+            </span>
+            <span className="text-[var(--color-text-secondary)]">3kQ9pX2v</span>
+            <span className="text-amber-600 dark:text-amber-400">
+              #key=8f4a…d20e
+            </span>
+          </div>
+          <div className="mt-2 grid grid-cols-1 gap-2 text-[11px] sm:grid-cols-2">
+            <div className="flex items-center gap-2 text-[var(--color-text-muted)]">
+              <span className="inline-block h-2 w-2 rounded-full bg-[var(--color-text-muted)]" />
+              <span className="font-mono">/s/3kQ9pX2v</span>
+              <span>— sent to the server</span>
             </div>
-            <div className="p-4 sm:p-5">
-              {/* the url, with the fragment highlighted */}
-              <div className="rounded-xl border border-[var(--color-border)] bg-black/[0.02] p-3 font-mono text-[11px] leading-relaxed break-all dark:bg-white/[0.02]">
-                <span className="text-[var(--color-text-muted)]">
-                  https://zcrypt.cloud/s/
-                </span>
-                <span className="text-[var(--color-text-secondary)]">3kQ9pX2v</span>
-                <span className="text-amber-600 dark:text-amber-400">
-                  #key=8f4a…d20e
-                </span>
-              </div>
-              <div className="mt-2 grid grid-cols-1 gap-2 text-[11px] sm:grid-cols-2">
-                <div className="flex items-center gap-2 text-[var(--color-text-muted)]">
-                  <span className="inline-block h-2 w-2 rounded-full bg-[var(--color-text-muted)]" />
-                  <span className="font-mono">/s/3kQ9pX2v</span>
-                  <span>— sent to the server</span>
-                </div>
-                <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
-                  <span className="inline-block h-2 w-2 rounded-full bg-amber-500" />
-                  <span className="font-mono">#key=…</span>
-                  <span>— stays in the browser</span>
-                </div>
-              </div>
-
-              {/* link controls */}
-              <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-                {[
-                  { Icon: Lock, label: "Password", value: "On" },
-                  { Icon: Clock, label: "Expires", value: "7 days" },
-                  { Icon: Download, label: "Downloads", value: "5 left" },
-                  { Icon: XCircle, label: "Revoke", value: "Anytime" },
-                ].map((c) => (
-                  <div
-                    key={c.label}
-                    className="rounded-xl border border-[var(--color-border)] bg-black/[0.02] px-3 py-2.5 dark:bg-white/[0.02]"
-                  >
-                    <c.Icon className="h-4 w-4 text-cyan-500" />
-                    <div className="mt-1.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
-                      {c.label}
-                    </div>
-                    <div className="text-xs font-medium">{c.value}</div>
-                  </div>
-                ))}
-              </div>
+            <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+              <span className="inline-block h-2 w-2 rounded-full bg-amber-500" />
+              <span className="font-mono">#key=…</span>
+              <span>— stays in the browser</span>
             </div>
           </div>
-        </div>
+
+          {/* link controls */}
+          <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+            {[
+              { Icon: Lock, label: "Password", value: "On" },
+              { Icon: Clock, label: "Expires", value: "7 days" },
+              { Icon: Download, label: "Downloads", value: "5 left" },
+              { Icon: XCircle, label: "Revoke", value: "Anytime" },
+            ].map((c) => (
+              <div
+                key={c.label}
+                className="rounded-xl border border-[var(--color-border)] bg-black/[0.02] px-3 py-2.5 dark:bg-white/[0.02]"
+              >
+                <c.Icon className="h-4 w-4 text-cyan-500" />
+                <div className="mt-1.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+                  {c.label}
+                </div>
+                <div className="text-xs font-medium">{c.value}</div>
+              </div>
+            ))}
+          </div>
+        </MockWindowFrame>
       </FeatureHero>
 
       {/* ═══ CAPABILITIES ═══ */}
@@ -189,50 +182,36 @@ export default function SharingPage() {
       />
 
       {/* ═══ WHY THE FRAGMENT MATTERS ═══ */}
-      <section className="border-y border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-20">
-        <div className="mx-auto grid max-w-5xl items-center gap-10 lg:grid-cols-2">
-          <div>
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
-              The secret in the #
-            </p>
-            <h2 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
-              Why we can&apos;t read your shares
-            </h2>
-            <p className="mt-4 leading-relaxed text-[var(--color-text-secondary)]">
-              A URL fragment — everything after the <span className="font-mono">#</span> —
-              is processed only by the browser and is never included in the request sent
-              to a server. We put the decryption key there on purpose. The server hands
-              over encrypted bytes; the recipient&apos;s browser uses the key from the
-              fragment to decrypt them locally. The plaintext never exists on our side.
-            </p>
-            <ul className="mt-6 space-y-2.5">
-              {[
-                "Decryption key lives only in the URL fragment",
-                "Fragments are never transmitted to the server",
-                "Recipients decrypt in-browser, with no account",
-                "Optional password adds a second, separate secret",
-              ].map((c) => (
-                <li
-                  key={c}
-                  className="flex items-center gap-2.5 text-sm text-[var(--color-text-secondary)]"
-                >
-                  <Check className="h-4 w-4 flex-shrink-0 text-cyan-500" strokeWidth={3} />
-                  {c}
-                </li>
-              ))}
-            </ul>
-            <Link
-              href="/docs/sharing"
-              className="mt-7 inline-flex items-center gap-1.5 text-sm font-semibold text-cyan-600 transition-all hover:gap-2.5 dark:text-cyan-400"
-            >
-              How sharing works
-              <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
-          </div>
-          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-5 font-mono text-[11px] leading-relaxed text-[var(--color-text-muted)]">
-            <div className="mb-2 text-[var(--color-text-secondary)]">
-              // what the server sees on open
-            </div>
+      <TieInSection
+        sectionClassName="border-y border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-20"
+        eyebrow="The secret in the #"
+        heading={<>Why we can&apos;t read your shares</>}
+        body={
+          <>
+            A URL fragment — everything after the <span className="font-mono">#</span> —
+            is processed only by the browser and is never included in the request sent
+            to a server. We put the decryption key there on purpose. The server hands
+            over encrypted bytes; the recipient&apos;s browser uses the key from the
+            fragment to decrypt them locally. The plaintext never exists on our side.
+          </>
+        }
+        checklist={
+          <IconList
+            items={[
+              "Decryption key lives only in the URL fragment",
+              "Fragments are never transmitted to the server",
+              "Recipients decrypt in-browser, with no account",
+              "Optional password adds a second, separate secret",
+            ]}
+          />
+        }
+        linkLabel="How sharing works"
+        linkHref="/docs/sharing"
+        panel={
+          <CodePanel
+            comment="// what the server sees on open"
+            success="✓ no key on the wire. no plaintext on the server."
+          >
             <div className="break-all">
               <span className="text-cyan-600/80 dark:text-cyan-400/80">GET</span>{" "}
               /s/3kQ9pX2v
@@ -249,12 +228,9 @@ export default function SharingPage() {
               decrypt happens in:{" "}
               <span className="text-emerald-500">the browser</span>
             </div>
-            <div className="mt-4 text-emerald-500">
-              ✓ no key on the wire. no plaintext on the server.
-            </div>
-          </div>
-        </div>
-      </section>
+          </CodePanel>
+        }
+      />
 
       {/* ═══ MORE WAYS TO SEND ═══ */}
       <section className="px-4 py-20">
