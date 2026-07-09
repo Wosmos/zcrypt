@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+#
+# pre-push — block pushes that break a gate or introduce new problems.
+#
+# It is change-scoped: it only runs the gates for the modules you actually
+# touched (vs origin/main). It is STRONG:
+#   --enforce   blocks NEW lint / duplication / go-lint issues in your change
+#   --ratchet   blocks if the pre-existing backlog GROWS (it can only shrink)
+# so quality can only go up — but you're never walled by the existing backlog.
+#
+# Want it maximal? swap --ratchet for --strict (blocks until the whole backlog
+# is clean). Installed via `bash scripts/install-hooks.sh`.
+# Push past it in an emergency:  git push --no-verify
+#
+set -uo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+exec bash "$ROOT/scripts/prepush.sh" --gates-only --enforce --ratchet

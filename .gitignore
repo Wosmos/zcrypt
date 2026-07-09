@@ -64,10 +64,11 @@ app/tui/coverage.out
 # Frontend coverage
 app/frontend/coverage/
 
-# prepush quality-gate artifacts (report + versioning state — local only)
+# prepush quality-gate artifacts (report + versioning state + ratchet baseline — local only)
 docs/report.md
 docs/state.env
 docs/history.tsv
+docs/prepush-baseline.env
 
 # TypeScript incremental build cache
 *.tsbuildinfo
