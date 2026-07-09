@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { useAuthStore } from "@/store/auth";
 import { adminGetUser, adminSetUserRole, adminDeleteUser, adminSetUserQuota, adminSetUserPlan, adminGetPlans } from "@/lib/api";
-import { formatBytes, cn, bytesToGb, usagePercent } from "@/lib/utils";
+import { formatBytes, cn, bytesToGb, usagePercent, formatRelativeTime } from "@/lib/utils";
 import { quotaModeFor, parseQuotaInput, formatQuotaDisplay, type QuotaMode } from "@/lib/quota";
 import { EVENT_ICONS } from "@/lib/audit-events";
 import { toast } from "@/store/toast";
@@ -14,6 +13,8 @@ import type { AdminUserDetail, PlanConfig } from "@/types";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { UserDetailSkeleton } from "@/components/admin/skeletons";
 import { RoleBadge, PlanBadge } from "@/components/admin/badges";
+import { LoadErrorPanel } from "@/components/admin/load-error-panel";
+import { useAdminGuardedFetch } from "@/hooks/useAdminGuardedFetch";
 import { Button } from "@/components/ui/button";
 import { Section } from "@/components/ui/section";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -49,26 +50,11 @@ const eventColors: Record<string, string> = {
   admin_plan_change: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
 };
 
-function formatRelativeTime(dateStr: string) {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const seconds = Math.floor(diff / 1000);
-  if (seconds < 60) return "just now";
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
-
 export function AdminUserDetailContent() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { user: currentUser } = useAuthStore();
   const [data, setData] = useState<AdminUserDetail | null>(null);
   const [planConfigs, setPlanConfigs] = useState<PlanConfig[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const [confirmAction, setConfirmAction] = useState<{
@@ -81,24 +67,12 @@ export function AdminUserDetailContent() {
   const [quotaMode, setQuotaMode] = useState<QuotaMode>("default");
   const [quotaInput, setQuotaInput] = useState("");
 
-  const fetchUser = async () => {
-    setError(false);
-    try {
-      const [res, plans] = await Promise.all([adminGetUser(id), adminGetPlans()]);
-      setData(res);
-      setPlanConfigs(plans.plans);
-    } catch {
-      setError(true);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (currentUser?.role === Role.Admin) {
-      fetchUser();
-    }
-  }, [currentUser, id]);
+  const fetcher = useCallback(async () => {
+    const [res, plans] = await Promise.all([adminGetUser(id), adminGetPlans()]);
+    setData(res);
+    setPlanConfigs(plans.plans);
+  }, [id]);
+  const { user: currentUser, loading, error, refresh: fetchUser } = useAdminGuardedFetch(fetcher);
 
   if (!currentUser || currentUser.role !== Role.Admin) return null;
   if (loading) return <UserDetailSkeleton />;
@@ -113,18 +87,12 @@ export function AdminUserDetailContent() {
           <ArrowLeft className="h-4 w-4" />
           Back to users
         </Link>
-        <div className="panel p-6">
-          <EmptyState
-            icon={<User className="h-7 w-7 text-[var(--color-text-muted)]" />}
-            title="Couldn't load user"
-            description="We couldn't reach the server to load this user's details. Check your connection and try again."
-            action={
-              <Button variant="secondary" size="sm" onClick={fetchUser}>
-                Try again
-              </Button>
-            }
-          />
-        </div>
+        <LoadErrorPanel
+          icon={<User className="h-7 w-7 text-[var(--color-text-muted)]" />}
+          title="Couldn't load user"
+          description="We couldn't reach the server to load this user's details. Check your connection and try again."
+          onRetry={fetchUser}
+        />
       </div>
     );
   }

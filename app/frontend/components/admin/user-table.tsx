@@ -151,6 +151,40 @@ interface RowProps {
   h: RowHandlers;
 }
 
+/** Promote/demote + delete actions — shared by the table row and mobile card. */
+function UserRowActions({
+  u,
+  busy,
+  h,
+  className,
+}: {
+  u: AdminUser;
+  busy: boolean;
+  h: RowHandlers;
+  className: string;
+}) {
+  return (
+    <div className={className}>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => h.onRoleToggle(u.id, u.role, u.username)}
+        disabled={busy}
+      >
+        {u.role === Role.Admin ? "Demote" : "Promote"}
+      </Button>
+      <IconButton
+        icon={Trash2}
+        label="Delete user"
+        variant="ghost"
+        onClick={() => h.onDelete(u.id, u.username)}
+        disabled={busy}
+        className="hover:bg-red-500/10 hover:text-red-500"
+      />
+    </div>
+  );
+}
+
 const UserTableRow = memo(function UserTableRow({
   u,
   isSelf,
@@ -212,26 +246,7 @@ const UserTableRow = memo(function UserTableRow({
         {new Date(u.created_at).toLocaleDateString()}
       </td>
       <td className="px-5 py-3.5 text-right">
-        {!isSelf && (
-          <div className="flex items-center justify-end gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => h.onRoleToggle(u.id, u.role, u.username)}
-              disabled={busy}
-            >
-              {u.role === Role.Admin ? "Demote" : "Promote"}
-            </Button>
-            <IconButton
-              icon={Trash2}
-              label="Delete user"
-              variant="ghost"
-              onClick={() => h.onDelete(u.id, u.username)}
-              disabled={busy}
-              className="hover:bg-red-500/10 hover:text-red-500"
-            />
-          </div>
-        )}
+        {!isSelf && <UserRowActions u={u} busy={busy} h={h} className="flex items-center justify-end gap-1" />}
       </td>
     </tr>
   );
@@ -303,26 +318,7 @@ const UserMobileCard = memo(function UserMobileCard({
           <span className="mr-1 text-[var(--color-text-muted)]">Quota:</span>
           <QuotaEditor u={u} editing={editing} busy={busy} quotaMode={quotaMode} quotaInput={quotaInput} h={h} />
         </div>
-        {!isSelf && (
-          <div className="flex flex-shrink-0 items-center gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => h.onRoleToggle(u.id, u.role, u.username)}
-              disabled={busy}
-            >
-              {u.role === Role.Admin ? "Demote" : "Promote"}
-            </Button>
-            <IconButton
-              icon={Trash2}
-              label="Delete user"
-              variant="ghost"
-              onClick={() => h.onDelete(u.id, u.username)}
-              disabled={busy}
-              className="hover:bg-red-500/10 hover:text-red-500"
-            />
-          </div>
-        )}
+        {!isSelf && <UserRowActions u={u} busy={busy} h={h} className="flex flex-shrink-0 items-center gap-1" />}
       </div>
     </div>
   );
@@ -521,6 +517,20 @@ export function UserTable({
     getQuotaLabel,
   };
 
+  // Per-user row props, computed once and shared by the desktop table and the
+  // mobile card list below — they render the same users with the same state.
+  const rows = users.map((u) => {
+    const editing = editingQuota === u.id;
+    return {
+      u,
+      isSelf: u.id === currentUserId,
+      busy: busy === u.id,
+      editing,
+      quotaMode: editing ? quotaMode : NO_QUOTA_MODE,
+      quotaInput: editing ? quotaInput : NO_QUOTA_INPUT,
+    };
+  });
+
   return (
     <>
       <section className="panel overflow-hidden">
@@ -547,42 +557,18 @@ export function UserTable({
               </tr>
             </thead>
             <tbody>
-              {users.map((u) => {
-                const editing = editingQuota === u.id;
-                return (
-                  <UserTableRow
-                    key={u.id}
-                    u={u}
-                    isSelf={u.id === currentUserId}
-                    busy={busy === u.id}
-                    editing={editing}
-                    quotaMode={editing ? quotaMode : NO_QUOTA_MODE}
-                    quotaInput={editing ? quotaInput : NO_QUOTA_INPUT}
-                    h={handlers}
-                  />
-                );
-              })}
+              {rows.map((row) => (
+                <UserTableRow key={row.u.id} {...row} h={handlers} />
+              ))}
             </tbody>
           </table>
         </div>
 
         {/* Mobile card layout */}
         <div className="max-h-[65vh] divide-y divide-[var(--color-border)] overflow-y-auto lg:hidden">
-          {users.map((u) => {
-            const editing = editingQuota === u.id;
-            return (
-              <UserMobileCard
-                key={u.id}
-                u={u}
-                isSelf={u.id === currentUserId}
-                busy={busy === u.id}
-                editing={editing}
-                quotaMode={editing ? quotaMode : NO_QUOTA_MODE}
-                quotaInput={editing ? quotaInput : NO_QUOTA_INPUT}
-                h={handlers}
-              />
-            );
-          })}
+          {rows.map((row) => (
+            <UserMobileCard key={row.u.id} {...row} h={handlers} />
+          ))}
         </div>
       </section>
 
