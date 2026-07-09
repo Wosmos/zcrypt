@@ -4,9 +4,8 @@ import { useEffect, useState, useCallback } from "react";
 import { adminGetAuditLog, type AdminAuditResponse } from "@/lib/api";
 import { useOperationStatus } from "@/hooks/useOperationStatus";
 import type { AuditEvent } from "@/lib/auth-api";
-import { cn } from "@/lib/utils";
-import { formatBytes, formatDateTime } from "@/lib/utils";
-import { EVENT_ICONS, eventColorClass } from "@/lib/audit-events";
+import { cn, formatBytes, formatDateTime, formatRelativeTime } from "@/lib/utils";
+import { EVENT_ICONS, EVENT_LABELS, eventColorClass } from "@/lib/audit-events";
 import { Pagination } from "@/components/ui/pagination";
 import { IconButton } from "@/components/ui/icon-button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -30,42 +29,6 @@ import {
 } from "@/lib/icons";
 
 const PAGE_SIZE = 20;
-
-const eventLabels: Record<string, string> = {
-  login: "User Login",
-  login_failed: "Login Failed",
-  register: "User Registered",
-  logout: "User Logout",
-  oauth_login: "OAuth Login",
-  oauth_register: "OAuth Register",
-  oauth_link: "OAuth Linked",
-  oauth_unlink: "OAuth Unlinked",
-  magic_link_sent: "Magic Link Sent",
-  magic_link_used: "Magic Link Used",
-  file_upload: "File Uploaded",
-  file_download: "File Downloaded",
-  file_delete: "File Deleted",
-  platform_connect: "Platform Connected",
-  platform_disconnect: "Platform Disconnected",
-  "2fa_enable": "2FA Enabled",
-  "2fa_disable": "2FA Disabled",
-  admin_role_change: "Role Changed",
-  admin_user_delete: "User Deleted",
-  admin_plan_change: "Plan Changed",
-};
-
-function formatRelativeTime(dateStr: string) {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const seconds = Math.floor(diff / 1000);
-  if (seconds < 60) return "just now";
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}d ago`;
-  return new Date(dateStr).toLocaleDateString();
-}
 
 // Parse user agent into readable browser/OS/device info
 function parseUserAgent(ua: string): { browser: string; os: string; device: string } {
@@ -289,7 +252,7 @@ export function AuditLog() {
               <SelectContent>
                 <SelectItem value="all">All events</SelectItem>
                 {eventTypes.map((t) => (
-                  <SelectItem key={t} value={t}>{eventLabels[t] || t.replace(/_/g, " ")}</SelectItem>
+                  <SelectItem key={t} value={t}>{EVENT_LABELS[t] || t.replace(/_/g, " ")}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -308,7 +271,7 @@ export function AuditLog() {
           events.map((event) => {
             const Icon = EVENT_ICONS[event.event_type] ?? Shield;
             const color = eventColorClass(event.event_type, { border: true });
-            const label = eventLabels[event.event_type] ?? event.event_type.replace(/_/g, " ");
+            const label = EVENT_LABELS[event.event_type] ?? event.event_type.replace(/_/g, " ");
             const isExpanded = expandedId === event.id;
             const ua = parseUserAgent(event.user_agent);
             const DeviceIcon = ua.device === "Mobile" ? Smartphone : Monitor;

@@ -43,6 +43,49 @@ const fieldClass =
 const labelClass =
   "text-[10px] font-medium uppercase tracking-wider text-[var(--color-text-muted)]";
 
+/** Number input + MB/GB/TB unit select — shared by the storage and file-size limit fields. */
+function UnitInputField({
+  label,
+  value,
+  unit,
+  onValueChange,
+  onUnitChange,
+  unitAriaLabel,
+}: {
+  label: string;
+  value: string;
+  unit: "MB" | "GB" | "TB";
+  onValueChange: (value: string) => void;
+  onUnitChange: (unit: "MB" | "GB" | "TB") => void;
+  unitAriaLabel: string;
+}) {
+  return (
+    <div>
+      <label className="text-xs text-[var(--color-text-muted)]">{label}</label>
+      <div className="mt-1 flex gap-2">
+        <input
+          type="number"
+          min="0"
+          step="0.5"
+          value={value}
+          onChange={(e) => onValueChange(e.target.value)}
+          className="flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2 text-sm tabular-nums outline-none focus:border-[var(--color-accent)]/40 focus:ring-2 focus:ring-[var(--color-accent)]/10"
+        />
+        <Select value={unit} onValueChange={(v) => onUnitChange(v as "MB" | "GB" | "TB")}>
+          <SelectTrigger className="h-[38px] w-16 text-xs" aria-label={unitAriaLabel}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="MB">MB</SelectItem>
+            <SelectItem value="GB">GB</SelectItem>
+            <SelectItem value="TB">TB</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminPricingPage() {
   const { user } = useAuthStore();
   const [plans, setPlans] = useState<PlanConfig[]>([]);
@@ -374,58 +417,22 @@ export default function AdminPricingPage() {
                     <div>
                       <h4 className={cn(labelClass, "mb-3 block")}>Limits</h4>
                       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-                        <div>
-                          <label className="text-xs text-[var(--color-text-muted)]">Storage</label>
-                          <div className="mt-1 flex gap-2">
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.5"
-                              value={storageInputs[plan.id] ?? ""}
-                              onChange={(e) => updateStorageForPlan(plan.id, e.target.value, storageUnits[plan.id] || "GB")}
-                              className="flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2 text-sm tabular-nums outline-none focus:border-[var(--color-accent)]/40 focus:ring-2 focus:ring-[var(--color-accent)]/10"
-                            />
-                            <Select
-                              value={storageUnits[plan.id] || "GB"}
-                              onValueChange={(v) => updateStorageForPlan(plan.id, storageInputs[plan.id] || "0", v as "MB" | "GB" | "TB")}
-                            >
-                              <SelectTrigger className="h-[38px] w-16 text-xs" aria-label="Storage unit">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="MB">MB</SelectItem>
-                                <SelectItem value="GB">GB</SelectItem>
-                                <SelectItem value="TB">TB</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                        <div>
-                          <label className="text-xs text-[var(--color-text-muted)]">Max file size</label>
-                          <div className="mt-1 flex gap-2">
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.5"
-                              value={fileSizeInputs[plan.id] ?? ""}
-                              onChange={(e) => updateFileSizeForPlan(plan.id, e.target.value, fileSizeUnits[plan.id] || "GB")}
-                              className="flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2 text-sm tabular-nums outline-none focus:border-[var(--color-accent)]/40 focus:ring-2 focus:ring-[var(--color-accent)]/10"
-                            />
-                            <Select
-                              value={fileSizeUnits[plan.id] || "GB"}
-                              onValueChange={(v) => updateFileSizeForPlan(plan.id, fileSizeInputs[plan.id] || "0", v as "MB" | "GB" | "TB")}
-                            >
-                              <SelectTrigger className="h-[38px] w-16 text-xs" aria-label="File size unit">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="MB">MB</SelectItem>
-                                <SelectItem value="GB">GB</SelectItem>
-                                <SelectItem value="TB">TB</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
+                        <UnitInputField
+                          label="Storage"
+                          value={storageInputs[plan.id] ?? ""}
+                          unit={storageUnits[plan.id] || "GB"}
+                          onValueChange={(v) => updateStorageForPlan(plan.id, v, storageUnits[plan.id] || "GB")}
+                          onUnitChange={(u) => updateStorageForPlan(plan.id, storageInputs[plan.id] || "0", u)}
+                          unitAriaLabel="Storage unit"
+                        />
+                        <UnitInputField
+                          label="Max file size"
+                          value={fileSizeInputs[plan.id] ?? ""}
+                          unit={fileSizeUnits[plan.id] || "GB"}
+                          onValueChange={(v) => updateFileSizeForPlan(plan.id, v, fileSizeUnits[plan.id] || "GB")}
+                          onUnitChange={(u) => updateFileSizeForPlan(plan.id, fileSizeInputs[plan.id] || "0", u)}
+                          unitAriaLabel="File size unit"
+                        />
                         <div>
                           <label className="text-xs text-[var(--color-text-muted)]">Concurrent uploads</label>
                           <input
