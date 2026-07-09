@@ -292,7 +292,11 @@ fi
 # ratcheted in the INSPECT section (can only shrink), and NEW warnings in files
 # you touch are blocked by --enforce (eslint --max-warnings=0 on changed files).
 if gate "frontend lint" "$FE" bun run lint; then
-  lwc=$(grep -cE ' warning ' "$LOGDIR/frontend_lint.log" 2>/dev/null || echo 0)
+  # `grep -c` prints its count AND exits 1 when the count is 0 — a `|| echo 0`
+  # would then append a second "0". Swallow the exit with `|| true` and default
+  # an empty result (missing log) to 0 instead.
+  lwc=$(grep -cE ' warning ' "$LOGDIR/frontend_lint.log" 2>/dev/null || true)
+  lwc=${lwc:-0}
   if [ "$lwc" -gt 0 ]; then ok "no errors ${DIM}(${lwc} warnings — ratcheted below)${RST}"; else ok "clean"; fi
 fi
 
@@ -504,15 +508,27 @@ fi
 # --gates-only mode (the hook wants it fast AND enforcing), independent of the
 # advisory INSPECT scans above.
 if [ "$ENFORCE" = 1 ]; then
-  # changed frontend source files, relative to app/frontend/
-  fe_files="$(echo "$CHANGED" | grep -E '^app/frontend/.*\.(ts|tsx|js|jsx)$' | sed 's#^app/frontend/##' || true)"
+  # Changed frontend source files, relative to app/frontend/. Two deliberate
+  # filters, built into a real array so many files / odd whitespace can't break
+  # argument splitting:
+  #   - SCOPE to the same dirs `bun run lint` covers (app/components/lib/hooks/
+  #     store). Linting test/config files the project itself never lints would
+  #     make this gate fail on code that `bun run lint` reports clean.
+  #   - DROP paths that no longer exist on disk — a file deleted/renamed anywhere
+  #     in the diff would otherwise be handed to eslint/jscpd, which hard-error
+  #     on a missing pattern ("No files matching the pattern ...").
+  fe_arr=()
+  while IFS= read -r f; do
+    [ -n "$f" ] && [ -f "$FE/$f" ] && fe_arr+=("$f")
+  done < <(echo "$CHANGED" \
+             | grep -E '^app/frontend/(app|components|lib|hooks|store)/.*\.(ts|tsx|js|jsx)$' \
+             | sed 's#^app/frontend/##')
 
   # 1) frontend new-code lint — zero-tolerance on files you touched
-  if [ "$RUN_FE" = 1 ] && [ -n "$fe_files" ]; then
+  if [ "$RUN_FE" = 1 ] && [ "${#fe_arr[@]}" -gt 0 ]; then
     step "frontend new-code lint ${DIM}(harden · eslint --max-warnings=0)${RST}"
     hlog="$LOGDIR/frontend_new-code_lint.log"
-    # shellcheck disable=SC2086
-    if (cd "$FE" && bunx eslint --max-warnings=0 $fe_files) >"$hlog" 2>&1; then
+    if (cd "$FE" && bunx eslint --max-warnings=0 "${fe_arr[@]}") >"$hlog" 2>&1; then
       PASS+=("frontend new-code lint"); ok "changed files clean (no errors or warnings)"
     else
       FAIL+=("frontend new-code lint"); failln "lint issues in changed files — output below:"
@@ -522,8 +538,7 @@ if [ "$ENFORCE" = 1 ]; then
     # 2) frontend new-code duplication — copy-paste within your changeset
     step "frontend new-code duplication ${DIM}(harden · jscpd on changed files)${RST}"
     hlog="$LOGDIR/frontend_new-code_duplication.log"
-    # shellcheck disable=SC2086
-    (cd "$FE" && bunx jscpd --silent $fe_files) >"$hlog" 2>&1
+    (cd "$FE" && bunx jscpd --silent "${fe_arr[@]}") >"$hlog" 2>&1
     hclones="$(grep -oE 'Found [0-9]+ clones' "$hlog" | head -1)"
     if [ -z "$hclones" ] || echo "$hclones" | grep -q 'Found 0 '; then
       PASS+=("frontend new-code duplication"); ok "no copy-paste in changed files"
