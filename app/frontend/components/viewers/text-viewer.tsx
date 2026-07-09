@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { AlertCircle } from "@/lib/icons";
-import { LogoSpinner } from "@/components/ui/logo-spinner";
+import { useCallback, useState } from "react";
 import { hljsLanguageFor } from "@/components/viewers/viewer-kind";
 import { cn } from "@/lib/utils";
+import { useDecodedBlob } from "@/hooks/useDecodedBlob";
+import { ViewerLoading, ViewerError } from "./viewer-states";
 
 const MAX_BYTES = 2 * 1024 * 1024; // cap highlighting/render of huge files
 
@@ -15,60 +15,38 @@ const MAX_BYTES = 2 * 1024 * 1024; // cap highlighting/render of huge files
  * text (no external markup), injected into a <code> block. Caps huge files.
  */
 export function TextViewer({ blob, filename }: { blob: Blob; filename: string }) {
-  const [text, setText] = useState<string | null>(null);
-  const [highlighted, setHighlighted] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [wrap, setWrap] = useState(true);
   const truncated = blob.size > MAX_BYTES;
 
-  useEffect(() => {
-    let cancelled = false;
-    setText(null);
-    setHighlighted(null);
-    setError(null);
-    (async () => {
-      try {
-        const slice = truncated ? blob.slice(0, MAX_BYTES) : blob;
-        const raw = await slice.text();
-        if (cancelled) return;
-        setText(raw);
+  const decode = useCallback(
+    async (b: Blob) => {
+      const slice = truncated ? b.slice(0, MAX_BYTES) : b;
+      const raw = await slice.text();
 
-        const lang = hljsLanguageFor(filename);
-        if (lang) {
-          try {
-            const { default: hljs } = await import("highlight.js");
-            if (hljs.getLanguage(lang)) {
-              const out = hljs.highlight(raw, { language: lang });
-              if (!cancelled) setHighlighted(out.value);
-            }
-          } catch {
-            // highlight failure → fall back to plain monospace text below
+      let highlighted: string | null = null;
+      const lang = hljsLanguageFor(filename);
+      if (lang) {
+        try {
+          const { default: hljs } = await import("highlight.js");
+          if (hljs.getLanguage(lang)) {
+            highlighted = hljs.highlight(raw, { language: lang }).value;
           }
+        } catch {
+          // highlight failure → fall back to plain monospace text below
         }
-      } catch {
-        if (!cancelled) setError("Could not read this file.");
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [blob, filename, truncated]);
+      return { raw, highlighted };
+    },
+    [filename, truncated]
+  );
+  const { value, error } = useDecodedBlob(blob, decode, "Could not read this file.");
+  const text = value?.raw ?? null;
+  const highlighted = value?.highlighted ?? null;
 
-  if (error) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-2 text-[var(--color-text-muted)]">
-        <AlertCircle className="h-8 w-8 opacity-50" />
-        <p className="text-sm">{error}</p>
-      </div>
-    );
-  }
+  if (error) return <ViewerError message={error} />;
 
   if (text === null) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <LogoSpinner size="sm" speed="fast" />
-      </div>
-    );
+    return <ViewerLoading />;
   }
 
   return (

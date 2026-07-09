@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { AlertCircle } from "@/lib/icons";
-import { LogoSpinner } from "@/components/ui/logo-spinner";
+import { useCallback } from "react";
+import { useDecodedBlob } from "@/hooks/useDecodedBlob";
+import { ViewerLoading, ViewerError } from "./viewer-states";
 
 /**
  * Markdown viewer: marked.parse on the decrypted blob's text → DOMPurify →
@@ -10,50 +10,21 @@ import { LogoSpinner } from "@/components/ui/logo-spinner";
  * a div (never executed).
  */
 export function MarkdownViewer({ blob }: { blob: Blob }) {
-  const [html, setHtml] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const decode = useCallback(async (b: Blob) => {
+    const text = await b.text();
+    const { marked } = await import("marked");
+    const { default: DOMPurify } = await import("dompurify");
+    // marked.parse can return string | Promise<string> depending on options.
+    const parsed = await marked.parse(text, { async: true });
+    return DOMPurify.sanitize(parsed, {
+      FORBID_TAGS: ["script", "iframe", "object", "embed", "form", "style"],
+      FORBID_ATTR: ["style", "srcdoc"],
+    });
+  }, []);
+  const { value: html, error } = useDecodedBlob(blob, decode, "Could not render this Markdown file.");
 
-  useEffect(() => {
-    let cancelled = false;
-    setHtml(null);
-    setError(null);
-    (async () => {
-      try {
-        const text = await blob.text();
-        const { marked } = await import("marked");
-        const { default: DOMPurify } = await import("dompurify");
-        // marked.parse can return string | Promise<string> depending on options.
-        const parsed = await marked.parse(text, { async: true });
-        const clean = DOMPurify.sanitize(parsed, {
-          FORBID_TAGS: ["script", "iframe", "object", "embed", "form", "style"],
-          FORBID_ATTR: ["style", "srcdoc"],
-        });
-        if (!cancelled) setHtml(clean);
-      } catch {
-        if (!cancelled) setError("Could not render this Markdown file.");
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [blob]);
-
-  if (error) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-2 text-[var(--color-text-muted)]">
-        <AlertCircle className="h-8 w-8 opacity-50" />
-        <p className="text-sm">{error}</p>
-      </div>
-    );
-  }
-
-  if (html === null) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <LogoSpinner size="sm" speed="fast" />
-      </div>
-    );
-  }
+  if (error) return <ViewerError message={error} />;
+  if (html === null) return <ViewerLoading />;
 
   return (
     <div className="flex h-full w-full justify-center overflow-auto">

@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { AlertCircle, Download } from "@/lib/icons";
-import { LogoSpinner } from "@/components/ui/logo-spinner";
+import { useCallback } from "react";
+import { Download } from "@/lib/icons";
 import { Button } from "@/components/ui/button";
+import { useDecodedBlob } from "@/hooks/useDecodedBlob";
+import { ViewerLoading, ViewerError } from "./viewer-states";
 
 /**
  * DOCX viewer: mammoth.convertToHtml on the decrypted blob's ArrayBuffer →
@@ -18,53 +19,30 @@ export function DocViewer({
   blob: Blob;
   onDownload: () => void;
 }) {
-  const [html, setHtml] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    setHtml(null);
-    setError(null);
-    (async () => {
-      try {
-        const arrayBuffer = await blob.arrayBuffer();
-        const mammoth = await import("mammoth");
-        const result = await mammoth.convertToHtml({ arrayBuffer });
-        const { default: DOMPurify } = await import("dompurify");
-        const clean = DOMPurify.sanitize(result.value, {
-          FORBID_TAGS: ["script", "iframe", "object", "embed", "form", "style"],
-          FORBID_ATTR: ["style", "srcdoc"],
-        });
-        if (!cancelled) setHtml(clean);
-      } catch {
-        if (!cancelled) setError("Could not render this document.");
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [blob]);
+  const decode = useCallback(async (b: Blob) => {
+    const arrayBuffer = await b.arrayBuffer();
+    const mammoth = await import("mammoth");
+    const result = await mammoth.convertToHtml({ arrayBuffer });
+    const { default: DOMPurify } = await import("dompurify");
+    return DOMPurify.sanitize(result.value, {
+      FORBID_TAGS: ["script", "iframe", "object", "embed", "form", "style"],
+      FORBID_ATTR: ["style", "srcdoc"],
+    });
+  }, []);
+  const { value: html, error } = useDecodedBlob(blob, decode, "Could not render this document.");
 
   if (error) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 text-[var(--color-text-muted)]">
-        <AlertCircle className="h-8 w-8 opacity-50" />
-        <p className="text-sm">{error}</p>
+      <ViewerError message={error} gap="gap-3">
         <Button variant="secondary" size="sm" onClick={onDownload}>
           <Download className="h-3.5 w-3.5" />
           Download
         </Button>
-      </div>
+      </ViewerError>
     );
   }
 
-  if (html === null) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <LogoSpinner size="sm" speed="fast" />
-      </div>
-    );
-  }
+  if (html === null) return <ViewerLoading />;
 
   return (
     <div className="flex h-full w-full justify-center overflow-auto">

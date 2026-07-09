@@ -34,16 +34,8 @@ import { useSharesQuery, invalidateShares, useFileMetaQuery } from "@/hooks/useS
 import { usePassphraseStore } from "@/store/passphrase";
 import { toast } from "@/store/toast";
 import { copyToClipboard } from "@/lib/clipboard";
-import { formatBytes, getFileTypeInfo, cn, savingsPercent, truncateMiddle, fileIconFor } from "@/lib/utils";
+import { formatBytes, getFileTypeInfo, cn, savingsPercent, truncateMiddle, fileIconFor, EXPIRY_OPTIONS } from "@/lib/utils";
 import type { FileMetadata, ShareLink } from "@/types";
-
-const EXPIRY_OPTIONS = [
-  { label: "Never", value: 0 },
-  { label: "1 hour", value: 1 },
-  { label: "24 hours", value: 24 },
-  { label: "7 days", value: 168 },
-  { label: "30 days", value: 720 },
-];
 
 const DOWNLOAD_LIMIT_OPTIONS = [
   { label: "Unlimited", value: 0 },
@@ -159,7 +151,7 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
       setRevoking(false);
       setRevokeTarget(null);
     }
-  }, [revokeTarget]);
+  }, [revokeTarget, fileId]);
 
   if (!file) return null;
 
