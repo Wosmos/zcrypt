@@ -9,7 +9,6 @@ import {
   Lock,
   Settings,
   Shield,
-  Zap,
   Check,
   ChevronRight,
   Gauge,

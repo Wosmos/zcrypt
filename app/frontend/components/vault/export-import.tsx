@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { Download, Upload, CheckCircle2, AlertTriangle } from "@/lib/icons";
+import { Download, Upload } from "@/lib/icons";
 import type { FileMetadata } from "@/types";
 import { toast } from "@/store/toast";
 

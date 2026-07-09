@@ -6,7 +6,7 @@ import { genId } from "@/lib/id";
 // and notifications can't drift.
 export type ToastType = Severity;
 
-export interface Toast {
+interface Toast {
   id: string;
   type: ToastType;
   message: string;

@@ -8,7 +8,7 @@ import { ArrowRight } from "@/lib/icons";
  * callers may inline the markup with the exact same styling instead of
  * importing the component.
  */
-export const PRIMARY_CTA_CLASS =
+const PRIMARY_CTA_CLASS =
   "inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-[#2de0ed] via-[#00d5e4] to-[#0093a3] px-8 py-3.5 text-base font-semibold text-slate-900 shadow-lg shadow-cyan-500/30 transition-shadow hover:shadow-xl hover:shadow-cyan-500/50";
 
 export interface PrimaryCtaProps {
