@@ -6,6 +6,7 @@ import {
   ToolPageShell,
   ToolHero,
   ToolSection,
+  StepGrid,
   FeatureGrid,
   ToolCta,
   type ToolFeature,
@@ -72,21 +73,13 @@ export default function PadPublicPage() {
             Type. Encrypt. Share. The server never sees your plaintext.
           </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[
+          <StepGrid
+            steps={[
               { step: "1", title: "Type or paste", desc: "Enter your text. It stays in your browser until you encrypt." },
               { step: "2", title: "One-click encrypt", desc: "A unique AES-256-GCM key is generated. Your text is encrypted locally and uploaded." },
               { step: "3", title: "Share the link", desc: "The key is embedded in the URL fragment. Only people with the link can read it." },
-            ].map((s) => (
-              <div key={s.step} className="relative p-6 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]">
-                <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-[var(--color-accent)]/10 text-[var(--color-accent)] font-bold text-lg mb-4">
-                  {s.step}
-                </div>
-                <h3 className="text-base font-semibold mb-2">{s.title}</h3>
-                <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">{s.desc}</p>
-              </div>
-            ))}
-          </div>
+            ]}
+          />
         </div>
       </section>
 

@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { Lock, Upload } from "@/lib/icons";
 import { formatBytes, easeProgress } from "@/lib/utils";
-import { copyToClipboard } from "@/lib/clipboard";
 import { sendInit, sendChunkUpload, sendComplete } from "@/lib/api";
+import { useCopyFeedback } from "@/hooks/useCopyFeedback";
 import { SelectedFileCard } from "./shared/selected-file-card";
 import { ExpirySelector } from "./shared/expiry-selector";
 import { BurnAfterReadToggle } from "./shared/burn-after-read-toggle";
@@ -26,8 +26,8 @@ export function SendTool() {
   const [expiryHours, setExpiryHours] = useState(24);
   const [progress, setProgress] = useState({ stage: "", percent: 0 });
   const [shareUrl, setShareUrl] = useState("");
-  const [copied, setCopied] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const { copied, handleCopy, reset } = useCopyFeedback(shareUrl);
   const abortRef = useRef(false);
 
   const handleFiles = useCallback((files: File[]) => {
@@ -106,13 +106,6 @@ export function SendTool() {
     }
   }, [selectedFile, burnAfterRead, expiryHours]);
 
-  const handleCopy = useCallback(async () => {
-    if (!shareUrl) return;
-    await copyToClipboard(shareUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }, [shareUrl]);
-
   const handleReset = useCallback(() => {
     abortRef.current = true;
     setState("idle");
@@ -120,8 +113,8 @@ export function SendTool() {
     setShareUrl("");
     setProgress({ stage: "", percent: 0 });
     setErrorMsg("");
-    setCopied(false);
-  }, []);
+    reset();
+  }, [reset]);
 
   return (
     <div className="panel overflow-hidden">

@@ -18,7 +18,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
+import { cn, formatDuration } from "@/lib/utils";
+import { useToggleFullscreen } from "@/hooks/useToggleFullscreen";
 
 const SPEEDS = [0.5, 1, 1.5, 2] as const;
 
@@ -52,17 +53,7 @@ let lastLoop = false;
 // next track auto-continues if you were listening, and stays put if you weren't.
 let keepPlaying = false;
 
-function formatTime(seconds: number): string {
-  if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
-  const total = Math.floor(seconds);
-  const h = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const s = total % 60;
-  if (h > 0) {
-    return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-  }
-  return `${m}:${String(s).padStart(2, "0")}`;
-}
+const formatTime = formatDuration;
 
 /**
  * Shared playback state + DOM wiring for an <audio> or <video> element.
@@ -763,15 +754,7 @@ function VideoPlayer({
     };
   }, [controller.ref, src]);
 
-  const toggleFullscreen = useCallback(() => {
-    const node = containerRef.current;
-    if (!node) return;
-    if (document.fullscreenElement) {
-      void document.exitFullscreen().catch(() => {});
-    } else {
-      void node.requestFullscreen?.().catch(() => {});
-    }
-  }, []);
+  const toggleFullscreen = useToggleFullscreen(containerRef);
 
   // Portrait / square videos are pinned by HEIGHT so they don't stretch to the
   // full landscape width; wider-than-tall videos fill the available width and

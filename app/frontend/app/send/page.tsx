@@ -6,6 +6,7 @@ import {
   ToolPageShell,
   ToolHero,
   ToolSection,
+  StepGrid,
   FeatureGrid,
   ToolCta,
   type ToolFeature,
@@ -72,21 +73,13 @@ export default function SendPublicPage() {
             Three steps. No accounts. No tracking. Your privacy is built into the protocol.
           </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[
+          <StepGrid
+            steps={[
               { step: "1", title: "Drop your file", desc: "Select any file up to 50 MB. It never leaves your browser unencrypted." },
               { step: "2", title: "Automatic encryption", desc: "Your file is encrypted with a unique AES-256-GCM key generated in your browser." },
               { step: "3", title: "Share the link", desc: "The decryption key is embedded in the URL fragment. Only the recipient can decrypt." },
-            ].map((s) => (
-              <div key={s.step} className="relative p-6 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]">
-                <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-[var(--color-accent)]/10 text-[var(--color-accent)] font-bold text-lg mb-4">
-                  {s.step}
-                </div>
-                <h3 className="text-base font-semibold mb-2">{s.title}</h3>
-                <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">{s.desc}</p>
-              </div>
-            ))}
-          </div>
+            ]}
+          />
         </div>
       </section>
 

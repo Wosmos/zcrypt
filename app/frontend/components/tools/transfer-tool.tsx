@@ -25,6 +25,32 @@ type RecvState = "entering" | "connecting" | "paired" | "receiving" | "done" | "
 
 interface FileInfo { name: string; size: number; type: string }
 
+/**
+ * Shared onerror/onclose wiring for both the send and receive sockets. After a
+ * successful transfer the server tears down the room and closes the socket,
+ * which fires an error event — don't overwrite a terminal state, or that
+ * produces a bogus "Connection failed" after the transfer already completed.
+ */
+function attachWsLifecycle(
+  ws: WebSocket,
+  stateRef: { current: string },
+  setState: (s: "error") => void,
+  setErrorMsg: (msg: string) => void
+) {
+  ws.onerror = () => {
+    if (stateRef.current !== "done" && stateRef.current !== "error") {
+      setState("error");
+      setErrorMsg("Connection failed");
+    }
+  };
+  ws.onclose = () => {
+    if (stateRef.current !== "done" && stateRef.current !== "error") {
+      setState("error");
+      setErrorMsg("Connection lost");
+    }
+  };
+}
+
 export function TransferTool() {
   const [mode, setMode] = useState<Mode>("choose");
 
@@ -67,49 +93,6 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
     if (files[0]) setSelectedFile(files[0]);
   }, []);
 
-  const handleStart = useCallback(async () => {
-    if (!selectedFile) return;
-    if (wsRef.current && wsRef.current.readyState <= WebSocket.OPEN) return; // already connecting/open
-    setState("waiting");
-
-    const key = crypto.getRandomValues(new Uint8Array(32));
-    keyRef.current = key;
-
-    const ws = new WebSocket(WS_URL);
-    wsRef.current = ws;
-
-    ws.onopen = () => { ws.send(JSON.stringify({ type: "create" })); };
-
-    ws.onmessage = async (e) => {
-      const msg = JSON.parse(e.data);
-      switch (msg.type) {
-        case "code": setCode(msg.data); break;
-        case "paired":
-          setState("paired");
-          setTimeout(() => startTransfer(ws, selectedFile, key), 200);
-          break;
-        case "error":
-          setState("error");
-          setErrorMsg(msg.data || "Transfer error");
-          break;
-      }
-    };
-
-    ws.onerror = () => {
-      // After a successful transfer the server tears down the room and closes the
-      // socket, which fires an error event. Don't overwrite a terminal state —
-      // that produced a bogus "Connection failed" after the transfer completed.
-      if (stateRef.current !== "done" && stateRef.current !== "error") {
-        setState("error"); setErrorMsg("Connection failed");
-      }
-    };
-    ws.onclose = () => {
-      if (stateRef.current !== "done" && stateRef.current !== "error") {
-        setState("error"); setErrorMsg("Connection lost");
-      }
-    };
-  }, [selectedFile]);
-
   const startTransfer = useCallback(async (ws: WebSocket, file: File, key: Uint8Array) => {
     setState("transferring");
     try {
@@ -145,6 +128,37 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
       setErrorMsg(err instanceof Error ? err.message : "Transfer failed");
     }
   }, []);
+
+  const handleStart = useCallback(async () => {
+    if (!selectedFile) return;
+    if (wsRef.current && wsRef.current.readyState <= WebSocket.OPEN) return; // already connecting/open
+    setState("waiting");
+
+    const key = crypto.getRandomValues(new Uint8Array(32));
+    keyRef.current = key;
+
+    const ws = new WebSocket(WS_URL);
+    wsRef.current = ws;
+
+    ws.onopen = () => { ws.send(JSON.stringify({ type: "create" })); };
+
+    ws.onmessage = async (e) => {
+      const msg = JSON.parse(e.data);
+      switch (msg.type) {
+        case "code": setCode(msg.data); break;
+        case "paired":
+          setState("paired");
+          setTimeout(() => startTransfer(ws, selectedFile, key), 200);
+          break;
+        case "error":
+          setState("error");
+          setErrorMsg(msg.data || "Transfer error");
+          break;
+      }
+    };
+
+    attachWsLifecycle(ws, stateRef, setState, setErrorMsg);
+  }, [selectedFile, startTransfer]);
 
   const handleCopyCode = useCallback(async () => {
     if (!code) return;
@@ -312,19 +326,7 @@ function TransferReceiveMode({ onBack }: { onBack: () => void }) {
       }
     };
 
-    ws.onerror = () => {
-      // After a successful transfer the server tears down the room and closes the
-      // socket, which fires an error event. Don't overwrite a terminal state —
-      // that produced a bogus "Connection failed" after the transfer completed.
-      if (stateRef.current !== "done" && stateRef.current !== "error") {
-        setState("error"); setErrorMsg("Connection failed");
-      }
-    };
-    ws.onclose = () => {
-      if (stateRef.current !== "done" && stateRef.current !== "error") {
-        setState("error"); setErrorMsg("Connection lost");
-      }
-    };
+    attachWsLifecycle(ws, stateRef, setState, setErrorMsg);
   }, [code]);
 
   useEffect(() => { return () => { wsRef.current?.close(); }; }, []);

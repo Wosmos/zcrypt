@@ -46,6 +46,36 @@ const features: ToolFeature[] = [
   { icon: Server, title: "6-digit code", desc: "Pair devices with a simple 6-digit code or QR scan. No accounts, no apps, no configuration." },
 ];
 
+/** One side of the sender/receiver "how it works" panel below. */
+function RoleSteps({
+  label,
+  badgeClass,
+  steps,
+}: {
+  label: string;
+  badgeClass: string;
+  steps: string[];
+}) {
+  return (
+    <div className="p-6 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+      <h3 className="text-base font-semibold mb-4 flex items-center gap-2">
+        <div className={`flex items-center justify-center h-8 w-8 rounded-lg text-sm font-bold ${badgeClass}`}>
+          {label[0]}
+        </div>
+        {label}
+      </h3>
+      <ol className="space-y-3">
+        {steps.map((s, i) => (
+          <li key={i} className="flex gap-3 text-sm text-[var(--color-text-secondary)]">
+            <span className="flex-shrink-0 flex items-center justify-center h-5 w-5 rounded-full bg-[var(--color-surface-1)] text-[10px] font-medium">{i + 1}</span>
+            {s}
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
 export default function TransferPublicPage() {
   return (
     <ToolPageShell>
@@ -73,47 +103,26 @@ export default function TransferPublicPage() {
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Sender side */}
-            <div className="p-6 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]">
-              <h3 className="text-base font-semibold mb-4 flex items-center gap-2">
-                <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-[var(--color-accent)]/10 text-[var(--color-accent)] text-sm font-bold">S</div>
-                Sender
-              </h3>
-              <ol className="space-y-3">
-                {[
-                  "Select a file to send",
-                  "A unique encryption key and 6-digit code are generated",
-                  "Share the code with the receiver",
-                  "Once paired, the file streams encrypted chunks over WebSocket",
-                ].map((s, i) => (
-                  <li key={i} className="flex gap-3 text-sm text-[var(--color-text-secondary)]">
-                    <span className="flex-shrink-0 flex items-center justify-center h-5 w-5 rounded-full bg-[var(--color-surface-1)] text-[10px] font-medium">{i + 1}</span>
-                    {s}
-                  </li>
-                ))}
-              </ol>
-            </div>
-
-            {/* Receiver side */}
-            <div className="p-6 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]">
-              <h3 className="text-base font-semibold mb-4 flex items-center gap-2">
-                <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-cyan-500/10 text-cyan-500 text-sm font-bold">R</div>
-                Receiver
-              </h3>
-              <ol className="space-y-3">
-                {[
-                  "Enter the 6-digit code or scan the QR code",
-                  "Connect to the sender via encrypted WebSocket",
-                  "Receive and decrypt each chunk in real time",
-                  "File automatically downloads when complete",
-                ].map((s, i) => (
-                  <li key={i} className="flex gap-3 text-sm text-[var(--color-text-secondary)]">
-                    <span className="flex-shrink-0 flex items-center justify-center h-5 w-5 rounded-full bg-[var(--color-surface-1)] text-[10px] font-medium">{i + 1}</span>
-                    {s}
-                  </li>
-                ))}
-              </ol>
-            </div>
+            <RoleSteps
+              label="Sender"
+              badgeClass="bg-[var(--color-accent)]/10 text-[var(--color-accent)]"
+              steps={[
+                "Select a file to send",
+                "A unique encryption key and 6-digit code are generated",
+                "Share the code with the receiver",
+                "Once paired, the file streams encrypted chunks over WebSocket",
+              ]}
+            />
+            <RoleSteps
+              label="Receiver"
+              badgeClass="bg-cyan-500/10 text-cyan-500"
+              steps={[
+                "Enter the 6-digit code or scan the QR code",
+                "Connect to the sender via encrypted WebSocket",
+                "Receive and decrypt each chunk in real time",
+                "File automatically downloads when complete",
+              ]}
+            />
           </div>
         </div>
       </section>
