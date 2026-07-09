@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { AlertCircle } from "@/lib/icons";
-import { LogoSpinner } from "@/components/ui/logo-spinner";
+import { useCallback, useMemo } from "react";
+import { useDecodedBlob } from "@/hooks/useDecodedBlob";
+import { ViewerLoading, ViewerError } from "./viewer-states";
 
 const MAX_BYTES = 4 * 1024 * 1024; // cap parsing of very large CSVs
 const MAX_ROWS = 2000;
@@ -60,27 +60,16 @@ function parseDelimited(text: string, delimiter: string): string[][] {
  * Handles quoting/commas/newlines; caps very large files with a notice.
  */
 export function CsvViewer({ blob, filename }: { blob: Blob; filename: string }) {
-  const [text, setText] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const truncatedBytes = blob.size > MAX_BYTES;
 
-  useEffect(() => {
-    let cancelled = false;
-    setText(null);
-    setError(null);
-    (async () => {
-      try {
-        const slice = truncatedBytes ? blob.slice(0, MAX_BYTES) : blob;
-        const t = await slice.text();
-        if (!cancelled) setText(t);
-      } catch {
-        if (!cancelled) setError("Could not read this file.");
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [blob, truncatedBytes]);
+  const decode = useCallback(
+    async (b: Blob) => {
+      const slice = truncatedBytes ? b.slice(0, MAX_BYTES) : b;
+      return slice.text();
+    },
+    [truncatedBytes]
+  );
+  const { value: text, error } = useDecodedBlob(blob, decode, "Could not read this file.");
 
   const delimiter = filename.toLowerCase().endsWith(".tsv") ? "\t" : ",";
   const rows = useMemo(
@@ -92,21 +81,10 @@ export function CsvViewer({ blob, filename }: { blob: Blob; filename: string }) 
   const header = shown[0] ?? [];
   const body = shown.slice(1);
 
-  if (error) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-2 text-[var(--color-text-muted)]">
-        <AlertCircle className="h-8 w-8 opacity-50" />
-        <p className="text-sm">{error}</p>
-      </div>
-    );
-  }
+  if (error) return <ViewerError message={error} />;
 
   if (text === null) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <LogoSpinner size="sm" speed="fast" />
-      </div>
-    );
+    return <ViewerLoading />;
   }
 
   return (

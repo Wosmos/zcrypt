@@ -12,7 +12,7 @@ import { toast } from "@/store/toast";
 import { usePassphraseStore } from "@/store/passphrase";
 import { createFileShareLink } from "@/lib/file-share";
 import { copyToClipboard } from "@/lib/clipboard";
-import { formatBytes, formatDateTime } from "@/lib/utils";
+import { formatBytes, formatDateTime, EXPIRY_OPTIONS } from "@/lib/utils";
 
 interface ShareModalProps {
   open: boolean;
@@ -21,14 +21,6 @@ interface ShareModalProps {
   fileName: string;
   fileSize: number;
 }
-
-const EXPIRY_OPTIONS = [
-  { label: "Never", value: 0 },
-  { label: "1 hour", value: 1 },
-  { label: "24 hours", value: 24 },
-  { label: "7 days", value: 168 },
-  { label: "30 days", value: 720 },
-];
 
 const DOWNLOAD_LIMIT_OPTIONS = [
   { label: "Unlimited", value: 0 },

@@ -28,18 +28,11 @@ import { copyToClipboard } from "@/lib/clipboard";
 import { collectSubtreeFolderIds } from "@/lib/folder-tree";
 import { queryClient } from "@/lib/query-client";
 import { qk } from "@/lib/query-keys";
-import { formatDate } from "@/lib/utils";
+import { formatDate, EXPIRY_OPTIONS } from "@/lib/utils";
 import { toast } from "@/store/toast";
 import type { DecryptedFolder } from "@/hooks/useFolders";
 import type { FileMetadata } from "@/types";
 
-const EXPIRY_OPTIONS = [
-  { label: "Never", value: 0 },
-  { label: "1 hour", value: 1 },
-  { label: "24 hours", value: 24 },
-  { label: "7 days", value: 168 },
-  { label: "30 days", value: 720 },
-];
 const DOWNLOAD_LIMIT_OPTIONS = [
   { label: "Unlimited", value: 0 },
   { label: "10", value: 10 },

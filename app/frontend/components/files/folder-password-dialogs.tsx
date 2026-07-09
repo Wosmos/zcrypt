@@ -65,6 +65,35 @@ function HeaderRow({
   );
 }
 
+/** Re-key progress bar shared by the protect and remove-password dialogs. */
+function SweepProgress({
+  message,
+  progress,
+  prefersReducedMotion,
+}: {
+  message: string;
+  progress: { done: number; total: number };
+  prefersReducedMotion: boolean | null;
+}) {
+  const pct = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
+  return (
+    <div className="space-y-3 py-2">
+      <p className="text-sm text-[var(--color-text-secondary)]">{message}</p>
+      <div className="h-2 overflow-hidden rounded-full bg-[var(--color-surface-2)]">
+        <motion.div
+          className="h-full rounded-full bg-[var(--color-accent)]"
+          initial={false}
+          animate={{ width: `${pct}%` }}
+          transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.25 }}
+        />
+      </div>
+      <p className="text-xs tabular-nums text-[var(--color-text-muted)]">
+        {progress.done} / {progress.total} files
+      </p>
+    </div>
+  );
+}
+
 // ── Open a protected folder — verify, then enter ──────────────────────────────
 
 /**
@@ -220,7 +249,6 @@ export function SetFolderPasswordDialog({ state }: { state: SetFolderPasswordSta
   if (!open) return null;
 
   const sweeping = progress != null;
-  const pct = progress && progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
 
   return createPortal(
     <div className={OVERLAY} onClick={busy ? undefined : onClose}>
@@ -236,22 +264,11 @@ export function SetFolderPasswordDialog({ state }: { state: SetFolderPasswordSta
         />
 
         {sweeping ? (
-          <div className="space-y-3 py-2">
-            <p className="text-sm text-[var(--color-text-secondary)]">
-              Re-keying files to the folder password…
-            </p>
-            <div className="h-2 overflow-hidden rounded-full bg-[var(--color-surface-2)]">
-              <motion.div
-                className="h-full rounded-full bg-[var(--color-accent)]"
-                initial={false}
-                animate={{ width: `${pct}%` }}
-                transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.25 }}
-              />
-            </div>
-            <p className="text-xs tabular-nums text-[var(--color-text-muted)]">
-              {progress!.done} / {progress!.total} files
-            </p>
-          </div>
+          <SweepProgress
+            message="Re-keying files to the folder password…"
+            progress={progress!}
+            prefersReducedMotion={prefersReducedMotion}
+          />
         ) : (
           <>
             {fileCount > 0 && (
@@ -371,7 +388,6 @@ export function RemoveFolderPasswordDialog({ state }: { state: RemoveFolderPassw
   if (!open) return null;
 
   const sweeping = progress != null;
-  const pct = progress && progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
 
   return createPortal(
     <div className={OVERLAY} onClick={busy ? undefined : onClose}>
@@ -387,22 +403,11 @@ export function RemoveFolderPasswordDialog({ state }: { state: RemoveFolderPassw
         />
 
         {sweeping ? (
-          <div className="space-y-3 py-2">
-            <p className="text-sm text-[var(--color-text-secondary)]">
-              Re-keying files back to your vault passphrase…
-            </p>
-            <div className="h-2 overflow-hidden rounded-full bg-[var(--color-surface-2)]">
-              <motion.div
-                className="h-full rounded-full bg-[var(--color-accent)]"
-                initial={false}
-                animate={{ width: `${pct}%` }}
-                transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.25 }}
-              />
-            </div>
-            <p className="text-xs tabular-nums text-[var(--color-text-muted)]">
-              {progress!.done} / {progress!.total} files
-            </p>
-          </div>
+          <SweepProgress
+            message="Re-keying files back to your vault passphrase…"
+            progress={progress!}
+            prefersReducedMotion={prefersReducedMotion}
+          />
         ) : (
           <>
             <p className="mb-4 text-sm text-[var(--color-text-secondary)]">

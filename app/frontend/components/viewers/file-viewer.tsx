@@ -36,6 +36,7 @@ import { MarkdownViewer } from "@/components/viewers/markdown-viewer";
 import { CsvViewer } from "@/components/viewers/csv-viewer";
 import { TextViewer } from "@/components/viewers/text-viewer";
 import { MediaViewer, type MediaTrack } from "@/components/viewers/media-viewer";
+import { useToggleFullscreen } from "@/hooks/useToggleFullscreen";
 import type { FileMetadata } from "@/types";
 
 /**
@@ -259,6 +260,7 @@ export function FileViewer({
     // render) — so the decrypt runs once per opened file, not on every render.
     // `files`/`index` are read for prefetch but intentionally omitted: the effect
     // already re-runs on every navigation (file.id changes), so they're current.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, file?.id, attempt]);
 
   // Revoke on unmount / close.
@@ -295,15 +297,7 @@ export function FileViewer({
   }, [files.length, index, onIndexChange]);
 
   // ── Fullscreen API on the overlay element ────────────────────────────────────
-  const toggleFullscreen = useCallback(() => {
-    const node = overlayRef.current;
-    if (!node) return;
-    if (document.fullscreenElement) {
-      void document.exitFullscreen().catch(() => {});
-    } else {
-      void node.requestFullscreen?.().catch(() => {});
-    }
-  }, []);
+  const toggleFullscreen = useToggleFullscreen(overlayRef);
 
   useEffect(() => {
     if (!open) return;
