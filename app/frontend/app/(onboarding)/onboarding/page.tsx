@@ -131,18 +131,11 @@ export default function OnboardingPage() {
               />
             </div>
 
-            <div className="space-y-3">
-              <Button className="w-full" size="lg" onClick={() => setStep("platform")}>
-                Get Started <ArrowRight className="h-4 w-4" />
-              </Button>
-              <button
-                onClick={handleSkip}
-                className="w-full flex items-center justify-center gap-1.5 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors py-2"
-              >
-                <SkipForward className="h-3 w-3" />
-                Skip for now
-              </button>
-            </div>
+            <PrimaryWithSkip
+              onPrimaryClick={() => setStep("platform")}
+              primaryLabel={<>Get Started <ArrowRight className="h-4 w-4" /></>}
+              onSkip={handleSkip}
+            />
           </div>
         )}
 
@@ -188,23 +181,12 @@ export default function OnboardingPage() {
               })}
             </div>
 
-            <div className="space-y-3">
-              <Button
-                className="w-full"
-                size="lg"
-                onClick={() => { setToken(""); setStep("token"); }}
-                disabled={!selectedPlatform}
-              >
-                Continue <ArrowRight className="h-4 w-4" />
-              </Button>
-              <button
-                onClick={handleSkip}
-                className="w-full flex items-center justify-center gap-1.5 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors py-2"
-              >
-                <SkipForward className="h-3 w-3" />
-                Skip for now
-              </button>
-            </div>
+            <PrimaryWithSkip
+              onPrimaryClick={() => { setToken(""); setStep("token"); }}
+              primaryDisabled={!selectedPlatform}
+              primaryLabel={<>Continue <ArrowRight className="h-4 w-4" /></>}
+              onSkip={handleSkip}
+            />
           </div>
         )}
 
@@ -318,6 +300,34 @@ function FeatureRow({
         <p className="text-sm font-medium">{title}</p>
         <p className="text-xs text-[var(--color-text-muted)]">{desc}</p>
       </div>
+    </div>
+  );
+}
+
+/** Primary step-advance button + "Skip for now" link — shared by the welcome and platform steps. */
+function PrimaryWithSkip({
+  onPrimaryClick,
+  primaryDisabled,
+  primaryLabel,
+  onSkip,
+}: {
+  onPrimaryClick: () => void;
+  primaryDisabled?: boolean;
+  primaryLabel: React.ReactNode;
+  onSkip: () => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <Button className="w-full" size="lg" onClick={onPrimaryClick} disabled={primaryDisabled}>
+        {primaryLabel}
+      </Button>
+      <button
+        onClick={onSkip}
+        className="w-full flex items-center justify-center gap-1.5 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors py-2"
+      >
+        <SkipForward className="h-3 w-3" />
+        Skip for now
+      </button>
     </div>
   );
 }

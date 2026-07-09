@@ -1,7 +1,7 @@
-import { Lock, Shield, HardDrive, Eye, FolderOpen, Github } from "@/lib/icons";
+import { Lock, Shield, HardDrive, Github } from "@/lib/icons";
 import type { ComparisonRow } from "@/components/marketing/features/comparison-table";
 import type { CapabilityItem } from "@/components/marketing/features/capability-grid";
-import type { VsData } from "./dropbox";
+import { type VsData, VS_RELATED_LINKS } from "./dropbox";
 
 const rows: ComparisonRow[] = [
   {
@@ -207,20 +207,7 @@ export const googleDrive: VsData = {
       </>,
     ],
   },
-  related: [
-    {
-      href: "/features/encrypted-drive",
-      Icon: FolderOpen,
-      title: "The encrypted drive",
-      desc: "Real folders, search, and previews — with a zero-knowledge layer underneath.",
-    },
-    {
-      href: "/features/encryption",
-      Icon: Eye,
-      title: "How the encryption works",
-      desc: "AES-256-GCM, client-side keys, and what the server can and can't see.",
-    },
-  ],
+  related: VS_RELATED_LINKS,
   closing: {
     heading: "Storage that can't read your files",
     subtext:

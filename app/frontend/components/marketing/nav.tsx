@@ -98,6 +98,39 @@ function MegaItem({ item, onClick }: { item: MenuItem; onClick: () => void }) {
   );
 }
 
+/** One row in a mobile-menu section — link + optional leading icon. */
+function MobileNavLink({ item, onClick }: { item: MenuItem; onClick: () => void }) {
+  const Icon = item.icon;
+  return (
+    <Link
+      href={item.href}
+      onClick={onClick}
+      className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)]"
+    >
+      {Icon && <Icon className="h-4 w-4 text-cyan-500" />}
+      {item.title}
+    </Link>
+  );
+}
+
+/** A titled group of links in the mobile menu (Features / Tools / Compare / Docs). */
+function MobileNavSection({ title, items, onClick }: { title: string; items: MenuItem[]; onClick: () => void }) {
+  return (
+    <>
+      <p className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+        {title}
+      </p>
+      <ul className="list-none">
+        {items.map((i) => (
+          <li key={i.href}>
+            <MobileNavLink item={i} onClick={onClick} />
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
 function MegaHeading({ children }: { children: React.ReactNode }) {
   return (
     <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-widest text-[var(--color-text-muted)]">
@@ -507,76 +540,10 @@ export function MarketingNav() {
                   Home
                 </Link>
 
-                <p className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
-                  Features
-                </p>
-                <ul className="list-none">
-                  {productFeatures.map((i) => (
-                    <li key={i.href}>
-                      <Link
-                        href={i.href}
-                        onClick={() => setMobileOpen(false)}
-                        className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)]"
-                      >
-                        {i.icon && <i.icon className="h-4 w-4 text-cyan-500" />}
-                        {i.title}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-
-                <p className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
-                  Tools
-                </p>
-                <ul className="list-none">
-                  {productTools.map((i) => (
-                    <li key={i.href}>
-                      <Link
-                        href={i.href}
-                        onClick={() => setMobileOpen(false)}
-                        className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)]"
-                      >
-                        {i.icon && <i.icon className="h-4 w-4 text-cyan-500" />}
-                        {i.title}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-
-                <p className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
-                  Compare
-                </p>
-                <ul className="list-none">
-                  {productCompare.map((i) => (
-                    <li key={i.href}>
-                      <Link
-                        href={i.href}
-                        onClick={() => setMobileOpen(false)}
-                        className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)]"
-                      >
-                        {i.title}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-
-                <p className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
-                  Docs
-                </p>
-                <ul className="list-none">
-                  {docsStart.map((i) => (
-                    <li key={i.href}>
-                      <Link
-                        href={i.href}
-                        onClick={() => setMobileOpen(false)}
-                        className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)]"
-                      >
-                        {i.icon && <i.icon className="h-4 w-4 text-cyan-500" />}
-                        {i.title}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
+                <MobileNavSection title="Features" items={productFeatures} onClick={() => setMobileOpen(false)} />
+                <MobileNavSection title="Tools" items={productTools} onClick={() => setMobileOpen(false)} />
+                <MobileNavSection title="Compare" items={productCompare} onClick={() => setMobileOpen(false)} />
+                <MobileNavSection title="Docs" items={docsStart} onClick={() => setMobileOpen(false)} />
                 <Link
                   href="/docs"
                   onClick={() => setMobileOpen(false)}
