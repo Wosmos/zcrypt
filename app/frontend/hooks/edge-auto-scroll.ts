@@ -10,8 +10,8 @@
  * callback, all injected via `opts`. The factory owns its own rAF handle.
  */
 
-export const EDGE_ZONE = 72; // px from the scroller edge that auto-scrolls
-export const EDGE_SPEED = 14; // px per frame while in the edge zone
+const EDGE_ZONE = 72; // px from the scroller edge that auto-scrolls
+const EDGE_SPEED = 14; // px per frame while in the edge zone
 
 export interface EdgeAutoScroll {
   /** Begin the rAF loop (idempotent — a no-op if already running). */

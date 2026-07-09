@@ -63,7 +63,7 @@ export interface FolderUnlockModalState {
   onClose: () => void;
 }
 
-export interface RekeyProgress {
+interface RekeyProgress {
   /** Human label, e.g. "Protecting folder" / "Removing protection". */
   title: string;
   done: number;
