@@ -39,18 +39,6 @@ export interface FolderRequest {
   parent_id?: string | null;
 }
 
-export interface ChunkRef {
-  chunk_id: string;
-  file_id: string;
-  index: number;
-  size: number;
-  sha256: string;
-  platform: string;
-  account?: string;
-  repo: string;
-  remote_path: string;
-}
-
 export interface RepoInfo {
   id: string;
   platform: string;
@@ -103,10 +91,6 @@ export interface UploadItem {
   /** Smoothed transfer rate in bytes/sec (EMA) — drives the speed + ETA display. */
   rateBps?: number;
   error?: string;
-}
-
-export interface FileMetadataWithStatus extends FileMetadata {
-  status: string;
 }
 
 export enum Role {

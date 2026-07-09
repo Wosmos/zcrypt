@@ -15,12 +15,8 @@ import { getDeviceProfile } from "@/lib/device-profile";
 import { concatChunks, saveBlob } from "@/lib/utils";
 import type { DownloadProgressCallback } from "@/lib/download-session";
 
-// Byte-identical to DownloadProgressCallback — aliased to the canonical type in
-// lib/download-session so the two can never drift.
-export type ShareDownloadProgressCallback = DownloadProgressCallback;
-
 export interface ShareDownloadOptions {
-  onProgress?: ShareDownloadProgressCallback;
+  onProgress?: DownloadProgressCallback;
   signal?: AbortSignal;
   sharePassword?: string;
 }

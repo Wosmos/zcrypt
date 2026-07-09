@@ -15,7 +15,7 @@ import type { Folder } from "@/types";
  * password or any derived key. Purely a lookup cache; resets on reload.
  */
 
-export interface FolderProtectionInfo {
+interface FolderProtectionInfo {
   /** null when the folder is not password-protected. */
   pwSalt: string | null;
   pwVerifier: string | null;

@@ -45,7 +45,6 @@ export const ChevronDown = icon("ChevronDown");
 export const ChevronLeft = icon("ChevronLeft");
 export const ChevronRight = icon("ChevronRight");
 export const ChevronUp = icon("ChevronUp");
-export const Circle = icon("Circle");
 export const Eye = icon("Eye");
 export const File = icon("File");
 export const FileText = icon("FileText");

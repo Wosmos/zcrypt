@@ -62,7 +62,7 @@ export interface UseVaultLock {
   reopen: (onUnlocked?: (passphrase: string) => void) => void;
 }
 
-export interface VaultLockModalProps {
+interface VaultLockModalProps {
   open: boolean;
   title: string;
   subtitle: string;

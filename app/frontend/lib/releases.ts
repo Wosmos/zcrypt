@@ -16,7 +16,7 @@ export interface DownloadOption {
   recommended?: boolean;
 }
 
-export interface DesktopPlatform {
+interface DesktopPlatform {
   id: PlatformId;
   name: string;
   blurb: string;

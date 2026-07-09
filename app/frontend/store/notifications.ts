@@ -5,7 +5,7 @@ import { genId } from "@/lib/id";
 // Aliased to the app-wide Severity union (see lib/utils) so toast + notification
 // severities stay in lockstep.
 export type NotificationType = Severity;
-export type NotificationCategory = "upload" | "download" | "server" | "system";
+type NotificationCategory = "upload" | "download" | "server" | "system";
 
 export interface AppNotification {
   id: string;

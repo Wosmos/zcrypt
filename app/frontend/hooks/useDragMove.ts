@@ -12,7 +12,7 @@ import { create } from "zustand";
  * coordinate without prop drilling.
  */
 
-export type DragKind = "file" | "folder";
+type DragKind = "file" | "folder";
 
 export interface DragItem {
   kind: DragKind;

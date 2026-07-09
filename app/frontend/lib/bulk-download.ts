@@ -21,7 +21,7 @@ export interface BulkDownloadFile {
   fileSize: number;
 }
 
-export interface BulkDownloadProgress {
+interface BulkDownloadProgress {
   stage: string;
   percent: number;
   currentFile: string;
