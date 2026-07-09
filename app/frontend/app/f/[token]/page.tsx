@@ -14,35 +14,9 @@ import { Input } from "@/components/ui/input";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { FolderOpen, File as FileIcon, Download, Lock, AlertTriangle, Loader2, Shield } from "@/lib/icons";
 import { formatBytes } from "@/lib/utils";
+import { keyFromFragment, pathManifestFromFragment } from "@/lib/share-link";
 
 type PageState = "loading" | "password" | "ready" | "error";
-
-/** Extract the base64 folder-share key from the URL fragment (#key=...). */
-function keyFromFragment(): string | null {
-  if (typeof window === "undefined") return null;
-  const match = window.location.hash.match(/key=([A-Za-z0-9+/=]+)/);
-  return match ? match[1] : null;
-}
-
-/**
- * Read the optional per-file directory manifest from the URL fragment
- * (`&paths=<gzip+base64>`). Maps file_id -> relative directory so "Download all"
- * can rebuild the exact folder tree. Stays entirely client-side. Returns {} if
- * absent or unreadable — callers then fall back to a flat zip.
- */
-async function readPathManifest(): Promise<Record<string, string>> {
-  if (typeof window === "undefined") return {};
-  const m = window.location.hash.match(/paths=([A-Za-z0-9+/=]+)/);
-  if (!m) return {};
-  try {
-    const { gunzipSync, strFromU8 } = await import("fflate");
-    const { fromBase64 } = await import("@/lib/crypto");
-    const parsed = JSON.parse(strFromU8(gunzipSync(fromBase64(m[1]))));
-    return parsed && typeof parsed === "object" ? (parsed as Record<string, string>) : {};
-  } catch {
-    return {};
-  }
-}
 
 function mimeForFile(filename: string): string {
   const ext = filename.split(".").pop()?.toLowerCase() || "";
@@ -197,7 +171,7 @@ export default function FolderSharePage() {
     setZipProgress({ done: 0, total: info.files.length });
     try {
       const { zipSync } = await import("fflate");
-      const manifest = await readPathManifest();
+      const manifest = await pathManifestFromFragment();
       const entries: Record<string, Uint8Array> = {};
       const used = new Set<string>();
       const failed: string[] = [];

@@ -1,12 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
-import { formatBytes } from "@/lib/utils";
+import { formatBytes, localDateKey } from "@/lib/utils";
 import type { FileMetadata } from "@/types";
 
-function localDateKey(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
 
 function median(values: number[]): number {
   if (values.length === 0) return 0;

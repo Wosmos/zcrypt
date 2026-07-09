@@ -3,17 +3,11 @@
 import { useEffect, useState } from "react";
 import { getUserActivity, type AuditEvent } from "@/lib/auth-api";
 import { useAuthStore } from "@/store/auth";
+import { formatRelativeTime } from "@/lib/utils";
+import { EVENT_ICONS } from "@/lib/audit-events";
 import { Section } from "@/components/ui/section";
 import { SkeletonRow } from "@/components/ui/skeletons";
-import {
-  LogIn,
-  LogOut,
-  UserPlus,
-  Key,
-  Link2,
-  Shield,
-  Activity,
-} from "@/lib/icons";
+import { Shield, Activity } from "@/lib/icons";
 
 const eventLabels: Record<string, string> = {
   login: "Signed in",
@@ -32,34 +26,6 @@ const eventLabels: Record<string, string> = {
   password_reset_requested: "Password reset requested",
   password_reset: "Password reset",
 };
-
-const eventIcons: Record<string, typeof Shield> = {
-  login: LogIn,
-  login_failed: LogIn,
-  register: UserPlus,
-  logout: LogOut,
-  oauth_login: LogIn,
-  oauth_register: UserPlus,
-  oauth_link: Link2,
-  oauth_unlink: Link2,
-  magic_link_sent: Key,
-  magic_link_used: Key,
-  "2fa_enable": Shield,
-  "2fa_disable": Shield,
-};
-
-function formatRelativeTime(dateStr: string) {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const seconds = Math.floor(diff / 1000);
-  if (seconds < 60) return "just now";
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}d ago`;
-  return new Date(dateStr).toLocaleDateString();
-}
 
 export function SecurityActivity() {
   const { accessToken } = useAuthStore();
@@ -94,7 +60,7 @@ export function SecurityActivity() {
         ) : (
           <ul className="divide-y divide-[var(--color-border)]">
             {events.map((event) => {
-              const Icon = eventIcons[event.event_type] ?? Shield;
+              const Icon = EVENT_ICONS[event.event_type] ?? Shield;
               const label = eventLabels[event.event_type] ?? event.event_type.replace(/_/g, " ");
               return (
                 <li key={event.id} className="flex items-center gap-3 py-3">

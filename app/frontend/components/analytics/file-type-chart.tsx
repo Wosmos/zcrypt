@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { formatBytes } from "@/lib/utils";
+import { CHART_TOOLTIP_STYLE, CHART_TOOLTIP_LABEL_STYLE } from "./chart-theme";
 import type { FileMetadata } from "@/types";
 
 interface FileTypeChartProps {
@@ -77,16 +78,8 @@ export function FileTypeChart({ files }: FileTypeChartProps) {
                   ))}
                 </Pie>
                 <Tooltip
-                  contentStyle={{
-                    backgroundColor: "var(--color-surface)",
-                    border: "1px solid var(--color-border)",
-                    borderRadius: "12px",
-                    fontSize: "12px",
-                    padding: "8px 12px",
-                    color: "var(--color-text)",
-                    boxShadow: "0 4px 12px -6px rgba(16, 24, 40, 0.16)",
-                  }}
-                  labelStyle={{ color: "var(--color-text-secondary)" }}
+                  contentStyle={CHART_TOOLTIP_STYLE}
+                  labelStyle={CHART_TOOLTIP_LABEL_STYLE}
                   formatter={(value) => [formatBytes(Number(value)), "Size"]}
                 />
               </PieChart>
