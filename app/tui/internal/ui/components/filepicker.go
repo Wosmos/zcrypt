@@ -12,8 +12,8 @@ import (
 )
 
 var (
-	fpDir = lipgloss.NewStyle().Foreground(lipgloss.Color("#67e8f9")).Bold(true)  // cyan-bright for dirs
-	fpFile  = lipgloss.NewStyle().Foreground(lipgloss.Color("#e4e4e7"))           // white for files
+	fpDir   = lipgloss.NewStyle().Foreground(lipgloss.Color("#67e8f9")).Bold(true) // cyan-bright for dirs
+	fpFile  = lipgloss.NewStyle().Foreground(lipgloss.Color("#e4e4e7"))            // white for files
 	fpSel   = lipgloss.NewStyle().Foreground(lipgloss.Color("#09090b")).Background(lipgloss.Color("#00d5e4")).Bold(true)
 	fpMuted = lipgloss.NewStyle().Foreground(lipgloss.Color("#52525b"))
 	fpSize  = lipgloss.NewStyle().Foreground(lipgloss.Color("#71717a"))

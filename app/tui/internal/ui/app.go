@@ -25,14 +25,14 @@ const (
 
 // App is the root Bubbletea model.
 type App struct {
-	screen    Screen
+	screen     Screen
 	prevScreen Screen
-	session   *auth.Session
-	client    *api.Client
-	config    *config.Config
-	profile   pipeline.Profile
-	width     int
-	height    int
+	session    *auth.Session
+	client     *api.Client
+	config     *config.Config
+	profile    pipeline.Profile
+	width      int
+	height     int
 
 	// Screen models
 	login     screens.LoginModel

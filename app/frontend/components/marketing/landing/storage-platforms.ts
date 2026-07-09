@@ -41,7 +41,7 @@ export const STORAGE_PLATFORMS: StoragePlatform[] = [
     name: PLATFORM_NAMES.huggingface,
     Icon: Layers,
     colorClass: "text-[#ffd21e]",
-    capacity: "280 GB / repo",
+    capacity: "90 GB / repo",
     note: "Built for large files — serious headroom.",
   },
   {

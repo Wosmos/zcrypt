@@ -64,7 +64,7 @@ type DashboardModel struct {
 	cmdErr     string
 	loading    bool
 	err        string
-	confirming string // "single:<fileID>" or "bulk"
+	confirming string       // "single:<fileID>" or "bulk"
 	selected   map[int]bool // indices of selected files in filtered list
 	client     *api.Client
 	username   string
@@ -392,9 +392,9 @@ func (m DashboardModel) View() string {
 			Bold(true).
 			Padding(0, 1).
 			Render(fmt.Sprintf(" %d selected ", len(m.selected)))
-		body += "\n" + lipgloss.NewStyle().Padding(0, 2).Render(selBadge +
-			theme.DimStyle.Render("  x delete selected  ") +
-			theme.DimStyle.Render("  a toggle all  ") +
+		body += "\n" + lipgloss.NewStyle().Padding(0, 2).Render(selBadge+
+			theme.DimStyle.Render("  x delete selected  ")+
+			theme.DimStyle.Render("  a toggle all  ")+
 			theme.DimStyle.Render("  space toggle"))
 	}
 
@@ -417,14 +417,14 @@ func (m DashboardModel) View() string {
 	// Search indicator
 	if m.searchMode {
 		body += "\n" + lipgloss.NewStyle().Padding(0, 2).Render(
-			theme.KeyStyle.Render("/") + theme.MutedStyle.Render(" search: ") + m.search + theme.MutedStyle.Render("_"),
+			theme.KeyStyle.Render("/")+theme.MutedStyle.Render(" search: ")+m.search+theme.MutedStyle.Render("_"),
 		)
 	}
 
 	// Command bar
 	if m.cmdMode {
 		body += "\n" + lipgloss.NewStyle().Padding(0, 2).Render(
-			theme.KeyStyle.Render(":") + lipgloss.NewStyle().Foreground(lipgloss.Color("#e4e4e7")).Render(m.cmdInput) +
+			theme.KeyStyle.Render(":")+lipgloss.NewStyle().Foreground(lipgloss.Color("#e4e4e7")).Render(m.cmdInput)+
 				lipgloss.NewStyle().Foreground(lipgloss.Color("#00d5e4")).Render("_"),
 		)
 	}

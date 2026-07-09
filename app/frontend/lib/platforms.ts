@@ -54,9 +54,9 @@ export const PLATFORMS: PlatformMeta[] = [
     color: "#6366f1",
     iconClass: "",
     scope: "repo",
-    tagline: "Up to 1 GB per repo",
-    description: "Personal access token with repo scope — up to 1 GB per repo",
-    capacity: "1 GB / repo",
+    tagline: "Up to 850 MB per repo",
+    description: "Personal access token with repo scope — up to 850 MB per repo",
+    capacity: "850 MB / repo",
     // zcrypt commits chunks via the Contents API (plain git), not LFS — the
     // limit that applies is GitHub's 100 MB hard per-file push limit.
     fileLimit: "100 MB / file",
@@ -72,9 +72,9 @@ export const PLATFORMS: PlatformMeta[] = [
     color: "#f97316",
     iconClass: "text-orange-500 dark:text-orange-400",
     scope: "api",
-    tagline: "Up to 10 GB per repo",
-    description: "Personal access token with api scope — up to 10 GB per repo",
-    capacity: "10 GB / repo",
+    tagline: "Up to 9 GB per repo",
+    description: "Personal access token with api scope — up to 9 GB per repo",
+    capacity: "9 GB / repo",
     // Plain git commits → GitLab Free's 100 MiB per-file push limit applies.
     fileLimit: "100 MB / file",
     rateInfo: "7,200 req/hr (authenticated)",
@@ -89,9 +89,9 @@ export const PLATFORMS: PlatformMeta[] = [
     color: "#eab308",
     iconClass: "text-yellow-500 dark:text-yellow-400",
     scope: "write",
-    tagline: "Up to 300 GB per repo",
-    description: "Access token with write permission — up to 300 GB per repo",
-    capacity: "300 GB / repo",
+    tagline: "Up to 90 GB per repo",
+    description: "Access token with write permission — up to 90 GB per repo",
+    capacity: "90 GB / repo",
     // HuggingFace genuinely uploads via LFS.
     fileLimit: "50 GB / file (LFS)",
     rateInfo: "No strict rate limits",

@@ -108,10 +108,12 @@ export default function PhilosophyPage() {
           </h2>
           <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
             <p>
-              GitHub gives you up to 100GB per repository. For free. GitLab gives
-              you 10GB. Hugging Face gives you 300GB. These aren&apos;t hidden
-              terms buried in legalese — they&apos;re published limits that
-              platform teams actively maintain and support.
+              GitLab gives you 10GB per repo. For free. Hugging Face gives you
+              100GB per account. GitHub doesn&apos;t even publish a hard cap —
+              just stay under a few gigabytes and nobody blinks. These
+              aren&apos;t hidden terms buried in legalese — they&apos;re
+              published limits (and unwritten norms) that platform teams
+              actively maintain and support.
             </p>
             <p>
               This isn&apos;t a bug. This is a feature. These platforms need generous

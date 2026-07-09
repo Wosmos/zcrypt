@@ -40,7 +40,7 @@ var Profiles = map[string]Profile{
 	},
 	"ludicrous": {
 		Name:                "ludicrous",
-		Workers:             0, // resolved at runtime
+		Workers:             0,        // resolved at runtime
 		ChunkSize:           32 << 20, // 32 MB
 		ZstdLevel:           3,
 		ConcurrentUploads:   8,
