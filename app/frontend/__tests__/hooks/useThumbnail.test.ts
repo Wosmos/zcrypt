@@ -138,7 +138,14 @@ class FakeVideo {
   load() {}
 }
 
-type CanvasBehavior = { ctxAvailable: boolean; drawImageThrows: boolean; dataUrl: string };
+type CanvasBehavior = {
+  ctxAvailable: boolean;
+  drawImageThrows: boolean;
+  dataUrl: string;
+  /** Simulate a raster whose every pixel is fully transparent (e.g. an SVG
+   *  Chrome draws as nothing) — generateThumbnail must reject it. */
+  blank?: boolean;
+};
 let canvasBehavior: CanvasBehavior = {
   ctxAvailable: true,
   drawImageThrows: false,
@@ -155,6 +162,10 @@ function makeFakeCanvas() {
         drawImage: () => {
           if (canvasBehavior.drawImageThrows) throw new Error("drawImage failed");
         },
+        getImageData: (_x: number, _y: number, w: number, h: number) => ({
+          // RGBA buffer: alpha 0 everywhere when blank, opaque otherwise.
+          data: new Uint8ClampedArray(w * h * 4).fill(canvasBehavior.blank ? 0 : 255),
+        }),
       };
     },
     toDataURL: () => canvasBehavior.dataUrl,
@@ -537,7 +548,7 @@ describe("useThumbnail", () => {
     expect(result.current.pending).toBe(false);
   });
 
-  it("retries a transient decrypt-stage timeout, then gives up after MAX attempts", async () => {
+  it("shimmers only within the grace window, then icons out while transient retries continue in the background", async () => {
     vi.useFakeTimers();
     const { primeThumbnails, useThumbnail } = await loadModule();
     getFileMetaMock.mockResolvedValue(makeMeta());
@@ -546,16 +557,77 @@ describe("useThumbnail", () => {
     act(() => primeThumbnails("vault-pass"));
     const { result } = renderHook(() => useThumbnail("f1", "photo.jpg"));
 
-    // A 30s decrypt-stage timeout (a stuck/slow chunk fetch) is TRANSIENT — the
-    // card keeps shimmering and retries rather than iconing out after one stall.
-    await act(async () => { await vi.advanceTimersByTimeAsync(30_000 + 200); });
+    // Within the shimmer grace window (SHIMMER_MAX_MS) the tile shimmers.
+    await act(async () => { await vi.advanceTimersByTimeAsync(100); });
     expect(result.current.pending).toBe(true);
 
-    // Drive the remaining attempts: 3s backoff + 30s timeout + 6s backoff + 30s.
-    await act(async () => { await vi.advanceTimersByTimeAsync(3_000 + 30_000 + 6_000 + 30_000 + 500); });
-
+    // A 30s decrypt-stage timeout is TRANSIENT and retries continue in the
+    // BACKGROUND — but the tile no longer shimmers open-ended: past the grace
+    // window it drops to its type icon (pending false).
+    await act(async () => { await vi.advanceTimersByTimeAsync(2_000); });
     expect(result.current.pending).toBe(false);
     expect(result.current.thumbnailUrl).toBeNull();
+
+    // Drive the remaining attempts to exhaustion: it never resolves (chunk never
+    // lands) and stays iconed out (permanently failed).
+    await act(async () => { await vi.advanceTimersByTimeAsync(3_000 + 30_000 + 6_000 + 30_000 + 500); });
+    expect(result.current.pending).toBe(false);
+    expect(result.current.thumbnailUrl).toBeNull();
+  });
+
+  it("rejects an all-transparent (blank) raster as permanent → type icon, never caching an invisible thumbnail", async () => {
+    canvasBehavior = { ...canvasBehavior, blank: true };
+    const { primeThumbnails, useThumbnail, hasCachedThumbnail } = await loadModule();
+    getFileMetaMock.mockResolvedValue(makeMeta({ original_name: "file.svg" }));
+    getFileChunkMock.mockResolvedValue({ data: new ArrayBuffer(4), sha256: "x", compressed: false });
+
+    act(() => primeThumbnails("vault-pass"));
+    const { result } = renderHook(() => useThumbnail("f1", "file.svg"));
+
+    // The render "succeeds" but is fully transparent — caching it would leave
+    // the tile looking like an eternal shimmer. It must fail permanently and
+    // fall back to the type icon (pending false, nothing cached).
+    await waitFor(() => expect(result.current.pending).toBe(false));
+    expect(result.current.thumbnailUrl).toBeNull();
+    expect(hasCachedThumbnail("f1")).toBe(false);
+  });
+
+  it("does NOT shimmer for an already-cached thumbnail (renders it instantly)", async () => {
+    const { primeThumbnails, useThumbnail } = await loadModule();
+    getFileMetaMock.mockResolvedValue(makeMeta());
+    getFileChunkMock.mockResolvedValue({ data: new ArrayBuffer(4), sha256: "x", compressed: false });
+
+    act(() => primeThumbnails("vault-pass"));
+    const first = renderHook(() => useThumbnail("f1", "photo.jpg"));
+    await waitFor(() => expect(first.result.current.thumbnailUrl).not.toBeNull());
+    first.unmount();
+
+    // A fresh hook for the same file reads the cache synchronously — no shimmer.
+    const second = renderHook(() => useThumbnail("f1", "photo.jpg"));
+    expect(second.result.current.thumbnailUrl).toBe("data:image/webp;base64,FAKE");
+    expect(second.result.current.pending).toBe(false);
+  });
+
+  it("keeps the cached preview across clearThumbnails (lock/logout) so unlock shows it with no shimmer", async () => {
+    const { primeThumbnails, useThumbnail, clearThumbnails, hasCachedThumbnail } = await loadModule();
+    getFileMetaMock.mockResolvedValue(makeMeta());
+    getFileChunkMock.mockResolvedValue({ data: new ArrayBuffer(4), sha256: "x", compressed: false });
+
+    act(() => primeThumbnails("vault-pass"));
+    const first = renderHook(() => useThumbnail("f1", "photo.jpg"));
+    await waitFor(() => expect(first.result.current.thumbnailUrl).not.toBeNull());
+    first.unmount();
+
+    // Lock/logout must NOT drop the cached preview (that is what caused the
+    // "shimmer on every login" — the cache was wiped and had to regenerate).
+    act(() => clearThumbnails());
+    expect(hasCachedThumbnail("f1")).toBe(true);
+
+    // Re-unlock: the tile shows instantly from cache, never shimmers.
+    act(() => primeThumbnails("vault-pass"));
+    const second = renderHook(() => useThumbnail("f1", "photo.jpg"));
+    expect(second.result.current.thumbnailUrl).toBe("data:image/webp;base64,FAKE");
+    expect(second.result.current.pending).toBe(false);
   });
 
   it("marks a file failed when image rendering exceeds its safety-net timeout", async () => {
