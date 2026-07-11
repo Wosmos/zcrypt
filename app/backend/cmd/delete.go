@@ -122,3 +122,124 @@ func (s *Server) HandleBulkDeleteFiles(w http.ResponseWriter, r *http.Request) {
 		"failed":  failed,
 	})
 }
+
+// HandleBulkPurgeFiles permanently deletes multiple files in a single transaction
+// (empties them from Trash). This replaces the old client pattern of firing one
+// DELETE /purge request per file in parallel, which — on a large multi-select —
+// flooded the per-user rate limiter (429s) and hammered the DB with ~7 round-trips
+// per file. Now it's one request and a fixed handful of set-based statements.
+// POST /api/files/bulk-purge
+func (s *Server) HandleBulkPurgeFiles(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID := GetUserID(r)
+
+	var req struct {
+		IDs []string `json:"ids"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+		return
+	}
+	if len(req.IDs) == 0 {
+		http.Error(w, `{"error":"ids required"}`, http.StatusBadRequest)
+		return
+	}
+	if len(req.IDs) > 500 {
+		http.Error(w, `{"error":"max 500 files per batch"}`, http.StatusBadRequest)
+		return
+	}
+
+	// Validate ids up front — the set-based delete casts the whole slice to uuid[],
+	// so a single malformed id would abort the batch. Invalid ids just count as failed.
+	validIDs := make([]string, 0, len(req.IDs))
+	for _, id := range req.IDs {
+		if _, perr := uuid.Parse(id); perr == nil {
+			validIDs = append(validIDs, id)
+		}
+	}
+
+	deleted, staged, err := s.db.DeleteFilesBatch(ctx, userID, validIDs)
+	if err != nil {
+		log.Printf("bulk-purge: failed: %v", err)
+		http.Error(w, `{"error":"failed to delete files"}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Unsynced chunks never reached a platform — remove their staged .enc files.
+	removeStagedChunkFiles(staged)
+
+	// Synced chunk refs are now queued in pending_deletions — wake the deletion worker.
+	s.signalDeletion()
+
+	// Anything not deleted (invalid id, already gone, or not owned) counts as failed.
+	failed := len(req.IDs) - deleted
+	if failed < 0 {
+		failed = 0
+	}
+
+	s.audit(r, &userID, "bulk_file_purge", map[string]interface{}{
+		"deleted": deleted,
+		"failed":  failed,
+		"total":   len(req.IDs),
+	})
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"deleted": deleted,
+		"failed":  failed,
+	})
+}
+
+// HandleBulkRestoreFiles restores multiple files from Trash in a single statement.
+// Replaces the client's per-file restore fan-out (one request each, in parallel).
+// POST /api/files/bulk-restore
+func (s *Server) HandleBulkRestoreFiles(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID := GetUserID(r)
+
+	var req struct {
+		IDs []string `json:"ids"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+		return
+	}
+	if len(req.IDs) == 0 {
+		http.Error(w, `{"error":"ids required"}`, http.StatusBadRequest)
+		return
+	}
+	if len(req.IDs) > 500 {
+		http.Error(w, `{"error":"max 500 files per batch"}`, http.StatusBadRequest)
+		return
+	}
+
+	validIDs := make([]string, 0, len(req.IDs))
+	for _, id := range req.IDs {
+		if _, perr := uuid.Parse(id); perr == nil {
+			validIDs = append(validIDs, id)
+		}
+	}
+
+	restored, err := s.db.RestoreFilesBatch(ctx, userID, validIDs)
+	if err != nil {
+		log.Printf("bulk-restore: failed: %v", err)
+		http.Error(w, `{"error":"failed to restore files"}`, http.StatusInternalServerError)
+		return
+	}
+	failed := len(req.IDs) - restored
+	if failed < 0 {
+		failed = 0
+	}
+
+	s.audit(r, &userID, "bulk_file_restore", map[string]interface{}{
+		"restored": restored,
+		"failed":   failed,
+		"total":    len(req.IDs),
+	})
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"restored": restored,
+		"failed":   failed,
+	})
+}

@@ -223,11 +223,12 @@ func (s *Server) triggerDeadManSwitch(ctx context.Context, dms types.DeadManSwit
 	}
 }
 
-// processPendingDeletions deletes one batch of chunks from git platforms for files
-// the user has deleted. It returns true when a FULL batch was processed (so the
-// caller should loop to drain the rest) and false when the queue is drained, errored,
-// or the context was cancelled. Persistently-failing items eventually fall out of the
-// eligible set once they exceed maxAttempts, so the drain loop always terminates.
+// processPendingDeletions deletes one batch of queued chunks from their platforms.
+// Items are GROUPED by (user, platform, account, repo) so a batch-capable platform
+// (HuggingFace) deletes a whole repo's chunks in ONE commit instead of one commit
+// per file — HF caps commits at 128/hour/repo, so per-file deletes storm the limit.
+// Returns true when a full batch was processed (caller keeps draining); false when
+// the queue is drained, errored, cancelled, or a platform asked us to back off.
 func (s *Server) processPendingDeletions(ctx context.Context) bool {
 	pending, err := s.db.GetPendingDeletions(ctx, batchSize, maxAttempts)
 	if err != nil {
@@ -240,29 +241,136 @@ func (s *Server) processPendingDeletions(ctx context.Context) bool {
 
 	log.Printf("deletion: processing %d pending deletions", len(pending))
 
+	// Group by (user, platform, account, repo) — one batch commit per repo.
+	type gkey struct{ userID, platform, account, repo string }
+	groups := map[gkey][]index.PendingDeletion{}
+	var order []gkey
 	for _, item := range pending {
+		k := gkey{item.UserID, item.Platform, item.Account, item.Repo}
+		if _, seen := groups[k]; !seen {
+			order = append(order, k)
+		}
+		groups[k] = append(groups[k], item)
+	}
+
+	// A platform that rate-limits us is asked to STOP for this cycle: skip its
+	// remaining groups and let the worker's backoff timer pace us, instead of
+	// hammering. Rate-limited items are NOT counted as failed attempts, so a
+	// temporary 429 can never dead-letter a perfectly deletable chunk.
+	rateLimited := map[string]bool{}
+	for _, k := range order {
 		select {
 		case <-ctx.Done():
 			return false
 		default:
 		}
-		s.processDeletionItem(ctx, item)
+		if rateLimited[k.platform] {
+			continue
+		}
+		if s.processDeletionGroup(ctx, k.userID, k.platform, k.account, k.repo, groups[k]) {
+			rateLimited[k.platform] = true
+			log.Printf("deletion: %s hit its commit rate limit — backing off, leaving the rest queued (not counted as failures)", k.platform)
+		}
 	}
 
 	if remaining, _ := s.db.PendingDeletionCount(ctx); remaining > 0 {
 		fmt.Printf("deletion: %d deletions remaining in queue\n", remaining)
 	}
 
+	// If any platform rate-limited us, stop draining so the worker backs off.
+	if len(rateLimited) > 0 {
+		return false
+	}
 	// A full batch likely means more remain — tell the caller to keep draining.
 	return len(pending) == batchSize
 }
 
-// processDeletionItem attempts one queued platform deletion with per-item panic
-// isolation: a panic inside one adapter's Delete (e.g. a nil dereference on a
-// malformed/already-gone chunk) must NOT take down the whole batch. Without
-// this, the worker-level recover re-ran the SAME batch forever, crash-looping
-// and stranding every other deletion too.
-func (s *Server) processDeletionItem(ctx context.Context, item index.PendingDeletion) {
+// resolveDeletionAdapter resolves the adapter for a queued deletion: the file
+// owner's per-user adapter first, falling back to the global adapter set for items
+// whose user was deleted (user_id NULL) or anonymous-send deletions.
+func (s *Server) resolveDeletionAdapter(ctx context.Context, userID, platform, account string) adapters.PlatformAdapter {
+	var adapter adapters.PlatformAdapter
+	if userID != "" {
+		adapter = s.resolveAdapterForUser(ctx, userID, platform, account)
+	}
+	if adapter == nil {
+		if ga, err := s.resolveGlobalAdapter(ctx, platform, account); err == nil {
+			adapter = ga
+		}
+	}
+	return adapter
+}
+
+// processDeletionGroup deletes all queued items for one (user, platform, account,
+// repo). Batch-capable platforms (HuggingFace) delete them in a single commit;
+// others fall back to per-item. Returns true if the platform rate-limited us (the
+// caller should back off and leave the remaining items queued). Panic-isolated so
+// one malformed item can't crash-loop the whole worker.
+func (s *Server) processDeletionGroup(ctx context.Context, userID, platform, account, repo string, items []index.PendingDeletion) (rateLimited bool) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("deletion: recovered panic on %s:%s repo=%s (%d items): %v\n%s",
+				platform, account, repo, len(items), r, debug.Stack())
+			for _, it := range items {
+				s.markDeletionFailed(ctx, it, fmt.Sprintf("panic: %v", r))
+			}
+		}
+	}()
+
+	adapter := s.resolveDeletionAdapter(ctx, userID, platform, account)
+	if adapter == nil {
+		log.Printf("deletion: no adapter for %s:%s (user=%q), skipping %d item(s)", platform, account, userID, len(items))
+		for _, it := range items {
+			s.markDeletionFailed(ctx, it, "no adapter available")
+		}
+		return false
+	}
+
+	// Batch path: one commit for the whole repo group (e.g. HuggingFace).
+	if bd, ok := adapter.(adapters.BatchDeleter); ok && len(items) > 1 {
+		paths := make([]string, len(items))
+		for i, it := range items {
+			paths[i] = it.RemotePath
+		}
+		err := bd.BatchDelete(ctx, repo, paths)
+		if err == nil {
+			for _, it := range items {
+				if e := s.db.MarkDeletionDone(ctx, it.ID); e != nil {
+					log.Printf("deletion: mark done for item %d: %v", it.ID, e)
+				}
+			}
+			log.Printf("deletion: batch-deleted %d chunk(s) from %s %s", len(items), platform, repo)
+			return false
+		}
+		if isRateLimited(err) {
+			log.Printf("deletion: batch delete of %d from %s rate-limited: %v", len(items), repo, err)
+			return true // transient — do NOT bump attempts; caller backs off
+		}
+		log.Printf("deletion: batch delete of %d from %s failed: %v", len(items), repo, err)
+		for _, it := range items {
+			s.markDeletionFailed(ctx, it, err.Error())
+		}
+		return false
+	}
+
+	// Per-item path (non-batch platforms, or a single item).
+	for _, it := range items {
+		select {
+		case <-ctx.Done():
+			return false
+		default:
+		}
+		if s.processDeletionItem(ctx, it, adapter) {
+			return true
+		}
+	}
+	return false
+}
+
+// processDeletionItem attempts one queued platform deletion with the already-resolved
+// adapter. Returns true if the platform rate-limited us (caller backs off; the item
+// is left queued and NOT counted as a failed attempt).
+func (s *Server) processDeletionItem(ctx context.Context, item index.PendingDeletion, adapter adapters.PlatformAdapter) (rateLimited bool) {
 	defer func() {
 		if r := recover(); r != nil {
 			log.Printf("deletion: recovered panic on item %d (%s:%s %s): %v",
@@ -270,25 +378,6 @@ func (s *Server) processDeletionItem(ctx context.Context, item index.PendingDele
 			s.markDeletionFailed(ctx, item, fmt.Sprintf("panic: %v", r))
 		}
 	}()
-
-	// Resolve the adapter. Items whose user was deleted (user_id NULL → "")
-	// and anonymous-send deletions have no per-user tokens; and a per-user
-	// lookup can also come back empty when the user row is gone. Fall back to
-	// the global adapter set in both cases, mirroring send-transfer cleanup.
-	var adapter adapters.PlatformAdapter
-	if item.UserID != "" {
-		adapter = s.resolveAdapterForUser(ctx, item.UserID, item.Platform, item.Account)
-	}
-	if adapter == nil {
-		if ga, err := s.resolveGlobalAdapter(ctx, item.Platform, item.Account); err == nil {
-			adapter = ga
-		}
-	}
-	if adapter == nil {
-		log.Printf("deletion: no adapter for %s:%s (user=%q), skipping", item.Platform, item.Account, item.UserID)
-		s.markDeletionFailed(ctx, item, "no adapter available")
-		return
-	}
 
 	ref := types.ChunkRef{
 		Platform:   item.Platform,
@@ -298,10 +387,14 @@ func (s *Server) processDeletionItem(ctx context.Context, item index.PendingDele
 	}
 
 	if err := adapter.Delete(ctx, ref); err != nil {
+		if isRateLimited(err) {
+			log.Printf("deletion: delete %s from %s rate-limited: %v", item.RemotePath, item.Repo, err)
+			return true // leave queued, don't count as a failure
+		}
 		log.Printf("deletion: delete %s from %s: %v", item.RemotePath, item.Repo, err)
 		s.markDeletionFailed(ctx, item, err.Error())
 		time.Sleep(2 * time.Second)
-		return
+		return false
 	}
 
 	if err := s.db.MarkDeletionDone(ctx, item.ID); err != nil {
@@ -309,6 +402,21 @@ func (s *Server) processDeletionItem(ctx context.Context, item index.PendingDele
 	}
 	log.Printf("deletion: deleted %s from %s", item.RemotePath, item.Repo)
 	time.Sleep(1 * time.Second)
+	return false
+}
+
+// isRateLimited reports whether an adapter error is a platform rate-limit (HTTP
+// 429 / secondary limit). Such errors are TRANSIENT — the deletion worker backs
+// off and retries later instead of counting them as failed attempts (which would
+// eventually dead-letter a perfectly deletable chunk just for being throttled).
+func isRateLimited(err error) bool {
+	if err == nil {
+		return false
+	}
+	s := strings.ToLower(err.Error())
+	return strings.Contains(s, "429") ||
+		strings.Contains(s, "rate limit") ||
+		strings.Contains(s, "too many requests")
 }
 
 // markDeletionFailed records a failed attempt and surfaces dead-letter
@@ -351,7 +459,14 @@ func (s *Server) retryStaleDeletions(ctx context.Context) {
 			return
 		default:
 		}
-		s.processDeletionItem(ctx, item)
+		adapter := s.resolveDeletionAdapter(ctx, item.UserID, item.Platform, item.Account)
+		if adapter == nil {
+			s.markDeletionFailed(ctx, item, "no adapter available")
+			continue
+		}
+		if s.processDeletionItem(ctx, item, adapter) {
+			return // rate-limited — stop the slow lane this cycle
+		}
 	}
 }
 

@@ -337,14 +337,62 @@ func (db *DB) SoftDeleteFilesBatch(ctx context.Context, userID string, fileIDs [
 	return int(tag.RowsAffected()), nil
 }
 
-// RestoreFile brings a file back from the trash, scoped to the owning user.
+// RestoreFile brings a file back from the trash, scoped to the owning user. It
+// delegates to RestoreFilesBatch so a single restore also revives the file's
+// trashed ancestor folders (see below) — otherwise a file deleted via its folder
+// would restore into a folder the user can't navigate into.
 func (db *DB) RestoreFile(ctx context.Context, userID, fileID string) error {
-	_, err := db.pool.Exec(ctx,
-		`UPDATE files SET deleted_at = NULL WHERE id = $1 AND user_id = $2`,
-		fileID, userID,
+	_, err := db.RestoreFilesBatch(ctx, userID, []string{fileID})
+	return err
+}
+
+// RestoreFilesBatch brings many files back from the trash in one transaction,
+// scoped to the user, returning the number of files actually restored.
+//
+// Deleting a folder cascade-soft-deletes every file inside it (see
+// SoftDeleteFolderSubtree). Restoring just the files would strand them in a
+// still-trashed folder — invisible, because folder listings filter deleted_at
+// IS NULL. So after un-deleting the files we also revive their ANCESTOR folder
+// chain up to the root, making the restored files reachable again.
+func (db *DB) RestoreFilesBatch(ctx context.Context, userID string, fileIDs []string) (int, error) {
+	if len(fileIDs) == 0 {
+		return 0, nil
+	}
+
+	tx, err := db.pool.Begin(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	tag, err := tx.Exec(ctx,
+		`UPDATE files SET deleted_at = NULL
+		 WHERE user_id = $1 AND deleted_at IS NOT NULL AND id = ANY($2::uuid[])`,
+		userID, fileIDs,
 	)
 	if err != nil {
-		return fmt.Errorf("restore file: %w", err)
+		return 0, fmt.Errorf("restore files batch: %w", err)
 	}
-	return nil
+
+	// Revive any trashed folder on the path from each restored file up to the root.
+	if _, err := tx.Exec(ctx,
+		`WITH RECURSIVE ancestors AS (
+		     SELECT folder_id AS id FROM files
+		     WHERE user_id = $1 AND id = ANY($2::uuid[]) AND folder_id IS NOT NULL
+		     UNION
+		     SELECT f.parent_id FROM folders f
+		     JOIN ancestors a ON f.id = a.id
+		     WHERE f.parent_id IS NOT NULL
+		 )
+		 UPDATE folders SET deleted_at = NULL
+		 WHERE user_id = $1 AND deleted_at IS NOT NULL AND id IN (SELECT id FROM ancestors)`,
+		userID, fileIDs,
+	); err != nil {
+		return 0, fmt.Errorf("restore ancestor folders: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return 0, fmt.Errorf("commit: %w", err)
+	}
+	return int(tag.RowsAffected()), nil
 }
