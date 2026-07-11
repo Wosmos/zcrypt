@@ -72,8 +72,11 @@ func (s *Server) StartSyncWorker(ctx context.Context) {
 
 		log.Println("sync-worker: started")
 
-		// Drain anything stranded by a previous run before settling into the loop.
-		for s.syncPendingChunks(ctx) {
+		// Drain anything stranded by a previous run before settling into the loop:
+		// relay-sync pending chunks AND commit-verify any uploaded-but-uncommitted
+		// chunks (e.g. HuggingFace LFS blobs a crash/cache-eviction left without a
+		// verified commit).
+		for s.drainAll(ctx) {
 		}
 
 		backoff := syncMinInterval
@@ -88,14 +91,15 @@ func (s *Server) StartSyncWorker(ctx context.Context) {
 			case <-s.syncCh:
 				// Upload just happened — drain the whole queue, then poll promptly
 				// in case more chunks land right behind it.
-				for s.syncPendingChunks(ctx) {
+				for s.drainAll(ctx) {
 				}
 				backoff = syncMinInterval
 				resetTimer(fallback, backoff)
 			case <-fallback.C:
-				// Safety net: catch any chunks left over from a restart.
+				// Safety net: catch chunks left over from a restart AND re-attempt
+				// any uncommitted (never-durably-committed) chunks.
 				worked := false
-				for s.syncPendingChunks(ctx) {
+				for s.drainAll(ctx) {
 					worked = true
 				}
 				if worked {
@@ -112,6 +116,40 @@ func (s *Server) StartSyncWorker(ctx context.Context) {
 			}
 		}
 	}()
+}
+
+// drainAll runs one pass of both background durability jobs: the relay-sync of
+// staged chunks (remote_path still ”), and the commit-verify reconcile of
+// uploaded-but-uncommitted chunks (remote_path set, committed still false).
+// Returns true if either found work, so the caller can loop until both are dry.
+func (s *Server) drainAll(ctx context.Context) bool {
+	worked := false
+	for s.syncPendingChunks(ctx) {
+		worked = true
+	}
+	for s.reconcileUncommitted(ctx) {
+		worked = true
+	}
+	return worked
+}
+
+// reconcileUncommitted commits + verifies a batch of chunks that were uploaded
+// but whose platform commit was never confirmed (the HuggingFace silent-loss
+// path: LFS blob present, tree pointer missing). It is the self-healing backstop
+// — a chunk stays committed=false and is retried here every cycle until its
+// object is confirmed present on the platform (or it exhausts the attempt cap and
+// is logged as a data-loss risk). Returns true if any were found.
+func (s *Server) reconcileUncommitted(ctx context.Context) bool {
+	chunks, err := s.db.GetUncommittedChunks(ctx, 100, maxSyncAttempts)
+	if err != nil {
+		log.Printf("sync-worker: get uncommitted chunks: %v", err)
+		return false
+	}
+	if len(chunks) == 0 {
+		return false
+	}
+	s.commitAndVerify(ctx, chunks)
+	return true
 }
 
 // syncPendingChunks processes a batch of pending chunks. Returns true if

@@ -494,7 +494,7 @@ func (s *Server) HandleUploadComplete(w http.ResponseWriter, r *http.Request) {
 		"file_id": session.FileID,
 	})
 
-	// Background: FlushCommits, size verification, repo usage. Capture the
+	// Background: commit+verify, size verification, repo usage. Capture the
 	// values needed off the request now — the goroutine outlives the request, so
 	// it must not touch r.
 	bgUserID := userID
@@ -504,18 +504,26 @@ func (s *Server) HandleUploadComplete(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		bgCtx := context.Background()
 
-		// Flush batch commits (HuggingFace). This is the step that actually
-		// makes buffered LFS uploads durable on the platform; if it fails, the
-		// chunks are NOT safe yet. Re-signal the sync worker as a recovery hint
-		// and log it as a durability warning rather than dropping it silently.
-		adapter := s.resolveAdapterForUser(bgCtx, bgUserID, bgSession.Platform, bgSession.Account)
-		if bc, ok := adapter.(adapters.BatchCommitter); ok {
-			if err := bc.FlushCommits(bgCtx, bgSession.RepoURL); err != nil {
-				log.Printf("upload: WARNING background FlushCommits failed for file %s (chunks may not be durable): %v", bgSession.FileID, err)
-				select {
-				case s.syncCh <- struct{}{}:
-				default:
-				}
+		// Commit + VERIFY this file's uploaded-but-uncommitted chunks (HuggingFace
+		// LFS). DB-driven — NOT the old in-memory pendingCommits buffer that a
+		// per-user adapter-cache eviction between confirm and here would silently
+		// discard (the ~50% silent-loss bug). commitAndVerify flips committed=TRUE
+		// only after confirming each object is actually present on the platform;
+		// anything still uncommitted is left for the sync worker's reconcile to
+		// retry. Either way a chunk is never trusted durable on an object we
+		// haven't seen land.
+		if uncommitted, err := s.db.GetUncommittedChunksForFile(bgCtx, bgSession.FileID); err != nil {
+			log.Printf("upload: WARNING loading uncommitted chunks for file %s failed: %v — reconcile will retry", bgSession.FileID, err)
+			select {
+			case s.syncCh <- struct{}{}:
+			default:
+			}
+		} else if len(uncommitted) > 0 {
+			s.commitAndVerify(bgCtx, uncommitted)
+			// Nudge the reconcile in case any chunk still failed to commit/verify.
+			select {
+			case s.syncCh <- struct{}{}:
+			default:
 			}
 		}
 
@@ -739,6 +747,21 @@ func (s *Server) HandlePresignChunk(w http.ResponseWriter, r *http.Request) {
 
 	// Get presigned URL from platform
 	uploadURL, uploadHeaders, err := du.GetUploadURL(ctx, session.RepoURL, req.SHA256, req.Size)
+	if err != nil && isRepoNotFound(err) {
+		// The platform removed this repo out from under the session (e.g.
+		// HuggingFace deleting a repo for policy reasons). Self-heal instead of
+		// failing every remaining chunk until someone intervenes manually:
+		// deactivate the dead repo so the pool stops routing to it, rotate the
+		// session to a fresh (or existing active) repo, and retry the presign
+		// once against the new target.
+		log.Printf("upload: repo %s gone on %s — rotating session %s: %v",
+			session.RepoURL, session.Platform, session.ID, err)
+		if healErr := s.healDeadRepo(ctx, session); healErr != nil {
+			log.Printf("upload: repo self-heal failed: %v", healErr)
+		} else {
+			uploadURL, uploadHeaders, err = du.GetUploadURL(ctx, session.RepoURL, req.SHA256, req.Size)
+		}
+	}
 	if err != nil {
 		log.Printf("upload: get upload url failed: %v", err)
 		http.Error(w, `{"error":"failed to get upload URL"}`, http.StatusInternalServerError)
@@ -752,6 +775,52 @@ func (s *Server) HandlePresignChunk(w http.ResponseWriter, r *http.Request) {
 		"remote_path":    remotePath,
 		"already_exists": uploadURL == "",
 	})
+}
+
+// isRepoNotFound reports whether an adapter error means the repo itself is GONE
+// on the platform (deleted, renamed, or removed for policy reasons) — as opposed
+// to a transient failure worth retrying against the same repo. HuggingFace's LFS
+// batch endpoint surfaces this as a 404 with "Repository not found" in the body.
+func isRepoNotFound(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "repository not found") ||
+		(strings.Contains(msg, "404") && strings.Contains(msg, "not found"))
+}
+
+// healDeadRepo recovers an upload session whose repo the platform has removed:
+// deactivate the dead repo so the pool never routes to it again, rotate to a
+// fresh (or existing active) repo from the same platform:account pool, and
+// persist the session's new target so every remaining chunk — and any future
+// resume — goes straight there. Mutates session.RepoID/RepoURL on success.
+func (s *Server) healDeadRepo(ctx context.Context, session *types.UploadSession) error {
+	if session.RepoID != "" {
+		if err := s.db.DeactivateRepo(ctx, session.RepoID); err != nil {
+			return fmt.Errorf("deactivate dead repo: %w", err)
+		}
+	}
+	pools, err := s.getUserPools(ctx, session.UserID)
+	if err != nil {
+		return fmt.Errorf("load repo pools: %w", err)
+	}
+	pool, ok := pools[session.Platform+":"+session.Account]
+	if !ok {
+		return fmt.Errorf("no repo pool for %s:%s", session.Platform, session.Account)
+	}
+	// GetOrCreateRepo reads the DB fresh, so it skips the repo just deactivated
+	// and returns the next active repo (creating one if the pool is empty).
+	repo, err := pool.GetOrCreateRepo(ctx)
+	if err != nil {
+		return fmt.Errorf("rotate to new repo: %w", err)
+	}
+	if err := s.db.UpdateUploadSessionRepo(ctx, session.ID, repo.ID, repo.URL); err != nil {
+		return fmt.Errorf("repoint session: %w", err)
+	}
+	session.RepoID = repo.ID
+	session.RepoURL = repo.URL
+	return nil
 }
 
 // HandleConfirmChunk confirms a directly-uploaded chunk and stores its reference.
@@ -811,13 +880,10 @@ func (s *Server) HandleConfirmChunk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Register with adapter for batch commit (e.g., HuggingFace pendingCommits)
-	adapter := s.resolveAdapterForUser(ctx, userID, session.Platform, session.Account)
-	if du, ok := adapter.(adapters.DirectUploader); ok {
-		du.RegisterUpload(req.RemotePath, req.SHA256, req.Size)
-	}
-
-	// Store chunk reference in DB
+	// Store chunk reference in DB with committed=FALSE (InsertClientChunk). The
+	// LFS blob is uploaded but has no tree pointer yet; durability is established
+	// later by commit+verify (on upload-complete and by the reconcile worker),
+	// driven entirely from this DB row — no fragile in-memory commit buffer.
 	chunkID := uuid.New().String()
 	dbChunk := &types.ChunkRef{
 		ChunkID:    chunkID,

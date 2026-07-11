@@ -365,14 +365,14 @@ func (db *DB) DeleteFile(ctx context.Context, userID, fileID string) ([]string, 
 // pending_deletions for deferred remote cleanup before the rows are removed.
 //
 // fileIDs is cast to uuid[] so the uuid = ANY(...) comparisons type-check.
-func (db *DB) DeleteFilesBatch(ctx context.Context, userID string, fileIDs []string) (int, error) {
+func (db *DB) DeleteFilesBatch(ctx context.Context, userID string, fileIDs []string) (int, []string, error) {
 	if len(fileIDs) == 0 {
-		return 0, nil
+		return 0, nil, nil
 	}
 
 	tx, err := db.pool.Begin(ctx)
 	if err != nil {
-		return 0, fmt.Errorf("begin tx: %w", err)
+		return 0, nil, fmt.Errorf("begin tx: %w", err)
 	}
 	defer tx.Rollback(ctx)
 
@@ -387,7 +387,7 @@ func (db *DB) DeleteFilesBatch(ctx context.Context, userID string, fileIDs []str
 		 WHERE r.url = agg.repo AND r.user_id = $1`,
 		userID, fileIDs,
 	); err != nil {
-		return 0, fmt.Errorf("decrement repo usage: %w", err)
+		return 0, nil, fmt.Errorf("decrement repo usage: %w", err)
 	}
 
 	// Queue remote chunk deletions before deleting the chunk rows. A chunk is
@@ -400,14 +400,37 @@ func (db *DB) DeleteFilesBatch(ctx context.Context, userID string, fileIDs []str
 		 WHERE user_id = $1 AND file_id = ANY($2::uuid[]) AND `+deletionLocatorExpr+` IS NOT NULL`,
 		userID, fileIDs,
 	); err != nil {
-		return 0, fmt.Errorf("queue deletions: %w", err)
+		return 0, nil, fmt.Errorf("queue deletions: %w", err)
+	}
+
+	// Collect unsynced chunk IDs (never reached a platform) so the caller can
+	// remove their staged .enc files — mirrors DeleteFile's single-file cleanup.
+	stagedRows, err := tx.Query(ctx,
+		`SELECT chunk_id FROM chunks WHERE user_id = $1 AND file_id = ANY($2::uuid[]) AND remote_path = ''`,
+		userID, fileIDs,
+	)
+	if err != nil {
+		return 0, nil, fmt.Errorf("list staged chunks: %w", err)
+	}
+	var staged []string
+	for stagedRows.Next() {
+		var id string
+		if err := stagedRows.Scan(&id); err != nil {
+			stagedRows.Close()
+			return 0, nil, fmt.Errorf("scan staged chunk: %w", err)
+		}
+		staged = append(staged, id)
+	}
+	stagedRows.Close()
+	if err := stagedRows.Err(); err != nil {
+		return 0, nil, fmt.Errorf("iterate staged chunks: %w", err)
 	}
 
 	if _, err := tx.Exec(ctx,
 		`DELETE FROM chunks WHERE user_id = $1 AND file_id = ANY($2::uuid[])`,
 		userID, fileIDs,
 	); err != nil {
-		return 0, fmt.Errorf("delete chunks: %w", err)
+		return 0, nil, fmt.Errorf("delete chunks: %w", err)
 	}
 
 	tag, err := tx.Exec(ctx,
@@ -415,13 +438,13 @@ func (db *DB) DeleteFilesBatch(ctx context.Context, userID string, fileIDs []str
 		userID, fileIDs,
 	)
 	if err != nil {
-		return 0, fmt.Errorf("delete files: %w", err)
+		return 0, nil, fmt.Errorf("delete files: %w", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return 0, fmt.Errorf("commit: %w", err)
+		return 0, nil, fmt.Errorf("commit: %w", err)
 	}
-	return int(tag.RowsAffected()), nil
+	return int(tag.RowsAffected()), staged, nil
 }
 
 // PendingDeletion represents a chunk queued for remote deletion.
@@ -900,6 +923,21 @@ func (db *DB) IncrementSessionChunks(ctx context.Context, sessionID string) (int
 	return uploaded, nil
 }
 
+// UpdateUploadSessionRepo repoints an active session at a different repo. Used
+// by the presign self-heal when the platform has removed the session's repo out
+// from under it (e.g. HuggingFace deleting a repo): the session rotates to a
+// fresh pool repo and its remaining chunks upload there.
+func (db *DB) UpdateUploadSessionRepo(ctx context.Context, sessionID, repoID, repoURL string) error {
+	_, err := db.pool.Exec(ctx,
+		`UPDATE upload_sessions SET repo_id = $2, repo_url = $3 WHERE id = $1`,
+		sessionID, repoID, repoURL,
+	)
+	if err != nil {
+		return fmt.Errorf("update upload session repo: %w", err)
+	}
+	return nil
+}
+
 // CompleteUploadSession marks a session as complete.
 func (db *DB) CompleteUploadSession(ctx context.Context, sessionID string) error {
 	_, err := db.pool.Exec(ctx,
@@ -1060,9 +1098,14 @@ func (db *DB) CleanupExpiredUploadSessions(ctx context.Context) (int, []string, 
 // racy duplicate PUT — so the caller can avoid double-counting uploaded_chunks.
 // Relies on the uq_chunks_file_idx unique index (see schema.go).
 func (db *DB) InsertClientChunk(ctx context.Context, userID string, c *types.ChunkRef) (bool, error) {
+	// committed=FALSE: this is the DIRECT-upload path (HuggingFace), where the
+	// client PUT the LFS blob but no tree-pointer commit exists yet. The sync
+	// worker's reconcile pass commits it and flips committed=TRUE only after
+	// verifying the object is actually present on the platform — so a chunk is
+	// never recorded durable on an uncommitted blob (the silent-loss bug).
 	tag, err := db.pool.Exec(ctx,
-		`INSERT INTO chunks (chunk_id, file_id, user_id, idx, size, sha256, platform, account, repo, remote_path, compressed)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		`INSERT INTO chunks (chunk_id, file_id, user_id, idx, size, sha256, platform, account, repo, remote_path, compressed, committed)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, FALSE)
 		 ON CONFLICT (file_id, idx) DO NOTHING`,
 		c.ChunkID, c.FileID, userID, c.Index, c.Size, c.SHA256, c.Platform, c.Account, c.Repo, c.RemotePath, c.Compressed,
 	)
@@ -1151,6 +1194,75 @@ func (db *DB) GetPendingChunks(ctx context.Context, limit, maxAttempts int) ([]t
 		chunks = append(chunks, c)
 	}
 	return chunks, rows.Err()
+}
+
+// GetUncommittedChunks returns chunks that were uploaded (remote_path set) but
+// whose platform commit has NOT been verified yet (committed = FALSE) and are
+// still under the retry cap. This is the reconcile worker's work-list: for
+// HuggingFace, the LFS blob exists but the tree pointer must still be committed
+// and confirmed. Fewer-attempt chunks first so one stuck chunk can't starve fresh
+// ones. Disjoint from GetPendingChunks (which requires remote_path = ”).
+func (db *DB) GetUncommittedChunks(ctx context.Context, limit, maxAttempts int) ([]types.ChunkRef, error) {
+	rows, err := db.pool.Query(ctx,
+		`SELECT chunk_id, file_id, user_id, idx, size, sha256, platform, account, repo, remote_path, compressed, sync_attempts
+		 FROM chunks WHERE committed = FALSE AND remote_path <> '' AND sync_attempts < $1
+		 ORDER BY sync_attempts, chunk_id LIMIT $2`, maxAttempts, limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("get uncommitted chunks: %w", err)
+	}
+	defer rows.Close()
+
+	var chunks []types.ChunkRef
+	for rows.Next() {
+		var c types.ChunkRef
+		if err := rows.Scan(&c.ChunkID, &c.FileID, &c.UserID, &c.Index, &c.Size, &c.SHA256,
+			&c.Platform, &c.Account, &c.Repo, &c.RemotePath, &c.Compressed, &c.SyncAttempts); err != nil {
+			return nil, fmt.Errorf("scan uncommitted chunk: %w", err)
+		}
+		chunks = append(chunks, c)
+	}
+	return chunks, rows.Err()
+}
+
+// GetUncommittedChunksForFile returns the uploaded-but-not-yet-committed chunks
+// of a single file — used to commit + verify a file's chunks synchronously on
+// upload-complete, before the reconcile loop would otherwise get to them.
+func (db *DB) GetUncommittedChunksForFile(ctx context.Context, fileID string) ([]types.ChunkRef, error) {
+	rows, err := db.pool.Query(ctx,
+		`SELECT chunk_id, file_id, user_id, idx, size, sha256, platform, account, repo, remote_path, compressed, sync_attempts
+		 FROM chunks WHERE file_id = $1 AND committed = FALSE AND remote_path <> ''`, fileID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("get uncommitted chunks for file: %w", err)
+	}
+	defer rows.Close()
+
+	var chunks []types.ChunkRef
+	for rows.Next() {
+		var c types.ChunkRef
+		if err := rows.Scan(&c.ChunkID, &c.FileID, &c.UserID, &c.Index, &c.Size, &c.SHA256,
+			&c.Platform, &c.Account, &c.Repo, &c.RemotePath, &c.Compressed, &c.SyncAttempts); err != nil {
+			return nil, fmt.Errorf("scan uncommitted chunk: %w", err)
+		}
+		chunks = append(chunks, c)
+	}
+	return chunks, rows.Err()
+}
+
+// MarkChunksCommitted flips committed=TRUE for the given chunks — called ONLY
+// after the reconcile has confirmed each object is actually present on the
+// platform. Idempotent; a no-op on an empty list.
+func (db *DB) MarkChunksCommitted(ctx context.Context, chunkIDs []string) error {
+	if len(chunkIDs) == 0 {
+		return nil
+	}
+	_, err := db.pool.Exec(ctx,
+		`UPDATE chunks SET committed = TRUE WHERE chunk_id = ANY($1)`, chunkIDs)
+	if err != nil {
+		return fmt.Errorf("mark chunks committed: %w", err)
+	}
+	return nil
 }
 
 // IncrementChunkSyncAttempts bumps the retry counter for a chunk after a failed
