@@ -627,6 +627,8 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/files", s.AuthMiddleware(s.HandleListFiles))
 	mux.HandleFunc("DELETE /api/files/{id}", s.AuthMiddleware(s.HandleDeleteFile))
 	mux.HandleFunc("POST /api/files/bulk-delete", maxJSON(s.AuthMiddleware(s.HandleBulkDeleteFiles)))
+	mux.HandleFunc("POST /api/files/bulk-purge", maxJSON(s.AuthMiddleware(s.HandleBulkPurgeFiles)))
+	mux.HandleFunc("POST /api/files/bulk-restore", maxJSON(s.AuthMiddleware(s.HandleBulkRestoreFiles)))
 	mux.HandleFunc("GET /api/platforms/status", s.AuthMiddleware(s.HandlePlatformStatus))
 	mux.HandleFunc("POST /api/platforms/connect", maxJSON(s.AuthMiddleware(s.HandleConnectPlatform)))
 	mux.HandleFunc("POST /api/platforms/telegram/probe", maxJSON(s.AuthMiddleware(s.HandleTelegramProbe)))
