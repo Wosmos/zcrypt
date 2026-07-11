@@ -144,14 +144,34 @@ func (h *HuggingFaceAdapter) Upload(ctx context.Context, repo string, chunk type
 	return ref, nil
 }
 
-// FlushCommits creates a single commit for all pending LFS uploads.
-// Implements the BatchCommitter interface.
+// FlushCommits creates a single commit for all pending LFS uploads buffered
+// in-memory (legacy path). Implements the BatchCommitter interface.
 func (h *HuggingFaceAdapter) FlushCommits(ctx context.Context, repo string) error {
 	h.mu.Lock()
 	pending := h.pendingCommits
 	h.pendingCommits = nil
 	h.mu.Unlock()
+	return h.commitEntries(ctx, repo, pending)
+}
 
+// CommitChunks implements BatchCommitter — commits already-uploaded LFS objects
+// from DB-derived entries. Unlike FlushCommits it depends on NO in-memory state,
+// so the reconcile worker can call it after a restart / cache eviction and it is
+// idempotent (re-committing an already-present path is a platform no-op).
+func (h *HuggingFaceAdapter) CommitChunks(ctx context.Context, repo string, files []CommitFile) error {
+	if len(files) == 0 {
+		return nil
+	}
+	entries := make([]lfsFileEntry, len(files))
+	for i, f := range files {
+		entries[i] = lfsFileEntry{Path: f.Path, OID: f.OID, Size: f.Size}
+	}
+	return h.commitEntries(ctx, repo, entries)
+}
+
+// commitEntries builds one NDJSON commit for the given LFS entries and POSTs it
+// to HuggingFace with retry/backoff. A nil/empty list is a no-op.
+func (h *HuggingFaceAdapter) commitEntries(ctx context.Context, repo string, pending []lfsFileEntry) error {
 	if len(pending) == 0 {
 		return nil
 	}
@@ -297,6 +317,75 @@ func (h *HuggingFaceAdapter) Delete(ctx context.Context, ref types.ChunkRef) err
 		return fmt.Errorf("delete commit returned %d: %s", resp.StatusCode, string(body))
 	}
 
+	return nil
+}
+
+// BatchDelete removes many chunks from one repo in a SINGLE commit (implements
+// BatchDeleter). It first lists the repo tree so paths that no longer exist are
+// skipped rather than failing the commit. This both (a) avoids HuggingFace's
+// 128-commits/hour/repo limit — one commit for the whole batch instead of one
+// per file — and (b) lets a queue full of never-committed / already-gone paths
+// drain in a single tree read with no commit at all. A rate-limit (429) is
+// returned verbatim so the caller can detect it and back off.
+func (h *HuggingFaceAdapter) BatchDelete(ctx context.Context, repo string, remotePaths []string) error {
+	if len(remotePaths) == 0 {
+		return nil
+	}
+	if !strings.Contains(repo, "/") {
+		repo = h.username + "/" + repo
+	}
+
+	// Only reference paths that actually exist — deleting an absent path would
+	// fail the whole commit, and the storm we're draining is mostly never-committed
+	// paths that are already "gone" as far as the platform is concerned.
+	present, err := h.ListChunks(ctx, repo)
+	if err != nil {
+		return fmt.Errorf("list repo for batch delete: %w", err)
+	}
+	presentSet := make(map[string]struct{}, len(present))
+	for _, p := range present {
+		presentSet[p.RemotePath] = struct{}{}
+	}
+
+	ndjson := buildNDJSON(map[string]interface{}{
+		"key":   "header",
+		"value": map[string]interface{}{"summary": disguise.CommitMessage()},
+	})
+	n := 0
+	for _, path := range remotePaths {
+		if _, ok := presentSet[path]; !ok {
+			continue // already absent — nothing to delete
+		}
+		ndjson = appendNDJSON(ndjson, map[string]interface{}{
+			"key":   "deletedFile",
+			"value": map[string]interface{}{"path": path},
+		})
+		n++
+	}
+	if n == 0 {
+		return nil // every path already gone — no commit needed
+	}
+
+	commitURL := fmt.Sprintf("%s/api/models/%s/commit/main", hfEndpoint, repo)
+	req, err := http.NewRequestWithContext(ctx, "POST", commitURL, bytes.NewReader(ndjson))
+	if err != nil {
+		return fmt.Errorf("create batch delete request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/x-ndjson")
+	h.setAuth(req)
+
+	resp, err := h.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("batch delete: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		return nil // repo/paths already gone
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("batch delete returned %d: %s", resp.StatusCode, string(body))
+	}
 	return nil
 }
 

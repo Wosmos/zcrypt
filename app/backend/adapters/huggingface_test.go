@@ -3,6 +3,7 @@ package adapters
 import (
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -303,6 +304,93 @@ func TestHFFlushCommitsNoPending(t *testing.T) {
 	})
 	if err := h.FlushCommits(context.Background(), "alice/repo"); err != nil {
 		t.Fatalf("FlushCommits with no pending: %v", err)
+	}
+}
+
+// CommitChunks is the DB-driven, reconcile-safe commit path: it must POST a
+// single NDJSON commit built entirely from its argument (no in-memory buffer).
+func TestHFCommitChunksSuccess(t *testing.T) {
+	var gotBody string
+	h := newHFFake(func(r *http.Request) (*http.Response, error) {
+		if !strings.HasSuffix(r.URL.Path, "/commit/main") {
+			t.Fatalf("unexpected commit path %s", r.URL.Path)
+		}
+		if r.Header.Get("Content-Type") != "application/x-ndjson" {
+			t.Errorf("expected ndjson content type, got %q", r.Header.Get("Content-Type"))
+		}
+		b, _ := io.ReadAll(r.Body)
+		gotBody = string(b)
+		return jsonResp(200, `{"success":true}`, nil), nil
+	})
+	files := []CommitFile{
+		{Path: "02/a.bin", OID: "oidA", Size: 10},
+		{Path: "57/b.bin", OID: "oidB", Size: 20},
+	}
+	if err := h.CommitChunks(context.Background(), "alice/repo", files); err != nil {
+		t.Fatalf("CommitChunks: %v", err)
+	}
+	// Must NOT touch the legacy in-memory buffer — durability is DB-driven now.
+	if len(h.pendingCommits) != 0 {
+		t.Errorf("CommitChunks must not use pendingCommits, got %d", len(h.pendingCommits))
+	}
+	for _, want := range []string{"02/a.bin", "oidA", "57/b.bin", "oidB", "lfsFile"} {
+		if !strings.Contains(gotBody, want) {
+			t.Errorf("commit body missing %q; body=%s", want, gotBody)
+		}
+	}
+}
+
+func TestHFCommitChunksEmptyNoop(t *testing.T) {
+	h := newHFFake(func(r *http.Request) (*http.Response, error) {
+		t.Fatal("no HTTP call expected for an empty commit")
+		return nil, nil
+	})
+	if err := h.CommitChunks(context.Background(), "alice/repo", nil); err != nil {
+		t.Fatalf("CommitChunks(nil): %v", err)
+	}
+}
+
+// BatchDelete must list the repo, delete only the paths that actually exist in ONE
+// commit, and skip absent paths (so a 404/never-committed path can't fail the batch).
+func TestHFBatchDeleteCommitsPresentOnly(t *testing.T) {
+	var commitBody string
+	h := newHFFake(func(r *http.Request) (*http.Response, error) {
+		switch {
+		case r.Method == "GET" && strings.Contains(r.URL.Path, "/tree/main"):
+			return jsonResp(200, `[{"type":"file","path":"02/a.bin","size":10},{"type":"file","path":"57/b.bin","size":20}]`, nil), nil
+		case r.Method == "POST" && strings.HasSuffix(r.URL.Path, "/commit/main"):
+			b, _ := io.ReadAll(r.Body)
+			commitBody = string(b)
+			return jsonResp(200, `{"success":true}`, nil), nil
+		default:
+			t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
+			return nil, nil
+		}
+	})
+	// One present path + one absent path — only the present one should be committed.
+	if err := h.BatchDelete(context.Background(), "alice/repo", []string{"02/a.bin", "99/x.bin"}); err != nil {
+		t.Fatalf("BatchDelete: %v", err)
+	}
+	if !strings.Contains(commitBody, "02/a.bin") || !strings.Contains(commitBody, "deletedFile") {
+		t.Errorf("commit should delete the present path; body=%s", commitBody)
+	}
+	if strings.Contains(commitBody, "99/x.bin") {
+		t.Errorf("commit must NOT reference the absent path; body=%s", commitBody)
+	}
+}
+
+// When every requested path is already gone, BatchDelete must make NO commit at all
+// (this is what lets a 404-heavy queue drain with one tree read instead of a storm).
+func TestHFBatchDeleteAllAbsentNoCommit(t *testing.T) {
+	h := newHFFake(func(r *http.Request) (*http.Response, error) {
+		if r.Method == "GET" && strings.Contains(r.URL.Path, "/tree/main") {
+			return jsonResp(200, `[]`, nil), nil
+		}
+		t.Fatalf("no commit expected when every path is already absent (got %s %s)", r.Method, r.URL.Path)
+		return nil, nil
+	})
+	if err := h.BatchDelete(context.Background(), "alice/repo", []string{"gone.bin"}); err != nil {
+		t.Fatalf("BatchDelete(all absent): %v", err)
 	}
 }
 
