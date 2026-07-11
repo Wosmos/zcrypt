@@ -246,6 +246,20 @@ ALTER TABLE chunks ADD COLUMN IF NOT EXISTS sync_attempts INTEGER NOT NULL DEFAU
 -- a harmless no-op (adapters treat a missing blob as a successful delete).
 ALTER TABLE chunks ADD COLUMN IF NOT EXISTS planned_remote_path TEXT NOT NULL DEFAULT '';
 
+-- Commit durability. TRUE means the chunk's object is CONFIRMED retrievable on the
+-- platform. Defaults TRUE because every write path EXCEPT HuggingFace's deferred
+-- LFS commit is durable the instant adapter.Upload succeeds. HuggingFace direct
+-- uploads insert committed=FALSE at confirm time: the LFS blob exists but there is
+-- no tree pointer yet, so a read 404s. The sync worker's reconcile pass then
+-- commits those blobs and flips committed=TRUE ONLY after verifying the path is
+-- actually present in the repo tree. This closes the silent-data-loss window where
+-- remote_path (the old "synced" sentinel) was set before any commit — leaving bytes
+-- in LFS with no retrievable pointer, recorded in the DB as durable.
+ALTER TABLE chunks ADD COLUMN IF NOT EXISTS committed BOOLEAN NOT NULL DEFAULT TRUE;
+
+-- The reconcile worker's work-list: already-uploaded chunks awaiting a verified commit.
+CREATE INDEX IF NOT EXISTS idx_chunks_uncommitted ON chunks(committed) WHERE committed = FALSE;
+
 -- Drop the standalone status index: 'status' has only two values ('uploading','complete'),
 -- so it is too low-cardinality to help. The file-list query is fully served by the partial
 -- composite idx_files_user_created_complete above.
