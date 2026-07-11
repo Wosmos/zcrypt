@@ -12,8 +12,17 @@ import { isImageFile, isVideoFile, mimeForFile } from "@/lib/utils";
 const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB
 const DB_NAME = "zcrypt_thumbs";
 const STORE_NAME = "thumbnails";
-const DB_VERSION = 1;
+// v4: reset the store once more — v3 could cache an ALL-TRANSPARENT raster (an
+// SVG Chrome draws as nothing) as a "valid" thumbnail, leaving that tile looking
+// like a permanent shimmer. Blank renders are rejected at generation time now;
+// the bump evicts any blank entry already persisted. (v1 was plaintext, v2 the
+// short-lived encrypted bytes.)
+const DB_VERSION = 4;
 const MAX_CONCURRENT = 3;
+// A not-yet-cached tile shimmers at most this long, then drops to its type icon
+// while generation continues in the background; the real thumbnail swaps in the
+// moment it lands. A CACHED tile never shimmers — it renders instantly.
+const SHIMMER_MAX_MS = 2000;
 
 // ── In-memory mirror of IndexedDB ────────────────────────────────────
 const memCache = new Map<string, string>();
@@ -27,11 +36,11 @@ const memCache = new Map<string, string>();
 const MAX_THUMB_ATTEMPTS = 3;
 const failed = new Map<string, { attempts: number; nextRetryAt: number }>();
 const retryTimers = new Map<string, ReturnType<typeof setTimeout>>();
+// When each file's FIRST generation attempt started, so the shimmer can be
+// time-boxed to SHIMMER_MAX_MS instead of running until success/permanent-fail.
+const genStartedAt = new Map<string, number>();
+const graceTimers = new Map<string, ReturnType<typeof setTimeout>>();
 let version = 0; // bumped on every change so per-file hooks re-render
-// Bumped on every vault lock / logout. An in-flight decrypt captures the current
-// value; if it changes before the thumbnail lands, the result is DROPPED instead
-// of repopulating memCache/IndexedDB after a lock (the post-lock repopulation gap).
-let generation = 0;
 // False until the IndexedDB cache has finished loading into memCache. Cards must
 // NOT shimmer or start (re)generating before this — otherwise on every reload a
 // card sees an empty memCache, re-decrypts a thumbnail that's actually cached on
@@ -90,7 +99,13 @@ function openDB(): Promise<IDBDatabase> {
   if (dbPromise) return dbPromise;
   dbPromise = new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = () => { req.result.createObjectStore(STORE_NAME); };
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      // Reset any prior store so a version bump can't collide with an existing
+      // object store and can't leave stale (wrong-format) entries behind.
+      if (db.objectStoreNames.contains(STORE_NAME)) db.deleteObjectStore(STORE_NAME);
+      db.createObjectStore(STORE_NAME);
+    };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
@@ -101,18 +116,6 @@ async function dbPut(key: string, value: string) {
   const db = await openDB();
   const tx = db.transaction(STORE_NAME, "readwrite");
   tx.objectStore(STORE_NAME).put(value, key);
-}
-
-/** Wipe every persisted thumbnail from disk. Called on lock/logout so no
- *  decrypted preview survives at rest (readable straight from IndexedDB). */
-async function dbClear() {
-  try {
-    const db = await openDB();
-    const tx = db.transaction(STORE_NAME, "readwrite");
-    tx.objectStore(STORE_NAME).clear();
-  } catch {
-    /* IndexedDB unavailable — memory eviction below is the real guarantee */
-  }
 }
 
 // ── Boot: hydrate memCache from IndexedDB ────────────────────────────
@@ -149,6 +152,27 @@ async function hydrate() {
 if (typeof window !== "undefined") hydrate();
 
 // ── Canvas thumbnail generation ──────────────────────────────────────
+
+/** True when every sampled pixel is (near-)fully transparent — the raster
+ *  produced nothing visible. Chrome can "successfully" draw an SVG with no
+ *  intrinsic width/height (or empty/unsupported content) as pure transparency;
+ *  caching that invisible image would leave the tile looking like a stuck
+ *  shimmer FOREVER (a transparent <img> on the dark theme is indistinguishable
+ *  from the loading placeholder). Returns false when pixels can't be inspected
+ *  (jsdom/test fakes) — assume the render is fine rather than reject it. */
+function canvasLooksBlank(ctx: CanvasRenderingContext2D, w: number, h: number): boolean {
+  try {
+    const data = ctx.getImageData(0, 0, w, h).data;
+    // Sample every 4th pixel's alpha (RGBA stride 4 → alpha at i, step 16).
+    for (let i = 3; i < data.length; i += 16) {
+      if (data[i] > 8) return false; // something visible rendered
+    }
+    return true;
+  } catch {
+    return false; // can't read pixels — don't reject a probably-fine render
+  }
+}
+
 async function generateThumbnail(blob: Blob, maxW: number, maxH: number): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new window.Image();
@@ -168,6 +192,9 @@ async function generateThumbnail(blob: Blob, maxW: number, maxH: number): Promis
       const ctx = canvas.getContext("2d");
       if (!ctx) { reject(new Error("No canvas context")); return; }
       ctx.drawImage(img, 0, 0, w, h);
+      // An all-transparent raster must FAIL (→ type icon), never be cached as a
+      // "thumbnail" — an invisible preview reads as an eternal shimmer.
+      if (canvasLooksBlank(ctx, w, h)) { reject(new Error("blank render")); return; }
       resolve(canvas.toDataURL("image/webp", 0.55));
     };
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("decode failed")); };
@@ -350,12 +377,20 @@ async function fetchAndCacheThumbnail(
   // Sole caller (the hook's effect) already checks memCache/inflight/failedSet
   // synchronously right before calling — no gap for that state to change.
   inflight.add(fileId);
+  // Time-box the shimmer from the first attempt: record when generation began
+  // and wake mounted cards when the grace window closes, so a still-generating
+  // tile drops to its icon (via `pending`) instead of shimmering open-ended.
+  if (!genStartedAt.has(fileId)) {
+    genStartedAt.set(fileId, Date.now());
+    graceTimers.set(
+      fileId,
+      setTimeout(() => {
+        graceTimers.delete(fileId);
+        notify();
+      }, SHIMMER_MAX_MS)
+    );
+  }
   notify(); // surface the loading state to mounted cards right away
-
-  // Snapshot the lock generation: if the vault locks (or logs out) while this
-  // decrypt is in flight, the result is discarded rather than written back to
-  // the cache — otherwise a lock could leave a fresh plaintext preview behind.
-  const gen = generation;
 
   // acquireSlot() lives INSIDE the try so the finally always runs and clears
   // `inflight` — otherwise a slow/blocked acquire would leave the card's
@@ -398,10 +433,15 @@ async function fetchAndCacheThumbnail(
       markThumbFailed(fileId, /* permanent */ true);
       return null;
     }
-    // Vault re-locked / logged out mid-decrypt → drop the plaintext, don't cache.
-    if (gen !== generation) return null;
     memCache.set(fileId, dataUrl);
-    // Persist to IndexedDB in background
+    genStartedAt.delete(fileId);
+    const gt = graceTimers.get(fileId);
+    if (gt) {
+      clearTimeout(gt);
+      graceTimers.delete(fileId);
+    }
+    // Persist to IndexedDB in background so the preview survives a reload /
+    // logout and renders instantly next time (no shimmer).
     dbPut(fileId, dataUrl).catch(() => {});
     return dataUrl;
   } catch {
@@ -431,28 +471,22 @@ export function primeThumbnails(
 }
 
 /**
- * Evict every decrypted thumbnail on a vault LOCK / logout, so the "locked" state
- * is genuine — not merely a CSS overlay hiding plaintext previews that a devtools
- * / IndexedDB peek could still read.
+ * On a vault LOCK / logout, stop NEW thumbnail generation (drop the armed
+ * passphrase) but KEEP the already-generated previews cached — both the in-memory
+ * mirror and the on-disk `zcrypt_thumbs` store. That is what makes an unlock /
+ * reload / re-login show thumbnails INSTANTLY with no shimmer instead of
+ * regenerating (and shimmering through) every tile.
  *
- * Drops: the armed passphrase (`ctxPassphrase`) so no NEW thumbnails generate
- * while locked; the in-memory mirror + failure/retry bookkeeping; and the
- * on-disk `zcrypt_thumbs` store. Bumps `generation` so any decrypt already in
- * flight is discarded instead of repopulating the cache after the lock.
+ * Trade-off: low-res previews persist decrypted on this device (RAM + IndexedDB);
+ * the actual files remain AES-256 encrypted. This matches the device-trust the
+ * app already assumes by persisting the passphrase for "keep me unlocked here".
+ * To evict previews too, call `wipeThumbnails()`.
  *
- * `useVaultActions` re-arms via `primeThumbnails()` on the next unlock, so
- * previews come back the moment the vault is unlocked again.
+ * `useVaultActions` re-arms via `primeThumbnails()` on the next unlock.
  */
 export function clearThumbnails() {
   ctxPassphrase = null;
   ctxResolver = undefined;
-  generation++; // invalidate any in-flight decrypt so it can't repopulate
-  memCache.clear();
-  inflight.clear();
-  failed.clear();
-  for (const t of retryTimers.values()) clearTimeout(t);
-  retryTimers.clear();
-  void dbClear();
   notify();
 }
 
@@ -483,7 +517,7 @@ export function useThumbnail(
   pending: boolean;
 } {
   // Re-render on any thumbnail state change (cache / inflight / failed / prime).
-  useSyncExternalStore(subscribe, getVersion, getVersion);
+  const storeVersion = useSyncExternalStore(subscribe, getVersion, getVersion);
 
   const thumbnailUrl = memCache.get(fileId) ?? null;
   const loading = inflight.has(fileId);
@@ -500,21 +534,41 @@ export function useThumbnail(
   // Lazy: generate this file's thumbnail the first time it renders after unlock,
   // and again after a transient failure's backoff. fetchAndCacheThumbnail queues
   // itself behind the shared concurrency limit and guards against double-starts.
+  //
+  // Level-triggered, NOT edge-triggered: `storeVersion` bumps on every notify(),
+  // so this effect re-evaluates whenever thumbnail state moves (re-prime on
+  // unlock, retry-backoff wake-up, a run dropped by a lock). Keying it only on a
+  // `shouldGenerate` false->true transition used to strand a tile at pending=true
+  // with nothing in flight — no cache, no failed entry, no future trigger — until
+  // a full reload reset the module. The guard below still blocks duplicate
+  // dispatch, and `shouldGenerate` folds in `canGenerateNow` (backoff), so
+  // re-running on every notify cannot spam.
   useEffect(() => {
+    void storeVersion; // dependency: re-run this level-check on every state change
     if (!shouldGenerate) return;
     if (memCache.has(fileId) || inflight.has(fileId)) return;
     fetchAndCacheThumbnail(fileId, filename, ctxPassphrase as string, ctxResolver).catch(() => {});
-  }, [shouldGenerate, fileId, filename]);
+  }, [storeVersion, shouldGenerate, fileId, filename]);
 
-  // Still expecting a thumbnail (show the shimmer) until it lands or we give up
-  // for good. A file in backoff between retries keeps shimmering — it's about to
-  // try again — rather than flickering to an icon and back.
-  // Don't shimmer until the disk cache has hydrated — otherwise every reload
-  // flashes a shimmer over thumbnails that are actually cached and about to
-  // appear instantly. After hydration, a genuine miss still shimmers while it
-  // generates.
+  // Shimmer ONLY while a not-yet-cached preview is genuinely imminent, and never
+  // open-ended. A cached tile (thumbnailUrl set) never shimmers. An uncached one
+  // shimmers within its SHIMMER_MAX_MS grace window (startedAt undefined → about
+  // to dispatch → optimistically shimmer; once it starts, the window is
+  // time-boxed). Past the window a still-generating tile shows its type icon and
+  // the real thumbnail swaps in via memCache the moment generation succeeds.
+  // Gated on `hydrated` so a reload never flashes a shimmer over previews that
+  // are cached on disk and about to appear instantly.
+  const startedAt = genStartedAt.get(fileId);
+  const withinGrace =
+    startedAt === undefined ? true : Date.now() - startedAt < SHIMMER_MAX_MS;
   const pending =
-    hydrated && thumbable && withinSize && ctxReady && !thumbnailUrl && !isPermanentlyFailed(fileId);
+    hydrated &&
+    thumbable &&
+    withinSize &&
+    ctxReady &&
+    !thumbnailUrl &&
+    !isPermanentlyFailed(fileId) &&
+    withinGrace;
 
   return { thumbnailUrl, loading, pending };
 }
