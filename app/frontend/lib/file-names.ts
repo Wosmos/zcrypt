@@ -1,5 +1,5 @@
 import type { FileMetadata } from "@/types";
-import { deriveNameKey, decryptNameSafe } from "@/lib/name-crypto";
+import { deriveNameKey, decryptNameSafe, decryptStyle } from "@/lib/name-crypto";
 import { usePassphraseStore } from "@/store/passphrase";
 import { useAuthStore } from "@/store/auth";
 
@@ -18,7 +18,7 @@ import { useAuthStore } from "@/store/auth";
  */
 export async function decryptFileNames(files: FileMetadata[]): Promise<FileMetadata[]> {
   // Fast path: nothing is encrypted → return as-is (all-legacy vault).
-  if (!files.some((f) => f.encrypted_name)) return files;
+  if (!files.some((f) => f.encrypted_name || f.encrypted_style)) return files;
 
   const user = useAuthStore.getState().user;
   const passphrase = usePassphraseStore.getState().getPassphrase();
@@ -26,10 +26,11 @@ export async function decryptFileNames(files: FileMetadata[]): Promise<FileMetad
 
   return Promise.all(
     files.map(async (f) => {
-      if (!f.encrypted_name) return f; // legacy plaintext name — untouched
+      if (!f.encrypted_name && !f.encrypted_style) return f; // legacy plaintext file — untouched
       return {
         ...f,
-        original_name: key ? await decryptNameSafe(f.encrypted_name, key) : "[locked]",
+        original_name: f.encrypted_name ? (key ? await decryptNameSafe(f.encrypted_name, key) : "[locked]") : f.original_name,
+        style: key ? await decryptStyle(f.encrypted_style, key) : null,
       };
     })
   );

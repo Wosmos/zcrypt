@@ -73,7 +73,9 @@ export function ExplorerEntryDispatch({
   onMoveFolderRequest,
   onOpenFolderDetails,
   onShareFolder,
+  onCustomizeFolder,
   onOpenDetails,
+  onCustomizeFile,
   drag,
 }: ExplorerEntryDispatchProps) {
   if (entry.kind === "folder") {
@@ -91,6 +93,7 @@ export function ExplorerEntryDispatch({
         onMoveFolderRequest={onMoveFolderRequest}
         onOpenFolderDetails={onOpenFolderDetails}
         onShareFolder={onShareFolder}
+        onCustomizeFolder={onCustomizeFolder}
         drag={drag}
       />
     );
@@ -108,6 +111,7 @@ export function ExplorerEntryDispatch({
       onFileClick={onFileClick}
       onEntryKeyDown={onEntryKeyDown}
       onOpenDetails={onOpenDetails ?? actions.onOpenDetails}
+      onCustomizeFile={onCustomizeFile}
       drag={drag}
     />
   );
