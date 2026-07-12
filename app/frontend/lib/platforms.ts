@@ -54,13 +54,19 @@ export const PLATFORMS: PlatformMeta[] = [
     color: "#6366f1",
     iconClass: "",
     scope: "repo",
-    tagline: "Up to 850 MB per repo",
-    description: "Personal access token with repo scope — up to 850 MB per repo",
-    capacity: "850 MB / repo",
-    // zcrypt commits chunks via the Contents API (plain git), not LFS — the
-    // limit that applies is GitHub's 100 MB hard per-file push limit.
-    fileLimit: "100 MB / file",
-    rateInfo: "5,000 req/hr (authenticated)",
+    tagline: "Large repos · 100 MiB per file",
+    description: "Personal access token with repo scope",
+    // Values below are GitHub's REAL documented limits, not zcrypt's internal
+    // rotation threshold (850 MB, in backend config) — that safety margin is
+    // surfaced separately in the Storage pool panel.
+    // GitHub recommends repos stay ~10 GB on disk but enforces no hard repo cap.
+    capacity: "10 GB / repo (recommended; no hard cap)",
+    // zcrypt commits chunks via the Contents API (plain git), not LFS. Plain-git
+    // push warns at 50 MiB and hard-blocks at 100 MiB per file.
+    fileLimit: "100 MiB / file (50 MiB warning)",
+    // 5k/hr is the primary REST limit; bulk commits are actually gated by the
+    // secondary content-creation limit (~500 writes/hr, 6 pushes/min per repo).
+    rateInfo: "5k req / hour (authenticated; ~500 writes/hr)",
     placeholder: "ghp_xxxxxxxxxxxx",
     tokenUrl: "https://github.com/settings/tokens/new?scopes=repo&description=zcrypt",
     tokenLabel: "Generate token on GitHub",
@@ -72,12 +78,18 @@ export const PLATFORMS: PlatformMeta[] = [
     color: "#f97316",
     iconClass: "text-orange-500 dark:text-orange-400",
     scope: "api",
-    tagline: "Up to 9 GB per repo",
-    description: "Personal access token with api scope — up to 9 GB per repo",
-    capacity: "9 GB / repo",
-    // Plain git commits → GitLab Free's 100 MiB per-file push limit applies.
-    fileLimit: "100 MB / file",
-    rateInfo: "7,200 req/hr (authenticated)",
+    tagline: "10 GiB per project",
+    description: "Personal access token with api scope",
+    // GitLab.com Free = 10 GiB per project (repo + LFS combined); the project
+    // goes read-only past that. zcrypt rotates earlier (9 GB internal threshold).
+    capacity: "10 GiB / project (then read-only)",
+    // GitLab.com has NO GitHub-style per-file git cap. The real ceiling is the
+    // 5 GiB max push size (Cloudflare). The 100 MiB figure is the UI attachment
+    // upload limit, not a git push limit.
+    fileLimit: "5 GiB / push (no per-file cap)",
+    // GitLab.com authenticated API limit is 2k req/min per user. (7,200/hr was
+    // the self-managed default, which GitLab.com overrides — ~16x too low.)
+    rateInfo: "2k req / min (authenticated)",
     placeholder: "glpat-xxxxxxxxxxxx",
     tokenUrl: "https://gitlab.com/-/user_settings/personal_access_tokens?name=zcrypt&scopes=api",
     tokenLabel: "Generate token on GitLab",
@@ -89,12 +101,20 @@ export const PLATFORMS: PlatformMeta[] = [
     color: "#eab308",
     iconClass: "text-yellow-500 dark:text-yellow-400",
     scope: "write",
-    tagline: "Up to 90 GB per repo",
-    description: "Access token with write permission — up to 90 GB per repo",
-    capacity: "90 GB / repo",
-    // HuggingFace genuinely uploads via LFS.
-    fileLimit: "50 GB / file (LFS)",
-    rateInfo: "No strict rate limits",
+    tagline: "100 GB private per account",
+    description: "Access token with write permission",
+    // HF storage is per-ACCOUNT, not per-repo: Free = 100 GB private. Rotating to
+    // a new repo adds NO capacity (everything shares the one account quota). The
+    // 90 GB in backend config is zcrypt's rotation threshold, not HF's limit.
+    capacity: "100 GB / account (shared, not per repo)",
+    // HuggingFace genuinely uploads via LFS. Hard per-file limit is 500 GB
+    // (200 GB recommended); ≤10k files per folder.
+    fileLimit: "500 GB / file (LFS; 200 GB rec.)",
+    // HF enforces ~128 commits/hour — hit empirically during a bulk delete (each
+    // upload/delete is one commit), even though HF deliberately does NOT publish
+    // this number. This is the limit that actually gates zcrypt's bulk ops; the
+    // documented per-5-min request buckets (1k API req/5 min free) rarely bind.
+    rateInfo: "~128 commits / hour (also 1k API req / 5 min)",
     placeholder: "hf_xxxxxxxxxxxx",
     tokenUrl: "https://huggingface.co/settings/tokens/new?tokenType=write",
     tokenLabel: "Generate token on Hugging Face",
