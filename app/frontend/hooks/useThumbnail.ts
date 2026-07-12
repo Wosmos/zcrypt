@@ -456,6 +456,37 @@ async function fetchAndCacheThumbnail(
   }
 }
 
+/**
+ * Warm the cache from the plaintext file the browser still holds at upload time,
+ * so a freshly uploaded image/video renders from the grid instantly instead of
+ * shimmering while it re-fetches and re-decrypts bytes we just had in hand. This
+ * removes the last cache-miss shimmer source; the grid's fetch-decrypt path
+ * stays the fallback for everything not seeded here.
+ *
+ * Idempotent and non-throwing: an already-cached file (e.g. a resumed upload) is
+ * skipped, and a failed rasterization leaves the file for the normal path.
+ */
+export async function seedThumbnailFromFile(
+  fileId: string,
+  source: Blob,
+  filename: string
+): Promise<void> {
+  if (memCache.has(fileId)) return;
+  const video = isVideoFile(filename);
+  if (!isImageFile(filename) && !video) return;
+  if (source.size >= MAX_FILE_SIZE) return;
+  try {
+    const dataUrl = video
+      ? await generateVideoThumbnail(source, 400, 400)
+      : await generateThumbnail(source, 300, 300);
+    memCache.set(fileId, dataUrl);
+    dbPut(fileId, dataUrl).catch(() => {});
+    notify();
+  } catch {
+    // Unsupported/undecodable source — the grid will fetch-decrypt it instead.
+  }
+}
+
 /** Arm lazy thumbnail generation. Call once after the passphrase is entered
  *  (on unlock). Nothing is decrypted here — each file's `useThumbnail` hook
  *  generates its own thumbnail the first time its card renders, so we never
