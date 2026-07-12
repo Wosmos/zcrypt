@@ -8,6 +8,7 @@ import { useAuthStore } from "@/store/auth";
 import { usePassphraseStore } from "@/store/passphrase";
 import { initUpload, uploadChunk, completeUpload, presignChunk, directUploadToURL, confirmChunk, cancelUpload, getUploadStatus } from "@/lib/upload-session";
 import { getFileMeta } from "@/lib/api";
+import { seedThumbnailFromFile } from "@/hooks/useThumbnail";
 import { setFilesData } from "@/store/files";
 import { getDeviceProfile, recommendedUploadConcurrency } from "@/lib/device-profile";
 import { acquireWakeLock, releaseWakeLock } from "@/lib/wake-lock";
@@ -552,6 +553,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
         useDirectUpload = session.direct_upload;
         fileId = session.file_id;
         setFileId(id, fileId);
+        void seedThumbnailFromFile(fileId, file, file.name);
         // The server's returned platform is the session's REAL home (it applies
         // the default when the picker was on Auto) — remember it so any retry
         // or resume of this item stays there.
@@ -580,6 +582,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
       fileId = resume.fileId;
       if (resume.platform) patchMeta(id, { platform: resume.platform });
       setFileId(id, fileId);
+      void seedThumbnailFromFile(fileId, file, file.name);
       try {
         const status = await getUploadStatus(sessionId);
         done = new Set(status.uploaded_chunks);

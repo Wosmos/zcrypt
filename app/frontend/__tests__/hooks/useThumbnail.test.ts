@@ -1017,4 +1017,70 @@ describe("useThumbnail", () => {
     expect(result.current.pending).toBe(false);
     expect(result.current.loading).toBe(false);
   });
+
+  it("seedThumbnailFromFile caches an image thumbnail from local bytes with no network round trip", async () => {
+    const { primeThumbnails, useThumbnail, seedThumbnailFromFile, hasCachedThumbnail } =
+      await loadModule();
+    act(() => primeThumbnails("vault-pass"));
+
+    await act(async () => {
+      await seedThumbnailFromFile("f1", new File(["local-bytes"], "photo.jpg"), "photo.jpg");
+    });
+
+    expect(hasCachedThumbnail("f1")).toBe(true);
+    expect(getFileMetaMock).not.toHaveBeenCalled();
+    expect(getFileChunkMock).not.toHaveBeenCalled();
+
+    // The grid tile renders the seeded preview straight away — it never shimmers.
+    const { result } = renderHook(() => useThumbnail("f1", "photo.jpg"));
+    expect(result.current.thumbnailUrl).toBe("data:image/webp;base64,FAKE");
+    expect(result.current.pending).toBe(false);
+  });
+
+  it("seedThumbnailFromFile caches a video poster frame from local bytes", async () => {
+    const { seedThumbnailFromFile, hasCachedThumbnail } = await loadModule();
+
+    await act(async () => {
+      await seedThumbnailFromFile("f1", new File(["clip"], "clip.mp4"), "clip.mp4");
+    });
+
+    expect(hasCachedThumbnail("f1")).toBe(true);
+    expect(getFileMetaMock).not.toHaveBeenCalled();
+  });
+
+  it("seedThumbnailFromFile ignores a type that has no preview", async () => {
+    const { seedThumbnailFromFile, hasCachedThumbnail } = await loadModule();
+    await seedThumbnailFromFile("f1", new File(["x"], "notes.pdf"), "notes.pdf");
+    expect(hasCachedThumbnail("f1")).toBe(false);
+  });
+
+  it("seedThumbnailFromFile ignores a file above the size cap", async () => {
+    const { seedThumbnailFromFile, hasCachedThumbnail } = await loadModule();
+    // The size guard short-circuits before any rasterization, so a size-only stub
+    // is enough to exercise it without allocating a real 16MB buffer.
+    const oversized = { size: 16 * 1024 * 1024 } as unknown as Blob;
+    await seedThumbnailFromFile("f1", oversized, "photo.jpg");
+    expect(hasCachedThumbnail("f1")).toBe(false);
+  });
+
+  it("seedThumbnailFromFile does not overwrite an already-cached thumbnail", async () => {
+    const { primeThumbnails, useThumbnail, seedThumbnailFromFile } = await loadModule();
+    getFileMetaMock.mockResolvedValue(makeMeta());
+    getFileChunkMock.mockResolvedValue({ data: new ArrayBuffer(4), sha256: "x", compressed: false });
+
+    act(() => primeThumbnails("vault-pass"));
+    const { result } = renderHook(() => useThumbnail("f1", "photo.jpg"));
+    await waitFor(() => expect(result.current.thumbnailUrl).toBe("data:image/webp;base64,FAKE"));
+
+    canvasBehavior.dataUrl = "data:image/webp;base64,DIFFERENT";
+    await seedThumbnailFromFile("f1", new File(["x"], "photo.jpg"), "photo.jpg");
+    expect(result.current.thumbnailUrl).toBe("data:image/webp;base64,FAKE");
+  });
+
+  it("seedThumbnailFromFile falls back silently when the source cannot be rasterized", async () => {
+    imageBehavior = { mode: "error", width: 0, height: 0 };
+    const { seedThumbnailFromFile, hasCachedThumbnail } = await loadModule();
+    await seedThumbnailFromFile("f1", new File(["x"], "photo.jpg"), "photo.jpg");
+    expect(hasCachedThumbnail("f1")).toBe(false);
+  });
 });
