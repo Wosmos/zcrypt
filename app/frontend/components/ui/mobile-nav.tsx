@@ -18,6 +18,7 @@ import {
   ArrowRight,
   BarChart3,
   Layers,
+  Trash2,
 } from "@/lib/icons";
 import {
   VaultIcon,
@@ -52,6 +53,9 @@ export function MobileNav() {
     const items: DrawerLink[] = [
       { href: "/share", label: "Share", icon: ShareIcon },
       { href: "/settings", label: "Settings", icon: GearIcon },
+      // Parity with the desktop sidebar's "Deleted Files" — without this, a
+      // mobile user has no way to reach /trash at all.
+      { href: "/trash", label: "Deleted Files", icon: Trash2 },
     ];
     if (advancedMode) items.push({ href: "/tools", label: "Tools", icon: Cog });
     if (isAdmin) items.push({ href: "/admin", label: "Admin", icon: Users });

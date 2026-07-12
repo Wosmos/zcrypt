@@ -7,16 +7,20 @@ import * as HugeIcons from "@hugeicons/core-free-icons";
 type IconProps = SVGProps<SVGSVGElement> & {
   size?: number | string;
   strokeWidth?: number;
+  /** Active-state variant (mobile nav): slightly heavier stroke, mirroring the
+   *  custom nav-icons' `filled` contract. Consumed HERE — it must never spread
+   *  onto the <svg> element (React warns on non-boolean DOM attributes). */
+  filled?: boolean;
 };
 
 function makeIcon(iconData: IconSvgElement, displayName: string) {
   const Icon = forwardRef<SVGSVGElement, IconProps>(
-    ({ size = 24, className, strokeWidth = 1.5, ...props }, ref) => (
+    ({ size = 24, className, strokeWidth = 1.5, filled, ...props }, ref) => (
       <HugeiconsIcon
         ref={ref}
         icon={iconData}
         size={typeof size === "string" ? parseInt(size, 10) : size}
-        strokeWidth={strokeWidth}
+        strokeWidth={filled ? Math.max(strokeWidth, 1.8) : strokeWidth}
         className={className}
         {...props}
       />
