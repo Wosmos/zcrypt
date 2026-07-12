@@ -347,6 +347,11 @@ export default function VaultPage() {
   // is locked, and there are actually encrypted files to protect (a brand-new
   // empty vault keeps its normal onboarding — no forced unlock wall). The real
   // protection is the plaintext eviction on lock; this is the visible signal.
+  //
+  // The file content ALSO holds on a skeleton until `vault.ready` (see the
+  // explorer branch below) — so a locked vault never flashes its file grid
+  // before this mask mounts, and a remembered-device vault never flashes this
+  // mask before its content. Both resolve together on the `ready` flip.
   const showLockOverlay = vault.ready && !vault.unlocked && files.length > 0;
 
   return (
@@ -460,8 +465,12 @@ export default function VaultPage() {
           <IncompleteUploads onResume={(file, upload) => actions.handleResumeIncomplete(file, upload)} />
 
           {/* Empty vault → CTA; otherwise the unified explorer. The explorer
-              renders its own loading / locked / no-results states. */}
-          {!loading && !error && files.length === 0 ? (
+              renders its own loading / locked / no-results states. Until the
+              lock decision has settled (`vault.ready`), hold on the explorer's
+              neutral skeleton — never paint real file content (tiles / names /
+              thumbnails) that would then get masked by the lock overlay, and
+              never show the empty-state before we know the vault is truly empty. */}
+          {vault.ready && !loading && !error && files.length === 0 ? (
             <EmptyState
               icon={<Shield className="h-7 w-7 text-[var(--color-text-muted)]" />}
               title="No files yet"
@@ -479,7 +488,7 @@ export default function VaultPage() {
               search={search}
               onSearchChange={setSearch}
               files={files}
-              loading={loading}
+              loading={loading || !vault.ready}
               error={error}
               onPreview={handlePreviewInViewer}
               onDownload={actions.handleDownload}
@@ -534,7 +543,7 @@ export default function VaultPage() {
       {/* Floating "+" — the single mobile entry to New folder / Upload. Hidden
           while the full-screen viewer is open, or while the lock mask is up (it
           would poke through the mask at z-50). */}
-      {!viewerOpen && !showLockOverlay && (
+      {!viewerOpen && !showLockOverlay && vault.ready && (
         <VaultFab
           onNewFolder={() => explorerRef.current?.startNewFolder()}
           onUpload={() => setUploadOpen(true)}
