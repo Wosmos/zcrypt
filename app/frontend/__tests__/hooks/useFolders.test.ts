@@ -1,5 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { renderHook, act, waitFor, cleanup } from "@testing-library/react";
+import { renderHook, act, waitFor, cleanup, configure } from "@testing-library/react";
+
+// These tests run REAL PBKDF2 key derivation + AES name decryption before the
+// folders list settles. Under a parallel coverage run that CPU-bound work can
+// blow past waitFor's 1s default, flaking whichever test loses the scheduling
+// lottery (seen as "expected [] to have a length of 1" at ~1.3s). Give every
+// waitFor in this file the headroom the crypto actually needs.
+configure({ asyncUtilTimeout: 10_000 });
 
 // This environment's Node runtime ships a global `localStorage` that shadows
 // jsdom's real one and throws unless `--localstorage-file` points at a valid
