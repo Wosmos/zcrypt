@@ -164,7 +164,7 @@ func (h *HuggingFaceAdapter) CommitChunks(ctx context.Context, repo string, file
 	}
 	entries := make([]lfsFileEntry, len(files))
 	for i, f := range files {
-		entries[i] = lfsFileEntry{Path: f.Path, OID: f.OID, Size: f.Size}
+		entries[i] = lfsFileEntry(f) // identical field sets — direct conversion
 	}
 	return h.commitEntries(ctx, repo, entries)
 }
@@ -378,7 +378,7 @@ func (h *HuggingFaceAdapter) BatchDelete(ctx context.Context, repo string, remot
 	if err != nil {
 		return fmt.Errorf("batch delete: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode == http.StatusNotFound {
 		return nil // repo/paths already gone
 	}
