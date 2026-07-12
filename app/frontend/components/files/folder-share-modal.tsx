@@ -28,7 +28,7 @@ import { copyToClipboard } from "@/lib/clipboard";
 import { collectSubtreeFolderIds } from "@/lib/folder-tree";
 import { queryClient } from "@/lib/query-client";
 import { qk } from "@/lib/query-keys";
-import { formatDate, EXPIRY_OPTIONS } from "@/lib/utils";
+import { formatDate, midTrunc, EXPIRY_OPTIONS } from "@/lib/utils";
 import { toast } from "@/store/toast";
 import type { DecryptedFolder } from "@/hooks/useFolders";
 import type { FileMetadata } from "@/types";
@@ -156,7 +156,7 @@ export function FolderShareModal({ folder, open, onOpenChange, files }: FolderSh
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FolderOpen className="h-4 w-4 text-[var(--color-accent)]" />
-            <span className="truncate">Share “{folder?.name}”</span>
+            <span className="truncate">Share “{folder?.name ? midTrunc(folder.name, 18, 8) : folder?.name}”</span>
           </DialogTitle>
           <DialogDescription className="text-[var(--color-text-secondary)]">
             Create a public link to this folder. Anyone with the link can open and

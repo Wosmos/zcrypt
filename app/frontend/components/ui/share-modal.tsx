@@ -12,7 +12,7 @@ import { toast } from "@/store/toast";
 import { usePassphraseStore } from "@/store/passphrase";
 import { createFileShareLink } from "@/lib/file-share";
 import { copyToClipboard } from "@/lib/clipboard";
-import { formatBytes, formatDateTime, EXPIRY_OPTIONS } from "@/lib/utils";
+import { formatBytes, formatDateTime, midTrunc, EXPIRY_OPTIONS } from "@/lib/utils";
 
 interface ShareModalProps {
   open: boolean;
@@ -137,7 +137,7 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
             </div>
             <div className="min-w-0">
               <h3 className="text-sm font-semibold truncate">Share File</h3>
-              <p className="text-xs text-[var(--color-text-muted)] truncate">{fileName} ({formatBytes(fileSize)})</p>
+              <p className="text-xs text-[var(--color-text-muted)] truncate">{midTrunc(fileName, 18, 8)} ({formatBytes(fileSize)})</p>
             </div>
           </div>
           <button
