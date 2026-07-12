@@ -279,12 +279,24 @@ export function moveFolder(id: string, parentId: string | null): Promise<{ succe
   return request<{ success: boolean }>(`/api/folders/${id}/move`, { method: "PATCH", headers: JSON_HEADERS, body: JSON.stringify({ parent_id: parentId }) });
 }
 
+/** Set/clear a folder's custom card style (icon + color). `encryptedStyle` is
+ *  the opaque base64 blob from `encryptStyle`, or null to clear it. */
+export function updateFolderStyle(id: string, encryptedStyle: string | null): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/api/folders/${id}/style`, { method: "PATCH", headers: JSON_HEADERS, body: JSON.stringify({ encrypted_style: encryptedStyle }) });
+}
+
 export function deleteFolder(id: string): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/folders/${id}`, { method: "DELETE" });
 }
 
 export function moveFile(id: string, folderId: string | null): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/files/${id}/move`, { method: "PATCH", headers: JSON_HEADERS, body: JSON.stringify({ folder_id: folderId }) });
+}
+
+/** Set/clear a file's custom card style (icon + color). `encryptedStyle` is
+ *  the opaque base64 blob from `encryptStyle`, or null to clear it. */
+export function updateFileStyle(id: string, encryptedStyle: string | null): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/api/files/${id}/style`, { method: "PATCH", headers: JSON_HEADERS, body: JSON.stringify({ encrypted_style: encryptedStyle }) });
 }
 
 // ─── Per-Folder Password Protection (zero-knowledge) ───

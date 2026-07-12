@@ -102,8 +102,12 @@ export interface ExplorerItemProps {
   onOpenFolderDetails?: (folder: DecryptedFolder) => void;
   /** Create a public link for a folder (kebab). */
   onShareFolder?: (folder: DecryptedFolder) => void;
+  /** Open the icon/color picker for a folder (kebab). */
+  onCustomizeFolder?: (folder: DecryptedFolder) => void;
   /** Get info / details (kebab). Keeps the drawer reachable after click opens viewer. */
   onOpenDetails?: (file: FileMetadata) => void;
+  /** Open the icon/color picker for a file (kebab). */
+  onCustomizeFile?: (file: FileMetadata) => void;
   drag: RowDragProps;
 }
 
@@ -121,6 +125,7 @@ export type FolderItemProps = Pick<
   | "onMoveFolderRequest"
   | "onOpenFolderDetails"
   | "onShareFolder"
+  | "onCustomizeFolder"
   | "drag"
 > & { folder: DecryptedFolder };
 
@@ -137,6 +142,7 @@ export type FileItemProps = Pick<
   | "onFileClick"
   | "onEntryKeyDown"
   | "onOpenDetails"
+  | "onCustomizeFile"
   | "drag"
 > & { file: FileMetadata };
 

@@ -7,8 +7,9 @@ import {
   createFolder as apiCreateFolder,
   renameFolder as apiRenameFolder,
   deleteFolder as apiDeleteFolder,
+  updateFolderStyle as apiUpdateFolderStyle,
 } from "@/lib/api";
-import { deriveNameKey, encryptName, decryptNameSafe } from "@/lib/name-crypto";
+import { deriveNameKey, encryptName, decryptNameSafe, encryptStyle, decryptStyle, type CustomStyle } from "@/lib/name-crypto";
 import { useAuthStore } from "@/store/auth";
 import { usePassphraseStore } from "@/store/passphrase";
 import { useFolderStore } from "@/store/folders";
@@ -22,6 +23,8 @@ export interface DecryptedFolder extends Folder {
   name: string;
   /** Derived: true iff the folder has password protection (`pw_salt != null`). */
   protected: boolean;
+  /** Custom card style (icon + color), decrypted from `encrypted_style`. Null when unset/locked/corrupt. */
+  style: CustomStyle | null;
 }
 
 /** Invalidate every cached folder listing (any parent). Folder mutations change
@@ -94,6 +97,7 @@ export function useFolders() {
           ...f,
           name: key ? await decryptNameSafe(f.encrypted_name, key) : "[locked]",
           protected: f.pw_salt != null,
+          style: key ? await decryptStyle(f.encrypted_style, key) : null,
         }))
       );
       if (!cancelled) setFolders(decrypted);
@@ -140,6 +144,17 @@ export function useFolders() {
     [getNameKey, folders]
   );
 
+  const updateFolderStyle = useCallback(
+    async (folderId: string, style: CustomStyle | null) => {
+      const key = await getNameKey();
+      if (!key) throw new Error("Unlock your vault to customize folders");
+      const encrypted_style = style ? await encryptStyle(style, key) : null;
+      await apiUpdateFolderStyle(folderId, encrypted_style);
+      await invalidateFolders();
+    },
+    [getNameKey]
+  );
+
   const deleteFolder = useCallback(async (id: string) => {
     await apiDeleteFolder(id);
     // Deleting a folder soft-deletes its files too (cascade to Trash) — refresh
@@ -170,6 +185,7 @@ export function useFolders() {
     refresh,
     createFolder,
     renameFolder,
+    updateFolderStyle,
     deleteFolder,
     openFolder,
     navigateToCrumb,

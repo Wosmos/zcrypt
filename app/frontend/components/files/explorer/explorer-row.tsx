@@ -8,6 +8,8 @@ import { ExplorerEntryDispatch, SelectCheckbox } from "./entry-dispatch";
 import { formatBytes, formatDate, getFileTypeInfo, cn, midTrunc, fileIconFor, savingsPercent } from "@/lib/utils";
 import { useThumbnail } from "@/hooks/useThumbnail";
 import { prefetchOnHover } from "@/hooks/useFileDecryptor";
+import { getFolderIcon, getIconByKey } from "@/lib/folder-icons";
+import { getBackgroundByKey } from "@/lib/background-presets";
 import {
   Folder,
   FolderOpen,
@@ -23,6 +25,7 @@ import {
   Lock,
   Key,
   Unlock,
+  PaintBrush,
 } from "@/lib/icons";
 import {
   DropdownMenu,
@@ -76,8 +79,15 @@ function FolderRow({
   onMoveFolderRequest,
   onOpenFolderDetails,
   onShareFolder,
+  onCustomizeFolder,
   drag,
 }: FolderItemProps) {
+  const isLocked = folder.protected || folder.name === "[locked]";
+  const customIcon = folder.style?.icon ? getIconByKey(folder.style.icon) : null;
+  const FolderGlyph = !isLocked ? customIcon ?? getFolderIcon(folder.name) : null;
+  const customBackground = !isLocked && folder.style?.background ? getBackgroundByKey(folder.style.background) : null;
+  const customColor = !isLocked ? folder.style?.color : undefined;
+
   return (
     <div
       role="button"
@@ -93,9 +103,24 @@ function FolderRow({
       className={rowContainerClassName(drag, "hover:bg-[var(--color-surface-1)] hover:shadow-sm")}
     >
       {/* Folder glyph; a small lock badge on protected folders conveys real
-          state (allowed by the spec, unlike the per-file glyph we removed). */}
-      <div className="relative flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-[var(--color-accent)]/10 text-[var(--color-accent)]">
-        <Folder className="h-[18px] w-[18px]" />
+          state (allowed by the spec, unlike the per-file glyph we removed). Same
+          custom-icon → name-inferred → generic fallback chain as FolderCard, so
+          grid and list views stay visually consistent. */}
+      <div
+        className="relative flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-[var(--color-accent)]/10 text-[var(--color-accent)]"
+        style={
+          customBackground
+            ? { background: customBackground }
+            : customColor
+              ? { backgroundColor: `${customColor}1a`, color: customColor }
+              : undefined
+        }
+      >
+        {FolderGlyph ? (
+          <FolderGlyph weight="fill" size={18} />
+        ) : (
+          <Folder className="h-[18px] w-[18px]" />
+        )}
         {folder.protected && (
           <span
             className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[var(--color-surface)] text-[var(--color-accent)] shadow-sm"
@@ -131,6 +156,11 @@ function FolderRow({
           <DropdownMenuItem onClick={() => onRenameFolder(folder)}>
             <Edit className="h-4 w-4" /> Rename
           </DropdownMenuItem>
+          {onCustomizeFolder && (
+            <DropdownMenuItem onClick={() => onCustomizeFolder(folder)}>
+              <PaintBrush className="h-4 w-4" /> Customize…
+            </DropdownMenuItem>
+          )}
           {onMoveFolderRequest && (
             <DropdownMenuItem onClick={() => onMoveFolderRequest(folder)}>
               <Folder className="h-4 w-4" /> Move to folder
@@ -184,10 +214,13 @@ function FileRow({
   onFileClick,
   onEntryKeyDown,
   onOpenDetails,
+  onCustomizeFile,
   drag,
 }: FileItemProps) {
   const typeInfo = getFileTypeInfo(file.original_name);
-  const Icon = fileIconFor(file.original_name);
+  const customIcon = file.style?.icon ? getIconByKey(file.style.icon) : null;
+  const Icon = customIcon ?? fileIconFor(file.original_name);
+  const iconColorStyle = file.style?.color ? { color: file.style.color } : undefined;
   const { thumbnailUrl } = useThumbnail(file.id, file.original_name, file.original_size);
   const savings = savingsPercent(file.original_size, file.encrypted_size);
 
@@ -229,7 +262,7 @@ function FileRow({
           // fixed 36×36 box.
           <NextImage src={thumbnailUrl} alt="" fill sizes="36px" className="object-cover" />
         ) : (
-          <Icon className={cn("h-[18px] w-[18px]", typeInfo.color)} />
+          <Icon className={cn("h-[18px] w-[18px]", !file.style?.color && typeInfo.color)} style={iconColorStyle} />
         )}
       </div>
       <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -268,6 +301,11 @@ function FileRow({
           {actions.onPreview && (
             <DropdownMenuItem onClick={() => actions.onPreview?.(file.original_name)}>
               <Eye className="h-4 w-4" /> Preview
+            </DropdownMenuItem>
+          )}
+          {onCustomizeFile && (
+            <DropdownMenuItem onClick={() => onCustomizeFile(file)}>
+              <PaintBrush className="h-4 w-4" /> Customize…
             </DropdownMenuItem>
           )}
           {onOpenDetails && (

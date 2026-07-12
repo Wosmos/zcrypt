@@ -1,3 +1,5 @@
+import type { CustomStyle } from "@/lib/name-crypto";
+
 export interface FileMetadata {
   id: string;
   original_name: string;
@@ -16,6 +18,10 @@ export interface FileMetadata {
   deleted_at?: string | null;
   /** Storage platform of the file's chunks (telegram/github/huggingface/…). Display-only. */
   platform?: string;
+  /** Custom card style (icon + color), AES-GCM-encrypted client-side. Opaque to the server. */
+  encrypted_style?: string | null;
+  /** Decrypted from `encrypted_style` at query time. Null when unset/locked/corrupt. */
+  style?: CustomStyle | null;
 }
 
 /** A nested folder. `encrypted_name` is the AES-GCM-encrypted (base64) name —
@@ -32,6 +38,8 @@ export interface Folder {
   // the folder is password-protected. Absent on unprotected folders.
   pw_salt?: string | null;
   pw_verifier?: string | null;
+  /** Custom card style (icon + color), AES-GCM-encrypted client-side. Opaque to the server. */
+  encrypted_style?: string | null;
 }
 
 export interface FolderRequest {

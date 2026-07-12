@@ -2,12 +2,14 @@
 
 import { useQuery } from "@tanstack/react-query";
 import type { FileMetadata } from "@/types";
-import { listFiles } from "@/lib/api";
+import { listFiles, updateFileStyle as apiUpdateFileStyle } from "@/lib/api";
 import { queryClient } from "@/lib/query-client";
 import { qk } from "@/lib/query-keys";
 import { setListData, getQueryData, invalidateKey } from "@/lib/query-cache";
 import { useAuthStore } from "@/store/auth";
+import { usePassphraseStore } from "@/store/passphrase";
 import { decryptFileNames } from "@/lib/file-names";
+import { deriveNameKey, encryptStyle, type CustomStyle } from "@/lib/name-crypto";
 
 // Fetch the file list and resolve zero-knowledge names in one place, so every
 // consumer of qk.files sees decrypted (or "[locked]") names without its own
@@ -53,6 +55,20 @@ export function setFilesData(
 /** Force a refetch + reconcile of the files list (used as `refresh()`). */
 export function invalidateFiles(): Promise<void> {
   return invalidateKey(qk.files);
+}
+
+/** Set/clear a file's custom card style (icon + color). Encrypts with the same
+ *  per-user name key as file/folder names, calls the API, then invalidates the
+ *  files list so the decrypted `style` is reconciled from the server response —
+ *  mirrors useFolders' renameFolder (call, then invalidate; no manual patch). */
+export async function updateFileStyle(fileId: string, style: CustomStyle | null): Promise<void> {
+  const user = useAuthStore.getState().user;
+  const passphrase = usePassphraseStore.getState().getPassphrase();
+  if (!user || !passphrase) throw new Error("Unlock your vault to customize files");
+  const key = await deriveNameKey(passphrase, user.id);
+  const encrypted_style = style ? await encryptStyle(style, key) : null;
+  await apiUpdateFileStyle(fileId, encrypted_style);
+  await invalidateFiles();
 }
 
 /**
@@ -107,12 +123,14 @@ export async function hydrateFilesFromCache(): Promise<void> {
   }
 }
 
-// Blank the decrypted name of zero-knowledge files before they touch disk, so the
-// OPFS cache never persists plaintext names (it holds only the opaque
-// encrypted_name, exactly like the server). Legacy plaintext-name files are
-// unaffected — their name is already plaintext on the server.
+// Blank the decrypted name/style of zero-knowledge files before they touch disk,
+// so the OPFS cache never persists plaintext (it holds only the opaque
+// encrypted_name/encrypted_style, exactly like the server). Legacy plaintext-name
+// files are unaffected — their name is already plaintext on the server.
 function stripDecryptedNames(files: FileMetadata[]): FileMetadata[] {
-  return files.map((f) => (f.encrypted_name ? { ...f, original_name: "" } : f));
+  return files.map((f) =>
+    f.encrypted_name || f.encrypted_style ? { ...f, original_name: f.encrypted_name ? "" : f.original_name, style: null } : f
+  );
 }
 
 // Re-resolve names when the vault locks or unlocks: encrypted-name files must

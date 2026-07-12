@@ -59,11 +59,13 @@ import { useVaultSearch } from "@/components/ui/command-palette";
 import { usePassphraseStore } from "@/store/passphrase";
 import { useAuthStore } from "@/store/auth";
 import { moveFolder, createFolder as apiCreateFolder } from "@/lib/api";
-import { deriveNameKey, encryptName } from "@/lib/name-crypto";
+import { deriveNameKey, encryptName, type CustomStyle } from "@/lib/name-crypto";
+import { updateFileStyle as apiUpdateFileStyle } from "@/store/files";
 import { toast } from "@/store/toast";
 import { getFileCategory, cn } from "@/lib/utils";
 import { haptic } from "@/lib/haptics";
 import { CreateFolderFromFilesDialog } from "@/components/files/create-folder-from-files-dialog";
+import { StylePickerDialog } from "@/components/files/style-picker-dialog";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -233,6 +235,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
     refresh: refreshFolders,
     createFolder,
     renameFolder,
+    updateFolderStyle,
     deleteFolder,
     openFolder,
     navigateToCrumb,
@@ -884,6 +887,9 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
   // "Get info" target — the folder whose details drawer is open.
   const [detailsFolder, setDetailsFolder] = useState<DecryptedFolder | null>(null);
   const [shareFolder, setShareFolder] = useState<DecryptedFolder | null>(null);
+  const [customizeTarget, setCustomizeTarget] = useState<
+    { type: "folder" | "file"; id: string; name: string; currentStyle: CustomStyle | null } | null
+  >(null);
 
   const [showUnlock, setShowUnlock] = useState(false);
   const pendingAction = useRef<
@@ -954,6 +960,30 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
       toast.error(err instanceof Error ? err.message : "Failed to rename folder");
     } finally {
       setBusy(false);
+    }
+  };
+
+  const startCustomize = (target: {
+    type: "folder" | "file";
+    id: string;
+    name: string;
+    currentStyle: CustomStyle | null;
+  }) => {
+    setCustomizeTarget(target);
+  };
+
+  const handleCustomizeSave = async (style: CustomStyle | null) => {
+    if (!customizeTarget) return;
+    try {
+      if (customizeTarget.type === "folder") {
+        await updateFolderStyle(customizeTarget.id, style);
+      } else {
+        await apiUpdateFileStyle(customizeTarget.id, style);
+      }
+      setCustomizeTarget(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update customization");
+      throw err;
     }
   };
 
@@ -1079,6 +1109,12 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
               onMoveFolderRequest={onMoveFolderRequest}
               onOpenFolderDetails={setDetailsFolder}
               onShareFolder={setShareFolder}
+              onCustomizeFolder={(folder) =>
+                startCustomize({ type: "folder", id: folder.id, name: folder.name, currentStyle: folder.style })
+              }
+              onCustomizeFile={(file) =>
+                startCustomize({ type: "file", id: file.id, name: file.original_name, currentStyle: file.style ?? null })
+              }
               drag={dragPropsFor(entry)}
             />
           </motion.div>
@@ -1379,6 +1415,16 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Customize icon/color — shared by folders and files */}
+      <StylePickerDialog
+        open={!!customizeTarget}
+        onOpenChange={(o) => !o && setCustomizeTarget(null)}
+        initialStyle={customizeTarget?.currentStyle ?? null}
+        onSave={handleCustomizeSave}
+        entityLabel={customizeTarget?.name}
+        allowBackgroundDesign={customizeTarget?.type === "folder"}
+      />
 
       {/* Delete folder confirm */}
       <ConfirmDialog

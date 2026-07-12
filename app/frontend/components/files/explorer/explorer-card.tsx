@@ -7,7 +7,8 @@ import { ExplorerEntryDispatch, SelectCheckbox } from "./entry-dispatch";
 import { formatBytes, getFileTypeInfo, isVideoFile, cn, midTrunc, fileIconFor, extOf } from "@/lib/utils";
 import { useThumbnail } from "@/hooks/useThumbnail";
 import { prefetchOnHover } from "@/hooks/useFileDecryptor";
-import { getFolderIcon, getFolderInitial } from "@/lib/folder-icons";
+import { getFolderIcon, getFolderInitial, getIconByKey } from "@/lib/folder-icons";
+import { getBackgroundByKey } from "@/lib/background-presets";
 import {
   Folder,
   FolderOpen,
@@ -20,6 +21,7 @@ import {
   CheckSquare,
   Key,
   Unlock,
+  PaintBrush,
 } from "@/lib/icons";
 import {
   ContextMenu,
@@ -35,17 +37,20 @@ import {
  * and a soft drop shadow for depth. Tinted with the accent via `currentColor`,
  * so it lives on the card surface like a desktop folder icon. ~116px wide.
  */
-function MacFolder({ className }: { className?: string }) {
+function MacFolder({ className, color, background }: { className?: string; color?: string; background?: string }) {
   const id = useId();
   const sheen = `${id}-sheen`;
   const shadow = `${id}-shadow`;
   // Shared rounded-pocket outline reused for the front face + the sheen overlay.
   const pocket =
     "M10 40 a12 12 0 0 1 12 -12 H98 a12 12 0 0 1 12 12 V78 a12 12 0 0 1 -12 12 H22 a12 12 0 0 1 -12 -12 Z";
+  const backPanel =
+    "M10 42 V30 a12 12 0 0 1 12 -12 H44 a6 6 0 0 1 4.24 1.76 L54 23.5 a6 6 0 0 0 4.24 1.76 H98 a12 12 0 0 1 12 12 V44 Z";
   return (
     <svg
       viewBox="0 0 120 100"
       className={cn("text-[var(--color-accent)]", className)}
+      style={!background && color ? { color } : undefined}
       fill="none"
       role="img"
       aria-hidden="true"
@@ -61,14 +66,22 @@ function MacFolder({ className }: { className?: string }) {
         </filter>
       </defs>
       <g filter={`url(#${shadow})`}>
-        {/* Back panel + raised tab (darker, sits behind the front pocket) */}
-        <path
-          d="M10 42 V30 a12 12 0 0 1 12 -12 H44 a6 6 0 0 1 4.24 1.76 L54 23.5 a6 6 0 0 0 4.24 1.76 H98 a12 12 0 0 1 12 12 V44 Z"
-          fill="currentColor"
-          fillOpacity="0.55"
-        />
-        {/* Front pocket */}
-        <path d={pocket} fill="currentColor" />
+        {/* Back panel + raised tab (darker, sits behind the front pocket). When a
+            design background is set it becomes a plain dark sliver instead of
+            trying to tint a gradient — reads as the same "layered folder" shadow. */}
+        <path d={backPanel} fill={background ? "#000000" : "currentColor"} fillOpacity={background ? 0.25 : 0.55} />
+        {/* Front pocket — a design background is painted as real content (via
+            foreignObject + a CSS clip-path matching the pocket outline) so the
+            gradient/pattern lives ON the folder shape, not on the SVG's own
+            rectangular bounding box (which is what a plain CSS `background` on
+            the <svg> would do). */}
+        {background ? (
+          <foreignObject x="0" y="0" width="120" height="100" style={{ clipPath: `path('${pocket}')` }}>
+            <div style={{ width: "100%", height: "100%", background }} />
+          </foreignObject>
+        ) : (
+          <path d={pocket} fill="currentColor" />
+        )}
         {/* Glassy top sheen */}
         <path d={pocket} fill={`url(#${sheen})`} />
       </g>
@@ -101,15 +114,19 @@ function FolderCard({
   onMoveFolderRequest,
   onOpenFolderDetails,
   onShareFolder,
+  onCustomizeFolder,
   drag,
 }: FolderItemProps) {
   // Show the padlock when the folder has its own password OR the vault is locked
   // (name can't be decrypted → "[locked]", set in useFolders).
   const isLocked = folder.protected || folder.name === "[locked]";
-  // Otherwise mark the folder by name (Documents, Downloads, Music…), falling
-  // back to its initial letter — like macOS special folders.
-  const FolderGlyph = isLocked ? null : getFolderIcon(folder.name);
+  // Custom icon (set via "Customize…") wins, then the name-inferred glyph,
+  // falling back to its initial letter — like macOS special folders.
+  const customIcon = folder.style?.icon ? getIconByKey(folder.style.icon) : null;
+  const FolderGlyph = isLocked ? null : customIcon ?? getFolderIcon(folder.name);
   const initial = isLocked ? "" : getFolderInitial(folder.name);
+  const customBackground = !isLocked && folder.style?.background ? getBackgroundByKey(folder.style.background) ?? undefined : undefined;
+  const customColor = !isLocked && !customBackground ? folder.style?.color : undefined;
 
   return (
     <ContextMenu>
@@ -139,7 +156,7 @@ function FolderCard({
               wrapper so the mark moves WITH the folder (it's no longer a
               detached overlay). */}
           <div className="relative flex w-full items-center justify-center transition-transform duration-200 ease-out group-hover:-translate-y-0.5 group-hover:scale-[1.02]">
-            <MacFolder className="w-full max-w-[150px]" />
+            <MacFolder className="w-full max-w-[150px]" color={customColor} background={customBackground} />
 
             {/* Mark on the folder face: padlock when locked, else a sleek
                 Phosphor glyph by name, else the folder's initial letter. */}
@@ -186,6 +203,11 @@ function FolderCard({
         <ContextMenuItem className="gap-2" onSelect={() => onRenameFolder(folder)}>
           <Edit className="h-4 w-4" /> Rename
         </ContextMenuItem>
+        {onCustomizeFolder && (
+          <ContextMenuItem className="gap-2" onSelect={() => onCustomizeFolder(folder)}>
+            <PaintBrush className="h-4 w-4" /> Customize…
+          </ContextMenuItem>
+        )}
         {onMoveFolderRequest && (
           <ContextMenuItem className="gap-2" onSelect={() => onMoveFolderRequest(folder)}>
             <Folder className="h-4 w-4" /> Move to folder
@@ -235,11 +257,15 @@ function FileCardInner({
   onFileClick,
   onEntryKeyDown,
   onOpenDetails,
+  onCustomizeFile,
   drag,
 }: FileItemProps) {
   const { thumbnailUrl, pending } = useThumbnail(file.id, file.original_name, file.original_size);
   const typeInfo = getFileTypeInfo(file.original_name);
-  const Icon = fileIconFor(file.original_name);
+  const customIcon = file.style?.icon ? getIconByKey(file.style.icon) : null;
+  const Icon = customIcon ?? fileIconFor(file.original_name);
+  const iconColorClass = file.style?.color ? undefined : typeInfo.color;
+  const iconColorStyle = file.style?.color ? { color: file.style.color } : undefined;
   const isVideo = isVideoFile(file.original_name);
 
   const ext = extOf(file.original_name).toUpperCase().slice(0, 4);
@@ -327,9 +353,12 @@ function FileCardInner({
                   className="absolute right-0 top-0 h-4 w-4 rounded-tr-[10px] bg-[var(--color-surface-2)]"
                   style={{ clipPath: "polygon(0 0, 100% 0, 100% 100%)" }}
                 />
-                <Icon className={cn("h-8 w-8", typeInfo.color)} />
+                <Icon className={cn("h-8 w-8", iconColorClass)} style={iconColorStyle} />
                 {ext && (
-                  <span className={cn("text-[8px] font-bold uppercase tracking-wider", typeInfo.color)}>
+                  <span
+                    className={cn("text-[8px] font-bold uppercase tracking-wider", iconColorClass)}
+                    style={iconColorStyle}
+                  >
                     {ext}
                   </span>
                 )}
@@ -361,6 +390,11 @@ function FileCardInner({
         {actions.onPreview && (
           <ContextMenuItem className="gap-2" onSelect={() => actions.onPreview?.(file.original_name)}>
             <Eye className="h-4 w-4" /> Preview
+          </ContextMenuItem>
+        )}
+        {onCustomizeFile && (
+          <ContextMenuItem className="gap-2" onSelect={() => onCustomizeFile(file)}>
+            <PaintBrush className="h-4 w-4" /> Customize…
           </ContextMenuItem>
         )}
         <ContextMenuItem className="gap-2" onSelect={() => actions.onDownload(file.original_name)}>

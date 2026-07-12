@@ -28,6 +28,37 @@ import {
   Cloud,
   Database,
   GearSix,
+  FilePdf,
+  FileZip,
+  FileCsv,
+  FileDoc,
+  FileXls,
+  FilePpt,
+  FileHtml,
+  FileCode,
+  Robot,
+  Atom,
+  Cube,
+  Rocket,
+  Certificate,
+  ChartBar,
+  Buildings,
+  CreditCard,
+  Leaf,
+  Mountains,
+  Sun,
+  Basketball,
+  Bicycle,
+  Trophy,
+  PuzzlePiece,
+  Ticket,
+  MapPin,
+  Compass,
+  Coffee,
+  Pizza,
+  Wine,
+  FirstAidKit,
+  Pill,
   type Icon,
 } from "@phosphor-icons/react";
 
@@ -101,4 +132,63 @@ export function getFolderIcon(name: string): Icon | null {
 export function getFolderInitial(name: string): string {
   const m = name.trim().match(/[a-z0-9]/i);
   return m ? m[0].toUpperCase() : "#";
+}
+
+function toLabel(key: string): string {
+  return key.charAt(0).toUpperCase() + key.slice(1);
+}
+
+/**
+ * Extra picker-only glyphs — not tied to a name-inference keyword, just more
+ * variety for the "Customize…" icon grid (file types, work, tech, nature,
+ * hobbies, travel, food, health). `RULES` stays the single source of truth
+ * for automatic inference; these only ever get chosen explicitly by the user.
+ */
+const PICKER_ONLY_ICONS: { key: string; label: string; Icon: Icon }[] = [
+  { key: "pdf", label: "PDF", Icon: FilePdf },
+  { key: "zip", label: "Zip", Icon: FileZip },
+  { key: "csv", label: "CSV", Icon: FileCsv },
+  { key: "word", label: "Word", Icon: FileDoc },
+  { key: "excel", label: "Excel", Icon: FileXls },
+  { key: "slides", label: "Slides", Icon: FilePpt },
+  { key: "html", label: "HTML", Icon: FileHtml },
+  { key: "scripts", label: "Scripts", Icon: FileCode },
+  { key: "robotics", label: "Robotics", Icon: Robot },
+  { key: "science", label: "Science", Icon: Atom },
+  { key: "models", label: "3D Models", Icon: Cube },
+  { key: "startup", label: "Startup", Icon: Rocket },
+  { key: "certificates", label: "Certificates", Icon: Certificate },
+  { key: "analytics", label: "Analytics", Icon: ChartBar },
+  { key: "corporate", label: "Corporate", Icon: Buildings },
+  { key: "billing", label: "Billing", Icon: CreditCard },
+  { key: "nature", label: "Nature", Icon: Leaf },
+  { key: "outdoors", label: "Outdoors", Icon: Mountains },
+  { key: "weather", label: "Weather", Icon: Sun },
+  { key: "sports", label: "Sports", Icon: Basketball },
+  { key: "cycling", label: "Cycling", Icon: Bicycle },
+  { key: "awards", label: "Awards", Icon: Trophy },
+  { key: "hobbies", label: "Hobbies", Icon: PuzzlePiece },
+  { key: "events", label: "Events", Icon: Ticket },
+  { key: "places", label: "Places", Icon: MapPin },
+  { key: "adventure", label: "Adventure", Icon: Compass },
+  { key: "coffee", label: "Coffee", Icon: Coffee },
+  { key: "takeout", label: "Takeout", Icon: Pizza },
+  { key: "drinks", label: "Drinks", Icon: Wine },
+  { key: "firstaid", label: "First Aid", Icon: FirstAidKit },
+  { key: "medicine", label: "Medicine", Icon: Pill },
+];
+
+/** The curated Phosphor set behind `getFolderIcon`, plus the picker-only
+ *  additions above, reshaped for a user-facing picker grid. */
+export const FOLDER_ICON_OPTIONS: { key: string; label: string; Icon: Icon }[] = [
+  ...RULES.map((rule) => ({ key: rule.keys[0], label: toLabel(rule.keys[0]), Icon: rule.icon })),
+  ...PICKER_ONLY_ICONS,
+];
+
+const ICON_BY_KEY = new Map(FOLDER_ICON_OPTIONS.map((opt) => [opt.key, opt.Icon]));
+
+/** Resolve a stored custom-style icon key (from `FOLDER_ICON_OPTIONS`) back to
+ *  its glyph. Returns null for an unknown/legacy key so callers can fall back. */
+export function getIconByKey(key: string): Icon | null {
+  return ICON_BY_KEY.get(key) ?? null;
 }
