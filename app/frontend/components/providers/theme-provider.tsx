@@ -9,7 +9,15 @@ import {
   useState,
 } from "react";
 import { flushSync } from "react-dom";
-import { DEFAULT_COLOR_THEME, isValidColorTheme } from "@/lib/themes";
+import { CUSTOM_COLOR_THEME, DEFAULT_COLOR_THEME, isValidColorTheme } from "@/lib/themes";
+import {
+  applyCustomThemeVars,
+  clearCustomThemeVars,
+  DEFAULT_CUSTOM_THEME,
+  loadCustomTheme,
+  saveCustomTheme,
+  type CustomThemeValues,
+} from "@/lib/custom-theme";
 import { getDeviceId } from "@/lib/device";
 import { getDevicePreference, saveDevicePreference } from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
@@ -43,6 +51,11 @@ interface ThemeContextValue {
   /** Color-theme family (palette). "default" = original zcrypt palette. */
   colorTheme: string;
   setColorTheme: (id: string) => void;
+  /** The user's own accent/canvas/background-design pick — live regardless of
+   *  whether "custom" is the active `colorTheme`, so the picker's editor can
+   *  stay open and preview without losing the draft. */
+  customTheme: CustomThemeValues;
+  setCustomTheme: (values: CustomThemeValues) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue>({
@@ -52,6 +65,8 @@ const ThemeContext = createContext<ThemeContextValue>({
   toggleTheme: () => {},
   colorTheme: DEFAULT_COLOR_THEME,
   setColorTheme: () => {},
+  customTheme: DEFAULT_CUSTOM_THEME,
+  setCustomTheme: () => {},
 });
 
 export function useTheme() {
@@ -79,6 +94,14 @@ function resolveTheme(theme: Theme): ResolvedTheme {
  *  shell), so this is inert on marketing/auth pages. */
 function applyColorTheme(id: string) {
   if (typeof document === "undefined") return;
+  if (id === CUSTOM_COLOR_THEME) {
+    document.documentElement.dataset.theme = id;
+    applyCustomThemeVars(loadCustomTheme());
+    return;
+  }
+  // Inline custom vars outrank any CSS-block value, so they must be cleared
+  // before a preset/default theme's own block can take effect.
+  clearCustomThemeVars();
   if (id && id !== DEFAULT_COLOR_THEME) {
     document.documentElement.dataset.theme = id;
   } else {
@@ -103,6 +126,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>("system");
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>("dark");
   const [colorTheme, setColorThemeState] = useState<string>(DEFAULT_COLOR_THEME);
+  const [customTheme, setCustomThemeState] = useState<CustomThemeValues>(DEFAULT_CUSTOM_THEME);
   const [mounted, setMounted] = useState(false);
   const accessToken = useAuthStore((s) => s.accessToken);
   const pulledRef = useRef(false);
@@ -118,6 +142,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       ? (storedColor as string)
       : DEFAULT_COLOR_THEME;
     setColorThemeState(initialColor);
+    setCustomThemeState(loadCustomTheme());
     // The inline no-flash script already applied this pre-paint; re-assert in
     // case storage was written by another tab since.
     applyColorTheme(initialColor);
@@ -265,9 +290,31 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     syncPreferenceToServer(next, localStorage.getItem(MODE_KEY) || "system");
   }, []);
 
+  // Custom colors are per-device only (no backend field for arbitrary hex
+  // values yet) — persisted to localStorage, re-applied live only when
+  // "custom" is actually the active colorTheme so editing the draft never
+  // leaks into a currently-selected preset.
+  const setCustomTheme = useCallback(
+    (values: CustomThemeValues) => {
+      setCustomThemeState(values);
+      saveCustomTheme(values);
+      if (colorTheme === CUSTOM_COLOR_THEME) applyCustomThemeVars(values);
+    },
+    [colorTheme]
+  );
+
   return (
     <ThemeContext.Provider
-      value={{ theme, resolvedTheme, setTheme, toggleTheme, colorTheme, setColorTheme }}
+      value={{
+        theme,
+        resolvedTheme,
+        setTheme,
+        toggleTheme,
+        colorTheme,
+        setColorTheme,
+        customTheme,
+        setCustomTheme,
+      }}
     >
       {children}
     </ThemeContext.Provider>

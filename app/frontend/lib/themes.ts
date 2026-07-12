@@ -31,6 +31,9 @@ export interface ColorTheme {
 }
 
 export const DEFAULT_COLOR_THEME = "default";
+/** A user-defined theme (own accent + canvas color, see lib/custom-theme.ts)
+ *  rather than one of the curated presets below. */
+export const CUSTOM_COLOR_THEME = "custom";
 
 export const COLOR_THEMES: ColorTheme[] = [
   {
@@ -181,5 +184,5 @@ export const COLOR_THEMES: ColorTheme[] = [
 const VALID_IDS = new Set(COLOR_THEMES.map((t) => t.id));
 
 export function isValidColorTheme(id: string | null | undefined): boolean {
-  return !!id && VALID_IDS.has(id);
+  return !!id && (id === CUSTOM_COLOR_THEME || VALID_IDS.has(id));
 }
