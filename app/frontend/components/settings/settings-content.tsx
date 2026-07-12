@@ -47,7 +47,7 @@ import {
   Eye,
 } from "@/lib/icons";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
+import { cn, smartGridCols } from "@/lib/utils";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { PLATFORMS, platformName } from "@/lib/platforms";
 
@@ -244,18 +244,18 @@ export function SettingsContent() {
         </Section>
       </div>
 
-      {/* Encryption key */}
+      {/* Encryption key + Linked Accounts (OAuth) */}
       <div className="panel p-6">
         <Section
-          title="Encryption key"
-          description="Your device's public-key fingerprint. When you share a space with someone, compare this out-of-band (in person, a call) to be sure no one intercepted the key exchange."
+          title="Account access"
+          description="Your device's key fingerprint and the identity providers you can sign in with."
         >
-          <EncryptionKeyInfo />
+          <div className={cn("grid gap-3", smartGridCols(3))}>
+            <EncryptionKeyInfo />
+            <LinkedAccounts />
+          </div>
         </Section>
       </div>
-
-      {/* Linked Accounts (OAuth) */}
-      <LinkedAccounts />
 
       {/* Platform connections */}
       <div className="panel p-6">
@@ -263,14 +263,13 @@ export function SettingsContent() {
           title="Platform connections"
           description="Connect storage backends. zcrypt distributes encrypted, disguised chunks across your connected accounts."
         >
-          <div className="space-y-4">
+          <div className={cn("grid gap-4", smartGridCols(PLATFORMS.length))}>
             {PLATFORMS.map((p) => (
               <PlatformSection
                 key={p.id}
                 icon={<PlatformIcon platform={p.id} className="h-5 w-5" />}
                 name={p.name}
                 platform={p.id}
-                description={p.description}
                 tokenUrl={p.tokenUrl}
                 tokenLabel={p.tokenLabel}
                 placeholder={p.placeholder}
@@ -359,7 +358,6 @@ function PlatformSection({
   icon,
   name,
   platform,
-  description,
   tokenUrl,
   tokenLabel,
   placeholder,
@@ -377,7 +375,6 @@ function PlatformSection({
   icon: React.ReactNode;
   name: string;
   platform: string;
-  description: string;
   tokenUrl: string;
   tokenLabel: string;
   placeholder: string;
@@ -395,14 +392,13 @@ function PlatformSection({
   customConnect?: React.ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-1)]/40">
+    <div className="flex h-full flex-col rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-1)]/40">
       <div className="flex items-center gap-3 border-b border-[var(--color-border)] px-4 py-3.5">
         <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--color-surface)] ring-1 ring-[var(--color-border)]">
           {icon}
         </div>
         <div className="min-w-0 flex-1">
           <h3 className="truncate text-sm font-semibold text-[var(--color-text)]">{name}</h3>
-          <p className="truncate text-xs text-[var(--color-text-secondary)]">{description}</p>
         </div>
         {connectedAccounts.length > 0 && (
           <Badge
@@ -414,7 +410,7 @@ function PlatformSection({
         )}
       </div>
 
-      <div className="space-y-4 p-4">
+      <div className="flex-1 space-y-4 p-4">
         {/* Connected accounts list */}
         {connectedAccounts.length > 0 && (
           <ul className="space-y-2">
@@ -520,14 +516,14 @@ function EncryptionKeyInfo() {
 
   if (!ready || !fingerprint) {
     return (
-      <p className="text-sm text-[var(--color-text-muted)]">
+      <div className="flex items-center gap-3 rounded-xl border border-dashed border-[var(--color-border)] px-3.5 py-3 text-sm text-[var(--color-text-muted)]">
         Unlock your vault to generate and view your key fingerprint.
-      </p>
+      </div>
     );
   }
 
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-1)]/50 px-4 py-3">
+    <div className="flex items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)]/50 px-3.5 py-3">
       <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--color-accent)]/10 text-[var(--color-accent)]">
         <Key className="h-4 w-4" />
       </div>
