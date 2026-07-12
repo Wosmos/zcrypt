@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { restoreFile, purgeFile } from "@/lib/api";
+import { restoreFile, purgeFile, bulkPurgeFiles, bulkRestoreFiles } from "@/lib/api";
 import { useTrashQuery, setTrashData, invalidateTrash } from "@/store/trash";
 import { invalidateFilesViews } from "@/lib/invalidate";
 import { invalidateQuota } from "@/store/quota";
@@ -212,23 +212,31 @@ export function TrashContent() {
   const handleBulkRestore = useCallback(async () => {
     const targets = selectedFiles;
     if (targets.length === 0) return;
-    const ids = new Set(targets.map((f) => f.id));
+    const idList = targets.map((f) => f.id);
+    const ids = new Set(idList);
     setBulkRestoring(true);
-    // Optimistic: drop all selected rows, reconcile via refresh on any failure.
+    // Optimistic (intentional): drop the rows now, reconcile via refresh on failure.
     setTrashData((prev) => prev.filter((f) => !ids.has(f.id)));
+    targets.forEach((f) => clearDecryptCacheForFile(f.id));
     clearSelection();
     try {
-      const results = await Promise.allSettled(targets.map((f) => restoreFile(f.id)));
-      targets.forEach((f) => clearDecryptCacheForFile(f.id));
-      const failed = results.filter((r) => r.status === "rejected").length;
+      // One request per 500-id chunk (the server's per-batch cap) — no fan-out.
+      let failed = 0;
+      for (let i = 0; i < idList.length; i += 500) {
+        const res = await bulkRestoreFiles(idList.slice(i, i + 500));
+        failed += res.failed;
+      }
       if (failed > 0) {
         toast.error(`${failed} file${failed > 1 ? "s" : ""} could not be restored`);
-        refresh();
+        refresh(); // reconcile: bring back the rows that didn't restore
       } else {
         toast.success(`Restored ${targets.length} file${targets.length > 1 ? "s" : ""}`);
       }
       // Restored files reappear in the vault; quota shifts back.
       void invalidateFilesViews();
+    } catch {
+      toast.error("Could not restore the selected files");
+      refresh();
     } finally {
       setBulkRestoring(false);
     }
@@ -237,24 +245,35 @@ export function TrashContent() {
   const handleBulkPurge = useCallback(async () => {
     const targets = selectedFiles;
     if (targets.length === 0) return;
-    const ids = new Set(targets.map((f) => f.id));
+    const idList = targets.map((f) => f.id);
+    const ids = new Set(idList);
     setBulkPurging(true);
+    // Optimistic (intentional): drop the rows now, reconcile from the server on failure.
+    setTrashData((prev) => prev.filter((f) => !ids.has(f.id)));
+    targets.forEach((f) => clearDecryptCacheForFile(f.id));
+    clearSelection();
+    setBulkPurgeOpen(false);
     try {
-      const results = await Promise.allSettled(targets.map((f) => purgeFile(f.id)));
-      targets.forEach((f) => clearDecryptCacheForFile(f.id));
-      const failed = results.filter((r) => r.status === "rejected").length;
-      // Drop everything that succeeded; reconcile from the server on partials.
-      setTrashData((prev) => prev.filter((f) => !ids.has(f.id)));
-      clearSelection();
-      setBulkPurgeOpen(false);
+      // One request per 500-id chunk (the server's per-batch cap) — no per-file
+      // fan-out, which used to flood the rate limiter with 429s and 401s. A
+      // 1,000-file purge is 2 requests, not 1,000.
+      let failed = 0;
+      for (let i = 0; i < idList.length; i += 500) {
+        const res = await bulkPurgeFiles(idList.slice(i, i + 500));
+        failed += res.failed;
+      }
       if (failed > 0) {
         toast.error(`${failed} file${failed > 1 ? "s" : ""} could not be deleted`);
-        refresh();
+        refresh(); // reconcile: restore the rows that didn't actually purge
       } else {
         toast.success(`Permanently deleted ${targets.length} file${targets.length > 1 ? "s" : ""}`);
       }
       // Chunks removed from storage — quota frees up.
       void invalidateQuota();
+    } catch {
+      // The whole batch failed (network/auth) — put the rows back.
+      toast.error("Could not delete the selected files");
+      refresh();
     } finally {
       setBulkPurging(false);
     }

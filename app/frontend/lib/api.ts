@@ -322,6 +322,25 @@ export function purgeFile(id: string): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/files/${id}/purge`, { method: "DELETE" });
 }
 
+/** Permanently delete many files in ONE request (irreversible). Replaces firing
+ *  a purgeFile per id in parallel, which flooded the rate limiter on big selects. */
+export function bulkPurgeFiles(ids: string[]): Promise<{ deleted: number; failed: number }> {
+  return request<{ deleted: number; failed: number }>("/api/files/bulk-purge", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids }),
+  });
+}
+
+/** Restore many files from Trash in ONE request (replaces the per-file fan-out). */
+export function bulkRestoreFiles(ids: string[]): Promise<{ restored: number; failed: number }> {
+  return request<{ restored: number; failed: number }>("/api/files/bulk-restore", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids }),
+  });
+}
+
 export function getPlatformStatus(): Promise<PlatformStatus[]> {
   return request<PlatformStatus[]>("/api/platforms/status");
 }
