@@ -113,13 +113,13 @@ func (db *DB) GetFile(ctx context.Context, userID, originalName string) (*types.
 // GetFileByID retrieves file metadata by ID, scoped to user.
 func (db *DB) GetFileByID(ctx context.Context, userID, id string) (*types.FileMetadata, error) {
 	row := db.pool.QueryRow(ctx,
-		`SELECT id, user_id, original_name, encrypted_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, sha256_scheme, salt, iv, wrapped_cek, status, created_at
+		`SELECT id, user_id, original_name, encrypted_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, sha256_scheme, salt, iv, wrapped_cek, status, created_at, encrypted_style
 		 FROM files WHERE id = $1 AND user_id = $2`, id, userID,
 	)
 
 	f := &types.FileMetadata{}
 	err := row.Scan(&f.ID, &f.UserID, &f.OriginalName, &f.EncryptedName, &f.OriginalSize, &f.CompressedSize,
-		&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.SHA256Scheme, &f.Salt, &f.IV, &f.WrappedCEK, &f.Status, &f.CreatedAt)
+		&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.SHA256Scheme, &f.Salt, &f.IV, &f.WrappedCEK, &f.Status, &f.CreatedAt, &f.EncryptedStyle)
 	if err != nil {
 		return nil, fmt.Errorf("get file by id: %w", err)
 	}
@@ -141,13 +141,27 @@ func (db *DB) UpdateFileKey(ctx context.Context, userID, fileID string, salt []b
 	return nil
 }
 
+// UpdateFileStyle sets or clears a file's opaque encrypted style blob (icon + color),
+// scoped to the owning user. A nil encryptedStyle clears the column back to NULL (auto/default
+// styling); the server never validates or interprets the value beyond storing it verbatim.
+func (db *DB) UpdateFileStyle(ctx context.Context, userID, fileID string, encryptedStyle *string) error {
+	_, err := db.pool.Exec(ctx,
+		`UPDATE files SET encrypted_style = $3 WHERE id = $1 AND user_id = $2`,
+		fileID, userID, encryptedStyle,
+	)
+	if err != nil {
+		return fmt.Errorf("update file style: %w", err)
+	}
+	return nil
+}
+
 // ListFiles returns stored files for a user, newest first, optionally filtered by
 // name substring. limit caps the number of rows returned (a safety bound against an
 // unbounded scan/transfer for accounts with very large libraries); pass <= 0 for no
 // explicit cap. Search uses ILIKE (case-insensitive) to match the frontend's
 // case-insensitive client-side filter and is backed by the pg_trgm GIN index when present.
 func (db *DB) ListFiles(ctx context.Context, userID, filter string, limit int) ([]types.FileMetadata, error) {
-	query := `SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, sha256_scheme, salt, iv, wrapped_cek, status, created_at, folder_id, encrypted_name, deleted_at,
+	query := `SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, sha256_scheme, salt, iv, wrapped_cek, status, created_at, folder_id, encrypted_name, deleted_at, encrypted_style,
 	                 COALESCE((SELECT c.platform FROM chunks c WHERE c.file_id = files.id LIMIT 1), '') AS platform
 	          FROM files WHERE user_id = $1 AND status = 'complete' AND deleted_at IS NULL`
 	args := []interface{}{userID}
@@ -176,7 +190,7 @@ func (db *DB) ListFiles(ctx context.Context, userID, filter string, limit int) (
 		)
 		if err := rows.Scan(&f.ID, &f.UserID, &f.OriginalName, &f.OriginalSize, &f.CompressedSize,
 			&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.SHA256Scheme, &f.Salt, &f.IV, &f.WrappedCEK, &f.Status, &f.CreatedAt,
-			&f.FolderID, &f.EncryptedName, &deletedAt, &f.Platform); err != nil {
+			&f.FolderID, &f.EncryptedName, &deletedAt, &f.EncryptedStyle, &f.Platform); err != nil {
 			return nil, fmt.Errorf("scan file: %w", err)
 		}
 		f.DeletedAt = folderTimeStr(deletedAt)
@@ -193,7 +207,7 @@ func (db *DB) ListFiles(ctx context.Context, userID, filter string, limit int) (
 // IS NOT DISTINCT FROM. This is a sibling of ListFiles so existing callers stay untouched.
 func (db *DB) ListFilesInFolder(ctx context.Context, userID string, folderID *string) ([]types.FileMetadata, error) {
 	rows, err := db.pool.Query(ctx,
-		`SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, sha256_scheme, salt, iv, wrapped_cek, status, created_at, folder_id, encrypted_name, deleted_at,
+		`SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, sha256_scheme, salt, iv, wrapped_cek, status, created_at, folder_id, encrypted_name, deleted_at, encrypted_style,
 		        COALESCE((SELECT c.platform FROM chunks c WHERE c.file_id = files.id LIMIT 1), '') AS platform
 		 FROM files
 		 WHERE user_id = $1 AND status = 'complete' AND deleted_at IS NULL AND folder_id IS NOT DISTINCT FROM $2
@@ -213,7 +227,7 @@ func (db *DB) ListFilesInFolder(ctx context.Context, userID string, folderID *st
 		)
 		if err := rows.Scan(&f.ID, &f.UserID, &f.OriginalName, &f.OriginalSize, &f.CompressedSize,
 			&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.SHA256Scheme, &f.Salt, &f.IV, &f.WrappedCEK, &f.Status, &f.CreatedAt,
-			&f.FolderID, &f.EncryptedName, &deletedAt, &f.Platform); err != nil {
+			&f.FolderID, &f.EncryptedName, &deletedAt, &f.EncryptedStyle, &f.Platform); err != nil {
 			return nil, fmt.Errorf("scan file: %w", err)
 		}
 		f.DeletedAt = folderTimeStr(deletedAt)

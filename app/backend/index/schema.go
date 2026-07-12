@@ -676,6 +676,11 @@ ALTER TABLE files ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
 ALTER TABLE files ADD COLUMN IF NOT EXISTS encrypted_name TEXT NOT NULL DEFAULT '';
 CREATE INDEX IF NOT EXISTS idx_files_folder ON files(folder_id);
 
+-- Optional per-file style (icon + color) blob, mirroring encrypted_name: a client-side
+-- encrypted (base64) value the server never decrypts. NULL = no custom style (client falls
+-- back to its own auto/default styling).
+ALTER TABLE files ADD COLUMN IF NOT EXISTS encrypted_style TEXT;
+
 -- Optional per-folder password protection (zero-knowledge). Both nullable; NULL = unprotected
 -- (behaves exactly as today). The server stores ONLY opaque client-computed base64 blobs and
 -- never derives, sees, or logs the folder password or any key.
@@ -685,6 +690,11 @@ CREATE INDEX IF NOT EXISTS idx_files_folder ON files(folder_id);
 -- A folder is "protected" iff pw_salt IS NOT NULL.
 ALTER TABLE folders ADD COLUMN IF NOT EXISTS pw_salt TEXT;
 ALTER TABLE folders ADD COLUMN IF NOT EXISTS pw_verifier TEXT;
+
+-- Optional per-folder style (icon + color) blob, mirroring encrypted_name: a client-side
+-- encrypted (base64) value the server never decrypts. NULL = no custom style (client falls
+-- back to its own auto/default styling).
+ALTER TABLE folders ADD COLUMN IF NOT EXISTS encrypted_style TEXT;
 
 -- Per-device UI preferences (color theme + light/dark mode). Keyed by a
 -- client-generated device_id so each device keeps its own look ("per-device
