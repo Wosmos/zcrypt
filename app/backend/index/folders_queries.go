@@ -363,7 +363,8 @@ func (db *DB) RestoreFilesBatch(ctx context.Context, userID string, fileIDs []st
 	if err != nil {
 		return 0, fmt.Errorf("begin tx: %w", err)
 	}
-	defer tx.Rollback(ctx)
+	// Rollback after a successful Commit is a documented no-op error — safe to drop.
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	tag, err := tx.Exec(ctx,
 		`UPDATE files SET deleted_at = NULL

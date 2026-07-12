@@ -341,7 +341,7 @@ func TestHFCommitChunksSuccess(t *testing.T) {
 }
 
 func TestHFCommitChunksEmptyNoop(t *testing.T) {
-	h := newHFFake(func(r *http.Request) (*http.Response, error) {
+	h := newHFFake(func(_ *http.Request) (*http.Response, error) {
 		t.Fatal("no HTTP call expected for an empty commit")
 		return nil, nil
 	})

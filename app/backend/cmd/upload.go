@@ -513,7 +513,7 @@ func (s *Server) HandleUploadComplete(w http.ResponseWriter, r *http.Request) {
 		// retry. Either way a chunk is never trusted durable on an object we
 		// haven't seen land.
 		if uncommitted, err := s.db.GetUncommittedChunksForFile(bgCtx, bgSession.FileID); err != nil {
-			log.Printf("upload: WARNING loading uncommitted chunks for file %s failed: %v — reconcile will retry", bgSession.FileID, err)
+			log.Printf("upload: WARNING loading uncommitted chunks for file %s failed: %v — reconcile will retry", logSafe(bgSession.FileID), err) // #nosec G706 -- control chars stripped via logSafe
 			select {
 			case s.syncCh <- struct{}{}:
 			default:
@@ -754,8 +754,8 @@ func (s *Server) HandlePresignChunk(w http.ResponseWriter, r *http.Request) {
 		// deactivate the dead repo so the pool stops routing to it, rotate the
 		// session to a fresh (or existing active) repo, and retry the presign
 		// once against the new target.
-		log.Printf("upload: repo %s gone on %s — rotating session %s: %v",
-			session.RepoURL, session.Platform, session.ID, err)
+		log.Printf("upload: repo %s gone on %s — rotating session %s: %v", // #nosec G706 -- control chars stripped via logSafe
+			logSafe(session.RepoURL), logSafe(session.Platform), logSafe(session.ID), err)
 		if healErr := s.healDeadRepo(ctx, session); healErr != nil {
 			log.Printf("upload: repo self-heal failed: %v", healErr)
 		} else {
@@ -775,6 +775,18 @@ func (s *Server) HandlePresignChunk(w http.ResponseWriter, r *http.Request) {
 		"remote_path":    remotePath,
 		"already_exists": uploadURL == "",
 	})
+}
+
+// logSafe strips CR/LF (and other control characters) from a value before it is
+// interpolated into a log line, so a crafted id/url can't forge extra log
+// entries (gosec G706 log-injection).
+func logSafe(s string) string {
+	return strings.Map(func(r rune) rune {
+		if r < 0x20 || r == 0x7f {
+			return -1
+		}
+		return r
+	}, s)
 }
 
 // isRepoNotFound reports whether an adapter error means the repo itself is GONE
