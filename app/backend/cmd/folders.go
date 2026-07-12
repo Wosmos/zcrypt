@@ -123,6 +123,37 @@ func (s *Server) HandleRenameFolder(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]bool{"success": true})
 }
 
+// HandleUpdateFolderStyle sets or clears a folder's opaque encrypted style blob (icon + color).
+// PATCH /api/folders/{id}/style  body { encrypted_style }
+// encrypted_style is an opaque client-encrypted base64 string, exactly like encrypted_name; the
+// server never decrypts or interprets it. An empty string or null clears the style (falls back
+// to the client's auto/default styling).
+func (s *Server) HandleUpdateFolderStyle(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID := GetUserID(r)
+	folderID := r.PathValue("id")
+
+	var req struct {
+		EncryptedStyle *string `json:"encrypted_style"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
+		return
+	}
+	if req.EncryptedStyle != nil && *req.EncryptedStyle == "" {
+		req.EncryptedStyle = nil
+	}
+
+	if err := s.db.UpdateFolderStyle(ctx, userID, folderID, req.EncryptedStyle); err != nil {
+		log.Printf("folders: update style: %v", err)
+		http.Error(w, `{"error":"failed to update folder style"}`, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]bool{"success": true})
+}
+
 // HandleMoveFolder reparents a folder. A null parent_id moves it to root.
 // PATCH /api/folders/{id}/move
 func (s *Server) HandleMoveFolder(w http.ResponseWriter, r *http.Request) {
@@ -185,6 +216,37 @@ func (s *Server) HandleMoveFile(w http.ResponseWriter, r *http.Request) {
 	if err := s.db.MoveFile(ctx, userID, fileID, req.FolderID); err != nil {
 		log.Printf("files: move: %v", err)
 		http.Error(w, `{"error":"failed to move file"}`, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]bool{"success": true})
+}
+
+// HandleUpdateFileStyle sets or clears a file's opaque encrypted style blob (icon + color).
+// PATCH /api/files/{id}/style  body { encrypted_style }
+// encrypted_style is an opaque client-encrypted base64 string, exactly like encrypted_name; the
+// server never decrypts or interprets it. An empty string or null clears the style (falls back
+// to the client's auto/default styling).
+func (s *Server) HandleUpdateFileStyle(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID := GetUserID(r)
+	fileID := r.PathValue("id")
+
+	var req struct {
+		EncryptedStyle *string `json:"encrypted_style"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
+		return
+	}
+	if req.EncryptedStyle != nil && *req.EncryptedStyle == "" {
+		req.EncryptedStyle = nil
+	}
+
+	if err := s.db.UpdateFileStyle(ctx, userID, fileID, req.EncryptedStyle); err != nil {
+		log.Printf("files: update style: %v", err)
+		http.Error(w, `{"error":"failed to update file style"}`, http.StatusInternalServerError)
 		return
 	}
 

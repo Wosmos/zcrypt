@@ -75,10 +75,11 @@ type FileMetadata struct {
 	WrappedCEK     string    `json:"wrapped_cek,omitempty"` // base64 envelope-wrapped Content Encryption Key
 	Status         string    `json:"status"`
 	CreatedAt      time.Time `json:"created_at"`
-	FolderID       *string   `json:"folder_id,omitempty"`  // parent folder; nil = root
-	EncryptedName  string    `json:"encrypted_name"`       // client-side-encrypted (base64) name; opaque to server
-	DeletedAt      *string   `json:"deleted_at,omitempty"` // non-nil = in trash
-	Platform       string    `json:"platform,omitempty"`   // storage platform of the file's chunks (telegram/github/…); display-only
+	FolderID       *string   `json:"folder_id,omitempty"`       // parent folder; nil = root
+	EncryptedName  string    `json:"encrypted_name"`            // client-side-encrypted (base64) name; opaque to server
+	EncryptedStyle *string   `json:"encrypted_style,omitempty"` // client-side-encrypted (base64) icon/color style; opaque to server, nil = no custom style
+	DeletedAt      *string   `json:"deleted_at,omitempty"`      // non-nil = in trash
+	Platform       string    `json:"platform,omitempty"`        // storage platform of the file's chunks (telegram/github/…); display-only
 }
 
 // ChunkRef identifies a single chunk stored on a platform.
@@ -634,14 +635,15 @@ type NoteRequest struct {
 
 // Folder represents a (possibly nested) folder in a user's library.
 type Folder struct {
-	ID            string  `json:"id"`
-	UserID        string  `json:"user_id"`
-	ParentID      *string `json:"parent_id,omitempty"` // nil = root
-	EncryptedName string  `json:"encrypted_name"`      // client-side-encrypted (base64); opaque to server
-	CreatedAt     string  `json:"created_at"`
-	DeletedAt     *string `json:"deleted_at,omitempty"`  // non-nil = in trash
-	PwSalt        *string `json:"pw_salt,omitempty"`     // nil = unprotected; opaque base64, server never derives keys
-	PwVerifier    *string `json:"pw_verifier,omitempty"` // opaque base64 verifier; client-only password check
+	ID             string  `json:"id"`
+	UserID         string  `json:"user_id"`
+	ParentID       *string `json:"parent_id,omitempty"` // nil = root
+	EncryptedName  string  `json:"encrypted_name"`      // client-side-encrypted (base64); opaque to server
+	CreatedAt      string  `json:"created_at"`
+	DeletedAt      *string `json:"deleted_at,omitempty"`      // non-nil = in trash
+	PwSalt         *string `json:"pw_salt,omitempty"`         // nil = unprotected; opaque base64, server never derives keys
+	PwVerifier     *string `json:"pw_verifier,omitempty"`     // opaque base64 verifier; client-only password check
+	EncryptedStyle *string `json:"encrypted_style,omitempty"` // client-side-encrypted (base64) icon/color style; opaque to server, nil = no custom style
 }
 
 // FolderRequest is the JSON body for creating a folder.

@@ -33,27 +33,29 @@ func (db *DB) CreateFolder(ctx context.Context, userID string, req types.FolderR
 		deletedAt *time.Time
 	)
 	var (
-		pwSalt     *string
-		pwVerifier *string
+		pwSalt         *string
+		pwVerifier     *string
+		encryptedStyle *string
 	)
 	err := db.pool.QueryRow(ctx, `
 		INSERT INTO folders (user_id, parent_id, encrypted_name)
 		VALUES ($1, $2, $3)
-		RETURNING id, parent_id, encrypted_name, created_at, deleted_at, pw_salt, pw_verifier`,
+		RETURNING id, parent_id, encrypted_name, created_at, deleted_at, pw_salt, pw_verifier, encrypted_style`,
 		userID, req.ParentID, req.EncryptedName,
-	).Scan(&id, &parentID, &req.EncryptedName, &createdAt, &deletedAt, &pwSalt, &pwVerifier)
+	).Scan(&id, &parentID, &req.EncryptedName, &createdAt, &deletedAt, &pwSalt, &pwVerifier, &encryptedStyle)
 	if err != nil {
 		return nil, fmt.Errorf("create folder: %w", err)
 	}
 	return &types.Folder{
-		ID:            id,
-		UserID:        userID,
-		ParentID:      parentID,
-		EncryptedName: req.EncryptedName,
-		CreatedAt:     createdAt.Format(time.RFC3339),
-		DeletedAt:     folderTimeStr(deletedAt),
-		PwSalt:        pwSalt,
-		PwVerifier:    pwVerifier,
+		ID:             id,
+		UserID:         userID,
+		ParentID:       parentID,
+		EncryptedName:  req.EncryptedName,
+		CreatedAt:      createdAt.Format(time.RFC3339),
+		DeletedAt:      folderTimeStr(deletedAt),
+		PwSalt:         pwSalt,
+		PwVerifier:     pwVerifier,
+		EncryptedStyle: encryptedStyle,
 	}, nil
 }
 
@@ -61,7 +63,7 @@ func (db *DB) CreateFolder(ctx context.Context, userID string, req types.FolderR
 // A nil parentID returns root folders (parent_id IS NULL) via IS NOT DISTINCT FROM.
 func (db *DB) ListFolders(ctx context.Context, userID string, parentID *string) ([]types.Folder, error) {
 	rows, err := db.pool.Query(ctx, `
-		SELECT id, user_id, parent_id, encrypted_name, created_at, deleted_at, pw_salt, pw_verifier
+		SELECT id, user_id, parent_id, encrypted_name, created_at, deleted_at, pw_salt, pw_verifier, encrypted_style
 		FROM folders
 		WHERE user_id = $1 AND deleted_at IS NULL AND parent_id IS NOT DISTINCT FROM $2
 		ORDER BY created_at`, userID, parentID)
@@ -77,7 +79,7 @@ func (db *DB) ListFolders(ctx context.Context, userID string, parentID *string) 
 			createdAt time.Time
 			deletedAt *time.Time
 		)
-		if err := rows.Scan(&f.ID, &f.UserID, &f.ParentID, &f.EncryptedName, &createdAt, &deletedAt, &f.PwSalt, &f.PwVerifier); err != nil {
+		if err := rows.Scan(&f.ID, &f.UserID, &f.ParentID, &f.EncryptedName, &createdAt, &deletedAt, &f.PwSalt, &f.PwVerifier, &f.EncryptedStyle); err != nil {
 			return nil, fmt.Errorf("scan folder: %w", err)
 		}
 		f.CreatedAt = createdAt.Format(time.RFC3339)
@@ -98,16 +100,16 @@ func (db *DB) ListFolders(ctx context.Context, userID string, parentID *string) 
 func (db *DB) ListFolderSubtree(ctx context.Context, userID, rootID string) ([]types.Folder, error) {
 	rows, err := db.pool.Query(ctx, `
 		WITH RECURSIVE subtree AS (
-			SELECT id, user_id, parent_id, encrypted_name, created_at, deleted_at, pw_salt, pw_verifier
+			SELECT id, user_id, parent_id, encrypted_name, created_at, deleted_at, pw_salt, pw_verifier, encrypted_style
 			FROM folders
 			WHERE id = $2 AND user_id = $1 AND deleted_at IS NULL
 			UNION ALL
-			SELECT f.id, f.user_id, f.parent_id, f.encrypted_name, f.created_at, f.deleted_at, f.pw_salt, f.pw_verifier
+			SELECT f.id, f.user_id, f.parent_id, f.encrypted_name, f.created_at, f.deleted_at, f.pw_salt, f.pw_verifier, f.encrypted_style
 			FROM folders f
 			JOIN subtree s ON f.parent_id = s.id
 			WHERE f.user_id = $1 AND f.deleted_at IS NULL
 		)
-		SELECT id, user_id, parent_id, encrypted_name, created_at, deleted_at, pw_salt, pw_verifier
+		SELECT id, user_id, parent_id, encrypted_name, created_at, deleted_at, pw_salt, pw_verifier, encrypted_style
 		FROM subtree`, userID, rootID)
 	if err != nil {
 		return nil, fmt.Errorf("list folder subtree: %w", err)
@@ -121,7 +123,7 @@ func (db *DB) ListFolderSubtree(ctx context.Context, userID, rootID string) ([]t
 			createdAt time.Time
 			deletedAt *time.Time
 		)
-		if err := rows.Scan(&f.ID, &f.UserID, &f.ParentID, &f.EncryptedName, &createdAt, &deletedAt, &f.PwSalt, &f.PwVerifier); err != nil {
+		if err := rows.Scan(&f.ID, &f.UserID, &f.ParentID, &f.EncryptedName, &createdAt, &deletedAt, &f.PwSalt, &f.PwVerifier, &f.EncryptedStyle); err != nil {
 			return nil, fmt.Errorf("scan folder: %w", err)
 		}
 		f.CreatedAt = createdAt.Format(time.RFC3339)
@@ -142,6 +144,20 @@ func (db *DB) RenameFolder(ctx context.Context, userID, folderID, encryptedName 
 	)
 	if err != nil {
 		return fmt.Errorf("rename folder: %w", err)
+	}
+	return nil
+}
+
+// UpdateFolderStyle sets or clears a folder's opaque encrypted style blob (icon + color),
+// scoped to the owning user. A nil encryptedStyle clears the column back to NULL (auto/default
+// styling); the server never validates or interprets the value beyond storing it verbatim.
+func (db *DB) UpdateFolderStyle(ctx context.Context, userID, folderID string, encryptedStyle *string) error {
+	_, err := db.pool.Exec(ctx,
+		`UPDATE folders SET encrypted_style = $3 WHERE id = $1 AND user_id = $2`,
+		folderID, userID, encryptedStyle,
+	)
+	if err != nil {
+		return fmt.Errorf("update folder style: %w", err)
 	}
 	return nil
 }
@@ -279,7 +295,7 @@ func (db *DB) MoveFile(ctx context.Context, userID, fileID string, folderID *str
 // ListTrashedFiles returns a user's soft-deleted files (deleted_at IS NOT NULL), newest first.
 func (db *DB) ListTrashedFiles(ctx context.Context, userID string) ([]types.FileMetadata, error) {
 	rows, err := db.pool.Query(ctx,
-		`SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, wrapped_cek, status, created_at, folder_id, encrypted_name, deleted_at
+		`SELECT id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, salt, iv, wrapped_cek, status, created_at, folder_id, encrypted_name, deleted_at, encrypted_style
 		 FROM files WHERE user_id = $1 AND deleted_at IS NOT NULL ORDER BY deleted_at DESC`,
 		userID,
 	)
@@ -296,7 +312,7 @@ func (db *DB) ListTrashedFiles(ctx context.Context, userID string) ([]types.File
 		)
 		if err := rows.Scan(&f.ID, &f.UserID, &f.OriginalName, &f.OriginalSize, &f.CompressedSize,
 			&f.EncryptedSize, &f.ChunkCount, &f.SHA256, &f.Salt, &f.IV, &f.WrappedCEK, &f.Status, &f.CreatedAt,
-			&f.FolderID, &f.EncryptedName, &deletedAt); err != nil {
+			&f.FolderID, &f.EncryptedName, &deletedAt, &f.EncryptedStyle); err != nil {
 			return nil, fmt.Errorf("scan trashed file: %w", err)
 		}
 		f.DeletedAt = folderTimeStr(deletedAt)
