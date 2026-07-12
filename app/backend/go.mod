@@ -2,6 +2,8 @@ module github.com/zcrypt/zcrypt
 
 go 1.25.0
 
+toolchain go1.25.12
+
 require (
 	github.com/google/go-github/v60 v60.0.0
 	github.com/google/uuid v1.6.0
