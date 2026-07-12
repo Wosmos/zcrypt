@@ -28,6 +28,41 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/**
+ * Grid column classes that adapt to item count instead of a fixed column
+ * count — 1 item fills the row, 2-3 items get one column each, 4 settles
+ * into a balanced 2x2 rather than leaving an awkward gap.
+ */
+export function smartGridCols(count: number): string {
+  if (count <= 1) return "grid-cols-1";
+  if (count === 2) return "grid-cols-1 sm:grid-cols-2";
+  if (count === 3) return "grid-cols-1 sm:grid-cols-2 md:grid-cols-3";
+  if (count === 4) return "grid-cols-1 sm:grid-cols-2";
+  return "grid-cols-1 sm:grid-cols-2 md:grid-cols-3";
+}
+
+/** Row width `smartGridCols` would use for this many items — see {@link chunk}. */
+export function smartGridColCount(count: number): number {
+  if (count <= 1) return 1;
+  if (count === 2) return 2;
+  if (count === 3) return 3;
+  if (count === 4) return 2;
+  return 3;
+}
+
+/**
+ * Splits items into rows of `size`. Pair with a flex row (each item
+ * `sm:flex-1`) instead of a CSS grid so a trailing partial row — e.g. 5 items
+ * at 3-per-row leaves a lone row of 2 — stretches to fill the full width
+ * instead of leaving a gap where the missing 3rd column would sit. CSS grid
+ * can't do this because column tracks are shared across every row.
+ */
+export function chunk<T>(items: T[], size: number): T[][] {
+  const rows: T[][] = [];
+  for (let i = 0; i < items.length; i += size) rows.push(items.slice(i, i + size));
+  return rows;
+}
+
 export function formatBytes(bytes: number): string {
   if (!bytes || bytes <= 0) return "0 B";
   const k = 1024;
