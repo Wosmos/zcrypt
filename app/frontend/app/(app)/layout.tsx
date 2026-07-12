@@ -24,7 +24,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         {/* On phones the shell goes edge-to-edge: no outer canvas padding/gap and
             a flat (non-card) content panel, so no space is wasted on the "floating
             panel" frame. The card look returns at md+. */}
-        <div className="app-shell flex h-dvh gap-0 bg-[var(--color-bg)] p-0 md:gap-3 md:p-3">
+        {/* --app-bg-image is unset (falls back to "none") for every theme
+            except a Custom theme with a background design picked — see
+            lib/custom-theme.ts. It's a decorative layer only: sits behind the
+            flat --color-bg fill, and every panel/card above it stays fully
+            opaque, so it never affects text contrast. */}
+        <div
+          className="app-shell flex h-dvh gap-0 bg-[var(--color-bg)] p-0 md:gap-3 md:p-3"
+          style={{ backgroundImage: "var(--app-bg-image, none)", backgroundSize: "cover" }}
+        >
           <Sidebar />
           <div className="flex min-w-0 flex-1 flex-col gap-0 md:gap-3">
             <TopBar />
