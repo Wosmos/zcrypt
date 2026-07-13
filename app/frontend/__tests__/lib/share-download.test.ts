@@ -165,6 +165,19 @@ describe("downloadSharedFile — success paths", () => {
     expect((anchorCall!.value as HTMLAnchorElement).download).toBe("shared.bin");
   });
 
+  it("falls back to a generic 'download' filename when the share has no original_name", async () => {
+    const f = await makeShareFixture({ finalChunks: [enc.encode("x")] });
+    f.meta.original_name = ""; // exercises the `meta.original_name || "download"` fallback
+    getShareFileMeta.mockResolvedValueOnce(f.meta);
+    getShareChunk.mockResolvedValueOnce({ data: f.encryptedChunks[0], sha256: "", compressed: false });
+    const createElementSpy = vi.spyOn(document, "createElement");
+
+    await downloadSharedFile("tok", f.shareKeyB64);
+
+    const anchorCall = createElementSpy.mock.results.find((r) => (r.value as HTMLElement).tagName === "A");
+    expect((anchorCall!.value as HTMLAnchorElement).download).toBe("download");
+  });
+
   it("decompresses a chunk when the server marks it compressed", async () => {
     const desired = enc.encode("decompressed-share-content");
     const f = await makeShareFixture({ finalChunks: [new Uint8Array([7, 7, 7])] });

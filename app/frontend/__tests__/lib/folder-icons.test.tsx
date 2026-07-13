@@ -1,6 +1,17 @@
 import { describe, it, expect } from "vitest";
-import { getFolderIcon, getFolderInitial } from "@/lib/folder-icons";
+import { getFolderIcon, getFolderInitial, getIconByKey, FOLDER_ICON_OPTIONS } from "@/lib/folder-icons";
 import { FileText, ImageSquare, Monitor } from "@phosphor-icons/react";
+
+describe("getIconByKey", () => {
+  it("resolves a known option key to its glyph", () => {
+    const opt = FOLDER_ICON_OPTIONS[0];
+    expect(getIconByKey(opt.key)).toBe(opt.Icon);
+  });
+
+  it("returns null for an unknown/legacy key", () => {
+    expect(getIconByKey("no-such-icon-key")).toBeNull();
+  });
+});
 
 describe("getFolderIcon", () => {
   it("matches a full normalized name exactly", () => {

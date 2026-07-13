@@ -39,4 +39,14 @@ describe("zstd shared codec", () => {
     await getZstdCodec();
     expect(ZstdInit).toHaveBeenCalledTimes(2);
   });
+
+  it("returns the payload unchanged when the codec is unavailable", async () => {
+    // ZstdInit resolves falsy → zstdDecompress must skip decompression and pass
+    // the bytes straight through (matches the old `compressed && codec` guard).
+    ZstdInit.mockResolvedValueOnce(null as never);
+    const input = new Uint8Array([5, 6, 7]);
+    const out = await zstdDecompress(input);
+    expect(out).toBe(input);
+    expect(decompress).not.toHaveBeenCalled();
+  });
 });

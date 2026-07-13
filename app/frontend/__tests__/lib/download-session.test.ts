@@ -7,20 +7,22 @@ const { getFileMeta, getFileChunk } = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/api", () => ({ getFileMeta, getFileChunk }));
 
-const { resolveFileKey, fromBase64 } = vi.hoisted(() => ({
+const { resolveFileKey, fromBase64, deriveDedupKeyBytes } = vi.hoisted(() => ({
   resolveFileKey: vi.fn(),
   fromBase64: vi.fn(),
+  deriveDedupKeyBytes: vi.fn(),
 }));
 vi.mock("@/lib/crypto", async () => {
   // Provide a REAL sha256 incremental hasher for createContentHasher so the
-  // legacy ('plain') integrity path these tests exercise matches the expected
-  // hash computed with nobleSha256. deriveDedupKeyBytes is only hit on the
-  // 'hmac_v1' path (not exercised here), so a stub suffices.
+  // legacy ('plain') integrity path matches the expected hash computed with
+  // nobleSha256. The 'hmac_v1' path is exercised too, but createContentHasher
+  // here always hashes with sha256 (ignoring scheme), so hmac_v1 fixtures just
+  // set their sha256 to the sha256 of the plaintext.
   const { sha256 } = await import("@noble/hashes/sha2.js");
   return {
     resolveFileKey,
     fromBase64,
-    deriveDedupKeyBytes: vi.fn(),
+    deriveDedupKeyBytes,
     createContentHasher: async () => {
       const h = sha256.create();
       return { update: (d: Uint8Array) => h.update(d), digest: () => h.digest() };
@@ -31,6 +33,19 @@ vi.mock("@/lib/crypto", async () => {
         .join(""),
   };
 });
+
+// download-session lazily imports these; mock so no real store/module loads and
+// the owner-path name/MAC branches are controllable. Existing tests never reach
+// the lazy imports, so this is inert for them.
+const { getUser, getVaultPass, deriveNameKey, decryptName } = vi.hoisted(() => ({
+  getUser: vi.fn<() => { id: string } | undefined>(() => undefined),
+  getVaultPass: vi.fn<() => string | null>(() => null),
+  deriveNameKey: vi.fn(),
+  decryptName: vi.fn(),
+}));
+vi.mock("@/store/auth", () => ({ useAuthStore: { getState: () => ({ user: getUser() }) } }));
+vi.mock("@/store/passphrase", () => ({ usePassphraseStore: { getState: () => ({ getPassphrase: getVaultPass }) } }));
+vi.mock("@/lib/name-crypto", () => ({ deriveNameKey, decryptName }));
 
 const { getDeviceProfile } = vi.hoisted(() => ({ getDeviceProfile: vi.fn() }));
 vi.mock("@/lib/device-profile", () => ({ getDeviceProfile }));
@@ -136,6 +151,103 @@ describe("downloadAndDecryptFile — in-memory path", () => {
     expect(anchorCall).toBeTruthy();
     expect((anchorCall!.value as HTMLAnchorElement).download).toBe("report.pdf");
     expect(terminateMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("derives a per-user keyed MAC for an hmac_v1 file on the owner (passphrase) path", async () => {
+    const chunks = [chunkBytes(0), chunkBytes(1)];
+    getFileMeta.mockResolvedValueOnce(
+      baseMeta(2, expectedHash(chunks), { sha256_scheme: "hmac_v1", original_name: "keyed.bin" })
+    );
+    getFileChunk.mockImplementation(async (_id: string, index: number) => ({
+      data: chunks[index].buffer,
+      sha256: "",
+      compressed: false,
+    }));
+    getUser.mockReturnValue({ id: "u1" });
+    deriveDedupKeyBytes.mockResolvedValue(new Uint8Array(32));
+
+    await downloadAndDecryptFile("f1", "pw");
+
+    // The passphrase path exposes dedupPassphrase, so the MAC key is derived. (lines 191-193)
+    expect(deriveDedupKeyBytes).toHaveBeenCalledWith("pw", "u1");
+  });
+
+  it("skips the file-level MAC compare for an hmac_v1 file when not signed in (relies on per-chunk tags)", async () => {
+    const chunks = [chunkBytes(0)];
+    // A wrong file hash would normally throw, but with no user the MAC key can't
+    // be derived → canVerifyHash is false → the file-hash compare is skipped.
+    getFileMeta.mockResolvedValueOnce(baseMeta(1, "0".repeat(64), { sha256_scheme: "hmac_v1", original_name: "k.bin" }));
+    getFileChunk.mockResolvedValueOnce({ data: chunks[0].buffer, sha256: "", compressed: false });
+    getUser.mockReturnValue(undefined); // uid falsy → macKey stays undefined
+
+    await expect(downloadAndDecryptFile("f1", "pw")).resolves.toBeUndefined();
+    expect(deriveDedupKeyBytes).not.toHaveBeenCalled();
+  });
+
+  it("decrypts a zero-knowledge file's encrypted_name to use as the save filename", async () => {
+    const chunks = [chunkBytes(0)];
+    getFileMeta.mockResolvedValueOnce(
+      baseMeta(1, expectedHash(chunks), { original_name: "", encrypted_name: "ENCNAME" })
+    );
+    getFileChunk.mockResolvedValueOnce({ data: chunks[0].buffer, sha256: "", compressed: false });
+    getUser.mockReturnValue({ id: "u1" });
+    getVaultPass.mockReturnValue("vaultpass");
+    deriveNameKey.mockResolvedValue({} as CryptoKey);
+    decryptName.mockResolvedValue("Secret Report.pdf");
+    const createElementSpy = vi.spyOn(document, "createElement");
+
+    await downloadAndDecryptFile("f1", "pw");
+
+    const anchor = createElementSpy.mock.results.find((r) => (r.value as HTMLElement).tagName === "A");
+    expect((anchor!.value as HTMLAnchorElement).download).toBe("Secret Report.pdf");
+    expect(decryptName).toHaveBeenCalledWith("ENCNAME", expect.anything());
+  });
+
+  it("falls back to original_name when decrypting the save name throws", async () => {
+    const chunks = [chunkBytes(0)];
+    getFileMeta.mockResolvedValueOnce(
+      baseMeta(1, expectedHash(chunks), { original_name: "fallback.bin", encrypted_name: "ENC" })
+    );
+    getFileChunk.mockResolvedValueOnce({ data: chunks[0].buffer, sha256: "", compressed: false });
+    getUser.mockReturnValue({ id: "u1" });
+    getVaultPass.mockReturnValue("vaultpass");
+    deriveNameKey.mockResolvedValue({} as CryptoKey);
+    decryptName.mockRejectedValue(new Error("wrong key"));
+    const createElementSpy = vi.spyOn(document, "createElement");
+
+    await downloadAndDecryptFile("f1", "pw");
+
+    const anchor = createElementSpy.mock.results.find((r) => (r.value as HTMLElement).tagName === "A");
+    expect((anchor!.value as HTMLAnchorElement).download).toBe("fallback.bin");
+  });
+
+  it("uses a generic 'download' filename when the file carries no name at all", async () => {
+    const chunks = [chunkBytes(0)];
+    getFileMeta.mockResolvedValueOnce(baseMeta(1, expectedHash(chunks), { original_name: "" }));
+    getFileChunk.mockResolvedValueOnce({ data: chunks[0].buffer, sha256: "", compressed: false });
+    const createElementSpy = vi.spyOn(document, "createElement");
+
+    await downloadAndDecryptFile("f1", "pw");
+
+    const anchor = createElementSpy.mock.results.find((r) => (r.value as HTMLElement).tagName === "A");
+    expect((anchor!.value as HTMLAnchorElement).download).toBe("download"); // saveName || "download"
+  });
+
+  it("does not attempt name decryption for an encrypted_name file when the vault is locked", async () => {
+    const chunks = [chunkBytes(0)];
+    getFileMeta.mockResolvedValueOnce(
+      baseMeta(1, expectedHash(chunks), { original_name: "locked.bin", encrypted_name: "ENC" })
+    );
+    getFileChunk.mockResolvedValueOnce({ data: chunks[0].buffer, sha256: "", compressed: false });
+    getUser.mockReturnValue({ id: "u1" });
+    getVaultPass.mockReturnValue(null); // locked → the `uid && vaultPass` guard is false
+    const createElementSpy = vi.spyOn(document, "createElement");
+
+    await downloadAndDecryptFile("f1", "pw");
+
+    const anchor = createElementSpy.mock.results.find((r) => (r.value as HTMLElement).tagName === "A");
+    expect((anchor!.value as HTMLAnchorElement).download).toBe("locked.bin");
+    expect(decryptName).not.toHaveBeenCalled();
   });
 
   it("throws on SHA-256 mismatch without touching saveToDisk (not provided)", async () => {

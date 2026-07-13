@@ -56,6 +56,18 @@ describe("OrderedWriter", () => {
     expect(order).toEqual([0, 1, 2, 3]);
   });
 
+  it("throws AbortError when the backpressure wait is aborted (pause/cancel)", async () => {
+    const { sink } = recordingSink();
+    const w = new OrderedWriter(sink, 1); // buffer of 1
+    await w.put(1, chunk(1)); // fills the buffer with a non-cursor chunk (cursor 0 missing)
+
+    const controller = new AbortController();
+    controller.abort();
+    // put(2) is past the cursor and the buffer is full → it enters the wait
+    // loop, sees the aborted signal, and throws instead of spinning forever.
+    await expect(w.put(2, chunk(2), controller.signal)).rejects.toThrow(/aborted/i);
+  });
+
   it("actually blocks in the backpressure loop when full and not holding the cursor, then drains once room frees up", async () => {
     vi.useFakeTimers();
     try {

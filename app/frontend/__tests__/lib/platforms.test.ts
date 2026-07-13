@@ -35,9 +35,9 @@ describe("PLATFORMS", () => {
   });
 
   it("locks the canonical per-platform capacities (drift guard)", () => {
-    expect(PLATFORM_BY_ID.github.capacity).toBe("850 MB / repo");
-    expect(PLATFORM_BY_ID.gitlab.capacity).toBe("9 GB / repo");
-    expect(PLATFORM_BY_ID.huggingface.capacity).toBe("90 GB / repo");
+    expect(PLATFORM_BY_ID.github.capacity).toBe("10 GB / repo (recommended; no hard cap)");
+    expect(PLATFORM_BY_ID.gitlab.capacity).toBe("10 GiB / project (then read-only)");
+    expect(PLATFORM_BY_ID.huggingface.capacity).toBe("100 GB / account (shared, not per repo)");
     expect(PLATFORM_BY_ID.telegram.capacity).toBe("Unlimited");
   });
 });

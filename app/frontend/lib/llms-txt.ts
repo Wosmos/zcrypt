@@ -7,8 +7,10 @@ import { docsNav } from "@/lib/data";
 
 const SITE = "https://zcrypt.cloud";
 
-/** A markdown link line: `- [Title](url) (Badge): description`. */
-function entry(title: string, href: string, desc: string, badge?: string): string {
+/** A markdown link line: `- [Title](url) (Badge): description`. Relative hrefs
+ *  are absolutised against SITE; already-absolute (http…) hrefs pass through.
+ *  Exported for unit testing of both href/badge branches. */
+export function entry(title: string, href: string, desc: string, badge?: string): string {
   const url = href.startsWith("http") ? href : `${SITE}${href}`;
   return `- [${title}](${url})${badge ? ` (${badge})` : ""}: ${desc}`;
 }

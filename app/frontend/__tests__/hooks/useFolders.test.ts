@@ -51,6 +51,7 @@ vi.mock("@/lib/api", () => ({
   createFolder: vi.fn(),
   renameFolder: vi.fn(),
   deleteFolder: vi.fn(),
+  updateFolderStyle: vi.fn(),
 }));
 
 // Same convention as passphrase.test.ts: never touch real IndexedDB.
@@ -329,6 +330,23 @@ describe("useFolders", () => {
       );
       expect(api.createFolder).not.toHaveBeenCalled();
     });
+
+    it("rejects a duplicate sibling name (case-insensitive) without calling the API", async () => {
+      useAuthStore.getState().setUser(USER);
+      usePassphraseStore.getState().setPassphrase("vault-pass");
+      const key = await deriveNameKey("vault-pass", USER.id);
+      vi.mocked(api.listFolders).mockResolvedValue([
+        { id: "f1", user_id: USER.id, parent_id: null, encrypted_name: await encryptName("Docs", key), created_at: "t" },
+      ]);
+
+      const { result } = renderFolders();
+      await waitFor(() => expect(result.current.folders).toHaveLength(1));
+
+      await expect(result.current.createFolder("  docs ")).rejects.toThrow(
+        'A folder named "docs" already exists here.'
+      );
+      expect(api.createFolder).not.toHaveBeenCalled();
+    });
   });
 
   describe("renameFolder", () => {
@@ -363,6 +381,89 @@ describe("useFolders", () => {
         "Unlock your vault to rename folders"
       );
       expect(api.renameFolder).not.toHaveBeenCalled();
+    });
+
+    it("rejects renaming onto another sibling's name (case-insensitive), but allows renaming to the folder's own name", async () => {
+      useAuthStore.getState().setUser(USER);
+      usePassphraseStore.getState().setPassphrase("vault-pass");
+      const key = await deriveNameKey("vault-pass", USER.id);
+      vi.mocked(api.listFolders).mockResolvedValue([
+        { id: "f1", user_id: USER.id, parent_id: null, encrypted_name: await encryptName("Alpha", key), created_at: "t" },
+        { id: "f2", user_id: USER.id, parent_id: null, encrypted_name: await encryptName("Beta", key), created_at: "t" },
+      ]);
+      vi.mocked(api.renameFolder).mockResolvedValue({ success: true });
+
+      const { result } = renderFolders();
+      await waitFor(() => expect(result.current.folders).toHaveLength(2));
+
+      // Colliding with a DIFFERENT folder is rejected.
+      await expect(result.current.renameFolder("f2", "alpha")).rejects.toThrow(
+        'A folder named "alpha" already exists here.'
+      );
+      expect(api.renameFolder).not.toHaveBeenCalled();
+
+      // Renaming a folder to (a case variant of) its OWN current name is allowed
+      // — the guard excludes the folder being renamed (f.id !== id).
+      await act(async () => {
+        await result.current.renameFolder("f2", "beta");
+      });
+      expect(api.renameFolder).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("updateFolderStyle", () => {
+    it("throws and never calls the API when the vault is locked", async () => {
+      useAuthStore.getState().setUser(USER);
+      vi.mocked(api.listFolders).mockResolvedValue([]);
+
+      const { result } = renderFolders();
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      await expect(result.current.updateFolderStyle("f1", { icon: "star" })).rejects.toThrow(
+        "Unlock your vault to customize folders"
+      );
+      expect(api.updateFolderStyle).not.toHaveBeenCalled();
+    });
+
+    it("encrypts a non-null style, calls the API with the ciphertext, then invalidates", async () => {
+      useAuthStore.getState().setUser(USER);
+      usePassphraseStore.getState().setPassphrase("vault-pass");
+      const key = await deriveNameKey("vault-pass", USER.id);
+      vi.mocked(api.listFolders).mockResolvedValue([]);
+      vi.mocked(api.updateFolderStyle).mockResolvedValue({ success: true });
+
+      const { result } = renderFolders();
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      await act(async () => {
+        await result.current.updateFolderStyle("f1", { icon: "star", color: "#00ff00" });
+      });
+
+      expect(api.updateFolderStyle).toHaveBeenCalledTimes(1);
+      const [id, encryptedStyle] = vi.mocked(api.updateFolderStyle).mock.calls[0];
+      expect(id).toBe("f1");
+      expect(typeof encryptedStyle).toBe("string");
+      // Round-trips back to the original style under the same name key.
+      expect(await nameCrypto.decryptStyle(encryptedStyle as string, key)).toEqual({
+        icon: "star",
+        color: "#00ff00",
+      });
+    });
+
+    it("sends null (clearing the style) without encrypting when style is null", async () => {
+      useAuthStore.getState().setUser(USER);
+      usePassphraseStore.getState().setPassphrase("vault-pass");
+      vi.mocked(api.listFolders).mockResolvedValue([]);
+      vi.mocked(api.updateFolderStyle).mockResolvedValue({ success: true });
+
+      const { result } = renderFolders();
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      await act(async () => {
+        await result.current.updateFolderStyle("f1", null);
+      });
+
+      expect(api.updateFolderStyle).toHaveBeenCalledWith("f1", null);
     });
   });
 

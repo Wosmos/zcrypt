@@ -33,17 +33,27 @@ import {
   invalidateFiles,
   ensureFiles,
   prefetchFileList,
-  hydrateFilesFromCache,
+  updateFileStyle,
 } from "@/store/files";
 import { queryClient } from "@/lib/query-client";
 import { qk } from "@/lib/query-keys";
 import { useAuthStore } from "@/store/auth";
-import { listFiles } from "@/lib/api";
+import { usePassphraseStore } from "@/store/passphrase";
+import { listFiles, updateFileStyle as apiUpdateFileStyle } from "@/lib/api";
 import { getOfflineCache } from "@/lib/offline-cache";
 import type { FileMetadata } from "@/types";
 
 vi.mock("@/lib/api", () => ({
   listFiles: vi.fn(),
+  updateFileStyle: vi.fn(),
+}));
+
+// updateFileStyle drives real per-user name-key derivation (PBKDF2) + AES style
+// encryption; only the network call and IndexedDB device-vault are mocked.
+vi.mock("@/lib/device-vault", () => ({
+  persistPassphrase: vi.fn(async () => {}),
+  loadPassphrase: vi.fn(async () => null),
+  clearPersistedPassphrase: vi.fn(async () => {}),
 }));
 
 vi.mock("@/lib/offline-cache", () => ({
@@ -247,6 +257,44 @@ describe("files store (TanStack Query)", () => {
       expect(setFiles).toHaveBeenCalledWith("u1", [makeFile("1")]);
     });
 
+    it("strips decrypted names/styles of zero-knowledge files before persisting to OPFS", async () => {
+      useAuthStore.setState({ user: { id: "u1" } as never });
+      const setFiles = vi.fn();
+      vi.mocked(getOfflineCache).mockResolvedValue({ getFiles: vi.fn(), setFiles } as never);
+
+      // Three shapes so both the outer condition and the inner name ternary are
+      // exercised: (a) encrypted name + style -> name blanked, style dropped;
+      // (b) encrypted style only -> keep plaintext-less name as-is, style dropped;
+      // (c) legacy plaintext -> untouched.
+      const encName = {
+        ...makeFile("a"),
+        encrypted_name: "ENCNAME",
+        encrypted_style: "ENCSTYLE",
+        original_name: "secret.txt",
+        style: { icon: "star" },
+      } as FileMetadata;
+      const encStyleOnly = {
+        ...makeFile("b"),
+        encrypted_style: "ENCSTYLE",
+        original_name: "legacy.txt",
+        style: { icon: "heart" },
+      } as FileMetadata;
+      const plaintext = makeFile("c");
+
+      setFilesData([encName, encStyleOnly, plaintext]);
+      await flushMicrotasks();
+
+      expect(setFiles).toHaveBeenCalledTimes(1);
+      const [userId, persisted] = setFiles.mock.calls[0];
+      expect(userId).toBe("u1");
+      // (a) name blanked (it's encrypted), style dropped, ciphertext kept.
+      expect(persisted[0]).toMatchObject({ id: "a", original_name: "", style: null, encrypted_name: "ENCNAME" });
+      // (b) no encrypted_name -> plaintext name preserved, style still dropped.
+      expect(persisted[1]).toMatchObject({ id: "b", original_name: "legacy.txt", style: null });
+      // (c) legacy plaintext file passes through untouched.
+      expect(persisted[2]).toEqual(plaintext);
+    });
+
     it("coalesces multiple synchronous updates into a single persist", async () => {
       useAuthStore.setState({ user: { id: "u1" } as never });
       const setFiles = vi.fn();
@@ -310,6 +358,87 @@ describe("files store (TanStack Query)", () => {
       await flushMicrotasks();
 
       expect(offlineCacheMod.getOfflineCache).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("updateFileStyle", () => {
+    // Drive the passphrase store directly (persistent branch, no expiry) so
+    // getPassphrase() returns a value without touching the device vault.
+    function unlock(passphrase: string | null) {
+      usePassphraseStore.setState({
+        cachedPassphrase: passphrase,
+        persistent: passphrase != null,
+        cacheUntil: null,
+      });
+    }
+
+    afterEach(() => unlock(null));
+
+    it("throws (and never calls the API) when there is no user", async () => {
+      useAuthStore.setState({ user: null });
+      unlock("vault-pass");
+      await expect(updateFileStyle("f1", { icon: "star" })).rejects.toThrow(
+        "Unlock your vault to customize files"
+      );
+      expect(apiUpdateFileStyle).not.toHaveBeenCalled();
+    });
+
+    it("throws (and never calls the API) when the vault is locked", async () => {
+      useAuthStore.setState({ user: { id: "u1" } as never });
+      unlock(null);
+      await expect(updateFileStyle("f1", { icon: "star" })).rejects.toThrow(
+        "Unlock your vault to customize files"
+      );
+      expect(apiUpdateFileStyle).not.toHaveBeenCalled();
+    });
+
+    it("encrypts a non-null style, calls the API with the ciphertext, then invalidates", async () => {
+      useAuthStore.setState({ user: { id: "u1" } as never });
+      unlock("vault-pass");
+      vi.mocked(apiUpdateFileStyle).mockResolvedValue({ success: true } as never);
+      const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+
+      await updateFileStyle("f1", { icon: "star", color: "#ff0000" });
+
+      expect(apiUpdateFileStyle).toHaveBeenCalledTimes(1);
+      const [fileId, encrypted] = vi.mocked(apiUpdateFileStyle).mock.calls[0];
+      expect(fileId).toBe("f1");
+      // Encrypted style is opaque base64 (the plaintext never reaches the API).
+      expect(typeof encrypted).toBe("string");
+      expect((encrypted as string).length).toBeGreaterThan(0);
+      expect(encrypted).not.toContain("star");
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: qk.files });
+      invalidateSpy.mockRestore();
+    });
+
+    it("sends null (clearing the style) without encrypting when style is null", async () => {
+      useAuthStore.setState({ user: { id: "u1" } as never });
+      unlock("vault-pass");
+      vi.mocked(apiUpdateFileStyle).mockResolvedValue({ success: true } as never);
+
+      await updateFileStyle("f1", null);
+
+      expect(apiUpdateFileStyle).toHaveBeenCalledWith("f1", null);
+    });
+  });
+
+  describe("vault lock/unlock re-decrypt subscription", () => {
+    it("invalidates the files list when the vault's unlocked state flips", async () => {
+      // The subscription is wired via a dynamic import at module load; let that
+      // microtask settle so the subscriber is registered.
+      await flushMicrotasks();
+      const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+
+      // Flip locked -> unlocked -> locked. Regardless of the module-level
+      // `lastUnlocked` seed, at least one of these transitions differs and fires.
+      usePassphraseStore.setState({ cachedPassphrase: "vault-pass", persistent: true, cacheUntil: null });
+      usePassphraseStore.setState({ cachedPassphrase: null, persistent: false, cacheUntil: null });
+
+      const filesInvalidations = invalidateSpy.mock.calls.filter(
+        (c) => c[0]?.queryKey?.[0] === "files"
+      );
+      expect(filesInvalidations.length).toBeGreaterThan(0);
+      invalidateSpy.mockRestore();
     });
   });
 });
