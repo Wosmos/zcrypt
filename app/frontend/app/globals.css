@@ -840,6 +840,106 @@ html.theme-vt::view-transition-new(root) {
   .dark .panel {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), inset 0 0 0 1px rgba(255, 255, 255, 0.02);
   }
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     Surface styles — a design-system axis (radius + border + shadow) layered
+     ON TOP of any color theme, selected via html[data-app][data-surface]. The
+     DEFAULT surface (attribute absent) keeps the tuned look above untouched;
+     the three below genuinely reshape every .panel / .card / .card-hover, so a
+     style change reads as a different design language, not a recolor. Shadows
+     derive from --color-surface / --color-bg / --color-text via color-mix, so
+     they adapt to light AND dark automatically. See lib/surface-styles.ts. */
+
+  /* ── Brutalist: zero radius, thick high-contrast border, hard offset shadow ── */
+  html[data-app][data-surface="brutalist"] .panel,
+  html[data-app][data-surface="brutalist"] .card,
+  html[data-app][data-surface="brutalist"] .card-hover {
+    border-radius: 0;
+    border: 2px solid var(--color-text);
+    box-shadow: 4px 4px 0 0 var(--color-text);
+  }
+  html[data-app][data-surface="brutalist"] .card-hover {
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+  }
+  html[data-app][data-surface="brutalist"] .card-hover:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0 0 var(--color-text);
+  }
+  .dark html[data-app][data-surface="brutalist"] .card,
+  html.dark[data-app][data-surface="brutalist"] .card {
+    box-shadow: 4px 4px 0 0 var(--color-text);
+  }
+
+  /* ── Claymorphism: big soft radius, no border, puffy inflated shadow ── */
+  html[data-app][data-surface="claymorphism"] .panel,
+  html[data-app][data-surface="claymorphism"] .card,
+  html[data-app][data-surface="claymorphism"] .card-hover {
+    border-radius: 1.75rem;
+    border: 0;
+    box-shadow:
+      8px 8px 20px rgba(0, 0, 0, 0.16),
+      -6px -6px 16px color-mix(in oklab, var(--color-surface) 55%, white),
+      inset 2px 2px 5px color-mix(in oklab, var(--color-surface) 82%, white),
+      inset -3px -3px 8px rgba(0, 0, 0, 0.12);
+  }
+  html[data-app][data-surface="claymorphism"] .card-hover:hover {
+    box-shadow:
+      10px 12px 26px rgba(0, 0, 0, 0.2),
+      -6px -6px 16px color-mix(in oklab, var(--color-surface) 55%, white),
+      inset 2px 2px 5px color-mix(in oklab, var(--color-surface) 82%, white),
+      inset -3px -3px 8px rgba(0, 0, 0, 0.12);
+  }
+
+  /* ── Neumorphism: monochrome, card fills the CANVAS color, dual soft extrusion ── */
+  html[data-app][data-surface="neumorphism"] .panel,
+  html[data-app][data-surface="neumorphism"] .card,
+  html[data-app][data-surface="neumorphism"] .card-hover {
+    border-radius: 1.1rem;
+    border: 0;
+    background: var(--color-bg);
+    box-shadow:
+      6px 6px 14px color-mix(in oklab, var(--color-bg) 62%, black),
+      -6px -6px 14px color-mix(in oklab, var(--color-bg) 86%, white);
+  }
+  html[data-app][data-surface="neumorphism"] .card-hover:hover {
+    box-shadow:
+      3px 3px 8px color-mix(in oklab, var(--color-bg) 62%, black),
+      -3px -3px 8px color-mix(in oklab, var(--color-bg) 86%, white);
+  }
+
+  /* Standalone swatches for the Style picker — each renders its own design
+     language regardless of the app's active surface, so they can be compared. */
+  .style-swatch {
+    display: block;
+    width: 42px;
+    height: 30px;
+    background: var(--color-surface);
+    border-radius: 0.6rem;
+    border: 1px solid var(--color-border);
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.1);
+  }
+  .style-swatch[data-style="brutalist"] {
+    border-radius: 0;
+    border: 2px solid var(--color-text);
+    box-shadow: 3px 3px 0 0 var(--color-text);
+  }
+  .style-swatch[data-style="claymorphism"] {
+    border-radius: 0.9rem;
+    border: 0;
+    box-shadow:
+      4px 4px 10px rgba(0, 0, 0, 0.16),
+      -3px -3px 8px color-mix(in oklab, var(--color-surface) 55%, white),
+      inset 1px 1px 3px color-mix(in oklab, var(--color-surface) 82%, white),
+      inset -2px -2px 5px rgba(0, 0, 0, 0.12);
+  }
+  .style-swatch[data-style="neumorphism"] {
+    border-radius: 0.7rem;
+    border: 0;
+    background: var(--color-bg);
+    box-shadow:
+      3px 3px 7px color-mix(in oklab, var(--color-bg) 62%, black),
+      -3px -3px 7px color-mix(in oklab, var(--color-bg) 86%, white);
+  }
 }
 
 /* Honor the OS "reduce motion" preference for the CSS-driven entrance/loop
