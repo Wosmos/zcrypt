@@ -67,10 +67,32 @@ async function spaceFileKey(vault: SharedVault, spaceWrappedCek: string): Promis
   return toArrayBuffer(cek);
 }
 
+/** Seal a file name under the space key (AES-GCM), so members can read it. */
+async function sealName(spaceKey: Uint8Array, name: string): Promise<string> {
+  if (!name) return "";
+  return toBase64(await wrapKey(toArrayBuffer(spaceKey), new TextEncoder().encode(name)));
+}
+
+/** Decrypt a shared file's name using the space key. Returns null when the name
+ *  isn't sealed (legacy shares) or the space key isn't available. */
+export async function decryptSpaceFileName(vault: SharedVault, wrappedName?: string): Promise<string | null> {
+  if (!wrappedName) return null;
+  const spaceKey = await loadSpaceKey(vault);
+  if (!spaceKey) return null;
+  try {
+    const bytes = await unwrapKey(toArrayBuffer(spaceKey), fromBase64(wrappedName));
+    return new TextDecoder().decode(bytes);
+  } catch {
+    return null;
+  }
+}
+
 /** Share a file you own into a space: resolve its CEK with your vault passphrase,
- *  re-wrap it under the space key, and register it. The server only ever sees
- *  the space-wrapped envelope. Requires the vault to be unlocked. */
-export async function shareFileIntoSpace(vault: SharedVault, fileId: string): Promise<void> {
+ *  re-wrap it under the space key, seal the file name under the same key, and
+ *  register it. The server only ever sees the opaque envelope. Requires the
+ *  vault to be unlocked. `name` is the plaintext file name so members can read
+ *  it (the owner's server-side name is empty for zero-knowledge files). */
+export async function shareFileIntoSpace(vault: SharedVault, fileId: string, name = ""): Promise<void> {
   const spaceKey = await loadSpaceKey(vault);
   if (!spaceKey) throw new Error("This space's key isn't available — unlock your vault first.");
   const passphrase = usePassphraseStore.getState().getPassphrase();
@@ -81,7 +103,8 @@ export async function shareFileIntoSpace(vault: SharedVault, fileId: string): Pr
   // derived key for legacy files) — whatever decrypts this file's chunks.
   const fileKey = await resolveFileKey(passphrase, fromBase64(meta.salt), meta.wrapped_cek);
   const rewrapped = await wrapKey(toArrayBuffer(spaceKey), new Uint8Array(fileKey));
-  await addFileToSpace(vault.id, fileId, toBase64(rewrapped));
+  const wrappedName = await sealName(spaceKey, name);
+  await addFileToSpace(vault.id, fileId, toBase64(rewrapped), wrappedName);
 }
 
 /** Unshare a file from a space (editor/admin only). */
@@ -130,12 +153,24 @@ export async function rotateSpaceKey(
     }
   }
 
-  const fileWraps: { file_id: string; wrapped_cek: string }[] = [];
+  const fileWraps: { file_id: string; wrapped_cek: string; wrapped_name: string }[] = [];
   for (const f of files) {
     const cek = await unwrapKey(toArrayBuffer(oldKey), fromBase64(f.wrapped_cek));
+    // Re-seal the name under the new key too; keep it empty for legacy shares
+    // that were never sealed (or if the old name can't be opened).
+    let wrappedName = "";
+    if (f.wrapped_name) {
+      try {
+        const nameBytes = await unwrapKey(toArrayBuffer(oldKey), fromBase64(f.wrapped_name));
+        wrappedName = toBase64(await wrapKey(toArrayBuffer(newKey), nameBytes));
+      } catch {
+        /* leave empty — falls back to the owner-side name */
+      }
+    }
     fileWraps.push({
       file_id: f.file_id,
       wrapped_cek: toBase64(await wrapKey(toArrayBuffer(newKey), cek)),
+      wrapped_name: wrappedName,
     });
   }
 
