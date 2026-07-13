@@ -1,4 +1,4 @@
-import { getBackgroundByKey } from "@/lib/background-presets";
+import { getAppBackgroundByKey } from "@/lib/app-backgrounds";
 
 /**
  * A user-defined color theme: just two picked colors (accent + canvas), plus
@@ -11,8 +11,9 @@ import { getBackgroundByKey } from "@/lib/background-presets";
 export interface CustomThemeValues {
   accent: string;
   bg: string;
-  /** A `BACKGROUND_DESIGNS` key (see lib/background-presets.ts), or unset for
-   *  a flat canvas. */
+  /** An `APP_BACKGROUNDS` key (see lib/app-backgrounds.ts), or unset for a
+   *  flat canvas. These are the ambient full-canvas treatments — distinct from
+   *  the folder-card backgrounds in lib/background-presets.ts. */
   background?: string;
 }
 
@@ -71,12 +72,12 @@ const CUSTOM_VAR_KEYS = [
   "--t-sidebar",
   "--t-sidebar-fg",
   "--t-sidebar-border",
-  "--app-bg-image",
+  "--app-bg",
 ];
 
 /** Apply a custom theme's derived `--t-*` vars (consumed by the shared
  *  derivation block in globals.css, `html[data-app][data-theme]`) plus the
- *  decorative `--app-bg-image` layer, directly on `<html>` as inline styles.
+ *  decorative `--app-bg` layer, directly on `<html>` as inline styles.
  *  Inline styles win over any CSS-block value, so `clearCustomThemeVars` MUST
  *  run before switching to a preset/default theme or these would stick. */
 export function applyCustomThemeVars(values: CustomThemeValues) {
@@ -94,8 +95,11 @@ export function applyCustomThemeVars(values: CustomThemeValues) {
   root.setProperty("--t-sidebar", values.bg);
   root.setProperty("--t-sidebar-fg", fg);
   root.setProperty("--t-sidebar-border", `color-mix(in oklab, ${values.bg} 85%, ${fg})`);
-  const bgImage = values.background ? getBackgroundByKey(values.background) : null;
-  root.setProperty("--app-bg-image", bgImage ?? "none");
+  // Full `background` shorthand (pattern + `var(--color-bg)` base). When no
+  // design is picked, fall back to a plain canvas fill so the shell always has
+  // an explicit background.
+  const bg = values.background ? getAppBackgroundByKey(values.background) : null;
+  root.setProperty("--app-bg", bg ?? "var(--color-bg)");
 }
 
 export function clearCustomThemeVars() {
