@@ -2,6 +2,8 @@ package reppool
 
 import (
 	"context"
+	crand "crypto/rand"
+	"encoding/hex"
 	"fmt"
 
 	"github.com/zcrypt/zcrypt/adapters"
@@ -62,7 +64,7 @@ func (m *Manager) createNewRepo(ctx context.Context) (*types.RepoInfo, error) {
 	}
 
 	repo := &types.RepoInfo{
-		ID:       fmt.Sprintf("%s_%s_%s", m.adapter.PlatformName(), m.account, name),
+		ID:       newRepoID(m.adapter.PlatformName(), m.account, name),
 		Platform: m.adapter.PlatformName(),
 		Account:  m.account,
 		Name:     name,
@@ -76,6 +78,21 @@ func (m *Manager) createNewRepo(ctx context.Context) (*types.RepoInfo, error) {
 	}
 
 	return repo, nil
+}
+
+// newRepoID builds a globally-unique primary key for a repo. It keeps the
+// readable "platform_account_name" prefix for logs/debugging, then appends a
+// random suffix. The disguise names come from math/rand, so two registrations
+// (e.g. concurrent chunk uploads that both find no active repo) could otherwise
+// draw the same name at the same index and collide on repos_pkey — which
+// surfaced intermittently as "duplicate key value violates unique constraint
+// repos_pkey" and failed the upload with 500. The suffix makes that impossible.
+func newRepoID(platform, account, name string) string {
+	var b [6]byte
+	// crypto/rand.Read never returns a short read; ignore err (falls back to the
+	// zero suffix at worst, which is still disambiguated by the readable prefix).
+	_, _ = crand.Read(b[:])
+	return fmt.Sprintf("%s_%s_%s_%s", platform, account, name, hex.EncodeToString(b[:]))
 }
 
 // UpdateUsage updates the used bytes for a repo after an upload.
