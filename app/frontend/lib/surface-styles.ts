@@ -11,11 +11,14 @@ export interface SurfaceStyle {
   description: string;
 }
 
+// Labels are deliberately distinct from the COLOR theme names (a "Claymorphism"
+// palette already exists in lib/themes.ts) — this axis is the design language,
+// not the palette, and each style also swaps the app's typeface.
 export const SURFACE_STYLES: SurfaceStyle[] = [
   { id: "default", label: "Default", description: "Clean, soft cards — the standard zcrypt look." },
-  { id: "brutalist", label: "Brutalist", description: "Hard edges, thick borders, blocky offset shadows." },
-  { id: "claymorphism", label: "Claymorphism", description: "Big rounded, inflated, puffy clay surfaces." },
-  { id: "neumorphism", label: "Neumorphic", description: "Soft monochrome extruded shapes." },
+  { id: "brutalist", label: "Neo-Brutalist", description: "Hard edges, ink borders, loud accent shadows, grotesque + mono type." },
+  { id: "claymorphism", label: "Clay", description: "Inflated, squeezable surfaces, pill buttons, rounded type." },
+  { id: "neumorphism", label: "Soft UI", description: "Monochrome extrusion carved from the canvas, soft geometric type." },
 ];
 
 export const DEFAULT_SURFACE_STYLE = "default";
