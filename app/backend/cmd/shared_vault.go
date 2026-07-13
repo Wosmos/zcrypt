@@ -173,7 +173,7 @@ func (s *Server) HandleAddSharedVaultFile(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if err := s.db.AddSharedVaultFile(ctx, vaultID, req.FileID, userID, req.WrappedCEK); err != nil {
+	if err := s.db.AddSharedVaultFile(ctx, vaultID, req.FileID, userID, req.WrappedCEK, req.WrappedName); err != nil {
 		log.Printf("shared-vaults: add file: %v", err)
 		http.Error(w, `{"error":"failed to add file"}`, http.StatusInternalServerError)
 		return

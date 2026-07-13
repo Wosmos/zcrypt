@@ -773,20 +773,23 @@ type SharedVaultAddMemberRequest struct {
 // Name/Size are joined from the owner's file row for member display (members
 // can't query the owner-scoped files table directly).
 type SharedVaultFile struct {
-	VaultID    string    `json:"vault_id,omitempty"`
-	FileID     string    `json:"file_id"`
-	WrappedCEK string    `json:"wrapped_cek"`
-	Name       string    `json:"name,omitempty"`
-	Size       int64     `json:"size,omitempty"`
-	AddedAt    time.Time `json:"added_at"`
+	VaultID     string    `json:"vault_id,omitempty"`
+	FileID      string    `json:"file_id"`
+	WrappedCEK  string    `json:"wrapped_cek"`
+	WrappedName string    `json:"wrapped_name,omitempty"` // file name sealed under the space key (base64, opaque)
+	Name        string    `json:"name,omitempty"`
+	Size        int64     `json:"size,omitempty"`
+	AddedAt     time.Time `json:"added_at"`
 }
 
 // SharedVaultAddFileRequest is the JSON body for adding a file to a space. The
 // caller (owner/editor) unwraps the file CEK with their vault key, re-wraps it
-// under the space key, and sends the opaque envelope here.
+// under the space key, and sends the opaque envelope here. WrappedName is the
+// file name encrypted under the same space key so members can display it.
 type SharedVaultAddFileRequest struct {
-	FileID     string `json:"file_id"`
-	WrappedCEK string `json:"wrapped_cek"`
+	FileID      string `json:"file_id"`
+	WrappedCEK  string `json:"wrapped_cek"`
+	WrappedName string `json:"wrapped_name"`
 }
 
 // SpaceFileGrant is the server-side authorization result for a member reading a
@@ -806,8 +809,9 @@ type MemberKeyGrant struct {
 }
 
 type FileKeyWrap struct {
-	FileID     string `json:"file_id"`
-	WrappedCEK string `json:"wrapped_cek"`
+	FileID      string `json:"file_id"`
+	WrappedCEK  string `json:"wrapped_cek"`
+	WrappedName string `json:"wrapped_name"` // file name re-sealed under the new space key (base64, opaque)
 }
 
 // SharedVaultRotateRequest re-keys a space after a membership change: a fresh

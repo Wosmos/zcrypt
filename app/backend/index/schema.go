@@ -594,11 +594,12 @@ ALTER TABLE shared_vault_members ADD COLUMN IF NOT EXISTS wrapped_space_key TEXT
 -- (and its chunks) stays owner-scoped; membership here only grants read access
 -- routed through the owner's storage backend.
 CREATE TABLE IF NOT EXISTS shared_vault_files (
-	vault_id    UUID NOT NULL REFERENCES shared_vaults(id) ON DELETE CASCADE,
-	file_id     UUID NOT NULL,
-	wrapped_cek TEXT NOT NULL,
-	added_by    UUID REFERENCES users(id) ON DELETE SET NULL,
-	added_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	vault_id     UUID NOT NULL REFERENCES shared_vaults(id) ON DELETE CASCADE,
+	file_id      UUID NOT NULL,
+	wrapped_cek  TEXT NOT NULL,
+	wrapped_name TEXT NOT NULL DEFAULT '',
+	added_by     UUID REFERENCES users(id) ON DELETE SET NULL,
+	added_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	PRIMARY KEY (vault_id, file_id)
 );
 
@@ -606,6 +607,12 @@ CREATE INDEX IF NOT EXISTS idx_shared_vault_files_file ON shared_vault_files(fil
 
 -- Optional per-space size cap (sum of shared files' original sizes). 0 = no limit.
 ALTER TABLE shared_vaults ADD COLUMN IF NOT EXISTS size_limit_bytes BIGINT NOT NULL DEFAULT 0;
+
+-- The file name encrypted under the SPACE KEY (opaque base64), so members can see
+-- a real name instead of a UUID. The owner's files.original_name is empty for
+-- zero-knowledge files, and the per-user name key can't be shared — so the name
+-- is sealed under the space key at share time, exactly like the CEK.
+ALTER TABLE shared_vault_files ADD COLUMN IF NOT EXISTS wrapped_name TEXT NOT NULL DEFAULT '';
 
 -- Public folder share links. Mirrors single-file shares (shares table) but for a
 -- whole folder: one random folder-share key (kept only in the URL #fragment,

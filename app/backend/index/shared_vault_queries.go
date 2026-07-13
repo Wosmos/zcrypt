@@ -117,7 +117,7 @@ func (db *DB) GetSharedVault(ctx context.Context, userID, vaultID string) (*type
 // space-wrapped CEK and the owner's file name/size (joined for member display).
 func (db *DB) ListSharedVaultFiles(ctx context.Context, vaultID string) ([]types.SharedVaultFile, error) {
 	rows, err := db.pool.Query(ctx, `
-		SELECT svf.file_id, svf.wrapped_cek, f.original_name, f.original_size, svf.added_at
+		SELECT svf.file_id, svf.wrapped_cek, svf.wrapped_name, f.original_name, f.original_size, svf.added_at
 		FROM shared_vault_files svf
 		JOIN files f ON f.id = svf.file_id
 		WHERE svf.vault_id = $1
@@ -130,7 +130,7 @@ func (db *DB) ListSharedVaultFiles(ctx context.Context, vaultID string) ([]types
 	files := []types.SharedVaultFile{}
 	for rows.Next() {
 		var f types.SharedVaultFile
-		if err := rows.Scan(&f.FileID, &f.WrappedCEK, &f.Name, &f.Size, &f.AddedAt); err != nil {
+		if err := rows.Scan(&f.FileID, &f.WrappedCEK, &f.WrappedName, &f.Name, &f.Size, &f.AddedAt); err != nil {
 			return nil, err
 		}
 		files = append(files, f)
@@ -214,8 +214,8 @@ func (db *DB) RotateSharedVaultKeys(ctx context.Context, vaultID string, members
 	}
 	for _, f := range files {
 		if _, err := tx.Exec(ctx,
-			`UPDATE shared_vault_files SET wrapped_cek = $3 WHERE vault_id = $1 AND file_id = $2`,
-			vaultID, f.FileID, f.WrappedCEK); err != nil {
+			`UPDATE shared_vault_files SET wrapped_cek = $3, wrapped_name = $4 WHERE vault_id = $1 AND file_id = $2`,
+			vaultID, f.FileID, f.WrappedCEK, f.WrappedName); err != nil {
 			return err
 		}
 	}
@@ -272,7 +272,7 @@ func (db *DB) IsSharedVaultOwner(ctx context.Context, vaultID, userID string) (b
 // key rotation). Also mirrors the file id into shared_vaults.file_ids so the
 // existing metadata listing stays in sync. Caller must already be authorized as
 // an editor/admin member of the vault (enforced at the handler).
-func (db *DB) AddSharedVaultFile(ctx context.Context, vaultID, fileID, addedBy, wrappedCEK string) error {
+func (db *DB) AddSharedVaultFile(ctx context.Context, vaultID, fileID, addedBy, wrappedCEK, wrappedName string) error {
 	tx, err := db.pool.Begin(ctx)
 	if err != nil {
 		return err
@@ -280,10 +280,11 @@ func (db *DB) AddSharedVaultFile(ctx context.Context, vaultID, fileID, addedBy, 
 	defer tx.Rollback(ctx)
 
 	if _, err := tx.Exec(ctx, `
-		INSERT INTO shared_vault_files (vault_id, file_id, wrapped_cek, added_by)
-		VALUES ($1, $2, $3, $4)
-		ON CONFLICT (vault_id, file_id) DO UPDATE SET wrapped_cek = EXCLUDED.wrapped_cek`,
-		vaultID, fileID, wrappedCEK, addedBy); err != nil {
+		INSERT INTO shared_vault_files (vault_id, file_id, wrapped_cek, wrapped_name, added_by)
+		VALUES ($1, $2, $3, $4, $5)
+		ON CONFLICT (vault_id, file_id)
+		DO UPDATE SET wrapped_cek = EXCLUDED.wrapped_cek, wrapped_name = EXCLUDED.wrapped_name`,
+		vaultID, fileID, wrappedCEK, wrappedName, addedBy); err != nil {
 		return err
 	}
 	if _, err := tx.Exec(ctx, `
