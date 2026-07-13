@@ -108,7 +108,7 @@ export default function ZeroKnowledgePage() {
             [
               "File name",
               "Partially",
-              "See the honest nuance below — a plaintext name column still exists",
+              "New names are encrypted client-side; a legacy plaintext column persists for older files — see below",
             ],
             [
               "Account + audit data",
@@ -223,11 +223,12 @@ export default function ZeroKnowledgePage() {
           We will not over-claim here. <strong>Folder names are fully encrypted
           client-side</strong> — the database stores only an opaque{" "}
           <span className="font-mono">encrypted_name</span> blob it cannot read.
-          File names are in transition: the files table carries an{" "}
-          <span className="font-mono">encrypted_name</span> column{" "}
-          <em>and</em> a legacy plaintext{" "}
-          <span className="font-mono">original_name</span> column that is still
-          populated.
+          <strong> New file names are encrypted the same way</strong>: a
+          zero-knowledge upload sends an opaque{" "}
+          <span className="font-mono">encrypted_name</span> and leaves the legacy
+          plaintext <span className="font-mono">original_name</span> column empty.
+          That legacy column still exists and can hold plaintext for older files
+          (and any upload made while the vault was locked), so we are retiring it.
         </DocP>
         <DocList
           items={[
@@ -237,9 +238,10 @@ export default function ZeroKnowledgePage() {
               <span className="font-mono">[locked]</span>.
             </>,
             <>
-              <strong>A file&apos;s plaintext name may still be present</strong>{" "}
-              in the metadata row. Treat file names as visible metadata, not
-              secret, until the plaintext column is fully retired.
+              <strong>Older files may still carry a plaintext name</strong>{" "}
+              in the legacy metadata column. New uploads do not; still, treat
+              older file names as visible metadata until that column is fully
+              retired.
             </>,
             <>
               <strong>File contents are unaffected.</strong> Names are metadata;

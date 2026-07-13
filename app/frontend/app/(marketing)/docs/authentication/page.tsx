@@ -205,6 +205,13 @@ export default function AuthenticationDocPage() {
           ]}
         />
         <DocP>
+          When you enable 2FA, zcrypt also issues a set of <strong>one-time
+          backup codes</strong>. Save them somewhere safe — if you lose your
+          authenticator, a backup code gets you back in. Each code works once,
+          and you can regenerate a fresh set at any time, which invalidates the
+          old ones.
+        </DocP>
+        <DocP>
           To turn 2FA off, you must confirm <strong>both</strong> your current
           password and a valid code — so a stranger who briefly has your unlocked
           session still can&apos;t strip the second factor. Code validation

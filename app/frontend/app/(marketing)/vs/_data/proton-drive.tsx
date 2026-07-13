@@ -19,7 +19,7 @@ const rows: ComparisonRow[] = [
     label: "Zero-knowledge",
     zcrypt: {
       good: true,
-      note: "Yes, by default. File contents are zero-knowledge and folder names are encrypted. (File names are stored as metadata; Proton additionally encrypts file names.)",
+      note: "Yes, by default. File contents are zero-knowledge, and folder and file names are encrypted client-side. Proton is a mature zero-knowledge product that also encrypts file metadata.",
     },
     other: {
       good: true,

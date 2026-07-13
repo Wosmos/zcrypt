@@ -48,7 +48,7 @@ const rows: ComparisonRow[] = [
     label: "Zero-knowledge",
     zcrypt: {
       good: true,
-      note: "Yes, by default. File contents are zero-knowledge and folder names are encrypted client-side. (File names are currently stored as metadata.)",
+      note: "Yes, by default. File contents are zero-knowledge, and folder and file names are encrypted client-side (a legacy plaintext name column is being retired).",
     },
     other: {
       good: false,

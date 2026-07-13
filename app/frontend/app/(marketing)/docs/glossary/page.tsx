@@ -60,7 +60,7 @@ export default function GlossaryDocPage() {
             ],
             [
               <strong key="t">Chunk</strong>,
-              "A fixed-size piece of an encrypted file (up to ~16 MB). Splitting files into chunks makes uploads parallel, resumable, and easy to spread across storage repositories.",
+              "A piece of an encrypted file, sized to your device (~4–16 MB, ~10 MB typical). Splitting files into chunks makes uploads parallel, resumable, and easy to spread across storage repositories.",
             ],
             [
               <strong key="t">Salt</strong>,
