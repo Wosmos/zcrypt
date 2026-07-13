@@ -4,7 +4,7 @@ Thanks for your interest in contributing to zcrypt! This document explains how t
 set up the project, the conventions we follow, and how to submit changes.
 
 zcrypt is a zero-knowledge encrypted cloud storage system. Because it is a
-security/cryptography product, please read [SECURITY.md](./SECURITY.md) before
+security/cryptography product, please read [SECURITY.md](./docs/SECURITY.md) before
 reporting anything that might be a vulnerability — **do not open a public issue
 for security problems.**
 
@@ -81,6 +81,21 @@ a maintainer know.
   icons. No emojis in code. Run `bun run lint` and `bun run typecheck` before
   pushing.
 - **Commits:** Keep them focused and write clear messages.
+
+## Quality gate
+
+Before pushing, run the change-scoped quality gate. It runs typecheck, lint,
+tests, and build for whichever modules you touched (frontend / backend / tui /
+desktop), mirroring CI:
+
+```bash
+bash scripts/install-hooks.sh          # once per clone — wires the pre-push hook
+bash scripts/prepush.sh --gates-only   # fast: gates only
+bash scripts/prepush.sh                # full: gates + advisory backlog scans -> docs/report.md
+```
+
+Once installed, the pre-push hook runs the gates automatically on `git push`;
+bypass a single push with `git push --no-verify` if you must.
 
 ## Branch and PR conventions
 

@@ -6,6 +6,42 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.2.0] - 2026-07-13
+
+### Added
+
+- Custom theme — pick your own accent, canvas, and background
+- Per-card customization — icon, color, and background for files and folders,
+  stored as an opaque encrypted style
+- First-time passphrase warning before unlocking a fresh vault
+- Deleted Files and Device Transfer surfaced across mobile nav and the command palette
+- Auto-resume for interrupted downloads on tab return / reconnect
+- Device tuning tier calibrated with a crypto micro-benchmark
+- Mobile file-grid polish with gallery-style drag-to-select
+
+### Changed
+
+- Settings redesign — responsive grids, pagination, and an activity table
+- Upload concurrency decoupled from the CPU tier — fans out by network and batch size
+- HuggingFace storage — DB-driven batch commit and single-commit delete
+- Trash — bulk purge/restore collapsed into a single request
+- Change-scoped pre-push quality gate (`scripts/prepush.sh`) with installable hooks
+- Corrected per-platform storage capacity and rate-limit copy
+
+### Fixed
+
+- Thumbnails — seed the preview from the local file at upload time so a fresh
+  upload no longer shimmers while it re-decrypts; time-box the shimmer and reject
+  blank canvases
+- Vault lock is now genuine — decrypted thumbnails are evicted and a lock mask applied
+- Share dialogs truncate long file and folder names
+- Storage integrity — verify HuggingFace chunks are retrievable before marking them durable
+
+### Security
+
+- Pinned the Go toolchain to 1.25.12 to remediate GO-2026-5856 (Encrypted Client
+  Hello privacy leak in the `crypto/tls` standard library)
+
 ## [0.1.3] - 2026-06-28
 
 ### Added

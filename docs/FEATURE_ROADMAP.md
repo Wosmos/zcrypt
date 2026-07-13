@@ -1,5 +1,12 @@
 # zcrypt — Feature Roadmap & Ideas
 
+> **Status (2026-07):** A wishlist, not current state. Many items here have shipped —
+> Send, encrypted Pad, decoy mode, dead-man's switch, expiring/timed vaults, snapshots,
+> notes, shared vaults, offline pins, clipboard sync, integrity checks. The "LAN
+> transfer" idea shipped as a **server-brokered WebSocket pairing relay** (6-digit code),
+> not LAN P2P. Cross-check `app/backend/cmd/` and `CLAUDE.md` before treating anything
+> here as unbuilt.
+
 > Brainstormed March 18, 2026. Prioritize based on user demand and engineering effort.
 
 ---
