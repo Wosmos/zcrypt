@@ -94,6 +94,11 @@ function MacFolder({
         )}
         {/* Glassy top sheen */}
         <path d={pocket} fill={`url(#${sheen})`} />
+        {/* Shape-specific character marks (fold lines, paper sheets, facets) —
+            white at low opacity so they read on any tint or gradient. */}
+        {shape.details?.map((detail, i) => (
+          <path key={i} d={detail.d} fill="#ffffff" fillOpacity={detail.opacity} />
+        ))}
       </g>
     </svg>
   );

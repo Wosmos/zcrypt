@@ -170,7 +170,6 @@ export function ThemePicker() {
                 aria-label={s.label}
                 title={s.description}
                 onClick={() => setSurfaceStyle(s.id)}
-                data-surface-preview={s.id}
                 className={cn(
                   "group relative overflow-hidden rounded-xl border p-2 text-left outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40",
                   active
@@ -237,6 +236,9 @@ export function ThemePicker() {
                 <svg viewBox="0 0 120 100" className="h-8 w-10 text-[var(--color-accent)]" aria-hidden="true">
                   <path d={shape.backPanel} fill="currentColor" fillOpacity={0.45} />
                   <path d={shape.pocket} fill="currentColor" />
+                  {shape.details?.map((detail, i) => (
+                    <path key={i} d={detail.d} fill="#ffffff" fillOpacity={detail.opacity} />
+                  ))}
                 </svg>
               </button>
             );

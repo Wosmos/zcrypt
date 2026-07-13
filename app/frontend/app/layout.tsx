@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
-import { Poppins, Manrope } from "next/font/google";
+import { Poppins, Manrope, Space_Grotesk, JetBrains_Mono, Nunito, Quicksand } from "next/font/google";
 import "./globals.css";
 import { ToastContainer } from "@/components/ui/toast-container";
 import { ThemeProvider } from "@/components/providers/theme-provider";
@@ -35,6 +35,39 @@ const manrope = Manrope({
   subsets: ["latin"],
   weight: ["700"],
   variable: "--font-logo",
+  display: "swap",
+});
+
+// Surface-style typefaces (see lib/surface-styles.ts + the "Surface styles"
+// block in globals.css). Each style swaps the app's type to match its design
+// language: grotesque + mono for Neo-Brutalist, rounded for Clay, soft
+// geometric for Soft UI. Loaded here once; referenced only under
+// html[data-app][data-surface=…], so marketing/auth pages never use them.
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  weight: ["500", "700"],
+  variable: "--font-brutal",
+  display: "swap",
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["500", "700"],
+  variable: "--font-brutal-mono",
+  display: "swap",
+});
+
+const nunito = Nunito({
+  subsets: ["latin"],
+  weight: ["500", "700", "800"],
+  variable: "--font-clay",
+  display: "swap",
+});
+
+const quicksand = Quicksand({
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
+  variable: "--font-neu",
   display: "swap",
 });
 
@@ -143,7 +176,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`dark ${satoshi.variable} ${poppins.variable} ${manrope.variable}`}
+      className={`dark ${satoshi.variable} ${poppins.variable} ${manrope.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} ${nunito.variable} ${quicksand.variable}`}
       suppressHydrationWarning
     >
       <head>
@@ -162,6 +195,10 @@ export default function RootLayout({
                   var colorTheme = localStorage.getItem('zcrypt-color-theme');
                   if (colorTheme && colorTheme !== 'default') {
                     document.documentElement.setAttribute('data-theme', colorTheme);
+                  }
+                  var surface = localStorage.getItem('zcrypt-surface-style');
+                  if (surface && surface !== 'default') {
+                    document.documentElement.setAttribute('data-surface', surface);
                   }
                 } catch(e) {}
               })();

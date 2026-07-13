@@ -842,69 +842,222 @@ html.theme-vt::view-transition-new(root) {
   }
 
   /* ═══════════════════════════════════════════════════════════════════════
-     Surface styles — a design-system axis (radius + border + shadow) layered
-     ON TOP of any color theme, selected via html[data-app][data-surface]. The
-     DEFAULT surface (attribute absent) keeps the tuned look above untouched;
-     the three below genuinely reshape every .panel / .card / .card-hover, so a
-     style change reads as a different design language, not a recolor. Shadows
-     derive from --color-surface / --color-bg / --color-text via color-mix, so
-     they adapt to light AND dark automatically. See lib/surface-styles.ts. */
+     SURFACE-STYLES-BEGIN
+     Surface styles — a full design-system axis layered ON TOP of any color
+     theme, selected via html[data-app][data-surface] (set pre-paint by the
+     no-flash script + ThemeProvider; see lib/surface-styles.ts).
 
-  /* ── Brutalist: zero radius, thick high-contrast border, hard offset shadow ── */
-  html[data-app][data-surface="brutalist"] .panel,
-  html[data-app][data-surface="brutalist"] .card,
-  html[data-app][data-surface="brutalist"] .card-hover {
+     Unlike a color theme, a surface style re-skins the whole app language:
+     typography (each style loads its own typeface — see app/layout.tsx),
+     radii, borders, shadows, buttons, inputs, and portaled menus/dialogs
+     (scoped from <html>, so portals in <body> are covered). The DEFAULT
+     surface (attribute absent) keeps the tuned base look untouched. Shadow
+     recipes are tuned PER MODE (html.dark overrides) instead of one
+     color-mix guess, so each style reads correctly on light and dark.
+     ═══════════════════════════════════════════════════════════════════════ */
+
+  /* ─────────────────────────── NEO-BRUTALIST ───────────────────────────
+     Hard edges, thick ink borders, hard ACCENT offset shadows (ink-on-ink
+     shadows disappear in dark mode — accent stays loud on both), grotesque
+     type with mono uppercase labels, and physical press interactions. */
+  html[data-app][data-surface="brutalist"] body,
+  html[data-app][data-surface="brutalist"] button,
+  html[data-app][data-surface="brutalist"] input,
+  html[data-app][data-surface="brutalist"] select,
+  html[data-app][data-surface="brutalist"] textarea {
+    font-family: var(--font-brutal), var(--font-body), sans-serif;
+  }
+  html[data-app][data-surface="brutalist"] :is(h1, h2, h3, h4) {
+    font-family: var(--font-brutal), sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
+  }
+  html[data-app][data-surface="brutalist"] .section-label {
+    font-family: var(--font-brutal-mono), monospace;
+    letter-spacing: 0.14em;
+  }
+  html[data-app][data-surface="brutalist"] .section-label::before {
     border-radius: 0;
+  }
+  /* Zero radius everywhere (keep explicit circles: dots, spinners, avatars). */
+  html[data-app][data-surface="brutalist"] [class*="rounded"]:not([class*="rounded-full"]),
+  html[data-app][data-surface="brutalist"] :is(.panel, .card, .card-hover, button, input, select, textarea),
+  html[data-app][data-surface="brutalist"] :is([role="menu"], [role="dialog"], [role="alertdialog"], [role="listbox"]) {
+    border-radius: 0 !important;
+  }
+  html[data-app][data-surface="brutalist"] :is(.panel, .card, .card-hover),
+  html[data-app][data-surface="brutalist"] :is([role="menu"], [role="dialog"], [role="alertdialog"], [role="listbox"]) {
     border: 2px solid var(--color-text);
-    box-shadow: 4px 4px 0 0 var(--color-text);
+    background: var(--color-surface);
+    box-shadow: 5px 5px 0 0 var(--color-accent);
   }
   html[data-app][data-surface="brutalist"] .card-hover {
     transition: transform 0.12s ease, box-shadow 0.12s ease;
   }
   html[data-app][data-surface="brutalist"] .card-hover:hover {
+    border-color: var(--color-text);
     transform: translate(-2px, -2px);
-    box-shadow: 6px 6px 0 0 var(--color-text);
+    box-shadow: 8px 8px 0 0 var(--color-accent);
   }
-  .dark html[data-app][data-surface="brutalist"] .card,
-  html.dark[data-app][data-surface="brutalist"] .card {
-    box-shadow: 4px 4px 0 0 var(--color-text);
+  /* Every button is a pressed block: inset ink border (no layout shift),
+     hard shadow, and a physical push on :active. */
+  html[data-app][data-surface="brutalist"] button {
+    box-shadow: inset 0 0 0 2px var(--color-text);
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+  }
+  html[data-app][data-surface="brutalist"] button:active {
+    transform: translate(2px, 2px);
+  }
+  html[data-app][data-surface="brutalist"] button:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 2px var(--color-text), 0 0 0 3px var(--color-accent);
+  }
+  html[data-app][data-surface="brutalist"] :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]), select, textarea) {
+    border: 2px solid var(--color-text);
+    background: var(--color-surface);
+    box-shadow: none;
+  }
+  html[data-app][data-surface="brutalist"] :is(input, select, textarea):focus {
+    outline: none;
+    border-color: var(--color-accent);
+    box-shadow: 3px 3px 0 0 var(--color-accent);
+  }
+  html[data-app][data-surface="brutalist"] ::selection {
+    background: var(--color-accent);
+    color: var(--color-on-accent, #fff);
   }
 
-  /* ── Claymorphism: big soft radius, no border, puffy inflated shadow ── */
-  html[data-app][data-surface="claymorphism"] .panel,
-  html[data-app][data-surface="claymorphism"] .card,
-  html[data-app][data-surface="claymorphism"] .card-hover {
-    border-radius: 1.75rem;
+  /* ──────────────────────────────── CLAY ────────────────────────────────
+     Inflated, puffy, friendly: huge radii, pill buttons, no borders, strong
+     top-light / bottom-dark inset pairs that make every surface look
+     squeezable, rounded type. Inputs deboss; buttons squish when pressed. */
+  html[data-app][data-surface="claymorphism"] body,
+  html[data-app][data-surface="claymorphism"] button,
+  html[data-app][data-surface="claymorphism"] input,
+  html[data-app][data-surface="claymorphism"] select,
+  html[data-app][data-surface="claymorphism"] textarea {
+    font-family: var(--font-clay), var(--font-body), sans-serif;
+  }
+  html[data-app][data-surface="claymorphism"] :is(h1, h2, h3, h4) {
+    font-family: var(--font-clay), sans-serif;
+    font-weight: 800;
+  }
+  html[data-app][data-surface="claymorphism"] :is(.panel, .card, .card-hover),
+  html[data-app][data-surface="claymorphism"] :is([role="menu"], [role="dialog"], [role="alertdialog"], [role="listbox"]) {
+    border-radius: 1.9rem;
     border: 0;
     box-shadow:
-      8px 8px 20px rgba(0, 0, 0, 0.16),
-      -6px -6px 16px color-mix(in oklab, var(--color-surface) 55%, white),
-      inset 2px 2px 5px color-mix(in oklab, var(--color-surface) 82%, white),
-      inset -3px -3px 8px rgba(0, 0, 0, 0.12);
+      0 14px 30px -10px rgba(0, 0, 0, 0.25),
+      inset 3px 4px 8px color-mix(in oklab, var(--color-surface) 55%, white),
+      inset -5px -7px 14px color-mix(in oklab, var(--color-surface) 70%, #2a2438);
+  }
+  html.dark[data-app][data-surface="claymorphism"] :is(.panel, .card, .card-hover),
+  html.dark[data-app][data-surface="claymorphism"] :is([role="menu"], [role="dialog"], [role="alertdialog"], [role="listbox"]) {
+    box-shadow:
+      0 16px 34px -10px rgba(0, 0, 0, 0.55),
+      inset 3px 4px 8px color-mix(in oklab, var(--color-surface) 74%, white),
+      inset -5px -7px 14px rgba(0, 0, 0, 0.4);
+  }
+  html[data-app][data-surface="claymorphism"] .card-hover {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
   }
   html[data-app][data-surface="claymorphism"] .card-hover:hover {
+    transform: translateY(-3px) scale(1.01);
+  }
+  /* Pill buttons that squish. */
+  html[data-app][data-surface="claymorphism"] button {
+    border-radius: 999px !important;
+    border: 0;
     box-shadow:
-      10px 12px 26px rgba(0, 0, 0, 0.2),
-      -6px -6px 16px color-mix(in oklab, var(--color-surface) 55%, white),
-      inset 2px 2px 5px color-mix(in oklab, var(--color-surface) 82%, white),
-      inset -3px -3px 8px rgba(0, 0, 0, 0.12);
+      0 6px 14px -4px rgba(0, 0, 0, 0.25),
+      inset 2px 3px 5px rgba(255, 255, 255, 0.35),
+      inset -3px -4px 8px rgba(0, 0, 0, 0.18);
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+  }
+  html[data-app][data-surface="claymorphism"] button:active {
+    transform: translateY(1px) scale(0.985);
+    box-shadow: inset 3px 4px 9px rgba(0, 0, 0, 0.3);
+  }
+  html[data-app][data-surface="claymorphism"] :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]), select, textarea) {
+    border-radius: 1.2rem;
+    border: 0;
+    background: color-mix(in oklab, var(--color-surface-1) 92%, var(--color-bg));
+    box-shadow:
+      inset 3px 4px 8px rgba(0, 0, 0, 0.14),
+      inset -2px -3px 6px color-mix(in oklab, var(--color-surface) 60%, white);
+  }
+  html.dark[data-app][data-surface="claymorphism"] :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]), select, textarea) {
+    box-shadow:
+      inset 3px 4px 9px rgba(0, 0, 0, 0.5),
+      inset -2px -3px 6px color-mix(in oklab, var(--color-surface) 82%, white);
+  }
+  html[data-app][data-surface="claymorphism"] :is(input, select, textarea):focus {
+    outline: none;
+    box-shadow:
+      inset 3px 4px 8px rgba(0, 0, 0, 0.14),
+      0 0 0 3px color-mix(in oklab, var(--color-accent) 45%, transparent);
   }
 
-  /* ── Neumorphism: monochrome, card fills the CANVAS color, dual soft extrusion ── */
-  html[data-app][data-surface="neumorphism"] .panel,
-  html[data-app][data-surface="neumorphism"] .card,
-  html[data-app][data-surface="neumorphism"] .card-hover {
-    border-radius: 1.1rem;
-    border: 0;
+  /* ──────────────────────────── SOFT UI (NEU) ────────────────────────────
+     Monochrome extrusion: every surface is carved FROM the canvas (same bg),
+     shaped only by a dual light/shadow pair. The pair is tuned per mode —
+     light mode carves with a tinted shadow + near-white highlight, dark mode
+     with pure black + a lifted rim — so nothing turns to mush. Inputs and
+     pressed buttons deboss inward. */
+  html[data-app][data-surface="neumorphism"] {
+    --neu-lo: color-mix(in oklab, var(--color-bg) 55%, #3b455e);
+    --neu-hi: color-mix(in oklab, var(--color-bg) 28%, white);
+  }
+  html.dark[data-app][data-surface="neumorphism"] {
+    --neu-lo: rgba(0, 0, 0, 0.7);
+    --neu-hi: color-mix(in oklab, var(--color-bg) 62%, white);
+  }
+  html[data-app][data-surface="neumorphism"] body,
+  html[data-app][data-surface="neumorphism"] button,
+  html[data-app][data-surface="neumorphism"] input,
+  html[data-app][data-surface="neumorphism"] select,
+  html[data-app][data-surface="neumorphism"] textarea {
+    font-family: var(--font-neu), var(--font-body), sans-serif;
+  }
+  html[data-app][data-surface="neumorphism"] :is(h1, h2, h3, h4) {
+    font-family: var(--font-neu), sans-serif;
+    font-weight: 700;
+  }
+  html[data-app][data-surface="neumorphism"] :is(.panel, .card, .card-hover),
+  html[data-app][data-surface="neumorphism"] :is([role="menu"], [role="dialog"], [role="alertdialog"], [role="listbox"]) {
+    border-radius: 1.3rem;
     background: var(--color-bg);
-    box-shadow:
-      6px 6px 14px color-mix(in oklab, var(--color-bg) 62%, black),
-      -6px -6px 14px color-mix(in oklab, var(--color-bg) 86%, white);
+    border: 1px solid color-mix(in oklab, var(--color-bg) 86%, var(--color-text));
+    box-shadow: 9px 9px 18px var(--neu-lo), -9px -9px 18px var(--neu-hi);
+  }
+  html[data-app][data-surface="neumorphism"] .card-hover {
+    transition: box-shadow 0.15s ease;
   }
   html[data-app][data-surface="neumorphism"] .card-hover:hover {
+    box-shadow: 5px 5px 12px var(--neu-lo), -5px -5px 12px var(--neu-hi);
+  }
+  html[data-app][data-surface="neumorphism"] button {
+    border-radius: 1rem;
+    box-shadow: 4px 4px 9px var(--neu-lo), -4px -4px 9px var(--neu-hi);
+    transition: box-shadow 0.12s ease;
+  }
+  html[data-app][data-surface="neumorphism"] button:active {
+    box-shadow: inset 4px 4px 8px var(--neu-lo), inset -4px -4px 8px var(--neu-hi);
+  }
+  html[data-app][data-surface="neumorphism"] :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]), select, textarea) {
+    border-radius: 1rem;
+    background: var(--color-bg);
+    border: 1px solid color-mix(in oklab, var(--color-bg) 86%, var(--color-text));
+    box-shadow: inset 4px 4px 8px var(--neu-lo), inset -4px -4px 8px var(--neu-hi);
+  }
+  html[data-app][data-surface="neumorphism"] :is(input, select, textarea):focus {
+    outline: none;
+    border-color: color-mix(in oklab, var(--color-accent) 60%, var(--color-bg));
     box-shadow:
-      3px 3px 8px color-mix(in oklab, var(--color-bg) 62%, black),
-      -3px -3px 8px color-mix(in oklab, var(--color-bg) 86%, white);
+      inset 4px 4px 8px var(--neu-lo),
+      inset -4px -4px 8px var(--neu-hi),
+      0 0 0 3px color-mix(in oklab, var(--color-accent) 30%, transparent);
   }
 
   /* Standalone swatches for the Style picker — each renders its own design
@@ -921,25 +1074,30 @@ html.theme-vt::view-transition-new(root) {
   .style-swatch[data-style="brutalist"] {
     border-radius: 0;
     border: 2px solid var(--color-text);
-    box-shadow: 3px 3px 0 0 var(--color-text);
+    box-shadow: 3px 3px 0 0 var(--color-accent);
   }
   .style-swatch[data-style="claymorphism"] {
-    border-radius: 0.9rem;
+    border-radius: 1rem;
     border: 0;
     box-shadow:
-      4px 4px 10px rgba(0, 0, 0, 0.16),
-      -3px -3px 8px color-mix(in oklab, var(--color-surface) 55%, white),
-      inset 1px 1px 3px color-mix(in oklab, var(--color-surface) 82%, white),
-      inset -2px -2px 5px rgba(0, 0, 0, 0.12);
+      0 6px 14px -4px rgba(0, 0, 0, 0.25),
+      inset 2px 3px 5px color-mix(in oklab, var(--color-surface) 55%, white),
+      inset -3px -4px 8px color-mix(in oklab, var(--color-surface) 70%, #2a2438);
   }
   .style-swatch[data-style="neumorphism"] {
-    border-radius: 0.7rem;
-    border: 0;
+    border-radius: 0.8rem;
+    border: 1px solid color-mix(in oklab, var(--color-bg) 86%, var(--color-text));
     background: var(--color-bg);
     box-shadow:
-      3px 3px 7px color-mix(in oklab, var(--color-bg) 62%, black),
-      -3px -3px 7px color-mix(in oklab, var(--color-bg) 86%, white);
+      4px 4px 9px color-mix(in oklab, var(--color-bg) 55%, #3b455e),
+      -4px -4px 9px color-mix(in oklab, var(--color-bg) 28%, white);
   }
+  .dark .style-swatch[data-style="neumorphism"] {
+    box-shadow:
+      4px 4px 9px rgba(0, 0, 0, 0.65),
+      -4px -4px 9px color-mix(in oklab, var(--color-bg) 70%, white);
+  }
+  /* SURFACE-STYLES-END */
 }
 
 /* Honor the OS "reduce motion" preference for the CSS-driven entrance/loop
