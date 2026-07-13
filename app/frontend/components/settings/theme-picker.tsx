@@ -4,7 +4,7 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/providers/theme-provider";
 import { COLOR_THEMES, CUSTOM_COLOR_THEME } from "@/lib/themes";
-import { BACKGROUND_DESIGNS, getBackgroundByKey } from "@/lib/background-presets";
+import { APP_BACKGROUNDS, getAppBackgroundByKey } from "@/lib/app-backgrounds";
 import { CheckCircle2, Check } from "@/lib/icons";
 
 const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
@@ -20,7 +20,7 @@ export function ThemePicker() {
   const { colorTheme, setColorTheme, resolvedTheme, customTheme, setCustomTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
   const isCustomActive = colorTheme === CUSTOM_COLOR_THEME;
-  const customBgImage = customTheme.background ? getBackgroundByKey(customTheme.background) : null;
+  const customBgImage = customTheme.background ? getAppBackgroundByKey(customTheme.background) : null;
 
   return (
     <div className="space-y-2">
@@ -191,7 +191,7 @@ function CustomThemeEditor({
           >
             None
           </button>
-          {BACKGROUND_DESIGNS.map((design) => {
+          {APP_BACKGROUNDS.map((design) => {
             const active = values.background === design.key;
             return (
               <button
