@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { FileMetadata } from "@/types";
-import { deriveNameKey, encryptName } from "@/lib/name-crypto";
+import { deriveNameKey, encryptName, encryptStyle } from "@/lib/name-crypto";
 
 // Control the passphrase + user the transform reads. Hoisted so vi.mock can use them.
 const { getPassphrase, getUser } = vi.hoisted(() => ({
@@ -67,6 +67,18 @@ describe("decryptFileNames (zero-knowledge name dual-read)", () => {
     ]);
     expect(out[0].original_name).toBe("secret.zip");
     expect(out[1].original_name).toBe("public.txt");
+  });
+
+  it("keeps the plaintext original_name for a file with only an encrypted_style (no encrypted_name)", async () => {
+    // Exercises the `f.encrypted_name ? … : f.original_name` false branch: the
+    // file is not name-encrypted but does carry a custom style to decrypt.
+    const key = await deriveNameKey(PASS, USER.id);
+    const encStyle = await encryptStyle({ icon: "star", color: "#abcdef" }, key);
+    const [out] = await decryptFileNames([
+      file({ id: "1", original_name: "keep.txt", encrypted_name: "", encrypted_style: encStyle }),
+    ]);
+    expect(out.original_name).toBe("keep.txt");
+    expect(out.style).toEqual({ icon: "star", color: "#abcdef" });
   });
 
   it("a wrong-key / corrupt ciphertext degrades to a safe placeholder, not a throw", async () => {

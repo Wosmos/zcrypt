@@ -1,12 +1,28 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { unzipSync } from "fflate";
-import { generateSalt, deriveKeyBytes, generateCEK, wrapKey, encryptChunk, sha256Hex, toBase64 } from "@/lib/crypto";
+import {
+  generateSalt,
+  deriveKeyBytes,
+  generateCEK,
+  wrapKey,
+  encryptChunk,
+  sha256Hex,
+  toBase64,
+  deriveDedupKeyBytes,
+  contentMacBytes,
+} from "@/lib/crypto";
 
 const { getFileMeta, getFileChunk } = vi.hoisted(() => ({
   getFileMeta: vi.fn(),
   getFileChunk: vi.fn(),
 }));
 vi.mock("@/lib/api", () => ({ getFileMeta, getFileChunk }));
+
+// The hmac_v1 integrity branch lazily imports the auth store for the current
+// user id. Mock it so we never load the real store (its module-level
+// localStorage read is non-functional in this env) and can control sign-in.
+const { getUser } = vi.hoisted(() => ({ getUser: vi.fn<() => { id: string } | null>() }));
+vi.mock("@/store/auth", () => ({ useAuthStore: { getState: () => ({ user: getUser() }) } }));
 
 // zstd wasm isn't available in jsdom; delegate decompress to a mutable ref so
 // individual tests can swap its behavior without re-importing the module.
@@ -223,6 +239,22 @@ describe("downloadAsZip — success paths", () => {
     expect(contents["raw.txt"]).toBe("raw-bytes-no-decompress");
   });
 
+  it("verifies an hmac_v1 file against the per-user keyed MAC when signed in", async () => {
+    const uid = "user-42";
+    const plain = enc.encode("keyed integrity content");
+    const f = await makeFileFixture({ passphrase: "pw", finalChunks: [plain] });
+    const macKey = await deriveDedupKeyBytes("pw", uid);
+    const mac = await contentMacBytes(plain, macKey);
+    getUser.mockReturnValue({ id: uid });
+    getFileMeta.mockResolvedValueOnce({ ...f.meta, sha256: mac, sha256_scheme: "hmac_v1" });
+    getFileChunk.mockResolvedValueOnce({ data: f.encryptedChunks[0], sha256: "", compressed: false });
+
+    await downloadAsZip([{ fileId: "id1", filename: "keyed.txt", fileSize: plain.length }], "pw");
+
+    const contents = await capturedZipContents();
+    expect(contents["keyed.txt"]).toBe("keyed integrity content");
+  });
+
   it("uses resolvePassword per file instead of the shared (wrong) passphrase", async () => {
     const f = await makeFileFixture({ passphrase: "folder-pw", finalChunks: [enc.encode("secret")] });
     getFileMeta.mockResolvedValueOnce(f.meta);
@@ -246,6 +278,17 @@ describe("downloadAsZip — failure paths", () => {
     await expect(downloadAsZip([{ fileId: "id1", filename: "bad.txt", fileSize: 1 }], "pw")).rejects.toThrow(
       "Decryption failed for bad.txt — wrong passphrase?"
     );
+  });
+
+  it("throws for an hmac_v1 file when not signed in (no user id to key the MAC)", async () => {
+    const f = await makeFileFixture({ passphrase: "pw", finalChunks: [enc.encode("x")] });
+    getUser.mockReturnValue(null);
+    getFileMeta.mockResolvedValueOnce({ ...f.meta, sha256_scheme: "hmac_v1" });
+    getFileChunk.mockResolvedValueOnce({ data: f.encryptedChunks[0], sha256: "", compressed: false });
+
+    await expect(
+      downloadAsZip([{ fileId: "id1", filename: "keyed.txt", fileSize: 1 }], "pw")
+    ).rejects.toThrow("Integrity check failed for keyed.txt — not signed in");
   });
 
   it("surfaces a per-file integrity error on SHA-256 mismatch", async () => {

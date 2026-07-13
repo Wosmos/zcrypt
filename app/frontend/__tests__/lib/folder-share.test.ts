@@ -90,6 +90,34 @@ describe("createFolderShareLink", () => {
     });
   });
 
+  it("walks a nested subtree (BFS), skips a duplicate folder id, and records subfolder files in the manifest", async () => {
+    // Authenticated + a real folderId opts into path-building (buildFolderPaths).
+    getAuthState.mockReturnValue({ user: { id: "u1" } });
+    listFolderSubtree.mockResolvedValue([
+      { id: "root", parent_id: null, encrypted_name: "r" },
+      { id: "A", parent_id: "root", encrypted_name: "a" }, // childrenOf["root"] set
+      { id: "B", parent_id: "A", encrypted_name: "b" }, // grandchild → second BFS level
+      { id: "A", parent_id: "root", encrypted_name: "a" }, // dup → childrenOf push + paths.has continue
+      { id: "orphan", parent_id: null, encrypted_name: "o" }, // parent_id ?? "" branch
+    ]);
+    decryptNameSafe.mockImplementation(async (e: string) =>
+      ({ r: "Root", a: "Alpha", b: "Beta", o: "Orphan" })[e] ?? "X"
+    );
+    getFileMeta.mockResolvedValue({ wrapped_cek: "wc", salt: "s2" });
+    resolveFileKey.mockResolvedValue(new Uint8Array([5, 6, 7]).buffer);
+
+    const res = await createFolderShareLink("root", "Root", [
+      { id: "fA", folder_id: "A" }, // subfolder file → manifest dir "Alpha" (line 130/131 truthy)
+      { id: "fRoot", folder_id: "root" }, // root file → dir "" (line 131 falsy)
+    ]);
+
+    expect(res.shared).toBe(2);
+    expect(res.skipped).toBe(0);
+    expect(res.nestingIncomplete).toBe(false); // path build succeeded
+    const arg = createFolderShare.mock.calls[0][0] as { files: unknown[] };
+    expect(arg.files).toHaveLength(2);
+  });
+
   it("passes folder_id as undefined when folderId is null", async () => {
     getFileMeta.mockResolvedValueOnce({ wrapped_cek: "w1", salt: "s1" });
     resolveFileKey.mockResolvedValueOnce(new Uint8Array([1]).buffer);

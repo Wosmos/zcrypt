@@ -259,6 +259,49 @@ describe("calibrateDeviceProfile — measured capability upgrades (never downgra
   });
 });
 
+describe("measureCryptoThroughput (calibrate's default measure)", () => {
+  it("runs the real Web Crypto benchmark when no measure is injected", async () => {
+    const { getDeviceProfile, calibrateDeviceProfile } = await loadProfile({ deviceMemory: 2 });
+    expect(getDeviceProfile().tier).toBe("medium");
+    // No measure arg → the real measureCryptoThroughput (AES-GCM + SHA-256) runs.
+    // Calibration never downgrades, so the tier stays medium-or-better.
+    const after = await calibrateDeviceProfile();
+    expect(["medium", "high", "ultra"]).toContain(after.tier);
+  });
+
+  it("leaves the heuristic profile intact when Web Crypto (subtle) is unavailable", async () => {
+    const { calibrateDeviceProfile } = await loadProfile({ deviceMemory: 2 });
+    const real = globalThis.crypto;
+    // No `.subtle` → the benchmark short-circuits to null at its guard.
+    vi.stubGlobal("crypto", { getRandomValues: real.getRandomValues.bind(real) });
+    try {
+      const after = await calibrateDeviceProfile();
+      expect(after.tier).toBe("medium");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("swallows a benchmark that throws and keeps the heuristic profile", async () => {
+    const { calibrateDeviceProfile } = await loadProfile({ deviceMemory: 2 });
+    const real = globalThis.crypto;
+    vi.stubGlobal("crypto", {
+      getRandomValues: real.getRandomValues.bind(real),
+      subtle: {
+        generateKey: async () => {
+          throw new Error("crypto blew up");
+        },
+      },
+    });
+    try {
+      const after = await calibrateDeviceProfile();
+      expect(after.tier).toBe("medium"); // catch → null → no change
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
+
 describe("getChunkSize", () => {
   it("returns the chunk size for the low tier", async () => {
     const { getChunkSize } = await loadProfile({ deviceMemory: 1 });

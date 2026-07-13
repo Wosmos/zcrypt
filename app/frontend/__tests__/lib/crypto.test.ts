@@ -15,6 +15,9 @@ import {
   IncorrectPassphraseError,
   toBase64,
   fromBase64,
+  contentMacBytes,
+  contentMacFile,
+  createContentHasher,
 } from "@/lib/crypto";
 
 describe("generateSalt", () => {
@@ -362,5 +365,72 @@ describe("deriveKeyBytesCached (derived-key memo)", () => {
     // Index 0 was evicted, so requesting it again is now a miss (re-derives).
     await deriveKeyBytesCached("pw", saltOf(0));
     expect(deriveSpy).toHaveBeenCalledTimes(MAX + 2);
+  });
+});
+
+describe("createContentHasher", () => {
+  it("hmac_v1 hasher matches the one-shot contentMacBytes over the same bytes", async () => {
+    const key = new Uint8Array(32).fill(3);
+    const data = new Uint8Array([1, 2, 3, 4, 5]);
+    const hasher = await createContentHasher("hmac_v1", key);
+    hasher.update(data);
+    const streamedHex = Array.from(hasher.digest())
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+    expect(streamedHex).toBe(await contentMacBytes(data, key));
+  });
+
+  it("throws when the hmac_v1 scheme is requested without a key", async () => {
+    await expect(createContentHasher("hmac_v1")).rejects.toThrow("hmac_v1 content hasher requires a key");
+  });
+
+  it("falls back to a plain SHA-256 hasher for a non-hmac scheme", async () => {
+    const data = new Uint8Array([9, 8, 7]);
+    const hasher = await createContentHasher("plain");
+    hasher.update(data);
+    const hex = Array.from(hasher.digest())
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+    expect(hex).toBe(await sha256Hex(data));
+  });
+});
+
+describe("contentMacFile", () => {
+  // Minimal File-like backed by a real byte array, so `.slice(a,b).arrayBuffer()`
+  // returns the true subrange (what the streaming path reads).
+  function fileFromBytes(bytes: Uint8Array): File {
+    return {
+      size: bytes.length,
+      slice: (start: number, end: number) => ({
+        arrayBuffer: async () => bytes.slice(start, end).buffer,
+      }),
+      arrayBuffer: async () => bytes.buffer,
+    } as unknown as File;
+  }
+
+  it("MACs a small (<=50MB) file in one shot and reports full progress", async () => {
+    const key = new Uint8Array(32).fill(7);
+    const bytes = new Uint8Array(1024).fill(0x5a);
+    const onProgress = vi.fn();
+
+    const mac = await contentMacFile(fileFromBytes(bytes), key, onProgress);
+
+    expect(mac).toBe(await contentMacBytes(bytes, key));
+    expect(onProgress).toHaveBeenCalledWith(bytes.length);
+  });
+
+  it("streams a >50MB file in chunks and yields the same MAC as the one-shot path", async () => {
+    const key = new Uint8Array(32).fill(0x11);
+    // Just over the 50MB threshold → forces the incremental @noble streaming path.
+    const bytes = new Uint8Array(50 * 1024 * 1024 + 7).fill(0xab);
+    const onProgress = vi.fn();
+
+    const streamed = await contentMacFile(fileFromBytes(bytes), key, onProgress);
+
+    // The streaming HMAC must equal the direct HMAC over the identical bytes.
+    expect(streamed).toBe(await contentMacBytes(bytes, key));
+    // Final progress tick equals the full size.
+    expect(onProgress).toHaveBeenLastCalledWith(bytes.length);
+    expect(onProgress.mock.calls.length).toBeGreaterThan(1); // fired per streamed chunk
   });
 });

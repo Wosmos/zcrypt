@@ -12,7 +12,46 @@ import {
   mimeForFile,
   midTrunc,
   easeProgress,
+  smartGridCols,
+  smartGridColCount,
+  chunk,
 } from "@/lib/utils";
+
+describe("smartGridCols", () => {
+  it("maps each item count to its adaptive column classes", () => {
+    expect(smartGridCols(0)).toBe("grid-cols-1");
+    expect(smartGridCols(1)).toBe("grid-cols-1");
+    expect(smartGridCols(2)).toBe("grid-cols-1 sm:grid-cols-2");
+    expect(smartGridCols(3)).toBe("grid-cols-1 sm:grid-cols-2 md:grid-cols-3");
+    expect(smartGridCols(4)).toBe("grid-cols-1 sm:grid-cols-2");
+    expect(smartGridCols(7)).toBe("grid-cols-1 sm:grid-cols-2 md:grid-cols-3");
+  });
+});
+
+describe("smartGridColCount", () => {
+  it("returns the row width smartGridCols would settle on for each count", () => {
+    expect(smartGridColCount(0)).toBe(1);
+    expect(smartGridColCount(1)).toBe(1);
+    expect(smartGridColCount(2)).toBe(2);
+    expect(smartGridColCount(3)).toBe(3);
+    expect(smartGridColCount(4)).toBe(2);
+    expect(smartGridColCount(9)).toBe(3);
+  });
+});
+
+describe("chunk", () => {
+  it("splits items into rows of the given size, last row holding the remainder", () => {
+    expect(chunk([1, 2, 3, 4, 5], 3)).toEqual([[1, 2, 3], [4, 5]]);
+  });
+
+  it("returns an empty array for no items", () => {
+    expect(chunk([], 3)).toEqual([]);
+  });
+
+  it("returns a single row when size exceeds the item count", () => {
+    expect(chunk([1, 2], 5)).toEqual([[1, 2]]);
+  });
+});
 
 describe("formatBytes", () => {
   it("returns 0 B for zero or negative", () => {
