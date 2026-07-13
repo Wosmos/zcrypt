@@ -117,8 +117,8 @@ export default function GettingStartedPage() {
               by your passphrase.
             </>,
             <>
-              <strong>Splits</strong> it into encrypted chunks (roughly 16 MB
-              each) and uploads them to your connected platform.
+              <strong>Splits</strong> it into encrypted chunks (~4–16 MB each,
+              tuned to your device) and uploads them to your connected platform.
             </>,
           ]}
         />

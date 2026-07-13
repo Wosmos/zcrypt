@@ -212,9 +212,10 @@ export default function KeyManagementPage() {
               quickly and are refreshed via a longer-lived refresh token.
             </>,
             <>
-              <strong>Refresh tokens are stored hashed and client-bound.</strong>{" "}
-              Only a SHA-256 hash of each refresh token is kept, and it is bound to
-              the issuing IP address and user-agent.
+              <strong>Refresh tokens are stored hashed.</strong>{" "}
+              Only a SHA-256 hash of each refresh token is kept, and the issuing
+              IP address and user-agent are recorded — a change of IP is flagged
+              in the logs.
             </>,
           ]}
         />

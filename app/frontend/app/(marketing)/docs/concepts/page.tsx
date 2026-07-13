@@ -105,8 +105,9 @@ export default function ConceptsDocPage() {
       <DocSection id="chunks" title="Chunks">
         <DocP>
           After compression and encryption, each file is split into{" "}
-          <strong>chunks</strong> — encrypted pieces of roughly 16 MB. Chunks
-          are what actually get uploaded, one per request, to the repositories
+          <strong>chunks</strong> — encrypted pieces sized to your device
+          (~4–16 MB, ~10 MB typical). Chunks are what actually get uploaded,
+          one per request, to the repositories
           or channel on your connected platform. On download, zcrypt fetches the
           chunks, verifies them, and reassembles the file on your device.
         </DocP>

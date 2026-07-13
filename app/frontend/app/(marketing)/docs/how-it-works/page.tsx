@@ -12,7 +12,7 @@ import {
 export const metadata: Metadata = {
   title: "How it works | zcrypt Docs",
   description:
-    "Follow a file through zcrypt end to end: on your device it is compressed with zstd, encrypted with AES-256-GCM under a random per-file key, split into ~16 MB chunks, and pushed to your own storage. Downloading reverses every step.",
+    "Follow a file through zcrypt end to end: on your device it is compressed with zstd, encrypted with AES-256-GCM under a random per-file key, split into device-tiered chunks (~4–16 MB), and pushed to your own storage. Downloading reverses every step.",
   alternates: { canonical: "https://zcrypt.cloud/docs/how-it-works" },
   openGraph: {
     title: "How it works | zcrypt Docs",
@@ -26,7 +26,7 @@ const toc = [
   { id: "short", title: "The short version" },
   { id: "compress", title: "1. Compress (zstd)" },
   { id: "encrypt", title: "2. Encrypt (AES-256-GCM)" },
-  { id: "chunk", title: "3. Chunk (~16 MB)" },
+  { id: "chunk", title: "3. Chunk (~4–16 MB)" },
   { id: "upload", title: "4. Upload to your storage" },
   { id: "download", title: "Downloading reverses it" },
   { id: "next", title: "Where to go next" },
@@ -47,7 +47,7 @@ export default function HowItWorksDocPage() {
           repositories in your own connected account. The plaintext never leaves
           your machine, and your passphrase never leaves your browser.
         </DocP>
-        <DocCode label="the pipeline">{`compress (zstd)  →  encrypt (AES-256-GCM)  →  chunk (~16 MB)  →  upload to your storage`}</DocCode>
+        <DocCode label="the pipeline">{`compress (zstd)  →  encrypt (AES-256-GCM)  →  chunk (~4–16 MB)  →  upload to your storage`}</DocCode>
       </DocSection>
 
       <DocSection id="compress" title="1. Compress (zstd)">
@@ -77,16 +77,16 @@ export default function HowItWorksDocPage() {
         </DocNote>
       </DocSection>
 
-      <DocSection id="chunk" title="3. Chunk (~16 MB)">
+      <DocSection id="chunk" title="3. Chunk (~4–16 MB)">
         <DocP>
-          The encrypted blob is split into fixed-size chunks of roughly 16 MB
-          each, and every chunk is given a randomized filename. Chunking keeps
+          The encrypted blob is split into chunks sized to your device
+          (~4–16 MB, ~10 MB typical), and every chunk is given a randomized filename. Chunking keeps
           each piece within platform file-size limits, enables parallel and
           resumable transfers, and means one failed piece can be retried without
           re-sending the whole file.
         </DocP>
         <DocNote type="info" title="Tunable chunk size">
-          ~16 MB is the standard size. The terminal app exposes performance
+          ~10 MB is the typical size (the browser picks 4–16 MB based on your device). The terminal app exposes performance
           profiles that range from 4 MB chunks (light) up to 32 MB (ludicrous),
           trading memory for throughput.
         </DocNote>

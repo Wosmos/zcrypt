@@ -7,7 +7,7 @@ export default function PrivacyPage() {
     <LegalPage
       eyebrow="Privacy"
       title="Privacy Policy"
-      lead="What we can see, what we collect, and what we'll never touch. Last updated March 2026."
+      lead="What we can see, what we collect, and what we'll never touch. Last updated July 2026."
     >
       {/* Intro */}
       <Section className="mt-16">
@@ -72,7 +72,7 @@ export default function PrivacyPage() {
           </h3>
           <BulletList
             items={[
-              "Original file names (stored as metadata so you can browse and manage your files — the file contents themselves are always encrypted)",
+              "File and folder names — encrypted client-side by default, so the server stores only an opaque name it cannot read (some older files may retain a plaintext name in a legacy column we are retiring)",
               "File sizes (encrypted size, for storage-usage display)",
               "Upload/download timestamps",
               "Storage usage per account",

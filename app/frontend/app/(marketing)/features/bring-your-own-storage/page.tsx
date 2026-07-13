@@ -22,7 +22,7 @@ import { STORAGE_PLATFORMS } from "@/components/marketing/landing/storage-platfo
 export const metadata: Metadata = {
   title: "Bring Your Own Storage — Your Data, Your Infrastructure",
   description:
-    "zcrypt never sells you storage. Connect accounts you already own — GitHub, GitLab, Hugging Face, Telegram — and your encrypted chunks fan out across them. Repos rotate automatically as they fill, so your space grows on its own. No lock-in.",
+    "zcrypt never sells you storage. Connect accounts you already own — GitHub, GitLab, Hugging Face, Telegram — and your encrypted files are stored as disguised chunks in repos you own. Repos rotate automatically as they fill, so your space grows on its own. No lock-in.",
   keywords: [
     "bring your own storage",
     "BYO storage",
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Bring Your Own Storage | zcrypt",
     description:
-      "Connect GitHub, GitLab, Hugging Face, and Telegram accounts you already own. Encrypted chunks fan out across them and repos rotate automatically. Your data, your infrastructure, no lock-in.",
+      "Connect GitHub, GitLab, Hugging Face, and Telegram accounts you already own. Encrypted files are stored as disguised chunks across repos you own, and repos rotate automatically as they fill. Your data, your infrastructure, no lock-in.",
     url: "https://zcrypt.cloud/features/bring-your-own-storage",
     type: "website",
   },
@@ -47,8 +47,8 @@ const adapters = STORAGE_PLATFORMS;
 const capabilities = [
   {
     Icon: Layers,
-    title: "Chunks fan out",
-    desc: "Each file is encrypted, then split into chunks that spread across the accounts you've connected. No single repo holds the whole picture.",
+    title: "Split, encrypted, disguised",
+    desc: "Each file is encrypted on your device, then split into ~10 MB chunks stored as ordinary build-cache objects in a repo you own. Across your whole library, files spread over the accounts you've connected.",
   },
   {
     Icon: RefreshCw,
@@ -117,9 +117,9 @@ export default function BringYourOwnStoragePage() {
         subtext={
           <>
             Connect accounts you own — GitHub, GitLab, Hugging Face, Telegram — and your
-            encrypted chunks fan out across them. Repos rotate automatically as they
-            fill, so your space grows on its own. Your data, your infrastructure, no
-            lock-in.
+            encrypted files are stored as disguised chunks in repos you own. Repos
+            rotate automatically as they fill, so your space grows on its own. Your
+            data, your infrastructure, no lock-in.
           </>
         }
         secondaryLabel="Read the docs"
@@ -154,7 +154,7 @@ export default function BringYourOwnStoragePage() {
               <span className="rounded bg-cyan-500/10 px-1.5 py-0.5 text-cyan-600 dark:text-cyan-400">
                 chunk-03
               </span>
-              <span className="text-[var(--color-text-muted)]">→ disguised as build-cache, spread across repos</span>
+              <span className="text-[var(--color-text-muted)]">→ stored as build-cache in a repo you own</span>
             </div>
           </div>
         </MockWindowFrame>
@@ -211,8 +211,9 @@ export default function BringYourOwnStoragePage() {
             provider&apos;s terms. zcrypt flips that: it&apos;s an encryption and
             orchestration layer over storage you already own. Everything is encrypted
             on your device first, then chunks are disguised as ordinary build-cache
-            files and distributed across your connected accounts. Walk away whenever
-            you like — the accounts, and the bytes in them, were always yours.
+            files in repos you own — your library spread across the accounts you
+            connect. Walk away whenever you like — the accounts, and the bytes in
+            them, were always yours.
           </>
         }
         checklist={
@@ -220,7 +221,7 @@ export default function BringYourOwnStoragePage() {
             items={[
               "Encrypted on your device before any upload",
               "Chunks disguised as routine build-cache artifacts",
-              "Distributed across accounts you control",
+              "Stored in repos across accounts you control",
               "Disconnect or leave anytime — no captive data",
             ]}
           />
@@ -245,8 +246,8 @@ export default function BringYourOwnStoragePage() {
               as <span className="text-[var(--color-text-secondary)]">build-cache-*.bin</span>
             </div>
             <div className="mt-1.5">
-              <span className="text-cyan-600/80 dark:text-cyan-400/80">4</span> fan out
-              across your repos
+              <span className="text-cyan-600/80 dark:text-cyan-400/80">4</span> upload to
+              a repo you own
             </div>
             <div className="mt-1.5">
               <span className="text-cyan-600/80 dark:text-cyan-400/80">5</span> repo near
