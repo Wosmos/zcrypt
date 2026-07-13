@@ -1,7 +1,12 @@
 openapi: 3.1.0
 info:
   title: zcrypt API
-  description: Zero-knowledge encrypted cloud storage API
+  description: >
+    Zero-knowledge encrypted cloud storage API. This is a curated subset of the
+    surface — the backend also serves folders, shares, folder-shares, shared
+    vaults, Send, pads, notes, clipboard, snapshots, integrity, sync/offline, the
+    dead-man's switch, and decoy mode. See app/backend/cmd/server.go
+    (RegisterRoutes) for the authoritative list.
   version: 0.2.0
 
 servers:
@@ -350,55 +355,113 @@ paths:
         "200":
           description: Current user info
 
-  /api/push:
+  /api/upload/init:
     post:
-      tags: [Files]
-      summary: Upload file (multipart)
-      requestBody:
-        required: true
-        content:
-          multipart/form-data:
-            schema:
-              type: object
-              required: [file, passphrase]
-              properties:
-                file:
-                  type: string
-                  format: binary
-                passphrase:
-                  type: string
-                platform:
-                  type: string
-      responses:
-        "200":
-          description: Upload started
-        "413":
-          description: File too large / quota exceeded
-
-  /api/pull:
-    post:
-      tags: [Files]
-      summary: Download file
+      tags: [Upload]
+      summary: Start a resumable upload session
+      description: >
+        Chunks are encrypted client-side before upload. Send either a plaintext
+        `filename` or an opaque `encrypted_name` (zero-knowledge).
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [filename, passphrase]
+              required: [original_size, sha256, salt, chunk_count]
               properties:
-                filename:
-                  type: string
-                passphrase:
-                  type: string
+                filename: { type: string }
+                encrypted_name: { type: string }
+                original_size: { type: integer, format: int64 }
+                sha256: { type: string }
+                sha256_scheme: { type: string }
+                salt: { type: string }
+                wrapped_cek: { type: string }
+                chunk_count: { type: integer }
+                chunk_size: { type: integer }
+                platform: { type: string }
+                folder_id: { type: string, format: uuid, nullable: true }
       responses:
         "200":
-          description: File data
-          content:
-            application/octet-stream:
-              schema:
-                type: string
-                format: binary
+          description: Session created (returns session_id, file_id, platform, direct_upload)
+        "413":
+          description: File too large / quota exceeded
+
+  /api/upload/{sid}/presign/{idx}:
+    post:
+      tags: [Upload]
+      summary: Presign a direct-upload chunk (HuggingFace LFS)
+      parameters:
+        - { name: sid, in: path, required: true, schema: { type: string } }
+        - { name: idx, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: Presigned upload URL + headers
+
+  /api/upload/{sid}/chunk/{idx}:
+    put:
+      tags: [Upload]
+      summary: Relay-upload an encrypted chunk
+      parameters:
+        - { name: sid, in: path, required: true, schema: { type: string } }
+        - { name: idx, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      responses:
+        "200":
+          description: Chunk stored
+
+  /api/upload/{sid}/confirm/{idx}:
+    post:
+      tags: [Upload]
+      summary: Confirm a direct-uploaded chunk
+      parameters:
+        - { name: sid, in: path, required: true, schema: { type: string } }
+        - { name: idx, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: Chunk confirmed
+
+  /api/upload/{sid}/complete:
+    post:
+      tags: [Upload]
+      summary: Finalize the upload session
+      parameters:
+        - { name: sid, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Upload complete
+
+  /api/upload/{sid}/status:
+    get:
+      tags: [Upload]
+      summary: Uploaded-chunk set for a session (for resume)
+      parameters:
+        - { name: sid, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Session status + uploaded_chunks
+
+  /api/upload/{sid}:
+    delete:
+      tags: [Upload]
+      summary: Cancel a session
+      parameters:
+        - { name: sid, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Session cancelled
+
+  /api/upload/incomplete:
+    get:
+      tags: [Upload]
+      summary: List resumable (incomplete) sessions
+      responses:
+        "200":
+          description: Incomplete sessions
 
   /api/files:
     get:
@@ -419,20 +482,57 @@ paths:
                 items:
                   $ref: "#/components/schemas/FileMetadata"
 
+  /api/files/trash:
+    get:
+      tags: [Files]
+      summary: List trashed files
+      responses:
+        "200":
+          description: Trashed file list
+
+  /api/files/{id}/meta:
+    get:
+      tags: [Files]
+      summary: File metadata (chunk count, salt, wrapped CEK, sizes)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: File metadata
+
+  /api/files/{id}/chunks/{idx}:
+    get:
+      tags: [Files]
+      summary: Fetch one encrypted chunk
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: idx, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: Encrypted chunk bytes
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+
   /api/files/{id}:
     delete:
       tags: [Files]
-      summary: Delete file
+      summary: Move file to trash
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
       responses:
         "200":
-          description: File deleted
+          description: File moved to trash
+
+  /api/files/{id}/purge:
+    delete:
+      tags: [Files]
+      summary: Permanently delete a file
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: File permanently deleted
 
   /api/platforms/status:
     get:
@@ -503,53 +603,9 @@ paths:
                 items:
                   $ref: "#/components/schemas/RepoInfo"
 
-  /api/upload/pause:
-    post:
-      tags: [Upload Control]
-      summary: Pause active upload
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [file_id]
-              properties:
-                file_id:
-                  type: string
-      responses:
-        "200":
-          description: Upload paused
-
-  /api/upload/resume:
-    post:
-      tags: [Upload Control]
-      summary: Resume paused upload
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [file_id]
-              properties:
-                file_id:
-                  type: string
-      responses:
-        "200":
-          description: Upload resumed
-
-  /api/uploads/incomplete:
-    get:
-      tags: [Upload Control]
-      summary: List incomplete uploads
-      responses:
-        "200":
-          description: Incomplete uploads
-
   /api/events:
     get:
-      tags: [Upload Control]
+      tags: [Realtime]
       summary: SSE progress stream
       parameters:
         - name: token
