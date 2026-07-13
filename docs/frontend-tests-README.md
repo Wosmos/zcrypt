@@ -1,5 +1,8 @@
 # Frontend Tests
 
+> **Note:** The file/test counts below are out of date (the suite is much larger now).
+> The `__tests__/` directory and `bun run test -- --coverage` are authoritative.
+
 ## Setup
 
 - **Framework:** [Vitest](https://vitest.dev/) v4.x

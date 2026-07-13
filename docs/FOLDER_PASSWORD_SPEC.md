@@ -1,5 +1,8 @@
 # Per-Folder Password Encryption — Build Spec (zero-knowledge)
 
+> **Status: shipped.** Implemented essentially as written. Protected-folder state now
+> lives in `store/folder-registry.ts`; the code is authoritative.
+
 Optional, real cryptographic password protection on a folder. Reuses the EXISTING per-file
 envelope primitive (random CEK wrapped by a PBKDF2-derived KEK) — the ONLY thing that changes
 for a protected folder's files is *which password derives the KEK*. No new cipher, no new

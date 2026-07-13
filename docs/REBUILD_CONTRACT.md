@@ -1,5 +1,9 @@
 # zcrypt Vault Rebuild — Code Contract (exact signatures)
 
+> **Status: shipped.** These contracts are implemented. Some references are outdated
+> (the old `components/upload/` and `components/download/` were replaced by
+> `components/transfer/`) and line numbers have drifted — treat the code as source of truth.
+
 Transcribed verbatim from source. Build agents MUST honor these. Paths are relative to `app/frontend/`.
 Do NOT guess — if something here disagrees with source, source wins and update this file.
 

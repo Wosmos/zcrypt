@@ -1,5 +1,10 @@
 # zcrypt Vault Rebuild — Build Spec (single source of truth)
 
+> **Status: shipped.** This rebuild is implemented and parts of the app (e.g.
+> `app/(app)/spaces`) now go beyond it. The code and `CLAUDE.md` are authoritative;
+> line numbers here may be stale. Kept because source comments reference its section
+> numbers as design rationale.
+
 This is the creative + technical direction for rebuilding the authenticated **Vault**
 into a real, unified, Apple-seamless file/folder explorer. Every build agent MUST
 read this file AND `REBUILD_CONTRACT.md` (exact code signatures) before writing code.

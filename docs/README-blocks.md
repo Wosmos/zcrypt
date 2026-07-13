@@ -142,7 +142,6 @@ Render these while client-side data loads (theme-aware shimmer).
 | -------------- | -------------------------------------- | ------------------------------------------------ |
 | `SkeletonText` | `{ className?, w? }`                    | Single line; `w` is a width class (`"w-1/2"`).   |
 | `SkeletonRow`  | `{ className? }`                        | List/table row: square + title + meta.           |
-| `SkeletonCard` | `{ className?, lines? }`                | Panel card; `lines` body lines (default 3).      |
 | `SkeletonStat` | `{ className? }`                        | Mirrors `StatCard` layout.                       |
 
 ```tsx

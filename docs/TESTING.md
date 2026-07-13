@@ -1,5 +1,8 @@
 # Backend Tests
 
+> **Note:** The inventory below is indicative and drifts as tests are added — the backend
+> has far more coverage than listed. `go test ./...` (add `-race`) is authoritative.
+
 ## Setup
 
 - **Framework:** Go `testing` + [testify](https://github.com/stretchr/testify) v1.11

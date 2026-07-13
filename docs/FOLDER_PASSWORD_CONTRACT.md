@@ -82,12 +82,13 @@ Every handler is `func (s *Server) HandleX(w http.ResponseWriter, r *http.Reques
   - `HandleRekeyFile` — `PUT /api/files/{id}/rekey`, body `{ salt, wrapped_cek string }`,
     base64-decode `salt` → 32 bytes (reuse upload-init validation), call `s.db.UpdateFileKey`, audit.
 
-### Route registration — `main.go` (LIVE) vs `cmd/server.go` (NOT live)
-- THE LIVE ROUTER IS `main.go`. `main()` (line 21) builds `mux := http.NewServeMux()` (line 120) and registers
-  every route there. `cmd/server.go`'s `registerRoutes` is a parallel/legacy set that does NOT include the
-  folder routes and is not the boot path — **register new routes ONLY in `main.go`.**
-- `maxJSON` is a local closure in `main()` (line 134): `maxJSON := func(h http.HandlerFunc) http.HandlerFunc { return cmd.MaxBodyMiddleware(1<<20, h) }`.
-- Existing folder/file-move routes (`main.go` lines 257–265), pattern `mux.HandleFunc("<METHOD> /api/...", maxJSON(server.AuthMiddleware(server.HandleX)))`:
+### Route registration — `cmd/server.go` `RegisterRoutes` (LIVE)
+- THE LIVE ROUTER IS `cmd/server.go`: `RegisterRoutes` builds the mux and registers
+  every route, and `main.go` calls it at boot. **Register new routes there** —
+  `main.go` itself registers no `HandleFunc`. (Historical note: an earlier build
+  registered routes inline in `main.go`; that is no longer the boot path.)
+- `maxJSON` wraps a handler with the JSON body-size limit (`cmd.MaxBodyMiddleware(1<<20, h)`).
+- Existing folder/file-move routes follow the pattern `mux.HandleFunc("<METHOD> /api/...", maxJSON(server.AuthMiddleware(server.HandleX)))`:
   ```go
   mux.HandleFunc("GET /api/folders",            server.AuthMiddleware(server.HandleListFolders))
   mux.HandleFunc("POST /api/folders",           maxJSON(server.AuthMiddleware(server.HandleCreateFolder)))

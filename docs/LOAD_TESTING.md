@@ -1,5 +1,9 @@
 # zcrypt — Testing & QA Guide
 
+> **Note:** A broad QA guide; parts are aspirational — some k6 scripts and E2E specs it
+> references do not exist. For the current, real load tests see
+> [`load-tests-README.md`](./load-tests-README.md) and `tests/load/k6/`.
+
 Complete testing strategy covering unit, integration, end-to-end, load, and AI-assisted testing for the zcrypt zero-knowledge encrypted storage system.
 
 ---

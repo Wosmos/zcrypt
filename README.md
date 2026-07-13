@@ -38,8 +38,8 @@ File  -->  zstd compress  -->  AES-256-GCM encrypt  -->  10 MB chunks  -->  Git 
 Frontend (Next.js 16 / Vercel)         Backend (Go / Railway)           Storage
 +--------------------------+           +------------------------+       +----------------+
 |  React 19 + Tailwind     |  <---->   |  stdlib net/http       | ----> | GitHub (850MB) |
-|  Zustand state mgmt      |  JSON/SSE |  AES-256-GCM crypto    | ----> | GitLab (9GB)   |
-|  XHR upload + progress   |           |  zstd compression      | ----> | HuggingFace    |
+|  Zustand state mgmt      |  JSON/SSE |  chunk relay + commit  | ----> | GitLab (9GB)   |
+|  AES-256-GCM + zstd      |           |  repo pool + rotation  | ----> | HuggingFace    |
 |  Passphrase never leaves |           |  pgxpool (Neon PG)     |       |   (90GB/repo)  |
 |    the client            |           |  JWT + bcrypt + TOTP   | ----> | Telegram       |
 +--------------------------+           +------------------------+       +----------------+
@@ -58,7 +58,7 @@ Frontend (Next.js 16 / Vercel)         Backend (Go / Railway)           Storage
 | Backend     | Go 1.25, stdlib `net/http`, pgxpool (PostgreSQL)                     |
 | Database    | PostgreSQL on Neon (serverless)                                      |
 | Encryption  | AES-256-GCM, PBKDF2-SHA256 (600K iterations), HKDF for per-user KEK  |
-| Compression | zstd via `github.com/klauspost/compress`                             |
+| Compression | zstd, client-side in the browser via `@oneidentity/zstd-js`          |
 | Auth        | JWT (HS256) + bcrypt + TOTP 2FA                                      |
 | Deploy      | Frontend on Vercel, Backend on Railway (Docker), DB on Neon          |
 
@@ -76,6 +76,13 @@ Frontend (Next.js 16 / Vercel)         Backend (Go / Railway)           Storage
 - **Three file views** - grid, list, and table views with sort/search/pagination
 - **Storage quotas** - per-user quotas with free/pro plan support
 - **Passphrase caching** - client-side TTL cache (15 min) so you don't re-enter for every download
+- **Folders** - nestable folders, optionally password-protected with a per-folder key
+- **Sharing** - password-protected share links, folder shares, and ephemeral Send links
+- **Spaces (shared vaults)** - multi-member encrypted vaults with membership and key rotation
+- **Dead-man's switch & decoy mode** - scheduled release, plus a duress/decoy profile
+- **Snapshots & integrity** - point-in-time metadata snapshots and chunk-integrity checks
+- **Trash** - soft-delete with restore and permanent purge
+- **Clients** - web app, terminal UI (Bubble Tea), and a Tauri desktop app
 
 ## Quick Start
 
@@ -173,14 +180,12 @@ The backend logs the exact URIs to register at startup, and serves them at
 
 ### Backend (optional)
 
-| Variable        | Description                        |
-| --------------- | ---------------------------------- |
-| `ZCRYPT_PORT`   | Server port (default: 8080)        |
-| `SMTP_HOST`     | SMTP server for email verification |
-| `SMTP_PORT`     | SMTP port (default: 587)           |
-| `SMTP_USERNAME` | SMTP login                         |
-| `SMTP_PASSWORD` | SMTP password                      |
-| `SMTP_FROM`     | Sender email address               |
+| Variable         | Description                                                                  |
+| ---------------- | ---------------------------------------------------------------------------- |
+| `ZCRYPT_PORT`    | Server port (default: 8080; some hosts inject `PORT`)                        |
+| `RESEND_API_KEY` | [Resend](https://resend.com) API key — enables verification / reset emails   |
+| `RESEND_FROM`    | Sender identity, e.g. `zcrypt <noreply@example.com>`                         |
+| `DEV_MODE`       | `true` disables ALL rate limiting — local load testing only, NEVER in prod   |
 
 ### Frontend
 
@@ -193,10 +198,10 @@ The backend logs the exact URIs to register at startup, and serves them at
 ```
 app/backend/
   main.go              - HTTP server, routing, middleware
-  cmd/                 - HTTP handlers (auth, push, pull, admin, events, platforms)
-  pipeline/            - Upload/download pipeline engine
-  crypto/              - AES-256-GCM encryption, PBKDF2 key derivation, HKDF
-  compression/         - zstd compress/decompress
+  cmd/                 - HTTP handlers (auth, upload sessions, files, folders, shares, admin, events)
+  pipeline/            - Server-side upload progress tracking (SSE)
+  crypto/              - Token envelope encryption (HKDF per-user KEK), TOTP, sealed boxes
+  compression/         - zstd helpers (Go clients; file compression is client-side in the browser)
   chunks/              - File splitting, merging, SHA-256 verification
   adapters/            - Platform adapters (GitHub, GitLab, HuggingFace, Telegram)
   reppool/             - Repository pool management with auto-rotation
@@ -209,12 +214,15 @@ app/backend/
 app/frontend/
   app/(app)/           - Authenticated app pages (dashboard, settings, analytics, admin)
   app/(auth)/          - Auth pages (login, register, 2FA, forgot-password)
-  app/(marketing)/     - Landing page, philosophy
+  app/(marketing)/     - Landing, features, docs, comparisons, philosophy, privacy, terms
   components/          - UI components (upload, files, auth, admin, settings, ui)
   store/               - Zustand stores (auth, upload, files, passphrase, toast, platform)
   hooks/               - Custom hooks (useFileList, useOperationStatus, usePlatformHealth)
   lib/                 - API client, auth API, utilities
   types/               - TypeScript interfaces
+
+app/tui/               - Terminal client (Go, Bubble Tea)
+app/desktop/           - Desktop app (Tauri; a Go sidecar reuses the pipeline)
 ```
 
 ## Security
@@ -224,7 +232,7 @@ app/frontend/
 - **File encryption:** AES-256-GCM with unique salt (32 bytes) and IV (12 bytes) per file
 - **Key derivation:** PBKDF2-SHA256, 600,000 iterations (OWASP 2023 recommendation)
 - **Platform token encryption:** AES-256-GCM with per-user KEK derived via HKDF-SHA256 from master key
-- **Password storage:** bcrypt (cost 10)
+- **Password storage:** bcrypt (cost 12)
 - **Passphrase handling:** Never stored, never logged, never sent to storage platforms
 
 ### Server Security
@@ -246,7 +254,7 @@ app/frontend/
 
 ### Reporting a vulnerability
 
-Please report security issues privately — see [SECURITY.md](SECURITY.md). Do not
+Please report security issues privately — see [SECURITY.md](docs/SECURITY.md). Do not
 open a public issue for suspected vulnerabilities.
 
 ## API Endpoints
@@ -267,14 +275,33 @@ open a public issue for suspected vulnerabilities.
 | POST   | `/api/auth/2fa/verify`      | Verify 2FA code during login         |
 | GET    | `/api/auth/me`              | Get current user                     |
 
-### Files
+### Upload (resumable session, one chunk per request)
 
-| Method | Endpoint          | Description             |
-| ------ | ----------------- | ----------------------- |
-| POST   | `/api/push`       | Upload file (multipart) |
-| POST   | `/api/pull`       | Download file           |
-| GET    | `/api/files`      | List files              |
-| DELETE | `/api/files/{id}` | Delete file             |
+There is no single multipart `push`/`pull` endpoint — uploads run through a
+resumable session and each chunk is encrypted client-side before it leaves the
+browser.
+
+| Method | Endpoint                          | Description                          |
+| ------ | --------------------------------- | ------------------------------------ |
+| POST   | `/api/upload/init`                | Start a session (returns session id) |
+| POST   | `/api/upload/{sid}/presign/{idx}` | Presign a direct-upload chunk (HF)   |
+| PUT    | `/api/upload/{sid}/chunk/{idx}`   | Relay-upload an encrypted chunk      |
+| POST   | `/api/upload/{sid}/confirm/{idx}` | Confirm a direct-uploaded chunk      |
+| POST   | `/api/upload/{sid}/complete`      | Finalize the session                 |
+| GET    | `/api/upload/{sid}/status`        | Uploaded-chunk set (for resume)      |
+| GET    | `/api/upload/incomplete`          | List resumable sessions              |
+| DELETE | `/api/upload/{sid}`               | Cancel a session                     |
+
+### Files & download
+
+| Method | Endpoint                       | Description                        |
+| ------ | ------------------------------ | ---------------------------------- |
+| GET    | `/api/files`                   | List files                         |
+| GET    | `/api/files/trash`             | List trashed files                 |
+| GET    | `/api/files/{id}/meta`         | File metadata (chunk count, salt…) |
+| GET    | `/api/files/{id}/chunks/{idx}` | Fetch one encrypted chunk          |
+| DELETE | `/api/files/{id}`              | Move to trash                      |
+| DELETE | `/api/files/{id}/purge`        | Permanently delete                 |
 
 ### Platforms
 
@@ -285,14 +312,14 @@ open a public issue for suspected vulnerabilities.
 | DELETE | `/api/platforms/disconnect` | Disconnect platform        |
 | GET    | `/api/repos`                | List repos                 |
 
-### Upload Control
+### Realtime
 
-| Method | Endpoint                  | Description             |
-| ------ | ------------------------- | ----------------------- |
-| POST   | `/api/upload/pause`       | Pause active upload     |
-| POST   | `/api/upload/resume`      | Resume paused upload    |
-| GET    | `/api/uploads/incomplete` | List incomplete uploads |
-| GET    | `/api/events`             | SSE progress stream     |
+| Method | Endpoint      | Description         |
+| ------ | ------------- | ------------------- |
+| GET    | `/api/events` | SSE progress stream |
+
+Pause / resume are handled client-side (the chunk loop stops and resumes from
+`/api/upload/{sid}/status`) — there are no pause/resume endpoints.
 
 ### Admin
 
@@ -305,6 +332,13 @@ open a public issue for suspected vulnerabilities.
 | DELETE | `/api/admin/users/{id}`       | Delete user       |
 | GET    | `/api/admin/stats`            | System statistics |
 
+This is a representative subset. The backend also serves folders,
+shares / folder-shares, shared vaults (spaces), Send links, encrypted pads,
+notes, clipboard, snapshots & integrity, sync / offline, the dead-man's switch,
+decoy mode, keys, quota, and preferences. See
+[`app/backend/cmd/server.go`](app/backend/cmd/server.go) (`RegisterRoutes`) for
+the authoritative list.
+
 ## Contributing
 
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for local
@@ -312,7 +346,7 @@ setup, coding conventions, and the branch/PR workflow. By contributing you agree
 that your work is licensed under the project's MIT license.
 
 If you believe you have found a security vulnerability, please follow the
-responsible-disclosure process in [SECURITY.md](SECURITY.md) instead of opening a
+responsible-disclosure process in [SECURITY.md](docs/SECURITY.md) instead of opening a
 public issue.
 
 ## Commands
@@ -327,10 +361,14 @@ cd app/backend && go vet ./...                    # Lint
 cd app/frontend && bun run dev                    # Dev server
 cd app/frontend && bun run build                  # Production build
 cd app/frontend && bun run lint                   # Lint
-cd app/frontend && bunx tsc --noEmit              # Type check
+cd app/frontend && bun run typecheck              # Type check
 
 # Docker
 docker build -t zcrypt .
+
+# Pre-push quality gate (change-scoped: typecheck / lint / test / build)
+bash scripts/install-hooks.sh                     # once per clone — wires the hook
+bash scripts/prepush.sh --gates-only
 ```
 
 ## License

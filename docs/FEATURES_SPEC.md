@@ -1,5 +1,8 @@
 # Vault — Viewers + Drag Feel + Trash Actions (build spec)
 
+> **Status: shipped.** Implemented as specified. Kept as design rationale; verify
+> specifics against the current components.
+
 Build a real multi-format file-viewer system, tactile drag/selection interactions, and
 Deleted-Files actions. All client-side; zero-knowledge stays intact. Every build agent
 reads this + FEATURES_CONTRACT.md (scout's exact signatures) before writing code.
