@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -129,10 +130,19 @@ func (s *Server) HandleRenameFolder(w http.ResponseWriter, r *http.Request) {
 // server never decrypts or interprets it. An empty string or null clears the style (falls back
 // to the client's auto/default styling).
 func (s *Server) HandleUpdateFolderStyle(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	userID := GetUserID(r)
-	folderID := r.PathValue("id")
+	updateStyle(w, r, "folder", s.db.UpdateFolderStyle)
+}
 
+// updateStyle backs both the folder and file "set/clear encrypted style" handlers
+// (identical request shape + response); `noun` labels the logs/error, `update`
+// is the matching index call. encrypted_style is opaque client ciphertext — an
+// empty string or null clears it.
+func updateStyle(
+	w http.ResponseWriter,
+	r *http.Request,
+	noun string,
+	update func(ctx context.Context, userID, id string, encryptedStyle *string) error,
+) {
 	var req struct {
 		EncryptedStyle *string `json:"encrypted_style"`
 	}
@@ -144,14 +154,16 @@ func (s *Server) HandleUpdateFolderStyle(w http.ResponseWriter, r *http.Request)
 		req.EncryptedStyle = nil
 	}
 
-	if err := s.db.UpdateFolderStyle(ctx, userID, folderID, req.EncryptedStyle); err != nil {
-		log.Printf("folders: update style: %v", err)
-		http.Error(w, `{"error":"failed to update folder style"}`, http.StatusInternalServerError)
+	if err := update(r.Context(), GetUserID(r), r.PathValue("id"), req.EncryptedStyle); err != nil {
+		log.Printf("%s: update style: %v", noun, err)
+		http.Error(w, `{"error":"failed to update `+noun+` style"}`, http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]bool{"success": true})
+	if err := json.NewEncoder(w).Encode(map[string]bool{"success": true}); err != nil {
+		log.Printf("%s: encode style response: %v", noun, err)
+	}
 }
 
 // HandleMoveFolder reparents a folder. A null parent_id moves it to root.
@@ -229,29 +241,7 @@ func (s *Server) HandleMoveFile(w http.ResponseWriter, r *http.Request) {
 // server never decrypts or interprets it. An empty string or null clears the style (falls back
 // to the client's auto/default styling).
 func (s *Server) HandleUpdateFileStyle(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	userID := GetUserID(r)
-	fileID := r.PathValue("id")
-
-	var req struct {
-		EncryptedStyle *string `json:"encrypted_style"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
-		return
-	}
-	if req.EncryptedStyle != nil && *req.EncryptedStyle == "" {
-		req.EncryptedStyle = nil
-	}
-
-	if err := s.db.UpdateFileStyle(ctx, userID, fileID, req.EncryptedStyle); err != nil {
-		log.Printf("files: update style: %v", err)
-		http.Error(w, `{"error":"failed to update file style"}`, http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]bool{"success": true})
+	updateStyle(w, r, "file", s.db.UpdateFileStyle)
 }
 
 // HandleSetFolderPassword sets (or replaces) a folder's password protection.
