@@ -18,6 +18,7 @@ import {
   unshareFileFromSpace,
   downloadSpaceFile,
   rotateSpaceKey,
+  decryptSpaceFileName,
 } from "@/lib/spaces";
 import { ensureUserKeypair } from "@/lib/keys";
 import { deriveNameKey, decryptNameSafe } from "@/lib/name-crypto";
@@ -25,17 +26,18 @@ import { usePassphraseStore } from "@/store/passphrase";
 import { useFilesQuery } from "@/store/files";
 import { queryClient } from "@/lib/query-client";
 import { qk } from "@/lib/query-keys";
-import { formatBytes, formatDateShort } from "@/lib/utils";
-import type { SharedVault, SharedVaultDetail, FileMetadata } from "@/types";
+import { formatBytes, formatDateShort, midTrunc } from "@/lib/utils";
+import type { SharedVault, SharedVaultDetail, SharedVaultFile, FileMetadata } from "@/types";
 import { useAuthStore } from "@/store/auth";
+import { toast } from "@/store/toast";
 import { Section } from "@/components/ui/section";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { IconButton } from "@/components/ui/icon-button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { SkeletonRow } from "@/components/ui/skeletons";
+import { SpaceFilePicker } from "@/components/share/space-file-picker";
 import {
   Dialog,
   DialogContent,
@@ -51,7 +53,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2, Users, FolderOpen, Download, File as FileIcon, Loader2, ShieldCheck } from "@/lib/icons";
+import { Plus, Trash2, Users, Download, File as FileIcon, Loader2, ShieldCheck, Search } from "@/lib/icons";
 
 /** Root-level folders that currently contain files, with decrypted names + a
  *  live file count — the pickable "share a whole folder" options. */
@@ -103,7 +105,7 @@ export function SharedVaultsContent() {
 
   // ── Server state (TanStack Query — cached, so re-opening a space is instant) ──
   const vaultsQuery = useQuery({ queryKey: qk.spaces, queryFn: listSharedVaults });
-  const vaults = vaultsQuery.data ?? [];
+  const vaults = useMemo(() => vaultsQuery.data ?? [], [vaultsQuery.data]);
   const loading = vaultsQuery.isPending;
 
   const { data: files = [] } = useFilesQuery();
@@ -143,6 +145,36 @@ export function SharedVaultsContent() {
   const [addingFiles, setAddingFiles] = useState(false);
 
   const folderOptions = useFolderOptions(files, showCreate || showAddFiles);
+  const folderNames = useMemo(
+    () => Object.fromEntries(folderOptions.map((f) => [f.id, f.name] as const)),
+    [folderOptions]
+  );
+  // Owner-side name fallback: the server-joined name is empty for zero-knowledge
+  // files, so resolve a shared file to its decrypted name from our own file list
+  // when we own it. (Members who don't own the file see a neutral placeholder
+  // until the name is sealed under the space key server-side.)
+  const fileNameById = useMemo(
+    () => Object.fromEntries(files.map((f) => [f.id, f.original_name] as const)),
+    [files]
+  );
+  // Member-visible names: decrypt each shared file's space-key-sealed name so
+  // members (who can't derive the owner's per-user name key) see a real name.
+  const [spaceFileNames, setSpaceFileNames] = useState<Record<string, string>>({});
+  const displayFileName = (f: SharedVaultFile) =>
+    spaceFileNames[f.file_id] || f.name || fileNameById[f.file_id] || "Encrypted file";
+
+  // Filter the space list by name/description (only worth showing once there are
+  // enough spaces to scan).
+  const [listQuery, setListQuery] = useState("");
+  const filteredVaults = useMemo(() => {
+    const q = listQuery.trim().toLowerCase();
+    if (!q) return vaults;
+    return vaults.filter(
+      (v) =>
+        v.name.toLowerCase().includes(q) ||
+        (v.description ?? "").toLowerCase().includes(q)
+    );
+  }, [vaults, listQuery]);
 
   // Cache helpers so mutations update the ONE cache instead of a second copy.
   const patchDetail = (id: string, fn: (d: SharedVaultDetail) => SharedVaultDetail) =>
@@ -158,28 +190,34 @@ export function SharedVaultsContent() {
     if (passphrase) ensureUserKeypair(passphrase);
   }, []);
 
+  // Resolve space-sealed file names whenever the open space's files change.
+  useEffect(() => {
+    if (!detail) {
+      setSpaceFileNames({});
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const entries = await Promise.all(
+        (detail.files ?? []).map(
+          async (f) => [f.file_id, (await decryptSpaceFileName(detail, f.wrapped_name)) ?? ""] as const
+        )
+      );
+      if (!cancelled) {
+        setSpaceFileNames(Object.fromEntries(entries.filter(([, n]) => n)));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [detail]);
+
   const resetCreate = () => {
     setName("");
     setDescription("");
     setSelectedFiles([]);
     setSizeLimitGb("");
     setCreateError("");
-  };
-
-  /** Toggle every file that lives in `folderId` (within `pool`) in a selection. */
-  const toggleFolderFiles = (
-    folderId: string,
-    pool: FileMetadata[],
-    setSel: React.Dispatch<React.SetStateAction<string[]>>
-  ) => {
-    const ids = pool.filter((f) => f.folder_id === folderId).map((f) => f.id);
-    if (ids.length === 0) return;
-    setSel((prev) => {
-      const allIn = ids.every((id) => prev.includes(id));
-      return allIn
-        ? prev.filter((id) => !ids.includes(id))
-        : Array.from(new Set([...prev, ...ids]));
-    });
   };
 
   const handleCreate = async () => {
@@ -195,22 +233,29 @@ export function SharedVaultsContent() {
         sizeLimitGb.trim() && gb > 0 ? Math.round(gb * 1024 * 1024 * 1024) : 0;
       const vault = await createSpace(name.trim(), description.trim(), [], limitBytes);
       // Re-wrap each selected file's CEK under the space key so members can
-      // actually decrypt them. Best-effort per file.
-      let added = 0;
+      // actually decrypt them. Best-effort per file; track which actually landed.
+      const succeeded: string[] = [];
       for (const fid of selectedFiles) {
         try {
-          await shareFileIntoSpace(vault, fid);
-          added++;
+          await shareFileIntoSpace(vault, fid, fileNameById[fid] ?? "");
+          succeeded.push(fid);
         } catch {
           /* skip files we can't re-wrap (e.g. protected-folder files) */
         }
       }
-      vault.file_ids = selectedFiles.slice(0, added);
+      vault.file_ids = succeeded;
       // Prime the list cache with the new space and refresh from the server.
       queryClient.setQueryData<SharedVault[]>(qk.spaces, (prev) => [vault, ...(prev ?? [])]);
       void refreshList();
       setShowCreate(false);
       resetCreate();
+      const skipped = selectedFiles.length - succeeded.length;
+      toast.success(`Space “${vault.name}” created`);
+      if (skipped > 0) {
+        toast.warning(
+          `${skipped} file${skipped === 1 ? "" : "s"} couldn't be added — files in password-protected folders can't be shared into a space.`
+        );
+      }
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : "Failed to create");
     } finally {
@@ -268,9 +313,10 @@ export function SharedVaultsContent() {
     setAddingFiles(true);
     try {
       let failures = 0;
+      const total = addFileIds.length;
       for (const fid of addFileIds) {
         try {
-          await shareFileIntoSpace(detail, fid);
+          await shareFileIntoSpace(detail, fid, fileNameById[fid] ?? "");
         } catch {
           failures++;
         }
@@ -280,7 +326,13 @@ export function SharedVaultsContent() {
       void refreshList();
       setShowAddFiles(false);
       setAddFileIds([]);
-      if (failures > 0) setFileError(`${failures} file(s) couldn't be shared.`);
+      if (failures > 0) {
+        setFileError(
+          `${failures} of ${total} file${total === 1 ? "" : "s"} couldn't be added — files in password-protected folders can't be shared into a space.`
+        );
+      } else {
+        toast.success(`Added ${total} file${total === 1 ? "" : "s"}`);
+      }
     } catch {
       setFileError("Failed to add files");
     } finally {
@@ -401,8 +453,8 @@ export function SharedVaultsContent() {
 
   return (
     <Section
-      title="Shared vaults"
-      description="Collaborate on encrypted files with people you invite."
+      title="Your spaces"
+      description="Encrypted files you share with people you invite — end-to-end, zero-knowledge."
       actions={
         <Button
           onClick={() => {
@@ -412,7 +464,7 @@ export function SharedVaultsContent() {
           size="sm"
         >
           <Plus className="h-3.5 w-3.5" />
-          New vault
+          New space
         </Button>
       }
     >
@@ -429,10 +481,10 @@ export function SharedVaultsContent() {
           </div>
           <div className="space-y-1">
             <p className="text-sm font-medium text-[var(--color-text)]">
-              No shared vaults yet
+              No spaces yet
             </p>
             <p className="text-sm text-[var(--color-text-secondary)]">
-              Create one to start collaborating with others.
+              Create a space to share encrypted files with people you invite.
             </p>
           </div>
           <Button
@@ -444,12 +496,27 @@ export function SharedVaultsContent() {
             variant="secondary"
           >
             <Plus className="h-3.5 w-3.5" />
-            New vault
+            New space
           </Button>
         </div>
       ) : (
-        <ul className="panel divide-y divide-[var(--color-border)]">
-          {vaults.map((vault) => (
+        <div className="space-y-3">
+          {vaults.length > 1 && (
+            <Input
+              icon={<Search className="h-4 w-4" />}
+              value={listQuery}
+              onChange={(e) => setListQuery(e.target.value)}
+              placeholder="Search spaces"
+              aria-label="Search spaces"
+            />
+          )}
+          {filteredVaults.length === 0 ? (
+            <p className="panel px-5 py-10 text-center text-sm text-[var(--color-text-muted)]">
+              No spaces match “{listQuery.trim()}”.
+            </p>
+          ) : (
+            <ul className="panel divide-y divide-[var(--color-border)]">
+              {filteredVaults.map((vault) => (
             <li key={vault.id}>
               <motion.div
                 initial={{ opacity: 0 }}
@@ -494,7 +561,7 @@ export function SharedVaultsContent() {
                 {isOwner(vault) && (
                   <IconButton
                     icon={Trash2}
-                    label="Delete vault"
+                    label="Delete space"
                     variant="ghost"
                     onClick={() => setDeleteTarget(vault)}
                     className="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 hover:text-red-500"
@@ -502,11 +569,13 @@ export function SharedVaultsContent() {
                 )}
               </motion.div>
             </li>
-          ))}
-        </ul>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
 
-      {/* Create vault modal */}
+      {/* Create space modal */}
       <Dialog
         open={showCreate}
         onOpenChange={(o) => {
@@ -515,18 +584,18 @@ export function SharedVaultsContent() {
           if (!o) resetCreate();
         }}
       >
-        <DialogContent className="border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)]">
+        <DialogContent className="max-h-[85vh] overflow-y-auto overflow-x-hidden border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)]">
           <DialogHeader>
-            <DialogTitle>Create shared vault</DialogTitle>
+            <DialogTitle>Create a space</DialogTitle>
             <DialogDescription className="text-[var(--color-text-secondary)]">
-              Group files into a vault and invite people to collaborate. Files
-              stay encrypted end-to-end.
+              Group files and invite people to collaborate. Files stay encrypted
+              end-to-end — the server never sees the key.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             <Input
-              label="Vault name"
+              label="Space name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Project Atlas"
@@ -548,7 +617,7 @@ export function SharedVaultsContent() {
               placeholder="Optional — leave blank for no limit"
             />
 
-            {(folderOptions.length > 0 || files.length > 0) && (
+            {files.length > 0 && (
               <div className="space-y-1.5">
                 <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
                   Add files
@@ -556,56 +625,12 @@ export function SharedVaultsContent() {
                     (optional)
                   </span>
                 </p>
-                <div className="max-h-48 space-y-0.5 overflow-y-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1.5">
-                  {folderOptions.map((folder) => {
-                    const ids = files.filter((f) => f.folder_id === folder.id).map((f) => f.id);
-                    const allIn = ids.length > 0 && ids.every((id) => selectedFiles.includes(id));
-                    return (
-                      <label
-                        key={folder.id}
-                        className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-[var(--color-surface-1)]"
-                      >
-                        <Checkbox
-                          checked={allIn}
-                          onCheckedChange={() => toggleFolderFiles(folder.id, files, setSelectedFiles)}
-                        />
-                        <FolderOpen className="h-4 w-4 flex-shrink-0 text-[var(--color-accent)]" />
-                        <span className="truncate text-sm font-medium text-[var(--color-text)]">
-                          {folder.name}
-                        </span>
-                        <span className="ml-auto flex-shrink-0 text-xs tabular-nums text-[var(--color-text-muted)]">
-                          {folder.count} file{folder.count === 1 ? "" : "s"}
-                        </span>
-                      </label>
-                    );
-                  })}
-                  {files.map((f) => (
-                    <label
-                      key={f.id}
-                      className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-[var(--color-surface-1)]"
-                    >
-                      <Checkbox
-                        checked={selectedFiles.includes(f.id)}
-                        onCheckedChange={() =>
-                          setSelectedFiles((prev) =>
-                            prev.includes(f.id)
-                              ? prev.filter((id) => id !== f.id)
-                              : [...prev, f.id]
-                          )
-                        }
-                      />
-                      <FileIcon className="h-4 w-4 flex-shrink-0 text-[var(--color-text-muted)]" />
-                      <span className="truncate text-sm text-[var(--color-text)]">
-                        {f.original_name}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-                {selectedFiles.length > 0 && (
-                  <p className="text-xs tabular-nums text-[var(--color-text-muted)]">
-                    {selectedFiles.length} selected
-                  </p>
-                )}
+                <SpaceFilePicker
+                  files={files}
+                  folderNames={folderNames}
+                  selected={selectedFiles}
+                  onChange={setSelectedFiles}
+                />
               </div>
             )}
 
@@ -631,7 +656,7 @@ export function SharedVaultsContent() {
               Cancel
             </Button>
             <Button onClick={handleCreate} disabled={creating}>
-              {creating ? "Creating..." : "Create vault"}
+              {creating ? "Creating..." : "Create space"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -644,10 +669,10 @@ export function SharedVaultsContent() {
           if (!o) setOpenId(null);
         }}
       >
-        <DialogContent className="border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)]">
+        <DialogContent className="max-h-[85vh] overflow-y-auto overflow-x-hidden border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)]">
           <DialogHeader>
             <DialogTitle className="truncate">
-              {detail?.name ?? "Vault"}
+              {detail?.name ?? "Space"}
             </DialogTitle>
             <DialogDescription className="text-[var(--color-text-secondary)]">
               {detail?.description ||
@@ -717,8 +742,8 @@ export function SharedVaultsContent() {
                       >
                         <div className="flex min-w-0 items-center gap-2">
                           <FileIcon className="h-4 w-4 flex-shrink-0 text-[var(--color-text-muted)]" />
-                          <span className="truncate text-sm text-[var(--color-text)]">
-                            {f.name || f.file_id}
+                          <span className="min-w-0 flex-1 truncate text-sm text-[var(--color-text)]">
+                            {midTrunc(displayFileName(f), 24, 8)}
                           </span>
                           {typeof f.size === "number" && (
                             <span className="flex-shrink-0 text-xs tabular-nums text-[var(--color-text-muted)]">
@@ -769,59 +794,13 @@ export function SharedVaultsContent() {
 
                 {showAddFiles && canEdit && (
                   <div className="space-y-2">
-                    <div className="max-h-48 space-y-0.5 overflow-y-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1.5">
-                      {folderOptions
-                        .filter((folder) =>
-                          availableFiles.some((f) => f.folder_id === folder.id)
-                        )
-                        .map((folder) => {
-                          const ids = availableFiles
-                            .filter((f) => f.folder_id === folder.id)
-                            .map((f) => f.id);
-                          const allIn = ids.length > 0 && ids.every((id) => addFileIds.includes(id));
-                          return (
-                            <label
-                              key={folder.id}
-                              className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-[var(--color-surface-1)]"
-                            >
-                              <Checkbox
-                                checked={allIn}
-                                onCheckedChange={() =>
-                                  toggleFolderFiles(folder.id, availableFiles, setAddFileIds)
-                                }
-                              />
-                              <FolderOpen className="h-4 w-4 flex-shrink-0 text-[var(--color-accent)]" />
-                              <span className="truncate text-sm font-medium text-[var(--color-text)]">
-                                {folder.name}
-                              </span>
-                              <span className="ml-auto flex-shrink-0 text-xs tabular-nums text-[var(--color-text-muted)]">
-                                {ids.length} file{ids.length === 1 ? "" : "s"}
-                              </span>
-                            </label>
-                          );
-                        })}
-                      {availableFiles.map((f) => (
-                        <label
-                          key={f.id}
-                          className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-[var(--color-surface-1)]"
-                        >
-                          <Checkbox
-                            checked={addFileIds.includes(f.id)}
-                            onCheckedChange={() =>
-                              setAddFileIds((prev) =>
-                                prev.includes(f.id)
-                                  ? prev.filter((id) => id !== f.id)
-                                  : [...prev, f.id]
-                              )
-                            }
-                          />
-                          <FileIcon className="h-4 w-4 flex-shrink-0 text-[var(--color-text-muted)]" />
-                          <span className="truncate text-sm text-[var(--color-text)]">
-                            {f.original_name}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
+                    <SpaceFilePicker
+                      files={availableFiles}
+                      folderNames={folderNames}
+                      selected={addFileIds}
+                      onChange={setAddFileIds}
+                      emptyLabel="Every file is already in this space."
+                    />
                     <Button
                       size="sm"
                       onClick={handleAddFiles}
@@ -848,11 +827,11 @@ export function SharedVaultsContent() {
                       type="button"
                       onClick={handleRotate}
                       disabled={rotating}
-                      title="Generate a new space key and re-wrap every file under it. Use after removing someone, or periodically."
+                      title="Generate a new space key and re-wrap every file under it, so any old key a former member kept stops working. Run this after removing someone."
                       className="flex items-center gap-1 text-xs font-medium text-[var(--color-accent)] outline-none hover:underline disabled:opacity-50"
                     >
                       {rotating && <Loader2 className="h-3 w-3 animate-spin" />}
-                      {rotating ? "Re-keying..." : "Re-key"}
+                      {rotating ? "Rotating..." : "Rotate key"}
                     </button>
                   )}
                 </div>
@@ -945,6 +924,10 @@ export function SharedVaultsContent() {
                       {addingMember ? "Adding..." : "Add"}
                     </Button>
                   </div>
+                  <p className="text-[11px] text-[var(--color-text-muted)]">
+                    Viewers can download files. Editors and admins can also add and
+                    remove them. Only you, the owner, can invite or remove members.
+                  </p>
                   {memberError && (
                     <p
                       role="alert"
@@ -968,7 +951,7 @@ export function SharedVaultsContent() {
                 onClick={() => setDeleteTarget(detail)}
               >
                 <Trash2 className="h-3.5 w-3.5" />
-                Delete vault
+                Delete space
               </Button>
             )}
           </DialogFooter>
@@ -982,18 +965,18 @@ export function SharedVaultsContent() {
           if (!deleting && !o) setDeleteTarget(null);
         }}
         destructive
-        title="Delete shared vault?"
+        title="Delete space?"
         description={
           <>
-            This removes{" "}
+            This deletes the space{" "}
             <span className="font-medium text-[var(--color-text)]">
               {deleteTarget?.name}
             </span>{" "}
-            and revokes access for all members. The underlying files are not
-            deleted.
+            and revokes access for everyone you invited. Your original files are
+            not deleted.
           </>
         }
-        confirmLabel="Delete vault"
+        confirmLabel="Delete space"
         loading={deleting}
         onConfirm={handleDelete}
       />

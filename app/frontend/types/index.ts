@@ -423,7 +423,11 @@ export interface SharedVaultFile {
   file_id: string;
   /** The file's CEK re-wrapped under the space key (opaque to the server). */
   wrapped_cek: string;
-  /** Owner's file name/size, joined server-side for member display. */
+  /** The file name sealed under the space key (base64, opaque to the server), so
+   *  members can display a real name instead of a UUID. Empty for legacy shares. */
+  wrapped_name?: string;
+  /** Owner's plaintext file name/size, joined server-side. Empty for
+   *  zero-knowledge files — prefer decrypting `wrapped_name`. */
   name?: string;
   size?: number;
   added_at: string;

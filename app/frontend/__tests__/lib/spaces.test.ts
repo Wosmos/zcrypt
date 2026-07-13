@@ -43,6 +43,7 @@ import {
   downloadSpaceFile,
   rotateSpaceKey,
   shareSpace,
+  decryptSpaceFileName,
 } from "@/lib/spaces";
 import { sealTo, openSealed, generateSpaceKey } from "@/lib/keys";
 import {
@@ -173,6 +174,42 @@ describe("shareFileIntoSpace", () => {
     expect(recovered).toEqual(cek);
   });
 
+  it("seals the file name under the space key so members can read it", async () => {
+    const spaceKey = generateSpaceKey();
+    useSpacesStore.getState().setSpaceKey("v", spaceKey);
+    usePassphraseStore.getState().setPassphrase("pw");
+
+    const cek = generateCEK();
+    const salt = generateSalt();
+    const kek = await deriveKeyBytes("pw", salt);
+    vi.mocked(getFileMeta).mockResolvedValue({
+      salt: toBase64(salt),
+      wrapped_cek: toBase64(await wrapKey(kek, cek)),
+    } as never);
+
+    await shareFileIntoSpace(vault("v"), "file-1", "secret plan.pdf");
+
+    const wrappedName = vi.mocked(addFileToSpace).mock.calls[0][3];
+    expect(wrappedName).toBeTruthy();
+    // A member with only the space key recovers the exact plaintext name.
+    await expect(decryptSpaceFileName(vault("v"), wrappedName)).resolves.toBe("secret plan.pdf");
+  });
+
+  it("sends an empty sealed name when no name is provided", async () => {
+    const spaceKey = generateSpaceKey();
+    useSpacesStore.getState().setSpaceKey("v", spaceKey);
+    usePassphraseStore.getState().setPassphrase("pw");
+    const salt = generateSalt();
+    vi.mocked(getFileMeta).mockResolvedValue({
+      salt: toBase64(salt),
+      wrapped_cek: toBase64(await wrapKey(await deriveKeyBytes("pw", salt), generateCEK())),
+    } as never);
+
+    await shareFileIntoSpace(vault("v"), "file-1");
+
+    expect(vi.mocked(addFileToSpace).mock.calls[0][3]).toBe("");
+  });
+
   it("throws when the space key isn't loaded", async () => {
     usePassphraseStore.getState().setPassphrase("p");
     await expect(shareFileIntoSpace(vault("locked"), "f")).rejects.toThrow();
@@ -280,6 +317,37 @@ describe("rotateSpaceKey (revocation)", () => {
     expect(useSpacesStore.getState().spaceKeys["v"]).toEqual(newKey);
   });
 
+  it("re-seals file names under the new key so the old key can't read them", async () => {
+    const oldKey = generateSpaceKey();
+    useSpacesStore.getState().setSpaceKey("v", oldKey);
+    const alice = x25519.keygen();
+    vi.mocked(getUserPublicKey).mockResolvedValue({
+      user_id: "alice",
+      public_key: toBase64(alice.publicKey),
+      fingerprint: "",
+    });
+    vi.mocked(rotateSpace).mockResolvedValue(undefined as never);
+
+    const nameOld = toBase64(await wrapKey(buf(oldKey), new TextEncoder().encode("report.pdf")));
+    const cekOld = toBase64(await wrapKey(buf(oldKey), generateCEK()));
+
+    await rotateSpaceKey(
+      vault("v"),
+      [{ user_id: "alice" } as never],
+      [{ file_id: "f1", wrapped_cek: cekOld, wrapped_name: nameOld } as never]
+    );
+
+    const [, memberGrants, fileWraps] = vi.mocked(rotateSpace).mock.calls[0];
+    loadKeypair(alice);
+    const newKey = await openSealed(memberGrants[0].wrapped_space_key);
+
+    const recovered = await unwrapKey(buf(newKey), fromBase64(fileWraps[0].wrapped_name));
+    expect(new TextDecoder().decode(recovered)).toBe("report.pdf");
+    await expect(
+      unwrapKey(buf(oldKey), fromBase64(fileWraps[0].wrapped_name))
+    ).rejects.toThrow();
+  });
+
   it("skips members who have no published key (they have no access to lose)", async () => {
     const oldKey = generateSpaceKey();
     useSpacesStore.getState().setSpaceKey("v", oldKey);
@@ -295,6 +363,18 @@ describe("rotateSpaceKey (revocation)", () => {
   it("throws when the current (old) key isn't available", async () => {
     await expect(rotateSpaceKey(vault("locked"), [], [])).rejects.toThrow();
     expect(rotateSpace).not.toHaveBeenCalled();
+  });
+});
+
+describe("decryptSpaceFileName", () => {
+  it("returns null when there is no sealed name", async () => {
+    useSpacesStore.getState().setSpaceKey("v", generateSpaceKey());
+    await expect(decryptSpaceFileName(vault("v"), "")).resolves.toBeNull();
+    await expect(decryptSpaceFileName(vault("v"), undefined)).resolves.toBeNull();
+  });
+
+  it("returns null when the space key isn't available", async () => {
+    await expect(decryptSpaceFileName(vault("locked"), "abc")).resolves.toBeNull();
   });
 });
 

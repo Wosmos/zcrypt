@@ -1101,11 +1101,11 @@ export function deleteSharedVault(id: string): Promise<{ success: boolean }> {
 /** Share a file into a space. wrappedCek is the file's CEK re-wrapped under the
  *  space key (opaque to the server). Caller must be an editor/admin and own the
  *  file. */
-export function addFileToSpace(vaultId: string, fileId: string, wrappedCek: string): Promise<{ success: boolean }> {
+export function addFileToSpace(vaultId: string, fileId: string, wrappedCek: string, wrappedName: string): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/shared-vaults/${vaultId}/files`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ file_id: fileId, wrapped_cek: wrappedCek }),
+    body: JSON.stringify({ file_id: fileId, wrapped_cek: wrappedCek, wrapped_name: wrappedName }),
   });
 }
 
@@ -1119,7 +1119,7 @@ export function removeFileFromSpace(vaultId: string, fileId: string): Promise<{ 
 export function rotateSpace(
   vaultId: string,
   members: { user_id: string; wrapped_space_key: string }[],
-  files: { file_id: string; wrapped_cek: string }[]
+  files: { file_id: string; wrapped_cek: string; wrapped_name: string }[]
 ): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/shared-vaults/${vaultId}/rotate`, {
     method: "POST",
