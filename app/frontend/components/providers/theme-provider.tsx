@@ -18,11 +18,6 @@ import {
   saveCustomTheme,
   type CustomThemeValues,
 } from "@/lib/custom-theme";
-import {
-  applySurfaceStyle,
-  DEFAULT_SURFACE_STYLE,
-  isValidSurfaceStyle,
-} from "@/lib/surface-styles";
 import { getDeviceId } from "@/lib/device";
 import { getDevicePreference, saveDevicePreference } from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
@@ -61,13 +56,6 @@ interface ThemeContextValue {
    *  stay open and preview without losing the draft. */
   customTheme: CustomThemeValues;
   setCustomTheme: (values: CustomThemeValues) => void;
-  /** Surface style (design-system axis: radius/shadow/border + folder shape),
-   *  combinable with any color theme. Per device. */
-  surfaceStyle: string;
-  setSurfaceStyle: (id: string) => void;
-  /** Explicit folder-shape key, or "" to follow the surface style's default. */
-  folderShape: string;
-  setFolderShape: (key: string) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue>({
@@ -79,10 +67,6 @@ const ThemeContext = createContext<ThemeContextValue>({
   setColorTheme: () => {},
   customTheme: DEFAULT_CUSTOM_THEME,
   setCustomTheme: () => {},
-  surfaceStyle: DEFAULT_SURFACE_STYLE,
-  setSurfaceStyle: () => {},
-  folderShape: "",
-  setFolderShape: () => {},
 });
 
 export function useTheme() {
@@ -91,8 +75,6 @@ export function useTheme() {
 
 const COLOR_THEME_KEY = "zcrypt-color-theme";
 const MODE_KEY = "zcrypt-theme";
-const SURFACE_KEY = "zcrypt-surface-style";
-const FOLDER_SHAPE_KEY = "zcrypt-folder-shape";
 
 function getSystemTheme(): ResolvedTheme {
   if (typeof window === "undefined") return "dark";
@@ -114,9 +96,7 @@ function applyColorTheme(id: string) {
   if (typeof document === "undefined") return;
   if (id === CUSTOM_COLOR_THEME) {
     document.documentElement.dataset.theme = id;
-    // Pick the light/dark canvas from the current mode class so the custom
-    // theme matches whichever mode is live (a mode flip re-applies — see below).
-    applyCustomThemeVars(loadCustomTheme(), document.documentElement.classList.contains("dark"));
+    applyCustomThemeVars(loadCustomTheme());
     return;
   }
   // Inline custom vars outrank any CSS-block value, so they must be cleared
@@ -147,8 +127,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>("dark");
   const [colorTheme, setColorThemeState] = useState<string>(DEFAULT_COLOR_THEME);
   const [customTheme, setCustomThemeState] = useState<CustomThemeValues>(DEFAULT_CUSTOM_THEME);
-  const [surfaceStyle, setSurfaceStyleState] = useState<string>(DEFAULT_SURFACE_STYLE);
-  const [folderShape, setFolderShapeState] = useState<string>("");
   const [mounted, setMounted] = useState(false);
   const accessToken = useAuthStore((s) => s.accessToken);
   const pulledRef = useRef(false);
@@ -169,21 +147,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     // case storage was written by another tab since.
     applyColorTheme(initialColor);
 
-    const storedSurface = localStorage.getItem(SURFACE_KEY);
-    const initialSurface = isValidSurfaceStyle(storedSurface) ? storedSurface : DEFAULT_SURFACE_STYLE;
-    setSurfaceStyleState(initialSurface);
-    applySurfaceStyle(initialSurface);
-    setFolderShapeState(localStorage.getItem(FOLDER_SHAPE_KEY) ?? "");
-
     setMounted(true);
   }, []);
-
-  // Re-apply the custom theme whenever the resolved mode flips, so a custom
-  // theme switches between its light and dark canvas with the light/dark toggle.
-  useEffect(() => {
-    if (!mounted || colorTheme !== CUSTOM_COLOR_THEME) return;
-    applyCustomThemeVars(loadCustomTheme(), resolvedTheme === "dark");
-  }, [resolvedTheme, colorTheme, mounted]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -333,23 +298,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     (values: CustomThemeValues) => {
       setCustomThemeState(values);
       saveCustomTheme(values);
-      if (colorTheme === CUSTOM_COLOR_THEME) applyCustomThemeVars(values, resolvedTheme === "dark");
+      if (colorTheme === CUSTOM_COLOR_THEME) applyCustomThemeVars(values);
     },
-    [colorTheme, resolvedTheme]
+    [colorTheme]
   );
-
-  const setSurfaceStyle = useCallback((id: string) => {
-    const next = isValidSurfaceStyle(id) ? id : DEFAULT_SURFACE_STYLE;
-    setSurfaceStyleState(next);
-    localStorage.setItem(SURFACE_KEY, next);
-    applySurfaceStyle(next);
-  }, []);
-
-  const setFolderShape = useCallback((key: string) => {
-    setFolderShapeState(key);
-    if (key) localStorage.setItem(FOLDER_SHAPE_KEY, key);
-    else localStorage.removeItem(FOLDER_SHAPE_KEY);
-  }, []);
 
   return (
     <ThemeContext.Provider
@@ -362,10 +314,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         setColorTheme,
         customTheme,
         setCustomTheme,
-        surfaceStyle,
-        setSurfaceStyle,
-        folderShape,
-        setFolderShape,
       }}
     >
       {children}

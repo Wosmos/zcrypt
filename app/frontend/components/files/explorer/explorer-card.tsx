@@ -7,10 +7,8 @@ import { ExplorerEntryDispatch, SelectCheckbox } from "./entry-dispatch";
 import { formatBytes, getFileTypeInfo, isVideoFile, cn, midTrunc, fileIconFor, extOf } from "@/lib/utils";
 import { useThumbnail } from "@/hooks/useThumbnail";
 import { prefetchOnHover } from "@/hooks/useFileDecryptor";
-import { getIconByKey } from "@/lib/folder-icons";
-import { folderVisuals } from "@/lib/folder-visuals";
-import { getFolderShape, SHAPE_FOR_SURFACE, type FolderShape } from "@/lib/folder-shapes";
-import { useTheme } from "@/components/providers/theme-provider";
+import { getFolderIcon, getFolderInitial, getIconByKey } from "@/lib/folder-icons";
+import { getBackgroundByKey } from "@/lib/background-presets";
 import {
   Folder,
   FolderOpen,
@@ -39,23 +37,15 @@ import {
  * and a soft drop shadow for depth. Tinted with the accent via `currentColor`,
  * so it lives on the card surface like a desktop folder icon. ~116px wide.
  */
-function MacFolder({
-  className,
-  color,
-  background,
-  shape,
-}: {
-  className?: string;
-  color?: string;
-  background?: string;
-  shape: FolderShape;
-}) {
+function MacFolder({ className, color, background }: { className?: string; color?: string; background?: string }) {
   const id = useId();
   const sheen = `${id}-sheen`;
   const shadow = `${id}-shadow`;
-  // Silhouette comes from the active folder shape (follows the surface style or
-  // the user's explicit pick). `pocket` is the front face + sheen + bg clip.
-  const { pocket, backPanel } = shape;
+  // Shared rounded-pocket outline reused for the front face + the sheen overlay.
+  const pocket =
+    "M10 40 a12 12 0 0 1 12 -12 H98 a12 12 0 0 1 12 12 V78 a12 12 0 0 1 -12 12 H22 a12 12 0 0 1 -12 -12 Z";
+  const backPanel =
+    "M10 42 V30 a12 12 0 0 1 12 -12 H44 a6 6 0 0 1 4.24 1.76 L54 23.5 a6 6 0 0 0 4.24 1.76 H98 a12 12 0 0 1 12 12 V44 Z";
   return (
     <svg
       viewBox="0 0 120 100"
@@ -94,11 +84,6 @@ function MacFolder({
         )}
         {/* Glassy top sheen */}
         <path d={pocket} fill={`url(#${sheen})`} />
-        {/* Shape-specific character marks (fold lines, paper sheets, facets) —
-            white at low opacity so they read on any tint or gradient. */}
-        {shape.details?.map((detail, i) => (
-          <path key={i} d={detail.d} fill="#ffffff" fillOpacity={detail.opacity} />
-        ))}
       </g>
     </svg>
   );
@@ -132,17 +117,16 @@ function FolderCard({
   onCustomizeFolder,
   drag,
 }: FolderItemProps) {
-  // Lock state, glyph, initial, and custom bg/color — resolved once, shared with
-  // the list row (see lib/folder-visuals.ts). Padlock shows when the folder has
-  // its own password OR the vault is locked (name → "[locked]", set in useFolders).
-  const { isLocked, FolderGlyph, initial, customBackground, customColor: baseColor } = folderVisuals(folder);
-  // On the card a design background replaces the flat accent tint.
-  const customColor = customBackground ? undefined : baseColor;
-
-  // Folder silhouette: the user's explicit pick, else the surface style's default
-  // (brutalist -> square, claymorphism -> round, …) so it matches the app's look.
-  const { surfaceStyle, folderShape } = useTheme();
-  const folderShapeDef = getFolderShape(folderShape || SHAPE_FOR_SURFACE[surfaceStyle]);
+  // Show the padlock when the folder has its own password OR the vault is locked
+  // (name can't be decrypted → "[locked]", set in useFolders).
+  const isLocked = folder.protected || folder.name === "[locked]";
+  // Custom icon (set via "Customize…") wins, then the name-inferred glyph,
+  // falling back to its initial letter — like macOS special folders.
+  const customIcon = folder.style?.icon ? getIconByKey(folder.style.icon) : null;
+  const FolderGlyph = isLocked ? null : customIcon ?? getFolderIcon(folder.name);
+  const initial = isLocked ? "" : getFolderInitial(folder.name);
+  const customBackground = !isLocked && folder.style?.background ? getBackgroundByKey(folder.style.background) ?? undefined : undefined;
+  const customColor = !isLocked && !customBackground ? folder.style?.color : undefined;
 
   return (
     <ContextMenu>
@@ -172,7 +156,7 @@ function FolderCard({
               wrapper so the mark moves WITH the folder (it's no longer a
               detached overlay). */}
           <div className="relative flex w-full items-center justify-center transition-transform duration-200 ease-out group-hover:-translate-y-0.5 group-hover:scale-[1.02]">
-            <MacFolder className="w-full max-w-[150px]" color={customColor} background={customBackground} shape={folderShapeDef} />
+            <MacFolder className="w-full max-w-[150px]" color={customColor} background={customBackground} />
 
             {/* Mark on the folder face: padlock when locked, else a sleek
                 Phosphor glyph by name, else the folder's initial letter. */}
