@@ -50,6 +50,49 @@ describe("tauri (outside the Tauri runtime)", () => {
     expect(listenMock).not.toHaveBeenCalled();
     expect(() => unlisten()).not.toThrow();
   });
+
+  it("setShellPassphrase is a no-op without invoking the bridge", async () => {
+    const mod = await import("@/lib/tauri");
+    await expect(mod.setShellPassphrase("pw")).resolves.toBeUndefined();
+    expect(invokeMock).not.toHaveBeenCalled();
+  });
+
+  it("clearShellPassphrase is a no-op without invoking the bridge", async () => {
+    const mod = await import("@/lib/tauri");
+    await expect(mod.clearShellPassphrase()).resolves.toBeUndefined();
+    expect(invokeMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("toDesktopFile", () => {
+  it("wraps a native path in a DesktopFile carrying the path and basename", async () => {
+    const mod = await import("@/lib/tauri");
+    const file = mod.toDesktopFile("/Users/wosmo/Documents/report.pdf");
+    expect(file.name).toBe("report.pdf");
+    expect(file.path).toBe("/Users/wosmo/Documents/report.pdf");
+    expect(file).toBeInstanceOf(File);
+  });
+
+  it("splits on a backslash for Windows-style paths", async () => {
+    const mod = await import("@/lib/tauri");
+    const file = mod.toDesktopFile("C:\\Users\\wosmo\\report.pdf");
+    expect(file.name).toBe("report.pdf");
+    expect(file.path).toBe("C:\\Users\\wosmo\\report.pdf");
+  });
+
+  it("falls back to the raw path when there is no separator", async () => {
+    const mod = await import("@/lib/tauri");
+    const file = mod.toDesktopFile("report.pdf");
+    expect(file.name).toBe("report.pdf");
+  });
+
+  it("falls back to the raw (empty) path if split().pop() ever yields falsy (defensive || path)", async () => {
+    // "".split(/[/\\]/) is [""], so pop() returns "" — the one real input that
+    // exercises the `|| path` fallback, mirroring extOf's defensive `?? ""`.
+    const mod = await import("@/lib/tauri");
+    const file = mod.toDesktopFile("");
+    expect(file.name).toBe("");
+  });
 });
 
 describe("tauri (inside the Tauri runtime)", () => {
@@ -215,6 +258,20 @@ describe("tauri (inside the Tauri runtime)", () => {
     const mod = await import("@/lib/tauri");
     await expect(mod.checkForUpdates()).resolves.toEqual({ available: false });
     expect(invokeMock).toHaveBeenCalledWith("check_for_updates", undefined);
+  });
+
+  it("setShellPassphrase invokes set_passphrase with the passphrase", async () => {
+    const mod = await import("@/lib/tauri");
+    await mod.setShellPassphrase("vault-pass");
+    expect(invokeMock).toHaveBeenCalledWith("set_passphrase", {
+      passphrase: "vault-pass",
+    });
+  });
+
+  it("clearShellPassphrase invokes clear_passphrase", async () => {
+    const mod = await import("@/lib/tauri");
+    await mod.clearShellPassphrase();
+    expect(invokeMock).toHaveBeenCalledWith("clear_passphrase", undefined);
   });
 
   it("subscribeProgress listens on zcrypt://progress and forwards payloads", async () => {

@@ -6,6 +6,7 @@ import {
   PLATFORM_SHORT,
   PLATFORM_COLORS,
   platformName,
+  parseTelegramToken,
   type PlatformId,
 } from "@/lib/platforms";
 
@@ -68,5 +69,46 @@ describe("platformName", () => {
   it("falls back to the raw id for an unknown platform", () => {
     expect(platformName("dropbox")).toBe("dropbox");
     expect(platformName("")).toBe("");
+  });
+});
+
+describe("parseTelegramToken", () => {
+  it("splits a bot-token|chat-id pair on the '|'", () => {
+    expect(parseTelegramToken("123456:ABC-DEF|@channel_name")).toEqual({
+      token: "123456:ABC-DEF",
+      account: "@channel_name",
+    });
+  });
+
+  it("trims surrounding whitespace from both parts", () => {
+    expect(parseTelegramToken(" 123456:ABC-DEF | @channel_name ")).toEqual({
+      token: "123456:ABC-DEF",
+      account: "@channel_name",
+    });
+  });
+
+  it("splits on the FIRST '|' only, leaving any later ones in the account", () => {
+    expect(parseTelegramToken("tok|chat|extra")).toEqual({
+      token: "tok",
+      account: "chat|extra",
+    });
+  });
+
+  it("returns null for an empty string (no separator)", () => {
+    expect(parseTelegramToken("")).toBeNull();
+  });
+
+  it("returns null when there is no '|' separator", () => {
+    expect(parseTelegramToken("just-a-token")).toBeNull();
+  });
+
+  it("returns null when the token half is empty (or whitespace-only)", () => {
+    expect(parseTelegramToken("|@channel_name")).toBeNull();
+    expect(parseTelegramToken("   |@channel_name")).toBeNull();
+  });
+
+  it("returns null when the account half is empty (or whitespace-only)", () => {
+    expect(parseTelegramToken("123456:ABC-DEF|")).toBeNull();
+    expect(parseTelegramToken("123456:ABC-DEF|   ")).toBeNull();
   });
 });
