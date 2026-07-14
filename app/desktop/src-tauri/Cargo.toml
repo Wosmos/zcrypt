@@ -5,6 +5,14 @@ edition = "2024"
 description = "zcrypt desktop — zero-knowledge encrypted cloud storage"
 license = "MIT"
 
+[lib]
+# Tauri mobile (android/ios) links the app as a shared library: `cdylib` emits
+# the libzcrypt_desktop.so the android build expects, `staticlib` covers iOS, and
+# `rlib` lets the desktop binary (src/main.rs) link `run()`. Required by
+# `cargo tauri android build`; harmless on desktop.
+name = "zcrypt_desktop"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
