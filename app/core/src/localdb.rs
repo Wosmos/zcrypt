@@ -55,6 +55,10 @@ pub struct LocalFile {
     pub platform: String,
     pub repo_url: String,
     pub direct_upload: bool,
+    /// Data plane: "relay" (server pushes) or "byos-direct" (this device pushes
+    /// to the user's own storage with the user's own token). Decided at upload
+    /// time from available creds and persisted so resume keeps the same plane.
+    pub mode: String,
     pub error_msg: String,
 }
 
@@ -120,6 +124,7 @@ impl LocalDb {
                 platform     TEXT NOT NULL DEFAULT '',
                 repo_url     TEXT NOT NULL DEFAULT '',
                 direct_upload INTEGER NOT NULL DEFAULT 0,
+                mode         TEXT NOT NULL DEFAULT 'relay',
                 error_msg    TEXT NOT NULL DEFAULT '',
                 created_at   TEXT NOT NULL DEFAULT (datetime('now'))
             );
@@ -144,6 +149,13 @@ impl LocalDb {
             CREATE INDEX IF NOT EXISTS idx_files_pending ON files(sync_status) WHERE sync_status != 'synced';
             "#,
         )?;
+        // Migrate ledgers created before the byos-direct data plane (e.g. an old
+        // Go-sidecar DB): add the mode column. Errors when it already exists —
+        // SQLite has no ADD COLUMN IF NOT EXISTS — so the result is ignored.
+        let _ = conn.execute(
+            "ALTER TABLE files ADD COLUMN mode TEXT NOT NULL DEFAULT 'relay'",
+            [],
+        );
         Ok(LocalDb {
             conn: Mutex::new(conn),
         })
@@ -162,9 +174,9 @@ impl LocalDb {
     pub fn insert_file(&self, f: &LocalFile) -> Result<(), DbError> {
         self.with(|c| {
             c.execute(
-                "INSERT INTO files (id, original_name, original_size, sha256, salt, wrapped_cek, chunk_count, status)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-                params![f.id, f.original_name, f.original_size, f.sha256, f.salt, f.wrapped_cek, f.chunk_count, f.status],
+                "INSERT INTO files (id, original_name, original_size, sha256, salt, wrapped_cek, chunk_count, status, platform, mode)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+                params![f.id, f.original_name, f.original_size, f.sha256, f.salt, f.wrapped_cek, f.chunk_count, f.status, f.platform, mode_or_default(&f.mode)],
             )
             .map(|_| ())
         })
@@ -214,7 +226,7 @@ impl LocalDb {
         self.with(|c| {
             let mut stmt = c.prepare(
                 "SELECT id, original_name, original_size, sha256, salt, wrapped_cek, chunk_count, status, sync_status,
-                        backend_file_id, session_id, platform, repo_url, direct_upload, error_msg
+                        backend_file_id, session_id, platform, repo_url, direct_upload, mode, error_msg
                  FROM files WHERE sync_status IN ('pending','init_done','uploading') ORDER BY created_at",
             )?;
             let rows = stmt.query_map([], row_to_file)?;
@@ -226,7 +238,7 @@ impl LocalDb {
         self.with(|c| {
             c.query_row(
                 "SELECT id, original_name, original_size, sha256, salt, wrapped_cek, chunk_count, status, sync_status,
-                        backend_file_id, session_id, platform, repo_url, direct_upload, error_msg
+                        backend_file_id, session_id, platform, repo_url, direct_upload, mode, error_msg
                  FROM files WHERE id=?1",
                 params![file_id],
                 row_to_file,
@@ -351,8 +363,18 @@ fn row_to_file(r: &rusqlite::Row<'_>) -> Result<LocalFile, rusqlite::Error> {
         platform: r.get(11)?,
         repo_url: r.get(12)?,
         direct_upload: r.get(13)?,
-        error_msg: r.get(14)?,
+        mode: r.get(14)?,
+        error_msg: r.get(15)?,
     })
+}
+
+/// Normalize an empty/legacy mode to "relay".
+fn mode_or_default(m: &str) -> &str {
+    if m.is_empty() {
+        "relay"
+    } else {
+        m
+    }
 }
 
 fn row_to_chunk(r: &rusqlite::Row<'_>) -> Result<LocalChunk, rusqlite::Error> {

@@ -58,6 +58,24 @@ pub fn no_creds() -> CredProvider {
     Arc::new(|_platform| None)
 }
 
+/// byos-direct platform preference, mirroring the backend's Auto order
+/// (`cmd/server.go` adapterPreferenceOrder): Telegram first (effectively
+/// unbounded, the primary backend), then the git platforms, HuggingFace last.
+const BYOS_PREFERENCE: [&str; 4] = ["telegram", "github", "gitlab", "huggingface"];
+
+/// Decide the data plane for a new upload. If the device holds the user's own
+/// token for a supported platform, upload byos-direct to that platform (client
+/// owns placement); otherwise relay through the server, which picks + manages
+/// the repo. Returns `(mode, platform)` — platform is empty for relay.
+pub(crate) fn choose_plane(creds: &CredProvider) -> (String, String) {
+    for p in BYOS_PREFERENCE {
+        if creds(p).is_some() {
+            return ("byos-direct".to_string(), p.to_string());
+        }
+    }
+    ("relay".to_string(), String::new())
+}
+
 /// Everything an engine call needs. The Tauri shell constructs one per
 /// operation; `progress` forwards to the webview as window events, and `creds`
 /// hands out the user's own platform tokens for byos-direct.
