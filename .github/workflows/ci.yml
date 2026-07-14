@@ -16,6 +16,7 @@ jobs:
       frontend: ${{ steps.filter.outputs.frontend }}
       tui: ${{ steps.filter.outputs.tui }}
       desktop: ${{ steps.filter.outputs.desktop }}
+      core: ${{ steps.filter.outputs.core }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -32,6 +33,13 @@ jobs:
               - 'app/tui/**'
             desktop:
               - 'app/desktop/**'
+              # The desktop shell embeds zcrypt-core in-process.
+              - 'app/core/**'
+            core:
+              - 'app/core/**'
+              # The conformance fixture + spec are the core's contract.
+              - 'app/backend/crypto/testvectors/**'
+              - 'docs/CRYPTO_FORMAT.md'
 
   # ── Backend: unit tests ──────────────────────────────────────────────────────
   backend:
@@ -244,6 +252,38 @@ jobs:
           name: playwright-report
           path: tests/e2e/playwright-report/
           retention-days: 14
+
+  # ── Rust core: fmt + clippy + conformance tests ──────────────────────────────
+  # zcrypt-core is the shared client engine (desktop in-process + mobile). Its
+  # conformance suite verifies the crate against the same crypto vectors the TS
+  # and Go implementations pass — a red here means a cross-client format break.
+  core:
+    name: Rust Core (zcrypt-core)
+    needs: changes
+    if: needs.changes.outputs.core == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: app/core
+
+      - name: Format check
+        working-directory: app/core
+        run: cargo fmt --check
+
+      - name: Clippy (deny warnings)
+        working-directory: app/core
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Tests (incl. cross-implementation conformance)
+        working-directory: app/core
+        run: cargo test
 
   # ── TUI: vet + build + test ───────────────────────────────────────────────────
   tui:

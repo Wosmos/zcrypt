@@ -62,6 +62,7 @@ FE="$ROOT/app/frontend"
 BE="$ROOT/app/backend"
 TUI="$ROOT/app/tui"
 DESKTOP="$ROOT/app/desktop"
+CORE="$ROOT/app/core"
 LOGDIR="$(mktemp -d)"
 trap 'rm -rf "$LOGDIR"' EXIT
 
@@ -157,7 +158,8 @@ md_status() {
 GATE_NAMES=("frontend typecheck" "frontend lint" "frontend tests + coverage" "frontend build" \
             "backend gofmt" "backend vet" "backend tests + coverage" "backend build" \
             "tui gofmt" "tui vet" "tui tests" "tui build" \
-            "desktop sidecar build" "desktop cargo check")
+            "core fmt" "core clippy" "core tests" \
+            "desktop cargo check")
 INSPECT_NAMES=("frontend lint warnings" "frontend dead code" "frontend duplication" "backend deep lint" "tui deep lint")
 HARDEN_NAMES=("frontend new-code lint" "frontend new-code duplication" \
               "backend new-code lint" "tui new-code lint")
@@ -235,8 +237,8 @@ else
                git diff --name-only --cached 2>/dev/null; } | sort -u | sed '/^$/d')"
 fi
 
-RUN_FE=0; RUN_BE=0; RUN_TUI=0; RUN_DESKTOP=0; SCOPE_NOTE=""
-enable_all() { RUN_FE=1; RUN_BE=1; RUN_TUI=1; RUN_DESKTOP=1; }
+RUN_FE=0; RUN_BE=0; RUN_TUI=0; RUN_DESKTOP=0; RUN_CORE=0; SCOPE_NOTE=""
+enable_all() { RUN_FE=1; RUN_BE=1; RUN_TUI=1; RUN_DESKTOP=1; RUN_CORE=1; }
 
 if [ "${PREPUSH_ALL:-0}" = 1 ]; then
   enable_all; SCOPE_NOTE="PREPUSH_ALL set — full suite"
@@ -246,8 +248,12 @@ else
   while IFS= read -r f; do
     case "$f" in
       app/frontend/*|tests/e2e/*) RUN_FE=1 ;;
+      # The conformance vectors are the core's contract — regenerate ⇒ recheck core.
+      app/backend/crypto/testvectors/*) RUN_BE=1; RUN_CORE=1 ;;
       app/backend/*|tests/load/*) RUN_BE=1 ;;
       app/tui/*)                  RUN_TUI=1 ;;
+      # The desktop shell embeds zcrypt-core in-process.
+      app/core/*)                 RUN_CORE=1; RUN_DESKTOP=1 ;;
       app/desktop/*)              RUN_DESKTOP=1 ;;
       # docs / editor / meta — never trigger a build
       *.md|docs/*|.claude/*|.vscode/*|.gitignore|LICENSE*) : ;;
@@ -262,6 +268,7 @@ MODS=""
 [ "$RUN_FE" = 1 ]      && MODS="${MODS}frontend "
 [ "$RUN_BE" = 1 ]      && MODS="${MODS}backend "
 [ "$RUN_TUI" = 1 ]     && MODS="${MODS}tui "
+[ "$RUN_CORE" = 1 ]    && MODS="${MODS}core "
 [ "$RUN_DESKTOP" = 1 ] && MODS="${MODS}desktop "
 [ -z "$MODS" ] && MODS="(nothing to check) "
 
@@ -385,14 +392,34 @@ else
 fi
 
 # ══════════════════════════════════════════════════════════════════════════════
+#  GATES — core (zcrypt-core: the shared Rust client engine)
+# ══════════════════════════════════════════════════════════════════════════════
+
+if [ "$RUN_CORE" = 1 ]; then
+
+if command -v cargo >/dev/null 2>&1; then
+  if gate "core fmt" "$CORE" cargo fmt --check; then
+    ok "rustfmt clean"
+  fi
+  if gate "core clippy" "$CORE" cargo clippy --all-targets --quiet -- -D warnings; then
+    ok "clippy clean (warnings denied)"
+  fi
+  if gate "core tests" "$CORE" cargo test --quiet; then
+    ok "tests green (incl. crypto conformance vectors)"
+  fi
+else
+  warnln "cargo not installed — skipping core gates (install rust to enable)"
+fi
+
+else
+  step "core gates ${DIM}(skipped — no core changes)${RST}"
+fi
+
+# ══════════════════════════════════════════════════════════════════════════════
 #  GATES — desktop (light compile check; full Tauri bundle stays in desktop.yml)
 # ══════════════════════════════════════════════════════════════════════════════
 
 if [ "$RUN_DESKTOP" = 1 ]; then
-
-if gate "desktop sidecar build" "$DESKTOP/sidecar" go build ./...; then
-  ok "sidecar builds"
-fi
 
 if command -v cargo >/dev/null 2>&1; then
   # tauri::generate_context! validates that `frontendDist` exists at compile

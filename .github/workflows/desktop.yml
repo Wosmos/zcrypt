@@ -5,6 +5,8 @@ on:
     branches: [main, convert-to-tauri]
     paths:
       - "app/desktop/**"
+      # zcrypt-core is compiled into the shell (path dependency).
+      - "app/core/**"
       - "app/frontend/**"
       - ".github/workflows/desktop.yml"
     # Version tags publish the built installers to the matching GitHub Release.
@@ -15,6 +17,7 @@ on:
     branches: [main]
     paths:
       - "app/desktop/**"
+      - "app/core/**"
       - "app/frontend/**"
       - ".github/workflows/desktop.yml"
   workflow_dispatch:
@@ -22,9 +25,6 @@ on:
 # Needed by the tag-triggered publish step to upload assets to the release.
 permissions:
   contents: write
-
-env:
-  GO_VERSION: "1.25.12"
 
 jobs:
   build:
@@ -34,16 +34,12 @@ jobs:
         include:
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
-            sidecar: zcrypt-sidecar-x86_64-pc-windows-msvc.exe
           - platform: macos-latest
             target: aarch64-apple-darwin
-            sidecar: zcrypt-sidecar-aarch64-apple-darwin
           - platform: macos-13
             target: x86_64-apple-darwin
-            sidecar: zcrypt-sidecar-x86_64-apple-darwin
           - platform: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
-            sidecar: zcrypt-sidecar-x86_64-unknown-linux-gnu
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -62,27 +58,17 @@ jobs:
             libfuse2
 
       # ── Toolchains ──
-      - uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-          cache-dependency-path: app/desktop/sidecar/go.sum
-
+      # The engine (zcrypt-core) is pure Rust and compiled into the Tauri shell
+      # in-process — the old Go sidecar subprocess is gone.
       - uses: dtolnay/rust-toolchain@stable
 
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: app/desktop/src-tauri
+          workspaces: |
+            app/desktop/src-tauri
+            app/core
 
       - uses: oven-sh/setup-bun@v2
-
-      # ── Build Go sidecar (CGO_ENABLED via env so it works on all shells) ──
-      - name: Build sidecar
-        working-directory: app/desktop/sidecar
-        shell: bash
-        env:
-          CGO_ENABLED: "0"
-          GOOS: ${{ matrix.platform == 'windows-latest' && 'windows' || (startsWith(matrix.platform, 'macos') && 'darwin' || 'linux') }}
-        run: go build -ldflags="-s -w" -o ../src-tauri/${{ matrix.sidecar }} .
 
       # ── Build frontend static export ──
       - name: Install frontend dependencies
