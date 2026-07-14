@@ -231,6 +231,9 @@ func (s *Server) HandleMoveFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Cross-device: the file's folder changed — notify the user's other devices.
+	s.emitFileChange(ctx, userID, fileID, "moved")
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]bool{"success": true})
 }
