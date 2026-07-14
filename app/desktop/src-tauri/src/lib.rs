@@ -11,7 +11,7 @@ use tauri_plugin_deep_link::DeepLinkExt;
 use tokio::sync::{RwLock, watch};
 
 use zcrypt_core::api::Client;
-use zcrypt_core::engines::{self, EngineContext};
+use zcrypt_core::engines::{self, CredProvider, EngineContext, PlatformCreds};
 use zcrypt_core::localdb::LocalDb;
 use zcrypt_core::profiles;
 use zcrypt_core::types::{Progress, ProgressFn};
@@ -75,6 +75,7 @@ impl EngineState {
             db: self.db()?,
             profile: self.profile,
             progress: progress_emitter(app),
+            creds: keychain_creds(),
         })
     }
 }
@@ -89,6 +90,27 @@ fn progress_emitter(app: &tauri::AppHandle) -> ProgressFn {
 
 fn keychain_entry(key: &str) -> Result<keyring::Entry, String> {
     keyring::Entry::new(KEYCHAIN_SERVICE, key).map_err(|e| format!("keychain: {}", e))
+}
+
+/// Read a keychain secret, returning None for a missing/unreadable entry.
+fn keychain_read(key: &str) -> Option<String> {
+    keyring::Entry::new(KEYCHAIN_SERVICE, key)
+        .ok()?
+        .get_password()
+        .ok()
+}
+
+/// CredProvider backed by the OS keychain: the user's own platform tokens are
+/// stored by the frontend via `keychain_set` under `platform.<id>.token` /
+/// `platform.<id>.account`. Returns None when a platform isn't connected, so
+/// the engine falls back to the server-managed relay path. These tokens are the
+/// user's OWN — the managed-pool token never lives on the client.
+fn keychain_creds() -> CredProvider {
+    Arc::new(|platform: &str| {
+        let token = keychain_read(&format!("platform.{platform}.token"))?;
+        let account = keychain_read(&format!("platform.{platform}.account")).unwrap_or_default();
+        Some(PlatformCreds { token, account })
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -144,6 +166,22 @@ async fn download_file(
         .map_err(|e| e.to_string())
 }
 
+/// byos-direct delete: remove the file's ciphertext directly from the user's own
+/// storage (device holds the token) and drop the backend metadata — no server
+/// deletion-worker load. Falls back to a server purge for chunks on platforms
+/// the device has no credentials for.
+#[tauri::command]
+async fn delete_file(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, EngineState>,
+    file_id: String,
+) -> Result<(), String> {
+    let ctx = state.context(&app).await?;
+    engines::delete(&ctx, &file_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 // ---------------------------------------------------------------------------
 // Sync worker
 // ---------------------------------------------------------------------------
@@ -188,6 +226,7 @@ async fn start_sync(
         db,
         profile: state.profile,
         progress: progress_emitter(&app),
+        creds: keychain_creds(),
     };
     tauri::async_runtime::spawn(async move {
         engines::run_sync(ctx, cancel_rx).await;
@@ -311,6 +350,7 @@ pub fn run() {
             local_upload,
             upload_file,
             download_file,
+            delete_file,
             start_sync,
             stop_sync,
             sync_status,
