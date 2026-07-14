@@ -19,6 +19,10 @@ app/tui/zstash-tui.exe
 # Tauri sidecar binaries
 app/desktop/src-tauri/zcrypt-sidecar-*
 
+# Tauri Rust build output and mobile scaffolding
+app/desktop/src-tauri/target/
+app/desktop/src-tauri/gen/
+
 # Build output
 dist/
 
