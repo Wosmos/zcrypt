@@ -961,6 +961,15 @@ html.theme-vt::view-transition-new(root) {
 :root {
   --squircle-shape: squircle;
 }
+/* WebKit engines (macOS/iOS WKWebView, Linux WebKitGTK) either lack real
+   `corner-shape` or ship a partial implementation that distorts the superellipse
+   to each element's aspect ratio (wide cards become warped lozenges). The root
+   layout tags those engines with data-engine="webkit"; force the knob back to
+   `round` there so they get clean, undistorted border-radius corners. Chromium
+   (web, Android WebView, Windows WebView2) keeps the true squircle. */
+:root[data-engine="webkit"] {
+  --squircle-shape: round;
+}
 @supports (corner-shape: squircle) {
   *,
   *::before,

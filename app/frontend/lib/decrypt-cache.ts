@@ -19,6 +19,12 @@
  * id), so the id alone is a sufficient content key. Each entry also records the
  * file's `folder_id` so a single folder's plaintext can be evicted when that
  * protected folder re-locks, without coupling this module to the file store.
+ *
+ * Also hosts a sibling cache for the per-file unwrapped CEK (see `cachedResolveCEK`
+ * below) — the same file is often key-resolved twice (a thumbnail's chunk-0 peek,
+ * then the full viewer), so memoizing the unwrap avoids paying it again. It shares
+ * this module's clear/generation lifecycle so a CEK never outlives the lock event
+ * that should have revoked it.
  */
 
 import { clearDerivedKeyCache } from "@/lib/crypto";
@@ -128,6 +134,88 @@ export function cachedDecrypt(
 }
 
 /**
+ * CEK cache — the per-file Content Encryption Key, already unwrapped from
+ * `meta.wrapped_cek`. Unwrapping is one cheap AES-GCM call (the expensive part
+ * — 600k-iteration PBKDF2 KEK derivation — is already memoized separately by
+ * lib/crypto's deriveKeyBytesCached, keyed by salt+passphrase), BUT a file's
+ * key is resolved from more than one place — the thumbnail pipeline
+ * (useThumbnail) generates its LQIP from chunk 0, then the full viewer
+ * (useFileDecryptor) resolves the SAME file's key again to decrypt every
+ * chunk. Caching the final unwrapped CEK here turns the second (and every
+ * later) resolution for a given file into a plain map lookup instead of a
+ * repeat unwrap + await round trip through Web Crypto.
+ *
+ * Same exposure class + lifecycle as the plaintext blob cache above — a CEK
+ * lets its holder decrypt that file's chunks, so it rides the exact same
+ * lock/TTL/logout/folder-relock eviction below (and the same generation
+ * guard: a resolve that finishes after a lock/clear must not repopulate it).
+ */
+const CEK_CACHE_MAX = 256;
+interface CEKEntry {
+  keyBytes: ArrayBuffer;
+  folderId: string | null;
+}
+const cekCache = new Map<string, CEKEntry>();
+const cekInflight = new Map<string, Promise<ArrayBuffer>>();
+
+function touchCEK(id: string, entry: CEKEntry): void {
+  cekCache.delete(id);
+  cekCache.set(id, entry); // re-insert at the most-recently-used end
+}
+
+/** Cached CEK for `id`, or undefined. Returns a FRESH ArrayBuffer copy on every
+ *  call (mirrors deriveKeyBytesCached's copy-out contract) so a caller that
+ *  transfers it to a worker can never corrupt the cached bytes. */
+export function getCachedCEK(id: string): ArrayBuffer | undefined {
+  const entry = cekCache.get(id);
+  if (!entry) return undefined;
+  touchCEK(id, entry);
+  return entry.keyBytes.slice(0);
+}
+
+function storeCEK(id: string, keyBytes: ArrayBuffer, folderId: string | null): void {
+  if (!cekCache.has(id) && cekCache.size >= CEK_CACHE_MAX) {
+    // Simple insertion-order eviction (Map iterates oldest-first) — keys are a
+    // fixed 32 bytes each, so a count cap (not a byte budget) is sufficient.
+    const oldest = cekCache.keys().next().value as string;
+    cekCache.delete(oldest);
+  }
+  cekCache.set(id, { keyBytes: keyBytes.slice(0), folderId });
+}
+
+/**
+ * Return the cached CEK for `id`, or run `resolve()` exactly once
+ * (de-duplicating concurrent callers — e.g. a thumbnail generation and a
+ * viewer open racing for the same file) and cache the result. Rejections
+ * (wrong password) are not cached, so a retry re-resolves; and a resolve that
+ * finishes after a lock/clear does not repopulate the cache.
+ */
+export function cachedResolveCEK(
+  id: string,
+  folderId: string | null,
+  resolve: () => Promise<ArrayBuffer>
+): Promise<ArrayBuffer> {
+  const hit = getCachedCEK(id);
+  if (hit) return Promise.resolve(hit);
+
+  const pending = cekInflight.get(id);
+  if (pending) return pending.then((keyBytes) => keyBytes.slice(0));
+
+  const gen = generation;
+  const run = resolve().then((keyBytes) => {
+    if (gen === generation) storeCEK(id, keyBytes, folderId);
+    return keyBytes;
+  });
+  cekInflight.set(id, run);
+  run
+    .finally(() => {
+      if (cekInflight.get(id) === run) cekInflight.delete(id);
+    })
+    .catch(() => {});
+  return run;
+}
+
+/**
  * Drop the plaintext for a single file. Called when a file is deleted, moved, or
  * restored so its decrypted bytes don't linger in memory keyed by a now-stale id
  * (and so a moved file's entry, tagged with its OLD folder, can't survive a
@@ -139,9 +227,10 @@ export function clearDecryptCacheForFile(id: string): void {
     totalBytes -= entry.blob.size;
     cache.delete(id);
   }
-  // A decrypt may still be in flight for this id; bump the generation so it can't
-  // repopulate the cache after we've evicted it.
-  if (inflight.has(id)) generation++;
+  cekCache.delete(id);
+  // A decrypt/CEK-resolve may still be in flight for this id; bump the
+  // generation so it can't repopulate either cache after we've evicted it.
+  if (inflight.has(id) || cekInflight.has(id)) generation++;
 }
 
 /**
@@ -164,6 +253,8 @@ export function onDecryptCacheClear(cb: () => void): void {
 export function clearDecryptCache(): void {
   cache.clear();
   inflight.clear();
+  cekCache.clear();
+  cekInflight.clear();
   totalBytes = 0;
   generation++; // invalidate any in-flight run so it can't repopulate post-lock
   // Derived keys are the same exposure class as this plaintext — a lock event
@@ -187,9 +278,15 @@ export function clearDecryptCacheForFolder(folderId: string): void {
       cache.delete(id);
     }
   }
-  // We can't cheaply map an in-flight decrypt to its folder, so bump the
-  // generation: any decrypt still running cannot repopulate the cache after this
-  // (worst case an unrelated file just misses the cache and re-decrypts later).
+  for (const [id, entry] of cekCache) {
+    if (entry.folderId === folderId) {
+      cekCache.delete(id);
+    }
+  }
+  // We can't cheaply map an in-flight decrypt/CEK-resolve to its folder, so
+  // bump the generation: any run still in flight cannot repopulate either
+  // cache after this (worst case an unrelated file just misses the cache and
+  // re-decrypts/re-resolves later).
   generation++;
   // Same story for derived keys: there is no folder→salt mapping, so the safe
   // fallback is a FULL clear — unaffected files merely re-derive on next open.

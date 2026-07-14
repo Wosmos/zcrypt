@@ -163,6 +163,17 @@ export default function RootLayout({
                   if (colorTheme && colorTheme !== 'default') {
                     document.documentElement.setAttribute('data-theme', colorTheme);
                   }
+                  // Engine tag for CSS: Apple WebKit (macOS/iOS WKWebView) and
+                  // WebKitGTK (Linux) render CSS 'corner-shape: squircle' badly or
+                  // not at all, so those get a clean border-radius fallback. Only
+                  // Chromium (web Chrome, Android WebView, Windows WebView2) keeps
+                  // the true squircle. Chromium exposes window.chrome / a Chromium
+                  // brand; WebKit-family engines do not.
+                  var ua = navigator.userAgent || '';
+                  var isChromium = !!window.chrome || /\\bChrome\\/|\\bChromium\\/|\\bEdg\\//.test(ua);
+                  if (/AppleWebKit/.test(ua) && !isChromium) {
+                    document.documentElement.setAttribute('data-engine', 'webkit');
+                  }
                 } catch(e) {}
               })();
             `,

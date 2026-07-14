@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import { getFileMeta, getFileChunk } from "@/lib/api";
 import { resolveFileKey, decryptChunk, fromBase64 } from "@/lib/crypto";
 import { isForegroundDecryptActive, onDecryptCacheClear } from "@/lib/decrypt-cache";
@@ -279,12 +279,35 @@ function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
 // ── Batch loader: fetches all image thumbs when passphrase is available ──
 const inflight = new Set<string>();
 let activeCount = 0;
-const queue: (() => void)[] = [];
+const queue: { fileId: string; run: () => void }[] = [];
+
+// Files whose card is confirmed scrolled OFF-SCREEN (via the IntersectionObserver
+// wired up by useThumbnail's `cardRef`). A file never reported (no observer
+// support, or not yet observed) is absent here and treated as on-screen — that
+// keeps plain FIFO the default, so this can only reprioritize, never starve, a
+// file the app can't see. See `setThumbnailVisibility` / `releaseSlot`.
+const offscreen = new Set<string>();
+
+/** Report whether a file's card is currently within (or near) the viewport.
+ *  The background queue drains on-screen waiters first, so a long folder's
+ *  visible thumbnails resolve before ones further down the list — scrolling
+ *  past a big not-yet-generated stretch can no longer hold up the tiles the
+ *  user is actually looking at. Call from an IntersectionObserver; harmless
+ *  no-op bookkeeping if nothing is ever reported. */
+export function setThumbnailVisibility(fileId: string, visible: boolean): void {
+  if (visible) offscreen.delete(fileId);
+  else offscreen.add(fileId);
+}
 
 function releaseSlot() {
   activeCount--;
-  const next = queue.shift();
-  if (next) next();
+  if (queue.length === 0) return;
+  // Prefer the first ON-SCREEN waiter; fall back to strict FIFO (index 0) so
+  // off-screen files still eventually generate once nothing visible is queued.
+  let idx = queue.findIndex((q) => !offscreen.has(q.fileId));
+  if (idx === -1) idx = 0;
+  const [next] = queue.splice(idx, 1);
+  next.run();
 }
 
 /** Resolve once no foreground decrypt (file open / preview / neighbour
@@ -305,13 +328,15 @@ async function waitForForegroundIdle(): Promise<void> {
   }
 }
 
-async function acquireSlot(): Promise<void> {
+async function acquireSlot(fileId: string): Promise<void> {
   await waitForForegroundIdle();
   if (activeCount < MAX_CONCURRENT) {
     activeCount++;
     return;
   }
-  await new Promise<void>((resolve) => queue.push(() => { activeCount++; resolve(); }));
+  await new Promise<void>((resolve) => {
+    queue.push({ fileId, run: () => { activeCount++; resolve(); } });
+  });
   // A foreground decrypt may have started while this item sat in the queue —
   // re-check before letting it run. It holds its slot while waiting, which
   // conveniently pauses the rest of the queue too.
@@ -398,7 +423,7 @@ async function fetchAndCacheThumbnail(
   // is paired only when a slot was actually taken.
   let slotHeld = false;
   try {
-    await acquireSlot();
+    await acquireSlot(fileId);
     slotHeld = true;
     const video = isVideoFile(filename);
 
@@ -546,9 +571,41 @@ export function useThumbnail(
   loading: boolean;
   /** True while a thumbnail is expected but not ready yet — show a loader. */
   pending: boolean;
+  /** Attach to the card's root element (`<div ref={cardRef}>`) so the
+   *  background queue can tell an on-screen tile from an off-screen one and
+   *  prioritize accordingly. Backed by IntersectionObserver; a harmless no-op
+   *  where it isn't available (older browsers, tests) — the queue then just
+   *  stays plain FIFO for this file. */
+  cardRef: (node: Element | null) => void;
 } {
   // Re-render on any thumbnail state change (cache / inflight / failed / prime).
   const storeVersion = useSyncExternalStore(subscribe, getVersion, getVersion);
+
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const cardRef = useCallback(
+    (node: Element | null) => {
+      observerRef.current?.disconnect();
+      observerRef.current = null;
+      if (!node || typeof IntersectionObserver === "undefined") return;
+      // rootMargin gives visible-adjacent tiles a head start — generation can
+      // begin just before the tile actually scrolls into view.
+      const observer = new IntersectionObserver(
+        ([entry]) => setThumbnailVisibility(fileId, entry.isIntersecting),
+        { rootMargin: "200px" }
+      );
+      observer.observe(node);
+      observerRef.current = observer;
+    },
+    [fileId]
+  );
+  // On unmount (or fileId change), drop this file's visibility bookkeeping so
+  // the offscreen set can't grow unbounded across a long session.
+  useEffect(() => {
+    return () => {
+      observerRef.current?.disconnect();
+      setThumbnailVisibility(fileId, true);
+    };
+  }, [fileId]);
 
   const thumbnailUrl = memCache.get(fileId) ?? null;
   const loading = inflight.has(fileId);
@@ -601,7 +658,7 @@ export function useThumbnail(
     !isPermanentlyFailed(fileId) &&
     withinGrace;
 
-  return { thumbnailUrl, loading, pending };
+  return { thumbnailUrl, loading, pending, cardRef };
 }
 
 /** Hook to get all cached thumbnails (for listing). */

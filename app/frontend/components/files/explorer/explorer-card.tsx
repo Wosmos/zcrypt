@@ -260,7 +260,7 @@ function FileCardInner({
   onCustomizeFile,
   drag,
 }: FileItemProps) {
-  const { thumbnailUrl, pending } = useThumbnail(file.id, file.original_name, file.original_size);
+  const { thumbnailUrl, pending, cardRef } = useThumbnail(file.id, file.original_name, file.original_size);
   const typeInfo = getFileTypeInfo(file.original_name);
   const customIcon = file.style?.icon ? getIconByKey(file.style.icon) : null;
   const Icon = customIcon ?? fileIconFor(file.original_name);
@@ -274,6 +274,7 @@ function FileCardInner({
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <div
+          ref={cardRef}
           role="button"
           data-entry-id={file.id}
           tabIndex={focused ? 0 : -1}
