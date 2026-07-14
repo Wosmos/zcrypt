@@ -50,6 +50,23 @@ func (s *Server) HandlePurgeFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// byos-direct deletion: the owner's device already removed the ciphertext
+	// from the user's OWN storage (it holds the token), so the server only drops
+	// the metadata — no pending_deletions queue, no deletion-worker load. This is
+	// the delete counterpart to byos-direct upload: bytes never transit us.
+	if r.URL.Query().Get("client_deleted") == "true" {
+		if err := s.db.PurgeFileMetadata(ctx, userID, fileID); err != nil {
+			log.Printf("files: metadata purge failed: %v", err)
+			http.Error(w, `{"error":"failed to delete file"}`, http.StatusInternalServerError)
+			return
+		}
+		s.emitFileChange(ctx, userID, fileID, "deleted")
+		s.audit(r, &userID, "file_purge_client", map[string]interface{}{"file_id": fileID})
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"success":true}`))
+		return
+	}
+
 	staged, err := s.db.DeleteFile(ctx, userID, fileID)
 	if err != nil {
 		log.Printf("files: purge failed: %v", err)
@@ -63,6 +80,7 @@ func (s *Server) HandlePurgeFile(w http.ResponseWriter, r *http.Request) {
 	// Synced chunk refs are now queued in pending_deletions — wake the deletion worker.
 	s.signalDeletion()
 
+	s.emitFileChange(ctx, userID, fileID, "deleted")
 	s.audit(r, &userID, "file_purge", map[string]interface{}{"file_id": fileID})
 
 	w.Header().Set("Content-Type", "application/json")
