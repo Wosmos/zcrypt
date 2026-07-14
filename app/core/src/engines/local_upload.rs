@@ -227,6 +227,7 @@ mod tests {
             db: db.clone(),
             profile: profiles::NORMAL,
             progress: Arc::new(move |p: Progress| ev.lock().unwrap().push(p.stage)),
+            creds: crate::engines::no_creds(),
         };
 
         let file_id = run(&ctx, &src, "test-pass").await.unwrap();

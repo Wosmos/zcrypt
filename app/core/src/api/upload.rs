@@ -125,6 +125,22 @@ impl Client {
         ok_or_status(resp).await
     }
 
+    /// DELETE /api/files/{id}/purge — permanently remove a file. When
+    /// `client_deleted` is true the caller already removed the ciphertext from
+    /// the user's own storage (byos-direct), so the server drops metadata only
+    /// and never queues a platform deletion.
+    pub async fn purge_file(&self, file_id: &str, client_deleted: bool) -> Result<(), ApiError> {
+        let query = if client_deleted {
+            "?client_deleted=true"
+        } else {
+            ""
+        };
+        let resp = self
+            .send(|http, base| http.delete(format!("{base}/api/files/{file_id}/purge{query}")))
+            .await?;
+        ok_or_status(resp).await
+    }
+
     // ── byos-direct control plane ────────────────────────────────────────────
 
     /// POST /api/repos/register — record a client-created repo.
