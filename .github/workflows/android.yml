@@ -25,7 +25,8 @@ on:
       - ".github/workflows/android.yml"
   workflow_dispatch:
 
-# Needed by the tag-triggered publish step to upload the APK to the release.
+# Needed by the tag-triggered publish step and the rolling android-latest
+# publish step, both of which upload/upsert release assets.
 permissions:
   contents: write
 
@@ -232,3 +233,52 @@ jobs:
           fi
           printf 'uploading: %s\n' "${files[@]}"
           gh release upload "$TAG" "${files[@]}" --repo "$GITHUB_REPOSITORY" --clobber
+
+      # ── Publish a rolling sideload build (android-latest) ──
+      # /download on the site links to a single stable URL for the APK:
+      #   https://github.com/Wosmos/zcrypt/releases/download/android-latest/zcrypt.apk
+      # This is a separate, non-versioned prerelease from the tag-based
+      # release above — it exists purely so that link never breaks, and it's
+      # refreshed on every push (not just version tags). Runs whether or not
+      # ANDROID_KEY_BASE64 is configured: unsigned/debug-signed APKs install
+      # fine for sideload testing, they just aren't Play-Store-eligible.
+      # Skipped on pull_request builds (untrusted forks don't get a token with
+      # write access, and PR builds shouldn't clobber the public link anyway).
+      - name: Publish rolling sideload APK (android-latest)
+        if: github.event_name != 'pull_request'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          shopt -s nullglob globstar
+          files=(app/desktop/src-tauri/gen/android/app/build/outputs/apk/**/*.apk)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "no APK found to publish"; exit 0
+          fi
+
+          # Prefer the universal build (installs on any device/ABI) if Gradle
+          # produced per-ABI splits alongside it; otherwise take whatever's
+          # there so the link always has something installable.
+          apk=""
+          for f in "${files[@]}"; do
+            if [[ "$f" == *universal* ]]; then apk="$f"; break; fi
+          done
+          [ -z "$apk" ] && apk="${files[0]}"
+          echo "publishing: $apk"
+
+          # gh needs a fixed local filename to control the uploaded asset name.
+          cp "$apk" "$RUNNER_TEMP/zcrypt.apk"
+
+          if ! gh release view android-latest --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create android-latest \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "zcrypt for Android (sideload build)" \
+              --notes "Rolling build for sideloading — updated automatically on every push to main, always tracks the latest commit. Not signed for the Play Store; Android will warn the APK is from an unknown developer, which is expected when installing outside the Play Store." \
+              --prerelease \
+              --target "$GITHUB_SHA"
+          else
+            gh release edit android-latest --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA"
+          fi
+
+          gh release upload android-latest "$RUNNER_TEMP/zcrypt.apk" \
+            --repo "$GITHUB_REPOSITORY" --clobber
