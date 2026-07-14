@@ -513,11 +513,15 @@ pub fn run() {
         .setup(|app| {
             #[cfg(desktop)]
             {
-                app.handle()
-                    .plugin(tauri_plugin_updater::Builder::new().build())?;
                 // Launch-at-login support (no auto-enable — the UI toggles it).
                 app.handle()
                     .plugin(tauri_plugin_autostart::Builder::new().build())?;
+                // The updater plugin is intentionally NOT registered yet: it
+                // requires a signed `plugins.updater` config (pubkey + endpoints)
+                // set up with the release keypair, and registering it WITHOUT that
+                // config panics at launch ("invalid type: null, expected Config").
+                // check_for_updates() degrades to "no update" until the release/
+                // signing pipeline lands.
             }
 
             // Register zcrypt:// scheme at runtime (Linux/Windows only —
