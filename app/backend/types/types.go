@@ -171,6 +171,7 @@ type UploadSession struct {
 	Account        string    `json:"account"`
 	RepoID         string    `json:"repo_id"`
 	RepoURL        string    `json:"repo_url"`
+	Mode           string    `json:"mode"` // "relay" (default) or "byos-direct"
 	UploadedChunks int       `json:"uploaded_chunks"`
 	Status         string    `json:"status"`
 	CreatedAt      time.Time `json:"created_at"`
@@ -190,6 +191,11 @@ type UploadInitRequest struct {
 	ChunkSize     int64   `json:"chunk_size,omitempty"` // plaintext chunk size the client slices with; enables cross-device resume
 	Platform      string  `json:"platform,omitempty"`
 	FolderID      *string `json:"folder_id,omitempty"` // optional target folder; nil/omitted = root. Ownership-validated server-side.
+	// Mode selects the data plane: "" / "relay" (bytes transit the server) or
+	// "byos-direct" (client pushes to its OWN platform with its OWN token; server
+	// only records metadata). byos-direct requires a personal (non-global) token
+	// for Platform and never uses the managed pool.
+	Mode string `json:"mode,omitempty"`
 }
 
 // UploadCompleteRequest is the JSON body for finalizing a chunked upload.

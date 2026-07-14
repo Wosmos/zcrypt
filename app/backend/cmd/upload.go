@@ -116,8 +116,14 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 	// session (e.g. wrong passphrase for the stored envelope) cancels it via
 	// DELETE /api/upload/{sid} and re-inits fresh.
 	if existing, ferr := s.db.FindActiveUploadSession(ctx, userID, req.SHA256, req.OriginalSize); ferr == nil {
-		adapter := s.resolveAdapterForUser(ctx, userID, existing.Platform, existing.Account)
-		_, directUpload := adapter.(adapters.DirectUploader)
+		// A byos-direct session resumes as byos-direct regardless of adapter type
+		// (the client pushes with its own token); relay sessions keep the
+		// adapter-capability answer (HuggingFace presign vs GitHub/Telegram relay).
+		directUpload := existing.Mode == "byos-direct"
+		if !directUpload {
+			adapter := s.resolveAdapterForUser(ctx, userID, existing.Platform, existing.Account)
+			_, directUpload = adapter.(adapters.DirectUploader)
+		}
 
 		// Deliberately no filename: for a zero-knowledge upload it is empty, and
 		// logging a legacy plaintext name would persist it in audit_events.
@@ -137,6 +143,7 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 			"chunk_size":    existing.ChunkSize,
 			"chunk_count":   existing.ChunkCount,
 			"direct_upload": directUpload,
+			"mode":          existing.Mode,
 			"resumed":       true,
 		})
 		return
@@ -145,34 +152,74 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		log.Printf("upload: find resumable session for user %s: %v", userID, ferr)
 	}
 
-	// zcrypt is free and open source: there are no artificial plan/quota
-	// limits. Users are bounded only by the real git-platform thresholds
-	// enforced in reppool. Select the adapter + repo pool to use.
-	key, _, pool, err := s.selectAdapter(ctx, userID, req.Platform)
-	if err != nil {
-		hasPersonal, _ := s.db.UserHasPersonalTokens(ctx, userID)
-		if hasPersonal {
-			log.Printf("upload: platform not available for user %s: %v", userID, err)
-			http.Error(w, `{"error":"storage platform not available"}`, http.StatusBadRequest)
-		} else {
-			http.Error(w, `{"error":"storage not available yet — managed storage is being configured"}`, http.StatusServiceUnavailable)
+	// Data-plane selection. Two modes:
+	//   relay        — bytes transit the server, which stages + pushes to the
+	//                  platform (managed pool or the user's token). Legacy default.
+	//   byos-direct  — the client pushes chunks to the user's OWN platform with the
+	//                  user's OWN token and only confirms metadata. No server repo
+	//                  is created here (the client registers + places its own via
+	//                  POST /api/repos/register); the managed pool is never used.
+	mode := req.Mode
+	if mode == "" {
+		mode = "relay"
+	}
+
+	var platform, account, repoID, repoURL string
+	var directUpload bool
+
+	if mode == "byos-direct" {
+		if req.Platform == "" || !byosPlatforms[req.Platform] {
+			http.Error(w, `{"error":"byos-direct requires a supported platform (telegram, github, gitlab, huggingface)"}`, http.StatusBadRequest)
+			return
 		}
-		return
-	}
+		// Require a PERSONAL (non-global) token: byos-direct means the client
+		// uploads with its own credentials, so it must have connected its own
+		// account. The shared managed-pool token is never eligible.
+		acct, ok, perr := s.db.PersonalTokenAccount(ctx, userID, req.Platform)
+		if perr != nil {
+			log.Printf("upload: personal token lookup for user %s: %v", userID, perr)
+			http.Error(w, `{"error":"failed to start upload"}`, http.StatusInternalServerError)
+			return
+		}
+		if !ok {
+			http.Error(w, `{"error":"connect your own account for this platform to upload directly"}`, http.StatusForbidden)
+			return
+		}
+		platform = req.Platform
+		account = acct
+		directUpload = true
+		// repoID/repoURL stay empty — the client owns placement in this mode.
+	} else {
+		// zcrypt is free and open source: there are no artificial plan/quota
+		// limits. Users are bounded only by the real git-platform thresholds
+		// enforced in reppool. Select the adapter + repo pool to use.
+		key, _, pool, err := s.selectAdapter(ctx, userID, req.Platform)
+		if err != nil {
+			hasPersonal, _ := s.db.UserHasPersonalTokens(ctx, userID)
+			if hasPersonal {
+				log.Printf("upload: platform not available for user %s: %v", userID, err)
+				http.Error(w, `{"error":"storage platform not available"}`, http.StatusBadRequest)
+			} else {
+				http.Error(w, `{"error":"storage not available yet — managed storage is being configured"}`, http.StatusServiceUnavailable)
+			}
+			return
+		}
 
-	repo, err := pool.GetOrCreateRepo(ctx)
-	if err != nil {
-		log.Printf("upload: get repo failed: %v", err)
-		http.Error(w, `{"error":"storage not available"}`, http.StatusInternalServerError)
-		return
-	}
+		repo, err := pool.GetOrCreateRepo(ctx)
+		if err != nil {
+			log.Printf("upload: get repo failed: %v", err)
+			http.Error(w, `{"error":"storage not available"}`, http.StatusInternalServerError)
+			return
+		}
 
-	// Extract platform and account from key
-	parts := strings.SplitN(key, ":", 2)
-	platform := parts[0]
-	account := ""
-	if len(parts) > 1 {
-		account = parts[1]
+		// Extract platform and account from key
+		parts := strings.SplitN(key, ":", 2)
+		platform = parts[0]
+		if len(parts) > 1 {
+			account = parts[1]
+		}
+		repoID = repo.ID
+		repoURL = repo.URL
 	}
 
 	// Create file record. An optional folder_id lets the file be born directly in
@@ -218,8 +265,9 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		ChunkSize:     req.ChunkSize,
 		Platform:      platform,
 		Account:       account,
-		RepoID:        repo.ID,
-		RepoURL:       repo.URL,
+		RepoID:        repoID,
+		RepoURL:       repoURL,
+		Mode:          mode,
 	}
 
 	sessionID, err := s.db.CreateUploadSession(ctx, session)
@@ -229,9 +277,13 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if adapter supports direct upload (presigned URLs)
-	adapter := s.resolveAdapterForUser(ctx, userID, platform, account)
-	_, directUpload := adapter.(adapters.DirectUploader)
+	// Relay path: does the adapter support presigned direct upload (HuggingFace)?
+	// byos-direct already set directUpload = true above (the client pushes with
+	// its own token, independent of adapter type).
+	if mode != "byos-direct" {
+		adapter := s.resolveAdapterForUser(ctx, userID, platform, account)
+		_, directUpload = adapter.(adapters.DirectUploader)
+	}
 
 	// No filename in the audit trail — a zero-knowledge upload has none, and a
 	// legacy plaintext name must not be persisted in audit_events.
@@ -240,14 +292,16 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		"session_id": sessionID,
 		"size":       req.OriginalSize,
 		"chunks":     req.ChunkCount,
+		"mode":       mode,
 	})
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"session_id":    sessionID,
 		"file_id":       fileID,
-		"repo_url":      repo.URL,
+		"repo_url":      repoURL,
 		"platform":      platform,
+		"mode":          mode,
 		"chunk_size":    req.ChunkSize,
 		"chunk_count":   req.ChunkCount,
 		"direct_upload": directUpload,
@@ -477,6 +531,11 @@ func (s *Server) HandleUploadComplete(w http.ResponseWriter, r *http.Request) {
 		Stage:   "done",
 		Percent: 100,
 	})
+
+	// Cross-device sync: stamp the new file's rev and push a "file" event so the
+	// user's other devices/tabs learn about it live (and can pull it via
+	// /api/changes if they were offline). "upload on Android, see on iOS."
+	s.emitFileChange(ctx, userID, session.FileID, "added")
 
 	// Audit synchronously, before returning — s.audit reads the request (IP,
 	// User-Agent) and must not be called from the background goroutine after the
@@ -855,6 +914,13 @@ func (s *Server) HandleConfirmChunk(w http.ResponseWriter, r *http.Request) {
 		Size       int64  `json:"size"`
 		RemotePath string `json:"remote_path"`
 		Compressed bool   `json:"compressed"`
+		// byos-direct extras: the client uploaded to its OWN platform with its OWN
+		// token and (for git/Telegram) already committed, so it reports where the
+		// chunk lives. Absent on the relay/presign path.
+		Platform  string `json:"platform"`
+		Account   string `json:"account"`
+		RepoID    string `json:"repo_id"`
+		Committed bool   `json:"committed"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
@@ -892,29 +958,80 @@ func (s *Server) HandleConfirmChunk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Store chunk reference in DB with committed=FALSE (InsertClientChunk). The
-	// LFS blob is uploaded but has no tree pointer yet; durability is established
-	// later by commit+verify (on upload-complete and by the reconcile worker),
-	// driven entirely from this DB row — no fragile in-memory commit buffer.
 	chunkID := uuid.New().String()
-	dbChunk := &types.ChunkRef{
-		ChunkID:    chunkID,
-		FileID:     session.FileID,
-		Index:      chunkIndex,
-		Size:       req.Size,
-		SHA256:     req.SHA256,
-		Platform:   session.Platform,
-		Account:    session.Account,
-		Repo:       session.RepoURL,
-		RemotePath: req.RemotePath,
-		Compressed: req.Compressed,
-	}
+	var inserted bool
 
-	inserted, err := s.db.InsertClientChunk(ctx, userID, dbChunk)
-	if err != nil {
-		log.Printf("upload: store chunk ref failed: %v", err)
-		http.Error(w, `{"error":"failed to store chunk"}`, http.StatusInternalServerError)
-		return
+	if session.Mode == "byos-direct" {
+		// byos-direct: the client pushed the ciphertext to its OWN platform with
+		// its OWN token and (git/Telegram atomic, HF LFS+commit) already committed
+		// it. Record committed = TRUE immediately — there is no server-side commit
+		// pass. Trust the client's location fields but pin the repo to one the
+		// caller actually OWNS (never store an unvalidated client repo_id).
+		repoURL := session.RepoURL
+		if req.RepoID != "" {
+			repo, rerr := s.db.GetRepoByID(ctx, userID, req.RepoID)
+			if rerr != nil {
+				http.Error(w, `{"error":"unknown or unowned repo_id"}`, http.StatusBadRequest)
+				return
+			}
+			repoURL = repo.URL
+		}
+		platform := req.Platform
+		if platform == "" {
+			platform = session.Platform
+		}
+		account := req.Account
+		if account == "" {
+			account = session.Account
+		}
+		dbChunk := &types.ChunkRef{
+			ChunkID:    chunkID,
+			FileID:     session.FileID,
+			Index:      chunkIndex,
+			Size:       req.Size,
+			SHA256:     req.SHA256,
+			Platform:   platform,
+			Account:    account,
+			Repo:       repoURL,
+			RemotePath: req.RemotePath,
+			Compressed: req.Compressed,
+		}
+		inserted, err = s.db.InsertDirectChunk(ctx, userID, dbChunk)
+		if err != nil {
+			log.Printf("upload: store direct chunk ref failed: %v", err)
+			http.Error(w, `{"error":"failed to store chunk"}`, http.StatusInternalServerError)
+			return
+		}
+		// Credit the user's own repo usage from the confirmed size (the server
+		// never saw the bytes). Best-effort — never fail the confirm on this.
+		if inserted && req.RepoID != "" {
+			if uerr := s.db.BumpRepoUsage(ctx, req.RepoID, req.Size); uerr != nil {
+				log.Printf("upload: bump repo usage: %v", uerr)
+			}
+		}
+	} else {
+		// Presign/relay path (HuggingFace): store committed = FALSE. The LFS blob
+		// is uploaded but has no tree pointer yet; durability is established later
+		// by commit+verify (on upload-complete and by the reconcile worker),
+		// driven entirely from this DB row — no fragile in-memory commit buffer.
+		dbChunk := &types.ChunkRef{
+			ChunkID:    chunkID,
+			FileID:     session.FileID,
+			Index:      chunkIndex,
+			Size:       req.Size,
+			SHA256:     req.SHA256,
+			Platform:   session.Platform,
+			Account:    session.Account,
+			Repo:       session.RepoURL,
+			RemotePath: req.RemotePath,
+			Compressed: req.Compressed,
+		}
+		inserted, err = s.db.InsertClientChunk(ctx, userID, dbChunk)
+		if err != nil {
+			log.Printf("upload: store chunk ref failed: %v", err)
+			http.Error(w, `{"error":"failed to store chunk"}`, http.StatusInternalServerError)
+			return
+		}
 	}
 
 	// Increment session counter only for a NEW chunk; a duplicate re-PUT of the

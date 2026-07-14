@@ -54,6 +54,14 @@ func sha256SchemeOrDefault(s string) string {
 	return s
 }
 
+// uploadModeOrDefault normalizes an empty/legacy upload mode to "relay".
+func uploadModeOrDefault(m string) string {
+	if m == "" {
+		return "relay"
+	}
+	return m
+}
+
 // InsertChunk stores a chunk reference in the index.
 func (db *DB) InsertChunk(ctx context.Context, userID string, c *types.ChunkRef) error {
 	_, err := db.pool.Exec(ctx,
@@ -834,11 +842,11 @@ func (db *DB) GetPendingChunksForFile(ctx context.Context, fileID string) ([]typ
 func (db *DB) CreateUploadSession(ctx context.Context, s *types.UploadSession) (string, error) {
 	var id string
 	err := db.pool.QueryRow(ctx,
-		`INSERT INTO upload_sessions (user_id, file_id, filename, encrypted_name, original_size, salt, sha256, sha256_scheme, chunk_count, chunk_size, platform, account, repo_id, repo_url)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+		`INSERT INTO upload_sessions (user_id, file_id, filename, encrypted_name, original_size, salt, sha256, sha256_scheme, chunk_count, chunk_size, platform, account, repo_id, repo_url, mode)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
 		 RETURNING id`,
 		s.UserID, s.FileID, s.Filename, s.EncryptedName, s.OriginalSize, s.Salt, s.SHA256, sha256SchemeOrDefault(s.SHA256Scheme), s.ChunkCount, s.ChunkSize,
-		s.Platform, s.Account, s.RepoID, s.RepoURL,
+		s.Platform, s.Account, s.RepoID, s.RepoURL, uploadModeOrDefault(s.Mode),
 	).Scan(&id)
 	if err != nil {
 		return "", fmt.Errorf("create upload session: %w", err)
@@ -851,11 +859,11 @@ func (db *DB) GetUploadSession(ctx context.Context, sessionID, userID string) (*
 	s := &types.UploadSession{}
 	err := db.pool.QueryRow(ctx,
 		`SELECT id, user_id, file_id, filename, encrypted_name, original_size, salt, sha256, sha256_scheme, chunk_count, chunk_size,
-		        platform, account, repo_id, repo_url, uploaded_chunks, status, created_at, expires_at
+		        platform, account, repo_id, repo_url, mode, uploaded_chunks, status, created_at, expires_at
 		 FROM upload_sessions WHERE id = $1 AND user_id = $2`,
 		sessionID, userID,
 	).Scan(&s.ID, &s.UserID, &s.FileID, &s.Filename, &s.EncryptedName, &s.OriginalSize, &s.Salt, &s.SHA256, &s.SHA256Scheme, &s.ChunkCount, &s.ChunkSize,
-		&s.Platform, &s.Account, &s.RepoID, &s.RepoURL, &s.UploadedChunks, &s.Status, &s.CreatedAt, &s.ExpiresAt)
+		&s.Platform, &s.Account, &s.RepoID, &s.RepoURL, &s.Mode, &s.UploadedChunks, &s.Status, &s.CreatedAt, &s.ExpiresAt)
 	if err != nil {
 		return nil, fmt.Errorf("get upload session: %w", err)
 	}
@@ -873,7 +881,7 @@ func (db *DB) FindActiveUploadSession(ctx context.Context, userID, sha256 string
 	s := &types.UploadSession{}
 	err := db.pool.QueryRow(ctx,
 		`SELECT us.id, us.user_id, us.file_id, us.filename, us.encrypted_name, us.original_size, us.salt, us.sha256, us.sha256_scheme,
-		        us.chunk_count, us.chunk_size, us.platform, us.account, us.repo_id, us.repo_url,
+		        us.chunk_count, us.chunk_size, us.platform, us.account, us.repo_id, us.repo_url, us.mode,
 		        us.uploaded_chunks, us.status, us.created_at, us.expires_at
 		 FROM upload_sessions us
 		 JOIN files f ON f.id = us.file_id
@@ -883,7 +891,7 @@ func (db *DB) FindActiveUploadSession(ctx context.Context, userID, sha256 string
 		 LIMIT 1`,
 		userID, sha256, originalSize,
 	).Scan(&s.ID, &s.UserID, &s.FileID, &s.Filename, &s.EncryptedName, &s.OriginalSize, &s.Salt, &s.SHA256, &s.SHA256Scheme,
-		&s.ChunkCount, &s.ChunkSize, &s.Platform, &s.Account, &s.RepoID, &s.RepoURL,
+		&s.ChunkCount, &s.ChunkSize, &s.Platform, &s.Account, &s.RepoID, &s.RepoURL, &s.Mode,
 		&s.UploadedChunks, &s.Status, &s.CreatedAt, &s.ExpiresAt)
 	if err != nil {
 		return nil, fmt.Errorf("find active upload session: %w", err)
