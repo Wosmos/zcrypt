@@ -3,9 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { usePassphraseStore } from "@/store/passphrase";
-import { Lock, X, Loader2 } from "@/lib/icons";
+import { Lock, X, Loader2, Fingerprint } from "@/lib/icons";
 import { PassphraseStrength } from "@/components/ui/passphrase-strength";
 import { Checkbox } from "@/components/ui/checkbox";
+import { isTauri, biometricAvailable, biometricAuthenticate } from "@/lib/tauri";
+import { loadPassphrase } from "@/lib/device-vault";
 
 interface PassphraseModalProps {
   open: boolean;
@@ -44,6 +46,13 @@ export function PassphraseModal({
   const [localError, setLocalError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Touch ID (desktop only): offered when the shell reports biometrics are
+  // enrolled AND this device already has a passphrase to hand back — nothing
+  // to unlock with otherwise. Re-checked every time the modal opens.
+  const [bioAvailable, setBioAvailable] = useState(false);
+  const [bioBusy, setBioBusy] = useState(false);
+  const [bioError, setBioError] = useState<string | null>(null);
+
   useEffect(() => {
     if (open) {
       setPassphrase("");
@@ -54,56 +63,106 @@ export function PassphraseModal({
     }
   }, [open]);
 
-  const handleConfirm = useCallback(async () => {
-    if (!passphrase || verifying) return;
-    setLocalError(null);
-
-    // Verify the passphrase BEFORE caching it, so a wrong one is rejected right
-    // here in the modal instead of being cached and only failing later when a
-    // file won't decrypt. `verify` returns false ONLY when it's definitively
-    // wrong; network/inconclusive cases fall through and let the user proceed.
-    if (verify) {
-      setVerifying(true);
-      let ok = true;
-      try {
-        ok = await verify(passphrase);
-      } catch {
-        ok = true; // inconclusive — don't block; decrypt still guards downstream
-      }
-      setVerifying(false);
-      if (!ok) {
-        setLocalError(
-          "That passphrase doesn't match this vault. Check it and try again."
-        );
-        inputRef.current?.focus();
-        inputRef.current?.select();
-        return; // keep the modal open; nothing cached, vault stays locked
-      }
+  useEffect(() => {
+    if (!open || !isTauri) {
+      setBioAvailable(false);
+      return;
     }
+    let cancelled = false;
+    setBioBusy(false);
+    setBioError(null);
+    void (async () => {
+      try {
+        const [supported, saved] = await Promise.all([
+          biometricAvailable(),
+          loadPassphrase(),
+        ]);
+        if (!cancelled) setBioAvailable(supported && !!saved);
+      } catch {
+        if (!cancelled) setBioAvailable(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
 
-    // Record the device-remember preference first, then cache. setPassphrase
-    // persists encrypted on THIS device iff rememberDevice is on (so the user is
-    // never re-prompted here); otherwise it's a 15-minute in-memory session.
-    setRememberDevice(remember);
-    cachePassphrase(passphrase);
-    onConfirm(passphrase);
-    setPassphrase("");
-  }, [
-    passphrase,
-    verifying,
-    verify,
-    remember,
-    setRememberDevice,
-    cachePassphrase,
-    onConfirm,
-  ]);
+  // Shared by both the typed-passphrase submit and the Touch ID unlock, so a
+  // biometric unlock completes exactly the same way a correct typed
+  // passphrase would (same verify guard, same remember/cache/onConfirm path).
+  const confirmWithPassphrase = useCallback(
+    async (candidate: string) => {
+      if (!candidate || verifying) return;
+      setLocalError(null);
+
+      // Verify the passphrase BEFORE caching it, so a wrong one is rejected right
+      // here in the modal instead of being cached and only failing later when a
+      // file won't decrypt. `verify` returns false ONLY when it's definitively
+      // wrong; network/inconclusive cases fall through and let the user proceed.
+      if (verify) {
+        setVerifying(true);
+        let ok = true;
+        try {
+          ok = await verify(candidate);
+        } catch {
+          ok = true; // inconclusive — don't block; decrypt still guards downstream
+        }
+        setVerifying(false);
+        if (!ok) {
+          setLocalError(
+            "That passphrase doesn't match this vault. Check it and try again."
+          );
+          inputRef.current?.focus();
+          inputRef.current?.select();
+          return; // keep the modal open; nothing cached, vault stays locked
+        }
+      }
+
+      // Record the device-remember preference first, then cache. setPassphrase
+      // persists encrypted on THIS device iff rememberDevice is on (so the user is
+      // never re-prompted here); otherwise it's a 15-minute in-memory session.
+      setRememberDevice(remember);
+      cachePassphrase(candidate);
+      onConfirm(candidate);
+      setPassphrase("");
+    },
+    [verifying, verify, remember, setRememberDevice, cachePassphrase, onConfirm]
+  );
+
+  const handleConfirm = useCallback(
+    () => confirmWithPassphrase(passphrase),
+    [confirmWithPassphrase, passphrase]
+  );
+
+  const handleBiometricUnlock = useCallback(async () => {
+    if (bioBusy || verifying) return;
+    setBioError(null);
+    setBioBusy(true);
+    try {
+      const ok = await biometricAuthenticate("Unlock your zcrypt vault");
+      if (!ok) {
+        setBioError("Touch ID didn't confirm — enter your passphrase instead.");
+        return;
+      }
+      const saved = await loadPassphrase();
+      if (!saved) {
+        setBioError("No saved passphrase on this device — enter it instead.");
+        return;
+      }
+      await confirmWithPassphrase(saved);
+    } catch {
+      setBioError("Touch ID failed — enter your passphrase instead.");
+    } finally {
+      setBioBusy(false);
+    }
+  }, [bioBusy, verifying, confirmWithPassphrase]);
 
   const handleClose = useCallback(() => {
-    if (verifying) return; // don't dismiss mid-check
+    if (verifying || bioBusy) return; // don't dismiss mid-check
     setPassphrase("");
     setLocalError(null);
     onClose();
-  }, [verifying, onClose]);
+  }, [verifying, bioBusy, onClose]);
 
   if (!open) return null;
 
@@ -146,6 +205,34 @@ export function PassphraseModal({
           </div>
         )}
 
+        {bioAvailable && (
+          <div className="mb-4">
+            <button
+              type="button"
+              onClick={() => void handleBiometricUnlock()}
+              disabled={bioBusy || verifying}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] px-4 py-3 text-sm font-medium text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface-2)] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {bioBusy ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Fingerprint className="h-4 w-4 text-[var(--color-accent)]" />
+              )}
+              {bioBusy ? "Waiting for Touch ID…" : "Unlock with Touch ID"}
+            </button>
+            {bioError && (
+              <p className="mt-2 text-xs text-red-600 dark:text-red-400">{bioError}</p>
+            )}
+            <div className="mt-4 flex items-center gap-3">
+              <div className="h-px flex-1 bg-[var(--color-border)]" />
+              <span className="text-[11px] uppercase tracking-wide text-[var(--color-text-muted)]">
+                or use your passphrase
+              </span>
+              <div className="h-px flex-1 bg-[var(--color-border)]" />
+            </div>
+          </div>
+        )}
+
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -181,14 +268,14 @@ export function PassphraseModal({
             <button
               type="button"
               onClick={handleClose}
-              disabled={verifying}
+              disabled={verifying || bioBusy}
               className="flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] px-4 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-2)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={!passphrase || verifying}
+              disabled={!passphrase || verifying || bioBusy}
               className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-[#1a1f36] dark:bg-cyan-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-[#252b45] dark:hover:bg-cyan-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {verifying && <Loader2 className="h-4 w-4 animate-spin" />}

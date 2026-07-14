@@ -178,6 +178,28 @@ export async function checkForUpdates(): Promise<UpdateInfo> {
 }
 
 /**
+ * Whether Touch ID (or another local device-owner biometric) is available
+ * right now. Always false outside Tauri. False on non-macOS targets and
+ * whenever the Mac has no usable enrollment.
+ */
+export async function biometricAvailable(): Promise<boolean> {
+  if (!isTauri) return false;
+  return tauriInvoke<boolean>("biometric_available");
+}
+
+/**
+ * Present the OS Touch ID prompt with `reason` as the shown text. Resolves
+ * `false` outside Tauri, on user cancel, or on any declined/failed
+ * authentication (not enrolled, locked out, denied, etc). Callers should
+ * still guard against a rejected promise — the shell only rejects if the OS
+ * never answers the request at all.
+ */
+export async function biometricAuthenticate(reason: string): Promise<boolean> {
+  if (!isTauri) return false;
+  return tauriInvoke<boolean>("biometric_authenticate", { reason });
+}
+
+/**
  * Subscribe to "zcrypt://progress" events emitted by the shell during
  * upload/download. No-op outside Tauri (resolves an empty unlisten fn).
  * Returns a function that unsubscribes when called.
