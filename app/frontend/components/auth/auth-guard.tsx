@@ -115,10 +115,10 @@ export function AuthGuard({
 
   // Start desktop sync worker whenever we have a valid token
   useEffect(() => {
-    if (!isTauri || !initialized || !accessToken) return;
+    if (!isTauri || !initialized || !accessToken || !refreshTokenValue) return;
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-    startSync(apiUrl, accessToken).catch(() => {});
-  }, [initialized, accessToken]);
+    startSync(apiUrl, accessToken, refreshTokenValue).catch(() => {});
+  }, [initialized, accessToken, refreshTokenValue]);
 
   if (!initialized || redirecting) {
     return (

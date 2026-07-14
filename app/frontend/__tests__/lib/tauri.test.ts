@@ -3,9 +3,11 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 const invokeMock = vi.hoisted(() => vi.fn());
 const openMock = vi.hoisted(() => vi.fn());
 const saveMock = vi.hoisted(() => vi.fn());
+const listenMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: invokeMock }));
 vi.mock("@tauri-apps/plugin-dialog", () => ({ open: openMock, save: saveMock }));
+vi.mock("@tauri-apps/api/event", () => ({ listen: listenMock }));
 
 describe("tauri (outside the Tauri runtime)", () => {
   beforeEach(() => {
@@ -13,6 +15,7 @@ describe("tauri (outside the Tauri runtime)", () => {
     invokeMock.mockReset();
     openMock.mockReset();
     saveMock.mockReset();
+    listenMock.mockReset();
     delete (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__;
   });
 
@@ -40,6 +43,13 @@ describe("tauri (outside the Tauri runtime)", () => {
     await expect(mod.pickSaveLocation("f.txt")).resolves.toBeNull();
     expect(saveMock).not.toHaveBeenCalled();
   });
+
+  it("subscribeProgress resolves a no-op unlisten without touching the event bridge", async () => {
+    const mod = await import("@/lib/tauri");
+    const unlisten = await mod.subscribeProgress(() => {});
+    expect(listenMock).not.toHaveBeenCalled();
+    expect(() => unlisten()).not.toThrow();
+  });
 });
 
 describe("tauri (inside the Tauri runtime)", () => {
@@ -48,6 +58,7 @@ describe("tauri (inside the Tauri runtime)", () => {
     invokeMock.mockReset();
     openMock.mockReset();
     saveMock.mockReset();
+    listenMock.mockReset();
     (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ = {};
   });
 
@@ -101,18 +112,20 @@ describe("tauri (inside the Tauri runtime)", () => {
     expect(saveMock).toHaveBeenCalledWith({ defaultPath: "file.bin" });
   });
 
-  it("sidecarUpload invokes upload_file with filePath/passphrase", async () => {
+  it("sidecarUpload invokes upload_file with filePath/passphrase/platform", async () => {
     const mod = await import("@/lib/tauri");
-    await mod.sidecarUpload("/f", "pw");
+    await mod.sidecarUpload("/f", "pw", "github");
     expect(invokeMock).toHaveBeenCalledWith("upload_file", {
       filePath: "/f",
       passphrase: "pw",
+      platform: "github",
     });
   });
 
   it("localUpload defaults profile to 'normal'", async () => {
+    invokeMock.mockResolvedValue("local-id-1");
     const mod = await import("@/lib/tauri");
-    await mod.localUpload("/f", "pw");
+    await expect(mod.localUpload("/f", "pw")).resolves.toBe("local-id-1");
     expect(invokeMock).toHaveBeenCalledWith("local_upload", {
       filePath: "/f",
       passphrase: "pw",
@@ -130,13 +143,20 @@ describe("tauri (inside the Tauri runtime)", () => {
     });
   });
 
-  it("startSync invokes start_sync with baseUrl/token", async () => {
+  it("startSync invokes start_sync with baseUrl/accessToken/refreshToken", async () => {
     const mod = await import("@/lib/tauri");
-    await mod.startSync("https://x", "tok");
+    await mod.startSync("https://x", "tok", "refresh-tok");
     expect(invokeMock).toHaveBeenCalledWith("start_sync", {
       baseUrl: "https://x",
-      token: "tok",
+      accessToken: "tok",
+      refreshToken: "refresh-tok",
     });
+  });
+
+  it("stopSync invokes stop_sync", async () => {
+    const mod = await import("@/lib/tauri");
+    await mod.stopSync();
+    expect(invokeMock).toHaveBeenCalledWith("stop_sync", undefined);
   });
 
   it("getSyncStatus invokes sync_status and returns the stats", async () => {
@@ -152,13 +172,74 @@ describe("tauri (inside the Tauri runtime)", () => {
     expect(invokeMock).toHaveBeenCalledWith("sync_status", undefined);
   });
 
-  it("sidecarDownload invokes download_file with fileId/passphrase/savePath", async () => {
+  it("getEngineStatus invokes get_engine_status and returns the status", async () => {
+    const status = { ready: true, version: "1.2.3" };
+    invokeMock.mockResolvedValue(status);
     const mod = await import("@/lib/tauri");
-    await mod.sidecarDownload("id1", "pw", "/save");
+    await expect(mod.getEngineStatus()).resolves.toEqual(status);
+    expect(invokeMock).toHaveBeenCalledWith("get_engine_status", undefined);
+  });
+
+  it("sidecarDownload invokes download_file with fileId/passphrase/userId/savePath", async () => {
+    const mod = await import("@/lib/tauri");
+    await mod.sidecarDownload("id1", "pw", "user1", "/save");
     expect(invokeMock).toHaveBeenCalledWith("download_file", {
       fileId: "id1",
       passphrase: "pw",
+      userId: "user1",
       savePath: "/save",
     });
+  });
+
+  it("keychainSet invokes keychain_set with key/value", async () => {
+    const mod = await import("@/lib/tauri");
+    await mod.keychainSet("k", "v");
+    expect(invokeMock).toHaveBeenCalledWith("keychain_set", { key: "k", value: "v" });
+  });
+
+  it("keychainGet invokes keychain_get and returns the value", async () => {
+    invokeMock.mockResolvedValue("v");
+    const mod = await import("@/lib/tauri");
+    await expect(mod.keychainGet("k")).resolves.toBe("v");
+    expect(invokeMock).toHaveBeenCalledWith("keychain_get", { key: "k" });
+  });
+
+  it("keychainDelete invokes keychain_delete with key", async () => {
+    const mod = await import("@/lib/tauri");
+    await mod.keychainDelete("k");
+    expect(invokeMock).toHaveBeenCalledWith("keychain_delete", { key: "k" });
+  });
+
+  it("checkForUpdates invokes check_for_updates and returns the result", async () => {
+    invokeMock.mockResolvedValue({ available: false });
+    const mod = await import("@/lib/tauri");
+    await expect(mod.checkForUpdates()).resolves.toEqual({ available: false });
+    expect(invokeMock).toHaveBeenCalledWith("check_for_updates", undefined);
+  });
+
+  it("subscribeProgress listens on zcrypt://progress and forwards payloads", async () => {
+    let handler: ((event: { payload: unknown }) => void) | undefined;
+    listenMock.mockImplementation((_event: string, cb: (event: { payload: unknown }) => void) => {
+      handler = cb;
+      return Promise.resolve(() => {});
+    });
+    const mod = await import("@/lib/tauri");
+    const cb = vi.fn();
+    const unlisten = await mod.subscribeProgress(cb);
+    expect(listenMock).toHaveBeenCalledWith("zcrypt://progress", expect.any(Function));
+
+    const payload = {
+      file_id: "f1",
+      file_name: "a.txt",
+      stage: "uploading",
+      chunks_done: 1,
+      chunks_total: 2,
+      bytes_done: 10,
+      bytes_total: 20,
+      speed: 5,
+    };
+    handler?.({ payload });
+    expect(cb).toHaveBeenCalledWith(payload);
+    expect(typeof unlisten).toBe("function");
   });
 });

@@ -1,87 +1,285 @@
-use tauri::{Listener, Manager};
+use std::path::Path;
+use std::sync::{Arc, Mutex as StdMutex};
+
+use tauri::menu::{MenuBuilder, MenuItemBuilder};
+use tauri::tray::TrayIconBuilder;
+use tauri::{Emitter, Listener, Manager};
 // Only needed for the `.deep_link()` call below, which is itself macOS-gated
 // (macOS registers the scheme via the .app bundle's Info.plist instead).
 #[cfg(not(target_os = "macos"))]
 use tauri_plugin_deep_link::DeepLinkExt;
+use tokio::sync::{RwLock, watch};
 
-mod sidecar;
+use zcrypt_core::api::Client;
+use zcrypt_core::engines::{self, EngineContext};
+use zcrypt_core::localdb::LocalDb;
+use zcrypt_core::profiles;
+use zcrypt_core::types::{Progress, ProgressFn};
 
+/// OS keychain service name for all zcrypt desktop secrets.
+const KEYCHAIN_SERVICE: &str = "app.zcrypt.desktop";
+/// Tauri event carrying `zcrypt_core::types::Progress` payloads.
+const PROGRESS_EVENT: &str = "zcrypt://progress";
+
+/// Managed engine state — replaces the old Go sidecar process.
+///
+/// - `client` is built on `start_sync` (needs base URL + tokens).
+/// - `db` is opened lazily on first use.
+/// - `sync_cancel` flips the watch channel the sync worker listens on.
+struct EngineState {
+    client: RwLock<Option<Arc<Client>>>,
+    db: StdMutex<Option<Arc<LocalDb>>>,
+    sync_cancel: StdMutex<Option<watch::Sender<bool>>>,
+    profile: profiles::Profile,
+}
+
+impl Default for EngineState {
+    fn default() -> Self {
+        EngineState {
+            client: RwLock::new(None),
+            db: StdMutex::new(None),
+            sync_cancel: StdMutex::new(None),
+            profile: profiles::NORMAL,
+        }
+    }
+}
+
+impl EngineState {
+    /// Lazily open the local SQLite ledger.
+    fn db(&self) -> Result<Arc<LocalDb>, String> {
+        let mut guard = self.db.lock().unwrap();
+        if let Some(db) = guard.as_ref() {
+            return Ok(db.clone());
+        }
+        let db = Arc::new(LocalDb::open().map_err(|e| format!("open local db: {}", e))?);
+        *guard = Some(db.clone());
+        Ok(db)
+    }
+
+    async fn client(&self) -> Result<Arc<Client>, String> {
+        self.client
+            .read()
+            .await
+            .clone()
+            .ok_or_else(|| "engine not connected — call start_sync first".to_string())
+    }
+
+    /// Build an engine context that forwards progress to the webview.
+    async fn context(&self, app: &tauri::AppHandle) -> Result<EngineContext, String> {
+        Ok(EngineContext {
+            client: self.client().await?,
+            db: self.db()?,
+            profile: self.profile,
+            progress: progress_emitter(app),
+        })
+    }
+}
+
+/// ProgressFn closure that emits `zcrypt://progress` window events.
+fn progress_emitter(app: &tauri::AppHandle) -> ProgressFn {
+    let app = app.clone();
+    Arc::new(move |p: Progress| {
+        let _ = app.emit(PROGRESS_EVENT, &p);
+    })
+}
+
+fn keychain_entry(key: &str) -> Result<keyring::Entry, String> {
+    keyring::Entry::new(KEYCHAIN_SERVICE, key).map_err(|e| format!("keychain: {}", e))
+}
+
+// ---------------------------------------------------------------------------
+// Transfer commands
+// ---------------------------------------------------------------------------
+
+/// Encrypt + chunk a file into the local ledger only (sync worker pushes it
+/// later). Returns the local file id.
+#[tauri::command]
+async fn local_upload(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, EngineState>,
+    file_path: String,
+    passphrase: String,
+    profile: Option<String>,
+) -> Result<String, String> {
+    let mut ctx = state.context(&app).await?;
+    if let Some(name) = profile.as_deref() {
+        ctx.profile = profiles::get_profile(name);
+    }
+    engines::local_upload(&ctx, Path::new(&file_path), &passphrase)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Full pipeline upload straight to the backend/platforms.
 #[tauri::command]
 async fn upload_file(
     app: tauri::AppHandle,
+    state: tauri::State<'_, EngineState>,
     file_path: String,
     passphrase: String,
-) -> Result<serde_json::Value, String> {
-    sidecar::call(
-        &app,
-        "upload",
-        serde_json::json!({
-            "file_path": file_path,
-            "passphrase": passphrase,
-        }),
-    )
-    .await
+    platform: Option<String>,
+) -> Result<(), String> {
+    let ctx = state.context(&app).await?;
+    engines::upload(&ctx, Path::new(&file_path), &passphrase, platform)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 async fn download_file(
     app: tauri::AppHandle,
+    state: tauri::State<'_, EngineState>,
     file_id: String,
     passphrase: String,
+    user_id: String,
     save_path: String,
-) -> Result<serde_json::Value, String> {
-    sidecar::call(
-        &app,
-        "download",
-        serde_json::json!({
-            "file_id": file_id,
-            "passphrase": passphrase,
-            "save_path": save_path,
-        }),
-    )
-    .await
+) -> Result<(), String> {
+    let ctx = state.context(&app).await?;
+    engines::download(&ctx, &file_id, &passphrase, &user_id, Path::new(&save_path))
+        .await
+        .map_err(|e| e.to_string())
 }
 
-#[tauri::command]
-async fn local_upload(
-    app: tauri::AppHandle,
-    file_path: String,
-    passphrase: String,
-    profile: Option<String>,
-) -> Result<serde_json::Value, String> {
-    sidecar::call(
-        &app,
-        "local_upload",
-        serde_json::json!({
-            "file_path": file_path,
-            "passphrase": passphrase,
-            "profile": profile.unwrap_or_else(|| "normal".to_string()),
-        }),
-    )
-    .await
-}
+// ---------------------------------------------------------------------------
+// Sync worker
+// ---------------------------------------------------------------------------
 
+/// Build the API client (persisting rotated tokens back to the OS keychain)
+/// and (re)start the background sync worker.
 #[tauri::command]
 async fn start_sync(
     app: tauri::AppHandle,
+    state: tauri::State<'_, EngineState>,
     base_url: String,
-    token: String,
-) -> Result<serde_json::Value, String> {
-    sidecar::call(
-        &app,
-        "start_sync",
-        serde_json::json!({
-            "base_url": base_url,
-            "token": token,
-        }),
-    )
-    .await
+    access_token: String,
+    refresh_token: String,
+) -> Result<(), String> {
+    let rotate_hook: Arc<dyn Fn(&str, &str) + Send + Sync> = Arc::new(|access, refresh| {
+        if let Ok(entry) = keyring::Entry::new(KEYCHAIN_SERVICE, "auth.access") {
+            let _ = entry.set_password(access);
+        }
+        if let Ok(entry) = keyring::Entry::new(KEYCHAIN_SERVICE, "auth.refresh") {
+            let _ = entry.set_password(refresh);
+        }
+    });
+    let client = Arc::new(
+        Client::new(&base_url, &access_token, &refresh_token).with_rotate_hook(rotate_hook),
+    );
+    *state.client.write().await = Some(client.clone());
+
+    let db = state.db()?;
+
+    // Cancel any previous sync worker, then install a fresh cancel channel.
+    let (cancel_tx, cancel_rx) = watch::channel(false);
+    {
+        let mut guard = state.sync_cancel.lock().unwrap();
+        if let Some(old) = guard.take() {
+            let _ = old.send(true);
+        }
+        *guard = Some(cancel_tx);
+    }
+
+    let ctx = EngineContext {
+        client,
+        db,
+        profile: state.profile,
+        progress: progress_emitter(&app),
+    };
+    tauri::async_runtime::spawn(async move {
+        engines::run_sync(ctx, cancel_rx).await;
+    });
+    Ok(())
 }
 
 #[tauri::command]
-async fn sync_status(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
-    sidecar::call(&app, "sync_status", serde_json::json!({})).await
+async fn stop_sync(state: tauri::State<'_, EngineState>) -> Result<(), String> {
+    if let Some(cancel) = state.sync_cancel.lock().unwrap().take() {
+        let _ = cancel.send(true);
+    }
+    Ok(())
 }
+
+#[tauri::command]
+async fn sync_status(state: tauri::State<'_, EngineState>) -> Result<serde_json::Value, String> {
+    let db = state.db()?;
+    let stats = engines::sync_status(&db).map_err(|e| e.to_string())?;
+    serde_json::to_value(stats).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn get_engine_status() -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({
+        "ready": true,
+        "version": env!("CARGO_PKG_VERSION"),
+    }))
+}
+
+// ---------------------------------------------------------------------------
+// OS keychain
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+async fn keychain_set(key: String, value: String) -> Result<(), String> {
+    keychain_entry(&key)?
+        .set_password(&value)
+        .map_err(|e| format!("keychain set: {}", e))
+}
+
+#[tauri::command]
+async fn keychain_get(key: String) -> Result<Option<String>, String> {
+    match keychain_entry(&key)?.get_password() {
+        Ok(value) => Ok(Some(value)),
+        Err(keyring::Error::NoEntry) => Ok(None),
+        Err(e) => Err(format!("keychain get: {}", e)),
+    }
+}
+
+#[tauri::command]
+async fn keychain_delete(key: String) -> Result<(), String> {
+    match keychain_entry(&key)?.delete_credential() {
+        Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
+        Err(e) => Err(format!("keychain delete: {}", e)),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Updater
+// ---------------------------------------------------------------------------
+
+#[derive(serde::Serialize)]
+struct UpdateCheck {
+    available: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    version: Option<String>,
+}
+
+/// Desktop-only update check; `{available:false}` whenever the updater is
+/// unconfigured or the check fails.
+#[tauri::command]
+async fn check_for_updates(app: tauri::AppHandle) -> Result<UpdateCheck, String> {
+    #[cfg(desktop)]
+    {
+        use tauri_plugin_updater::UpdaterExt;
+        if let Ok(updater) = app.updater() {
+            if let Ok(Some(update)) = updater.check().await {
+                return Ok(UpdateCheck {
+                    available: true,
+                    version: Some(update.version.clone()),
+                });
+            }
+        }
+    }
+    #[cfg(not(desktop))]
+    let _ = app;
+    Ok(UpdateCheck {
+        available: false,
+        version: None,
+    })
+}
+
+// ---------------------------------------------------------------------------
+// Temp files
+// ---------------------------------------------------------------------------
 
 /// Write file data to a temp file. Returns the path.
 #[tauri::command]
@@ -97,11 +295,6 @@ async fn remove_temp_file(path: String) -> Result<(), String> {
     Ok(())
 }
 
-#[tauri::command]
-async fn get_sidecar_status(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
-    sidecar::call(&app, "status", serde_json::json!({})).await
-}
-
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -109,17 +302,27 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_deep_link::init())
+        .manage(EngineState::default())
         .invoke_handler(tauri::generate_handler![
-            upload_file,
             local_upload,
+            upload_file,
+            download_file,
             start_sync,
+            stop_sync,
             sync_status,
+            get_engine_status,
+            keychain_set,
+            keychain_get,
+            keychain_delete,
+            check_for_updates,
             write_temp_file,
             remove_temp_file,
-            download_file,
-            get_sidecar_status,
         ])
         .setup(|app| {
+            #[cfg(desktop)]
+            app.handle()
+                .plugin(tauri_plugin_updater::Builder::new().build())?;
+
             // Register zcrypt:// scheme at runtime (Linux/Windows only —
             // macOS uses the .app bundle's Info.plist).
             #[cfg(not(target_os = "macos"))]
@@ -129,24 +332,68 @@ pub fn run() {
             let handle = app.handle().clone();
             app.listen("deep-link://new-url", move |event: tauri::Event| {
                 let payload = event.payload();
-                if let Some(urls) = payload.strip_prefix('"').and_then(|s: &str| s.strip_suffix('"')) {
+                if let Some(urls) = payload
+                    .strip_prefix('"')
+                    .and_then(|s: &str| s.strip_suffix('"'))
+                {
                     handle_deep_link(&handle, urls);
                 } else {
                     handle_deep_link(&handle, payload);
                 }
             });
 
-            // Start sidecar on launch
-            let handle = app.handle().clone();
-            tauri::async_runtime::spawn(async move {
-                if let Err(e) = sidecar::start(&handle).await {
-                    eprintln!("failed to start sidecar: {}", e);
-                }
-            });
+            setup_tray(app)?;
+
             Ok(())
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+/// System tray: Open zcrypt / Sync now / Quit.
+///
+/// The `app.trayIcon` config in tauri.conf.json creates the tray icon itself
+/// (id "main"); we attach the menu to it, falling back to building one if the
+/// config-created tray is unavailable.
+fn setup_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    let open = MenuItemBuilder::with_id("open", "Open zcrypt").build(app)?;
+    let sync_now = MenuItemBuilder::with_id("sync-now", "Sync now").build(app)?;
+    let quit = MenuItemBuilder::with_id("quit", "Quit").build(app)?;
+    let menu = MenuBuilder::new(app)
+        .item(&open)
+        .item(&sync_now)
+        .separator()
+        .item(&quit)
+        .build()?;
+
+    if let Some(tray) = app.tray_by_id("main") {
+        tray.set_menu(Some(menu))?;
+    } else {
+        let mut builder = TrayIconBuilder::with_id("main")
+            .menu(&menu)
+            .tooltip("zcrypt");
+        if let Some(icon) = app.default_window_icon() {
+            builder = builder.icon(icon.clone());
+        }
+        builder.build(app)?;
+    }
+
+    // Menu events are app-global in Tauri v2; this also receives tray menu clicks.
+    app.on_menu_event(|app, event| match event.id().as_ref() {
+        "open" => {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }
+        "sync-now" => {
+            let _ = app.emit("zcrypt://sync-now", ());
+        }
+        "quit" => app.exit(0),
+        _ => {}
+    });
+
+    Ok(())
 }
 
 /// Navigate the main webview to the OAuth callback page with tokens from a deep link.
