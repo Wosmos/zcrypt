@@ -61,8 +61,11 @@ export function AndroidDownload() {
             </div>
           )}
 
-          <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
+          <h2 className="flex items-center gap-2 text-xl font-bold tracking-tight sm:text-2xl">
             zcrypt for Android
+            <span className="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
+              Beta
+            </span>
           </h2>
           <p className="mt-2 max-w-md text-sm leading-relaxed text-[var(--color-text-secondary)]">
             A sideloaded APK, built straight from this repository on every
