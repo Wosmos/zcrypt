@@ -235,6 +235,18 @@ impl LocalDb {
         })
     }
 
+    /// Remove a file and its chunk rows from the local ledger. Used after a
+    /// delete so a device's local mirror drops the file (whether the delete
+    /// originated here or arrived as a remote change). Idempotent — deleting an
+    /// absent file is a no-op.
+    pub fn delete_file(&self, file_id: &str) -> Result<(), DbError> {
+        self.with(|c| {
+            c.execute("DELETE FROM chunks WHERE file_id=?1", params![file_id])?;
+            c.execute("DELETE FROM files WHERE id=?1", params![file_id])
+                .map(|_| ())
+        })
+    }
+
     // ── chunks ──────────────────────────────────────────────────────────────
 
     pub fn insert_chunk(&self, ch: &LocalChunk) -> Result<(), DbError> {
