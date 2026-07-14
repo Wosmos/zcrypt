@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex as StdMutex};
 
 use tauri::menu::{MenuBuilder, MenuItemBuilder};
@@ -35,6 +35,12 @@ struct EngineState {
     db: StdMutex<Option<Arc<LocalDb>>>,
     sync_cancel: StdMutex<Option<watch::Sender<bool>>>,
     profile: profiles::Profile,
+    /// Vault passphrase cached after unlock so the background folder-watch agent
+    /// can encrypt new files without prompting. Cleared on lock/logout.
+    passphrase: StdMutex<Option<String>>,
+    /// Active folder-watch watcher — dropping it stops watching (and ends the
+    /// processor task, whose channel sender lives inside the watcher callback).
+    watcher: StdMutex<Option<notify::RecommendedWatcher>>,
 }
 
 impl Default for EngineState {
@@ -44,6 +50,8 @@ impl Default for EngineState {
             db: StdMutex::new(None),
             sync_cancel: StdMutex::new(None),
             profile: profiles::NORMAL,
+            passphrase: StdMutex::new(None),
+            watcher: StdMutex::new(None),
         }
     }
 }
@@ -295,6 +303,103 @@ async fn is_autostart_enabled(app: tauri::AppHandle) -> Result<bool, String> {
 }
 
 // ---------------------------------------------------------------------------
+// Folder-watch backup agent
+// ---------------------------------------------------------------------------
+
+/// Cache the vault passphrase after unlock so the background folder-watch agent
+/// can encrypt new files without a prompt. Kept in memory only.
+#[tauri::command]
+async fn set_passphrase(
+    state: tauri::State<'_, EngineState>,
+    passphrase: String,
+) -> Result<(), String> {
+    *state.passphrase.lock().unwrap() = Some(passphrase);
+    Ok(())
+}
+
+/// Forget the cached passphrase (on lock / logout). The folder-watch agent then
+/// skips new files until the vault is unlocked again.
+#[tauri::command]
+async fn clear_passphrase(state: tauri::State<'_, EngineState>) -> Result<(), String> {
+    *state.passphrase.lock().unwrap() = None;
+    Ok(())
+}
+
+/// Watch a folder: every newly-created file is encrypted into the local ledger
+/// (the sync worker then pushes it) and a "Backed up" notification is posted.
+/// Requires the vault unlocked (passphrase cached) and the engine connected;
+/// events arriving before that are skipped. Replaces any previous watch.
+#[tauri::command]
+async fn start_folder_watch(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, EngineState>,
+    path: String,
+) -> Result<(), String> {
+    use notify::{RecursiveMode, Watcher};
+
+    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<PathBuf>();
+    let mut watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
+        if let Ok(ev) = res {
+            // New files only — Modify would re-upload on every save (versioning
+            // is a later refinement); Create covers "drop a file in the folder".
+            if matches!(ev.kind, notify::EventKind::Create(_)) {
+                for p in ev.paths {
+                    if p.is_file() {
+                        let _ = tx.send(p);
+                    }
+                }
+            }
+        }
+    })
+    .map_err(|e| format!("watch: {}", e))?;
+    watcher
+        .watch(Path::new(&path), RecursiveMode::Recursive)
+        .map_err(|e| format!("watch {}: {}", path, e))?;
+    // Keep the watcher alive; dropping it (stop_folder_watch / replace) stops it.
+    *state.watcher.lock().unwrap() = Some(watcher);
+
+    let app2 = app.clone();
+    tauri::async_runtime::spawn(async move {
+        while let Some(p) = rx.recv().await {
+            let st = app2.state::<EngineState>();
+            let pass = { st.passphrase.lock().unwrap().clone() };
+            let Some(pass) = pass else { continue }; // vault locked → skip
+            let ctx = match st.context(&app2).await {
+                Ok(c) => c,
+                Err(_) => continue, // engine not connected yet → skip
+            };
+            match engines::local_upload(&ctx, &p, &pass).await {
+                Ok(_) => notify_backup(&app2, &p),
+                Err(e) => eprintln!("folder-watch: {}: {}", p.display(), e),
+            }
+        }
+    });
+    Ok(())
+}
+
+/// Stop the active folder watch (drops the watcher, which ends the processor).
+#[tauri::command]
+async fn stop_folder_watch(state: tauri::State<'_, EngineState>) -> Result<(), String> {
+    *state.watcher.lock().unwrap() = None;
+    Ok(())
+}
+
+/// Post a local "Backed up <file>" OS notification (all platforms).
+fn notify_backup(app: &tauri::AppHandle, path: &Path) {
+    use tauri_plugin_notification::NotificationExt;
+    let name = path
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_default();
+    let _ = app
+        .notification()
+        .builder()
+        .title("zcrypt backup")
+        .body(format!("Backed up {}", name))
+        .show();
+}
+
+// ---------------------------------------------------------------------------
 // OS keychain
 // ---------------------------------------------------------------------------
 
@@ -400,6 +505,10 @@ pub fn run() {
             remove_temp_file,
             set_autostart,
             is_autostart_enabled,
+            set_passphrase,
+            clear_passphrase,
+            start_folder_watch,
+            stop_folder_watch,
         ])
         .setup(|app| {
             #[cfg(desktop)]
