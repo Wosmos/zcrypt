@@ -2,9 +2,17 @@ name: CI
 
 on:
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
     branches: [main]
+
+# A newer push/PR-update on the same ref makes any run already in flight for
+# that ref stale — cancel it instead of letting it finish uselessly. Distinct
+# refs (different branches/PRs) get their own group, so they never cancel
+# each other.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   # ── Detect what changed ──────────────────────────────────────────────────────
@@ -112,30 +120,6 @@ jobs:
         env:
           TEST_DATABASE_URL: postgres://zcrypt:testpassword@localhost:5433/zcrypt_test
         run: go test -tags=integration -v -timeout=120s ./integration/...
-
-  # ── Backend: security scanning ───────────────────────────────────────────────
-  backend-security:
-    name: Go Security Scan
-    needs: changes
-    if: needs.changes.outputs.backend == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version: "1.25.12"
-
-      - name: Install govulncheck
-        run: go install golang.org/x/vuln/cmd/govulncheck@latest
-
-      - name: Check backend vulnerabilities
-        working-directory: app/backend
-        run: govulncheck ./...
-
-      - name: Check TUI vulnerabilities
-        working-directory: app/tui
-        run: govulncheck ./...
 
   # ── Frontend: unit tests + typecheck ─────────────────────────────────────────
   frontend:

@@ -417,7 +417,7 @@ fi
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  GATES — desktop (fmt + clippy + compile check; full Tauri bundle stays in
-#  desktop.yml)
+#  device.yml)
 # ══════════════════════════════════════════════════════════════════════════════
 
 if [ "$RUN_DESKTOP" = 1 ]; then
