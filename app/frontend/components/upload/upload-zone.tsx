@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, DragEvent } from "react";
 import { FileUpload, Cloud, Loader2 } from "@/lib/icons";
 import { cn } from "@/lib/utils";
+import { isTauri, pickFiles, toDesktopFile } from "@/lib/tauri";
 
 interface UploadZoneProps {
   onFiles: (files: File[]) => void;
@@ -65,8 +66,29 @@ export function UploadZone({ onFiles, hint, compact }: UploadZoneProps) {
     // possibly slow-to-appear) native UI takes over.
     preparingRef.current = true;
     setPreparing(true);
+
+    // Desktop: go straight to Tauri's native dialog and skip the hidden
+    // <input> below entirely. The webview's OWN file input would otherwise
+    // open its own native "Open" dialog first; only once that resolved did
+    // the desktop upload path (useVaultActions -> store/upload.ts) realize it
+    // needed real filesystem paths and open a SECOND, separate native dialog
+    // to get them. Two native dialogs stacking back-to-back on one click look
+    // identical, so the second one — the one that actually mattered — got
+    // missed on the first attempt (toast fires, nothing ever attaches); only
+    // a retry, landing on a since-settled dialog stack, worked. Picking here
+    // once and threading the real paths through `onFiles` (as DesktopFiles)
+    // means exactly one dialog opens per click.
+    if (isTauri) {
+      pickFiles({ multiple: true, title: "Select files to upload" })
+        .then((paths) => {
+          if (paths.length > 0) onFiles(paths.map(toDesktopFile));
+        })
+        .finally(clearPreparing);
+      return;
+    }
+
     inputRef.current?.click();
-  }, []);
+  }, [onFiles, clearPreparing]);
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {

@@ -4,6 +4,7 @@ import { useCallback } from "react";
 import { IncorrectPassphraseError } from "@/lib/crypto";
 import {
   cachedDecrypt,
+  cachedResolveCEK,
   isWarmOrInflight,
 } from "@/lib/decrypt-cache";
 import { getDeviceProfile } from "@/lib/device-profile";
@@ -33,7 +34,10 @@ import type { FileMetadata } from "@/types";
  *        (vault pass for unprotected files; cached/prompted+verified folder pass
  *        for protected-folder files — routes through the existing unlock flow).
  *     2. meta  = getFileMeta(file.id)
- *     3. key   = resolveFileKey(password, fromBase64(meta.salt), meta.wrapped_cek)
+ *     3. key   = resolveFileKey(password, fromBase64(meta.salt), meta.wrapped_cek),
+ *        routed through cachedResolveCEK (lib/decrypt-cache) so a file whose key
+ *        was already resolved elsewhere (thumbnail peek, prior open) is a map
+ *        lookup, not a repeat unwrap.
  *     4. chunks: N parallel fetchers (device profile's download concurrency)
  *        pull getFileChunk, each fanning out to a WorkerPool whose 'decrypt'
  *        mode does AES-GCM + zstd-decompress off the main thread — mirroring
@@ -175,7 +179,14 @@ export async function runDecryptPipeline(
 
   const meta = await getFileMeta(file.id);
   const salt = fromBase64(meta.salt);
-  const keyBytes = await resolveFileKey(password, salt, meta.wrapped_cek);
+  // Warm CEK cache: the unwrap itself is cheap, but this file's key may already
+  // be resolved (a thumbnail peek, a neighbour prefetch, a previous viewer open)
+  // — skip straight to a map lookup instead of paying another unwrap + Web
+  // Crypto round trip. Cleared on the same lock/TTL/logout/folder-relock events
+  // as the plaintext blob cache (see lib/decrypt-cache).
+  const keyBytes = await cachedResolveCEK(file.id, file.folder_id ?? null, () =>
+    resolveFileKey(password, salt, meta.wrapped_cek)
+  );
 
   // Legacy files (no wrapped CEK) have no key verifier: a wrong passphrase only
   // surfaces as an AES-GCM auth failure on the first chunk. Verify against

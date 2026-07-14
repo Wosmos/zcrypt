@@ -156,7 +156,7 @@ interface UploadStore {
    *  reconnects. Excludes deliberately paused items and permanent pre-session
    *  failures (oversized, no storage connected), which never got a session. */
   getResumableUploadIds: () => string[];
-  startDesktopUpload: (passphrase: string, onRefresh?: () => void) => void;
+  startDesktopUpload: (passphrase: string, onRefresh?: () => void, preSelectedPaths?: string[]) => void;
 }
 
 // Resume context for an in-flight upload. Holds the raw CEK so a retry re-encrypts
@@ -1209,9 +1209,19 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
       .filter((i) => i.status === "failed" && !!itemMeta.get(i.id)?.resume?.sessionId)
       .map((i) => i.id),
 
-  // Desktop-only: opens native file picker, encrypts locally via the in-process core.
-  // No browser File objects, no IPC data transfer — the core reads from disk path.
-  startDesktopUpload: async (passphrase, onRefresh) => {
+  // Desktop-only: encrypts locally via the in-process core. No browser File
+  // objects, no IPC data transfer — the core reads from disk path.
+  //
+  // `preSelectedPaths`: the dropzone (upload-zone.tsx) opens the native picker
+  // itself before calling into the vault action chain, so the SAME dialog
+  // result reaches here — we must not open a second one. Two native "Open"
+  // dialogs stacking back-to-back on the first click (one from this function
+  // re-picking, one from the dropzone) look identical, so the one that
+  // actually mattered got missed on the first attempt: the toast fired
+  // ("Preparing…") but nothing was ever attached, and only the retry — which
+  // landed on a since-settled dialog stack — worked. Falls back to opening the
+  // picker here only when no paths were supplied (e.g. a direct/legacy call).
+  startDesktopUpload: async (passphrase, onRefresh, preSelectedPaths) => {
     const { addToQueue, updateStatus, setError } = get();
 
     const {
@@ -1219,7 +1229,10 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
       localUpload: tauriLocalUpload,
       subscribeProgress,
     } = await import("@/lib/tauri");
-    const paths = await tauriPickFiles({ multiple: true, title: "Select files to upload" });
+    const paths =
+      preSelectedPaths && preSelectedPaths.length > 0
+        ? preSelectedPaths
+        : await tauriPickFiles({ multiple: true, title: "Select files to upload" });
     if (!paths.length) return;
 
     // Progress events carry a file_name but not our queue id, and the core

@@ -37,6 +37,25 @@ export async function pickFiles(
   return [result as string];
 }
 
+/**
+ * A placeholder File carrying the absolute desktop path `pickFiles()`
+ * resolved, so a native-picker result can flow through the same
+ * `onFiles(files: File[])` contract the browser `<input type="file">` path
+ * uses. It holds no bytes — the desktop upload pipeline reads straight from
+ * disk via `.path`, never through browser File data.
+ */
+export interface DesktopFile extends File {
+  path: string;
+}
+
+/** Wrap one native-picker path in a `DesktopFile`. */
+export function toDesktopFile(path: string): DesktopFile {
+  const name = path.split(/[/\\]/).pop() || path;
+  const file = new File([], name) as DesktopFile;
+  Object.defineProperty(file, "path", { value: path, enumerable: true });
+  return file;
+}
+
 /** Open a native save dialog. Returns the selected path. */
 export async function pickSaveLocation(
   defaultName: string

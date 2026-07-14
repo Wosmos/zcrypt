@@ -221,11 +221,12 @@ function FileRow({
   const customIcon = file.style?.icon ? getIconByKey(file.style.icon) : null;
   const Icon = customIcon ?? fileIconFor(file.original_name);
   const iconColorStyle = file.style?.color ? { color: file.style.color } : undefined;
-  const { thumbnailUrl } = useThumbnail(file.id, file.original_name, file.original_size);
+  const { thumbnailUrl, cardRef } = useThumbnail(file.id, file.original_name, file.original_size);
   const savings = savingsPercent(file.original_size, file.encrypted_size);
 
   return (
     <div
+      ref={cardRef}
       role="button"
       data-entry-id={file.id}
       tabIndex={focused ? 0 : -1}

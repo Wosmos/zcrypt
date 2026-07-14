@@ -53,6 +53,15 @@ interface UseVaultActionsArgs {
   currentFolderId: string | null;
 }
 
+// Read the absolute desktop path off a File the dropzone already picked via
+// Tauri's native dialog (see components/upload/upload-zone.tsx + lib/tauri.ts
+// toDesktopFile). Present only on desktop; a plain browser File (or a resume
+// retry's placeholder File) has none, in which case the caller falls back to
+// its pre-existing behavior.
+function desktopPath(file: File): string | undefined {
+  return (file as { path?: string }).path;
+}
+
 export interface VaultActions {
   /** Upload entry point — dupe detection + quota guard + vault unlock. */
   handleFilesSelected: (selectedFiles: File[]) => void;
@@ -161,8 +170,25 @@ export function useVaultActions({
   const startUpload = useCallback(
     (uploadFiles: File[], wrapPassphrase: string, folderId: string | null, platformOverride?: string) => {
       // Desktop: native picker + sidecar (no browser File data transfer).
+      // `uploadFiles` here are the SAME `DesktopFile`s the dropzone already
+      // picked via the native dialog (upload-zone.tsx) — thread their real
+      // paths through instead of letting startDesktopUpload open a second,
+      // redundant native dialog (that double-dialog was the flaky-first-
+      // attempt bug: the picker that mattered got missed behind the one the
+      // dropzone had already opened and resolved).
       if (isTauri) {
-        startDesktopUpload(wrapPassphrase, refresh);
+        const paths = uploadFiles
+          .map(desktopPath)
+          .filter((p): p is string => !!p);
+        // Only thread paths through when we actually have them (the dropzone's
+        // native pick). Callers that hand us plain Files with no path (e.g. a
+        // resume retry) fall back to startDesktopUpload's own picker, exactly
+        // as before.
+        if (paths.length > 0) {
+          startDesktopUpload(wrapPassphrase, refresh, paths);
+        } else {
+          startDesktopUpload(wrapPassphrase, refresh);
+        }
         return;
       }
       // 0/unset means "unlimited" → defer to the device-profile default.

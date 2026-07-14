@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useAuthStore } from "@/store/auth";
 import { getMe, refreshToken as refreshTokenApi } from "@/lib/auth-api";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
@@ -12,11 +12,24 @@ import { LogoSpinner } from "@/components/ui/logo-spinner";
  */
 export function GuestGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { accessToken, refreshTokenValue, setUser, setTokens } = useAuthStore();
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
     async function check() {
+      // OAuth relay/callback routes must NEVER be redirected to /dashboard, even
+      // when this browser already holds a session. The desktop OAuth flow opens
+      // the user's default browser — often already logged into the web app — and
+      // lands on /oauth/desktop-relay; redirecting it here is exactly what made a
+      // desktop login also spin up a full web session. Let these pages render as
+      // themselves (relay shows "return to the app"; callback handles its own
+      // fragment tokens).
+      if (pathname?.startsWith("/oauth")) {
+        setChecked(true);
+        return;
+      }
+
       // No tokens at all — user is a guest, show the page
       if (!accessToken && !refreshTokenValue) {
         setChecked(true);
@@ -54,7 +67,7 @@ export function GuestGuard({ children }: { children: React.ReactNode }) {
     }
 
     check();
-  }, [accessToken, refreshTokenValue, router, setUser, setTokens]);
+  }, [accessToken, refreshTokenValue, router, setUser, setTokens, pathname]);
 
   if (!checked) {
     return (
