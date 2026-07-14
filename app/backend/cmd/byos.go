@@ -116,7 +116,7 @@ func (s *Server) HandleGetFileLocators(w http.ResponseWriter, r *http.Request) {
 	locators := make([]map[string]interface{}, 0, len(chunks))
 	for _, c := range chunks {
 		locators = append(locators, map[string]interface{}{
-			"idx":         c.Index,
+			"index":       c.Index,
 			"platform":    c.Platform,
 			"account":     c.Account,
 			"repo":        c.Repo,
@@ -128,8 +128,8 @@ func (s *Server) HandleGetFileLocators(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"file_id":  fileID,
-		"locators": locators,
+		"file_id": fileID,
+		"chunks":  locators,
 	})
 }
 

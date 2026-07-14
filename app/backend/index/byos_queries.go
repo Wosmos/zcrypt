@@ -171,6 +171,26 @@ func (db *DB) BumpUserFileRev(ctx context.Context, userID, fileID string) (int64
 	return seq, nil
 }
 
+// PurgeFileMetadata permanently removes a file and its chunk rows WITHOUT
+// queuing any platform deletion — for byos-direct files whose owner's device
+// already deleted the ciphertext from the user's own storage directly. This is
+// the whole point of byos-direct deletion: the backend never touches the bytes,
+// so there is no deletion worker load. Scoped to the owner. ON DELETE CASCADE on
+// chunks.file_id removes the chunk rows when the file row goes.
+func (db *DB) PurgeFileMetadata(ctx context.Context, userID, fileID string) error {
+	tag, err := db.pool.Exec(ctx,
+		`DELETE FROM files WHERE id = $1 AND user_id = $2`,
+		fileID, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("purge file metadata: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("file not found")
+	}
+	return nil
+}
+
 // FileChange is one row in the cross-device delta feed.
 type FileChange struct {
 	FileID   string `json:"file_id"`
