@@ -9,5 +9,14 @@
 //! Never change crypto behavior here without regenerating those vectors and
 //! updating the TS + Go implementations in the same change.
 
+pub mod adapters;
+pub mod api;
 pub mod compression;
 pub mod crypto;
+pub mod disguise;
+pub mod engines;
+pub mod localdb;
+pub mod placement;
+pub mod profiles;
+pub mod reppool;
+pub mod types;
