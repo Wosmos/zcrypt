@@ -306,6 +306,30 @@ ALTER TABLE upload_sessions ADD COLUMN IF NOT EXISTS chunk_size BIGINT NOT NULL 
 -- column). '' = legacy plaintext-name upload (original_name/filename populated).
 ALTER TABLE upload_sessions ADD COLUMN IF NOT EXISTS encrypted_name TEXT NOT NULL DEFAULT '';
 
+-- byos-direct upload mode: 'relay' (default — bytes transit the server, which
+-- stages + pushes to the platform) or 'byos-direct' (the client pushes chunks to
+-- the user's OWN platform with the user's OWN token and only confirms metadata;
+-- bytes never touch the server). Persisted so a cross-device resume keeps the
+-- same data plane. The shared managed-pool token is never used for byos-direct.
+ALTER TABLE upload_sessions ADD COLUMN IF NOT EXISTS mode TEXT NOT NULL DEFAULT 'relay';
+
+-- Cross-device sync feed. Every mutation to a user's files (added / updated /
+-- deleted / moved / renamed) stamps the file with a per-user monotonic revision
+-- so any device can pull just what changed via GET /api/changes?since=<rev> and
+-- a live SSE "file" event carries the same {op, file_id, rev}. files.rev starts
+-- at 0 (never handed out as a cursor value — the first real change is >= 1).
+ALTER TABLE files ADD COLUMN IF NOT EXISTS rev BIGINT NOT NULL DEFAULT 0;
+ALTER TABLE files ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+CREATE INDEX IF NOT EXISTS idx_files_user_rev ON files(user_id, rev);
+
+-- Per-user monotonic change counter backing files.rev. One row per user; the
+-- counter is bumped and read in a single UPDATE ... RETURNING so concurrent
+-- mutations from multiple devices never hand out the same rev.
+CREATE TABLE IF NOT EXISTS user_change_seq (
+	user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+	seq     BIGINT NOT NULL DEFAULT 0
+);
+
 -- pending_deletions must survive account deletion (queued platform deletions are
 -- the ONLY remaining reference to the user's remote chunks once the users row is
 -- gone). Replace the ON DELETE CASCADE FK with ON DELETE SET NULL and drop the

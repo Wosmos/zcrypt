@@ -27,6 +27,10 @@ func (s *Server) HandleDeleteFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Cross-device sync: the row survives (trash), so this bumps its rev and
+	// pushes a "deleted" event; offline devices pick it up via /api/changes.
+	s.emitFileChange(ctx, userID, fileID, "deleted")
+
 	s.audit(r, &userID, "file_delete", map[string]interface{}{"file_id": fileID})
 
 	w.Header().Set("Content-Type", "application/json")
@@ -133,6 +137,7 @@ func (s *Server) HandleBulkDeleteFiles(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"failed to delete files"}`, http.StatusInternalServerError)
 		return
 	}
+	s.emitFileChanges(ctx, userID, validIDs, "deleted")
 	s.respondBulkFileOp(w, r, userID, "bulk_file_delete", "deleted", deleted, total)
 }
 
@@ -164,6 +169,7 @@ func (s *Server) HandleBulkPurgeFiles(w http.ResponseWriter, r *http.Request) {
 	// Synced chunk refs are now queued in pending_deletions — wake the deletion worker.
 	s.signalDeletion()
 
+	s.emitFileChanges(ctx, userID, validIDs, "deleted")
 	s.respondBulkFileOp(w, r, userID, "bulk_file_purge", "deleted", deleted, total)
 }
 
@@ -185,5 +191,8 @@ func (s *Server) HandleBulkRestoreFiles(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, `{"error":"failed to restore files"}`, http.StatusInternalServerError)
 		return
 	}
+	// Restored files reappear on other devices — emit "added" (a fresh rev) so a
+	// device that saw the "deleted" event brings them back.
+	s.emitFileChanges(ctx, userID, validIDs, "added")
 	s.respondBulkFileOp(w, r, userID, "bulk_file_restore", "restored", restored, total)
 }
