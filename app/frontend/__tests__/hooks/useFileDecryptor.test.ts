@@ -19,6 +19,7 @@ const {
   viewerKindForMock,
   isWarmOrInflightMock,
   cachedDecryptMock,
+  cachedResolveCEKMock,
   resolveFilePasswordGlobalMock,
 } = vi.hoisted(() => ({
   getFileMetaMock: vi.fn(),
@@ -34,6 +35,7 @@ const {
   viewerKindForMock: vi.fn(),
   isWarmOrInflightMock: vi.fn(),
   cachedDecryptMock: vi.fn(),
+  cachedResolveCEKMock: vi.fn(),
   resolveFilePasswordGlobalMock: vi.fn(),
 }));
 
@@ -75,6 +77,7 @@ vi.mock("@/components/viewers/viewer-kind", () => ({
 vi.mock("@/lib/decrypt-cache", () => ({
   isWarmOrInflight: isWarmOrInflightMock,
   cachedDecrypt: cachedDecryptMock,
+  cachedResolveCEK: cachedResolveCEKMock,
 }));
 
 vi.mock("@/hooks/useFolderProtection", () => {
@@ -155,6 +158,10 @@ beforeEach(() => {
   cachedDecryptMock.mockImplementation(
     (_id: string, _folderId: string | null, decrypt: () => Promise<Blob>) =>
       decrypt()
+  );
+  cachedResolveCEKMock.mockImplementation(
+    (_id: string, _folderId: string | null, resolve: () => Promise<ArrayBuffer>) =>
+      resolve()
   );
   resolveFileKeyMock.mockResolvedValue(new ArrayBuffer(32));
 });

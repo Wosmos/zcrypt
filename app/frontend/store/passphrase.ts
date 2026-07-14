@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persistPassphrase, loadPassphrase, clearPersistedPassphrase } from "@/lib/device-vault";
 import { clearDecryptCache } from "@/lib/decrypt-cache";
+import { setShellPassphrase, clearShellPassphrase } from "@/lib/tauri";
 import { ttlDeadline, minutesUntil } from "@/lib/ttl";
 
 // clearDecryptCache() drops the in-memory blob cache + derived KEKs AND fans out
@@ -68,6 +69,11 @@ export const usePassphraseStore = create<PassphraseStore>((set, get) => ({
       clearTimer = null;
     }
 
+    // Desktop only (no-op in the browser): cache the passphrase in the Tauri
+    // shell so the background folder-watch backup agent can encrypt new files
+    // without a prompt. Covers both the persistent and session branches below.
+    void setShellPassphrase(passphrase);
+
     if (get().rememberDevice) {
       // Persistent unlock: no TTL, survives reloads. Encrypt-at-rest on device.
       set({ cachedPassphrase: passphrase, cacheUntil: null, persistent: true });
@@ -84,6 +90,7 @@ export const usePassphraseStore = create<PassphraseStore>((set, get) => ({
       // Vault auto-locked on TTL — drop decrypted plaintext too (it must not
       // outlive the unlocked session).
       clearDecryptCache();
+      void clearShellPassphrase();
     }, ttlMinutes * 60 * 1000);
   },
 
@@ -100,6 +107,7 @@ export const usePassphraseStore = create<PassphraseStore>((set, get) => ({
       }
       // Lazy TTL expiry on read — same plaintext eviction as the timer path.
       clearDecryptCache();
+      void clearShellPassphrase();
       return null;
     }
     return cachedPassphrase;
@@ -114,6 +122,7 @@ export const usePassphraseStore = create<PassphraseStore>((set, get) => ({
     // but keeps the rememberDevice PREFERENCE so the next unlock re-persists.
     set({ cachedPassphrase: null, cacheUntil: null, persistent: false });
     void clearPersistedPassphrase();
+    void clearShellPassphrase(); // desktop: stop the folder-watch agent from encrypting while locked
     // Drop all decrypted plaintext (blobs, derived keys, thumbnails) on re-lock.
     clearDecryptCache();
   },

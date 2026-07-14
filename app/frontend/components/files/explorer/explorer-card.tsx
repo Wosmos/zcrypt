@@ -3,7 +3,7 @@
 import { memo, useId } from "react";
 import type { ExplorerItemProps, FolderItemProps, FileItemProps } from "./types";
 import { explorerItemPropsEqual, FOCUS_RING } from "./types";
-import { ExplorerEntryDispatch, SelectCheckbox } from "./entry-dispatch";
+import { ExplorerEntryDispatch, SelectCheckbox, useExplorerFileName } from "./entry-dispatch";
 import { formatBytes, getFileTypeInfo, isVideoFile, cn, midTrunc, fileIconFor, extOf } from "@/lib/utils";
 import { useThumbnail } from "@/hooks/useThumbnail";
 import { prefetchOnHover } from "@/hooks/useFileDecryptor";
@@ -13,6 +13,7 @@ import {
   Folder,
   FolderOpen,
   Eye,
+  AlertTriangle,
   Info,
   Download,
   Share2,
@@ -260,15 +261,20 @@ function FileCardInner({
   onCustomizeFile,
   drag,
 }: FileItemProps) {
-  const { thumbnailUrl, pending, cardRef } = useThumbnail(file.id, file.original_name, file.original_size);
-  const typeInfo = getFileTypeInfo(file.original_name);
+  // Defensive fallback: use the already-decrypted original_name when present,
+  // else re-decrypt encrypted_name directly (see useExplorerFileName) — so a
+  // folder's contents never fall back to the raw file id while a real name is
+  // decryptable.
+  const displayName = useExplorerFileName(file);
+  const { thumbnailUrl, pending, unavailable, cardRef } = useThumbnail(file.id, displayName, file.original_size);
+  const typeInfo = getFileTypeInfo(displayName);
   const customIcon = file.style?.icon ? getIconByKey(file.style.icon) : null;
-  const Icon = customIcon ?? fileIconFor(file.original_name);
+  const Icon = customIcon ?? fileIconFor(displayName);
   const iconColorClass = file.style?.color ? undefined : typeInfo.color;
   const iconColorStyle = file.style?.color ? { color: file.style.color } : undefined;
-  const isVideo = isVideoFile(file.original_name);
+  const isVideo = isVideoFile(displayName);
 
-  const ext = extOf(file.original_name).toUpperCase().slice(0, 4);
+  const ext = extOf(displayName).toUpperCase().slice(0, 4);
 
   return (
     <ContextMenu>
@@ -279,7 +285,7 @@ function FileCardInner({
           data-entry-id={file.id}
           tabIndex={focused ? 0 : -1}
           aria-selected={selected}
-          aria-label={`${file.original_name}, ${typeInfo.label}, ${formatBytes(file.original_size)}. Right-click or long-press for actions.`}
+          aria-label={`${displayName}, ${typeInfo.label}, ${formatBytes(file.original_size)}${unavailable ? ", preview unavailable" : ""}. Right-click or long-press for actions.`}
           draggable={drag.draggable}
           onClick={(e) => onFileClick(file, e)}
           onKeyDown={(e) => onEntryKeyDown(entry, e)}
@@ -306,6 +312,7 @@ function FileCardInner({
       {selectMode && (
         <SelectCheckbox
           file={file}
+          displayName={displayName}
           selected={selected}
           onSelect={onSelect}
           className="absolute left-2.5 top-2.5 z-10 flex h-6 w-6 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] transition-colors hover:border-[var(--color-accent)]"
@@ -348,7 +355,10 @@ function FileCardInner({
               <div className="h-[88px] w-[88px] animate-shimmer rounded-[10px] ring-1 ring-black/5 dark:ring-white/10 sm:h-[76px] sm:w-[76px]" />
             ) : (
               /* Document tile — a small white page with a folded corner, the
-                 file-type glyph, and its extension. */
+                 file-type glyph, and its extension. A hard-failed thumbnail
+                 (chunk data permanently unrecoverable, not just "not yet
+                 generated") gets a small warning badge so it reads distinctly
+                 from an ordinary non-previewable file. */
               <div className="relative flex h-[100px] w-[76px] flex-col items-center justify-center gap-1.5 rounded-[10px] bg-[var(--color-surface)] shadow-[0_3px_9px_rgba(0,0,0,0.18)] ring-1 ring-black/5 dark:ring-white/10 sm:h-[88px] sm:w-[68px]">
                 <span
                   className="absolute right-0 top-0 h-4 w-4 rounded-tr-[10px] bg-[var(--color-surface-2)]"
@@ -363,6 +373,15 @@ function FileCardInner({
                     {ext}
                   </span>
                 )}
+                {unavailable && (
+                  <span
+                    className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--color-surface)] text-amber-500 shadow-sm ring-1 ring-black/5 dark:ring-white/10"
+                    title="Preview unavailable — the original file data could not be retrieved"
+                    aria-hidden="true"
+                  >
+                    <AlertTriangle className="h-3 w-3" strokeWidth={2.25} />
+                  </span>
+                )}
               </div>
             )}
           </div>
@@ -371,9 +390,9 @@ function FileCardInner({
               (11px) so long names don't dominate the tighter 2-column grid. */}
           <p
             className="line-clamp-2 w-full break-words text-center text-[11px] font-medium leading-tight text-[var(--color-text)] sm:text-[12.5px]"
-            title={file.original_name}
+            title={displayName}
           >
-            {file.original_name}
+            {displayName}
           </p>
         </div>
       </ContextMenuTrigger>
@@ -389,7 +408,7 @@ function FileCardInner({
           </>
         )}
         {actions.onPreview && (
-          <ContextMenuItem className="gap-2" onSelect={() => actions.onPreview?.(file.original_name)}>
+          <ContextMenuItem className="gap-2" onSelect={() => actions.onPreview?.(displayName)}>
             <Eye className="h-4 w-4" /> Preview
           </ContextMenuItem>
         )}
@@ -398,7 +417,7 @@ function FileCardInner({
             <PaintBrush className="h-4 w-4" /> Customize…
           </ContextMenuItem>
         )}
-        <ContextMenuItem className="gap-2" onSelect={() => actions.onDownload(file.original_name)}>
+        <ContextMenuItem className="gap-2" onSelect={() => actions.onDownload(displayName)}>
           <Download className="h-4 w-4" /> Download
         </ContextMenuItem>
         {onOpenDetails && (

@@ -154,6 +154,24 @@ export async function keychainDelete(key: string): Promise<void> {
   return tauriInvoke("keychain_delete", { key });
 }
 
+/**
+ * Cache the vault passphrase in the shell (in-memory only, never persisted)
+ * so the desktop core's background folder-watch agent can encrypt newly
+ * dropped files without prompting. No-op outside Tauri. Call on unlock;
+ * pair with `clearShellPassphrase` on lock/logout. Not yet wired to a caller
+ * — see the passphrase store's `setPassphrase`/`clear`.
+ */
+export async function setShellPassphrase(passphrase: string): Promise<void> {
+  if (!isTauri) return;
+  return tauriInvoke("set_passphrase", { passphrase });
+}
+
+/** Forget the shell's cached passphrase. No-op outside Tauri. */
+export async function clearShellPassphrase(): Promise<void> {
+  if (!isTauri) return;
+  return tauriInvoke("clear_passphrase");
+}
+
 /** Check for desktop app updates. {available:false} when unconfigured. */
 export async function checkForUpdates(): Promise<UpdateInfo> {
   return tauriInvoke("check_for_updates");
