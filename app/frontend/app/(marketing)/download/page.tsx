@@ -6,6 +6,7 @@ import {
   ShieldCheck,
   Github,
   Terminal,
+  Smartphone,
   Globe,
   ExternalLink,
 } from "@/lib/icons";
@@ -17,6 +18,7 @@ import {
 import { DownloadCta } from "@/components/marketing/download/download-cta";
 import { InstallCommands } from "@/components/marketing/download/install-commands";
 import { DesktopGrid } from "@/components/marketing/download/desktop-grid";
+import { AndroidDownload } from "@/components/marketing/download/android-download";
 import { CliBinaries } from "@/components/marketing/download/cli-binaries";
 import { MarketingHero } from "@/components/marketing/marketing-hero";
 import { getLatestRelease } from "@/lib/releases";
@@ -117,6 +119,27 @@ export default async function DownloadPage() {
             </a>
             .
           </p>
+        </div>
+      </section>
+
+      {/* ═══ ANDROID (SIDELOAD APK) ═══ */}
+      <section id="android" className="scroll-mt-20 px-4 py-20">
+        <div className="mx-auto max-w-3xl">
+          <div className="mb-10 text-center">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1 text-xs font-medium text-[var(--color-text-secondary)]">
+              <Smartphone className="h-3.5 w-3.5 text-emerald-500" />
+              Android
+            </div>
+            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+              On your phone, sideloaded
+            </h2>
+            <p className="mx-auto mt-2 max-w-lg text-sm text-[var(--color-text-secondary)]">
+              Not on the Play Store — grab the APK directly and install it
+              yourself. Takes about a minute.
+            </p>
+          </div>
+
+          <AndroidDownload />
         </div>
       </section>
 

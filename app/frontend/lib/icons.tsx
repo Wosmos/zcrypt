@@ -146,3 +146,4 @@ export const Share2 = icon("Share01Icon");
 export const Server = icon("Server");
 export const Wifi = icon("Wifi");
 export const PaintBrush = icon("PaintBrush01Icon");
+export const Fingerprint = icon("FingerPrintIcon");
