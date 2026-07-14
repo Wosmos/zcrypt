@@ -25,6 +25,15 @@ on:
       - ".github/workflows/android.yml"
   workflow_dispatch:
 
+# A newer push/PR-update on the same ref makes any run already in flight for
+# that ref stale — cancel it instead of burning a full APK build on code
+# that's already superseded. Tag pushes are unaffected in the normal case
+# (each version tag is its own ref/group); only re-pushing the same tag would
+# cancel a stale in-flight release build for it.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 # Needed by the tag-triggered publish step and the rolling android-latest
 # publish step, both of which upload/upsert release assets.
 permissions:
@@ -64,7 +73,10 @@ jobs:
       # ── Toolchains ──
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+          # arm64 only: every real Android phone since ~2019 is aarch64. Skipping
+          # armv7 (ancient 32-bit) + x86/x86_64 (emulators) cuts the build ~4x and
+          # still sideloads on any modern device. Add the others back for Play.
+          targets: aarch64-linux-android
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -197,7 +209,7 @@ jobs:
         env:
           NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
-        run: cargo tauri android build --apk
+        run: cargo tauri android build --apk --target aarch64
 
       # ── Upload artifact ──
       # `**` needs globbing support — actions/upload-artifact resolves the
