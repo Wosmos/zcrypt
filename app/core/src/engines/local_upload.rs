@@ -64,6 +64,9 @@ pub async fn run(
         (file_size + chunk_size - 1) / chunk_size
     };
     let file_id = uuid::Uuid::new_v4().to_string();
+    // Placement: byos-direct to the user's own platform when we hold a token,
+    // else relay. Persisted so the sync worker and any resume keep this plane.
+    let (mode, platform) = super::choose_plane(&ctx.creds);
     ctx.db.insert_file(&LocalFile {
         id: file_id.clone(),
         original_name: file_name.clone(),
@@ -73,6 +76,8 @@ pub async fn run(
         wrapped_cek: wrapped_cek.clone(),
         chunk_count,
         status: "complete".into(),
+        platform,
+        mode,
         ..Default::default()
     })?;
 
