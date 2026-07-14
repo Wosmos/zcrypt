@@ -1,0 +1,28 @@
+[package]
+name = "zcrypt-core"
+version = "0.1.0"
+edition = "2021"
+description = "zcrypt shared client core: zero-knowledge crypto, chunk pipeline, local store, platform adapters. No UI/Tauri dependency — embedded by the desktop/mobile shells."
+license = "AGPL-3.0"
+
+[dependencies]
+# Crypto — must stay byte-compatible with docs/CRYPTO_FORMAT.md.
+aes-gcm = "0.10"
+pbkdf2 = { version = "0.12", features = ["simple"] }
+sha2 = "0.10"
+hmac = "0.12"
+subtle = "2"
+
+# Compression (standard zstd frames, interoperable with klauspost/Go + wasm/web).
+zstd = "0.13"
+
+# Encoding
+hex = "0.4"
+base64 = "0.22"
+
+# Errors
+thiserror = "2"
+
+[dev-dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
