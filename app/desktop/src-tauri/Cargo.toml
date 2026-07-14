@@ -19,7 +19,7 @@ zcrypt-core = { path = "../../core" }
 keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tokio = { version = "1", features = ["io-util", "sync"] }
+tokio = { version = "1", features = ["io-util", "sync", "rt"] }
 # Folder-watch backup: fs change events → local_upload (all desktop OSes).
 notify = "6"
 
@@ -27,6 +27,18 @@ notify = "6"
 tauri-plugin-updater = "2"
 # Launch-at-login (desktop-only; mobile lifecycle is OS-managed).
 tauri-plugin-autostart = "2"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# Touch ID convenience-unlock via Apple's LocalAuthentication framework.
+# default-features off on objc2-local-authentication: its default pulls in
+# every LA* symbol group plus objc2-security, we only need LAContext.
+objc2 = "0.6"
+objc2-foundation = "0.3"
+block2 = "0.6"
+objc2-local-authentication = { version = "0.3", default-features = false, features = [
+    "LAContext",
+    "block2",
+] }
 
 [features]
 default = ["custom-protocol"]
