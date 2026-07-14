@@ -1209,29 +1209,63 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
       .filter((i) => i.status === "failed" && !!itemMeta.get(i.id)?.resume?.sessionId)
       .map((i) => i.id),
 
-  // Desktop-only: opens native file picker, encrypts locally via sidecar.
-  // No browser File objects, no IPC data transfer — sidecar reads from disk path.
+  // Desktop-only: opens native file picker, encrypts locally via the in-process core.
+  // No browser File objects, no IPC data transfer — the core reads from disk path.
   startDesktopUpload: async (passphrase, onRefresh) => {
     const { addToQueue, updateStatus, setError } = get();
 
-    const { pickFiles: tauriPickFiles, localUpload: tauriLocalUpload } = await import("@/lib/tauri");
+    const {
+      pickFiles: tauriPickFiles,
+      localUpload: tauriLocalUpload,
+      subscribeProgress,
+    } = await import("@/lib/tauri");
     const paths = await tauriPickFiles({ multiple: true, title: "Select files to upload" });
     if (!paths.length) return;
 
-    for (const filePath of paths) {
-      const fileName = filePath.split("/").pop() ?? filePath;
-      // Create a minimal File object for the queue UI
-      const dummyFile = new File([], fileName);
-      const id = addToQueue(dummyFile);
+    // Progress events carry a file_name but not our queue id, and the core
+    // doesn't echo back the local id we'd need to match precisely. Match by
+    // file name against the currently-uploading item as a best effort; if
+    // several queued items share a name, only the most recently touched one
+    // will reflect live progress. Good enough for the common single/few-file
+    // case — see the shared command contract note on zcrypt://progress.
+    const unlisten = await subscribeProgress((progress) => {
+      const state = get();
+      const item = state.queue.find(
+        (i) => i.file.name === progress.file_name && i.status !== "done" && i.status !== "failed"
+      );
+      if (!item) return;
+      const percent =
+        progress.bytes_total > 0
+          ? Math.round((progress.bytes_done / progress.bytes_total) * 100)
+          : item.progress;
+      updateStatus(
+        item.id,
+        "encrypting",
+        percent,
+        progress.stage,
+        progress.bytes_done,
+        progress.bytes_total
+      );
+    });
 
-      try {
-        updateStatus(id, "encrypting", 10, "Encrypting locally...");
-        await tauriLocalUpload(filePath, passphrase);
-        updateStatus(id, "done", 100, "Done");
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : "Upload failed";
-        setError(id, msg);
+    try {
+      for (const filePath of paths) {
+        const fileName = filePath.split("/").pop() ?? filePath;
+        // Create a minimal File object for the queue UI
+        const dummyFile = new File([], fileName);
+        const id = addToQueue(dummyFile);
+
+        try {
+          updateStatus(id, "encrypting", 10, "Encrypting locally...");
+          await tauriLocalUpload(filePath, passphrase);
+          updateStatus(id, "done", 100, "Done");
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : "Upload failed";
+          setError(id, msg);
+        }
       }
+    } finally {
+      unlisten();
     }
 
     onRefresh?.();

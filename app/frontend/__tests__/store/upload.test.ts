@@ -150,6 +150,7 @@ vi.mock("@/lib/worker-pool", () => {
 vi.mock("@/lib/tauri", () => ({
   pickFiles: vi.fn(async () => [] as string[]),
   localUpload: vi.fn(async () => {}),
+  subscribeProgress: vi.fn(async () => vi.fn()),
 }));
 
 const SMALL_PROFILE = {

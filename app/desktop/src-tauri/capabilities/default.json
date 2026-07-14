@@ -19,7 +19,6 @@
       ]
     },
     "shell:default",
-    "shell:allow-execute",
     "notification:default",
     "notification:allow-notify"
   ]
