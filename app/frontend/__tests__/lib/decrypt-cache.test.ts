@@ -1,12 +1,15 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
   getCachedBlob,
+  getCachedCEK,
   isWarmOrInflight,
   isForegroundDecryptActive,
   cachedDecrypt,
+  cachedResolveCEK,
   clearDecryptCache,
   clearDecryptCacheForFolder,
   clearDecryptCacheForFile,
+  onDecryptCacheClear,
 } from "@/lib/decrypt-cache";
 
 const MB = 1024 * 1024;
@@ -15,6 +18,15 @@ const MB = 1024 * 1024;
 // without allocating real megabytes (the cache only reads `.size`).
 function sizedBlob(size: number): Blob {
   return { size } as unknown as Blob;
+}
+
+// A 32-byte ArrayBuffer filled with `fill`, standing in for an unwrapped CEK.
+function keyBytes(fill: number): ArrayBuffer {
+  return new Uint8Array(32).fill(fill).buffer;
+}
+
+function bytesOf(buf: ArrayBuffer): number[] {
+  return Array.from(new Uint8Array(buf));
 }
 
 function deferred<T>() {
@@ -202,5 +214,104 @@ describe("decrypt-cache", () => {
 
     expect(getCachedBlob("f1")).toBe(bigF1); // re-written, not double-counted away
     expect(getCachedBlob("x")).toBeUndefined(); // evicted instead of the just-written f1
+  });
+
+  describe("CEK cache", () => {
+    it("getCachedCEK returns undefined for a missing id", () => {
+      expect(getCachedCEK("nope")).toBeUndefined();
+    });
+
+    it("runs resolve once, then serves the cached CEK on repeat calls", async () => {
+      const fn = vi.fn(async () => keyBytes(7));
+      const a = await cachedResolveCEK("f1", null, fn);
+      const b = await cachedResolveCEK("f1", null, fn);
+      expect(fn).toHaveBeenCalledTimes(1);
+      expect(bytesOf(a)).toEqual(bytesOf(b));
+      expect(bytesOf(getCachedCEK("f1")!)).toEqual(bytesOf(a));
+    });
+
+    it("getCachedCEK returns a fresh ArrayBuffer copy every call, never the cached instance", async () => {
+      await cachedResolveCEK("f1", null, async () => keyBytes(9));
+      const copy1 = getCachedCEK("f1")!;
+      const copy2 = getCachedCEK("f1")!;
+      expect(copy1).not.toBe(copy2); // distinct instances
+      expect(bytesOf(copy1)).toEqual(bytesOf(copy2)); // same bytes
+
+      new Uint8Array(copy1).fill(0); // mutate the returned copy...
+      expect(bytesOf(getCachedCEK("f1")!)).toEqual(bytesOf(keyBytes(9))); // ...cached bytes untouched
+    });
+
+    it("de-duplicates concurrent resolves of the same id", async () => {
+      const d = deferred<ArrayBuffer>();
+      const fn = vi.fn(() => d.promise);
+      const p1 = cachedResolveCEK("f1", null, fn);
+      const p2 = cachedResolveCEK("f1", null, fn);
+      d.resolve(keyBytes(3));
+      const [a, b] = await Promise.all([p1, p2]);
+      expect(fn).toHaveBeenCalledTimes(1);
+      expect(bytesOf(a)).toEqual(bytesOf(b));
+    });
+
+    it("does not cache a rejected resolve, so a retry re-resolves", async () => {
+      const fn = vi
+        .fn()
+        .mockRejectedValueOnce(new Error("wrong password"))
+        .mockResolvedValueOnce(keyBytes(5));
+      await expect(cachedResolveCEK("f1", null, fn)).rejects.toThrow("wrong password");
+      expect(getCachedCEK("f1")).toBeUndefined();
+      await cachedResolveCEK("f1", null, fn);
+      expect(fn).toHaveBeenCalledTimes(2);
+      expect(getCachedCEK("f1")).toBeDefined();
+    });
+
+    it("a resolve finishing AFTER a clear does not repopulate the CEK cache", async () => {
+      const d = deferred<ArrayBuffer>();
+      const p = cachedResolveCEK("f1", null, () => d.promise);
+      clearDecryptCache(); // bumps the generation
+      d.resolve(keyBytes(1));
+      const key = await p;
+      expect(key).toBeDefined(); // caller still receives its key
+      expect(getCachedCEK("f1")).toBeUndefined(); // but it is NOT retained
+    });
+
+    it("evicts the oldest CEK entry once over the 256-entry cap", async () => {
+      // Mirrors CEK_CACHE_MAX in lib/decrypt-cache.ts: insertion-order eviction —
+      // keys are a fixed 32 bytes each, so a count cap (not a byte budget) applies.
+      // Note: don't peek at k0 via getCachedCEK before triggering eviction —
+      // getCachedCEK touches (re-inserts) its entry, which would make it the
+      // MOST-recently-used instead of the oldest and defeat this test.
+      for (let i = 0; i < 256; i++) {
+        await cachedResolveCEK(`k${i}`, null, async () => keyBytes(i % 256));
+      }
+
+      await cachedResolveCEK("k256", null, async () => keyBytes(1));
+
+      expect(getCachedCEK("k0")).toBeUndefined(); // oldest evicted
+      expect(getCachedCEK("k256")).toBeDefined();
+    });
+
+    it("clearDecryptCacheForFolder evicts only that folder's CEK entries", async () => {
+      await cachedResolveCEK("v", null, async () => keyBytes(1));
+      await cachedResolveCEK("a1", "folderA", async () => keyBytes(2));
+      await cachedResolveCEK("b1", "folderB", async () => keyBytes(3));
+
+      clearDecryptCacheForFolder("folderA");
+
+      expect(getCachedCEK("a1")).toBeUndefined();
+      expect(getCachedCEK("b1")).toBeDefined();
+      expect(getCachedCEK("v")).toBeDefined();
+    });
+  });
+
+  it("onDecryptCacheClear notifies registered listeners when the cache clears", () => {
+    // Listener registration is process-lifetime by design (mirrors real
+    // callers, e.g. useThumbnail, which register once at module init) — this
+    // callback stays registered for the rest of this file's later
+    // clearDecryptCache() calls (each beforeEach), which is harmless here since
+    // nothing asserts on its call count elsewhere.
+    const cb = vi.fn();
+    onDecryptCacheClear(cb);
+    clearDecryptCache();
+    expect(cb).toHaveBeenCalled();
   });
 });
