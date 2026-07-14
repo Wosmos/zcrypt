@@ -159,7 +159,7 @@ GATE_NAMES=("frontend typecheck" "frontend lint" "frontend tests + coverage" "fr
             "backend gofmt" "backend vet" "backend tests + coverage" "backend build" \
             "tui gofmt" "tui vet" "tui tests" "tui build" \
             "core fmt" "core clippy" "core tests" \
-            "desktop cargo check")
+            "desktop fmt" "desktop clippy" "desktop cargo check")
 INSPECT_NAMES=("frontend lint warnings" "frontend dead code" "frontend duplication" "backend deep lint" "tui deep lint")
 HARDEN_NAMES=("frontend new-code lint" "frontend new-code duplication" \
               "backend new-code lint" "tui new-code lint")
@@ -416,7 +416,8 @@ else
 fi
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  GATES — desktop (light compile check; full Tauri bundle stays in desktop.yml)
+#  GATES — desktop (fmt + clippy + compile check; full Tauri bundle stays in
+#  desktop.yml)
 # ══════════════════════════════════════════════════════════════════════════════
 
 if [ "$RUN_DESKTOP" = 1 ]; then
@@ -424,22 +425,20 @@ if [ "$RUN_DESKTOP" = 1 ]; then
 if command -v cargo >/dev/null 2>&1; then
   # tauri::generate_context! validates that `frontendDist` exists at compile
   # time. A real static export is heavy (a full `bun run build`) and pointless
-  # just to type-check Rust — drop in a minimal placeholder if the export isn't
-  # already present so cargo can actually run. (frontend-dist is gitignored.)
-  DESKTOP_DIST="$DESKTOP/frontend-dist"
-  DESKTOP_DIST_STUB=0
-  if [ ! -d "$DESKTOP_DIST" ]; then
-    mkdir -p "$DESKTOP_DIST"
-    printf '<!doctype html><title>zcrypt</title>\n' > "$DESKTOP_DIST/index.html"
-    DESKTOP_DIST_STUB=1
+  # just to lint/type-check Rust — src-tauri/build.rs seeds a placeholder
+  # index.html whenever the real export (gitignored, from build-frontend.sh)
+  # isn't present, so these gates never need a Next.js build.
+  if gate "desktop fmt" "$DESKTOP/src-tauri" cargo fmt --check; then
+    ok "rustfmt clean"
+  fi
+  if gate "desktop clippy" "$DESKTOP/src-tauri" cargo clippy --all-targets --quiet -- -D warnings; then
+    ok "clippy clean (warnings denied)"
   fi
   if gate "desktop cargo check" "$DESKTOP/src-tauri" cargo check --quiet; then
     ok "rust type-checks"
   fi
-  # Remove only the placeholder we created; never touch a real export.
-  [ "$DESKTOP_DIST_STUB" = 1 ] && rm -rf "$DESKTOP_DIST"
 else
-  warnln "cargo not installed — skipping desktop cargo check (install rust to enable)"
+  warnln "cargo not installed — skipping desktop gates (install rust to enable)"
 fi
 
 else
