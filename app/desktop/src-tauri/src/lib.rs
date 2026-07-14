@@ -257,6 +257,43 @@ async fn get_engine_status() -> Result<serde_json::Value, String> {
     }))
 }
 
+/// Enable/disable launch-at-login (desktop only; mobile lifecycle is OS-managed
+/// so this is a no-op there). The desktop backup agent wants to start with the
+/// OS so folder-watch resumes without the user relaunching.
+#[tauri::command]
+async fn set_autostart(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
+    #[cfg(desktop)]
+    let result = {
+        use tauri_plugin_autostart::ManagerExt;
+        let m = app.autolaunch();
+        (if enabled { m.enable() } else { m.disable() }).map_err(|e| format!("autostart: {}", e))
+    };
+    #[cfg(not(desktop))]
+    let result = {
+        let _ = (app, enabled);
+        Ok(())
+    };
+    result
+}
+
+/// Whether launch-at-login is currently enabled (false on mobile / on error).
+#[tauri::command]
+async fn is_autostart_enabled(app: tauri::AppHandle) -> Result<bool, String> {
+    #[cfg(desktop)]
+    let result = {
+        use tauri_plugin_autostart::ManagerExt;
+        app.autolaunch()
+            .is_enabled()
+            .map_err(|e| format!("autostart: {}", e))
+    };
+    #[cfg(not(desktop))]
+    let result = {
+        let _ = app;
+        Ok(false)
+    };
+    result
+}
+
 // ---------------------------------------------------------------------------
 // OS keychain
 // ---------------------------------------------------------------------------
@@ -361,11 +398,18 @@ pub fn run() {
             check_for_updates,
             write_temp_file,
             remove_temp_file,
+            set_autostart,
+            is_autostart_enabled,
         ])
         .setup(|app| {
             #[cfg(desktop)]
-            app.handle()
-                .plugin(tauri_plugin_updater::Builder::new().build())?;
+            {
+                app.handle()
+                    .plugin(tauri_plugin_updater::Builder::new().build())?;
+                // Launch-at-login support (no auto-enable — the UI toggles it).
+                app.handle()
+                    .plugin(tauri_plugin_autostart::Builder::new().build())?;
+            }
 
             // Register zcrypt:// scheme at runtime (Linux/Windows only —
             // macOS uses the .app bundle's Info.plist).
