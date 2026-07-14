@@ -4,7 +4,7 @@ import { memo } from "react";
 import NextImage from "next/image";
 import type { ExplorerItemProps, FolderItemProps, FileItemProps, RowDragProps } from "./types";
 import { explorerItemPropsEqual, FOCUS_RING, ROW_SELECTED } from "./types";
-import { ExplorerEntryDispatch, SelectCheckbox } from "./entry-dispatch";
+import { ExplorerEntryDispatch, SelectCheckbox, useExplorerFileName } from "./entry-dispatch";
 import { formatBytes, formatDate, getFileTypeInfo, cn, midTrunc, fileIconFor, savingsPercent } from "@/lib/utils";
 import { useThumbnail } from "@/hooks/useThumbnail";
 import { prefetchOnHover } from "@/hooks/useFileDecryptor";
@@ -26,6 +26,7 @@ import {
   Key,
   Unlock,
   PaintBrush,
+  AlertTriangle,
 } from "@/lib/icons";
 import {
   DropdownMenu,
@@ -217,11 +218,16 @@ function FileRow({
   onCustomizeFile,
   drag,
 }: FileItemProps) {
-  const typeInfo = getFileTypeInfo(file.original_name);
+  // Defensive fallback: use the already-decrypted original_name when present,
+  // else re-decrypt encrypted_name directly (see useExplorerFileName) — so a
+  // folder's contents never fall back to the raw file id while a real name is
+  // decryptable.
+  const displayName = useExplorerFileName(file);
+  const typeInfo = getFileTypeInfo(displayName);
   const customIcon = file.style?.icon ? getIconByKey(file.style.icon) : null;
-  const Icon = customIcon ?? fileIconFor(file.original_name);
+  const Icon = customIcon ?? fileIconFor(displayName);
   const iconColorStyle = file.style?.color ? { color: file.style.color } : undefined;
-  const { thumbnailUrl, cardRef } = useThumbnail(file.id, file.original_name, file.original_size);
+  const { thumbnailUrl, unavailable, cardRef } = useThumbnail(file.id, displayName, file.original_size);
   const savings = savingsPercent(file.original_size, file.encrypted_size);
 
   return (
@@ -231,7 +237,7 @@ function FileRow({
       data-entry-id={file.id}
       tabIndex={focused ? 0 : -1}
       aria-selected={selected}
-      aria-label={`${file.original_name}, ${typeInfo.label}, ${formatBytes(file.original_size)}`}
+      aria-label={`${displayName}, ${typeInfo.label}, ${formatBytes(file.original_size)}${unavailable ? ", preview unavailable" : ""}`}
       draggable={drag.draggable}
       onClick={(e) => onFileClick(file, e)}
       onKeyDown={(e) => onEntryKeyDown(entry, e)}
@@ -246,29 +252,47 @@ function FileRow({
       {selectMode && (
         <SelectCheckbox
           file={file}
+          displayName={displayName}
           selected={selected}
           onSelect={onSelect}
           className="flex flex-shrink-0 items-center justify-center rounded"
         />
       )}
-      <div
-        className={cn(
-          "relative flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg",
-          !thumbnailUrl && typeInfo.bg
-        )}
-      >
-        {thumbnailUrl ? (
-          // Decrypted thumbnail (data: URI / blob object URL) — unoptimized via
-          // next.config (see zero-knowledge note there). `fill` matches the
-          // fixed 36×36 box.
-          <NextImage src={thumbnailUrl} alt="" fill sizes="36px" className="object-cover" />
-        ) : (
-          <Icon className={cn("h-[18px] w-[18px]", !file.style?.color && typeInfo.color)} style={iconColorStyle} />
+      {/* Outer wrapper carries the badge (positioned OUTSIDE the box); the inner
+          box keeps `overflow-hidden` for the thumbnail `fill` image, which would
+          otherwise clip a badge anchored to the same clipped box. */}
+      <div className="relative h-9 w-9 flex-shrink-0">
+        <div
+          className={cn(
+            "flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg",
+            !thumbnailUrl && typeInfo.bg
+          )}
+        >
+          {thumbnailUrl ? (
+            // Decrypted thumbnail (data: URI / blob object URL) — unoptimized via
+            // next.config (see zero-knowledge note there). `fill` matches the
+            // fixed 36×36 box.
+            <NextImage src={thumbnailUrl} alt="" fill sizes="36px" className="object-cover" />
+          ) : (
+            <Icon className={cn("h-[18px] w-[18px]", !file.style?.color && typeInfo.color)} style={iconColorStyle} />
+          )}
+        </div>
+        {/* Hard-failed thumbnail (chunk data permanently unrecoverable) gets a
+            small warning badge — reads distinctly from an ordinary file that
+            simply has no preview. */}
+        {unavailable && !thumbnailUrl && (
+          <span
+            className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[var(--color-surface)] text-amber-500 shadow-sm"
+            title="Preview unavailable — the original file data could not be retrieved"
+            aria-hidden="true"
+          >
+            <AlertTriangle className="h-2.5 w-2.5" strokeWidth={2.25} />
+          </span>
         )}
       </div>
       <div className="flex min-w-0 flex-1 items-center gap-2">
-        <span className="whitespace-nowrap text-sm font-medium text-[var(--color-text)]" title={file.original_name}>
-          {midTrunc(file.original_name, 16, 6)}
+        <span className="whitespace-nowrap text-sm font-medium text-[var(--color-text)]" title={displayName}>
+          {midTrunc(displayName, 16, 6)}
         </span>
       </div>
       <span className="hidden w-[110px] flex-shrink-0 truncate text-sm text-[var(--color-text-secondary)] sm:block">
@@ -289,7 +313,7 @@ function FileRow({
         {formatDate(file.created_at)}
       </span>
       <DropdownMenu>
-        <MenuTrigger label={`Actions for ${file.original_name}`} />
+        <MenuTrigger label={`Actions for ${displayName}`} />
         <DropdownMenuContent align="end" className="w-44" onClick={(e) => e.stopPropagation()}>
           {onRequestSelect && (
             <>
@@ -300,7 +324,7 @@ function FileRow({
             </>
           )}
           {actions.onPreview && (
-            <DropdownMenuItem onClick={() => actions.onPreview?.(file.original_name)}>
+            <DropdownMenuItem onClick={() => actions.onPreview?.(displayName)}>
               <Eye className="h-4 w-4" /> Preview
             </DropdownMenuItem>
           )}
@@ -314,7 +338,7 @@ function FileRow({
               <Info className="h-4 w-4" /> Get info
             </DropdownMenuItem>
           )}
-          <DropdownMenuItem onClick={() => actions.onDownload(file.original_name)}>
+          <DropdownMenuItem onClick={() => actions.onDownload(displayName)}>
             <Download className="h-4 w-4" /> Download
           </DropdownMenuItem>
           {actions.onShare && (

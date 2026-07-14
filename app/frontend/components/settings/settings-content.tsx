@@ -17,6 +17,7 @@ import { useTheme } from "@/components/providers/theme-provider";
 import { usePreferencesStore } from "@/store/preferences";
 import { useKeysStore } from "@/store/keys";
 import { connectPlatform, disconnectPlatform, toggleTokenScope } from "@/lib/api";
+import { isTauri, keychainSet, keychainDelete } from "@/lib/tauri";
 import { toast } from "@/store/toast";
 import { RateLimits } from "@/components/settings/rate-limits";
 import { ThemePicker } from "@/components/settings/theme-picker";
@@ -49,7 +50,65 @@ import {
 import Link from "next/link";
 import { cn, smartGridCols } from "@/lib/utils";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
-import { PLATFORMS, platformName } from "@/lib/platforms";
+import { PLATFORMS, platformName, parseTelegramToken } from "@/lib/platforms";
+
+/**
+ * Desktop-only: mirror a freshly connected platform token into the OS
+ * keychain under `platform.<id>.token` / `platform.<id>.account` so the
+ * Tauri core's `keychain_creds()` (app/desktop/src-tauri/src/lib.rs) can find
+ * it and route uploads byos-direct (straight to the user's own storage)
+ * instead of the server-managed relay. Never runs outside Tauri — raw
+ * platform tokens must never be persisted anywhere in the browser; there
+ * they only ever reach the backend's encrypted-at-rest store.
+ *
+ * Telegram's combined `"BOT_TOKEN|CHAT_ID"` string is split first since the
+ * keychain (and the Rust `PlatformCreds`) expect the bot token and chat id as
+ * separate fields — `res.username` for Telegram is the *bot's* username, not
+ * the chat id, so it can't be used as the account here.
+ *
+ * Best-effort: a keychain write failure only costs the byos-direct fast
+ * path — the token is already safely stored server-side by the time this
+ * runs, so it never blocks or reverts the connect flow.
+ */
+async function storeDesktopPlatformCreds(
+  platform: string,
+  rawToken: string,
+  username?: string
+): Promise<void> {
+  if (!isTauri) return;
+  try {
+    const parsed = platform === "telegram" ? parseTelegramToken(rawToken) : null;
+    const keychainToken = parsed?.token ?? rawToken;
+    const keychainAccount = parsed?.account ?? username;
+    await keychainSet(`platform.${platform}.token`, keychainToken);
+    if (keychainAccount) {
+      await keychainSet(`platform.${platform}.account`, keychainAccount);
+    }
+  } catch (err) {
+    console.error(`Failed to store ${platform} credentials in the desktop keychain`, err);
+  }
+}
+
+/**
+ * Desktop-only: forget a platform's keychain creds on disconnect so the core
+ * stops offering byos-direct for it (falls back to the server relay). Never
+ * runs outside Tauri. Best-effort, mirrors `storeDesktopPlatformCreds` above.
+ *
+ * Note: `platform.<id>.token/.account` is a single keychain slot per
+ * platform, while a user can connect several accounts on the same platform
+ * server-side. Disconnecting any one of them clears the shared desktop slot —
+ * an accepted limitation of the current one-credential-per-platform
+ * byos-direct design, not something this wiring can resolve on its own.
+ */
+async function clearDesktopPlatformCreds(platform: string): Promise<void> {
+  if (!isTauri) return;
+  try {
+    await keychainDelete(`platform.${platform}.token`);
+    await keychainDelete(`platform.${platform}.account`);
+  } catch (err) {
+    console.error(`Failed to clear ${platform} credentials from the desktop keychain`, err);
+  }
+}
 
 export function SettingsContent() {
   const [tokens, setTokens] = useState<Record<string, string>>({});
@@ -91,7 +150,9 @@ export function SettingsContent() {
     setConnecting(platform);
 
     try {
-      await connectPlatform(platform, token.trim());
+      const trimmed = token.trim();
+      const res = await connectPlatform(platform, trimmed);
+      await storeDesktopPlatformCreds(platform, trimmed, res.username);
       toast.success(`${platformName(platform)} connected!`);
       setTokens((prev) => ({ ...prev, [platform]: "" }));
       refresh();
@@ -118,6 +179,7 @@ export function SettingsContent() {
     setDisconnecting(`${platform}:${username}`);
     try {
       await disconnectPlatform(platform, username);
+      await clearDesktopPlatformCreds(platform);
       toast.success(
         `${platformName(platform)} @${username} disconnected`
       );

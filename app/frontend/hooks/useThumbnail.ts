@@ -34,7 +34,15 @@ const memCache = new Map<string, string>();
 // simply resolves into the real thumbnail once the chunk lands (a few seconds),
 // no reload needed; a genuinely un-thumbnailable file gives up after MAX_ATTEMPTS.
 const MAX_THUMB_ATTEMPTS = 3;
-const failed = new Map<string, { attempts: number; nextRetryAt: number }>();
+// `hard` marks a TERMINAL failure that reflects unrecoverable data (the chunk
+// fetch/decrypt kept failing across every retry — e.g. the file's bytes are
+// genuinely gone from the storage platform), as opposed to an immediate
+// permanent give-up that isn't data loss at all (a locked protected folder, or
+// a file whose bytes are fine but can't be rasterized — see markThumbFailed).
+// Only `hard` should ever surface as the "preview unavailable" UI state; a
+// locked folder or an unsupported format both just fall back to the plain
+// type icon, same as any other non-thumbnailable file.
+const failed = new Map<string, { attempts: number; nextRetryAt: number; hard: boolean }>();
 const retryTimers = new Map<string, ReturnType<typeof setTimeout>>();
 // When each file's FIRST generation attempt started, so the shimmer can be
 // time-boxed to SHIMMER_MAX_MS instead of running until success/permanent-fail.
@@ -58,6 +66,15 @@ function isPermanentlyFailed(id: string): boolean {
   const f = failed.get(id);
   return !!f && f.attempts >= MAX_THUMB_ATTEMPTS;
 }
+/** Terminal AND unrecoverable: every fetch/decrypt attempt failed (not a locked
+ *  folder, not just an unsupported format) — the file's bytes are presumed
+ *  gone from the storage platform. Bounded by construction: once this is true,
+ *  `canGenerateNow` below already refuses further attempts, so a hard-failed
+ *  tile never resumes shimmering. */
+function isHardFailed(id: string): boolean {
+  const f = failed.get(id);
+  return !!f && f.hard;
+}
 /** May a (re)generation run now — never tried, or a prior failure's backoff has
  *  elapsed and attempts remain. */
 function canGenerateNow(id: string): boolean {
@@ -67,18 +84,23 @@ function canGenerateNow(id: string): boolean {
   return Date.now() >= f.nextRetryAt;
 }
 /** Record a failed attempt. `permanent` (render/decode/locked) gives up
- *  immediately → type icon. A transient failure (fetch/decrypt/timeout) gets a
- *  bounded backoff and schedules a wake-up so mounted cards retry once it
- *  elapses (effects only re-fire on state change, so without this notify the
- *  retry would wait for an unrelated re-render). Gives up after MAX attempts. */
+ *  immediately → type icon — NEITHER case is data loss (a locked folder is
+ *  just not unlocked yet; a render/decode failure means the bytes are fine but
+ *  the format can't be rasterized), so neither is ever marked `hard`. A
+ *  transient failure (fetch/decrypt/timeout) gets a bounded backoff and
+ *  schedules a wake-up so mounted cards retry once it elapses (effects only
+ *  re-fire on state change, so without this notify the retry would wait for an
+ *  unrelated re-render). Once MAX attempts is reached this way, EVERY attempt
+ *  to actually fetch/decrypt the file's bytes failed — that's the signal for a
+ *  genuinely unavailable (not merely un-generated-yet) thumbnail. */
 function markThumbFailed(id: string, permanent: boolean): void {
   if (permanent) {
-    failed.set(id, { attempts: MAX_THUMB_ATTEMPTS, nextRetryAt: 0 });
+    failed.set(id, { attempts: MAX_THUMB_ATTEMPTS, nextRetryAt: 0, hard: false });
     return;
   }
   const attempts = (failed.get(id)?.attempts ?? 0) + 1;
   const backoff = Math.min(30_000, 3_000 * 2 ** (attempts - 1)); // 3s, 6s, 12s (cap 30s)
-  failed.set(id, { attempts, nextRetryAt: Date.now() + backoff });
+  failed.set(id, { attempts, nextRetryAt: Date.now() + backoff, hard: attempts >= MAX_THUMB_ATTEMPTS });
   const existing = retryTimers.get(id);
   if (existing) clearTimeout(existing);
   if (attempts < MAX_THUMB_ATTEMPTS) {
@@ -571,6 +593,13 @@ export function useThumbnail(
   loading: boolean;
   /** True while a thumbnail is expected but not ready yet — show a loader. */
   pending: boolean;
+  /** Terminal: every fetch/decrypt attempt failed (the file's bytes are
+   *  presumed permanently gone from the storage platform — NOT a locked
+   *  folder, NOT just an unsupported preview format). Bounded by construction
+   *  — generation has already stopped retrying by the time this is true — so
+   *  the card can swap in a distinct "preview unavailable" affordance instead
+   *  of silently reading the same as any other non-thumbnailable file. */
+  unavailable: boolean;
   /** Attach to the card's root element (`<div ref={cardRef}>`) so the
    *  background queue can tell an on-screen tile from an off-screen one and
    *  prioritize accordingly. Backed by IntersectionObserver; a harmless no-op
@@ -658,7 +687,11 @@ export function useThumbnail(
     !isPermanentlyFailed(fileId) &&
     withinGrace;
 
-  return { thumbnailUrl, loading, pending, cardRef };
+  // Only a thumbable, in-size file can ever have been attempted at all — a
+  // plain document never touches `failed`, so this is naturally false for it.
+  const unavailable = thumbable && withinSize && !thumbnailUrl && isHardFailed(fileId);
+
+  return { thumbnailUrl, loading, pending, unavailable, cardRef };
 }
 
 /** Hook to get all cached thumbnails (for listing). */

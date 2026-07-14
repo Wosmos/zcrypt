@@ -163,3 +163,24 @@ export const PLATFORM_COLORS: Record<string, string> = Object.fromEntries(
 export function platformName(id: string): string {
   return PLATFORM_NAMES[id] ?? id;
 }
+
+/**
+ * Parse a Telegram `"BOT_TOKEN|CHAT_ID"` token into its parts — mirrors the
+ * backend's split in `NewTelegramAdapter` (adapters/telegram.go: SplitN at the
+ * FIRST `|` only). Needed because the desktop keychain stores Telegram creds
+ * as two separate fields (`platform.telegram.token` / `.account`, read by
+ * `keychain_creds()` in app/desktop/src-tauri/src/lib.rs into
+ * `PlatformCreds { token, account }`), unlike the single combined string the
+ * `/api/platforms/connect` request body accepts. Returns null when the token
+ * isn't in the expected two-part format.
+ */
+export function parseTelegramToken(
+  raw: string
+): { token: string; account: string } | null {
+  const sep = raw.indexOf("|");
+  if (sep === -1) return null;
+  const token = raw.slice(0, sep).trim();
+  const account = raw.slice(sep + 1).trim();
+  if (!token || !account) return null;
+  return { token, account };
+}
