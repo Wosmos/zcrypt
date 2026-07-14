@@ -1,0 +1,33 @@
+name: Security Scan
+
+# govulncheck (Go dependency CVE scanning) doesn't need to run on every push —
+# a new vulnerability shows up because of an upstream advisory, not because of
+# your own commit, so checking on every push just re-ran the same scan for no
+# new information. Weekly + on-demand catches new advisories just as fast in
+# practice while cutting this from N-times-a-day to once a week.
+on:
+  schedule:
+    - cron: "0 3 * * 1" # Mondays 03:00 UTC
+  workflow_dispatch:
+
+jobs:
+  govulncheck:
+    name: Go Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25.12"
+
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest
+
+      - name: Check backend vulnerabilities
+        working-directory: app/backend
+        run: govulncheck ./...
+
+      - name: Check TUI vulnerabilities
+        working-directory: app/tui
+        run: govulncheck ./...

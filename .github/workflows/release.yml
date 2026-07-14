@@ -5,6 +5,12 @@ on:
     tags:
       - "v*"
 
+# Each version tag is its own ref/group, so this only matters if the same tag
+# is re-pushed (e.g. a deleted+recreated tag) — cancels the stale build for it.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: write
 

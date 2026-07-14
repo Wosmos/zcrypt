@@ -1,16 +1,18 @@
-name: Desktop Build
+name: Desktop & Android Build
 
 on:
   push:
     branches: [main, convert-to-tauri]
     paths:
       - "app/desktop/**"
-      # zcrypt-core is compiled into the shell (path dependency).
+      # zcrypt-core is compiled into both shells (path dependency).
       - "app/core/**"
-      - "app/frontend/**"
-      - ".github/workflows/desktop.yml"
-    # Version tags publish the built installers to the matching GitHub Release.
-    # (branches/paths filters are not evaluated for tag pushes.)
+      - ".github/workflows/device.yml"
+      # Intentionally NOT "app/frontend/**": a frontend-only commit no longer
+      # triggers a full multi-platform native rebuild (that was the single
+      # biggest compute/queue-time cost in this repo's CI). The bundled UI is
+      # refreshed by workflow_dispatch on demand, or automatically on the next
+      # desktop/core-relevant change or version tag (tags always rebuild).
     tags:
       - "v*"
   pull_request:
@@ -18,16 +20,97 @@ on:
     paths:
       - "app/desktop/**"
       - "app/core/**"
-      - "app/frontend/**"
-      - ".github/workflows/desktop.yml"
+      - ".github/workflows/device.yml"
   workflow_dispatch:
 
-# Needed by the tag-triggered publish step to upload assets to the release.
+# A newer push/PR-update on the same ref makes any run already in flight for
+# that ref stale — cancel it instead of burning a full multi-platform bundle
+# build on code that's already superseded. Tag pushes are unaffected in the
+# normal case (each version tag is its own ref/group); only re-pushing the
+# same tag would cancel a stale in-flight release build for it.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Needed by the tag-triggered publish steps to upload assets to the release,
+# and by the rolling android-latest publish step.
 permissions:
   contents: write
 
 jobs:
-  build:
+  # ── Shared: build the static frontend export ONCE ────────────────────────────
+  # Desktop and Android used to each build this independently — same Next.js
+  # static export, same stripped routes, byte-identical output — which meant
+  # every relevant push paid for the full frontend build twice. Built here once
+  # and handed to both native build jobs below via artifact.
+  build-frontend:
+    name: Build frontend static export
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install frontend dependencies
+        working-directory: app/frontend
+        run: bun install --frozen-lockfile
+
+      # Remove web-only dynamic routes before static export — Next.js App Router
+      # requires generateStaticParams for every [param] route in output:export
+      # mode, but these pages (share/pad/send) are web-only and get stripped
+      # from frontend-dist anyway. Deleting them pre-build is the only reliable
+      # way to skip them in Next.js 16 Turbopack (it can't detect
+      # generateStaticParams through a client-component import boundary).
+      - name: Remove web-only dynamic routes for native export
+        shell: bash
+        run: |
+          rm -rf app/frontend/app/s
+          rm -rf "app/frontend/app/pad/[token]"
+          rm -rf "app/frontend/app/send/[token]"
+          rm -rf "app/frontend/app/(app)/admin/users/[id]"
+
+      - name: Build frontend
+        working-directory: app/frontend
+        env:
+          NEXT_OUTPUT_EXPORT: "1"
+          NEXT_TELEMETRY_DISABLED: "1"
+          # Baked into the static export — desktop/mobile have no Next.js
+          # rewrites, so they must talk to the live backend directly. Public
+          # value (already exposed in the web bundle), not a secret.
+          NEXT_PUBLIC_API_URL: "https://zcrypt-production-f608.up.railway.app"
+        run: bun run build
+
+      - name: Prepare frontend-dist
+        shell: bash
+        run: |
+          rm -rf app/desktop/frontend-dist
+          # next.config.ts sets output:"export" + distDir:".next-export", so the
+          # static HTML is written directly into .next-export (no nested out/).
+          cp -r app/frontend/.next-export app/desktop/frontend-dist
+
+          # Strip marketing-only pages not needed in the native apps
+          cd app/desktop/frontend-dist
+          rm -rf docs philosophy privacy terms tui pricing pad s send transfer demo features vs
+          rm -f sitemap.xml robots.txt opengraph-image* twitter-image*
+
+          # Redirect root → /login
+          cat > index.html << 'HTMLEOF'
+          <!DOCTYPE html>
+          <html>
+          <head><meta http-equiv="refresh" content="0;url=/login"></head>
+          <body></body>
+          </html>
+          HTMLEOF
+
+      - name: Upload frontend-dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: app/desktop/frontend-dist
+          retention-days: 1
+
+  build-desktop:
+    needs: build-frontend
     strategy:
       fail-fast: false
       matrix:
@@ -71,10 +154,11 @@ jobs:
             app/core
 
       # ── Fast Rust gate (Linux leg only — one leg is enough for lints) ──
-      # Runs before the expensive frontend export + bundle. src-tauri/build.rs
-      # seeds a placeholder frontend-dist when the real export isn't present,
-      # so fmt/clippy never need a Next.js build. Mirrors the prepush desktop
-      # gate (cargo fmt --check + clippy -D warnings; clippy subsumes check).
+      # Runs before the expensive bundle step. src-tauri/build.rs seeds a
+      # placeholder frontend-dist when the real export isn't present, so
+      # fmt/clippy never need the download-artifact step to have run first.
+      # Mirrors the prepush desktop gate (cargo fmt --check + clippy -D
+      # warnings; clippy subsumes check).
       - name: Rust lint (fmt + clippy)
         if: matrix.platform == 'ubuntu-22.04'
         working-directory: app/desktop/src-tauri
@@ -84,60 +168,11 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
 
-      # ── Build frontend static export ──
-      - name: Install frontend dependencies
-        working-directory: app/frontend
-        run: bun install --frozen-lockfile
-
-      # Remove web-only dynamic routes before static export — Next.js App Router
-      # requires generateStaticParams for every [param] route in output:export
-      # mode, but these pages (share/pad/send) are web-only and get stripped
-      # from frontend-dist anyway. Deleting them pre-build is the only reliable
-      # way to skip them in Next.js 16 Turbopack.
-      # Remove web-only and unresolvable dynamic routes before static export.
-      # Next.js 16 Turbopack can't detect generateStaticParams through a client
-      # component import boundary, so we delete these route folders pre-build.
-      # The desktop app doesn't use any of these pages.
-      - name: Remove web-only dynamic routes for desktop export
-        shell: bash
-        run: |
-          rm -rf app/frontend/app/s
-          rm -rf "app/frontend/app/pad/[token]"
-          rm -rf "app/frontend/app/send/[token]"
-          rm -rf "app/frontend/app/(app)/admin/users/[id]"
-
-      - name: Build frontend
-        working-directory: app/frontend
-        env:
-          NEXT_OUTPUT_EXPORT: "1"
-          NEXT_TELEMETRY_DISABLED: "1"
-          # Baked into the static export — the desktop app has no Next.js
-          # rewrites, so it must talk to the live backend directly. Public value
-          # (already exposed in the web bundle), not a secret.
-          NEXT_PUBLIC_API_URL: "https://zcrypt-production-f608.up.railway.app"
-        run: bun run build
-
-      - name: Prepare frontend-dist
-        shell: bash
-        run: |
-          rm -rf app/desktop/frontend-dist
-          # next.config.ts sets output:"export" + distDir:".next-export", so the
-          # static HTML is written directly into .next-export (no nested out/).
-          cp -r app/frontend/.next-export app/desktop/frontend-dist
-
-          # Strip marketing-only pages not needed in the desktop app
-          cd app/desktop/frontend-dist
-          rm -rf docs philosophy privacy terms tui pricing pad s send transfer demo features vs
-          rm -f sitemap.xml robots.txt opengraph-image* twitter-image*
-
-          # Redirect root → /login
-          cat > index.html << 'HTMLEOF'
-          <!DOCTYPE html>
-          <html>
-          <head><meta http-equiv="refresh" content="0;url=/login"></head>
-          <body></body>
-          </html>
-          HTMLEOF
+      - name: Download frontend-dist artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: app/desktop/frontend-dist
 
       # On tag pushes, stamp the bundle version from the tag (e.g. v0.1.1 →
       # 0.1.1) so installers and the release version match without hand-editing
@@ -286,7 +321,7 @@ jobs:
 
   # ── Updater manifest (tag pushes, signing configured only) ──────────────────
   # Builds the Tauri updater's latest.json from each platform's .sig sidecar
-  # (uploaded as part of the `build` matrix above) and attaches it to the
+  # (uploaded as part of the build-desktop matrix above) and attaches it to the
   # release, so the desktop app's built-in updater has something to poll.
   #
   # Fully gated on TAURI_SIGNING_PRIVATE_KEY (via check-updater-signing above):
@@ -298,7 +333,7 @@ jobs:
   # case `cargo tauri build` never actually produced any .sig files to work with.
   publish-updater-manifest:
     name: Publish updater manifest
-    needs: [build, check-updater-signing]
+    needs: [build-desktop, check-updater-signing]
     if: startsWith(github.ref, 'refs/tags/v') && needs.check-updater-signing.outputs.configured == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -325,7 +360,7 @@ jobs:
           for dir in artifacts/zcrypt-*; do
             name="$(basename "$dir")"
             # Artifact names are "zcrypt-<os>-<rust-target-triple>" (set by the
-            # build matrix above), e.g. zcrypt-macos-aarch64-apple-darwin,
+            # build-desktop matrix above), e.g. zcrypt-macos-aarch64-apple-darwin,
             # zcrypt-windows-x86_64-pc-windows-msvc. Map the triple to the
             # target key the Tauri updater expects (OS-ARCH).
             case "$name" in
@@ -366,3 +401,215 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
         run: gh release upload "$TAG" latest.json --repo "$GITHUB_REPOSITORY" --clobber
+
+  # ── Gate: is Android release signing configured? ────────────────────────────
+  # Same pattern as check-updater-signing above (secrets aren't readable in
+  # `if:` directly, so a tiny job republishes the check as an output).
+  check-android-signing:
+    name: Check Android signing secret
+    runs-on: ubuntu-latest
+    outputs:
+      configured: ${{ steps.check.outputs.configured }}
+    steps:
+      - name: Check for ANDROID_KEY_BASE64
+        id: check
+        env:
+          KEY: ${{ secrets.ANDROID_KEY_BASE64 }}
+        run: |
+          if [ -n "$KEY" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  build-android:
+    name: Build Android APK
+    needs: [build-frontend, check-android-signing]
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Toolchains ──
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          # arm64 only: every real Android phone since ~2019 is aarch64. Skipping
+          # armv7 (ancient 32-bit) + x86/x86_64 (emulators) cuts the build ~4x and
+          # still sideloads on any modern device. Add the others back for Play.
+          targets: aarch64-linux-android
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            app/desktop/src-tauri
+            app/core
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Set up Android NDK
+        id: setup-ndk
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r27c
+          link-to-sdk: true
+
+      - name: Download frontend-dist artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: app/desktop/frontend-dist
+
+      # On tag pushes, stamp the bundle version from the tag, same as build-desktop.
+      - name: Set version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          VER="${GITHUB_REF_NAME#v}"
+          cd app/desktop/src-tauri
+          tmp=$(mktemp)
+          jq --arg v "$VER" '.version = $v' tauri.conf.json > "$tmp" && mv "$tmp" tauri.conf.json
+          echo "tauri version set to $VER"
+
+      # ── Tauri CLI ──
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2" --locked
+
+      # `android init` generates gen/android/ from tauri.conf.json + the Rust
+      # crate. It isn't committed to the repo (app/desktop/src-tauri/gen only
+      # ships the desktop `schemas/` dir), so every CI run (re)creates it from
+      # scratch, same as a fresh clone would.
+      - name: Initialize Android project
+        working-directory: app/desktop/src-tauri
+        env:
+          NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+        run: cargo tauri android init
+
+      # ── Optional release signing ──
+      # If ANDROID_KEY_BASE64 (a base64-encoded .jks keystore) plus its alias
+      # and passwords are configured as repo secrets, sign the release APK.
+      # Without them, `android build` still succeeds — it just produces a
+      # debug-signed APK, which is fine for the workflow-artifact/internal
+      # testing use case but NOT for a Play Store submission. See blocked_on.
+      #
+      # One-time human setup to turn this on:
+      #   keytool -genkey -v -keystore zcrypt-release.jks -keyalg RSA \
+      #     -keysize 2048 -validity 10000 -alias zcrypt
+      #   Add repo secrets: ANDROID_KEY_BASE64 (base64 of the .jks file),
+      #   ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD.
+      - name: Configure Android release signing
+        if: needs.check-android-signing.outputs.configured == 'true'
+        working-directory: app/desktop/src-tauri/gen/android
+        env:
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_BASE64: ${{ secrets.ANDROID_KEY_BASE64 }}
+        run: |
+          echo "keyAlias=${ANDROID_KEY_ALIAS}" > keystore.properties
+          echo "password=${ANDROID_KEY_PASSWORD}" >> keystore.properties
+          base64 -d <<< "${ANDROID_KEY_BASE64}" > "$RUNNER_TEMP/zcrypt-release.jks"
+          echo "storeFile=$RUNNER_TEMP/zcrypt-release.jks" >> keystore.properties
+
+      - name: Build Android APK
+        working-directory: app/desktop/src-tauri
+        env:
+          NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+        # --debug: a debug-signed (auto keystore) APK that INSTALLS via sideload.
+        # A release --apk is UNSIGNED here (no release keystore yet) and Android
+        # rejects it with "package appears to be invalid". Swap to release +
+        # keystore signing once a release key is configured.
+        run: cargo tauri android build --apk --debug --target aarch64
+
+      # ── Upload artifact ──
+      # `**` needs globbing support — actions/upload-artifact resolves the
+      # pattern itself (via @actions/glob), so this works regardless of which
+      # per-ABI/flavor subdirectory Gradle put the APK in.
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: zcrypt-android-apk
+          path: app/desktop/src-tauri/gen/android/app/build/outputs/apk/**/*.apk
+          if-no-files-found: error
+
+      # ── Publish APK to the GitHub Release (tag pushes only) ──
+      # Same pattern as build-desktop: GoReleaser (release.yml) creates the
+      # release; this step waits for it, then appends the APK.
+      - name: Publish APK to release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          for i in $(seq 1 30); do
+            if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              echo "release $TAG exists"; break
+            fi
+            echo "waiting for release $TAG ($i/30)…"; sleep 10
+          done
+          shopt -s nullglob globstar
+          files=(app/desktop/src-tauri/gen/android/app/build/outputs/apk/**/*.apk)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "no APK found"; exit 0
+          fi
+          printf 'uploading: %s\n' "${files[@]}"
+          gh release upload "$TAG" "${files[@]}" --repo "$GITHUB_REPOSITORY" --clobber
+
+      # ── Publish a rolling sideload build (android-latest) ──
+      # /download on the site links to a single stable URL for the APK:
+      #   https://github.com/Wosmos/zcrypt/releases/download/android-latest/zcrypt.apk
+      # This is a separate, non-versioned prerelease from the tag-based
+      # release above — it exists purely so that link never breaks, and it's
+      # refreshed on every push that touches desktop/core (not just version
+      # tags). Runs whether or not ANDROID_KEY_BASE64 is configured:
+      # unsigned/debug-signed APKs install fine for sideload testing, they just
+      # aren't Play-Store-eligible. Skipped on pull_request builds (untrusted
+      # forks don't get a token with write access, and PR builds shouldn't
+      # clobber the public link anyway).
+      - name: Publish rolling sideload APK (android-latest)
+        if: github.event_name != 'pull_request'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          shopt -s nullglob globstar
+          files=(app/desktop/src-tauri/gen/android/app/build/outputs/apk/**/*.apk)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "no APK found to publish"; exit 0
+          fi
+
+          # Prefer the universal build (installs on any device/ABI) if Gradle
+          # produced per-ABI splits alongside it; otherwise take whatever's
+          # there so the link always has something installable.
+          apk=""
+          for f in "${files[@]}"; do
+            if [[ "$f" == *universal* ]]; then apk="$f"; break; fi
+          done
+          [ -z "$apk" ] && apk="${files[0]}"
+          echo "publishing: $apk"
+
+          # gh needs a fixed local filename to control the uploaded asset name.
+          cp "$apk" "$RUNNER_TEMP/zcrypt.apk"
+
+          if ! gh release view android-latest --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create android-latest \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "zcrypt for Android (sideload build)" \
+              --notes "Rolling build for sideloading — updated automatically on every push to main, always tracks the latest commit. Not signed for the Play Store; Android will warn the APK is from an unknown developer, which is expected when installing outside the Play Store." \
+              --prerelease \
+              --target "$GITHUB_SHA"
+          else
+            gh release edit android-latest --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA"
+          fi
+
+          gh release upload android-latest "$RUNNER_TEMP/zcrypt.apk" \
+            --repo "$GITHUB_REPOSITORY" --clobber
