@@ -1,7 +1,12 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex as StdMutex};
 
+// Tray + menu APIs exist only on desktop Tauri (gated as #[cfg(desktop)] /
+// #[cfg(all(desktop, feature = "tray-icon"))] upstream), so these imports and
+// their uses must be desktop-only or the mobile (android/ios) target won't compile.
+#[cfg(desktop)]
 use tauri::menu::{MenuBuilder, MenuItemBuilder};
+#[cfg(desktop)]
 use tauri::tray::TrayIconBuilder;
 use tauri::{Emitter, Listener, Manager};
 // Only needed for the `.deep_link()` call below, which is itself macOS-gated
@@ -463,6 +468,105 @@ async fn check_for_updates(app: tauri::AppHandle) -> Result<UpdateCheck, String>
 }
 
 // ---------------------------------------------------------------------------
+// Biometric unlock (Touch ID)
+// ---------------------------------------------------------------------------
+//
+// Convenience-only: lets the vault's own owner re-unlock with Touch ID instead
+// of retyping their passphrase (same pattern as 1Password/Bitwarden/Notes).
+// Nothing security-sensitive is bypassed — the frontend still holds the real
+// passphrase-derived key; this only gates whether it resurfaces the cached
+// passphrase (see set_passphrase/clear_passphrase above) without a retype.
+// macOS-only for now; every other target gets a compiling no-op.
+
+/// Whether Touch ID (or another local device-owner biometric) is available
+/// right now. False on non-macOS targets and whenever the Mac has no usable
+/// enrollment (no Touch ID hardware, nothing enrolled, etc).
+#[tauri::command]
+fn biometric_available() -> bool {
+    #[cfg(target_os = "macos")]
+    {
+        macos_biometrics::available()
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        false
+    }
+}
+
+/// Present the OS Touch ID prompt with `reason` as the shown text.
+///
+/// Returns `Ok(true)` on successful authentication, `Ok(false)` on user
+/// cancel or any authentication failure (not enrolled, locked out, denied,
+/// etc — all expected outcomes of a declined prompt). `Err` only if the OS
+/// never answers the request at all.
+#[tauri::command]
+async fn biometric_authenticate(reason: String) -> Result<bool, String> {
+    #[cfg(target_os = "macos")]
+    {
+        macos_biometrics::authenticate(reason).await
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = reason;
+        Ok(false)
+    }
+}
+
+/// macOS LocalAuthentication (Touch ID) bindings via objc2. Isolated in its
+/// own module so the rest of the file stays framework-agnostic.
+#[cfg(target_os = "macos")]
+mod macos_biometrics {
+    use std::sync::Mutex;
+
+    use block2::RcBlock;
+    use objc2::rc::Retained;
+    use objc2::runtime::Bool;
+    use objc2_foundation::{NSError, NSString};
+    use objc2_local_authentication::{LAContext, LAPolicy};
+
+    /// Touch ID (or other biometrics) only — deliberately excludes the
+    /// password/watch fallback so a declined or unavailable Touch ID never
+    /// silently degrades into the macOS account-password prompt.
+    const POLICY: LAPolicy = LAPolicy::DeviceOwnerAuthenticationWithBiometrics;
+
+    pub(super) fn available() -> bool {
+        let context = unsafe { LAContext::new() };
+        unsafe { context.canEvaluatePolicy_error(POLICY) }.is_ok()
+    }
+
+    pub(super) async fn authenticate(reason: String) -> Result<bool, String> {
+        match tokio::task::spawn_blocking(move || authenticate_blocking(&reason)).await {
+            Ok(result) => result,
+            Err(e) => Err(format!("biometric authenticate: task join: {}", e)),
+        }
+    }
+
+    /// Runs on a blocking-pool thread: creates the context, shows the
+    /// prompt, and waits synchronously for the OS reply callback. Keeping
+    /// the whole exchange on one thread sidesteps `LAContext` not being
+    /// `Send` — nothing objc-owned ever needs to cross an await point.
+    fn authenticate_blocking(reason: &str) -> Result<bool, String> {
+        let context: Retained<LAContext> = unsafe { LAContext::new() };
+        let reason_ns = NSString::from_str(reason);
+
+        let (tx, rx) = std::sync::mpsc::channel::<bool>();
+        let tx = Mutex::new(Some(tx));
+        let reply = RcBlock::new(move |success: Bool, _error: *mut NSError| {
+            if let Some(tx) = tx.lock().unwrap().take() {
+                let _ = tx.send(success.as_bool());
+            }
+        });
+
+        unsafe {
+            context.evaluatePolicy_localizedReason_reply(POLICY, &reason_ns, &reply);
+        }
+
+        rx.recv()
+            .map_err(|_| "biometric authenticate: no response from Touch ID".to_string())
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Temp files
 // ---------------------------------------------------------------------------
 
@@ -509,6 +613,8 @@ pub fn run() {
             clear_passphrase,
             start_folder_watch,
             stop_folder_watch,
+            biometric_available,
+            biometric_authenticate,
         ])
         .setup(|app| {
             #[cfg(desktop)]
@@ -543,6 +649,7 @@ pub fn run() {
                 }
             });
 
+            #[cfg(desktop)]
             setup_tray(app)?;
 
             Ok(())
@@ -555,7 +662,9 @@ pub fn run() {
 ///
 /// The `app.trayIcon` config in tauri.conf.json creates the tray icon itself
 /// (id "main"); we attach the menu to it, falling back to building one if the
-/// config-created tray is unavailable.
+/// config-created tray is unavailable. Desktop-only — the tray/menu APIs don't
+/// exist in mobile Tauri.
+#[cfg(desktop)]
 fn setup_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let open = MenuItemBuilder::with_id("open", "Open zcrypt").build(app)?;
     let sync_now = MenuItemBuilder::with_id("sync-now", "Sync now").build(app)?;
