@@ -21,6 +21,10 @@ const KEYCHAIN_SERVICE: &str = "app.zcrypt.desktop";
 /// Tauri event carrying `zcrypt_core::types::Progress` payloads.
 const PROGRESS_EVENT: &str = "zcrypt://progress";
 
+/// Token-rotation callback shape expected by `Client::with_rotate_hook`
+/// (the core keeps its own alias private).
+type RotateHook = Arc<dyn Fn(&str, &str) + Send + Sync>;
+
 /// Managed engine state — replaces the old Go sidecar process.
 ///
 /// - `client` is built on `start_sync` (needs base URL + tokens).
@@ -154,7 +158,7 @@ async fn start_sync(
     access_token: String,
     refresh_token: String,
 ) -> Result<(), String> {
-    let rotate_hook: Arc<dyn Fn(&str, &str) + Send + Sync> = Arc::new(|access, refresh| {
+    let rotate_hook: RotateHook = Arc::new(|access, refresh| {
         if let Ok(entry) = keyring::Entry::new(KEYCHAIN_SERVICE, "auth.access") {
             let _ = entry.set_password(access);
         }
@@ -260,13 +264,13 @@ async fn check_for_updates(app: tauri::AppHandle) -> Result<UpdateCheck, String>
     #[cfg(desktop)]
     {
         use tauri_plugin_updater::UpdaterExt;
-        if let Ok(updater) = app.updater() {
-            if let Ok(Some(update)) = updater.check().await {
-                return Ok(UpdateCheck {
-                    available: true,
-                    version: Some(update.version.clone()),
-                });
-            }
+        if let Ok(updater) = app.updater()
+            && let Ok(Some(update)) = updater.check().await
+        {
+            return Ok(UpdateCheck {
+                available: true,
+                version: Some(update.version.clone()),
+            });
         }
     }
     #[cfg(not(desktop))]
@@ -410,10 +414,10 @@ fn handle_deep_link(app: &tauri::AppHandle, raw: &str) {
 
     // Extract the query string and convert to a fragment-based URL
     // so the existing frontend callback page can handle it identically.
-    let query = url.splitn(2, '?').nth(1).unwrap_or("");
+    let query = url.split_once('?').map_or("", |(_, q)| q);
 
     if let Some(webview) = app.get_webview_window("main") {
         let nav_url = format!("/oauth/callback#{}", query);
-        let _ = webview.eval(&format!("window.location.replace('{}')", nav_url));
+        let _ = webview.eval(format!("window.location.replace('{}')", nav_url));
     }
 }

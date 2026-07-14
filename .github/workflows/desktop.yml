@@ -61,12 +61,26 @@ jobs:
       # The engine (zcrypt-core) is pure Rust and compiled into the Tauri shell
       # in-process — the old Go sidecar subprocess is gone.
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
 
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
             app/desktop/src-tauri
             app/core
+
+      # ── Fast Rust gate (Linux leg only — one leg is enough for lints) ──
+      # Runs before the expensive frontend export + bundle. src-tauri/build.rs
+      # seeds a placeholder frontend-dist when the real export isn't present,
+      # so fmt/clippy never need a Next.js build. Mirrors the prepush desktop
+      # gate (cargo fmt --check + clippy -D warnings; clippy subsumes check).
+      - name: Rust lint (fmt + clippy)
+        if: matrix.platform == 'ubuntu-22.04'
+        working-directory: app/desktop/src-tauri
+        run: |
+          cargo fmt --check
+          cargo clippy --all-targets -- -D warnings
 
       - uses: oven-sh/setup-bun@v2
 
