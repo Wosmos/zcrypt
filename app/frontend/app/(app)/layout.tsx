@@ -5,6 +5,7 @@ import { CommandPalette } from "@/components/ui/command-palette";
 import { VaultLockProvider } from "@/components/providers/vault-lock-provider";
 import { AppScope } from "@/components/providers/app-scope";
 import { AppTransfers } from "@/components/transfer/app-transfers";
+import { FileEventsBridge } from "@/components/providers/file-events-bridge";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -49,6 +50,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {/* Unified transfer manager — docked bottom-right, persists across
               navigation (stores are singletons). Renders null when idle. */}
           <AppTransfers />
+          <FileEventsBridge />
         </div>
         <CommandPalette />
       </VaultLockProvider>

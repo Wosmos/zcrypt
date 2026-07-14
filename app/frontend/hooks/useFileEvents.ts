@@ -1,0 +1,70 @@
+"use client";
+
+import { useEffect } from "react";
+import { createEventSource } from "@/lib/api";
+import { useAuthStore } from "@/store/auth";
+import { invalidateFilesViews } from "@/lib/invalidate";
+
+const DEBOUNCE_MS = 300;
+
+/** Payload shape of the `file` SSE event (see backend /api/events contract). */
+interface FileEvent {
+  op: "added" | "updated" | "deleted" | "restored" | "moved" | "renamed";
+  file_id: string;
+  rev: number;
+}
+
+/**
+ * Cross-device file-event sync. Other devices/sessions mutating the vault
+ * (upload, delete, rename, move, restore) push a `file` SSE event over the
+ * existing /api/events stream; this hook keeps the local file/trash/quota
+ * views current without the user having to refresh.
+ *
+ * There's no shared EventSource singleton in this codebase today (each
+ * consumer — useOperationStatus, devices-tab — opens its own via
+ * createEventSource()), so this hook follows the same pattern rather than
+ * inventing a new seam. It only connects while authenticated.
+ */
+export function useFileEvents() {
+  const isAuthenticated = useAuthStore((s) => !!s.accessToken);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    let hadConnection = false;
+
+    const es = createEventSource();
+
+    es.addEventListener("file", (e: MessageEvent) => {
+      try {
+        JSON.parse(e.data) as FileEvent;
+      } catch {
+        // Malformed payload — still worth an invalidation pass below since we
+        // know *something* changed, but skip acting on the (unusable) data.
+      }
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        void invalidateFilesViews();
+      }, DEBOUNCE_MS);
+    });
+
+    es.onopen = () => {
+      // First open isn't a "reconnect" — nothing was missed. Every open after
+      // that means we may have missed events while disconnected, so do one
+      // catch-up invalidation.
+      // TODO: once GET /api/changes?since=<seq> ships, replace this blanket
+      // invalidate with a cursor-based diff fetch (track the last-seen `rev`/
+      // seq and only pull what changed instead of refetching every view).
+      if (hadConnection) {
+        void invalidateFilesViews();
+      }
+      hadConnection = true;
+    };
+
+    return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      es.close();
+    };
+  }, [isAuthenticated]);
+}
