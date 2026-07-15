@@ -50,6 +50,13 @@ jobs:
               - 'docs/CRYPTO_FORMAT.md'
 
   # ── Backend: unit tests ──────────────────────────────────────────────────────
+  # gofmt/vet/build/test already ran locally via the (now-installed) pre-push
+  # hook before this commit could even be pushed — re-running them here on a
+  # plain `push` is pure duplicate work. The one thing the hook DOESN'T do
+  # (too slow for a fast local gate) is the race detector, so that step always
+  # runs. Everything else is gated to `pull_request` only, since a PR from a
+  # fork (this is AGPL/open source) never ran your local hook at all and needs
+  # the full independent check.
   backend:
     name: Go Backend (unit)
     needs: changes
@@ -67,10 +74,12 @@ jobs:
         run: go mod download
 
       - name: Vet
+        if: github.event_name == 'pull_request'
         working-directory: app/backend
         run: go vet ./...
 
       - name: Build
+        if: github.event_name == 'pull_request'
         working-directory: app/backend
         run: go build -o zcrypt-server .
 
@@ -122,6 +131,14 @@ jobs:
         run: go test -tags=integration -v -timeout=120s ./integration/...
 
   # ── Frontend: unit tests + typecheck ─────────────────────────────────────────
+  # typecheck/tests/build already ran locally via the (now-installed) pre-push
+  # hook before this commit could be pushed — re-running the identical checks
+  # here on a plain `push` is pure duplicate work (this job doesn't even lint,
+  # so it's a strict subset of what the hook already gated). Gated to
+  # `pull_request` only, since a fork PR (this is AGPL/open source) never ran
+  # your local hook and needs the full independent check. The job itself still
+  # runs (and still reports success) on push — frontend-e2e's dependency on it
+  # stays intact — it just does no redundant work.
   frontend:
     name: Next.js Frontend
     needs: changes
@@ -133,18 +150,22 @@ jobs:
       - uses: oven-sh/setup-bun@v2
 
       - name: Install dependencies
+        if: github.event_name == 'pull_request'
         working-directory: app/frontend
         run: bun install --frozen-lockfile
 
       - name: Type check
+        if: github.event_name == 'pull_request'
         working-directory: app/frontend
         run: bunx tsc --noEmit
 
       - name: Unit tests (with coverage)
+        if: github.event_name == 'pull_request'
         working-directory: app/frontend
         run: bun run test -- --coverage --reporter=json
 
       - name: Build
+        if: github.event_name == 'pull_request'
         working-directory: app/frontend
         run: bun run build
 
@@ -241,6 +262,10 @@ jobs:
   # zcrypt-core is the shared client engine (desktop in-process + mobile). Its
   # conformance suite verifies the crate against the same crypto vectors the TS
   # and Go implementations pass — a red here means a cross-client format break.
+  # fmt/clippy/test already ran locally via the (now-installed) pre-push hook —
+  # identical commands, zero added value on a plain `push`. Gated to
+  # `pull_request` only (fork PRs never ran your local hook); the job still
+  # runs and reports success on push, so it doesn't affect anything downstream.
   core:
     name: Rust Core (zcrypt-core)
     needs: changes
@@ -258,18 +283,25 @@ jobs:
           workspaces: app/core
 
       - name: Format check
+        if: github.event_name == 'pull_request'
         working-directory: app/core
         run: cargo fmt --check
 
       - name: Clippy (deny warnings)
+        if: github.event_name == 'pull_request'
         working-directory: app/core
         run: cargo clippy --all-targets -- -D warnings
 
       - name: Tests (incl. cross-implementation conformance)
+        if: github.event_name == 'pull_request'
         working-directory: app/core
         run: cargo test
 
   # ── TUI: vet + build + test ───────────────────────────────────────────────────
+  # vet/build/test already ran locally via the (now-installed) pre-push hook —
+  # identical commands, zero added value on a plain `push`. Gated to
+  # `pull_request` only (fork PRs never ran your local hook); the job still
+  # runs and reports success on push, so it doesn't affect anything downstream.
   tui:
     name: Go TUI
     needs: changes
@@ -288,14 +320,17 @@ jobs:
         run: go mod download
 
       - name: Vet
+        if: github.event_name == 'pull_request'
         working-directory: app/tui
         run: go vet ./...
 
       - name: Build
+        if: github.event_name == 'pull_request'
         working-directory: app/tui
         run: CGO_ENABLED=0 go build -ldflags="-s -w -X main.version=ci" -o zcrypt .
 
       - name: Test
+        if: github.event_name == 'pull_request'
         working-directory: app/tui
         run: go test ./...
 
@@ -306,6 +341,15 @@ jobs:
   # red. To gate deploys on CI, enable "Wait for CI" in the Railway dashboard.
 
   # ── Deploy: frontend → Vercel ─────────────────────────────────────────────────
+  # Previously: `bun run build` (a generic Next.js build) then plain `vercel
+  # --prod`. Without `--prebuilt`, `vercel deploy` ignores any local build and
+  # uploads source for Vercel to build AGAIN on its own infrastructure — so
+  # that local build was pure wasted compute, not just a duplicate of the
+  # `frontend` job's build, but of literally nothing (its output was never
+  # used). Switched to Vercel's own documented CI flow: `pull` fetches the
+  # project's environment/settings, `build` runs Vercel's real build (the one
+  # that actually produces the deployed artifact), `deploy --prebuilt` ships
+  # that output directly instead of triggering yet another remote rebuild.
   frontend-deploy:
     name: Deploy Frontend (Vercel)
     needs: [changes, frontend]
@@ -314,22 +358,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: oven-sh/setup-bun@v2
-
-      - name: Install dependencies
-        working-directory: app/frontend
-        run: bun install --frozen-lockfile
-
-      - name: Build
-        working-directory: app/frontend
-        run: bun run build
-
       - name: Install Vercel CLI
         run: npm install -g vercel
 
-      - name: Deploy to Vercel
+      - name: Pull Vercel project settings
         working-directory: app/frontend
-        run: vercel --prod --token ${{ secrets.VERCEL_TOKEN }}
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Build via Vercel
+        working-directory: app/frontend
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Deploy prebuilt output to Vercel
+        working-directory: app/frontend
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
