@@ -112,14 +112,24 @@ pub async fn upload(
 
 /// Streaming download: fetch → verify → decrypt → decompress → ordered write
 /// to disk → whole-file integrity check → atomic rename.
+///
+/// `space_key` is `None` for the normal owner/folder path (passphrase-derived
+/// key, as before). Pass `Some(key)` to download a shared-space file — despite
+/// the name, `key` must be the file's ALREADY-RESOLVED content key (the
+/// space-wrapped CEK, unwrapped client-side by the caller against the
+/// `SharedVaultFile` record it holds), NOT the space's raw symmetric key: the
+/// generic file-meta this fetches carries the OWNER's passphrase-wrapped CEK,
+/// a different ciphertext the space key can't unwrap. See [`download::run`]
+/// for what space mode also changes about integrity verification.
 pub async fn download(
     ctx: &EngineContext,
     file_id: &str,
     passphrase: &str,
     user_id: &str,
+    space_key: Option<Vec<u8>>,
     save_path: &Path,
 ) -> Result<(), EngineError> {
-    download::run(ctx, file_id, passphrase, user_id, save_path).await
+    download::run(ctx, file_id, passphrase, user_id, space_key, save_path).await
 }
 
 /// In-memory decrypt: fetch → verify → decrypt → decompress → assemble into a
@@ -127,13 +137,18 @@ pub async fn download(
 /// [`download`], for thumbnails / preview / the in-app viewer on desktop. Capped
 /// at 512 MiB so a large file can't OOM the app — callers fall back to a
 /// streamed [`download`] above the cap.
+///
+/// `space_key`: see [`download`] — `None` for the passphrase path, `Some(key)`
+/// where `key` is the file's already-resolved content key (NOT the space's raw
+/// symmetric key — see the note on [`download`]).
 pub async fn decrypt_to_memory(
     ctx: &EngineContext,
     file_id: &str,
     passphrase: &str,
     user_id: &str,
+    space_key: Option<Vec<u8>>,
 ) -> Result<Vec<u8>, EngineError> {
-    decrypt_to_memory::run(ctx, file_id, passphrase, user_id).await
+    decrypt_to_memory::run(ctx, file_id, passphrase, user_id, space_key).await
 }
 
 /// Client-side delete — the byos-direct counterpart to upload/download. The

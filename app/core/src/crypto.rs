@@ -129,6 +129,20 @@ pub fn sha256_hex(data: &[u8]) -> String {
     hex::encode(Sha256::digest(data))
 }
 
+/// Whether a whole-file hash comparison against `sha256_scheme`'s stored value
+/// is actually meaningful. `hmac_v1` files store a per-user KEYED MAC there,
+/// which needs the passphrase to recompute — unavailable in space-key mode (a
+/// shared space has no passphrase, only its own symmetric key). Mirrors the
+/// web client's `canVerifyHash` (lib/download-session.ts) exactly: a
+/// space-key `hmac_v1` download must SKIP the comparison rather than derive a
+/// MAC key from nothing, which can never match and would make every `hmac_v1`
+/// space file spuriously "fail" integrity. Per-chunk SHA-256 (verified during
+/// fetch) plus the chunk-count assertion are what such downloads rely on
+/// instead — the same trust level as the public-share path.
+pub fn can_verify_whole_file_hash(sha256_scheme: &str, is_space_mode: bool) -> bool {
+    sha256_scheme != "hmac_v1" || !is_space_mode
+}
+
 // ── Warm key cache ──────────────────────────────────────────────────────────
 // Process-wide, in-memory-only (never persisted) cache of resolved file keys.
 // Desktop routes many small decrypts through decrypt_to_memory (thumbnails,
@@ -253,6 +267,35 @@ impl ContentHasher {
             ContentHasher::Plain(h) => hex::encode(h.finalize()),
             ContentHasher::HmacV1(m) => hex::encode(m.finalize().into_bytes()),
         }
+    }
+}
+
+#[cfg(test)]
+mod integrity_scheme_tests {
+    use super::*;
+
+    // The exact invariant a shared-space hmac_v1 download depends on: it MUST
+    // skip whole-file verification (it has no passphrase to recompute the
+    // per-user MAC) rather than fail every such file as "corrupted". Getting
+    // this backwards either breaks every space-shared hmac_v1 file, or — the
+    // dangerous direction — silently accepts a tampered file it shouldn't.
+
+    #[test]
+    fn plain_scheme_is_always_verifiable() {
+        assert!(can_verify_whole_file_hash("plain", false));
+        assert!(can_verify_whole_file_hash("plain", true));
+        assert!(can_verify_whole_file_hash("", false)); // legacy: empty scheme
+        assert!(can_verify_whole_file_hash("", true));
+    }
+
+    #[test]
+    fn hmac_v1_is_verifiable_with_a_passphrase_owner_folder_path() {
+        assert!(can_verify_whole_file_hash("hmac_v1", false));
+    }
+
+    #[test]
+    fn hmac_v1_is_not_verifiable_without_a_passphrase_space_path() {
+        assert!(!can_verify_whole_file_hash("hmac_v1", true));
     }
 }
 
