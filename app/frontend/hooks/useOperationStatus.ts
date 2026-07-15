@@ -12,8 +12,12 @@ type AuditCallback = (event: AuditEvent) => void;
 
 const MAX_RECONNECT_DELAY = 30_000;
 const BASE_DELAY = 1_000;
-// Only show server error notification after this many consecutive failures
-const ERROR_THRESHOLD = 3;
+// Only surface a connection warning after a SUSTAINED outage. With the 1s→30s
+// backoff below, 8 consecutive failures is ~2 minutes down. A normal SSE
+// reconnect (proxy idle-close, laptop sleep/wake, network blip) recovers in
+// 1-2 attempts and must NOT warn — firing at 3 (~7s) was spamming an OS
+// notification every few minutes.
+const ERROR_THRESHOLD = 8;
 
 export function useOperationStatus(
   onProgress: ProgressCallback,
@@ -76,18 +80,11 @@ export function useOperationStatus(
         if (reconnectAttempt >= ERROR_THRESHOLD && !errorNotified) {
           errorNotified = true;
           notifications.serverError("Lost connection to server. Retrying...");
-          toast.error("Server connection lost. Retrying...");
-
-          // Push notification for critical server error
-          if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
-            const n = new Notification("Server connection lost", {
-              body: "zcrypt is having trouble connecting to the server. We're retrying automatically.",
-              icon: "/favicon.ico",
-              tag: "server-error",
-            });
-            setTimeout(() => n.close(), 8000);
-            n.onclick = () => { window.focus(); n.close(); };
-          }
+          toast.error("Reconnecting to server…");
+          // No OS-level Notification here on purpose: an SSE drop auto-recovers,
+          // so an OS popup that lingers in the notification centre is noise. The
+          // dismissible in-app notification above is enough and it clears on
+          // reconnect (serverReconnected below).
         }
 
         // Exponential backoff: 1s, 2s, 4s, 8s, ... capped at 30s
