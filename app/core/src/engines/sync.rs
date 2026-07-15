@@ -264,21 +264,51 @@ async fn push_chunk_byos(
         .map_err(|e| EngineError::Other(format!("repo: {e}")))?;
 
     let data = tokio::fs::read(&chunk.staging_path).await?;
-    let obj = Chunk {
-        r#ref: ChunkRef {
-            platform: f.platform.clone(),
-            account: creds.account.clone(),
-            index: chunk.idx as i32,
-            sha256: chunk.sha256.clone(),
-            compressed: chunk.compressed,
-            ..ChunkRef::default()
-        },
-        data,
+    let cref = ChunkRef {
+        platform: f.platform.clone(),
+        account: creds.account.clone(),
+        index: chunk.idx as i32,
+        sha256: chunk.sha256.clone(),
+        compressed: chunk.compressed,
+        ..ChunkRef::default()
     };
-    let uploaded = adapter
-        .upload(&repo.url, obj)
-        .await
-        .map_err(|e| EngineError::Other(format!("upload chunk {}: {e}", chunk.idx)))?;
+    // Push to the user's OWN platform, retrying a transient failure a couple of
+    // times before giving up. Mirrors the download direct-path's 2-attempt
+    // resilience — a blip reaching e.g. Telegram shouldn't fail the chunk on the
+    // first try. The sync loop already retries the whole file on a later pass, so
+    // this only tightens the retry loop; it adds no new at-least-once risk.
+    // NOTE: this is intra-plane (byos) resilience only. A true byos-direct ->
+    // relay fallback needs a BACKEND change first: a byos-direct session has no
+    // server repo (RepoURL empty) and uses the user's personal token, so the
+    // relay HandleChunkUpload path can't currently complete its chunks.
+    let mut uploaded = None;
+    let mut last_err: Option<EngineError> = None;
+    for n in 0..2u32 {
+        let obj = Chunk {
+            r#ref: cref.clone(),
+            data: data.clone(),
+        };
+        match adapter.upload(&repo.url, obj).await {
+            Ok(u) => {
+                uploaded = Some(u);
+                break;
+            }
+            Err(e) => {
+                last_err = Some(EngineError::Other(format!(
+                    "upload chunk {}: {e}",
+                    chunk.idx
+                )))
+            }
+        }
+        if n + 1 < 2 {
+            tokio::time::sleep(std::time::Duration::from_millis(500 << n)).await;
+        }
+    }
+    let uploaded = uploaded.ok_or_else(|| {
+        last_err.unwrap_or_else(|| {
+            EngineError::Other(format!("upload chunk {}: no attempts", chunk.idx))
+        })
+    })?;
 
     ctx.client
         .confirm_chunk(
