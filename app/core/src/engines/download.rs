@@ -131,8 +131,10 @@ pub async fn run(
     file_id: &str,
     passphrase: &str,
     user_id: &str,
+    space_key: Option<Vec<u8>>,
     save_path: &Path,
 ) -> Result<(), EngineError> {
+    let is_space_mode = space_key.is_some();
     let emit = |stage: Stage, done: u32, total: u32, bytes: i64, total_bytes: i64| {
         (ctx.progress)(Progress {
             file_id: file_id.to_string(),
@@ -183,26 +185,55 @@ pub async fn run(
         )
     };
 
-    // 2. Key (PBKDF2 is blocking; cached — see crypto::resolve_file_key_cached).
+    // 2. Key. `space_key` here is actually the file's ALREADY-RESOLVED content
+    //    key, not the space's raw symmetric key: a shared file's CEK is wrapped
+    //    under the space key in the SharedVaultFile record (a field the generic
+    //    file-meta response above does NOT carry — meta.wrapped_cek is the
+    //    OWNER's passphrase-wrapped envelope, a different ciphertext entirely).
+    //    So the caller (lib/spaces.ts's spaceFileKey()) unwraps client-side
+    //    using data it already holds and hands us the final key directly — this
+    //    mirrors the web client's `resolveKey` override exactly (no unwrap
+    //    happens here). Passphrase mode (PBKDF2, cached) is unchanged.
     emit(Stage::DerivingKey, 0, total, 0, meta.original_size);
-    let pass = passphrase.to_string();
-    let fid = file_id.to_string();
-    let key = tokio::task::spawn_blocking(move || {
-        crypto::resolve_file_key_cached(&fid, &pass, &salt, wrapped.as_deref())
-    })
-    .await
-    .map_err(|e| EngineError::Other(format!("join: {e}")))??;
+    let key = if let Some(space_key) = space_key {
+        space_key
+    } else {
+        let pass = passphrase.to_string();
+        let fid = file_id.to_string();
+        tokio::task::spawn_blocking(move || {
+            crypto::resolve_file_key_cached(&fid, &pass, &salt, wrapped.as_deref())
+        })
+        .await
+        .map_err(|e| EngineError::Other(format!("join: {e}")))??
+    };
 
-    // Whole-file hasher: hmac_v1 needs the per-user dedup key; legacy is SHA-256.
-    let mut hasher = if meta.sha256_scheme == "hmac_v1" {
+    // Whole-file hasher + whether its result is actually comparable against
+    // meta.sha256. hmac_v1 files store a per-user KEYED MAC there, which needs
+    // the passphrase (owner/folder path) to recompute — a space download has no
+    // passphrase, so it CANNOT verify that MAC. Mirrors the web client's
+    // canVerifyHash exactly (lib/download-session.ts): still hash (falling back
+    // to plain SHA-256) for uniform per-chunk work, but skip the final
+    // comparison rather than derive a MAC key from nothing, which would just
+    // produce a value that can never match and make every hmac_v1 space file
+    // spuriously "fail" integrity. Per-chunk SHA-256 (already verified during
+    // fetch) plus the chunk-count assertion (ordered_writer::drain) are what
+    // space/share downloads rely on instead — same trust level as the
+    // public-share path.
+    let mac_key = if meta.sha256_scheme == "hmac_v1" && !is_space_mode {
         let pass = passphrase.to_string();
         let uid = user_id.to_string();
-        let dk = tokio::task::spawn_blocking(move || crypto::derive_dedup_key(&pass, &uid))
-            .await
-            .map_err(|e| EngineError::Other(format!("join: {e}")))?;
-        ContentHasher::new("hmac_v1", Some(&dk))
+        Some(
+            tokio::task::spawn_blocking(move || crypto::derive_dedup_key(&pass, &uid).to_vec())
+                .await
+                .map_err(|e| EngineError::Other(format!("join: {e}")))?,
+        )
     } else {
-        ContentHasher::new("plain", None)
+        None
+    };
+    let can_verify_hash = crypto::can_verify_whole_file_hash(&meta.sha256_scheme, is_space_mode);
+    let mut hasher = match &mac_key {
+        Some(k) => ContentHasher::new("hmac_v1", Some(k)),
+        None => ContentHasher::new("plain", None),
     };
 
     // 3. Concurrent fetch/decrypt feeding the ordered writer. The sink writes
@@ -290,7 +321,8 @@ pub async fn run(
         .map_err(|e| EngineError::Io(e.into_error()))?
         .sync_all()?;
 
-    // 4. Whole-file integrity.
+    // 4. Whole-file integrity — only enforced when it's actually meaningful;
+    //    see the mac_key/can_verify_hash comment above.
     emit(
         Stage::Verifying,
         total,
@@ -299,7 +331,7 @@ pub async fn run(
         meta.original_size,
     );
     let got = hasher.finalize_hex();
-    if got != meta.sha256 {
+    if can_verify_hash && got != meta.sha256 {
         let _ = tokio::fs::remove_file(&part_path).await;
         return Err(EngineError::Integrity(
             "content hash mismatch — wrong passphrase or corrupt data".into(),
