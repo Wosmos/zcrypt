@@ -96,6 +96,13 @@ vi.mock("@/store/download", () => ({
   ),
 }));
 
+// The auth store persists to localStorage at module load — mock it so importing
+// the hook (which now reads useAuthStore.getState().user for desktop downloads)
+// doesn't touch localStorage in the test env.
+vi.mock("@/store/auth", () => ({
+  useAuthStore: { getState: () => ({ user: { id: "test-user" } }) },
+}));
+
 vi.mock("@/store/passphrase", () => ({
   usePassphraseStore: {
     getState: () => ({ getPassphrase: mockPassphraseGetPassphrase }),
