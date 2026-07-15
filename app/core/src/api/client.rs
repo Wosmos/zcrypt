@@ -1,11 +1,53 @@
 //! Core HTTP plumbing: bearer auth, single-flight 401 refresh, retry/backoff.
 
+use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 
+use hickory_resolver::config::ResolverConfig;
+use hickory_resolver::name_server::TokioConnectionProvider;
+use hickory_resolver::TokioResolver;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
+
+/// A reqwest DNS resolver backed by hickory-resolver pointed at PUBLIC
+/// nameservers (Cloudflare 1.1.1.1) with its own cache. The OS resolver on
+/// macOS reads a stale/misconfigured /etc/resolv.conf and, under a large
+/// download's concurrent-connection fan-out, intermittently returns EAI_NONAME
+/// ("failed to lookup address information") — the DNS errors that stalled and
+/// killed downloads while curl/the browser (using cached OS lookups) worked.
+/// This gives one reliable, cached lookup per host, independent of the flaky
+/// local resolver.
+struct PublicDnsResolver {
+    inner: Arc<TokioResolver>,
+}
+
+impl PublicDnsResolver {
+    fn new() -> Self {
+        let resolver = TokioResolver::builder_with_config(
+            ResolverConfig::cloudflare(),
+            TokioConnectionProvider::default(),
+        )
+        .build();
+        Self {
+            inner: Arc::new(resolver),
+        }
+    }
+}
+
+impl reqwest::dns::Resolve for PublicDnsResolver {
+    fn resolve(&self, name: reqwest::dns::Name) -> reqwest::dns::Resolving {
+        let resolver = self.inner.clone();
+        let host = name.as_str().to_string();
+        Box::pin(async move {
+            let lookup = resolver.lookup_ip(host.as_str()).await?;
+            let addrs: reqwest::dns::Addrs =
+                Box::new(lookup.into_iter().map(|ip| SocketAddr::new(ip, 0)));
+            Ok(addrs)
+        })
+    }
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum ApiError {
@@ -17,6 +59,23 @@ pub enum ApiError {
     Unauthorized,
     #[error("{0}")]
     Other(String),
+}
+
+impl ApiError {
+    /// Full cause chain. reqwest 0.12's Display collapses every transport
+    /// failure to a generic "error sending request for url (...)" and drops the
+    /// underlying reason (DNS failure, connection reset, timeout, TLS) — walk
+    /// source() so a flaky/filtered-network failure is actually diagnosable.
+    pub fn detail(&self) -> String {
+        let mut out = self.to_string();
+        let mut src = std::error::Error::source(self);
+        while let Some(e) = src {
+            out.push_str(" -> ");
+            out.push_str(&e.to_string());
+            src = e.source();
+        }
+        out
+    }
 }
 
 /// Mutable token state. The shell seeds it (from the OS keychain) and observes
@@ -54,6 +113,13 @@ impl Client {
             base_url: base_url.trim_end_matches('/').to_string(),
             http: reqwest::Client::builder()
                 .timeout(Duration::from_secs(30))
+                // Fail a stalled connect fast (flaky/filtered networks hang the
+                // TCP/TLS handshake) so with_retry gets a chance instead of
+                // burning the whole 30s budget on one dead attempt.
+                .connect_timeout(Duration::from_secs(10))
+                // Reliable public DNS (Cloudflare) + cache instead of the flaky
+                // OS resolver that returns intermittent EAI_NONAME on macOS.
+                .dns_resolver(Arc::new(PublicDnsResolver::new()))
                 .build()
                 .expect("reqwest client"),
             tokens: Mutex::new(TokenState {

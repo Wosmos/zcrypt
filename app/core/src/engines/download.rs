@@ -71,9 +71,26 @@ pub async fn run(
         });
     };
 
-    // 1. Metadata.
+    // 1. Metadata. Retry the control-plane call — on a flaky/filtered network a
+    //    single dropped request here used to kill the whole download before a
+    //    byte moved (the "error sending request for url .../meta" failure). The
+    //    detail() surfaces reqwest's hidden underlying cause if it still fails.
     emit(Stage::FetchingMeta, 0, 0, 0, 0);
-    let meta = ctx.client.get_file_meta(file_id).await?;
+    let client = ctx.client.clone();
+    let retry_client = client.clone();
+    let meta = client
+        .with_retry(6, move || {
+            let c = retry_client.clone();
+            async move { c.get_file_meta(file_id).await }
+        })
+        .await
+        .map_err(|e| {
+            let d = e.detail();
+            // Full cause to stderr too — the UI toast truncates it, and this is
+            // the one line that says WHY a flaky/filtered network is failing.
+            eprintln!("zcrypt download {file_id}: metadata fetch failed after retries: {d}");
+            EngineError::Other(format!("fetch metadata: {d}"))
+        })?;
     let total = meta.chunk_count as u32;
     let b64 = base64::engine::general_purpose::STANDARD;
     let salt = b64
@@ -123,6 +140,12 @@ pub async fn run(
     let sem = Arc::new(tokio::sync::Semaphore::new(
         ctx.profile.concurrent_downloads,
     ));
+    // byos-direct telemetry: how many chunks go straight to the user's storage
+    // (zero server egress) vs. fall back to the relay. Logged at the end so we
+    // can verify the whole point of the migration — bytes not touching the
+    // server — is actually happening on this device.
+    let mut direct_chunks = 0u32;
+    let mut relay_chunks = 0u32;
     let mut fetchers: tokio::task::JoinSet<Result<(), EngineError>> = tokio::task::JoinSet::new();
     for idx in 0..meta.chunk_count {
         let permit = sem.clone().acquire_owned().await.expect("semaphore");
@@ -137,36 +160,90 @@ pub async fn run(
                 .get(&loc.platform)
                 .map(|a| (loc.clone(), a.clone()))
         });
+        if direct.is_some() {
+            direct_chunks += 1;
+        } else {
+            relay_chunks += 1;
+        }
         fetchers.spawn(async move {
             let _permit = permit;
-            // (ciphertext bytes, expected sha of those bytes, zstd-compressed?)
-            let (data, sha256, compressed) = if let Some((loc, adapter)) = direct {
-                let r = ChunkRef {
-                    platform: loc.platform,
-                    account: loc.account,
-                    repo: loc.repo,
-                    remote_path: loc.remote_path,
-                    size: loc.size,
-                    sha256: loc.sha256.clone(),
-                    compressed: loc.compressed,
-                    ..ChunkRef::default()
-                };
-                let bytes = adapter
-                    .download(&r)
-                    .await
-                    .map_err(|e| EngineError::Other(format!("direct chunk {idx}: {e}")))?;
-                (bytes, loc.sha256, loc.compressed)
-            } else {
-                let chunk = client.get_chunk(&fid, idx).await?;
-                (chunk.data, chunk.sha256, chunk.compressed)
-            };
-            // Transport integrity: the SHA is of the encrypted bytes.
-            if !sha256.is_empty() {
-                let got = crypto::sha256_hex(&data);
-                if got != sha256 {
-                    return Err(EngineError::Integrity(format!("chunk {idx}: sha mismatch")));
+            // Acquire one chunk. Try byos-direct FIRST but fail fast (2 tries),
+            // then FALL BACK to the backend relay (4 tries). This is the key fix
+            // for a platform that's unreachable from THIS network — e.g. Telegram
+            // in a region that blocks it: the client can't hit api.telegram.org
+            // directly, but the server can, so relaying still completes the
+            // download instead of hanging on a dead direct source. A verified-bad
+            // chunk (sha mismatch) is retried too — a truncated transfer can look
+            // complete-but-wrong — but never past the caps. Only when BOTH paths
+            // are exhausted does the chunk error.
+            let sha_ok = |data: &[u8], sha: &str| sha.is_empty() || crypto::sha256_hex(data) == *sha;
+            let mut last_err: Option<EngineError> = None;
+            let mut out: Option<(Vec<u8>, bool)> = None;
+
+            // --- byos-direct (fast: 2 attempts, then hand off to relay) ---
+            if let Some((loc, adapter)) = &direct {
+                for n in 0..2u32 {
+                    let r = ChunkRef {
+                        platform: loc.platform.clone(),
+                        account: loc.account.clone(),
+                        repo: loc.repo.clone(),
+                        remote_path: loc.remote_path.clone(),
+                        size: loc.size,
+                        sha256: loc.sha256.clone(),
+                        compressed: loc.compressed,
+                        ..ChunkRef::default()
+                    };
+                    match adapter.download(&r).await {
+                        Ok(bytes) if sha_ok(&bytes, &loc.sha256) => {
+                            out = Some((bytes, loc.compressed));
+                            break;
+                        }
+                        Ok(_) => {
+                            last_err = Some(EngineError::Integrity(format!(
+                                "chunk {idx}: sha mismatch (direct)"
+                            )))
+                        }
+                        Err(e) => {
+                            last_err =
+                                Some(EngineError::Other(format!("direct chunk {idx}: {e}")))
+                        }
+                    }
+                    if n + 1 < 2 {
+                        tokio::time::sleep(std::time::Duration::from_millis(500 << n)).await;
+                    }
                 }
             }
+
+            // --- relay fallback (4 attempts) ---
+            if out.is_none() {
+                for n in 0..4u32 {
+                    match client.get_chunk(&fid, idx).await {
+                        Ok(c) if sha_ok(&c.data, &c.sha256) => {
+                            out = Some((c.data, c.compressed));
+                            break;
+                        }
+                        Ok(_) => {
+                            last_err = Some(EngineError::Integrity(format!(
+                                "chunk {idx}: sha mismatch (relay)"
+                            )))
+                        }
+                        Err(e) => last_err = Some(EngineError::from(e)),
+                    }
+                    if n + 1 < 4 {
+                        let delay =
+                            std::time::Duration::from_millis((500u64 << n).min(8_000));
+                        tokio::time::sleep(delay).await;
+                    }
+                }
+            }
+            let (data, compressed) = match out {
+                Some(v) => v,
+                None => {
+                    return Err(last_err.unwrap_or_else(|| {
+                        EngineError::Other(format!("chunk {idx}: no attempts"))
+                    }))
+                }
+            };
             let plain = tokio::task::spawn_blocking(move || {
                 pipeline::unprocess_chunk(&data, &key, compressed)
             })
@@ -178,6 +255,9 @@ pub async fn run(
         });
     }
     drop(tx);
+    eprintln!(
+        "zcrypt download {file_id}: {direct_chunks} chunk(s) byos-direct, {relay_chunks} via relay"
+    );
 
     // Writer: strict order → hasher + disk. Progress per chunk.
     let mut written_chunks = 0u32;
