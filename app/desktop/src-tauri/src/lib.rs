@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex as StdMutex};
+use std::time::{Duration, Instant};
 
 // Tray + menu APIs exist only on desktop Tauri (gated as #[cfg(desktop)] /
 // #[cfg(all(desktop, feature = "tray-icon"))] upstream), so these imports and
@@ -25,6 +26,22 @@ use zcrypt_core::types::{Progress, ProgressFn};
 const KEYCHAIN_SERVICE: &str = "app.zcrypt.desktop";
 /// Tauri event carrying `zcrypt_core::types::Progress` payloads.
 const PROGRESS_EVENT: &str = "zcrypt://progress";
+/// Emitted when the inactivity auto-lock clears the cached passphrase, so the
+/// frontend CAN react (e.g. re-prompt) if it wants to — nothing currently
+/// listens for it; this just leaves the hook in place.
+const AUTO_LOCK_EVENT: &str = "zcrypt://auto-locked";
+/// How long the cached vault passphrase (and the core's warm key cache) may
+/// sit idle before auto-lock forgets them. Convenience-only, mirroring a
+/// password manager's idle timeout: it stops the folder-watch agent (and
+/// anything that would reuse the cached warm keys) from running forever on a
+/// machine the user walked away from. The frontend's OWN vault-lock state is
+/// separate and unaffected.
+const INACTIVITY_TIMEOUT: Duration = Duration::from_secs(300);
+/// How often the auto-lock task checks for inactivity. A simple periodic poll
+/// comparing timestamps — not a per-call reset-and-cancel timer — so there's
+/// no cancellation race to get wrong; this only needs to be tighter than the
+/// multi-minute timeout above, not tight to the second.
+const INACTIVITY_POLL_INTERVAL: Duration = Duration::from_secs(30);
 
 /// Token-rotation callback shape expected by `Client::with_rotate_hook`
 /// (the core keeps its own alias private).
@@ -41,11 +58,15 @@ struct EngineState {
     sync_cancel: StdMutex<Option<watch::Sender<bool>>>,
     profile: profiles::Profile,
     /// Vault passphrase cached after unlock so the background folder-watch agent
-    /// can encrypt new files without prompting. Cleared on lock/logout.
+    /// can encrypt new files without prompting. Cleared on lock/logout, or by
+    /// the inactivity auto-lock (see INACTIVITY_TIMEOUT).
     passphrase: StdMutex<Option<String>>,
     /// Active folder-watch watcher — dropping it stops watching (and ends the
     /// processor task, whose channel sender lives inside the watcher callback).
     watcher: StdMutex<Option<notify::RecommendedWatcher>>,
+    /// Updated by `touch_activity()` on every passphrase-bearing command; the
+    /// auto-lock task compares this against `INACTIVITY_TIMEOUT`.
+    last_activity: StdMutex<Instant>,
 }
 
 impl Default for EngineState {
@@ -57,11 +78,18 @@ impl Default for EngineState {
             profile: profiles::NORMAL,
             passphrase: StdMutex::new(None),
             watcher: StdMutex::new(None),
+            last_activity: StdMutex::new(Instant::now()),
         }
     }
 }
 
 impl EngineState {
+    /// Mark the vault as just-used, resetting the inactivity clock. Called by
+    /// every command that sets or relies on the cached passphrase.
+    fn touch_activity(&self) {
+        *self.last_activity.lock().unwrap() = Instant::now();
+    }
+
     /// Lazily open the local SQLite ledger.
     fn db(&self) -> Result<Arc<LocalDb>, String> {
         let mut guard = self.db.lock().unwrap();
@@ -99,6 +127,35 @@ fn progress_emitter(app: &tauri::AppHandle) -> ProgressFn {
     Arc::new(move |p: Progress| {
         let _ = app.emit(PROGRESS_EVENT, &p);
     })
+}
+
+/// Runs for the lifetime of the app: every INACTIVITY_POLL_INTERVAL, forgets
+/// the cached passphrase (and the core's warm key cache) if nothing has
+/// touched it for INACTIVITY_TIMEOUT. A periodic poll comparing timestamps —
+/// not a per-call reset-and-cancel timer — so there's no cancellation race:
+/// every passphrase-bearing command just updates a timestamp via
+/// `touch_activity()`, and this task alone decides when to act on it.
+fn spawn_inactivity_autolock(app: tauri::AppHandle) {
+    tauri::async_runtime::spawn(async move {
+        let mut tick = tokio::time::interval(INACTIVITY_POLL_INTERVAL);
+        tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        loop {
+            tick.tick().await;
+            let state = app.state::<EngineState>();
+            let idle = state.last_activity.lock().unwrap().elapsed();
+            if idle < INACTIVITY_TIMEOUT {
+                continue;
+            }
+            // .take() both checks and clears in one lock acquisition — a race
+            // with an explicit clear_passphrase() just means both agree the
+            // end state is None, never a corrupt/partial state.
+            let had_passphrase = state.passphrase.lock().unwrap().take().is_some();
+            if had_passphrase {
+                zcrypt_core::crypto::clear_key_cache();
+                let _ = app.emit(AUTO_LOCK_EVENT, ());
+            }
+        }
+    });
 }
 
 fn keychain_entry(key: &str) -> Result<keyring::Entry, String> {
@@ -140,6 +197,7 @@ async fn local_upload(
     passphrase: String,
     profile: Option<String>,
 ) -> Result<String, String> {
+    state.touch_activity();
     let mut ctx = state.context(&app).await?;
     if let Some(name) = profile.as_deref() {
         ctx.profile = profiles::get_profile(name);
@@ -158,6 +216,7 @@ async fn upload_file(
     passphrase: String,
     platform: Option<String>,
 ) -> Result<(), String> {
+    state.touch_activity();
     let ctx = state.context(&app).await?;
     engines::upload(&ctx, Path::new(&file_path), &passphrase, platform)
         .await
@@ -173,6 +232,7 @@ async fn download_file(
     user_id: String,
     save_path: String,
 ) -> Result<(), String> {
+    state.touch_activity();
     let ctx = state.context(&app).await?;
     engines::download(
         &ctx,
@@ -199,6 +259,7 @@ async fn decrypt_to_memory(
     passphrase: String,
     user_id: String,
 ) -> Result<tauri::ipc::Response, String> {
+    state.touch_activity();
     let ctx = state.context(&app).await?;
     let bytes = engines::decrypt_to_memory(&ctx, &file_id, &passphrase, &user_id, None)
         .await
@@ -225,6 +286,10 @@ async fn download_space_file(
     space_key_b64: String,
     save_path: String,
 ) -> Result<(), String> {
+    // Doesn't touch the cached passphrase, but the user is clearly at the app
+    // actively using it — counts as activity same as any passphrase-bearing
+    // command, so it doesn't get auto-locked out from under them mid-session.
+    state.touch_activity();
     let ctx = state.context(&app).await?;
     let space_key = base64_decode(&space_key_b64)?;
     engines::download(
@@ -249,6 +314,7 @@ async fn decrypt_space_to_memory(
     file_id: String,
     space_key_b64: String,
 ) -> Result<tauri::ipc::Response, String> {
+    state.touch_activity(); // see download_space_file
     let ctx = state.context(&app).await?;
     let space_key = base64_decode(&space_key_b64)?;
     let bytes = engines::decrypt_to_memory(&ctx, &file_id, "", "", Some(space_key))
@@ -404,6 +470,7 @@ async fn set_passphrase(
     passphrase: String,
 ) -> Result<(), String> {
     *state.passphrase.lock().unwrap() = Some(passphrase);
+    state.touch_activity();
     Ok(())
 }
 
@@ -747,6 +814,10 @@ pub fn run() {
 
             #[cfg(desktop)]
             setup_tray(app)?;
+
+            // Inactivity auto-lock — not gated to desktop; the cached
+            // passphrase and warm key cache exist on every target.
+            spawn_inactivity_autolock(app.handle().clone());
 
             Ok(())
         })

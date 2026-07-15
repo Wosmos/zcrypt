@@ -6932,6 +6932,7 @@ dependencies = [
  "tokio",
  "urlencoding",
  "uuid",
+ "zeroize",
  "zstd",
 ]
 
@@ -6939,6 +6940,7 @@ dependencies = [
 name = "zcrypt-desktop"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
  "block2",
  "keyring",
  "notify",
