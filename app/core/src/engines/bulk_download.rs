@@ -23,12 +23,19 @@ use super::{EngineContext, EngineError};
 pub struct BulkFile {
     pub file_id: String,
     pub filename: String,
+    /// This file's OWN resolved passphrase — the vault passphrase for an
+    /// unprotected file, or the relevant folder password for a
+    /// protected-folder file. Per-file (not one shared passphrase for the
+    /// whole batch) because a bulk selection can span files from DIFFERENT
+    /// password-protected folders; the caller (frontend) already resolves
+    /// this per file for the web bulk-ZIP path, so desktop mirrors it exactly
+    /// rather than silently failing whichever files don't match one guess.
+    pub passphrase: String,
 }
 
 pub async fn run(
     ctx: &EngineContext,
     files: &[BulkFile],
-    passphrase: &str,
     user_id: &str,
     save_path: &Path,
 ) -> Result<(), EngineError> {
@@ -36,7 +43,7 @@ pub async fn run(
         .parent()
         .filter(|p| !p.as_os_str().is_empty())
         .unwrap_or_else(|| Path::new("."));
-    let result = run_inner(ctx, files, passphrase, user_id, save_path, scratch_dir).await;
+    let result = run_inner(ctx, files, user_id, save_path, scratch_dir).await;
     if result.is_err() {
         // Never leave a partial/corrupt zip behind — same principle as
         // download's own .zcrypt-part cleanup on failure.
@@ -48,7 +55,6 @@ pub async fn run(
 async fn run_inner(
     ctx: &EngineContext,
     files: &[BulkFile],
-    passphrase: &str,
     user_id: &str,
     save_path: &Path,
     scratch_dir: &Path,
@@ -60,7 +66,8 @@ async fn run_inner(
 
     for f in files {
         let temp_path = scratch_dir.join(format!("zcrypt-bulk-{}.tmp", uuid::Uuid::new_v4()));
-        let dl_result = download::run(ctx, &f.file_id, passphrase, user_id, None, &temp_path).await;
+        let dl_result =
+            download::run(ctx, &f.file_id, &f.passphrase, user_id, None, &temp_path).await;
         if let Err(e) = dl_result {
             let _ = std::fs::remove_file(&temp_path);
             return Err(e);
