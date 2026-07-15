@@ -140,6 +140,30 @@ export async function sidecarDownload(
 }
 
 /**
+ * Bulk-download N files into ONE ZIP via the in-process core (desktop only).
+ * Each entry carries its OWN resolved passphrase (vault passphrase, or the
+ * relevant folder password) — NOT one shared passphrase for the whole batch,
+ * since a bulk selection can span files from different password-protected
+ * folders. Memory/disk use is bounded by the single largest file, not the
+ * sum of the whole batch (unlike the in-browser bulk-ZIP path).
+ */
+export async function sidecarBulkDownloadZip(
+  files: { fileId: string; filename: string; passphrase: string }[],
+  userId: string,
+  savePath: string
+): Promise<void> {
+  return tauriInvoke("bulk_download_zip", {
+    files: files.map((f) => ({
+      fileId: f.fileId,
+      filename: f.filename,
+      passphrase: f.passphrase,
+    })),
+    userId,
+    savePath,
+  });
+}
+
+/**
  * Decrypt a file to raw bytes IN MEMORY via the in-process core (desktop only) —
  * for thumbnails / preview / the in-app viewer. Returns the plaintext as an
  * ArrayBuffer (the command sends a raw byte IPC response, no base64). The core

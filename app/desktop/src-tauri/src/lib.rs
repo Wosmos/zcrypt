@@ -246,6 +246,52 @@ async fn download_file(
     .map_err(|e| e.to_string())
 }
 
+/// One entry of a bulk-download request — mirrors the frontend's
+/// `BulkDownloadFile` (its `fileSize` is browser-only queue bookkeeping, not
+/// needed here).
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct BulkFileArg {
+    file_id: String,
+    filename: String,
+    /// This file's OWN resolved passphrase (vault passphrase, or the relevant
+    /// folder password) — NOT one shared passphrase for the whole batch. A
+    /// bulk selection can span files from different password-protected
+    /// folders; the frontend already resolves this per file for the web
+    /// bulk-ZIP path, so this mirrors it exactly. See `engines::BulkFile`.
+    passphrase: String,
+}
+
+/// Bulk download: N files packed into ONE ZIP via the in-process core —
+/// memory/disk use bounded by the single largest file, not the sum of the
+/// whole batch (unlike the in-browser path, which holds every file's full
+/// decrypted bytes in memory simultaneously and caps total selection size at
+/// 2GB for exactly that reason). Any single file's failure aborts the whole
+/// batch and cleans up the partial zip, and duplicate filenames get the same
+/// " (1)", " (2)", ... suffix — both matching lib/bulk-download.ts exactly.
+#[tauri::command]
+async fn bulk_download_zip(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, EngineState>,
+    files: Vec<BulkFileArg>,
+    user_id: String,
+    save_path: String,
+) -> Result<(), String> {
+    state.touch_activity();
+    let ctx = state.context(&app).await?;
+    let files: Vec<engines::BulkFile> = files
+        .into_iter()
+        .map(|f| engines::BulkFile {
+            file_id: f.file_id,
+            filename: f.filename,
+            passphrase: f.passphrase,
+        })
+        .collect();
+    engines::bulk_download(&ctx, &files, &user_id, Path::new(&save_path))
+        .await
+        .map_err(|e| e.to_string())
+}
+
 /// In-memory decrypt for thumbnails / preview / the in-app viewer: fetch →
 /// verify → decrypt → decompress → return the plaintext bytes (no disk write).
 /// Returns a raw byte IPC response (not base64) so large previews don't inflate
@@ -753,6 +799,7 @@ pub fn run() {
             upload_file,
             download_file,
             decrypt_to_memory,
+            bulk_download_zip,
             download_space_file,
             decrypt_space_to_memory,
             delete_file,

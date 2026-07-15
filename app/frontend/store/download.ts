@@ -129,6 +129,9 @@ interface ZipSession {
   passphrase: string;
   resolvePassword?: DownloadPasswordResolver;
   abort: AbortController;
+  /** Present only for a desktop-originated session — lets retry re-invoke the
+   *  core path instead of the browser one. */
+  userId?: string;
 }
 const zipSessions = new Map<string, ZipSession>();
 
@@ -142,6 +145,12 @@ interface DownloadStore {
    *  file there OOMs and freezes the app, since WKWebView has no
    *  showSaveFilePicker to stream with). */
   startDesktopDownload: (fileId: string, filename: string, fileSize: number, passphrase: string, userId: string, resolvePassword?: DownloadPasswordResolver) => void;
+  /** Desktop-only: bulk ZIP through the in-process Rust core. Streams one file
+   *  at a time into the archive (bounded by the single largest file, not the
+   *  sum of the whole batch), so — unlike the browser path, which holds every
+   *  file's full decrypted bytes in memory before zipping — there's no 2GB
+   *  total-selection cap here. */
+  startDesktopBulkZipDownload: (files: BulkDownloadFile[], passphrase: string, userId: string, resolvePassword?: DownloadPasswordResolver) => void;
   startBulkZipDownload: (files: BulkDownloadFile[], passphrase: string, resolvePassword?: DownloadPasswordResolver) => void;
   pauseDownload: (id: string) => void;
   resumeDownload: (id: string, passphrase: string, resolvePassword?: DownloadPasswordResolver) => void;
@@ -418,6 +427,97 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
     })();
   },
 
+  startDesktopBulkZipDownload: (files, passphrase, userId, resolvePassword) => {
+    const id = genId("zip");
+    const controller = new AbortController();
+    const totalSize = files.reduce((s, f) => s + f.fileSize, 0);
+
+    set((state) => ({
+      queue: [
+        ...state.queue,
+        { id, fileId: "zip", filename: `${files.length} files as ZIP`, fileSize: totalSize, status: "queued" as const, progress: 0, stage: "Choose where to save…", startedAt: Date.now() },
+      ],
+    }));
+    zipSessions.set(id, { files, passphrase, resolvePassword, userId, abort: controller });
+
+    void (async () => {
+      const { sidecarBulkDownloadZip, pickSaveLocation, subscribeProgress } = await import("@/lib/tauri");
+
+      let savePath: string | null;
+      try {
+        savePath = await pickSaveLocation(`zcrypt-${files.length}-files.zip`);
+      } catch {
+        savePath = null;
+      }
+      if (!savePath) {
+        zipSessions.delete(id);
+        setStatusNow(id, { status: "cancelled", stage: "Cancelled" });
+        return;
+      }
+
+      // Resolve the effective passphrase per file up front (folder password
+      // for a protected file, else the vault passphrase) — the core can't
+      // call back into JS mid-download the way the browser pipeline can.
+      const resolve = resolvePassword ?? resolveFilePasswordGlobal;
+      const filePassphrases = new Map<string, string>();
+      for (const f of files) {
+        try {
+          filePassphrases.set(f.fileId, await resolve(f.fileId));
+        } catch {
+          filePassphrases.set(f.fileId, passphrase);
+        }
+      }
+      const fileIds = new Set(files.map((f) => f.fileId));
+      const order = files.map((f) => f.fileId);
+      const unlisten = await subscribeProgress((p) => {
+        if (!fileIds.has(p.file_id) || p.chunks_total <= 0) return;
+        const idx = order.indexOf(p.file_id);
+        if (idx === -1) return;
+        const innerFraction = p.chunks_done / p.chunks_total;
+        const percent = Math.round(((idx + innerFraction) / files.length) * 100);
+        updateProgress(id, "downloading", percent, `${p.stage} (${idx + 1}/${files.length})`);
+      });
+
+      try {
+        updateProgress(id, "downloading", 0, "Starting ZIP...");
+        const sidecarFiles = files.map((f) => ({
+          fileId: f.fileId,
+          filename: f.filename,
+          // Fell back to the vault passphrase above if resolution failed;
+          // that lets any real auth failure surface normally per-file
+          // (same recovery path as today: wrong-key detection -> clear
+          // that folder's cached password) instead of silently guessing.
+          passphrase: filePassphrases.get(f.fileId) ?? passphrase,
+        }));
+        await sidecarBulkDownloadZip(sidecarFiles, userId, savePath);
+
+        updateProgress(id, "done", 100, "Done");
+        zipSessions.delete(id);
+        toast.success(`ZIP with ${files.length} files downloaded`);
+        notifications.downloadComplete(`${files.length} files (ZIP)`);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "ZIP download failed";
+        const isNetwork = /error sending request|dns error|failed to lookup|client error \(connect\)|timed out|connection reset|connection refused/i.test(msg);
+        let recovered = false;
+        if (looksLikeWrongKey(msg)) {
+          for (const f of files) {
+            if (recoverWrongFolderPassword(f.fileId, msg)) recovered = true;
+          }
+        }
+        setStatusNow(id, { status: "failed", error: isNetwork ? "Can't reach zcrypt's servers (network/DNS)" : msg, stage: "Failed" });
+        if (isNetwork) {
+          toast.error("Can't reach zcrypt's servers — check your internet, and if you're on a restricted or filtered network, connect a VPN and retry.");
+        } else if (recovered) {
+          toast.error("Wrong folder password in this ZIP. Retry to re-enter it.");
+        } else {
+          toast.error(`ZIP download failed: ${msg}`);
+        }
+      } finally {
+        unlisten();
+      }
+    })();
+  },
+
   // Pause a running single-file download: flag it, then abort the run's
   // in-flight fetches. The pipeline sees pausing()===true and throws
   // DownloadPausedError instead of discarding — the disk writable stays open
@@ -497,11 +597,17 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
       return;
     }
 
-    // ZIP download (no resume pipeline): restart it fresh.
+    // ZIP download (no resume pipeline): restart it fresh. A userId on the
+    // session means it was desktop-originated — re-invoke the core path, not
+    // the browser one.
     const zip = zipSessions.get(id);
     if (zip) {
       get().removeFromQueue(id);
-      get().startBulkZipDownload(zip.files, passphrase, resolvePassword ?? zip.resolvePassword);
+      if (zip.userId) {
+        get().startDesktopBulkZipDownload(zip.files, passphrase, zip.userId, resolvePassword ?? zip.resolvePassword);
+      } else {
+        get().startBulkZipDownload(zip.files, passphrase, resolvePassword ?? zip.resolvePassword);
+      }
       return;
     }
 

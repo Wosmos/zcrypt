@@ -105,6 +105,7 @@ export function useVaultActions({
   const storeStartDownload = useDownloadStore((s) => s.startDownload);
   const startDesktopDownload = useDownloadStore((s) => s.startDesktopDownload);
   const startBulkZipDownload = useDownloadStore((s) => s.startBulkZipDownload);
+  const startDesktopBulkZipDownload = useDownloadStore((s) => s.startDesktopBulkZipDownload);
   const downloadQueue = useDownloadStore((s) => s.queue);
   const { notify } = useNotifications();
 
@@ -334,8 +335,12 @@ export function useVaultActions({
       const filesToDownload = files.filter((f) => ids.includes(f.id));
       if (filesToDownload.length === 0) return;
       const totalSize = filesToDownload.reduce((s, f) => s + f.original_size, 0);
+      // Desktop streams one file at a time into the zip (bounded by the
+      // single largest file, not the sum), so the 2GB cap is a BROWSER-ONLY
+      // limitation — the in-memory-then-zip web path holds every file's full
+      // decrypted bytes simultaneously, which is what that cap protects.
       const MAX_ZIP_SIZE = 2 * 1024 * 1024 * 1024; // 2GB
-      if (totalSize > MAX_ZIP_SIZE) {
+      if (!isTauri && totalSize > MAX_ZIP_SIZE) {
         toast.warning(
           `Selected files total ${formatBytes(totalSize)} — too large for ZIP. Download individually instead.`
         );
@@ -347,10 +352,15 @@ export function useVaultActions({
         fileSize: f.original_size,
       }));
       vault.withPassphrase((passphrase) => {
+        if (isTauri) {
+          const userId = useAuthStore.getState().user?.id ?? "";
+          startDesktopBulkZipDownload(bulkFiles, passphrase, userId, resolvePasswordForFile);
+          return;
+        }
         startBulkZipDownload(bulkFiles, passphrase, resolvePasswordForFile);
       });
     },
-    [files, vault, startBulkZipDownload, resolvePasswordForFile]
+    [files, vault, startBulkZipDownload, startDesktopBulkZipDownload, resolvePasswordForFile]
   );
 
   // ── Preview (in-memory decrypt + zstd + SHA-256 integrity check) ────────────
