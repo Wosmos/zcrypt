@@ -576,6 +576,7 @@ jobs:
             echo "keyAlias=${ANDROID_KEY_ALIAS}" > keystore.properties
             echo "password=${ANDROID_KEY_PASSWORD}" >> keystore.properties
             base64 -d <<< "${ANDROID_KEY_BASE64}" > "$RUNNER_TEMP/zcrypt-release.jks"
+            alias="${ANDROID_KEY_ALIAS}"; pass="${ANDROID_KEY_PASSWORD}"
           else
             echo "No release keystore secret — generating an ephemeral one so the"
             echo "release APK is signed + sideloadable (see the step comment)."
@@ -586,29 +587,79 @@ jobs:
               -dname "CN=zcrypt, O=zcrypt, C=PK"
             echo "keyAlias=zcrypt" > keystore.properties
             echo "password=zcryptci" >> keystore.properties
+            alias="zcrypt"; pass="zcryptci"
           fi
           echo "storeFile=$RUNNER_TEMP/zcrypt-release.jks" >> keystore.properties
+
+          # Export the key coordinates for the explicit apksigner step below.
+          # Tauri's generated Gradle does NOT reliably consume keystore.properties,
+          # so we sign the built APK ourselves (deterministic + verifiable) rather
+          # than trust the build to do it.
+          {
+            echo "SIGN_KEYSTORE=$RUNNER_TEMP/zcrypt-release.jks"
+            echo "SIGN_ALIAS=$alias"
+            echo "SIGN_PASS=$pass"
+          } >> "$GITHUB_ENV"
 
       - name: Build Android APK
         working-directory: app/desktop/src-tauri
         env:
           NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
-        # RELEASE, all-ABI universal APK, signed by the keystore configured in the
-        # previous step. Release (not --debug) keeps it ~30MB instead of ~200MB+;
-        # signing makes it installable; no --target = one universal APK for every
-        # device (arm64/armv7/x86/x86_64).
+        # RELEASE, all-ABI universal APK. Release (not --debug) keeps it ~100MB
+        # instead of ~200MB+; no --target = one universal APK for every device
+        # (arm64/armv7/x86/x86_64). This emits an UNSIGNED release APK — the
+        # explicit apksigner step below makes it installable.
         run: cargo tauri android build --apk
 
+      # ── Sign + verify the release APK ──
+      # Tauri's generated Gradle does not reliably apply keystore.properties, so
+      # the release APK comes out unsigned and Android rejects it with "package
+      # appears to be invalid". We sign it ourselves with the SDK's apksigner
+      # (zipalign first, as the tooling expects), then apksigner verify — so an
+      # unsigned/broken APK fails the build instead of shipping uninstallable.
+      # The signed APK path is exported as $SIGNED_APK for the publish steps.
+      - name: Sign + verify the release APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob globstar
+          apk_dir="app/desktop/src-tauri/gen/android/app/build/outputs/apk"
+          # Prefer the universal release APK; fall back to any release APK.
+          cands=("$apk_dir"/**/release/*universal*.apk "$apk_dir"/**/release/*.apk)
+          src=""
+          for f in "${cands[@]}"; do [ -f "$f" ] && { src="$f"; break; }; done
+          if [ -z "$src" ]; then
+            echo "::error::no release APK found under $apk_dir"; ls -R "$apk_dir" || true; exit 1
+          fi
+          echo "signing: $src"
+
+          # Newest installed build-tools has zipalign + apksigner.
+          bt="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)"
+          echo "build-tools: $bt"
+
+          out="$RUNNER_TEMP/zcrypt.apk"
+          "${bt}zipalign" -f -p 4 "$src" "$RUNNER_TEMP/zcrypt-aligned.apk"
+          "${bt}apksigner" sign \
+            --ks "$SIGN_KEYSTORE" \
+            --ks-key-alias "$SIGN_ALIAS" \
+            --ks-pass "pass:$SIGN_PASS" \
+            --key-pass "pass:$SIGN_PASS" \
+            --out "$out" "$RUNNER_TEMP/zcrypt-aligned.apk"
+
+          # Hard gate: a bad signature fails the build here, not on the phone.
+          "${bt}apksigner" verify --verbose "$out"
+          ls -la "$out"
+          echo "SIGNED_APK=$out" >> "$GITHUB_ENV"
+
       # ── Upload artifact ──
-      # `**` needs globbing support — actions/upload-artifact resolves the
-      # pattern itself (via @actions/glob), so this works regardless of which
-      # per-ABI/flavor subdirectory Gradle put the APK in.
+      # The signed, verified APK from the step above (not the raw Gradle output,
+      # which is unsigned and won't install).
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: zcrypt-android-apk
-          path: app/desktop/src-tauri/gen/android/app/build/outputs/apk/**/*.apk
+          path: ${{ runner.temp }}/zcrypt.apk
           if-no-files-found: error
 
       # ── Publish APK to the GitHub Release (tag pushes only) ──
@@ -627,13 +678,9 @@ jobs:
             fi
             echo "waiting for release $TAG ($i/30)…"; sleep 10
           done
-          shopt -s nullglob globstar
-          files=(app/desktop/src-tauri/gen/android/app/build/outputs/apk/**/*.apk)
-          if [ ${#files[@]} -eq 0 ]; then
-            echo "no APK found"; exit 0
-          fi
-          printf 'uploading: %s\n' "${files[@]}"
-          gh release upload "$TAG" "${files[@]}" --repo "$GITHUB_REPOSITORY" --clobber
+          # The signed + verified APK from the sign step.
+          echo "uploading: $SIGNED_APK"
+          gh release upload "$TAG" "$SIGNED_APK" --repo "$GITHUB_REPOSITORY" --clobber
 
       # ── Publish a rolling sideload build (android-latest) ──
       # /download on the site links to a single stable URL for the APK:
@@ -641,35 +688,19 @@ jobs:
       # This is a separate, non-versioned prerelease from the tag-based
       # release above — it exists purely so that link never breaks, and it's
       # refreshed on every push that touches desktop/core (not just version
-      # tags). Runs whether or not ANDROID_KEY_BASE64 is configured:
-      # unsigned/debug-signed APKs install fine for sideload testing, they just
-      # aren't Play-Store-eligible. Skipped on pull_request builds (untrusted
-      # forks don't get a token with write access, and PR builds shouldn't
-      # clobber the public link anyway).
+      # tags). The APK is signed (persistent keystore if configured, else an
+      # ephemeral CI key) so it installs; it's just not Play-Store-eligible.
+      # Skipped on pull_request builds (untrusted forks don't get a token with
+      # write access, and PR builds shouldn't clobber the public link anyway).
       - name: Publish rolling sideload APK (android-latest)
         if: github.event_name != 'pull_request'
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          shopt -s nullglob globstar
-          files=(app/desktop/src-tauri/gen/android/app/build/outputs/apk/**/*.apk)
-          if [ ${#files[@]} -eq 0 ]; then
-            echo "no APK found to publish"; exit 0
-          fi
-
-          # Prefer the universal build (installs on any device/ABI) if Gradle
-          # produced per-ABI splits alongside it; otherwise take whatever's
-          # there so the link always has something installable.
-          apk=""
-          for f in "${files[@]}"; do
-            if [[ "$f" == *universal* ]]; then apk="$f"; break; fi
-          done
-          [ -z "$apk" ] && apk="${files[0]}"
-          echo "publishing: $apk"
-
-          # gh needs a fixed local filename to control the uploaded asset name.
-          cp "$apk" "$RUNNER_TEMP/zcrypt.apk"
+          # $SIGNED_APK is the signed + verified $RUNNER_TEMP/zcrypt.apk — already
+          # the exact asset name /download links to, so no copy/rename needed.
+          echo "publishing: $SIGNED_APK"
 
           if ! gh release view android-latest --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release create android-latest \
@@ -682,5 +713,5 @@ jobs:
             gh release edit android-latest --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA"
           fi
 
-          gh release upload android-latest "$RUNNER_TEMP/zcrypt.apk" \
+          gh release upload android-latest "$SIGNED_APK" \
             --repo "$GITHUB_REPOSITORY" --clobber
