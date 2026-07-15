@@ -159,6 +159,40 @@ export async function sidecarDecryptToMemory(
 }
 
 /**
+ * Download a shared-space file via the in-process core (desktop only), using
+ * the space's symmetric key instead of the vault passphrase — works for the
+ * owner and any member alike. `spaceKeyBytes` is the raw space key; base64
+ * encoding for the IPC call happens here so callers just pass bytes.
+ */
+export async function sidecarDownloadSpace(
+  fileId: string,
+  spaceKeyBytes: Uint8Array,
+  savePath: string
+): Promise<void> {
+  const { toBase64 } = await import("@/lib/crypto");
+  return tauriInvoke("download_space_file", {
+    fileId,
+    spaceKeyB64: toBase64(spaceKeyBytes),
+    savePath,
+  });
+}
+
+/**
+ * Decrypt a shared-space file to bytes in memory via the in-process core
+ * (desktop only) — the space-key sibling of `sidecarDecryptToMemory`.
+ */
+export async function sidecarDecryptSpaceToMemory(
+  fileId: string,
+  spaceKeyBytes: Uint8Array
+): Promise<ArrayBuffer> {
+  const { toBase64 } = await import("@/lib/crypto");
+  return tauriInvoke<ArrayBuffer>("decrypt_space_to_memory", {
+    fileId,
+    spaceKeyB64: toBase64(spaceKeyBytes),
+  });
+}
+
+/**
  * Permanently delete a file via the in-process core (desktop only): removes
  * each chunk directly from the user's OWN storage where the device holds the
  * token (byos-direct, zero backend byte-handling), then purges the backend

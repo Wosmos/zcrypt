@@ -239,7 +239,7 @@ describe("downloadSpaceFile", () => {
     const cek = generateCEK();
     const spaceWrappedCek = toBase64(await wrapKey(buf(spaceKey), cek));
 
-    await downloadSpaceFile(vault("v"), "file-9", spaceWrappedCek);
+    await downloadSpaceFile(vault("v"), "file-9", spaceWrappedCek, "file-9.bin");
 
     expect(downloadAndDecryptFile).toHaveBeenCalledTimes(1);
     const [fileId, pass, opts] = vi.mocked(downloadAndDecryptFile).mock.calls[0];
@@ -252,9 +252,9 @@ describe("downloadSpaceFile", () => {
   });
 
   it("throws when the space's key isn't available", async () => {
-    await expect(downloadSpaceFile(vault("locked"), "file-9", "irrelevant")).rejects.toThrow(
-      "This space's key isn't available"
-    );
+    await expect(
+      downloadSpaceFile(vault("locked"), "file-9", "irrelevant", "file-9.bin")
+    ).rejects.toThrow("This space's key isn't available");
     expect(downloadAndDecryptFile).not.toHaveBeenCalled();
   });
 });

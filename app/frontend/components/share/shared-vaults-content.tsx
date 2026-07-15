@@ -275,12 +275,12 @@ export function SharedVaultsContent() {
     setOpenId(vaultId);
   };
 
-  const handleDownloadFile = async (fileId: string, wrappedCek: string) => {
+  const handleDownloadFile = async (fileId: string, wrappedCek: string, filename: string) => {
     if (!detail) return;
     setFileError("");
     setDownloadingFile(fileId);
     try {
-      await downloadSpaceFile(detail, fileId, wrappedCek);
+      await downloadSpaceFile(detail, fileId, wrappedCek, filename);
     } catch (err) {
       setFileError(err instanceof Error ? err.message : "Download failed");
     } finally {
@@ -756,7 +756,7 @@ export function SharedVaultsContent() {
                             icon={downloadingFile === f.file_id ? Loader2 : Download}
                             label="Download"
                             variant="ghost"
-                            onClick={() => handleDownloadFile(f.file_id, f.wrapped_cek)}
+                            onClick={() => handleDownloadFile(f.file_id, f.wrapped_cek, displayFileName(f))}
                             disabled={downloadingFile === f.file_id}
                             className="h-7 w-7"
                             iconClassName={

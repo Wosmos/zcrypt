@@ -18,6 +18,7 @@ import {
 } from "@/lib/api";
 import { fromBase64, toBase64, resolveFileKey, wrapKey, unwrapKey, toArrayBuffer } from "@/lib/crypto";
 import { downloadAndDecryptFile, type DownloadOptions } from "@/lib/download-session";
+import { isTauri, sidecarDownloadSpace, pickSaveLocation, subscribeProgress } from "@/lib/tauri";
 import { useKeysStore } from "@/store/keys";
 import { useSpacesStore } from "@/store/spaces";
 import { usePassphraseStore } from "@/store/passphrase";
@@ -114,14 +115,39 @@ export async function unshareFileFromSpace(vaultId: string, fileId: string): Pro
 
 /** Download + decrypt a file from a space, using the space-wrapped CEK (from the
  *  vault detail) rather than the vault passphrase — works for owner and members
- *  alike. Saves via the browser. */
+ *  alike. Desktop routes through the in-process core (byos-direct bytes, native
+ *  save dialog); the browser path is unchanged. */
 export async function downloadSpaceFile(
   vault: SharedVault,
   fileId: string,
   spaceWrappedCek: string,
+  filename: string,
   options?: DownloadOptions
 ): Promise<void> {
   const keyBytes = await spaceFileKey(vault, spaceWrappedCek);
+
+  if (isTauri) {
+    const savePath = await pickSaveLocation(filename);
+    if (!savePath) return; // user cancelled the save dialog
+    const unlisten = options?.onProgress
+      ? await subscribeProgress((p) => {
+          if (p.file_id !== fileId || p.bytes_total <= 0) return;
+          options.onProgress?.({
+            stage: p.stage,
+            percent: Math.round((p.bytes_done / p.bytes_total) * 100),
+            chunksDone: p.chunks_done,
+            chunksTotal: p.chunks_total,
+          });
+        })
+      : null;
+    try {
+      await sidecarDownloadSpace(fileId, new Uint8Array(keyBytes), savePath);
+    } finally {
+      unlisten?.();
+    }
+    return;
+  }
+
   await downloadAndDecryptFile(fileId, "", { ...options, resolveKey: async () => keyBytes });
 }
 
