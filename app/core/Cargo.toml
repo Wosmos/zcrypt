@@ -25,7 +25,18 @@ thiserror = "2"
 
 # Async runtime + HTTP (control-plane API + platform adapters)
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "fs", "io-util", "sync", "time"] }
+# hickory-dns: use the async userspace resolver instead of hyper's default
+# blocking getaddrinfo pool, which chokes under a large file's connection
+# fan-out and returns intermittent "failed to lookup address information"
+# (EAI_NONAME) DNS errors — the cause of downloads dying at the /meta call.
 reqwest = { version = "0.12", default-features = false, features = ["json", "multipart", "stream", "rustls-tls", "http2"] }
+# Custom DNS resolver pointed at PUBLIC nameservers (Cloudflare) with caching,
+# wired via reqwest's dns_resolver(). The OS resolver on macOS reads a
+# stale/misconfigured /etc/resolv.conf and, under a large download's concurrent
+# connection fan-out, intermittently returns EAI_NONAME ("failed to lookup
+# address information") — the errors that stalled/killed downloads. This gives
+# one reliable, cached lookup per host regardless of the local resolver.
+hickory-resolver = { version = "0.25", features = ["tokio"] }
 async-trait = "0.1"
 futures-util = "0.3"
 bytes = "1"
