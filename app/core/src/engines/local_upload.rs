@@ -9,6 +9,7 @@ use std::time::Instant;
 
 use sha2::{Digest, Sha256};
 use tokio::io::AsyncReadExt;
+use zeroize::Zeroize;
 
 use crate::compression;
 use crate::crypto;
@@ -50,11 +51,14 @@ pub async fn run(
     emit(Stage::DerivingKey, 0, 0, 0);
     let salt = crypto::generate_salt();
     let pass = passphrase.to_string();
-    let kek = tokio::task::spawn_blocking(move || crypto::derive_key(&pass, &salt))
+    let mut kek = tokio::task::spawn_blocking(move || crypto::derive_key(&pass, &salt))
         .await
         .map_err(join_err)?;
-    let cek = crypto::generate_cek();
+    let mut cek = crypto::generate_cek();
     let wrapped_cek = crypto::wrap_cek(&kek, &cek)?;
+    // wrap_cek (AES-GCM) already copied kek into its own key schedule — this is
+    // kek's only use, so it's safe to wipe now.
+    kek.zeroize();
 
     // 3. Ledger row first (chunks reference it).
     let chunk_size = ctx.profile.chunk_size as i64;
@@ -107,7 +111,12 @@ pub async fn run(
         join.spawn(async move {
             let _permit = permit;
             let processed = tokio::task::spawn_blocking(move || {
-                pipeline::process_chunk(&buf, &cek, should_compress, level)
+                // process_chunk's AES-GCM setup copies cek into its own key
+                // schedule — this per-chunk copy is safe to wipe right after.
+                let mut cek = cek;
+                let result = pipeline::process_chunk(&buf, &cek, should_compress, level);
+                cek.zeroize();
+                result
             })
             .await
             .map_err(join_err)??;
@@ -144,6 +153,9 @@ pub async fn run(
             );
         }
     }
+    // Every spawned task above captured its own copy of `cek` (it's Copy) —
+    // this original is no longer needed now that they've all been spawned.
+    cek.zeroize();
     while let Some(res) = join.join_next().await {
         let (_, _) = res.map_err(join_err)??;
         bump_progress(

@@ -10,6 +10,7 @@ use std::sync::Arc;
 
 use base64::Engine as _;
 use tokio::sync::mpsc;
+use zeroize::Zeroize;
 
 use crate::adapters::{self, PlatformAdapter};
 use crate::api::types::ChunkLocator;
@@ -126,6 +127,23 @@ pub(super) async fn acquire_chunk(
     })
 }
 
+/// Decrypt (+ decompress) one chunk, then zeroize the caller's key clone — it's
+/// only needed for the AES-GCM cipher setup inside `unprocess_chunk`, which
+/// copies it into its own key schedule, so wiping it here afterward is safe.
+/// CPU-bound; call inside `spawn_blocking`. Shared by `download` and
+/// `decrypt_to_memory` (each clones the resolved file key once per chunk) so
+/// this "zeroize after use" placement is reasoned about, and can go wrong, in
+/// exactly one place instead of two.
+pub(super) fn decrypt_chunk_zeroizing(
+    data: &[u8],
+    mut key: Vec<u8>,
+    compressed: bool,
+) -> Result<Vec<u8>, EngineError> {
+    let result = pipeline::unprocess_chunk(data, &key, compressed);
+    key.zeroize();
+    result
+}
+
 pub async fn run(
     ctx: &EngineContext,
     file_id: &str,
@@ -195,7 +213,7 @@ pub async fn run(
     //    mirrors the web client's `resolveKey` override exactly (no unwrap
     //    happens here). Passphrase mode (PBKDF2, cached) is unchanged.
     emit(Stage::DerivingKey, 0, total, 0, meta.original_size);
-    let key = if let Some(space_key) = space_key {
+    let mut key = if let Some(space_key) = space_key {
         space_key
     } else {
         let pass = passphrase.to_string();
@@ -235,6 +253,11 @@ pub async fn run(
         Some(k) => ContentHasher::new("hmac_v1", Some(k)),
         None => ContentHasher::new("plain", None),
     };
+    // HMAC's new_from_slice() above already copied the key into its own
+    // internal state — this caller-side copy is no longer needed.
+    if let Some(mut mk) = mac_key {
+        mk.zeroize();
+    }
 
     // 3. Concurrent fetch/decrypt feeding the ordered writer. The sink writes
     //    synchronously through a BufWriter (big sequential chunk writes).
@@ -279,7 +302,7 @@ pub async fn run(
             let _permit = permit;
             let (data, compressed) = acquire_chunk(&client, direct, &fid, idx).await?;
             let plain = tokio::task::spawn_blocking(move || {
-                pipeline::unprocess_chunk(&data, &key, compressed)
+                decrypt_chunk_zeroizing(&data, key, compressed)
             })
             .await
             .map_err(|e| EngineError::Other(format!("join: {e}")))??;
@@ -288,6 +311,9 @@ pub async fn run(
                 .map_err(|_| EngineError::Other("writer gone".into()))
         });
     }
+    // Every fetcher above cloned its own copy of `key` — this original is no
+    // longer needed now that all of them have been spawned.
+    key.zeroize();
     drop(tx);
     eprintln!(
         "zcrypt download {file_id}: {direct_chunks} chunk(s) byos-direct, {relay_chunks} via relay"

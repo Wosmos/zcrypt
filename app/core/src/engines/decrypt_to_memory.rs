@@ -11,11 +11,13 @@ use std::sync::Arc;
 use base64::Engine as _;
 use tokio::sync::mpsc;
 
+use zeroize::Zeroize;
+
 use crate::crypto::{self, ContentHasher};
 use crate::types::{Progress, Stage};
 
-use super::download::{acquire_chunk, resolve_direct_sources};
-use super::{ordered_writer, pipeline, EngineContext, EngineError};
+use super::download::{acquire_chunk, decrypt_chunk_zeroizing, resolve_direct_sources};
+use super::{ordered_writer, EngineContext, EngineError};
 
 /// Hard cap on in-memory decrypts. Thumbnail/preview/viewer targets sit well
 /// under this; larger files must use the streaming download-to-disk path so a
@@ -91,7 +93,7 @@ pub async fn run(
     //    mirrors the web client's `resolveKey` override exactly (no unwrap
     //    happens here). Passphrase mode (PBKDF2, cached) is unchanged.
     emit(Stage::DerivingKey, 0, total, 0, meta.original_size);
-    let key = if let Some(space_key) = space_key {
+    let mut key = if let Some(space_key) = space_key {
         space_key
     } else {
         let pass = passphrase.to_string();
@@ -130,6 +132,11 @@ pub async fn run(
         Some(k) => ContentHasher::new("hmac_v1", Some(k)),
         None => ContentHasher::new("plain", None),
     };
+    // HMAC's new_from_slice() above already copied the key into its own
+    // internal state — this caller-side copy is no longer needed.
+    if let Some(mut mk) = mac_key {
+        mk.zeroize();
+    }
 
     // 3. Concurrent fetch/decrypt feeding the ordered assembler.
     let (tx, rx) = mpsc::channel::<(u32, Vec<u8>)>((ctx.profile.concurrent_downloads * 2).max(4));
@@ -160,7 +167,7 @@ pub async fn run(
             let _permit = permit;
             let (data, compressed) = acquire_chunk(&client, direct, &fid, idx).await?;
             let plain = tokio::task::spawn_blocking(move || {
-                pipeline::unprocess_chunk(&data, &key, compressed)
+                decrypt_chunk_zeroizing(&data, key, compressed)
             })
             .await
             .map_err(|e| EngineError::Other(format!("join: {e}")))??;
@@ -169,6 +176,9 @@ pub async fn run(
                 .map_err(|_| EngineError::Other("assembler gone".into()))
         });
     }
+    // Every fetcher above cloned its own copy of `key` — this original is no
+    // longer needed now that all of them have been spawned.
+    key.zeroize();
     drop(tx);
     eprintln!(
         "zcrypt decrypt {file_id}: {direct_chunks} chunk(s) byos-direct, {relay_chunks} via relay"

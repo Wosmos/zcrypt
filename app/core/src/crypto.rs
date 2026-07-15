@@ -15,6 +15,7 @@ use aes_gcm::aead::{Aead, AeadCore, KeyInit, OsRng};
 use aes_gcm::{Aes256Gcm, Nonce};
 use hmac::{Hmac, Mac};
 use sha2::{Digest, Sha256};
+use zeroize::Zeroize;
 
 pub const SALT_SIZE: usize = 32;
 pub const KEY_SIZE: usize = 32;
@@ -117,11 +118,17 @@ pub fn resolve_file_key(
     salt: &[u8],
     wrapped_cek: Option<&[u8]>,
 ) -> Result<Vec<u8>, CryptoError> {
-    let kek = derive_key(passphrase, salt);
-    match wrapped_cek {
+    let mut kek = derive_key(passphrase, salt);
+    let result = match wrapped_cek {
         Some(wrapped) if !wrapped.is_empty() => unwrap_cek(&kek, wrapped),
         _ => Ok(kek.to_vec()),
-    }
+    };
+    // Both branches above already copied whatever they needed out of `kek`
+    // (unwrap_cek's own AES-GCM key setup; to_vec()'s copy for the legacy
+    // no-envelope case, where kek itself IS the returned key) — wiping it here
+    // can't affect the result either way.
+    kek.zeroize();
+    result
 }
 
 /// Lowercase-hex SHA-256.
