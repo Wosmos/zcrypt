@@ -79,12 +79,16 @@ pub async fn run(
         )
     };
 
-    // 2. Key (PBKDF2 is blocking). A wrong passphrase fails here for envelope
-    //    files (CEK unwrap) or on the first chunk decrypt for legacy files.
+    // 2. Key (PBKDF2 is blocking; cached — see crypto::resolve_file_key_cached).
+    //    A wrong passphrase fails here for envelope files (CEK unwrap) or on the
+    //    first chunk decrypt for legacy files. Caching matters most here: many
+    //    small decrypts (thumbnails/preview) for the same file+passphrase would
+    //    otherwise each re-pay 600k PBKDF2 iterations.
     emit(Stage::DerivingKey, 0, total, 0, meta.original_size);
     let pass = passphrase.to_string();
+    let fid = file_id.to_string();
     let key = tokio::task::spawn_blocking(move || {
-        crypto::resolve_file_key(&pass, &salt, wrapped.as_deref())
+        crypto::resolve_file_key_cached(&fid, &pass, &salt, wrapped.as_deref())
     })
     .await
     .map_err(|e| EngineError::Other(format!("join: {e}")))??;
