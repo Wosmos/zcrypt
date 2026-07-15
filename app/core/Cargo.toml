@@ -45,6 +45,10 @@ bytes = "1"
 # Local ledger (offline-first SQLite, bundled so no system dependency)
 rusqlite = { version = "0.32", features = ["bundled"] }
 
+# Bulk download: pack multiple downloaded files into one ZIP. zlib-rs is a
+# pure-Rust zlib-compatible implementation (not a C binding) — no system zlib.
+zip = { version = "8", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+
 # Serialization / ids / paths
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

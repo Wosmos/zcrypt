@@ -5,6 +5,7 @@
 //! is local-first (encrypt→ledger, then drive one sync pass) so the two upload
 //! paths can never drift.
 
+mod bulk_download;
 mod decrypt_to_memory;
 mod delete;
 mod download;
@@ -21,6 +22,7 @@ use crate::localdb::{LocalDb, SyncStats};
 use crate::profiles::Profile;
 use crate::types::ProgressFn;
 
+pub use bulk_download::BulkFile;
 pub use pipeline::ProcessedChunk;
 
 #[derive(Debug, thiserror::Error)]
@@ -149,6 +151,22 @@ pub async fn decrypt_to_memory(
     space_key: Option<Vec<u8>>,
 ) -> Result<Vec<u8>, EngineError> {
     decrypt_to_memory::run(ctx, file_id, passphrase, user_id, space_key).await
+}
+
+/// Bulk download: fetches N files (reusing [`download`] per file, unchanged —
+/// byos-direct, resilience, integrity) and packs them into one ZIP at
+/// `save_path`. Streams one file at a time through a scratch temp path, so
+/// memory/disk use is bounded by the single largest file, not the sum of the
+/// whole batch. Any single file's failure aborts the whole batch and cleans up
+/// the partial zip, matching the existing in-browser bulk-ZIP behavior.
+pub async fn bulk_download(
+    ctx: &EngineContext,
+    files: &[BulkFile],
+    passphrase: &str,
+    user_id: &str,
+    save_path: &Path,
+) -> Result<(), EngineError> {
+    bulk_download::run(ctx, files, passphrase, user_id, save_path).await
 }
 
 /// Client-side delete — the byos-direct counterpart to upload/download. The
