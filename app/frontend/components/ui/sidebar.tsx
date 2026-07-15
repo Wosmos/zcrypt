@@ -14,7 +14,7 @@ import {
   Database,
   Users,
   Share2,
-  Cog,
+  Wand2,
   Trash2,
   BarChart3,
   Layers,
@@ -31,7 +31,7 @@ const primaryLinks = [
   { href: "/share", label: "Share", icon: Share2 },
 ];
 
-const advancedLink = { href: "/tools", label: "Tools", icon: Cog };
+const advancedLink = { href: "/tools", label: "Tools", icon: Wand2 };
 const adminLink = { href: "/admin", label: "Admin", icon: Users };
 const settingsLink = { href: "/settings", label: "Settings", icon: Settings };
 const trashLink = { href: "/trash", label: "Deleted Files", icon: Trash2 };
