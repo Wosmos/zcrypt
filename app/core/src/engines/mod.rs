@@ -158,15 +158,16 @@ pub async fn decrypt_to_memory(
 /// `save_path`. Streams one file at a time through a scratch temp path, so
 /// memory/disk use is bounded by the single largest file, not the sum of the
 /// whole batch. Any single file's failure aborts the whole batch and cleans up
-/// the partial zip, matching the existing in-browser bulk-ZIP behavior.
+/// the partial zip, matching the existing in-browser bulk-ZIP behavior. Each
+/// [`BulkFile`] carries its OWN passphrase (not one shared for the batch) —
+/// see its doc comment for why.
 pub async fn bulk_download(
     ctx: &EngineContext,
     files: &[BulkFile],
-    passphrase: &str,
     user_id: &str,
     save_path: &Path,
 ) -> Result<(), EngineError> {
-    bulk_download::run(ctx, files, passphrase, user_id, save_path).await
+    bulk_download::run(ctx, files, user_id, save_path).await
 }
 
 /// Client-side delete — the byos-direct counterpart to upload/download. The
