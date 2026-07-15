@@ -5,6 +5,7 @@ import { getFileMeta, getFileChunk } from "@/lib/api";
 import { resolveFileKey, decryptChunk, fromBase64 } from "@/lib/crypto";
 import { isForegroundDecryptActive, onDecryptCacheClear } from "@/lib/decrypt-cache";
 import { isImageFile, isVideoFile, mimeForFile } from "@/lib/utils";
+import { isTauri, sidecarDecryptToMemory } from "@/lib/tauri";
 
 // A thumbnail decrypts the WHOLE file for one 300px preview, so cap how much a
 // background grid preview is allowed to pull. Files above this just show their
@@ -386,6 +387,20 @@ async function decryptFileToBlob(
     // Protected folder is locked — skip (don't prompt for a thumbnail).
     throw new Error("locked");
   }
+
+  // Desktop: decrypt natively in the in-process Rust core (byos-direct bytes,
+  // native speed). Falls back to the in-browser path below on any error.
+  if (isTauri) {
+    try {
+      const { useAuthStore } = await import("@/store/auth");
+      const userId = useAuthStore.getState().user?.id ?? "";
+      const buf = await sidecarDecryptToMemory(fileId, filePassphrase, userId);
+      return new Blob([buf as BlobPart], { type: mime });
+    } catch {
+      // fall through to the in-browser pipeline
+    }
+  }
+
   const meta = await getFileMeta(fileId);
   const salt = fromBase64(meta.salt);
   // resolveFileKey memoizes its PBKDF2 derivation (lib/crypto's derived-key

@@ -139,6 +139,25 @@ export async function sidecarDownload(
   });
 }
 
+/**
+ * Decrypt a file to raw bytes IN MEMORY via the in-process core (desktop only) —
+ * for thumbnails / preview / the in-app viewer. Returns the plaintext as an
+ * ArrayBuffer (the command sends a raw byte IPC response, no base64). The core
+ * caps this at 512 MiB; above that it errors and callers fall back to the
+ * in-browser pipeline. Progress (when wanted) arrives on "zcrypt://progress".
+ */
+export async function sidecarDecryptToMemory(
+  fileId: string,
+  passphrase: string,
+  userId: string
+): Promise<ArrayBuffer> {
+  return tauriInvoke<ArrayBuffer>("decrypt_to_memory", {
+    fileId,
+    passphrase,
+    userId,
+  });
+}
+
 /** Read a secret from the OS keychain (service "app.zcrypt.desktop"). */
 export async function keychainGet(key: string): Promise<string | null> {
   return tauriInvoke("keychain_get", { key });

@@ -11,6 +11,7 @@ import { getDeviceProfile } from "@/lib/device-profile";
 import { WorkerPool } from "@/lib/worker-pool";
 import { mediaMimeFor, extOf } from "@/lib/media-formats";
 import { concatChunks } from "@/lib/utils";
+import { isTauri, sidecarDecryptToMemory, subscribeProgress } from "@/lib/tauri";
 import { viewerKindFor } from "@/components/viewers/viewer-kind";
 import {
   resolveFilePasswordGlobal,
@@ -174,6 +175,32 @@ export async function runDecryptPipeline(
   password: string,
   onProgress?: (done: number, total: number) => void
 ): Promise<Blob> {
+  // Desktop: decrypt natively in the in-process Rust core — byos-direct bytes,
+  // native crypto speed, and the same DNS/relay-fallback resilience as download.
+  // Any failure (core not connected yet, oversized, network) falls through to
+  // the in-browser pipeline below, which stays the zero-knowledge web path and
+  // the source of truth for wrong-password / integrity error typing.
+  if (isTauri) {
+    const { useAuthStore } = await import("@/store/auth");
+    const userId = useAuthStore.getState().user?.id ?? "";
+    let unlisten: (() => void) | undefined;
+    try {
+      if (onProgress) {
+        unlisten = await subscribeProgress((p) => {
+          if (p.file_id === file.id && p.chunks_total > 0) {
+            onProgress(p.chunks_done, p.chunks_total);
+          }
+        });
+      }
+      const buf = await sidecarDecryptToMemory(file.id, password, userId);
+      return new Blob([buf as BlobPart], { type: mimeForFilename(file.original_name) });
+    } catch {
+      // fall through to the in-browser pipeline
+    } finally {
+      unlisten?.();
+    }
+  }
+
   const { getFileMeta, getFileChunk } = await import("@/lib/api");
   const { resolveFileKey, decryptChunk, sha256Hex, fromBase64, createContentHasher, deriveDedupKeyBytes, bytesToHex } = await import("@/lib/crypto");
 
