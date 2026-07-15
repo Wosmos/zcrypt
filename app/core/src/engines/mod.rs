@@ -5,6 +5,7 @@
 //! is local-first (encrypt→ledger, then drive one sync pass) so the two upload
 //! paths can never drift.
 
+mod decrypt_to_memory;
 mod delete;
 mod download;
 mod local_upload;
@@ -119,6 +120,20 @@ pub async fn download(
     save_path: &Path,
 ) -> Result<(), EngineError> {
     download::run(ctx, file_id, passphrase, user_id, save_path).await
+}
+
+/// In-memory decrypt: fetch → verify → decrypt → decompress → assemble into a
+/// single buffer and return it (no disk write). The byte-returning sibling of
+/// [`download`], for thumbnails / preview / the in-app viewer on desktop. Capped
+/// at 512 MiB so a large file can't OOM the app — callers fall back to a
+/// streamed [`download`] above the cap.
+pub async fn decrypt_to_memory(
+    ctx: &EngineContext,
+    file_id: &str,
+    passphrase: &str,
+    user_id: &str,
+) -> Result<Vec<u8>, EngineError> {
+    decrypt_to_memory::run(ctx, file_id, passphrase, user_id).await
 }
 
 /// Client-side delete — the byos-direct counterpart to upload/download. The

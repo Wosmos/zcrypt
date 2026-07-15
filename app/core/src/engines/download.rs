@@ -13,6 +13,7 @@ use tokio::sync::mpsc;
 
 use crate::adapters::{self, PlatformAdapter};
 use crate::api::types::ChunkLocator;
+use crate::api::Client;
 use crate::crypto::{self, ContentHasher};
 use crate::types::{ChunkRef, Progress, Stage};
 
@@ -21,14 +22,14 @@ use super::{ordered_writer, pipeline, EngineContext, EngineError};
 /// Per-chunk direct-download sources for byos-direct: the owner's locators plus
 /// one own-token adapter per platform. Any chunk absent here (or on a platform
 /// with no creds — e.g. a managed-pool file) falls back to the relay endpoint.
-type DirectSources = (
+pub(super) type DirectSources = (
     HashMap<i64, ChunkLocator>,
     HashMap<String, Arc<dyn PlatformAdapter>>,
 );
 
 /// Best-effort resolve of byos-direct sources. On any failure (not the owner,
 /// endpoint down, no creds) it returns empties and the caller relays everything.
-async fn resolve_direct_sources(ctx: &EngineContext, file_id: &str) -> DirectSources {
+pub(super) async fn resolve_direct_sources(ctx: &EngineContext, file_id: &str) -> DirectSources {
     let mut locs = HashMap::new();
     let mut adapters_by_platform: HashMap<String, Arc<dyn PlatformAdapter>> = HashMap::new();
     if let Ok(resp) = ctx.client.get_file_locators(file_id).await {
@@ -46,6 +47,83 @@ async fn resolve_direct_sources(ctx: &EngineContext, file_id: &str) -> DirectSou
         }
     }
     (locs, adapters_by_platform)
+}
+
+/// Acquire one chunk's ENCRYPTED wire bytes. Try byos-direct FIRST but fail fast
+/// (2 tries), then FALL BACK to the backend relay (4 tries). This is the key fix
+/// for a platform unreachable from THIS network — e.g. Telegram in a region that
+/// blocks it: the client can't hit api.telegram.org directly, but the server
+/// can, so relaying still completes instead of hanging on a dead direct source.
+/// A verified-bad chunk (sha mismatch) is retried too — a truncated transfer can
+/// look complete-but-wrong — but never past the caps. Only when BOTH paths are
+/// exhausted does it error. Shared by the streaming `download` and the in-memory
+/// `decrypt_to_memory` so the fallback/resilience logic lives in one place.
+pub(super) async fn acquire_chunk(
+    client: &Arc<Client>,
+    direct: Option<(ChunkLocator, Arc<dyn PlatformAdapter>)>,
+    file_id: &str,
+    idx: i64,
+) -> Result<(Vec<u8>, bool), EngineError> {
+    let sha_ok = |data: &[u8], sha: &str| sha.is_empty() || crypto::sha256_hex(data) == *sha;
+    let mut last_err: Option<EngineError> = None;
+    let mut out: Option<(Vec<u8>, bool)> = None;
+
+    // --- byos-direct (fast: 2 attempts, then hand off to relay) ---
+    if let Some((loc, adapter)) = &direct {
+        for n in 0..2u32 {
+            let r = ChunkRef {
+                platform: loc.platform.clone(),
+                account: loc.account.clone(),
+                repo: loc.repo.clone(),
+                remote_path: loc.remote_path.clone(),
+                size: loc.size,
+                sha256: loc.sha256.clone(),
+                compressed: loc.compressed,
+                ..ChunkRef::default()
+            };
+            match adapter.download(&r).await {
+                Ok(bytes) if sha_ok(&bytes, &loc.sha256) => {
+                    out = Some((bytes, loc.compressed));
+                    break;
+                }
+                Ok(_) => {
+                    last_err = Some(EngineError::Integrity(format!(
+                        "chunk {idx}: sha mismatch (direct)"
+                    )))
+                }
+                Err(e) => last_err = Some(EngineError::Other(format!("direct chunk {idx}: {e}"))),
+            }
+            if n + 1 < 2 {
+                tokio::time::sleep(std::time::Duration::from_millis(500 << n)).await;
+            }
+        }
+    }
+
+    // --- relay fallback (4 attempts) ---
+    if out.is_none() {
+        for n in 0..4u32 {
+            match client.get_chunk(file_id, idx).await {
+                Ok(c) if sha_ok(&c.data, &c.sha256) => {
+                    out = Some((c.data, c.compressed));
+                    break;
+                }
+                Ok(_) => {
+                    last_err = Some(EngineError::Integrity(format!(
+                        "chunk {idx}: sha mismatch (relay)"
+                    )))
+                }
+                Err(e) => last_err = Some(EngineError::from(e)),
+            }
+            if n + 1 < 4 {
+                let delay = std::time::Duration::from_millis((500u64 << n).min(8_000));
+                tokio::time::sleep(delay).await;
+            }
+        }
+    }
+
+    out.ok_or_else(|| {
+        last_err.unwrap_or_else(|| EngineError::Other(format!("chunk {idx}: no attempts")))
+    })
 }
 
 pub async fn run(
@@ -167,83 +245,7 @@ pub async fn run(
         }
         fetchers.spawn(async move {
             let _permit = permit;
-            // Acquire one chunk. Try byos-direct FIRST but fail fast (2 tries),
-            // then FALL BACK to the backend relay (4 tries). This is the key fix
-            // for a platform that's unreachable from THIS network — e.g. Telegram
-            // in a region that blocks it: the client can't hit api.telegram.org
-            // directly, but the server can, so relaying still completes the
-            // download instead of hanging on a dead direct source. A verified-bad
-            // chunk (sha mismatch) is retried too — a truncated transfer can look
-            // complete-but-wrong — but never past the caps. Only when BOTH paths
-            // are exhausted does the chunk error.
-            let sha_ok = |data: &[u8], sha: &str| sha.is_empty() || crypto::sha256_hex(data) == *sha;
-            let mut last_err: Option<EngineError> = None;
-            let mut out: Option<(Vec<u8>, bool)> = None;
-
-            // --- byos-direct (fast: 2 attempts, then hand off to relay) ---
-            if let Some((loc, adapter)) = &direct {
-                for n in 0..2u32 {
-                    let r = ChunkRef {
-                        platform: loc.platform.clone(),
-                        account: loc.account.clone(),
-                        repo: loc.repo.clone(),
-                        remote_path: loc.remote_path.clone(),
-                        size: loc.size,
-                        sha256: loc.sha256.clone(),
-                        compressed: loc.compressed,
-                        ..ChunkRef::default()
-                    };
-                    match adapter.download(&r).await {
-                        Ok(bytes) if sha_ok(&bytes, &loc.sha256) => {
-                            out = Some((bytes, loc.compressed));
-                            break;
-                        }
-                        Ok(_) => {
-                            last_err = Some(EngineError::Integrity(format!(
-                                "chunk {idx}: sha mismatch (direct)"
-                            )))
-                        }
-                        Err(e) => {
-                            last_err =
-                                Some(EngineError::Other(format!("direct chunk {idx}: {e}")))
-                        }
-                    }
-                    if n + 1 < 2 {
-                        tokio::time::sleep(std::time::Duration::from_millis(500 << n)).await;
-                    }
-                }
-            }
-
-            // --- relay fallback (4 attempts) ---
-            if out.is_none() {
-                for n in 0..4u32 {
-                    match client.get_chunk(&fid, idx).await {
-                        Ok(c) if sha_ok(&c.data, &c.sha256) => {
-                            out = Some((c.data, c.compressed));
-                            break;
-                        }
-                        Ok(_) => {
-                            last_err = Some(EngineError::Integrity(format!(
-                                "chunk {idx}: sha mismatch (relay)"
-                            )))
-                        }
-                        Err(e) => last_err = Some(EngineError::from(e)),
-                    }
-                    if n + 1 < 4 {
-                        let delay =
-                            std::time::Duration::from_millis((500u64 << n).min(8_000));
-                        tokio::time::sleep(delay).await;
-                    }
-                }
-            }
-            let (data, compressed) = match out {
-                Some(v) => v,
-                None => {
-                    return Err(last_err.unwrap_or_else(|| {
-                        EngineError::Other(format!("chunk {idx}: no attempts"))
-                    }))
-                }
-            };
+            let (data, compressed) = acquire_chunk(&client, direct, &fid, idx).await?;
             let plain = tokio::task::spawn_blocking(move || {
                 pipeline::unprocess_chunk(&data, &key, compressed)
             })
