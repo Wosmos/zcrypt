@@ -51,9 +51,32 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
 
+      # This job is now the one hard-serial step every native build waits on
+      # (see the comment on build-frontend above) — caching install + Next's
+      # own build cache shrinks that wait on every run after the first.
+      - name: Cache bun install cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('app/frontend/bun.lock') }}
+          restore-keys: |
+            bun-${{ runner.os }}-
+
       - name: Install frontend dependencies
         working-directory: app/frontend
         run: bun install --frozen-lockfile
+
+      # next.config.ts sets distDir: ".next-export" for this build mode, so
+      # Next's persistent build cache lives at .next-export/cache. Keyed by
+      # lockfile + source hash so it invalidates whenever real code changes,
+      # while still speeding up recompilation of everything that didn't.
+      - name: Cache Next.js build cache
+        uses: actions/cache@v4
+        with:
+          path: app/frontend/.next-export/cache
+          key: nextjs-${{ runner.os }}-${{ hashFiles('app/frontend/bun.lock') }}-${{ hashFiles('app/frontend/**/*.[jt]s', 'app/frontend/**/*.[jt]sx') }}
+          restore-keys: |
+            nextjs-${{ runner.os }}-${{ hashFiles('app/frontend/bun.lock') }}-
 
       # Remove web-only dynamic routes before static export — Next.js App Router
       # requires generateStaticParams for every [param] route in output:export
@@ -188,7 +211,21 @@ jobs:
           echo "tauri version set to $VER"
 
       # ── Tauri CLI + build ──
+      # `cargo install` compiles tauri-cli from source — several minutes, and it
+      # was paying that cost on every single run for every matrix leg (the
+      # binary isn't portable across OS/arch, so each leg needs its own build).
+      # Cache it keyed by OS+arch+major-version: once compiled for a given
+      # platform, every later run restores the binary instead of recompiling.
+      # Bump the "2" in the key if the version constraint below ever changes.
+      - name: Cache Tauri CLI
+        id: cache-tauri-cli
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/cargo-tauri*
+          key: tauri-cli-2-${{ runner.os }}-${{ runner.arch }}
+
       - name: Install Tauri CLI
+        if: steps.cache-tauri-cli.outputs.cache-hit != 'true'
         run: cargo install tauri-cli --version "^2" --locked
 
       # ── Updater artifact signing (optional, gated on secrets) ──
@@ -435,7 +472,10 @@ jobs:
           # arm64 only: every real Android phone since ~2019 is aarch64. Skipping
           # armv7 (ancient 32-bit) + x86/x86_64 (emulators) cuts the build ~4x and
           # still sideloads on any modern device. Add the others back for Play.
-          targets: aarch64-linux-android
+          # All Android ABIs → one universal APK that installs on every device
+          # (arm64 = modern phones, armv7 = old 32-bit, x86/x86_64 = emulators).
+          # No per-phone builds; the single APK carries a native lib for each.
+          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -479,7 +519,18 @@ jobs:
           echo "tauri version set to $VER"
 
       # ── Tauri CLI ──
+      # Same cache as build-desktop's ubuntu-22.04 leg — this job also runs on
+      # ubuntu-22.04, so it's the SAME OS+arch key and genuinely reuses that
+      # leg's cached binary instead of compiling its own copy.
+      - name: Cache Tauri CLI
+        id: cache-tauri-cli
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/cargo-tauri*
+          key: tauri-cli-2-${{ runner.os }}-${{ runner.arch }}
+
       - name: Install Tauri CLI
+        if: steps.cache-tauri-cli.outputs.cache-hit != 'true'
         run: cargo install tauri-cli --version "^2" --locked
 
       # `android init` generates gen/android/ from tauri.conf.json + the Rust
@@ -527,7 +578,10 @@ jobs:
         # A release --apk is UNSIGNED here (no release keystore yet) and Android
         # rejects it with "package appears to be invalid". Swap to release +
         # keystore signing once a release key is configured.
-        run: cargo tauri android build --apk --debug --target aarch64
+        # No --target → build every configured ABI into one universal APK
+        # (installs on any phone). --debug keeps it auto-signed/installable until
+        # a release keystore is wired. Bigger file, but one build for all devices.
+        run: cargo tauri android build --apk --debug
 
       # ── Upload artifact ──
       # `**` needs globbing support — actions/upload-artifact resolves the
