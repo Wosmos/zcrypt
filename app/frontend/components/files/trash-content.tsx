@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { restoreFile, purgeFile, bulkPurgeFiles, bulkRestoreFiles } from "@/lib/api";
+import { isTauri, sidecarDeleteFile } from "@/lib/tauri";
 import { useTrashQuery, setTrashData, invalidateTrash } from "@/store/trash";
 import { invalidateFilesViews } from "@/lib/invalidate";
 import { invalidateQuota } from "@/store/quota";
@@ -184,7 +185,22 @@ export function TrashContent() {
     const target = purgeTarget;
     setPurging(true);
     try {
-      await purgeFile(target.id);
+      // Desktop: purge via the in-process core first — chunks on a platform the
+      // user has personally connected are removed byos-direct (their own token,
+      // zero backend byte-handling); the core still purges the backend metadata
+      // row itself, so this is a full replacement for the web call, not a
+      // pre-step. Fall back to the plain API purge on any core error (e.g. the
+      // core failed before touching anything, or its own purge_file call
+      // dropped) — the backend purge is idempotent, so retrying it is safe.
+      if (isTauri) {
+        try {
+          await sidecarDeleteFile(target.id);
+        } catch {
+          await purgeFile(target.id);
+        }
+      } else {
+        await purgeFile(target.id);
+      }
       clearDecryptCacheForFile(target.id);
       setTrashData((prev) => prev.filter((f) => f.id !== target.id));
       setSelectedIds((prev) => {

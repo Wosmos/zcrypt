@@ -158,6 +158,17 @@ export async function sidecarDecryptToMemory(
   });
 }
 
+/**
+ * Permanently delete a file via the in-process core (desktop only): removes
+ * each chunk directly from the user's OWN storage where the device holds the
+ * token (byos-direct, zero backend byte-handling), then purges the backend
+ * metadata row. Chunks on a platform the device has no creds for are left for
+ * the backend to clean up. Idempotent — safe to retry.
+ */
+export async function sidecarDeleteFile(fileId: string): Promise<void> {
+  return tauriInvoke("delete_file", { fileId });
+}
+
 /** Read a secret from the OS keychain (service "app.zcrypt.desktop"). */
 export async function keychainGet(key: string): Promise<string | null> {
   return tauriInvoke("keychain_get", { key });
