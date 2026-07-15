@@ -631,9 +631,13 @@ pub fn run() {
                 // signing pipeline lands.
             }
 
-            // Register zcrypt:// scheme at runtime (Linux/Windows only —
-            // macOS uses the .app bundle's Info.plist).
-            #[cfg(not(target_os = "macos"))]
+            // Register zcrypt:// scheme at runtime (Linux/Windows only — macOS
+            // uses the .app bundle's Info.plist, and MOBILE uses the manifest
+            // intent-filters). Must be `all(desktop, ...)`: a bare
+            // not(target_os="macos") also matches ANDROID, where deep_link()
+            // .register() is unsupported and the `?` aborts setup() → the app
+            // crashes silently on launch.
+            #[cfg(all(desktop, not(target_os = "macos")))]
             app.deep_link().register("zcrypt")?;
 
             // Handle zcrypt:// deep links (OAuth callback from browser)
