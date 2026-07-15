@@ -174,9 +174,16 @@ async fn download_file(
     save_path: String,
 ) -> Result<(), String> {
     let ctx = state.context(&app).await?;
-    engines::download(&ctx, &file_id, &passphrase, &user_id, Path::new(&save_path))
-        .await
-        .map_err(|e| e.to_string())
+    engines::download(
+        &ctx,
+        &file_id,
+        &passphrase,
+        &user_id,
+        None,
+        Path::new(&save_path),
+    )
+    .await
+    .map_err(|e| e.to_string())
 }
 
 /// In-memory decrypt for thumbnails / preview / the in-app viewer: fetch →
@@ -193,10 +200,68 @@ async fn decrypt_to_memory(
     user_id: String,
 ) -> Result<tauri::ipc::Response, String> {
     let ctx = state.context(&app).await?;
-    let bytes = engines::decrypt_to_memory(&ctx, &file_id, &passphrase, &user_id)
+    let bytes = engines::decrypt_to_memory(&ctx, &file_id, &passphrase, &user_id, None)
         .await
         .map_err(|e| e.to_string())?;
     Ok(tauri::ipc::Response::new(bytes))
+}
+
+/// Download a shared-space file via the in-process core — works for the owner
+/// and any member alike. `space_key_b64` is base64 for the file's
+/// ALREADY-RESOLVED content key, not the space's raw symmetric key: the
+/// frontend (`lib/spaces.ts`'s `spaceFileKey()`) unwraps the space-wrapped CEK
+/// client-side against the `SharedVaultFile` record it holds (the file's
+/// generic metadata carries a DIFFERENT ciphertext — the owner's
+/// passphrase-wrapped envelope — which the space key can't unwrap) and passes
+/// us the result directly, mirroring the web client's `resolveKey` override.
+/// `passphrase`/`user_id` are empty: this bypasses passphrase-derived key
+/// resolution entirely, and hmac_v1 whole-file verification is skipped rather
+/// than attempted with no passphrase — see `crypto::can_verify_whole_file_hash`.
+#[tauri::command]
+async fn download_space_file(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, EngineState>,
+    file_id: String,
+    space_key_b64: String,
+    save_path: String,
+) -> Result<(), String> {
+    let ctx = state.context(&app).await?;
+    let space_key = base64_decode(&space_key_b64)?;
+    engines::download(
+        &ctx,
+        &file_id,
+        "",
+        "",
+        Some(space_key),
+        Path::new(&save_path),
+    )
+    .await
+    .map_err(|e| e.to_string())
+}
+
+/// In-memory decrypt of a shared-space file (thumbnails / preview / viewer) —
+/// the space-key sibling of `decrypt_to_memory`. See `download_space_file` for
+/// why `passphrase`/`user_id` are empty.
+#[tauri::command]
+async fn decrypt_space_to_memory(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, EngineState>,
+    file_id: String,
+    space_key_b64: String,
+) -> Result<tauri::ipc::Response, String> {
+    let ctx = state.context(&app).await?;
+    let space_key = base64_decode(&space_key_b64)?;
+    let bytes = engines::decrypt_to_memory(&ctx, &file_id, "", "", Some(space_key))
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(tauri::ipc::Response::new(bytes))
+}
+
+fn base64_decode(s: &str) -> Result<Vec<u8>, String> {
+    use base64::Engine as _;
+    base64::engine::general_purpose::STANDARD
+        .decode(s)
+        .map_err(|e| format!("space key b64: {e}"))
 }
 
 /// byos-direct delete: remove the file's ciphertext directly from the user's own
@@ -621,6 +686,8 @@ pub fn run() {
             upload_file,
             download_file,
             decrypt_to_memory,
+            download_space_file,
+            decrypt_space_to_memory,
             delete_file,
             start_sync,
             stop_sync,
