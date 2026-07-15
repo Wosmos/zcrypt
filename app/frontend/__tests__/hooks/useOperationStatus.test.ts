@@ -149,73 +149,59 @@ describe("useOperationStatus", () => {
     expect(toast.success).not.toHaveBeenCalled();
   });
 
-  it("notifies once after crossing the consecutive-failure threshold, then again on reconnect", () => {
+  it("warns once only after a SUSTAINED outage (threshold), then announces reconnect", () => {
     vi.useFakeTimers();
     vi.stubGlobal("Notification", MockNotification);
-    const windowFocusSpy = vi.spyOn(window, "focus").mockImplementation(() => {});
 
     renderHook(() => useOperationStatus(vi.fn()));
 
     latestES().onopen?.(); // establish hadConnection
 
-    latestES().onerror?.(); // failure 1/4 — below threshold
-    expect(notifications.serverError).not.toHaveBeenCalled();
-    vi.advanceTimersByTime(1000);
+    // Threshold is 8 consecutive failures (~2 min of 1s->30s backoff). Every
+    // failure below it stays silent — a normal SSE reconnect recovers well
+    // before then and must not warn.
+    for (let i = 0; i < 8; i++) {
+      latestES().onerror?.();
+      expect(notifications.serverError).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(30_000);
+    }
 
-    latestES().onerror?.(); // failure 2/4
-    vi.advanceTimersByTime(2000);
-
-    latestES().onerror?.(); // failure 3/4
-    vi.advanceTimersByTime(4000);
-
-    latestES().onerror?.(); // failure 4/4 — threshold reached
+    latestES().onerror?.(); // 9th failure — threshold crossed
     expect(notifications.serverError).toHaveBeenCalledTimes(1);
     expect(toast.error).toHaveBeenCalledTimes(1);
-    expect(MockNotification.instances).toHaveLength(1);
+    // An SSE drop must NEVER raise an OS-level notification — it auto-recovers,
+    // and one lingering in the notification centre is pure noise.
+    expect(MockNotification.instances).toHaveLength(0);
 
-    const n = MockNotification.instances[0]!;
-    expect(n.title).toBe("Server connection lost");
-    n.onclick?.();
-    expect(windowFocusSpy).toHaveBeenCalled();
-    expect(n.closeCalled).toBe(true);
-
-    // Fires the 8s auto-close timer AND the next backoff reconnect together.
-    vi.advanceTimersByTime(8000);
-
+    vi.advanceTimersByTime(30_000);
     latestES().onopen?.();
     expect(notifications.serverReconnected).toHaveBeenCalledTimes(1);
     expect(toast.success).toHaveBeenCalledTimes(1);
   });
 
-  it("still notifies serverError on threshold when Notification permission is not granted", () => {
+  it("never raises an OS notification even when Notification permission is granted", () => {
     vi.useFakeTimers();
-    MockNotification.permission = "denied";
+    MockNotification.permission = "granted";
     vi.stubGlobal("Notification", MockNotification);
     renderHook(() => useOperationStatus(vi.fn()));
 
-    latestES().onerror?.();
-    vi.advanceTimersByTime(1000);
-    latestES().onerror?.();
-    vi.advanceTimersByTime(2000);
-    latestES().onerror?.();
-    vi.advanceTimersByTime(4000);
-    latestES().onerror?.();
+    for (let i = 0; i < 9; i++) {
+      latestES().onerror?.();
+      vi.advanceTimersByTime(30_000);
+    }
 
     expect(notifications.serverError).toHaveBeenCalledTimes(1);
     expect(MockNotification.instances).toHaveLength(0);
   });
 
-  it("does not build a push notification when the Notification API is unavailable", () => {
+  it("surfaces the in-app warning without touching the Notification API", () => {
     vi.useFakeTimers();
     renderHook(() => useOperationStatus(vi.fn()));
 
-    latestES().onerror?.();
-    vi.advanceTimersByTime(1000);
-    latestES().onerror?.();
-    vi.advanceTimersByTime(2000);
-    latestES().onerror?.();
-    vi.advanceTimersByTime(4000);
-    latestES().onerror?.();
+    for (let i = 0; i < 9; i++) {
+      latestES().onerror?.();
+      vi.advanceTimersByTime(30_000);
+    }
 
     expect(notifications.serverError).toHaveBeenCalledTimes(1);
   });
