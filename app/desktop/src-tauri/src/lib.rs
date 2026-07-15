@@ -179,6 +179,26 @@ async fn download_file(
         .map_err(|e| e.to_string())
 }
 
+/// In-memory decrypt for thumbnails / preview / the in-app viewer: fetch →
+/// verify → decrypt → decompress → return the plaintext bytes (no disk write).
+/// Returns a raw byte IPC response (not base64) so large previews don't inflate
+/// the bridge. Capped in the core at 512 MiB — callers fall back to a streamed
+/// download above that.
+#[tauri::command]
+async fn decrypt_to_memory(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, EngineState>,
+    file_id: String,
+    passphrase: String,
+    user_id: String,
+) -> Result<tauri::ipc::Response, String> {
+    let ctx = state.context(&app).await?;
+    let bytes = engines::decrypt_to_memory(&ctx, &file_id, &passphrase, &user_id)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(tauri::ipc::Response::new(bytes))
+}
+
 /// byos-direct delete: remove the file's ciphertext directly from the user's own
 /// storage (device holds the token) and drop the backend metadata — no server
 /// deletion-worker load. Falls back to a server purge for chunks on platforms
@@ -323,10 +343,13 @@ async fn set_passphrase(
 }
 
 /// Forget the cached passphrase (on lock / logout). The folder-watch agent then
-/// skips new files until the vault is unlocked again.
+/// skips new files until the vault is unlocked again. Also forgets the core's
+/// warm file-key cache (see `crypto::resolve_file_key_cached`) so a resolved
+/// key can't outlive the passphrase it was derived from.
 #[tauri::command]
 async fn clear_passphrase(state: tauri::State<'_, EngineState>) -> Result<(), String> {
     *state.passphrase.lock().unwrap() = None;
+    zcrypt_core::crypto::clear_key_cache();
     Ok(())
 }
 
@@ -597,6 +620,7 @@ pub fn run() {
             local_upload,
             upload_file,
             download_file,
+            decrypt_to_memory,
             delete_file,
             start_sync,
             stop_sync,

@@ -183,11 +183,12 @@ pub async fn run(
         )
     };
 
-    // 2. Key (PBKDF2 is blocking).
+    // 2. Key (PBKDF2 is blocking; cached — see crypto::resolve_file_key_cached).
     emit(Stage::DerivingKey, 0, total, 0, meta.original_size);
     let pass = passphrase.to_string();
+    let fid = file_id.to_string();
     let key = tokio::task::spawn_blocking(move || {
-        crypto::resolve_file_key(&pass, &salt, wrapped.as_deref())
+        crypto::resolve_file_key_cached(&fid, &pass, &salt, wrapped.as_deref())
     })
     .await
     .map_err(|e| EngineError::Other(format!("join: {e}")))??;
