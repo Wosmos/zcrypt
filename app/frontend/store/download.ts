@@ -135,6 +135,13 @@ const zipSessions = new Map<string, ZipSession>();
 interface DownloadStore {
   queue: DownloadItem[];
   startDownload: (fileId: string, filename: string, fileSize: number, passphrase: string, resolvePassword?: DownloadPasswordResolver) => void;
+  /** Desktop-only: download through the in-process Rust core. The core streams
+   *  chunks straight to a native-picked path on disk (bounded memory) and pulls
+   *  byos-direct from the user's own storage when creds exist — unlike the
+   *  browser pipeline, which buffers the whole file in the webview (a multi-GB
+   *  file there OOMs and freezes the app, since WKWebView has no
+   *  showSaveFilePicker to stream with). */
+  startDesktopDownload: (fileId: string, filename: string, fileSize: number, passphrase: string, userId: string, resolvePassword?: DownloadPasswordResolver) => void;
   startBulkZipDownload: (files: BulkDownloadFile[], passphrase: string, resolvePassword?: DownloadPasswordResolver) => void;
   pauseDownload: (id: string) => void;
   resumeDownload: (id: string, passphrase: string, resolvePassword?: DownloadPasswordResolver) => void;
@@ -283,6 +290,82 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
         runToken: Symbol("dlRun"),
       });
       await runSingleDownload(id);
+    })();
+  },
+
+  startDesktopDownload: (fileId, filename, fileSize, passphrase, userId, resolvePassword) => {
+    // Dedup: never run two transfers for the same file at once (the racing
+    // duplicate downloads that clobbered one temp file and froze the app).
+    const alreadyActive = get().queue.some(
+      (i) => i.fileId === fileId && (i.status === "downloading" || i.status === "queued" || i.status === "paused")
+    );
+    if (alreadyActive) return;
+
+    const id = genId("dl");
+    set((state) => ({
+      queue: [
+        ...state.queue,
+        { id, fileId, filename, fileSize, status: "queued" as const, progress: 0, stage: "Choose where to save…", startedAt: Date.now() },
+      ],
+    }));
+
+    void (async () => {
+      const { sidecarDownload, pickSaveLocation, subscribeProgress } = await import("@/lib/tauri");
+
+      // Native save dialog — MUST resolve to a path before the core can stream.
+      let savePath: string | null;
+      try {
+        savePath = await pickSaveLocation(filename);
+      } catch {
+        savePath = null;
+      }
+      if (!savePath) {
+        setStatusNow(id, { status: "cancelled", stage: "Cancelled" });
+        return;
+      }
+
+      // Resolve the effective passphrase (folder password for a protected file,
+      // else the vault passphrase) up front — the core can't call back into JS.
+      let effectivePass = passphrase;
+      try {
+        if (resolvePassword) effectivePass = await resolvePassword(fileId);
+      } catch {
+        /* fall back to the vault passphrase */
+      }
+
+      // Live progress: the core emits zcrypt://progress carrying the file_id, so
+      // we match on that (unlike upload, which can only match on file name).
+      const unlisten = await subscribeProgress((p) => {
+        if (p.file_id !== fileId) return;
+        const percent = p.bytes_total > 0 ? Math.round((p.bytes_done / p.bytes_total) * 100) : undefined;
+        updateProgress(id, "downloading", percent, p.stage);
+      });
+
+      try {
+        updateProgress(id, "downloading", 0, "Starting…");
+        await sidecarDownload(fileId, effectivePass, userId, savePath);
+        setStatusNow(id, { status: "done", progress: 100, stage: "Done" });
+        toast.success(`${filename} downloaded`);
+        notifications.downloadComplete(filename);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        // A DNS/connect failure means we couldn't even reach zcrypt's servers —
+        // common on filtered/censored networks. Give the actionable hint (check
+        // connection / try a VPN) instead of a raw reqwest dump.
+        const isNetwork = /error sending request|dns error|failed to lookup|client error \(connect\)|timed out|connection reset|connection refused/i.test(msg);
+        const recovered = recoverWrongFolderPassword(fileId, msg);
+        setStatusNow(id, { status: "failed", error: isNetwork ? "Can't reach zcrypt's servers (network/DNS)" : msg, stage: "Failed" });
+        if (isNetwork) {
+          toast.error(`Can't reach zcrypt's servers — check your internet, and if you're on a restricted or filtered network, connect a VPN and retry.`);
+        } else if (recovered) {
+          toast.error(`Wrong folder password for ${filename}. Retry to re-enter it.`);
+        } else {
+          toast.error(`Download failed: ${msg}`);
+        }
+        notifications.downloadFailed(filename, isNetwork ? "Network/DNS — try a VPN" : msg);
+      } finally {
+        unlisten();
+      }
     })();
   },
 

@@ -6,6 +6,7 @@ import { primeThumbnails } from "@/hooks/useThumbnail";
 import { ensureUserKeypair } from "@/lib/keys";
 import { useUploadStore } from "@/store/upload";
 import { useDownloadStore } from "@/store/download";
+import { useAuthStore } from "@/store/auth";
 import { usePassphraseStore } from "@/store/passphrase";
 import { useOperationStatus } from "@/hooks/useOperationStatus";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -102,6 +103,7 @@ export function useVaultActions({
   const updateStatus = useUploadStore((s) => s.updateStatus);
   const setUploadError = useUploadStore((s) => s.setError);
   const storeStartDownload = useDownloadStore((s) => s.startDownload);
+  const startDesktopDownload = useDownloadStore((s) => s.startDesktopDownload);
   const startBulkZipDownload = useDownloadStore((s) => s.startBulkZipDownload);
   const downloadQueue = useDownloadStore((s) => s.queue);
   const { notify } = useNotifications();
@@ -303,17 +305,27 @@ export function useVaultActions({
       const file = files.find((f) => f.original_name === filename);
       if (!file) return;
       const active = downloadQueue.find(
-        (d) => d.fileId === file.id && d.status === "downloading"
+        (d) => d.fileId === file.id && (d.status === "downloading" || d.status === "queued" || d.status === "paused")
       );
-      if (active) return; // already downloading
+      if (active) return; // already downloading / queued / paused
 
       // Gate on the vault (folder-name decryption + the unprotected case); the
       // per-file resolver swaps in the folder password for protected files.
       vault.withPassphrase((passphrase) => {
+        // Desktop: route through the in-process Rust core, which streams chunks
+        // to a native-picked path on disk (bounded memory) and pulls byos-direct
+        // from the user's own storage. The browser pipeline buffers the whole
+        // file in the webview — a multi-GB file there OOMs and freezes the app
+        // (WKWebView has no showSaveFilePicker to stream with).
+        if (isTauri) {
+          const userId = useAuthStore.getState().user?.id ?? "";
+          startDesktopDownload(file.id, filename, file.original_size, passphrase, userId, resolvePasswordForFile);
+          return;
+        }
         storeStartDownload(file.id, filename, file.original_size, passphrase, resolvePasswordForFile);
       });
     },
-    [files, downloadQueue, vault, storeStartDownload, resolvePasswordForFile]
+    [files, downloadQueue, vault, storeStartDownload, startDesktopDownload, resolvePasswordForFile]
   );
 
   // ── Bulk ZIP download ───────────────────────────────────────────────────────
