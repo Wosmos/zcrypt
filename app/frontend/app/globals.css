@@ -970,6 +970,16 @@ html.theme-vt::view-transition-new(root) {
 :root[data-engine="webkit"] {
   --squircle-shape: round;
 }
+/* Touch devices (phones, incl. the Android WebView) fall back to plain rounded
+   corners: a superellipse `corner-shape` on every element re-rasterizes on
+   every scroll frame, which is the biggest cause of jank in the mobile app.
+   Squircles stay on pointer-precise (desktop) devices where the GPU cost is
+   absorbed. */
+@media (pointer: coarse) {
+  :root {
+    --squircle-shape: round;
+  }
+}
 @supports (corner-shape: squircle) {
   *,
   *::before,

@@ -5,6 +5,7 @@ import { GoogleIcon } from "@/components/icons/google";
 import { getOAuthURL } from "@/lib/auth-api";
 import { isTauri } from "@/lib/tauri";
 import { bytesToHex } from "@/lib/crypto";
+import { toast } from "@/store/toast";
 
 /** Generate a random session ID for desktop OAuth polling. */
 function randomSessionId() {
@@ -15,17 +16,25 @@ function randomSessionId() {
 export const DESKTOP_OAUTH_SESSION_KEY = "zcrypt_desktop_oauth_session";
 
 async function startOAuth(provider: string) {
-  if (isTauri) {
-    const session = randomSessionId();
-    // Store session ID so the login page can start polling
-    sessionStorage.setItem(DESKTOP_OAUTH_SESSION_KEY, session);
-    window.dispatchEvent(new Event("desktop-oauth-start"));
+  try {
+    if (isTauri) {
+      const session = randomSessionId();
+      // Store session ID so the login page can start polling
+      sessionStorage.setItem(DESKTOP_OAUTH_SESSION_KEY, session);
+      window.dispatchEvent(new Event("desktop-oauth-start"));
 
-    const url = getOAuthURL(provider) + `?platform=desktop&session=${session}`;
-    const { open } = await import("@tauri-apps/plugin-shell");
-    await open(url);
-  } else {
-    window.location.href = getOAuthURL(provider);
+      const url = getOAuthURL(provider) + `?platform=desktop&session=${session}`;
+      // Open the OAuth page in the system browser via the opener plugin. NOT the
+      // shell plugin's open() — that routes to a desktop-only (xdg-open) backend
+      // that silently fails on Android, which made these buttons appear frozen.
+      const { openUrl } = await import("@tauri-apps/plugin-opener");
+      await openUrl(url);
+    } else {
+      window.location.href = getOAuthURL(provider);
+    }
+  } catch (err) {
+    // Never let a failed open die silently (that was the frozen-button bug).
+    toast.error(err instanceof Error ? err.message : "Couldn't open the sign-in page");
   }
 }
 

@@ -47,7 +47,7 @@ export function VaultLockOverlay({ onUnlock }: { onUnlock: () => void }) {
       className="absolute inset-0 z-40 flex items-center justify-center bg-[var(--color-bg)]/70 px-6 backdrop-blur-lg animate-fade-in"
     >
       <div
-        className="flex w-full max-w-sm flex-col items-center gap-5 rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)]/70 px-8 py-10 text-center shadow-2xl backdrop-blur-lg animate-slide-up"
+        className="flex w-full max-w-sm flex-col items-center gap-5 rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] px-8 py-10 text-center shadow-2xl animate-slide-up"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--color-accent)]/10 text-[var(--color-accent)]">
