@@ -223,6 +223,24 @@ async fn upload_file(
         .map_err(|e| e.to_string())
 }
 
+/// Await a file already saved via `local_upload` reaching genuine sync
+/// completion. The frontend calls this right after `local_upload` so the
+/// upload row can show "Saved locally" -> "Syncing..." -> a TRUE "Done" only
+/// once the file is actually confirmed on the backend/platform, instead of
+/// treating local_upload's fast local-encrypt return as "Done".
+#[tauri::command]
+async fn sync_uploaded_file(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, EngineState>,
+    file_id: String,
+    platform: Option<String>,
+) -> Result<(), String> {
+    let ctx = state.context(&app).await?;
+    engines::sync_uploaded_file(&ctx, &file_id, platform)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 async fn download_file(
     app: tauri::AppHandle,
@@ -791,12 +809,14 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_deep_link::init())
         .manage(EngineState::default())
         .invoke_handler(tauri::generate_handler![
             local_upload,
             upload_file,
+            sync_uploaded_file,
             download_file,
             decrypt_to_memory,
             bulk_download_zip,
