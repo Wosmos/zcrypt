@@ -12,6 +12,7 @@ mod download;
 mod local_upload;
 pub mod ordered_writer;
 mod pipeline;
+mod stream_upload;
 mod sync;
 
 use std::path::Path;
@@ -81,7 +82,10 @@ pub(crate) fn choose_plane(creds: &CredProvider) -> (String, String) {
 
 /// Everything an engine call needs. The Tauri shell constructs one per
 /// operation; `progress` forwards to the webview as window events, and `creds`
-/// hands out the user's own platform tokens for byos-direct.
+/// hands out the user's own platform tokens for byos-direct. `Clone` is cheap —
+/// every field is an `Arc` or `Copy` — so the sync engine can hand a clone to
+/// each concurrent per-chunk upload task.
+#[derive(Clone)]
 pub struct EngineContext {
     pub client: Arc<Client>,
     pub db: Arc<LocalDb>,
@@ -100,16 +104,31 @@ pub async fn local_upload(
     local_upload::run(ctx, file_path, passphrase).await
 }
 
-/// Network upload: local-first encrypt, then drive one sync pass for that file
-/// so the bytes are on the backend/platform when this returns.
+/// Network upload: parallel concurrent chunk streaming (see [`stream_upload`]) —
+/// read → encrypt in RAM → fire, N in flight, no local-disk staging. Returns
+/// once the bytes are confirmed on the backend/platform. The local-first
+/// `local_upload` + `sync` path stays for the offline/background/folder-watch
+/// case; this is the foreground path.
 pub async fn upload(
     ctx: &EngineContext,
     file_path: &Path,
     passphrase: &str,
     platform: Option<String>,
 ) -> Result<(), EngineError> {
-    let file_id = local_upload::run(ctx, file_path, passphrase).await?;
-    sync::sync_file_by_id(ctx, &file_id, platform.as_deref()).await
+    stream_upload::run(ctx, file_path, passphrase, platform).await
+}
+
+/// Drive an already-locally-uploaded file (see `local_upload` above) to full
+/// sync completion, returning only once it's genuinely confirmed on the
+/// backend/platform — not merely encrypted to local disk. Lets a caller do the
+/// local-first instant-save UX (`local_upload`) and still get an honest
+/// "actually done" signal afterward, without re-encrypting the file.
+pub async fn sync_uploaded_file(
+    ctx: &EngineContext,
+    file_id: &str,
+    platform: Option<String>,
+) -> Result<(), EngineError> {
+    sync::sync_file_by_id(ctx, file_id, platform.as_deref()).await
 }
 
 /// Streaming download: fetch → verify → decrypt → decompress → ordered write
@@ -180,8 +199,11 @@ pub async fn delete(ctx: &EngineContext, file_id: &str) -> Result<(), EngineErro
 }
 
 /// Background sync loop: drains pending files every second until cancelled
-/// (send `true` on the watch channel, or drop the sender).
+/// (send `true` on the watch channel, or drop the sender). Starts with one
+/// ledger GC pass — purging dead 'staging' rows, duplicate rows whose content
+/// already synced under a sibling, and orphaned staging-dir files.
 pub async fn run_sync(ctx: EngineContext, mut cancel: tokio::sync::watch::Receiver<bool>) {
+    sync::gc_ledger(&ctx).await;
     let mut tick = tokio::time::interval(std::time::Duration::from_secs(1));
     tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
     loop {

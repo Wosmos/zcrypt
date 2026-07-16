@@ -31,6 +31,12 @@ pub struct UploadInitRequest {
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
+pub struct UploadStatusResponse {
+    #[serde(default)]
+    pub uploaded_chunks: Vec<i64>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
 pub struct UploadInitResponse {
     pub session_id: String,
     pub file_id: String,
@@ -50,15 +56,28 @@ pub struct PresignRequest {
     pub size: i64,
 }
 
+/// Deserialize a field that may be JSON `null` into its `Default` — `#[serde(default)]`
+/// alone only covers a MISSING key, not an explicit `null`. HuggingFace's LFS
+/// dedup path returns `"upload_headers": null` when the blob already exists, and
+/// without this the client couldn't decode the presign response at all (the
+/// upload died at the first already-present chunk).
+fn null_default<'de, D, T>(d: D) -> Result<T, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Default + Deserialize<'de>,
+{
+    Ok(Option::deserialize(d)?.unwrap_or_default())
+}
+
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct PresignResponse {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub upload_url: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub upload_headers: std::collections::HashMap<String, String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub remote_path: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub already_exists: bool,
 }
 
@@ -165,4 +184,35 @@ pub struct RegisterRepoRequest<'a> {
 pub struct ReposResponse {
     #[serde(default)]
     pub repos: Vec<RepoInfo>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // HF's LFS dedup path returns `"upload_headers": null` (blob already exists).
+    // This must decode — before null_default it errored and killed the upload.
+    #[test]
+    fn presign_response_tolerates_null_headers() {
+        let r: PresignResponse = serde_json::from_str(
+            r#"{"upload_url":"","upload_headers":null,"remote_path":"ab/cd.bin","already_exists":true}"#,
+        )
+        .expect("null upload_headers must decode");
+        assert!(r.already_exists);
+        assert!(r.upload_headers.is_empty());
+        assert_eq!(r.remote_path, "ab/cd.bin");
+    }
+
+    #[test]
+    fn presign_response_normal_headers() {
+        let r: PresignResponse = serde_json::from_str(
+            r#"{"upload_url":"https://hf/x","upload_headers":{"Authorization":"Bearer z"},"already_exists":false}"#,
+        )
+        .unwrap();
+        assert!(!r.already_exists);
+        assert_eq!(
+            r.upload_headers.get("Authorization").map(String::as_str),
+            Some("Bearer z")
+        );
+    }
 }

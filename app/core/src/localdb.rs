@@ -172,11 +172,21 @@ impl LocalDb {
     // ── files ───────────────────────────────────────────────────────────────
 
     pub fn insert_file(&self, f: &LocalFile) -> Result<(), DbError> {
+        // sync_status is written explicitly (empty → the historical 'pending')
+        // so local_upload can insert as 'staging' and keep the row INVISIBLE to
+        // the sync loop until every chunk is staged — a 'pending' row used to be
+        // picked up by the 1s loop mid-encryption, which init'd a session and
+        // even called complete against a partial chunk list.
+        let sync_status = if f.sync_status.is_empty() {
+            "pending"
+        } else {
+            &f.sync_status
+        };
         self.with(|c| {
             c.execute(
-                "INSERT INTO files (id, original_name, original_size, sha256, salt, wrapped_cek, chunk_count, status, platform, mode)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
-                params![f.id, f.original_name, f.original_size, f.sha256, f.salt, f.wrapped_cek, f.chunk_count, f.status, f.platform, mode_or_default(&f.mode)],
+                "INSERT INTO files (id, original_name, original_size, sha256, salt, wrapped_cek, chunk_count, status, sync_status, platform, mode)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+                params![f.id, f.original_name, f.original_size, f.sha256, f.salt, f.wrapped_cek, f.chunk_count, f.status, sync_status, f.platform, mode_or_default(&f.mode)],
             )
             .map(|_| ())
         })
@@ -283,6 +293,106 @@ impl LocalDb {
         })
     }
 
+    /// Every chunk not yet confirmed remote — 'pending' AND 'error'. Sync passes
+    /// use this (not `get_pending_chunks`) so a chunk that errored once is
+    /// retried on the next pass; its staging file still exists (staging is only
+    /// deleted after a successful push).
+    pub fn get_unsynced_chunks(&self, file_id: &str) -> Result<Vec<LocalChunk>, DbError> {
+        self.with(|c| {
+            let mut stmt = c.prepare(
+                "SELECT id, file_id, idx, size, encrypted_size, compressed_size, sha256, compressed, staging_path, sync_status
+                 FROM chunks WHERE file_id=?1 AND sync_status != 'synced' ORDER BY idx",
+            )?;
+            let rows = stmt.query_map(params![file_id], row_to_chunk)?;
+            rows.collect()
+        })
+    }
+
+    /// The newest row with the same content (sha256 + size) whose upload is
+    /// still in motion ('staging'/'pending'/'init_done'/'uploading'). Used by
+    /// `local_upload` to collapse a duplicate invocation onto the existing row
+    /// instead of re-encrypting the whole file into a second ledger row — the
+    /// backend dedupes such rows onto ONE upload session (same sha256+size), so
+    /// two local rows would race each other on that single session. Note this
+    /// deliberately does NOT match a 'synced' row: re-uploading already-finished
+    /// content is a NEW file (the backend's FindActiveUploadSession only resumes
+    /// 'active' sessions), never a silently-deduped one.
+    pub fn find_active_sibling(
+        &self,
+        sha256: &str,
+        size: i64,
+    ) -> Result<Option<LocalFile>, DbError> {
+        self.with(|c| {
+            c.query_row(
+                "SELECT id, original_name, original_size, sha256, salt, wrapped_cek, chunk_count, status, sync_status,
+                        backend_file_id, session_id, platform, repo_url, direct_upload, mode, error_msg
+                 FROM files WHERE sha256=?1 AND original_size=?2
+                   AND sync_status IN ('staging','pending','init_done','uploading')
+                 ORDER BY created_at DESC LIMIT 1",
+                params![sha256, size],
+                row_to_file,
+            )
+            .optional()
+        })
+    }
+
+    /// Reset an errored file for a clean retry: drop its (dead/expired) backend
+    /// session and reset EVERY chunk to pending. A fresh re-init gets a brand-new
+    /// server session that holds none of the old chunks, so stale 'synced' chunk
+    /// flags would make completion fire against an empty session ("not all chunks
+    /// have been uploaded"). Wasteful (re-uploads all chunks) but correct;
+    /// partial-resume across a dead session is a later refinement.
+    pub fn reset_file_for_retry(&self, file_id: &str) -> Result<(), DbError> {
+        self.with(|c| {
+            c.execute(
+                "UPDATE files SET sync_status='pending', session_id='', backend_file_id='', direct_upload=0, error_msg='' WHERE id=?1",
+                params![file_id],
+            )?;
+            c.execute(
+                "UPDATE chunks SET sync_status='pending', remote_path='', error_msg='' WHERE file_id=?1",
+                params![file_id],
+            )?;
+            Ok(())
+        })
+    }
+
+    /// Staging paths of every chunk of a file — for deleting the staged
+    /// ciphertext when a partially-staged row is cleaned up or garbage-collected.
+    pub fn get_staging_paths(&self, file_id: &str) -> Result<Vec<String>, DbError> {
+        self.with(|c| {
+            let mut stmt = c.prepare(
+                "SELECT staging_path FROM chunks WHERE file_id=?1 AND staging_path != ''",
+            )?;
+            let rows = stmt.query_map(params![file_id], |r| r.get(0))?;
+            rows.collect()
+        })
+    }
+
+    /// All rows in one sync_status — GC uses this to find rows stuck in
+    /// 'staging' (their encrypting process died; the CEK lived only in that
+    /// process's memory, so they can never be finished — only purged).
+    pub fn list_files_in_status(&self, status: &str) -> Result<Vec<LocalFile>, DbError> {
+        self.with(|c| {
+            let mut stmt = c.prepare(
+                "SELECT id, original_name, original_size, sha256, salt, wrapped_cek, chunk_count, status, sync_status,
+                        backend_file_id, session_id, platform, repo_url, direct_upload, mode, error_msg
+                 FROM files WHERE sync_status=?1 ORDER BY created_at",
+            )?;
+            let rows = stmt.query_map(params![status], row_to_file)?;
+            rows.collect()
+        })
+    }
+
+    /// Every staging path referenced by ANY chunk row — the orphan-file scan
+    /// deletes staging-dir entries not in this set (crash leftovers).
+    pub fn all_staging_paths(&self) -> Result<std::collections::HashSet<String>, DbError> {
+        self.with(|c| {
+            let mut stmt = c.prepare("SELECT staging_path FROM chunks WHERE staging_path != ''")?;
+            let rows = stmt.query_map([], |r| r.get::<_, String>(0))?;
+            rows.collect()
+        })
+    }
+
     pub fn update_chunk_synced(&self, chunk_id: &str, remote_path: &str) -> Result<(), DbError> {
         self.with(|c| {
             c.execute(
@@ -305,12 +415,18 @@ impl LocalDb {
 
     pub fn all_chunks_synced(&self, file_id: &str) -> Result<bool, DbError> {
         self.with(|c| {
-            let pending: i64 = c.query_row(
-                "SELECT COUNT(*) FROM chunks WHERE file_id=?1 AND sync_status != 'synced'",
+            // Synced count must equal the file's declared chunk_count — NOT just
+            // "no unsynced chunk rows". Mid-encryption only K of N chunk rows
+            // exist; the old absence check returned true with K synced rows and
+            // let a sync pass call complete against a partial upload ("not all
+            // chunks have been uploaded" 400s every tick).
+            let (synced, expected): (i64, i64) = c.query_row(
+                "SELECT (SELECT COUNT(*) FROM chunks WHERE file_id=?1 AND sync_status='synced'),
+                        (SELECT chunk_count FROM files WHERE id=?1)",
                 params![file_id],
-                |r| r.get(0),
+                |r| Ok((r.get(0)?, r.get(1)?)),
             )?;
-            Ok(pending == 0)
+            Ok(synced == expected)
         })
     }
 

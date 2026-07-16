@@ -40,6 +40,15 @@ impl Client {
         ok_or_status(resp).await
     }
 
+    /// GET /api/upload/{sid}/status — chunk indices the backend already has, so
+    /// a resumed streaming upload re-sends only the missing ones.
+    pub async fn upload_status(&self, session_id: &str) -> Result<Vec<i64>, ApiError> {
+        let resp: UploadStatusResponse = self
+            .send_json(|http, base| http.get(format!("{base}/api/upload/{session_id}/status")))
+            .await?;
+        Ok(resp.uploaded_chunks)
+    }
+
     /// POST /api/upload/{sid}/presign/{idx}
     pub async fn presign_chunk(
         &self,
