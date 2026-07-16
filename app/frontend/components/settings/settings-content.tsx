@@ -1,13 +1,10 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { PageHeader } from "@/components/ui/page-header";
-import { Section } from "@/components/ui/section";
 import { IconButton } from "@/components/ui/icon-button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { StoragePool } from "@/components/settings/storage-pool";
@@ -27,16 +24,15 @@ import { SecurityActivity } from "@/components/settings/security-activity";
 import { useFileList } from "@/hooks/useFileList";
 import { PlatformIcon } from "@/components/icons/platform-icon";
 import { TelegramConnect } from "@/components/settings/telegram-connect";
+import { SettingGroup, ButtonRow, ValueRow, LinkRow } from "@/components/settings/settings-primitives";
 import type { PlatformStatus } from "@/types";
 import {
   CheckCircle2,
   Key,
   ExternalLink,
   Shield,
-  Zap,
-  Box,
-  Lock,
   ArrowRight,
+  ArrowLeft,
   XCircle,
   Sun,
   Moon,
@@ -46,60 +42,34 @@ import {
   User,
   ShieldAlert,
   Eye,
+  Sparkles,
+  Box,
+  Database,
+  Download,
 } from "@/lib/icons";
-import Link from "next/link";
-import { cn, smartGridCols } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { PLATFORMS, platformName, parseTelegramToken } from "@/lib/platforms";
 
 /**
- * Desktop-only: mirror a freshly connected platform token into the OS
- * keychain under `platform.<id>.token` / `platform.<id>.account` so the
- * Tauri core's `keychain_creds()` (app/desktop/src-tauri/src/lib.rs) can find
- * it and route uploads byos-direct (straight to the user's own storage)
- * instead of the server-managed relay. Never runs outside Tauri — raw
- * platform tokens must never be persisted anywhere in the browser; there
- * they only ever reach the backend's encrypted-at-rest store.
- *
- * Telegram's combined `"BOT_TOKEN|CHAT_ID"` string is split first since the
- * keychain (and the Rust `PlatformCreds`) expect the bot token and chat id as
- * separate fields — `res.username` for Telegram is the *bot's* username, not
- * the chat id, so it can't be used as the account here.
- *
- * Best-effort: a keychain write failure only costs the byos-direct fast
- * path — the token is already safely stored server-side by the time this
- * runs, so it never blocks or reverts the connect flow.
+ * Desktop-only: mirror a freshly connected platform token into the OS keychain
+ * so the Tauri core can route uploads byos-direct. Never runs outside Tauri —
+ * raw platform tokens must never be persisted in the browser. Best-effort.
  */
-async function storeDesktopPlatformCreds(
-  platform: string,
-  rawToken: string,
-  username?: string
-): Promise<void> {
+async function storeDesktopPlatformCreds(platform: string, rawToken: string, username?: string): Promise<void> {
   if (!isTauri) return;
   try {
     const parsed = platform === "telegram" ? parseTelegramToken(rawToken) : null;
     const keychainToken = parsed?.token ?? rawToken;
     const keychainAccount = parsed?.account ?? username;
     await keychainSet(`platform.${platform}.token`, keychainToken);
-    if (keychainAccount) {
-      await keychainSet(`platform.${platform}.account`, keychainAccount);
-    }
+    if (keychainAccount) await keychainSet(`platform.${platform}.account`, keychainAccount);
   } catch (err) {
     console.error(`Failed to store ${platform} credentials in the desktop keychain`, err);
   }
 }
 
-/**
- * Desktop-only: forget a platform's keychain creds on disconnect so the core
- * stops offering byos-direct for it (falls back to the server relay). Never
- * runs outside Tauri. Best-effort, mirrors `storeDesktopPlatformCreds` above.
- *
- * Note: `platform.<id>.token/.account` is a single keychain slot per
- * platform, while a user can connect several accounts on the same platform
- * server-side. Disconnecting any one of them clears the shared desktop slot —
- * an accepted limitation of the current one-credential-per-platform
- * byos-direct design, not something this wiring can resolve on its own.
- */
+/** Desktop-only: forget a platform's keychain creds on disconnect. Best-effort. */
 async function clearDesktopPlatformCreds(platform: string): Promise<void> {
   if (!isTauri) return;
   try {
@@ -109,6 +79,27 @@ async function clearDesktopPlatformCreds(platform: string): Promise<void> {
     console.error(`Failed to clear ${platform} credentials from the desktop keychain`, err);
   }
 }
+
+type SectionId = "appearance" | "account" | "platforms" | "storage" | "privacy" | "backup" | "security";
+
+interface SectionDef {
+  id: SectionId;
+  label: string;
+  desc: string;
+  icon: typeof Shield;
+  group: string;
+  adminOnly?: boolean;
+}
+
+const SECTIONS: SectionDef[] = [
+  { id: "appearance", label: "Appearance", desc: "Theme, colors & advanced mode", icon: Sparkles, group: "General" },
+  { id: "account", label: "Account access", desc: "Sign-in providers & device key", icon: User, group: "Account" },
+  { id: "platforms", label: "Platform connections", desc: "Connect your storage backends", icon: Box, group: "Account" },
+  { id: "storage", label: "Storage & quotas", desc: "Repositories, usage & limits", icon: Database, group: "Storage" },
+  { id: "privacy", label: "Privacy", desc: "Decoy vault & dead man's switch", icon: ShieldAlert, group: "Privacy & security" },
+  { id: "backup", label: "Vault backup", desc: "Export or import your metadata", icon: Download, group: "Privacy & security" },
+  { id: "security", label: "Security activity", desc: "Recent sign-ins & events", icon: Shield, group: "Privacy & security", adminOnly: true },
+];
 
 export function SettingsContent() {
   const [tokens, setTokens] = useState<Record<string, string>>({});
@@ -125,30 +116,23 @@ export function SettingsContent() {
   const setAdvancedMode = usePreferencesStore((s) => s.setAdvancedMode);
   const isAdmin = user?.role === "admin";
 
-  // Clear optimistic overrides when fresh data arrives
+  // active === null → mobile shows the grouped index. Desktop always shows a
+  // section (defaults to the first) in the right pane.
+  const [active, setActive] = useState<SectionId | null>(null);
+
   useEffect(() => { setScopeOverrides({}); }, [statuses]);
 
-  // Apply optimistic scope overrides to statuses
   const effectiveStatuses = statuses.map((s) =>
-    s.token_id && s.token_id in scopeOverrides
-      ? { ...s, is_global: scopeOverrides[s.token_id] }
-      : s
+    s.token_id && s.token_id in scopeOverrides ? { ...s, is_global: scopeOverrides[s.token_id] } : s
   );
-
-  // Non-admins only see their own (non-global) tokens
-  const visibleStatuses = isAdmin
-    ? effectiveStatuses
-    : effectiveStatuses.filter((s) => !s.is_global);
-
-  const accountsFor = (platform: string) =>
-    visibleStatuses.filter((s) => s.platform === platform && s.connected);
+  const visibleStatuses = isAdmin ? effectiveStatuses : effectiveStatuses.filter((s) => !s.is_global);
+  const accountsFor = (platform: string) => visibleStatuses.filter((s) => s.platform === platform && s.connected);
 
   const handleConnect = async (platform: string, token: string): Promise<boolean> => {
     if (!token.trim()) return false;
     if (busyRef.current.has(`connect:${platform}`)) return false;
     busyRef.current.add(`connect:${platform}`);
     setConnecting(platform);
-
     try {
       const trimmed = token.trim();
       const res = await connectPlatform(platform, trimmed);
@@ -166,10 +150,6 @@ export function SettingsContent() {
     }
   };
 
-  const handleDisconnectClick = (platform: string, username: string) => {
-    setDisconnectTarget({ platform, username });
-  };
-
   const executeDisconnect = async () => {
     if (!disconnectTarget) return;
     const { platform, username } = disconnectTarget;
@@ -180,9 +160,7 @@ export function SettingsContent() {
     try {
       await disconnectPlatform(platform, username);
       await clearDesktopPlatformCreds(platform);
-      toast.success(
-        `${platformName(platform)} @${username} disconnected`
-      );
+      toast.success(`${platformName(platform)} @${username} disconnected`);
       setDisconnectTarget(null);
       refresh();
     } catch (err) {
@@ -205,127 +183,25 @@ export function SettingsContent() {
     }
   };
 
-  const themeOptions = [
-    { value: "light" as const, icon: Sun, label: "Light" },
-    { value: "dark" as const, icon: Moon, label: "Dark" },
-    { value: "system" as const, icon: Monitor, label: "System" },
-  ];
+  const visibleSections = SECTIONS.filter((s) => !s.adminOnly || isAdmin);
+  const groups = Array.from(new Set(visibleSections.map((s) => s.group)));
 
-  return (
-    <div className="space-y-8 animate-fade-in">
-      <PageHeader
-        eyebrow="Configuration"
-        title="Settings"
-        description="Manage your appearance, connected accounts, storage platforms, and privacy controls."
-      />
-
-      {/* Appearance */}
-      <div className="panel p-6">
-        <Section
-          title="Appearance"
-          description="Choose how zcrypt looks and which power-user tools are available."
-        >
-          <div className="space-y-6">
-            {/* Theme selector */}
-            <div className="space-y-2">
-              <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
-                Theme
-              </p>
-              {/* Desktop: segmented button row */}
-              <div
-                role="radiogroup"
-                aria-label="Theme"
-                className="hidden sm:inline-flex items-center gap-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-1"
-              >
-                {themeOptions.map(({ value, icon: Icon, label }) => {
-                  const active = theme === value;
-                  return (
-                    <button
-                      key={value}
-                      type="button"
-                      role="radio"
-                      aria-checked={active}
-                      onClick={() => setTheme(value)}
-                      className={cn(
-                        "inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition-all outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40",
-                        active
-                          ? "bg-[var(--color-surface)] text-[var(--color-text)] shadow-sm ring-1 ring-[var(--color-border)]"
-                          : "text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"
-                      )}
-                    >
-                      <Icon className="h-4 w-4" />
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Mobile: native select */}
-              <div className="sm:hidden relative">
-                <label htmlFor="theme-select" className="sr-only">Theme</label>
-                <select
-                  id="theme-select"
-                  value={theme}
-                  onChange={(e) => setTheme(e.target.value as "light" | "dark" | "system")}
-                  className="w-full appearance-none rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 pr-10 text-sm font-medium text-[var(--color-text)] outline-none transition-colors focus:border-[var(--color-accent)]/40 focus:ring-2 focus:ring-[var(--color-accent)]/10"
-                >
-                  <option value="light">Light</option>
-                  <option value="dark">Dark</option>
-                  <option value="system">System</option>
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-[var(--color-text-muted)]">
-                  <ChevronDown className="h-4 w-4" />
-                </div>
-              </div>
-            </div>
-
-            {/* Color theme picker */}
-            <div className="border-t border-[var(--color-border)] pt-5">
-              <ThemePicker />
-            </div>
-
-            {/* Advanced mode toggle */}
-            <div className="flex items-center justify-between gap-4 border-t border-[var(--color-border)] pt-5">
-              <div className="min-w-0">
-                <label htmlFor="advanced-mode" className="text-sm font-medium text-[var(--color-text)]">
-                  Advanced mode
-                </label>
-                <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-                  Show power-user tools like snapshots, integrity checks, expiring vaults, and device sync.
-                </p>
-              </div>
-              <Switch
-                id="advanced-mode"
-                checked={advancedMode}
-                onCheckedChange={setAdvancedMode}
-                aria-label="Advanced mode"
-                className="flex-shrink-0 data-[state=checked]:bg-[var(--color-accent)] data-[state=unchecked]:bg-[var(--color-surface-3)]"
-              />
-            </div>
-          </div>
-        </Section>
-      </div>
-
-      {/* Encryption key + Linked Accounts (OAuth) */}
-      <div className="panel p-6">
-        <Section
-          title="Account access"
-          description="Your device's key fingerprint and the identity providers you can sign in with."
-        >
-          <div className={cn("grid gap-3", smartGridCols(3))}>
+  const renderSection = (id: SectionId) => {
+    switch (id) {
+      case "appearance":
+        return (
+          <AppearanceContent theme={theme} setTheme={setTheme} advancedMode={advancedMode} setAdvancedMode={setAdvancedMode} />
+        );
+      case "account":
+        return (
+          <div className="space-y-3">
             <EncryptionKeyInfo />
             <LinkedAccounts />
           </div>
-        </Section>
-      </div>
-
-      {/* Platform connections */}
-      <div className="panel p-6">
-        <Section
-          title="Platform connections"
-          description="Connect storage backends. zcrypt distributes encrypted, disguised chunks across your connected accounts."
-        >
-          <div className={cn("grid gap-4", smartGridCols(PLATFORMS.length))}>
+        );
+      case "platforms":
+        return (
+          <div className="space-y-4">
             {PLATFORMS.map((p) => (
               <PlatformSection
                 key={p.id}
@@ -340,7 +216,7 @@ export function SettingsContent() {
                 onConnect={() => handleConnect(p.id, tokens[p.id] ?? "")}
                 connecting={connecting === p.id}
                 connectedAccounts={accountsFor(p.id)}
-                onDisconnect={(username) => handleDisconnectClick(p.id, username)}
+                onDisconnect={(username) => setDisconnectTarget({ platform: p.id, username })}
                 disconnecting={disconnecting}
                 onToggleScope={handleToggleScope}
                 isAdmin={isAdmin}
@@ -356,48 +232,113 @@ export function SettingsContent() {
               />
             ))}
           </div>
-        </Section>
-      </div>
-
-      {/* Storage Pool — absorbed from Platforms page */}
-      <StoragePool />
-
-      {/* Platform quotas & rate limits */}
-      <RateLimits statuses={statuses} repos={repos} />
-
-      {/* Vault backup */}
-      <ExportImport files={files} />
-
-      {/* Privacy */}
-      <div className="panel p-6">
-        <Section
-          title="Privacy"
-          description="Advanced safeguards for high-risk threat models."
-        >
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <ToolLink
-              href="/settings/deadman"
-              icon={<ShieldAlert className="h-4 w-4" />}
-              title="Dead man's switch"
-              desc="Auto-notify a contact if you go silent"
-            />
-            <ToolLink
-              href="/settings/decoy"
-              icon={<Eye className="h-4 w-4" />}
-              title="Decoy profile"
-              desc="Plausible deniability with a decoy vault"
-            />
+        );
+      case "storage":
+        return (
+          <div className="space-y-8">
+            <RateLimits statuses={statuses} repos={repos} />
+            <StoragePool />
           </div>
-        </Section>
+        );
+      case "privacy":
+        return (
+          <SettingGroup label="Advanced safeguards" footnote="For high-risk threat models. Both are optional.">
+            <LinkRow href="/settings/deadman" icon={<ShieldAlert className="h-4 w-4" />} title="Dead man's switch" subtitle="Auto-notify a contact if you go silent" />
+            <LinkRow href="/settings/decoy" icon={<Eye className="h-4 w-4" />} title="Decoy profile" subtitle="Plausible deniability with a decoy vault" />
+          </SettingGroup>
+        );
+      case "backup":
+        return <ExportImport files={files} />;
+      case "security":
+        return <SecurityActivity />;
+    }
+  };
+
+  const activeDef = (id: SectionId) => visibleSections.find((s) => s.id === id)!;
+
+  return (
+    <div className="animate-fade-in">
+      {/* ── MOBILE: grouped index → sub-view with back ─────────────────── */}
+      <div className="md:hidden">
+        {active === null ? (
+          <div className="space-y-6">
+            <div className="px-1">
+              <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-accent)]">Configuration</p>
+              <h1 className="mt-1 text-2xl font-bold tracking-tight text-[var(--color-text)]">Settings</h1>
+            </div>
+            {groups.map((g) => (
+              <SettingGroup key={g} label={g}>
+                {visibleSections.filter((s) => s.group === g).map((s) => (
+                  <ButtonRow
+                    key={s.id}
+                    onClick={() => setActive(s.id)}
+                    icon={<s.icon className="h-4 w-4" />}
+                    title={s.label}
+                    subtitle={s.desc}
+                  />
+                ))}
+              </SettingGroup>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-5">
+            <button
+              type="button"
+              onClick={() => setActive(null)}
+              className="inline-flex items-center gap-1.5 rounded-lg text-sm text-[var(--color-text-secondary)] outline-none transition-colors hover:text-[var(--color-text)] focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40"
+            >
+              <ArrowLeft className="h-4 w-4" /> Settings
+            </button>
+            <div className="px-1">
+              <h1 className="text-xl font-bold tracking-tight text-[var(--color-text)]">{activeDef(active).label}</h1>
+              <p className="mt-0.5 text-sm text-[var(--color-text-secondary)]">{activeDef(active).desc}</p>
+            </div>
+            {renderSection(active)}
+          </div>
+        )}
       </div>
 
-      {/* Security Activity — admin only */}
-      {isAdmin && <SecurityActivity />}
+      {/* ── DESKTOP: two-pane (nav rail + active section) ──────────────── */}
+      <div className="hidden md:flex md:gap-8">
+        <nav className="w-60 flex-shrink-0">
+          <p className="px-3 text-xs font-medium uppercase tracking-wider text-[var(--color-accent)]">Configuration</p>
+          <h1 className="mt-1 px-3 text-lg font-bold tracking-tight text-[var(--color-text)]">Settings</h1>
+          <div className="mt-4 space-y-4">
+            {groups.map((g) => (
+              <div key={g} className="space-y-1">
+                <p className="px-3 text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">{g}</p>
+                {visibleSections.filter((s) => s.group === g).map((s) => {
+                  const on = (active ?? "appearance") === s.id;
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => setActive(s.id)}
+                      className={cn(
+                        "flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40",
+                        on
+                          ? "bg-[var(--color-accent)]/10 font-medium text-[var(--color-accent)]"
+                          : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)]"
+                      )}
+                    >
+                      <s.icon className="h-4 w-4 flex-shrink-0" />
+                      <span className="truncate">{s.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        </nav>
+        <div className="min-w-0 flex-1">
+          <div className="mb-5">
+            <h2 className="text-lg font-bold tracking-tight text-[var(--color-text)]">{activeDef(active ?? "appearance").label}</h2>
+            <p className="mt-0.5 text-sm text-[var(--color-text-secondary)]">{activeDef(active ?? "appearance").desc}</p>
+          </div>
+          {renderSection(active ?? "appearance")}
+        </div>
+      </div>
 
-      {/* How it works — collapsible */}
-      <HowItWorks />
-
-      {/* Confirm disconnect modal */}
       <ConfirmDialog
         open={!!disconnectTarget}
         onOpenChange={(open) => { if (!open) setDisconnectTarget(null); }}
@@ -412,6 +353,69 @@ export function SettingsContent() {
         loading={!!disconnecting}
         onConfirm={executeDisconnect}
       />
+    </div>
+  );
+}
+
+function AppearanceContent({
+  theme,
+  setTheme,
+  advancedMode,
+  setAdvancedMode,
+}: {
+  theme: string;
+  setTheme: (t: "light" | "dark" | "system") => void;
+  advancedMode: boolean;
+  setAdvancedMode: (v: boolean) => void;
+}) {
+  const themeOptions = [
+    { value: "light" as const, icon: Sun, label: "Light" },
+    { value: "dark" as const, icon: Moon, label: "Dark" },
+    { value: "system" as const, icon: Monitor, label: "System" },
+  ];
+  return (
+    <div className="space-y-6">
+      <SettingGroup label="Theme">
+        <ValueRow
+          icon={<Sun className="h-4 w-4" />}
+          title="Mode"
+          subtitle="Light, dark, or match your system"
+          trailing={
+            <div className="relative">
+              <label htmlFor="theme-select" className="sr-only">Theme</label>
+              <select
+                id="theme-select"
+                value={theme}
+                onChange={(e) => setTheme(e.target.value as "light" | "dark" | "system")}
+                className="appearance-none rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] py-1.5 pl-3 pr-8 text-sm font-medium text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]/40 focus:ring-2 focus:ring-[var(--color-accent)]/10"
+              >
+                {themeOptions.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute inset-y-0 right-2 my-auto h-4 w-4 text-[var(--color-text-muted)]" />
+            </div>
+          }
+        />
+      </SettingGroup>
+
+      {/* ThemePicker renders its own "Color theme" heading — don't double it. */}
+      <ThemePicker />
+
+      <SettingGroup label="Power user" footnote="Snapshots, integrity checks, expiring vaults, and device sync.">
+        <ValueRow
+          title="Advanced mode"
+          subtitle="Show power-user tools across the app"
+          trailing={
+            <Switch
+              checked={advancedMode}
+              onCheckedChange={setAdvancedMode}
+              aria-label="Advanced mode"
+              className="data-[state=checked]:bg-[var(--color-accent)] data-[state=unchecked]:bg-[var(--color-surface-3)]"
+            />
+          }
+        />
+      </SettingGroup>
     </div>
   );
 }
@@ -449,12 +453,10 @@ function PlatformSection({
   disconnecting: string | null;
   onToggleScope: (tokenId: string, currentIsGlobal: boolean) => void;
   isAdmin?: boolean;
-  /** When provided, replaces the default token input + connect button (e.g. the
-   *  guided Telegram flow). The connected-accounts list above stays shared. */
   customConnect?: React.ReactNode;
 }) {
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-1)]/40">
+    <div className="flex flex-col rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-1)]/40">
       <div className="flex items-center gap-3 border-b border-[var(--color-border)] px-4 py-3.5">
         <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--color-surface)] ring-1 ring-[var(--color-border)]">
           {icon}
@@ -463,39 +465,26 @@ function PlatformSection({
           <h3 className="truncate text-sm font-semibold text-[var(--color-text)]">{name}</h3>
         </div>
         {connectedAccounts.length > 0 && (
-          <Badge
-            variant="outline"
-            className="flex-shrink-0 border-[var(--color-accent)]/25 bg-[var(--color-accent)]/10 text-[var(--color-accent)]"
-          >
+          <Badge variant="outline" className="flex-shrink-0 border-[var(--color-accent)]/25 bg-[var(--color-accent)]/10 text-[var(--color-accent)]">
             {connectedAccounts.length} connected
           </Badge>
         )}
       </div>
 
       <div className="flex-1 space-y-4 p-4">
-        {/* Connected accounts list */}
         {connectedAccounts.length > 0 && (
           <ul className="space-y-2">
             {connectedAccounts.map((acc) => {
               const isDisconnecting = disconnecting === `${platform}:${acc.username}`;
               return (
-                <li
-                  key={`${acc.platform}:${acc.username}`}
-                  className="flex items-center gap-2 rounded-xl border border-[var(--color-accent)]/15 bg-[var(--color-accent)]/5 px-3 py-2"
-                >
+                <li key={`${acc.platform}:${acc.username}`} className="flex items-center gap-2 rounded-xl border border-[var(--color-accent)]/15 bg-[var(--color-accent)]/5 px-3 py-2">
                   <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0 text-[var(--color-accent)]" />
-                  <span className="min-w-0 flex-1 truncate text-sm text-[var(--color-text)]">
-                    @{acc.username}
-                  </span>
+                  <span className="min-w-0 flex-1 truncate text-sm text-[var(--color-text)]">@{acc.username}</span>
                   {isAdmin && acc.token_id && (
                     <button
                       type="button"
                       onClick={() => onToggleScope(acc.token_id!, !!acc.is_global)}
-                      title={
-                        acc.is_global
-                          ? "Global — shared with all users. Click to make local."
-                          : "Local — only you. Click to share with all users."
-                      }
+                      title={acc.is_global ? "Global — shared with all users. Click to make local." : "Local — only you. Click to share with all users."}
                       className={cn(
                         "inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40",
                         acc.is_global
@@ -508,9 +497,7 @@ function PlatformSection({
                     </button>
                   )}
                   {isDisconnecting ? (
-                    <span className="flex h-9 w-9 items-center justify-center text-[var(--color-text-muted)]">
-                      <LogoSpinner size={14} speed="fast" />
-                    </span>
+                    <span className="flex h-9 w-9 items-center justify-center text-[var(--color-text-muted)]"><LogoSpinner size={14} speed="fast" /></span>
                   ) : (
                     <IconButton
                       icon={XCircle}
@@ -529,7 +516,6 @@ function PlatformSection({
 
         {customConnect ?? (
           <>
-            {/* Token input */}
             <div className="flex flex-col gap-3 sm:flex-row">
               <div className="flex-1">
                 <Input
@@ -543,27 +529,14 @@ function PlatformSection({
               </div>
               <Button onClick={onConnect} disabled={connecting || !token.trim()} className="sm:self-start">
                 {connecting ? (
-                  <span className="flex items-center gap-2">
-                    <LogoSpinner size={14} speed="fast" />
-                    Connecting...
-                  </span>
+                  <span className="flex items-center gap-2"><LogoSpinner size={14} speed="fast" /> Connecting...</span>
                 ) : (
-                  <span className="flex items-center gap-1.5">
-                    {connectedAccounts.length > 0 ? "Add account" : "Connect"}
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  </span>
+                  <span className="flex items-center gap-1.5">{connectedAccounts.length > 0 ? "Add account" : "Connect"}<ArrowRight className="h-3.5 w-3.5" /></span>
                 )}
               </Button>
             </div>
-
-            <a
-              href={tokenUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 rounded text-xs text-[var(--color-accent)] outline-none transition-colors hover:underline focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40"
-            >
-              {tokenLabel}
-              <ExternalLink className="h-3 w-3" />
+            <a href={tokenUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded text-xs text-[var(--color-accent)] outline-none transition-colors hover:underline focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40">
+              {tokenLabel}<ExternalLink className="h-3 w-3" />
             </a>
           </>
         )}
@@ -575,7 +548,6 @@ function PlatformSection({
 function EncryptionKeyInfo() {
   const fingerprint = useKeysStore((s) => s.fingerprint);
   const ready = useKeysStore((s) => s.ready);
-
   if (!ready || !fingerprint) {
     return (
       <div className="flex items-center gap-3 rounded-xl border border-dashed border-[var(--color-border)] px-3.5 py-3 text-sm text-[var(--color-text-muted)]">
@@ -583,134 +555,14 @@ function EncryptionKeyInfo() {
       </div>
     );
   }
-
   return (
     <div className="flex items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)]/50 px-3.5 py-3">
-      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--color-accent)]/10 text-[var(--color-accent)]">
-        <Key className="h-4 w-4" />
-      </div>
+      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--color-accent)]/10 text-[var(--color-accent)]"><Key className="h-4 w-4" /></div>
       <div className="min-w-0">
         <p className="text-xs text-[var(--color-text-muted)]">Your key fingerprint</p>
-        <p className="font-mono text-sm font-semibold tracking-wide text-[var(--color-text)]">
-          {fingerprint}
-        </p>
+        <p className="font-mono text-sm font-semibold tracking-wide text-[var(--color-text)]">{fingerprint}</p>
       </div>
     </div>
   );
 }
 
-function HowItWorks() {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <div className="panel overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className="flex w-full items-center justify-between px-6 py-4 text-left outline-none transition-colors hover:bg-[var(--color-surface-1)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--color-accent)]/40"
-      >
-        <h2 className="text-sm font-semibold text-[var(--color-text)]">How it works</h2>
-        <ChevronDown
-          className={cn(
-            "h-4 w-4 text-[var(--color-text-muted)] transition-transform duration-200",
-            open && "rotate-180"
-          )}
-        />
-      </button>
-      {open && (
-        <motion.div
-          initial={{ opacity: 0, y: -4 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.2 }}
-          className="space-y-5 border-t border-[var(--color-border)] px-6 pb-6 pt-5"
-        >
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <PipelineStep
-              icon={<Zap className="h-4 w-4" />}
-              step="1"
-              title="Compress"
-              desc="Zstd compression shrinks files before encryption"
-            />
-            <PipelineStep
-              icon={<Lock className="h-4 w-4" />}
-              step="2"
-              title="Encrypt"
-              desc="AES-256-GCM with PBKDF2 derived keys (600K iterations)"
-            />
-            <PipelineStep
-              icon={<Box className="h-4 w-4" />}
-              step="3"
-              title="Chunk & push"
-              desc="Split into 80 MB chunks, disguised as build artifacts"
-            />
-          </div>
-          <div className="flex items-start gap-3 border-t border-[var(--color-border)] pt-4">
-            <Shield className="mt-0.5 h-4 w-4 flex-shrink-0 text-[var(--color-accent)]/70" />
-            <p className="text-xs leading-relaxed text-[var(--color-text-secondary)]">
-              Your passphrase never leaves your machine. Platforms only see encrypted binary blobs
-              with randomized filenames — zero knowledge.
-            </p>
-          </div>
-        </motion.div>
-      )}
-    </div>
-  );
-}
-
-function ToolLink({
-  href,
-  icon,
-  title,
-  desc,
-}: {
-  href: string;
-  icon: React.ReactNode;
-  title: string;
-  desc: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className="group flex items-start gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-1)]/40 p-4 outline-none transition-colors hover:border-[var(--color-accent)]/30 hover:bg-[var(--color-surface-1)] focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40"
-    >
-      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--color-surface)] text-[var(--color-text-muted)] ring-1 ring-[var(--color-border)] transition-colors group-hover:text-[var(--color-accent)]">
-        {icon}
-      </div>
-      <div className="min-w-0">
-        <p className="text-sm font-medium text-[var(--color-text)] transition-colors group-hover:text-[var(--color-accent)]">
-          {title}
-        </p>
-        <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">{desc}</p>
-      </div>
-      <ArrowRight className="ml-auto mt-0.5 h-4 w-4 flex-shrink-0 text-[var(--color-text-muted)] transition-colors group-hover:text-[var(--color-accent)]" />
-    </Link>
-  );
-}
-
-function PipelineStep({
-  icon,
-  step,
-  title,
-  desc,
-}: {
-  icon: React.ReactNode;
-  step: string;
-  title: string;
-  desc: string;
-}) {
-  return (
-    <div className="flex items-start gap-3">
-      <div className="relative flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--color-surface-1)] text-[var(--color-text-muted)] ring-1 ring-[var(--color-border)]">
-        {icon}
-        <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] text-[10px] font-bold tabular-nums text-[var(--color-text-secondary)]">
-          {step}
-        </span>
-      </div>
-      <div>
-        <p className="text-xs font-semibold text-[var(--color-text)]">{title}</p>
-        <p className="mt-0.5 text-xs leading-relaxed text-[var(--color-text-muted)]">{desc}</p>
-      </div>
-    </div>
-  );
-}
