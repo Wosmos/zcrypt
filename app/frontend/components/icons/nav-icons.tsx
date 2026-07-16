@@ -35,27 +35,6 @@ export function VaultIcon({ filled, className, ...props }: NavIconProps) {
 }
 
 /**
- * Premium Share: Designed to look like a "Node Cluster."
- * Uses concentric circles to give it a techy, network-depth feel.
- */
-export function ShareIcon({ filled, className, ...props }: NavIconProps) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={className} {...props}>
-      {/* Connections */}
-      <path d="M8.5 13.5l7 4M15.5 6.5l-7 4" stroke="currentColor" strokeWidth={1.5} opacity={0.6} />
-      {/* Nodes */}
-      <circle cx="18" cy="5" r="3" stroke="currentColor" strokeWidth={1.5} fill={filled ? "currentColor" : "none"} fillOpacity={0.2} />
-      <circle cx="6" cy="12" r="3" stroke="currentColor" strokeWidth={1.5} fill={filled ? "currentColor" : "none"} fillOpacity={0.2} />
-      <circle cx="18" cy="19" r="3" stroke="currentColor" strokeWidth={1.5} fill={filled ? "currentColor" : "none"} fillOpacity={0.2} />
-      {/* Micro Inner-dots for tech detail */}
-      <circle cx="18" cy="5" r="0.5" fill="currentColor" />
-      <circle cx="6" cy="12" r="0.5" fill="currentColor" />
-      <circle cx="18" cy="19" r="0.5" fill="currentColor" />
-    </svg>
-  );
-}
-
-/**
  * Premium Gear: A futuristic "Control Hub" aesthetic.
  * Uses a hollowed-out center and segmented teeth.
  */

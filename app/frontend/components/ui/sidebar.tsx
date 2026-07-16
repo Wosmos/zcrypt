@@ -13,7 +13,6 @@ import {
   PanelLeft,
   Database,
   Users,
-  Share2,
   Wand2,
   Trash2,
   BarChart3,
@@ -28,7 +27,6 @@ const primaryLinks = [
   { href: "/dashboard", label: "Vault", icon: Shield },
   { href: "/analytics", label: "Insights", icon: BarChart3 },
   { href: "/spaces", label: "Spaces", icon: Layers },
-  { href: "/share", label: "Share", icon: Share2 },
 ];
 
 const advancedLink = { href: "/tools", label: "Tools", icon: Wand2 };
