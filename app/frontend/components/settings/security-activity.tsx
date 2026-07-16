@@ -5,7 +5,6 @@ import { getUserActivity, type AuditEvent } from "@/lib/auth-api";
 import { useAuthStore } from "@/store/auth";
 import { formatDateTime, formatRelativeTime } from "@/lib/utils";
 import { EVENT_ICONS } from "@/lib/audit-events";
-import { Section } from "@/components/ui/section";
 import { SkeletonRow } from "@/components/ui/skeletons";
 import { Pagination } from "@/components/ui/pagination";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -70,12 +69,8 @@ export function SecurityActivity() {
   const pageEvents = events.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   return (
-    <div className="panel p-6">
-      <Section
-        title="Security activity"
-        description="Recent authentication events on your account."
-      >
-        {loading ? (
+    <div>
+      {loading ? (
           <div className="divide-y divide-[var(--color-border)]">
             {Array.from({ length: 4 }).map((_, i) => (
               <SkeletonRow key={i} />
@@ -184,8 +179,7 @@ export function SecurityActivity() {
               />
             </div>
           </TooltipProvider>
-        )}
-      </Section>
+      )}
     </div>
   );
 }

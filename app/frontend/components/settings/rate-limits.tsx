@@ -1,11 +1,9 @@
 "use client";
 
 import type { PlatformStatus, RepoInfo } from "@/types";
-import { AlertTriangle, CheckCircle2, Database, File, Zap } from "@/lib/icons";
 import { PlatformIcon } from "@/components/icons/platform-icon";
 import { PLATFORM_BY_ID, type PlatformId } from "@/lib/platforms";
-import { formatBytes, cn, smartGridCols } from "@/lib/utils";
-import { Section } from "@/components/ui/section";
+import { formatBytes, cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface RateLimitsProps {
@@ -37,6 +35,17 @@ function parseStat(raw: string): { value: string; caption: string; note?: string
   return { value: core, caption: "", note };
 }
 
+/**
+ * Percent label that never reads a false "0%": a tiny but non-zero usage (e.g.
+ * 1.4 GB of 363 GB = 0.385%) shows a decimal instead of rounding down to 0.
+ * Only a genuinely empty platform reads "0".
+ */
+function formatPct(p: number): string {
+  if (p <= 0) return "0";
+  if (p >= 1) return Math.round(p).toString();
+  return p < 0.1 ? p.toFixed(2) : p.toFixed(1);
+}
+
 export function RateLimits({ statuses, repos }: RateLimitsProps) {
   const connectedPlatforms = statuses.filter((s) => s.connected);
 
@@ -51,13 +60,17 @@ export function RateLimits({ statuses, repos }: RateLimitsProps) {
   }
 
   return (
-    <div className="panel p-6">
-      <Section
-        title="Platform quotas & limits"
-        description="Known rate limits and storage quotas per connected platform."
-      >
-        <ul className={cn("grid gap-4", smartGridCols(connectedPlatforms.length))}>
-          <TooltipProvider delayDuration={300}>
+    <div className="space-y-3">
+      <div className="px-1">
+        <h3 className="text-sm font-semibold text-[var(--color-text)]">Platform quotas &amp; limits</h3>
+        <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+          Known rate limits and storage quotas per connected platform.
+        </p>
+      </div>
+      {/* Mobile: horizontal snap-scroll, ~one card per view with a peek of the
+          next. Desktop (sm+): a clean 3-up grid. */}
+      <ul className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:grid sm:grid-cols-3 sm:overflow-visible">
+        <TooltipProvider delayDuration={300}>
           {connectedPlatforms.map((status) => {
             const meta = PLATFORM_BY_ID[status.platform as PlatformId];
             if (!meta) return null;
@@ -71,97 +84,82 @@ export function RateLimits({ statuses, repos }: RateLimitsProps) {
             return (
               <li
                 key={`${status.platform}:${status.username}`}
-                className="space-y-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-1)]/40 p-4"
+                className="relative flex h-full min-w-[72%] shrink-0 snap-center flex-col items-center gap-2.5 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-1)]/40 p-5 text-center transition-all hover:border-[var(--color-accent)]/30 hover:bg-[var(--color-surface-1)]/70 sm:min-w-0 sm:shrink sm:gap-2 sm:p-4"
               >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <PlatformIcon platform={status.platform} className="h-4 w-4" />
-                    <span className="text-sm font-medium capitalize text-[var(--color-text)]">
-                      {status.platform}
-                    </span>
-                    {status.username && (
-                      <span className="truncate text-xs text-[var(--color-text-muted)]">
-                        @{status.username}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex flex-shrink-0 items-center gap-1.5">
-                    {isHigh ? (
-                      <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
-                    ) : (
-                      <CheckCircle2 className="h-3.5 w-3.5 text-[var(--color-accent)]" />
-                    )}
-                    <span
-                      className={`text-xs font-medium tabular-nums ${isHigh ? "text-amber-500" : "text-[var(--color-accent)]"}`}
-                    >
-                      {usagePercent.toFixed(0)}% used
+                {/* Dotted backdrop, fading out toward the bottom */}
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0 opacity-50 [background-image:radial-gradient(var(--color-text-muted)_0.75px,transparent_0.75px)] [background-size:9px_9px] [mask-image:radial-gradient(ellipse_at_top,black,transparent_72%)]"
+                />
+                {/* Blended platform watermark, bleeding off the top-right */}
+                <div aria-hidden className="pointer-events-none absolute -right-4 -top-4 opacity-[0.07]">
+                  <PlatformIcon platform={status.platform} className="h-24 w-24" />
+                </div>
+                {pRepos.length > 0 && (
+                  <span className="absolute left-3 top-3 z-10 rounded-full bg-[var(--color-surface-2)]/80 px-2 py-0.5 text-[10px] font-medium tabular-nums text-[var(--color-text-muted)] backdrop-blur-sm">
+                    {pRepos.length} {pRepos.length === 1 ? "repo" : "repos"}
+                  </span>
+                )}
+                {/* Ring gauge — the percentage lives inside the arc */}
+                <div className="relative z-10 h-[64px] w-[64px]">
+                  <svg viewBox="0 0 36 36" className="h-full w-full -rotate-90">
+                    <circle cx="18" cy="18" r="14" fill="none" className="fill-[var(--color-surface-2)]/30" />
+                    <circle cx="18" cy="18" r="15.9155" fill="none" strokeWidth="2.75" className="stroke-[var(--color-surface-2)]" />
+                    <circle
+                      cx="18"
+                      cy="18"
+                      r="15.9155"
+                      fill="none"
+                      strokeWidth="2.75"
+                      strokeLinecap="round"
+                      strokeDasharray={`${Math.min(100, usagePercent)} 100`}
+                      className={cn("transition-all duration-700", isHigh ? "stroke-amber-500" : "stroke-[var(--color-accent)]")}
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className={cn("font-heading font-bold tabular-nums tracking-tight", usagePercent > 0 && usagePercent < 1 ? "text-base" : "text-lg", isHigh ? "text-amber-500" : "text-[var(--color-text)]")}>
+                      {formatPct(usagePercent)}
+                      <span className="align-super text-[9px] font-semibold text-[var(--color-text-muted)]">%</span>
                     </span>
                   </div>
                 </div>
 
-                {/* Quota details */}
-                <div className="grid grid-cols-1 gap-2 xs:grid-cols-3">
-                  {[
-                    { label: "Repo", icon: Database, value: meta.capacity },
-                    { label: "File", icon: File, value: meta.fileLimit },
-                    { label: "Rate", icon: Zap, value: meta.rateInfo },
-                  ].map((item) => {
-                    const { value, caption, note } = parseStat(item.value);
-                    const Icon = item.icon;
+                <div className="relative z-10 min-w-0">
+                  <p className="truncate font-heading text-sm font-semibold capitalize text-[var(--color-text)]">
+                    {status.platform}
+                  </p>
+                  <p className="truncate text-[11px] tabular-nums text-[var(--color-text-muted)]">
+                    {pRepos.length > 0 ? `${formatBytes(totalUsed)} of ${formatBytes(totalMax)}` : status.username ? `@${status.username}` : " "}
+                  </p>
+                </div>
+
+                {/* Limits — one whisper-light wrapped line, pinned to the bottom
+                    so every tile aligns; the fine print shows on hover. */}
+                <div className="relative z-10 mt-auto hidden flex-wrap items-center justify-center gap-x-1.5 gap-y-0.5 pt-1.5 text-[10px] leading-tight text-[var(--color-text-muted)] sm:flex">
+                  {[meta.capacity, meta.fileLimit, meta.rateInfo].map((raw, i) => {
+                    const { value, note } = parseStat(raw);
                     return (
-                      <div
-                        key={item.label}
-                        className="flex flex-col gap-1 rounded-lg bg-[var(--color-surface-1)] px-2.5 py-2.5"
-                      >
-                        <div className="flex items-center gap-1 text-[var(--color-text-muted)]">
-                          <Icon className="h-3 w-3 flex-shrink-0" />
-                          <span className="text-[9px] uppercase tracking-wider">{item.label}</span>
-                        </div>
-                        <p className="text-sm font-semibold leading-tight text-[var(--color-text)]">
-                          {value}
-                        </p>
-                        {caption && (
-                          <p className="text-[10px] leading-tight text-[var(--color-text-muted)]">
-                            {note ? (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <span className="cursor-default underline decoration-dotted decoration-[var(--color-text-muted)]/50 underline-offset-2">
-                                    {caption}
-                                  </span>
-                                </TooltipTrigger>
-                                <TooltipContent side="top">{note}</TooltipContent>
-                              </Tooltip>
-                            ) : (
-                              caption
-                            )}
-                          </p>
+                      <span key={i} className="inline-flex items-center gap-1.5">
+                        {i > 0 && <span aria-hidden className="text-[var(--color-border)]">·</span>}
+                        {note ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="cursor-default underline decoration-dotted decoration-[var(--color-text-muted)]/40 underline-offset-2">{value}</span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">{note}</TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          <span>{value}</span>
                         )}
-                      </div>
+                      </span>
                     );
                   })}
                 </div>
-
-                {/* Usage bar */}
-                {pRepos.length > 0 && (
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-xs tabular-nums text-[var(--color-text-secondary)]">
-                      <span>{formatBytes(totalUsed)} used</span>
-                      <span>{formatBytes(totalMax - totalUsed)} remaining</span>
-                    </div>
-                    <div className="h-1.5 overflow-hidden rounded-full bg-[var(--color-surface-2)]">
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ${isHigh ? "bg-amber-500" : "bg-[var(--color-accent)]"}`}
-                        style={{ width: `${Math.min(100, usagePercent)}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
               </li>
             );
           })}
-          </TooltipProvider>
-        </ul>
-      </Section>
+        </TooltipProvider>
+      </ul>
     </div>
   );
 }
