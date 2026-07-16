@@ -3,8 +3,9 @@
 //! in the SQLite ledger. Returns instantly relative to network (CPU+disk only);
 //! the sync worker pushes later.
 
+use std::collections::HashSet;
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Instant;
 
 use sha2::{Digest, Sha256};
@@ -17,6 +18,37 @@ use crate::localdb::{staging_dir, LocalChunk, LocalFile};
 use crate::types::{Progress, Stage};
 
 use super::{pipeline, EngineContext, EngineError};
+
+/// File ids whose chunks are being staged by THIS process right now. A row in
+/// sync_status 'staging' is only meaningful while its encrypting task is alive
+/// (the CEK exists only in that task's memory) — the ledger GC purges 'staging'
+/// rows NOT in this set as crash leftovers, and must never touch live ones.
+fn staging_live() -> &'static Mutex<HashSet<String>> {
+    static SET: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
+    SET.get_or_init(|| Mutex::new(HashSet::new()))
+}
+
+/// Whether `file_id` is being staged by a live task in this process.
+pub(crate) fn is_staging_live(file_id: &str) -> bool {
+    staging_live().lock().unwrap().contains(file_id)
+}
+
+/// RAII registration in [`staging_live`] — removed on drop, including on any
+/// early error return, so a failed staging never leaves a stale "live" mark.
+struct StagingLive(String);
+
+impl StagingLive {
+    fn register(file_id: &str) -> Self {
+        staging_live().lock().unwrap().insert(file_id.to_string());
+        StagingLive(file_id.to_string())
+    }
+}
+
+impl Drop for StagingLive {
+    fn drop(&mut self) {
+        staging_live().lock().unwrap().remove(&self.0);
+    }
+}
 
 pub async fn run(
     ctx: &EngineContext,
@@ -47,6 +79,21 @@ pub async fn run(
     emit(Stage::Hashing, 0, 0, 0);
     let file_sha256 = sha256_file(file_path).await?;
 
+    // Dedup: identical content already staging or syncing → reuse that row
+    // instead of re-encrypting into a second one. The backend collapses
+    // same-content inits onto ONE upload session (FindActiveUploadSession
+    // matches sha256+size), so two ledger rows would race each other on that
+    // single session — the loser dies with "upload session is not active"
+    // after the winner completes it, showing a false failure for a file that
+    // actually uploaded.
+    if let Some(existing) = ctx.db.find_active_sibling(&file_sha256, file_size)? {
+        eprintln!(
+            "zcrypt upload: {} already in flight as {} ({}) — reusing, not re-encrypting",
+            file_name, existing.id, existing.sync_status
+        );
+        return Ok(existing.id);
+    }
+
     // 2. Keys: salt → KEK (600k PBKDF2, blocking) → random CEK, wrapped.
     emit(Stage::DerivingKey, 0, 0, 0);
     let salt = crypto::generate_salt();
@@ -71,6 +118,11 @@ pub async fn run(
     // Placement: byos-direct to the user's own platform when we hold a token,
     // else relay. Persisted so the sync worker and any resume keep this plane.
     let (mode, platform) = super::choose_plane(&ctx.creds);
+    // Inserted as 'staging' — invisible to the sync loop (it drains only
+    // 'pending'/'init_done'/'uploading') until every chunk is staged below.
+    // Inserting as 'pending' here let the 1s loop init a session and push/
+    // complete against a PARTIAL chunk list while encryption was still running.
+    let _live = StagingLive::register(&file_id);
     ctx.db.insert_file(&LocalFile {
         id: file_id.clone(),
         original_name: file_name.clone(),
@@ -80,67 +132,88 @@ pub async fn run(
         wrapped_cek: wrapped_cek.clone(),
         chunk_count,
         status: "complete".into(),
+        sync_status: "staging".into(),
         platform,
         mode,
         ..Default::default()
     })?;
 
-    // 4. Read → process (parallel, bounded) → stage + record.
-    emit(Stage::Encrypting, 0, chunk_count as u32, 0);
-    let staging = staging_dir()?;
-    let should_compress = compression::should_compress(&file_name);
-    let workers = ctx.profile.effective_workers();
-    let sem = Arc::new(tokio::sync::Semaphore::new(workers));
-    let mut join: tokio::task::JoinSet<Result<(i64, usize), EngineError>> =
-        tokio::task::JoinSet::new();
+    // 4. Read → process (parallel, bounded) → stage + record. Fallible section
+    // wrapped so a mid-staging failure removes the partial row + staged chunks —
+    // a leftover 'staging' row would shadow future uploads of this content via
+    // the dedup check above (and can never finish: the CEK dies with this call).
+    let staged: Result<(), EngineError> = async {
+        emit(Stage::Encrypting, 0, chunk_count as u32, 0);
+        let staging = staging_dir()?;
+        let should_compress = compression::should_compress(&file_name);
+        let workers = ctx.profile.effective_workers();
+        let sem = Arc::new(tokio::sync::Semaphore::new(workers));
+        let mut join: tokio::task::JoinSet<Result<(i64, usize), EngineError>> =
+            tokio::task::JoinSet::new();
 
-    let mut f = tokio::fs::File::open(file_path).await?;
-    let started = Instant::now();
-    let done = Arc::new(std::sync::atomic::AtomicU32::new(0));
+        let mut f = tokio::fs::File::open(file_path).await?;
+        let started = Instant::now();
+        let done = Arc::new(std::sync::atomic::AtomicU32::new(0));
 
-    for idx in 0..chunk_count {
-        let want = std::cmp::min(chunk_size, file_size - idx * chunk_size).max(0) as usize;
-        let mut buf = vec![0u8; want];
-        f.read_exact(&mut buf).await?;
+        for idx in 0..chunk_count {
+            let want = std::cmp::min(chunk_size, file_size - idx * chunk_size).max(0) as usize;
+            let mut buf = vec![0u8; want];
+            f.read_exact(&mut buf).await?;
 
-        let permit = sem.clone().acquire_owned().await.expect("semaphore");
-        let level = ctx.profile.zstd_level;
-        let staging = staging.clone();
-        let db = ctx.db.clone();
-        let fid = file_id.clone();
-        join.spawn(async move {
-            let _permit = permit;
-            let processed = tokio::task::spawn_blocking(move || {
-                // process_chunk's AES-GCM setup copies cek into its own key
-                // schedule — this per-chunk copy is safe to wipe right after.
-                let mut cek = cek;
-                let result = pipeline::process_chunk(&buf, &cek, should_compress, level);
-                cek.zeroize();
-                result
-            })
-            .await
-            .map_err(join_err)??;
+            let permit = sem.clone().acquire_owned().await.expect("semaphore");
+            let level = ctx.profile.zstd_level;
+            let staging = staging.clone();
+            let db = ctx.db.clone();
+            let fid = file_id.clone();
+            join.spawn(async move {
+                let _permit = permit;
+                let processed = tokio::task::spawn_blocking(move || {
+                    // process_chunk's AES-GCM setup copies cek into its own key
+                    // schedule — this per-chunk copy is safe to wipe right after.
+                    let mut cek = cek;
+                    let result = pipeline::process_chunk(&buf, &cek, should_compress, level);
+                    cek.zeroize();
+                    result
+                })
+                .await
+                .map_err(join_err)??;
 
-            let chunk_id = uuid::Uuid::new_v4().to_string();
-            let path = staging.join(format!("{chunk_id}.enc"));
-            tokio::fs::write(&path, &processed.encrypted).await?;
-            db.insert_chunk(&LocalChunk {
-                id: chunk_id,
-                file_id: fid,
-                idx,
-                size: processed.original_size as i64,
-                encrypted_size: processed.encrypted.len() as i64,
-                compressed_size: processed.compressed_size as i64,
-                sha256: processed.sha256,
-                compressed: processed.compressed,
-                staging_path: path.to_string_lossy().to_string(),
-                ..Default::default()
-            })?;
-            Ok((idx, processed.encrypted.len()))
-        });
+                let chunk_id = uuid::Uuid::new_v4().to_string();
+                let path = staging.join(format!("{chunk_id}.enc"));
+                tokio::fs::write(&path, &processed.encrypted).await?;
+                db.insert_chunk(&LocalChunk {
+                    id: chunk_id,
+                    file_id: fid,
+                    idx,
+                    size: processed.original_size as i64,
+                    encrypted_size: processed.encrypted.len() as i64,
+                    compressed_size: processed.compressed_size as i64,
+                    sha256: processed.sha256,
+                    compressed: processed.compressed,
+                    staging_path: path.to_string_lossy().to_string(),
+                    ..Default::default()
+                })?;
+                Ok((idx, processed.encrypted.len()))
+            });
 
-        // Surface progress as tasks finish (non-blocking poll).
-        while let Some(res) = join.try_join_next() {
+            // Surface progress as tasks finish (non-blocking poll).
+            while let Some(res) = join.try_join_next() {
+                let (_, _) = res.map_err(join_err)??;
+                bump_progress(
+                    ctx,
+                    &done,
+                    &file_id,
+                    &file_name,
+                    chunk_count,
+                    file_size,
+                    started,
+                );
+            }
+        }
+        // Every spawned task above captured its own copy of `cek` (it's Copy) —
+        // this original is no longer needed now that they've all been spawned.
+        cek.zeroize();
+        while let Some(res) = join.join_next().await {
             let (_, _) = res.map_err(join_err)??;
             bump_progress(
                 ctx,
@@ -152,22 +225,24 @@ pub async fn run(
                 started,
             );
         }
+        Ok(())
     }
-    // Every spawned task above captured its own copy of `cek` (it's Copy) —
-    // this original is no longer needed now that they've all been spawned.
-    cek.zeroize();
-    while let Some(res) = join.join_next().await {
-        let (_, _) = res.map_err(join_err)??;
-        bump_progress(
-            ctx,
-            &done,
-            &file_id,
-            &file_name,
-            chunk_count,
-            file_size,
-            started,
-        );
+    .await;
+
+    if let Err(e) = staged {
+        // Remove the partial row and its staged ciphertext; a retry re-encrypts
+        // from the source file, which still exists.
+        if let Ok(paths) = ctx.db.get_staging_paths(&file_id) {
+            for p in paths {
+                let _ = tokio::fs::remove_file(&p).await;
+            }
+        }
+        let _ = ctx.db.delete_file(&file_id);
+        return Err(e);
     }
+
+    // All chunks staged — NOW the row becomes visible to sync.
+    ctx.db.update_file_sync_status(&file_id, "pending")?;
 
     emit(
         Stage::Done,
@@ -202,16 +277,29 @@ fn bump_progress(
     });
 }
 
-async fn sha256_file(path: &Path) -> Result<String, EngineError> {
+pub(super) async fn sha256_file(path: &Path) -> Result<String, EngineError> {
+    sha256_file_progress(path, |_| {}).await
+}
+
+/// Like [`sha256_file`] but reports cumulative bytes hashed via `on_bytes` — so a
+/// multi-GB hash can drive a moving progress bar instead of sitting frozen (the
+/// "stuck at 0%/deriving_key" the streaming upload showed while hashing).
+pub(super) async fn sha256_file_progress(
+    path: &Path,
+    mut on_bytes: impl FnMut(i64),
+) -> Result<String, EngineError> {
     let mut f = tokio::fs::File::open(path).await?;
     let mut hasher = Sha256::new();
     let mut buf = vec![0u8; 4 * 1024 * 1024];
+    let mut total = 0i64;
     loop {
         let n = f.read(&mut buf).await?;
         if n == 0 {
             break;
         }
         hasher.update(&buf[..n]);
+        total += n as i64;
+        on_bytes(total);
     }
     Ok(hex::encode(hasher.finalize()))
 }

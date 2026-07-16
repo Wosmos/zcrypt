@@ -30,10 +30,31 @@ pub(super) type DirectSources = (
 
 /// Best-effort resolve of byos-direct sources. On any failure (not the owner,
 /// endpoint down, no creds) it returns empties and the caller relays everything.
+/// Retries transient network failures (3x, capped backoff) instead of a bare
+/// single `.await` — on a flaky connection that used to silently sit on
+/// "deriving_key" for the client's full 30s request timeout with no feedback
+/// and no fallback; after the retries are exhausted it still degrades to an
+/// all-relay download rather than failing the whole operation.
 pub(super) async fn resolve_direct_sources(ctx: &EngineContext, file_id: &str) -> DirectSources {
     let mut locs = HashMap::new();
     let mut adapters_by_platform: HashMap<String, Arc<dyn PlatformAdapter>> = HashMap::new();
-    if let Ok(resp) = ctx.client.get_file_locators(file_id).await {
+    let client = ctx.client.clone();
+    let retry_client = client.clone();
+    let fid = file_id.to_string();
+    let result = client
+        .with_retry(3, move || {
+            let c = retry_client.clone();
+            let f = fid.clone();
+            async move { c.get_file_locators(&f).await }
+        })
+        .await;
+    if let Err(e) = &result {
+        eprintln!(
+            "zcrypt download {file_id}: locators fetch failed after retries, falling back to full relay: {}",
+            e.detail()
+        );
+    }
+    if let Ok(resp) = result {
         for c in resp.chunks {
             if !adapters_by_platform.contains_key(&c.platform) {
                 if let Some(creds) = (ctx.creds)(&c.platform) {
