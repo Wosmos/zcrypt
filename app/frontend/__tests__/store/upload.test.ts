@@ -149,7 +149,7 @@ vi.mock("@/lib/worker-pool", () => {
 
 vi.mock("@/lib/tauri", () => ({
   pickFiles: vi.fn(async () => [] as string[]),
-  localUpload: vi.fn(async () => {}),
+  sidecarUpload: vi.fn(async () => {}),
   subscribeProgress: vi.fn(async () => vi.fn()),
 }));
 
@@ -1510,27 +1510,81 @@ describe("useUploadStore", () => {
       expect(useUploadStore.getState().queue).toHaveLength(0);
     });
 
-    it("queues each picked path, encrypts via the sidecar, and marks it done", async () => {
-      const { pickFiles, localUpload } = await import("@/lib/tauri");
+    it("queues each picked path, streams it to the platform, and marks it done", async () => {
+      const { pickFiles, sidecarUpload } = await import("@/lib/tauri");
       (pickFiles as Mock).mockResolvedValue(["/tmp/a.bin", "/tmp/b.bin"]);
-      (localUpload as Mock).mockResolvedValue(undefined);
+      (sidecarUpload as Mock).mockResolvedValue(undefined);
       const onRefresh = vi.fn();
       await useUploadStore.getState().startDesktopUpload("pw", onRefresh);
 
-      expect(localUpload).toHaveBeenCalledWith("/tmp/a.bin", "pw");
-      expect(localUpload).toHaveBeenCalledWith("/tmp/b.bin", "pw");
+      // Streaming upload resolves only when the bytes are confirmed remote.
+      expect(sidecarUpload).toHaveBeenCalledWith("/tmp/a.bin", "pw", undefined);
+      expect(sidecarUpload).toHaveBeenCalledWith("/tmp/b.bin", "pw", undefined);
       expect(useUploadStore.getState().queue.every((i) => i.status === "done")).toBe(true);
+      // Items are flagged desktop so pause is hidden and retry stays on the core.
+      expect(useUploadStore.getState().queue.every((i) => i.desktop === true)).toBe(true);
       expect(onRefresh).toHaveBeenCalled();
     });
 
-    it("marks a path failed when the sidecar upload throws", async () => {
-      const { pickFiles, localUpload } = await import("@/lib/tauri");
+    it("marks a path failed when the core upload throws", async () => {
+      const { pickFiles, sidecarUpload } = await import("@/lib/tauri");
       (pickFiles as Mock).mockResolvedValue(["/tmp/a.bin"]);
-      (localUpload as Mock).mockRejectedValue(new Error("disk read failed"));
+      (sidecarUpload as Mock).mockRejectedValue(new Error("disk read failed"));
       await useUploadStore.getState().startDesktopUpload("pw", undefined);
 
       expect(useUploadStore.getState().queue[0].status).toBe("failed");
       expect(useUploadStore.getState().queue[0].error).toBe("disk read failed");
+    });
+
+    it("marks a path failed when the streaming upload fails", async () => {
+      const { pickFiles, sidecarUpload } = await import("@/lib/tauri");
+      (pickFiles as Mock).mockResolvedValue(["/tmp/a.bin"]);
+      (sidecarUpload as Mock).mockRejectedValue(new Error("platform unreachable"));
+      await useUploadStore.getState().startDesktopUpload("pw", undefined);
+
+      expect(useUploadStore.getState().queue[0].status).toBe("failed");
+      expect(useUploadStore.getState().queue[0].error).toBe("platform unreachable");
+    });
+
+    it("retryUpload on a desktop item re-drives the streaming core, never the web pipeline", async () => {
+      const { pickFiles, sidecarUpload } = await import("@/lib/tauri");
+      (pickFiles as Mock).mockResolvedValue(["/tmp/a.bin"]);
+      (sidecarUpload as Mock).mockRejectedValueOnce(new Error("blip"));
+      await useUploadStore.getState().startDesktopUpload("pw", undefined);
+      const item = useUploadStore.getState().queue[0];
+      expect(item.status).toBe("failed");
+
+      (sidecarUpload as Mock).mockResolvedValueOnce(undefined);
+      useUploadStore.getState().retryUpload(item.id, "pw");
+      await vi.waitFor(() => {
+        expect(useUploadStore.getState().queue[0].status).toBe("done");
+      });
+      // Retry re-drives the streaming core with the desktop path — the item's
+      // 0-byte placeholder File never reached the web pipeline's init.
+      expect(sidecarUpload).toHaveBeenLastCalledWith("/tmp/a.bin", "pw", undefined);
+    });
+
+    it("pauseUpload is a no-op for desktop items (the core has no pause)", async () => {
+      const { pickFiles, sidecarUpload } = await import("@/lib/tauri");
+      (pickFiles as Mock).mockResolvedValue(["/tmp/a.bin"]);
+      let releaseUpload: () => void = () => {};
+      (sidecarUpload as Mock).mockImplementation(
+        () => new Promise<void>((res) => { releaseUpload = res; })
+      );
+      const run = useUploadStore.getState().startDesktopUpload("pw", undefined);
+      await vi.waitFor(() => {
+        expect(useUploadStore.getState().queue).toHaveLength(1);
+      });
+      const id = useUploadStore.getState().queue[0].id;
+      useUploadStore.getState().pauseUpload(id);
+      // NOT paused — "paused" writes flush synchronously, so if the desktop
+      // guard failed we would see it here. (The core kept syncing; pausing
+      // only lied about it before.)
+      expect(useUploadStore.getState().queue[0].status).not.toBe("paused");
+      releaseUpload();
+      await run;
+      // And the pause didn't poison later status writes: the item completes.
+      expect(useUploadStore.getState().queue[0].status).toBe("done");
     });
   });
 

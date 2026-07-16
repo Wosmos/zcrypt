@@ -1240,7 +1240,8 @@ describe("Tauri desktop upload routing", () => {
       result.current.handleResumeIncomplete(file, upload);
     });
 
-    expect(mockUploadStoreState.startDesktopUpload).toHaveBeenCalledWith("vault-pass", args.refresh);
+    // Platform selection ("github" in this test) is now threaded to desktop too.
+    expect(mockUploadStoreState.startDesktopUpload).toHaveBeenCalledWith("vault-pass", args.refresh, undefined, "github");
     expect(mockUploadStoreState.startUpload).not.toHaveBeenCalled();
 
     tauriModuleMock.isTauri = false;

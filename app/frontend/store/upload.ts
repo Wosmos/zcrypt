@@ -156,7 +156,7 @@ interface UploadStore {
    *  reconnects. Excludes deliberately paused items and permanent pre-session
    *  failures (oversized, no storage connected), which never got a session. */
   getResumableUploadIds: () => string[];
-  startDesktopUpload: (passphrase: string, onRefresh?: () => void, preSelectedPaths?: string[]) => void;
+  startDesktopUpload: (passphrase: string, onRefresh?: () => void, preSelectedPaths?: string[], platform?: string) => void;
 }
 
 // Resume context for an in-flight upload. Holds the raw CEK so a retry re-encrypts
@@ -257,6 +257,12 @@ interface ItemMeta {
   abort?: AbortController;
   /** EMA byte-rate tracker for the speed/ETA display. */
   rate?: { lastBytes: number; lastTime: number; ema: number };
+  /** Desktop-core item: absolute disk path the Rust core reads from. Its
+   *  presence marks the item as core-driven — retry/resume MUST re-drive the
+   *  core, never the web pipeline: the item's `file` is a 0-byte placeholder
+   *  (bytes never enter the webview), so the web path would init with size 0
+   *  and die on the backend's "a name …, original_size, … required" 400. */
+  desktopPath?: string;
 }
 const itemMeta = new Map<string, ItemMeta>();
 function patchMeta(id: string, patch: Partial<ItemMeta>): ItemMeta {
@@ -272,6 +278,39 @@ function patchMeta(id: string, patch: Partial<ItemMeta>): ItemMeta {
 // wire. The retry wrapper also checks it, so a paused chunk can't sit in a
 // backoff loop. The server session + resume context stay intact for resume.
 const pausedIds = new Set<string>();
+
+/**
+ * Map the streaming core's per-stage progress to ONE continuous 0–100 bar.
+ * The streaming upload fuses encrypt+upload into a single "uploading" stage
+ * (chunks stream out as they're encrypted), so there's one phase, not two —
+ * hashing/deriving are a tiny lead-in, uploading is the whole bar.
+ * Returns undefined for stages this bar doesn't represent (keep prior percent).
+ */
+function blendDesktopUploadProgress(
+  stage: string,
+  bytesDone: number,
+  bytesTotal: number
+): number | undefined {
+  const within = bytesTotal > 0 ? bytesDone / bytesTotal : 0;
+  switch (stage) {
+    // Hashing reads the whole file first and can be a big slice of the time, so
+    // give it a visible moving band (0–8%) rather than a frozen 1%.
+    case "hashing":
+      return Math.round(within * 8);
+    case "deriving_key":
+      return 9;
+    case "processing":
+    case "encrypting":
+    case "uploading":
+      return Math.max(9, Math.round(9 + within * 90));
+    case "finalizing":
+      return 99;
+    case "done":
+      return 100;
+    default:
+      return undefined;
+  }
+}
 
 /** Thrown (never retried) when a transfer stops because the user paused. */
 class PausedError extends Error {
@@ -1139,6 +1178,47 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
     const item = get().queue.find((i) => i.id === id);
     if (!item) return;
     const meta = itemMeta.get(id);
+    // Desktop-core item: NEVER route into the web pipeline — item.file is a
+    // 0-byte placeholder, so the web path inits with size 0 and fails with the
+    // backend's "a name (filename or encrypted_name), original_size, … required"
+    // 400. Re-drive the streaming core instead — it auto-resumes from whatever
+    // chunks the backend already has, re-streaming only the missing ones.
+    if (meta?.desktopPath) {
+      const desktopPath = meta.desktopPath;
+      const { updateStatus, setError } = get();
+      set((state) => ({
+        queue: state.queue.map((i) =>
+          i.id === id ? { ...i, status: "queued" as const, error: undefined, stage: "Retrying..." } : i
+        ),
+      }));
+      void (async () => {
+        // Scoped progress subscription for just this retry — startDesktopUpload's
+        // subscription already unlistened once its original batch finished, so
+        // without this a retry would show no live movement at all.
+        const { sidecarUpload, subscribeProgress } = await import("@/lib/tauri");
+        const unlistenRetry = await subscribeProgress((progress) => {
+          if (progress.file_name !== item.file.name) return;
+          const percent = blendDesktopUploadProgress(
+            progress.stage,
+            progress.bytes_done,
+            progress.bytes_total
+          );
+          if (percent === undefined) return;
+          updateStatus(id, "encrypting", percent, progress.stage, progress.bytes_done, progress.bytes_total);
+        });
+        try {
+          updateStatus(id, "encrypting", undefined, "Uploading...");
+          await sidecarUpload(desktopPath, passphrase, meta.platform);
+          updateStatus(id, "done", 100, "Done");
+          meta.onRefresh?.();
+        } catch (err) {
+          setError(id, err instanceof Error ? err.message : "Upload failed");
+        } finally {
+          unlistenRetry();
+        }
+      })();
+      return;
+    }
     // Reset the existing item in place (keeps its id, so its resume context in
     // itemMeta still applies and the upload continues from where it failed).
     // Progress/bytes are KEPT — a retry continues, so the bar must not snap to 0.
@@ -1170,6 +1250,11 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
   pauseUpload: (id) => {
     const item = get().queue.find((i) => i.id === id);
     if (!item) return;
+    // Desktop-core items can't pause: the Rust core's sync has no pause and
+    // "pausing" here only froze the UI row while the core kept working — then
+    // any later status write made it look failed. The pause control is hidden
+    // for these rows; this guard covers any stray caller.
+    if (itemMeta.get(id)?.desktopPath) return;
     // Only meaningful while queued/encrypting/uploading; ignore terminal states.
     if (item.status === "done" || item.status === "failed" || item.status === "paused") return;
     pausedIds.add(id);
@@ -1185,6 +1270,13 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
   resumeUpload: (id, passphrase) => {
     const item = get().queue.find((i) => i.id === id);
     if (!item) return;
+    // Desktop-core item: same routing rule as retryUpload — never the web
+    // pipeline. retryUpload's desktop branch re-drives the core correctly.
+    if (itemMeta.get(id)?.desktopPath) {
+      pausedIds.delete(id);
+      get().retryUpload(id, passphrase);
+      return;
+    }
     pausedIds.delete(id);
     const meta = itemMeta.get(id);
     set((state) => ({
@@ -1221,12 +1313,12 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
   // ("Preparing…") but nothing was ever attached, and only the retry — which
   // landed on a since-settled dialog stack — worked. Falls back to opening the
   // picker here only when no paths were supplied (e.g. a direct/legacy call).
-  startDesktopUpload: async (passphrase, onRefresh, preSelectedPaths) => {
+  startDesktopUpload: async (passphrase, onRefresh, preSelectedPaths, platform) => {
     const { addToQueue, updateStatus, setError } = get();
 
     const {
       pickFiles: tauriPickFiles,
-      localUpload: tauriLocalUpload,
+      sidecarUpload,
       subscribeProgress,
     } = await import("@/lib/tauri");
     const paths =
@@ -1247,14 +1339,15 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
         (i) => i.file.name === progress.file_name && i.status !== "done" && i.status !== "failed"
       );
       if (!item) return;
-      const percent =
-        progress.bytes_total > 0
-          ? Math.round((progress.bytes_done / progress.bytes_total) * 100)
-          : item.progress;
+      const percent = blendDesktopUploadProgress(
+        progress.stage,
+        progress.bytes_done,
+        progress.bytes_total
+      );
       updateStatus(
         item.id,
         "encrypting",
-        percent,
+        percent ?? item.progress,
         progress.stage,
         progress.bytes_done,
         progress.bytes_total
@@ -1267,10 +1360,23 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
         // Create a minimal File object for the queue UI
         const dummyFile = new File([], fileName);
         const id = addToQueue(dummyFile);
+        // Mark the item core-driven: retry re-drives the core (the placeholder
+        // File has 0 bytes, so the web pipeline must never see it), and the UI
+        // hides pause.
+        patchMeta(id, { desktopPath: filePath, onRefresh, platform });
+        set((state) => ({
+          queue: state.queue.map((i) => (i.id === id ? { ...i, desktop: true } : i)),
+        }));
 
         try {
-          updateStatus(id, "encrypting", 10, "Encrypting locally...");
-          await tauriLocalUpload(filePath, passphrase);
+          // Streaming upload: encrypt-in-RAM + fire chunks in parallel, resolves
+          // only when the bytes are confirmed on the platform. `platform` is the
+          // user's picker choice ("github"/"huggingface"/… or undefined = Auto);
+          // without it the backend defaults to Auto (Telegram-first), which
+          // silently ignored the selection. Live percent comes from the progress
+          // subscription; a retry auto-resumes core-side.
+          updateStatus(id, "encrypting", undefined, "Uploading...");
+          await sidecarUpload(filePath, passphrase, platform);
           updateStatus(id, "done", 100, "Done");
         } catch (err) {
           const msg = err instanceof Error ? err.message : "Upload failed";

@@ -49,6 +49,9 @@ export interface TransferEntry {
   rateBps?: number;
   /** For download ETA math — kept raw, never eased. */
   startedAt: number;
+  /** Core-driven desktop (Tauri) upload — the Rust core has no pause, so the
+   *  pause control is hidden for these rows. */
+  desktop?: boolean;
 }
 
 export interface TransferItemControls {
@@ -285,10 +288,14 @@ function TransferItemBase({
         </div>
 
         <div className="flex flex-shrink-0 items-center gap-0.5">
-          {/* Upload — active: Pause + Cancel */}
+          {/* Upload — active: Pause + Cancel. Desktop-core uploads hide Pause —
+              the Rust core's sync has no pause, so the button only froze the UI
+              row while the core kept uploading. */}
           {entry.direction === "upload" && entry.state === "active" && (
             <>
-              <ControlButton icon={Pause} label="Pause upload" tone="accent" onClick={() => controls.onPause(entry.id)} />
+              {!entry.desktop && (
+                <ControlButton icon={Pause} label="Pause upload" tone="accent" onClick={() => controls.onPause(entry.id)} />
+              )}
               <ControlButton icon={X} label="Cancel upload" tone="danger" onClick={() => controls.onCancelUpload(entry.id)} />
             </>
           )}
@@ -306,10 +313,17 @@ function TransferItemBase({
             </>
           )}
 
-          {/* Upload — failed: Retry + Dismiss */}
+          {/* Upload — failed: Retry + Dismiss. Desktop (core-streamed) uploads
+              can't "pause" but DO resume from the backend's already-uploaded
+              chunks, so the same control reads as "Resume" (Play) rather than
+              "Retry" — it re-drives the core, which continues, not restarts. */}
           {entry.direction === "upload" && entry.state === "failed" && (
             <>
-              <ControlButton icon={RotateCcw} label="Retry upload" tone="accent" onClick={() => controls.onRetryUpload(entry.id)} />
+              {entry.desktop ? (
+                <ControlButton icon={Play} label="Resume upload" tone="accent" onClick={() => controls.onRetryUpload(entry.id)} />
+              ) : (
+                <ControlButton icon={RotateCcw} label="Retry upload" tone="accent" onClick={() => controls.onRetryUpload(entry.id)} />
+              )}
               <ControlButton icon={X} label="Dismiss" onClick={() => controls.onDismiss(entry)} />
             </>
           )}

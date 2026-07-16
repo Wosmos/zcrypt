@@ -206,6 +206,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
         totalBytes: item.totalBytes,
         rateBps: item.rateBps,
         startedAt: item.startedAt,
+        desktop: item.desktop,
       };
     });
 

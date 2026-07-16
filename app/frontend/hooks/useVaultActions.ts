@@ -187,10 +187,14 @@ export function useVaultActions({
         // native pick). Callers that hand us plain Files with no path (e.g. a
         // resume retry) fall back to startDesktopUpload's own picker, exactly
         // as before.
+        // Honor the platform picker on desktop too (it was only wired to the
+        // web path before, so desktop uploads silently fell back to the
+        // backend's Auto default — Telegram-first — ignoring the selection).
+        const desktopPlatform = platformOverride ?? selectedPlatform ?? undefined;
         if (paths.length > 0) {
-          startDesktopUpload(wrapPassphrase, refresh, paths);
+          startDesktopUpload(wrapPassphrase, refresh, paths, desktopPlatform);
         } else {
-          startDesktopUpload(wrapPassphrase, refresh);
+          startDesktopUpload(wrapPassphrase, refresh, undefined, desktopPlatform);
         }
         return;
       }
