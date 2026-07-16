@@ -6,6 +6,7 @@ import { ToastContainer } from "@/components/ui/toast-container";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { NavProgress } from "@/components/ui/nav-progress";
+import { KeyboardAvoider } from "@/components/system/keyboard-avoider";
 import {
   OrganizationJsonLd,
   WebSiteJsonLd,
@@ -42,6 +43,9 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  // Shrink the layout viewport (and dvh) when the on-screen keyboard opens, so
+  // dvh shells + scroll containers keep the focused field visible on Android.
+  interactiveWidget: "resizes-content",
 };
 
 export const metadata: Metadata = {
@@ -206,6 +210,7 @@ export default function RootLayout({
         <ThemeProvider>
           <QueryProvider>
             <NavProgress />
+            <KeyboardAvoider />
             {children}
             <ToastContainer />
             <Analytics />

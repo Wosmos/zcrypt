@@ -13,7 +13,7 @@ export function TopBar() {
   const vault = useVaultLockContext();
 
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between gap-3 px-2">
+    <header className="flex h-14 shrink-0 items-center justify-between gap-3 rounded-lg px-2 pb-6 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] md:mt-0 md:py-0 md:pt-0">
       {/* Left — logo on mobile (the global search bar was removed; the per-page
           file search lives in the page header, and ⌘K still opens the palette). */}
       <div className="flex min-w-0 flex-1 items-center">
