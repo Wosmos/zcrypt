@@ -13,8 +13,6 @@ import {
   Cog,
   Users,
   LogOut,
-  Send,
-  FileText,
   ArrowRight,
   BarChart3,
   Layers,
@@ -22,7 +20,6 @@ import {
 } from "@/lib/icons";
 import {
   VaultIcon,
-  ShareIcon,
   GearIcon,
   MoreDotsIcon,
 } from "@/components/icons/nav-icons";
@@ -34,6 +31,8 @@ const NAV_LINKS = [
   { href: "/dashboard", label: "Vault", Icon: VaultIcon },
   { href: "/analytics", label: "Insights", Icon: BarChart3 },
   { href: "/spaces", label: "Spaces", Icon: Layers },
+  {href: "/trash", label: "Deleted Files", Icon: Trash2 }
+
 ];
 
 type DrawerLink = { href: string; label: string; icon: ComponentType<{ className?: string }> };
@@ -51,7 +50,6 @@ export function MobileNav() {
   // are always here; Tools/Admin appear when relevant.
   const drawerLinks = useMemo<DrawerLink[]>(() => {
     const items: DrawerLink[] = [
-      { href: "/share", label: "Share", icon: ShareIcon },
       { href: "/settings", label: "Settings", icon: GearIcon },
       // Parity with the desktop sidebar's "Deleted Files" — without this, a
       // mobile user has no way to reach /trash at all.
@@ -178,39 +176,9 @@ export function MobileNav() {
 
       <BottomSheet open={sheetOpen} onClose={() => setSheetOpen(false)}>
         <div className="space-y-1 pb-1">
-          {/* Quick actions */}
-          <div className="px-3 pb-1">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--color-text-muted)]">Quick Actions</p>
-          </div>
-          <div className="grid grid-cols-3 gap-2 px-1">
-            <Link
-              href="/send"
-              onClick={() => setSheetOpen(false)}
-              className="flex flex-col items-center gap-1.5 rounded-xl bg-[var(--color-surface-1)] py-3 transition-colors hover:bg-[var(--color-accent)]/10 active:scale-95"
-            >
-              <Send className="h-4.5 w-4.5 text-[var(--color-accent)]" />
-              <span className="text-[11px] font-semibold text-[var(--color-text)]">Send File</span>
-            </Link>
-            <Link
-              href="/pad"
-              onClick={() => setSheetOpen(false)}
-              className="flex flex-col items-center gap-1.5 rounded-xl bg-[var(--color-surface-1)] py-3 transition-colors hover:bg-[var(--color-accent)]/10 active:scale-95"
-            >
-              <FileText className="h-4.5 w-4.5 text-[var(--color-accent)]" />
-              <span className="text-[11px] font-semibold text-[var(--color-text)]">Text Pad</span>
-            </Link>
-            <Link
-              href="/transfer"
-              onClick={() => setSheetOpen(false)}
-              className="flex flex-col items-center gap-1.5 rounded-xl bg-[var(--color-surface-1)] py-3 transition-colors hover:bg-[var(--color-accent)]/10 active:scale-95"
-            >
-              <ArrowRight className="h-4.5 w-4.5 text-[var(--color-accent)]" />
-              <span className="text-[11px] font-semibold text-[var(--color-text)]">Transfer</span>
-            </Link>
-          </div>
+        
 
           {/* Navigation — Share + Settings always; Tools/Admin when relevant. */}
-          <div className="mx-3 my-2 border-t border-[var(--color-border)]" />
           <div className="px-3 pb-1">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--color-text-muted)]">Navigation</p>
           </div>
