@@ -99,6 +99,9 @@ export interface UploadItem {
   /** Smoothed transfer rate in bytes/sec (EMA) — drives the speed + ETA display. */
   rateBps?: number;
   error?: string;
+  /** Core-driven desktop (Tauri) item — bytes never enter the webview and the
+   *  Rust core has no pause, so the pause control is hidden for these. */
+  desktop?: boolean;
 }
 
 export enum Role {

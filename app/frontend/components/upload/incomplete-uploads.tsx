@@ -8,6 +8,7 @@ import { toast } from "@/store/toast";
 import { useUploadStore } from "@/store/upload";
 import { AlertTriangle, ChevronDown, Clock, Play, Trash2, X } from "@/lib/icons";
 import { platformName } from "@/lib/platforms";
+import { isTauri, pickFiles, toDesktopFile } from "@/lib/tauri";
 
 // Human-friendly "expires in ..." from an ISO timestamp. Server keeps unfinished
 // uploads for 7 days, so natural units run from minutes up to about a week.
@@ -74,7 +75,32 @@ export function IncompleteUploads({ onResume }: { onResume: (file: File, upload:
 
   const visible = uploads.filter((u) => !liveKeys.has(`${u.filename}::${u.original_size}`));
 
-  const onResumeClick = (u: IncompleteUpload) => {
+  // Hand a picked file to the resume flow, guarding against the wrong file (the
+  // server chunks belong to a specific file — a mismatch would corrupt it).
+  const resumeWithFile = useCallback(
+    (file: File, target: IncompleteUpload) => {
+      if (file.name !== target.filename || file.size !== target.original_size) {
+        toast.warning(`That's not the same file — pick "${target.filename}" (${formatBytes(target.original_size)}) to resume.`);
+        return;
+      }
+      onResume(file, target); // resumes the session on its ORIGINAL platform
+      setUploads((prev) => prev.filter((u) => u.session_id !== target.session_id));
+      toast.info(`Resuming "${target.filename}"…`);
+    },
+    [onResume],
+  );
+
+  const onResumeClick = async (u: IncompleteUpload) => {
+    // Desktop: use the native Tauri picker and wrap the result so it carries an
+    // absolute .path — the hidden HTML <input> below yields a browser File with
+    // NO path, which makes the desktop upload flow open a SECOND native dialog
+    // to re-acquire the path. Web keeps the hidden-input path (no disk paths).
+    if (isTauri) {
+      const [p] = await pickFiles({ multiple: false, title: `Select "${u.filename}" to resume` });
+      if (!p) return;
+      resumeWithFile(toDesktopFile(p), u);
+      return;
+    }
     resumeTargetRef.current = u;
     fileInputRef.current?.click();
   };
@@ -85,15 +111,7 @@ export function IncompleteUploads({ onResume }: { onResume: (file: File, upload:
     const target = resumeTargetRef.current;
     resumeTargetRef.current = null;
     if (!file || !target) return;
-    // Guard against picking the wrong file — the chunks already on the server
-    // belong to a specific file; a mismatch would corrupt the result.
-    if (file.name !== target.filename || file.size !== target.original_size) {
-      toast.warning(`That's not the same file — pick "${target.filename}" (${formatBytes(target.original_size)}) to resume.`);
-      return;
-    }
-    onResume(file, target); // upload flow resumes the session on its ORIGINAL platform
-    setUploads((prev) => prev.filter((u) => u.session_id !== target.session_id));
-    toast.info(`Resuming "${target.filename}"…`);
+    resumeWithFile(file, target);
   };
 
   const onDiscard = async (u: IncompleteUpload) => {
@@ -167,7 +185,7 @@ export function IncompleteUploads({ onResume }: { onResume: (file: File, upload:
 
                     <div className="flex flex-shrink-0 items-center gap-1.5">
                       <button
-                        onClick={() => onResumeClick(u)}
+                        onClick={() => void onResumeClick(u)}
                         className="flex items-center gap-1 rounded-lg bg-[var(--color-accent)] px-2.5 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-90"
                         title="Re-select this file to continue the upload"
                       >

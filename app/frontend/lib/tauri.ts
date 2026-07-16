@@ -113,6 +113,7 @@ export async function stopSync(): Promise<void> {
   return tauriInvoke("stop_sync");
 }
 
+
 /** Get sync status from the core. */
 export async function getSyncStatus(): Promise<SyncStats> {
   return tauriInvoke("sync_status");
