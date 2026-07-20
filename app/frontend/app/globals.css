@@ -397,17 +397,26 @@
    and radius (--theme-vt-r) are set on <html> in the theme provider. Scoped to
    html.theme-vt (set only during the transition); browsers without the API, or
    users who prefer reduced motion, get an instant flip instead. */
+/* Kill the UA default group transform-tween (a subtle scale/shift that made
+   the flip look glitchy) and the default cross-fade on both layers. */
+html.theme-vt::view-transition-group(root) {
+  animation: none;
+}
 html.theme-vt::view-transition-old(root),
 html.theme-vt::view-transition-new(root) {
   animation: none;
   mix-blend-mode: normal;
 }
+/* The outgoing theme stays fully painted underneath; the incoming theme is
+   clipped in as a circle from the toggle, so there is no fade — just a clean
+   wipe originating exactly at the button. */
 html.theme-vt::view-transition-old(root) {
   z-index: 1;
 }
 html.theme-vt::view-transition-new(root) {
   z-index: 2;
-  animation: theme-circle-reveal 0.42s ease-out;
+  animation: theme-circle-reveal 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: clip-path;
 }
 @keyframes theme-circle-reveal {
   from {

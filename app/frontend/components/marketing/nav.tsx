@@ -9,11 +9,8 @@ import {
   useScroll,
   useMotionValueEvent,
 } from "motion/react";
-import { useTheme } from "@/components/providers/theme-provider";
 import { cn } from "@/lib/utils";
 import {
-  Sun,
-  Moon,
   Menu,
   X,
   ArrowRight,
@@ -34,6 +31,7 @@ import {
   Download,
 } from "@/lib/icons";
 import { Logo } from "@/components/ui/logo";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 type IconType = React.ComponentType<{ className?: string; size?: number }>;
 type MenuItem = { href: string; title: string; desc?: string; icon?: IconType };
@@ -315,7 +313,6 @@ type MegaKey = (typeof MEGA_MENUS)[number]["key"];
 
 export function MarketingNav() {
   const pathname = usePathname();
-  const { resolvedTheme, toggleTheme } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState<MegaKey | null>(null);
   const [scrolled, setScrolled] = useState(false);
@@ -445,17 +442,7 @@ export function MarketingNav() {
 
             {/* Actions */}
             <div className="flex items-center gap-0.5">
-              <button
-                onClick={toggleTheme}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-1)]/60 hover:text-[var(--color-text)]"
-                aria-label="Toggle theme"
-              >
-                {resolvedTheme === "dark" ? (
-                  <Sun className="h-3.5 w-3.5" />
-                ) : (
-                  <Moon className="h-3.5 w-3.5" />
-                )}
-              </button>
+              <ThemeToggle />
 
               <Link
                 href="/login"
