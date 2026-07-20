@@ -186,6 +186,9 @@ export default function TransferManagerDocPage() {
             <Link key="c" href="/docs/sync-transfer" className="text-cyan-600 hover:underline dark:text-cyan-400">
               Sync &amp; device transfer — the peer-to-peer tool, not this panel
             </Link>,
+            <Link key="d" href="/features/transfers" className="text-cyan-600 hover:underline dark:text-cyan-400">
+              The transfer manager — the feature tour
+            </Link>,
           ]}
         />
       </DocSection>

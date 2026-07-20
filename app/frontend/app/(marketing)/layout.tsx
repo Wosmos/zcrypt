@@ -1,8 +1,8 @@
-import { MarketingNav } from "@/components/marketing/nav";
-import { MarketingFooter } from "@/components/marketing/footer";
 import { CircuitBackground } from "@/components/ui/circuit-background";
 import { GuestGuard } from "@/components/auth/guest-guard";
 import { DesktopRedirect } from "@/components/guards/desktop-redirect";
+import { DocsSearchProvider } from "@/components/docs/docs-search";
+import { SiteChrome } from "@/components/layout/site-chrome";
 
 export default function MarketingLayout({
   children,
@@ -12,10 +12,11 @@ export default function MarketingLayout({
   return (
     <DesktopRedirect>
       <GuestGuard>
-        <CircuitBackground />
-        <MarketingNav />
-        <main id="main-content">{children}</main>
-        <MarketingFooter />
+        {/* Cmd+K search palette works everywhere — docs and features alike. */}
+        <DocsSearchProvider>
+          <CircuitBackground />
+          <SiteChrome>{children}</SiteChrome>
+        </DocsSearchProvider>
       </GuestGuard>
     </DesktopRedirect>
   );

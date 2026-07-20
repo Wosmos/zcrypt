@@ -1,6 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
 
 vi.mock("@/lib/data", () => ({
+  // Feature pages are prepended to the index; an empty list keeps these
+  // assertions focused on the docsNav-derived entries at indices 0–3.
+  featuresNav: [],
   docsNav: [
     {
       title: "The Group & Stuff",

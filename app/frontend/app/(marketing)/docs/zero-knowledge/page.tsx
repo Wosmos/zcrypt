@@ -309,6 +309,9 @@ export default function ZeroKnowledgePage() {
             <Link key="c" href="/docs/threat-model" className="text-cyan-600 hover:underline dark:text-cyan-400">
               Threat model — the full list of what is and isn&apos;t covered
             </Link>,
+            <Link key="d" href="/features/encryption" className="text-cyan-600 hover:underline dark:text-cyan-400">
+              Zero-knowledge encryption — the feature tour
+            </Link>,
           ]}
         />
       </DocSection>

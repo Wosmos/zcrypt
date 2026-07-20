@@ -8,6 +8,7 @@ import {
   DocCode,
   DocNote,
 } from "@/components/docs/doc-page";
+import { desktopEngine } from "@/lib/data";
 
 export const metadata: Metadata = {
   title: "Architecture | zcrypt Docs",
@@ -107,8 +108,11 @@ export default function ArchitectureDocPage() {
           runs the reverse pipeline on download.
         </DocP>
         <DocP>
-          The same pipeline runs in the web app and the Go terminal app (TUI), so
-          a file uploaded from one decrypts cleanly in the other.
+          The same pipeline runs everywhere zcrypt runs: in the web app&rsquo;s
+          Web Worker pool, in <strong>{desktopEngine.name}</strong> &mdash; the
+          native {desktopEngine.language} engine behind the desktop and Android
+          apps &mdash; and in the Go terminal app (TUI). A file uploaded from any
+          one of them decrypts cleanly in the others.
         </DocP>
       </DocSection>
 
@@ -182,6 +186,18 @@ export default function ArchitectureDocPage() {
             </>,
           ]}
         />
+        <DocNote type="info" title="Desktop and Android skip the relay">
+          This staging-and-relay path is how the web app and the TUI move
+          chunks. The desktop and Android apps upload{" "}
+          <strong>directly</strong> to your connected platform using
+          credentials from your OS keychain &mdash; the backend only receives
+          metadata (file ID, chunk index, platform, ciphertext hash), never
+          the chunk bytes or your platform token. See{" "}
+          <Link href="/docs/desktop-app" className="text-cyan-600 hover:underline dark:text-cyan-400">
+            Desktop app
+          </Link>
+          .
+        </DocNote>
       </DocSection>
 
       <DocSection id="adapters" title="Platform adapters & repo pool">

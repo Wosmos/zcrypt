@@ -1,6 +1,8 @@
 import { DocsSidebar, DocsMobileNav } from "@/components/docs/docs-sidebar";
-import { DocsFooter } from "@/components/docs/docs-footer";
 
+// The Cmd+K search provider is mounted once in the marketing layout above,
+// so the palette works here and on every other marketing page. The site
+// footer also comes from the marketing layout — docs adds no second footer.
 export default function DocsLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-dvh">
@@ -12,11 +14,9 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
         {/* Mobile nav bar — sticks below main navbar, hidden on desktop */}
         <DocsMobileNav />
 
-        <main className="mx-auto w-full max-w-3xl flex-1 px-6 pb-16 pt-24 md:px-10 lg:pt-24">
+        <main className="mx-auto w-full max-w-4xl flex-1 px-6 pb-16 pt-10 md:px-10">
           {children}
         </main>
-
-        <DocsFooter />
       </div>
     </div>
   );

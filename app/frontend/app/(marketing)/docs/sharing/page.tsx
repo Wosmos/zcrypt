@@ -172,6 +172,9 @@ export default function SharingDocPage() {
             <Link key="c" href="/docs/sync-transfer" className="text-cyan-600 hover:underline dark:text-cyan-400">
               Sync &amp; device transfer — move data between your own devices
             </Link>,
+            <Link key="e" href="/features/sharing" className="text-cyan-600 hover:underline dark:text-cyan-400">
+              Encrypted sharing — the feature tour
+            </Link>,
           ]}
         />
       </DocSection>

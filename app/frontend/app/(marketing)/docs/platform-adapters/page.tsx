@@ -286,6 +286,9 @@ export default function PlatformAdaptersDocPage() {
             <Link key="c" href="/docs/obfuscation" className="text-cyan-600 hover:underline dark:text-cyan-400">
               Storage obfuscation — disguised filenames, commit messages, and repo names
             </Link>,
+            <Link key="d" href="/features/bring-your-own-storage" className="text-cyan-600 hover:underline dark:text-cyan-400">
+              Bring your own storage — the feature tour
+            </Link>,
           ]}
         />
       </DocSection>

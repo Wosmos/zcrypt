@@ -143,6 +143,9 @@ export default function FoldersDocPage() {
             <Link key="c" href="/docs/viewing-files" className="text-cyan-600 hover:underline dark:text-cyan-400">
               Viewing &amp; previewing files — open files without downloading
             </Link>,
+            <Link key="d" href="/features/folders" className="text-cyan-600 hover:underline dark:text-cyan-400">
+              Encrypted folders — the feature tour
+            </Link>,
           ]}
         />
       </DocSection>

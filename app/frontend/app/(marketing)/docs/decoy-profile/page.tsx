@@ -113,6 +113,9 @@ export default function DecoyProfileDocPage() {
             <Link key="b" href="/docs/authentication" className="text-cyan-600 hover:underline dark:text-cyan-400">
               Authentication &amp; 2FA — passwords, sessions, and two-factor
             </Link>,
+            <Link key="c" href="/features/privacy" className="text-cyan-600 hover:underline dark:text-cyan-400">
+              Privacy tools — the feature tour
+            </Link>,
           ]}
         />
       </DocSection>

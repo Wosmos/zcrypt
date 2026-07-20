@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { docsNav, type DocsNavLink } from "@/lib/data";
 import { BreadcrumbJsonLd, TechArticleJsonLd } from "@/components/seo/json-ld";
-import { ArrowLeft, ArrowRight, AlertTriangle, Info, Lock } from "@/lib/icons";
+import { DocToc, type TocItem } from "@/components/docs/doc-toc";
+import { ArrowLeft, ArrowRight, ChevronRight, AlertTriangle, Info, Lock } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
 const SITE = "https://zcrypt.cloud";
@@ -23,10 +24,7 @@ function neighbors(href: string) {
   };
 }
 
-export interface TocItem {
-  id: string;
-  title: string;
-}
+export type { TocItem };
 
 /**
  * Shared scaffold for every documentation page: breadcrumb + TechArticle
@@ -64,14 +62,36 @@ export function DocPage({
       />
       <TechArticleJsonLd headline={title} description={description} url={url} section={section} />
 
-      {/* Mobile back-to-docs */}
-      <Link
-        href="/docs"
-        className="mb-6 inline-flex items-center gap-1.5 text-sm text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)] lg:hidden"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" />
-        Documentation
-      </Link>
+      {/* Breadcrumb */}
+      <nav aria-label="Breadcrumb" className="mb-6">
+        <ol className="flex list-none flex-wrap items-center gap-1.5 text-[13px]">
+          <li>
+            <Link
+              href="/docs"
+              className="text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)]"
+            >
+              Docs
+            </Link>
+          </li>
+          {section && (
+            <>
+              <li aria-hidden>
+                <ChevronRight className="h-3 w-3 text-[var(--color-text-muted)]" />
+              </li>
+              <li className="text-[var(--color-text-muted)]">{section}</li>
+            </>
+          )}
+          <li aria-hidden>
+            <ChevronRight className="h-3 w-3 text-[var(--color-text-muted)]" />
+          </li>
+          <li
+            aria-current="page"
+            className="min-w-0 max-w-[18rem] truncate font-medium text-[var(--color-text-secondary)]"
+          >
+            {title}
+          </li>
+        </ol>
+      </nav>
 
       {/* Header */}
       <header>
@@ -98,26 +118,8 @@ export function DocPage({
         <p className="mt-3 text-lg leading-relaxed text-[var(--color-text-secondary)]">{description}</p>
       </header>
 
-      {/* On this page */}
-      {toc && toc.length > 0 && (
-        <nav aria-label="On this page" className="card mt-8 p-5">
-          <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
-            On this page
-          </h2>
-          <ul className="space-y-1.5">
-            {toc.map((item) => (
-              <li key={item.id}>
-                <a
-                  href={`#${item.id}`}
-                  className="text-sm text-[var(--color-text-secondary)] transition-colors hover:text-cyan-600 dark:hover:text-cyan-400"
-                >
-                  {item.title}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </nav>
-      )}
+      {/* On this page — client component with scroll-spy */}
+      {toc && toc.length > 0 && <DocToc toc={toc} />}
 
       {/* Body */}
       <div className="mt-10 space-y-12">{children}</div>
@@ -131,25 +133,37 @@ export function DocPage({
           {prev ? (
             <Link
               href={prev.link.href}
-              className="card group flex flex-col gap-1 p-4 transition-colors hover:border-cyan-500/40"
+              rel="prev"
+              className="card group flex items-center gap-3 p-4 transition-all hover:border-cyan-500/40 hover:shadow-md"
             >
-              <span className="inline-flex items-center gap-1.5 text-xs text-[var(--color-text-muted)]">
-                <ArrowLeft className="h-3 w-3" /> Previous
+              <ArrowLeft className="h-4 w-4 flex-shrink-0 text-[var(--color-text-muted)] transition-all group-hover:-translate-x-0.5 group-hover:text-cyan-500" />
+              <span className="min-w-0">
+                <span className="block text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+                  Previous
+                </span>
+                <span className="mt-0.5 block truncate text-sm font-semibold transition-colors group-hover:text-cyan-700 dark:group-hover:text-cyan-300">
+                  {prev.link.title}
+                </span>
               </span>
-              <span className="text-sm font-semibold">{prev.link.title}</span>
             </Link>
           ) : (
-            <span />
+            <span className="hidden sm:block" />
           )}
           {next && (
             <Link
               href={next.link.href}
-              className="card group flex flex-col items-end gap-1 p-4 text-right transition-colors hover:border-cyan-500/40"
+              rel="next"
+              className="card group flex items-center justify-end gap-3 p-4 text-right transition-all hover:border-cyan-500/40 hover:shadow-md"
             >
-              <span className="inline-flex items-center gap-1.5 text-xs text-[var(--color-text-muted)]">
-                Next <ArrowRight className="h-3 w-3" />
+              <span className="min-w-0">
+                <span className="block text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+                  Next
+                </span>
+                <span className="mt-0.5 block truncate text-sm font-semibold transition-colors group-hover:text-cyan-700 dark:group-hover:text-cyan-300">
+                  {next.link.title}
+                </span>
               </span>
-              <span className="text-sm font-semibold">{next.link.title}</span>
+              <ArrowRight className="h-4 w-4 flex-shrink-0 text-[var(--color-text-muted)] transition-all group-hover:translate-x-0.5 group-hover:text-cyan-500" />
             </Link>
           )}
         </nav>
