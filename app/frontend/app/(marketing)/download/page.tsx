@@ -10,7 +10,7 @@ import {
   Globe,
   ExternalLink,
 } from "@/lib/icons";
-import { tuiInstallMethods, GITHUB_REPO } from "@/lib/data";
+import { tuiInstallMethods, GITHUB_REPO, downloadPageContent } from "@/lib/data";
 import {
   SoftwareApplicationJsonLd,
   BreadcrumbJsonLd,
@@ -59,6 +59,7 @@ export const metadata: Metadata = {
 
 export default async function DownloadPage() {
   const release = await getLatestRelease();
+  const { hero, desktop, android, cli, web, openSource } = downloadPageContent;
 
   return (
     <>
@@ -75,7 +76,7 @@ export default async function DownloadPage() {
         badge={
           <div className="inline-flex items-center gap-2.5 rounded-full border border-cyan-500/20 bg-cyan-500/5 px-4 py-2 text-sm font-medium text-cyan-600 backdrop-blur-sm dark:text-cyan-400">
             <Download className="h-3.5 w-3.5" />
-            <span className="tracking-wide">Apps for every device</span>
+            <span className="tracking-wide">{hero.badge}</span>
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-cyan-500" />
           </div>
         }
@@ -87,9 +88,9 @@ export default async function DownloadPage() {
             </span>
           </h1>
         }
-        subtext="Native desktop apps, a single-binary terminal client, and a web app that needs no install. Same zero-knowledge vault, every platform."
+        subtext={hero.subtext}
         cta={<DownloadCta release={release} />}
-        trustItems={["Free & open source", "Zero-knowledge", "No telemetry", "macOS · Windows · Linux"]}
+        trustItems={[...hero.trustItems]}
       />
 
       {/* ═══ DESKTOP APPS ═══ */}
@@ -97,11 +98,10 @@ export default async function DownloadPage() {
         <div className="mx-auto max-w-5xl">
           <div className="mb-12 text-center">
             <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-              Desktop apps
+              {desktop.heading}
             </h2>
             <p className="mx-auto mt-2 max-w-lg text-sm text-[var(--color-text-secondary)]">
-              A native app built with Tauri — small, fast, and sandboxed. Your
-              files are encrypted on your device before they ever leave it.
+              {desktop.subheading}
             </p>
           </div>
 
@@ -128,14 +128,13 @@ export default async function DownloadPage() {
           <div className="mb-10 text-center">
             <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1 text-xs font-medium text-[var(--color-text-secondary)]">
               <Smartphone className="h-3.5 w-3.5 text-emerald-500" />
-              Android
+              {android.badge}
             </div>
             <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-              On your phone, sideloaded
+              {android.heading}
             </h2>
             <p className="mx-auto mt-2 max-w-lg text-sm text-[var(--color-text-secondary)]">
-              Not on the Play Store — grab the APK directly and install it
-              yourself. Takes about a minute.
+              {android.subheading}
             </p>
           </div>
 
@@ -149,14 +148,13 @@ export default async function DownloadPage() {
           <div className="mb-10 text-center">
             <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1 text-xs font-medium text-[var(--color-text-secondary)]">
               <Terminal className="h-3.5 w-3.5 text-cyan-500" />
-              Terminal app
+              {cli.badge}
             </div>
             <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-              Live in the terminal?
+              {cli.heading}
             </h2>
             <p className="mx-auto mt-2 max-w-lg text-sm text-[var(--color-text-secondary)]">
-              A single Go binary with zero dependencies — works great over SSH
-              and on headless servers. Pick a package manager:
+              {cli.subheading}
             </p>
           </div>
 
@@ -180,19 +178,17 @@ export default async function DownloadPage() {
                   <Globe className="h-5 w-5" />
                 </div>
                 <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
-                  Prefer no install?
+                  {web.heading}
                 </h2>
                 <p className="mt-2 text-sm leading-relaxed text-[var(--color-text-secondary)]">
-                  The full encrypted drive runs in any modern browser — folders,
-                  previews, sharing, and transfers. Everything is still encrypted
-                  on your device. Nothing to download.
+                  {web.body}
                 </p>
               </div>
               <Link
                 href="/register"
                 className="group inline-flex flex-shrink-0 items-center gap-2 rounded-xl bg-cyan-500 px-7 py-3.5 text-sm font-bold text-slate-900 shadow-lg shadow-cyan-500/20 transition-colors hover:bg-cyan-400"
               >
-                Open the web app
+                {web.cta}
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
               </Link>
             </div>
@@ -207,11 +203,10 @@ export default async function DownloadPage() {
             <ShieldCheck className="h-5 w-5" />
           </div>
           <h2 className="text-lg font-bold tracking-tight">
-            Every build is open source
+            {openSource.heading}
           </h2>
           <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-[var(--color-text-secondary)]">
-            Desktop, terminal, and web — all built in the open from the same
-            repository. Read the code, check the checksums, or build it yourself.
+            {openSource.body}
           </p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
             <a
@@ -221,13 +216,13 @@ export default async function DownloadPage() {
               className="inline-flex items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-5 py-2.5 text-sm font-medium text-[var(--color-text)] transition-colors hover:border-[var(--color-border-hover)]"
             >
               <Github className="h-4 w-4" />
-              Source on GitHub
+              {openSource.githubCta}
             </a>
             <Link
               href="/docs/self-hosting"
               className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text)]"
             >
-              Self-host zcrypt
+              {openSource.selfHostCta}
               <ExternalLink className="h-3.5 w-3.5" />
             </Link>
           </div>

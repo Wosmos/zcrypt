@@ -1,13 +1,5 @@
 import type { Metadata } from "next";
-import {
-  HardDrive,
-  Box,
-  RefreshCw,
-  Layers,
-  Infinity as InfinityIcon,
-  Lock,
-  Server,
-} from "@/lib/icons";
+import { Box, Lock, Server } from "@/lib/icons";
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { FeatureHero } from "@/components/marketing/features/feature-hero";
 import { RelatedLinks } from "@/components/marketing/features/related-links";
@@ -18,6 +10,7 @@ import { TieInSection } from "@/components/marketing/features/tie-in-section";
 import { IconList } from "@/components/marketing/features/icon-list";
 import { CodePanel } from "@/components/marketing/features/code-panel";
 import { STORAGE_PLATFORMS } from "@/components/marketing/landing/storage-platforms";
+import { bringYourOwnStorage } from "../_data/bring-your-own-storage";
 
 export const metadata: Metadata = {
   title: "Bring Your Own Storage — Your Data, Your Infrastructure",
@@ -44,58 +37,9 @@ export const metadata: Metadata = {
 
 const adapters = STORAGE_PLATFORMS;
 
-const capabilities = [
-  {
-    Icon: Layers,
-    title: "Split, encrypted, disguised",
-    desc: "Each file is encrypted on your device, then split into ~10 MB chunks stored as ordinary build-cache objects in a repo you own. Across your whole library, files spread over the accounts you've connected.",
-  },
-  {
-    Icon: RefreshCw,
-    title: "Automatic repo rotation",
-    desc: "When a repo nears its platform's ceiling, zcrypt rotates to a fresh one on its own. Your usable space grows without you lifting a finger.",
-  },
-  {
-    Icon: InfinityIcon,
-    title: "Space that grows",
-    desc: "Connect more accounts, get more room. There's no zcrypt-sold quota to bump against — your capacity is whatever you already have.",
-  },
-  {
-    Icon: Lock,
-    title: "Disguised on arrival",
-    desc: "Chunks are stored looking like ordinary build-cache files — unremarkable artifacts in a code repo, not obvious encrypted blobs.",
-  },
-  {
-    Icon: Server,
-    title: "Your infrastructure",
-    desc: "The bytes sit in accounts you control and can walk away with. zcrypt orchestrates; it doesn't hold your storage hostage.",
-  },
-  {
-    Icon: HardDrive,
-    title: "No lock-in",
-    desc: "Disconnect a platform or leave entirely — your accounts are yours. Open source, so the mechanics are never a black box.",
-  },
-];
-
-const related = [
-  {
-    href: "/features/encrypted-drive",
-    title: "The encrypted drive",
-    desc: "What sits on top of your storage — a real, sealed file explorer.",
-  },
-  {
-    href: "/docs/platform-adapters",
-    title: "Docs: Platform adapters",
-    desc: "Connect GitHub, GitLab, Hugging Face, and Telegram accounts.",
-  },
-  {
-    href: "/docs/repo-pool",
-    title: "Docs: Repo pool",
-    desc: "How chunks distribute and repos auto-rotate as they fill.",
-  },
-];
-
 export default function BringYourOwnStoragePage() {
+  const { hero, adaptersSection, capabilities, tieIn, related, cta } = bringYourOwnStorage;
+
   return (
     <>
       <BreadcrumbJsonLd
@@ -111,19 +55,12 @@ export default function BringYourOwnStoragePage() {
 
       {/* ═══ HERO ═══ */}
       <FeatureHero
-        eyebrow="Bring your own storage"
-        headlineTop="We don't sell you storage."
-        headlineGradient="You already have it."
-        subtext={
-          <>
-            Connect accounts you own — GitHub, GitLab, Hugging Face, Telegram — and your
-            encrypted files are stored as disguised chunks in repos you own. Repos
-            rotate automatically as they fill, so your space grows on its own. Your
-            data, your infrastructure, no lock-in.
-          </>
-        }
-        secondaryLabel="Read the docs"
-        secondaryHref="/docs/platform-adapters"
+        eyebrow={hero.eyebrow}
+        headlineTop={hero.headlineTop}
+        headlineGradient={hero.headlineGradient}
+        subtext={hero.subtext}
+        secondaryLabel={hero.secondaryLabel}
+        secondaryHref={hero.secondaryHref}
       >
         {/* Adapters mock */}
         <MockWindowFrame label="Connected storage" labelIcon={Server} badgeIcon={Lock} badgeLabel="Encrypted before upload">
@@ -165,11 +102,10 @@ export default function BringYourOwnStoragePage() {
         <div className="mx-auto max-w-5xl">
           <div className="mx-auto mb-12 max-w-2xl text-center">
             <h2 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
-              Connect what you already pay for
+              {adaptersSection.heading}
             </h2>
             <p className="mt-3 text-[var(--color-text-secondary)]">
-              Four platforms, each with its own generous limits. Mix and match — the
-              more you connect, the more room you have.
+              {adaptersSection.subheading}
             </p>
           </div>
           <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 list-none">
@@ -191,9 +127,7 @@ export default function BringYourOwnStoragePage() {
             ))}
           </ul>
           <p className="mx-auto mt-6 max-w-2xl text-center text-xs text-[var(--color-text-muted)]">
-            Capacities are approximate, per-repo or per-file platform limits and can
-            change at the providers&apos; discretion. zcrypt works within whatever each
-            platform currently allows.
+            {adaptersSection.footnote}
           </p>
         </div>
       </section>
@@ -203,31 +137,12 @@ export default function BringYourOwnStoragePage() {
 
       {/* ═══ OWNERSHIP TIE-IN ═══ */}
       <TieInSection
-        eyebrow="Your data, your infrastructure"
-        heading="Nothing to be locked into"
-        body={
-          <>
-            Most cloud storage rents you space on the provider&apos;s servers, on the
-            provider&apos;s terms. zcrypt flips that: it&apos;s an encryption and
-            orchestration layer over storage you already own. Everything is encrypted
-            on your device first, then chunks are disguised as ordinary build-cache
-            files in repos you own — your library spread across the accounts you
-            connect. Walk away whenever you like — the accounts, and the bytes in
-            them, were always yours.
-          </>
-        }
-        checklist={
-          <IconList
-            items={[
-              "Encrypted on your device before any upload",
-              "Chunks disguised as routine build-cache artifacts",
-              "Stored in repos across accounts you control",
-              "Disconnect or leave anytime — no captive data",
-            ]}
-          />
-        }
-        linkLabel="How the repo pool rotates"
-        linkHref="/docs/repo-pool"
+        eyebrow={tieIn.eyebrow}
+        heading={tieIn.heading}
+        body={tieIn.body}
+        checklist={<IconList items={tieIn.checklistItems} />}
+        linkLabel={tieIn.linkLabel}
+        linkHref={tieIn.linkHref}
         panel={
           <CodePanel
             comment="// how a file lands in your storage"
@@ -261,10 +176,7 @@ export default function BringYourOwnStoragePage() {
       <section className="px-4 py-20">
         <div className="mx-auto max-w-5xl">
           <RelatedLinks heading="Keep exploring" items={related} />
-          <CtaSection
-            heading="Storage you own, encryption you trust"
-            subtext="Free and open source. Connect an account you already have and start in under a minute."
-          />
+          <CtaSection heading={cta.heading} subtext={cta.subtext} />
         </div>
       </section>
     </>

@@ -1,27 +1,22 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import {
-  ArrowRight,
-  Globe,
-  Monitor,
-  Terminal,
-  ShieldCheck,
-  Server,
-  Check,
-} from "@/lib/icons";
+import { ArrowRight, Globe, Monitor, Smartphone, Terminal, ShieldCheck, Server, Check } from "@/lib/icons";
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { FeatureHero } from "@/components/marketing/features/feature-hero";
 import { RelatedLinks } from "@/components/marketing/features/related-links";
 import { CtaSection } from "@/components/marketing/features/cta-section";
+import { apps } from "../_data/apps";
 
 export const metadata: Metadata = {
-  title: "Web, Desktop & Terminal — One Encrypted Vault, Three Surfaces",
+  title: "Web, Desktop, Android & Terminal — One Encrypted Vault, Four Surfaces",
   description:
-    "The same zero-knowledge core wherever you work: a web app in any browser, a native desktop app for macOS, Windows and Linux, and a single-binary terminal app (TUI) that runs over SSH. Your encryption never changes — only the interface does.",
+    "The same zero-knowledge core wherever you work: a web app in any browser, a native desktop app for macOS, Windows and Linux, an Android app you sideload in a minute, and a single-binary terminal app (TUI) that runs over SSH. Your encryption never changes — only the interface does.",
   keywords: [
     "encrypted storage apps",
     "web app",
     "desktop app",
+    "Android app",
+    "sideload APK",
     "terminal app",
     "TUI",
     "CLI encrypted storage",
@@ -31,75 +26,17 @@ export const metadata: Metadata = {
   ],
   alternates: { canonical: "https://zcrypt.cloud/features/apps" },
   openGraph: {
-    title: "Web, Desktop & Terminal — One Encrypted Vault | zcrypt",
+    title: "Web, Desktop, Android & Terminal — One Encrypted Vault | zcrypt",
     description:
-      "One zero-knowledge core across three surfaces: web in any browser, a native desktop app, and a single-binary TUI that works over SSH.",
+      "One zero-knowledge core across four surfaces: web in any browser, a native desktop app, an Android sideload APK, and a single-binary TUI that works over SSH.",
     url: "https://zcrypt.cloud/features/apps",
     type: "website",
   },
 };
 
-const surfaces = [
-  {
-    Icon: Globe,
-    name: "Web app",
-    tagline: "Any browser, nothing to install",
-    desc: "The full vault in any modern browser. Encryption runs in the page itself, so your files are sealed before they leave the tab — no extension, no download.",
-    points: ["Works on any OS", "Drag-and-drop uploads", "In-browser previews", "Always the latest build"],
-    href: "/docs/web-app",
-    cta: "Web app docs",
-    external: false,
-  },
-  {
-    Icon: Monitor,
-    name: "Desktop app",
-    tagline: "Native on macOS, Windows & Linux",
-    desc: "A native desktop build for when zcrypt is part of your daily workflow. Sits in your dock or tray, handles large transfers comfortably, and feels at home on your machine.",
-    points: ["macOS, Windows, Linux", "Built for large files", "Lives in the background", "Same encrypted vault"],
-    href: "/docs/desktop-app",
-    cta: "Desktop app docs",
-    external: false,
-  },
-  {
-    Icon: Terminal,
-    name: "Terminal app (TUI)",
-    tagline: "One binary, works over SSH",
-    desc: "A single-binary terminal app written in Go. No runtime, no browser — just one small executable that runs anywhere you have a shell, including headless servers over SSH.",
-    points: ["Single binary", "Zero dependencies", "Runs over SSH", "Scriptable & fast"],
-    href: "/tui",
-    cta: "Explore the TUI",
-    external: false,
-  },
-];
-
-const comparison = [
-  {
-    surface: "Web app",
-    bestFor: "Quick access from any machine",
-    install: "Nothing — open a browser",
-    runsOn: "Any OS with a modern browser",
-  },
-  {
-    surface: "Desktop app",
-    bestFor: "Daily use and big transfers",
-    install: "Native installer",
-    runsOn: "macOS, Windows, Linux",
-  },
-  {
-    surface: "Terminal (TUI)",
-    bestFor: "Servers, SSH, and the keyboard",
-    install: "One binary",
-    runsOn: "Linux, macOS, Windows · amd64 & arm64",
-  },
-];
-
-const related = [
-  { href: "/features/encrypted-drive", title: "The encrypted drive", desc: "The file explorer at the heart of every surface." },
-  { href: "/docs/web-app", title: "Web app guide", desc: "Get going in the browser in under a minute." },
-  { href: "/docs/desktop-app", title: "Desktop app guide", desc: "Install the native build for your platform." },
-];
-
 export default function AppsPage() {
+  const { hero, sharedCoreNote, surfacesSection, surfaces, comparisonSection, comparison, related, cta } = apps;
+
   return (
     <>
       <BreadcrumbJsonLd
@@ -112,23 +49,16 @@ export default function AppsPage() {
 
       {/* ═══ HERO ═══ */}
       <FeatureHero
-        eyebrow="Web, desktop & terminal"
-        headlineTop="One vault."
-        headlineGradient="Three ways to reach it."
-        subtext={
-          <>
-            The same zero-knowledge core, wherever you work: a web app in any
-            browser, a native desktop app for macOS, Windows and Linux, and a
-            single-binary terminal app that runs over SSH. The encryption never
-            changes — only the interface does.
-          </>
-        }
-        secondaryLabel="See the terminal app"
-        secondaryHref="/tui"
+        eyebrow={hero.eyebrow}
+        headlineTop={hero.headlineTop}
+        headlineGradient={hero.headlineGradient}
+        subtext={hero.subtext}
+        secondaryLabel={hero.secondaryLabel}
+        secondaryHref={hero.secondaryHref}
       >
-        {/* Three-surface mock */}
+        {/* Four-surface mock */}
         <div className="mx-auto mt-16 max-w-4xl">
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             {/* browser */}
             <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] shadow-xl shadow-black/10 dark:shadow-black/30">
               <div className="flex items-center gap-2 border-b border-[var(--color-border)] bg-black/[0.02] px-3 py-2.5 dark:bg-white/[0.02]">
@@ -167,6 +97,25 @@ export default function AppsPage() {
               </div>
             </div>
 
+            {/* android phone */}
+            <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] shadow-xl shadow-black/10 dark:shadow-black/30">
+              <div className="flex items-center justify-between border-b border-[var(--color-border)] bg-black/[0.02] px-3 py-2.5 dark:bg-white/[0.02]">
+                <span className="font-mono text-[9px] text-[var(--color-text-muted)]">9:41</span>
+                <span className="flex items-center gap-1">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500/60" />
+                  <span className="h-2 w-2 rounded-full bg-emerald-500/40" />
+                  <span className="h-2 w-3 rounded-sm bg-emerald-500/60" />
+                </span>
+              </div>
+              <div className="flex flex-col items-center gap-2 p-6 text-center">
+                <Smartphone className="h-7 w-7 text-emerald-500" />
+                <div className="text-xs font-bold">Android</div>
+                <div className="font-mono text-[10px] text-[var(--color-text-muted)]">
+                  sideload APK
+                </div>
+              </div>
+            </div>
+
             {/* terminal */}
             <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[#09090b] shadow-xl shadow-black/30">
               <div className="flex items-center gap-2 border-b border-white/5 bg-white/[0.02] px-3 py-2.5">
@@ -197,12 +146,7 @@ export default function AppsPage() {
               <ShieldCheck className="h-5 w-5" />
             </div>
             <p className="text-sm leading-relaxed text-[var(--color-text-secondary)]">
-              <span className="font-semibold text-[var(--color-text)]">The same encryption everywhere.</span>{" "}
-              Web, desktop, and terminal all run the identical zero-knowledge
-              pipeline — compress, encrypt with AES-256-GCM, chunk, and upload —
-              entirely on your device. Pick a surface for the workflow, not for
-              the security. It&apos;s the same vault and the same guarantees on
-              all three.
+              {sharedCoreNote}
             </p>
           </div>
         </div>
@@ -213,14 +157,13 @@ export default function AppsPage() {
         <div className="mx-auto max-w-5xl">
           <div className="mx-auto mb-12 max-w-2xl text-center">
             <h2 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
-              Pick where you work
+              {surfacesSection.heading}
             </h2>
             <p className="mt-3 text-[var(--color-text-secondary)]">
-              Three front ends over one encrypted backend. Use whichever fits the
-              moment — or all three.
+              {surfacesSection.subheading}
             </p>
           </div>
-          <ul className="grid grid-cols-1 gap-4 lg:grid-cols-3 list-none">
+          <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 list-none">
             {surfaces.map((s) => (
               <li
                 key={s.name}
@@ -229,7 +172,14 @@ export default function AppsPage() {
                 <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-500">
                   <s.Icon className="h-5 w-5" />
                 </div>
-                <h3 className="text-base font-bold">{s.name}</h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-bold">{s.name}</h3>
+                  {s.badge && (
+                    <span className="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
+                      {s.badge}
+                    </span>
+                  )}
+                </div>
                 <p className="mt-0.5 text-xs font-medium text-cyan-600 dark:text-cyan-400">
                   {s.tagline}
                 </p>
@@ -262,11 +212,10 @@ export default function AppsPage() {
         <div className="mx-auto max-w-5xl">
           <div className="mx-auto mb-10 max-w-2xl text-center">
             <h2 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
-              Which one when?
+              {comparisonSection.heading}
             </h2>
             <p className="mt-3 text-[var(--color-text-secondary)]">
-              A quick way to choose. There&apos;s no wrong answer — they all open
-              the same vault.
+              {comparisonSection.subheading}
             </p>
           </div>
 
@@ -326,8 +275,7 @@ export default function AppsPage() {
 
           <p className="mt-8 flex items-center justify-center gap-2 text-center text-xs text-[var(--color-text-muted)]">
             <Server className="h-3.5 w-3.5 flex-shrink-0" />
-            One account, one encrypted vault — switch surfaces any time without
-            re-uploading a thing.
+            {comparisonSection.footnote}
           </p>
         </div>
       </section>
@@ -336,10 +284,7 @@ export default function AppsPage() {
       <section className="px-4 py-20">
         <div className="mx-auto max-w-5xl">
           <RelatedLinks heading="Keep exploring" items={related} />
-          <CtaSection
-            heading="The same vault, wherever you are"
-            subtext="Free and open source. Create an account once and reach it from the web, your desktop, or a terminal."
-          />
+          <CtaSection heading={cta.heading} subtext={cta.subtext} />
         </div>
       </section>
     </>

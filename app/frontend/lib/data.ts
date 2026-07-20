@@ -51,6 +51,7 @@ export const marqueeItems = [
   "Open source",
   "Trash & restore",
   "Pause & resume uploads",
+  "Native desktop & Android apps",
   "Terminal app available",
 ] as const;
 
@@ -219,7 +220,11 @@ export const faqs: FAQ[] = [
   },
   {
     q: "Can I access my files across multiple devices?",
-    a: "Yes. Log into zcrypt from any modern browser or the terminal app (TUI), enter your passphrase, and access your encrypted files. Everything is decrypted locally on your device.",
+    a: "Yes. Log into zcrypt from any modern browser, the native desktop app (macOS, Windows, Linux), the Android app (beta), or the terminal app (TUI), enter your passphrase, and access your encrypted files. Everything is decrypted locally on your device.",
+  },
+  {
+    q: "Is there a mobile app?",
+    a: "Android is available today as a beta — sideload the APK from the download page. It runs zcrypt-core, the same in-process Rust engine and encryption as the desktop app, and uploads straight to your own storage. iOS is in development.",
   },
   {
     q: "Is there a command-line or terminal app?",
@@ -229,6 +234,37 @@ export const faqs: FAQ[] = [
     q: "What happens if I forget my passphrase?",
     a: "Because zcrypt is strictly zero-knowledge, your passphrase is never stored on our servers. If you lose it, your encrypted files cannot be recovered by anyone. We strongly recommend using a password manager.",
   },
+];
+
+// ─── Platform / Architecture Facts ───────────────────────────
+// Single source of truth for facts that get restated across marketing and
+// docs pages (desktop engine, per-platform shipping status). Update here
+// when the underlying architecture changes and every page that imports it
+// stays in sync — see docs/DESKTOP_ARCHITECTURE.md for the full detail.
+
+export const desktopEngine = {
+  name: "zcrypt-core",
+  language: "Rust",
+  replaces: "a Go sidecar subprocess",
+  why: "A subprocess is impossible on iOS (Apple forbids child processes in app sandboxes); an in-process Rust engine runs identically on desktop, Android, and iOS.",
+  dataPlane:
+    "BYOS-direct: desktop and mobile upload straight to the user's own GitHub, GitLab, Hugging Face, or Telegram account using credentials from the OS keychain, so the backend never touches the platform token. The web app is the exception — browser sandboxing blocks direct platform access, so it relays ciphertext through the backend.",
+} as const;
+
+export type AppPlatformStatus = "shipping" | "beta" | "in-development";
+
+export interface AppPlatform {
+  name: string;
+  status: AppPlatformStatus;
+  desc: string;
+}
+
+export const appPlatforms: AppPlatform[] = [
+  { name: "Web", status: "shipping", desc: "Any modern browser." },
+  { name: "Desktop", status: "shipping", desc: "macOS, Windows, Linux — native build via Tauri + the zcrypt-core Rust engine." },
+  { name: "Terminal (TUI)", status: "shipping", desc: "Standalone Go binary, vim-style keys." },
+  { name: "Android", status: "beta", desc: "Sideload APK, same Tauri + zcrypt-core Rust engine as desktop." },
+  { name: "iOS", status: "in-development", desc: "Same zcrypt-core Rust engine as desktop and Android; App Store release pending." },
 ];
 
 // ─── Roadmap ──────────────────────────────────────────────────
@@ -242,9 +278,15 @@ export const roadmapItems: RoadmapItem[] = [
   },
   {
     icon: "Smartphone",
-    title: "Mobile App",
-    desc: "iOS and Android apps with offline access and camera backup. Your vault in your pocket.",
-    badge: "Q3 2026",
+    title: "Android App",
+    desc: "Sideload APK — same zero-knowledge Rust core as desktop. Offline access and camera backup are next.",
+    badge: "Beta",
+  },
+  {
+    icon: "Smartphone",
+    title: "iOS App",
+    desc: "Same Rust core as desktop and Android, running in-process (no sidecar) so it works inside Apple's app sandbox. App Store release pending.",
+    badge: "In development",
   },
   {
     icon: "Image",
@@ -253,6 +295,89 @@ export const roadmapItems: RoadmapItem[] = [
     badge: "Q3 2026",
   },
 ];
+
+// ─── Landing Page Section Copy ───────────────────────────────
+// Plain-string prose for the landing page sections, extracted so the copy
+// lives in one place. Headings that embed JSX (emphasis, animated underlines)
+// stay inline in the page — only their surrounding plain text is here.
+
+export const landingSections = {
+  showcase: {
+    eyebrow: "Experience",
+    subheading:
+      "Folders, instant previews, drag-and-drop — a real file explorer where every file is encrypted on your device.",
+  },
+  howItWorks: {
+    eyebrow: "How it works",
+    subheading:
+      "No new storage to buy, no servers to trust. Your files are encrypted before they leave your device and stored in an account you already own.",
+    underTheHood:
+      "Under the hood: files are compressed with zstd, encrypted with AES-256-GCM using a key derived from your passphrase, split into chunks, and uploaded to your connected platform — all client-side and zero-knowledge.",
+  },
+  explore: {
+    eyebrow: "Explore the drive",
+    heading: "Everything it does",
+    subheading:
+      "A real file manager with a zero-knowledge core. Dig into any part of it.",
+    cta: "See all features",
+  },
+  faq: {
+    heading: "Questions? Answers.",
+    subheading: "Everything you need to know before trusting us with your files.",
+  },
+  roadmap: {
+    heading: "We're just getting started.",
+    subheading: "Here's what we're building next.",
+  },
+  cta: {
+    eyebrow: "Get started today",
+    subtext:
+      "Connect your own account. Encrypted on your device. No artificial limits, no vendor lock-in.",
+    button: "Create your vault",
+  },
+} as const;
+
+// ─── Download Page Copy ──────────────────────────────────────
+// Plain-string prose for the /download page sections. Headlines that embed
+// JSX (the gradient span) and link-bearing footnotes stay inline in the page.
+
+export const downloadPageContent = {
+  hero: {
+    badge: "Apps for every device",
+    subtext:
+      "Native desktop apps, a single-binary terminal client, and a web app that needs no install. Same zero-knowledge vault, every platform.",
+    trustItems: ["Free & open source", "Zero-knowledge", "No telemetry", "macOS · Windows · Linux"],
+  },
+  desktop: {
+    heading: "Desktop apps",
+    subheading: `A native app built with Tauri, running ${desktopEngine.name} — the in-process ${desktopEngine.language} engine — so your files are encrypted on your device before they ever leave it.`,
+  },
+  android: {
+    badge: "Android",
+    heading: "On your phone, sideloaded",
+    subheading:
+      "Not on the Play Store — grab the APK directly and install it yourself. Takes about a minute.",
+  },
+  cli: {
+    badge: "Terminal app",
+    heading: "Live in the terminal?",
+    subheading:
+      "A single Go binary with zero dependencies — works great over SSH and on headless servers. Pick a package manager:",
+  },
+  web: {
+    heading: "Prefer no install?",
+    body:
+      "The full encrypted drive runs in any modern browser — folders, previews, sharing, and transfers. Everything is still encrypted on your device. Nothing to download.",
+    cta: "Open the web app",
+  },
+  openSource: {
+    heading: "Every build is open source",
+    body:
+      "Desktop, terminal, and web — all built in the open from the same repository. Read the code, check the checksums, or build it yourself.",
+    githubCta: "Source on GitHub",
+    selfHostCta: "Self-host zcrypt",
+  },
+} as const;
 
 // ─── Trust Bar ────────────────────────────────────────────────
 
@@ -570,10 +695,11 @@ export const docsNav: DocsNavGroup[] = [
   },
   {
     title: "Apps",
-    summary: "zcrypt on the web, desktop, and terminal.",
+    summary: "zcrypt on the web, desktop, terminal, and Android.",
     links: [
       { title: "Web app", href: "/docs/web-app", desc: "Use zcrypt in any modern browser." },
       { title: "Desktop app", href: "/docs/desktop-app", desc: "The native desktop build for macOS, Windows, and Linux." },
+      { title: "Android app", href: "/docs/android-app", desc: "Sideload the APK — same zero-knowledge core as desktop.", badge: "Beta" },
       { title: "Terminal app (TUI)", href: "/tui", desc: "Manage your vault from the command line.", external: true },
     ],
   },
@@ -584,6 +710,9 @@ export const docsNav: DocsNavGroup[] = [
       { title: "Self-hosting", href: "/docs/self-hosting", desc: "Run your own zcrypt instance with Docker." },
       { title: "API reference", href: "/docs/api", desc: "REST endpoints, authentication, and the SSE event stream." },
       { title: "Architecture", href: "/docs/architecture", desc: "How the pipeline, adapters, and services fit together." },
+      { title: "Tech stack & infrastructure", href: "/docs/tech-stack", desc: "The languages, frameworks, and hosting that run zcrypt." },
+      { title: "Contributing", href: "/docs/contributing", desc: "Build the project, pass the pre-push gate, and open a PR." },
+      { title: "License", href: "/docs/license", desc: "zcrypt is MIT-licensed — what that means for you." },
     ],
   },
   {
@@ -595,4 +724,28 @@ export const docsNav: DocsNavGroup[] = [
       { title: "Glossary", href: "/docs/glossary", desc: "Terms used across zcrypt, defined." },
     ],
   },
+];
+
+// ─── Features Index ──────────────────────────────────────────
+// Single source for the /features index cards AND the site search index
+// (lib/docs-search-index.ts) — icon is a string key, mapped in the
+// consuming component, same convention as bentoFeatures/features above.
+
+export interface FeaturesNavLink {
+  href: string;
+  icon: string;
+  title: string;
+  desc: string;
+}
+
+export const featuresNav: FeaturesNavLink[] = [
+  { href: "/features/encrypted-drive", icon: "HardDrive", title: "Encrypted drive", desc: "A real file explorer — folders, grid/list, search, sort — all encrypted on your device." },
+  { href: "/features/folders", icon: "FolderOpen", title: "Encrypted folders", desc: "Nestable folders with encrypted names, plus a separate password for any folder." },
+  { href: "/features/file-viewers", icon: "Eye", title: "File viewers", desc: "Preview images, video, audio, PDFs, documents, and code — decrypted locally." },
+  { href: "/features/sharing", icon: "Share2", title: "Sharing", desc: "Share links with an optional password, expiry, and limits. The key stays in the URL." },
+  { href: "/features/encryption", icon: "Lock", title: "Zero-knowledge encryption", desc: "AES-256-GCM on your device. The server only ever sees ciphertext." },
+  { href: "/features/bring-your-own-storage", icon: "RefreshCcw", title: "Bring your own storage", desc: "Use GitHub, GitLab, Hugging Face, or Telegram. Your data, no lock-in." },
+  { href: "/features/transfers", icon: "Send", title: "Transfer manager", desc: "Pause, resume, retry, and track every upload and download in one place." },
+  { href: "/features/privacy", icon: "Shield", title: "Privacy tools", desc: "Decoy profile and dead man's switch — with their real limits spelled out." },
+  { href: "/features/apps", icon: "Monitor", title: "Web, desktop, Android & terminal", desc: "The same zero-knowledge core across every surface — including a Rust-powered Android app and a single-binary TUI." },
 ];
