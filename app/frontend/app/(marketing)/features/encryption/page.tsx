@@ -1,15 +1,5 @@
 import type { Metadata } from "next";
-import {
-  Lock,
-  Key,
-  Shield,
-  ShieldCheck,
-  Cpu,
-  Server,
-  Folder,
-  Eye,
-  X,
-} from "@/lib/icons";
+import { Lock, Shield, Cpu, Server, Eye, X } from "@/lib/icons";
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { FeatureHero } from "@/components/marketing/features/feature-hero";
 import { CapabilityGrid } from "@/components/marketing/features/capability-grid";
@@ -18,6 +8,7 @@ import { CtaSection } from "@/components/marketing/features/cta-section";
 import { TieInSection } from "@/components/marketing/features/tie-in-section";
 import { IconList } from "@/components/marketing/features/icon-list";
 import { CodePanel } from "@/components/marketing/features/code-panel";
+import { encryption } from "../_data/encryption";
 
 export const metadata: Metadata = {
   title: "Zero-Knowledge Encryption — AES-256-GCM, Encrypted on Your Device",
@@ -43,69 +34,9 @@ export const metadata: Metadata = {
   },
 };
 
-const guarantees = [
-  {
-    Icon: Cpu,
-    title: "Encrypted on your device",
-    desc: "Compression and AES-256-GCM encryption happen in your browser, on your machine, before a single byte goes over the wire.",
-  },
-  {
-    Icon: Key,
-    title: "Your key never travels",
-    desc: "Your encryption key is derived from your passphrase with PBKDF2-SHA256 — 600,000 iterations — and stays on your device. It is never sent to us.",
-  },
-  {
-    Icon: Lock,
-    title: "A unique key per file",
-    desc: "Each file gets its own random content key, wrapped by your passphrase key. One file's key can never unlock another.",
-  },
-  {
-    Icon: Folder,
-    title: "Even folder names are sealed",
-    desc: "File names and folder names are encrypted client-side too. The server can't read your files, their names, or how you organized them.",
-  },
-  {
-    Icon: Server,
-    title: "The server only sees ciphertext",
-    desc: "On our side there are no keys and no plaintext — only opaque encrypted blobs we couldn't open even if compelled to.",
-  },
-  {
-    Icon: ShieldCheck,
-    title: "Tamper-evident by design",
-    desc: "AES-256-GCM authenticates every chunk. If ciphertext is altered in transit or at rest, decryption fails loudly instead of returning garbage.",
-  },
-];
-
-const pipeline = [
-  {
-    step: "01",
-    title: "Derive your key",
-    desc: "Your passphrase + a random salt run through PBKDF2-SHA256 (600,000 iterations) to derive a 256-bit key encryption key. This happens locally and the key never leaves your device.",
-  },
-  {
-    step: "02",
-    title: "Seal each file with its own key",
-    desc: "A fresh random content key is generated per file and used to encrypt it with AES-256-GCM. That content key is then wrapped (encrypted) with your passphrase-derived key.",
-  },
-  {
-    step: "03",
-    title: "Encrypt folder names, then chunk",
-    desc: "Folder names are encrypted client-side too. The encrypted file is then split into chunks, each individually authenticated.",
-  },
-  {
-    step: "04",
-    title: "Upload ciphertext only",
-    desc: "Only the wrapped key and the encrypted chunks ever leave your device. The server stores blobs it has no way to read.",
-  },
-];
-
-const related = [
-  { href: "/features/encrypted-drive", title: "The encrypted drive", desc: "Real folders, search, and previews on top of this encryption layer." },
-  { href: "/docs/zero-knowledge", title: "Zero-knowledge, explained", desc: "What the term means and how we hold ourselves to it." },
-  { href: "/docs/security", title: "Security model", desc: "The full picture: algorithms, key handling, and threat model." },
-];
-
 export default function EncryptionPage() {
+  const { hero, boundary, guarantees, pipelineSection, pipeline, tieIn, related, cta } = encryption;
+
   return (
     <>
       <BreadcrumbJsonLd
@@ -118,19 +49,12 @@ export default function EncryptionPage() {
 
       {/* ═══ HERO ═══ */}
       <FeatureHero
-        eyebrow="Zero-knowledge encryption"
-        headlineTop="We can't read your files."
-        headlineGradient="That's the whole point."
-        subtext={
-          <>
-            Your files are encrypted on your own device with AES-256-GCM before
-            they ever leave it. The key is derived from your passphrase and never
-            transmitted. We store ciphertext and nothing else — no keys, no
-            plaintext, not even your folder names.
-          </>
-        }
-        secondaryLabel="Read the docs"
-        secondaryHref="/docs/zero-knowledge"
+        eyebrow={hero.eyebrow}
+        headlineTop={hero.headlineTop}
+        headlineGradient={hero.headlineGradient}
+        subtext={hero.subtext}
+        secondaryLabel={hero.secondaryLabel}
+        secondaryHref={hero.secondaryHref}
       >
         {/* Encryption boundary diagram */}
         <div className="mx-auto mt-16 max-w-4xl">
@@ -142,19 +66,14 @@ export default function EncryptionPage() {
                   <Cpu className="h-4 w-4" />
                 </span>
                 <div>
-                  <div className="text-sm font-bold">Your device</div>
+                  <div className="text-sm font-bold">{boundary.device.title}</div>
                   <div className="font-mono text-[10px] uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
                     Trusted zone
                   </div>
                 </div>
               </div>
               <IconList
-                items={[
-                  "Passphrase entered here, stays here",
-                  "Key derived locally (PBKDF2)",
-                  "Files + names encrypted (AES-256-GCM)",
-                  "Plaintext never leaves",
-                ]}
+                items={boundary.device.items}
                 iconClassName="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-cyan-500"
                 itemClassName="flex items-start gap-2"
                 className="space-y-2 text-xs text-[var(--color-text-secondary)]"
@@ -177,19 +96,14 @@ export default function EncryptionPage() {
                   <Server className="h-4 w-4" />
                 </span>
                 <div>
-                  <div className="text-sm font-bold">Our servers</div>
+                  <div className="text-sm font-bold">{boundary.server.title}</div>
                   <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
                     Ciphertext only
                   </div>
                 </div>
               </div>
               <IconList
-                items={[
-                  "Encrypted blobs, that's it",
-                  "No passphrase, no derived key",
-                  "No plaintext file contents",
-                  "No readable file or folder names",
-                ]}
+                items={boundary.server.items}
                 icon={X}
                 iconClassName="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-rose-500/70"
                 itemClassName="flex items-start gap-2"
@@ -212,13 +126,13 @@ export default function EncryptionPage() {
         <div className="mx-auto max-w-5xl">
           <div className="mx-auto mb-12 max-w-2xl text-center">
             <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
-              Envelope encryption
+              {pipelineSection.eyebrow}
             </p>
             <h2 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
-              How a file gets sealed
+              {pipelineSection.heading}
             </h2>
             <p className="mt-3 text-[var(--color-text-secondary)]">
-              Every upload runs the same four steps, entirely on your device.
+              {pipelineSection.subheading}
             </p>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -262,37 +176,18 @@ export default function EncryptionPage() {
       <TieInSection
         surface={false}
         eyebrow="The honest trade-off"
-        heading={<>Lose your passphrase and even we can&apos;t recover it</>}
-        body={
-          <>
-            True zero-knowledge has a price, and we won&apos;t pretend
-            otherwise. Because your key is derived from your passphrase and
-            never reaches us, we have no &ldquo;reset password and get your
-            files back&rdquo; button. If you lose your passphrase, your data
-            stays encrypted forever — to you and to everyone else.
-          </>
-        }
-        checklist={
-          <p className="mt-4 leading-relaxed text-[var(--color-text-secondary)]">
-            That is exactly the property that makes the rest of these promises
-            real. A provider who can recover your files for you can also be
-            compelled to hand them over. We can&apos;t do either.
-          </p>
-        }
-        linkLabel="Read the security model"
-        linkHref="/docs/security"
+        heading={tieIn.heading}
+        body={tieIn.body}
+        checklist={tieIn.checklist}
+        linkLabel={tieIn.linkLabel}
+        linkHref={tieIn.linkHref}
         panel={
           <div className="card p-6">
             <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-500">
               <Shield className="h-5 w-5" />
             </div>
             <IconList
-              items={[
-                "Choose a strong passphrase you won't forget — it is the one key to everything.",
-                "Previews and downloads are decrypted in your browser, then discarded.",
-                "Sharing wraps a file's key for the recipient — without ever exposing your passphrase.",
-                "Password-protected folders add a second key, separate from your vault.",
-              ]}
+              items={tieIn.panelIntro}
               icon={Eye}
               iconClassName="mt-0.5 h-4 w-4 flex-shrink-0 text-cyan-500"
               iconStrokeWidth={1.5}
@@ -307,10 +202,7 @@ export default function EncryptionPage() {
       <section className="px-4 py-20">
         <div className="mx-auto max-w-5xl">
           <RelatedLinks heading="Keep exploring" items={related} />
-          <CtaSection
-            heading="Encryption you don't have to trust us about"
-            subtext="Free and open source. Bring a storage account you already own and encrypt your first file in under a minute."
-          />
+          <CtaSection heading={cta.heading} subtext={cta.subtext} />
         </div>
       </section>
     </>

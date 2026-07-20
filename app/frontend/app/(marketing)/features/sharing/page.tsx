@@ -1,14 +1,5 @@
 import type { Metadata } from "next";
-import {
-  Link2,
-  Lock,
-  Clock,
-  Download,
-  XCircle,
-  Eye,
-  FileText,
-  Zap,
-} from "@/lib/icons";
+import { Link2, Lock, Clock, Download, XCircle, Zap, FileText } from "@/lib/icons";
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { FeatureHero } from "@/components/marketing/features/feature-hero";
 import { CapabilityGrid } from "@/components/marketing/features/capability-grid";
@@ -18,6 +9,7 @@ import { MockWindowFrame } from "@/components/marketing/features/mock-window";
 import { TieInSection } from "@/components/marketing/features/tie-in-section";
 import { IconList } from "@/components/marketing/features/icon-list";
 import { CodePanel } from "@/components/marketing/features/code-panel";
+import { sharing } from "../_data/sharing";
 
 export const metadata: Metadata = {
   title: "Encrypted File Sharing — Keys That Stay in the Link",
@@ -42,58 +34,9 @@ export const metadata: Metadata = {
   },
 };
 
-const capabilities = [
-  {
-    Icon: Link2,
-    title: "The key rides in the fragment",
-    desc: "The decryption key lives in the part of the URL after the # — which browsers never send to a server. We literally can't receive it.",
-  },
-  {
-    Icon: Lock,
-    title: "Optional password",
-    desc: "Add a password on top of the link. Even someone holding the URL needs the secret you share separately to open it.",
-  },
-  {
-    Icon: Clock,
-    title: "Expiry dates",
-    desc: "Set a link to stop working after a date or duration. When it lapses, the door closes on its own — no cleanup required.",
-  },
-  {
-    Icon: Download,
-    title: "Download limits",
-    desc: "Cap how many times a link can be used. Once the count is spent, the link is dead even if someone still has it.",
-  },
-  {
-    Icon: XCircle,
-    title: "Revoke anytime",
-    desc: "Change your mind? Kill a link instantly from your vault. The ciphertext stays, but no one can open it again.",
-  },
-  {
-    Icon: Eye,
-    title: "No account for recipients",
-    desc: "Whoever you send it to just opens the link. The file is decrypted in their browser — never on our servers, never in the clear on the wire.",
-  },
-];
-
-const related = [
-  {
-    href: "/features/encrypted-drive",
-    title: "The encrypted drive",
-    desc: "Where shared files live — folders, search, and previews, sealed.",
-  },
-  {
-    href: "/docs/sharing",
-    title: "Docs: Sharing",
-    desc: "Set passwords, expiry, and limits, and learn how links decrypt.",
-  },
-  {
-    href: "/register",
-    title: "Send your first file",
-    desc: "Create a vault and share a link in under a minute.",
-  },
-];
-
 export default function SharingPage() {
+  const { hero, capabilitiesSection, capabilities, tieIn, moreWaysSection, moreWays, related, cta } = sharing;
+
   return (
     <>
       <BreadcrumbJsonLd
@@ -106,18 +49,12 @@ export default function SharingPage() {
 
       {/* ═══ HERO ═══ */}
       <FeatureHero
-        eyebrow="Encrypted sharing"
-        headlineTop="Share a file."
-        headlineGradient="Not the key to your vault."
-        subtext={
-          <>
-            Every share link carries its own decryption key inside the URL fragment —
-            the one piece of a link a browser never transmits. The recipient opens it,
-            their browser decrypts the file, and the server only ever held ciphertext.
-          </>
-        }
-        secondaryLabel="Read the docs"
-        secondaryHref="/docs/sharing"
+        eyebrow={hero.eyebrow}
+        headlineTop={hero.headlineTop}
+        headlineGradient={hero.headlineGradient}
+        subtext={hero.subtext}
+        secondaryLabel={hero.secondaryLabel}
+        secondaryHref={hero.secondaryHref}
       >
         {/* Share-link mock */}
         <MockWindowFrame
@@ -176,37 +113,20 @@ export default function SharingPage() {
 
       {/* ═══ CAPABILITIES ═══ */}
       <CapabilityGrid
-        heading="You decide who, how long, how many"
-        subheading="Sharing without surrendering control. Set the terms on every link, and pull it back the moment you want to."
+        heading={capabilitiesSection.heading}
+        subheading={capabilitiesSection.subheading}
         items={capabilities}
       />
 
       {/* ═══ WHY THE FRAGMENT MATTERS ═══ */}
       <TieInSection
         sectionClassName="border-y border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-20"
-        eyebrow="The secret in the #"
-        heading={<>Why we can&apos;t read your shares</>}
-        body={
-          <>
-            A URL fragment — everything after the <span className="font-mono">#</span> —
-            is processed only by the browser and is never included in the request sent
-            to a server. We put the decryption key there on purpose. The server hands
-            over encrypted bytes; the recipient&apos;s browser uses the key from the
-            fragment to decrypt them locally. The plaintext never exists on our side.
-          </>
-        }
-        checklist={
-          <IconList
-            items={[
-              "Decryption key lives only in the URL fragment",
-              "Fragments are never transmitted to the server",
-              "Recipients decrypt in-browser, with no account",
-              "Optional password adds a second, separate secret",
-            ]}
-          />
-        }
-        linkLabel="How sharing works"
-        linkHref="/docs/sharing"
+        eyebrow={tieIn.eyebrow}
+        heading={tieIn.heading}
+        body={tieIn.body}
+        checklist={<IconList items={tieIn.checklistItems} />}
+        linkLabel={tieIn.linkLabel}
+        linkHref={tieIn.linkHref}
         panel={
           <CodePanel
             comment="// what the server sees on open"
@@ -237,11 +157,10 @@ export default function SharingPage() {
         <div className="mx-auto max-w-5xl">
           <div className="mx-auto mb-12 max-w-2xl text-center">
             <h2 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
-              More ways to send
+              {moreWaysSection.heading}
             </h2>
             <p className="mt-3 text-[var(--color-text-secondary)]">
-              Sharing a vault file is one path. For the throwaway and the
-              one-time, there are two more.
+              {moreWaysSection.subheading}
             </p>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -249,22 +168,18 @@ export default function SharingPage() {
               <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-500">
                 <Zap className="h-5 w-5" />
               </div>
-              <h3 className="text-base font-bold">Anonymous Send</h3>
+              <h3 className="text-base font-bold">{moreWays[0].title}</h3>
               <p className="mt-1.5 text-sm leading-relaxed text-[var(--color-text-secondary)]">
-                Drop a file without an account and get a single link to pass along.
-                It&apos;s built to burn after reading — once it&apos;s been picked up,
-                it&apos;s gone. Good for the thing you want to hand off and forget.
+                {moreWays[0].desc}
               </p>
             </article>
             <article className="card p-6">
               <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-500">
                 <FileText className="h-5 w-5" />
               </div>
-              <h3 className="text-base font-bold">Encrypted Pad</h3>
+              <h3 className="text-base font-bold">{moreWays[1].title}</h3>
               <p className="mt-1.5 text-sm leading-relaxed text-[var(--color-text-secondary)]">
-                Write a one-time note, encrypt it, and share the link. The recipient
-                reads it once — then it&apos;s burned. For a password, an address, a
-                short message that shouldn&apos;t linger in anyone&apos;s inbox.
+                {moreWays[1].desc}
               </p>
             </article>
           </div>
@@ -275,10 +190,7 @@ export default function SharingPage() {
       <section className="px-4 pb-20">
         <div className="mx-auto max-w-5xl">
           <RelatedLinks heading="Keep exploring" items={related} />
-          <CtaSection
-            heading="Share like the server isn't watching"
-            subtext="Free and open source. Hand someone a file without handing it to us."
-          />
+          <CtaSection heading={cta.heading} subtext={cta.subtext} />
         </div>
       </section>
     </>

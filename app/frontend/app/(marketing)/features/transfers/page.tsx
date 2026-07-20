@@ -1,17 +1,5 @@
 import type { Metadata } from "next";
-import {
-  Upload,
-  Download,
-  Pause,
-  Play,
-  RefreshCw,
-  Archive,
-  Clock,
-  Smartphone,
-  Shield,
-  CheckCircle2,
-  ChevronDown,
-} from "@/lib/icons";
+import { Upload, Download, Pause, Play, Archive, Smartphone, Shield, CheckCircle2, ChevronDown } from "@/lib/icons";
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { FeatureHero } from "@/components/marketing/features/feature-hero";
 import { CapabilityGrid } from "@/components/marketing/features/capability-grid";
@@ -21,6 +9,7 @@ import { MockWindowFrame } from "@/components/marketing/features/mock-window";
 import { TieInSection } from "@/components/marketing/features/tie-in-section";
 import { IconList } from "@/components/marketing/features/icon-list";
 import { CodePanel } from "@/components/marketing/features/code-panel";
+import { transfers } from "../_data/transfers";
 
 export const metadata: Metadata = {
   title: "Transfer Manager — Pause, Resume & Track Every Upload",
@@ -45,39 +34,6 @@ export const metadata: Metadata = {
     type: "website",
   },
 };
-
-const capabilities = [
-  {
-    Icon: Clock,
-    title: "Live progress & ETA",
-    desc: "Watch every transfer move in real time — per-file percentage, current stage, and a running estimate of time remaining.",
-  },
-  {
-    Icon: Pause,
-    title: "Pause without losing work",
-    desc: "Pause an upload at a chunk boundary and walk away. The session stays intact, so nothing already encrypted is thrown out.",
-  },
-  {
-    Icon: Play,
-    title: "Resume where it left off",
-    desc: "Resuming reuses the same encryption key and skips chunks the server already has. No re-encrypting, no starting over.",
-  },
-  {
-    Icon: RefreshCw,
-    title: "Retry on failure",
-    desc: "A dropped connection doesn't mean a restart. Retry picks the transfer back up from the last confirmed chunk.",
-  },
-  {
-    Icon: Archive,
-    title: "Bulk ZIP downloads",
-    desc: "Select many files and download them as a single ZIP — each one decrypted in your browser and packed locally.",
-  },
-  {
-    Icon: Upload,
-    title: "Survives navigation",
-    desc: "The manager is docked once and persists as you move around the app. Browse, open files, and start more work while transfers run.",
-  },
-];
 
 const queue = [
   {
@@ -116,13 +72,9 @@ const stateStyles: Record<string, string> = {
   done: "bg-emerald-500",
 };
 
-const related = [
-  { href: "/features/encrypted-drive", title: "The encrypted drive", desc: "Where your transfers land — real folders, search, and previews." },
-  { href: "/docs/transfer-manager", title: "Transfer manager docs", desc: "Every control in the docked panel, explained." },
-  { href: "/docs/uploading", title: "Uploading guide", desc: "How files are compressed, encrypted, chunked, and sent." },
-];
-
 export default function TransfersPage() {
+  const { hero, capabilitiesSection, capabilities, tieIn, deviceToDevice, related, cta } = transfers;
+
   return (
     <>
       <BreadcrumbJsonLd
@@ -135,18 +87,12 @@ export default function TransfersPage() {
 
       {/* ═══ HERO ═══ */}
       <FeatureHero
-        eyebrow="The transfer manager"
-        headlineTop="Start it. Walk away."
-        headlineGradient="It picks up where it stopped."
-        subtext={
-          <>
-            One docked panel tracks every upload and download. Live progress and
-            ETA, pause and resume without re-encrypting, retry on failure, and
-            bulk ZIP downloads — and it keeps running as you move around the app.
-          </>
-        }
-        secondaryLabel="Read the docs"
-        secondaryHref="/docs/transfer-manager"
+        eyebrow={hero.eyebrow}
+        headlineTop={hero.headlineTop}
+        headlineGradient={hero.headlineGradient}
+        subtext={hero.subtext}
+        secondaryLabel={hero.secondaryLabel}
+        secondaryHref={hero.secondaryHref}
       >
         {/* Docked transfer panel mock */}
         <MockWindowFrame
@@ -201,38 +147,26 @@ export default function TransfersPage() {
 
       {/* ═══ CAPABILITIES ═══ */}
       <CapabilityGrid
-        heading="Built for big files and flaky networks"
-        subheading="Because everything is encrypted on your device first, transfers have to be resilient. So they are."
+        heading={capabilitiesSection.heading}
+        subheading={capabilitiesSection.subheading}
         items={capabilities}
       />
 
       {/* ═══ RESUME DEEP-DIVE ═══ */}
       <TieInSection
         sectionClassName="border-y border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-20"
-        eyebrow="Resume that actually resumes"
-        heading="No re-encrypting. No re-uploading."
-        body={
-          <>
-            When you pause or hit a network hiccup, the upload stops at a clean
-            chunk boundary and holds onto its session. Resuming reuses the very
-            same content key, so the chunks already on the server still line up
-            — it simply continues with the chunks that are missing.
-          </>
-        }
+        eyebrow={tieIn.eyebrow}
+        heading={tieIn.heading}
+        body={tieIn.body}
         checklist={
           <IconList
-            items={[
-              "Pauses at a chunk boundary, keeps the session alive",
-              "Resumes with the same key — already-encrypted chunks stay valid",
-              "Skips chunks the server already confirmed",
-              "Retry after a failure continues from the last confirmed chunk",
-            ]}
+            items={tieIn.checklistItems}
             itemClassName="flex items-start gap-2.5 text-sm text-[var(--color-text-secondary)]"
             iconClassName="mt-0.5 h-4 w-4 flex-shrink-0 text-cyan-500"
           />
         }
-        linkLabel="How uploading works"
-        linkHref="/docs/uploading"
+        linkLabel={tieIn.linkLabel}
+        linkHref={tieIn.linkHref}
         panel={
           <CodePanel
             comment="// resuming a paused 24-chunk upload"
@@ -258,24 +192,16 @@ export default function TransfersPage() {
                   <Smartphone className="h-5 w-5" />
                 </div>
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
-                  Also: device-to-device
+                  {deviceToDevice.eyebrow}
                 </p>
                 <h2 className="font-heading text-2xl font-bold tracking-tight sm:text-3xl">
-                  Send a file straight to another device
+                  {deviceToDevice.heading}
                 </h2>
                 <p className="mt-4 leading-relaxed text-[var(--color-text-secondary)]">
-                  Separate from the vault, zcrypt can stream a file directly from
-                  one device to another. The sender gets a six-digit code; whoever
-                  enters it on the other end starts receiving. The data is
-                  end-to-end encrypted — our server is a blind relay that passes
-                  along ciphertext it can&apos;t read.
+                  {deviceToDevice.body}
                 </p>
                 <IconList
-                  items={[
-                    "Pair with a 6-digit code",
-                    "End-to-end encrypted, the relay only sees ciphertext",
-                    "Nothing has to land in your vault first",
-                  ]}
+                  items={deviceToDevice.checklistItems}
                   icon={Shield}
                   iconStrokeWidth={1.5}
                 />
@@ -310,10 +236,7 @@ export default function TransfersPage() {
       <section className="px-4 py-20">
         <div className="mx-auto max-w-5xl">
           <RelatedLinks heading="Keep exploring" items={related} />
-          <CtaSection
-            heading="Move big files without babysitting them"
-            subtext="Free and open source. Bring a storage account you already own and start your first upload in under a minute."
-          />
+          <CtaSection heading={cta.heading} subtext={cta.subtext} />
         </div>
       </section>
     </>

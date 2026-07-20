@@ -16,6 +16,7 @@ import {
   faqs,
   roadmapItems,
   marqueeItems,
+  landingSections,
 } from "@/lib/data";
 
 // Client animation islands
@@ -158,14 +159,13 @@ export default function LandingPage() {
         <div className="mx-auto max-w-6xl">
           <ScrollReveal className="text-center mb-16">
             <p className="text-xs font-semibold text-cyan-600 dark:text-cyan-400 uppercase tracking-wider mb-3">
-              Experience
+              {landingSections.showcase.eyebrow}
             </p>
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
               Your whole drive, <em className="italic">end-to-end encrypted</em>
             </h2>
             <p className="text-[var(--color-text-secondary)] mt-3 max-w-lg mx-auto">
-              Folders, instant previews, drag-and-drop — a real file explorer
-              where every file is encrypted on your device.
+              {landingSections.showcase.subheading}
             </p>
           </ScrollReveal>
 
@@ -178,14 +178,13 @@ export default function LandingPage() {
         <div className="mx-auto max-w-5xl">
           <ScrollReveal className="text-center mb-16">
             <p className="text-xs font-semibold text-cyan-600 dark:text-cyan-400 uppercase tracking-wider mb-3">
-              How it works
+              {landingSections.howItWorks.eyebrow}
             </p>
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
               Three steps. <em className="italic"> <Underlined variant="ink" delay={0.5}>Nothing</Underlined>  </em> we can read.
             </h2>
             <p className="text-[var(--color-text-secondary)] mt-4 max-w-xl mx-auto leading-relaxed">
-              No new storage to buy, no servers to trust. Your files are encrypted
-              before they leave your device and stored in an account you already own.
+              {landingSections.howItWorks.subheading}
             </p>
           </ScrollReveal>
 
@@ -201,10 +200,7 @@ export default function LandingPage() {
           {/* Under the hood — for the curious */}
           <ScrollReveal delay={0.2} className="mt-10 text-center">
             <p className="text-xs text-[var(--color-text-muted)] max-w-2xl mx-auto leading-relaxed">
-              Under the hood: files are compressed with zstd, encrypted with
-              AES-256-GCM using a key derived from your passphrase, split into
-              chunks, and uploaded to your connected platform — all client-side
-              and zero-knowledge.
+              {landingSections.howItWorks.underTheHood}
             </p>
           </ScrollReveal>
         </div>
@@ -226,13 +222,13 @@ export default function LandingPage() {
         <div className="mx-auto max-w-5xl">
           <ScrollReveal className="text-center mb-12">
             <p className="text-xs font-semibold text-cyan-600 dark:text-cyan-400 uppercase tracking-wider mb-3">
-              Explore the drive
+              {landingSections.explore.eyebrow}
             </p>
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-              Everything it does
+              {landingSections.explore.heading}
             </h2>
             <p className="text-[var(--color-text-secondary)] mt-3 max-w-lg mx-auto">
-              A real file manager with a zero-knowledge core. Dig into any part of it.
+              {landingSections.explore.subheading}
             </p>
           </ScrollReveal>
 
@@ -259,7 +255,7 @@ export default function LandingPage() {
               href="/features"
               className="inline-flex items-center gap-1.5 text-sm font-semibold text-cyan-600 dark:text-cyan-400 hover:gap-2.5 transition-all"
             >
-              See all features
+              {landingSections.explore.cta}
               <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </div>
@@ -278,10 +274,10 @@ export default function LandingPage() {
               FAQ
             </div>
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-              Questions? Answers.
+              {landingSections.faq.heading}
             </h2>
             <p className="text-[var(--color-text-secondary)] mt-3 max-w-lg mx-auto">
-              Everything you need to know before trusting us with your files.
+              {landingSections.faq.subheading}
             </p>
           </ScrollReveal>
 
@@ -323,10 +319,10 @@ export default function LandingPage() {
               Roadmap
             </div>
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-              We&apos;re just getting started.
+              {landingSections.roadmap.heading}
             </h2>
             <p className="text-[var(--color-text-secondary)] mt-3 max-w-lg mx-auto">
-              Here&apos;s what we&apos;re building next.
+              {landingSections.roadmap.subheading}
             </p>
           </ScrollReveal>
 
@@ -404,7 +400,7 @@ export default function LandingPage() {
         <div className="relative mx-auto max-w-2xl text-center">
           <ScrollReveal>
             <p className="mb-4 text-xs font-semibold uppercase tracking-[0.16em] text-cyan-600 dark:text-cyan-400">
-              Get started today
+              {landingSections.cta.eyebrow}
             </p>
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight">
               The drive you{" "}
@@ -413,8 +409,7 @@ export default function LandingPage() {
               </Underlined>
             </h2>
             <p className="text-[var(--color-text-secondary)] mt-4 text-lg">
-              Connect your own account. Encrypted on your device. No artificial
-              limits, no vendor lock-in.
+              {landingSections.cta.subtext}
             </p>
           </ScrollReveal>
 
@@ -424,7 +419,7 @@ export default function LandingPage() {
                 href="/register"
                 className="inline-flex items-center justify-center gap-2 rounded-full px-8 py-3.5 text-base font-semibold text-slate-900 bg-gradient-to-br from-[#2de0ed] via-[#00d5e4] to-[#0093a3] shadow-lg shadow-cyan-500/30 transition-shadow hover:shadow-xl hover:shadow-cyan-500/50"
               >
-                Create your vault <ArrowRight className="h-4 w-4" />
+                {landingSections.cta.button} <ArrowRight className="h-4 w-4" />
               </Link>
               {/* <MagneticButton
                 href="/docs"

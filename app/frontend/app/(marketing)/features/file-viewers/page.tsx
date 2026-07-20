@@ -1,26 +1,11 @@
 import type { Metadata } from "next";
-import {
-  Eye,
-  Image as ImageIcon,
-  Video,
-  Music,
-  FileText,
-  Code,
-  Table,
-  Play,
-  Search,
-  Lock,
-  Shield,
-  Download,
-  Layers,
-  RefreshCcw,
-  Monitor,
-} from "@/lib/icons";
+import { Eye, Image as ImageIcon, Video, Music, FileText, Code, Lock, Shield } from "@/lib/icons";
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { FeatureHero } from "@/components/marketing/features/feature-hero";
 import { CapabilityGrid } from "@/components/marketing/features/capability-grid";
 import { RelatedLinks } from "@/components/marketing/features/related-links";
 import { CtaSection } from "@/components/marketing/features/cta-section";
+import { fileViewers } from "../_data/file-viewers";
 
 export const metadata: Metadata = {
   title: "In-Browser File Viewers — Preview Encrypted Files Without Downloading",
@@ -53,146 +38,9 @@ export const metadata: Metadata = {
   },
 };
 
-// The viewer line-up — one card per supported type. Mirrors the real dispatch in
-// components/viewers/viewer-kind.ts (image / video / audio / pdf / docx / html /
-// markdown / csv / text).
-const viewers = [
-  {
-    Icon: ImageIcon,
-    title: "Images",
-    desc: "Zoom, pan, and rotate JPG, PNG, GIF, WebP, SVG, and more. A cached low-res thumbnail shows instantly while the full image decrypts.",
-    accent: "from-cyan-500/15 to-cyan-500/5",
-    color: "text-cyan-500",
-  },
-  {
-    Icon: Video,
-    title: "Video & audio",
-    desc: "A custom player for MP4, MOV, WebM, MP3, FLAC, and more — with a playlist of the other media in the same folder.",
-    accent: "from-violet-500/15 to-violet-500/5",
-    color: "text-violet-500",
-  },
-  {
-    Icon: FileText,
-    title: "PDF",
-    desc: "Rendered page-by-page to a canvas with pdf.js — lazy per page, no browser plugin, no third-party PDF service.",
-    accent: "from-rose-500/15 to-rose-500/5",
-    color: "text-rose-500",
-  },
-  {
-    Icon: FileText,
-    title: "DOCX documents",
-    desc: "Word documents are rendered to clean HTML and sanitized before display, so you read the content without opening an editor.",
-    accent: "from-blue-500/15 to-blue-500/5",
-    color: "text-blue-500",
-  },
-  {
-    Icon: Code,
-    title: "HTML",
-    desc: "Sanitized and shown in a sandboxed frame with scripts disabled — preview a page safely without it phoning home.",
-    accent: "from-amber-500/15 to-amber-500/5",
-    color: "text-amber-500",
-  },
-  {
-    Icon: FileText,
-    title: "Markdown",
-    desc: "Rendered to formatted, sanitized HTML — headings, lists, links, and code blocks, the way you wrote them.",
-    accent: "from-emerald-500/15 to-emerald-500/5",
-    color: "text-emerald-500",
-  },
-  {
-    Icon: Table,
-    title: "CSV & TSV",
-    desc: "Comma- and tab-separated data laid out as a readable table instead of a wall of raw text.",
-    accent: "from-teal-500/15 to-teal-500/5",
-    color: "text-teal-500",
-  },
-  {
-    Icon: Code,
-    title: "Text & source code",
-    desc: "Around 40 languages — JS, TS, Python, Go, Rust, SQL, YAML, and more — with syntax highlighting and a line-wrap toggle.",
-    accent: "from-indigo-500/15 to-indigo-500/5",
-    color: "text-indigo-500",
-  },
-];
-
-// The decrypt-on-the-fly pipeline, matching the real client path
-// (lib/decrypt-cache.ts: fetch chunks → AES-256-GCM → zstd → SHA-256 verify).
-const pipeline = [
-  {
-    step: "01",
-    title: "Fetch the encrypted chunks",
-    desc: "The browser pulls the file's ciphertext chunks straight from your own storage backend. The server only ever handles sealed bytes.",
-  },
-  {
-    step: "02",
-    title: "Decrypt with AES-256-GCM",
-    desc: "Your passphrase-derived key decrypts each chunk locally. The key is never sent anywhere — there is nothing on the server to decrypt with.",
-  },
-  {
-    step: "03",
-    title: "Decompress & verify",
-    desc: "Chunks are zstd-decompressed and checked against a SHA-256 hash, so a corrupted or tampered file is caught before you ever see it.",
-  },
-  {
-    step: "04",
-    title: "Render from a local blob URL",
-    desc: "The plaintext becomes an in-memory blob URL that feeds the viewer — then it's revoked the moment you close or move to the next file.",
-  },
-];
-
-// Overlay capabilities — keep these honest to file-viewer.tsx behaviour.
-const overlayFeatures = [
-  {
-    Icon: Layers,
-    title: "Walk the whole folder",
-    desc: "Prev/next moves through every file in the folder, with a clear 3 / 18 counter — no closing and reopening.",
-  },
-  {
-    Icon: Monitor,
-    title: "Fullscreen, keyboard-first",
-    desc: "Esc to close, arrow keys to move, f for fullscreen. Focus stays trapped in the dialog and returns where it was on close.",
-  },
-  {
-    Icon: Play,
-    title: "Media playlist",
-    desc: "Open one track and the player lists the other audio and video in the folder, so a folder becomes a playlist.",
-  },
-  {
-    Icon: RefreshCcw,
-    title: "Honest errors & retry",
-    desc: "Wrong password, failed integrity check, or an unsupported type each get a clear message — with Retry and Download to fall back to.",
-  },
-  {
-    Icon: Search,
-    title: "Instant navigation",
-    desc: "A session blob cache and neighbour prefetch mean the next and previous files are usually decrypted before you ask for them.",
-  },
-  {
-    Icon: Download,
-    title: "Download when you want",
-    desc: "Previewing never forces a download. When you do want the file on disk, one click reuses the blob already decrypted.",
-  },
-];
-
-const related = [
-  {
-    href: "/features/encrypted-drive",
-    title: "The encrypted drive",
-    desc: "Real, nestable folders and a file explorer — every name encrypted on your device.",
-  },
-  {
-    href: "/docs/how-it-works",
-    title: "How it works",
-    desc: "The full client-side pipeline: compress, encrypt, chunk, and verify.",
-  },
-  {
-    href: "/docs/folders",
-    title: "Password-protected folders",
-    desc: "Give a folder its own password — previews unlock only after you enter it.",
-  },
-];
-
 export default function FileViewersPage() {
+  const { hero, viewersSection, viewers, zeroKnowledgeSection, pipeline, memoryNote, overlaySection, overlayFeatures, related, cta } = fileViewers;
+
   return (
     <>
       <BreadcrumbJsonLd
@@ -205,18 +53,12 @@ export default function FileViewersPage() {
 
       {/* ═══ HERO ═══ */}
       <FeatureHero
-        eyebrow="In-browser file viewers"
-        headlineTop="See your files."
-        headlineGradient="Don't hand them over."
-        subtext={
-          <>
-            Most encrypted storage makes you download a file and trust a server to
-            show it. zcrypt previews images, video, PDFs, documents, and code right
-            in your browser — decrypted on the fly, then gone.
-          </>
-        }
-        secondaryLabel="How decryption works"
-        secondaryHref="/docs/how-it-works"
+        eyebrow={hero.eyebrow}
+        headlineTop={hero.headlineTop}
+        headlineGradient={hero.headlineGradient}
+        subtext={hero.subtext}
+        secondaryLabel={hero.secondaryLabel}
+        secondaryHref={hero.secondaryHref}
       >
         {/* Viewer mock — a full-bleed preview overlay */}
         <div className="mx-auto mt-16 max-w-4xl">
@@ -290,8 +132,8 @@ export default function FileViewersPage() {
 
       {/* ═══ SUPPORTED VIEWERS ═══ */}
       <CapabilityGrid
-        heading="A viewer for almost everything"
-        subheading="Pick a file and it opens in a viewer built for its type — every one of them fed by plaintext that only ever exists in your browser."
+        heading={viewersSection.heading}
+        subheading={viewersSection.subheading}
         items={viewers}
         variant="accent"
       />
@@ -301,14 +143,13 @@ export default function FileViewersPage() {
         <div className="mx-auto max-w-5xl">
           <div className="mx-auto mb-12 max-w-2xl text-center">
             <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
-              Decrypted on your device, never on ours
+              {zeroKnowledgeSection.eyebrow}
             </p>
             <h2 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
-              Preview without trusting a server
+              {zeroKnowledgeSection.heading}
             </h2>
             <p className="mt-3 text-[var(--color-text-secondary)]">
-              Every preview runs through the same client-side pipeline as a full
-              download. The server hands over sealed bytes and nothing else.
+              {zeroKnowledgeSection.subheading}
             </p>
           </div>
           <ol className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -330,12 +171,7 @@ export default function FileViewersPage() {
               <Shield className="h-5 w-5" />
             </span>
             <p className="text-sm leading-relaxed text-[var(--color-text-secondary)]">
-              The decrypted blob lives only in memory and is{" "}
-              <span className="font-semibold text-[var(--color-text)]">
-                revoked the moment you close or navigate away
-              </span>
-              . It is never written to disk and never uploaded — so a preview leaves
-              nothing behind on your machine or our servers.
+              {memoryNote}
             </p>
           </div>
         </div>
@@ -343,8 +179,8 @@ export default function FileViewersPage() {
 
       {/* ═══ THE OVERLAY ═══ */}
       <CapabilityGrid
-        heading="One overlay, the whole folder"
-        subheading="The viewer is a full-screen overlay you drive from the keyboard — built to move through a folder, not just stare at one file."
+        heading={overlaySection.heading}
+        subheading={overlaySection.subheading}
         items={overlayFeatures}
       />
 
@@ -354,8 +190,8 @@ export default function FileViewersPage() {
           <RelatedLinks heading="Keep exploring" items={related} />
           <CtaSection
             icon={Eye}
-            heading="See your files without downloading"
-            subtext="Free and open source. Bring a storage account you already own and preview your first encrypted file in under a minute."
+            heading={cta.heading}
+            subtext={cta.subtext}
           />
         </div>
       </section>

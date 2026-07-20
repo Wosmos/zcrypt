@@ -13,11 +13,13 @@ import {
   Shield,
 } from "@/lib/icons";
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
+import { featuresNav } from "@/lib/data";
+import DocsSearch from "@/components/docs/docs-search";
 
 export const metadata: Metadata = {
   title: "Features — The Encrypted Cloud Drive",
   description:
-    "Everything zcrypt does: a real encrypted file explorer with folders, in-browser previews, per-folder passwords, sharing, bring-your-own-storage, a transfer manager, and apps for web, desktop, and terminal.",
+    "Everything zcrypt does: a real encrypted file explorer with folders, in-browser previews, per-folder passwords, sharing, bring-your-own-storage, a transfer manager, and apps for web, desktop, Android, and terminal.",
   keywords: [
     "encrypted drive features",
     "encrypted file manager",
@@ -35,17 +37,19 @@ export const metadata: Metadata = {
   },
 };
 
-const features = [
-  { href: "/features/encrypted-drive", Icon: HardDrive, title: "Encrypted drive", desc: "A real file explorer — folders, grid/list, search, sort — all encrypted on your device." },
-  { href: "/features/folders", Icon: FolderOpen, title: "Encrypted folders", desc: "Nestable folders with encrypted names, plus a separate password for any folder." },
-  { href: "/features/file-viewers", Icon: Eye, title: "File viewers", desc: "Preview images, video, audio, PDFs, documents, and code — decrypted locally." },
-  { href: "/features/sharing", Icon: Share2, title: "Sharing", desc: "Share links with an optional password, expiry, and limits. The key stays in the URL." },
-  { href: "/features/encryption", Icon: Lock, title: "Zero-knowledge encryption", desc: "AES-256-GCM on your device. The server only ever sees ciphertext." },
-  { href: "/features/bring-your-own-storage", Icon: RefreshCcw, title: "Bring your own storage", desc: "Use GitHub, GitLab, Hugging Face, or Telegram. Your data, no lock-in." },
-  { href: "/features/transfers", Icon: Send, title: "Transfer manager", desc: "Pause, resume, retry, and track every upload and download in one place." },
-  { href: "/features/privacy", Icon: Shield, title: "Privacy tools", desc: "Decoy profile and dead man's switch — with their real limits spelled out." },
-  { href: "/features/apps", Icon: Monitor, title: "Web, desktop & terminal", desc: "The same zero-knowledge core across every surface, including a single-binary TUI." },
-];
+// icon is a string key on featuresNav (lib/data.ts) — map it to the actual
+// component here, same convention used across the rest of lib/data.ts.
+const ICONS: Record<string, typeof HardDrive> = {
+  HardDrive,
+  FolderOpen,
+  Eye,
+  Share2,
+  Lock,
+  RefreshCcw,
+  Send,
+  Monitor,
+  Shield,
+};
 
 export default function FeaturesPage() {
   return (
@@ -69,30 +73,36 @@ export default function FeaturesPage() {
             A real encrypted file manager with a zero-knowledge core. Here&apos;s every
             part of it — dig into whichever matters to you.
           </p>
+          <div className="mx-auto mt-8">
+            <DocsSearch placeholder="Search features & docs..." />
+          </div>
         </div>
       </section>
 
       <section className="px-4 pb-24">
         <ul className="mx-auto grid max-w-5xl grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 list-none">
-          {features.map(({ href, Icon, title, desc }) => (
-            <li key={href}>
-              <Link
-                href={href}
-                className="card group block h-full p-6 transition-colors hover:border-cyan-500/40"
-              >
-                <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-500">
-                  <Icon className="h-5 w-5" />
-                </div>
-                <h2 className="flex items-center gap-2 text-sm font-bold">
-                  {title}
-                  <ArrowRight className="h-3 w-3 text-cyan-500 opacity-0 transition-opacity group-hover:opacity-100" />
-                </h2>
-                <p className="mt-1.5 text-sm leading-relaxed text-[var(--color-text-secondary)]">
-                  {desc}
-                </p>
-              </Link>
-            </li>
-          ))}
+          {featuresNav.map(({ href, icon, title, desc }) => {
+            const Icon = ICONS[icon];
+            return (
+              <li key={href}>
+                <Link
+                  href={href}
+                  className="card group block h-full p-6 transition-colors hover:border-cyan-500/40"
+                >
+                  <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-500">
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <h2 className="flex items-center gap-2 text-sm font-bold">
+                    {title}
+                    <ArrowRight className="h-3 w-3 text-cyan-500 opacity-0 transition-opacity group-hover:opacity-100" />
+                  </h2>
+                  <p className="mt-1.5 text-sm leading-relaxed text-[var(--color-text-secondary)]">
+                    {desc}
+                  </p>
+                </Link>
+              </li>
+            );
+          })}
         </ul>
 
         <div className="mx-auto mt-12 max-w-5xl rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-10 text-center">

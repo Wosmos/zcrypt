@@ -1,24 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import {
-  ArrowRight,
-  Eye,
-  Shield,
-  ShieldCheck,
-  Lock,
-  Clock,
-  Bell,
-  Mail,
-  Users,
-  Layers,
-  AlertTriangle,
-  Check,
-  X,
-} from "@/lib/icons";
+import { ArrowRight, Eye, Shield, Lock, Clock, Bell, Mail, AlertTriangle, Check, X } from "@/lib/icons";
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { FeatureHero } from "@/components/marketing/features/feature-hero";
 import { RelatedLinks } from "@/components/marketing/features/related-links";
 import { CtaSection } from "@/components/marketing/features/cta-section";
+import { privacy } from "../_data/privacy";
 
 export const metadata: Metadata = {
   title: "Privacy Tools — Decoy Profile & Dead Man's Switch",
@@ -52,64 +39,9 @@ export const metadata: Metadata = {
   },
 };
 
-// Decoy profile — how it behaves, kept honest to the implementation.
-const decoyPoints = [
-  "A second decoy password you set yourself, separate from your real one.",
-  "Logging in with it opens an innocent-looking vault with believable filler files.",
-  "Nothing in the decoy hints that a real vault exists behind a different password.",
-];
-
-// Dead man's switch — what it does, and an explicit list of what it does NOT do.
-const dmsDoes = [
-  "Emails a trusted contact you choose if you don't log in for a set window.",
-  "Timeout is configurable from 7 to 365 days — you decide the check-in cadence.",
-  "Every login automatically resets the countdown, so normal use keeps it quiet.",
-];
-const dmsDoesNot = [
-  "It does not hand over your files.",
-  "It does not release your passphrase or any keys.",
-  "It is a heads-up to a person — not an automated handover of access.",
-];
-
-// Beta tools — visibly labelled, with their real current limits spelled out.
-const betaTools = [
-  {
-    Icon: Layers,
-    title: "Snapshots & integrity",
-    desc: "Capture a point-in-time manifest of your vault and detect if a stored file has been altered or tampered with since.",
-    caveat:
-      "Snapshots are manifests for tamper detection — not a restore or version-history system. They don't roll your files back to an earlier state yet.",
-    href: "/docs/snapshots-integrity",
-  },
-  {
-    Icon: Users,
-    title: "Shared vaults",
-    desc: "Collaborate in a vault with other people using viewer, editor, and admin roles.",
-    caveat:
-      "The cryptographic key-sharing behind roles is still maturing. Treat shared vaults as experimental and don't rely on them for high-stakes secrets yet.",
-    href: "/docs/shared-vaults",
-  },
-];
-
-const related = [
-  {
-    href: "/features/encrypted-drive",
-    title: "The encrypted drive",
-    desc: "Real folders and a file explorer — every name encrypted on your device.",
-  },
-  {
-    href: "/docs/dead-mans-switch",
-    title: "Dead man's switch",
-    desc: "Set the contact, timeout, and message for your inactivity alert.",
-  },
-  {
-    href: "/docs/security",
-    title: "Security model",
-    desc: "How zero-knowledge encryption and our threat model fit together.",
-  },
-];
-
 export default function PrivacyToolsPage() {
+  const { hero, decoy, deadMansSwitch, betaSection, betaTools, zeroKnowledgeTieIn, related, cta } = privacy;
+
   return (
     <>
       <BreadcrumbJsonLd
@@ -122,25 +54,13 @@ export default function PrivacyToolsPage() {
 
       {/* ═══ HERO ═══ */}
       <FeatureHero
-        eyebrow="Privacy tools"
-        headlineTop="Privacy for the"
-        headlineGradient="moments that matter."
-        subtext={
-          <>
-            Encryption keeps your files unreadable. These tools go a step further —
-            for being pressured to unlock, for going quiet unexpectedly, and for the
-            edge cases real privacy has to plan for. Built on the same zero-knowledge
-            core, and honest about what each one actually does.
-          </>
-        }
-        secondaryLabel="Read the docs"
-        secondaryHref="/docs/decoy-profile"
-        trustLine={
-          <>
-            <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
-            Zero-knowledge by design — we never hold your keys or your plaintext.
-          </>
-        }
+        eyebrow={hero.eyebrow}
+        headlineTop={hero.headlineTop}
+        headlineGradient={hero.headlineGradient}
+        subtext={hero.subtext}
+        secondaryLabel={hero.secondaryLabel}
+        secondaryHref={hero.secondaryHref}
+        trustLine={hero.trustLine}
       />
 
       {/* ═══ DECOY PROFILE ═══ */}
@@ -148,20 +68,16 @@ export default function PrivacyToolsPage() {
         <div className="mx-auto grid max-w-5xl items-center gap-10 lg:grid-cols-2">
           <div>
             <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
-              Plausible deniability
+              {decoy.eyebrow}
             </p>
             <h2 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
-              A decoy profile for when you&apos;re forced to open up
+              {decoy.heading}
             </h2>
             <p className="mt-4 leading-relaxed text-[var(--color-text-secondary)]">
-              Set a second &ldquo;decoy&rdquo; password. When you log in with it,
-              zcrypt opens an innocent-looking vault full of harmless files — not your
-              real one. Under coercion, at a border crossing, or anywhere you can&apos;t
-              say no, you can unlock something real-looking without exposing what
-              actually matters.
+              {decoy.body}
             </p>
             <ul className="mt-6 space-y-2.5">
-              {decoyPoints.map((c) => (
+              {decoy.points.map((c) => (
                 <li
                   key={c}
                   className="flex items-start gap-2.5 text-sm text-[var(--color-text-secondary)]"
@@ -237,16 +153,13 @@ export default function PrivacyToolsPage() {
         <div className="mx-auto grid max-w-5xl items-start gap-10 lg:grid-cols-2">
           <div>
             <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
-              If you go quiet
+              {deadMansSwitch.eyebrow}
             </p>
             <h2 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
-              A dead man&apos;s switch that reaches a person
+              {deadMansSwitch.heading}
             </h2>
             <p className="mt-4 leading-relaxed text-[var(--color-text-secondary)]">
-              Choose a trusted contact and a check-in window. If you don&apos;t log in
-              for that long, zcrypt emails them a notification. It&apos;s a safety net
-              for journalists, activists, and anyone who needs someone alerted if they
-              suddenly can&apos;t check in.
+              {deadMansSwitch.body}
             </p>
 
             {/* Check-in timeline */}
@@ -280,7 +193,7 @@ export default function PrivacyToolsPage() {
                 <h3 className="text-sm font-bold">What it does</h3>
               </div>
               <ul className="space-y-2.5">
-                {dmsDoes.map((c) => (
+                {deadMansSwitch.does.map((c) => (
                   <li
                     key={c}
                     className="flex items-start gap-2.5 text-sm text-[var(--color-text-secondary)]"
@@ -300,7 +213,7 @@ export default function PrivacyToolsPage() {
                 <h3 className="text-sm font-bold">What it doesn&apos;t do</h3>
               </div>
               <ul className="space-y-2.5">
-                {dmsDoesNot.map((c) => (
+                {deadMansSwitch.doesNot.map((c) => (
                   <li
                     key={c}
                     className="flex items-start gap-2.5 text-sm text-[var(--color-text-secondary)]"
@@ -311,8 +224,7 @@ export default function PrivacyToolsPage() {
                 ))}
               </ul>
               <p className="mt-4 text-xs leading-relaxed text-[var(--color-text-muted)]">
-                Because zcrypt is zero-knowledge, there are no keys for us to hand over
-                — so the switch alerts a person rather than releasing your data.
+                {deadMansSwitch.doesNotFootnote}
               </p>
             </div>
           </div>
@@ -328,11 +240,10 @@ export default function PrivacyToolsPage() {
               In beta
             </span>
             <h2 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
-              Maturing, and honestly labelled
+              {betaSection.heading}
             </h2>
             <p className="mt-3 text-[var(--color-text-secondary)]">
-              These two are real and usable, but still evolving. We&apos;d rather tell
-              you exactly where they stand than oversell them.
+              {betaSection.subheading}
             </p>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -376,15 +287,10 @@ export default function PrivacyToolsPage() {
             <Shield className="h-6 w-6" />
           </div>
           <h2 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
-            It all sits on a zero-knowledge core
+            {zeroKnowledgeTieIn.heading}
           </h2>
           <p className="mx-auto mt-4 max-w-xl leading-relaxed text-[var(--color-text-secondary)]">
-            Every one of these tools is bounded by the same promise: your files are
-            encrypted on your device with AES-256-GCM before they leave, and we never
-            see your passphrase or your plaintext. The decoy hides a vault we
-            can&apos;t read either way; the dead man&apos;s switch notifies a person
-            because there are no keys for us to release. Privacy features that
-            can&apos;t betray you, because the architecture won&apos;t let them.
+            {zeroKnowledgeTieIn.body}
           </p>
           <Link
             href="/docs/how-it-works"
@@ -400,10 +306,7 @@ export default function PrivacyToolsPage() {
       <section className="px-4 py-20">
         <div className="mx-auto max-w-5xl">
           <RelatedLinks heading="Keep exploring" items={related} />
-          <CtaSection
-            heading="Privacy you can actually reason about"
-            subtext="Free and open source. Bring a storage account you already own, set a decoy password, and arm your safety net in minutes."
-          />
+          <CtaSection heading={cta.heading} subtext={cta.subtext} />
         </div>
       </section>
     </>
