@@ -251,22 +251,6 @@ export const desktopEngine = {
     "BYOS-direct: desktop and mobile upload straight to the user's own GitHub, GitLab, Hugging Face, or Telegram account using credentials from the OS keychain, so the backend never touches the platform token. The web app is the exception — browser sandboxing blocks direct platform access, so it relays ciphertext through the backend.",
 } as const;
 
-export type AppPlatformStatus = "shipping" | "beta" | "in-development";
-
-export interface AppPlatform {
-  name: string;
-  status: AppPlatformStatus;
-  desc: string;
-}
-
-export const appPlatforms: AppPlatform[] = [
-  { name: "Web", status: "shipping", desc: "Any modern browser." },
-  { name: "Desktop", status: "shipping", desc: "macOS, Windows, Linux — native build via Tauri + the zcrypt-core Rust engine." },
-  { name: "Terminal (TUI)", status: "shipping", desc: "Standalone Go binary, vim-style keys." },
-  { name: "Android", status: "beta", desc: "Sideload APK, same Tauri + zcrypt-core Rust engine as desktop." },
-  { name: "iOS", status: "in-development", desc: "Same zcrypt-core Rust engine as desktop and Android; App Store release pending." },
-];
-
 // ─── Roadmap ──────────────────────────────────────────────────
 
 export const roadmapItems: RoadmapItem[] = [

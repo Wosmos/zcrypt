@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { WOSMO } from "@/components/marketing/wosmo";
 
-export interface AboutProject {
+interface AboutProject {
   name: string;
   blurb: string;
   stack: string;
