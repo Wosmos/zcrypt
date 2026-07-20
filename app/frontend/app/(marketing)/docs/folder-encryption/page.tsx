@@ -179,6 +179,9 @@ AES-256-GCM-open(KEK_pw', pw_verifier) == "zcrypt-folder-verify-v1" ?`}</DocCode
             <Link key="c" href="/docs/zero-knowledge" className="text-cyan-600 hover:underline dark:text-cyan-400">
               Zero-knowledge architecture — what the server can and cannot see
             </Link>,
+            <Link key="d" href="/features/folders" className="text-cyan-600 hover:underline dark:text-cyan-400">
+              Encrypted folders — the feature tour
+            </Link>,
           ]}
         />
       </DocSection>

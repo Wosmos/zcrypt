@@ -151,6 +151,9 @@ export default function WebAppDocPage() {
             <Link key="c" href="/docs/key-management" className="text-cyan-600 hover:underline dark:text-cyan-400">
               Key management — what the passphrase unlocks and why
             </Link>,
+            <Link key="d" href="/features/apps" className="text-cyan-600 hover:underline dark:text-cyan-400">
+              zcrypt everywhere — the same vault across web, desktop, and terminal
+            </Link>,
           ]}
         />
       </DocSection>

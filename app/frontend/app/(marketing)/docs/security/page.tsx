@@ -315,6 +315,9 @@ wrappedCEK = AES-256-GCM(key = KEK, plaintext = CEK)`}</DocCode>
             <Link key="c" href="/docs/threat-model" className="text-cyan-600 hover:underline dark:text-cyan-400">
               Threat model — what zcrypt defends against, and what it does not
             </Link>,
+            <Link key="d" href="/features/encryption" className="text-cyan-600 hover:underline dark:text-cyan-400">
+              Zero-knowledge encryption — the feature tour
+            </Link>,
           ]}
         />
       </DocSection>

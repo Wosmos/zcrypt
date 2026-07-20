@@ -273,6 +273,9 @@ export default function UploadingDocPage() {
             <Link key="c" href="/docs/repo-pool" className="text-cyan-600 hover:underline dark:text-cyan-400">
               Repo pool &amp; rotation — where the chunks actually land
             </Link>,
+            <Link key="d" href="/features/transfers" className="text-cyan-600 hover:underline dark:text-cyan-400">
+              The transfer manager — the feature tour
+            </Link>,
           ]}
         />
       </DocSection>

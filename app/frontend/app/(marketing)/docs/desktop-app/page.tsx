@@ -7,6 +7,7 @@ import {
   DocList,
   DocNote,
 } from "@/components/docs/doc-page";
+import { desktopEngine } from "@/lib/data";
 
 export const metadata: Metadata = {
   title: "Desktop app | zcrypt Docs",
@@ -41,10 +42,19 @@ export default function DesktopAppDocPage() {
         <DocP>
           The zcrypt desktop app is a native build for{" "}
           <strong>macOS, Windows, and Linux</strong>, packaged with{" "}
-          <strong>Tauri</strong>. Tauri wraps the same zcrypt interface in a
+          <strong>Tauri</strong>. Tauri renders the same zcrypt interface in a
           lightweight native shell using your operating system&apos;s own webview,
           so you get a proper application window and OS integration without a
           heavy bundled browser.
+        </DocP>
+        <DocP>
+          Underneath that shell, encryption, compression, chunking, and
+          storage sync run in <strong>{desktopEngine.name}</strong>, an
+          in-process {desktopEngine.language} engine — not a browser sandbox
+          and not a background subprocess. It replaces what used to be{" "}
+          {desktopEngine.replaces}: {desktopEngine.why} The same engine backs
+          the Android app, so a file encrypted on desktop opens cleanly there
+          too.
         </DocP>
       </DocSection>
 
@@ -85,6 +95,9 @@ export default function DesktopAppDocPage() {
           vault passphrase is still never sent to the server, and the session
           vault lock behaves just as it does on the web. Anything you learn about
           how zcrypt protects your data applies here unchanged.
+        </DocP>
+        <DocP>
+          One thing does differ: {desktopEngine.dataPlane}
         </DocP>
         <DocNote type="security">
           Because the cryptography is identical to the web app, the recovery
@@ -138,8 +151,14 @@ export default function DesktopAppDocPage() {
             <Link key="b" href="/tui" className="text-cyan-600 hover:underline dark:text-cyan-400">
               Terminal app (TUI) — manage your vault from the command line
             </Link>,
+            <Link key="d" href="/download#android" className="text-cyan-600 hover:underline dark:text-cyan-400">
+              Android app — the same engine, sideloaded on your phone
+            </Link>,
             <Link key="c" href="/docs/oauth" className="text-cyan-600 hover:underline dark:text-cyan-400">
               Sign in with Google or GitHub — including the desktop sign-in flow
+            </Link>,
+            <Link key="e" href="/features/apps" className="text-cyan-600 hover:underline dark:text-cyan-400">
+              zcrypt everywhere — the same vault across web, desktop, and terminal
             </Link>,
           ]}
         />

@@ -108,6 +108,9 @@ export default function DeadMansSwitchDocPage() {
             <Link key="b" href="/docs/recovery" className="text-cyan-600 hover:underline dark:text-cyan-400">
               Account recovery — what is and isn&rsquo;t recoverable, and why
             </Link>,
+            <Link key="c" href="/features/privacy" className="text-cyan-600 hover:underline dark:text-cyan-400">
+              Privacy tools — the feature tour
+            </Link>,
           ]}
         />
       </DocSection>
