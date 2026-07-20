@@ -358,6 +358,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Vercel's build detects bun.lock and installs deps with bun, so bun
+      # must be on the runner or `vercel build` fails with `spawn bun ENOENT`.
+      - uses: oven-sh/setup-bun@v2
+
       - name: Install Vercel CLI
         run: npm install -g vercel
 
