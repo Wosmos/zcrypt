@@ -90,6 +90,42 @@ func (s *Server) HandleRegisterRepo(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// HandleDeactivateRepo marks a client-owned repo inactive so the client pool
+// stops writing to it and rotates to a fresh one — the control-plane half of
+// client-side repo rotation (the client creates the replacement via
+// /api/repos/register). Scoped to the caller: deactivating a repo you don't own
+// returns 404, never touches another user's row.
+// POST /api/repos/{id}/deactivate
+func (s *Server) HandleDeactivateRepo(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID := GetUserID(r)
+	repoID := r.PathValue("id")
+	if repoID == "" {
+		http.Error(w, `{"error":"repo id is required"}`, http.StatusBadRequest)
+		return
+	}
+
+	ok, err := s.db.DeactivateClientRepo(ctx, userID, repoID)
+	if err != nil {
+		log.Printf("repos/deactivate: %v", err)
+		http.Error(w, `{"error":"failed to deactivate repo"}`, http.StatusInternalServerError)
+		return
+	}
+	if !ok {
+		http.Error(w, `{"error":"repo not found"}`, http.StatusNotFound)
+		return
+	}
+
+	s.audit(r, &userID, "repo_deactivate", map[string]interface{}{
+		"repo_id": repoID,
+	})
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"repo_id":     repoID,
+		"deactivated": true,
+	})
+}
+
 // HandleGetFileLocators returns the per-chunk platform locations for a file so a
 // byos-direct client can download each chunk directly from the user's own
 // storage. OWNER-ONLY: never exposed through a share or space membership — the

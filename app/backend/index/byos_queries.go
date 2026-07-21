@@ -65,6 +65,21 @@ func (db *DB) GetRepoByID(ctx context.Context, userID, repoID string) (*types.Re
 	return r, nil
 }
 
+// DeactivateClientRepo marks a client-owned repo inactive (full), scoped to the
+// caller so one user can never deactivate another's repo. Reports whether a row
+// actually matched — false means the id is unknown or not owned, which the
+// handler surfaces as 404 rather than a silent success.
+func (db *DB) DeactivateClientRepo(ctx context.Context, userID, repoID string) (bool, error) {
+	tag, err := db.pool.Exec(ctx,
+		`UPDATE repos SET active = FALSE WHERE id = $1 AND user_id = $2`,
+		repoID, userID,
+	)
+	if err != nil {
+		return false, fmt.Errorf("deactivate client repo: %w", err)
+	}
+	return tag.RowsAffected() > 0, nil
+}
+
 // BumpRepoUsage adds delta bytes to a repo's used_bytes (byos-direct confirm:
 // the server never sees the bytes, so usage is credited from the confirmed
 // chunk size). Unlike UpdateRepoUsage this is a relative increment, safe under
