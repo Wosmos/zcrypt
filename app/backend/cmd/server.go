@@ -636,6 +636,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("PUT /api/platforms/tokens/{id}/scope", maxJSON(s.AuthMiddleware(s.HandleToggleTokenScope)))
 	mux.HandleFunc("GET /api/repos", s.AuthMiddleware(s.HandleListRepos))
 	mux.HandleFunc("POST /api/repos/register", maxJSON(s.AuthMiddleware(s.HandleRegisterRepo)))
+	mux.HandleFunc("POST /api/repos/{id}/deactivate", s.AuthMiddleware(s.HandleDeactivateRepo))
 	mux.HandleFunc("GET /api/config", s.AuthMiddleware(s.HandleGetConfig))
 	mux.HandleFunc("PUT /api/config", maxJSON(s.AdminMiddleware(s.HandleUpdateConfig)))
 	mux.HandleFunc("GET /api/events", s.HandleSSE) // SSE auth via query param
