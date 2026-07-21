@@ -3,7 +3,7 @@
 I reproduced the shimmer live this time by clearing the decrypted thumbnail cache while tracking Network, Console, and DevTools. Here's the complete picture.
 
 ## What I did
-I logged in via Google (m.wasifmalik17@gmail.com), unlocked the vault with passphrase `123`, then — exactly as you suggested — cleared the cached files (IndexedDB `zcrypt_thumbs`, which held 3 decrypted thumbnails) and reloaded. **The shimmer appeared immediately and reproducibly.** Screenshots and a GIF were captured (the GIF only got 2 frames because the Google OAuth redirect wipes the recorder's frame buffer on cross-domain navigation — the screenshots are the reliable visual record).
+I logged in via Google (test account), unlocked the vault with the test passphrase, then — exactly as you suggested — cleared the cached files (IndexedDB `zcrypt_thumbs`, which held 3 decrypted thumbnails) and reloaded. **The shimmer appeared immediately and reproducibly.** Screenshots and a GIF were captured (the GIF only got 2 frames because the Google OAuth redirect wipes the recorder's frame buffer on cross-domain navigation — the screenshots are the reliable visual record).
 
 ## Root cause — confirmed, not guessed this time
 The shimmer is a **thumbnail decryption/loading state**, and here's the exact mechanism I observed in the network trace right after clearing the cache and reloading:
