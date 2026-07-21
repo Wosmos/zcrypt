@@ -1518,8 +1518,9 @@ describe("useUploadStore", () => {
       await useUploadStore.getState().startDesktopUpload("pw", onRefresh);
 
       // Streaming upload resolves only when the bytes are confirmed remote.
-      expect(sidecarUpload).toHaveBeenCalledWith("/tmp/a.bin", "pw", undefined);
-      expect(sidecarUpload).toHaveBeenCalledWith("/tmp/b.bin", "pw", undefined);
+      // The 4th arg is the queue id passed as the cancellable transfer id.
+      expect(sidecarUpload).toHaveBeenCalledWith("/tmp/a.bin", "pw", undefined, expect.any(String));
+      expect(sidecarUpload).toHaveBeenCalledWith("/tmp/b.bin", "pw", undefined, expect.any(String));
       expect(useUploadStore.getState().queue.every((i) => i.status === "done")).toBe(true);
       // Items are flagged desktop so pause is hidden and retry stays on the core.
       expect(useUploadStore.getState().queue.every((i) => i.desktop === true)).toBe(true);
@@ -1561,7 +1562,7 @@ describe("useUploadStore", () => {
       });
       // Retry re-drives the streaming core with the desktop path — the item's
       // 0-byte placeholder File never reached the web pipeline's init.
-      expect(sidecarUpload).toHaveBeenLastCalledWith("/tmp/a.bin", "pw", undefined);
+      expect(sidecarUpload).toHaveBeenLastCalledWith("/tmp/a.bin", "pw", undefined, expect.any(String));
     });
 
     it("pauseUpload is a no-op for desktop items (the core has no pause)", async () => {

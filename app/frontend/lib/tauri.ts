@@ -65,18 +65,37 @@ export async function pickSaveLocation(
   return save({ defaultPath: defaultName });
 }
 
-/** Upload a file via the in-process core (desktop only, legacy remote path). */
+/**
+ * Upload a file via the in-process core (desktop only, legacy remote path).
+ * `transferId` (optional) registers the transfer with the shell so
+ * `cancelTransfer(transferId)` can abort it mid-flight; omit it for a
+ * non-cancellable upload.
+ */
 export async function sidecarUpload(
   filePath: string,
   passphrase: string,
   platform?: string,
+  transferId?: string,
   _onProgress?: (progress: SidecarProgress) => void
 ): Promise<void> {
   return tauriInvoke("upload_file", {
     filePath,
     passphrase,
     platform,
+    transferId,
   });
+}
+
+/**
+ * Ask the shell to cancel an in-flight transfer previously started with the
+ * given `transferId`. Best-effort: resolves `true` if a live transfer was
+ * signalled, `false` if it already finished or the id is unknown. The driving
+ * engine aborts at the next chunk boundary and the corresponding
+ * `sidecarUpload`/`sidecarDownload` promise rejects with a "cancelled" error.
+ */
+export async function cancelTransfer(transferId: string): Promise<boolean> {
+  if (!isTauri) return false;
+  return tauriInvoke<boolean>("cancel_transfer", { transferId });
 }
 
 /**
@@ -130,6 +149,7 @@ export async function sidecarDownload(
   passphrase: string,
   userId: string,
   savePath: string,
+  transferId?: string,
   _onProgress?: (progress: SidecarProgress) => void
 ): Promise<void> {
   return tauriInvoke("download_file", {
@@ -137,6 +157,7 @@ export async function sidecarDownload(
     passphrase,
     userId,
     savePath,
+    transferId,
   });
 }
 
@@ -151,7 +172,8 @@ export async function sidecarDownload(
 export async function sidecarBulkDownloadZip(
   files: { fileId: string; filename: string; passphrase: string }[],
   userId: string,
-  savePath: string
+  savePath: string,
+  transferId?: string
 ): Promise<void> {
   return tauriInvoke("bulk_download_zip", {
     files: files.map((f) => ({
@@ -161,6 +183,7 @@ export async function sidecarBulkDownloadZip(
     })),
     userId,
     savePath,
+    transferId,
   });
 }
 
