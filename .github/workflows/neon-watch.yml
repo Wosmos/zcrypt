@@ -1,0 +1,37 @@
+name: Neon Quota Watch
+
+# The safety net that was missing on 2026-07-20: Neon's free tier silently
+# suspends compute when the 100 CU-hour quota is exhausted, with NO advance
+# warning. This polls the Neon management API on a schedule and pushes a phone
+# alert (ntfy) at 60% / 80% so a rotation can happen BEFORE lockout — critical
+# because once locked, even pg_dump is impossible.
+#
+# It lives in GitHub Actions ON PURPOSE: outside the Railway/Neon failure
+# domain, and the management API keeps answering even while compute is
+# suspended, so this keeps reporting during the very outage it exists to warn
+# about.
+#
+# Setup (one-time): add repo secrets
+#   NEON_API_KEY     — Neon console → Account settings → API keys
+#   NEON_PROJECT_ID  — the active project's id
+#   NTFY_TOPIC       — any hard-to-guess ntfy.sh topic; subscribe on your phone
+
+on:
+  schedule:
+    - cron: "0 */6 * * *" # every 6h
+  workflow_dispatch:
+
+jobs:
+  quota:
+    name: Check Neon compute quota
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check usage + alert
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          WARN_PCT: "60"
+          CRIT_PCT: "80"
+        run: bash scripts/neon-usage.sh
