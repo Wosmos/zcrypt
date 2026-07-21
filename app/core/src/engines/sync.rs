@@ -653,11 +653,14 @@ impl RepoStore for ApiRepoStore {
         Ok(())
     }
 
-    async fn deactivate_repo(&self, _repo_id: &str) -> Result<(), String> {
-        // v1 has no client-facing deactivate endpoint: rotation is a later
-        // refinement. Telegram/HF are effectively unbounded and git repos tolerate
-        // exceeding the soft rotation threshold, so continuing to use the active
-        // repo is safe. Returning Ok keeps get_or_create_repo from failing.
-        Ok(())
+    async fn deactivate_repo(&self, repo_id: &str) -> Result<(), String> {
+        // Mark the full repo inactive via the control plane so the next
+        // get_or_create_repo rotates to a fresh repo instead of continuing to
+        // write past the soft threshold. Telegram/HF are effectively unbounded,
+        // but git repos (GitHub 850MB / GitLab 9GB) genuinely need this.
+        self.client
+            .deactivate_repo(repo_id)
+            .await
+            .map_err(|e| e.to_string())
     }
 }
