@@ -1023,6 +1023,15 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
     // (that's dismissUpload).
     const meta = itemMeta.get(id);
     meta?.abort?.abort();
+    // Desktop items run inside the in-process core (no AbortController); signal
+    // the shell to cancel the in-flight core transfer by its transfer id (= the
+    // queue id). Best-effort and fire-and-forget — the core aborts at the next
+    // chunk boundary.
+    if (meta?.desktopPath) {
+      void import("@/lib/tauri").then(({ cancelTransfer }) =>
+        cancelTransfer(id).catch(() => {})
+      );
+    }
     if (meta?.resume?.sessionId) {
       cancelUpload(meta.resume.sessionId).catch(() => {});
     }
@@ -1208,7 +1217,9 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
         });
         try {
           updateStatus(id, "encrypting", undefined, "Uploading...");
-          await sidecarUpload(desktopPath, passphrase, meta.platform);
+          // Pass the queue id as the transfer id so an explicit Cancel
+          // (removeFromQueue) can abort this in-flight core upload.
+          await sidecarUpload(desktopPath, passphrase, meta.platform, id);
           updateStatus(id, "done", 100, "Done");
           meta.onRefresh?.();
         } catch (err) {
@@ -1376,7 +1387,9 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
           // silently ignored the selection. Live percent comes from the progress
           // subscription; a retry auto-resumes core-side.
           updateStatus(id, "encrypting", undefined, "Uploading...");
-          await sidecarUpload(filePath, passphrase, platform);
+          // Queue id doubles as the transfer id so an explicit Cancel can abort
+          // this core upload mid-flight (see removeFromQueue).
+          await sidecarUpload(filePath, passphrase, platform, id);
           updateStatus(id, "done", 100, "Done");
         } catch (err) {
           const msg = err instanceof Error ? err.message : "Upload failed";

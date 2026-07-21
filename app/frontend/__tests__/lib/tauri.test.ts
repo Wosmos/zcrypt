@@ -234,6 +234,14 @@ describe("tauri (inside the Tauri runtime)", () => {
     });
   });
 
+  it("cancelTransfer invokes cancel_transfer with the transfer id", async () => {
+    invokeMock.mockResolvedValue(true);
+    const mod = await import("@/lib/tauri");
+    const ok = await mod.cancelTransfer("xfer-1");
+    expect(invokeMock).toHaveBeenCalledWith("cancel_transfer", { transferId: "xfer-1" });
+    expect(ok).toBe(true);
+  });
+
   it("keychainSet invokes keychain_set with key/value", async () => {
     const mod = await import("@/lib/tauri");
     await mod.keychainSet("k", "v");
