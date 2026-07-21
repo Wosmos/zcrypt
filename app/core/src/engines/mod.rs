@@ -38,8 +38,33 @@ pub enum EngineError {
     Io(#[from] std::io::Error),
     #[error("integrity: {0}")]
     Integrity(String),
+    #[error("cancelled")]
+    Cancelled,
     #[error("{0}")]
     Other(String),
+}
+
+/// Cooperative cancellation for one foreground transfer. Cheap to clone (a
+/// shared flag): the shell hands the SAME token to a `cancel_transfer` command
+/// and to the [`EngineContext`] driving the transfer. The upload/download/bulk
+/// engines poll it at each chunk boundary and bail with [`EngineError::Cancelled`],
+/// so a user can abort a multi-GB transfer promptly instead of waiting for it to
+/// error or finish. Default = never cancelled — tests and background/internal
+/// calls that don't wire a token behave exactly as before.
+#[derive(Clone, Default)]
+pub struct CancelToken(Arc<std::sync::atomic::AtomicBool>);
+
+impl CancelToken {
+    pub fn new() -> Self {
+        Self::default()
+    }
+    /// Request cancellation; idempotent and thread-safe.
+    pub fn cancel(&self) {
+        self.0.store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+    pub fn is_cancelled(&self) -> bool {
+        self.0.load(std::sync::atomic::Ordering::SeqCst)
+    }
 }
 
 /// The user's own credentials for a storage platform, sourced from the OS
@@ -92,6 +117,22 @@ pub struct EngineContext {
     pub profile: Profile,
     pub progress: ProgressFn,
     pub creds: CredProvider,
+    /// Cancellation for the foreground transfer this context drives. Defaults to
+    /// a never-cancelled token (via [`Default`]) so non-cancellable and test
+    /// callers can `..Default::default()` or leave it untouched.
+    pub cancel: CancelToken,
+}
+
+impl EngineContext {
+    /// `Err(Cancelled)` if the caller has requested cancellation, else `Ok`.
+    /// Engines call this at chunk boundaries to abort promptly.
+    pub(crate) fn check_cancel(&self) -> Result<(), EngineError> {
+        if self.cancel.is_cancelled() {
+            Err(EngineError::Cancelled)
+        } else {
+            Ok(())
+        }
+    }
 }
 
 /// Encrypt a file into the local ledger + staging dir (no network). Returns
@@ -223,4 +264,30 @@ pub async fn run_sync(ctx: EngineContext, mut cancel: tokio::sync::watch::Receiv
 /// Current ledger counts for the tray/status UI.
 pub fn sync_status(db: &LocalDb) -> Result<SyncStats, EngineError> {
     Ok(db.get_sync_stats()?)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cancel_token_default_is_not_cancelled() {
+        assert!(!CancelToken::new().is_cancelled());
+        assert!(!CancelToken::default().is_cancelled());
+    }
+
+    #[test]
+    fn cancel_token_flips_and_is_shared_across_clones() {
+        let a = CancelToken::new();
+        let b = a.clone();
+        assert!(!a.is_cancelled() && !b.is_cancelled());
+        // Cancelling via one handle is observed through the other — the shell
+        // holds one clone, the engine another, and both must agree.
+        b.cancel();
+        assert!(a.is_cancelled(), "clone must share the underlying flag");
+        assert!(b.is_cancelled());
+        // Idempotent.
+        b.cancel();
+        assert!(a.is_cancelled());
+    }
 }
