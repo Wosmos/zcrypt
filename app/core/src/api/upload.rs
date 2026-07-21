@@ -168,6 +168,16 @@ impl Client {
         ok_or_status(resp).await
     }
 
+    /// POST /api/repos/{id}/deactivate — mark a full repo inactive so the pool
+    /// rotates off it. The control-plane half of client-side repo rotation.
+    pub async fn deactivate_repo(&self, repo_id: &str) -> Result<(), ApiError> {
+        let repo_id = repo_id.to_string();
+        let resp = self
+            .send(move |http, base| http.post(format!("{base}/api/repos/{repo_id}/deactivate")))
+            .await?;
+        ok_or_status(resp).await
+    }
+
     /// GET /api/repos?platform= — the user's registered repos (client pool state).
     pub async fn list_repos(&self, platform: &str) -> Result<Vec<RepoInfo>, ApiError> {
         let platform = platform.to_string();
