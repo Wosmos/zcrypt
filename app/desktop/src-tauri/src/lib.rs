@@ -17,7 +17,7 @@ use tauri_plugin_deep_link::DeepLinkExt;
 use tokio::sync::{RwLock, watch};
 
 use zcrypt_core::api::Client;
-use zcrypt_core::engines::{self, CredProvider, EngineContext, PlatformCreds};
+use zcrypt_core::engines::{self, CancelToken, CredProvider, EngineContext, PlatformCreds};
 use zcrypt_core::localdb::LocalDb;
 use zcrypt_core::profiles;
 use zcrypt_core::types::{Progress, ProgressFn};
@@ -56,6 +56,10 @@ struct EngineState {
     client: RwLock<Option<Arc<Client>>>,
     db: StdMutex<Option<Arc<LocalDb>>>,
     sync_cancel: StdMutex<Option<watch::Sender<bool>>>,
+    /// Cancellation tokens for in-flight foreground transfers, keyed by the
+    /// caller-supplied transfer id. `cancel_transfer` flips one; the driving
+    /// engine polls it and aborts. Entries are removed when the transfer ends.
+    transfers: StdMutex<std::collections::HashMap<String, CancelToken>>,
     profile: profiles::Profile,
     /// Vault passphrase cached after unlock so the background folder-watch agent
     /// can encrypt new files without prompting. Cleared on lock/logout, or by
@@ -75,6 +79,7 @@ impl Default for EngineState {
             client: RwLock::new(None),
             db: StdMutex::new(None),
             sync_cancel: StdMutex::new(None),
+            transfers: StdMutex::new(std::collections::HashMap::new()),
             profile: profiles::NORMAL,
             passphrase: StdMutex::new(None),
             watcher: StdMutex::new(None),
@@ -109,7 +114,9 @@ impl EngineState {
             .ok_or_else(|| "engine not connected — call start_sync first".to_string())
     }
 
-    /// Build an engine context that forwards progress to the webview.
+    /// Build an engine context that forwards progress to the webview. The
+    /// `cancel` token defaults to never-cancelled; transfer commands replace it
+    /// with a registered token (see [`register_transfer`]) so they're abortable.
     async fn context(&self, app: &tauri::AppHandle) -> Result<EngineContext, String> {
         Ok(EngineContext {
             client: self.client().await?,
@@ -117,7 +124,37 @@ impl EngineState {
             profile: self.profile,
             progress: progress_emitter(app),
             creds: keychain_creds(),
+            cancel: CancelToken::new(),
         })
+    }
+
+    /// Register a cancellation token for `id` and return it. The frontend passes
+    /// a stable transfer id; `cancel_transfer(id)` flips this exact token.
+    fn register_transfer(&self, id: &str) -> CancelToken {
+        let token = CancelToken::new();
+        self.transfers
+            .lock()
+            .unwrap()
+            .insert(id.to_string(), token.clone());
+        token
+    }
+
+    /// Drop a finished transfer's token — called on every exit path so the map
+    /// doesn't leak entries for completed/failed transfers.
+    fn finish_transfer(&self, id: &str) {
+        self.transfers.lock().unwrap().remove(id);
+    }
+
+    /// Flip a live transfer's token. Returns false if the id is unknown or the
+    /// transfer already finished (a benign race, not an error).
+    fn request_cancel(&self, id: &str) -> bool {
+        match self.transfers.lock().unwrap().get(id) {
+            Some(t) => {
+                t.cancel();
+                true
+            }
+            None => false,
+        }
     }
 }
 
@@ -215,12 +252,20 @@ async fn upload_file(
     file_path: String,
     passphrase: String,
     platform: Option<String>,
+    // Optional stable id the frontend can later pass to `cancel_transfer` to
+    // abort this upload. Omit it and the upload runs exactly as before.
+    transfer_id: Option<String>,
 ) -> Result<(), String> {
     state.touch_activity();
-    let ctx = state.context(&app).await?;
-    engines::upload(&ctx, Path::new(&file_path), &passphrase, platform)
-        .await
-        .map_err(|e| e.to_string())
+    let mut ctx = state.context(&app).await?;
+    if let Some(id) = &transfer_id {
+        ctx.cancel = state.register_transfer(id);
+    }
+    let res = engines::upload(&ctx, Path::new(&file_path), &passphrase, platform).await;
+    if let Some(id) = &transfer_id {
+        state.finish_transfer(id);
+    }
+    res.map_err(|e| e.to_string())
 }
 
 /// Await a file already saved via `local_upload` reaching genuine sync
@@ -249,10 +294,14 @@ async fn download_file(
     passphrase: String,
     user_id: String,
     save_path: String,
+    transfer_id: Option<String>,
 ) -> Result<(), String> {
     state.touch_activity();
-    let ctx = state.context(&app).await?;
-    engines::download(
+    let mut ctx = state.context(&app).await?;
+    if let Some(id) = &transfer_id {
+        ctx.cancel = state.register_transfer(id);
+    }
+    let res = engines::download(
         &ctx,
         &file_id,
         &passphrase,
@@ -260,8 +309,11 @@ async fn download_file(
         None,
         Path::new(&save_path),
     )
-    .await
-    .map_err(|e| e.to_string())
+    .await;
+    if let Some(id) = &transfer_id {
+        state.finish_transfer(id);
+    }
+    res.map_err(|e| e.to_string())
 }
 
 /// One entry of a bulk-download request — mirrors the frontend's
@@ -294,9 +346,13 @@ async fn bulk_download_zip(
     files: Vec<BulkFileArg>,
     user_id: String,
     save_path: String,
+    transfer_id: Option<String>,
 ) -> Result<(), String> {
     state.touch_activity();
-    let ctx = state.context(&app).await?;
+    let mut ctx = state.context(&app).await?;
+    if let Some(id) = &transfer_id {
+        ctx.cancel = state.register_transfer(id);
+    }
     let files: Vec<engines::BulkFile> = files
         .into_iter()
         .map(|f| engines::BulkFile {
@@ -305,9 +361,20 @@ async fn bulk_download_zip(
             passphrase: f.passphrase,
         })
         .collect();
-    engines::bulk_download(&ctx, &files, &user_id, Path::new(&save_path))
-        .await
-        .map_err(|e| e.to_string())
+    let res = engines::bulk_download(&ctx, &files, &user_id, Path::new(&save_path)).await;
+    if let Some(id) = &transfer_id {
+        state.finish_transfer(id);
+    }
+    res.map_err(|e| e.to_string())
+}
+
+/// Cancel an in-flight transfer by the `transfer_id` the caller passed to
+/// `upload_file` / `download_file` / `bulk_download_zip`. Returns true if a
+/// matching live transfer was signalled, false if the id is unknown or already
+/// finished (a benign race — the UI can ignore the result).
+#[tauri::command]
+fn cancel_transfer(state: tauri::State<'_, EngineState>, transfer_id: String) -> bool {
+    state.request_cancel(&transfer_id)
 }
 
 /// In-memory decrypt for thumbnails / preview / the in-app viewer: fetch →
@@ -455,6 +522,9 @@ async fn start_sync(
         profile: state.profile,
         progress: progress_emitter(&app),
         creds: keychain_creds(),
+        // The background sync loop is cancelled via its own watch channel
+        // (`cancel_rx`), not the per-transfer token — leave it never-cancelled.
+        cancel: CancelToken::new(),
     };
     tauri::async_runtime::spawn(async move {
         engines::run_sync(ctx, cancel_rx).await;
@@ -820,6 +890,7 @@ pub fn run() {
             download_file,
             decrypt_to_memory,
             bulk_download_zip,
+            cancel_transfer,
             download_space_file,
             decrypt_space_to_memory,
             delete_file,
