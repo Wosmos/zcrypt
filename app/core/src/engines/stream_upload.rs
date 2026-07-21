@@ -207,6 +207,10 @@ pub async fn run(
         if have.contains(&idx) {
             continue;
         }
+        if ctx.cancel.is_cancelled() {
+            set_err(&first_err, EngineError::Cancelled);
+            break;
+        }
         if first_err.lock().unwrap().is_some() {
             break;
         }
@@ -280,6 +284,15 @@ pub async fn run(
     cek.zeroize();
     while join.join_next().await.is_some() {}
     if let Some(e) = first_err.lock().unwrap().take() {
+        // A user-requested cancel is not a failure — return quietly without the
+        // alarming FAILED diagnostics line below.
+        if matches!(e, EngineError::Cancelled) {
+            eprintln!(
+                "zcrypt stream upload {file_name}: cancelled at {}/{chunk_count} chunks",
+                done.load(Ordering::SeqCst)
+            );
+            return Err(e);
+        }
         // Walk the whole source chain — the top-level Display collapses transport
         // failures ("http: error decoding response body") and drops the real
         // reason (which JSON field, connection reset, TLS, …). We were blind to
@@ -338,6 +351,11 @@ async fn upload_one_retrying(
 ) -> Result<(), EngineError> {
     let mut last: Option<EngineError> = None;
     for attempt in 0..4u32 {
+        // A cancel while a chunk is mid-retry should abort now, not burn the
+        // remaining backoff attempts against a transfer the user has stopped.
+        if ctx.cancel.is_cancelled() {
+            return Err(EngineError::Cancelled);
+        }
         match upload_one(ctx, session_id, idx, p, direct, repo, platform).await {
             Ok(()) => return Ok(()),
             Err(e) if e.to_string().contains("upload session is not active") => return Err(e),

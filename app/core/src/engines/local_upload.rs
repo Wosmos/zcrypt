@@ -333,6 +333,7 @@ mod tests {
             profile: profiles::NORMAL,
             progress: Arc::new(move |p: Progress| ev.lock().unwrap().push(p.stage)),
             creds: crate::engines::no_creds(),
+            cancel: Default::default(),
         };
 
         let file_id = run(&ctx, &src, "test-pass").await.unwrap();

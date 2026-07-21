@@ -302,8 +302,15 @@ pub async fn run(
     let mut relay_chunks = 0u32;
     let mut fetchers: tokio::task::JoinSet<Result<(), EngineError>> = tokio::task::JoinSet::new();
     for idx in 0..meta.chunk_count {
+        // Stop scheduling new fetches the moment the user cancels; in-flight
+        // tasks below also short-circuit at entry, and the tail cleans up the
+        // partial .part file.
+        if ctx.cancel.is_cancelled() {
+            break;
+        }
         let permit = sem.clone().acquire_owned().await.expect("semaphore");
         let client = ctx.client.clone();
+        let cancel = ctx.cancel.clone();
         let tx = tx.clone();
         let key = key.clone();
         let fid = file_id.to_string();
@@ -321,6 +328,9 @@ pub async fn run(
         }
         fetchers.spawn(async move {
             let _permit = permit;
+            if cancel.is_cancelled() {
+                return Err(EngineError::Cancelled);
+            }
             let (data, compressed) = acquire_chunk(&client, direct, &fid, idx).await?;
             let plain = tokio::task::spawn_blocking(move || {
                 decrypt_chunk_zeroizing(&data, key, compressed)
@@ -358,11 +368,34 @@ pub async fn run(
     })
     .await;
 
-    // Surface the first fetcher error over a generic writer error.
+    // Drain fetchers, preferring a real fetcher error (including a Cancelled
+    // from an in-flight task) over the sink's generic "writer gone". On ANY
+    // error — failure OR cancel — remove the partial .part file so a stopped
+    // download never leaves a half-written artifact behind.
+    let mut first_err: Option<EngineError> = None;
     while let Some(res) = fetchers.join_next().await {
-        res.map_err(|e| EngineError::Other(format!("join: {e}")))??;
+        let r = res.unwrap_or_else(|e| Err(EngineError::Other(format!("join: {e}"))));
+        if let Err(e) = r {
+            if first_err.is_none() {
+                first_err = Some(e);
+            }
+        }
     }
-    write_result?;
+    if first_err.is_none() {
+        if let Err(e) = write_result {
+            first_err = Some(e);
+        }
+    }
+    // The spawn loop can break early on cancel before any task errors; catch
+    // that case explicitly so a prompt cancel is still reported as Cancelled.
+    if first_err.is_none() && ctx.cancel.is_cancelled() {
+        first_err = Some(EngineError::Cancelled);
+    }
+    if let Some(e) = first_err {
+        drop(out);
+        let _ = tokio::fs::remove_file(&part_path).await;
+        return Err(e);
+    }
     std::io::Write::flush(&mut out)?;
     out.into_inner()
         .map_err(|e| EngineError::Io(e.into_error()))?

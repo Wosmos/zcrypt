@@ -65,6 +65,9 @@ async fn run_inner(
     let mut used_names: HashSet<String> = HashSet::new();
 
     for f in files {
+        // Abort between files on cancel; download::run also honors the token
+        // mid-file. run()'s caller removes the partial zip on this Err.
+        ctx.check_cancel()?;
         let temp_path = scratch_dir.join(format!("zcrypt-bulk-{}.tmp", uuid::Uuid::new_v4()));
         let dl_result =
             download::run(ctx, &f.file_id, &f.passphrase, user_id, None, &temp_path).await;
@@ -114,6 +117,51 @@ fn dedupe_name(name: &str, used: &mut HashSet<String>) -> String {
 mod tests {
     use super::*;
     use std::io::Read as _;
+    use std::sync::Arc;
+
+    use crate::engines::{no_creds, CancelToken};
+    use crate::localdb::LocalDb;
+    use crate::profiles;
+    use crate::types::Progress;
+
+    // A pre-cancelled transfer must abort at the first file boundary — before
+    // any network call — and leave no partial zip behind. Exercises the real
+    // run() -> run_inner() -> ctx.check_cancel()? path without a mock HTTP
+    // harness (the client points at a dead address that is never contacted
+    // because the cancel check fires first).
+    #[tokio::test]
+    async fn cancelled_bulk_download_aborts_before_network_and_cleans_up() {
+        let dir = std::env::temp_dir().join(format!("zcrypt-bulk-cancel-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let db = Arc::new(LocalDb::open_at(&dir.join("db.sqlite")).unwrap());
+
+        let cancel = CancelToken::new();
+        cancel.cancel();
+        let ctx = EngineContext {
+            client: Arc::new(crate::api::Client::new("http://127.0.0.1:0", "", "")),
+            db,
+            profile: profiles::NORMAL,
+            progress: Arc::new(|_p: Progress| {}),
+            creds: no_creds(),
+            cancel,
+        };
+
+        let files = vec![BulkFile {
+            file_id: "does-not-exist".into(),
+            filename: "a.txt".into(),
+            passphrase: "pw".into(),
+        }];
+        let save_path = dir.join("out.zip");
+
+        let res = run(&ctx, &files, "user", &save_path).await;
+        assert!(matches!(res, Err(EngineError::Cancelled)));
+        assert!(
+            !save_path.exists(),
+            "a cancelled bulk download must not leave a partial zip"
+        );
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 
     #[test]
     fn zip_writer_round_trips_multiple_entries() {
