@@ -155,7 +155,7 @@ md_status() {
     FAIL) echo "❌ FAIL";; *) echo "— skipped";;
   esac
 }
-GATE_NAMES=("frontend typecheck" "frontend lint" "frontend tests + coverage" "frontend build" \
+GATE_NAMES=("frontend typecheck" "frontend format" "frontend lint" "frontend tests + coverage" "frontend build" \
             "backend gofmt" "backend vet" "backend tests + coverage" "backend build" \
             "tui gofmt" "tui vet" "tui tests" "tui build" \
             "core fmt" "core clippy" "core tests" \
@@ -291,18 +291,27 @@ printf '%s↳ modules: %s%s\n' "$DIM" "$MODS" "$RST"
 
 if [ "$RUN_FE" = 1 ]; then
 
+# typecheck runs on tsgo (TypeScript 7 native / Go) — a fast `tsgo --noEmit`.
+# The authoritative type-check is `next build` (still on classic tsc 5.7), which
+# runs as its own gate below, so a tsgo/tsc disagreement can never ship silently.
 if gate "frontend typecheck" "$FE" bun run typecheck; then
   ok "no type errors"
 fi
 
-# The gate blocks on eslint ERRORS. Warnings don't fail it here — they are
+# Biome (Rust) is the formatter — the JS/TS analogue of gofmt. Blocks on any
+# unformatted file. Fix with: cd app/frontend && bun run format
+if gate "frontend format" "$FE" bun run format:check; then
+  ok "all files formatted"
+fi
+
+# The gate blocks on oxlint ERRORS. Warnings don't fail it here — they are
 # ratcheted in the INSPECT section (can only shrink), and NEW warnings in files
-# you touch are blocked by --enforce (eslint --max-warnings=0 on changed files).
+# you touch are blocked by --enforce (oxlint --max-warnings=0 on changed files).
 if gate "frontend lint" "$FE" bun run lint; then
   # `grep -c` prints its count AND exits 1 when the count is 0 — a `|| echo 0`
   # would then append a second "0". Swallow the exit with `|| true` and default
   # an empty result (missing log) to 0 instead.
-  lwc=$(grep -cE ' warning ' "$LOGDIR/frontend_lint.log" 2>/dev/null || true)
+  lwc=$(grep -cE ': warning ' "$LOGDIR/frontend_lint.log" 2>/dev/null || true)
   lwc=${lwc:-0}
   if [ "$lwc" -gt 0 ]; then ok "no errors ${DIM}(${lwc} warnings — ratcheted below)${RST}"; else ok "clean"; fi
 fi
@@ -469,10 +478,10 @@ if [ "$RUN_INSPECT" != 1 ]; then
 else
 
 if [ "$RUN_FE" = 1 ]; then
-  # eslint warnings — reuse the lint gate's output (no second eslint run). Errors
+  # oxlint warnings — reuse the lint gate's output (no second oxlint run). Errors
   # already blocked at the gate; here the WARNING count is ratcheted.
-  step "frontend lint warnings ${DIM}(inspect · eslint · ${MODE_LABEL})${RST}"
-  lwcount="$(grep -cE ' warning ' "$LOGDIR/frontend_lint.log" 2>/dev/null || echo 0)"
+  step "frontend lint warnings ${DIM}(inspect · oxlint · ${MODE_LABEL})${RST}"
+  lwcount="$(grep -cE ': warning ' "$LOGDIR/frontend_lint.log" 2>/dev/null || echo 0)"
   [ "$lwcount" -gt 0 ] && note "→ cd app/frontend && bun run lint"
   handle_backlog "frontend lint warnings" "$lwcount"
 
@@ -541,7 +550,7 @@ if [ "$ENFORCE" = 1 ]; then
   #     store). Linting test/config files the project itself never lints would
   #     make this gate fail on code that `bun run lint` reports clean.
   #   - DROP paths that no longer exist on disk — a file deleted/renamed anywhere
-  #     in the diff would otherwise be handed to eslint/jscpd, which hard-error
+  #     in the diff would otherwise be handed to oxlint/jscpd, which hard-error
   #     on a missing pattern ("No files matching the pattern ...").
   fe_arr=()
   while IFS= read -r f; do
@@ -552,9 +561,9 @@ if [ "$ENFORCE" = 1 ]; then
 
   # 1) frontend new-code lint — zero-tolerance on files you touched
   if [ "$RUN_FE" = 1 ] && [ "${#fe_arr[@]}" -gt 0 ]; then
-    step "frontend new-code lint ${DIM}(harden · eslint --max-warnings=0)${RST}"
+    step "frontend new-code lint ${DIM}(harden · oxlint --max-warnings=0)${RST}"
     hlog="$LOGDIR/frontend_new-code_lint.log"
-    if (cd "$FE" && bunx eslint --max-warnings=0 "${fe_arr[@]}") >"$hlog" 2>&1; then
+    if (cd "$FE" && bunx oxlint --max-warnings=0 "${fe_arr[@]}") >"$hlog" 2>&1; then
       PASS+=("frontend new-code lint"); ok "changed files clean (no errors or warnings)"
     else
       FAIL+=("frontend new-code lint"); failln "lint issues in changed files — output below:"
