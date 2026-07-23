@@ -154,10 +154,13 @@ jobs:
         working-directory: app/frontend
         run: bun install --frozen-lockfile
 
+      # tsgo = TypeScript 7 native compiler (fast `tsc --noEmit`). The Build step
+      # below still type-checks with classic tsc 5.7 via `next build`, so this is
+      # a fast pre-gate, not the sole authority.
       - name: Type check
         if: github.event_name == 'pull_request'
         working-directory: app/frontend
-        run: bunx tsc --noEmit
+        run: bunx tsgo --noEmit
 
       - name: Unit tests (with coverage)
         if: github.event_name == 'pull_request'
