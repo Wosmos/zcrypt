@@ -108,6 +108,7 @@ PASS=(); WARN=(); FAIL=()
 # these files are never created (fence() renders "(no output)" for missing).
 klog="$LOGDIR/knip.log"
 jlog="$LOGDIR/jscpd.log"
+talog="$LOGDIR/typeaware.log"
 glog="$LOGDIR/golangci.log"
 tglog="$LOGDIR/golangci-tui.log"
 
@@ -160,7 +161,7 @@ GATE_NAMES=("frontend typecheck" "frontend format" "frontend lint" "frontend tes
             "tui gofmt" "tui vet" "tui tests" "tui build" \
             "core fmt" "core clippy" "core tests" \
             "desktop fmt" "desktop clippy" "desktop cargo check")
-INSPECT_NAMES=("frontend lint warnings" "frontend dead code" "frontend duplication" "backend deep lint" "tui deep lint")
+INSPECT_NAMES=("frontend lint warnings" "frontend typeaware lint" "frontend dead code" "frontend duplication" "backend deep lint" "tui deep lint")
 HARDEN_NAMES=("frontend new-code lint" "frontend new-code duplication" \
               "backend new-code lint" "tui new-code lint")
 
@@ -209,7 +210,7 @@ persist_baseline() {
   local kv k v
   for kv in "${NEW_BASELINE[@]:-}"; do [ -n "$kv" ] && eval "$kv"; done
   : > "$BASELINE_FILE"
-  for k in B_frontend_lint_warnings B_frontend_dead_code B_frontend_duplication B_backend_deep_lint B_tui_deep_lint; do
+  for k in B_frontend_lint_warnings B_frontend_typeaware_lint B_frontend_dead_code B_frontend_duplication B_backend_deep_lint B_tui_deep_lint; do
     v="${!k:-}"; [ -n "$v" ] && printf '%s=%s\n' "$k" "$v" >> "$BASELINE_FILE"
   done
 }
@@ -485,6 +486,21 @@ if [ "$RUN_FE" = 1 ]; then
   [ "$lwcount" -gt 0 ] && note "→ cd app/frontend && bun run lint"
   handle_backlog "frontend lint warnings" "$lwcount"
 
+  # tsgolint — type-aware promise-safety lint (oxlint front-end, typescript-go
+  # engine). Catches unawaited/mishandled Promises — real bugs in an app where
+  # every upload/download/decrypt is async crypto. Advisory backlog, ratcheted
+  # like knip/jscpd so it can only shrink.
+  step "frontend typeaware lint ${DIM}(inspect · oxlint --type-aware · ${MODE_LABEL})${RST}"
+  (cd "$FE" && bunx oxlint --type-aware \
+      -W typescript/no-floating-promises \
+      -W typescript/no-misused-promises \
+      -W typescript/await-thenable \
+      app components lib hooks store) >"$talog" 2>&1
+  tacount="$(grep -cE ': (warning|error) typescript' "$talog" 2>/dev/null || true)"
+  tacount="${tacount:-0}"
+  [ "$tacount" -gt 0 ] && note "→ cd app/frontend && bunx oxlint --type-aware -W typescript/no-floating-promises -W typescript/no-misused-promises -W typescript/await-thenable app components lib hooks store"
+  handle_backlog "frontend typeaware lint" "$tacount"
+
   # knip — dead code: unused files, exports, dependencies
   step "frontend dead code ${DIM}(inspect · knip · ${MODE_LABEL})${RST}"
   klog="$LOGDIR/knip.log"
@@ -678,6 +694,10 @@ write_report() {
     echo
     strip_ansi < "$LOGDIR/backend_tests_+_coverage.log" | sed -E 's/\t+/  /g' \
       | { echo '```text'; sed 's/`/'"'"'/g'; echo '```'; }
+    echo
+    echo "## Type-aware lint — oxlint + tsgolint"
+    echo
+    fence "$talog"
     echo
     echo "## Dead code — knip"
     echo
