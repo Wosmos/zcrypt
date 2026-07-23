@@ -1,16 +1,113 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-/* Phased v4 migration: keep the existing JS config (theme colors mapped to CSS
-   vars, custom borderRadius scale, screens, accordion keyframes, cornerShape
-   plugin) running under the v4 Rust engine. A follow-up PR ports it to
-   CSS-first @theme and drops this bridge. */
-@config "../tailwind.config.js";
-
 /* Class-based dark mode. v4 defaults to prefers-color-scheme; this restores the
    v3 `.dark` class strategy the app relies on — 547 `dark:` utilities plus the
    `.dark { --color-* }` variable overrides below. */
 @custom-variant dark (&:where(.dark, .dark *));
+
+/* Explicit template sources (v4 also auto-detects; being explicit works around
+   Turbopack dev-HMR staleness with new utility classes). */
+@source "../app";
+@source "../components";
+@source "../lib";
+
+/* ── Design tokens (CSS-first; replaces the old tailwind.config.js) ─────────── */
+@theme {
+  /* Custom mobile breakpoint — sm through 2xl match the v4 defaults. */
+  --breakpoint-xs: 480px;
+
+  /* Design-system corner scale — one consistent, generously-rounded ramp used
+     for every corner in the app (cards, menus, modals, inputs, buttons …).
+     Paired with the global squircle so corners read as smooth superellipses,
+     not hard arcs. Bare `--radius` keeps the v3 `rounded` (10px) working. */
+  --radius-sm: 0.5rem; /* 8px */
+  --radius: 0.625rem; /* 10px */
+  --radius-md: 0.75rem; /* 12px */
+  --radius-lg: 0.875rem; /* 14px */
+  --radius-xl: 1.125rem; /* 18px */
+  --radius-2xl: 1.375rem; /* 22px */
+  --radius-3xl: 1.75rem; /* 28px */
+
+  /* Radix accordion open/close (used by components/ui/accordion.tsx). */
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+  @keyframes accordion-down {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--radix-accordion-content-height);
+    }
+  }
+  @keyframes accordion-up {
+    from {
+      height: var(--radix-accordion-content-height);
+    }
+    to {
+      height: 0;
+    }
+  }
+}
+
+/* Semantic tokens whose values are the runtime CSS variables defined in the
+   @layer base blocks below. `inline` makes utilities embed the var() directly
+   (e.g. `.bg-card { background-color: var(--color-surface) }`), so the .dark
+   overrides keep working per-element. Two token names collide with runtime
+   variables (--color-accent, --color-border): inline keeps the utilities
+   correct, and the base-layer :root/.dark definitions out-cascade the
+   theme-layer emissions (base is a later layer), so the collisions are inert. */
+@theme inline {
+  --font-heading: var(--font-heading), sans-serif;
+  --font-body: var(--font-body), sans-serif;
+  --font-logo: var(--font-logo), sans-serif;
+
+  --color-brand: var(--color-accent);
+  --color-brand-hover: var(--color-accent-hover);
+  --color-border: var(--color-border);
+  --color-input: var(--color-border);
+  --color-ring: var(--color-accent);
+  --color-background: var(--color-bg);
+  --color-foreground: var(--color-text);
+  --color-primary: var(--color-accent);
+  --color-primary-foreground: var(--color-on-accent);
+  --color-secondary: var(--color-surface-2);
+  --color-secondary-foreground: var(--color-text);
+  --color-destructive: #ef4444;
+  --color-destructive-foreground: #ffffff;
+  --color-muted: var(--color-surface-1);
+  --color-muted-foreground: var(--color-text-muted);
+  --color-accent: var(--color-surface-2);
+  --color-accent-foreground: var(--color-text);
+  --color-popover: var(--color-surface);
+  --color-popover-foreground: var(--color-text);
+  --color-card: var(--color-surface);
+  --color-card-foreground: var(--color-text);
+}
+
+/* CSS `corner-shape` (CSS Borders & Box Decorations L4 — Chrome 139+).
+   Progressive enhancement: it only affects corners that already have a
+   `border-radius`, so always pair these with a `rounded-*` utility. Browsers
+   without support simply ignore it. (Was a JS plugin in the v3 config;
+   arbitrary values still work via `[corner-shape:...]`.) */
+@utility corner-round {
+  corner-shape: round;
+}
+@utility corner-squircle {
+  corner-shape: squircle;
+}
+@utility corner-bevel {
+  corner-shape: bevel;
+}
+@utility corner-scoop {
+  corner-shape: scoop;
+}
+@utility corner-notch {
+  corner-shape: notch;
+}
+@utility corner-square {
+  corner-shape: square;
+}
 
 @layer base {
   :root {
