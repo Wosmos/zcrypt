@@ -162,6 +162,18 @@ jobs:
         working-directory: app/frontend
         run: bunx tsgo --noEmit
 
+      # Rust toolchain gates — both sub-second. Fork PRs never ran the local
+      # pre-push hook, so this is the only place their lint/format is checked.
+      - name: Lint (oxlint)
+        if: github.event_name == 'pull_request'
+        working-directory: app/frontend
+        run: bunx oxlint app components lib hooks store
+
+      - name: Format check (biome)
+        if: github.event_name == 'pull_request'
+        working-directory: app/frontend
+        run: bunx biome format .
+
       - name: Unit tests (with coverage)
         if: github.event_name == 'pull_request'
         working-directory: app/frontend
