@@ -7,10 +7,7 @@ export type { AuditEvent };
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
-async function authRequest<T>(
-  path: string,
-  options?: RequestInit
-): Promise<T> {
+async function authRequest<T>(path: string, options?: RequestInit): Promise<T> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
 
@@ -62,7 +59,7 @@ export interface LoginResponse {
 export function register(
   email: string,
   username: string,
-  password: string
+  password: string,
 ): Promise<{ success: boolean; user: AuthUser }> {
   return authRequest("/api/auth/register", {
     method: "POST",
@@ -70,10 +67,7 @@ export function register(
   });
 }
 
-export function login(
-  email: string,
-  password: string
-): Promise<LoginResponse> {
+export function login(email: string, password: string): Promise<LoginResponse> {
   return authRequest("/api/auth/login", {
     method: "POST",
     body: JSON.stringify({ email, password }),
@@ -81,7 +75,7 @@ export function login(
 }
 
 export function refreshToken(
-  refresh_token: string
+  refresh_token: string,
 ): Promise<{ access_token: string; refresh_token: string }> {
   return authRequest("/api/auth/refresh", {
     method: "POST",
@@ -96,56 +90,42 @@ export function logout(refresh_token: string): Promise<void> {
   });
 }
 
-export function forgotPassword(
-  email: string
-): Promise<{ success: boolean }> {
+export function forgotPassword(email: string): Promise<{ success: boolean }> {
   return authRequest("/api/auth/forgot-password", {
     method: "POST",
     body: JSON.stringify({ email }),
   });
 }
 
-export function resetPassword(
-  token: string,
-  new_password: string
-): Promise<{ success: boolean }> {
+export function resetPassword(token: string, new_password: string): Promise<{ success: boolean }> {
   return authRequest("/api/auth/reset-password", {
     method: "POST",
     body: JSON.stringify({ token, new_password }),
   });
 }
 
-export function verifyEmail(
-  token: string
-): Promise<{ success: boolean }> {
+export function verifyEmail(token: string): Promise<{ success: boolean }> {
   return authRequest("/api/auth/verify-email", {
     method: "POST",
     body: JSON.stringify({ token }),
   });
 }
 
-export function resendVerification(
-  email: string
-): Promise<{ success: boolean }> {
+export function resendVerification(email: string): Promise<{ success: boolean }> {
   return authRequest("/api/auth/resend-verification", {
     method: "POST",
     body: JSON.stringify({ email }),
   });
 }
 
-export function setup2FA(
-  accessToken: string
-): Promise<{ secret: string; uri: string }> {
+export function setup2FA(accessToken: string): Promise<{ secret: string; uri: string }> {
   return authRequest("/api/auth/2fa/setup", {
     method: "POST",
     headers: { Authorization: `Bearer ${accessToken}` },
   });
 }
 
-export function enable2FA(
-  accessToken: string,
-  code: string
-): Promise<{ success: boolean }> {
+export function enable2FA(accessToken: string, code: string): Promise<{ success: boolean }> {
   return authRequest("/api/auth/2fa/enable", {
     method: "POST",
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -153,10 +133,7 @@ export function enable2FA(
   });
 }
 
-export function verify2FA(
-  temp_token: string,
-  code: string
-): Promise<LoginResponse> {
+export function verify2FA(temp_token: string, code: string): Promise<LoginResponse> {
   return authRequest("/api/auth/2fa/verify", {
     method: "POST",
     body: JSON.stringify({ temp_token, code }),
@@ -166,7 +143,7 @@ export function verify2FA(
 export function disable2FA(
   accessToken: string,
   password: string,
-  code: string
+  code: string,
 ): Promise<{ success: boolean }> {
   return authRequest("/api/auth/2fa/disable", {
     method: "POST",
@@ -183,9 +160,7 @@ export function getMe(accessToken: string): Promise<AuthUser> {
 
 // --- Magic Links ---
 
-export function requestMagicLink(
-  email: string
-): Promise<{ success: boolean; message: string }> {
+export function requestMagicLink(email: string): Promise<{ success: boolean; message: string }> {
   return authRequest("/api/auth/magic-link", {
     method: "POST",
     body: JSON.stringify({ email }),
@@ -218,7 +193,7 @@ export function registerWithBreachCheck(
   email: string,
   username: string,
   password: string,
-  force = false
+  force = false,
 ): Promise<RegisterResponse> {
   return authRequest("/api/auth/register", {
     method: "POST",
@@ -229,7 +204,7 @@ export function registerWithBreachCheck(
 export function resetPasswordWithBreachCheck(
   token: string,
   new_password: string,
-  force = false
+  force = false,
 ): Promise<BreachCheckResponse> {
   return authRequest("/api/auth/reset-password", {
     method: "POST",
@@ -249,9 +224,7 @@ export interface LinkedAccountsResponse {
   has_password: boolean;
 }
 
-export function getLinkedAccounts(
-  accessToken: string
-): Promise<LinkedAccountsResponse> {
+export function getLinkedAccounts(accessToken: string): Promise<LinkedAccountsResponse> {
   return authRequest("/api/auth/linked-accounts", {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
@@ -259,7 +232,7 @@ export function getLinkedAccounts(
 
 export function unlinkAccount(
   accessToken: string,
-  provider: string
+  provider: string,
 ): Promise<{ success: boolean }> {
   return authRequest(`/api/auth/linked-accounts/${provider}`, {
     method: "DELETE",
@@ -270,9 +243,7 @@ export function unlinkAccount(
 // --- Activity ---
 // (AuditEvent is re-exported from "@/types" at the top of this file.)
 
-export function getUserActivity(
-  accessToken: string
-): Promise<AuditEvent[]> {
+export function getUserActivity(accessToken: string): Promise<AuditEvent[]> {
   return authRequest("/api/auth/activity", {
     headers: { Authorization: `Bearer ${accessToken}` },
   });

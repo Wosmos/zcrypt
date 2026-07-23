@@ -61,11 +61,7 @@ const fallback = {
   sub: "Your files. Your keys. Your cloud.",
 };
 
-export default function AuthLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function AuthLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { heading, sub } = taglines[pathname] ?? fallback;
 
@@ -78,16 +74,14 @@ export default function AuthLayout({
           <div
             className="absolute -top-32 -right-48 w-[520px] h-[520px] rounded-full pointer-events-none"
             style={{
-              background:
-                "radial-gradient(circle, rgba(0,213,228,0.07) 0%, transparent 70%)",
+              background: "radial-gradient(circle, rgba(0,213,228,0.07) 0%, transparent 70%)",
             }}
           />
           {/* Ambient glow — bottom-left teal */}
           <div
             className="absolute -bottom-24 -left-36 w-[440px] h-[440px] rounded-full pointer-events-none"
             style={{
-              background:
-                "radial-gradient(circle, rgba(0,138,151,0.05) 0%, transparent 70%)",
+              background: "radial-gradient(circle, rgba(0,138,151,0.05) 0%, transparent 70%)",
             }}
           />
 
@@ -110,9 +104,7 @@ export default function AuthLayout({
               <h2 className="text-3xl xl:text-4xl font-bold tracking-tight text-white font-heading leading-tight">
                 {heading}
               </h2>
-              <p className="text-[15px] text-zinc-400 mt-3 max-w-sm leading-relaxed">
-                {sub}
-              </p>
+              <p className="text-[15px] text-zinc-400 mt-3 max-w-sm leading-relaxed">{sub}</p>
 
               {/* Trust features — minimal */}
               <div className="mt-12 space-y-4">
@@ -120,12 +112,8 @@ export default function AuthLayout({
                   <div key={f.title} className="flex items-start gap-3">
                     <f.icon className="h-4 w-4 text-cyan-500/50 flex-shrink-0 mt-0.5" />
                     <div>
-                      <p className="text-[13px] font-medium text-white/80">
-                        {f.title}
-                      </p>
-                      <p className="text-[11px] text-zinc-500 mt-0.5 leading-relaxed">
-                        {f.desc}
-                      </p>
+                      <p className="text-[13px] font-medium text-white/80">{f.title}</p>
+                      <p className="text-[11px] text-zinc-500 mt-0.5 leading-relaxed">{f.desc}</p>
                     </div>
                   </div>
                 ))}
@@ -154,19 +142,14 @@ export default function AuthLayout({
             <Logo size="sm" href="/" />
           </div>
 
-          <div className="w-full max-w-sm relative z-10">
-            {children}
-          </div>
+          <div className="w-full max-w-sm relative z-10">{children}</div>
 
           {/* Mobile bottom link */}
           <p className="lg:hidden absolute bottom-5 text-[11px] text-[var(--color-text-muted)]">
-            <Link
-              href="/"
-              className="hover:text-[var(--color-text-secondary)] transition-colors"
-            >
+            <Link href="/" className="hover:text-[var(--color-text-secondary)] transition-colors">
               zcrypt.cloud
-            </Link>
-            {" "}&mdash; Zero-knowledge encrypted storage
+            </Link>{" "}
+            &mdash; Zero-knowledge encrypted storage
           </p>
         </div>
       </div>

@@ -37,9 +37,9 @@ export const transfers: TransfersPageData = {
     headlineGradient: "It picks up where it stopped.",
     subtext: (
       <>
-        One docked panel tracks every upload and download. Live progress and
-        ETA, pause and resume without re-encrypting, retry on failure, and
-        bulk ZIP downloads — and it keeps running as you move around the app.
+        One docked panel tracks every upload and download. Live progress and ETA, pause and resume
+        without re-encrypting, retry on failure, and bulk ZIP downloads — and it keeps running as
+        you move around the app.
       </>
     ),
     secondaryLabel: "Read the docs",
@@ -48,7 +48,8 @@ export const transfers: TransfersPageData = {
 
   capabilitiesSection: {
     heading: "Built for big files and flaky networks",
-    subheading: "Because everything is encrypted on your device first, transfers have to be resilient. So they are.",
+    subheading:
+      "Because everything is encrypted on your device first, transfers have to be resilient. So they are.",
   },
   capabilities: [
     {
@@ -88,10 +89,9 @@ export const transfers: TransfersPageData = {
     heading: "No re-encrypting. No re-uploading.",
     body: (
       <>
-        When you pause or hit a network hiccup, the upload stops at a clean
-        chunk boundary and holds onto its session. Resuming reuses the very
-        same content key, so the chunks already on the server still line up
-        — it simply continues with the chunks that are missing.
+        When you pause or hit a network hiccup, the upload stops at a clean chunk boundary and holds
+        onto its session. Resuming reuses the very same content key, so the chunks already on the
+        server still line up — it simply continues with the chunks that are missing.
       </>
     ),
     checklistItems: [
@@ -109,11 +109,10 @@ export const transfers: TransfersPageData = {
     heading: "Send a file straight to another device",
     body: (
       <>
-        Separate from the vault, zcrypt can stream a file directly from
-        one device to another. The sender gets a six-digit code; whoever
-        enters it on the other end starts receiving. The data is
-        end-to-end encrypted — our server is a blind relay that passes
-        along ciphertext it can&apos;t read.
+        Separate from the vault, zcrypt can stream a file directly from one device to another. The
+        sender gets a six-digit code; whoever enters it on the other end starts receiving. The data
+        is end-to-end encrypted — our server is a blind relay that passes along ciphertext it
+        can&apos;t read.
       </>
     ),
     checklistItems: [
@@ -124,13 +123,26 @@ export const transfers: TransfersPageData = {
   },
 
   related: [
-    { href: "/features/encrypted-drive", title: "The encrypted drive", desc: "Where your transfers land — real folders, search, and previews." },
-    { href: "/docs/transfer-manager", title: "Transfer manager docs", desc: "Every control in the docked panel, explained." },
-    { href: "/docs/uploading", title: "Uploading guide", desc: "How files are compressed, encrypted, chunked, and sent." },
+    {
+      href: "/features/encrypted-drive",
+      title: "The encrypted drive",
+      desc: "Where your transfers land — real folders, search, and previews.",
+    },
+    {
+      href: "/docs/transfer-manager",
+      title: "Transfer manager docs",
+      desc: "Every control in the docked panel, explained.",
+    },
+    {
+      href: "/docs/uploading",
+      title: "Uploading guide",
+      desc: "How files are compressed, encrypted, chunked, and sent.",
+    },
   ],
 
   cta: {
     heading: "Move big files without babysitting them",
-    subtext: "Free and open source. Bring a storage account you already own and start your first upload in under a minute.",
+    subtext:
+      "Free and open source. Bring a storage account you already own and start your first upload in under a minute.",
   },
 };

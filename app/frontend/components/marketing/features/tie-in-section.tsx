@@ -49,12 +49,8 @@ export function TieInSection({
           <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
             {eyebrow}
           </p>
-          <h2 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
-            {heading}
-          </h2>
-          <p className="mt-4 leading-relaxed text-[var(--color-text-secondary)]">
-            {body}
-          </p>
+          <h2 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">{heading}</h2>
+          <p className="mt-4 leading-relaxed text-[var(--color-text-secondary)]">{body}</p>
           {checklist}
           {linkLabel && linkHref && (
             <Link

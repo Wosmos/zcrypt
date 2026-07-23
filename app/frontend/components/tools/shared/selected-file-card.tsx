@@ -25,7 +25,12 @@ export function SelectedFileCard({
         <p className="text-sm font-medium truncate">{name}</p>
         <p className="text-xs text-[var(--color-text-muted)]">{formatBytes(size)}</p>
       </div>
-      <button onClick={onRemove} className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors">Change</button>
+      <button
+        onClick={onRemove}
+        className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
+      >
+        Change
+      </button>
     </div>
   );
 }

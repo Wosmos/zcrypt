@@ -56,7 +56,8 @@ export function ViewerIncompleteLink() {
       </div>
       <h2 className="text-lg font-semibold">Incomplete Link</h2>
       <p className="text-sm text-[var(--color-text-muted)] max-w-xs">
-        This link is missing the encryption key. Make sure you copied the full URL including the <code className="text-[var(--color-text-secondary)]">#key=...</code> part.
+        This link is missing the encryption key. Make sure you copied the full URL including the{" "}
+        <code className="text-[var(--color-text-secondary)]">#key=...</code> part.
       </p>
     </div>
   );
@@ -85,7 +86,9 @@ export function TokenFileHeader({
             {formatBytes(fileSize)}
             {previewType !== "none" && (
               <span className="ml-1.5 text-[var(--color-accent)]">
-                &middot; {previewType === "image" ? "Image" : previewType === "video" ? "Video" : "Audio"} preview available
+                &middot;{" "}
+                {previewType === "image" ? "Image" : previewType === "video" ? "Video" : "Audio"}{" "}
+                preview available
               </span>
             )}
           </p>
@@ -200,11 +203,7 @@ export function MediaPreview({
     <div className="p-4">
       {previewType === "image" && previewUrl && (
         <div className="flex items-center justify-center rounded-xl overflow-hidden bg-[var(--color-surface-1)]">
-          <Image
-            src={previewUrl}
-            alt={name}
-            className="max-w-full max-h-[60vh] object-contain"
-          />
+          <Image src={previewUrl} alt={name} className="max-w-full max-h-[60vh] object-contain" />
         </div>
       )}
 
@@ -234,7 +233,9 @@ export function MediaPreview({
         <div className="flex flex-col items-center gap-3 py-8 text-center">
           <CheckCircle2 className="h-8 w-8 text-cyan-500" />
           <p className="text-sm font-medium">File decrypted successfully</p>
-          <p className="text-xs text-[var(--color-text-muted)]">No preview available for this file type.</p>
+          <p className="text-xs text-[var(--color-text-muted)]">
+            No preview available for this file type.
+          </p>
           <Button onClick={onSave} className="mt-2">
             <Download className="h-4 w-4 mr-2" />
             Save to Device

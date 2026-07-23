@@ -2,18 +2,12 @@
 
 import { forwardRef, type ButtonHTMLAttributes, type ComponentType } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 type IconComponent = ComponentType<{ className?: string; size?: number }>;
 
-interface IconButtonProps
-  extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "aria-label"> {
+interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "aria-label"> {
   /** Icon component (from "@/lib/icons"). */
   icon: IconComponent;
   /** Accessible label — used for both the tooltip text and aria-label. */
@@ -34,7 +28,7 @@ interface IconButtonProps
 export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
   (
     { icon: Icon, label, variant = "ghost", side = "top", iconClassName, className, ...props },
-    ref
+    ref,
   ) => (
     <TooltipProvider delayDuration={300}>
       <Tooltip>
@@ -54,7 +48,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
         <TooltipContent side={side}>{label}</TooltipContent>
       </Tooltip>
     </TooltipProvider>
-  )
+  ),
 );
 
 IconButton.displayName = "IconButton";

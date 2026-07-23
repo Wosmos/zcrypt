@@ -44,13 +44,37 @@ const BADGE_STYLES: Record<NonNullable<DocsNavLink["badge"]>, string> = {
 // docs section color map, then the group's pages as a tidy list of rows.
 type GroupMeta = { icon: ComponentType<{ className?: string }>; tile: string; text: string };
 const GROUP_META: Record<string, GroupMeta> = {
-  "Getting Started": { icon: Rocket, tile: "bg-cyan-500/10", text: "text-cyan-600 dark:text-cyan-400" },
-  "Organizing files": { icon: FolderOpen, tile: "bg-cyan-500/10", text: "text-cyan-600 dark:text-cyan-400" },
-  Security: { icon: Shield, tile: "bg-violet-500/10", text: "text-violet-600 dark:text-violet-400" },
-  "Storage backends": { icon: HardDrive, tile: "bg-amber-500/10", text: "text-amber-600 dark:text-amber-400" },
-  "Sharing & sending": { icon: Share2, tile: "bg-rose-500/10", text: "text-rose-600 dark:text-rose-400" },
+  "Getting Started": {
+    icon: Rocket,
+    tile: "bg-cyan-500/10",
+    text: "text-cyan-600 dark:text-cyan-400",
+  },
+  "Organizing files": {
+    icon: FolderOpen,
+    tile: "bg-cyan-500/10",
+    text: "text-cyan-600 dark:text-cyan-400",
+  },
+  Security: {
+    icon: Shield,
+    tile: "bg-violet-500/10",
+    text: "text-violet-600 dark:text-violet-400",
+  },
+  "Storage backends": {
+    icon: HardDrive,
+    tile: "bg-amber-500/10",
+    text: "text-amber-600 dark:text-amber-400",
+  },
+  "Sharing & sending": {
+    icon: Share2,
+    tile: "bg-rose-500/10",
+    text: "text-rose-600 dark:text-rose-400",
+  },
   Transfers: { icon: Send, tile: "bg-blue-500/10", text: "text-blue-600 dark:text-blue-400" },
-  "Privacy tools": { icon: Eye, tile: "bg-violet-500/10", text: "text-violet-600 dark:text-violet-400" },
+  "Privacy tools": {
+    icon: Eye,
+    tile: "bg-violet-500/10",
+    text: "text-violet-600 dark:text-violet-400",
+  },
   Account: { icon: Key, tile: "bg-emerald-500/10", text: "text-emerald-600 dark:text-emerald-400" },
   Apps: { icon: Smartphone, tile: "bg-cyan-500/10", text: "text-cyan-600 dark:text-cyan-400" },
   Developers: { icon: Code, tile: "bg-blue-500/10", text: "text-blue-600 dark:text-blue-400" },
@@ -75,7 +99,7 @@ function GroupLinkRow({ link }: { link: DocsNavLink }) {
         <span
           className={cn(
             "flex-shrink-0 rounded-full border px-1.5 py-px text-[9px] font-bold uppercase tracking-wide",
-            BADGE_STYLES[link.badge]
+            BADGE_STYLES[link.badge],
           )}
         >
           {link.badge}
@@ -115,14 +139,12 @@ function GroupBlock({ group }: { group: DocsNavGroup }) {
         <div
           className={cn(
             "flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg",
-            meta.tile
+            meta.tile,
           )}
         >
           <Icon className={cn("h-4 w-4", meta.text)} />
         </div>
-        <h2 className="font-heading text-sm font-bold uppercase tracking-wide">
-          {group.title}
-        </h2>
+        <h2 className="font-heading text-sm font-bold uppercase tracking-wide">{group.title}</h2>
       </div>
       <p className="mb-2 pl-[38px] text-[12px] leading-relaxed text-[var(--color-text-muted)]">
         {group.summary}
@@ -158,10 +180,9 @@ export default function DocsPage() {
           Documentation
         </h1>
         <p className="mt-4 max-w-2xl text-lg leading-relaxed text-[var(--color-text-secondary)]">
-          zcrypt is a zero-knowledge encrypted cloud drive: real folders, instant
-          in-browser previews, and per-folder passwords — all encrypted on your
-          device and stored in accounts you already own. These guides cover every
-          part of it.
+          zcrypt is a zero-knowledge encrypted cloud drive: real folders, instant in-browser
+          previews, and per-folder passwords — all encrypted on your device and stored in accounts
+          you already own. These guides cover every part of it.
         </p>
         <div className="mt-6 inline-flex items-center gap-2 text-sm">
           <span className="text-[var(--color-text-muted)]">New here?</span>
@@ -187,8 +208,8 @@ export default function DocsPage() {
       <section className="mt-14 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-8 text-center">
         <h2 className="text-xl font-bold tracking-tight">Can&apos;t find what you need?</h2>
         <p className="mx-auto mt-2 max-w-md text-sm text-[var(--color-text-secondary)]">
-          The whole project is open source. Open an issue, read the code, or reach
-          out and we&apos;ll help directly.
+          The whole project is open source. Open an issue, read the code, or reach out and
+          we&apos;ll help directly.
         </p>
         <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
           <a

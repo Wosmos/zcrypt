@@ -12,19 +12,11 @@ import {
   Github,
   HardDrive,
 } from "@/lib/icons";
-import {
-  faqs,
-  roadmapItems,
-  marqueeItems,
-  landingSections,
-} from "@/lib/data";
+import { faqs, roadmapItems, marqueeItems, landingSections } from "@/lib/data";
 
 // Client animation islands
 import { HeroSection } from "@/components/marketing/landing/hero-section";
-import {
-  AnimatedTimelineLine,
-  TimelineStep,
-} from "@/components/marketing/landing/timeline";
+import { AnimatedTimelineLine, TimelineStep } from "@/components/marketing/landing/timeline";
 import { ScrollReveal } from "@/components/marketing/landing/scroll-reveal";
 import { Marquee } from "@/components/marketing/landing/marquee";
 import { FAQItem } from "@/components/marketing/landing/faq-item";
@@ -36,10 +28,7 @@ import { EncryptionBoundary } from "@/components/marketing/landing/encryption-bo
 import { BringYourOwnStorage } from "@/components/marketing/landing/bring-your-own-storage";
 import { BuiltToTrust } from "@/components/marketing/landing/built-to-trust";
 import { BuiltBy } from "@/components/marketing/landing/built-by";
-import {
-  FAQJsonLd,
-  SoftwareApplicationJsonLd,
-} from "@/components/seo/json-ld";
+import { FAQJsonLd, SoftwareApplicationJsonLd } from "@/components/seo/json-ld";
 
 export const metadata: Metadata = {
   title: "zcrypt — The Encrypted Cloud Drive You Actually Own",
@@ -154,7 +143,7 @@ export default function LandingPage() {
       </section>
 
       {/* ═══ APP SHOWCASE ═══ */}
-      
+
       <section className="py-24 px-4 bg-[var(--color-surface)] overflow-hidden">
         <div className="mx-auto max-w-6xl">
           <ScrollReveal className="text-center mb-16">
@@ -181,7 +170,14 @@ export default function LandingPage() {
               {landingSections.howItWorks.eyebrow}
             </p>
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-              Three steps. <em className="italic"> <Underlined variant="ink" delay={0.5}>Nothing</Underlined>  </em> we can read.
+              Three steps.{" "}
+              <em className="italic">
+                {" "}
+                <Underlined variant="ink" delay={0.5}>
+                  Nothing
+                </Underlined>{" "}
+              </em>{" "}
+              we can read.
             </h2>
             <p className="text-[var(--color-text-secondary)] mt-4 max-w-xl mx-auto leading-relaxed">
               {landingSections.howItWorks.subheading}
@@ -214,8 +210,6 @@ export default function LandingPage() {
 
       {/* ═══ FEATURES — BENTO GRID ═══ */}
       <BentoGrid />
-
-   
 
       {/* ═══ EXPLORE THE DRIVE — feature links ═══ */}
       <section className="py-24 px-4 bg-[var(--color-surface)]">
@@ -289,9 +283,7 @@ export default function LandingPage() {
                   key={o.q}
                   className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5"
                 >
-                  <h3 className="text-sm font-bold tracking-tight mb-1.5">
-                    {o.q}
-                  </h3>
+                  <h3 className="text-sm font-bold tracking-tight mb-1.5">{o.q}</h3>
                   <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed">
                     {o.a}
                   </p>

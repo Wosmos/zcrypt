@@ -168,7 +168,7 @@ export default function VaultPage() {
   // Files in a given folder (re-key sweeps operate on these).
   const filesInFolder = useCallback(
     (folderId: string) => files.filter((f) => (f.folder_id ?? null) === folderId),
-    [files]
+    [files],
   );
 
   // Open a folder: a protected one verifies its password (cache TTL) before
@@ -183,7 +183,7 @@ export default function VaultPage() {
         setCurrentFolder(folder.id, folder.name);
       }
     },
-    [folderProtection, setCurrentFolder]
+    [folderProtection, setCurrentFolder],
   );
 
   // Protect a folder: re-key its files from the vault pass to the new folder
@@ -203,7 +203,7 @@ export default function VaultPage() {
           password,
           inFolder,
           vaultPass ?? "",
-          (p) => setRekeyProgress({ done: p.done, total: p.total })
+          (p) => setRekeyProgress({ done: p.done, total: p.total }),
         );
         toast.success("Folder protected");
         setProtectTarget(null);
@@ -212,7 +212,7 @@ export default function VaultPage() {
         setRekeyProgress(null);
       }
     },
-    [protectTarget, filesInFolder, folderProtection, refresh]
+    [protectTarget, filesInFolder, folderProtection, refresh],
   );
 
   // Remove protection: needs the folder password (prompt if uncached) AND the
@@ -232,7 +232,7 @@ export default function VaultPage() {
           folderPw,
           inFolder,
           vaultPass ?? "",
-          (p) => setRekeyProgress({ done: p.done, total: p.total })
+          (p) => setRekeyProgress({ done: p.done, total: p.total }),
         );
         toast.success("Folder password removed");
         setRemoveTarget(null);
@@ -259,7 +259,7 @@ export default function VaultPage() {
       const file = files.find((f) => f.id === id);
       if (file) setDeleteTarget(file);
     },
-    [files]
+    [files],
   );
 
   const handleShareRequest = useCallback(
@@ -267,7 +267,7 @@ export default function VaultPage() {
       const file = files.find((f) => f.id === id);
       if (file) setShareTarget(file);
     },
-    [files]
+    [files],
   );
 
   const handleOpenDetails = useCallback((file: FileMetadata) => {
@@ -282,14 +282,17 @@ export default function VaultPage() {
   const handleOpenFile = useCallback(
     (file: FileMetadata, folderFiles: FileMetadata[]) => {
       const list = folderFiles.length > 0 ? folderFiles : [file];
-      const idx = Math.max(0, list.findIndex((f) => f.id === file.id));
+      const idx = Math.max(
+        0,
+        list.findIndex((f) => f.id === file.id),
+      );
       vault.withPassphrase(() => {
         setViewerFiles(list);
         setViewerIndex(idx);
         setViewerOpen(true);
       });
     },
-    [vault]
+    [vault],
   );
 
   // Kebab "Preview" (filename-keyed) routes to the SAME full viewer, scoped to
@@ -302,7 +305,7 @@ export default function VaultPage() {
       const folderFiles = files.filter((f) => (f.folder_id ?? null) === fid);
       handleOpenFile(file, folderFiles);
     },
-    [files, handleOpenFile]
+    [files, handleOpenFile],
   );
 
   const closeViewer = useCallback(() => setViewerOpen(false), []);
@@ -325,7 +328,7 @@ export default function VaultPage() {
       setUploadOpen(false);
       actions.handleFilesSelected(selectedFiles);
     },
-    [actions]
+    [actions],
   );
 
   // Mirror PlatformHealth's filter so the "Storage & backup" panel only renders
@@ -369,36 +372,36 @@ export default function VaultPage() {
         {/* Left group: search + the vault lock hugging its right edge (desktop). */}
         <div className="flex min-w-0 flex-1 items-center gap-2 sm:flex-initial">
           <div className="relative w-full min-w-0 flex-1 sm:w-80">
-          <Input
-            ref={searchRef}
-            type="search"
-            placeholder="Search your vault"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") {
-                setSearch("");
-                e.currentTarget.blur();
-              }
-            }}
-            icon={<Search className="h-4 w-4" />}
-            className="h-9 pr-9"
-            aria-label="Search your vault"
-          />
-          {search ? (
-            <button
-              type="button"
-              onClick={() => setSearch("")}
-              aria-label="Clear search"
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)]"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          ) : (
-            <kbd className="pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2 select-none rounded border border-[var(--color-border)] bg-[var(--color-surface-1)] px-1.5 py-0.5 font-mono text-[10px] leading-none text-[var(--color-text-muted)] sm:block">
-              /
-            </kbd>
-          )}
+            <Input
+              ref={searchRef}
+              type="search"
+              placeholder="Search your vault"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  setSearch("");
+                  e.currentTarget.blur();
+                }
+              }}
+              icon={<Search className="h-4 w-4" />}
+              className="h-9 pr-9"
+              aria-label="Search your vault"
+            />
+            {search ? (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                aria-label="Clear search"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)]"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            ) : (
+              <kbd className="pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2 select-none rounded border border-[var(--color-border)] bg-[var(--color-surface-1)] px-1.5 py-0.5 font-mono text-[10px] leading-none text-[var(--color-text-muted)] sm:block">
+                /
+              </kbd>
+            )}
           </div>
           <VaultLock
             unlocked={vault.unlocked}
@@ -437,107 +440,109 @@ export default function VaultPage() {
 
       {/* Vault file browser */}
       <div className="space-y-6">
-          {/* No storage available warning */}
-          {quotaInfo && !quotaInfo.can_upload && (
-            <div className="flex items-start gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4">
-              <AlertTriangle className="h-5 w-5 text-amber-500 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium text-amber-700 dark:text-amber-300">
-                  Storage not available yet
-                </p>
-                <p className="text-xs text-amber-600/70 dark:text-amber-400/60 mt-0.5">
-                  Managed storage is being set up. You can also{" "}
-                  <Link
-                    href="/settings"
-                    className="underline hover:text-amber-600 dark:hover:text-amber-300 transition-colors"
-                  >
-                    connect your own platform
-                  </Link>{" "}
-                  for unlimited storage.
-                </p>
-              </div>
+        {/* No storage available warning */}
+        {quotaInfo && !quotaInfo.can_upload && (
+          <div className="flex items-start gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4">
+            <AlertTriangle className="h-5 w-5 text-amber-500 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-amber-700 dark:text-amber-300">
+                Storage not available yet
+              </p>
+              <p className="text-xs text-amber-600/70 dark:text-amber-400/60 mt-0.5">
+                Managed storage is being set up. You can also{" "}
+                <Link
+                  href="/settings"
+                  className="underline hover:text-amber-600 dark:hover:text-amber-300 transition-colors"
+                >
+                  connect your own platform
+                </Link>{" "}
+                for unlimited storage.
+              </p>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Unfinished uploads (started but never completed) — resume or discard.
+        {/* Unfinished uploads (started but never completed) — resume or discard.
               Resume goes through handleResumeIncomplete so the ORIGINAL session's
               platform is pinned (never re-resolved through the picker). */}
-          <IncompleteUploads onResume={(file, upload) => actions.handleResumeIncomplete(file, upload)} />
+        <IncompleteUploads
+          onResume={(file, upload) => actions.handleResumeIncomplete(file, upload)}
+        />
 
-          {/* Empty vault → CTA; otherwise the unified explorer. The explorer
+        {/* Empty vault → CTA; otherwise the unified explorer. The explorer
               renders its own loading / locked / no-results states. Until the
               lock decision has settled (`vault.ready`), hold on the explorer's
               neutral skeleton — never paint real file content (tiles / names /
               thumbnails) that would then get masked by the lock overlay, and
               never show the empty-state before we know the vault is truly empty. */}
-          {vault.ready && !loading && !error && files.length === 0 ? (
-            <EmptyState
-              icon={<Shield className="h-7 w-7 text-[var(--color-text-muted)]" />}
-              title="No files yet"
-              description="Upload your first file to get started. Files are compressed, encrypted, and stored across your connected platforms."
-              action={
-                <Button size="sm" onClick={() => setUploadOpen(true)}>
-                  <FileUpload className="h-4 w-4" />
-                  Upload files
-                </Button>
-              }
-            />
-          ) : (
-            <VaultExplorer
-              ref={explorerRef}
-              search={search}
-              onSearchChange={setSearch}
-              files={files}
-              loading={loading || !vault.ready}
-              error={error}
-              onPreview={handlePreviewInViewer}
-              onDownload={actions.handleDownload}
-              onShare={handleShareRequest}
-              onOpenDetails={handleOpenDetails}
-              onOpenFile={handleOpenFile}
-              onDelete={handleDeleteRequest}
-              onMoveFile={actions.handleMoveFileTo}
-              onMoveRequest={setMoveTarget}
-              onBulkDelete={setBulkDeleteIds}
-              onBulkDownload={actions.handleBulkDownload}
-              onUploadClick={() => setUploadOpen(true)}
-              onOpenFolderRequest={handleOpenFolderRequest}
-              onProtectFolder={setProtectTarget}
-              onRemoveFolderPassword={setRemoveTarget}
-              onMoveFolderRequest={setMoveFolderTarget}
-            />
-          )}
+        {vault.ready && !loading && !error && files.length === 0 ? (
+          <EmptyState
+            icon={<Shield className="h-7 w-7 text-[var(--color-text-muted)]" />}
+            title="No files yet"
+            description="Upload your first file to get started. Files are compressed, encrypted, and stored across your connected platforms."
+            action={
+              <Button size="sm" onClick={() => setUploadOpen(true)}>
+                <FileUpload className="h-4 w-4" />
+                Upload files
+              </Button>
+            }
+          />
+        ) : (
+          <VaultExplorer
+            ref={explorerRef}
+            search={search}
+            onSearchChange={setSearch}
+            files={files}
+            loading={loading || !vault.ready}
+            error={error}
+            onPreview={handlePreviewInViewer}
+            onDownload={actions.handleDownload}
+            onShare={handleShareRequest}
+            onOpenDetails={handleOpenDetails}
+            onOpenFile={handleOpenFile}
+            onDelete={handleDeleteRequest}
+            onMoveFile={actions.handleMoveFileTo}
+            onMoveRequest={setMoveTarget}
+            onBulkDelete={setBulkDeleteIds}
+            onBulkDownload={actions.handleBulkDownload}
+            onUploadClick={() => setUploadOpen(true)}
+            onOpenFolderRequest={handleOpenFolderRequest}
+            onProtectFolder={setProtectTarget}
+            onRemoveFolderPassword={setRemoveTarget}
+            onMoveFolderRequest={setMoveFolderTarget}
+          />
+        )}
 
-          {/* Storage & backup — de-emphasized, collapsed by default. Only render
+        {/* Storage & backup — de-emphasized, collapsed by default. Only render
               when there's content: a personal platform or files to back up.
               Hidden on mobile (md-): platform storage lives in Insights and vault
               export/import in Settings, so it'd only clutter the phone. */}
-          {(hasConnectedPlatform || files.length > 0) && (
-            <Accordion type="single" collapsible className="hidden pt-2 md:block">
-              <AccordionItem
-                value="storage-backup"
-                className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4"
-              >
-                <AccordionTrigger className="py-3.5 text-sm font-medium text-[var(--color-text-secondary)] hover:no-underline hover:text-[var(--color-text)] [&>svg]:text-[var(--color-text-muted)]">
-                  <span className="flex items-center gap-2">
-                    <HardDrive className="h-4 w-4 text-[var(--color-text-muted)]" />
-                    Storage &amp; backup
-                  </span>
-                </AccordionTrigger>
-                <AccordionContent className="space-y-3 pb-4">
-                  <PlatformHealth statuses={statuses} repos={repos} />
-                  {files.length > 0 && <ExportImport files={files} />}
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-          )}
+        {(hasConnectedPlatform || files.length > 0) && (
+          <Accordion type="single" collapsible className="hidden pt-2 md:block">
+            <AccordionItem
+              value="storage-backup"
+              className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4"
+            >
+              <AccordionTrigger className="py-3.5 text-sm font-medium text-[var(--color-text-secondary)] hover:no-underline hover:text-[var(--color-text)] [&>svg]:text-[var(--color-text-muted)]">
+                <span className="flex items-center gap-2">
+                  <HardDrive className="h-4 w-4 text-[var(--color-text-muted)]" />
+                  Storage &amp; backup
+                </span>
+              </AccordionTrigger>
+              <AccordionContent className="space-y-3 pb-4">
+                <PlatformHealth statuses={statuses} repos={repos} />
+                {files.length > 0 && <ExportImport files={files} />}
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        )}
 
-          {/* Feedback modal */}
-          <FeedbackModal
-            open={showFeedback}
-            onClose={dismissFeedback}
-            onSubmitted={markFeedbackSubmitted}
-          />
+        {/* Feedback modal */}
+        <FeedbackModal
+          open={showFeedback}
+          onClose={dismissFeedback}
+          onSubmitted={markFeedbackSubmitted}
+        />
       </div>
 
       {/* Floating "+" — the single mobile entry to New folder / Upload. Hidden
@@ -579,9 +584,7 @@ export default function VaultPage() {
         decrypt={decryptToBlob}
         prefetch={prefetch}
         onWrongPassword={(folderId) =>
-          folderId == null
-            ? vault.lock()
-            : folderProtection.clearFolderPassword(folderId)
+          folderId == null ? vault.lock() : folderProtection.clearFolderPassword(folderId)
         }
       />
 
@@ -632,7 +635,9 @@ export default function VaultPage() {
         state={{
           open: !!protectTarget,
           folderName: protectTarget?.name ?? "",
-          fileCount: protectTarget ? files.filter((f) => (f.folder_id ?? null) === protectTarget.id).length : 0,
+          fileCount: protectTarget
+            ? files.filter((f) => (f.folder_id ?? null) === protectTarget.id).length
+            : 0,
           vaultUnlocked: vault.unlocked,
           progress: protectTarget ? rekeyProgress : null,
           onSubmit: submitProtect,
@@ -649,7 +654,9 @@ export default function VaultPage() {
         state={{
           open: !!removeTarget,
           folderName: removeTarget?.name ?? "",
-          fileCount: removeTarget ? files.filter((f) => (f.folder_id ?? null) === removeTarget.id).length : 0,
+          fileCount: removeTarget
+            ? files.filter((f) => (f.folder_id ?? null) === removeTarget.id).length
+            : 0,
           vaultUnlocked: vault.unlocked,
           progress: removeTarget ? rekeyProgress : null,
           onConfirm: submitRemoveProtection,

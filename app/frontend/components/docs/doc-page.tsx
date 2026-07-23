@@ -11,7 +11,7 @@ const SITE = "https://zcrypt.cloud";
 const flatDocs: { link: DocsNavLink; section: string }[] = docsNav.flatMap((group) =>
   group.links
     .filter((l) => !l.external && l.href.startsWith("/docs"))
-    .map((link) => ({ link, section: group.title }))
+    .map((link) => ({ link, section: group.title })),
 );
 
 function neighbors(href: string) {
@@ -106,16 +106,21 @@ export function DocPage({
             <span
               className={cn(
                 "rounded-full border px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide",
-                badge === "Beta" && "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400",
-                badge === "Roadmap" && "border-violet-500/30 bg-violet-500/10 text-violet-600 dark:text-violet-400",
-                badge === "New" && "border-cyan-500/30 bg-cyan-500/10 text-cyan-600 dark:text-cyan-400"
+                badge === "Beta" &&
+                  "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400",
+                badge === "Roadmap" &&
+                  "border-violet-500/30 bg-violet-500/10 text-violet-600 dark:text-violet-400",
+                badge === "New" &&
+                  "border-cyan-500/30 bg-cyan-500/10 text-cyan-600 dark:text-cyan-400",
               )}
             >
               {badge}
             </span>
           )}
         </div>
-        <p className="mt-3 text-lg leading-relaxed text-[var(--color-text-secondary)]">{description}</p>
+        <p className="mt-3 text-lg leading-relaxed text-[var(--color-text-secondary)]">
+          {description}
+        </p>
       </header>
 
       {/* On this page — client component with scroll-spy */}
@@ -217,7 +222,7 @@ export function DocList({ items, ordered }: { items: React.ReactNode[]; ordered?
     <Tag
       className={cn(
         "space-y-2 text-[15px] leading-relaxed text-[var(--color-text-secondary)]",
-        ordered ? "list-decimal pl-5" : ""
+        ordered ? "list-decimal pl-5" : "",
       )}
     >
       {items.map((item, i) => (
@@ -247,7 +252,11 @@ export function DocCode({ children, label }: { children: string; label?: string 
 
 const NOTE_STYLES = {
   info: { wrap: "border-cyan-500/20 bg-cyan-500/5", icon: "text-cyan-500", Icon: Info },
-  warning: { wrap: "border-amber-500/25 bg-amber-500/5", icon: "text-amber-500", Icon: AlertTriangle },
+  warning: {
+    wrap: "border-amber-500/25 bg-amber-500/5",
+    icon: "text-amber-500",
+    Icon: AlertTriangle,
+  },
   security: { wrap: "border-violet-500/25 bg-violet-500/5", icon: "text-violet-500", Icon: Lock },
 } as const;
 
@@ -272,13 +281,7 @@ export function DocNote({
   );
 }
 
-export function DocTable({
-  head,
-  rows,
-}: {
-  head: string[];
-  rows: React.ReactNode[][];
-}) {
+export function DocTable({ head, rows }: { head: string[]; rows: React.ReactNode[][] }) {
   return (
     <div className="overflow-x-auto rounded-xl border border-[var(--color-border)]">
       <table className="w-full text-left text-sm">

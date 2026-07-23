@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 
 /** Type of any icon component exported from `@/lib/icons`. */
-type SubmitIcon = (typeof import("@/lib/icons"))["File"];
+type SubmitIcon = typeof import("@/lib/icons")["File"];
 
 interface SubmitButtonProps {
   loading: boolean;
@@ -32,13 +32,7 @@ export function SubmitButton({
   onClick,
 }: SubmitButtonProps) {
   return (
-    <Button
-      type={type}
-      onClick={onClick}
-      className="w-full"
-      size="lg"
-      disabled={disabled}
-    >
+    <Button type={type} onClick={onClick} className="w-full" size="lg" disabled={disabled}>
       {loading ? (
         <span className="flex items-center gap-2">
           <LogoSpinner size={16} speed="fast" />

@@ -17,7 +17,9 @@ export function BottomSheet({ open, onClose, children }: BottomSheetProps) {
   useEffect(() => {
     if (open) {
       document.body.style.overflow = "hidden";
-      return () => { document.body.style.overflow = ""; };
+      return () => {
+        document.body.style.overflow = "";
+      };
     }
   }, [open]);
 
@@ -73,9 +75,7 @@ export function BottomSheet({ open, onClose, children }: BottomSheetProps) {
             </div>
 
             {/* Content */}
-            <div className="overflow-y-auto px-4 pb-4">
-              {children}
-            </div>
+            <div className="overflow-y-auto px-4 pb-4">{children}</div>
           </motion.div>
         </>
       )}

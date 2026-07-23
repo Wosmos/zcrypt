@@ -8,7 +8,7 @@
  */
 export function relaunchAfterPrior(
   prior: Promise<unknown> | undefined,
-  run: () => Promise<void>
+  run: () => Promise<void>,
 ): void {
   void (async () => {
     try {

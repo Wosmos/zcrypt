@@ -1,11 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import {
-  DocPage,
-  DocSection,
-  DocP,
-  DocTable,
-} from "@/components/docs/doc-page";
+import { DocPage, DocSection, DocP, DocTable } from "@/components/docs/doc-page";
 
 export const metadata: Metadata = {
   title: "Glossary | zcrypt Docs",
@@ -35,9 +30,8 @@ export default function GlossaryDocPage() {
     >
       <DocSection id="terms" title="Terms">
         <DocP>
-          A few of these are general cryptography terms; the rest are specific to
-          how zcrypt works. They build on each other, so it can help to read them
-          in order.
+          A few of these are general cryptography terms; the rest are specific to how zcrypt works.
+          They build on each other, so it can help to read them in order.
         </DocP>
         <DocTable
           head={["Term", "Definition"]}
@@ -56,7 +50,7 @@ export default function GlossaryDocPage() {
             ],
             [
               <strong key="t">Envelope encryption</strong>,
-              "A two-layer scheme: data is sealed with a content key (the CEK), and that content key is in turn sealed (\"wrapped\") by another key. It lets zcrypt re-key or re-share data without re-encrypting every byte.",
+              'A two-layer scheme: data is sealed with a content key (the CEK), and that content key is in turn sealed ("wrapped") by another key. It lets zcrypt re-key or re-share data without re-encrypting every byte.',
             ],
             [
               <strong key="t">Chunk</strong>,
@@ -109,11 +103,17 @@ export default function GlossaryDocPage() {
             Encryption model
           </Link>
           ,{" "}
-          <Link href="/docs/zero-knowledge" className="text-cyan-600 hover:underline dark:text-cyan-400">
+          <Link
+            href="/docs/zero-knowledge"
+            className="text-cyan-600 hover:underline dark:text-cyan-400"
+          >
             Zero-knowledge architecture
           </Link>
           , and{" "}
-          <Link href="/docs/architecture" className="text-cyan-600 hover:underline dark:text-cyan-400">
+          <Link
+            href="/docs/architecture"
+            className="text-cyan-600 hover:underline dark:text-cyan-400"
+          >
             Architecture
           </Link>
           .

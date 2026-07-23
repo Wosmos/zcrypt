@@ -33,9 +33,9 @@ export const sharing: SharingPageData = {
     headlineGradient: "Not the key to your vault.",
     subtext: (
       <>
-        Every share link carries its own decryption key inside the URL fragment —
-        the one piece of a link a browser never transmits. The recipient opens it,
-        their browser decrypts the file, and the server only ever held ciphertext.
+        Every share link carries its own decryption key inside the URL fragment — the one piece of a
+        link a browser never transmits. The recipient opens it, their browser decrypts the file, and
+        the server only ever held ciphertext.
       </>
     ),
     secondaryLabel: "Read the docs",
@@ -44,7 +44,8 @@ export const sharing: SharingPageData = {
 
   capabilitiesSection: {
     heading: "You decide who, how long, how many",
-    subheading: "Sharing without surrendering control. Set the terms on every link, and pull it back the moment you want to.",
+    subheading:
+      "Sharing without surrendering control. Set the terms on every link, and pull it back the moment you want to.",
   },
   capabilities: [
     {
@@ -84,11 +85,11 @@ export const sharing: SharingPageData = {
     heading: <>Why we can&apos;t read your shares</>,
     body: (
       <>
-        A URL fragment — everything after the <span className="font-mono">#</span> —
-        is processed only by the browser and is never included in the request sent
-        to a server. We put the decryption key there on purpose. The server hands
-        over encrypted bytes; the recipient&apos;s browser uses the key from the
-        fragment to decrypt them locally. The plaintext never exists on our side.
+        A URL fragment — everything after the <span className="font-mono">#</span> — is processed
+        only by the browser and is never included in the request sent to a server. We put the
+        decryption key there on purpose. The server hands over encrypted bytes; the recipient&apos;s
+        browser uses the key from the fragment to decrypt them locally. The plaintext never exists
+        on our side.
       </>
     ),
     checklistItems: [
@@ -103,7 +104,8 @@ export const sharing: SharingPageData = {
 
   moreWaysSection: {
     heading: "More ways to send",
-    subheading: "Sharing a vault file is one path. For the throwaway and the one-time, there are two more.",
+    subheading:
+      "Sharing a vault file is one path. For the throwaway and the one-time, there are two more.",
   },
   moreWays: [
     {

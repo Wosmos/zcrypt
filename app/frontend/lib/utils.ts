@@ -104,88 +104,478 @@ export function getFileTypeInfo(filename: string): FileTypeInfo {
 
   const typeMap: Record<string, FileTypeInfo> = {
     // Documents
-    pdf: { icon: "FileText", color: "text-rose-500", bg: "bg-rose-500/10", label: "Document", gradient: "from-rose-500/20 to-rose-500/5" },
-    doc: { icon: "FileText", color: "text-rose-500", bg: "bg-rose-500/10", label: "Document", gradient: "from-rose-500/20 to-rose-500/5" },
-    docx: { icon: "FileText", color: "text-rose-500", bg: "bg-rose-500/10", label: "Document", gradient: "from-rose-500/20 to-rose-500/5" },
-    txt: { icon: "FileText", color: "text-rose-500", bg: "bg-rose-500/10", label: "Document", gradient: "from-rose-500/20 to-rose-500/5" },
-    md: { icon: "FileText", color: "text-rose-500", bg: "bg-rose-500/10", label: "Document", gradient: "from-rose-500/20 to-rose-500/5" },
-    markdown: { icon: "FileText", color: "text-rose-500", bg: "bg-rose-500/10", label: "Document", gradient: "from-rose-500/20 to-rose-500/5" },
-    rtf: { icon: "FileText", color: "text-rose-500", bg: "bg-rose-500/10", label: "Document", gradient: "from-rose-500/20 to-rose-500/5" },
-    odt: { icon: "FileText", color: "text-rose-500", bg: "bg-rose-500/10", label: "Document", gradient: "from-rose-500/20 to-rose-500/5" },
-    ppt: { icon: "FileText", color: "text-rose-500", bg: "bg-rose-500/10", label: "Document", gradient: "from-rose-500/20 to-rose-500/5" },
-    pptx: { icon: "FileText", color: "text-rose-500", bg: "bg-rose-500/10", label: "Document", gradient: "from-rose-500/20 to-rose-500/5" },
+    pdf: {
+      icon: "FileText",
+      color: "text-rose-500",
+      bg: "bg-rose-500/10",
+      label: "Document",
+      gradient: "from-rose-500/20 to-rose-500/5",
+    },
+    doc: {
+      icon: "FileText",
+      color: "text-rose-500",
+      bg: "bg-rose-500/10",
+      label: "Document",
+      gradient: "from-rose-500/20 to-rose-500/5",
+    },
+    docx: {
+      icon: "FileText",
+      color: "text-rose-500",
+      bg: "bg-rose-500/10",
+      label: "Document",
+      gradient: "from-rose-500/20 to-rose-500/5",
+    },
+    txt: {
+      icon: "FileText",
+      color: "text-rose-500",
+      bg: "bg-rose-500/10",
+      label: "Document",
+      gradient: "from-rose-500/20 to-rose-500/5",
+    },
+    md: {
+      icon: "FileText",
+      color: "text-rose-500",
+      bg: "bg-rose-500/10",
+      label: "Document",
+      gradient: "from-rose-500/20 to-rose-500/5",
+    },
+    markdown: {
+      icon: "FileText",
+      color: "text-rose-500",
+      bg: "bg-rose-500/10",
+      label: "Document",
+      gradient: "from-rose-500/20 to-rose-500/5",
+    },
+    rtf: {
+      icon: "FileText",
+      color: "text-rose-500",
+      bg: "bg-rose-500/10",
+      label: "Document",
+      gradient: "from-rose-500/20 to-rose-500/5",
+    },
+    odt: {
+      icon: "FileText",
+      color: "text-rose-500",
+      bg: "bg-rose-500/10",
+      label: "Document",
+      gradient: "from-rose-500/20 to-rose-500/5",
+    },
+    ppt: {
+      icon: "FileText",
+      color: "text-rose-500",
+      bg: "bg-rose-500/10",
+      label: "Document",
+      gradient: "from-rose-500/20 to-rose-500/5",
+    },
+    pptx: {
+      icon: "FileText",
+      color: "text-rose-500",
+      bg: "bg-rose-500/10",
+      label: "Document",
+      gradient: "from-rose-500/20 to-rose-500/5",
+    },
     // Spreadsheets
-    xls: { icon: "Table", color: "text-emerald-500", bg: "bg-emerald-500/10", label: "Spreadsheet", gradient: "from-emerald-500/20 to-emerald-500/5" },
-    xlsx: { icon: "Table", color: "text-emerald-500", bg: "bg-emerald-500/10", label: "Spreadsheet", gradient: "from-emerald-500/20 to-emerald-500/5" },
-    csv: { icon: "Table", color: "text-emerald-500", bg: "bg-emerald-500/10", label: "Spreadsheet", gradient: "from-emerald-500/20 to-emerald-500/5" },
+    xls: {
+      icon: "Table",
+      color: "text-emerald-500",
+      bg: "bg-emerald-500/10",
+      label: "Spreadsheet",
+      gradient: "from-emerald-500/20 to-emerald-500/5",
+    },
+    xlsx: {
+      icon: "Table",
+      color: "text-emerald-500",
+      bg: "bg-emerald-500/10",
+      label: "Spreadsheet",
+      gradient: "from-emerald-500/20 to-emerald-500/5",
+    },
+    csv: {
+      icon: "Table",
+      color: "text-emerald-500",
+      bg: "bg-emerald-500/10",
+      label: "Spreadsheet",
+      gradient: "from-emerald-500/20 to-emerald-500/5",
+    },
     // Images
-    jpg: { icon: "Image", color: "text-violet-500", bg: "bg-violet-500/10", label: "Image", gradient: "from-violet-500/20 to-violet-500/5" },
-    jpeg: { icon: "Image", color: "text-violet-500", bg: "bg-violet-500/10", label: "Image", gradient: "from-violet-500/20 to-violet-500/5" },
-    png: { icon: "Image", color: "text-violet-500", bg: "bg-violet-500/10", label: "Image", gradient: "from-violet-500/20 to-violet-500/5" },
-    gif: { icon: "Image", color: "text-violet-500", bg: "bg-violet-500/10", label: "Image", gradient: "from-violet-500/20 to-violet-500/5" },
-    webp: { icon: "Image", color: "text-violet-500", bg: "bg-violet-500/10", label: "Image", gradient: "from-violet-500/20 to-violet-500/5" },
-    svg: { icon: "Image", color: "text-violet-500", bg: "bg-violet-500/10", label: "Image", gradient: "from-violet-500/20 to-violet-500/5" },
-    bmp: { icon: "Image", color: "text-violet-500", bg: "bg-violet-500/10", label: "Image", gradient: "from-violet-500/20 to-violet-500/5" },
-    ico: { icon: "Image", color: "text-violet-500", bg: "bg-violet-500/10", label: "Image", gradient: "from-violet-500/20 to-violet-500/5" },
+    jpg: {
+      icon: "Image",
+      color: "text-violet-500",
+      bg: "bg-violet-500/10",
+      label: "Image",
+      gradient: "from-violet-500/20 to-violet-500/5",
+    },
+    jpeg: {
+      icon: "Image",
+      color: "text-violet-500",
+      bg: "bg-violet-500/10",
+      label: "Image",
+      gradient: "from-violet-500/20 to-violet-500/5",
+    },
+    png: {
+      icon: "Image",
+      color: "text-violet-500",
+      bg: "bg-violet-500/10",
+      label: "Image",
+      gradient: "from-violet-500/20 to-violet-500/5",
+    },
+    gif: {
+      icon: "Image",
+      color: "text-violet-500",
+      bg: "bg-violet-500/10",
+      label: "Image",
+      gradient: "from-violet-500/20 to-violet-500/5",
+    },
+    webp: {
+      icon: "Image",
+      color: "text-violet-500",
+      bg: "bg-violet-500/10",
+      label: "Image",
+      gradient: "from-violet-500/20 to-violet-500/5",
+    },
+    svg: {
+      icon: "Image",
+      color: "text-violet-500",
+      bg: "bg-violet-500/10",
+      label: "Image",
+      gradient: "from-violet-500/20 to-violet-500/5",
+    },
+    bmp: {
+      icon: "Image",
+      color: "text-violet-500",
+      bg: "bg-violet-500/10",
+      label: "Image",
+      gradient: "from-violet-500/20 to-violet-500/5",
+    },
+    ico: {
+      icon: "Image",
+      color: "text-violet-500",
+      bg: "bg-violet-500/10",
+      label: "Image",
+      gradient: "from-violet-500/20 to-violet-500/5",
+    },
     // Video
-    mp4: { icon: "Video", color: "text-blue-500", bg: "bg-blue-500/10", label: "Video", gradient: "from-blue-500/20 to-blue-500/5" },
-    mov: { icon: "Video", color: "text-blue-500", bg: "bg-blue-500/10", label: "Video", gradient: "from-blue-500/20 to-blue-500/5" },
-    avi: { icon: "Video", color: "text-blue-500", bg: "bg-blue-500/10", label: "Video", gradient: "from-blue-500/20 to-blue-500/5" },
-    mkv: { icon: "Video", color: "text-blue-500", bg: "bg-blue-500/10", label: "Video", gradient: "from-blue-500/20 to-blue-500/5" },
-    webm: { icon: "Video", color: "text-blue-500", bg: "bg-blue-500/10", label: "Video", gradient: "from-blue-500/20 to-blue-500/5" },
+    mp4: {
+      icon: "Video",
+      color: "text-blue-500",
+      bg: "bg-blue-500/10",
+      label: "Video",
+      gradient: "from-blue-500/20 to-blue-500/5",
+    },
+    mov: {
+      icon: "Video",
+      color: "text-blue-500",
+      bg: "bg-blue-500/10",
+      label: "Video",
+      gradient: "from-blue-500/20 to-blue-500/5",
+    },
+    avi: {
+      icon: "Video",
+      color: "text-blue-500",
+      bg: "bg-blue-500/10",
+      label: "Video",
+      gradient: "from-blue-500/20 to-blue-500/5",
+    },
+    mkv: {
+      icon: "Video",
+      color: "text-blue-500",
+      bg: "bg-blue-500/10",
+      label: "Video",
+      gradient: "from-blue-500/20 to-blue-500/5",
+    },
+    webm: {
+      icon: "Video",
+      color: "text-blue-500",
+      bg: "bg-blue-500/10",
+      label: "Video",
+      gradient: "from-blue-500/20 to-blue-500/5",
+    },
     // Audio
-    mp3: { icon: "Music", color: "text-pink-500", bg: "bg-pink-500/10", label: "Audio", gradient: "from-pink-500/20 to-pink-500/5" },
-    wav: { icon: "Music", color: "text-pink-500", bg: "bg-pink-500/10", label: "Audio", gradient: "from-pink-500/20 to-pink-500/5" },
-    flac: { icon: "Music", color: "text-pink-500", bg: "bg-pink-500/10", label: "Audio", gradient: "from-pink-500/20 to-pink-500/5" },
-    aac: { icon: "Music", color: "text-pink-500", bg: "bg-pink-500/10", label: "Audio", gradient: "from-pink-500/20 to-pink-500/5" },
-    ogg: { icon: "Music", color: "text-pink-500", bg: "bg-pink-500/10", label: "Audio", gradient: "from-pink-500/20 to-pink-500/5" },
-    m4a: { icon: "Music", color: "text-pink-500", bg: "bg-pink-500/10", label: "Audio", gradient: "from-pink-500/20 to-pink-500/5" },
+    mp3: {
+      icon: "Music",
+      color: "text-pink-500",
+      bg: "bg-pink-500/10",
+      label: "Audio",
+      gradient: "from-pink-500/20 to-pink-500/5",
+    },
+    wav: {
+      icon: "Music",
+      color: "text-pink-500",
+      bg: "bg-pink-500/10",
+      label: "Audio",
+      gradient: "from-pink-500/20 to-pink-500/5",
+    },
+    flac: {
+      icon: "Music",
+      color: "text-pink-500",
+      bg: "bg-pink-500/10",
+      label: "Audio",
+      gradient: "from-pink-500/20 to-pink-500/5",
+    },
+    aac: {
+      icon: "Music",
+      color: "text-pink-500",
+      bg: "bg-pink-500/10",
+      label: "Audio",
+      gradient: "from-pink-500/20 to-pink-500/5",
+    },
+    ogg: {
+      icon: "Music",
+      color: "text-pink-500",
+      bg: "bg-pink-500/10",
+      label: "Audio",
+      gradient: "from-pink-500/20 to-pink-500/5",
+    },
+    m4a: {
+      icon: "Music",
+      color: "text-pink-500",
+      bg: "bg-pink-500/10",
+      label: "Audio",
+      gradient: "from-pink-500/20 to-pink-500/5",
+    },
     // Archives
-    zip: { icon: "Archive", color: "text-amber-500", bg: "bg-amber-500/10", label: "Archive", gradient: "from-amber-500/20 to-amber-500/5" },
-    rar: { icon: "Archive", color: "text-amber-500", bg: "bg-amber-500/10", label: "Archive", gradient: "from-amber-500/20 to-amber-500/5" },
-    "7z": { icon: "Archive", color: "text-amber-500", bg: "bg-amber-500/10", label: "Archive", gradient: "from-amber-500/20 to-amber-500/5" },
-    tar: { icon: "Archive", color: "text-amber-500", bg: "bg-amber-500/10", label: "Archive", gradient: "from-amber-500/20 to-amber-500/5" },
-    gz: { icon: "Archive", color: "text-amber-500", bg: "bg-amber-500/10", label: "Archive", gradient: "from-amber-500/20 to-amber-500/5" },
-    bz2: { icon: "Archive", color: "text-amber-500", bg: "bg-amber-500/10", label: "Archive", gradient: "from-amber-500/20 to-amber-500/5" },
+    zip: {
+      icon: "Archive",
+      color: "text-amber-500",
+      bg: "bg-amber-500/10",
+      label: "Archive",
+      gradient: "from-amber-500/20 to-amber-500/5",
+    },
+    rar: {
+      icon: "Archive",
+      color: "text-amber-500",
+      bg: "bg-amber-500/10",
+      label: "Archive",
+      gradient: "from-amber-500/20 to-amber-500/5",
+    },
+    "7z": {
+      icon: "Archive",
+      color: "text-amber-500",
+      bg: "bg-amber-500/10",
+      label: "Archive",
+      gradient: "from-amber-500/20 to-amber-500/5",
+    },
+    tar: {
+      icon: "Archive",
+      color: "text-amber-500",
+      bg: "bg-amber-500/10",
+      label: "Archive",
+      gradient: "from-amber-500/20 to-amber-500/5",
+    },
+    gz: {
+      icon: "Archive",
+      color: "text-amber-500",
+      bg: "bg-amber-500/10",
+      label: "Archive",
+      gradient: "from-amber-500/20 to-amber-500/5",
+    },
+    bz2: {
+      icon: "Archive",
+      color: "text-amber-500",
+      bg: "bg-amber-500/10",
+      label: "Archive",
+      gradient: "from-amber-500/20 to-amber-500/5",
+    },
     // Code
-    js: { icon: "Code", color: "text-yellow-500", bg: "bg-yellow-500/10", label: "Code", gradient: "from-yellow-500/20 to-yellow-500/5" },
-    ts: { icon: "Code", color: "text-blue-500", bg: "bg-blue-500/10", label: "Code", gradient: "from-blue-500/20 to-blue-500/5" },
-    tsx: { icon: "Code", color: "text-blue-500", bg: "bg-blue-500/10", label: "Code", gradient: "from-blue-500/20 to-blue-500/5" },
-    jsx: { icon: "Code", color: "text-yellow-500", bg: "bg-yellow-500/10", label: "Code", gradient: "from-yellow-500/20 to-yellow-500/5" },
-    py: { icon: "Code", color: "text-emerald-500", bg: "bg-emerald-500/10", label: "Code", gradient: "from-emerald-500/20 to-emerald-500/5" },
-    go: { icon: "Code", color: "text-cyan-500", bg: "bg-cyan-500/10", label: "Code", gradient: "from-cyan-500/20 to-cyan-500/5" },
-    rs: { icon: "Code", color: "text-orange-500", bg: "bg-orange-500/10", label: "Code", gradient: "from-orange-500/20 to-orange-500/5" },
-    java: { icon: "Code", color: "text-red-500", bg: "bg-red-500/10", label: "Code", gradient: "from-red-500/20 to-red-500/5" },
-    cpp: { icon: "Code", color: "text-indigo-500", bg: "bg-indigo-500/10", label: "Code", gradient: "from-indigo-500/20 to-indigo-500/5" },
-    c: { icon: "Code", color: "text-indigo-500", bg: "bg-indigo-500/10", label: "Code", gradient: "from-indigo-500/20 to-indigo-500/5" },
-    html: { icon: "Code", color: "text-orange-500", bg: "bg-orange-500/10", label: "Code", gradient: "from-orange-500/20 to-orange-500/5" },
-    css: { icon: "Code", color: "text-blue-400", bg: "bg-blue-400/10", label: "Code", gradient: "from-blue-400/20 to-blue-400/5" },
-    json: { icon: "Code", color: "text-emerald-500", bg: "bg-emerald-500/10", label: "Data", gradient: "from-emerald-500/20 to-emerald-500/5" },
-    xml: { icon: "Code", color: "text-emerald-500", bg: "bg-emerald-500/10", label: "Data", gradient: "from-emerald-500/20 to-emerald-500/5" },
-    yaml: { icon: "Code", color: "text-emerald-500", bg: "bg-emerald-500/10", label: "Data", gradient: "from-emerald-500/20 to-emerald-500/5" },
-    yml: { icon: "Code", color: "text-emerald-500", bg: "bg-emerald-500/10", label: "Data", gradient: "from-emerald-500/20 to-emerald-500/5" },
+    js: {
+      icon: "Code",
+      color: "text-yellow-500",
+      bg: "bg-yellow-500/10",
+      label: "Code",
+      gradient: "from-yellow-500/20 to-yellow-500/5",
+    },
+    ts: {
+      icon: "Code",
+      color: "text-blue-500",
+      bg: "bg-blue-500/10",
+      label: "Code",
+      gradient: "from-blue-500/20 to-blue-500/5",
+    },
+    tsx: {
+      icon: "Code",
+      color: "text-blue-500",
+      bg: "bg-blue-500/10",
+      label: "Code",
+      gradient: "from-blue-500/20 to-blue-500/5",
+    },
+    jsx: {
+      icon: "Code",
+      color: "text-yellow-500",
+      bg: "bg-yellow-500/10",
+      label: "Code",
+      gradient: "from-yellow-500/20 to-yellow-500/5",
+    },
+    py: {
+      icon: "Code",
+      color: "text-emerald-500",
+      bg: "bg-emerald-500/10",
+      label: "Code",
+      gradient: "from-emerald-500/20 to-emerald-500/5",
+    },
+    go: {
+      icon: "Code",
+      color: "text-cyan-500",
+      bg: "bg-cyan-500/10",
+      label: "Code",
+      gradient: "from-cyan-500/20 to-cyan-500/5",
+    },
+    rs: {
+      icon: "Code",
+      color: "text-orange-500",
+      bg: "bg-orange-500/10",
+      label: "Code",
+      gradient: "from-orange-500/20 to-orange-500/5",
+    },
+    java: {
+      icon: "Code",
+      color: "text-red-500",
+      bg: "bg-red-500/10",
+      label: "Code",
+      gradient: "from-red-500/20 to-red-500/5",
+    },
+    cpp: {
+      icon: "Code",
+      color: "text-indigo-500",
+      bg: "bg-indigo-500/10",
+      label: "Code",
+      gradient: "from-indigo-500/20 to-indigo-500/5",
+    },
+    c: {
+      icon: "Code",
+      color: "text-indigo-500",
+      bg: "bg-indigo-500/10",
+      label: "Code",
+      gradient: "from-indigo-500/20 to-indigo-500/5",
+    },
+    html: {
+      icon: "Code",
+      color: "text-orange-500",
+      bg: "bg-orange-500/10",
+      label: "Code",
+      gradient: "from-orange-500/20 to-orange-500/5",
+    },
+    css: {
+      icon: "Code",
+      color: "text-blue-400",
+      bg: "bg-blue-400/10",
+      label: "Code",
+      gradient: "from-blue-400/20 to-blue-400/5",
+    },
+    json: {
+      icon: "Code",
+      color: "text-emerald-500",
+      bg: "bg-emerald-500/10",
+      label: "Data",
+      gradient: "from-emerald-500/20 to-emerald-500/5",
+    },
+    xml: {
+      icon: "Code",
+      color: "text-emerald-500",
+      bg: "bg-emerald-500/10",
+      label: "Data",
+      gradient: "from-emerald-500/20 to-emerald-500/5",
+    },
+    yaml: {
+      icon: "Code",
+      color: "text-emerald-500",
+      bg: "bg-emerald-500/10",
+      label: "Data",
+      gradient: "from-emerald-500/20 to-emerald-500/5",
+    },
+    yml: {
+      icon: "Code",
+      color: "text-emerald-500",
+      bg: "bg-emerald-500/10",
+      label: "Data",
+      gradient: "from-emerald-500/20 to-emerald-500/5",
+    },
     // Executables
-    exe: { icon: "Cog", color: "text-orange-500", bg: "bg-orange-500/10", label: "Executable", gradient: "from-orange-500/20 to-orange-500/5" },
-    dmg: { icon: "Cog", color: "text-orange-500", bg: "bg-orange-500/10", label: "Executable", gradient: "from-orange-500/20 to-orange-500/5" },
-    msi: { icon: "Cog", color: "text-orange-500", bg: "bg-orange-500/10", label: "Executable", gradient: "from-orange-500/20 to-orange-500/5" },
-    app: { icon: "Cog", color: "text-orange-500", bg: "bg-orange-500/10", label: "Executable", gradient: "from-orange-500/20 to-orange-500/5" },
+    exe: {
+      icon: "Cog",
+      color: "text-orange-500",
+      bg: "bg-orange-500/10",
+      label: "Executable",
+      gradient: "from-orange-500/20 to-orange-500/5",
+    },
+    dmg: {
+      icon: "Cog",
+      color: "text-orange-500",
+      bg: "bg-orange-500/10",
+      label: "Executable",
+      gradient: "from-orange-500/20 to-orange-500/5",
+    },
+    msi: {
+      icon: "Cog",
+      color: "text-orange-500",
+      bg: "bg-orange-500/10",
+      label: "Executable",
+      gradient: "from-orange-500/20 to-orange-500/5",
+    },
+    app: {
+      icon: "Cog",
+      color: "text-orange-500",
+      bg: "bg-orange-500/10",
+      label: "Executable",
+      gradient: "from-orange-500/20 to-orange-500/5",
+    },
     // Fonts
-    ttf: { icon: "File", color: "text-fuchsia-500", bg: "bg-fuchsia-500/10", label: "Font", gradient: "from-fuchsia-500/20 to-fuchsia-500/5" },
-    otf: { icon: "File", color: "text-fuchsia-500", bg: "bg-fuchsia-500/10", label: "Font", gradient: "from-fuchsia-500/20 to-fuchsia-500/5" },
-    woff: { icon: "File", color: "text-fuchsia-500", bg: "bg-fuchsia-500/10", label: "Font", gradient: "from-fuchsia-500/20 to-fuchsia-500/5" },
-    woff2: { icon: "File", color: "text-fuchsia-500", bg: "bg-fuchsia-500/10", label: "Font", gradient: "from-fuchsia-500/20 to-fuchsia-500/5" },
+    ttf: {
+      icon: "File",
+      color: "text-fuchsia-500",
+      bg: "bg-fuchsia-500/10",
+      label: "Font",
+      gradient: "from-fuchsia-500/20 to-fuchsia-500/5",
+    },
+    otf: {
+      icon: "File",
+      color: "text-fuchsia-500",
+      bg: "bg-fuchsia-500/10",
+      label: "Font",
+      gradient: "from-fuchsia-500/20 to-fuchsia-500/5",
+    },
+    woff: {
+      icon: "File",
+      color: "text-fuchsia-500",
+      bg: "bg-fuchsia-500/10",
+      label: "Font",
+      gradient: "from-fuchsia-500/20 to-fuchsia-500/5",
+    },
+    woff2: {
+      icon: "File",
+      color: "text-fuchsia-500",
+      bg: "bg-fuchsia-500/10",
+      label: "Font",
+      gradient: "from-fuchsia-500/20 to-fuchsia-500/5",
+    },
   };
 
   if (typeMap[ext]) return typeMap[ext];
   // Broad audio/video recognition (mpeg, wma, mkv, flv, 3gp, …) beyond the
   // explicit entries above, so any known media gets the right icon + label.
   if (isVideoFile(filename)) {
-    return { icon: "Video", color: "text-blue-500", bg: "bg-blue-500/10", label: "Video", gradient: "from-blue-500/20 to-blue-500/5" };
+    return {
+      icon: "Video",
+      color: "text-blue-500",
+      bg: "bg-blue-500/10",
+      label: "Video",
+      gradient: "from-blue-500/20 to-blue-500/5",
+    };
   }
   if (isAudioFile(filename)) {
-    return { icon: "Music", color: "text-pink-500", bg: "bg-pink-500/10", label: "Audio", gradient: "from-pink-500/20 to-pink-500/5" };
+    return {
+      icon: "Music",
+      color: "text-pink-500",
+      bg: "bg-pink-500/10",
+      label: "Audio",
+      gradient: "from-pink-500/20 to-pink-500/5",
+    };
   }
-  return { icon: "File", color: "text-[var(--color-text-muted)]", bg: "bg-[var(--color-surface-1)]", label: "File", gradient: "from-gray-500/20 to-gray-500/5" };
+  return {
+    icon: "File",
+    color: "text-[var(--color-text-muted)]",
+    bg: "bg-[var(--color-surface-1)]",
+    label: "File",
+    gradient: "from-gray-500/20 to-gray-500/5",
+  };
 }
 
 export function getFileCategory(filename: string): string {
@@ -208,8 +598,14 @@ export function isImageFile(filename: string): boolean {
 export function mimeForFile(filename: string): string {
   const ext = filename.split(".").pop()?.toLowerCase() || "";
   const map: Record<string, string> = {
-    jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", gif: "image/gif",
-    webp: "image/webp", svg: "image/svg+xml", bmp: "image/bmp", ico: "image/x-icon",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    gif: "image/gif",
+    webp: "image/webp",
+    svg: "image/svg+xml",
+    bmp: "image/bmp",
+    ico: "image/x-icon",
     avif: "image/avif",
   };
   return map[ext] || mediaMimeFor(filename) || "application/octet-stream";
@@ -242,7 +638,7 @@ export function easeProgress(raw: number): number {
   const p = Math.min(100, Math.max(0, raw));
   if (p <= 0) return 0;
   if (p >= 100) return 100;
-  return Math.round(100 * Math.log10(1 + 9 * p / 100));
+  return Math.round(100 * Math.log10(1 + (9 * p) / 100));
 }
 
 /**
@@ -260,7 +656,7 @@ export function midTrunc(name: string, start = 10, end = 4): string {
   const dotIdx = name.lastIndexOf(".");
   const hasExt = dotIdx > 0 && dotIdx < name.length - 1 && name.length - dotIdx <= 6;
   const base = hasExt ? name.slice(0, dotIdx) : name;
-  const ext  = hasExt ? name.slice(dotIdx) : "";
+  const ext = hasExt ? name.slice(dotIdx) : "";
 
   if (base.length <= start + end + 1) return name;
   return base.slice(0, start) + "…" + base.slice(-end) + ext;
@@ -315,7 +711,12 @@ export function formatDateShort(iso: string | number | Date): string {
  * they are not merged.
  */
 export function formatRelativeTime(input: string | number | Date): string {
-  const ts = input instanceof Date ? input.getTime() : typeof input === "number" ? input : new Date(input).getTime();
+  const ts =
+    input instanceof Date
+      ? input.getTime()
+      : typeof input === "number"
+        ? input
+        : new Date(input).getTime();
   const diff = Date.now() - ts;
   const seconds = Math.floor(diff / 1000);
   if (seconds < 60) return "just now";
@@ -336,7 +737,10 @@ export function formatRelativeTime(input: string | number | Date): string {
  *   - vault-lock countdown: `formatDuration(s, { padMinutes: true, showHours: false })`
  *     → "mm:ss" (padded minutes, never rolls into an hours field, e.g. 90:00).
  */
-export function formatDuration(totalSeconds: number, opts?: { padMinutes?: boolean; showHours?: boolean }): string {
+export function formatDuration(
+  totalSeconds: number,
+  opts?: { padMinutes?: boolean; showHours?: boolean },
+): string {
   const { padMinutes = false, showHours = true } = opts ?? {};
   const safe = !Number.isFinite(totalSeconds) || totalSeconds < 0 ? 0 : Math.floor(totalSeconds);
   const s = safe % 60;

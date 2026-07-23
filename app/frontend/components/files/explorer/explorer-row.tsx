@@ -5,7 +5,15 @@ import NextImage from "next/image";
 import type { ExplorerItemProps, FolderItemProps, FileItemProps, RowDragProps } from "./types";
 import { explorerItemPropsEqual, FOCUS_RING, ROW_SELECTED } from "./types";
 import { ExplorerEntryDispatch, SelectCheckbox, useExplorerFileName } from "./entry-dispatch";
-import { formatBytes, formatDate, getFileTypeInfo, cn, midTrunc, fileIconFor, savingsPercent } from "@/lib/utils";
+import {
+  formatBytes,
+  formatDate,
+  getFileTypeInfo,
+  cn,
+  midTrunc,
+  fileIconFor,
+  savingsPercent,
+} from "@/lib/utils";
 import { useThumbnail } from "@/hooks/useThumbnail";
 import { prefetchOnHover } from "@/hooks/useFileDecryptor";
 import { getFolderIcon, getIconByKey } from "@/lib/folder-icons";
@@ -44,7 +52,7 @@ function MenuTrigger({ label }: { label: string }) {
         onClick={(e) => e.stopPropagation()}
         className={cn(
           "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-[var(--color-text-muted)] opacity-100 transition-all hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)] focus-visible:opacity-100 group-hover:opacity-100 data-[state=open]:bg-[var(--color-surface-2)] data-[state=open]:opacity-100 sm:opacity-0 sm:group-hover:opacity-100",
-          FOCUS_RING
+          FOCUS_RING,
         )}
         aria-label={label}
       >
@@ -63,7 +71,7 @@ function rowContainerClassName(drag: RowDragProps, idleClassName: string) {
     drag.isBeingDragged && "opacity-50",
     drag.isDropOver
       ? "bg-[var(--color-accent)]/10 ring-2 ring-inset ring-[var(--color-accent)]"
-      : idleClassName
+      : idleClassName,
   );
 }
 
@@ -85,8 +93,9 @@ function FolderRow({
 }: FolderItemProps) {
   const isLocked = folder.protected || folder.name === "[locked]";
   const customIcon = folder.style?.icon ? getIconByKey(folder.style.icon) : null;
-  const FolderGlyph = !isLocked ? customIcon ?? getFolderIcon(folder.name) : null;
-  const customBackground = !isLocked && folder.style?.background ? getBackgroundByKey(folder.style.background) : null;
+  const FolderGlyph = !isLocked ? (customIcon ?? getFolderIcon(folder.name)) : null;
+  const customBackground =
+    !isLocked && folder.style?.background ? getBackgroundByKey(folder.style.background) : null;
   const customColor = !isLocked ? folder.style?.color : undefined;
 
   return (
@@ -131,7 +140,10 @@ function FolderRow({
           </span>
         )}
       </div>
-      <span className="min-w-0 flex-1 whitespace-nowrap text-sm font-medium text-[var(--color-text)]" title={folder.name}>
+      <span
+        className="min-w-0 flex-1 whitespace-nowrap text-sm font-medium text-[var(--color-text)]"
+        title={folder.name}
+      >
         {midTrunc(folder.name, 16, 6)}
       </span>
       {/* Type column placeholder for visual alignment */}
@@ -227,7 +239,11 @@ function FileRow({
   const customIcon = file.style?.icon ? getIconByKey(file.style.icon) : null;
   const Icon = customIcon ?? fileIconFor(displayName);
   const iconColorStyle = file.style?.color ? { color: file.style.color } : undefined;
-  const { thumbnailUrl, unavailable, cardRef } = useThumbnail(file.id, displayName, file.original_size);
+  const { thumbnailUrl, unavailable, cardRef } = useThumbnail(
+    file.id,
+    displayName,
+    file.original_size,
+  );
   const savings = savingsPercent(file.original_size, file.encrypted_size);
 
   return (
@@ -247,7 +263,10 @@ function FileRow({
       onDragStart={drag.onDragStart}
       onDragEnd={drag.onDragEnd}
       {...(drag.dropHandlers ?? {})}
-      className={rowContainerClassName(drag, selected ? ROW_SELECTED : "hover:bg-[var(--color-surface-1)] hover:shadow-sm")}
+      className={rowContainerClassName(
+        drag,
+        selected ? ROW_SELECTED : "hover:bg-[var(--color-surface-1)] hover:shadow-sm",
+      )}
     >
       {selectMode && (
         <SelectCheckbox
@@ -265,7 +284,7 @@ function FileRow({
         <div
           className={cn(
             "flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg",
-            !thumbnailUrl && typeInfo.bg
+            !thumbnailUrl && typeInfo.bg,
           )}
         >
           {thumbnailUrl ? (
@@ -274,7 +293,10 @@ function FileRow({
             // fixed 36×36 box.
             <NextImage src={thumbnailUrl} alt="" fill sizes="36px" className="object-cover" />
           ) : (
-            <Icon className={cn("h-[18px] w-[18px]", !file.style?.color && typeInfo.color)} style={iconColorStyle} />
+            <Icon
+              className={cn("h-[18px] w-[18px]", !file.style?.color && typeInfo.color)}
+              style={iconColorStyle}
+            />
           )}
         </div>
         {/* Hard-failed thumbnail (chunk data permanently unrecoverable) gets a
@@ -291,7 +313,10 @@ function FileRow({
         )}
       </div>
       <div className="flex min-w-0 flex-1 items-center gap-2">
-        <span className="whitespace-nowrap text-sm font-medium text-[var(--color-text)]" title={displayName}>
+        <span
+          className="whitespace-nowrap text-sm font-medium text-[var(--color-text)]"
+          title={displayName}
+        >
           {midTrunc(displayName, 16, 6)}
         </span>
       </div>
@@ -304,7 +329,7 @@ function FileRow({
       <span
         className={cn(
           "hidden w-[64px] flex-shrink-0 text-right text-sm font-medium tabular-nums md:block",
-          Number(savings) > 0 ? "text-[var(--color-accent)]" : "text-[var(--color-text-muted)]"
+          Number(savings) > 0 ? "text-[var(--color-accent)]" : "text-[var(--color-text-muted)]",
         )}
       >
         {savings}%

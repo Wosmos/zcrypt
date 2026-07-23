@@ -48,7 +48,7 @@ export function UploadZone({ onFiles, hint, compact }: UploadZoneProps) {
       const files = Array.from(e.dataTransfer.files);
       if (files.length > 0) onFiles(files);
     },
-    [onFiles]
+    [onFiles],
   );
 
   const handleDragOver = useCallback((e: DragEvent) => {
@@ -98,7 +98,7 @@ export function UploadZone({ onFiles, hint, compact }: UploadZoneProps) {
       // Reset so re-selecting the SAME files fires change again.
       e.target.value = "";
     },
-    [onFiles, clearPreparing]
+    [onFiles, clearPreparing],
   );
 
   // Picker dismissed without a selection: modern browsers (iOS 16.4+) fire a
@@ -153,16 +153,10 @@ export function UploadZone({ onFiles, hint, compact }: UploadZoneProps) {
         compact ? "p-6" : "p-10 sm:p-14",
         dragOver
           ? "border-[var(--color-accent)]/60 bg-[var(--color-accent)]/5 shadow-xl shadow-[var(--color-accent)]/10"
-          : "border-[var(--color-border)] hover:border-[var(--color-border-hover)] bg-[var(--color-surface)]/50 hover:bg-[var(--color-surface-1)]/60"
+          : "border-[var(--color-border)] hover:border-[var(--color-border-hover)] bg-[var(--color-surface)]/50 hover:bg-[var(--color-surface-1)]/60",
       )}
     >
-      <input
-        ref={inputRef}
-        type="file"
-        multiple
-        onChange={handleChange}
-        className="hidden"
-      />
+      <input ref={inputRef} type="file" multiple onChange={handleChange} className="hidden" />
 
       <div
         className={cn(
@@ -170,7 +164,7 @@ export function UploadZone({ onFiles, hint, compact }: UploadZoneProps) {
           compact ? "h-11 w-11" : "h-14 w-14",
           dragOver
             ? "bg-[var(--color-accent)]/10 text-[var(--color-accent)] ring-1 ring-[var(--color-accent)]/20"
-            : "bg-[var(--color-surface-1)] text-[var(--color-text-muted)] group-hover:text-[var(--color-text-secondary)]"
+            : "bg-[var(--color-surface-1)] text-[var(--color-text-muted)] group-hover:text-[var(--color-text-secondary)]",
         )}
       >
         {preparing ? (
@@ -187,7 +181,7 @@ export function UploadZone({ onFiles, hint, compact }: UploadZoneProps) {
           className={cn(
             "font-medium transition-colors",
             compact ? "text-sm" : "text-sm sm:text-base",
-            dragOver ? "text-[var(--color-accent)]" : ""
+            dragOver ? "text-[var(--color-accent)]" : "",
           )}
         >
           {preparing

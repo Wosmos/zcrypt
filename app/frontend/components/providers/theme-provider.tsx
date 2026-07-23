@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { CUSTOM_COLOR_THEME, DEFAULT_COLOR_THEME, isValidColorTheme } from "@/lib/themes";
 import {
@@ -78,9 +71,7 @@ const MODE_KEY = "zcrypt-theme";
 
 function getSystemTheme(): ResolvedTheme {
   if (typeof window === "undefined") return "dark";
-  return window.matchMedia("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "light";
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
 function resolveTheme(theme: Theme): ResolvedTheme {
@@ -187,18 +178,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
             localStorage.setItem(COLOR_THEME_KEY, pref.color_theme);
             applyColorTheme(pref.color_theme);
           }
-          if (
-            pref.mode === "light" ||
-            pref.mode === "dark" ||
-            pref.mode === "system"
-          ) {
+          if (pref.mode === "light" || pref.mode === "dark" || pref.mode === "system") {
             setThemeState(pref.mode);
             localStorage.setItem(MODE_KEY, pref.mode);
           }
         } else {
           syncPreferenceToServer(
             localStorage.getItem(COLOR_THEME_KEY) || DEFAULT_COLOR_THEME,
-            localStorage.getItem(MODE_KEY) || "system"
+            localStorage.getItem(MODE_KEY) || "system",
           );
         }
       })
@@ -211,10 +198,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const setTheme = useCallback((t: Theme) => {
     setThemeState(t);
     localStorage.setItem(MODE_KEY, t);
-    syncPreferenceToServer(
-      localStorage.getItem(COLOR_THEME_KEY) || DEFAULT_COLOR_THEME,
-      t
-    );
+    syncPreferenceToServer(localStorage.getItem(COLOR_THEME_KEY) || DEFAULT_COLOR_THEME, t);
   }, []);
 
   const toggleTheme = useCallback(
@@ -252,7 +236,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       const root = document.documentElement;
       const radius = Math.hypot(
         Math.max(origin.x, window.innerWidth - origin.x),
-        Math.max(origin.y, window.innerHeight - origin.y)
+        Math.max(origin.y, window.innerHeight - origin.y),
       );
       root.style.setProperty("--theme-vt-x", `${origin.x}px`);
       root.style.setProperty("--theme-vt-y", `${origin.y}px`);
@@ -275,11 +259,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       // Always drop the gate class, whether the transition finishes or is
       // skipped (a rapid second toggle rejects `finished`); swallow that
       // rejection so it isn't reported as unhandled.
-      transition.finished
-        .catch(() => {})
-        .finally(() => root.classList.remove("theme-vt"));
+      transition.finished.catch(() => {}).finally(() => root.classList.remove("theme-vt"));
     },
-    [resolvedTheme, setTheme]
+    [resolvedTheme, setTheme],
   );
 
   const setColorTheme = useCallback((id: string) => {
@@ -300,7 +282,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       saveCustomTheme(values);
       if (colorTheme === CUSTOM_COLOR_THEME) applyCustomThemeVars(values);
     },
-    [colorTheme]
+    [colorTheme],
   );
 
   return (

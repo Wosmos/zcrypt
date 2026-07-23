@@ -9,15 +9,21 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { motion, useReducedMotion } from "motion/react";
-import { Play, Pause, Volume2, Gauge, Music, Monitor, Video, Download, SkipForward, RefreshCw } from "@/lib/icons";
+import {
+  Play,
+  Pause,
+  Volume2,
+  Gauge,
+  Music,
+  Monitor,
+  Video,
+  Download,
+  SkipForward,
+  RefreshCw,
+} from "@/lib/icons";
 import { mediaKindFor } from "@/lib/media-formats";
 import { IconButton } from "@/components/ui/icon-button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn, formatDuration } from "@/lib/utils";
 import { useToggleFullscreen } from "@/hooks/useToggleFullscreen";
 
@@ -164,7 +170,7 @@ function useMediaController() {
       el.currentTime = clamped;
       setCurrent(clamped);
     },
-    [mediaRef, duration]
+    [mediaRef, duration],
   );
 
   const skip = useCallback(
@@ -173,7 +179,7 @@ function useMediaController() {
       if (!el) return;
       seekTo(el.currentTime + delta);
     },
-    [mediaRef, seekTo]
+    [mediaRef, seekTo],
   );
 
   const changeVolume = useCallback(
@@ -187,7 +193,7 @@ function useMediaController() {
       setMuted(clamped === 0);
       lastVolume = clamped;
     },
-    [mediaRef]
+    [mediaRef],
   );
 
   const toggleMute = useCallback(() => {
@@ -282,7 +288,7 @@ function SeekBar({
       const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
       return ratio * duration;
     },
-    [duration]
+    [duration],
   );
 
   const handlePointerDown = useCallback(
@@ -293,7 +299,7 @@ function SeekBar({
       onScrubStart();
       onScrub(timeFromPointer(e.clientX));
     },
-    [duration, onScrub, onScrubStart, timeFromPointer]
+    [duration, onScrub, onScrubStart, timeFromPointer],
   );
 
   const handlePointerMove = useCallback(
@@ -301,7 +307,7 @@ function SeekBar({
       if (!draggingRef.current) return;
       onScrub(timeFromPointer(e.clientX));
     },
-    [onScrub, timeFromPointer]
+    [onScrub, timeFromPointer],
   );
 
   const handlePointerUp = useCallback(
@@ -310,7 +316,7 @@ function SeekBar({
       draggingRef.current = false;
       onScrubEnd(timeFromPointer(e.clientX));
     },
-    [onScrubEnd, timeFromPointer]
+    [onScrubEnd, timeFromPointer],
   );
 
   const handleKey = useCallback(
@@ -326,7 +332,7 @@ function SeekBar({
         onScrubEnd(next);
       }
     },
-    [current, duration, onScrubEnd]
+    [current, duration, onScrubEnd],
   );
 
   return (
@@ -396,10 +402,7 @@ function VolumeControl({
         icon={Volume2}
         label={muted || volume === 0 ? "Unmute" : "Mute"}
         onClick={onToggleMute}
-        iconClassName={cn(
-          "h-4 w-4 transition-opacity",
-          (muted || effective === 0) && "opacity-40"
-        )}
+        iconClassName={cn("h-4 w-4 transition-opacity", (muted || effective === 0) && "opacity-40")}
       />
       <div
         ref={trackRef}
@@ -566,106 +569,111 @@ function AudioPlayer({
         <MediaErrorFallback src={src} filename={filename} kind="audio" />
       ) : (
         <>
-      {/* Album cover — a default gradient (audio has no real thumbnail), with
+          {/* Album cover — a default gradient (audio has no real thumbnail), with
           an equalizer that dances while playing. Deliberately unlike the
           video's black cinematic frame. */}
-      <div className="flex flex-col items-center gap-5 py-4">
-        <div
-          aria-hidden
-          className={cn(
-            // Cap by viewport height too, so a short mobile player area doesn't
-            // clip the square cover.
-            "relative flex aspect-square w-full max-w-[min(248px,42vh)] items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br shadow-[0_10px_30px_rgba(0,0,0,0.25)]",
-            coverGradient(filename)
-          )}
-        >
-          {/* depth + gloss */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-white/10" />
-          <Music className="h-20 w-20 text-white/90 drop-shadow-[0_2px_6px_rgba(0,0,0,0.35)]" />
-          {playing && !reduce && (
-            <div className="absolute bottom-5 left-1/2 flex -translate-x-1/2 items-end gap-1.5">
-              {[0, 1, 2, 3, 4].map((i) => (
-                <motion.span
-                  key={i}
-                  className="w-1.5 rounded-full bg-white/90"
-                  style={{ height: 8 }}
-                  animate={{ height: [8, 22, 8] }}
-                  transition={{ duration: 0.9, repeat: Infinity, ease: "easeInOut", delay: i * 0.13 }}
-                />
-              ))}
+          <div className="flex flex-col items-center gap-5 py-4">
+            <div
+              aria-hidden
+              className={cn(
+                // Cap by viewport height too, so a short mobile player area doesn't
+                // clip the square cover.
+                "relative flex aspect-square w-full max-w-[min(248px,42vh)] items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br shadow-[0_10px_30px_rgba(0,0,0,0.25)]",
+                coverGradient(filename),
+              )}
+            >
+              {/* depth + gloss */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-white/10" />
+              <Music className="h-20 w-20 text-white/90 drop-shadow-[0_2px_6px_rgba(0,0,0,0.35)]" />
+              {playing && !reduce && (
+                <div className="absolute bottom-5 left-1/2 flex -translate-x-1/2 items-end gap-1.5">
+                  {[0, 1, 2, 3, 4].map((i) => (
+                    <motion.span
+                      key={i}
+                      className="w-1.5 rounded-full bg-white/90"
+                      style={{ height: 8 }}
+                      animate={{ height: [8, 22, 8] }}
+                      transition={{
+                        duration: 0.9,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                        delay: i * 0.13,
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
-          )}
-        </div>
-        <p className="max-w-full truncate px-4 text-center text-sm font-medium text-[var(--color-text)]">
-          {filename}
-        </p>
-      </div>
-
-      <div className="flex flex-col gap-3">
-        <SeekBar
-          current={current}
-          duration={duration}
-          buffered={buffered}
-          ariaLabel="Seek audio"
-          onScrubStart={() => setScrubbing(true)}
-          onScrub={(t) => setCurrent(t)}
-          onScrubEnd={(t) => {
-            seekTo(t);
-            setScrubbing(false);
-          }}
-        />
-
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex w-16 justify-start sm:w-20">
-            <TimeReadout current={current} duration={duration} />
+            <p className="max-w-full truncate px-4 text-center text-sm font-medium text-[var(--color-text)]">
+              {filename}
+            </p>
           </div>
 
-          <div className="flex items-center gap-1 sm:gap-1.5">
-            <IconButton
-              icon={RefreshCw}
-              label={loop ? "Loop on" : "Loop"}
-              aria-pressed={loop}
-              onClick={toggleLoop}
-              iconClassName={cn("h-4 w-4", loop && "text-[var(--color-accent)]")}
+          <div className="flex flex-col gap-3">
+            <SeekBar
+              current={current}
+              duration={duration}
+              buffered={buffered}
+              ariaLabel="Seek audio"
+              onScrubStart={() => setScrubbing(true)}
+              onScrub={(t) => setCurrent(t)}
+              onScrubEnd={(t) => {
+                seekTo(t);
+                setScrubbing(false);
+              }}
             />
-            <IconButton
-              icon={SkipForward}
-              label="Previous track"
-              onClick={onPrev}
-              disabled={!onPrev}
-              iconClassName="h-4 w-4 -scale-x-100"
-            />
-            <IconButton
-              icon={playing ? Pause : Play}
-              label={playing ? "Pause" : "Play"}
-              variant="primary"
-              onClick={togglePlay}
-              className="h-11 w-11 rounded-full"
-              iconClassName="h-5 w-5"
-            />
-            <IconButton
-              icon={SkipForward}
-              label="Next track"
-              onClick={onNext}
-              disabled={!onNext}
-              iconClassName="h-4 w-4"
-            />
-          </div>
 
-          <div className="flex w-16 items-center justify-end gap-1 sm:w-20">
-            <SpeedControl speed={speed} onCycle={cycleSpeed} />
-          </div>
-        </div>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex w-16 justify-start sm:w-20">
+                <TimeReadout current={current} duration={duration} />
+              </div>
 
-        <div className="flex justify-center pt-1">
-          <VolumeControl
-            volume={volume}
-            muted={muted}
-            onToggleMute={toggleMute}
-            onChange={changeVolume}
-          />
-        </div>
-      </div>
+              <div className="flex items-center gap-1 sm:gap-1.5">
+                <IconButton
+                  icon={RefreshCw}
+                  label={loop ? "Loop on" : "Loop"}
+                  aria-pressed={loop}
+                  onClick={toggleLoop}
+                  iconClassName={cn("h-4 w-4", loop && "text-[var(--color-accent)]")}
+                />
+                <IconButton
+                  icon={SkipForward}
+                  label="Previous track"
+                  onClick={onPrev}
+                  disabled={!onPrev}
+                  iconClassName="h-4 w-4 -scale-x-100"
+                />
+                <IconButton
+                  icon={playing ? Pause : Play}
+                  label={playing ? "Pause" : "Play"}
+                  variant="primary"
+                  onClick={togglePlay}
+                  className="h-11 w-11 rounded-full"
+                  iconClassName="h-5 w-5"
+                />
+                <IconButton
+                  icon={SkipForward}
+                  label="Next track"
+                  onClick={onNext}
+                  disabled={!onNext}
+                  iconClassName="h-4 w-4"
+                />
+              </div>
+
+              <div className="flex w-16 items-center justify-end gap-1 sm:w-20">
+                <SpeedControl speed={speed} onCycle={cycleSpeed} />
+              </div>
+            </div>
+
+            <div className="flex justify-center pt-1">
+              <VolumeControl
+                volume={volume}
+                muted={muted}
+                onToggleMute={toggleMute}
+                onChange={changeVolume}
+              />
+            </div>
+          </div>
         </>
       )}
 
@@ -784,7 +792,7 @@ function VideoPlayer({
       className={cn(
         "group relative mx-auto flex items-center justify-center overflow-hidden rounded-xl bg-black",
         isPortrait ? "h-[70vh] w-auto max-w-full" : "max-h-[70vh] w-full",
-        !showControls && playing ? "cursor-none" : "cursor-default"
+        !showControls && playing ? "cursor-none" : "cursor-default",
       )}
     >
       <video
@@ -818,7 +826,7 @@ function VideoPlayer({
       <div
         className={cn(
           "absolute inset-x-0 bottom-0 flex flex-col gap-2 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-3 pb-2.5 pt-8 transition-opacity duration-300",
-          showControls || !playing ? "opacity-100" : "pointer-events-none opacity-0"
+          showControls || !playing ? "opacity-100" : "pointer-events-none opacity-0",
         )}
       >
         <div className="[--color-surface:#000]">
@@ -923,7 +931,7 @@ export function MediaPlayer(props: MediaPlayerProps) {
   const kind = useMemo(
     () => resolveKind(props),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [props.kind, props.mime, props.filename]
+    [props.kind, props.mime, props.filename],
   );
   const controller = useMediaController();
 
@@ -947,7 +955,7 @@ export function MediaPlayer(props: MediaPlayerProps) {
         controller.toggleMute();
       }
     },
-    [controller]
+    [controller],
   );
 
   return (
@@ -955,7 +963,13 @@ export function MediaPlayer(props: MediaPlayerProps) {
       {kind === "video" ? (
         <VideoPlayer src={src} filename={filename} poster={poster} controller={controller} />
       ) : (
-        <AudioPlayer src={src} filename={filename} controller={controller} onPrev={onPrev} onNext={onNext} />
+        <AudioPlayer
+          src={src}
+          filename={filename}
+          controller={controller}
+          onPrev={onPrev}
+          onNext={onNext}
+        />
       )}
     </div>
   );

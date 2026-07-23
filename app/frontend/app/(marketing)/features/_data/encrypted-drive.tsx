@@ -31,9 +31,9 @@ export const encryptedDrive: EncryptedDrivePageData = {
     headlineGradient: "Encrypted end to end.",
     subtext: (
       <>
-        Most &ldquo;encrypted storage&rdquo; gives you a flat list of files. zcrypt
-        gives you a real file explorer — folders, search, previews, drag-and-drop —
-        where everything is encrypted on your device before it leaves.
+        Most &ldquo;encrypted storage&rdquo; gives you a flat list of files. zcrypt gives you a real
+        file explorer — folders, search, previews, drag-and-drop — where everything is encrypted on
+        your device before it leaves.
       </>
     ),
     secondaryLabel: "Read the docs",
@@ -42,7 +42,8 @@ export const encryptedDrive: EncryptedDrivePageData = {
 
   capabilitiesSection: {
     heading: "Everything a drive should do",
-    subheading: "The organization you expect from Finder or Google Drive — with a zero-knowledge encryption layer underneath all of it.",
+    subheading:
+      "The organization you expect from Finder or Google Drive — with a zero-knowledge encryption layer underneath all of it.",
   },
   capabilities: [
     {
@@ -82,10 +83,10 @@ export const encryptedDrive: EncryptedDrivePageData = {
     heading: "The structure is yours alone",
     body: (
       <>
-        A nicer file manager usually means handing the provider more metadata.
-        Not here. Folder names are encrypted on your device with your passphrase,
-        so the server stores opaque ciphertext — it can&apos;t read your files,
-        your folder names, or how you&apos;ve arranged them.
+        A nicer file manager usually means handing the provider more metadata. Not here. Folder
+        names are encrypted on your device with your passphrase, so the server stores opaque
+        ciphertext — it can&apos;t read your files, your folder names, or how you&apos;ve arranged
+        them.
       </>
     ),
     checklistItems: [
@@ -98,13 +99,26 @@ export const encryptedDrive: EncryptedDrivePageData = {
   },
 
   related: [
-    { href: "/features/folders", title: "Password-protected folders", desc: "Give a folder its own password, separate from your vault." },
-    { href: "/features/file-viewers", title: "In-browser file viewers", desc: "Preview images, video, PDFs, docs, and code — decrypted locally." },
-    { href: "/features/transfers", title: "Transfer manager", desc: "Pause, resume, and track every upload and download." },
+    {
+      href: "/features/folders",
+      title: "Password-protected folders",
+      desc: "Give a folder its own password, separate from your vault.",
+    },
+    {
+      href: "/features/file-viewers",
+      title: "In-browser file viewers",
+      desc: "Preview images, video, PDFs, docs, and code — decrypted locally.",
+    },
+    {
+      href: "/features/transfers",
+      title: "Transfer manager",
+      desc: "Pause, resume, and track every upload and download.",
+    },
   ],
 
   cta: {
     heading: "Your files, organized and sealed",
-    subtext: "Free and open source. Bring a storage account you already own and start in under a minute.",
+    subtext:
+      "Free and open source. Bring a storage account you already own and start in under a minute.",
   },
 };

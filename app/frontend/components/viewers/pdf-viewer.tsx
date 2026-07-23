@@ -1,25 +1,8 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import type {
-  PDFDocumentProxy,
-  PDFPageProxy,
-  RenderTask,
-} from "pdfjs-dist";
-import {
-  Download,
-  ExternalLink,
-  Plus,
-  ChevronDown,
-  RefreshCcw,
-  AlertCircle,
-} from "@/lib/icons";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist";
+import { Download, ExternalLink, Plus, ChevronDown, RefreshCcw, AlertCircle } from "@/lib/icons";
 import { IconButton } from "@/components/ui/icon-button";
 import { Button } from "@/components/ui/button";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
@@ -54,7 +37,7 @@ async function loadPdfjs() {
   if (!workerConfigured) {
     pdfjs.GlobalWorkerOptions.workerSrc = new URL(
       "pdfjs-dist/build/pdf.worker.min.mjs",
-      import.meta.url
+      import.meta.url,
     ).toString();
     workerConfigured = true;
   }
@@ -285,7 +268,7 @@ function PdfPage({
           if (entry.intersectionRatio >= 0.5) onActive(pageNumber);
         }
       },
-      { root, rootMargin: "200% 0px", threshold: [0, 0.5] }
+      { root, rootMargin: "200% 0px", threshold: [0, 0.5] },
     );
     io.observe(node);
     return () => io.disconnect();

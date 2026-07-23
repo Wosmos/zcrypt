@@ -14,7 +14,5 @@ export const useTransferDockStore = create<TransferDockStore>((set) => ({
   visible: false,
   height: 0,
   report: (visible, height) =>
-    set((s) =>
-      s.visible === visible && s.height === height ? s : { visible, height }
-    ),
+    set((s) => (s.visible === visible && s.height === height ? s : { visible, height })),
 }));

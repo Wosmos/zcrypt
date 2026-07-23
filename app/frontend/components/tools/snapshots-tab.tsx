@@ -26,7 +26,10 @@ export function SnapshotsTab() {
 
   useEffect(() => {
     Promise.all([listVaultSnapshots(), ensureFiles()])
-      .then(([snaps, f]) => { setSnapshots(snaps); setFiles(f); })
+      .then(([snaps, f]) => {
+        setSnapshots(snaps);
+        setFiles(f);
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
@@ -37,8 +40,11 @@ export function SnapshotsTab() {
       const snap = await createVaultSnapshot(label || "Manual snapshot");
       setSnapshots((prev) => [snap, ...prev]);
       setLabel("");
-    } catch { /* ignore */ }
-    finally { setCreating(false); }
+    } catch {
+      /* ignore */
+    } finally {
+      setCreating(false);
+    }
   };
 
   const handleDelete = async () => {
@@ -48,22 +54,30 @@ export function SnapshotsTab() {
       await deleteVaultSnapshot(pendingDelete.id);
       setSnapshots((prev) => prev.filter((s) => s.id !== pendingDelete.id));
       setPendingDelete(null);
-    } catch { /* ignore */ }
-    finally { setDeleting(false); }
+    } catch {
+      /* ignore */
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
     <div className="space-y-4">
       {/* Create snapshot */}
       <div className="panel p-6">
-        <Section title="Take snapshot" description="Record a labelled list of what's in your vault right now. This is a manifest, not a backup — it can't restore files.">
+        <Section
+          title="Take snapshot"
+          description="Record a labelled list of what's in your vault right now. This is a manifest, not a backup — it can't restore files."
+        >
           <div className="flex flex-col gap-3 sm:flex-row">
             <input
               type="text"
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               placeholder="Snapshot label (optional)"
-              onKeyDown={(e) => { if (e.key === "Enter" && !creating) handleCreate(); }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !creating) handleCreate();
+              }}
               className="h-10 flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-sm placeholder:text-[var(--color-text-muted)] outline-none transition-all focus:border-[var(--color-accent)]/40 focus:ring-2 focus:ring-[var(--color-accent)]/10"
             />
             <Button onClick={handleCreate} disabled={creating} className="sm:w-auto">
@@ -76,7 +90,9 @@ export function SnapshotsTab() {
       {/* Snapshot list */}
       {loading ? (
         <div className="panel divide-y divide-[var(--color-border)] px-4">
-          {Array.from({ length: 3 }).map((_, i) => <SkeletonRow key={i} />)}
+          {Array.from({ length: 3 }).map((_, i) => (
+            <SkeletonRow key={i} />
+          ))}
         </div>
       ) : snapshots.length === 0 ? (
         <div className="panel">
@@ -91,10 +107,17 @@ export function SnapshotsTab() {
           {snapshots.map((snap) => {
             const isOpen = expanded === snap.id;
             return (
-              <motion.div key={snap.id} initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="panel overflow-hidden">
+              <motion.div
+                key={snap.id}
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="panel overflow-hidden"
+              >
                 <div className="flex items-start justify-between gap-3 p-4">
                   <div className="min-w-0">
-                    <h3 className="truncate text-sm font-medium text-[var(--color-text)]">{snap.label || "Unnamed snapshot"}</h3>
+                    <h3 className="truncate text-sm font-medium text-[var(--color-text)]">
+                      {snap.label || "Unnamed snapshot"}
+                    </h3>
                     <div className="mt-1 flex items-center gap-4 text-xs text-[var(--color-text-muted)]">
                       <span className="tabular-nums">{snap.file_count} files</span>
                       <span className="tabular-nums">{formatBytes(snap.total_size)}</span>
@@ -108,16 +131,26 @@ export function SnapshotsTab() {
                       className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-[var(--color-accent)] transition-colors hover:bg-[var(--color-surface-1)]"
                     >
                       {isOpen ? "Hide" : "View files"}
-                      <ChevronDown className={cn("h-3 w-3 transition-transform", isOpen && "rotate-180")} />
+                      <ChevronDown
+                        className={cn("h-3 w-3 transition-transform", isOpen && "rotate-180")}
+                      />
                     </button>
-                    <IconButton icon={Trash2} label="Delete snapshot" variant="danger" iconClassName="h-3.5 w-3.5" onClick={() => setPendingDelete(snap)} />
+                    <IconButton
+                      icon={Trash2}
+                      label="Delete snapshot"
+                      variant="danger"
+                      iconClassName="h-3.5 w-3.5"
+                      onClick={() => setPendingDelete(snap)}
+                    />
                   </div>
                 </div>
                 {isOpen && snap.file_ids.length > 0 && (
                   <div className="border-t border-[var(--color-border)] px-4 pb-4 pt-3">
                     <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
                       {snap.file_ids.map((fid) => (
-                        <span key={fid} className="truncate text-xs text-[var(--color-text-muted)]">{fileNameById(files, fid)}</span>
+                        <span key={fid} className="truncate text-xs text-[var(--color-text-muted)]">
+                          {fileNameById(files, fid)}
+                        </span>
                       ))}
                     </div>
                   </div>
@@ -130,13 +163,16 @@ export function SnapshotsTab() {
 
       <ConfirmDialog
         open={!!pendingDelete}
-        onOpenChange={(o) => { if (!o) setPendingDelete(null); }}
+        onOpenChange={(o) => {
+          if (!o) setPendingDelete(null);
+        }}
         destructive
         title="Delete snapshot?"
         description={
           <>
             This permanently removes the snapshot
-            {pendingDelete?.label ? <> &ldquo;{pendingDelete.label}&rdquo;</> : null}. Your files are not affected. This cannot be undone.
+            {pendingDelete?.label ? <> &ldquo;{pendingDelete.label}&rdquo;</> : null}. Your files
+            are not affected. This cannot be undone.
           </>
         }
         confirmLabel="Delete"

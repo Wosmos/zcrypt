@@ -36,10 +36,10 @@ export const apps: AppsPageData = {
     headlineGradient: "Four ways to reach it.",
     subtext: (
       <>
-        The same zero-knowledge core, wherever you work: a web app in any
-        browser, a native desktop app for macOS, Windows and Linux, an Android
-        app you sideload in a minute, and a single-binary terminal app that runs
-        over SSH. The encryption never changes — only the interface does.
+        The same zero-knowledge core, wherever you work: a web app in any browser, a native desktop
+        app for macOS, Windows and Linux, an Android app you sideload in a minute, and a
+        single-binary terminal app that runs over SSH. The encryption never changes — only the
+        interface does.
       </>
     ),
     secondaryLabel: "See the terminal app",
@@ -48,19 +48,21 @@ export const apps: AppsPageData = {
 
   sharedCoreNote: (
     <>
-      <span className="font-semibold text-[var(--color-text)]">The same encryption everywhere.</span>{" "}
-      The web app runs the pipeline in Web Workers; desktop and Android run{" "}
-      {desktopEngine.name}, the in-process {desktopEngine.language} engine; the
-      terminal app runs the same pipeline in Go. Every surface compresses,
-      encrypts with AES-256-GCM, chunks, and uploads entirely on your device.
-      Pick a surface for the workflow, not for the security — it&apos;s the same
-      vault and the same guarantees on all four.
+      <span className="font-semibold text-[var(--color-text)]">
+        The same encryption everywhere.
+      </span>{" "}
+      The web app runs the pipeline in Web Workers; desktop and Android run {desktopEngine.name},
+      the in-process {desktopEngine.language} engine; the terminal app runs the same pipeline in Go.
+      Every surface compresses, encrypts with AES-256-GCM, chunks, and uploads entirely on your
+      device. Pick a surface for the workflow, not for the security — it&apos;s the same vault and
+      the same guarantees on all four.
     </>
   ),
 
   surfacesSection: {
     heading: "Pick where you work",
-    subheading: "Four front ends over one encrypted backend. Use whichever fits the moment — or all four.",
+    subheading:
+      "Four front ends over one encrypted backend. Use whichever fits the moment — or all four.",
   },
   surfaces: [
     {
@@ -68,7 +70,12 @@ export const apps: AppsPageData = {
       name: "Web app",
       tagline: "Any browser, nothing to install",
       desc: "The full vault in any modern browser. Encryption runs in the page itself, so your files are sealed before they leave the tab — no extension, no download.",
-      points: ["Works on any OS", "Drag-and-drop uploads", "In-browser previews", "Always the latest build"],
+      points: [
+        "Works on any OS",
+        "Drag-and-drop uploads",
+        "In-browser previews",
+        "Always the latest build",
+      ],
       href: "/docs/web-app",
       cta: "Web app docs",
     },
@@ -77,7 +84,12 @@ export const apps: AppsPageData = {
       name: "Desktop app",
       tagline: "Native on macOS, Windows & Linux",
       desc: `A native desktop build running ${desktopEngine.name}, the in-process ${desktopEngine.language} engine. Sits in your dock or tray, uploads straight to your own storage, and handles large transfers comfortably.`,
-      points: ["macOS, Windows, Linux", "In-process Rust engine", "Uploads direct to your storage", "Same encrypted vault"],
+      points: [
+        "macOS, Windows, Linux",
+        "In-process Rust engine",
+        "Uploads direct to your storage",
+        "Same encrypted vault",
+      ],
       href: "/docs/desktop-app",
       cta: "Desktop app docs",
     },
@@ -86,7 +98,12 @@ export const apps: AppsPageData = {
       name: "Android app",
       tagline: "Sideload the APK in a minute",
       desc: `Your vault on your phone, running the same ${desktopEngine.name} ${desktopEngine.language} engine as desktop. Not on the Play Store yet — grab the APK, enable install, and you're in. No wait, no gatekeeper.`,
-      points: ["Same Rust engine as desktop", "Installs in about a minute", "No Play Store wait", "Uploads direct to your storage"],
+      points: [
+        "Same Rust engine as desktop",
+        "Installs in about a minute",
+        "No Play Store wait",
+        "Uploads direct to your storage",
+      ],
       href: "/docs/android-app",
       cta: "Android app docs",
       badge: "Beta",
@@ -105,23 +122,57 @@ export const apps: AppsPageData = {
   comparisonSection: {
     heading: "Which one when?",
     subheading: "A quick way to choose. There's no wrong answer — they all open the same vault.",
-    footnote: "One account, one encrypted vault — switch surfaces any time without re-uploading a thing.",
+    footnote:
+      "One account, one encrypted vault — switch surfaces any time without re-uploading a thing.",
   },
   comparison: [
-    { surface: "Web app", bestFor: "Quick access from any machine", install: "Nothing — open a browser", runsOn: "Any OS with a modern browser" },
-    { surface: "Desktop app", bestFor: "Daily use and big transfers", install: "Native installer", runsOn: "macOS, Windows, Linux" },
-    { surface: "Android app", bestFor: "Your vault on the go", install: "Sideload the APK (beta)", runsOn: "Android phones & tablets" },
-    { surface: "Terminal (TUI)", bestFor: "Servers, SSH, and the keyboard", install: "One binary", runsOn: "Linux, macOS, Windows · amd64 & arm64" },
+    {
+      surface: "Web app",
+      bestFor: "Quick access from any machine",
+      install: "Nothing — open a browser",
+      runsOn: "Any OS with a modern browser",
+    },
+    {
+      surface: "Desktop app",
+      bestFor: "Daily use and big transfers",
+      install: "Native installer",
+      runsOn: "macOS, Windows, Linux",
+    },
+    {
+      surface: "Android app",
+      bestFor: "Your vault on the go",
+      install: "Sideload the APK (beta)",
+      runsOn: "Android phones & tablets",
+    },
+    {
+      surface: "Terminal (TUI)",
+      bestFor: "Servers, SSH, and the keyboard",
+      install: "One binary",
+      runsOn: "Linux, macOS, Windows · amd64 & arm64",
+    },
   ],
 
   related: [
-    { href: "/features/encrypted-drive", title: "The encrypted drive", desc: "The file explorer at the heart of every surface." },
-    { href: "/docs/android-app", title: "Android app guide", desc: "Sideload the beta APK in about a minute." },
-    { href: "/docs/desktop-app", title: "Desktop app guide", desc: "Install the native build for your platform." },
+    {
+      href: "/features/encrypted-drive",
+      title: "The encrypted drive",
+      desc: "The file explorer at the heart of every surface.",
+    },
+    {
+      href: "/docs/android-app",
+      title: "Android app guide",
+      desc: "Sideload the beta APK in about a minute.",
+    },
+    {
+      href: "/docs/desktop-app",
+      title: "Desktop app guide",
+      desc: "Install the native build for your platform.",
+    },
   ],
 
   cta: {
     heading: "The same vault, wherever you are",
-    subtext: "Free and open source. Create an account once and reach it from the web, your desktop, your phone, or a terminal.",
+    subtext:
+      "Free and open source. Create an account once and reach it from the web, your desktop, your phone, or a terminal.",
   },
 };

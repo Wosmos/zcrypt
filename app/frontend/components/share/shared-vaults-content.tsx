@@ -53,7 +53,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2, Users, Download, File as FileIcon, Loader2, ShieldCheck, Search } from "@/lib/icons";
+import {
+  Plus,
+  Trash2,
+  Users,
+  Download,
+  File as FileIcon,
+  Loader2,
+  ShieldCheck,
+  Search,
+} from "@/lib/icons";
 
 /** Root-level folders that currently contain files, with decrypted names + a
  *  live file count — the pickable "share a whole folder" options. */
@@ -80,7 +89,7 @@ function useFolderOptions(files: FileMetadata[], enabled: boolean) {
       const key = await deriveNameKey(pass, user.id);
       if (cancelled) return;
       const entries = await Promise.all(
-        raw.map(async (f) => [f.id, await decryptNameSafe(f.encrypted_name, key)] as const)
+        raw.map(async (f) => [f.id, await decryptNameSafe(f.encrypted_name, key)] as const),
       );
       if (!cancelled) setNames(Object.fromEntries(entries));
     })();
@@ -118,7 +127,7 @@ export function SharedVaultsContent() {
     queryFn: () => getSharedVault(openId as string),
     enabled: !!openId,
   });
-  const detail: SharedVaultDetail | null = openId ? detailQuery.data ?? null : null;
+  const detail: SharedVaultDetail | null = openId ? (detailQuery.data ?? null) : null;
 
   const [showCreate, setShowCreate] = useState(false);
   const [name, setName] = useState("");
@@ -147,7 +156,7 @@ export function SharedVaultsContent() {
   const folderOptions = useFolderOptions(files, showCreate || showAddFiles);
   const folderNames = useMemo(
     () => Object.fromEntries(folderOptions.map((f) => [f.id, f.name] as const)),
-    [folderOptions]
+    [folderOptions],
   );
   // Owner-side name fallback: the server-joined name is empty for zero-knowledge
   // files, so resolve a shared file to its decrypted name from our own file list
@@ -155,7 +164,7 @@ export function SharedVaultsContent() {
   // until the name is sealed under the space key server-side.)
   const fileNameById = useMemo(
     () => Object.fromEntries(files.map((f) => [f.id, f.original_name] as const)),
-    [files]
+    [files],
   );
   // Member-visible names: decrypt each shared file's space-key-sealed name so
   // members (who can't derive the owner's per-user name key) see a real name.
@@ -170,17 +179,14 @@ export function SharedVaultsContent() {
     const q = listQuery.trim().toLowerCase();
     if (!q) return vaults;
     return vaults.filter(
-      (v) =>
-        v.name.toLowerCase().includes(q) ||
-        (v.description ?? "").toLowerCase().includes(q)
+      (v) => v.name.toLowerCase().includes(q) || (v.description ?? "").toLowerCase().includes(q),
     );
   }, [vaults, listQuery]);
 
   // Cache helpers so mutations update the ONE cache instead of a second copy.
   const patchDetail = (id: string, fn: (d: SharedVaultDetail) => SharedVaultDetail) =>
     queryClient.setQueryData<SharedVaultDetail>(qk.space(id), (d) => (d ? fn(d) : d));
-  const refreshDetail = (id: string) =>
-    queryClient.invalidateQueries({ queryKey: qk.space(id) });
+  const refreshDetail = (id: string) => queryClient.invalidateQueries({ queryKey: qk.space(id) });
   const refreshList = () => queryClient.invalidateQueries({ queryKey: qk.spaces });
 
   // Make sure this device's keypair is loaded so creating/sharing spaces can
@@ -200,8 +206,9 @@ export function SharedVaultsContent() {
     (async () => {
       const entries = await Promise.all(
         (detail.files ?? []).map(
-          async (f) => [f.file_id, (await decryptSpaceFileName(detail, f.wrapped_name)) ?? ""] as const
-        )
+          async (f) =>
+            [f.file_id, (await decryptSpaceFileName(detail, f.wrapped_name)) ?? ""] as const,
+        ),
       );
       if (!cancelled) {
         setSpaceFileNames(Object.fromEntries(entries.filter(([, n]) => n)));
@@ -229,8 +236,7 @@ export function SharedVaultsContent() {
     setCreating(true);
     try {
       const gb = parseFloat(sizeLimitGb);
-      const limitBytes =
-        sizeLimitGb.trim() && gb > 0 ? Math.round(gb * 1024 * 1024 * 1024) : 0;
+      const limitBytes = sizeLimitGb.trim() && gb > 0 ? Math.round(gb * 1024 * 1024 * 1024) : 0;
       const vault = await createSpace(name.trim(), description.trim(), [], limitBytes);
       // Re-wrap each selected file's CEK under the space key so members can
       // actually decrypt them. Best-effort per file; track which actually landed.
@@ -253,7 +259,7 @@ export function SharedVaultsContent() {
       toast.success(`Space “${vault.name}” created`);
       if (skipped > 0) {
         toast.warning(
-          `${skipped} file${skipped === 1 ? "" : "s"} couldn't be added — files in password-protected folders can't be shared into a space.`
+          `${skipped} file${skipped === 1 ? "" : "s"} couldn't be added — files in password-protected folders can't be shared into a space.`,
         );
       }
     } catch (err) {
@@ -328,7 +334,7 @@ export function SharedVaultsContent() {
       setAddFileIds([]);
       if (failures > 0) {
         setFileError(
-          `${failures} of ${total} file${total === 1 ? "" : "s"} couldn't be added — files in password-protected folders can't be shared into a space.`
+          `${failures} of ${total} file${total === 1 ? "" : "s"} couldn't be added — files in password-protected folders can't be shared into a space.`,
         );
       } else {
         toast.success(`Added ${total} file${total === 1 ? "" : "s"}`);
@@ -348,14 +354,16 @@ export function SharedVaultsContent() {
     try {
       const spaceKey = await loadSpaceKey(detail);
       if (!spaceKey) {
-        setMemberError("This space has no key you can share (it predates encrypted sharing). Recreate it.");
+        setMemberError(
+          "This space has no key you can share (it predates encrypted sharing). Recreate it.",
+        );
         return;
       }
       const member = await shareSpace(
         id,
         spaceKey,
         memberEmail.trim(),
-        memberRole as "viewer" | "editor" | "admin"
+        memberRole as "viewer" | "editor" | "admin",
       );
       patchDetail(id, (d) => ({
         ...d,
@@ -369,7 +377,7 @@ export function SharedVaultsContent() {
       setMemberError(
         /no user|not found|404|published key/i.test(msg)
           ? "That user hasn't set up sharing yet — they need to sign in and unlock their vault once."
-          : "Failed to add member"
+          : "Failed to add member",
       );
     } finally {
       setAddingMember(false);
@@ -390,7 +398,7 @@ export function SharedVaultsContent() {
         await rotateSpaceKey(detail, remaining, detail.files);
       } catch {
         setMemberError(
-          "Member removed, but re-keying failed. Unlock this space and use Re-key to finish revoking access."
+          "Member removed, but re-keying failed. Unlock this space and use Re-key to finish revoking access.",
         );
       }
       patchDetail(id, (d) => ({ ...d, members: remaining }));
@@ -423,7 +431,7 @@ export function SharedVaultsContent() {
     try {
       await deleteSharedVault(deleteTarget.id);
       queryClient.setQueryData<SharedVault[]>(qk.spaces, (prev) =>
-        (prev ?? []).filter((v) => v.id !== deleteTarget.id)
+        (prev ?? []).filter((v) => v.id !== deleteTarget.id),
       );
       queryClient.removeQueries({ queryKey: qk.space(deleteTarget.id) });
       if (openId === deleteTarget.id) setOpenId(null);
@@ -443,9 +451,7 @@ export function SharedVaultsContent() {
   const availableFiles = detail
     ? files.filter((f) => !detail.files?.some((sf) => sf.file_id === f.id))
     : [];
-  const usedBytes = detail
-    ? detail.files?.reduce((sum, f) => sum + (f.size ?? 0), 0) ?? 0
-    : 0;
+  const usedBytes = detail ? (detail.files?.reduce((sum, f) => sum + (f.size ?? 0), 0) ?? 0) : 0;
   const limitBytes = detail?.size_limit_bytes ?? 0;
   const overLimit = limitBytes > 0 && usedBytes >= limitBytes;
   const isSpaceOwner = !!detail && detail.owner_id === user?.id;
@@ -480,9 +486,7 @@ export function SharedVaultsContent() {
             <Users className="h-6 w-6" />
           </div>
           <div className="space-y-1">
-            <p className="text-sm font-medium text-[var(--color-text)]">
-              No spaces yet
-            </p>
+            <p className="text-sm font-medium text-[var(--color-text)]">No spaces yet</p>
             <p className="text-sm text-[var(--color-text-secondary)]">
               Create a space to share encrypted files with people you invite.
             </p>
@@ -517,58 +521,54 @@ export function SharedVaultsContent() {
           ) : (
             <ul className="panel divide-y divide-[var(--color-border)]">
               {filteredVaults.map((vault) => (
-            <li key={vault.id}>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="group flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-[var(--color-surface-1)]"
-              >
-                <button
-                  type="button"
-                  onClick={() => openDetail(vault.id)}
-                  className="flex min-w-0 flex-1 items-center gap-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)] rounded-lg"
-                >
-                  {/* A space is people-first, not a folder — use the Users glyph. */}
-                  <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--color-accent)]/10 text-[var(--color-accent)] ring-1 ring-[var(--color-accent)]/20">
-                    <Users className="h-4 w-4" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-[var(--color-text)]">
-                      {vault.name}
-                    </p>
-                    <div className="mt-0.5 flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
-                      {vault.description && (
-                        <span className="truncate">{vault.description}</span>
-                      )}
-                      <span className="tabular-nums">
-                        {vault.file_ids?.length || 0} files
-                      </span>
-                      <span className="text-[var(--color-border-hover)]">·</span>
-                      <span className="tabular-nums">
-                        {formatDateShort(vault.created_at)}
-                      </span>
-                    </div>
-                  </div>
-                  {!isOwner(vault) && (
-                    <Badge
-                      variant="secondary"
-                      className="flex-shrink-0 bg-[var(--color-surface-1)] capitalize text-[var(--color-text-muted)] ring-1 ring-[var(--color-border)]"
+                <li key={vault.id}>
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="group flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-[var(--color-surface-1)]"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => openDetail(vault.id)}
+                      className="flex min-w-0 flex-1 items-center gap-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)] rounded-lg"
                     >
-                      {vault.role || "member"}
-                    </Badge>
-                  )}
-                </button>
-                {isOwner(vault) && (
-                  <IconButton
-                    icon={Trash2}
-                    label="Delete space"
-                    variant="ghost"
-                    onClick={() => setDeleteTarget(vault)}
-                    className="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 hover:text-red-500"
-                  />
-                )}
-              </motion.div>
-            </li>
+                      {/* A space is people-first, not a folder — use the Users glyph. */}
+                      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--color-accent)]/10 text-[var(--color-accent)] ring-1 ring-[var(--color-accent)]/20">
+                        <Users className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-[var(--color-text)]">
+                          {vault.name}
+                        </p>
+                        <div className="mt-0.5 flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
+                          {vault.description && (
+                            <span className="truncate">{vault.description}</span>
+                          )}
+                          <span className="tabular-nums">{vault.file_ids?.length || 0} files</span>
+                          <span className="text-[var(--color-border-hover)]">·</span>
+                          <span className="tabular-nums">{formatDateShort(vault.created_at)}</span>
+                        </div>
+                      </div>
+                      {!isOwner(vault) && (
+                        <Badge
+                          variant="secondary"
+                          className="flex-shrink-0 bg-[var(--color-surface-1)] capitalize text-[var(--color-text-muted)] ring-1 ring-[var(--color-border)]"
+                        >
+                          {vault.role || "member"}
+                        </Badge>
+                      )}
+                    </button>
+                    {isOwner(vault) && (
+                      <IconButton
+                        icon={Trash2}
+                        label="Delete space"
+                        variant="ghost"
+                        onClick={() => setDeleteTarget(vault)}
+                        className="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 hover:text-red-500"
+                      />
+                    )}
+                  </motion.div>
+                </li>
               ))}
             </ul>
           )}
@@ -588,8 +588,8 @@ export function SharedVaultsContent() {
           <DialogHeader>
             <DialogTitle>Create a space</DialogTitle>
             <DialogDescription className="text-[var(--color-text-secondary)]">
-              Group files and invite people to collaborate. Files stay encrypted
-              end-to-end — the server never sees the key.
+              Group files and invite people to collaborate. Files stay encrypted end-to-end — the
+              server never sees the key.
             </DialogDescription>
           </DialogHeader>
 
@@ -671,9 +671,7 @@ export function SharedVaultsContent() {
       >
         <DialogContent className="max-h-[85vh] overflow-y-auto overflow-x-hidden border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)]">
           <DialogHeader>
-            <DialogTitle className="truncate">
-              {detail?.name ?? "Space"}
-            </DialogTitle>
+            <DialogTitle className="truncate">{detail?.name ?? "Space"}</DialogTitle>
             <DialogDescription className="text-[var(--color-text-secondary)]">
               {detail?.description ||
                 `${detail?.files?.length ?? detail?.file_ids?.length ?? 0} files · ${detail?.members?.length ?? 0} members`}
@@ -693,9 +691,7 @@ export function SharedVaultsContent() {
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
                     Files
-                    <span className="ml-1 tabular-nums">
-                      ({detail.files?.length || 0})
-                    </span>
+                    <span className="ml-1 tabular-nums">({detail.files?.length || 0})</span>
                   </p>
                   {canEdit && availableFiles.length > 0 && !overLimit && (
                     <button
@@ -756,7 +752,9 @@ export function SharedVaultsContent() {
                             icon={downloadingFile === f.file_id ? Loader2 : Download}
                             label="Download"
                             variant="ghost"
-                            onClick={() => handleDownloadFile(f.file_id, f.wrapped_cek, displayFileName(f))}
+                            onClick={() =>
+                              handleDownloadFile(f.file_id, f.wrapped_cek, displayFileName(f))
+                            }
                             disabled={downloadingFile === f.file_id}
                             className="h-7 w-7"
                             iconClassName={
@@ -781,9 +779,7 @@ export function SharedVaultsContent() {
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-sm text-[var(--color-text-muted)]">
-                    No files shared yet.
-                  </p>
+                  <p className="text-sm text-[var(--color-text-muted)]">No files shared yet.</p>
                 )}
 
                 {fileError && (
@@ -818,9 +814,7 @@ export function SharedVaultsContent() {
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
                     Members
-                    <span className="ml-1 tabular-nums">
-                      ({detail.members?.length || 0})
-                    </span>
+                    <span className="ml-1 tabular-nums">({detail.members?.length || 0})</span>
                   </p>
                   {isSpaceOwner && (
                     <button
@@ -868,25 +862,22 @@ export function SharedVaultsContent() {
                             </p>
                           )}
                         </div>
-                        {m.user_id !== user?.id &&
-                          detail.owner_id === user?.id && (
-                            <IconButton
-                              icon={Trash2}
-                              label="Remove member"
-                              variant="ghost"
-                              onClick={() => handleRemoveMember(m.user_id)}
-                              disabled={rotating}
-                              className="h-7 w-7 flex-shrink-0 hover:text-red-500"
-                              iconClassName="h-3.5 w-3.5"
-                            />
-                          )}
+                        {m.user_id !== user?.id && detail.owner_id === user?.id && (
+                          <IconButton
+                            icon={Trash2}
+                            label="Remove member"
+                            variant="ghost"
+                            onClick={() => handleRemoveMember(m.user_id)}
+                            disabled={rotating}
+                            className="h-7 w-7 flex-shrink-0 hover:text-red-500"
+                            iconClassName="h-3.5 w-3.5"
+                          />
+                        )}
                       </li>
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-sm text-[var(--color-text-muted)]">
-                    No members yet.
-                  </p>
+                  <p className="text-sm text-[var(--color-text-muted)]">No members yet.</p>
                 )}
                 <p className="flex items-center gap-1 text-[11px] text-[var(--color-text-muted)]">
                   <ShieldCheck className="h-3 w-3 flex-shrink-0" />
@@ -925,14 +916,11 @@ export function SharedVaultsContent() {
                     </Button>
                   </div>
                   <p className="text-[11px] text-[var(--color-text-muted)]">
-                    Viewers can download files. Editors and admins can also add and
-                    remove them. Only you, the owner, can invite or remove members.
+                    Viewers can download files. Editors and admins can also add and remove them.
+                    Only you, the owner, can invite or remove members.
                   </p>
                   {memberError && (
-                    <p
-                      role="alert"
-                      className="text-sm text-red-600 dark:text-red-400"
-                    >
+                    <p role="alert" className="text-sm text-red-600 dark:text-red-400">
                       {memberError}
                     </p>
                   )}
@@ -946,10 +934,7 @@ export function SharedVaultsContent() {
               Close
             </Button>
             {detail && detail.owner_id === user?.id && (
-              <Button
-                variant="danger"
-                onClick={() => setDeleteTarget(detail)}
-              >
+              <Button variant="danger" onClick={() => setDeleteTarget(detail)}>
                 <Trash2 className="h-3.5 w-3.5" />
                 Delete space
               </Button>
@@ -969,11 +954,8 @@ export function SharedVaultsContent() {
         description={
           <>
             This deletes the space{" "}
-            <span className="font-medium text-[var(--color-text)]">
-              {deleteTarget?.name}
-            </span>{" "}
-            and revokes access for everyone you invited. Your original files are
-            not deleted.
+            <span className="font-medium text-[var(--color-text)]">{deleteTarget?.name}</span> and
+            revokes access for everyone you invited. Your original files are not deleted.
           </>
         }
         confirmLabel="Delete space"

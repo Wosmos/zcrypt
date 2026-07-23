@@ -15,8 +15,8 @@ export async function collectSubtreeFolderIds(rootId: string): Promise<Set<strin
       frontier.map((id) =>
         queryClient
           .fetchQuery({ queryKey: qk.folders(id), queryFn: () => listFolders(id) })
-          .catch(() => [])
-      )
+          .catch(() => []),
+      ),
     );
     const next: string[] = [];
     for (const list of lists) {

@@ -62,8 +62,7 @@ export function MediaViewer({
   // full list if the active track was filtered out of view.
   const navList = shownTracks.some((t) => t.index === currentIndex) ? shownTracks : tracks;
   const navPos = navList.findIndex((t) => t.index === currentIndex);
-  const onPrev =
-    navPos > 0 ? () => onSelectTrack(navList[navPos - 1].index) : undefined;
+  const onPrev = navPos > 0 ? () => onSelectTrack(navList[navPos - 1].index) : undefined;
   const onNext =
     navPos >= 0 && navPos < navList.length - 1
       ? () => onSelectTrack(navList[navPos + 1].index)
@@ -95,9 +94,15 @@ export function MediaViewer({
               onClick={() => setPlaylistOpen(true)}
               className="absolute right-2 top-2 z-20 flex items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-1)]/90 px-3 py-1.5 text-xs font-medium text-[var(--color-text-secondary)] shadow-sm backdrop-blur-sm outline-none transition-colors hover:text-[var(--color-text)] focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
             >
-              {kind === "video" ? <Video className="h-3.5 w-3.5" /> : <Music className="h-3.5 w-3.5" />}
+              {kind === "video" ? (
+                <Video className="h-3.5 w-3.5" />
+              ) : (
+                <Music className="h-3.5 w-3.5" />
+              )}
               Playlist
-              <span className="tabular-nums text-[var(--color-text-muted)]">{shownTracks.length}</span>
+              <span className="tabular-nums text-[var(--color-text-muted)]">
+                {shownTracks.length}
+              </span>
             </button>
           )}
 
@@ -123,13 +128,15 @@ export function MediaViewer({
               "lg:inset-y-0 lg:bottom-auto lg:left-auto lg:right-0 lg:max-h-none lg:w-80 lg:rounded-none lg:rounded-l-2xl lg:border-l lg:border-t-0",
               playlistOpen
                 ? "translate-y-0 lg:translate-x-0"
-                : "translate-y-full lg:translate-y-0 lg:translate-x-full"
+                : "translate-y-full lg:translate-y-0 lg:translate-x-full",
             )}
           >
             <div className="flex items-center gap-2 border-b border-[var(--color-border)] px-3 py-3 text-xs font-semibold text-[var(--color-text-secondary)]">
               {kind === "video" ? <Video className="h-4 w-4" /> : <Music className="h-4 w-4" />}
               Playlist
-              <span className="tabular-nums text-[var(--color-text-muted)]">{shownTracks.length}</span>
+              <span className="tabular-nums text-[var(--color-text-muted)]">
+                {shownTracks.length}
+              </span>
               <button
                 type="button"
                 onClick={() => setPlaylistOpen(false)}
@@ -152,7 +159,7 @@ export function MediaViewer({
                       "flex-1 rounded-md px-2 py-1 text-[11px] font-medium capitalize outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]",
                       filter === f
                         ? "bg-[var(--color-accent)]/15 text-[var(--color-text)]"
-                        : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)]"
+                        : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)]",
                     )}
                   >
                     {f}
@@ -176,13 +183,13 @@ export function MediaViewer({
                         "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]",
                         active
                           ? "bg-[var(--color-accent)]/10 text-[var(--color-text)]"
-                          : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)]"
+                          : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)]",
                       )}
                     >
                       <span
                         className={cn(
                           "flex h-7 w-7 shrink-0 items-center justify-center rounded-md",
-                          active ? "bg-cyan-500/20 text-cyan-500" : info.bg
+                          active ? "bg-cyan-500/20 text-cyan-500" : info.bg,
                         )}
                       >
                         {active ? (

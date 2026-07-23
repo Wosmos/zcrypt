@@ -35,8 +35,8 @@ export default function PhilosophyPage() {
             Why We Built zcrypt
           </h1>
           <p className="text-lg text-[var(--color-text-secondary)] mt-4 leading-relaxed">
-            A long-overdue conversation about who owns your data,
-            who&apos;s profiting from it, and why that needs to change.
+            A long-overdue conversation about who owns your data, who&apos;s profiting from it, and
+            why that needs to change.
           </p>
           <div className="h-px bg-[var(--color-border)] mt-10" />
         </Section>
@@ -48,12 +48,12 @@ export default function PhilosophyPage() {
               The short version
             </p>
             <p className="text-base sm:text-lg text-[var(--color-text-secondary)] leading-relaxed">
-              Most cloud storage means renting space on someone else&apos;s servers,
-              where <em>they</em> hold the keys to your files. zcrypt is different.
-              Your files are encrypted on your device, then stored inside free space
-              you already have on accounts <em>you</em> own &mdash; GitHub, GitLab,
-              Hugging Face, or Telegram. Only you can read them, you&apos;re limited
-              only by your own storage, and it&apos;s free and open source.
+              Most cloud storage means renting space on someone else&apos;s servers, where{" "}
+              <em>they</em> hold the keys to your files. zcrypt is different. Your files are
+              encrypted on your device, then stored inside free space you already have on accounts{" "}
+              <em>you</em> own &mdash; GitHub, GitLab, Hugging Face, or Telegram. Only you can read
+              them, you&apos;re limited only by your own storage, and it&apos;s free and open
+              source.
             </p>
           </div>
         </Section>
@@ -64,39 +64,33 @@ export default function PhilosophyPage() {
             The Cloud Is Just Someone Else&apos;s Computer
           </h2>
           <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
+            <p>And they&apos;re charging you rent to live in it.</p>
             <p>
-              And they&apos;re charging you rent to live in it.
+              Somewhere in the last decade, the tech industry pulled off one of history&apos;s great
+              marketing tricks: they convinced billions of people to stop storing files on hardware
+              they own and start paying monthly for the privilege of storing them on hardware that
+              someone else owns.
             </p>
             <p>
-              Somewhere in the last decade, the tech industry pulled off one of
-              history&apos;s great marketing tricks: they convinced billions of
-              people to stop storing files on hardware they own and start paying
-              monthly for the privilege of storing them on hardware that someone
-              else owns.
-            </p>
-            <p>
-              This is the digital equivalent of renting a storage unit for things
-              you already have room for at home. Except the storage unit also reads
-              your mail, indexes your photo albums, and raises the rent every year.
+              This is the digital equivalent of renting a storage unit for things you already have
+              room for at home. Except the storage unit also reads your mail, indexes your photo
+              albums, and raises the rent every year.
             </p>
           </div>
 
-          <PullQuote>
-            Cloud storage is a landlord scheme with better PR.
-          </PullQuote>
+          <PullQuote>Cloud storage is a landlord scheme with better PR.</PullQuote>
 
           <div className="space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
             <p>
-              AWS S3 charges $23 per terabyte per month. That&apos;s $276 per year
-              for a terabyte of storage. A 4TB hard drive costs $80 on Amazon —
-              the same Amazon. You could buy the physical hardware to store your
-              data four times over for what they charge you in a single year to
-              store it on their servers.
+              AWS S3 charges $23 per terabyte per month. That&apos;s $276 per year for a terabyte of
+              storage. A 4TB hard drive costs $80 on Amazon — the same Amazon. You could buy the
+              physical hardware to store your data four times over for what they charge you in a
+              single year to store it on their servers.
             </p>
             <p>
-              The markup isn&apos;t 100%. It isn&apos;t 500%. The markup on cloud
-              storage is measured in thousands of percent, and the entire industry
-              has collectively agreed to pretend this is normal.
+              The markup isn&apos;t 100%. It isn&apos;t 500%. The markup on cloud storage is
+              measured in thousands of percent, and the entire industry has collectively agreed to
+              pretend this is normal.
             </p>
           </div>
         </Section>
@@ -108,18 +102,16 @@ export default function PhilosophyPage() {
           </h2>
           <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
             <p>
-              GitLab gives you 10GB per repo. For free. Hugging Face gives you
-              100GB per account. GitHub doesn&apos;t even publish a hard cap —
-              just stay under a few gigabytes and nobody blinks. These
-              aren&apos;t hidden terms buried in legalese — they&apos;re
-              published limits (and unwritten norms) that platform teams
-              actively maintain and support.
+              GitLab gives you 10GB per repo. For free. Hugging Face gives you 100GB per account.
+              GitHub doesn&apos;t even publish a hard cap — just stay under a few gigabytes and
+              nobody blinks. These aren&apos;t hidden terms buried in legalese — they&apos;re
+              published limits (and unwritten norms) that platform teams actively maintain and
+              support.
             </p>
             <p>
-              This isn&apos;t a bug. This is a feature. These platforms need generous
-              storage to host large repositories, ML models, and binary assets. They
-              built the infrastructure. They set the limits. We just use them as
-              intended — for storing data.
+              This isn&apos;t a bug. This is a feature. These platforms need generous storage to
+              host large repositories, ML models, and binary assets. They built the infrastructure.
+              They set the limits. We just use them as intended — for storing data.
             </p>
           </div>
 
@@ -129,20 +121,19 @@ export default function PhilosophyPage() {
 
           <div className="space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
             <p>
-              zcrypt takes your files, compresses them with Zstd, encrypts them with
-              AES-256-GCM, splits them into manageable chunks, and stores them as
-              ordinary-looking data in repositories on the platform you connect. To
-              the platform, they look like build artifacts. To you, they&apos;re your
-              encrypted files, accessible from anywhere, costing nothing.
+              zcrypt takes your files, compresses them with Zstd, encrypts them with AES-256-GCM,
+              splits them into manageable chunks, and stores them as ordinary-looking data in
+              repositories on the platform you connect. To the platform, they look like build
+              artifacts. To you, they&apos;re your encrypted files, accessible from anywhere,
+              costing nothing.
             </p>
             <p>
-              <strong className="text-[var(--color-text)]">Is this safe and durable?</strong>{" "}
-              Yes. Your data is stored as standard private repository content &mdash;
-              exactly the kind of large binary data these platforms are built to host.
-              zcrypt automatically spreads data across repositories and rotates to
-              fresh ones as they fill up, so you stay well within each platform&apos;s
-              normal limits. And your files are always retrievable: encrypted chunks
-              are integrity-checked and reassembled when you download.
+              <strong className="text-[var(--color-text)]">Is this safe and durable?</strong> Yes.
+              Your data is stored as standard private repository content &mdash; exactly the kind of
+              large binary data these platforms are built to host. zcrypt automatically spreads data
+              across repositories and rotates to fresh ones as they fill up, so you stay well within
+              each platform&apos;s normal limits. And your files are always retrievable: encrypted
+              chunks are integrity-checked and reassembled when you download.
             </p>
           </div>
         </Section>
@@ -154,36 +145,34 @@ export default function PhilosophyPage() {
           </h2>
           <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
             <p>
-              When Dropbox says &ldquo;we take security seriously,&rdquo; what they
-              mean is they encrypt your files with keys they control. They can read
-              your files. Their employees can read your files. They scan your files
-              to build search indices. Government subpoenas? They hand over your
-              data because they can.
+              When Dropbox says &ldquo;we take security seriously,&rdquo; what they mean is they
+              encrypt your files with keys they control. They can read your files. Their employees
+              can read your files. They scan your files to build search indices. Government
+              subpoenas? They hand over your data because they can.
             </p>
             <p>
-              When we say &ldquo;zero-knowledge,&rdquo; we mean the mathematical
-              kind. Your passphrase never leaves your device. We derive encryption
-              keys locally using PBKDF2 with 600,000 iterations. The encrypted
-              data that gets uploaded is indistinguishable from random noise.
+              When we say &ldquo;zero-knowledge,&rdquo; we mean the mathematical kind. Your
+              passphrase never leaves your device. We derive encryption keys locally using PBKDF2
+              with 600,000 iterations. The encrypted data that gets uploaded is indistinguishable
+              from random noise.
             </p>
           </div>
 
           <PullQuote>
-            We can&apos;t read your files. Not because we&apos;re polite. Because
-            we literally don&apos;t have the keys.
+            We can&apos;t read your files. Not because we&apos;re polite. Because we literally
+            don&apos;t have the keys.
           </PullQuote>
 
           <div className="space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
             <p>
-              AES-256-GCM provides authenticated encryption — meaning tampering
-              with the ciphertext is detectable. The GCM mode gives you both
-              confidentiality and integrity in a single pass. No separate HMAC
-              step. No room for implementation mistakes.
+              AES-256-GCM provides authenticated encryption — meaning tampering with the ciphertext
+              is detectable. The GCM mode gives you both confidentiality and integrity in a single
+              pass. No separate HMAC step. No room for implementation mistakes.
             </p>
             <p>
-              This isn&apos;t security theater. This is the same encryption standard
-              used by intelligence agencies. The difference is we give it to you
-              for free, not for $23/TB/month.
+              This isn&apos;t security theater. This is the same encryption standard used by
+              intelligence agencies. The difference is we give it to you for free, not for
+              $23/TB/month.
             </p>
           </div>
         </Section>
@@ -195,54 +184,38 @@ export default function PhilosophyPage() {
           </h2>
           <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
             <p>
-              Every cloud provider asks you to trust them. Trust their encryption.
-              Trust their access controls. Trust that the engineer with admin access
-              won&apos;t peek at your vacation photos.
+              Every cloud provider asks you to trust them. Trust their encryption. Trust their
+              access controls. Trust that the engineer with admin access won&apos;t peek at your
+              vacation photos.
             </p>
+            <p>We don&apos;t ask you to trust us. We ask you to read the code.</p>
             <p>
-              We don&apos;t ask you to trust us. We ask you to read the code.
-            </p>
-            <p>
-              Every line of zcrypt is open source. The encryption implementation.
-              The chunking algorithm. The upload pipeline. The key derivation.
-              If there&apos;s a vulnerability, you&apos;ll find it before we do,
-              because you have the same access to the source that we do.
+              Every line of zcrypt is open source. The encryption implementation. The chunking
+              algorithm. The upload pipeline. The key derivation. If there&apos;s a vulnerability,
+              you&apos;ll find it before we do, because you have the same access to the source that
+              we do.
             </p>
           </div>
 
-          <PullQuote>
-            The best security audit is 10,000 strangers reading your code.
-          </PullQuote>
+          <PullQuote>The best security audit is 10,000 strangers reading your code.</PullQuote>
         </Section>
 
         {/* Section 5 */}
         <Section className="mt-20">
-          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
-            The Endgame
-          </h2>
+          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">The Endgame</h2>
           <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
+            <p>A world where personal file storage costs $0 and your data belongs to you.</p>
+            <p>Revolutionary? No. Obvious? Yes. Done? Finally.</p>
             <p>
-              A world where personal file storage costs $0 and your data belongs
-              to you.
+              The technology for free, encrypted, distributed storage has existed for years. Git
+              hosting has been free for over a decade. AES-256 has been an open standard since 2001.
+              Zstd compression has been open source since 2016. All zcrypt does is connect the dots
+              that the industry had every incentive to leave disconnected.
             </p>
-            <p>
-              Revolutionary? No. Obvious? Yes. Done? Finally.
-            </p>
-            <p>
-              The technology for free, encrypted, distributed storage has existed
-              for years. Git hosting has been free for over a decade. AES-256 has
-              been an open standard since 2001. Zstd compression has been open
-              source since 2016. All zcrypt does is connect the dots that the
-              industry had every incentive to leave disconnected.
-            </p>
-            <p>
-              Because every dot connected is a revenue stream severed.
-            </p>
+            <p>Because every dot connected is a revenue stream severed.</p>
           </div>
 
-          <PullQuote>
-            They had every incentive to never build this. So we did.
-          </PullQuote>
+          <PullQuote>They had every incentive to never build this. So we did.</PullQuote>
         </Section>
 
         {/* Who's behind this */}
@@ -252,19 +225,17 @@ export default function PhilosophyPage() {
           </h2>
           <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
             <p>
-              Honestly? Mostly one guy. I&apos;m {WOSMO.name} &mdash; a{" "}
-              {WOSMO.role.toLowerCase()} who wanted a lot of free storage,
-              couldn&apos;t find any that wouldn&apos;t read his files, and got
-              annoyed enough to build the alternative instead of just posting
-              about it. zcrypt is mine end to end: the encryption, the upload
-              pipeline, the drive, and this exact page you&apos;re reading.
+              Honestly? Mostly one guy. I&apos;m {WOSMO.name} &mdash; a {WOSMO.role.toLowerCase()}{" "}
+              who wanted a lot of free storage, couldn&apos;t find any that wouldn&apos;t read his
+              files, and got annoyed enough to build the alternative instead of just posting about
+              it. zcrypt is mine end to end: the encryption, the upload pipeline, the drive, and
+              this exact page you&apos;re reading.
             </p>
             <p>
-              I say &ldquo;we&rdquo; out of habit, not to hide behind a logo
-              &mdash; and here of all places, that matters. A tool that asks you
-              to trust it with your keys should tell you exactly who wrote the
-              code that holds them. No anonymous founder. No shell company. Just
-              my name, on the record, right here.
+              I say &ldquo;we&rdquo; out of habit, not to hide behind a logo &mdash; and here of all
+              places, that matters. A tool that asks you to trust it with your keys should tell you
+              exactly who wrote the code that holds them. No anonymous founder. No shell company.
+              Just my name, on the record, right here.
             </p>
           </div>
 

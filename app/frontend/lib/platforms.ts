@@ -140,23 +140,24 @@ export const PLATFORMS: PlatformMeta[] = [
 ];
 
 /** Lookup by id, e.g. `PLATFORM_BY_ID.github.tokenUrl`. */
-export const PLATFORM_BY_ID = Object.fromEntries(
-  PLATFORMS.map((p) => [p.id, p])
-) as Record<PlatformId, PlatformMeta>;
+export const PLATFORM_BY_ID = Object.fromEntries(PLATFORMS.map((p) => [p.id, p])) as Record<
+  PlatformId,
+  PlatformMeta
+>;
 
 /** Full display names, e.g. "Hugging Face". */
 export const PLATFORM_NAMES: Record<string, string> = Object.fromEntries(
-  PLATFORMS.map((p) => [p.id, p.name])
+  PLATFORMS.map((p) => [p.id, p.name]),
 );
 
 /** Two-letter short codes for compact chips/badges. */
 export const PLATFORM_SHORT: Record<string, string> = Object.fromEntries(
-  PLATFORMS.map((p) => [p.id, p.short])
+  PLATFORMS.map((p) => [p.id, p.short]),
 );
 
 /** Brand hex colors for charts / accents. */
 export const PLATFORM_COLORS: Record<string, string> = Object.fromEntries(
-  PLATFORMS.map((p) => [p.id, p.color])
+  PLATFORMS.map((p) => [p.id, p.color]),
 );
 
 /** Display name for a platform id, falling back to the raw id when unknown. */
@@ -174,9 +175,7 @@ export function platformName(id: string): string {
  * `/api/platforms/connect` request body accepts. Returns null when the token
  * isn't in the expected two-part format.
  */
-export function parseTelegramToken(
-  raw: string
-): { token: string; account: string } | null {
+export function parseTelegramToken(raw: string): { token: string; account: string } | null {
   const sep = raw.indexOf("|");
   if (sep === -1) return null;
   const token = raw.slice(0, sep).trim();

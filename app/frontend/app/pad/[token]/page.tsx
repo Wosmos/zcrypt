@@ -5,9 +5,7 @@ import { useParams } from "next/navigation";
 import { getPadInfo, getPadContent } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
-import {
-  FileText, Copy, Check, AlertTriangle, CheckCircle2, Clock, Shield,
-} from "@/lib/icons";
+import { FileText, Copy, Check, AlertTriangle, CheckCircle2, Clock, Shield } from "@/lib/icons";
 import { formatBytes } from "@/lib/utils";
 import { keyFromFragment } from "@/lib/share-link";
 import { ViewerIncompleteLink } from "@/components/tokens/viewer";
@@ -135,7 +133,9 @@ export default function PadViewPage() {
                 </div>
                 <div>
                   <p className="text-sm font-semibold">Encrypted Pad</p>
-                  <p className="text-xs text-[var(--color-text-muted)]">{formatBytes(info.content_size)}</p>
+                  <p className="text-xs text-[var(--color-text-muted)]">
+                    {formatBytes(info.content_size)}
+                  </p>
                 </div>
               </div>
 
@@ -198,7 +198,8 @@ export default function PadViewPage() {
               </div>
               <div className="px-5 py-3 border-t border-[var(--color-border)]">
                 <p className="text-[10px] text-[var(--color-text-muted)]">
-                  {formatBytes(new TextEncoder().encode(decryptedText).length)} &middot; Decrypted in browser
+                  {formatBytes(new TextEncoder().encode(decryptedText).length)} &middot; Decrypted
+                  in browser
                 </p>
               </div>
             </>
@@ -207,7 +208,8 @@ export default function PadViewPage() {
 
         {/* Footer */}
         <p className="text-center text-[10px] text-[var(--color-text-muted)] mt-6">
-          Powered by <span className="font-semibold">zcrypt</span> &middot; Zero-knowledge encrypted text sharing
+          Powered by <span className="font-semibold">zcrypt</span> &middot; Zero-knowledge encrypted
+          text sharing
         </p>
       </div>
     </div>

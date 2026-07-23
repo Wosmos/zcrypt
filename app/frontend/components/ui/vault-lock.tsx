@@ -106,7 +106,7 @@ export function VaultLock({
         on
           ? "bg-[var(--color-accent)]/10 text-[var(--color-accent)] hover:bg-[var(--color-accent)]/15 hover:text-[var(--color-accent)] data-[state=on]:bg-[var(--color-accent)]/10 data-[state=on]:text-[var(--color-accent)]"
           : "text-[var(--color-text-muted)] hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text-muted)]",
-        className
+        className,
       )}
     >
       {on ? (
