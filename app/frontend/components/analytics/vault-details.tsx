@@ -4,7 +4,6 @@ import { useMemo } from "react";
 import { formatBytes, localDateKey } from "@/lib/utils";
 import type { FileMetadata } from "@/types";
 
-
 function median(values: number[]): number {
   if (values.length === 0) return 0;
   const s = [...values].sort((a, b) => a - b);
@@ -57,8 +56,12 @@ export function VaultDetails({ files }: { files: FileMetadata[] }) {
     const ageDays = Math.max(1, Math.round((Date.now() - oldest.getTime()) / 86_400_000));
 
     const now = Date.now();
-    const last7 = files.filter((f) => now - new Date(f.created_at).getTime() <= 7 * 86_400_000).length;
-    const last30 = files.filter((f) => now - new Date(f.created_at).getTime() <= 30 * 86_400_000).length;
+    const last7 = files.filter(
+      (f) => now - new Date(f.created_at).getTime() <= 7 * 86_400_000,
+    ).length;
+    const last30 = files.filter(
+      (f) => now - new Date(f.created_at).getTime() <= 30 * 86_400_000,
+    ).length;
 
     // Busiest day
     const byDay = new Map<string, number>();
@@ -75,7 +78,11 @@ export function VaultDetails({ files }: { files: FileMetadata[] }) {
       }
     }
     const busiestLabel = busiestKey
-      ? new Date(busiestKey + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+      ? new Date(busiestKey + "T00:00:00").toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        })
       : "—";
 
     const compressionRatio = original > 0 ? (compressed / original) * 100 : 100;
@@ -100,7 +107,11 @@ export function VaultDetails({ files }: { files: FileMetadata[] }) {
           { label: "Smallest file", value: formatBytes(smallest) },
           { label: "Average file", value: formatBytes(original / files.length) },
           { label: "Median file", value: formatBytes(median(sizes)) },
-          { label: "Compressed to", value: `${compressionRatio.toFixed(0)}%`, hint: formatBytes(compressed) },
+          {
+            label: "Compressed to",
+            value: `${compressionRatio.toFixed(0)}%`,
+            hint: formatBytes(compressed),
+          },
           { label: "Stored (encrypted)", value: formatBytes(encrypted) },
         ],
       },
@@ -109,9 +120,16 @@ export function VaultDetails({ files }: { files: FileMetadata[] }) {
         metrics: [
           { label: "First upload", value: oldest.toLocaleDateString("en-US", dateFmt) },
           { label: "Latest upload", value: newest.toLocaleDateString("en-US", dateFmt) },
-          { label: "Vault age", value: `${ageDays.toLocaleString()} day${ageDays !== 1 ? "s" : ""}` },
+          {
+            label: "Vault age",
+            value: `${ageDays.toLocaleString()} day${ageDays !== 1 ? "s" : ""}`,
+          },
           { label: "Avg / day", value: (files.length / ageDays).toFixed(1) },
-          { label: "Busiest day", value: busiestLabel, hint: `${busiestCount} file${busiestCount !== 1 ? "s" : ""}` },
+          {
+            label: "Busiest day",
+            value: busiestLabel,
+            hint: `${busiestCount} file${busiestCount !== 1 ? "s" : ""}`,
+          },
         ],
       },
     ];
@@ -122,7 +140,9 @@ export function VaultDetails({ files }: { files: FileMetadata[] }) {
   return (
     <div className="panel overflow-hidden">
       <div className="border-b border-[var(--color-border)] px-5 py-4">
-        <h3 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">The details</h3>
+        <h3 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
+          The details
+        </h3>
       </div>
       <div className="grid grid-cols-1 divide-y divide-[var(--color-border)] md:grid-cols-3 md:divide-x md:divide-y-0">
         {groups.map((g) => (
@@ -135,9 +155,13 @@ export function VaultDetails({ files }: { files: FileMetadata[] }) {
                 <div key={m.label} className="flex items-baseline justify-between gap-3">
                   <dt className="text-sm text-[var(--color-text-secondary)]">{m.label}</dt>
                   <dd className="text-right">
-                    <span className="text-sm font-medium tabular-nums text-[var(--color-text)]">{m.value}</span>
+                    <span className="text-sm font-medium tabular-nums text-[var(--color-text)]">
+                      {m.value}
+                    </span>
                     {m.hint && (
-                      <span className="ml-1.5 text-xs text-[var(--color-text-muted)]">{m.hint}</span>
+                      <span className="ml-1.5 text-xs text-[var(--color-text-muted)]">
+                        {m.hint}
+                      </span>
                     )}
                   </dd>
                 </div>

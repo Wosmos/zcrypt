@@ -21,7 +21,11 @@ export function MarkdownViewer({ blob }: { blob: Blob }) {
       FORBID_ATTR: ["style", "srcdoc"],
     });
   }, []);
-  const { value: html, error } = useDecodedBlob(blob, decode, "Could not render this Markdown file.");
+  const { value: html, error } = useDecodedBlob(
+    blob,
+    decode,
+    "Could not render this Markdown file.",
+  );
 
   if (error) return <ViewerError message={error} />;
   if (html === null) return <ViewerLoading />;

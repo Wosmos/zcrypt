@@ -11,12 +11,24 @@ interface FileTypeChartProps {
 }
 
 const FILE_CATEGORIES: { label: string; color: string; extensions: string[] }[] = [
-  { label: "Documents", color: "#3b82f6", extensions: ["pdf", "doc", "docx", "txt", "rtf", "odt", "xls", "xlsx", "csv", "ppt", "pptx"] },
-  { label: "Images", color: "#f59e0b", extensions: ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp"] },
+  {
+    label: "Documents",
+    color: "#3b82f6",
+    extensions: ["pdf", "doc", "docx", "txt", "rtf", "odt", "xls", "xlsx", "csv", "ppt", "pptx"],
+  },
+  {
+    label: "Images",
+    color: "#f59e0b",
+    extensions: ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp"],
+  },
   { label: "Videos", color: "#8b5cf6", extensions: ["mp4", "mov", "avi", "mkv", "webm", "flv"] },
   { label: "Audio", color: "#ec4899", extensions: ["mp3", "wav", "flac", "aac", "ogg", "m4a"] },
   { label: "Archives", color: "#f97316", extensions: ["zip", "rar", "7z", "tar", "gz", "bz2"] },
-  { label: "Code", color: "#06b6d4", extensions: ["js", "ts", "py", "go", "rs", "java", "cpp", "c", "html", "css", "json"] },
+  {
+    label: "Code",
+    color: "#06b6d4",
+    extensions: ["js", "ts", "py", "go", "rs", "java", "cpp", "c", "html", "css", "json"],
+  },
   { label: "Other", color: "#14b8a6", extensions: [] },
 ];
 
@@ -25,9 +37,14 @@ export function FileTypeChart({ files }: FileTypeChartProps) {
     const knownExts = new Set(FILE_CATEGORIES.flatMap((c) => c.extensions));
 
     return FILE_CATEGORIES.map((cat) => {
-      const matched = cat.extensions.length > 0
-        ? files.filter((f) => cat.extensions.includes(f.original_name.split(".").pop()?.toLowerCase() || ""))
-        : files.filter((f) => !knownExts.has(f.original_name.split(".").pop()?.toLowerCase() || ""));
+      const matched =
+        cat.extensions.length > 0
+          ? files.filter((f) =>
+              cat.extensions.includes(f.original_name.split(".").pop()?.toLowerCase() || ""),
+            )
+          : files.filter(
+              (f) => !knownExts.has(f.original_name.split(".").pop()?.toLowerCase() || ""),
+            );
 
       return {
         name: cat.label,
@@ -42,7 +59,9 @@ export function FileTypeChart({ files }: FileTypeChartProps) {
     return (
       <div className="panel overflow-hidden">
         <div className="border-b border-[var(--color-border)] px-5 py-4">
-          <h3 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">By file type</h3>
+          <h3 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
+            By file type
+          </h3>
         </div>
         <div className="flex h-[200px] items-center justify-center text-sm text-[var(--color-text-muted)]">
           No files yet
@@ -56,7 +75,9 @@ export function FileTypeChart({ files }: FileTypeChartProps) {
   return (
     <div className="panel overflow-hidden">
       <div className="border-b border-[var(--color-border)] px-5 py-4">
-        <h3 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">By file type</h3>
+        <h3 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
+          By file type
+        </h3>
       </div>
       <div className="p-5 pt-4">
         <div className="flex items-center gap-4">
@@ -88,14 +109,19 @@ export function FileTypeChart({ files }: FileTypeChartProps) {
               <span className="text-sm font-semibold tabular-nums text-[var(--color-text)]">
                 {formatBytes(total)}
               </span>
-              <span className="text-[10px] uppercase tracking-wide text-[var(--color-text-muted)]">total</span>
+              <span className="text-[10px] uppercase tracking-wide text-[var(--color-text-muted)]">
+                total
+              </span>
             </div>
           </div>
 
           <div className="flex-1 space-y-2">
             {data.map((d) => (
               <div key={d.name} className="flex items-center gap-2">
-                <span className="h-2.5 w-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: d.color }} />
+                <span
+                  className="h-2.5 w-2.5 rounded-sm flex-shrink-0"
+                  style={{ backgroundColor: d.color }}
+                />
                 <span className="text-xs text-[var(--color-text-secondary)] flex-1">{d.name}</span>
                 <span className="text-xs font-medium tabular-nums">
                   {((d.value / total) * 100).toFixed(0)}%

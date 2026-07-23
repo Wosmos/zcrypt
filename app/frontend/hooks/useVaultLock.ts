@@ -75,8 +75,7 @@ interface VaultLockModalProps {
 }
 
 const MODAL_TITLE = "Unlock your vault";
-const MODAL_SUBTITLE =
-  "Enter it once to upload, download, and read your files";
+const MODAL_SUBTITLE = "Enter it once to upload, download, and read your files";
 const MODAL_CONFIRM = "Unlock";
 
 export function useVaultLock(opts?: {
@@ -124,20 +123,17 @@ export function useVaultLock(opts?: {
   const remainingMinutes = sessionUnlocked ? Math.ceil(remainingMs / 60_000) : 0;
 
   // --- Actions -----------------------------------------------------------
-  const openModal = useCallback(
-    (onUnlocked?: (passphrase: string) => void) => {
-      pendingRef.current = onUnlocked ?? null;
-      setError(null);
-      setOpen(true);
-    },
-    []
-  );
+  const openModal = useCallback((onUnlocked?: (passphrase: string) => void) => {
+    pendingRef.current = onUnlocked ?? null;
+    setError(null);
+    setOpen(true);
+  }, []);
 
   const unlock = useCallback(
     (onUnlocked?: (passphrase: string) => void) => {
       openModal(onUnlocked);
     },
-    [openModal]
+    [openModal],
   );
 
   const lock = useCallback(() => {
@@ -158,7 +154,7 @@ export function useVaultLock(opts?: {
       }
       openModal(action);
     },
-    [getPassphrase, openModal]
+    [getPassphrase, openModal],
   );
 
   const onConfirm = useCallback(
@@ -172,7 +168,7 @@ export function useVaultLock(opts?: {
       pendingRef.current = null;
       if (pending) pending(passphrase);
     },
-    [setPassphrase]
+    [setPassphrase],
   );
 
   const onClose = useCallback(() => {

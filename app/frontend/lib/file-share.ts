@@ -10,7 +10,14 @@
  * toasts, and cache refresh — this just performs the crypto + create + URL build,
  * plus the shares-cache invalidation so the drawer/modal reflect the new link.
  */
-import { resolveFileKey, generateCEK, wrapKey, fromBase64, toBase64, toArrayBuffer } from "@/lib/crypto";
+import {
+  resolveFileKey,
+  generateCEK,
+  wrapKey,
+  fromBase64,
+  toBase64,
+  toArrayBuffer,
+} from "@/lib/crypto";
 import { getFileMeta, createShare } from "@/lib/api";
 import { invalidateShares } from "@/hooks/useShares";
 import { usePassphraseStore } from "@/store/passphrase";
@@ -31,12 +38,12 @@ export interface FileShareOptions {
  */
 export async function createFileShareLink(
   fileId: string,
-  opts: FileShareOptions = {}
+  opts: FileShareOptions = {},
 ): Promise<{ url: string; token: string; shareKey: string }> {
   const passphrase = usePassphraseStore.getState().getPassphrase();
   if (!passphrase) {
     throw new Error(
-      "Your passphrase is locked. Open or download a file first to unlock it, then try sharing again."
+      "Your passphrase is locked. Open or download a file first to unlock it, then try sharing again.",
     );
   }
 

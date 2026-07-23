@@ -11,10 +11,7 @@ import {
   ExternalLink,
 } from "@/lib/icons";
 import { tuiInstallMethods, GITHUB_REPO, downloadPageContent } from "@/lib/data";
-import {
-  SoftwareApplicationJsonLd,
-  BreadcrumbJsonLd,
-} from "@/components/seo/json-ld";
+import { SoftwareApplicationJsonLd, BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { DownloadCta } from "@/components/marketing/download/download-cta";
 import { InstallCommands } from "@/components/marketing/download/install-commands";
 import { DesktopGrid } from "@/components/marketing/download/desktop-grid";
@@ -97,9 +94,7 @@ export default async function DownloadPage() {
       <section id="desktop" className="scroll-mt-20 px-4 py-20">
         <div className="mx-auto max-w-5xl">
           <div className="mb-12 text-center">
-            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-              {desktop.heading}
-            </h2>
+            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">{desktop.heading}</h2>
             <p className="mx-auto mt-2 max-w-lg text-sm text-[var(--color-text-secondary)]">
               {desktop.subheading}
             </p>
@@ -130,9 +125,7 @@ export default async function DownloadPage() {
               <Smartphone className="h-3.5 w-3.5 text-emerald-500" />
               {android.badge}
             </div>
-            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-              {android.heading}
-            </h2>
+            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">{android.heading}</h2>
             <p className="mx-auto mt-2 max-w-lg text-sm text-[var(--color-text-secondary)]">
               {android.subheading}
             </p>
@@ -150,9 +143,7 @@ export default async function DownloadPage() {
               <Terminal className="h-3.5 w-3.5 text-cyan-500" />
               {cli.badge}
             </div>
-            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-              {cli.heading}
-            </h2>
+            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">{cli.heading}</h2>
             <p className="mx-auto mt-2 max-w-lg text-sm text-[var(--color-text-secondary)]">
               {cli.subheading}
             </p>
@@ -177,9 +168,7 @@ export default async function DownloadPage() {
                 <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-cyan-500/10 text-cyan-500">
                   <Globe className="h-5 w-5" />
                 </div>
-                <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
-                  {web.heading}
-                </h2>
+                <h2 className="text-xl font-bold tracking-tight sm:text-2xl">{web.heading}</h2>
                 <p className="mt-2 text-sm leading-relaxed text-[var(--color-text-secondary)]">
                   {web.body}
                 </p>
@@ -202,9 +191,7 @@ export default async function DownloadPage() {
           <div className="mx-auto mb-4 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-500">
             <ShieldCheck className="h-5 w-5" />
           </div>
-          <h2 className="text-lg font-bold tracking-tight">
-            {openSource.heading}
-          </h2>
+          <h2 className="text-lg font-bold tracking-tight">{openSource.heading}</h2>
           <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-[var(--color-text-secondary)]">
             {openSource.body}
           </p>

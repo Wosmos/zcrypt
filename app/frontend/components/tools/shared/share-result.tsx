@@ -4,9 +4,7 @@ import type { ComponentType } from "react";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
 import { QRShare } from "@/components/ui/qr-code";
-import {
-  Shield, Copy, Check, Clock, Link2, AlertTriangle, CheckCircle2,
-} from "@/lib/icons";
+import { Shield, Copy, Check, Clock, Link2, AlertTriangle, CheckCircle2 } from "@/lib/icons";
 import { EXPIRY_OPTIONS } from "./expiry";
 
 type IconComponent = ComponentType<{ className?: string; size?: number }>;
@@ -57,7 +55,9 @@ export function ShareResult({
           <Link2 className="h-3.5 w-3.5" /> Share Link
         </label>
         <div className="flex gap-2">
-          <div className="flex-1 p-3 rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border)] text-xs font-mono break-all select-all leading-relaxed">{shareUrl}</div>
+          <div className="flex-1 p-3 rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border)] text-xs font-mono break-all select-all leading-relaxed">
+            {shareUrl}
+          </div>
           <IconButton
             icon={copied ? Check : Copy}
             label={copied ? "Copied" : "Copy link"}
@@ -71,7 +71,8 @@ export function ShareResult({
       <QRShare url={shareUrl} />
       <div className="flex gap-2 text-[10px] text-[var(--color-text-muted)]">
         <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-[var(--color-surface-1)]">
-          <Clock className="h-3 w-3" /> Expires in {EXPIRY_OPTIONS.find(o => o.hours === expiryHours)?.label || `${expiryHours}h`}
+          <Clock className="h-3 w-3" /> Expires in{" "}
+          {EXPIRY_OPTIONS.find((o) => o.hours === expiryHours)?.label || `${expiryHours}h`}
         </span>
         {burnAfterRead && (
           <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-red-500/10 text-red-500">

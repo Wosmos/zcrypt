@@ -16,7 +16,7 @@ export function Marquee({
       <div
         className={cn(
           "flex min-w-full shrink-0 items-center gap-4 hover:[animation-play-state:paused]",
-          reverse ? "animate-marquee-reverse" : "animate-marquee"
+          reverse ? "animate-marquee-reverse" : "animate-marquee",
         )}
       >
         {[...items, ...items, ...items, ...items].map((item, i) => (
@@ -26,9 +26,10 @@ export function Marquee({
               className={`
                 text-xl md:text-2xl font-black italic tracking-tighter uppercase whitespace-nowrap font-heading
                 transition-colors duration-300
-                ${i % 2 === 0
-                  ? "text-[var(--color-text-primary)]"
-                  : "text-cyan-950 dark:text-cyan-500 [-webkit-text-stroke:1px_var(--color-text-muted)] opacity-50"
+                ${
+                  i % 2 === 0
+                    ? "text-[var(--color-text-primary)]"
+                    : "text-cyan-950 dark:text-cyan-500 [-webkit-text-stroke:1px_var(--color-text-muted)] opacity-50"
                 }
                 group-hover:text-cyan-500
               `}

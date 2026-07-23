@@ -28,10 +28,13 @@ const planSelectClass = (plan: string) =>
       ? "border-violet-500/20 bg-violet-500/10 text-violet-600 dark:text-violet-400"
       : plan === "plus"
         ? "border-blue-500/20 bg-blue-500/10 text-blue-600 dark:text-blue-400"
-        : ""
+        : "",
   );
 
-type PlanDetails = Record<string, { label: string; uploads: number; storage: string; fileSize: string }>;
+type PlanDetails = Record<
+  string,
+  { label: string; uploads: number; storage: string; fileSize: string }
+>;
 
 /**
  * Callbacks + derived data a row/card needs from the parent. Bundled into one
@@ -85,7 +88,9 @@ function QuotaEditor({
         aria-label={`Edit quota for ${u.username}`}
       >
         <span>{h.getQuotaDisplay(u)}</span>
-        <span className="ml-1 text-[10px] text-[var(--color-text-muted)]">({h.getQuotaLabel(u)})</span>
+        <span className="ml-1 text-[10px] text-[var(--color-text-muted)]">
+          ({h.getQuotaLabel(u)})
+        </span>
       </button>
     );
   }
@@ -220,12 +225,17 @@ const UserTableRow = memo(function UserTableRow({
             onValueChange={(v) => h.onPlanChange(u.id, u.username, v)}
             disabled={busy}
           >
-            <SelectTrigger className={planSelectClass(u.plan || "free")} aria-label={`Plan for ${u.username}`}>
+            <SelectTrigger
+              className={planSelectClass(u.plan || "free")}
+              aria-label={`Plan for ${u.username}`}
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {Object.entries(h.planDetails).map(([id, detail]) => (
-                <SelectItem key={id} value={id}>{detail.label}</SelectItem>
+                <SelectItem key={id} value={id}>
+                  {detail.label}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -240,13 +250,22 @@ const UserTableRow = memo(function UserTableRow({
         {formatBytes(u.total_size)}
       </td>
       <td className="px-4 py-3.5 text-right text-sm">
-        <QuotaEditor u={u} editing={editing} busy={busy} quotaMode={quotaMode} quotaInput={quotaInput} h={h} />
+        <QuotaEditor
+          u={u}
+          editing={editing}
+          busy={busy}
+          quotaMode={quotaMode}
+          quotaInput={quotaInput}
+          h={h}
+        />
       </td>
       <td className="px-4 py-3.5 text-sm text-[var(--color-text-muted)] tabular-nums">
         {new Date(u.created_at).toLocaleDateString()}
       </td>
       <td className="px-5 py-3.5 text-right">
-        {!isSelf && <UserRowActions u={u} busy={busy} h={h} className="flex items-center justify-end gap-1" />}
+        {!isSelf && (
+          <UserRowActions u={u} busy={busy} h={h} className="flex items-center justify-end gap-1" />
+        )}
       </td>
     </tr>
   );
@@ -271,7 +290,9 @@ const UserMobileCard = memo(function UserMobileCard({
         >
           <p className="truncate text-sm font-medium text-[var(--color-text)] transition-colors group-hover:text-[var(--color-accent)]">
             {u.username}
-            {isSelf && <span className="ml-1.5 text-[10px] text-[var(--color-text-muted)]">(you)</span>}
+            {isSelf && (
+              <span className="ml-1.5 text-[10px] text-[var(--color-text-muted)]">(you)</span>
+            )}
           </p>
           <p className="truncate text-xs text-[var(--color-text-muted)]">{u.email}</p>
         </button>
@@ -285,12 +306,17 @@ const UserMobileCard = memo(function UserMobileCard({
               onValueChange={(v) => h.onPlanChange(u.id, u.username, v)}
               disabled={busy}
             >
-              <SelectTrigger className={cn(planSelectClass(u.plan || "free"), "w-[6.5rem]")} aria-label={`Plan for ${u.username}`}>
+              <SelectTrigger
+                className={cn(planSelectClass(u.plan || "free"), "w-[6.5rem]")}
+                aria-label={`Plan for ${u.username}`}
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {Object.entries(h.planDetails).map(([id, detail]) => (
-                  <SelectItem key={id} value={id}>{detail.label}</SelectItem>
+                  <SelectItem key={id} value={id}>
+                    {detail.label}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -316,9 +342,23 @@ const UserMobileCard = memo(function UserMobileCard({
       <div className="flex items-center justify-between gap-2">
         <div className="text-xs">
           <span className="mr-1 text-[var(--color-text-muted)]">Quota:</span>
-          <QuotaEditor u={u} editing={editing} busy={busy} quotaMode={quotaMode} quotaInput={quotaInput} h={h} />
+          <QuotaEditor
+            u={u}
+            editing={editing}
+            busy={busy}
+            quotaMode={quotaMode}
+            quotaInput={quotaInput}
+            h={h}
+          />
         </div>
-        {!isSelf && <UserRowActions u={u} busy={busy} h={h} className="flex flex-shrink-0 items-center gap-1" />}
+        {!isSelf && (
+          <UserRowActions
+            u={u}
+            busy={busy}
+            h={h}
+            className="flex flex-shrink-0 items-center gap-1"
+          />
+        )}
       </div>
     </div>
   );
@@ -399,9 +439,10 @@ export function UserTable({
       type: "role",
       userId,
       userName: username,
-      detail: currentRole === Role.Admin
-        ? `${username} will lose admin privileges and become a regular user.`
-        : `${username} will gain full admin access including user management and system settings.`,
+      detail:
+        currentRole === Role.Admin
+          ? `${username} will lose admin privileges and become a regular user.`
+          : `${username} will gain full admin access including user management and system settings.`,
       newValue: newRole,
     });
   };
@@ -419,8 +460,13 @@ export function UserTable({
     ? Object.fromEntries(
         planConfigs.map((p) => [
           p.id,
-          { label: p.name, uploads: p.max_concurrent_uploads, storage: p.storage_display, fileSize: p.max_file_display },
-        ])
+          {
+            label: p.name,
+            uploads: p.max_concurrent_uploads,
+            storage: p.storage_display,
+            fileSize: p.max_file_display,
+          },
+        ]),
       )
     : {
         free: { label: "Free", uploads: 2, storage: "10 GB", fileSize: "500 MB" },
@@ -472,7 +518,12 @@ export function UserTable({
     if (!confirmAction) return null;
     switch (confirmAction.type) {
       case "delete":
-        return { title: "Delete user", description: confirmAction.detail, confirmLabel: "Delete user", variant: "danger" as const };
+        return {
+          title: "Delete user",
+          description: confirmAction.detail,
+          confirmLabel: "Delete user",
+          variant: "danger" as const,
+        };
       case "role":
         return {
           title: confirmAction.newValue === "admin" ? "Promote to admin" : "Demote to user",
@@ -486,7 +537,8 @@ export function UserTable({
         const currentIdx = planOrder.indexOf(targetUser?.plan || "free");
         const newIdx = planOrder.indexOf(confirmAction.newValue || "free");
         const isUpgrade = newIdx > currentIdx;
-        const planLabel = planDetails[confirmAction.newValue || "free"]?.label || confirmAction.newValue;
+        const planLabel =
+          planDetails[confirmAction.newValue || "free"]?.label || confirmAction.newValue;
         return {
           title: isUpgrade ? `Upgrade to ${planLabel}` : `Change to ${planLabel}`,
           description: confirmAction.detail,
@@ -537,7 +589,8 @@ export function UserTable({
         <div className="border-b border-[var(--color-border)] px-5 py-4">
           <h2 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">Users</h2>
           <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-            <span className="tabular-nums">{users.length}</span> registered user{users.length !== 1 ? "s" : ""}
+            <span className="tabular-nums">{users.length}</span> registered user
+            {users.length !== 1 ? "s" : ""}
           </p>
         </div>
 

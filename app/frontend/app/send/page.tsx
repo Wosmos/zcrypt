@@ -39,12 +39,36 @@ export const metadata: Metadata = toolMetadata({
 });
 
 const features: ToolFeature[] = [
-  { icon: Lock, title: "Browser encryption", desc: "Files are encrypted with AES-256-GCM before they leave your device. The server never sees your data." },
-  { icon: Shield, title: "Zero-knowledge", desc: "The encryption key lives only in the share link fragment. We cannot decrypt your files, even if compelled." },
-  { icon: Clock, title: "Auto-expiry", desc: "Set files to expire after 1 hour, 24 hours, or 7 days. Expired files are permanently deleted." },
-  { icon: Eye, title: "Burn after read", desc: "Enable one-time access so the file is destroyed after a single download." },
-  { icon: Zap, title: "No account required", desc: "Send encrypted files instantly. No sign-up, no tracking, no strings attached." },
-  { icon: Server, title: "Up to 50 MB", desc: "Send files up to 50 MB for free. Need more? Create a free account for larger uploads." },
+  {
+    icon: Lock,
+    title: "Browser encryption",
+    desc: "Files are encrypted with AES-256-GCM before they leave your device. The server never sees your data.",
+  },
+  {
+    icon: Shield,
+    title: "Zero-knowledge",
+    desc: "The encryption key lives only in the share link fragment. We cannot decrypt your files, even if compelled.",
+  },
+  {
+    icon: Clock,
+    title: "Auto-expiry",
+    desc: "Set files to expire after 1 hour, 24 hours, or 7 days. Expired files are permanently deleted.",
+  },
+  {
+    icon: Eye,
+    title: "Burn after read",
+    desc: "Enable one-time access so the file is destroyed after a single download.",
+  },
+  {
+    icon: Zap,
+    title: "No account required",
+    desc: "Send encrypted files instantly. No sign-up, no tracking, no strings attached.",
+  },
+  {
+    icon: Server,
+    title: "Up to 50 MB",
+    desc: "Send files up to 50 MB for free. Need more? Create a free account for larger uploads.",
+  },
 ];
 
 export default function SendPublicPage() {
@@ -75,9 +99,21 @@ export default function SendPublicPage() {
 
           <StepGrid
             steps={[
-              { step: "1", title: "Drop your file", desc: "Select any file up to 50 MB. It never leaves your browser unencrypted." },
-              { step: "2", title: "Automatic encryption", desc: "Your file is encrypted with a unique AES-256-GCM key generated in your browser." },
-              { step: "3", title: "Share the link", desc: "The decryption key is embedded in the URL fragment. Only the recipient can decrypt." },
+              {
+                step: "1",
+                title: "Drop your file",
+                desc: "Select any file up to 50 MB. It never leaves your browser unencrypted.",
+              },
+              {
+                step: "2",
+                title: "Automatic encryption",
+                desc: "Your file is encrypted with a unique AES-256-GCM key generated in your browser.",
+              },
+              {
+                step: "3",
+                title: "Share the link",
+                desc: "The decryption key is embedded in the URL fragment. Only the recipient can decrypt.",
+              },
             ]}
           />
         </div>

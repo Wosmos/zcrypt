@@ -160,7 +160,14 @@ export function useVaultActions({
     }
 
     if (stageLower === "done") {
-      updateStatus(target.id, "done", event.percent, event.stage, event.bytes_processed, event.total_bytes);
+      updateStatus(
+        target.id,
+        "done",
+        event.percent,
+        event.stage,
+        event.bytes_processed,
+        event.total_bytes,
+      );
       notify(`Upload complete`, { body: target.file.name, tag: "upload-done" });
       notifActions.uploadComplete(target.file.name);
     }
@@ -171,7 +178,12 @@ export function useVaultActions({
   // current folder, else the vault passphrase. `folderId` files the upload into
   // the current folder. Unprotected uploads pass the vault pass exactly as today.
   const startUpload = useCallback(
-    (uploadFiles: File[], wrapPassphrase: string, folderId: string | null, platformOverride?: string) => {
+    (
+      uploadFiles: File[],
+      wrapPassphrase: string,
+      folderId: string | null,
+      platformOverride?: string,
+    ) => {
       // Desktop: native picker + sidecar (no browser File data transfer).
       // `uploadFiles` here are the SAME `DesktopFile`s the dropzone already
       // picked via the native dialog (upload-zone.tsx) — thread their real
@@ -180,9 +192,7 @@ export function useVaultActions({
       // attempt bug: the picker that mattered got missed behind the one the
       // dropzone had already opened and resolved).
       if (isTauri) {
-        const paths = uploadFiles
-          .map(desktopPath)
-          .filter((p): p is string => !!p);
+        const paths = uploadFiles.map(desktopPath).filter((p): p is string => !!p);
         // Only thread paths through when we actually have them (the dropzone's
         // native pick). Callers that hand us plain Files with no path (e.g. a
         // resume retry) fall back to startDesktopUpload's own picker, exactly
@@ -209,10 +219,10 @@ export function useVaultActions({
         platformOverride ?? selectedPlatform ?? undefined,
         maxConcurrent,
         refresh,
-        folderId
+        folderId,
       );
     },
-    [selectedPlatform, storeStartUpload, startDesktopUpload, refresh, quotaInfo]
+    [selectedPlatform, storeStartUpload, startDesktopUpload, refresh, quotaInfo],
   );
 
   const handleFilesSelected = useCallback(
@@ -222,7 +232,7 @@ export function useVaultActions({
       // this toast is the first visible proof that the tap worked and the
       // batch is in hand, so users stop re-tapping the picker.
       toast.info(
-        `Preparing ${selectedFiles.length} file${selectedFiles.length === 1 ? "" : "s"} for upload…`
+        `Preparing ${selectedFiles.length} file${selectedFiles.length === 1 ? "" : "s"} for upload…`,
       );
 
       // Managed storage / personal tokens must be available.
@@ -234,7 +244,7 @@ export function useVaultActions({
       const dupes: string[] = [];
       const uniqueFiles = selectedFiles.filter((f) => {
         const exists = files.some(
-          (existing) => existing.original_name === f.name && existing.original_size === f.size
+          (existing) => existing.original_name === f.name && existing.original_size === f.size,
         );
         if (exists) dupes.push(f.name);
         return !exists;
@@ -242,7 +252,9 @@ export function useVaultActions({
 
       if (dupes.length > 0) {
         const names =
-          dupes.length <= 3 ? dupes.join(", ") : `${dupes.slice(0, 3).join(", ")} +${dupes.length - 3} more`;
+          dupes.length <= 3
+            ? dupes.join(", ")
+            : `${dupes.slice(0, 3).join(", ")} +${dupes.length - 3} more`;
         toast.warning(`Skipped ${dupes.length} duplicate${dupes.length > 1 ? "s" : ""}: ${names}`);
       }
 
@@ -274,7 +286,16 @@ export function useVaultActions({
         startUpload(uniqueFiles, passphrase, destFolderId);
       });
     },
-    [quotaInfo, files, vault, startUpload, currentFolderId, folderProtection, thumbnailResolver, fileById]
+    [
+      quotaInfo,
+      files,
+      vault,
+      startUpload,
+      currentFolderId,
+      folderProtection,
+      thumbnailResolver,
+      fileById,
+    ],
   );
 
   // Resume an unfinished upload from the banner. The platform is passed
@@ -288,7 +309,7 @@ export function useVaultActions({
         startUpload([file], passphrase, null, upload.platform);
       });
     },
-    [vault, startUpload]
+    [vault, startUpload],
   );
 
   // A per-file resolver passed into the decrypt pipeline. For a protected-folder
@@ -301,7 +322,7 @@ export function useVaultActions({
       if (!file) return Promise.reject(new Error("File not found"));
       return folderProtection.passwordForFile(file);
     },
-    [fileById, folderProtection]
+    [fileById, folderProtection],
   );
 
   // ── Download ──────────────────────────────────────────────────────────────
@@ -310,7 +331,9 @@ export function useVaultActions({
       const file = files.find((f) => f.original_name === filename);
       if (!file) return;
       const active = downloadQueue.find(
-        (d) => d.fileId === file.id && (d.status === "downloading" || d.status === "queued" || d.status === "paused")
+        (d) =>
+          d.fileId === file.id &&
+          (d.status === "downloading" || d.status === "queued" || d.status === "paused"),
       );
       if (active) return; // already downloading / queued / paused
 
@@ -324,13 +347,26 @@ export function useVaultActions({
         // (WKWebView has no showSaveFilePicker to stream with).
         if (isTauri) {
           const userId = useAuthStore.getState().user?.id ?? "";
-          startDesktopDownload(file.id, filename, file.original_size, passphrase, userId, resolvePasswordForFile);
+          startDesktopDownload(
+            file.id,
+            filename,
+            file.original_size,
+            passphrase,
+            userId,
+            resolvePasswordForFile,
+          );
           return;
         }
-        storeStartDownload(file.id, filename, file.original_size, passphrase, resolvePasswordForFile);
+        storeStartDownload(
+          file.id,
+          filename,
+          file.original_size,
+          passphrase,
+          resolvePasswordForFile,
+        );
       });
     },
-    [files, downloadQueue, vault, storeStartDownload, startDesktopDownload, resolvePasswordForFile]
+    [files, downloadQueue, vault, storeStartDownload, startDesktopDownload, resolvePasswordForFile],
   );
 
   // ── Bulk ZIP download ───────────────────────────────────────────────────────
@@ -346,7 +382,7 @@ export function useVaultActions({
       const MAX_ZIP_SIZE = 2 * 1024 * 1024 * 1024; // 2GB
       if (!isTauri && totalSize > MAX_ZIP_SIZE) {
         toast.warning(
-          `Selected files total ${formatBytes(totalSize)} — too large for ZIP. Download individually instead.`
+          `Selected files total ${formatBytes(totalSize)} — too large for ZIP. Download individually instead.`,
         );
         return;
       }
@@ -364,7 +400,7 @@ export function useVaultActions({
         startBulkZipDownload(bulkFiles, passphrase, resolvePasswordForFile);
       });
     },
-    [files, vault, startBulkZipDownload, startDesktopBulkZipDownload, resolvePasswordForFile]
+    [files, vault, startBulkZipDownload, startDesktopBulkZipDownload, resolvePasswordForFile],
   );
 
   // ── Preview (in-memory decrypt + zstd + SHA-256 integrity check) ────────────
@@ -389,7 +425,7 @@ export function useVaultActions({
         const { cachedDecrypt } = await import("@/lib/decrypt-cache");
         const { runDecryptPipeline } = await import("@/hooks/useFileDecryptor");
         const blob = await cachedDecrypt(file.id, file.folder_id ?? null, () =>
-          runDecryptPipeline(file, passphrase)
+          runDecryptPipeline(file, passphrase),
         );
         openPreview(blob, filename, file.original_size);
       } catch (err) {
@@ -422,7 +458,7 @@ export function useVaultActions({
         }
       }
     },
-    [files, vault, openPreview, closePreview, folderProtection]
+    [files, vault, openPreview, closePreview, folderProtection],
   );
 
   const handlePreview = useCallback(
@@ -433,7 +469,7 @@ export function useVaultActions({
         void startPreview(filename);
       });
     },
-    [vault, startPreview]
+    [vault, startPreview],
   );
 
   // ── Move (with cross-protection-boundary re-key) ────────────────────────────
@@ -454,7 +490,7 @@ export function useVaultActions({
         created_at: "",
         folder_id: folderId,
       }),
-    [folderProtection]
+    [folderProtection],
   );
 
   // Move a file to `destFolderId`, re-keying first if it crosses a protection
@@ -492,7 +528,7 @@ export function useVaultActions({
       await moveFile(fileId, destFolderId);
       clearDecryptCacheForFile(fileId);
     },
-    [fileById, passwordForZone, folderProtection]
+    [fileById, passwordForZone, folderProtection],
   );
 
   // Optimistic drag-to-move reparent. Re-keys across a protection boundary
@@ -513,14 +549,16 @@ export function useVaultActions({
       // re-decrypts under the destination folder's key if that changed.
       clearDecryptCacheForFile(fileId);
       toast.success(
-        folderId === null ? `Moved "${file.original_name}" to Root` : `Moved "${file.original_name}"`
+        folderId === null
+          ? `Moved "${file.original_name}" to Root`
+          : `Moved "${file.original_name}"`,
       );
       // Revert THIS file only (functionally) on failure — never a whole-list
       // snapshot, which would undo sibling moves still in flight from the same
       // bulk action.
       const revertThisFile = () =>
         setFiles((cur) =>
-          cur.map((f) => (f.id === fileId ? { ...f, folder_id: originalFolderId } : f))
+          cur.map((f) => (f.id === fileId ? { ...f, folder_id: originalFolderId } : f)),
         );
       moveFileWithRekey(fileId, folderId).catch((err) => {
         // FIX-2: the user cancelled the folder-unlock prompt — revert quietly
@@ -536,7 +574,7 @@ export function useVaultActions({
         void refresh(); // reconcile the row's true folder/key state
       });
     },
-    [files, setFiles, moveFileWithRekey, refresh]
+    [files, setFiles, moveFileWithRekey, refresh],
   );
 
   // ── Delete (optimistic soft-delete → Trash) ─────────────────────────────────
@@ -559,7 +597,7 @@ export function useVaultActions({
           refreshQuota();
         });
     },
-    [setFiles, refresh, refreshQuota]
+    [setFiles, refresh, refreshQuota],
   );
 
   const executeBulkDelete = useCallback(
@@ -586,7 +624,7 @@ export function useVaultActions({
         refreshQuota();
       }
     },
-    [setFiles, refresh, refreshQuota]
+    [setFiles, refresh, refreshQuota],
   );
 
   return {

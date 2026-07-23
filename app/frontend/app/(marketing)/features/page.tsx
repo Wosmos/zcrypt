@@ -70,8 +70,8 @@ export default function FeaturesPage() {
             Everything the drive does
           </h1>
           <p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-[var(--color-text-secondary)]">
-            A real encrypted file manager with a zero-knowledge core. Here&apos;s every
-            part of it — dig into whichever matters to you.
+            A real encrypted file manager with a zero-knowledge core. Here&apos;s every part of it —
+            dig into whichever matters to you.
           </p>
           <div className="mx-auto mt-8">
             <DocsSearch placeholder="Search features & docs..." />

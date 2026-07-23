@@ -12,7 +12,7 @@ import { useEffect, useState } from "react";
 export function useDecodedBlob<T>(
   blob: Blob,
   decode: (blob: Blob) => Promise<T>,
-  errorMessage: string
+  errorMessage: string,
 ) {
   const [value, setValue] = useState<T | null>(null);
   const [error, setError] = useState<string | null>(null);

@@ -12,7 +12,13 @@ interface CompactStatsProps {
   quotaInfo?: QuotaInfo | null;
 }
 
-export function CompactStats({ fileCount, totalSize, totalEncrypted, lastUploadDate, quotaInfo }: CompactStatsProps) {
+export function CompactStats({
+  fileCount,
+  totalSize,
+  totalEncrypted,
+  lastUploadDate,
+  quotaInfo,
+}: CompactStatsProps) {
   const savings = totalSize > 0 ? ((1 - totalEncrypted / totalSize) * 100).toFixed(0) : "0";
 
   if (fileCount === 0) return null;

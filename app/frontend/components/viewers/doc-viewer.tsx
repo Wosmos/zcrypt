@@ -12,13 +12,7 @@ import { ViewerLoading, ViewerError } from "./viewer-states";
  * are lazy-imported. The HTML is never executed (it's injected as sanitized
  * markup into a div, not an iframe — mammoth output is structural, no scripts).
  */
-export function DocViewer({
-  blob,
-  onDownload,
-}: {
-  blob: Blob;
-  onDownload: () => void;
-}) {
+export function DocViewer({ blob, onDownload }: { blob: Blob; onDownload: () => void }) {
   const decode = useCallback(async (b: Blob) => {
     const arrayBuffer = await b.arrayBuffer();
     const mammoth = await import("mammoth");

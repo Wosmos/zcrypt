@@ -38,12 +38,36 @@ export const metadata: Metadata = toolMetadata({
 });
 
 const features: ToolFeature[] = [
-  { icon: MonitorSmartphone, title: "Device to device", desc: "Stream files directly between any two devices with a browser. Phone to laptop, laptop to desktop — any combination." },
-  { icon: Lock, title: "End-to-end encrypted", desc: "Files are encrypted with AES-256-GCM before streaming. The relay server handles only encrypted bytes." },
-  { icon: Zap, title: "Real-time streaming", desc: "Files transfer as a live stream over WebSocket. No waiting for uploads to finish before downloading." },
-  { icon: Wifi, title: "No file size limit", desc: "Transfer files of any size. The data streams in 64 KB encrypted chunks, so memory usage stays low." },
-  { icon: Shield, title: "Nothing stored", desc: "Zero data is stored on the server. Once the transfer is complete, there is no trace of the file." },
-  { icon: Server, title: "6-digit code", desc: "Pair devices with a simple 6-digit code or QR scan. No accounts, no apps, no configuration." },
+  {
+    icon: MonitorSmartphone,
+    title: "Device to device",
+    desc: "Stream files directly between any two devices with a browser. Phone to laptop, laptop to desktop — any combination.",
+  },
+  {
+    icon: Lock,
+    title: "End-to-end encrypted",
+    desc: "Files are encrypted with AES-256-GCM before streaming. The relay server handles only encrypted bytes.",
+  },
+  {
+    icon: Zap,
+    title: "Real-time streaming",
+    desc: "Files transfer as a live stream over WebSocket. No waiting for uploads to finish before downloading.",
+  },
+  {
+    icon: Wifi,
+    title: "No file size limit",
+    desc: "Transfer files of any size. The data streams in 64 KB encrypted chunks, so memory usage stays low.",
+  },
+  {
+    icon: Shield,
+    title: "Nothing stored",
+    desc: "Zero data is stored on the server. Once the transfer is complete, there is no trace of the file.",
+  },
+  {
+    icon: Server,
+    title: "6-digit code",
+    desc: "Pair devices with a simple 6-digit code or QR scan. No accounts, no apps, no configuration.",
+  },
 ];
 
 /** One side of the sender/receiver "how it works" panel below. */
@@ -59,7 +83,9 @@ function RoleSteps({
   return (
     <div className="p-6 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]">
       <h3 className="text-base font-semibold mb-4 flex items-center gap-2">
-        <div className={`flex items-center justify-center h-8 w-8 rounded-lg text-sm font-bold ${badgeClass}`}>
+        <div
+          className={`flex items-center justify-center h-8 w-8 rounded-lg text-sm font-bold ${badgeClass}`}
+        >
           {label[0]}
         </div>
         {label}
@@ -67,7 +93,9 @@ function RoleSteps({
       <ol className="space-y-3">
         {steps.map((s, i) => (
           <li key={i} className="flex gap-3 text-sm text-[var(--color-text-secondary)]">
-            <span className="flex-shrink-0 flex items-center justify-center h-5 w-5 rounded-full bg-[var(--color-surface-1)] text-[10px] font-medium">{i + 1}</span>
+            <span className="flex-shrink-0 flex items-center justify-center h-5 w-5 rounded-full bg-[var(--color-surface-1)] text-[10px] font-medium">
+              {i + 1}
+            </span>
             {s}
           </li>
         ))}

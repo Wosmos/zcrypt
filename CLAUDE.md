@@ -46,11 +46,12 @@ cd app/backend && go vet ./...
 # TUI
 cd app/tui && go build ./...
 
-# Frontend
+# Frontend (Rust-native toolchain: oxlint / biome / tsgo)
 cd app/frontend && bun run dev
 cd app/frontend && bun run build
-cd app/frontend && bun run lint
-cd app/frontend && bun run typecheck
+cd app/frontend && bun run lint           # oxlint (config: .oxlintrc.json)
+cd app/frontend && bun run typecheck      # tsgo (TS7 native); typecheck:tsc = classic fallback
+cd app/frontend && bun run format         # biome --write; format:check = CI/gate mode
 
 # Docker
 docker build -t zcrypt .
@@ -66,11 +67,11 @@ bash scripts/prepush.sh --gates-only   # fast: gates only, no advisory scans
 (mirrors the `dorny/paths-filter` in `.github/workflows/ci.yml`): `frontend` /
 `backend` / `tui` / `desktop`. A changed shared/root file (e.g. `scripts/`,
 `Dockerfile`, `.github/`) runs everything; docs-only changes run nothing.
-- **Gates** (blocking): typecheck/lint/test/build per module; Go gofmt/vet; desktop = sidecar `go build` + `cargo check` (full Tauri bundle stays in CI). Frontend lint is strict — `eslint --max-warnings=0` (any warning fails).
-- **Hardening** (`--enforce`, blocking, diff-scoped): fails only on issues *your change* introduces — `eslint --max-warnings=0` + jscpd on changed FE files, `golangci-lint --new-from-rev` for Go. Never blocks on the pre-existing backlog.
+- **Gates** (blocking): typecheck (tsgo) / format (biome) / lint (oxlint) / test / build per module; Go gofmt/vet; desktop = sidecar `go build` + `cargo check` (full Tauri bundle stays in CI). The lint gate blocks on oxlint errors; warnings are ratcheted.
+- **Hardening** (`--enforce`, blocking, diff-scoped): fails only on issues *your change* introduces — `oxlint --max-warnings=0` + jscpd on changed FE files, `golangci-lint --new-from-rev` for Go. Never blocks on the pre-existing backlog.
 - **Old backlog** (whole-repo knip / jscpd / golangci scans): advisory by default. `--ratchet` blocks only if the backlog *grows* vs a saved baseline (improvements auto-lock); `--strict` blocks on *any* old issue; `--baseline` records current counts. Baseline lives in `docs/prepush-baseline.env` (gitignored, auto-seeds per module).
 - The **pre-push hook** runs `prepush.sh --gates-only --enforce --ratchet` — strong: blocks broken builds/tests, blocks new lint/duplication, and the backlog can only shrink. Bypass once with `git push --no-verify`. Overrides: `PREPUSH_ALL=1`, `PREPUSH_BASE=<ref>`, `PREPUSH_CHANGED_OVERRIDE=<newline-list>`.
-- Current backlog to burn down (`bash scripts/prepush.sh` shows the list): backend golangci ~147, tui ~10, frontend knip ~91, jscpd ~75; frontend eslint is clean.
+- Current backlog to burn down (`bash scripts/prepush.sh` shows the list): backend golangci ~147, tui ~10, frontend knip ~91, jscpd ~75; frontend oxlint is clean.
 
 ## Coding Conventions
 - **Backend:** Standard Go conventions. No frameworks — stdlib `net/http` with `HandleFunc`. Error wrapping with `fmt.Errorf("context: %w", err)`. UUID primary keys everywhere.

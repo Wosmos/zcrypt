@@ -25,9 +25,7 @@ export default function AppError({
           {error.message || "An unexpected error occurred."}
         </p>
         {error.digest && (
-          <p className="text-neutral-500 mb-6 text-xs font-mono">
-            Error ID: {error.digest}
-          </p>
+          <p className="text-neutral-500 mb-6 text-xs font-mono">Error ID: {error.digest}</p>
         )}
         <button
           onClick={reset}

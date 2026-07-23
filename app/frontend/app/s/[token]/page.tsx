@@ -22,10 +22,10 @@ import type { ShareInfo } from "@/types";
 
 type PageState =
   | "loading"
-  | "ready"        // show credential form
-  | "decrypting"   // decrypting the file
-  | "preview"      // showing preview + download button
-  | "downloading"  // saving to disk (already decrypted)
+  | "ready" // show credential form
+  | "decrypting" // decrypting the file
+  | "preview" // showing preview + download button
+  | "downloading" // saving to disk (already decrypted)
   | "done"
   | "error";
 
@@ -39,7 +39,7 @@ function reportDecryptError(
   fallbackMsg: string,
   setPageState: (s: PageState) => void,
   setErrorMsg: (s: string) => void,
-  setSharePassword: (s: string) => void
+  setSharePassword: (s: string) => void,
 ) {
   const msg = err instanceof Error ? err.message : fallbackMsg;
   if (msg.toLowerCase().includes("password") || msg.toLowerCase().includes("unauthorized")) {
@@ -63,10 +63,23 @@ function getPreviewType(filename: string): "image" | "video" | "audio" | "none" 
 function getMimeType(filename: string): string | undefined {
   const ext = extOf(filename);
   const map: Record<string, string> = {
-    jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", gif: "image/gif",
-    webp: "image/webp", bmp: "image/bmp", svg: "image/svg+xml", ico: "image/x-icon",
-    mp4: "video/mp4", webm: "video/webm", ogg: "video/ogg", mov: "video/quicktime",
-    mp3: "audio/mpeg", wav: "audio/wav", aac: "audio/aac", flac: "audio/flac", m4a: "audio/mp4",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    gif: "image/gif",
+    webp: "image/webp",
+    bmp: "image/bmp",
+    svg: "image/svg+xml",
+    ico: "image/x-icon",
+    mp4: "video/mp4",
+    webm: "video/webm",
+    ogg: "video/ogg",
+    mov: "video/quicktime",
+    mp3: "audio/mpeg",
+    wav: "audio/wav",
+    aac: "audio/aac",
+    flac: "audio/flac",
+    m4a: "audio/mp4",
   };
   return map[ext];
 }
@@ -100,7 +113,9 @@ export default function SharePage() {
           setErrorMsg(data.reason || "This share link is no longer valid");
         } else if (!key) {
           setPageState("error");
-          setErrorMsg("This link is missing its decryption key. Make sure you copied the full URL, including the part after #.");
+          setErrorMsg(
+            "This link is missing its decryption key. Make sure you copied the full URL, including the part after #.",
+          );
         } else {
           setPageState("ready");
         }
@@ -118,7 +133,10 @@ export default function SharePage() {
     };
   }, []);
 
-  const decryptFile = useCallback(async (): Promise<{ blob: Blob; originalName: string } | null> => {
+  const decryptFile = useCallback(async (): Promise<{
+    blob: Blob;
+    originalName: string;
+  } | null> => {
     if (!token || !shareKey) return null;
 
     const { unwrapKey, decryptChunk, sha256Hex, fromBase64 } = await import("@/lib/crypto");
@@ -177,7 +195,7 @@ export default function SharePage() {
             const idx = queue.shift()!;
             await processChunk(idx);
           }
-        })()
+        })(),
       );
     }
     await Promise.all(workers);
@@ -218,7 +236,7 @@ export default function SharePage() {
         reportDecryptError(err, fallbackMsg, setPageState, setErrorMsg, setSharePassword);
       }
     },
-    [token, shareKey, decryptFile]
+    [token, shareKey, decryptFile],
   );
 
   const handleDecryptAndPreview = useCallback(
@@ -238,7 +256,7 @@ export default function SharePage() {
 
         setPageState("preview");
       }, "Decryption failed"),
-    [runDecrypt]
+    [runDecrypt],
   );
 
   const handleSaveToDevice = useCallback(() => {
@@ -254,7 +272,7 @@ export default function SharePage() {
         setPageState("done");
         setFileName(originalName);
       }, "Download failed"),
-    [runDecrypt]
+    [runDecrypt],
   );
 
   const previewType = info ? getPreviewType(info.file_name) : "none";
@@ -271,36 +289,39 @@ export default function SharePage() {
       </div>
 
       <ViewerCard>
-        {pageState === "loading" && (
-          <ViewerLoading message="Loading share info..." />
-        )}
+        {pageState === "loading" && <ViewerLoading message="Loading share info..." />}
 
-        {pageState === "error" && (
-          <ViewerError title="Link Unavailable" message={errorMsg} />
-        )}
+        {pageState === "error" && <ViewerError title="Link Unavailable" message={errorMsg} />}
 
         {pageState === "ready" && info && (
           <>
-            <TokenFileHeader fileName={info.file_name} fileSize={info.file_size} previewType={previewType} />
+            <TokenFileHeader
+              fileName={info.file_name}
+              fileSize={info.file_size}
+              previewType={previewType}
+            />
 
             <div className="p-6 space-y-4">
               {/* Share password (only if required) */}
               {info.has_password && (
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-[var(--color-text-secondary)]">Share Password</label>
+                  <label className="text-sm font-medium text-[var(--color-text-secondary)]">
+                    Share Password
+                  </label>
                   <Input
                     type="password"
                     placeholder="Enter share password"
                     value={sharePassword}
-                    onChange={(e) => { setSharePassword(e.target.value); setErrorMsg(""); }}
+                    onChange={(e) => {
+                      setSharePassword(e.target.value);
+                      setErrorMsg("");
+                    }}
                     icon={<Lock className="h-4 w-4" />}
                   />
                 </div>
               )}
 
-              {errorMsg && (
-                <p className="text-xs text-red-500 font-medium">{errorMsg}</p>
-              )}
+              {errorMsg && <p className="text-xs text-red-500 font-medium">{errorMsg}</p>}
 
               {/* Action buttons. The decryption key comes from the link
                   fragment, so no passphrase is needed — only the optional
@@ -339,7 +360,8 @@ export default function SharePage() {
 
               <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3">
                 <p className="text-xs text-cyan-700 dark:text-cyan-300">
-                  This file is end-to-end encrypted. The decryption key is in this link and never reaches our servers — decryption happens entirely in your browser.
+                  This file is end-to-end encrypted. The decryption key is in this link and never
+                  reaches our servers — decryption happens entirely in your browser.
                 </p>
               </div>
             </div>
@@ -407,7 +429,8 @@ export default function SharePage() {
 
       {/* Footer */}
       <p className="text-center text-[10px] text-[var(--color-text-muted)] mt-6">
-        Powered by <span className="font-semibold">zcrypt</span> &middot; Zero-knowledge encrypted storage
+        Powered by <span className="font-semibold">zcrypt</span> &middot; Zero-knowledge encrypted
+        storage
       </p>
     </div>
   );

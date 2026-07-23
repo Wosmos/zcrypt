@@ -20,7 +20,9 @@ export function ThemePicker() {
   const { colorTheme, setColorTheme, resolvedTheme, customTheme, setCustomTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
   const isCustomActive = colorTheme === CUSTOM_COLOR_THEME;
-  const customBgImage = customTheme.background ? getAppBackgroundByKey(customTheme.background) : null;
+  const customBgImage = customTheme.background
+    ? getAppBackgroundByKey(customTheme.background)
+    : null;
 
   return (
     <div className="space-y-2">
@@ -48,7 +50,7 @@ export function ThemePicker() {
                 "squircle group relative overflow-hidden rounded-xl border p-2 text-left outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40",
                 active
                   ? "border-[var(--color-accent)] ring-1 ring-[var(--color-accent)]"
-                  : "border-[var(--color-border)] hover:border-[var(--color-border-hover)]"
+                  : "border-[var(--color-border)] hover:border-[var(--color-border-hover)]",
               )}
             >
               {/* Mini app mockup: canvas + sidebar (with an accent logo dot) +
@@ -63,8 +65,14 @@ export function ThemePicker() {
                   style={{ background: sw.sidebar }}
                 >
                   <div className="h-2 w-2 rounded-full" style={{ background: sw.accent }} />
-                  <div className="h-1 w-full rounded-full opacity-25" style={{ background: sw.accent }} />
-                  <div className="h-1 w-4/5 rounded-full opacity-20" style={{ background: sw.accent }} />
+                  <div
+                    className="h-1 w-full rounded-full opacity-25"
+                    style={{ background: sw.accent }}
+                  />
+                  <div
+                    className="h-1 w-4/5 rounded-full opacity-20"
+                    style={{ background: sw.accent }}
+                  />
                 </div>
                 <div className="absolute inset-y-0 left-[30%] right-0 flex flex-col gap-1.5 p-2">
                   <div className="h-2.5 w-10 rounded-full" style={{ background: sw.accent }} />
@@ -72,7 +80,10 @@ export function ThemePicker() {
                     className="flex-1 rounded-md p-1.5 shadow-sm"
                     style={{ background: sw.surface }}
                   >
-                    <div className="h-1 w-3/4 rounded-full opacity-30" style={{ background: sw.accent }} />
+                    <div
+                      className="h-1 w-3/4 rounded-full opacity-30"
+                      style={{ background: sw.accent }}
+                    />
                   </div>
                 </div>
               </div>
@@ -101,7 +112,7 @@ export function ThemePicker() {
             "squircle group relative overflow-hidden rounded-xl border p-2 text-left outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40",
             isCustomActive
               ? "border-[var(--color-accent)] ring-1 ring-[var(--color-accent)]"
-              : "border-[var(--color-border)] hover:border-[var(--color-border-hover)]"
+              : "border-[var(--color-border)] hover:border-[var(--color-border-hover)]",
           )}
         >
           <div
@@ -110,13 +121,22 @@ export function ThemePicker() {
           >
             <div className="absolute inset-y-0 left-0 flex w-[30%] flex-col gap-1.5 bg-black/15 p-2">
               <div className="h-2 w-2 rounded-full" style={{ background: customTheme.accent }} />
-              <div className="h-1 w-full rounded-full opacity-25" style={{ background: customTheme.accent }} />
-              <div className="h-1 w-4/5 rounded-full opacity-20" style={{ background: customTheme.accent }} />
+              <div
+                className="h-1 w-full rounded-full opacity-25"
+                style={{ background: customTheme.accent }}
+              />
+              <div
+                className="h-1 w-4/5 rounded-full opacity-20"
+                style={{ background: customTheme.accent }}
+              />
             </div>
             <div className="absolute inset-y-0 left-[30%] right-0 flex flex-col gap-1.5 p-2">
               <div className="h-2.5 w-10 rounded-full" style={{ background: customTheme.accent }} />
               <div className="flex-1 rounded-md bg-white/90 p-1.5 shadow-sm">
-                <div className="h-1 w-3/4 rounded-full opacity-30" style={{ background: customTheme.accent }} />
+                <div
+                  className="h-1 w-3/4 rounded-full opacity-30"
+                  style={{ background: customTheme.accent }}
+                />
               </div>
             </div>
           </div>
@@ -129,9 +149,7 @@ export function ThemePicker() {
         </button>
       </div>
 
-      {isCustomActive && (
-        <CustomThemeEditor values={customTheme} onChange={setCustomTheme} />
-      )}
+      {isCustomActive && <CustomThemeEditor values={customTheme} onChange={setCustomTheme} />}
 
       <p className="text-xs text-[var(--color-text-muted)]">
         Applies to the app only, set per device. Light and dark follow the mode above.
@@ -174,7 +192,11 @@ function CustomThemeEditor({
         <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
           Background design (optional)
         </p>
-        <div role="radiogroup" aria-label="Background design" className="grid grid-cols-5 gap-2 sm:grid-cols-6">
+        <div
+          role="radiogroup"
+          aria-label="Background design"
+          className="grid grid-cols-5 gap-2 sm:grid-cols-6"
+        >
           <button
             type="button"
             role="radio"
@@ -186,7 +208,7 @@ function CustomThemeEditor({
               "relative flex h-10 items-center justify-center rounded-lg border text-[10px] font-medium text-[var(--color-text-muted)] transition-all duration-200",
               !values.background
                 ? "border-[var(--color-accent)] ring-1 ring-[var(--color-accent)]"
-                : "border-[var(--color-border)] hover:border-[var(--color-border-hover)]"
+                : "border-[var(--color-border)] hover:border-[var(--color-border-hover)]",
             )}
           >
             None
@@ -207,7 +229,7 @@ function CustomThemeEditor({
                   "relative flex h-10 items-center justify-center rounded-lg border transition-all duration-200",
                   active
                     ? "border-[var(--color-accent)] ring-1 ring-[var(--color-accent)]"
-                    : "border-[var(--color-border)] hover:border-[var(--color-border-hover)]"
+                    : "border-[var(--color-border)] hover:border-[var(--color-border-hover)]",
                 )}
               >
                 {active && (
@@ -233,7 +255,9 @@ function ColorField({
 }) {
   return (
     <div className="space-y-1.5">
-      <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">{label}</p>
+      <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
+        {label}
+      </p>
       <div className="flex items-center gap-2">
         <label
           className="relative flex h-8 w-8 flex-shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-[var(--color-border)]"

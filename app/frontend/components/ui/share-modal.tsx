@@ -49,9 +49,10 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
   // The share key lives only in the URL fragment (#key=...) and is never sent
   // to the server, preserving zero-knowledge: the server stores only the CEK
   // wrapped under this key, which is useless without the fragment.
-  const shareUrl = generatedToken && shareKeyB64
-    ? `${window.location.origin}/s/${generatedToken}#key=${shareKeyB64}`
-    : "";
+  const shareUrl =
+    generatedToken && shareKeyB64
+      ? `${window.location.origin}/s/${generatedToken}#key=${shareKeyB64}`
+      : "";
 
   // Reset on close
   useEffect(() => {
@@ -72,7 +73,9 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
     // re-wrapped under a share key. The recipient then needs only the link.
     const passphrase = usePassphraseStore.getState().getPassphrase();
     if (!passphrase) {
-      toast.error("Your passphrase is locked. Open or download a file first to unlock it, then try sharing again.");
+      toast.error(
+        "Your passphrase is locked. Open or download a file first to unlock it, then try sharing again.",
+      );
       return;
     }
 
@@ -108,15 +111,18 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
     }
   }, [shareUrl]);
 
-  const handleRevoke = useCallback(async (shareId: string) => {
-    try {
-      await revokeShare(shareId);
-      void invalidateShares(fileId);
-      toast.success("Share link revoked");
-    } catch {
-      toast.error("Failed to revoke");
-    }
-  }, [fileId]);
+  const handleRevoke = useCallback(
+    async (shareId: string) => {
+      try {
+        await revokeShare(shareId);
+        void invalidateShares(fileId);
+        toast.success("Share link revoked");
+      } catch {
+        toast.error("Failed to revoke");
+      }
+    },
+    [fileId],
+  );
 
   if (!open) return null;
 
@@ -137,7 +143,9 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
             </div>
             <div className="min-w-0">
               <h3 className="text-sm font-semibold truncate">Share File</h3>
-              <p className="text-xs text-[var(--color-text-muted)] truncate">{midTrunc(fileName, 18, 8)} ({formatBytes(fileSize)})</p>
+              <p className="text-xs text-[var(--color-text-muted)] truncate">
+                {midTrunc(fileName, 18, 8)} ({formatBytes(fileSize)})
+              </p>
             </div>
           </div>
           <button
@@ -174,28 +182,36 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
 
               {/* Expiry */}
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-[var(--color-text-secondary)]">Link expiry</label>
+                <label className="text-sm font-medium text-[var(--color-text-secondary)]">
+                  Link expiry
+                </label>
                 <select
                   value={expiryHours}
                   onChange={(e) => setExpiryHours(Number(e.target.value))}
                   className="w-full h-[38px] px-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/30"
                 >
                   {EXPIRY_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
                   ))}
                 </select>
               </div>
 
               {/* Max downloads */}
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-[var(--color-text-secondary)]">Download limit</label>
+                <label className="text-sm font-medium text-[var(--color-text-secondary)]">
+                  Download limit
+                </label>
                 <select
                   value={maxDownloads}
                   onChange={(e) => setMaxDownloads(Number(e.target.value))}
                   className="w-full h-[38px] px-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/30"
                 >
                   {DOWNLOAD_LIMIT_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -231,7 +247,10 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
 
                 <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
                   <p className="text-xs text-amber-700 dark:text-amber-300">
-                    This link contains the decryption key in its <strong>#fragment</strong> — anyone with the full link can download <em>and</em> decrypt the file, with no passphrase needed. The key never reaches our servers. Share the link only with people you trust, and use a password or expiry for extra safety.
+                    This link contains the decryption key in its <strong>#fragment</strong> — anyone
+                    with the full link can download <em>and</em> decrypt the file, with no
+                    passphrase needed. The key never reaches our servers. Share the link only with
+                    people you trust, and use a password or expiry for extra safety.
                   </p>
                 </div>
 
@@ -245,7 +264,9 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
           {/* Existing shares */}
           {shares.length > 0 && (
             <div className="space-y-2 pt-2 border-t border-[var(--color-border)]">
-              <h4 className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Active Shares</h4>
+              <h4 className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
+                Active Shares
+              </h4>
               {loadingShares ? (
                 <p className="text-xs text-[var(--color-text-muted)]">Loading...</p>
               ) : (
@@ -262,11 +283,14 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
                           </code>
                           {s.has_password && <Lock className="h-3 w-3 text-amber-500" />}
                           {s.revoked && (
-                            <span className="text-[10px] font-medium text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded">Revoked</span>
+                            <span className="text-[10px] font-medium text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded">
+                              Revoked
+                            </span>
                           )}
                         </div>
                         <p className="text-[10px] text-[var(--color-text-muted)]">
-                          {s.download_count}{s.max_downloads > 0 ? `/${s.max_downloads}` : ""} downloads
+                          {s.download_count}
+                          {s.max_downloads > 0 ? `/${s.max_downloads}` : ""} downloads
                           {s.expires_at && ` · Expires ${formatDateTime(s.expires_at)}`}
                         </p>
                       </div>
@@ -288,6 +312,6 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
         </div>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }

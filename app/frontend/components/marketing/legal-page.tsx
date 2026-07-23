@@ -25,12 +25,8 @@ export function LegalPage({
           <p className="text-xs font-semibold text-cyan-600 dark:text-cyan-400 uppercase tracking-wider mb-4">
             {eyebrow}
           </p>
-          <h1 className="text-4xl sm:text-5xl font-bold tracking-tight leading-[1.15]">
-            {title}
-          </h1>
-          <p className="text-lg text-[var(--color-text-secondary)] mt-4 leading-relaxed">
-            {lead}
-          </p>
+          <h1 className="text-4xl sm:text-5xl font-bold tracking-tight leading-[1.15]">{title}</h1>
+          <p className="text-lg text-[var(--color-text-secondary)] mt-4 leading-relaxed">{lead}</p>
           <div className="h-px bg-[var(--color-border)] mt-10" />
         </Section>
 

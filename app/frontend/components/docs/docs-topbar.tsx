@@ -29,11 +29,7 @@ export function DocsTopBar() {
   return (
     <header className="sticky top-0 z-40 grid h-14 grid-cols-[1fr_auto_1fr] items-center border-b border-[var(--color-border)] bg-[var(--color-bg)]/90 px-4 backdrop-blur-md md:px-6">
       {/* Left: logo */}
-      <Link
-        href="/"
-        aria-label="zcrypt home"
-        className="flex items-center justify-self-start"
-      >
+      <Link href="/" aria-label="zcrypt home" className="flex items-center justify-self-start">
         <Logo size="lg" />
       </Link>
 
@@ -47,7 +43,7 @@ export function DocsTopBar() {
               "rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors",
               pathname === link.href
                 ? "bg-[var(--color-surface-1)] text-[var(--color-text)]"
-                : "text-[var(--color-text-muted)] hover:bg-[var(--color-surface-1)]/60 hover:text-[var(--color-text)]"
+                : "text-[var(--color-text-muted)] hover:bg-[var(--color-surface-1)]/60 hover:text-[var(--color-text)]",
             )}
           >
             {link.label}

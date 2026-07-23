@@ -26,10 +26,7 @@ export function KeyboardAvoider() {
       // Only react while the keyboard is actually up.
       if (inset < 120) return;
       const el = document.activeElement as HTMLElement | null;
-      if (
-        el &&
-        (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)
-      ) {
+      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) {
         el.scrollIntoView({ block: "center", behavior: "smooth" });
       }
     };

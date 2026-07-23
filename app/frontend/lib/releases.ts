@@ -4,8 +4,7 @@
 
 import { GITHUB_REPO } from "@/lib/data";
 
-const LATEST_RELEASE_API =
-  "https://api.github.com/repos/Wosmos/zcrypt/releases/latest";
+const LATEST_RELEASE_API = "https://api.github.com/repos/Wosmos/zcrypt/releases/latest";
 
 export type PlatformId = "macos" | "windows" | "linux";
 
@@ -61,7 +60,12 @@ function buildFallbackRelease(): ReleaseData {
         name: "macOS",
         blurb: BLURB.macos,
         options: [
-          { label: "Apple Silicon", sublabel: "M1–M4 · .dmg", href: fallbackUrl(`zcrypt_${v}_aarch64.dmg`), recommended: true },
+          {
+            label: "Apple Silicon",
+            sublabel: "M1–M4 · .dmg",
+            href: fallbackUrl(`zcrypt_${v}_aarch64.dmg`),
+            recommended: true,
+          },
         ],
       },
       {
@@ -69,8 +73,17 @@ function buildFallbackRelease(): ReleaseData {
         name: "Windows",
         blurb: BLURB.windows,
         options: [
-          { label: "Installer", sublabel: "x64 · .exe", href: fallbackUrl(`zcrypt_${v}_x64-setup.exe`), recommended: true },
-          { label: "MSI package", sublabel: "x64 · .msi", href: fallbackUrl(`zcrypt_${v}_x64_en-US.msi`) },
+          {
+            label: "Installer",
+            sublabel: "x64 · .exe",
+            href: fallbackUrl(`zcrypt_${v}_x64-setup.exe`),
+            recommended: true,
+          },
+          {
+            label: "MSI package",
+            sublabel: "x64 · .msi",
+            href: fallbackUrl(`zcrypt_${v}_x64_en-US.msi`),
+          },
         ],
       },
       {
@@ -78,9 +91,22 @@ function buildFallbackRelease(): ReleaseData {
         name: "Linux",
         blurb: BLURB.linux,
         options: [
-          { label: "AppImage", sublabel: "x86_64 · portable", href: fallbackUrl(`zcrypt_${v}_amd64.AppImage`), recommended: true },
-          { label: "Debian / Ubuntu", sublabel: "amd64 · .deb", href: fallbackUrl(`zcrypt_${v}_amd64.deb`) },
-          { label: "Fedora / RHEL", sublabel: "x86_64 · .rpm", href: fallbackUrl(`zcrypt-${v}-1.x86_64.rpm`) },
+          {
+            label: "AppImage",
+            sublabel: "x86_64 · portable",
+            href: fallbackUrl(`zcrypt_${v}_amd64.AppImage`),
+            recommended: true,
+          },
+          {
+            label: "Debian / Ubuntu",
+            sublabel: "amd64 · .deb",
+            href: fallbackUrl(`zcrypt_${v}_amd64.deb`),
+          },
+          {
+            label: "Fedora / RHEL",
+            sublabel: "x86_64 · .rpm",
+            href: fallbackUrl(`zcrypt-${v}-1.x86_64.rpm`),
+          },
         ],
       },
     ],
@@ -108,14 +134,9 @@ const BLURB: Record<PlatformId, string> = {
 };
 
 /** Turn a release's raw assets into categorized, ordered download options. */
-export function parseAssets(
-  assets: RawAsset[],
-  tag: string,
-  htmlUrl: string
-): ReleaseData {
+export function parseAssets(assets: RawAsset[], tag: string, htmlUrl: string): ReleaseData {
   const version = tag.replace(/^v/, "");
-  const find = (pred: (n: string) => boolean) =>
-    assets.find((a) => pred(a.name.toLowerCase()));
+  const find = (pred: (n: string) => boolean) => assets.find((a) => pred(a.name.toLowerCase()));
 
   const macAarch = find((n) => n.endsWith(".dmg") && /aarch64|arm64/.test(n));
   const macIntel = find((n) => n.endsWith(".dmg") && /x64|x86_64|intel/.test(n));
@@ -129,7 +150,7 @@ export function parseAssets(
     a: RawAsset | undefined,
     label: string,
     sublabel: string,
-    recommended?: boolean
+    recommended?: boolean,
   ): DownloadOption | null =>
     a ? { label, sublabel, href: a.browser_download_url, recommended } : null;
 
@@ -177,7 +198,7 @@ export function parseAssets(
           ? m[2] === "arm64"
             ? "Apple Silicon"
             : "Intel"
-          : archName[m[2]] ?? m[2];
+          : (archName[m[2]] ?? m[2]);
       return { os, arch, href: a.browser_download_url };
     })
     .filter(Boolean) as CliBinary[];

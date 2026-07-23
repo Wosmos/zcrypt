@@ -44,7 +44,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   ].map((s) => make(`/features/${s}`, 0.8, "monthly"));
 
   const vsRoutes = ["dropbox", "google-drive", "proton-drive"].map((s) =>
-    make(`/vs/${s}`, 0.7, "monthly")
+    make(`/vs/${s}`, 0.7, "monthly"),
   );
 
   // Docs URLs are derived from the nav (single source of truth) so the sitemap
@@ -52,11 +52,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const docHrefs = Array.from(
     new Set(
       docsNav.flatMap((g) =>
-        g.links
-          .filter((l) => !l.external && l.href.startsWith("/docs"))
-          .map((l) => l.href)
-      )
-    )
+        g.links.filter((l) => !l.external && l.href.startsWith("/docs")).map((l) => l.href),
+      ),
+    ),
   );
   const docsRoutes = [
     make("/docs", 0.8, "weekly"),

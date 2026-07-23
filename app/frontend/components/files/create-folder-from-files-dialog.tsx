@@ -53,7 +53,9 @@ function FilePill({ file }: { file: FileMetadata }) {
   const Icon = fileIconFor(file.original_name);
   return (
     <div className="flex min-w-0 items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-2.5 py-1.5">
-      <span className={cn("flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md", info.bg)}>
+      <span
+        className={cn("flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md", info.bg)}
+      >
         <Icon className={cn("h-4 w-4", info.color)} />
       </span>
       <span className="min-w-0 truncate text-xs font-medium text-[var(--color-text)]">
@@ -100,8 +102,8 @@ export function CreateFolderFromFilesDialog({
         <DialogHeader>
           <DialogTitle>New folder from selection</DialogTitle>
           <DialogDescription className="text-[var(--color-text-secondary)]">
-            Both files move into a new folder. The folder name is encrypted
-            end-to-end before it leaves your device.
+            Both files move into a new folder. The folder name is encrypted end-to-end before it
+            leaves your device.
           </DialogDescription>
         </DialogHeader>
 

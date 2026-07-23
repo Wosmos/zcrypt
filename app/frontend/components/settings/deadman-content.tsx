@@ -199,8 +199,8 @@ export function DeadManContent() {
             <p className="text-sm font-medium text-red-500 dark:text-red-400">Switch triggered</p>
             <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-secondary)]">
               Your dead man&apos;s switch was triggered on{" "}
-              {dms.triggered_at ? formatDateTime(dms.triggered_at) : "an unknown date"}. Your contact (
-              {dms.contact_email}) has been notified.
+              {dms.triggered_at ? formatDateTime(dms.triggered_at) : "an unknown date"}. Your
+              contact ({dms.contact_email}) has been notified.
             </p>
           </div>
         </div>
@@ -372,7 +372,9 @@ export function DeadManContent() {
 
       <ConfirmDialog
         open={confirmDelete}
-        onOpenChange={(open) => { if (!open) setConfirmDelete(false); }}
+        onOpenChange={(open) => {
+          if (!open) setConfirmDelete(false);
+        }}
         destructive
         title="Delete dead man's switch?"
         description="This permanently removes your dead man's switch configuration. Your trusted contact will no longer be notified if you go silent."

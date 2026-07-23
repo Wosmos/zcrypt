@@ -2,7 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "motion/react";
-import { listIntegritySnapshots, createIntegritySnapshot, checkFileIntegrity, getChangedFiles } from "@/lib/api";
+import {
+  listIntegritySnapshots,
+  createIntegritySnapshot,
+  checkFileIntegrity,
+  getChangedFiles,
+} from "@/lib/api";
 import { ensureFiles } from "@/store/files";
 import type { IntegritySnapshot, FileMetadata } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -21,7 +26,12 @@ function statusClass(status: string): string {
 }
 function StatusBadge({ status }: { status: string }) {
   return (
-    <span className={cn("rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide", statusClass(status))}>
+    <span
+      className={cn(
+        "rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+        statusClass(status),
+      )}
+    >
       {status}
     </span>
   );
@@ -38,7 +48,11 @@ export function IntegrityTab() {
 
   useEffect(() => {
     Promise.all([listIntegritySnapshots(), getChangedFiles(), ensureFiles()])
-      .then(([snaps, changed, f]) => { setSnapshots(snaps); setChanges(changed); setFiles(f); })
+      .then(([snaps, changed, f]) => {
+        setSnapshots(snaps);
+        setChanges(changed);
+        setFiles(f);
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
@@ -46,9 +60,14 @@ export function IntegrityTab() {
   const handleSnapshot = async () => {
     if (!selectedFile) return;
     setCreating(true);
-    try { const snap = await createIntegritySnapshot(selectedFile); setSnapshots((prev) => [snap, ...prev]); }
-    catch { /* ignore */ }
-    finally { setCreating(false); }
+    try {
+      const snap = await createIntegritySnapshot(selectedFile);
+      setSnapshots((prev) => [snap, ...prev]);
+    } catch {
+      /* ignore */
+    } finally {
+      setCreating(false);
+    }
   };
 
   const handleCheck = async (fileId: string) => {
@@ -56,10 +75,16 @@ export function IntegrityTab() {
     try {
       const result = await checkFileIntegrity(fileId);
       setSnapshots((prev) => [result, ...prev]);
-      if (result.status !== "ok") { setChanges((prev) => [result, ...prev.filter((c) => c.file_id !== fileId)]); }
-      else { setChanges((prev) => prev.filter((c) => c.file_id !== fileId)); }
-    } catch { /* ignore */ }
-    finally { setChecking(false); }
+      if (result.status !== "ok") {
+        setChanges((prev) => [result, ...prev.filter((c) => c.file_id !== fileId)]);
+      } else {
+        setChanges((prev) => prev.filter((c) => c.file_id !== fileId));
+      }
+    } catch {
+      /* ignore */
+    } finally {
+      setChecking(false);
+    }
   };
 
   return (
@@ -70,7 +95,8 @@ export function IntegrityTab() {
           <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-500" />
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-red-600 dark:text-red-400">
-              <span className="tabular-nums">{changes.length}</span> file(s) with integrity changes detected
+              <span className="tabular-nums">{changes.length}</span> file(s) with integrity changes
+              detected
             </p>
             <div className="mt-2 space-y-1">
               {changes.map((c) => (
@@ -86,7 +112,10 @@ export function IntegrityTab() {
 
       {/* Create snapshot / check */}
       <div className="panel p-6">
-        <Section title="Snapshot & verify" description="Record a file's fingerprint, then check it later for tampering.">
+        <Section
+          title="Snapshot & verify"
+          description="Record a file's fingerprint, then check it later for tampering."
+        >
           <div className="flex flex-col gap-3 sm:flex-row">
             <select
               value={selectedFile}
@@ -94,13 +123,26 @@ export function IntegrityTab() {
               className="h-10 flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-sm text-[var(--color-text)] outline-none transition-all focus:border-[var(--color-accent)]/40 focus:ring-2 focus:ring-[var(--color-accent)]/10"
             >
               <option value="">Select a file...</option>
-              {files.map((f) => <option key={f.id} value={f.id}>{f.original_name}</option>)}
+              {files.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.original_name}
+                </option>
+              ))}
             </select>
             <div className="flex gap-2">
-              <Button onClick={handleSnapshot} disabled={!selectedFile || creating} className="flex-1 sm:flex-none">
+              <Button
+                onClick={handleSnapshot}
+                disabled={!selectedFile || creating}
+                className="flex-1 sm:flex-none"
+              >
                 {creating ? "Snapshotting..." : "Snapshot"}
               </Button>
-              <Button variant="secondary" onClick={() => selectedFile && handleCheck(selectedFile)} disabled={!selectedFile || checking} className="flex-1 sm:flex-none">
+              <Button
+                variant="secondary"
+                onClick={() => selectedFile && handleCheck(selectedFile)}
+                disabled={!selectedFile || checking}
+                className="flex-1 sm:flex-none"
+              >
                 {checking ? "Checking..." : "Check"}
               </Button>
             </div>
@@ -112,7 +154,9 @@ export function IntegrityTab() {
       <Section title="Snapshot history">
         {loading ? (
           <div className="panel divide-y divide-[var(--color-border)] px-4">
-            {Array.from({ length: 3 }).map((_, i) => <SkeletonRow key={i} />)}
+            {Array.from({ length: 3 }).map((_, i) => (
+              <SkeletonRow key={i} />
+            ))}
           </div>
         ) : snapshots.length === 0 ? (
           <div className="panel">
@@ -125,15 +169,25 @@ export function IntegrityTab() {
         ) : (
           <div className="space-y-2">
             {snapshots.slice(0, 50).map((snap) => (
-              <motion.div key={snap.id} initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }}
-                className="panel flex items-center justify-between gap-3 p-4">
+              <motion.div
+                key={snap.id}
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="panel flex items-center justify-between gap-3 p-4"
+              >
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-[var(--color-text)]">{snap.file_name}</p>
-                  <p className="mt-0.5 truncate font-mono text-xs text-[var(--color-text-muted)]">{snap.sha256.slice(0, 16)}...</p>
+                  <p className="truncate text-sm font-medium text-[var(--color-text)]">
+                    {snap.file_name}
+                  </p>
+                  <p className="mt-0.5 truncate font-mono text-xs text-[var(--color-text-muted)]">
+                    {snap.sha256.slice(0, 16)}...
+                  </p>
                 </div>
                 <div className="flex flex-shrink-0 items-center gap-3">
                   <StatusBadge status={snap.status} />
-                  <span className="text-xs tabular-nums text-[var(--color-text-muted)]">{formatDateTime(snap.checked_at)}</span>
+                  <span className="text-xs tabular-nums text-[var(--color-text-muted)]">
+                    {formatDateTime(snap.checked_at)}
+                  </span>
                 </div>
               </motion.div>
             ))}

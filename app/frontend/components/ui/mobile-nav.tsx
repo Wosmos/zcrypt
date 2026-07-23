@@ -9,20 +9,8 @@ import { usePreferencesStore } from "@/store/preferences";
 import { useAuthStore } from "@/store/auth";
 import { logout as logoutApi } from "@/lib/auth-api";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
-import {
-  Cog,
-  Users,
-  LogOut,
-  ArrowRight,
-  BarChart3,
-  Layers,
-  Trash2,
-} from "@/lib/icons";
-import {
-  VaultIcon,
-  GearIcon,
-  MoreDotsIcon,
-} from "@/components/icons/nav-icons";
+import { Cog, Users, LogOut, ArrowRight, BarChart3, Layers, Trash2 } from "@/lib/icons";
+import { VaultIcon, GearIcon, MoreDotsIcon } from "@/components/icons/nav-icons";
 import { Role } from "@/types";
 
 // Primary tabs — kept to the essentials so the bar stays light. Share, Settings,
@@ -31,8 +19,7 @@ const NAV_LINKS = [
   { href: "/dashboard", label: "Vault", Icon: VaultIcon },
   { href: "/analytics", label: "Insights", Icon: BarChart3 },
   { href: "/spaces", label: "Spaces", Icon: Layers },
-  {href: "/trash", label: "Deleted Files", Icon: Trash2 }
-
+  { href: "/trash", label: "Deleted Files", Icon: Trash2 },
 ];
 
 type DrawerLink = { href: string; label: string; icon: ComponentType<{ className?: string }> };
@@ -63,7 +50,9 @@ export function MobileNav() {
   const handleLogout = async () => {
     try {
       if (refreshTokenValue) await logoutApi(refreshTokenValue);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     clearAuth();
     router.push("/login");
   };
@@ -92,7 +81,7 @@ export function MobileNav() {
               "bg-[var(--color-surface)]",
               "border border-[var(--color-border)]",
               "shadow-[0_10px_30px_-10px_rgba(0,0,0,0.30)]",
-              "rounded-[28px]"
+              "rounded-[28px]",
             )}
           >
             <LayoutGroup>
@@ -114,14 +103,16 @@ export function MobileNav() {
                           filled={active}
                           className={cn(
                             "h-[22px] w-[22px] transition-colors duration-300",
-                            active ? "text-[var(--color-accent)]" : "text-[var(--color-text-muted)]"
+                            active
+                              ? "text-[var(--color-accent)]"
+                              : "text-[var(--color-text-muted)]",
                           )}
                         />
                       </motion.div>
                       <span
                         className={cn(
                           "text-[10px] font-semibold tracking-tight transition-colors duration-300",
-                          active ? "text-[var(--color-accent)]" : "text-[var(--color-text-muted)]"
+                          active ? "text-[var(--color-accent)]" : "text-[var(--color-text-muted)]",
                         )}
                       >
                         {label}
@@ -149,13 +140,17 @@ export function MobileNav() {
                     filled={sheetOpen || moreActive}
                     className={cn(
                       "h-[22px] w-[22px] transition-colors duration-300",
-                      sheetOpen || moreActive ? "text-[var(--color-accent)]" : "text-[var(--color-text-muted)]"
+                      sheetOpen || moreActive
+                        ? "text-[var(--color-accent)]"
+                        : "text-[var(--color-text-muted)]",
                     )}
                   />
                   <span
                     className={cn(
                       "text-[10px] font-semibold tracking-tight transition-colors duration-300",
-                      sheetOpen || moreActive ? "text-[var(--color-accent)]" : "text-[var(--color-text-muted)]"
+                      sheetOpen || moreActive
+                        ? "text-[var(--color-accent)]"
+                        : "text-[var(--color-text-muted)]",
                     )}
                   >
                     More
@@ -176,11 +171,11 @@ export function MobileNav() {
 
       <BottomSheet open={sheetOpen} onClose={() => setSheetOpen(false)}>
         <div className="space-y-1 pb-1">
-        
-
           {/* Navigation — Share + Settings always; Tools/Admin when relevant. */}
           <div className="px-3 pb-1">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--color-text-muted)]">Navigation</p>
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--color-text-muted)]">
+              Navigation
+            </p>
           </div>
           {drawerLinks.map(({ href, label, icon: Icon }) => (
             <Link
@@ -191,13 +186,13 @@ export function MobileNav() {
                 "mx-1 flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors active:scale-[0.98]",
                 isActive(href)
                   ? "bg-[var(--color-accent)]/10 text-[var(--color-accent)]"
-                  : "text-[var(--color-text)] hover:bg-[var(--color-surface-1)]"
+                  : "text-[var(--color-text)] hover:bg-[var(--color-surface-1)]",
               )}
             >
               <div
                 className={cn(
                   "flex h-8 w-8 items-center justify-center rounded-lg",
-                  isActive(href) ? "bg-[var(--color-accent)]/15" : "bg-[var(--color-surface-1)]"
+                  isActive(href) ? "bg-[var(--color-accent)]/15" : "bg-[var(--color-surface-1)]",
                 )}
               >
                 <Icon className="h-4 w-4" />
@@ -210,7 +205,10 @@ export function MobileNav() {
           {/* Log out (theme toggle lives in the avatar dropdown, not here). */}
           <div className="mx-3 my-2 border-t border-[var(--color-border)]" />
           <button
-            onClick={() => { handleLogout(); setSheetOpen(false); }}
+            onClick={() => {
+              handleLogout();
+              setSheetOpen(false);
+            }}
             className="mx-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-red-400 transition-colors hover:bg-red-500/10 active:scale-[0.98]"
           >
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-500/10">

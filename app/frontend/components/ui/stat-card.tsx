@@ -20,18 +20,13 @@ interface StatCardProps {
 /** Compact metric card: labelled value with a leading icon chip and optional hint. Values use tabular-nums. */
 export function StatCard({ label, value, icon: Icon, hint, accent, className }: StatCardProps) {
   return (
-    <div
-      className={cn(
-        "panel flex items-start gap-4 p-5 transition-colors",
-        className
-      )}
-    >
+    <div className={cn("panel flex items-start gap-4 p-5 transition-colors", className)}>
       <div
         className={cn(
           "flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ring-1",
           accent
             ? "bg-[var(--color-accent)]/10 text-[var(--color-accent)] ring-[var(--color-accent)]/20"
-            : "bg-[var(--color-surface-1)] text-[var(--color-text-secondary)] ring-[var(--color-border)]"
+            : "bg-[var(--color-surface-1)] text-[var(--color-text-secondary)] ring-[var(--color-border)]",
         )}
       >
         <Icon className="h-5 w-5" />
@@ -44,9 +39,7 @@ export function StatCard({ label, value, icon: Icon, hint, accent, className }: 
           {value}
         </p>
         {hint && (
-          <p className="truncate text-xs text-[var(--color-text-secondary)] tabular-nums">
-            {hint}
-          </p>
+          <p className="truncate text-xs text-[var(--color-text-secondary)] tabular-nums">{hint}</p>
         )}
       </div>
     </div>

@@ -28,7 +28,7 @@ export function quotaModeFor(bytes: number | null): QuotaMode {
  */
 export function parseQuotaInput(
   mode: QuotaMode,
-  input: string
+  input: string,
 ): { ok: true; bytes: number | null } | { ok: false; error: string } {
   if (mode === "unlimited") return { ok: true, bytes: 0 };
   if (mode === "default") return { ok: true, bytes: null };
@@ -46,7 +46,7 @@ export function parseQuotaInput(
  */
 export function formatQuotaDisplay(
   bytes: number | null,
-  opts?: { planDisplay?: string; defaultBytes?: number }
+  opts?: { planDisplay?: string; defaultBytes?: number },
 ): string {
   if (bytes === null) {
     if (opts?.planDisplay) return opts.planDisplay;

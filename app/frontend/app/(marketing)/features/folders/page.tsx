@@ -39,7 +39,14 @@ const treeLines = [
   { depth: 1, Icon: Folder, name: "Projects", meta: "12 items" },
   { depth: 1, Icon: Folder, name: "Photos 2026", meta: "248 items" },
   { depth: 1, Icon: Lock, name: "Tax & legal", meta: "sealed", locked: true },
-  { depth: 2, Icon: Lock, name: "··········", meta: "password required", locked: true, child: true },
+  {
+    depth: 2,
+    Icon: Lock,
+    name: "··········",
+    meta: "password required",
+    locked: true,
+    child: true,
+  },
 ];
 
 export default function FoldersPage() {
@@ -103,8 +110,8 @@ export default function FoldersPage() {
           </div>
           <p className="mt-3 px-1 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
             The vault is open, but{" "}
-            <span className="text-amber-600 dark:text-amber-400">Tax &amp; legal</span>{" "}
-            stays sealed until you enter its own password.
+            <span className="text-amber-600 dark:text-amber-400">Tax &amp; legal</span> stays sealed
+            until you enter its own password.
           </p>
         </MockWindowFrame>
       </FeatureHero>
@@ -131,12 +138,12 @@ export default function FoldersPage() {
             success="✓ password never sent. key never sent."
           >
             <div>
-              <span className="text-cyan-600/80 dark:text-cyan-400/80">on device</span>{" "}
-              password → derive folder key
+              <span className="text-cyan-600/80 dark:text-cyan-400/80">on device</span> password →
+              derive folder key
             </div>
             <div className="mt-1.5">
-              <span className="text-cyan-600/80 dark:text-cyan-400/80">verify</span> key
-              against sealed marker — locally
+              <span className="text-cyan-600/80 dark:text-cyan-400/80">verify</span> key against
+              sealed marker — locally
             </div>
             <div className="mt-1.5 break-all">
               <span className="text-cyan-600/80 dark:text-cyan-400/80">folder</span>{" "}

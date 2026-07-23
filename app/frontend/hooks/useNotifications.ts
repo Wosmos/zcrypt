@@ -20,32 +20,38 @@ export function useNotifications() {
     return result === "granted";
   }, []);
 
-  const notify = useCallback((title: string, options?: NotificationOptions & { always?: boolean }) => {
-    if (typeof window === "undefined" || !("Notification" in window)) return;
-    if (Notification.permission !== "granted") return;
+  const notify = useCallback(
+    (title: string, options?: NotificationOptions & { always?: boolean }) => {
+      if (typeof window === "undefined" || !("Notification" in window)) return;
+      if (Notification.permission !== "granted") return;
 
-    // By default only notify when tab is not focused, unless always=true
-    if (!options?.always && !document.hidden) return;
+      // By default only notify when tab is not focused, unless always=true
+      if (!options?.always && !document.hidden) return;
 
-    const { always: _, ...notifOptions } = options || {};
-    const n = new Notification(title, {
-      icon: "/favicon.ico",
-      badge: "/favicon.ico",
-      ...notifOptions,
-    });
+      const { always: _, ...notifOptions } = options || {};
+      const n = new Notification(title, {
+        icon: "/favicon.ico",
+        badge: "/favicon.ico",
+        ...notifOptions,
+      });
 
-    // Auto-close after 5s
-    setTimeout(() => n.close(), 5000);
+      // Auto-close after 5s
+      setTimeout(() => n.close(), 5000);
 
-    // Focus window on click
-    n.onclick = () => {
-      window.focus();
-      n.close();
-    };
-  }, []);
+      // Focus window on click
+      n.onclick = () => {
+        window.focus();
+        n.close();
+      };
+    },
+    [],
+  );
 
   const isSupported = typeof window !== "undefined" && "Notification" in window;
-  const isGranted = typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted";
+  const isGranted =
+    typeof window !== "undefined" &&
+    "Notification" in window &&
+    Notification.permission === "granted";
 
   return { notify, requestPermission, isSupported, isGranted };
 }

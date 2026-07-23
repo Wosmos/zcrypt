@@ -39,9 +39,7 @@ export default function MagicLinkPage() {
         }
       })
       .catch((err) => {
-        setError(
-          err instanceof Error ? err.message : "Link expired or invalid"
-        );
+        setError(err instanceof Error ? err.message : "Link expired or invalid");
       });
   }, [searchParams, setTokens, setUser, router]);
 
@@ -60,9 +58,7 @@ export default function MagicLinkPage() {
           </AuthLink>
         }
       >
-        <p className="text-sm text-[var(--color-text-secondary)] mt-2">
-          {error}
-        </p>
+        <p className="text-sm text-[var(--color-text-secondary)] mt-2">{error}</p>
       </AuthStatusCard>
     );
   }
@@ -70,9 +66,7 @@ export default function MagicLinkPage() {
   return (
     <div className="flex flex-col items-center justify-center gap-4">
       <LogoSpinner size={32} speed="default" />
-      <p className="text-sm text-[var(--color-text-secondary)]">
-        Verifying your login link...
-      </p>
+      <p className="text-sm text-[var(--color-text-secondary)]">Verifying your login link...</p>
     </div>
   );
 }

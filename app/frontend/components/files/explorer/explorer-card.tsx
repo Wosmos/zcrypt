@@ -4,7 +4,15 @@ import { memo, useId } from "react";
 import type { ExplorerItemProps, FolderItemProps, FileItemProps } from "./types";
 import { explorerItemPropsEqual, FOCUS_RING } from "./types";
 import { ExplorerEntryDispatch, SelectCheckbox, useExplorerFileName } from "./entry-dispatch";
-import { formatBytes, getFileTypeInfo, isVideoFile, cn, midTrunc, fileIconFor, extOf } from "@/lib/utils";
+import {
+  formatBytes,
+  getFileTypeInfo,
+  isVideoFile,
+  cn,
+  midTrunc,
+  fileIconFor,
+  extOf,
+} from "@/lib/utils";
 import { useThumbnail } from "@/hooks/useThumbnail";
 import { prefetchOnHover } from "@/hooks/useFileDecryptor";
 import { getFolderIcon, getFolderInitial, getIconByKey } from "@/lib/folder-icons";
@@ -38,7 +46,15 @@ import {
  * and a soft drop shadow for depth. Tinted with the accent via `currentColor`,
  * so it lives on the card surface like a desktop folder icon. ~116px wide.
  */
-function MacFolder({ className, color, background }: { className?: string; color?: string; background?: string }) {
+function MacFolder({
+  className,
+  color,
+  background,
+}: {
+  className?: string;
+  color?: string;
+  background?: string;
+}) {
   const id = useId();
   const sheen = `${id}-sheen`;
   const shadow = `${id}-shadow`;
@@ -63,21 +79,37 @@ function MacFolder({ className, color, background }: { className?: string; color
           <stop offset="1" stopColor="#ffffff" stopOpacity="0" />
         </linearGradient>
         <filter id={shadow} x="-25%" y="-25%" width="150%" height="160%">
-          <feDropShadow dx="0" dy="2.5" stdDeviation="3.5" floodColor="#000000" floodOpacity="0.26" />
+          <feDropShadow
+            dx="0"
+            dy="2.5"
+            stdDeviation="3.5"
+            floodColor="#000000"
+            floodOpacity="0.26"
+          />
         </filter>
       </defs>
       <g filter={`url(#${shadow})`}>
         {/* Back panel + raised tab (darker, sits behind the front pocket). When a
             design background is set it becomes a plain dark sliver instead of
             trying to tint a gradient — reads as the same "layered folder" shadow. */}
-        <path d={backPanel} fill={background ? "#000000" : "currentColor"} fillOpacity={background ? 0.25 : 0.55} />
+        <path
+          d={backPanel}
+          fill={background ? "#000000" : "currentColor"}
+          fillOpacity={background ? 0.25 : 0.55}
+        />
         {/* Front pocket — a design background is painted as real content (via
             foreignObject + a CSS clip-path matching the pocket outline) so the
             gradient/pattern lives ON the folder shape, not on the SVG's own
             rectangular bounding box (which is what a plain CSS `background` on
             the <svg> would do). */}
         {background ? (
-          <foreignObject x="0" y="0" width="120" height="100" style={{ clipPath: `path('${pocket}')` }}>
+          <foreignObject
+            x="0"
+            y="0"
+            width="120"
+            height="100"
+            style={{ clipPath: `path('${pocket}')` }}
+          >
             <div style={{ width: "100%", height: "100%", background }} />
           </foreignObject>
         ) : (
@@ -94,7 +126,12 @@ function MacFolder({ className, color, background }: { className?: string; color
 function PadlockGlyph({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
-      <path d="M8 10V8a4 4 0 0 1 8 0v2" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+      <path
+        d="M8 10V8a4 4 0 0 1 8 0v2"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+      />
       <rect x="4.5" y="10" width="15" height="11" rx="3" fill="currentColor" />
       <circle cx="12" cy="14.8" r="1.5" fill="var(--color-surface)" />
       <rect x="11.25" y="14.8" width="1.5" height="3.4" rx="0.75" fill="var(--color-surface)" />
@@ -124,9 +161,12 @@ function FolderCard({
   // Custom icon (set via "Customize…") wins, then the name-inferred glyph,
   // falling back to its initial letter — like macOS special folders.
   const customIcon = folder.style?.icon ? getIconByKey(folder.style.icon) : null;
-  const FolderGlyph = isLocked ? null : customIcon ?? getFolderIcon(folder.name);
+  const FolderGlyph = isLocked ? null : (customIcon ?? getFolderIcon(folder.name));
   const initial = isLocked ? "" : getFolderInitial(folder.name);
-  const customBackground = !isLocked && folder.style?.background ? getBackgroundByKey(folder.style.background) ?? undefined : undefined;
+  const customBackground =
+    !isLocked && folder.style?.background
+      ? (getBackgroundByKey(folder.style.background) ?? undefined)
+      : undefined;
   const customColor = !isLocked && !customBackground ? folder.style?.color : undefined;
 
   return (
@@ -150,21 +190,24 @@ function FolderCard({
             FOCUS_RING,
             drag.draggable ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
             drag.isBeingDragged && "opacity-50",
-            drag.isDropOver && "bg-[var(--color-accent)]/10 ring-2 ring-inset ring-[var(--color-accent)]"
+            drag.isDropOver &&
+              "bg-[var(--color-accent)]/10 ring-2 ring-inset ring-[var(--color-accent)]",
           )}
         >
           {/* Free-standing macOS folder. The hover transform lives on this
               wrapper so the mark moves WITH the folder (it's no longer a
               detached overlay). */}
           <div className="relative flex w-full items-center justify-center transition-transform duration-200 ease-out group-hover:-translate-y-0.5 group-hover:scale-[1.02]">
-            <MacFolder className="w-full max-w-[150px]" color={customColor} background={customBackground} />
+            <MacFolder
+              className="w-full max-w-[150px]"
+              color={customColor}
+              background={customBackground}
+            />
 
             {/* Mark on the folder face: padlock when locked, else a sleek
                 Phosphor glyph by name, else the folder's initial letter. */}
             {isLocked ? (
-              <PadlockGlyph
-                className="absolute left-1/2 top-[57%] h-8 w-8 -translate-x-1/2 -translate-y-1/2 text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.25)]"
-              />
+              <PadlockGlyph className="absolute left-1/2 top-[57%] h-8 w-8 -translate-x-1/2 -translate-y-1/2 text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.25)]" />
             ) : FolderGlyph ? (
               // Debossed/engraved into the folder: a grayish dark fill plus a
               // light bottom highlight reads as "carved in", and works on any
@@ -266,7 +309,11 @@ function FileCardInner({
   // folder's contents never fall back to the raw file id while a real name is
   // decryptable.
   const displayName = useExplorerFileName(file);
-  const { thumbnailUrl, pending, unavailable, cardRef } = useThumbnail(file.id, displayName, file.original_size);
+  const { thumbnailUrl, pending, unavailable, cardRef } = useThumbnail(
+    file.id,
+    displayName,
+    file.original_size,
+  );
   const typeInfo = getFileTypeInfo(displayName);
   const customIcon = file.style?.icon ? getIconByKey(file.style.icon) : null;
   const Icon = customIcon ?? fileIconFor(displayName);
@@ -305,19 +352,19 @@ function FileCardInner({
               ? "bg-[var(--color-accent)]/10 ring-2 ring-inset ring-[var(--color-accent)]"
               : selected
                 ? "bg-[var(--color-accent)]/10 ring-1 ring-[var(--color-accent)]/40"
-                : ""
+                : "",
           )}
         >
-      {/* Selection checkbox */}
-      {selectMode && (
-        <SelectCheckbox
-          file={file}
-          displayName={displayName}
-          selected={selected}
-          onSelect={onSelect}
-          className="absolute left-2.5 top-2.5 z-10 flex h-6 w-6 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] transition-colors hover:border-[var(--color-accent)]"
-        />
-      )}
+          {/* Selection checkbox */}
+          {selectMode && (
+            <SelectCheckbox
+              file={file}
+              displayName={displayName}
+              selected={selected}
+              onSelect={onSelect}
+              className="absolute left-2.5 top-2.5 z-10 flex h-6 w-6 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] transition-colors hover:border-[var(--color-accent)]"
+            />
+          )}
 
           {/* Preview — free-standing, sized to the file's own aspect ratio
               (landscape stays landscape, portrait stays portrait), macOS-icon
@@ -343,7 +390,11 @@ function FileCardInner({
                 />
                 {isVideo && (
                   <span className="pointer-events-none absolute left-1/2 top-1/2 flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-black/45 ring-1 ring-white/25 backdrop-blur-sm">
-                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 translate-x-[1px] fill-white" aria-hidden="true">
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-3.5 w-3.5 translate-x-[1px] fill-white"
+                      aria-hidden="true"
+                    >
                       <path d="M8 5v14l11-7z" />
                     </svg>
                   </span>

@@ -80,8 +80,14 @@ export async function createFolderShareLink(
   folderId: string | null,
   name: string,
   files: { id: string; folder_id?: string | null; original_name?: string }[],
-  opts: FolderShareOptions = {}
-): Promise<{ url: string; token: string; shared: number; skipped: number; nestingIncomplete: boolean }> {
+  opts: FolderShareOptions = {},
+): Promise<{
+  url: string;
+  token: string;
+  shared: number;
+  skipped: number;
+  nestingIncomplete: boolean;
+}> {
   const passphrase = usePassphraseStore.getState().getPassphrase();
   if (!passphrase) throw new Error("Unlock your vault to share a folder.");
   if (files.length === 0) throw new Error("This folder has no files to share.");
@@ -135,7 +141,7 @@ export async function createFolderShareLink(
   }
   if (wraps.length === 0) {
     throw new Error(
-      "None of this folder's files could be shared — they may be in a password-protected folder, or were uploaded before sharing was supported."
+      "None of this folder's files could be shared — they may be in a password-protected folder, or were uploaded before sharing was supported.",
     );
   }
 

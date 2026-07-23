@@ -2,8 +2,18 @@
 
 import { useMemo } from "react";
 import {
-  Image, Video, Music, FileText, Archive, Code, Cog, File, Table,
-  Shield, Lock, Unlock,
+  Image,
+  Video,
+  Music,
+  FileText,
+  Archive,
+  Code,
+  Cog,
+  File,
+  Table,
+  Shield,
+  Lock,
+  Unlock,
 } from "@/lib/icons";
 import { formatBytes, getFileCategory } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -19,18 +29,80 @@ interface MobileVaultHeaderProps {
   activeCategory: string | null;
 }
 
-const CATEGORY_CONFIG: { name: string; icon: typeof File; color: string; bgFrom: string; bgTo: string }[] = [
-  { name: "Image", icon: Image, color: "text-violet-600 dark:text-violet-400", bgFrom: "from-violet-100 dark:from-violet-500/15", bgTo: "to-violet-50 dark:to-violet-500/5" },
-  { name: "Video", icon: Video, color: "text-blue-600 dark:text-blue-400", bgFrom: "from-blue-100 dark:from-blue-500/15", bgTo: "to-blue-50 dark:to-blue-500/5" },
-  { name: "Audio", icon: Music, color: "text-pink-600 dark:text-pink-400", bgFrom: "from-pink-100 dark:from-pink-500/15", bgTo: "to-pink-50 dark:to-pink-500/5" },
-  { name: "Document", icon: FileText, color: "text-rose-600 dark:text-rose-400", bgFrom: "from-rose-100 dark:from-rose-500/15", bgTo: "to-rose-50 dark:to-rose-500/5" },
-  { name: "Spreadsheet", icon: Table, color: "text-cyan-600 dark:text-cyan-400", bgFrom: "from-cyan-100 dark:from-cyan-500/15", bgTo: "to-cyan-50 dark:to-cyan-500/5" },
-  { name: "Code", icon: Code, color: "text-yellow-600 dark:text-yellow-400", bgFrom: "from-yellow-100 dark:from-yellow-500/15", bgTo: "to-yellow-50 dark:to-yellow-500/5" },
-  { name: "Archive", icon: Archive, color: "text-amber-600 dark:text-amber-400", bgFrom: "from-amber-100 dark:from-amber-500/15", bgTo: "to-amber-50 dark:to-amber-500/5" },
-  { name: "Executable", icon: Cog, color: "text-orange-600 dark:text-orange-400", bgFrom: "from-orange-100 dark:from-orange-500/15", bgTo: "to-orange-50 dark:to-orange-500/5" },
+const CATEGORY_CONFIG: {
+  name: string;
+  icon: typeof File;
+  color: string;
+  bgFrom: string;
+  bgTo: string;
+}[] = [
+  {
+    name: "Image",
+    icon: Image,
+    color: "text-violet-600 dark:text-violet-400",
+    bgFrom: "from-violet-100 dark:from-violet-500/15",
+    bgTo: "to-violet-50 dark:to-violet-500/5",
+  },
+  {
+    name: "Video",
+    icon: Video,
+    color: "text-blue-600 dark:text-blue-400",
+    bgFrom: "from-blue-100 dark:from-blue-500/15",
+    bgTo: "to-blue-50 dark:to-blue-500/5",
+  },
+  {
+    name: "Audio",
+    icon: Music,
+    color: "text-pink-600 dark:text-pink-400",
+    bgFrom: "from-pink-100 dark:from-pink-500/15",
+    bgTo: "to-pink-50 dark:to-pink-500/5",
+  },
+  {
+    name: "Document",
+    icon: FileText,
+    color: "text-rose-600 dark:text-rose-400",
+    bgFrom: "from-rose-100 dark:from-rose-500/15",
+    bgTo: "to-rose-50 dark:to-rose-500/5",
+  },
+  {
+    name: "Spreadsheet",
+    icon: Table,
+    color: "text-cyan-600 dark:text-cyan-400",
+    bgFrom: "from-cyan-100 dark:from-cyan-500/15",
+    bgTo: "to-cyan-50 dark:to-cyan-500/5",
+  },
+  {
+    name: "Code",
+    icon: Code,
+    color: "text-yellow-600 dark:text-yellow-400",
+    bgFrom: "from-yellow-100 dark:from-yellow-500/15",
+    bgTo: "to-yellow-50 dark:to-yellow-500/5",
+  },
+  {
+    name: "Archive",
+    icon: Archive,
+    color: "text-amber-600 dark:text-amber-400",
+    bgFrom: "from-amber-100 dark:from-amber-500/15",
+    bgTo: "to-amber-50 dark:to-amber-500/5",
+  },
+  {
+    name: "Executable",
+    icon: Cog,
+    color: "text-orange-600 dark:text-orange-400",
+    bgFrom: "from-orange-100 dark:from-orange-500/15",
+    bgTo: "to-orange-50 dark:to-orange-500/5",
+  },
 ];
 
-export function MobileVaultHeader({ files, quotaInfo, repos, isUnlocked, onUnlock, onCategoryClick, activeCategory }: MobileVaultHeaderProps) {
+export function MobileVaultHeader({
+  files,
+  quotaInfo,
+  repos,
+  isUnlocked,
+  onUnlock,
+  onCategoryClick,
+  activeCategory,
+}: MobileVaultHeaderProps) {
   const categoryCounts = useMemo(() => {
     const counts = new Map<string, { count: number; size: number }>();
     for (const f of files) {
@@ -48,7 +120,8 @@ export function MobileVaultHeader({ files, quotaInfo, repos, isUnlocked, onUnloc
 
   const activeCategories = CATEGORY_CONFIG.filter((c) => categoryCounts.has(c.name));
   // Add "File" catch-all if there are uncategorized files
-  const otherCount = categoryCounts.get("File") || categoryCounts.get("Data") || categoryCounts.get("Font");
+  const otherCount =
+    categoryCounts.get("File") || categoryCounts.get("Data") || categoryCounts.get("Font");
 
   return (
     <div className="md:hidden space-y-4">
@@ -66,9 +139,7 @@ export function MobileVaultHeader({ files, quotaInfo, repos, isUnlocked, onUnloc
               onClick={onUnlock}
               className={cn(
                 "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors",
-                isUnlocked
-                  ? "bg-white/20 text-white"
-                  : "bg-white/25 text-white active:bg-white/30"
+                isUnlocked ? "bg-white/20 text-white" : "bg-white/25 text-white active:bg-white/30",
               )}
             >
               {isUnlocked ? <Unlock className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
@@ -80,7 +151,9 @@ export function MobileVaultHeader({ files, quotaInfo, repos, isUnlocked, onUnloc
             <span className="text-sm font-normal text-white/60 ml-1">used</span>
           </div>
           <div className="flex items-center justify-between mt-3 text-xs text-white/60">
-            <span>{files.length} file{files.length !== 1 ? "s" : ""}</span>
+            <span>
+              {files.length} file{files.length !== 1 ? "s" : ""}
+            </span>
             <span>Unlimited storage</span>
           </div>
         </div>
@@ -113,16 +186,27 @@ export function MobileVaultHeader({ files, quotaInfo, repos, isUnlocked, onUnloc
                     "flex items-start gap-3 p-3 rounded-xl border text-left transition-all duration-150 active:scale-[0.97]",
                     isActive
                       ? "border-[var(--color-accent)]/30 bg-[var(--color-accent)]/5 ring-1 ring-[var(--color-accent)]/15"
-                      : `border-[var(--color-border)] bg-gradient-to-br ${cat.bgFrom} ${cat.bgTo}`
+                      : `border-[var(--color-border)] bg-gradient-to-br ${cat.bgFrom} ${cat.bgTo}`,
                   )}
                 >
-                  <div className={cn("flex items-center justify-center h-9 w-9 rounded-xl bg-white/80 dark:bg-white/10 flex-shrink-0", isActive && "bg-[var(--color-accent)]/10")}>
-                    <CatIcon className={cn("h-5 w-5", isActive ? "text-[var(--color-accent)]" : cat.color)} />
+                  <div
+                    className={cn(
+                      "flex items-center justify-center h-9 w-9 rounded-xl bg-white/80 dark:bg-white/10 flex-shrink-0",
+                      isActive && "bg-[var(--color-accent)]/10",
+                    )}
+                  >
+                    <CatIcon
+                      className={cn("h-5 w-5", isActive ? "text-[var(--color-accent)]" : cat.color)}
+                    />
                   </div>
                   <div className="min-w-0">
                     <p className="text-xs font-semibold truncate">{cat.name}</p>
-                    <p className="text-[10px] text-[var(--color-text-muted)] tabular-nums">{data.count} file{data.count !== 1 ? "s" : ""}</p>
-                    <p className="text-[10px] text-[var(--color-text-muted)] tabular-nums">{formatBytes(data.size)}</p>
+                    <p className="text-[10px] text-[var(--color-text-muted)] tabular-nums">
+                      {data.count} file{data.count !== 1 ? "s" : ""}
+                    </p>
+                    <p className="text-[10px] text-[var(--color-text-muted)] tabular-nums">
+                      {formatBytes(data.size)}
+                    </p>
                   </div>
                 </button>
               );
@@ -134,7 +218,7 @@ export function MobileVaultHeader({ files, quotaInfo, repos, isUnlocked, onUnloc
                   "flex items-start gap-3 p-3 rounded-xl border text-left transition-all duration-150 active:scale-[0.97]",
                   activeCategory === "File"
                     ? "border-[var(--color-accent)]/30 bg-[var(--color-accent)]/5"
-                    : "border-[var(--color-border)] bg-gradient-to-br from-gray-100 to-gray-50 dark:from-gray-500/15 dark:to-gray-500/5"
+                    : "border-[var(--color-border)] bg-gradient-to-br from-gray-100 to-gray-50 dark:from-gray-500/15 dark:to-gray-500/5",
                 )}
               >
                 <div className="flex items-center justify-center h-9 w-9 rounded-xl bg-white/80 dark:bg-white/10 flex-shrink-0">
@@ -142,8 +226,12 @@ export function MobileVaultHeader({ files, quotaInfo, repos, isUnlocked, onUnloc
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs font-semibold truncate">Other</p>
-                  <p className="text-[10px] text-[var(--color-text-muted)] tabular-nums">{otherCount.count} file{otherCount.count !== 1 ? "s" : ""}</p>
-                  <p className="text-[10px] text-[var(--color-text-muted)] tabular-nums">{formatBytes(otherCount.size)}</p>
+                  <p className="text-[10px] text-[var(--color-text-muted)] tabular-nums">
+                    {otherCount.count} file{otherCount.count !== 1 ? "s" : ""}
+                  </p>
+                  <p className="text-[10px] text-[var(--color-text-muted)] tabular-nums">
+                    {formatBytes(otherCount.size)}
+                  </p>
                 </div>
               </button>
             )}

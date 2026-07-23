@@ -18,23 +18,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Crown,
-  Plus,
-  Trash2,
-  Check,
-  X,
-  Loader2,
-  ChevronDown,
-} from "@/lib/icons";
+import { Crown, Plus, Trash2, Check, X, Loader2, ChevronDown } from "@/lib/icons";
 import { PricingSkeleton } from "@/components/admin/skeletons";
 
 const BYTES_PER_GB = 1024 * 1024 * 1024;
 const BYTES_PER_MB = 1024 * 1024;
 
 function bytesToMBOrGB(bytes: number): { value: number; unit: "MB" | "GB" | "TB" } {
-  if (bytes >= 1024 * BYTES_PER_GB) return { value: Math.round((bytes / (1024 * BYTES_PER_GB)) * 100) / 100, unit: "TB" };
-  if (bytes >= BYTES_PER_GB) return { value: Math.round((bytes / BYTES_PER_GB) * 100) / 100, unit: "GB" };
+  if (bytes >= 1024 * BYTES_PER_GB)
+    return { value: Math.round((bytes / (1024 * BYTES_PER_GB)) * 100) / 100, unit: "TB" };
+  if (bytes >= BYTES_PER_GB)
+    return { value: Math.round((bytes / BYTES_PER_GB) * 100) / 100, unit: "GB" };
   return { value: Math.round((bytes / BYTES_PER_MB) * 100) / 100, unit: "MB" };
 }
 
@@ -168,19 +162,23 @@ export default function AdminPricingPage() {
         const features = [...p.features];
         features[index] = { ...features[index], ...updates };
         return { ...p, features };
-      })
+      }),
     );
   };
 
   const addFeature = (planId: string) => {
     setPlans((prev) =>
-      prev.map((p) => (p.id === planId ? { ...p, features: [...p.features, { text: "", included: true }] } : p))
+      prev.map((p) =>
+        p.id === planId ? { ...p, features: [...p.features, { text: "", included: true }] } : p,
+      ),
     );
   };
 
   const removeFeature = (planId: string, index: number) => {
     setPlans((prev) =>
-      prev.map((p) => (p.id === planId ? { ...p, features: p.features.filter((_, i) => i !== index) } : p))
+      prev.map((p) =>
+        p.id === planId ? { ...p, features: p.features.filter((_, i) => i !== index) } : p,
+      ),
     );
   };
 
@@ -250,7 +248,9 @@ export default function AdminPricingPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <h2 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">Plan configuration</h2>
+          <h2 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
+            Plan configuration
+          </h2>
           <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
             Changes reflect across the entire app including landing page pricing.
           </p>
@@ -277,7 +277,7 @@ export default function AdminPricingPage() {
                 key={plan.id}
                 className={cn(
                   "panel overflow-hidden",
-                  plan.highlight && "ring-1 ring-[var(--color-accent)]/30"
+                  plan.highlight && "ring-1 ring-[var(--color-accent)]/30",
                 )}
               >
                 {/* Plan header */}
@@ -286,20 +286,33 @@ export default function AdminPricingPage() {
                   tabIndex={0}
                   aria-expanded={isExpanded}
                   onClick={() => setExpandedPlan(isExpanded ? null : plan.id)}
-                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setExpandedPlan(isExpanded ? null : plan.id); } }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setExpandedPlan(isExpanded ? null : plan.id);
+                    }
+                  }}
                   className="flex w-full cursor-pointer items-center justify-between gap-3 px-5 py-4 transition-colors hover:bg-[var(--color-surface-1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--color-accent)]/40"
                 >
                   <div className="flex min-w-0 items-center gap-3">
-                    <div className={cn(
-                      "flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl",
-                      plan.highlight ? "bg-[var(--color-accent)]/10 text-[var(--color-accent)]" : "bg-[var(--color-surface-2)] text-[var(--color-text-muted)]"
-                    )}>
+                    <div
+                      className={cn(
+                        "flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl",
+                        plan.highlight
+                          ? "bg-[var(--color-accent)]/10 text-[var(--color-accent)]"
+                          : "bg-[var(--color-surface-2)] text-[var(--color-text-muted)]",
+                      )}
+                    >
                       <Crown className="h-4 w-4" />
                     </div>
                     <div className="min-w-0 text-left">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-semibold text-[var(--color-text)]">{plan.name}</span>
-                        <span className="font-mono text-[10px] text-[var(--color-text-muted)]">{plan.id}</span>
+                        <span className="text-sm font-semibold text-[var(--color-text)]">
+                          {plan.name}
+                        </span>
+                        <span className="font-mono text-[10px] text-[var(--color-text-muted)]">
+                          {plan.id}
+                        </span>
                         {plan.badge && (
                           <span className="rounded-full bg-[var(--color-accent)]/10 px-1.5 py-0.5 text-[10px] font-semibold text-[var(--color-accent)]">
                             {plan.badge}
@@ -307,13 +320,17 @@ export default function AdminPricingPage() {
                         )}
                       </div>
                       <p className="truncate text-xs text-[var(--color-text-muted)] tabular-nums">
-                        ${plan.monthly_price}/mo &middot; {plan.storage_display} storage &middot; {plan.max_file_display} max file
+                        ${plan.monthly_price}/mo &middot; {plan.storage_display} storage &middot;{" "}
+                        {plan.max_file_display} max file
                       </p>
                     </div>
                   </div>
                   <div className="flex flex-shrink-0 items-center gap-1">
                     {plan.id !== "free" && (
-                      <span onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+                      <span
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => e.stopPropagation()}
+                      >
                         <IconButton
                           icon={Trash2}
                           label="Delete plan"
@@ -326,7 +343,7 @@ export default function AdminPricingPage() {
                     <ChevronDown
                       className={cn(
                         "h-4 w-4 text-[var(--color-text-muted)] transition-transform",
-                        isExpanded && "rotate-180"
+                        isExpanded && "rotate-180",
                       )}
                     />
                   </div>
@@ -344,18 +361,42 @@ export default function AdminPricingPage() {
                         onChange={(e) => {
                           const newId = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "");
                           const oldId = plan.id;
-                          setPlans((prev) => prev.map((p) => (p.id === oldId ? { ...p, id: newId } : p)));
-                          setStorageInputs((prev) => { const v = prev[oldId]; const next = { ...prev, [newId]: v }; delete next[oldId]; return next; });
-                          setStorageUnits((prev) => { const v = prev[oldId]; const next = { ...prev, [newId]: v }; delete next[oldId]; return next; });
-                          setFileSizeInputs((prev) => { const v = prev[oldId]; const next = { ...prev, [newId]: v }; delete next[oldId]; return next; });
-                          setFileSizeUnits((prev) => { const v = prev[oldId]; const next = { ...prev, [newId]: v }; delete next[oldId]; return next; });
+                          setPlans((prev) =>
+                            prev.map((p) => (p.id === oldId ? { ...p, id: newId } : p)),
+                          );
+                          setStorageInputs((prev) => {
+                            const v = prev[oldId];
+                            const next = { ...prev, [newId]: v };
+                            delete next[oldId];
+                            return next;
+                          });
+                          setStorageUnits((prev) => {
+                            const v = prev[oldId];
+                            const next = { ...prev, [newId]: v };
+                            delete next[oldId];
+                            return next;
+                          });
+                          setFileSizeInputs((prev) => {
+                            const v = prev[oldId];
+                            const next = { ...prev, [newId]: v };
+                            delete next[oldId];
+                            return next;
+                          });
+                          setFileSizeUnits((prev) => {
+                            const v = prev[oldId];
+                            const next = { ...prev, [newId]: v };
+                            delete next[oldId];
+                            return next;
+                          });
                           if (expandedPlan === oldId) setExpandedPlan(newId);
                         }}
                         disabled={plan.id === "free"}
                         className={cn(fieldClass, "font-mono disabled:opacity-50")}
                         placeholder="e.g. enterprise"
                       />
-                      <p className="mt-0.5 text-[10px] text-[var(--color-text-muted)]">Lowercase, alphanumeric, hyphens only</p>
+                      <p className="mt-0.5 text-[10px] text-[var(--color-text-muted)]">
+                        Lowercase, alphanumeric, hyphens only
+                      </p>
                     </div>
 
                     {/* Basic info */}
@@ -376,7 +417,9 @@ export default function AdminPricingPage() {
                           min="0"
                           step="0.01"
                           value={plan.monthly_price}
-                          onChange={(e) => updatePlan(plan.id, { monthly_price: parseFloat(e.target.value) || 0 })}
+                          onChange={(e) =>
+                            updatePlan(plan.id, { monthly_price: parseFloat(e.target.value) || 0 })
+                          }
                           className={cn(fieldClass, "tabular-nums")}
                         />
                       </div>
@@ -387,7 +430,9 @@ export default function AdminPricingPage() {
                           min="0"
                           step="0.01"
                           value={plan.annual_price}
-                          onChange={(e) => updatePlan(plan.id, { annual_price: parseFloat(e.target.value) || 0 })}
+                          onChange={(e) =>
+                            updatePlan(plan.id, { annual_price: parseFloat(e.target.value) || 0 })
+                          }
                           className={cn(fieldClass, "tabular-nums")}
                         />
                       </div>
@@ -397,7 +442,9 @@ export default function AdminPricingPage() {
                           type="number"
                           min="0"
                           value={plan.sort_order}
-                          onChange={(e) => updatePlan(plan.id, { sort_order: parseInt(e.target.value) || 0 })}
+                          onChange={(e) =>
+                            updatePlan(plan.id, { sort_order: parseInt(e.target.value) || 0 })
+                          }
                           className={cn(fieldClass, "tabular-nums")}
                         />
                       </div>
@@ -421,25 +468,37 @@ export default function AdminPricingPage() {
                           label="Storage"
                           value={storageInputs[plan.id] ?? ""}
                           unit={storageUnits[plan.id] || "GB"}
-                          onValueChange={(v) => updateStorageForPlan(plan.id, v, storageUnits[plan.id] || "GB")}
-                          onUnitChange={(u) => updateStorageForPlan(plan.id, storageInputs[plan.id] || "0", u)}
+                          onValueChange={(v) =>
+                            updateStorageForPlan(plan.id, v, storageUnits[plan.id] || "GB")
+                          }
+                          onUnitChange={(u) =>
+                            updateStorageForPlan(plan.id, storageInputs[plan.id] || "0", u)
+                          }
                           unitAriaLabel="Storage unit"
                         />
                         <UnitInputField
                           label="Max file size"
                           value={fileSizeInputs[plan.id] ?? ""}
                           unit={fileSizeUnits[plan.id] || "GB"}
-                          onValueChange={(v) => updateFileSizeForPlan(plan.id, v, fileSizeUnits[plan.id] || "GB")}
-                          onUnitChange={(u) => updateFileSizeForPlan(plan.id, fileSizeInputs[plan.id] || "0", u)}
+                          onValueChange={(v) =>
+                            updateFileSizeForPlan(plan.id, v, fileSizeUnits[plan.id] || "GB")
+                          }
+                          onUnitChange={(u) =>
+                            updateFileSizeForPlan(plan.id, fileSizeInputs[plan.id] || "0", u)
+                          }
                           unitAriaLabel="File size unit"
                         />
                         <div>
-                          <label className="text-xs text-[var(--color-text-muted)]">Concurrent uploads</label>
+                          <label className="text-xs text-[var(--color-text-muted)]">
+                            Concurrent uploads
+                          </label>
                           <input
                             type="number"
                             min="1"
                             value={plan.max_concurrent_uploads}
-                            onChange={(e) => updateConcurrentForPlan(plan.id, parseInt(e.target.value) || 1)}
+                            onChange={(e) =>
+                              updateConcurrentForPlan(plan.id, parseInt(e.target.value) || 1)
+                            }
                             className={cn(fieldClass, "tabular-nums")}
                           />
                         </div>
@@ -451,9 +510,13 @@ export default function AdminPricingPage() {
                       <label className="flex cursor-pointer items-center gap-2">
                         <Checkbox
                           checked={plan.highlight}
-                          onCheckedChange={(checked) => updatePlan(plan.id, { highlight: checked === true })}
+                          onCheckedChange={(checked) =>
+                            updatePlan(plan.id, { highlight: checked === true })
+                          }
                         />
-                        <span className="text-xs text-[var(--color-text-secondary)]">Highlighted</span>
+                        <span className="text-xs text-[var(--color-text-secondary)]">
+                          Highlighted
+                        </span>
                       </label>
                       <div className="flex items-center gap-2">
                         <label className="text-xs text-[var(--color-text-muted)]">Badge:</label>
@@ -466,11 +529,15 @@ export default function AdminPricingPage() {
                         />
                       </div>
                       <div className="flex items-center gap-2">
-                        <label className="text-xs text-[var(--color-text-muted)]">Social proof:</label>
+                        <label className="text-xs text-[var(--color-text-muted)]">
+                          Social proof:
+                        </label>
                         <input
                           type="text"
                           value={plan.social_proof ?? ""}
-                          onChange={(e) => updatePlan(plan.id, { social_proof: e.target.value || null })}
+                          onChange={(e) =>
+                            updatePlan(plan.id, { social_proof: e.target.value || null })
+                          }
                           className="w-48 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-2 py-1 text-xs outline-none focus:border-[var(--color-accent)]/40 focus:ring-2 focus:ring-[var(--color-accent)]/10"
                           placeholder="e.g. Chosen by 1,000+ users"
                         />
@@ -491,16 +558,26 @@ export default function AdminPricingPage() {
                           <div key={i} className="flex items-center gap-2">
                             <button
                               type="button"
-                              onClick={() => updateFeature(plan.id, i, { included: !feature.included })}
-                              aria-label={feature.included ? "Mark feature as not included" : "Mark feature as included"}
+                              onClick={() =>
+                                updateFeature(plan.id, i, { included: !feature.included })
+                              }
+                              aria-label={
+                                feature.included
+                                  ? "Mark feature as not included"
+                                  : "Mark feature as included"
+                              }
                               className={cn(
                                 "flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40",
                                 feature.included
                                   ? "border-[var(--color-accent)]/30 bg-[var(--color-accent)]/10 text-[var(--color-accent)]"
-                                  : "border-[var(--color-border)] bg-[var(--color-surface-2)] text-[var(--color-text-muted)]"
+                                  : "border-[var(--color-border)] bg-[var(--color-surface-2)] text-[var(--color-text-muted)]",
                               )}
                             >
-                              {feature.included ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                              {feature.included ? (
+                                <Check className="h-3 w-3" />
+                              ) : (
+                                <X className="h-3 w-3" />
+                              )}
                             </button>
                             <input
                               type="text"
@@ -520,7 +597,9 @@ export default function AdminPricingPage() {
                           </div>
                         ))}
                         {plan.features.length === 0 && (
-                          <p className="text-xs text-[var(--color-text-muted)]">No features yet. Add one to highlight this plan.</p>
+                          <p className="text-xs text-[var(--color-text-muted)]">
+                            No features yet. Add one to highlight this plan.
+                          </p>
                         )}
                       </div>
                     </div>
@@ -533,7 +612,9 @@ export default function AdminPricingPage() {
 
       <ConfirmDialog
         open={!!deleteTarget}
-        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
         destructive
         title="Delete plan?"
         description={

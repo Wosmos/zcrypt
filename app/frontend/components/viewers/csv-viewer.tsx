@@ -67,14 +67,14 @@ export function CsvViewer({ blob, filename }: { blob: Blob; filename: string }) 
       const slice = truncatedBytes ? b.slice(0, MAX_BYTES) : b;
       return slice.text();
     },
-    [truncatedBytes]
+    [truncatedBytes],
   );
   const { value: text, error } = useDecodedBlob(blob, decode, "Could not read this file.");
 
   const delimiter = filename.toLowerCase().endsWith(".tsv") ? "\t" : ",";
   const rows = useMemo(
     () => (text === null ? [] : parseDelimited(text, delimiter)),
-    [text, delimiter]
+    [text, delimiter],
   );
   const truncatedRows = rows.length > MAX_ROWS;
   const shown = truncatedRows ? rows.slice(0, MAX_ROWS) : rows;
@@ -114,14 +114,9 @@ export function CsvViewer({ blob, filename }: { blob: Blob; filename: string }) 
           <tbody>
             {body.map((cells, r) => (
               <tr key={r} className="even:bg-[var(--color-surface-1)]/40">
-                <td className="px-3 py-1.5 text-[var(--color-text-muted)] tabular-nums">
-                  {r + 1}
-                </td>
+                <td className="px-3 py-1.5 text-[var(--color-text-muted)] tabular-nums">{r + 1}</td>
                 {cells.map((cell, c) => (
-                  <td
-                    key={c}
-                    className="px-3 py-1.5 align-top text-[var(--color-text-secondary)]"
-                  >
+                  <td key={c} className="px-3 py-1.5 align-top text-[var(--color-text-secondary)]">
                     {cell}
                   </td>
                 ))}

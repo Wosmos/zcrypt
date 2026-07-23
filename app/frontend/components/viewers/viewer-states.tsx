@@ -24,7 +24,12 @@ export function ViewerError({
   children?: React.ReactNode;
 }) {
   return (
-    <div className={cn("flex h-full flex-col items-center justify-center text-[var(--color-text-muted)]", gap)}>
+    <div
+      className={cn(
+        "flex h-full flex-col items-center justify-center text-[var(--color-text-muted)]",
+        gap,
+      )}
+    >
       <AlertCircle className="h-8 w-8 opacity-50" />
       <p className="text-sm">{message}</p>
       {children}

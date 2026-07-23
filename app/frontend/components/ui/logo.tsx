@@ -196,19 +196,19 @@ type LogoSize =
   | "9xl";
 
 const sizeConfig: Record<LogoSize, { icon: number; text: string; dot: string; gap: string }> = {
-  xs:   { icon: 24,  text: "text-xs",   dot: "text-[8px]",  gap: "gap-1.5" },
-  sm:   { icon: 28,  text: "text-sm",   dot: "text-[9px]",  gap: "gap-2" },
-  md:   { icon: 36,  text: "text-base", dot: "text-[10px]", gap: "gap-2.5" },
-  lg:   { icon: 44,  text: "text-xl",   dot: "text-xs",     gap: "gap-3" },
-  "xl": { icon: 56,  text: "text-3xl",  dot: "text-sm",     gap: "gap-3.5" },
-  "2xl":{ icon: 72,  text: "text-4xl",  dot: "text-base",   gap: "gap-4" },
-  "3xl":{ icon: 96,  text: "text-5xl",  dot: "text-lg",     gap: "gap-5" },
-  "4xl":{ icon: 120, text: "text-6xl",  dot: "text-xl",     gap: "gap-5" },
-  "5xl":{ icon: 144, text: "text-7xl",  dot: "text-xl",     gap: "gap-6" },
-  "6xl":{ icon: 176, text: "text-8xl",  dot: "text-2xl",    gap: "gap-6" },
-  "7xl":{ icon: 208, text: "text-9xl",  dot: "text-2xl",    gap: "gap-7" },
-  "8xl":{ icon: 232, text: "text-9xl",  dot: "text-3xl",    gap: "gap-7" },
-  "9xl":{ icon: 256, text: "text-9xl",  dot: "text-3xl",    gap: "gap-8" },
+  xs: { icon: 24, text: "text-xs", dot: "text-[8px]", gap: "gap-1.5" },
+  sm: { icon: 28, text: "text-sm", dot: "text-[9px]", gap: "gap-2" },
+  md: { icon: 36, text: "text-base", dot: "text-[10px]", gap: "gap-2.5" },
+  lg: { icon: 44, text: "text-xl", dot: "text-xs", gap: "gap-3" },
+  xl: { icon: 56, text: "text-3xl", dot: "text-sm", gap: "gap-3.5" },
+  "2xl": { icon: 72, text: "text-4xl", dot: "text-base", gap: "gap-4" },
+  "3xl": { icon: 96, text: "text-5xl", dot: "text-lg", gap: "gap-5" },
+  "4xl": { icon: 120, text: "text-6xl", dot: "text-xl", gap: "gap-5" },
+  "5xl": { icon: 144, text: "text-7xl", dot: "text-xl", gap: "gap-6" },
+  "6xl": { icon: 176, text: "text-8xl", dot: "text-2xl", gap: "gap-6" },
+  "7xl": { icon: 208, text: "text-9xl", dot: "text-2xl", gap: "gap-7" },
+  "8xl": { icon: 232, text: "text-9xl", dot: "text-3xl", gap: "gap-7" },
+  "9xl": { icon: 256, text: "text-9xl", dot: "text-3xl", gap: "gap-8" },
 };
 
 interface LogoProps {
@@ -239,7 +239,12 @@ export function Logo({
             <span className="text-[#00d5e4]">z</span>
             <span className="text-[var(--color-text)]">crypt</span>
             {showDomain && (
-              <span className={cn(cfg.dot, "text-[var(--color-text-muted)] ml-0.5 font-semibold tracking-wider")}>
+              <span
+                className={cn(
+                  cfg.dot,
+                  "text-[var(--color-text-muted)] ml-0.5 font-semibold tracking-wider",
+                )}
+              >
                 .cloud
               </span>
             )}
