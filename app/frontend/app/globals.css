@@ -1,6 +1,16 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* Phased v4 migration: keep the existing JS config (theme colors mapped to CSS
+   vars, custom borderRadius scale, screens, accordion keyframes, cornerShape
+   plugin) running under the v4 Rust engine. A follow-up PR ports it to
+   CSS-first @theme and drops this bridge. */
+@config "../tailwind.config.js";
+
+/* Class-based dark mode. v4 defaults to prefers-color-scheme; this restores the
+   v3 `.dark` class strategy the app relies on — 547 `dark:` utilities plus the
+   `.dark { --color-* }` variable overrides below. */
+@custom-variant dark (&:where(.dark, .dark *));
 
 @layer base {
   :root {

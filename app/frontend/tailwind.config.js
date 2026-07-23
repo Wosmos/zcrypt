@@ -128,5 +128,8 @@ module.exports = {
   		}
   	}
   },
-  plugins: [cornerShape, require("tailwindcss-animate")],
+  // tailwindcss-animate is v3-only; its utilities (animate-in/out, fade/zoom/
+  // slide) now come from tw-animate-css, imported in globals.css. cornerShape
+  // (custom) stays — its addUtilities/matchUtilities API is supported in v4.
+  plugins: [cornerShape],
 };
