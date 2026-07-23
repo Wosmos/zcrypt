@@ -8,9 +8,7 @@ export function OrganizationJsonLd() {
     description:
       "Free, open-source, zero-knowledge encrypted cloud drive. Organize files in real folders, preview them in the browser, and lock individual folders with their own passwords — all encrypted on your device with AES-256-GCM and stored in your own GitHub, GitLab, Hugging Face, or Telegram account. Only you can read them.",
     foundingDate: "2025",
-    sameAs: [
-      "https://github.com/zcrypt",
-    ],
+    sameAs: ["https://github.com/zcrypt"],
     contactPoint: {
       "@type": "ContactPoint",
       contactType: "customer support",
@@ -19,10 +17,7 @@ export function OrganizationJsonLd() {
   };
 
   return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
-    />
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }} />
   );
 }
 
@@ -66,10 +61,7 @@ export function PersonJsonLd() {
   };
 
   return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
-    />
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }} />
   );
 }
 
@@ -107,10 +99,7 @@ export function SoftwareApplicationJsonLd() {
   };
 
   return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
-    />
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }} />
   );
 }
 
@@ -132,18 +121,11 @@ export function WebSiteJsonLd() {
   };
 
   return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
-    />
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }} />
   );
 }
 
-export function FAQJsonLd({
-  faqs,
-}: {
-  faqs: { q: string; a: string }[];
-}) {
+export function FAQJsonLd({ faqs }: { faqs: { q: string; a: string }[] }) {
   const data = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
@@ -158,10 +140,7 @@ export function FAQJsonLd({
   };
 
   return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
-    />
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }} />
   );
 }
 
@@ -180,8 +159,7 @@ export function TUIApplicationJsonLd() {
       price: "0",
       priceCurrency: "USD",
       name: "Free",
-      description:
-        "Free and open source terminal client for zcrypt encrypted storage",
+      description: "Free and open source terminal client for zcrypt encrypted storage",
     },
     featureList: [
       "Vim-style keyboard navigation",
@@ -203,18 +181,11 @@ export function TUIApplicationJsonLd() {
   };
 
   return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
-    />
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }} />
   );
 }
 
-export function BreadcrumbJsonLd({
-  items,
-}: {
-  items: { name: string; url: string }[];
-}) {
+export function BreadcrumbJsonLd({ items }: { items: { name: string; url: string }[] }) {
   const data = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
@@ -227,10 +198,7 @@ export function BreadcrumbJsonLd({
   };
 
   return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
-    />
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }} />
   );
 }
 
@@ -282,9 +250,6 @@ export function TechArticleJsonLd({
   };
 
   return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
-    />
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }} />
   );
 }
