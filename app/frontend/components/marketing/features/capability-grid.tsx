@@ -58,7 +58,9 @@ export function CapabilityGrid({
         {(heading || subheading) && (
           <div className="mx-auto mb-12 max-w-2xl text-center">
             {heading && (
-              <h2 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">{heading}</h2>
+              <h2 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
+                {heading}
+              </h2>
             )}
             {subheading && <p className="mt-3 text-[var(--color-text-secondary)]">{subheading}</p>}
           </div>

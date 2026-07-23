@@ -85,7 +85,7 @@ export function FolderShareModal({ folder, open, onOpenChange, files }: FolderSh
 
   const folderFiles = useMemo(
     () => (subtreeIds ? files.filter((f) => f.folder_id && subtreeIds.has(f.folder_id)) : []),
-    [subtreeIds, files]
+    [subtreeIds, files],
   );
 
   const linksQuery = useQuery({
@@ -108,18 +108,18 @@ export function FolderShareModal({ folder, open, onOpenChange, files }: FolderSh
           password: usePassword ? password : undefined,
           expiresHours: expiryHours || undefined,
           maxDownloads: maxDownloads || undefined,
-        }
+        },
       );
       setLink(url);
       if (nestingIncomplete) {
         toast.error(
-          "Link created, but the folder layout couldn't be read — its download will be flat. Recreate the link to include the folder structure."
+          "Link created, but the folder layout couldn't be read — its download will be flat. Recreate the link to include the folder structure.",
         );
       } else {
         toast.success(
           skipped > 0
             ? `Folder link created — ${shared} file${shared === 1 ? "" : "s"} shared, ${skipped} skipped`
-            : `Folder link created — ${shared} file${shared === 1 ? "" : "s"}`
+            : `Folder link created — ${shared} file${shared === 1 ? "" : "s"}`,
         );
       }
       void queryClient.invalidateQueries({ queryKey: qk.folderShares(folder.id) });
@@ -156,12 +156,13 @@ export function FolderShareModal({ folder, open, onOpenChange, files }: FolderSh
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FolderOpen className="h-4 w-4 text-[var(--color-accent)]" />
-            <span className="truncate">Share “{folder?.name ? midTrunc(folder.name, 18, 8) : folder?.name}”</span>
+            <span className="truncate">
+              Share “{folder?.name ? midTrunc(folder.name, 18, 8) : folder?.name}”
+            </span>
           </DialogTitle>
           <DialogDescription className="text-[var(--color-text-secondary)]">
-            Create a public link to this folder. Anyone with the link can open and
-            download its files — the decryption key stays in the link and never
-            reaches the server.
+            Create a public link to this folder. Anyone with the link can open and download its
+            files — the decryption key stays in the link and never reaches the server.
           </DialogDescription>
         </DialogHeader>
 
@@ -216,27 +217,41 @@ export function FolderShareModal({ folder, open, onOpenChange, files }: FolderSh
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <label className="text-xs font-medium text-[var(--color-text-muted)]">Expires</label>
-                <Select value={String(expiryHours)} onValueChange={(v) => setExpiryHours(Number(v))}>
+                <label className="text-xs font-medium text-[var(--color-text-muted)]">
+                  Expires
+                </label>
+                <Select
+                  value={String(expiryHours)}
+                  onValueChange={(v) => setExpiryHours(Number(v))}
+                >
                   <SelectTrigger className="h-10 rounded-xl border-[var(--color-border)] bg-[var(--color-surface)] text-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)]">
                     {EXPIRY_OPTIONS.map((o) => (
-                      <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>
+                      <SelectItem key={o.value} value={String(o.value)}>
+                        {o.label}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-medium text-[var(--color-text-muted)]">Max downloads</label>
-                <Select value={String(maxDownloads)} onValueChange={(v) => setMaxDownloads(Number(v))}>
+                <label className="text-xs font-medium text-[var(--color-text-muted)]">
+                  Max downloads
+                </label>
+                <Select
+                  value={String(maxDownloads)}
+                  onValueChange={(v) => setMaxDownloads(Number(v))}
+                >
                   <SelectTrigger className="h-10 rounded-xl border-[var(--color-border)] bg-[var(--color-surface)] text-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)]">
                     {DOWNLOAD_LIMIT_OPTIONS.map((o) => (
-                      <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>
+                      <SelectItem key={o.value} value={String(o.value)}>
+                        {o.label}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -244,7 +259,10 @@ export function FolderShareModal({ folder, open, onOpenChange, files }: FolderSh
             </div>
 
             {error && (
-              <p role="alert" className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-400">
+              <p
+                role="alert"
+                className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-400"
+              >
                 {error}
               </p>
             )}
@@ -256,7 +274,10 @@ export function FolderShareModal({ folder, open, onOpenChange, files }: FolderSh
                 </p>
                 <ul className="space-y-1">
                   {existing.map((l: FolderShareLink) => (
-                    <li key={l.id} className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 hover:bg-[var(--color-surface-1)]">
+                    <li
+                      key={l.id}
+                      className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 hover:bg-[var(--color-surface-1)]"
+                    >
                       <span className="min-w-0 truncate text-xs text-[var(--color-text-secondary)]">
                         {l.file_count} file{l.file_count === 1 ? "" : "s"}
                         {l.has_password && " · password"}
@@ -289,9 +310,18 @@ export function FolderShareModal({ folder, open, onOpenChange, files }: FolderSh
               </Button>
               <Button
                 onClick={handleGenerate}
-                disabled={creating || subtreeIds === null || folderFiles.length === 0 || (usePassword && !password)}
+                disabled={
+                  creating ||
+                  subtreeIds === null ||
+                  folderFiles.length === 0 ||
+                  (usePassword && !password)
+                }
               >
-                {creating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Link2 className="h-3.5 w-3.5" />}
+                {creating ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Link2 className="h-3.5 w-3.5" />
+                )}
                 {creating ? "Creating…" : "Create link"}
               </Button>
             </>

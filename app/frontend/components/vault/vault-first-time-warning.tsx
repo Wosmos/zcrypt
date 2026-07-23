@@ -106,9 +106,9 @@ export function VaultFirstTimeWarning({
         {/* The warning itself */}
         <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3.5">
           <p className="text-sm leading-relaxed text-[var(--color-text-secondary)]">
-            Only you can unlock this vault. Your passphrase never leaves this device
-            and is never sent to us — so if you lose it, your files are gone for good.
-            No reset, no recovery, no back door. That&apos;s the point.
+            Only you can unlock this vault. Your passphrase never leaves this device and is never
+            sent to us — so if you lose it, your files are gone for good. No reset, no recovery, no
+            back door. That&apos;s the point.
           </p>
           <p className="text-sm leading-relaxed text-[var(--color-text-secondary)] mt-2">
             Write it down somewhere safe, or store it in a password manager, now.
@@ -148,8 +148,8 @@ export function VaultFirstTimeWarning({
               onCheckedChange={(checked) => setAcknowledged(checked === true)}
             />
             <span className="text-xs leading-relaxed text-[var(--color-text-secondary)]">
-              I understand my passphrase can&apos;t be recovered, and no one — not
-              even zcrypt — can unlock my files without it.
+              I understand my passphrase can&apos;t be recovered, and no one — not even zcrypt — can
+              unlock my files without it.
             </span>
           </label>
 
@@ -172,6 +172,6 @@ export function VaultFirstTimeWarning({
         </form>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }

@@ -87,7 +87,7 @@ export function useTouchDragMove({
       if (dest && cbRef.current.canDropOn(s.item!, dest)) setOverTarget(dest);
       else setOverTarget(undefined);
     },
-    [setOverTarget]
+    [setOverTarget],
   );
 
   // ── edge auto-scroll (runs while dragging near a scroller edge) ──────────────
@@ -243,7 +243,7 @@ export function useTouchDragMove({
       document.addEventListener("touchcancel", onEndRef.current);
       document.addEventListener("contextmenu", onCtxRef.current, true);
     },
-    [teardown]
+    [teardown],
   );
 
   // Clean up listeners + ghost if the component unmounts mid-press.

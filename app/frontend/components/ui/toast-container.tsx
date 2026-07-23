@@ -25,17 +25,13 @@ const MAX = 5; // hard cap on rendered cards (mirrors the store cap)
 const DUR = 4000; // must mirror the store's auto-dismiss timer
 
 // SSR-safe layout effect (avoids the useLayoutEffect-on-server warning).
-const useIsoLayoutEffect =
-  typeof window !== "undefined" ? useLayoutEffect : useEffect;
+const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 // Per-type treatment: a base colour drives the card's tinted gradient, border,
 // chip and drain bar. Colours are theme tokens (light-safe in light mode, bright
 // in dark). `info` uses the app accent so it stays on-brand. `assertive` routes
 // the message to the assertive vs polite screen-reader announcer.
-const TYPE: Record<
-  ToastType,
-  { color: string; Icon: typeof CheckCircle2; assertive: boolean }
-> = {
+const TYPE: Record<ToastType, { color: string; Icon: typeof CheckCircle2; assertive: boolean }> = {
   success: { color: "var(--toast-success)", Icon: CheckCircle2, assertive: false },
   error: { color: "var(--toast-error)", Icon: AlertCircle, assertive: true },
   info: { color: "var(--color-accent)", Icon: Info, assertive: false },
@@ -131,7 +127,7 @@ export function ToastContainer() {
             // Mobile: near-full-width, pinned near the top clear of the notch.
             "fixed top-[calc(env(safe-area-inset-top,0px)+0.75rem)] inset-x-3 z-[100] flex flex-col gap-2",
             // Desktop: compact deck in the top-right.
-            "sm:inset-x-auto sm:right-6 sm:top-5 sm:w-[380px]"
+            "sm:inset-x-auto sm:right-6 sm:top-5 sm:w-[380px]",
           )}
           onMouseEnter={() => setHovered(true)}
           onMouseLeave={() => setHovered(false)}
@@ -166,9 +162,7 @@ export function ToastContainer() {
               if (i === 0) {
                 transform = `translateY(${TOP_ROOM}px)`;
               } else if (expanded) {
-                const y =
-                  TOP_ROOM +
-                  ordered.slice(0, i).reduce((s, o) => s + h(o.id) + GAP, 0);
+                const y = TOP_ROOM + ordered.slice(0, i).reduce((s, o) => s + h(o.id) + GAP, 0);
                 transform = `translateY(${y}px)`;
               } else {
                 const y = TOP_ROOM - i * PEEK_Y;

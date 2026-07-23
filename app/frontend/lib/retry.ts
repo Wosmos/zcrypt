@@ -25,7 +25,7 @@ export function isTransientError(err: unknown): boolean {
 
 export async function retryTransient<T>(
   fn: () => Promise<T>,
-  opts?: { signal?: AbortSignal; maxRetries?: number }
+  opts?: { signal?: AbortSignal; maxRetries?: number },
 ): Promise<T> {
   const maxRetries = opts?.maxRetries ?? 5;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {

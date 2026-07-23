@@ -18,9 +18,7 @@ function Stars({ rating }: { rating: number }) {
           key={star}
           className={cn(
             "h-3.5 w-3.5",
-            star <= rating
-              ? "fill-amber-400 text-amber-400"
-              : "text-[var(--color-border-hover)]"
+            star <= rating ? "fill-amber-400 text-amber-400" : "text-[var(--color-border-hover)]",
           )}
         />
       ))}
@@ -53,9 +51,8 @@ export function FeedbackList() {
   const total = data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  const avgRating = feedback.length > 0
-    ? feedback.reduce((sum, f) => sum + f.rating, 0) / feedback.length
-    : 0;
+  const avgRating =
+    feedback.length > 0 ? feedback.reduce((sum, f) => sum + f.rating, 0) / feedback.length : 0;
 
   return (
     <div className="panel overflow-hidden">
@@ -65,12 +62,18 @@ export function FeedbackList() {
           <MessageSquare className="h-4 w-4 text-amber-500" />
         </div>
         <div>
-          <h3 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">User feedback</h3>
+          <h3 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
+            User feedback
+          </h3>
           <p className="text-xs text-[var(--color-text-muted)]">
             <span className="tabular-nums">{total}</span> response{total !== 1 ? "s" : ""}
             {avgRating > 0 && (
               <span className="ml-2">
-                Avg: <span className="font-semibold text-amber-500 tabular-nums">{avgRating.toFixed(1)}</span>/5
+                Avg:{" "}
+                <span className="font-semibold text-amber-500 tabular-nums">
+                  {avgRating.toFixed(1)}
+                </span>
+                /5
               </span>
             )}
           </p>
@@ -128,7 +131,9 @@ export function FeedbackList() {
                     </td>
                     <td className="max-w-xs px-4 py-3.5">
                       <p className="truncate text-sm text-[var(--color-text-secondary)]">
-                        {f.message || <span className="italic text-[var(--color-text-muted)]">No message</span>}
+                        {f.message || (
+                          <span className="italic text-[var(--color-text-muted)]">No message</span>
+                        )}
                       </p>
                     </td>
                     <td className="whitespace-nowrap px-4 py-3.5 text-right text-xs text-[var(--color-text-muted)] tabular-nums">
@@ -146,7 +151,9 @@ export function FeedbackList() {
               <div key={f.id} className="space-y-2 p-4">
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-[var(--color-text)]">{f.username}</p>
+                    <p className="truncate text-sm font-medium text-[var(--color-text)]">
+                      {f.username}
+                    </p>
                     <p className="truncate text-xs text-[var(--color-text-muted)]">{f.email}</p>
                   </div>
                   <div className="flex flex-shrink-0 flex-col items-end gap-1">
@@ -157,7 +164,9 @@ export function FeedbackList() {
                   </div>
                 </div>
                 {f.message && (
-                  <p className="line-clamp-3 text-sm text-[var(--color-text-secondary)]">{f.message}</p>
+                  <p className="line-clamp-3 text-sm text-[var(--color-text-secondary)]">
+                    {f.message}
+                  </p>
                 )}
               </div>
             ))}

@@ -30,8 +30,7 @@ import {
  */
 const FOLDER_VERIFY_CONSTANT = "zcrypt-folder-verify-v1";
 
-const verifyConstantBytes = (): Uint8Array =>
-  new TextEncoder().encode(FOLDER_VERIFY_CONSTANT);
+const verifyConstantBytes = (): Uint8Array => new TextEncoder().encode(FOLDER_VERIFY_CONSTANT);
 
 /**
  * Generate a fresh, random 32-byte salt for a folder's password verifier,
@@ -48,10 +47,7 @@ export function deriveFolderPwSalt(): string {
  * seals the version constant under it. The returned base64 is stored opaquely as
  * `pw_verifier`; the server can never recover the password from it.
  */
-export async function makeFolderVerifier(
-  password: string,
-  pwSalt: string
-): Promise<string> {
+export async function makeFolderVerifier(password: string, pwSalt: string): Promise<string> {
   const kek = await deriveKeyBytes(password, fromBase64(pwSalt));
   const sealed = await encryptChunk(kek, verifyConstantBytes());
   return toBase64(sealed);
@@ -67,7 +63,7 @@ export async function makeFolderVerifier(
 export async function verifyFolderPassword(
   password: string,
   pwSalt: string,
-  pwVerifier: string
+  pwVerifier: string,
 ): Promise<boolean> {
   const kek = await deriveKeyBytes(password, fromBase64(pwSalt));
   let plaintext: Uint8Array;
@@ -103,7 +99,7 @@ export async function verifyFolderPassword(
 export async function rewrapFileKey(
   cek: Uint8Array,
   newPassword: string,
-  newSalt: Uint8Array
+  newSalt: Uint8Array,
 ): Promise<{ salt: string; wrapped_cek: string }> {
   const newKek = await deriveKeyBytes(newPassword, newSalt);
   const wrapped = await wrapKey(newKek, cek);

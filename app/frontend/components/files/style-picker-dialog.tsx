@@ -78,9 +78,11 @@ export function StylePickerDialog({
     setHexDraft(pendingColor ?? "");
   }, [pendingColor]);
 
-  const isCustomized = pendingIcon !== undefined || pendingColor !== undefined || pendingBackground !== undefined;
+  const isCustomized =
+    pendingIcon !== undefined || pendingColor !== undefined || pendingBackground !== undefined;
   const PreviewIcon = (pendingIcon ? getIconByKey(pendingIcon) : null) ?? PaintBrush;
-  const previewBackground = (pendingBackground ? getBackgroundByKey(pendingBackground) : null) ?? pendingColor;
+  const previewBackground =
+    (pendingBackground ? getBackgroundByKey(pendingBackground) : null) ?? pendingColor;
   const truncatedLabel = entityLabel ? midTrunc(entityLabel, 18, 8) : undefined;
 
   const handleReset = () => {
@@ -128,7 +130,11 @@ export function StylePickerDialog({
         >
           <input
             type="color"
-            value={HEX_COLOR_RE.test(pendingColor ?? "") ? (pendingColor as string) : DEFAULT_PICKER_COLOR}
+            value={
+              HEX_COLOR_RE.test(pendingColor ?? "")
+                ? (pendingColor as string)
+                : DEFAULT_PICKER_COLOR
+            }
             onChange={(e) => handleColorChange(e.target.value)}
             aria-label="Custom color"
             className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
@@ -143,7 +149,11 @@ export function StylePickerDialog({
           aria-label="Hex color"
         />
       </div>
-      <div role="radiogroup" aria-label="Quick pick color" className="grid grid-cols-6 gap-2 sm:grid-cols-10">
+      <div
+        role="radiogroup"
+        aria-label="Quick pick color"
+        className="grid grid-cols-6 gap-2 sm:grid-cols-10"
+      >
         {STYLE_COLOR_PRESETS.map((preset) => {
           const active = pendingColor?.toLowerCase() === preset.value.toLowerCase();
           return (
@@ -158,7 +168,8 @@ export function StylePickerDialog({
               style={{ background: preset.value }}
               className={cn(
                 "relative flex h-8 w-8 items-center justify-center rounded-full transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40",
-                active && "ring-2 ring-[var(--color-accent)] ring-offset-2 ring-offset-[var(--color-surface)]"
+                active &&
+                  "ring-2 ring-[var(--color-accent)] ring-offset-2 ring-offset-[var(--color-surface)]",
               )}
             >
               {active && <Check className="h-3.5 w-3.5 text-white" />}
@@ -173,7 +184,9 @@ export function StylePickerDialog({
     <Dialog open={open} onOpenChange={(o) => !saving && onOpenChange(o)}>
       <DialogContent className={cn(DIALOG_PANEL, "max-w-md")}>
         <DialogHeader>
-          <DialogTitle>{truncatedLabel ? `Customize "${truncatedLabel}"` : "Customize"}</DialogTitle>
+          <DialogTitle>
+            {truncatedLabel ? `Customize "${truncatedLabel}"` : "Customize"}
+          </DialogTitle>
           <DialogDescription className="text-[var(--color-text-secondary)]">
             The icon and color are encrypted end-to-end, just like the name.
           </DialogDescription>
@@ -192,7 +205,10 @@ export function StylePickerDialog({
             />
           </div>
           <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-[var(--color-text)]" title={entityLabel}>
+            <p
+              className="truncate text-sm font-medium text-[var(--color-text)]"
+              title={entityLabel}
+            >
               {truncatedLabel || "Preview"}
             </p>
             <p className="text-xs text-[var(--color-text-muted)]">Live preview</p>
@@ -201,7 +217,9 @@ export function StylePickerDialog({
 
         {/* Icon grid */}
         <div className="space-y-2">
-          <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">Icon</p>
+          <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
+            Icon
+          </p>
           <div
             role="radiogroup"
             aria-label="Icon"
@@ -222,7 +240,7 @@ export function StylePickerDialog({
                     "squircle relative flex items-center justify-center rounded-lg border p-2 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40",
                     active
                       ? "border-[var(--color-accent)] ring-1 ring-[var(--color-accent)]"
-                      : "border-[var(--color-border)] hover:border-[var(--color-border-hover)]"
+                      : "border-[var(--color-border)] hover:border-[var(--color-border-hover)]",
                   )}
                 >
                   <opt.Icon weight="fill" size={18} className="text-[var(--color-text)]" />
@@ -266,7 +284,11 @@ export function StylePickerDialog({
               </TabsContent>
 
               <TabsContent value="design" className="mt-3">
-                <div role="radiogroup" aria-label="Background design" className="grid grid-cols-4 gap-2 sm:grid-cols-5">
+                <div
+                  role="radiogroup"
+                  aria-label="Background design"
+                  className="grid grid-cols-4 gap-2 sm:grid-cols-5"
+                >
                   {BACKGROUND_DESIGNS.map((design) => {
                     const active = pendingBackground === design.key;
                     return (
@@ -283,7 +305,7 @@ export function StylePickerDialog({
                           "squircle relative flex h-12 items-center justify-center rounded-lg border transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40",
                           active
                             ? "border-[var(--color-accent)] ring-1 ring-[var(--color-accent)]"
-                            : "border-[var(--color-border)] hover:border-[var(--color-border-hover)]"
+                            : "border-[var(--color-border)] hover:border-[var(--color-border-hover)]",
                         )}
                       >
                         {active && (
@@ -312,7 +334,13 @@ export function StylePickerDialog({
             <RotateCcw className="h-3.5 w-3.5" /> Reset to default
           </Button>
           <div className="flex gap-2">
-            <Button type="button" variant="secondary" size="sm" onClick={() => onOpenChange(false)} disabled={saving}>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => onOpenChange(false)}
+              disabled={saving}
+            >
               Cancel
             </Button>
             <Button type="button" size="sm" onClick={handleSave} disabled={saving}>

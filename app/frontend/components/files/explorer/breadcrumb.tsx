@@ -34,7 +34,7 @@ export function ExplorerBreadcrumb({
         // At the vault root the sole crumb is the redundant "My Vault" label —
         // hide it on mobile (you're obviously in your vault). Desktop keeps it,
         // and once you open a folder the full path shows on every width.
-        breadcrumb.length <= 1 && "hidden sm:flex"
+        breadcrumb.length <= 1 && "hidden sm:flex",
       )}
     >
       {breadcrumb.map((crumb, i) => {
@@ -43,7 +43,10 @@ export function ExplorerBreadcrumb({
         const isDropTarget = dragging && !isLast && acceptsDrag(crumb.id);
         const isOver = isDropTarget && overTarget === crumb.id && overTarget !== undefined;
         return (
-          <div key={`${crumb.id ?? "root"}-${i}`} className="flex flex-shrink-0 items-center gap-0.5">
+          <div
+            key={`${crumb.id ?? "root"}-${i}`}
+            className="flex flex-shrink-0 items-center gap-0.5"
+          >
             {i > 0 && (
               <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 text-[var(--color-text-muted)]" />
             )}
@@ -58,10 +61,11 @@ export function ExplorerBreadcrumb({
                 isLast
                   ? "cursor-default text-[var(--color-text)]"
                   : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)]",
-                isDropTarget && !isOver &&
+                isDropTarget &&
+                  !isOver &&
                   "bg-[var(--color-accent)]/5 text-[var(--color-accent)] outline-dashed outline-1 outline-offset-1 outline-[var(--color-accent)]/50",
                 isOver &&
-                  "bg-[var(--color-accent)]/10 text-[var(--color-accent)] ring-2 ring-inset ring-[var(--color-accent)]"
+                  "bg-[var(--color-accent)]/10 text-[var(--color-accent)] ring-2 ring-inset ring-[var(--color-accent)]",
               )}
             >
               {isRoot && <Home className="h-3.5 w-3.5 flex-shrink-0" />}

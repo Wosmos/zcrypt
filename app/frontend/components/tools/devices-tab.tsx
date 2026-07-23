@@ -2,7 +2,20 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
-import { listOfflinePins, pinFileOffline, unpinFileOffline, pushClipboard, listClipboard, getClipboardContent, deleteClipboardItem, createEventSource, listSyncFolders, createSyncFolder, updateSyncFolder, deleteSyncFolder } from "@/lib/api";
+import {
+  listOfflinePins,
+  pinFileOffline,
+  unpinFileOffline,
+  pushClipboard,
+  listClipboard,
+  getClipboardContent,
+  deleteClipboardItem,
+  createEventSource,
+  listSyncFolders,
+  createSyncFolder,
+  updateSyncFolder,
+  deleteSyncFolder,
+} from "@/lib/api";
 import { ensureFiles } from "@/store/files";
 import { encryptChunk, decryptChunk, toBase64 } from "@/lib/crypto";
 import type { OfflinePin, FileMetadata, ClipboardItem, SyncFolder } from "@/types";
@@ -25,7 +38,10 @@ const inputClass =
 function getDeviceId(): string {
   const key = "zcrypt-device-id";
   let id = localStorage.getItem(key);
-  if (!id) { id = crypto.randomUUID(); localStorage.setItem(key, id); }
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem(key, id);
+  }
   return id;
 }
 
@@ -40,7 +56,10 @@ function OfflinePinsSection() {
 
   useEffect(() => {
     Promise.all([listOfflinePins(deviceId), ensureFiles()])
-      .then(([p, f]) => { setPins(p); setFiles(f); })
+      .then(([p, f]) => {
+        setPins(p);
+        setFiles(f);
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
     // deviceId is stable for the session; run once on mount.
@@ -59,8 +78,11 @@ function OfflinePinsSection() {
         const pin = await pinFileOffline(fileId, deviceId);
         setPins((prev) => [pin, ...prev]);
       }
-    } catch { /* ignore */ }
-    finally { setPinning(null); }
+    } catch {
+      /* ignore */
+    } finally {
+      setPinning(null);
+    }
   };
 
   const pinnedFiles = files.filter((f) => isPinned(f.id));
@@ -80,7 +102,9 @@ function OfflinePinsSection() {
     >
       {loading ? (
         <div className="space-y-1">
-          {Array.from({ length: 2 }).map((_, i) => <SkeletonRow key={i} />)}
+          {Array.from({ length: 2 }).map((_, i) => (
+            <SkeletonRow key={i} />
+          ))}
         </div>
       ) : files.length === 0 ? (
         <p className="py-2 text-sm text-[var(--color-text-muted)]">No files uploaded yet.</p>
@@ -89,12 +113,22 @@ function OfflinePinsSection() {
           {pinnedFiles.length > 0 && (
             <div className="space-y-1">
               {pinnedFiles.map((file) => (
-                <div key={file.id} className="flex items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-3">
+                <div
+                  key={file.id}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-3"
+                >
                   <div className="flex min-w-0 flex-1 items-center gap-2">
                     <Lock className="h-3.5 w-3.5 flex-shrink-0 text-[var(--color-accent)]" />
-                    <p className="truncate text-sm font-medium text-[var(--color-text)]">{file.original_name}</p>
+                    <p className="truncate text-sm font-medium text-[var(--color-text)]">
+                      {file.original_name}
+                    </p>
                   </div>
-                  <Button variant="danger" size="sm" onClick={() => handleTogglePin(file.id)} disabled={pinning === file.id}>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={() => handleTogglePin(file.id)}
+                    disabled={pinning === file.id}
+                  >
                     <Unlock className="h-3.5 w-3.5" /> {pinning === file.id ? "..." : "Unpin"}
                   </Button>
                 </div>
@@ -103,16 +137,32 @@ function OfflinePinsSection() {
           )}
           {unpinnedFiles.length > 0 && (
             <div className="space-y-1">
-              <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">Available ({unpinnedFiles.length})</p>
+              <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
+                Available ({unpinnedFiles.length})
+              </p>
               {unpinnedFiles.slice(0, 10).map((file) => (
-                <div key={file.id} className="flex items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] p-3">
-                  <p className="min-w-0 flex-1 truncate text-sm text-[var(--color-text)]">{file.original_name}</p>
-                  <Button variant="secondary" size="sm" onClick={() => handleTogglePin(file.id)} disabled={pinning === file.id}>
+                <div
+                  key={file.id}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] p-3"
+                >
+                  <p className="min-w-0 flex-1 truncate text-sm text-[var(--color-text)]">
+                    {file.original_name}
+                  </p>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => handleTogglePin(file.id)}
+                    disabled={pinning === file.id}
+                  >
                     {pinning === file.id ? "..." : "Pin"}
                   </Button>
                 </div>
               ))}
-              {unpinnedFiles.length > 10 && <p className="text-center text-xs tabular-nums text-[var(--color-text-muted)]">+{unpinnedFiles.length - 10} more files</p>}
+              {unpinnedFiles.length > 10 && (
+                <p className="text-center text-xs tabular-nums text-[var(--color-text-muted)]">
+                  +{unpinnedFiles.length - 10} more files
+                </p>
+              )}
             </div>
           )}
         </div>
@@ -149,7 +199,9 @@ function ClipboardSyncSection() {
   }, []);
 
   useEffect(() => {
-    listClipboard().then(setItems).catch(() => {});
+    listClipboard()
+      .then(setItems)
+      .catch(() => {});
   }, []);
 
   // SSE for real-time sync. Manual exponential backoff (1s→30s) like
@@ -172,7 +224,9 @@ function ClipboardSyncSection() {
             if (prev.some((p) => p.id === item.id)) return prev;
             return [item, ...prev].slice(0, 30);
           });
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       });
       es.onopen = () => {
         reconnectAttempt = 0;
@@ -197,21 +251,44 @@ function ClipboardSyncSection() {
 
   const handlePush = async () => {
     if (!input.trim()) return;
-    setSending(true); setError("");
+    setSending(true);
+    setError("");
     try {
       const keyBytes = await getKey();
       const encoded = new TextEncoder().encode(input);
-      if (encoded.length > MAX_SIZE) { setError("Content too large (max 512 KB)"); setSending(false); return; }
+      if (encoded.length > MAX_SIZE) {
+        setError("Content too large (max 512 KB)");
+        setSending(false);
+        return;
+      }
       const encrypted = await encryptChunk(keyBytes, encoded);
       const blob = toBase64(encrypted);
       let contentType: "text" | "link" | "image" = "text";
       if (/^https?:\/\/\S+$/i.test(input.trim())) contentType = "link";
-      const result = await pushClipboard({ content_type: contentType, encrypted_blob: blob, content_size: encoded.length });
-      setItems((prev) => [{ id: result.id, user_id: "", content_type: contentType, content_size: encoded.length, created_at: result.created_at }, ...prev].slice(0, 30));
+      const result = await pushClipboard({
+        content_type: contentType,
+        encrypted_blob: blob,
+        content_size: encoded.length,
+      });
+      setItems((prev) =>
+        [
+          {
+            id: result.id,
+            user_id: "",
+            content_type: contentType,
+            content_size: encoded.length,
+            created_at: result.created_at,
+          },
+          ...prev,
+        ].slice(0, 30),
+      );
       setDecryptedCache((prev) => ({ ...prev, [result.id]: input }));
       setInput("");
-    } catch (err) { setError(err instanceof Error ? err.message : "Failed to sync"); }
-    finally { setSending(false); }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to sync");
+    } finally {
+      setSending(false);
+    }
   };
 
   const handleDecrypt = async (item: ClipboardItem) => {
@@ -221,7 +298,12 @@ function ClipboardSyncSection() {
       const { data } = await getClipboardContent(item.id);
       const decrypted = await decryptChunk(keyBytes, new Uint8Array(data));
       setDecryptedCache((prev) => ({ ...prev, [item.id]: new TextDecoder().decode(decrypted) }));
-    } catch { setDecryptedCache((prev) => ({ ...prev, [item.id]: "[Decryption failed - different device key]" })); }
+    } catch {
+      setDecryptedCache((prev) => ({
+        ...prev,
+        [item.id]: "[Decryption failed - different device key]",
+      }));
+    }
   };
 
   const handleCopy = async (id: string) => {
@@ -234,26 +316,47 @@ function ClipboardSyncSection() {
   };
 
   const handleDelete = async (id: string) => {
-    try { await deleteClipboardItem(id); setItems((prev) => prev.filter((i) => i.id !== id)); } catch { /* ignore */ }
+    try {
+      await deleteClipboardItem(id);
+      setItems((prev) => prev.filter((i) => i.id !== id));
+    } catch {
+      /* ignore */
+    }
   };
 
   return (
-    <Section title="Clipboard sync" description="End-to-end encrypted snippets that sync across your devices. Items auto-delete after 24h.">
+    <Section
+      title="Clipboard sync"
+      description="End-to-end encrypted snippets that sync across your devices. Items auto-delete after 24h."
+    >
       <div className="space-y-2">
         <Textarea
-          value={input} onChange={(e) => setInput(e.target.value)}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
           placeholder="Paste or type content to sync across devices..."
           className="h-24 resize-none font-mono"
           maxLength={MAX_SIZE}
-          onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handlePush(); } }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+              e.preventDefault();
+              handlePush();
+            }
+          }}
         />
         <div className="flex items-center justify-between">
-          <span className="text-xs tabular-nums text-[var(--color-text-muted)]">{new TextEncoder().encode(input).length.toLocaleString()} / {MAX_SIZE.toLocaleString()} bytes</span>
+          <span className="text-xs tabular-nums text-[var(--color-text-muted)]">
+            {new TextEncoder().encode(input).length.toLocaleString()} / {MAX_SIZE.toLocaleString()}{" "}
+            bytes
+          </span>
           <Button onClick={handlePush} disabled={sending || !input.trim()} size="sm">
             {sending ? "Syncing..." : "Sync"}
           </Button>
         </div>
-        {error && <p className="text-xs text-red-500" role="alert">{error}</p>}
+        {error && (
+          <p className="text-xs text-red-500" role="alert">
+            {error}
+          </p>
+        )}
       </div>
 
       {items.length > 0 && (
@@ -270,11 +373,19 @@ function ClipboardSyncSection() {
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex min-w-0 items-center gap-2">
-                    <span className={cn(
-                      "rounded-full px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide",
-                      item.content_type === "link" ? "bg-blue-500/10 text-blue-600 dark:text-blue-400" : "bg-[var(--color-accent)]/10 text-[var(--color-accent)]"
-                    )}>{item.content_type}</span>
-                    <span className="text-xs text-[var(--color-text-muted)]">{formatRelativeTime(item.created_at)}</span>
+                    <span
+                      className={cn(
+                        "rounded-full px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide",
+                        item.content_type === "link"
+                          ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                          : "bg-[var(--color-accent)]/10 text-[var(--color-accent)]",
+                      )}
+                    >
+                      {item.content_type}
+                    </span>
+                    <span className="text-xs text-[var(--color-text-muted)]">
+                      {formatRelativeTime(item.created_at)}
+                    </span>
                   </div>
                   <div className="flex flex-shrink-0 items-center gap-1">
                     {decryptedCache[item.id] ? (
@@ -282,11 +393,22 @@ function ClipboardSyncSection() {
                         {copiedId === item.id ? "Copied" : "Copy"}
                       </Button>
                     ) : (
-                      <Button variant="ghost" size="sm" onClick={() => handleDecrypt(item)} className="text-[var(--color-accent)] hover:text-[var(--color-accent)]">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDecrypt(item)}
+                        className="text-[var(--color-accent)] hover:text-[var(--color-accent)]"
+                      >
                         Decrypt
                       </Button>
                     )}
-                    <IconButton icon={Trash2} label="Delete item" variant="danger" iconClassName="h-3.5 w-3.5" onClick={() => handleDelete(item.id)} />
+                    <IconButton
+                      icon={Trash2}
+                      label="Delete item"
+                      variant="danger"
+                      iconClassName="h-3.5 w-3.5"
+                      onClick={() => handleDelete(item.id)}
+                    />
                   </div>
                 </div>
                 {decryptedCache[item.id] && (
@@ -318,25 +440,41 @@ function FolderSyncSection() {
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    listSyncFolders().then(setFolders).catch(() => {}).finally(() => setLoading(false));
+    listSyncFolders()
+      .then(setFolders)
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
 
   const handleCreate = async () => {
     if (!newPath.trim()) return;
-    setCreating(true); setError("");
+    setCreating(true);
+    setError("");
     try {
-      const folder = await createSyncFolder({ folder_path: newPath.trim(), label: newLabel.trim() || undefined });
+      const folder = await createSyncFolder({
+        folder_path: newPath.trim(),
+        label: newLabel.trim() || undefined,
+      });
       setFolders((prev) => [folder, ...prev]);
-      setNewPath(""); setNewLabel(""); setShowAdd(false);
-    } catch (err) { setError(err instanceof Error ? err.message : "Failed to create"); }
-    finally { setCreating(false); }
+      setNewPath("");
+      setNewLabel("");
+      setShowAdd(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create");
+    } finally {
+      setCreating(false);
+    }
   };
 
   const handleToggle = async (folder: SyncFolder) => {
     try {
       await updateSyncFolder(folder.id, { enabled: !folder.enabled });
-      setFolders((prev) => prev.map((f) => (f.id === folder.id ? { ...f, enabled: !f.enabled } : f)));
-    } catch { /* ignore */ }
+      setFolders((prev) =>
+        prev.map((f) => (f.id === folder.id ? { ...f, enabled: !f.enabled } : f)),
+      );
+    } catch {
+      /* ignore */
+    }
   };
 
   const handleDelete = async () => {
@@ -346,8 +484,11 @@ function FolderSyncSection() {
       await deleteSyncFolder(pendingDelete.id);
       setFolders((prev) => prev.filter((f) => f.id !== pendingDelete.id));
       setPendingDelete(null);
-    } catch { /* ignore */ }
-    finally { setDeleting(false); }
+    } catch {
+      /* ignore */
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
@@ -355,7 +496,14 @@ function FolderSyncSection() {
       title="Folder sync"
       description="Managed by the zcrypt TUI — point it at local folders to back them up automatically."
       actions={
-        <Button onClick={() => { setShowAdd(!showAdd); setError(""); }} size="sm" variant={showAdd ? "secondary" : "primary"}>
+        <Button
+          onClick={() => {
+            setShowAdd(!showAdd);
+            setError("");
+          }}
+          size="sm"
+          variant={showAdd ? "secondary" : "primary"}
+        >
           {showAdd ? "Cancel" : "Add folder"}
         </Button>
       }
@@ -369,10 +517,30 @@ function FolderSyncSection() {
             className="overflow-hidden"
           >
             <div className="space-y-3 rounded-xl border border-[var(--color-border)] p-4">
-              <input type="text" value={newPath} onChange={(e) => setNewPath(e.target.value)} placeholder="/home/user/Documents" className={cn(inputClass, "font-mono")} />
-              <input type="text" value={newLabel} onChange={(e) => setNewLabel(e.target.value)} placeholder="Label (optional)" className={inputClass} />
-              {error && <p className="text-xs text-red-500" role="alert">{error}</p>}
-              <Button onClick={handleCreate} disabled={creating || !newPath.trim()} className="w-full">
+              <input
+                type="text"
+                value={newPath}
+                onChange={(e) => setNewPath(e.target.value)}
+                placeholder="/home/user/Documents"
+                className={cn(inputClass, "font-mono")}
+              />
+              <input
+                type="text"
+                value={newLabel}
+                onChange={(e) => setNewLabel(e.target.value)}
+                placeholder="Label (optional)"
+                className={inputClass}
+              />
+              {error && (
+                <p className="text-xs text-red-500" role="alert">
+                  {error}
+                </p>
+              )}
+              <Button
+                onClick={handleCreate}
+                disabled={creating || !newPath.trim()}
+                className="w-full"
+              >
                 {creating ? "Adding..." : "Add folder"}
               </Button>
             </div>
@@ -382,31 +550,50 @@ function FolderSyncSection() {
 
       {loading ? (
         <div className="space-y-1">
-          {Array.from({ length: 2 }).map((_, i) => <SkeletonRow key={i} />)}
+          {Array.from({ length: 2 }).map((_, i) => (
+            <SkeletonRow key={i} />
+          ))}
         </div>
       ) : folders.length === 0 && !showAdd ? (
         <p className="py-2 text-sm text-[var(--color-text-muted)]">No synced folders configured.</p>
       ) : folders.length > 0 ? (
         <div className="space-y-1">
           {folders.map((folder) => (
-            <div key={folder.id} className="flex items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] p-3">
+            <div
+              key={folder.id}
+              className="flex items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] p-3"
+            >
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="truncate text-sm font-medium text-[var(--color-text)]">{folder.label || folder.folder_path}</span>
-                  <span className={cn(
-                    "flex-shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide",
-                    folder.enabled ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-[var(--color-surface-2)] text-[var(--color-text-muted)]"
-                  )}>
+                  <span className="truncate text-sm font-medium text-[var(--color-text)]">
+                    {folder.label || folder.folder_path}
+                  </span>
+                  <span
+                    className={cn(
+                      "flex-shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide",
+                      folder.enabled
+                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                        : "bg-[var(--color-surface-2)] text-[var(--color-text-muted)]",
+                    )}
+                  >
                     {folder.enabled ? "Active" : "Paused"}
                   </span>
                 </div>
-                <p className="mt-0.5 truncate font-mono text-xs text-[var(--color-text-muted)]">{folder.folder_path}</p>
+                <p className="mt-0.5 truncate font-mono text-xs text-[var(--color-text-muted)]">
+                  {folder.folder_path}
+                </p>
               </div>
               <div className="flex flex-shrink-0 items-center gap-1">
                 <Button variant="ghost" size="sm" onClick={() => handleToggle(folder)}>
                   {folder.enabled ? "Pause" : "Resume"}
                 </Button>
-                <IconButton icon={Trash2} label="Remove folder" variant="danger" iconClassName="h-3.5 w-3.5" onClick={() => setPendingDelete(folder)} />
+                <IconButton
+                  icon={Trash2}
+                  label="Remove folder"
+                  variant="danger"
+                  iconClassName="h-3.5 w-3.5"
+                  onClick={() => setPendingDelete(folder)}
+                />
               </div>
             </div>
           ))}
@@ -414,17 +601,27 @@ function FolderSyncSection() {
       ) : null}
 
       <p className="text-xs leading-relaxed text-[var(--color-text-muted)]">
-        Run <code className="rounded bg-[var(--color-surface-1)] px-1 py-0.5 font-mono text-[var(--color-accent)]">zcrypt sync</code> on each device to keep these folders in sync.
+        Run{" "}
+        <code className="rounded bg-[var(--color-surface-1)] px-1 py-0.5 font-mono text-[var(--color-accent)]">
+          zcrypt sync
+        </code>{" "}
+        on each device to keep these folders in sync.
       </p>
 
       <ConfirmDialog
         open={!!pendingDelete}
-        onOpenChange={(o) => { if (!o) setPendingDelete(null); }}
+        onOpenChange={(o) => {
+          if (!o) setPendingDelete(null);
+        }}
         destructive
         title="Remove synced folder?"
         description={
           <>
-            This stops syncing{pendingDelete ? <> &ldquo;{pendingDelete.label || pendingDelete.folder_path}&rdquo;</> : null}. Files already uploaded stay in your vault.
+            This stops syncing
+            {pendingDelete ? (
+              <> &ldquo;{pendingDelete.label || pendingDelete.folder_path}&rdquo;</>
+            ) : null}
+            . Files already uploaded stay in your vault.
           </>
         }
         confirmLabel="Remove"

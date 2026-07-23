@@ -104,7 +104,7 @@ export function VaultFab({ onNewFolder, onUpload }: VaultFabProps) {
             // renders as the full-size accent squircle everywhere.
             "appearance-none [-webkit-appearance:none] [-webkit-tap-highlight-color:transparent]",
             "shadow-[0_12px_30px_-6px_rgba(0,0,0,0.45)] transition-transform active:scale-95",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg)]"
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg)]",
           )}
         >
           <motion.span className="flex" animate={{ rotate: open ? 45 : 0 }} transition={spring}>

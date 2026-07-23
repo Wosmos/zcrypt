@@ -79,23 +79,20 @@ export function MoveToFolderDialog({
   // and surfaced here as a toast + reconcile (FIX-3b).
   const parentRef = useRef<Map<string, string | null>>(new Map());
 
-  const fetchChildren = useCallback(
-    async (parentId: string | null): Promise<TreeNode[]> => {
-      const raw = await listFolders(parentId);
-      // Record protection metadata (the registry has no get-by-id endpoint) and
-      // parent edges for descendant detection.
-      useFolderRegistry.getState().record(raw);
-      for (const f of raw) parentRef.current.set(f.id, parentId);
-      const key = keyRef.current;
-      return Promise.all(
-        raw.map(async (f) => ({
-          id: f.id,
-          name: key ? await decryptNameSafe(f.encrypted_name, key) : "[locked]",
-        }))
-      );
-    },
-    []
-  );
+  const fetchChildren = useCallback(async (parentId: string | null): Promise<TreeNode[]> => {
+    const raw = await listFolders(parentId);
+    // Record protection metadata (the registry has no get-by-id endpoint) and
+    // parent edges for descendant detection.
+    useFolderRegistry.getState().record(raw);
+    for (const f of raw) parentRef.current.set(f.id, parentId);
+    const key = keyRef.current;
+    return Promise.all(
+      raw.map(async (f) => ({
+        id: f.id,
+        name: key ? await decryptNameSafe(f.encrypted_name, key) : "[locked]",
+      })),
+    );
+  }, []);
 
   // True iff `dest` is the moved folder itself or a KNOWN descendant of it.
   const isSelfOrDescendant = useCallback(
@@ -112,7 +109,7 @@ export function MoveToFolderDialog({
       }
       return false;
     },
-    [folderId]
+    [folderId],
   );
 
   // Load top-level folders when the dialog opens.
@@ -164,11 +161,12 @@ export function MoveToFolderDialog({
         }
       }
     },
-    [children, loadingNodes, fetchChildren]
+    [children, loadingNodes, fetchChildren],
   );
 
   const movingFolder = folderId != null;
-  const invalidFolderTarget = movingFolder && selected !== undefined && isSelfOrDescendant(selected);
+  const invalidFolderTarget =
+    movingFolder && selected !== undefined && isSelfOrDescendant(selected);
 
   const handleMove = async () => {
     if (selected === undefined) return;
@@ -287,7 +285,10 @@ export function MoveToFolderDialog({
           {rootLoading ? (
             <div className="space-y-1 pt-1">
               {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="h-[42px] animate-pulse rounded-xl bg-[var(--color-surface-1)]" />
+                <div
+                  key={i}
+                  className="h-[42px] animate-pulse rounded-xl bg-[var(--color-surface-1)]"
+                />
               ))}
             </div>
           ) : locked ? (
@@ -354,7 +355,9 @@ function TreeRow({
     <div
       className={cn(
         "flex items-center gap-1 rounded-xl pr-2 transition-colors",
-        active ? "bg-[var(--shell-active)] text-[var(--shell-active-text)]" : !disabled && "hover:bg-[var(--color-surface-1)]"
+        active
+          ? "bg-[var(--shell-active)] text-[var(--shell-active-text)]"
+          : !disabled && "hover:bg-[var(--color-surface-1)]",
       )}
       style={{ paddingLeft: `${depth * 20}px` }}
     >
@@ -371,7 +374,10 @@ function TreeRow({
             <LogoSpinner size={14} speed="fast" />
           ) : (
             <ChevronRight
-              className={cn("h-4 w-4 transition-transform motion-reduce:transition-none", expanded && "rotate-90")}
+              className={cn(
+                "h-4 w-4 transition-transform motion-reduce:transition-none",
+                expanded && "rotate-90",
+              )}
             />
           )}
         </button>
@@ -387,16 +393,23 @@ function TreeRow({
         aria-disabled={disabled}
         className={cn(
           "flex min-w-0 flex-1 items-center gap-2.5 py-2 text-left",
-          disabled && "cursor-not-allowed opacity-40"
+          disabled && "cursor-not-allowed opacity-40",
         )}
       >
         <span
           className={cn(
             "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg",
-            active ? "bg-[var(--color-accent)]/15 text-[var(--color-accent)]" : "bg-[var(--color-surface-1)] text-[var(--color-text-muted)]"
+            active
+              ? "bg-[var(--color-accent)]/15 text-[var(--color-accent)]"
+              : "bg-[var(--color-surface-1)] text-[var(--color-text-muted)]",
           )}
         >
-          {icon ?? (expanded ? <FolderOpen className="h-[18px] w-[18px]" /> : <Folder className="h-[18px] w-[18px]" />)}
+          {icon ??
+            (expanded ? (
+              <FolderOpen className="h-[18px] w-[18px]" />
+            ) : (
+              <Folder className="h-[18px] w-[18px]" />
+            ))}
         </span>
         <span className="min-w-0 flex-1 truncate text-sm font-medium">{label}</span>
       </button>

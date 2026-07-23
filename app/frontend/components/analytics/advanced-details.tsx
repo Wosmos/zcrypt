@@ -77,11 +77,19 @@ export function AdvancedDetails({
             <Row label="Storage used" value={formatBytes(quotaInfo?.used_bytes ?? encrypted)} />
             <Row
               label="Storage quota"
-              value={quotaInfo?.is_unlimited || !quotaInfo?.quota_bytes ? "Unlimited" : formatBytes(quotaInfo.quota_bytes)}
+              value={
+                quotaInfo?.is_unlimited || !quotaInfo?.quota_bytes
+                  ? "Unlimited"
+                  : formatBytes(quotaInfo.quota_bytes)
+              }
             />
             <Row
               label="Max concurrent uploads"
-              value={quotaInfo?.max_concurrent_uploads ? String(quotaInfo.max_concurrent_uploads) : "Unlimited"}
+              value={
+                quotaInfo?.max_concurrent_uploads
+                  ? String(quotaInfo.max_concurrent_uploads)
+                  : "Unlimited"
+              }
             />
             <Row
               label="Max file size"
@@ -119,16 +127,23 @@ export function AdvancedDetails({
               </thead>
               <tbody className="divide-y divide-[var(--color-border)]">
                 {repos.map((r) => {
-                  const pct = r.max_bytes > 0 ? Math.min(100, (r.used_bytes / r.max_bytes) * 100) : 0;
+                  const pct =
+                    r.max_bytes > 0 ? Math.min(100, (r.used_bytes / r.max_bytes) * 100) : 0;
                   return (
                     <tr key={r.id} className="text-[var(--color-text-secondary)]">
                       <td className="px-5 py-2.5 text-[var(--color-text)]">
                         {platformName(r.platform)}
                       </td>
                       <td className="px-3 py-2.5">{r.account || "—"}</td>
-                      <td className="max-w-[180px] truncate px-3 py-2.5 font-mono text-xs">{r.name}</td>
-                      <td className="px-3 py-2.5 text-right tabular-nums">{formatBytes(r.used_bytes)}</td>
-                      <td className="px-3 py-2.5 text-right tabular-nums">{formatBytes(r.max_bytes)}</td>
+                      <td className="max-w-[180px] truncate px-3 py-2.5 font-mono text-xs">
+                        {r.name}
+                      </td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">
+                        {formatBytes(r.used_bytes)}
+                      </td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">
+                        {formatBytes(r.max_bytes)}
+                      </td>
                       <td className="px-3 py-2.5 text-right tabular-nums">{Math.round(pct)}%</td>
                       <td className="px-5 py-2.5 text-right">
                         <span

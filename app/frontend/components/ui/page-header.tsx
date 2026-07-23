@@ -17,10 +17,7 @@ interface PageHeaderProps {
 export function PageHeader({ title, description, eyebrow, actions, className }: PageHeaderProps) {
   return (
     <div
-      className={cn(
-        "flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between",
-        className
-      )}
+      className={cn("flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between", className)}
     >
       <div className="min-w-0 space-y-1.5">
         {eyebrow && (
@@ -37,9 +34,7 @@ export function PageHeader({ title, description, eyebrow, actions, className }: 
           </p>
         )}
       </div>
-      {actions && (
-        <div className="flex flex-shrink-0 items-center gap-2 sm:pt-0.5">{actions}</div>
-      )}
+      {actions && <div className="flex flex-shrink-0 items-center gap-2 sm:pt-0.5">{actions}</div>}
     </div>
   );
 }

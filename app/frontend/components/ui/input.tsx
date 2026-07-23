@@ -25,13 +25,13 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           className={cn(
             "w-full h-10 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] outline-none transition-all duration-200 focus:border-[var(--color-accent)]/40 focus:ring-2 focus:ring-[var(--color-accent)]/10 disabled:cursor-not-allowed disabled:opacity-50",
             icon && "pl-10",
-            className
+            className,
           )}
           {...props}
         />
       </div>
     </div>
-  )
+  ),
 );
 
 Input.displayName = "Input";

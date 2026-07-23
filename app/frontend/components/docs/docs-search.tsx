@@ -90,7 +90,7 @@ function highlightTerms(text: string, terms: string[]) {
           </mark>
         ) : (
           <span key={i}>{p.text}</span>
-        )
+        ),
       )}
     </>
   );
@@ -120,7 +120,7 @@ function ResultRow({
       onMouseEnter={onHover}
       className={cn(
         "flex w-full items-start gap-3 px-4 py-3 text-left transition-colors",
-        active ? "bg-[var(--color-surface-1)]" : "hover:bg-[var(--color-surface-1)]"
+        active ? "bg-[var(--color-surface-1)]" : "hover:bg-[var(--color-surface-1)]",
       )}
     >
       <div className="min-w-0 flex-1">
@@ -129,15 +129,13 @@ function ResultRow({
             className={cn(
               "rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider",
               colors.bg,
-              colors.text
+              colors.text,
             )}
           >
             {item.section}
           </span>
         </div>
-        <p className="truncate text-sm font-semibold">
-          {highlightTerms(item.title, terms)}
-        </p>
+        <p className="truncate text-sm font-semibold">{highlightTerms(item.title, terms)}</p>
         <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-[var(--color-text-secondary)]">
           {highlightTerms(item.content, terms)}
         </p>
@@ -145,7 +143,7 @@ function ResultRow({
       <ArrowRight
         className={cn(
           "mt-4 h-3.5 w-3.5 flex-shrink-0 transition-opacity",
-          active ? "text-cyan-500 opacity-100" : "opacity-0"
+          active ? "text-cyan-500 opacity-100" : "opacity-0",
         )}
       />
     </button>
@@ -242,7 +240,7 @@ export function DocsSearchTrigger({
       }}
       className={cn(
         "group flex w-full items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-[13px] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-border-hover)] hover:text-[var(--color-text-secondary)]",
-        className
+        className,
       )}
     >
       <Search className="h-3.5 w-3.5 flex-shrink-0" />
@@ -267,9 +265,7 @@ function DocsSearchModal({ open, onClose }: { open: boolean; onClose: () => void
 
   const showingQuickLinks = query.length < 2;
   // Flat list of navigable hrefs so arrow keys work over quick links too.
-  const itemHrefs = showingQuickLinks
-    ? QUICK_LINKS.map((l) => l.href)
-    : results.map((r) => r.href);
+  const itemHrefs = showingQuickLinks ? QUICK_LINKS.map((l) => l.href) : results.map((r) => r.href);
 
   const go = useCallback(
     (href: string) => {
@@ -277,7 +273,7 @@ function DocsSearchModal({ open, onClose }: { open: boolean; onClose: () => void
       setQuery("");
       router.push(href);
     },
-    [onClose, router]
+    [onClose, router],
   );
 
   // Reset + focus on open; lock body scroll while open.
@@ -328,7 +324,7 @@ function DocsSearchModal({ open, onClose }: { open: boolean; onClose: () => void
     <div
       className={cn(
         "fixed inset-0 z-[100] transition-opacity duration-150",
-        open ? "opacity-100" : "pointer-events-none opacity-0"
+        open ? "opacity-100" : "pointer-events-none opacity-0",
       )}
       aria-hidden={!open}
       inert={!open}
@@ -348,7 +344,7 @@ function DocsSearchModal({ open, onClose }: { open: boolean; onClose: () => void
         onKeyDown={handleKeyDown}
         className={cn(
           "absolute left-1/2 top-[12vh] w-[calc(100vw-2rem)] max-w-xl -translate-x-1/2 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl shadow-black/20 transition-transform duration-150 dark:shadow-black/50",
-          open ? "scale-100" : "scale-[0.98]"
+          open ? "scale-100" : "scale-[0.98]",
         )}
       >
         {/* Input row */}
@@ -392,13 +388,13 @@ function DocsSearchModal({ open, onClose }: { open: boolean; onClose: () => void
                     onMouseEnter={() => setActiveIndex(i)}
                     className={cn(
                       "flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors",
-                      active ? "bg-[var(--color-surface-1)]" : "hover:bg-[var(--color-surface-1)]"
+                      active ? "bg-[var(--color-surface-1)]" : "hover:bg-[var(--color-surface-1)]",
                     )}
                   >
                     <span
                       className={cn(
                         "grid h-8 w-8 flex-shrink-0 place-items-center rounded-lg",
-                        colors.bg
+                        colors.bg,
                       )}
                     >
                       <FileText className={cn("h-3.5 w-3.5", colors.text)} />
@@ -412,7 +408,7 @@ function DocsSearchModal({ open, onClose }: { open: boolean; onClose: () => void
                     <ArrowRight
                       className={cn(
                         "h-3.5 w-3.5 flex-shrink-0 transition-opacity",
-                        active ? "text-cyan-500 opacity-100" : "opacity-0"
+                        active ? "text-cyan-500 opacity-100" : "opacity-0",
                       )}
                     />
                   </button>
@@ -494,7 +490,7 @@ export default function DocsSearch({ placeholder = "Search docs..." }: { placeho
       setQuery("");
       router.push(entry.href);
     },
-    [router]
+    [router],
   );
 
   function handleKeyDown(e: React.KeyboardEvent) {

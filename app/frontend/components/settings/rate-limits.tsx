@@ -62,7 +62,9 @@ export function RateLimits({ statuses, repos }: RateLimitsProps) {
   return (
     <div className="space-y-3">
       <div className="px-1">
-        <h3 className="text-sm font-semibold text-[var(--color-text)]">Platform quotas &amp; limits</h3>
+        <h3 className="text-sm font-semibold text-[var(--color-text)]">
+          Platform quotas &amp; limits
+        </h3>
         <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
           Known rate limits and storage quotas per connected platform.
         </p>
@@ -92,7 +94,10 @@ export function RateLimits({ statuses, repos }: RateLimitsProps) {
                   className="pointer-events-none absolute inset-0 opacity-50 [background-image:radial-gradient(var(--color-text-muted)_0.75px,transparent_0.75px)] [background-size:9px_9px] [mask-image:radial-gradient(ellipse_at_top,black,transparent_72%)]"
                 />
                 {/* Blended platform watermark, bleeding off the top-right */}
-                <div aria-hidden className="pointer-events-none absolute -right-4 -top-4 opacity-[0.07]">
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute -right-4 -top-4 opacity-[0.07]"
+                >
                   <PlatformIcon platform={status.platform} className="h-24 w-24" />
                 </div>
                 {pRepos.length > 0 && (
@@ -103,8 +108,21 @@ export function RateLimits({ statuses, repos }: RateLimitsProps) {
                 {/* Ring gauge — the percentage lives inside the arc */}
                 <div className="relative z-10 h-[64px] w-[64px]">
                   <svg viewBox="0 0 36 36" className="h-full w-full -rotate-90">
-                    <circle cx="18" cy="18" r="14" fill="none" className="fill-[var(--color-surface-2)]/30" />
-                    <circle cx="18" cy="18" r="15.9155" fill="none" strokeWidth="2.75" className="stroke-[var(--color-surface-2)]" />
+                    <circle
+                      cx="18"
+                      cy="18"
+                      r="14"
+                      fill="none"
+                      className="fill-[var(--color-surface-2)]/30"
+                    />
+                    <circle
+                      cx="18"
+                      cy="18"
+                      r="15.9155"
+                      fill="none"
+                      strokeWidth="2.75"
+                      className="stroke-[var(--color-surface-2)]"
+                    />
                     <circle
                       cx="18"
                       cy="18"
@@ -113,13 +131,24 @@ export function RateLimits({ statuses, repos }: RateLimitsProps) {
                       strokeWidth="2.75"
                       strokeLinecap="round"
                       strokeDasharray={`${Math.min(100, usagePercent)} 100`}
-                      className={cn("transition-all duration-700", isHigh ? "stroke-amber-500" : "stroke-[var(--color-accent)]")}
+                      className={cn(
+                        "transition-all duration-700",
+                        isHigh ? "stroke-amber-500" : "stroke-[var(--color-accent)]",
+                      )}
                     />
                   </svg>
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <span className={cn("font-heading font-bold tabular-nums tracking-tight", usagePercent > 0 && usagePercent < 1 ? "text-base" : "text-lg", isHigh ? "text-amber-500" : "text-[var(--color-text)]")}>
+                    <span
+                      className={cn(
+                        "font-heading font-bold tabular-nums tracking-tight",
+                        usagePercent > 0 && usagePercent < 1 ? "text-base" : "text-lg",
+                        isHigh ? "text-amber-500" : "text-[var(--color-text)]",
+                      )}
+                    >
                       {formatPct(usagePercent)}
-                      <span className="align-super text-[9px] font-semibold text-[var(--color-text-muted)]">%</span>
+                      <span className="align-super text-[9px] font-semibold text-[var(--color-text-muted)]">
+                        %
+                      </span>
                     </span>
                   </div>
                 </div>
@@ -129,7 +158,11 @@ export function RateLimits({ statuses, repos }: RateLimitsProps) {
                     {status.platform}
                   </p>
                   <p className="truncate text-[11px] tabular-nums text-[var(--color-text-muted)]">
-                    {pRepos.length > 0 ? `${formatBytes(totalUsed)} of ${formatBytes(totalMax)}` : status.username ? `@${status.username}` : " "}
+                    {pRepos.length > 0
+                      ? `${formatBytes(totalUsed)} of ${formatBytes(totalMax)}`
+                      : status.username
+                        ? `@${status.username}`
+                        : " "}
                   </p>
                 </div>
 
@@ -140,11 +173,17 @@ export function RateLimits({ statuses, repos }: RateLimitsProps) {
                     const { value, note } = parseStat(raw);
                     return (
                       <span key={i} className="inline-flex items-center gap-1.5">
-                        {i > 0 && <span aria-hidden className="text-[var(--color-border)]">·</span>}
+                        {i > 0 && (
+                          <span aria-hidden className="text-[var(--color-border)]">
+                            ·
+                          </span>
+                        )}
                         {note ? (
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <span className="cursor-default underline decoration-dotted decoration-[var(--color-text-muted)]/40 underline-offset-2">{value}</span>
+                              <span className="cursor-default underline decoration-dotted decoration-[var(--color-text-muted)]/40 underline-offset-2">
+                                {value}
+                              </span>
                             </TooltipTrigger>
                             <TooltipContent side="top">{note}</TooltipContent>
                           </Tooltip>

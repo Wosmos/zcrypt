@@ -28,105 +28,96 @@ module.exports = {
     "./lib/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
-  	screens: {
-  		xs: '480px',
-  		sm: '640px',
-  		md: '768px',
-  		lg: '1024px',
-  		xl: '1280px',
-  		'2xl': '1536px'
-  	},
-  	extend: {
-  		// Design-system corner scale — one consistent, generously-rounded ramp
-  		// used for every corner in the app (cards, menus, modals, inputs,
-  		// buttons …). Paired with the global squircle so corners read as smooth
-  		// superellipses, not hard arcs. Tuned to be clearly rounded without
-  		// going pill-shaped ("best mixture").
-  		borderRadius: {
-  			sm: '0.5rem',      // 8px
-  			DEFAULT: '0.625rem', // 10px
-  			md: '0.75rem',     // 12px
-  			lg: '0.875rem',    // 14px
-  			xl: '1.125rem',    // 18px
-  			'2xl': '1.375rem', // 22px
-  			'3xl': '1.75rem',  // 28px
-  		},
-  		fontFamily: {
-  			heading: [
-  				'var(--font-heading)',
-  				'sans-serif'
-  			],
-  			body: [
-  				'var(--font-body)',
-  				'sans-serif'
-  			],
-  			logo: [
-  				'var(--font-logo)',
-  				'sans-serif'
-  			]
-  		},
-  		colors: {
-  			brand: {
-  				DEFAULT: 'var(--color-accent)',
-  				hover: 'var(--color-accent-hover)'
-  			},
-  			border: 'var(--color-border)',
-  			input: 'var(--color-border)',
-  			ring: 'var(--color-accent)',
-  			background: 'var(--color-bg)',
-  			foreground: 'var(--color-text)',
-  			primary: {
-  				DEFAULT: 'var(--color-accent)',
-  				foreground: 'var(--color-on-accent)'
-  			},
-  			secondary: {
-  				DEFAULT: 'var(--color-surface-2)',
-  				foreground: 'var(--color-text)'
-  			},
-  			destructive: {
-  				DEFAULT: '#ef4444',
-  				foreground: '#ffffff'
-  			},
-  			muted: {
-  				DEFAULT: 'var(--color-surface-1)',
-  				foreground: 'var(--color-text-muted)'
-  			},
-  			accent: {
-  				DEFAULT: 'var(--color-surface-2)',
-  				foreground: 'var(--color-text)'
-  			},
-  			popover: {
-  				DEFAULT: 'var(--color-surface)',
-  				foreground: 'var(--color-text)'
-  			},
-  			card: {
-  				DEFAULT: 'var(--color-surface)',
-  				foreground: 'var(--color-text)'
-  			}
-  		},
-  		keyframes: {
-  			'accordion-down': {
-  				from: {
-  					height: '0'
-  				},
-  				to: {
-  					height: 'var(--radix-accordion-content-height)'
-  				}
-  			},
-  			'accordion-up': {
-  				from: {
-  					height: 'var(--radix-accordion-content-height)'
-  				},
-  				to: {
-  					height: '0'
-  				}
-  			}
-  		},
-  		animation: {
-  			'accordion-down': 'accordion-down 0.2s ease-out',
-  			'accordion-up': 'accordion-up 0.2s ease-out'
-  		}
-  	}
+    screens: {
+      xs: "480px",
+      sm: "640px",
+      md: "768px",
+      lg: "1024px",
+      xl: "1280px",
+      "2xl": "1536px",
+    },
+    extend: {
+      // Design-system corner scale — one consistent, generously-rounded ramp
+      // used for every corner in the app (cards, menus, modals, inputs,
+      // buttons …). Paired with the global squircle so corners read as smooth
+      // superellipses, not hard arcs. Tuned to be clearly rounded without
+      // going pill-shaped ("best mixture").
+      borderRadius: {
+        sm: "0.5rem", // 8px
+        DEFAULT: "0.625rem", // 10px
+        md: "0.75rem", // 12px
+        lg: "0.875rem", // 14px
+        xl: "1.125rem", // 18px
+        "2xl": "1.375rem", // 22px
+        "3xl": "1.75rem", // 28px
+      },
+      fontFamily: {
+        heading: ["var(--font-heading)", "sans-serif"],
+        body: ["var(--font-body)", "sans-serif"],
+        logo: ["var(--font-logo)", "sans-serif"],
+      },
+      colors: {
+        brand: {
+          DEFAULT: "var(--color-accent)",
+          hover: "var(--color-accent-hover)",
+        },
+        border: "var(--color-border)",
+        input: "var(--color-border)",
+        ring: "var(--color-accent)",
+        background: "var(--color-bg)",
+        foreground: "var(--color-text)",
+        primary: {
+          DEFAULT: "var(--color-accent)",
+          foreground: "var(--color-on-accent)",
+        },
+        secondary: {
+          DEFAULT: "var(--color-surface-2)",
+          foreground: "var(--color-text)",
+        },
+        destructive: {
+          DEFAULT: "#ef4444",
+          foreground: "#ffffff",
+        },
+        muted: {
+          DEFAULT: "var(--color-surface-1)",
+          foreground: "var(--color-text-muted)",
+        },
+        accent: {
+          DEFAULT: "var(--color-surface-2)",
+          foreground: "var(--color-text)",
+        },
+        popover: {
+          DEFAULT: "var(--color-surface)",
+          foreground: "var(--color-text)",
+        },
+        card: {
+          DEFAULT: "var(--color-surface)",
+          foreground: "var(--color-text)",
+        },
+      },
+      keyframes: {
+        "accordion-down": {
+          from: {
+            height: "0",
+          },
+          to: {
+            height: "var(--radix-accordion-content-height)",
+          },
+        },
+        "accordion-up": {
+          from: {
+            height: "var(--radix-accordion-content-height)",
+          },
+          to: {
+            height: "0",
+          },
+        },
+      },
+      animation: {
+        "accordion-down": "accordion-down 0.2s ease-out",
+        "accordion-up": "accordion-up 0.2s ease-out",
+      },
+    },
   },
   plugins: [cornerShape, require("tailwindcss-animate")],
 };

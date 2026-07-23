@@ -302,9 +302,7 @@ export function CircuitBackground() {
                   cx={end[0]}
                   cy={end[1]}
                   r="3"
-                  fill={
-                    isDark ? "rgba(0,213,228,0.12)" : "rgba(0,147,163,0.15)"
-                  }
+                  fill={isDark ? "rgba(0,213,228,0.12)" : "rgba(0,147,163,0.15)"}
                   stroke="none"
                 />
               ))}

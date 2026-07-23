@@ -12,7 +12,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
-import { FolderOpen, File as FileIcon, Download, Lock, AlertTriangle, Loader2, Shield } from "@/lib/icons";
+import {
+  FolderOpen,
+  File as FileIcon,
+  Download,
+  Lock,
+  AlertTriangle,
+  Loader2,
+  Shield,
+} from "@/lib/icons";
 import { formatBytes } from "@/lib/utils";
 import { keyFromFragment, pathManifestFromFragment } from "@/lib/share-link";
 
@@ -21,8 +29,16 @@ type PageState = "loading" | "password" | "ready" | "error";
 function mimeForFile(filename: string): string {
   const ext = filename.split(".").pop()?.toLowerCase() || "";
   const map: Record<string, string> = {
-    jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", gif: "image/gif", webp: "image/webp",
-    pdf: "application/pdf", txt: "text/plain", mp4: "video/mp4", mp3: "audio/mpeg", zip: "application/zip",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    gif: "image/gif",
+    webp: "image/webp",
+    pdf: "application/pdf",
+    txt: "text/plain",
+    mp4: "video/mp4",
+    mp3: "audio/mpeg",
+    zip: "application/zip",
   };
   return map[ext] || "application/octet-stream";
 }
@@ -115,7 +131,12 @@ export default function FolderSharePage() {
 
       const parts: Uint8Array[] = new Array(meta.chunk_count);
       for (let i = 0; i < meta.chunk_count; i++) {
-        const { data, compressed } = await getFolderShareChunk(token, file.file_id, i, password || undefined);
+        const { data, compressed } = await getFolderShareChunk(
+          token,
+          file.file_id,
+          i,
+          password || undefined,
+        );
         let plain = await decryptChunk(keyBytes, new Uint8Array(data));
         if (compressed && zstd) plain = zstd.ZstdStream.decompress(plain);
         parts[i] = plain;
@@ -136,7 +157,7 @@ export default function FolderSharePage() {
       }
       return { name: meta.original_name, bytes: full };
     },
-    [token, folderKey, password]
+    [token, folderKey, password],
   );
 
   /** Decrypt one file and save it straight to disk. */
@@ -145,7 +166,7 @@ export default function FolderSharePage() {
       const { name, bytes } = await fetchDecryptFile(file);
       saveBlob(name, bytes, mimeForFile(name));
     },
-    [fetchDecryptFile]
+    [fetchDecryptFile],
   );
 
   const handleDownloadOne = useCallback(
@@ -160,7 +181,7 @@ export default function FolderSharePage() {
         setBusy(null);
       }
     },
-    [downloadFile]
+    [downloadFile],
   );
 
   const handleDownloadAll = useCallback(async () => {
@@ -224,13 +245,13 @@ export default function FolderSharePage() {
       };
       const CONCURRENCY = 4;
       await Promise.all(
-        Array.from({ length: Math.min(CONCURRENCY, info.files.length) }, runWorker)
+        Array.from({ length: Math.min(CONCURRENCY, info.files.length) }, runWorker),
       );
 
       const okCount = Object.keys(entries).length;
       if (okCount === 0) {
         throw new Error(
-          `None of the ${info.files.length} files could be downloaded — they may be missing from storage.`
+          `None of the ${info.files.length} files could be downloaded — they may be missing from storage.`,
         );
       }
 
@@ -242,7 +263,7 @@ export default function FolderSharePage() {
         const shown = failed.slice(0, 4).join(", ");
         const more = failed.length > 4 ? ` and ${failed.length - 4} more` : "";
         setNoticeMsg(
-          `Downloaded ${okCount} of ${info.files.length} files. Couldn't fetch ${shown}${more} — those files appear to be missing from storage (an incomplete upload).`
+          `Downloaded ${okCount} of ${info.files.length} files. Couldn't fetch ${shown}${more} — those files appear to be missing from storage (an incomplete upload).`,
         );
       }
     } catch (err) {
@@ -259,7 +280,9 @@ export default function FolderSharePage() {
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-accent)]/10">
           <Shield className="h-5 w-5 text-[var(--color-accent)]" />
         </div>
-        <span className="font-heading text-xl font-bold tracking-tight text-[var(--color-text)]">zcrypt</span>
+        <span className="font-heading text-xl font-bold tracking-tight text-[var(--color-text)]">
+          zcrypt
+        </span>
       </div>
 
       <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-xl">
@@ -286,7 +309,9 @@ export default function FolderSharePage() {
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--color-accent)]/10 text-[var(--color-accent)]">
                 <Lock className="h-6 w-6" />
               </div>
-              <p className="text-sm font-medium text-[var(--color-text)]">This folder is password-protected</p>
+              <p className="text-sm font-medium text-[var(--color-text)]">
+                This folder is password-protected
+              </p>
             </div>
             <Input
               type="password"
@@ -314,7 +339,8 @@ export default function FolderSharePage() {
                   {info.name || "Shared folder"}
                 </p>
                 <p className="text-xs text-[var(--color-text-muted)]">
-                  {info.files?.length ?? 0} file{(info.files?.length ?? 0) === 1 ? "" : "s"} · end-to-end encrypted
+                  {info.files?.length ?? 0} file{(info.files?.length ?? 0) === 1 ? "" : "s"} ·
+                  end-to-end encrypted
                 </p>
               </div>
             </div>
@@ -327,7 +353,9 @@ export default function FolderSharePage() {
                 >
                   <div className="flex min-w-0 items-center gap-2">
                     <FileIcon className="h-4 w-4 flex-shrink-0 text-[var(--color-text-muted)]" />
-                    <span className="truncate text-sm text-[var(--color-text)]">{f.name || f.file_id}</span>
+                    <span className="truncate text-sm text-[var(--color-text)]">
+                      {f.name || f.file_id}
+                    </span>
                     {typeof f.size === "number" && (
                       <span className="flex-shrink-0 text-xs tabular-nums text-[var(--color-text-muted)]">
                         {formatBytes(f.size)}

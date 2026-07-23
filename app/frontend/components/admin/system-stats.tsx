@@ -12,21 +12,9 @@ export function SystemStatsCards({ stats }: { stats: SystemStats }) {
         icon={Users}
         accent
       />
-      <StatCard
-        label="Total files"
-        value={stats.total_files.toLocaleString()}
-        icon={FileText}
-      />
-      <StatCard
-        label="Total storage"
-        value={formatBytes(stats.total_size)}
-        icon={Database}
-      />
-      <StatCard
-        label="Total repos"
-        value={stats.total_repos.toLocaleString()}
-        icon={GitBranch}
-      />
+      <StatCard label="Total files" value={stats.total_files.toLocaleString()} icon={FileText} />
+      <StatCard label="Total storage" value={formatBytes(stats.total_size)} icon={Database} />
+      <StatCard label="Total repos" value={stats.total_repos.toLocaleString()} icon={GitBranch} />
     </div>
   );
 }

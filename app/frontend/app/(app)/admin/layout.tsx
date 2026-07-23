@@ -54,10 +54,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* Mobile: select-based nav */}
       <div className="sm:hidden">
-        <Select
-          value={activeTab.href}
-          onValueChange={(href) => router.push(href)}
-        >
+        <Select value={activeTab.href} onValueChange={(href) => router.push(href)}>
           <SelectTrigger aria-label="Select admin section">
             <SelectValue />
           </SelectTrigger>
@@ -87,7 +84,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 "-mb-px flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40 focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--color-bg)]",
                 isActive
                   ? "border-[var(--color-accent)] text-[var(--color-text)]"
-                  : "border-transparent text-[var(--color-text-muted)] hover:border-[var(--color-border-hover)] hover:text-[var(--color-text)]"
+                  : "border-transparent text-[var(--color-text-muted)] hover:border-[var(--color-border-hover)] hover:text-[var(--color-text)]",
               )}
             >
               <Icon className="h-4 w-4" />

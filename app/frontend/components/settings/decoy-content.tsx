@@ -171,8 +171,8 @@ export function DecoyContent() {
           {!configured ? (
             <div className="space-y-4">
               <p className="text-xs leading-relaxed text-[var(--color-text-muted)]">
-                Set a decoy password. When someone forces you to log in, use this password
-                instead — they will see fake files rather than your real vault.
+                Set a decoy password. When someone forces you to log in, use this password instead —
+                they will see fake files rather than your real vault.
               </p>
               <Input
                 type="password"
@@ -199,7 +199,11 @@ export function DecoyContent() {
                   <span>{error}</span>
                 </div>
               )}
-              <Button onClick={handleSetup} disabled={setting || !password} className="w-full sm:w-auto">
+              <Button
+                onClick={handleSetup}
+                disabled={setting || !password}
+                className="w-full sm:w-auto"
+              >
                 {setting ? (
                   <span className="flex items-center gap-2">
                     <LogoSpinner size={14} speed="fast" /> Setting up...
@@ -361,7 +365,9 @@ export function DecoyContent() {
       {/* Confirmations */}
       <ConfirmDialog
         open={confirmRemoveVault}
-        onOpenChange={(open) => { if (!open) setConfirmRemoveVault(false); }}
+        onOpenChange={(open) => {
+          if (!open) setConfirmRemoveVault(false);
+        }}
         destructive
         title="Remove decoy vault?"
         description="This permanently deletes your decoy password and all decoy files. Your real vault is unaffected."
@@ -371,13 +377,13 @@ export function DecoyContent() {
       />
       <ConfirmDialog
         open={!!fileToDelete}
-        onOpenChange={(open) => { if (!open) setFileToDelete(null); }}
+        onOpenChange={(open) => {
+          if (!open) setFileToDelete(null);
+        }}
         destructive
         title="Remove decoy file?"
         description={
-          fileToDelete
-            ? `Remove "${fileToDelete.original_name}" from the decoy vault?`
-            : ""
+          fileToDelete ? `Remove "${fileToDelete.original_name}" from the decoy vault?` : ""
         }
         confirmLabel="Remove"
         loading={deletingFile}

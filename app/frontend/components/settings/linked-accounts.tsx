@@ -1,7 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { getLinkedAccounts, unlinkAccount, getOAuthURL, type LinkedAccountsResponse } from "@/lib/auth-api";
+import {
+  getLinkedAccounts,
+  unlinkAccount,
+  getOAuthURL,
+  type LinkedAccountsResponse,
+} from "@/lib/auth-api";
 import { useAuthStore } from "@/store/auth";
 import { toast } from "@/store/toast";
 import { Github, Link2, X } from "@/lib/icons";
@@ -25,7 +30,9 @@ export function LinkedAccounts() {
       .finally(() => setLoading(false));
   }, [accessToken]);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
   const handleUnlink = async (provider: string) => {
     if (!accessToken) return;
@@ -82,7 +89,7 @@ export function LinkedAccounts() {
               "flex items-center gap-3 rounded-xl border px-3.5 py-3 transition-colors",
               isLinked
                 ? "border-[var(--color-accent)]/15 bg-[var(--color-accent)]/5"
-                : "border-[var(--color-border)]"
+                : "border-[var(--color-border)]",
             )}
           >
             <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-[var(--color-surface-1)] ring-1 ring-[var(--color-border)]">
@@ -112,7 +119,9 @@ export function LinkedAccounts() {
             ) : (
               <button
                 type="button"
-                onClick={() => { window.location.href = getOAuthURL(id); }}
+                onClick={() => {
+                  window.location.href = getOAuthURL(id);
+                }}
                 className="rounded text-xs font-medium text-[var(--color-accent)] outline-none transition-colors hover:underline focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40"
               >
                 Link

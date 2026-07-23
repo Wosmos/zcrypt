@@ -11,7 +11,13 @@ interface PaginationProps {
   pageSize: number;
 }
 
-export function Pagination({ currentPage, totalPages, onPageChange, totalItems, pageSize }: PaginationProps) {
+export function Pagination({
+  currentPage,
+  totalPages,
+  onPageChange,
+  totalItems,
+  pageSize,
+}: PaginationProps) {
   if (totalPages <= 1) return null;
 
   const start = (currentPage - 1) * pageSize + 1;
@@ -24,7 +30,11 @@ export function Pagination({ currentPage, totalPages, onPageChange, totalItems, 
   } else {
     pages.push(1);
     if (currentPage > 3) pages.push("...");
-    for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+    for (
+      let i = Math.max(2, currentPage - 1);
+      i <= Math.min(totalPages - 1, currentPage + 1);
+      i++
+    ) {
       pages.push(i);
     }
     if (currentPage < totalPages - 2) pages.push("...");
@@ -32,7 +42,10 @@ export function Pagination({ currentPage, totalPages, onPageChange, totalItems, 
   }
 
   return (
-    <nav aria-label="Pagination" className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+    <nav
+      aria-label="Pagination"
+      className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2"
+    >
       <p className="text-xs text-[var(--color-text-muted)]">
         Showing {start}–{end} of {totalItems}
       </p>
@@ -47,7 +60,9 @@ export function Pagination({ currentPage, totalPages, onPageChange, totalItems, 
         </button>
         {pages.map((page, i) =>
           page === "..." ? (
-            <span key={`ellipsis-${i}`} className="px-1 text-xs text-[var(--color-text-muted)]">...</span>
+            <span key={`ellipsis-${i}`} className="px-1 text-xs text-[var(--color-text-muted)]">
+              ...
+            </span>
           ) : (
             <button
               key={page}
@@ -58,12 +73,12 @@ export function Pagination({ currentPage, totalPages, onPageChange, totalItems, 
                 "flex items-center justify-center h-8 min-w-[2rem] rounded-lg text-xs font-medium transition-colors",
                 page === currentPage
                   ? "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20"
-                  : "border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-1)]"
+                  : "border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-1)]",
               )}
             >
               {page}
             </button>
-          )
+          ),
         )}
         <button
           onClick={() => onPageChange(currentPage + 1)}

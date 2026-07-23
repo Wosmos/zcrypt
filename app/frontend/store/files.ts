@@ -47,7 +47,7 @@ export function getFilesData(): FileMetadata[] {
 
 /** Optimistically write the files cache (mutations + drag-to-move/delete). */
 export function setFilesData(
-  updater: FileMetadata[] | ((prev: FileMetadata[]) => FileMetadata[])
+  updater: FileMetadata[] | ((prev: FileMetadata[]) => FileMetadata[]),
 ): void {
   setListData<FileMetadata>(qk.files, updater);
 }
@@ -129,7 +129,9 @@ export async function hydrateFilesFromCache(): Promise<void> {
 // files are unaffected — their name is already plaintext on the server.
 function stripDecryptedNames(files: FileMetadata[]): FileMetadata[] {
   return files.map((f) =>
-    f.encrypted_name || f.encrypted_style ? { ...f, original_name: f.encrypted_name ? "" : f.original_name, style: null } : f
+    f.encrypted_name || f.encrypted_style
+      ? { ...f, original_name: f.encrypted_name ? "" : f.original_name, style: null }
+      : f,
   );
 }
 

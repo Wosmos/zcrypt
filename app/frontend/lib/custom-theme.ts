@@ -53,7 +53,13 @@ export function saveCustomTheme(values: CustomThemeValues) {
  *  two-color custom theme can never produce illegible text. */
 function hexLuminance(hex: string): number {
   const n = hex.replace("#", "");
-  const full = n.length === 3 ? n.split("").map((c) => c + c).join("") : n;
+  const full =
+    n.length === 3
+      ? n
+          .split("")
+          .map((c) => c + c)
+          .join("")
+      : n;
   const r = parseInt(full.slice(0, 2), 16) / 255;
   const g = parseInt(full.slice(2, 4), 16) / 255;
   const b = parseInt(full.slice(4, 6), 16) / 255;

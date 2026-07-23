@@ -103,12 +103,24 @@ export function UserTableSkeleton() {
                   <Skeleton className="mb-1.5 h-3.5 w-24 rounded-md" />
                   <Skeleton className="h-2.5 w-36 rounded-md" />
                 </td>
-                <td className="px-4 py-3.5"><Skeleton className="h-5 w-14 rounded-full" /></td>
-                <td className="px-4 py-3.5"><Skeleton className="h-8 w-[7.5rem] rounded-lg" /></td>
-                <td className="px-4 py-3.5 text-right"><Skeleton className="ml-auto h-3 w-8 rounded-md" /></td>
-                <td className="px-4 py-3.5 text-right"><Skeleton className="ml-auto h-3 w-16 rounded-md" /></td>
-                <td className="px-4 py-3.5 text-right"><Skeleton className="ml-auto h-3 w-20 rounded-md" /></td>
-                <td className="px-4 py-3.5"><Skeleton className="h-3 w-20 rounded-md" /></td>
+                <td className="px-4 py-3.5">
+                  <Skeleton className="h-5 w-14 rounded-full" />
+                </td>
+                <td className="px-4 py-3.5">
+                  <Skeleton className="h-8 w-[7.5rem] rounded-lg" />
+                </td>
+                <td className="px-4 py-3.5 text-right">
+                  <Skeleton className="ml-auto h-3 w-8 rounded-md" />
+                </td>
+                <td className="px-4 py-3.5 text-right">
+                  <Skeleton className="ml-auto h-3 w-16 rounded-md" />
+                </td>
+                <td className="px-4 py-3.5 text-right">
+                  <Skeleton className="ml-auto h-3 w-20 rounded-md" />
+                </td>
+                <td className="px-4 py-3.5">
+                  <Skeleton className="h-3 w-20 rounded-md" />
+                </td>
                 <td className="px-5 py-3.5">
                   <div className="flex items-center justify-end gap-1">
                     <Skeleton className="h-7 w-16 rounded-lg" />

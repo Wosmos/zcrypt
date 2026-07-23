@@ -2,12 +2,7 @@
 
 import { useCallback, useEffect } from "react";
 import type { FileMetadata } from "@/types";
-import {
-  useFilesQuery,
-  setFilesData,
-  invalidateFiles,
-  hydrateFilesFromCache,
-} from "@/store/files";
+import { useFilesQuery, setFilesData, invalidateFiles, hydrateFilesFromCache } from "@/store/files";
 
 /**
  * Vault file list. A thin adapter over the TanStack Query `files` cache so every
@@ -35,7 +30,7 @@ export function useFileList() {
     (files: FileMetadata[] | ((prev: FileMetadata[]) => FileMetadata[])) => {
       setFilesData(files);
     },
-    []
+    [],
   );
 
   const files = query.data ?? [];

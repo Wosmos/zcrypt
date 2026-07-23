@@ -136,13 +136,16 @@ export default function EncryptedDrivePage() {
             success="✓ folder names sealed · keys never sent · contents encrypted"
           >
             <div className="break-all">
-              <span className="text-cyan-600/80 dark:text-cyan-400/80">folder</span> 9f2a1c·b8d40e·7c5b13·f0e2a9 — sealed
+              <span className="text-cyan-600/80 dark:text-cyan-400/80">folder</span>{" "}
+              9f2a1c·b8d40e·7c5b13·f0e2a9 — sealed
             </div>
             <div className="mt-1.5 break-all">
-              <span className="text-cyan-600/80 dark:text-cyan-400/80">folder</span> 4d1b6c·8e30dd·91ac0c·77ae3f — sealed
+              <span className="text-cyan-600/80 dark:text-cyan-400/80">folder</span>{" "}
+              4d1b6c·8e30dd·91ac0c·77ae3f — sealed
             </div>
             <div className="mt-1.5 break-all">
-              <span className="text-cyan-600/80 dark:text-cyan-400/80">file</span> a4f9c1·0c77ae·3f5b2a·4f9c1e — sealed
+              <span className="text-cyan-600/80 dark:text-cyan-400/80">file</span>{" "}
+              a4f9c1·0c77ae·3f5b2a·4f9c1e — sealed
             </div>
           </CodePanel>
         }

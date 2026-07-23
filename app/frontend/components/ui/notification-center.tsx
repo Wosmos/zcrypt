@@ -2,7 +2,17 @@
 
 import { useState, useRef } from "react";
 import { useClickOutside } from "@/hooks/useClickOutside";
-import { Bell, BellOff, CheckCircle2, AlertCircle, AlertTriangle, Info, X, Check, Trash2 } from "@/lib/icons";
+import {
+  Bell,
+  BellOff,
+  CheckCircle2,
+  AlertCircle,
+  AlertTriangle,
+  Info,
+  X,
+  Check,
+  Trash2,
+} from "@/lib/icons";
 import { useNotificationStore, type NotificationType } from "@/store/notifications";
 import { useNotifications } from "@/hooks/useNotifications";
 import { cn } from "@/lib/utils";
@@ -32,7 +42,8 @@ function timeAgo(ts: number): string {
 export function NotificationCenter() {
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const { notifications, unreadCount, markRead, markAllRead, remove, clearAll } = useNotificationStore();
+  const { notifications, unreadCount, markRead, markAllRead, remove, clearAll } =
+    useNotificationStore();
   const { requestPermission, isSupported, isGranted } = useNotifications();
 
   // Close on outside click
@@ -51,16 +62,18 @@ export function NotificationCenter() {
             ? "text-red-500 bg-red-500/10"
             : unreadCount > 0
               ? "text-[var(--color-accent)] bg-[var(--color-accent)]/10"
-              : "text-[var(--color-text-muted)] hover:bg-[var(--color-surface-1)]"
+              : "text-[var(--color-text-muted)] hover:bg-[var(--color-surface-1)]",
         )}
         title={unreadCount > 0 ? `${unreadCount} unread notifications` : "Notifications"}
       >
         <Bell className="h-5 w-5" />
         {unreadCount > 0 && (
-          <span className={cn(
-            "absolute -top-0.5 -right-0.5 flex items-center justify-center h-4 min-w-[16px] px-1 rounded-full text-[10px] font-bold text-white",
-            hasErrors ? "bg-red-500" : "bg-[var(--color-accent)]"
-          )}>
+          <span
+            className={cn(
+              "absolute -top-0.5 -right-0.5 flex items-center justify-center h-4 min-w-[16px] px-1 rounded-full text-[10px] font-bold text-white",
+              hasErrors ? "bg-red-500" : "bg-[var(--color-accent)]",
+            )}
+          >
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}
@@ -81,11 +94,15 @@ export function NotificationCenter() {
                     "flex items-center justify-center h-7 w-7 rounded-lg transition-colors",
                     isGranted
                       ? "text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10"
-                      : "text-[var(--color-text-muted)] hover:bg-[var(--color-surface-1)]"
+                      : "text-[var(--color-text-muted)] hover:bg-[var(--color-surface-1)]",
                   )}
                   title={isGranted ? "Push notifications enabled" : "Enable push notifications"}
                 >
-                  {isGranted ? <Bell className="h-3.5 w-3.5" /> : <BellOff className="h-3.5 w-3.5" />}
+                  {isGranted ? (
+                    <Bell className="h-3.5 w-3.5" />
+                  ) : (
+                    <BellOff className="h-3.5 w-3.5" />
+                  )}
                 </button>
               )}
               {unreadCount > 0 && (
@@ -100,7 +117,10 @@ export function NotificationCenter() {
               )}
               {notifications.length > 0 && (
                 <button
-                  onClick={() => { clearAll(); setOpen(false); }}
+                  onClick={() => {
+                    clearAll();
+                    setOpen(false);
+                  }}
                   className="flex items-center justify-center h-7 w-7 rounded-lg text-[var(--color-text-muted)] hover:text-red-500 hover:bg-red-500/10 transition-colors"
                   title="Clear all"
                 >
@@ -128,14 +148,19 @@ export function NotificationCenter() {
                     key={n.id}
                     className={cn(
                       "flex items-start gap-3 px-4 py-3 border-b border-[var(--color-border)] last:border-0 transition-colors cursor-pointer hover:bg-[var(--color-surface-1)]",
-                      !n.read && "bg-[var(--color-accent)]/[0.03]"
+                      !n.read && "bg-[var(--color-accent)]/[0.03]",
                     )}
                     onClick={() => markRead(n.id)}
                   >
                     <Icon className={cn("h-4 w-4 mt-0.5 flex-shrink-0", typeColors[n.type])} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className={cn("text-sm font-medium truncate", !n.read && "text-[var(--color-text)]")}>
+                        <p
+                          className={cn(
+                            "text-sm font-medium truncate",
+                            !n.read && "text-[var(--color-text)]",
+                          )}
+                        >
                           {n.title}
                         </p>
                         {!n.read && (
@@ -150,7 +175,10 @@ export function NotificationCenter() {
                       </p>
                     </div>
                     <button
-                      onClick={(e) => { e.stopPropagation(); remove(n.id); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        remove(n.id);
+                      }}
                       className="flex-shrink-0 text-[var(--color-text-muted)] hover:text-[var(--color-text)] opacity-0 group-hover:opacity-100 transition-opacity mt-0.5"
                     >
                       <X className="h-3 w-3" />

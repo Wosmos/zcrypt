@@ -23,8 +23,8 @@ function tagsFor(title: string, section: string): string[] {
         .toLowerCase()
         .replace(/[^a-z0-9\s-]/g, "")
         .split(/\s+/)
-        .filter((w) => w.length > 1 && !STOP.has(w))
-    )
+        .filter((w) => w.length > 1 && !STOP.has(w)),
+    ),
   );
 }
 
@@ -43,7 +43,7 @@ const docsEntries: SearchEntry[] = docsNav.flatMap((group) =>
     content: link.desc,
     href: link.href,
     tags: tagsFor(link.title, group.title),
-  }))
+  })),
 );
 
 export const docsSearchIndex: SearchEntry[] = [...featuresEntries, ...docsEntries];

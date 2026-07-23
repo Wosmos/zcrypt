@@ -9,16 +9,11 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "Terms of Service — zcrypt",
-    description:
-      "Terms of service for using zcrypt encrypted cloud storage.",
+    description: "Terms of service for using zcrypt encrypted cloud storage.",
     url: "https://zcrypt.cloud/terms",
   },
 };
 
-export default function TermsLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function TermsLayout({ children }: { children: React.ReactNode }) {
   return children;
 }

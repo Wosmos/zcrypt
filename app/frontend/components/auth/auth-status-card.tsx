@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 /** Type of any icon component exported from `@/lib/icons`. */
-type StatusIcon = (typeof import("@/lib/icons"))["File"];
+type StatusIcon = typeof import("@/lib/icons")["File"];
 
 type Tone = "cyan" | "amber" | "red";
 
@@ -29,19 +29,11 @@ interface AuthStatusCardProps {
  * Centered status card used across the auth flows: a tinted icon circle, a
  * bold title, freeform body (`children`), and an optional `action` slot.
  */
-export function AuthStatusCard({
-  icon: Icon,
-  tone,
-  title,
-  children,
-  action,
-}: AuthStatusCardProps) {
+export function AuthStatusCard({ icon: Icon, tone, title, children, action }: AuthStatusCardProps) {
   return (
     <div className="text-center animate-fade-in">
       <div className="flex justify-center mb-4">
-        <div
-          className={`h-12 w-12 rounded-full ${TONE_BG[tone]} flex items-center justify-center`}
-        >
+        <div className={`h-12 w-12 rounded-full ${TONE_BG[tone]} flex items-center justify-center`}>
           <Icon className={`h-6 w-6 ${TONE_ICON[tone]}`} />
         </div>
       </div>

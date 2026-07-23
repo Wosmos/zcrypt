@@ -20,12 +20,7 @@ function InkBleedFilter() {
     >
       <defs>
         <filter id="ink-bleed">
-          <feTurbulence
-            type="fractalNoise"
-            baseFrequency="0.04"
-            numOctaves="3"
-            result="noise"
-          />
+          <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="3" result="noise" />
           <feDisplacementMap in="SourceGraphic" in2="noise" scale="2" />
           <feGaussianBlur stdDeviation="0.3" />
         </filter>

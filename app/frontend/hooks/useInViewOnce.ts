@@ -20,7 +20,7 @@ export function useInViewOnce<T extends Element>(rootMargin = "0px") {
           observer.disconnect();
         }
       },
-      { rootMargin }
+      { rootMargin },
     );
     observer.observe(el);
     return () => observer.disconnect();

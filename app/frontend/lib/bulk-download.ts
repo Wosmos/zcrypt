@@ -8,7 +8,14 @@
 import { getFileMeta, getFileChunk } from "@/lib/api";
 import { retryTransient } from "@/lib/retry";
 import { runWithConcurrency } from "@/lib/concurrent";
-import { resolveFileKey, decryptChunk, sha256Hex, contentMacBytes, deriveDedupKeyBytes, fromBase64 } from "@/lib/crypto";
+import {
+  resolveFileKey,
+  decryptChunk,
+  sha256Hex,
+  contentMacBytes,
+  deriveDedupKeyBytes,
+  fromBase64,
+} from "@/lib/crypto";
 import { zstdDecompress } from "@/lib/zstd";
 import { zipSync } from "fflate";
 import { getDeviceProfile } from "@/lib/device-profile";
@@ -47,7 +54,7 @@ export interface BulkDownloadOptions {
 export async function downloadAsZip(
   files: BulkDownloadFile[],
   passphrase: string,
-  options?: BulkDownloadOptions
+  options?: BulkDownloadOptions,
 ): Promise<void> {
   const { onProgress, signal, resolvePassword } = options ?? {};
 
@@ -83,7 +90,7 @@ export async function downloadAsZip(
       if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
       const { data, compressed } = await retryTransient(
         () => getFileChunk(file.fileId, index, signal),
-        { signal }
+        { signal },
       );
 
       let plain: Uint8Array;

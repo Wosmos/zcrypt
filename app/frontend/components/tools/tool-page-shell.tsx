@@ -53,8 +53,7 @@ export function ToolHero({
           {badgeLabel}
         </div>
         <h1 className="text-4xl sm:text-5xl font-bold font-heading tracking-tight leading-tight">
-          {titleLead}{" "}
-          <span className="text-[var(--color-accent)]">{titleAccent}</span>
+          {titleLead} <span className="text-[var(--color-accent)]">{titleAccent}</span>
         </h1>
         <p className="mt-4 text-lg text-[var(--color-text-secondary)] max-w-2xl mx-auto leading-relaxed">
           {subtitle}
@@ -69,13 +68,7 @@ export function ToolHero({
  * for pad, "max-w-lg" for send/transfer) so the JIT can still see it at the
  * call site.
  */
-export function ToolSection({
-  maxWidth,
-  children,
-}: {
-  maxWidth: string;
-  children: ReactNode;
-}) {
+export function ToolSection({ maxWidth, children }: { maxWidth: string; children: ReactNode }) {
   return (
     <section className="pb-16 sm:pb-20">
       <div className={`mx-auto ${maxWidth} px-4 sm:px-6`}>{children}</div>
@@ -94,7 +87,10 @@ export function StepGrid({ steps }: { steps: ToolStep[] }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
       {steps.map((s) => (
-        <div key={s.step} className="relative p-6 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+        <div
+          key={s.step}
+          className="relative p-6 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]"
+        >
           <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-[var(--color-accent)]/10 text-[var(--color-accent)] font-bold text-lg mb-4">
             {s.step}
           </div>
@@ -107,13 +103,7 @@ export function StepGrid({ steps }: { steps: ToolStep[] }) {
 }
 
 /** Feature grid on a surface band — heading plus a responsive card grid. */
-export function FeatureGrid({
-  heading,
-  features,
-}: {
-  heading: string;
-  features: ToolFeature[];
-}) {
+export function FeatureGrid({ heading, features }: { heading: string; features: ToolFeature[] }) {
   return (
     <section className="py-16 sm:py-20 border-t border-[var(--color-border)] bg-[var(--color-surface)]">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
@@ -122,7 +112,10 @@ export function FeatureGrid({
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {features.map((f) => (
-            <div key={f.title} className="p-5 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)]">
+            <div
+              key={f.title}
+              className="p-5 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)]"
+            >
               <f.icon className="h-5 w-5 text-[var(--color-accent)] mb-3" />
               <h3 className="text-sm font-semibold mb-1">{f.title}</h3>
               <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed">{f.desc}</p>
@@ -135,27 +128,25 @@ export function FeatureGrid({
 }
 
 /** Closing call-to-action: heading, blurb, and the register / features buttons. */
-export function ToolCta({
-  heading,
-  description,
-}: {
-  heading: string;
-  description: string;
-}) {
+export function ToolCta({ heading, description }: { heading: string; description: string }) {
   return (
     <section className="py-16 sm:py-20 border-t border-[var(--color-border)]">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 text-center">
         <h2 className="text-2xl sm:text-3xl font-bold font-heading tracking-tight mb-4">
           {heading}
         </h2>
-        <p className="text-[var(--color-text-secondary)] mb-8 max-w-md mx-auto">
-          {description}
-        </p>
+        <p className="text-[var(--color-text-secondary)] mb-8 max-w-md mx-auto">{description}</p>
         <div className="flex items-center justify-center gap-3">
-          <Link href="/register" className="px-6 py-2.5 text-sm font-semibold bg-[var(--color-text)] text-[var(--color-bg)] rounded-xl hover:opacity-90 transition-opacity">
+          <Link
+            href="/register"
+            className="px-6 py-2.5 text-sm font-semibold bg-[var(--color-text)] text-[var(--color-bg)] rounded-xl hover:opacity-90 transition-opacity"
+          >
             Get started free
           </Link>
-          <Link href="/features" className="px-6 py-2.5 text-sm font-medium border border-[var(--color-border)] rounded-xl hover:bg-[var(--color-surface-1)] transition-colors">
+          <Link
+            href="/features"
+            className="px-6 py-2.5 text-sm font-medium border border-[var(--color-border)] rounded-xl hover:bg-[var(--color-surface-1)] transition-colors"
+          >
             See features
           </Link>
         </div>

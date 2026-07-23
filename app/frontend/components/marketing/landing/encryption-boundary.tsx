@@ -48,11 +48,15 @@ export function EncryptionBoundary() {
             There&apos;s a line your files cross.
             <br />
             We&apos;re on the{" "}
-            <em className="italic inline bg-gradient-to-r from-cyan-500 to-cyan-400 bg-clip-text pb-1 text-transparent dark:from-cyan-400 dark:to-cyan-300"> wrong side </em> of it.
+            <em className="italic inline bg-gradient-to-r from-cyan-500 to-cyan-400 bg-clip-text pb-1 text-transparent dark:from-cyan-400 dark:to-cyan-300">
+              {" "}
+              wrong side{" "}
+            </em>{" "}
+            of it.
           </h2>
           <p className="mx-auto mt-4 max-w-xl leading-relaxed text-[var(--color-text-secondary)]">
-            Everything sensitive happens on your device. What crosses to our
-            servers is already unreadable — no keys, no names, no plaintext.
+            Everything sensitive happens on your device. What crosses to our servers is already
+            unreadable — no keys, no names, no plaintext.
           </p>
         </ScrollReveal>
 
@@ -107,17 +111,26 @@ export function EncryptionBoundary() {
             <div className="h-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-7 sm:p-9">
               <div className="mb-7 flex items-center justify-between">
                 <span className="text-sm font-bold tracking-tight">What our servers see</span>
-                <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)] ${inset}`}>
+                <span
+                  className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)] ${inset}`}
+                >
                   Ciphertext only
                 </span>
               </div>
 
               {/* Ciphertext blob */}
-              <div className={`select-none break-all rounded-xl p-4 font-mono text-[11px] leading-relaxed text-[var(--color-text-muted)] ${inset}`}>
-                <span className="text-cyan-600/80 dark:text-cyan-400/80">tar a4f9c1 0c77ae 3f5b</span>{" "}
-                9f2a1c b8d40e 7c5b13 f0e2a9 4d1b6c 8e30dd 91ac0c 77ae3f 5b2a4f
-                9c1e20 7b8d40 e7c5b1 3f0e2a 94d1b6 c8e30d
-                <span className="text-cyan-600/80 dark:text-cyan-400/80"> 6b13fa f0e2 — sealed</span>
+              <div
+                className={`select-none break-all rounded-xl p-4 font-mono text-[11px] leading-relaxed text-[var(--color-text-muted)] ${inset}`}
+              >
+                <span className="text-cyan-600/80 dark:text-cyan-400/80">
+                  tar a4f9c1 0c77ae 3f5b
+                </span>{" "}
+                9f2a1c b8d40e 7c5b13 f0e2a9 4d1b6c 8e30dd 91ac0c 77ae3f 5b2a4f 9c1e20 7b8d40 e7c5b1
+                3f0e2a 94d1b6 c8e30d
+                <span className="text-cyan-600/80 dark:text-cyan-400/80">
+                  {" "}
+                  6b13fa f0e2 — sealed
+                </span>
               </div>
 
               <p className="mb-3 mt-7 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
@@ -126,7 +139,9 @@ export function EncryptionBoundary() {
               <ul className="space-y-2.5">
                 {neverLeaves.map((item) => (
                   <li key={item} className="flex items-center gap-3">
-                    <span className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[var(--color-text-muted)] ${inset}`}>
+                    <span
+                      className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[var(--color-text-muted)] ${inset}`}
+                    >
                       <X className="h-3 w-3" />
                     </span>
                     <span className="text-sm text-[var(--color-text-secondary)]">{item}</span>
@@ -141,9 +156,11 @@ export function EncryptionBoundary() {
           <div className="mt-6 flex items-start gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-5">
             <Lock className="mt-0.5 h-4 w-4 flex-shrink-0 text-cyan-500" />
             <p className="text-sm leading-relaxed text-[var(--color-text-secondary)]">
-              <span className="font-semibold text-[var(--color-text)]">That&apos;s zero-knowledge.</span>{" "}
-              Lose your passphrase and even we can&apos;t recover your files —
-              there&apos;s nothing on our side to recover them from.
+              <span className="font-semibold text-[var(--color-text)]">
+                That&apos;s zero-knowledge.
+              </span>{" "}
+              Lose your passphrase and even we can&apos;t recover your files — there&apos;s nothing
+              on our side to recover them from.
             </p>
           </div>
         </ScrollReveal>

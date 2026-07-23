@@ -96,7 +96,7 @@ interface DragGhostOptions {
  */
 export function setDragGhost(
   e: { dataTransfer: DataTransfer },
-  { tilt, count = 1, label, kind = "file" }: DragGhostOptions
+  { tilt, count = 1, label, kind = "file" }: DragGhostOptions,
 ): void {
   if (typeof document === "undefined") return;
   const dt = e.dataTransfer;
@@ -192,8 +192,7 @@ export function setDragGhost(
   card.style.border = "1px solid var(--color-border)";
   card.style.background = "var(--color-surface)";
   card.style.color = "var(--color-text)";
-  card.style.font =
-    "500 13px/1.2 ui-sans-serif, system-ui, -apple-system, sans-serif";
+  card.style.font = "500 13px/1.2 ui-sans-serif, system-ui, -apple-system, sans-serif";
   card.style.boxShadow = "0 14px 34px -10px rgba(0,0,0,0.55)";
   card.style.whiteSpace = "nowrap";
   card.style.overflow = "hidden";

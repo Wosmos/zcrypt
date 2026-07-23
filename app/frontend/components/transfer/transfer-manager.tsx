@@ -14,11 +14,7 @@ import { useTransferDockStore } from "@/store/transfer-dock";
 import { ChevronDown, CheckCircle2, AlertCircle, ArrowUpDown } from "@/lib/icons";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { cn } from "@/lib/utils";
-import {
-  TransferItem,
-  type TransferEntry,
-  type TransferState,
-} from "./transfer-item";
+import { TransferItem, type TransferEntry, type TransferState } from "./transfer-item";
 
 // ---------------------------------------------------------------------------
 // <TransferManager /> — a single docked bottom-right panel unifying uploads +
@@ -61,7 +57,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
   const resumeUpload = useUploadStore((s) => s.resumeUpload);
   const retryUpload = useUploadStore((s) => s.retryUpload);
   const removeUpload = useUploadStore((s) => s.removeFromQueue); // destructive (explicit Cancel)
-  const dismissUpload = useUploadStore((s) => s.dismissUpload);  // non-destructive (dock ✕ / swipe)
+  const dismissUpload = useUploadStore((s) => s.dismissUpload); // non-destructive (dock ✕ / swipe)
   const clearUploads = useUploadStore((s) => s.clearCompleted);
   const getItemFolderId = useUploadStore((s) => s.getItemFolderId);
   const getResumableUploadIds = useUploadStore((s) => s.getResumableUploadIds);
@@ -100,8 +96,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
   // first rather than silently corrupting the file with the wrong key.
   const withUploadPassword = (id: string, run: (password: string) => void) => {
     const folderId = getItemFolderId(id);
-    const protectedFolder =
-      folderId != null && useFolderRegistry.getState().isProtected(folderId);
+    const protectedFolder = folderId != null && useFolderRegistry.getState().isProtected(folderId);
     if (!protectedFolder) {
       // Unprotected upload → vault passphrase, exactly as before.
       withPassphrase(run);
@@ -130,8 +125,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
   const withDownloadPassword = (fileId: string, run: (passphrase: string) => void) => {
     const file = getFilesData().find((f) => f.id === fileId);
     const folderId = file?.folder_id ?? null;
-    const protectedFolder =
-      folderId != null && useFolderRegistry.getState().isProtected(folderId);
+    const protectedFolder = folderId != null && useFolderRegistry.getState().isProtected(folderId);
     if (protectedFolder) {
       const folderPw = useFolderPasswordStore.getState().get(folderId!);
       if (folderPw) {
@@ -186,11 +180,20 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
     const up: TransferEntry[] = uploadQueue.map((item) => {
       let state: TransferState;
       switch (item.status) {
-        case "done": state = "done"; break;
-        case "failed": state = "failed"; break;
-        case "paused": state = "paused"; break;
-        case "queued": state = "queued"; break;
-        default: state = "active"; // "encrypting" | "uploading"
+        case "done":
+          state = "done";
+          break;
+        case "failed":
+          state = "failed";
+          break;
+        case "paused":
+          state = "paused";
+          break;
+        case "queued":
+          state = "queued";
+          break;
+        default:
+          state = "active"; // "encrypting" | "uploading"
       }
       return {
         key: `up:${item.id}`,
@@ -213,12 +216,23 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
     const down: TransferEntry[] = downloadQueue.map((item) => {
       let state: TransferState;
       switch (item.status) {
-        case "done": state = "done"; break;
-        case "failed": state = "failed"; break;
-        case "cancelled": state = "cancelled"; break;
-        case "paused": state = "paused"; break;
-        case "queued": state = "queued"; break;
-        default: state = "active"; // "downloading"
+        case "done":
+          state = "done";
+          break;
+        case "failed":
+          state = "failed";
+          break;
+        case "cancelled":
+          state = "cancelled";
+          break;
+        case "paused":
+          state = "paused";
+          break;
+        case "queued":
+          state = "queued";
+          break;
+        default:
+          state = "active"; // "downloading"
       }
       return {
         key: `dl:${item.id}`,
@@ -264,7 +278,10 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
       ? Math.round(
           entries.reduce(
             (sum, e) =>
-              sum + (e.state === "done" || e.state === "failed" || e.state === "cancelled" ? 100 : (e.progress || 0)),
+              sum +
+              (e.state === "done" || e.state === "failed" || e.state === "cancelled"
+                ? 100
+                : e.progress || 0),
             0,
           ) / entries.length,
         )
@@ -280,9 +297,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
   // Warn before closing the tab while transfers are actually moving — closing
   // kills every in-flight chunk. Paused uploads are safe to close over (their
   // session + resume record survive), so they don't trigger the warning.
-  const transferring = entries.some(
-    (e) => e.state === "active" || e.state === "queued",
-  );
+  const transferring = entries.some((e) => e.state === "active" || e.state === "queued");
   useEffect(() => {
     if (!transferring) return;
     const handler = (e: BeforeUnloadEvent) => {
@@ -312,7 +327,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
       const item = downloadQueue.find((d) => d.id === id);
       if (!item) return;
       withDownloadPassword(item.fileId, (pass) =>
-        resumeDownload(id, pass, resolveFilePasswordGlobal)
+        resumeDownload(id, pass, resolveFilePasswordGlobal),
       );
     },
     // FIX-4: retry of a protected-folder download decrypts under the FOLDER
@@ -323,7 +338,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
       const item = downloadQueue.find((d) => d.id === id);
       if (!item) return;
       withDownloadPassword(item.fileId, (pass) =>
-        retryDownload(id, pass, resolveFilePasswordGlobal)
+        retryDownload(id, pass, resolveFilePasswordGlobal),
       );
     },
     // Dismiss is NON-destructive for uploads — it clears the dock row but keeps
@@ -457,7 +472,9 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
                       className="h-full rounded-full bg-[var(--color-accent)]"
                       initial={false}
                       animate={{ width: `${allSettled ? 100 : aggregateProgress}%` }}
-                      transition={reduceMotion ? { duration: 0 } : { duration: 0.45, ease: "easeOut" }}
+                      transition={
+                        reduceMotion ? { duration: 0 } : { duration: 0.45, ease: "easeOut" }
+                      }
                     />
                   </div>
                   <span className="flex-shrink-0 text-[11px] tabular-nums text-[var(--color-text-muted)]">
