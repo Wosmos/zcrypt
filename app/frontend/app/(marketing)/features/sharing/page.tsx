@@ -35,7 +35,16 @@ export const metadata: Metadata = {
 };
 
 export default function SharingPage() {
-  const { hero, capabilitiesSection, capabilities, tieIn, moreWaysSection, moreWays, related, cta } = sharing;
+  const {
+    hero,
+    capabilitiesSection,
+    capabilities,
+    tieIn,
+    moreWaysSection,
+    moreWays,
+    related,
+    cta,
+  } = sharing;
 
   return (
     <>
@@ -67,13 +76,9 @@ export default function SharingPage() {
         >
           {/* the url, with the fragment highlighted */}
           <div className="rounded-xl border border-[var(--color-border)] bg-black/[0.02] p-3 font-mono text-[11px] leading-relaxed break-all dark:bg-white/[0.02]">
-            <span className="text-[var(--color-text-muted)]">
-              https://zcrypt.cloud/s/
-            </span>
+            <span className="text-[var(--color-text-muted)]">https://zcrypt.cloud/s/</span>
             <span className="text-[var(--color-text-secondary)]">3kQ9pX2v</span>
-            <span className="text-amber-600 dark:text-amber-400">
-              #key=8f4a…d20e
-            </span>
+            <span className="text-amber-600 dark:text-amber-400">#key=8f4a…d20e</span>
           </div>
           <div className="mt-2 grid grid-cols-1 gap-2 text-[11px] sm:grid-cols-2">
             <div className="flex items-center gap-2 text-[var(--color-text-muted)]">
@@ -133,20 +138,18 @@ export default function SharingPage() {
             success="✓ no key on the wire. no plaintext on the server."
           >
             <div className="break-all">
-              <span className="text-cyan-600/80 dark:text-cyan-400/80">GET</span>{" "}
-              /s/3kQ9pX2v
+              <span className="text-cyan-600/80 dark:text-cyan-400/80">GET</span> /s/3kQ9pX2v
             </div>
             <div className="mt-1.5">
-              <span className="text-cyan-600/80 dark:text-cyan-400/80">returns</span>{" "}
-              ciphertext blob — sealed
+              <span className="text-cyan-600/80 dark:text-cyan-400/80">returns</span> ciphertext
+              blob — sealed
             </div>
             <div className="mt-1.5 break-all">
               <span className="text-cyan-600/80 dark:text-cyan-400/80">#key=…</span>{" "}
               <span className="text-amber-500">not in request</span>
             </div>
             <div className="mt-1.5">
-              decrypt happens in:{" "}
-              <span className="text-emerald-500">the browser</span>
+              decrypt happens in: <span className="text-emerald-500">the browser</span>
             </div>
           </CodePanel>
         }
@@ -159,9 +162,7 @@ export default function SharingPage() {
             <h2 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
               {moreWaysSection.heading}
             </h2>
-            <p className="mt-3 text-[var(--color-text-secondary)]">
-              {moreWaysSection.subheading}
-            </p>
+            <p className="mt-3 text-[var(--color-text-secondary)]">{moreWaysSection.subheading}</p>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <article className="card p-6">

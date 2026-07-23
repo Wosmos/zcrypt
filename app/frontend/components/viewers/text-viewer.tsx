@@ -37,7 +37,7 @@ export function TextViewer({ blob, filename }: { blob: Blob; filename: string })
       }
       return { raw, highlighted };
     },
-    [filename, truncated]
+    [filename, truncated],
   );
   const { value, error } = useDecodedBlob(blob, decode, "Could not read this file.");
   const text = value?.raw ?? null;
@@ -71,7 +71,7 @@ export function TextViewer({ blob, filename }: { blob: Blob; filename: string })
         <pre
           className={cn(
             "p-4 text-xs leading-relaxed",
-            wrap ? "whitespace-pre-wrap break-words" : "whitespace-pre"
+            wrap ? "whitespace-pre-wrap break-words" : "whitespace-pre",
           )}
         >
           {highlighted !== null ? (

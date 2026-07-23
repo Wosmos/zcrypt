@@ -39,12 +39,36 @@ export const metadata: Metadata = toolMetadata({
 });
 
 const features: ToolFeature[] = [
-  { icon: Lock, title: "Client-side encryption", desc: "Text is encrypted with AES-256-GCM in your browser. The server stores only encrypted bytes." },
-  { icon: Shield, title: "Key in the link", desc: "The decryption key lives in the URL fragment — it never reaches the server, not even in access logs." },
-  { icon: Clock, title: "Timed expiry", desc: "Pads auto-delete after 1 hour, 24 hours, or 7 days. No leftover data, ever." },
-  { icon: Eye, title: "View once", desc: "Enable burn-after-read to destroy the pad after a single view." },
-  { icon: Zap, title: "Instant & anonymous", desc: "No sign-up required. No IP logging. No cookies. Just encrypted text." },
-  { icon: FileText, title: "Up to 1 MB", desc: "Share code snippets, credentials, notes, or any text up to 1 MB." },
+  {
+    icon: Lock,
+    title: "Client-side encryption",
+    desc: "Text is encrypted with AES-256-GCM in your browser. The server stores only encrypted bytes.",
+  },
+  {
+    icon: Shield,
+    title: "Key in the link",
+    desc: "The decryption key lives in the URL fragment — it never reaches the server, not even in access logs.",
+  },
+  {
+    icon: Clock,
+    title: "Timed expiry",
+    desc: "Pads auto-delete after 1 hour, 24 hours, or 7 days. No leftover data, ever.",
+  },
+  {
+    icon: Eye,
+    title: "View once",
+    desc: "Enable burn-after-read to destroy the pad after a single view.",
+  },
+  {
+    icon: Zap,
+    title: "Instant & anonymous",
+    desc: "No sign-up required. No IP logging. No cookies. Just encrypted text.",
+  },
+  {
+    icon: FileText,
+    title: "Up to 1 MB",
+    desc: "Share code snippets, credentials, notes, or any text up to 1 MB.",
+  },
 ];
 
 export default function PadPublicPage() {
@@ -75,9 +99,21 @@ export default function PadPublicPage() {
 
           <StepGrid
             steps={[
-              { step: "1", title: "Type or paste", desc: "Enter your text. It stays in your browser until you encrypt." },
-              { step: "2", title: "One-click encrypt", desc: "A unique AES-256-GCM key is generated. Your text is encrypted locally and uploaded." },
-              { step: "3", title: "Share the link", desc: "The key is embedded in the URL fragment. Only people with the link can read it." },
+              {
+                step: "1",
+                title: "Type or paste",
+                desc: "Enter your text. It stays in your browser until you encrypt.",
+              },
+              {
+                step: "2",
+                title: "One-click encrypt",
+                desc: "A unique AES-256-GCM key is generated. Your text is encrypted locally and uploaded.",
+              },
+              {
+                step: "3",
+                title: "Share the link",
+                desc: "The key is embedded in the URL fragment. Only people with the link can read it.",
+              },
             ]}
           />
         </div>
@@ -94,14 +130,31 @@ export default function PadPublicPage() {
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { title: "Passwords", desc: "Share login credentials securely with burn-after-read enabled." },
-              { title: "API keys", desc: "Send API keys and tokens without exposing them in email or chat." },
-              { title: "Code snippets", desc: "Share code with colleagues that auto-expires when no longer needed." },
-              { title: "Private notes", desc: "Send confidential information that disappears after reading." },
+              {
+                title: "Passwords",
+                desc: "Share login credentials securely with burn-after-read enabled.",
+              },
+              {
+                title: "API keys",
+                desc: "Send API keys and tokens without exposing them in email or chat.",
+              },
+              {
+                title: "Code snippets",
+                desc: "Share code with colleagues that auto-expires when no longer needed.",
+              },
+              {
+                title: "Private notes",
+                desc: "Send confidential information that disappears after reading.",
+              },
             ].map((c) => (
-              <div key={c.title} className="p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+              <div
+                key={c.title}
+                className="p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]"
+              >
                 <h3 className="text-sm font-semibold mb-1">{c.title}</h3>
-                <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed">{c.desc}</p>
+                <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed">
+                  {c.desc}
+                </p>
               </div>
             ))}
           </div>

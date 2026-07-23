@@ -21,22 +21,15 @@ export function generateSalt(): Uint8Array {
 
 /** Derive a 256-bit key from passphrase + salt using PBKDF2-SHA256.
  *  Returns raw ArrayBuffer (transferable to workers). */
-export async function deriveKeyBytes(
-  passphrase: string,
-  salt: Uint8Array
-): Promise<ArrayBuffer> {
+export async function deriveKeyBytes(passphrase: string, salt: Uint8Array): Promise<ArrayBuffer> {
   const enc = new TextEncoder();
-  const baseKey = await crypto.subtle.importKey(
-    "raw",
-    enc.encode(passphrase),
-    "PBKDF2",
-    false,
-    ["deriveBits"]
-  );
+  const baseKey = await crypto.subtle.importKey("raw", enc.encode(passphrase), "PBKDF2", false, [
+    "deriveBits",
+  ]);
   return crypto.subtle.deriveBits(
     { name: "PBKDF2", salt: salt as BufferSource, iterations: PBKDF2_ITERATIONS, hash: "SHA-256" },
     baseKey,
-    KEY_SIZE * 8
+    KEY_SIZE * 8,
   );
 }
 
@@ -68,7 +61,7 @@ export function clearDerivedKeyCache(): void {
  *  buffer (e.g. to a worker) can never corrupt the cached bytes. */
 export async function deriveKeyBytesCached(
   passphrase: string,
-  salt: Uint8Array
+  salt: Uint8Array,
 ): Promise<ArrayBuffer> {
   const cacheKey = toBase64(salt) + "|" + passphrase;
   const hit = derivedKeyCache.get(cacheKey);
@@ -88,20 +81,14 @@ export async function deriveKeyBytesCached(
 /** Encrypt a chunk. Returns [12B IV || ciphertext || 16B tag]. */
 export async function encryptChunk(
   keyBytes: ArrayBuffer,
-  plaintext: Uint8Array
+  plaintext: Uint8Array,
 ): Promise<Uint8Array> {
   const iv = crypto.getRandomValues(new Uint8Array(IV_SIZE));
-  const key = await crypto.subtle.importKey(
-    "raw",
-    keyBytes,
-    "AES-GCM",
-    false,
-    ["encrypt"]
-  );
+  const key = await crypto.subtle.importKey("raw", keyBytes, "AES-GCM", false, ["encrypt"]);
   const ciphertext = await crypto.subtle.encrypt(
     { name: "AES-GCM", iv: iv as BufferSource },
     key,
-    plaintext as BufferSource
+    plaintext as BufferSource,
   );
   // Combine: IV + ciphertext (includes 16-byte auth tag appended by AES-GCM)
   const result = new Uint8Array(IV_SIZE + ciphertext.byteLength);
@@ -111,23 +98,14 @@ export async function encryptChunk(
 }
 
 /** Decrypt a chunk. Input: [12B IV || ciphertext || 16B tag]. */
-export async function decryptChunk(
-  keyBytes: ArrayBuffer,
-  data: Uint8Array
-): Promise<Uint8Array> {
+export async function decryptChunk(keyBytes: ArrayBuffer, data: Uint8Array): Promise<Uint8Array> {
   const iv = data.slice(0, IV_SIZE);
   const ciphertext = data.slice(IV_SIZE);
-  const key = await crypto.subtle.importKey(
-    "raw",
-    keyBytes,
-    "AES-GCM",
-    false,
-    ["decrypt"]
-  );
+  const key = await crypto.subtle.importKey("raw", keyBytes, "AES-GCM", false, ["decrypt"]);
   const plaintext = await crypto.subtle.decrypt(
     { name: "AES-GCM", iv: iv as BufferSource },
     key,
-    ciphertext as BufferSource
+    ciphertext as BufferSource,
   );
   return new Uint8Array(plaintext);
 }
@@ -151,18 +129,12 @@ export function generateCEK(): Uint8Array {
 }
 
 /** Wrap (encrypt) a CEK under a KEK. Returns [12B IV || ciphertext || 16B tag]. */
-export async function wrapKey(
-  kekBytes: ArrayBuffer,
-  cek: Uint8Array
-): Promise<Uint8Array> {
+export async function wrapKey(kekBytes: ArrayBuffer, cek: Uint8Array): Promise<Uint8Array> {
   return encryptChunk(kekBytes, cek);
 }
 
 /** Unwrap (decrypt) a CEK that was wrapped under a KEK. */
-export async function unwrapKey(
-  kekBytes: ArrayBuffer,
-  wrapped: Uint8Array
-): Promise<Uint8Array> {
+export async function unwrapKey(kekBytes: ArrayBuffer, wrapped: Uint8Array): Promise<Uint8Array> {
   return decryptChunk(kekBytes, wrapped);
 }
 
@@ -196,7 +168,7 @@ export class IncorrectPassphraseError extends Error {
 export async function resolveFileKey(
   passphrase: string,
   salt: Uint8Array,
-  wrappedCek?: string | null
+  wrappedCek?: string | null,
 ): Promise<ArrayBuffer> {
   // Memoized: repeated opens of the same (passphrase, salt) pair — thumbnail,
   // then preview, then download — pay the 600k-iteration PBKDF2 only once.
@@ -260,14 +232,24 @@ export async function deriveDedupKeyBytes(passphrase: string, userId: string): P
 
 /** HMAC-SHA256 hex of in-memory bytes under keyBytes. */
 export async function contentMacBytes(data: Uint8Array, keyBytes: Uint8Array): Promise<string> {
-  const key = await crypto.subtle.importKey("raw", keyBytes as BufferSource, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const key = await crypto.subtle.importKey(
+    "raw",
+    keyBytes as BufferSource,
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
   const mac = await crypto.subtle.sign("HMAC", key, data as BufferSource);
   return bytesToHex(new Uint8Array(mac));
 }
 
 /** HMAC-SHA256 hex of a File, streaming for large files (Web Crypto HMAC can't
  *  stream, so >50MB uses @noble/hashes incrementally — mirrors sha256File). */
-export async function contentMacFile(file: File, keyBytes: Uint8Array, onProgress?: (bytesHashed: number) => void): Promise<string> {
+export async function contentMacFile(
+  file: File,
+  keyBytes: Uint8Array,
+  onProgress?: (bytesHashed: number) => void,
+): Promise<string> {
   if (file.size <= 50 * 1024 * 1024) {
     const buf = await file.arrayBuffer();
     onProgress?.(file.size);
@@ -306,7 +288,10 @@ export async function createContentHasher(
 /** Compute SHA-256 hex digest of a File using streaming (constant ~4MB RAM).
  *  `onProgress` (optional) receives cumulative bytes hashed, so a multi-GB
  *  pre-hash can show movement instead of a dead progress row. */
-export async function sha256File(file: File, onProgress?: (bytesHashed: number) => void): Promise<string> {
+export async function sha256File(
+  file: File,
+  onProgress?: (bytesHashed: number) => void,
+): Promise<string> {
   // Small files: read all at once (fast path)
   if (file.size <= 50 * 1024 * 1024) {
     const buf = await file.arrayBuffer();

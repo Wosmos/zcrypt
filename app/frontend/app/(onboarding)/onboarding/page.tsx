@@ -10,15 +10,7 @@ import { TelegramConnect } from "@/components/settings/telegram-connect";
 import { toast } from "@/store/toast";
 import { PlatformIcon } from "@/components/icons/platform-icon";
 import { PLATFORMS } from "@/lib/platforms";
-import {
-  ArrowRight,
-  Lock,
-  Zap,
-  Shield,
-  Key,
-  CheckCircle2,
-  SkipForward,
-} from "@/lib/icons";
+import { ArrowRight, Lock, Zap, Shield, Key, CheckCircle2, SkipForward } from "@/lib/icons";
 import { LogoIcon } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
 
@@ -92,7 +84,7 @@ export default function OnboardingPage() {
                   ? "w-8 bg-[var(--color-accent)]"
                   : i < stepIndex
                     ? "w-4 bg-[var(--color-accent)]/40"
-                    : "w-4 bg-[var(--color-border)]"
+                    : "w-4 bg-[var(--color-border)]",
               )}
             />
           ))}
@@ -108,8 +100,8 @@ export default function OnboardingPage() {
                 Welcome to <span className="text-[var(--color-accent)]">zcrypt</span>
               </h1>
               <p className="text-sm text-[var(--color-text-secondary)] max-w-sm mx-auto">
-                Encrypted, compressed, zero-knowledge cloud storage using Git
-                platforms as free backends.
+                Encrypted, compressed, zero-knowledge cloud storage using Git platforms as free
+                backends.
               </p>
             </div>
 
@@ -133,7 +125,11 @@ export default function OnboardingPage() {
 
             <PrimaryWithSkip
               onPrimaryClick={() => setStep("platform")}
-              primaryLabel={<>Get Started <ArrowRight className="h-4 w-4" /></>}
+              primaryLabel={
+                <>
+                  Get Started <ArrowRight className="h-4 w-4" />
+                </>
+              }
               onSkip={handleSkip}
             />
           </div>
@@ -142,9 +138,7 @@ export default function OnboardingPage() {
         {step === "platform" && (
           <div className="space-y-6 animate-fade-in">
             <div className="text-center space-y-3">
-              <h2 className="text-2xl font-bold">
-                Choose a platform
-              </h2>
+              <h2 className="text-2xl font-bold">Choose a platform</h2>
               <p className="text-sm text-[var(--color-text-secondary)]">
                 Connect at least one platform to start storing files
               </p>
@@ -161,7 +155,7 @@ export default function OnboardingPage() {
                       "w-full flex items-center gap-3.5 rounded-xl border p-4 text-left transition-all",
                       isSelected
                         ? "border-[var(--color-accent)]/40 bg-[var(--color-accent)]/5"
-                        : "border-[var(--color-border)] hover:border-[var(--color-border-hover)] hover:bg-[var(--color-surface-1)]"
+                        : "border-[var(--color-border)] hover:border-[var(--color-border-hover)] hover:bg-[var(--color-surface-1)]",
                     )}
                   >
                     <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-[var(--color-surface-1)] flex-shrink-0">
@@ -182,9 +176,16 @@ export default function OnboardingPage() {
             </div>
 
             <PrimaryWithSkip
-              onPrimaryClick={() => { setToken(""); setStep("token"); }}
+              onPrimaryClick={() => {
+                setToken("");
+                setStep("token");
+              }}
               primaryDisabled={!selectedPlatform}
-              primaryLabel={<>Continue <ArrowRight className="h-4 w-4" /></>}
+              primaryLabel={
+                <>
+                  Continue <ArrowRight className="h-4 w-4" />
+                </>
+              }
               onSkip={handleSkip}
             />
           </div>
@@ -196,9 +197,7 @@ export default function OnboardingPage() {
               <div className="inline-flex items-center justify-center h-14 w-14 rounded-2xl bg-[var(--color-surface-1)] mx-auto">
                 <PlatformIcon platform={platform.id} className="h-7 w-7" />
               </div>
-              <h2 className="text-2xl font-bold">
-                Connect {platform.name}
-              </h2>
+              <h2 className="text-2xl font-bold">Connect {platform.name}</h2>
               <p className="text-sm text-[var(--color-text-secondary)]">
                 Create a Personal Access Token with{" "}
                 <code className="text-xs bg-[var(--color-surface-1)] px-1.5 py-0.5 rounded">
@@ -261,18 +260,12 @@ export default function OnboardingPage() {
               <LogoIcon size={56} />
             </div>
             <div>
-              <h2 className="text-2xl font-bold">
-                You&apos;re all set!
-              </h2>
+              <h2 className="text-2xl font-bold">You&apos;re all set!</h2>
               <p className="text-sm text-[var(--color-text-secondary)] mt-2">
                 Start uploading encrypted files to your vault.
               </p>
             </div>
-            <Button
-              className="w-full"
-              size="lg"
-              onClick={() => router.push("/dashboard")}
-            >
+            <Button className="w-full" size="lg" onClick={() => router.push("/dashboard")}>
               Go to Vault <ArrowRight className="h-4 w-4" />
             </Button>
           </div>
@@ -282,15 +275,7 @@ export default function OnboardingPage() {
   );
 }
 
-function FeatureRow({
-  icon,
-  title,
-  desc,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  desc: string;
-}) {
+function FeatureRow({ icon, title, desc }: { icon: React.ReactNode; title: string; desc: string }) {
   return (
     <div className="flex items-center gap-3.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3.5">
       <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-[var(--color-surface-1)] text-[var(--color-text-muted)] flex-shrink-0">

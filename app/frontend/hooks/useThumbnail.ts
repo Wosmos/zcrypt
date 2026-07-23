@@ -57,10 +57,22 @@ let version = 0; // bumped on every change so per-file hooks re-render
 // instantly across reloads/logouts (the cache itself already survives both).
 let hydrated = false;
 let listeners: (() => void)[] = [];
-function notify() { version++; for (const l of listeners) l(); }
-function subscribe(cb: () => void) { listeners.push(cb); return () => { listeners = listeners.filter((l) => l !== cb); }; }
-function getSnapshot() { return memCache; }
-function getVersion() { return version; }
+function notify() {
+  version++;
+  for (const l of listeners) l();
+}
+function subscribe(cb: () => void) {
+  listeners.push(cb);
+  return () => {
+    listeners = listeners.filter((l) => l !== cb);
+  };
+}
+function getSnapshot() {
+  return memCache;
+}
+function getVersion() {
+  return version;
+}
 
 /** Given up after MAX_THUMB_ATTEMPTS — show the type icon, stop retrying. */
 function isPermanentlyFailed(id: string): boolean {
@@ -101,11 +113,21 @@ function markThumbFailed(id: string, permanent: boolean): void {
   }
   const attempts = (failed.get(id)?.attempts ?? 0) + 1;
   const backoff = Math.min(30_000, 3_000 * 2 ** (attempts - 1)); // 3s, 6s, 12s (cap 30s)
-  failed.set(id, { attempts, nextRetryAt: Date.now() + backoff, hard: attempts >= MAX_THUMB_ATTEMPTS });
+  failed.set(id, {
+    attempts,
+    nextRetryAt: Date.now() + backoff,
+    hard: attempts >= MAX_THUMB_ATTEMPTS,
+  });
   const existing = retryTimers.get(id);
   if (existing) clearTimeout(existing);
   if (attempts < MAX_THUMB_ATTEMPTS) {
-    retryTimers.set(id, setTimeout(() => { retryTimers.delete(id); notify(); }, backoff + 50));
+    retryTimers.set(
+      id,
+      setTimeout(() => {
+        retryTimers.delete(id);
+        notify();
+      }, backoff + 50),
+    );
   }
 }
 
@@ -213,14 +235,23 @@ async function generateThumbnail(blob: Blob, maxW: number, maxH: number): Promis
       canvas.width = w;
       canvas.height = h;
       const ctx = canvas.getContext("2d");
-      if (!ctx) { reject(new Error("No canvas context")); return; }
+      if (!ctx) {
+        reject(new Error("No canvas context"));
+        return;
+      }
       ctx.drawImage(img, 0, 0, w, h);
       // An all-transparent raster must FAIL (→ type icon), never be cached as a
       // "thumbnail" — an invisible preview reads as an eternal shimmer.
-      if (canvasLooksBlank(ctx, w, h)) { reject(new Error("blank render")); return; }
+      if (canvasLooksBlank(ctx, w, h)) {
+        reject(new Error("blank render"));
+        return;
+      }
       resolve(canvas.toDataURL("image/webp", 0.55));
     };
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("decode failed")); };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("decode failed"));
+    };
     img.src = url;
   });
 }
@@ -238,7 +269,11 @@ async function generateVideoThumbnail(blob: Blob, maxW: number, maxH: number): P
     const cleanup = () => {
       URL.revokeObjectURL(url);
       video.removeAttribute("src");
-      try { video.load(); } catch { /* ignore */ }
+      try {
+        video.load();
+      } catch {
+        /* ignore */
+      }
     };
     const fail = (msg: string) => {
       if (settled) return;
@@ -248,8 +283,12 @@ async function generateVideoThumbnail(blob: Blob, maxW: number, maxH: number): P
     };
     const capture = () => {
       if (settled) return;
-      const vw = video.videoWidth, vh = video.videoHeight;
-      if (!vw || !vh) { fail("no video dimensions"); return; }
+      const vw = video.videoWidth,
+        vh = video.videoHeight;
+      if (!vw || !vh) {
+        fail("no video dimensions");
+        return;
+      }
       const scale = Math.min(maxW / vw, maxH / vh, 1);
       const w = Math.max(1, Math.round(vw * scale));
       const h = Math.max(1, Math.round(vh * scale));
@@ -257,7 +296,10 @@ async function generateVideoThumbnail(blob: Blob, maxW: number, maxH: number): P
       canvas.width = w;
       canvas.height = h;
       const ctx = canvas.getContext("2d");
-      if (!ctx) { fail("no canvas context"); return; }
+      if (!ctx) {
+        fail("no canvas context");
+        return;
+      }
       try {
         ctx.drawImage(video, 0, 0, w, h);
       } catch {
@@ -274,7 +316,11 @@ async function generateVideoThumbnail(blob: Blob, maxW: number, maxH: number): P
     video.onloadeddata = () => {
       const dur = isFinite(video.duration) ? video.duration : 2;
       const t = Math.min(1, Math.max(0, dur * 0.1));
-      try { video.currentTime = t; } catch { capture(); }
+      try {
+        video.currentTime = t;
+      } catch {
+        capture();
+      }
     };
     video.onseeked = capture;
     video.onerror = () => fail("video decode error");
@@ -293,8 +339,14 @@ function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(label + " timed out")), ms);
     p.then(
-      (v) => { clearTimeout(timer); resolve(v); },
-      (e) => { clearTimeout(timer); reject(e); }
+      (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(timer);
+        reject(e);
+      },
     );
   });
 }
@@ -358,7 +410,13 @@ async function acquireSlot(fileId: string): Promise<void> {
     return;
   }
   await new Promise<void>((resolve) => {
-    queue.push({ fileId, run: () => { activeCount++; resolve(); } });
+    queue.push({
+      fileId,
+      run: () => {
+        activeCount++;
+        resolve();
+      },
+    });
   });
   // A foreground decrypt may have started while this item sat in the queue —
   // re-check before letting it run. It holds its slot while waiting, which
@@ -380,7 +438,7 @@ async function decryptFileToBlob(
   fileId: string,
   passphrase: string,
   resolvePassword?: ThumbnailPasswordResolver,
-  mime = "application/octet-stream"
+  mime = "application/octet-stream",
 ): Promise<Blob> {
   const filePassphrase = resolvePassword ? resolvePassword(fileId) : passphrase;
   if (filePassphrase == null) {
@@ -434,7 +492,7 @@ async function fetchAndCacheThumbnail(
   fileId: string,
   filename: string,
   passphrase: string,
-  resolvePassword?: ThumbnailPasswordResolver
+  resolvePassword?: ThumbnailPasswordResolver,
 ): Promise<string | null> {
   // Sole caller (the hook's effect) already checks memCache/inflight/failedSet
   // synchronously right before calling — no gap for that state to change.
@@ -449,7 +507,7 @@ async function fetchAndCacheThumbnail(
       setTimeout(() => {
         graceTimers.delete(fileId);
         notify();
-      }, SHIMMER_MAX_MS)
+      }, SHIMMER_MAX_MS),
     );
   }
   notify(); // surface the loading state to mounted cards right away
@@ -474,7 +532,7 @@ async function fetchAndCacheThumbnail(
       blob = await withTimeout(
         decryptFileToBlob(fileId, passphrase, resolvePassword, mimeForFile(filename)),
         30_000,
-        "thumbnail decrypt"
+        "thumbnail decrypt",
       );
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -531,7 +589,7 @@ async function fetchAndCacheThumbnail(
 export async function seedThumbnailFromFile(
   fileId: string,
   source: Blob,
-  filename: string
+  filename: string,
 ): Promise<void> {
   if (memCache.has(fileId)) return;
   const video = isVideoFile(filename);
@@ -554,10 +612,7 @@ export async function seedThumbnailFromFile(
  *  generates its own thumbnail the first time its card renders, so we never
  *  block on decrypting the whole vault. `resolvePassword` routes
  *  protected-folder files to their folder password (locked ones are skipped). */
-export function primeThumbnails(
-  passphrase: string,
-  resolvePassword?: ThumbnailPasswordResolver
-) {
+export function primeThumbnails(passphrase: string, resolvePassword?: ThumbnailPasswordResolver) {
   ctxPassphrase = passphrase;
   ctxResolver = resolvePassword;
   notify(); // wake already-mounted hooks so they start generating
@@ -602,7 +657,7 @@ export function getCachedThumbnailCount(): number {
 export function useThumbnail(
   fileId: string,
   filename: string,
-  size?: number
+  size?: number,
 ): {
   thumbnailUrl: string | null;
   loading: boolean;
@@ -635,12 +690,12 @@ export function useThumbnail(
       // begin just before the tile actually scrolls into view.
       const observer = new IntersectionObserver(
         ([entry]) => setThumbnailVisibility(fileId, entry.isIntersecting),
-        { rootMargin: "200px" }
+        { rootMargin: "200px" },
       );
       observer.observe(node);
       observerRef.current = observer;
     },
-    [fileId]
+    [fileId],
   );
   // On unmount (or fileId change), drop this file's visibility bookkeeping so
   // the offscreen set can't grow unbounded across a long session.
@@ -691,8 +746,7 @@ export function useThumbnail(
   // Gated on `hydrated` so a reload never flashes a shimmer over previews that
   // are cached on disk and about to appear instantly.
   const startedAt = genStartedAt.get(fileId);
-  const withinGrace =
-    startedAt === undefined ? true : Date.now() - startedAt < SHIMMER_MAX_MS;
+  const withinGrace = startedAt === undefined ? true : Date.now() - startedAt < SHIMMER_MAX_MS;
   const pending =
     hydrated &&
     thumbable &&

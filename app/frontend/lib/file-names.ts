@@ -29,9 +29,13 @@ export async function decryptFileNames(files: FileMetadata[]): Promise<FileMetad
       if (!f.encrypted_name && !f.encrypted_style) return f; // legacy plaintext file — untouched
       return {
         ...f,
-        original_name: f.encrypted_name ? (key ? await decryptNameSafe(f.encrypted_name, key) : "[locked]") : f.original_name,
+        original_name: f.encrypted_name
+          ? key
+            ? await decryptNameSafe(f.encrypted_name, key)
+            : "[locked]"
+          : f.original_name,
         style: key ? await decryptStyle(f.encrypted_style, key) : null,
       };
-    })
+    }),
   );
 }

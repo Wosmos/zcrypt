@@ -2,11 +2,31 @@ import { create } from "zustand";
 import type { FileMetadata, UploadItem, UploadStatus } from "@/types";
 import { toast } from "@/store/toast";
 import { WorkerPool } from "@/lib/worker-pool";
-import { generateSalt, deriveKeyBytes, generateCEK, wrapKey, unwrapKey, sha256File, contentMacFile, deriveDedupKeyBytes, toBase64, fromBase64 } from "@/lib/crypto";
+import {
+  generateSalt,
+  deriveKeyBytes,
+  generateCEK,
+  wrapKey,
+  unwrapKey,
+  sha256File,
+  contentMacFile,
+  deriveDedupKeyBytes,
+  toBase64,
+  fromBase64,
+} from "@/lib/crypto";
 import { deriveNameKey, encryptName } from "@/lib/name-crypto";
 import { useAuthStore } from "@/store/auth";
 import { usePassphraseStore } from "@/store/passphrase";
-import { initUpload, uploadChunk, completeUpload, presignChunk, directUploadToURL, confirmChunk, cancelUpload, getUploadStatus } from "@/lib/upload-session";
+import {
+  initUpload,
+  uploadChunk,
+  completeUpload,
+  presignChunk,
+  directUploadToURL,
+  confirmChunk,
+  cancelUpload,
+  getUploadStatus,
+} from "@/lib/upload-session";
 import { getFileMeta } from "@/lib/api";
 import { seedThumbnailFromFile } from "@/hooks/useThumbnail";
 import { setFilesData } from "@/store/files";
@@ -53,7 +73,9 @@ function debouncedRefresh(fn?: () => void) {
 // Uses the same `tag` to replace the notification (not spam new ones).
 let bgNotifInterval: ReturnType<typeof setInterval> | null = null;
 
-function startBackgroundNotifications(getBatchState: () => { done: number; failed: number; total: number; percent: number }) {
+function startBackgroundNotifications(
+  getBatchState: () => { done: number; failed: number; total: number; percent: number },
+) {
   stopBackgroundNotifications();
   bgNotifInterval = setInterval(() => {
     if (typeof window === "undefined" || !("Notification" in window)) return;
@@ -65,9 +87,7 @@ function startBackgroundNotifications(getBatchState: () => { done: number; faile
     const active = total - done - failed;
     if (active <= 0) {
       // All done — send final notification
-      const body = failed > 0
-        ? `${done} uploaded, ${failed} failed`
-        : `All ${done} files uploaded`;
+      const body = failed > 0 ? `${done} uploaded, ${failed} failed` : `All ${done} files uploaded`;
       new Notification("Upload complete", {
         body,
         icon: "/favicon.ico",
@@ -102,7 +122,17 @@ function stopBackgroundNotifications() {
 
 // --- Throttled progress updates to prevent UI jank ---
 // Batches rapid updateStatus calls into a single Zustand set() per animation frame.
-const pendingUpdates = new Map<string, { status: UploadStatus; progress?: number; stage?: string; bytesProcessed?: number; totalBytes?: number; rateBps?: number }>();
+const pendingUpdates = new Map<
+  string,
+  {
+    status: UploadStatus;
+    progress?: number;
+    stage?: string;
+    bytesProcessed?: number;
+    totalBytes?: number;
+    rateBps?: number;
+  }
+>();
 let flushScheduled = false;
 
 function scheduleFlush() {
@@ -136,10 +166,18 @@ interface UploadStore {
   addToQueue: (file: File) => string;
   addBatchToQueue: (files: File[]) => { file: File; id: string }[];
   setFileId: (id: string, fileId: string) => void;
-  updateStatus: (id: string, status: UploadStatus, progress?: number, stage?: string, bytesProcessed?: number, totalBytes?: number, rateBps?: number) => void;
+  updateStatus: (
+    id: string,
+    status: UploadStatus,
+    progress?: number,
+    stage?: string,
+    bytesProcessed?: number,
+    totalBytes?: number,
+    rateBps?: number,
+  ) => void;
   setError: (id: string, error: string) => void;
-  removeFromQueue: (id: string) => void;         // DESTRUCTIVE: cancels the session + deletes staged data. Explicit "Cancel" only.
-  dismissUpload: (id: string) => void;           // NON-destructive: clears the dock row but keeps the upload recoverable.
+  removeFromQueue: (id: string) => void; // DESTRUCTIVE: cancels the session + deletes staged data. Explicit "Cancel" only.
+  dismissUpload: (id: string) => void; // NON-destructive: clears the dock row but keeps the upload recoverable.
   clearCompleted: () => void;
   findByFileId: (fileId: string) => UploadItem | undefined;
   /** Destination folder for a queued/in-flight upload item, or null for Root.
@@ -147,16 +185,28 @@ interface UploadStore {
    *  a protected-folder upload must re-encrypt remaining chunks under the folder
    *  password, not the vault passphrase. */
   getItemFolderId: (id: string) => string | null;
-  startUpload: (files: File[], passphrase: string, platform?: string, maxConcurrent?: number, onRefresh?: () => void, folderId?: string | null) => void;
+  startUpload: (
+    files: File[],
+    passphrase: string,
+    platform?: string,
+    maxConcurrent?: number,
+    onRefresh?: () => void,
+    folderId?: string | null,
+  ) => void;
   retryUpload: (id: string, passphrase: string) => void;
-  pauseUpload: (id: string) => void;                        // aborts in-flight chunks; preserves resume context (does NOT cancel session)
-  resumeUpload: (id: string, passphrase: string) => void;   // continue from getUploadStatus uploaded_chunks
+  pauseUpload: (id: string) => void; // aborts in-flight chunks; preserves resume context (does NOT cancel session)
+  resumeUpload: (id: string, passphrase: string) => void; // continue from getUploadStatus uploaded_chunks
   /** Ids of uploads that FAILED mid-transfer but still have a live server
    *  session to continue from — used to auto-resume after the phone wakes /
    *  reconnects. Excludes deliberately paused items and permanent pre-session
    *  failures (oversized, no storage connected), which never got a session. */
   getResumableUploadIds: () => string[];
-  startDesktopUpload: (passphrase: string, onRefresh?: () => void, preSelectedPaths?: string[], platform?: string) => void;
+  startDesktopUpload: (
+    passphrase: string,
+    onRefresh?: () => void,
+    preSelectedPaths?: string[],
+    platform?: string,
+  ) => void;
 }
 
 // Resume context for an in-flight upload. Holds the raw CEK so a retry re-encrypts
@@ -199,16 +249,26 @@ function resumeStoreKey(file: File): string {
   return `zc_upl:${file.name}:${file.size}:${file.lastModified}`;
 }
 function savePersistedResume(file: File, rec: PersistedResume): void {
-  try { localStorage.setItem(resumeStoreKey(file), JSON.stringify(rec)); } catch { /* quota / unavailable */ }
+  try {
+    localStorage.setItem(resumeStoreKey(file), JSON.stringify(rec));
+  } catch {
+    /* quota / unavailable */
+  }
 }
 function clearPersistedResume(file: File): void {
-  try { localStorage.removeItem(resumeStoreKey(file)); } catch { /* ignore */ }
+  try {
+    localStorage.removeItem(resumeStoreKey(file));
+  } catch {
+    /* ignore */
+  }
 }
 function readPersistedResume(file: File): PersistedResume | null {
   try {
     const raw = localStorage.getItem(resumeStoreKey(file));
     return raw ? (JSON.parse(raw) as PersistedResume) : null;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 /** Rebuild an in-memory resume context from a persisted record if — and only if
  *  — the server session is still active. Returns undefined on any miss (the
@@ -289,7 +349,7 @@ const pausedIds = new Set<string>();
 function blendDesktopUploadProgress(
   stage: string,
   bytesDone: number,
-  bytesTotal: number
+  bytesTotal: number,
 ): number | undefined {
   const within = bytesTotal > 0 ? bytesDone / bytesTotal : 0;
   switch (stage) {
@@ -325,11 +385,44 @@ function isPauseError(err: unknown): boolean {
 
 // File extensions that are already compressed — skip zstd to save CPU.
 const COMPRESSED_EXTENSIONS = new Set([
-  "jpg", "jpeg", "png", "gif", "webp", "avif", "heic", "heif",
-  "mp4", "mkv", "avi", "mov", "webm", "flv", "m4v",
-  "mp3", "aac", "ogg", "flac", "opus", "wma", "m4a",
-  "zip", "rar", "7z", "gz", "bz2", "xz", "zst", "lz4", "br", "tar.gz",
-  "pdf", "docx", "xlsx", "pptx", "woff", "woff2",
+  "jpg",
+  "jpeg",
+  "png",
+  "gif",
+  "webp",
+  "avif",
+  "heic",
+  "heif",
+  "mp4",
+  "mkv",
+  "avi",
+  "mov",
+  "webm",
+  "flv",
+  "m4v",
+  "mp3",
+  "aac",
+  "ogg",
+  "flac",
+  "opus",
+  "wma",
+  "m4a",
+  "zip",
+  "rar",
+  "7z",
+  "gz",
+  "bz2",
+  "xz",
+  "zst",
+  "lz4",
+  "br",
+  "tar.gz",
+  "pdf",
+  "docx",
+  "xlsx",
+  "pptx",
+  "woff",
+  "woff2",
 ]);
 
 // Retry wrapper for transient chunk-upload failures. Over a multi-GB upload
@@ -339,7 +432,11 @@ const COMPRESSED_EXTENSIONS = new Set([
 // unauthorized, not found) throw immediately so they surface instead of looping.
 // `shouldStop` (the pause check) is consulted before every attempt AND before
 // every backoff sleep, so pausing can't leave a chunk retrying for minutes.
-async function withRetry<T>(fn: () => Promise<T>, shouldStop?: () => boolean, maxRetries = 5): Promise<T> {
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  shouldStop?: () => boolean,
+  maxRetries = 5,
+): Promise<T> {
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     if (shouldStop?.()) throw new PausedError();
     try {
@@ -348,10 +445,14 @@ async function withRetry<T>(fn: () => Promise<T>, shouldStop?: () => boolean, ma
       if (isPauseError(err) || shouldStop?.()) throw new PausedError();
       const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
       const transient =
-        msg.includes("too many requests") || msg.includes("slow down") ||
-        msg.includes("network request failed") || msg.includes("timed out") ||
-        msg.includes("stalled") || msg.includes("aborted") ||
-        msg.includes("temporarily") || msg.includes("unavailable") ||
+        msg.includes("too many requests") ||
+        msg.includes("slow down") ||
+        msg.includes("network request failed") ||
+        msg.includes("timed out") ||
+        msg.includes("stalled") ||
+        msg.includes("aborted") ||
+        msg.includes("temporarily") ||
+        msg.includes("unavailable") ||
         /\b5\d\d\b/.test(msg); // 5xx server errors
       if (transient && attempt < maxRetries) {
         const backoff = Math.min(1000 * 2 ** attempt, 15_000) + Math.random() * 500;
@@ -472,7 +573,14 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
         // reserved for upload bytes) so a multi-GB pre-hash visibly moves.
         if (!isCurrentRun() || isPaused()) return;
         const frac = file.size > 0 ? hashed / file.size : 1;
-        updateStatus(id, "encrypting", 1 + Math.round(frac * 2), `Hashing file… ${Math.round(frac * 100)}%`, 0, file.size);
+        updateStatus(
+          id,
+          "encrypting",
+          1 + Math.round(frac * 2),
+          `Hashing file… ${Math.round(frac * 100)}%`,
+          0,
+          file.size,
+        );
       };
       if (dedupUserId) {
         const dedupKey = await deriveDedupKeyBytes(passphrase, dedupUserId);
@@ -516,7 +624,9 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
       // Init with a wait-for-slot retry loop. `explicitPlatform` overrides the
       // picker choice (used when a dead resumed session forces a restart — the
       // restart must stay on the ORIGINAL platform).
-      const doInit = async (explicitPlatform?: string): Promise<Awaited<ReturnType<typeof initUpload>> | null> => {
+      const doInit = async (
+        explicitPlatform?: string,
+      ): Promise<Awaited<ReturnType<typeof initUpload>> | null> => {
         for (let attempt = 0; attempt < 60; attempt++) {
           if (isPaused()) return null;
           try {
@@ -541,7 +651,10 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
             });
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
-            const isRetryable = msg.includes("too many concurrent") || msg.includes("too many requests") || msg.includes("slow down");
+            const isRetryable =
+              msg.includes("too many concurrent") ||
+              msg.includes("too many requests") ||
+              msg.includes("slow down");
             if (isRetryable && attempt < 59) {
               updateStatus(id, "queued", 0, `Waiting for slot (${attempt + 1})...`);
               await new Promise((r) => setTimeout(r, 2000 + Math.random() * 3000));
@@ -558,7 +671,10 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
       // exhaustion re-throws the underlying error directly instead of
       // falling through) — so reaching here always means paused; surface
       // that status and stop rather than guarding a case that can't occur.
-      if (!session) { pauseCheckpoint(); return; }
+      if (!session) {
+        pauseCheckpoint();
+        return;
+      }
 
       if (session.resumed) {
         // The server found an ACTIVE session for this exact file — adopt it.
@@ -570,19 +686,30 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
           resume = adopted;
           patchMeta(id, { resume, platform: adopted.platform ?? itemMeta.get(id)?.platform });
           savePersistedResume(file, {
-            sessionId: adopted.sessionId, fileId: adopted.fileId, chunkCount: adopted.chunkCount,
-            chunkSize: adopted.chunkSize, directUpload: adopted.directUpload,
-            shouldCompress: adopted.shouldCompress, platform: adopted.platform,
+            sessionId: adopted.sessionId,
+            fileId: adopted.fileId,
+            chunkCount: adopted.chunkCount,
+            chunkSize: adopted.chunkSize,
+            directUpload: adopted.directUpload,
+            shouldCompress: adopted.shouldCompress,
+            platform: adopted.platform,
           });
         } else {
           // Can't continue the old session (its envelope won't unwrap with this
           // passphrase, or its chunk size is unknown). Discard it and restart —
           // ON ITS PLATFORM, never a silently different one.
-          toast.warning(`Couldn't continue the previous upload of "${file.name}" — restarting on ${session.platform}.`);
-          await cancelUpload(session.session_id).catch(() => { /* best-effort */ });
+          toast.warning(
+            `Couldn't continue the previous upload of "${file.name}" — restarting on ${session.platform}.`,
+          );
+          await cancelUpload(session.session_id).catch(() => {
+            /* best-effort */
+          });
           clearPersistedResume(file);
           session = await doInit(session.platform);
-          if (!session) { pauseCheckpoint(); return; } // same reasoning as the fresh-path check above
+          if (!session) {
+            pauseCheckpoint();
+            return;
+          } // same reasoning as the fresh-path check above
         }
       }
 
@@ -599,11 +726,28 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
         patchMeta(id, { platform: session.platform || itemMeta.get(id)?.platform });
 
         // Persist the resume context NOW so a mid-upload failure can continue.
-        const ctx: ResumeCtx = { sessionId, fileId, cekBytes, chunkCount, chunkSize, directUpload: useDirectUpload, shouldCompress, platform: session.platform };
+        const ctx: ResumeCtx = {
+          sessionId,
+          fileId,
+          cekBytes,
+          chunkCount,
+          chunkSize,
+          directUpload: useDirectUpload,
+          shouldCompress,
+          platform: session.platform,
+        };
         patchMeta(id, { resume: ctx });
         // Also persist session pointers (NOT the key) so this upload can resume
         // after a page reload — see loadPersistedResume.
-        savePersistedResume(file, { sessionId, fileId, chunkCount, chunkSize, directUpload: useDirectUpload, shouldCompress, platform: session.platform });
+        savePersistedResume(file, {
+          sessionId,
+          fileId,
+          chunkCount,
+          chunkSize,
+          directUpload: useDirectUpload,
+          shouldCompress,
+          platform: session.platform,
+        });
       }
     }
 
@@ -691,7 +835,15 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
       // Stage names the chunk currently in flight (falls back to the completed
       // count between chunks / at the end).
       const current = Math.min(uploadedChunks + (inFlightPlainBytes.size > 0 ? 1 : 0), chunkCount);
-      updateStatus(id, "uploading", percent, `Uploading chunk ${current}/${chunkCount}`, bytes, file.size, rateBps);
+      updateStatus(
+        id,
+        "uploading",
+        percent,
+        `Uploading chunk ${current}/${chunkCount}`,
+        bytes,
+        file.size,
+        rateBps,
+      );
     };
 
     // Emit the TRUE resume position immediately (before any chunk moves), so a
@@ -702,7 +854,11 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
     // already requested (pausedIds cleared) — the next run owns the row then.
     const markPaused = () => {
       if (!isCurrentRun() || !isPaused()) return;
-      const percent = 3 + Math.round((file.size > 0 ? completedPlainBytes / file.size : uploadedChunks / chunkCount) * 92);
+      const percent =
+        3 +
+        Math.round(
+          (file.size > 0 ? completedPlainBytes / file.size : uploadedChunks / chunkCount) * 92,
+        );
       updateStatus(id, "paused", percent, "Paused", completedPlainBytes, file.size);
     };
 
@@ -732,75 +888,110 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
       const chunkData = await file.slice(start, end).arrayBuffer();
 
       // Send to worker for compress -> encrypt -> hash
-      const chunkPromise = pool.process({
-        chunkIndex: i,
-        plaintext: chunkData, // transferred to worker (zero-copy)
-        keyBytes: cekBytes.slice(0), // CEK — copy since buffer gets neutered on transfer
-        compress: shouldCompress,
-        compressionLevel: profile.compressionLevel,
-      }).then(async (result) => {
-        // Pause boundary 2: a chunk that finished encrypting while paused must
-        // not touch the network. It stays out of `done`, so resume re-encrypts
-        // and sends it then.
-        if (shouldStop()) return;
-        // Wait for upload slot (limits concurrent network requests)
-        await uploadSem.acquire();
+      const chunkPromise = pool
+        .process({
+          chunkIndex: i,
+          plaintext: chunkData, // transferred to worker (zero-copy)
+          keyBytes: cekBytes.slice(0), // CEK — copy since buffer gets neutered on transfer
+          compress: shouldCompress,
+          compressionLevel: profile.compressionLevel,
+        })
+        .then(async (result) => {
+          // Pause boundary 2: a chunk that finished encrypting while paused must
+          // not touch the network. It stays out of `done`, so resume re-encrypts
+          // and sends it then.
+          if (shouldStop()) return;
+          // Wait for upload slot (limits concurrent network requests)
+          await uploadSem.acquire();
 
-        try {
-          if (shouldStop()) return; // paused while waiting for a slot
-          const encrypted = new Uint8Array(result.encrypted);
+          try {
+            if (shouldStop()) return; // paused while waiting for a slot
+            const encrypted = new Uint8Array(result.encrypted);
 
-          // Intra-chunk progress: scale WIRE bytes sent to PLAINTEXT bytes (the
-          // bar's unit) via the chunk's encrypted/plaintext ratio, then feed the
-          // shared byte accounting. emitByteProgress skips emits while paused.
-          const onChunkProgress = (sentBytes: number) => {
-            const frac = encrypted.byteLength > 0 ? Math.min(sentBytes / encrypted.byteLength, 1) : 1;
-            const prev = inFlightPlainBytes.get(result.chunkIndex) ?? 0;
-            inFlightPlainBytes.set(result.chunkIndex, Math.max(prev, frac * plainSizeOfChunk(result.chunkIndex)));
-            emitByteProgress();
-          };
+            // Intra-chunk progress: scale WIRE bytes sent to PLAINTEXT bytes (the
+            // bar's unit) via the chunk's encrypted/plaintext ratio, then feed the
+            // shared byte accounting. emitByteProgress skips emits while paused.
+            const onChunkProgress = (sentBytes: number) => {
+              const frac =
+                encrypted.byteLength > 0 ? Math.min(sentBytes / encrypted.byteLength, 1) : 1;
+              const prev = inFlightPlainBytes.get(result.chunkIndex) ?? 0;
+              inFlightPlainBytes.set(
+                result.chunkIndex,
+                Math.max(prev, frac * plainSizeOfChunk(result.chunkIndex)),
+              );
+              emitByteProgress();
+            };
 
-          if (useDirectUpload) {
-            // DIRECT MODE: presign -> upload to platform -> confirm
-            const presign = await withRetry(() => presignChunk(
-              sessionId, result.chunkIndex, result.sha256, encrypted.byteLength
-            ), shouldStop);
-            if (!presign.already_exists) {
-              await directUploadToURL(presign.upload_url, presign.upload_headers, encrypted, onChunkProgress, abort.signal);
+            if (useDirectUpload) {
+              // DIRECT MODE: presign -> upload to platform -> confirm
+              const presign = await withRetry(
+                () =>
+                  presignChunk(sessionId, result.chunkIndex, result.sha256, encrypted.byteLength),
+                shouldStop,
+              );
+              if (!presign.already_exists) {
+                await directUploadToURL(
+                  presign.upload_url,
+                  presign.upload_headers,
+                  encrypted,
+                  onChunkProgress,
+                  abort.signal,
+                );
+              }
+              await withRetry(
+                () =>
+                  confirmChunk(
+                    sessionId,
+                    result.chunkIndex,
+                    result.sha256,
+                    encrypted.byteLength,
+                    presign.remote_path,
+                    result.compressed,
+                  ),
+                shouldStop,
+              );
+            } else {
+              // RELAY MODE: upload to server (server relays to platform)
+              await withRetry(
+                () =>
+                  uploadChunk(
+                    sessionId,
+                    result.chunkIndex,
+                    encrypted,
+                    result.sha256,
+                    result.compressed,
+                    onChunkProgress,
+                    abort.signal,
+                  ),
+                shouldStop,
+              );
             }
-            await withRetry(() => confirmChunk(
-              sessionId, result.chunkIndex, result.sha256, encrypted.byteLength, presign.remote_path, result.compressed
-            ), shouldStop);
-          } else {
-            // RELAY MODE: upload to server (server relays to platform)
-            await withRetry(() => uploadChunk(
-              sessionId, result.chunkIndex, encrypted, result.sha256, result.compressed, onChunkProgress, abort.signal
-            ), shouldStop);
+
+            uploadedChunks++;
+            totalEncryptedSize += result.encryptedSize;
+            totalCompressedSize += result.compressed ? result.compressedSize : result.originalSize;
+
+            // Move this chunk from in-flight to completed, then emit. The byte
+            // accounting runs even while paused (so resume math stays correct);
+            // emitByteProgress itself skips the status emit while paused so an
+            // in-flight chunk finishing can't flip the row back to "uploading".
+            inFlightPlainBytes.delete(result.chunkIndex);
+            completedPlainBytes += plainSizeOfChunk(result.chunkIndex);
+            emitByteProgress();
+          } finally {
+            uploadSem.release();
           }
-
-          uploadedChunks++;
-          totalEncryptedSize += result.encryptedSize;
-          totalCompressedSize += result.compressed ? result.compressedSize : result.originalSize;
-
-          // Move this chunk from in-flight to completed, then emit. The byte
-          // accounting runs even while paused (so resume math stays correct);
-          // emitByteProgress itself skips the status emit while paused so an
-          // in-flight chunk finishing can't flip the row back to "uploading".
-          inFlightPlainBytes.delete(result.chunkIndex);
-          completedPlainBytes += plainSizeOfChunk(result.chunkIndex);
-          emitByteProgress();
-        } finally {
-          uploadSem.release();
-        }
-      }).finally(() => pipelineSem.release()).catch((err) => {
-        // A pause-triggered abort is a stop, not a failure — swallow it here so
-        // the finalize guard (uploadedChunks < chunkCount) handles the pause.
-        if (isPauseError(err)) {
-          inFlightPlainBytes.clear();
-          return;
-        }
-        if (!firstError) firstError = err instanceof Error ? err : new Error(String(err));
-      });
+        })
+        .finally(() => pipelineSem.release())
+        .catch((err) => {
+          // A pause-triggered abort is a stop, not a failure — swallow it here so
+          // the finalize guard (uploadedChunks < chunkCount) handles the pause.
+          if (isPauseError(err)) {
+            inFlightPlainBytes.clear();
+            return;
+          }
+          if (!firstError) firstError = err instanceof Error ? err : new Error(String(err));
+        });
 
       chunkPromises.push(chunkPromise);
     }
@@ -845,21 +1036,26 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
     // size bookkeeping covers only the chunks IT sent, so its row would carry
     // wrong compressed/encrypted sizes; the refresh covers it instead.
     if (!wasResumed && fileSha256) {
-      setFilesData((prev) => prev.some((f) => f.id === fileId)
-        ? prev
-        : [{
-            id: fileId,
-            original_name: file.name, // plaintext for instant local display; server stores only encrypted_name
-            encrypted_name: encryptedName,
-            original_size: file.size,
-            compressed_size: totalCompressedSize,
-            encrypted_size: totalEncryptedSize,
-            chunk_count: chunkCount,
-            sha256: fileSha256,
-            sha256_scheme: fileScheme,
-            created_at: new Date().toISOString(),
-            folder_id: itemMeta.get(id)?.folderId ?? folderId ?? null,
-          } satisfies FileMetadata, ...prev]);
+      setFilesData((prev) =>
+        prev.some((f) => f.id === fileId)
+          ? prev
+          : [
+              {
+                id: fileId,
+                original_name: file.name, // plaintext for instant local display; server stores only encrypted_name
+                encrypted_name: encryptedName,
+                original_size: file.size,
+                compressed_size: totalCompressedSize,
+                encrypted_size: totalEncryptedSize,
+                chunk_count: chunkCount,
+                sha256: fileSha256,
+                sha256_scheme: fileScheme,
+                created_at: new Date().toISOString(),
+                folder_id: itemMeta.get(id)?.folderId ?? folderId ?? null,
+              } satisfies FileMetadata,
+              ...prev,
+            ],
+      );
     }
     debouncedRefresh(onRefresh);
   } catch (err) {
@@ -889,9 +1085,16 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
  *  unwrap with this passphrase or the chunk size is unrecoverable (pre-upgrade
  *  sessions) — the caller then restarts on the session's platform. */
 async function adoptServerSession(
-  session: { session_id: string; file_id: string; platform: string; direct_upload: boolean; chunk_size?: number; chunk_count?: number },
+  session: {
+    session_id: string;
+    file_id: string;
+    platform: string;
+    direct_upload: boolean;
+    chunk_size?: number;
+    chunk_count?: number;
+  },
   file: File,
-  passphrase: string
+  passphrase: string,
 ): Promise<ResumeCtx | undefined> {
   try {
     const meta = await getFileMeta(session.file_id);
@@ -969,9 +1172,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
 
   setFileId: (id, fileId) => {
     set((state) => ({
-      queue: state.queue.map((item) =>
-        item.id === id ? { ...item, fileId } : item
-      ),
+      queue: state.queue.map((item) => (item.id === id ? { ...item, fileId } : item)),
     }));
   },
 
@@ -979,7 +1180,8 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
     // A paused item accepts only pause/terminal writes. Anything else — a
     // straggling in-flight emit, an SSE event from the backend — must not flip
     // it back to "uploading" (that was how pause visibly undid itself).
-    if (pausedIds.has(id) && status !== "paused" && status !== "failed" && status !== "done") return;
+    if (pausedIds.has(id) && status !== "paused" && status !== "failed" && status !== "done")
+      return;
     // Terminal states flush immediately so UI reflects completion/failure.
     // "paused" is not terminal, but we flush it immediately too (and drop any
     // pending batched update for this id) so a stale in-flight progress frame
@@ -989,8 +1191,16 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
       set((state) => ({
         queue: state.queue.map((item) =>
           item.id === id
-            ? { ...item, status, progress: progress ?? item.progress, stage: stage ?? item.stage, bytesProcessed: bytesProcessed ?? item.bytesProcessed, totalBytes: totalBytes ?? item.totalBytes, rateBps: undefined }
-            : item
+            ? {
+                ...item,
+                status,
+                progress: progress ?? item.progress,
+                stage: stage ?? item.stage,
+                bytesProcessed: bytesProcessed ?? item.bytesProcessed,
+                totalBytes: totalBytes ?? item.totalBytes,
+                rateBps: undefined,
+              }
+            : item,
         ),
       }));
       return;
@@ -1010,7 +1220,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
     pendingUpdates.delete(id);
     set((state) => ({
       queue: state.queue.map((item) =>
-        item.id === id ? { ...item, status: "failed" as const, error } : item
+        item.id === id ? { ...item, status: "failed" as const, error } : item,
       ),
     }));
   },
@@ -1028,9 +1238,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
     // queue id). Best-effort and fire-and-forget — the core aborts at the next
     // chunk boundary.
     if (meta?.desktopPath) {
-      void import("@/lib/tauri").then(({ cancelTransfer }) =>
-        cancelTransfer(id).catch(() => {})
-      );
+      void import("@/lib/tauri").then(({ cancelTransfer }) => cancelTransfer(id).catch(() => {}));
     }
     if (meta?.resume?.sessionId) {
       cancelUpload(meta.resume.sessionId).catch(() => {});
@@ -1079,9 +1287,14 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
     const tooBig = files.filter((f) => f.size > MAX_UPLOAD_BYTES);
     if (tooBig.length > 0) {
       files = files.filter((f) => f.size <= MAX_UPLOAD_BYTES);
-      const names = tooBig.slice(0, 3).map((f) => `"${f.name}" (${formatBytes(f.size)})`).join(", ");
+      const names = tooBig
+        .slice(0, 3)
+        .map((f) => `"${f.name}" (${formatBytes(f.size)})`)
+        .join(", ");
       const more = tooBig.length > 3 ? ` and ${tooBig.length - 3} more` : "";
-      toast.error(`${names}${more} exceed${tooBig.length === 1 ? "s" : ""} the ${formatBytes(MAX_UPLOAD_BYTES)} per-file limit.`);
+      toast.error(
+        `${names}${more} exceed${tooBig.length === 1 ? "s" : ""} the ${formatBytes(MAX_UPLOAD_BYTES)} per-file limit.`,
+      );
       if (files.length === 0) return;
     }
 
@@ -1121,9 +1334,16 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
       const batch = queue.filter((q) => batchIds.has(q.id));
       const done = batch.filter((i) => i.status === "done").length;
       const failed = batch.filter((i) => i.status === "failed").length;
-      const percent = batch.length > 0
-        ? Math.round(batch.reduce((sum, i) => sum + (i.status === "done" ? 100 : i.status === "failed" ? 100 : (i.progress || 0)), 0) / batch.length)
-        : 0;
+      const percent =
+        batch.length > 0
+          ? Math.round(
+              batch.reduce(
+                (sum, i) =>
+                  sum + (i.status === "done" ? 100 : i.status === "failed" ? 100 : i.progress || 0),
+                0,
+              ) / batch.length,
+            )
+          : 0;
       return { done, failed, total: batch.length, percent };
     });
 
@@ -1144,11 +1364,19 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
             await sem.acquire();
             try {
               const meta = itemMeta.get(id);
-              await launchRun(file, id, { passphrase, platform: meta?.platform, profile, onRefresh, folderId: meta?.folderId, batchKek, pool });
+              await launchRun(file, id, {
+                passphrase,
+                platform: meta?.platform,
+                profile,
+                onRefresh,
+                folderId: meta?.folderId,
+                batchKek,
+                pool,
+              });
             } finally {
               sem.release();
             }
-          })
+          }),
         );
       } finally {
         pool.terminate();
@@ -1197,7 +1425,9 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
       const { updateStatus, setError } = get();
       set((state) => ({
         queue: state.queue.map((i) =>
-          i.id === id ? { ...i, status: "queued" as const, error: undefined, stage: "Retrying..." } : i
+          i.id === id
+            ? { ...i, status: "queued" as const, error: undefined, stage: "Retrying..." }
+            : i,
         ),
       }));
       void (async () => {
@@ -1210,10 +1440,17 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
           const percent = blendDesktopUploadProgress(
             progress.stage,
             progress.bytes_done,
-            progress.bytes_total
+            progress.bytes_total,
           );
           if (percent === undefined) return;
-          updateStatus(id, "encrypting", percent, progress.stage, progress.bytes_done, progress.bytes_total);
+          updateStatus(
+            id,
+            "encrypting",
+            percent,
+            progress.stage,
+            progress.bytes_done,
+            progress.bytes_total,
+          );
         });
         try {
           updateStatus(id, "encrypting", undefined, "Uploading...");
@@ -1235,7 +1472,9 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
     // Progress/bytes are KEPT — a retry continues, so the bar must not snap to 0.
     set((state) => ({
       queue: state.queue.map((i) =>
-        i.id === id ? { ...i, status: "queued" as const, error: undefined, stage: "Retrying..." } : i
+        i.id === id
+          ? { ...i, status: "queued" as const, error: undefined, stage: "Retrying..." }
+          : i,
       ),
     }));
     // Never race a still-draining previous run over the same item.
@@ -1247,7 +1486,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
         profile: getDeviceProfile(),
         onRefresh: meta?.onRefresh,
         folderId: meta?.folderId,
-      })
+      }),
     );
   },
 
@@ -1292,7 +1531,9 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
     const meta = itemMeta.get(id);
     set((state) => ({
       queue: state.queue.map((i) =>
-        i.id === id ? { ...i, status: "uploading" as const, error: undefined, stage: "Resuming…" } : i
+        i.id === id
+          ? { ...i, status: "uploading" as const, error: undefined, stage: "Resuming…" }
+          : i,
       ),
     }));
     const prior = meta?.runPromise;
@@ -1303,13 +1544,13 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
         profile: getDeviceProfile(),
         onRefresh: meta?.onRefresh,
         folderId: meta?.folderId,
-      })
+      }),
     );
   },
 
   getResumableUploadIds: () =>
-    get().queue
-      .filter((i) => i.status === "failed" && !!itemMeta.get(i.id)?.resume?.sessionId)
+    get()
+      .queue.filter((i) => i.status === "failed" && !!itemMeta.get(i.id)?.resume?.sessionId)
       .map((i) => i.id),
 
   // Desktop-only: encrypts locally via the in-process core. No browser File
@@ -1347,13 +1588,13 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
     const unlisten = await subscribeProgress((progress) => {
       const state = get();
       const item = state.queue.find(
-        (i) => i.file.name === progress.file_name && i.status !== "done" && i.status !== "failed"
+        (i) => i.file.name === progress.file_name && i.status !== "done" && i.status !== "failed",
       );
       if (!item) return;
       const percent = blendDesktopUploadProgress(
         progress.stage,
         progress.bytes_done,
-        progress.bytes_total
+        progress.bytes_total,
       );
       updateStatus(
         item.id,
@@ -1361,7 +1602,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
         percent ?? item.progress,
         progress.stage,
         progress.bytes_done,
-        progress.bytes_total
+        progress.bytes_total,
       );
     });
 

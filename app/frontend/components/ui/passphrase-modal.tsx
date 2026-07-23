@@ -73,10 +73,7 @@ export function PassphraseModal({
     setBioError(null);
     void (async () => {
       try {
-        const [supported, saved] = await Promise.all([
-          biometricAvailable(),
-          loadPassphrase(),
-        ]);
+        const [supported, saved] = await Promise.all([biometricAvailable(), loadPassphrase()]);
         if (!cancelled) setBioAvailable(supported && !!saved);
       } catch {
         if (!cancelled) setBioAvailable(false);
@@ -109,9 +106,7 @@ export function PassphraseModal({
         }
         setVerifying(false);
         if (!ok) {
-          setLocalError(
-            "That passphrase doesn't match this vault. Check it and try again."
-          );
+          setLocalError("That passphrase doesn't match this vault. Check it and try again.");
           inputRef.current?.focus();
           inputRef.current?.select();
           return; // keep the modal open; nothing cached, vault stays locked
@@ -126,12 +121,12 @@ export function PassphraseModal({
       onConfirm(candidate);
       setPassphrase("");
     },
-    [verifying, verify, remember, setRememberDevice, cachePassphrase, onConfirm]
+    [verifying, verify, remember, setRememberDevice, cachePassphrase, onConfirm],
   );
 
   const handleConfirm = useCallback(
     () => confirmWithPassphrase(passphrase),
-    [confirmWithPassphrase, passphrase]
+    [confirmWithPassphrase, passphrase],
   );
 
   const handleBiometricUnlock = useCallback(async () => {
@@ -185,9 +180,7 @@ export function PassphraseModal({
             <div>
               <h3 className="text-sm font-semibold">{title}</h3>
               {subtitle && (
-                <p className="text-xs text-[var(--color-text-muted)] max-w-[280px]">
-                  {subtitle}
-                </p>
+                <p className="text-xs text-[var(--color-text-muted)] max-w-[280px]">{subtitle}</p>
               )}
             </div>
           </div>
@@ -220,9 +213,7 @@ export function PassphraseModal({
               )}
               {bioBusy ? "Waiting for Touch ID…" : "Unlock with Touch ID"}
             </button>
-            {bioError && (
-              <p className="mt-2 text-xs text-red-600 dark:text-red-400">{bioError}</p>
-            )}
+            {bioError && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{bioError}</p>}
             <div className="mt-4 flex items-center gap-3">
               <div className="h-px flex-1 bg-[var(--color-border)]" />
               <span className="text-[11px] uppercase tracking-wide text-[var(--color-text-muted)]">
@@ -285,6 +276,6 @@ export function PassphraseModal({
         </form>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }

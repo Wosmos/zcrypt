@@ -25,7 +25,11 @@ export class OrderedWriter {
    *  run: chunks 0..startAt-1 are already on disk (and already hashed), so the
    *  fresh writer's cursor starts there and the first chunk it expects is
    *  `startAt`, not 0. */
-  constructor(private sink: ChunkSink, maxBuffer = 8, startAt = 0) {
+  constructor(
+    private sink: ChunkSink,
+    maxBuffer = 8,
+    startAt = 0,
+  ) {
     this.maxBuffer = Math.max(1, maxBuffer);
     this.cursor = startAt;
   }

@@ -5,7 +5,12 @@
  * Queue-based: idle worker picks next chunk from queue.
  */
 
-import type { WorkerInput, WorkerOutput, DecryptInput, DecryptOutput } from "@/workers/crypto-worker";
+import type {
+  WorkerInput,
+  WorkerOutput,
+  DecryptInput,
+  DecryptOutput,
+} from "@/workers/crypto-worker";
 import { getDeviceProfile } from "@/lib/device-profile";
 
 type PoolInput = WorkerInput | DecryptInput;
@@ -26,10 +31,9 @@ export class WorkerPool {
   constructor(poolSize?: number) {
     const size = poolSize ?? getDeviceProfile().workers;
     for (let i = 0; i < size; i++) {
-      const worker = new Worker(
-        new URL("../workers/crypto-worker.ts", import.meta.url),
-        { type: "module" }
-      );
+      const worker = new Worker(new URL("../workers/crypto-worker.ts", import.meta.url), {
+        type: "module",
+      });
       this.workers.push(worker);
       this.idle.push(worker);
     }
@@ -91,8 +95,7 @@ export class WorkerPool {
     // Zero-copy send: transfer the data buffer this direction carries (the
     // plaintext for encrypt, the encrypted bytes for decrypt). keyBytes is NOT
     // transferred — download reuses the same key object across every chunk.
-    const buffer =
-      "encrypted" in item.input ? item.input.encrypted : item.input.plaintext;
+    const buffer = "encrypted" in item.input ? item.input.encrypted : item.input.plaintext;
     worker.postMessage(item.input, [buffer]);
   }
 

@@ -22,9 +22,7 @@ export default function TwoFactorVerifyPage() {
   }, []);
 
   const tempToken =
-    typeof window !== "undefined"
-      ? sessionStorage.getItem("zcrypt-temp-token")
-      : null;
+    typeof window !== "undefined" ? sessionStorage.getItem("zcrypt-temp-token") : null;
 
   const handleChange = (index: number, value: string) => {
     if (!/^\d*$/.test(value)) return;
@@ -53,10 +51,7 @@ export default function TwoFactorVerifyPage() {
 
   const handlePaste = (e: React.ClipboardEvent) => {
     e.preventDefault();
-    const pasted = e.clipboardData
-      .getData("text")
-      .replace(/\D/g, "")
-      .slice(0, 6);
+    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
     const newCode = [...code];
     for (let i = 0; i < 6; i++) {
       newCode[i] = pasted[i] || "";
@@ -108,9 +103,7 @@ export default function TwoFactorVerifyPage() {
   return (
     <div className="animate-fade-in">
       <div className="mb-6">
-        <h1 className="text-xl font-bold tracking-tight">
-          Two-factor authentication
-        </h1>
+        <h1 className="text-xl font-bold tracking-tight">Two-factor authentication</h1>
         <p className="text-sm text-[var(--color-text-secondary)] mt-1">
           Enter the 6-digit code from your authenticator app
         </p>

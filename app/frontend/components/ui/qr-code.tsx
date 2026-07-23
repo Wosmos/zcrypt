@@ -20,12 +20,7 @@ export function QRShare({ url }: QRShareProps) {
       </button>
       {expanded && (
         <div className="flex justify-center p-4 rounded-xl bg-white border border-[var(--color-border)]">
-          <QRCodeSVG
-            value={url}
-            size={180}
-            level="M"
-            marginSize={2}
-          />
+          <QRCodeSVG value={url} size={180} level="M" marginSize={2} />
         </div>
       )}
     </div>

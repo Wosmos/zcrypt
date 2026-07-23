@@ -1,7 +1,12 @@
 import { create } from "zustand";
 import { toast } from "@/store/toast";
 import { notifications } from "@/store/notifications";
-import { downloadAndDecryptFile, DownloadPausedError, type DiskWritable, type DownloadResumeState } from "@/lib/download-session";
+import {
+  downloadAndDecryptFile,
+  DownloadPausedError,
+  type DiskWritable,
+  type DownloadResumeState,
+} from "@/lib/download-session";
 import { downloadAsZip, type BulkDownloadFile } from "@/lib/bulk-download";
 import { getFilesData } from "@/store/files";
 import { useFolderRegistry } from "@/store/folder-registry";
@@ -19,7 +24,9 @@ const STREAM_TO_DISK_MIN_BYTES = 1024 * 1024 * 1024; // 1 GB
 interface SaveFilePickerOptions {
   suggestedName?: string;
 }
-type ShowSaveFilePicker = (options?: SaveFilePickerOptions) => Promise<{ createWritable(): Promise<DiskWritable> }>;
+type ShowSaveFilePicker = (
+  options?: SaveFilePickerOptions,
+) => Promise<{ createWritable(): Promise<DiskWritable> }>;
 function getSaveFilePicker(): ShowSaveFilePicker | undefined {
   if (typeof window === "undefined") return undefined;
   return (window as unknown as { showSaveFilePicker?: ShowSaveFilePicker }).showSaveFilePicker;
@@ -40,7 +47,10 @@ export interface DownloadItem {
 }
 
 // --- Throttled progress updates (same pattern as upload store) ---
-const pendingUpdates = new Map<string, { status: DownloadStatus; progress?: number; stage?: string }>();
+const pendingUpdates = new Map<
+  string,
+  { status: DownloadStatus; progress?: number; stage?: string }
+>();
 let flushScheduled = false;
 
 function scheduleFlush() {
@@ -91,7 +101,9 @@ function protectedFolderOf(fileId: string): string | null {
 
 function looksLikeWrongKey(msg: string): boolean {
   const m = msg.toLowerCase();
-  return m.includes("decrypt") || m.includes("passphrase") || m.includes("cipher") || m.includes("wrong");
+  return (
+    m.includes("decrypt") || m.includes("passphrase") || m.includes("cipher") || m.includes("wrong")
+  );
 }
 
 function recoverWrongFolderPassword(fileId: string, msg: string): boolean {
@@ -137,29 +149,59 @@ const zipSessions = new Map<string, ZipSession>();
 
 interface DownloadStore {
   queue: DownloadItem[];
-  startDownload: (fileId: string, filename: string, fileSize: number, passphrase: string, resolvePassword?: DownloadPasswordResolver) => void;
+  startDownload: (
+    fileId: string,
+    filename: string,
+    fileSize: number,
+    passphrase: string,
+    resolvePassword?: DownloadPasswordResolver,
+  ) => void;
   /** Desktop-only: download through the in-process Rust core. The core streams
    *  chunks straight to a native-picked path on disk (bounded memory) and pulls
    *  byos-direct from the user's own storage when creds exist — unlike the
    *  browser pipeline, which buffers the whole file in the webview (a multi-GB
    *  file there OOMs and freezes the app, since WKWebView has no
    *  showSaveFilePicker to stream with). */
-  startDesktopDownload: (fileId: string, filename: string, fileSize: number, passphrase: string, userId: string, resolvePassword?: DownloadPasswordResolver) => void;
+  startDesktopDownload: (
+    fileId: string,
+    filename: string,
+    fileSize: number,
+    passphrase: string,
+    userId: string,
+    resolvePassword?: DownloadPasswordResolver,
+  ) => void;
   /** Desktop-only: bulk ZIP through the in-process Rust core. Streams one file
    *  at a time into the archive (bounded by the single largest file, not the
    *  sum of the whole batch), so — unlike the browser path, which holds every
    *  file's full decrypted bytes in memory before zipping — there's no 2GB
    *  total-selection cap here. */
-  startDesktopBulkZipDownload: (files: BulkDownloadFile[], passphrase: string, userId: string, resolvePassword?: DownloadPasswordResolver) => void;
-  startBulkZipDownload: (files: BulkDownloadFile[], passphrase: string, resolvePassword?: DownloadPasswordResolver) => void;
+  startDesktopBulkZipDownload: (
+    files: BulkDownloadFile[],
+    passphrase: string,
+    userId: string,
+    resolvePassword?: DownloadPasswordResolver,
+  ) => void;
+  startBulkZipDownload: (
+    files: BulkDownloadFile[],
+    passphrase: string,
+    resolvePassword?: DownloadPasswordResolver,
+  ) => void;
   pauseDownload: (id: string) => void;
-  resumeDownload: (id: string, passphrase: string, resolvePassword?: DownloadPasswordResolver) => void;
+  resumeDownload: (
+    id: string,
+    passphrase: string,
+    resolvePassword?: DownloadPasswordResolver,
+  ) => void;
   /** Resume single-file downloads that died mid-transfer (tab suspended /
    *  network drop), reusing each session's own passphrase + resume state.
    *  Called when the tab returns to visible or the network reconnects. */
   autoResumeInterrupted: () => void;
   cancelDownload: (id: string) => void;
-  retryDownload: (id: string, passphrase: string, resolvePassword?: DownloadPasswordResolver) => void;
+  retryDownload: (
+    id: string,
+    passphrase: string,
+    resolvePassword?: DownloadPasswordResolver,
+  ) => void;
   removeFromQueue: (id: string) => void;
   clearCompleted: () => void;
 }
@@ -175,7 +217,11 @@ function isTransientDownloadFailure(error?: string): boolean {
 
 function updateProgress(id: string, status: DownloadStatus, progress?: number, stage?: string) {
   if (status === "done" || status === "failed" || status === "cancelled" || status === "paused") {
-    setStatusNow(id, { status, ...(progress !== undefined ? { progress } : {}), ...(stage !== undefined ? { stage } : {}) });
+    setStatusNow(id, {
+      status,
+      ...(progress !== undefined ? { progress } : {}),
+      ...(stage !== undefined ? { stage } : {}),
+    });
     return;
   }
   pendingUpdates.set(id, { status, progress, stage });
@@ -217,10 +263,22 @@ function runSingleDownload(id: string): Promise<void> {
       pausedIds.delete(id);
       toast.success(`${session.filename} downloaded`);
       notifications.downloadComplete(session.filename);
-      if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted" && document.hidden) {
-        const n = new Notification("Download complete", { body: session.filename, icon: "/favicon.ico", tag: "download-done" });
+      if (
+        typeof window !== "undefined" &&
+        "Notification" in window &&
+        Notification.permission === "granted" &&
+        document.hidden
+      ) {
+        const n = new Notification("Download complete", {
+          body: session.filename,
+          icon: "/favicon.ico",
+          tag: "download-done",
+        });
         setTimeout(() => n.close(), 5000);
-        n.onclick = () => { window.focus(); n.close(); };
+        n.onclick = () => {
+          window.focus();
+          n.close();
+        };
       }
     } catch (err) {
       if (err instanceof DownloadPausedError) {
@@ -263,7 +321,16 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
     set((state) => ({
       queue: [
         ...state.queue,
-        { id, fileId, filename, fileSize, status: "queued" as const, progress: 0, stage: "Queued", startedAt: Date.now() },
+        {
+          id,
+          fileId,
+          filename,
+          fileSize,
+          status: "queued" as const,
+          progress: 0,
+          stage: "Queued",
+          startedAt: Date.now(),
+        },
       ],
     }));
 
@@ -306,7 +373,9 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
     // Dedup: never run two transfers for the same file at once (the racing
     // duplicate downloads that clobbered one temp file and froze the app).
     const alreadyActive = get().queue.some(
-      (i) => i.fileId === fileId && (i.status === "downloading" || i.status === "queued" || i.status === "paused")
+      (i) =>
+        i.fileId === fileId &&
+        (i.status === "downloading" || i.status === "queued" || i.status === "paused"),
     );
     if (alreadyActive) return;
 
@@ -314,7 +383,16 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
     set((state) => ({
       queue: [
         ...state.queue,
-        { id, fileId, filename, fileSize, status: "queued" as const, progress: 0, stage: "Choose where to save…", startedAt: Date.now() },
+        {
+          id,
+          fileId,
+          filename,
+          fileSize,
+          status: "queued" as const,
+          progress: 0,
+          stage: "Choose where to save…",
+          startedAt: Date.now(),
+        },
       ],
     }));
 
@@ -346,7 +424,8 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
       // we match on that (unlike upload, which can only match on file name).
       const unlisten = await subscribeProgress((p) => {
         if (p.file_id !== fileId) return;
-        const percent = p.bytes_total > 0 ? Math.round((p.bytes_done / p.bytes_total) * 100) : undefined;
+        const percent =
+          p.bytes_total > 0 ? Math.round((p.bytes_done / p.bytes_total) * 100) : undefined;
         updateProgress(id, "downloading", percent, p.stage);
       });
 
@@ -361,11 +440,20 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
         // A DNS/connect failure means we couldn't even reach zcrypt's servers —
         // common on filtered/censored networks. Give the actionable hint (check
         // connection / try a VPN) instead of a raw reqwest dump.
-        const isNetwork = /error sending request|dns error|failed to lookup|client error \(connect\)|timed out|connection reset|connection refused/i.test(msg);
+        const isNetwork =
+          /error sending request|dns error|failed to lookup|client error \(connect\)|timed out|connection reset|connection refused/i.test(
+            msg,
+          );
         const recovered = recoverWrongFolderPassword(fileId, msg);
-        setStatusNow(id, { status: "failed", error: isNetwork ? "Can't reach zcrypt's servers (network/DNS)" : msg, stage: "Failed" });
+        setStatusNow(id, {
+          status: "failed",
+          error: isNetwork ? "Can't reach zcrypt's servers (network/DNS)" : msg,
+          stage: "Failed",
+        });
         if (isNetwork) {
-          toast.error(`Can't reach zcrypt's servers — check your internet, and if you're on a restricted or filtered network, connect a VPN and retry.`);
+          toast.error(
+            `Can't reach zcrypt's servers — check your internet, and if you're on a restricted or filtered network, connect a VPN and retry.`,
+          );
         } else if (recovered) {
           toast.error(`Wrong folder password for ${filename}. Retry to re-enter it.`);
         } else {
@@ -386,7 +474,16 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
     set((state) => ({
       queue: [
         ...state.queue,
-        { id, fileId: "zip", filename: `${files.length} files as ZIP`, fileSize: totalSize, status: "queued" as const, progress: 0, stage: "Queued", startedAt: Date.now() },
+        {
+          id,
+          fileId: "zip",
+          filename: `${files.length} files as ZIP`,
+          fileSize: totalSize,
+          status: "queued" as const,
+          progress: 0,
+          stage: "Queued",
+          startedAt: Date.now(),
+        },
       ],
     }));
     zipSessions.set(id, { files, passphrase, resolvePassword, abort: controller });
@@ -435,13 +532,24 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
     set((state) => ({
       queue: [
         ...state.queue,
-        { id, fileId: "zip", filename: `${files.length} files as ZIP`, fileSize: totalSize, status: "queued" as const, progress: 0, stage: "Choose where to save…", startedAt: Date.now() },
+        {
+          id,
+          fileId: "zip",
+          filename: `${files.length} files as ZIP`,
+          fileSize: totalSize,
+          status: "queued" as const,
+          progress: 0,
+          stage: "Choose where to save…",
+          startedAt: Date.now(),
+        },
       ],
     }));
     zipSessions.set(id, { files, passphrase, resolvePassword, userId, abort: controller });
 
     void (async () => {
-      const { sidecarBulkDownloadZip, pickSaveLocation, subscribeProgress } = await import("@/lib/tauri");
+      const { sidecarBulkDownloadZip, pickSaveLocation, subscribeProgress } = await import(
+        "@/lib/tauri"
+      );
 
       let savePath: string | null;
       try {
@@ -497,16 +605,25 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
         notifications.downloadComplete(`${files.length} files (ZIP)`);
       } catch (err) {
         const msg = err instanceof Error ? err.message : "ZIP download failed";
-        const isNetwork = /error sending request|dns error|failed to lookup|client error \(connect\)|timed out|connection reset|connection refused/i.test(msg);
+        const isNetwork =
+          /error sending request|dns error|failed to lookup|client error \(connect\)|timed out|connection reset|connection refused/i.test(
+            msg,
+          );
         let recovered = false;
         if (looksLikeWrongKey(msg)) {
           for (const f of files) {
             if (recoverWrongFolderPassword(f.fileId, msg)) recovered = true;
           }
         }
-        setStatusNow(id, { status: "failed", error: isNetwork ? "Can't reach zcrypt's servers (network/DNS)" : msg, stage: "Failed" });
+        setStatusNow(id, {
+          status: "failed",
+          error: isNetwork ? "Can't reach zcrypt's servers (network/DNS)" : msg,
+          stage: "Failed",
+        });
         if (isNetwork) {
-          toast.error("Can't reach zcrypt's servers — check your internet, and if you're on a restricted or filtered network, connect a VPN and retry.");
+          toast.error(
+            "Can't reach zcrypt's servers — check your internet, and if you're on a restricted or filtered network, connect a VPN and retry.",
+          );
         } else if (recovered) {
           toast.error("Wrong folder password in this ZIP. Retry to re-enter it.");
         } else {
@@ -524,7 +641,14 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
   // and the resume state (decrypted-so-far / high-water mark) is preserved.
   pauseDownload: (id) => {
     const item = get().queue.find((i) => i.id === id);
-    if (!item || item.status === "done" || item.status === "failed" || item.status === "cancelled" || item.status === "paused") return;
+    if (
+      !item ||
+      item.status === "done" ||
+      item.status === "failed" ||
+      item.status === "cancelled" ||
+      item.status === "paused"
+    )
+      return;
     if (!sessions.has(id)) return; // ZIP downloads aren't pausable
     pausedIds.add(id);
     sessions.get(id)!.abort.abort();
@@ -541,7 +665,11 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
     session.passphrase = passphrase;
     if (resolvePassword) session.resolvePassword = resolvePassword;
     set((state) => ({
-      queue: state.queue.map((i) => (i.id === id ? { ...i, status: "downloading" as const, stage: "Resuming…", error: undefined } : i)),
+      queue: state.queue.map((i) =>
+        i.id === id
+          ? { ...i, status: "downloading" as const, stage: "Resuming…", error: undefined }
+          : i,
+      ),
     }));
     const prior = session.runPromise;
     relaunchAfterPrior(prior, () => runSingleDownload(id));
@@ -563,7 +691,9 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
       pausedIds.delete(item.id);
       set((state) => ({
         queue: state.queue.map((i) =>
-          i.id === item.id ? { ...i, status: "downloading" as const, stage: "Resuming…", error: undefined } : i
+          i.id === item.id
+            ? { ...i, status: "downloading" as const, stage: "Resuming…", error: undefined }
+            : i,
         ),
       }));
       const prior = session.runPromise;
@@ -590,7 +720,11 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
       session.passphrase = passphrase;
       if (resolvePassword) session.resolvePassword = resolvePassword;
       set((state) => ({
-        queue: state.queue.map((i) => (i.id === id ? { ...i, status: "downloading" as const, stage: "Retrying…", error: undefined } : i)),
+        queue: state.queue.map((i) =>
+          i.id === id
+            ? { ...i, status: "downloading" as const, stage: "Retrying…", error: undefined }
+            : i,
+        ),
       }));
       const prior = session.runPromise;
       relaunchAfterPrior(prior, () => runSingleDownload(id));
@@ -604,7 +738,12 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
     if (zip) {
       get().removeFromQueue(id);
       if (zip.userId) {
-        get().startDesktopBulkZipDownload(zip.files, passphrase, zip.userId, resolvePassword ?? zip.resolvePassword);
+        get().startDesktopBulkZipDownload(
+          zip.files,
+          passphrase,
+          zip.userId,
+          resolvePassword ?? zip.resolvePassword,
+        );
       } else {
         get().startBulkZipDownload(zip.files, passphrase, resolvePassword ?? zip.resolvePassword);
       }
@@ -624,11 +763,16 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
       pausedIds.delete(id);
       session.abort.abort();
       const disk = session.resume.saveToDisk;
-      if (disk?.abort) { void disk.abort().catch(() => {}); }
+      if (disk?.abort) {
+        void disk.abort().catch(() => {});
+      }
       sessions.delete(id);
     }
     const zip = zipSessions.get(id);
-    if (zip) { zip.abort.abort(); zipSessions.delete(id); }
+    if (zip) {
+      zip.abort.abort();
+      zipSessions.delete(id);
+    }
 
     set((state) => ({ queue: state.queue.filter((item) => item.id !== id) }));
   },

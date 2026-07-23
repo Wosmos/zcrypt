@@ -9,13 +9,7 @@ import { useTheme } from "@/components/providers/theme-provider";
 import { useAuthStore } from "@/store/auth";
 import { usePreferencesStore } from "@/store/preferences";
 import { logout as logoutApi } from "@/lib/auth-api";
-import {
-  Sun,
-  Moon,
-  LogOut,
-  Settings,
-  Cog,
-} from "@/lib/icons";
+import { Sun, Moon, LogOut, Settings, Cog } from "@/lib/icons";
 import { Role } from "@/types";
 import Link from "next/link";
 
@@ -24,13 +18,13 @@ function ToggleSwitch({ enabled }: { enabled: boolean }) {
     <div
       className={cn(
         "relative inline-flex h-[22px] w-[40px] flex-shrink-0 rounded-full transition-colors duration-200",
-        enabled ? "bg-[var(--color-accent)]" : "bg-[var(--color-border)]"
+        enabled ? "bg-[var(--color-accent)]" : "bg-[var(--color-border)]",
       )}
     >
       <span
         className={cn(
           "pointer-events-none absolute top-[3px] left-[3px] inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200",
-          enabled ? "translate-x-[18px]" : "translate-x-0"
+          enabled ? "translate-x-[18px]" : "translate-x-0",
         )}
       />
     </div>
@@ -54,7 +48,9 @@ export function AvatarDropdown() {
   const handleLogout = async () => {
     try {
       if (refreshTokenValue) await logoutApi(refreshTokenValue);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     clearAuth();
     router.push("/login");
   };
@@ -73,14 +69,12 @@ export function AvatarDropdown() {
         aria-expanded={open}
         style={{
           background: "var(--avatar-gradient)",
-          boxShadow: open
-            ? "var(--avatar-shadow-open)"
-            : "var(--avatar-shadow)",
+          boxShadow: open ? "var(--avatar-shadow-open)" : "var(--avatar-shadow)",
         }}
         className={cn(
           "group relative flex items-center justify-center h-10 w-10 overflow-hidden rounded-full transition-all duration-200",
           "text-white text-sm font-bold tracking-wide",
-          "hover:scale-105 active:scale-95"
+          "hover:scale-105 active:scale-95",
         )}
       >
         {/* Shimmer sweep on hover — a soft band of light, quick + subtle.
@@ -155,7 +149,10 @@ export function AvatarDropdown() {
             {/* Logout */}
             <div className="border-t border-[var(--color-border)] py-1">
               <button
-                onClick={() => { handleLogout(); setOpen(false); }}
+                onClick={() => {
+                  handleLogout();
+                  setOpen(false);
+                }}
                 aria-label="Log out"
                 className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
               >

@@ -40,9 +40,9 @@ export const fileViewers: FileViewersPageData = {
     headlineGradient: "Don't hand them over.",
     subtext: (
       <>
-        Most encrypted storage makes you download a file and trust a server to
-        show it. zcrypt previews images, video, PDFs, documents, and code right
-        in your browser — decrypted on the fly, then gone.
+        Most encrypted storage makes you download a file and trust a server to show it. zcrypt
+        previews images, video, PDFs, documents, and code right in your browser — decrypted on the
+        fly, then gone.
       </>
     ),
     secondaryLabel: "How decryption works",
@@ -51,7 +51,8 @@ export const fileViewers: FileViewersPageData = {
 
   viewersSection: {
     heading: "A viewer for almost everything",
-    subheading: "Pick a file and it opens in a viewer built for its type — every one of them fed by plaintext that only ever exists in your browser.",
+    subheading:
+      "Pick a file and it opens in a viewer built for its type — every one of them fed by plaintext that only ever exists in your browser.",
   },
   // Mirrors the real dispatch in components/viewers/viewer-kind.ts.
   viewers: [
@@ -116,7 +117,8 @@ export const fileViewers: FileViewersPageData = {
   zeroKnowledgeSection: {
     eyebrow: "Decrypted on your device, never on ours",
     heading: "Preview without trusting a server",
-    subheading: "Every preview runs through the same client-side pipeline as a full download. The server hands over sealed bytes and nothing else.",
+    subheading:
+      "Every preview runs through the same client-side pipeline as a full download. The server hands over sealed bytes and nothing else.",
   },
   // Matches the real client path (lib/decrypt-cache.ts: fetch chunks → AES-256-GCM → zstd → SHA-256 verify).
   pipeline: [
@@ -147,14 +149,15 @@ export const fileViewers: FileViewersPageData = {
       <span className="font-semibold text-[var(--color-text)]">
         revoked the moment you close or navigate away
       </span>
-      . It is never written to disk and never uploaded — so a preview leaves
-      nothing behind on your machine or our servers.
+      . It is never written to disk and never uploaded — so a preview leaves nothing behind on your
+      machine or our servers.
     </>
   ),
 
   overlaySection: {
     heading: "One overlay, the whole folder",
-    subheading: "The viewer is a full-screen overlay you drive from the keyboard — built to move through a folder, not just stare at one file.",
+    subheading:
+      "The viewer is a full-screen overlay you drive from the keyboard — built to move through a folder, not just stare at one file.",
   },
   overlayFeatures: [
     {
@@ -209,6 +212,7 @@ export const fileViewers: FileViewersPageData = {
 
   cta: {
     heading: "See your files without downloading",
-    subtext: "Free and open source. Bring a storage account you already own and preview your first encrypted file in under a minute.",
+    subtext:
+      "Free and open source. Bring a storage account you already own and preview your first encrypted file in under a minute.",
   },
 };

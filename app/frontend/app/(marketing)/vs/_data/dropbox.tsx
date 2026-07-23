@@ -182,10 +182,9 @@ export const dropbox: VsData = {
     headlineGradient: "zcrypt is private.",
     subtext: (
       <>
-        Dropbox is a polished, friction-free place to keep files — but it holds
-        the keys and can read what you store. zcrypt is a real encrypted drive
-        where everything is encrypted on your device, stored in accounts you
-        already own, and the code is open for anyone to audit.
+        Dropbox is a polished, friction-free place to keep files — but it holds the keys and can
+        read what you store. zcrypt is a real encrypted drive where everything is encrypted on your
+        device, stored in accounts you already own, and the code is open for anyone to audit.
       </>
     ),
     secondaryLabel: "See the encrypted drive",
@@ -196,15 +195,14 @@ export const dropbox: VsData = {
     heading: "zcrypt vs Dropbox, side by side",
     subheading: (
       <>
-        An honest look at where each one fits. Dropbox wins on polish and
-        ecosystem; zcrypt wins on privacy, ownership, and openness.
+        An honest look at where each one fits. Dropbox wins on polish and ecosystem; zcrypt wins on
+        privacy, ownership, and openness.
       </>
     ),
     footnote: (
       <>
-        Comparison reflects each product&apos;s standard offering as of 2026.
-        Dropbox is a trademark of Dropbox, Inc.; we&apos;re not affiliated with
-        or endorsed by them.
+        Comparison reflects each product&apos;s standard offering as of 2026. Dropbox is a trademark
+        of Dropbox, Inc.; we&apos;re not affiliated with or endorsed by them.
       </>
     ),
     rows,
@@ -213,42 +211,37 @@ export const dropbox: VsData = {
     heading: "When Dropbox is the better choice",
     paragraphs: [
       <>
-        We&apos;re not going to pretend zcrypt wins for everyone. Dropbox is
-        genuinely excellent at what it does, and there are real situations where
-        it&apos;s the right tool.
+        We&apos;re not going to pretend zcrypt wins for everyone. Dropbox is genuinely excellent at
+        what it does, and there are real situations where it&apos;s the right tool.
       </>,
       <>
         If you need{" "}
-        <strong className="text-[var(--color-text)]">
-          real-time collaborative editing
-        </strong>
-        , deep integrations with Office or Google Workspace, or a decade-mature
-        desktop sync client that just works across every device your team owns,
-        Dropbox is hard to beat. Its previews, commenting, and version history
-        are more polished than ours today.
+        <strong className="text-[var(--color-text)]">real-time collaborative editing</strong>, deep
+        integrations with Office or Google Workspace, or a decade-mature desktop sync client that
+        just works across every device your team owns, Dropbox is hard to beat. Its previews,
+        commenting, and version history are more polished than ours today.
       </>,
       <>
         If you specifically{" "}
         <strong className="text-[var(--color-text)]">
           want the provider to host and manage storage for you
         </strong>{" "}
-        — no accounts to connect, no keys to remember — Dropbox removes that
-        responsibility entirely. With zcrypt, if you lose your passphrase, your
-        data is unrecoverable. That trade-off is the price of zero-knowledge,
-        and it isn&apos;t for everyone.
+        — no accounts to connect, no keys to remember — Dropbox removes that responsibility
+        entirely. With zcrypt, if you lose your passphrase, your data is unrecoverable. That
+        trade-off is the price of zero-knowledge, and it isn&apos;t for everyone.
       </>,
       <>
         And if you need polished mobile apps today,{" "}
         <strong className="text-[var(--color-text)]">
           zcrypt&apos;s native mobile apps are still on the roadmap
         </strong>{" "}
-        — we ship web, desktop, and a terminal app right now. Dropbox&apos;s
-        mobile experience is mature and complete.
+        — we ship web, desktop, and a terminal app right now. Dropbox&apos;s mobile experience is
+        mature and complete.
       </>,
       <>
-        zcrypt is the better fit when privacy is non-negotiable: when you want to
-        be the only party who can read your files, keep them in storage you
-        already own, and verify exactly how the encryption works.
+        zcrypt is the better fit when privacy is non-negotiable: when you want to be the only party
+        who can read your files, keep them in storage you already own, and verify exactly how the
+        encryption works.
       </>,
     ],
   },

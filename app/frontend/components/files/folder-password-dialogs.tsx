@@ -170,7 +170,7 @@ export function FolderUnlockModal({ state }: { state: FolderUnlockModalState }) 
         </form>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }
 
@@ -274,8 +274,8 @@ export function SetFolderPasswordDialog({ state }: { state: SetFolderPasswordSta
             {fileCount > 0 && (
               <div className="mb-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2.5">
                 <p className="text-xs text-[var(--color-text-secondary)]">
-                  This folder has {fileCount} file{fileCount === 1 ? "" : "s"}. They will be re-keyed
-                  to the new folder password{" "}
+                  This folder has {fileCount} file{fileCount === 1 ? "" : "s"}. They will be
+                  re-keyed to the new folder password{" "}
                   {vaultUnlocked ? "now" : "— unlock your vault first"}.
                 </p>
               </div>
@@ -334,7 +334,7 @@ export function SetFolderPasswordDialog({ state }: { state: SetFolderPasswordSta
         )}
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }
 
@@ -354,8 +354,16 @@ export interface RemoveFolderPasswordState {
 }
 
 export function RemoveFolderPasswordDialog({ state }: { state: RemoveFolderPasswordState }) {
-  const { open, folderName, fileCount, vaultUnlocked, progress, onConfirm, onClose, onRequestVaultUnlock } =
-    state;
+  const {
+    open,
+    folderName,
+    fileCount,
+    vaultUnlocked,
+    progress,
+    onConfirm,
+    onClose,
+    onRequestVaultUnlock,
+  } = state;
   const prefersReducedMotion = useReducedMotion();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -395,9 +403,7 @@ export function RemoveFolderPasswordDialog({ state }: { state: RemoveFolderPassw
         <HeaderRow
           icon={<Unlock className="h-5 w-5" />}
           title="Remove folder password"
-          subtitle={
-            folderName ? `Stop protecting "${folderName}"` : "Stop protecting this folder"
-          }
+          subtitle={folderName ? `Stop protecting "${folderName}"` : "Stop protecting this folder"}
           onClose={onClose}
           closeDisabled={busy}
         />
@@ -429,7 +435,12 @@ export function RemoveFolderPasswordDialog({ state }: { state: RemoveFolderPassw
                   Unlock vault
                 </button>
               ) : (
-                <button type="button" onClick={() => void confirm()} disabled={busy} className={BTN_PRIMARY}>
+                <button
+                  type="button"
+                  onClick={() => void confirm()}
+                  disabled={busy}
+                  className={BTN_PRIMARY}
+                >
                   Remove protection
                 </button>
               )}
@@ -438,6 +449,6 @@ export function RemoveFolderPasswordDialog({ state }: { state: RemoveFolderPassw
         )}
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }

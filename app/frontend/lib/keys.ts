@@ -48,11 +48,11 @@ function concatBytes(...arrays: Uint8Array[]): Uint8Array {
 async function deriveSealKey(
   shared: Uint8Array,
   ephemeralPub: Uint8Array,
-  recipientPub: Uint8Array
+  recipientPub: Uint8Array,
 ): Promise<ArrayBuffer> {
   return crypto.subtle.digest(
     "SHA-256",
-    concatBytes(shared, ephemeralPub, recipientPub) as BufferSource
+    concatBytes(shared, ephemeralPub, recipientPub) as BufferSource,
   );
 }
 

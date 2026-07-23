@@ -16,7 +16,14 @@ import {
   getUserPublicKey,
   rotateSpace,
 } from "@/lib/api";
-import { fromBase64, toBase64, resolveFileKey, wrapKey, unwrapKey, toArrayBuffer } from "@/lib/crypto";
+import {
+  fromBase64,
+  toBase64,
+  resolveFileKey,
+  wrapKey,
+  unwrapKey,
+  toArrayBuffer,
+} from "@/lib/crypto";
 import { downloadAndDecryptFile, type DownloadOptions } from "@/lib/download-session";
 import { isTauri, sidecarDownloadSpace, pickSaveLocation, subscribeProgress } from "@/lib/tauri";
 import { useKeysStore } from "@/store/keys";
@@ -30,7 +37,7 @@ export async function createSpace(
   name: string,
   description = "",
   fileIds: string[] = [],
-  sizeLimitBytes = 0
+  sizeLimitBytes = 0,
 ): Promise<SharedVault> {
   const { publicKey } = useKeysStore.getState();
   if (!publicKey) throw new Error("Your encryption key isn't ready — unlock your vault first.");
@@ -76,7 +83,10 @@ async function sealName(spaceKey: Uint8Array, name: string): Promise<string> {
 
 /** Decrypt a shared file's name using the space key. Returns null when the name
  *  isn't sealed (legacy shares) or the space key isn't available. */
-export async function decryptSpaceFileName(vault: SharedVault, wrappedName?: string): Promise<string | null> {
+export async function decryptSpaceFileName(
+  vault: SharedVault,
+  wrappedName?: string,
+): Promise<string | null> {
   if (!wrappedName) return null;
   const spaceKey = await loadSpaceKey(vault);
   if (!spaceKey) return null;
@@ -93,7 +103,11 @@ export async function decryptSpaceFileName(vault: SharedVault, wrappedName?: str
  *  register it. The server only ever sees the opaque envelope. Requires the
  *  vault to be unlocked. `name` is the plaintext file name so members can read
  *  it (the owner's server-side name is empty for zero-knowledge files). */
-export async function shareFileIntoSpace(vault: SharedVault, fileId: string, name = ""): Promise<void> {
+export async function shareFileIntoSpace(
+  vault: SharedVault,
+  fileId: string,
+  name = "",
+): Promise<void> {
   const spaceKey = await loadSpaceKey(vault);
   if (!spaceKey) throw new Error("This space's key isn't available — unlock your vault first.");
   const passphrase = usePassphraseStore.getState().getPassphrase();
@@ -122,7 +136,7 @@ export async function downloadSpaceFile(
   fileId: string,
   spaceWrappedCek: string,
   filename: string,
-  options?: DownloadOptions
+  options?: DownloadOptions,
 ): Promise<void> {
   const keyBytes = await spaceFileKey(vault, spaceWrappedCek);
 
@@ -160,7 +174,7 @@ export async function downloadSpaceFile(
 export async function rotateSpaceKey(
   vault: SharedVault,
   remainingMembers: SharedVaultMember[],
-  files: SharedVaultFile[]
+  files: SharedVaultFile[],
 ): Promise<void> {
   const oldKey = await loadSpaceKey(vault);
   if (!oldKey) throw new Error("This space's key isn't available — unlock your vault first.");
@@ -211,7 +225,7 @@ export async function shareSpace(
   vaultId: string,
   spaceKey: Uint8Array,
   email: string,
-  role: "viewer" | "editor" | "admin"
+  role: "viewer" | "editor" | "admin",
 ): Promise<SharedVaultMember> {
   const recipient = await lookupUserKey(email);
   const wrapped = await sealTo(fromBase64(recipient.public_key), spaceKey);

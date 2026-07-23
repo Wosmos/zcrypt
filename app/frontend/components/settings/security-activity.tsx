@@ -71,114 +71,117 @@ export function SecurityActivity() {
   return (
     <div>
       {loading ? (
-          <div className="divide-y divide-[var(--color-border)]">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <SkeletonRow key={i} />
-            ))}
-          </div>
-        ) : events.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-[var(--color-border)] px-4 py-10 text-center">
-            <Activity className="mx-auto mb-2 h-7 w-7 text-[var(--color-text-muted)]" />
-            <p className="text-sm text-[var(--color-text-secondary)]">No activity yet</p>
-          </div>
-        ) : (
-          <TooltipProvider delayDuration={300}>
-            <div className="space-y-4">
-              {/* Desktop table */}
-              <div className="hidden overflow-x-auto rounded-xl border border-[var(--color-border)] md:block">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-1)] text-xs uppercase tracking-wider text-[var(--color-text-muted)]">
-                      <th className="px-4 py-3 text-left font-medium">Event</th>
-                      <th className="px-4 py-3 text-left font-medium">IP address</th>
-                      <th className="px-4 py-3 text-left font-medium">Device</th>
-                      <th className="px-4 py-3 text-right font-medium">Time</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pageEvents.map((event) => {
-                      const Icon = EVENT_ICONS[event.event_type] ?? Shield;
-                      const label = eventLabels[event.event_type] ?? event.event_type.replace(/_/g, " ");
-                      return (
-                        <tr
-                          key={event.id}
-                          className="border-b border-[var(--color-border)] last:border-0 hover:bg-[var(--color-surface-1)]"
-                        >
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2.5">
-                              <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-[var(--color-surface-1)] text-[var(--color-text-muted)] ring-1 ring-[var(--color-border)]">
-                                <Icon className="h-3.5 w-3.5" />
-                              </div>
-                              <span className="font-medium text-[var(--color-text)]">{label}</span>
+        <div className="divide-y divide-[var(--color-border)]">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <SkeletonRow key={i} />
+          ))}
+        </div>
+      ) : events.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-[var(--color-border)] px-4 py-10 text-center">
+          <Activity className="mx-auto mb-2 h-7 w-7 text-[var(--color-text-muted)]" />
+          <p className="text-sm text-[var(--color-text-secondary)]">No activity yet</p>
+        </div>
+      ) : (
+        <TooltipProvider delayDuration={300}>
+          <div className="space-y-4">
+            {/* Desktop table */}
+            <div className="hidden overflow-x-auto rounded-xl border border-[var(--color-border)] md:block">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-1)] text-xs uppercase tracking-wider text-[var(--color-text-muted)]">
+                    <th className="px-4 py-3 text-left font-medium">Event</th>
+                    <th className="px-4 py-3 text-left font-medium">IP address</th>
+                    <th className="px-4 py-3 text-left font-medium">Device</th>
+                    <th className="px-4 py-3 text-right font-medium">Time</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageEvents.map((event) => {
+                    const Icon = EVENT_ICONS[event.event_type] ?? Shield;
+                    const label =
+                      eventLabels[event.event_type] ?? event.event_type.replace(/_/g, " ");
+                    return (
+                      <tr
+                        key={event.id}
+                        className="border-b border-[var(--color-border)] last:border-0 hover:bg-[var(--color-surface-1)]"
+                      >
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2.5">
+                            <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-[var(--color-surface-1)] text-[var(--color-text-muted)] ring-1 ring-[var(--color-border)]">
+                              <Icon className="h-3.5 w-3.5" />
                             </div>
-                          </td>
-                          <td className="px-4 py-3 font-mono text-xs text-[var(--color-text-secondary)]">
-                            {event.ip}
-                          </td>
-                          <td className="px-4 py-3">
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <span className="cursor-default text-xs text-[var(--color-text-secondary)]">
-                                  {parseUserAgent(event.user_agent)}
-                                </span>
-                              </TooltipTrigger>
-                              <TooltipContent side="top" className="max-w-[280px] break-all">
-                                {event.user_agent || "Unknown device"}
-                              </TooltipContent>
-                            </Tooltip>
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <span className="cursor-default text-xs tabular-nums text-[var(--color-text-muted)]">
-                                  {formatRelativeTime(event.created_at)}
-                                </span>
-                              </TooltipTrigger>
-                              <TooltipContent side="top">
-                                {formatDateTime(event.created_at, { seconds: true })}
-                              </TooltipContent>
-                            </Tooltip>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Mobile card list */}
-              <ul className="divide-y divide-[var(--color-border)] md:hidden">
-                {pageEvents.map((event) => {
-                  const Icon = EVENT_ICONS[event.event_type] ?? Shield;
-                  const label = eventLabels[event.event_type] ?? event.event_type.replace(/_/g, " ");
-                  return (
-                    <li key={event.id} className="flex items-center gap-3 py-3">
-                      <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-[var(--color-surface-1)] text-[var(--color-text-muted)] ring-1 ring-[var(--color-border)]">
-                        <Icon className="h-3.5 w-3.5" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-[var(--color-text)]">{label}</p>
-                        <p className="truncate text-xs text-[var(--color-text-muted)]">
-                          {event.ip} · {parseUserAgent(event.user_agent)}
-                        </p>
-                      </div>
-                      <span className="flex-shrink-0 text-xs tabular-nums text-[var(--color-text-muted)]">
-                        {formatRelativeTime(event.created_at)}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-
-              <Pagination
-                currentPage={safePage}
-                totalPages={totalPages}
-                onPageChange={setPage}
-                totalItems={events.length}
-                pageSize={PAGE_SIZE}
-              />
+                            <span className="font-medium text-[var(--color-text)]">{label}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 font-mono text-xs text-[var(--color-text-secondary)]">
+                          {event.ip}
+                        </td>
+                        <td className="px-4 py-3">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="cursor-default text-xs text-[var(--color-text-secondary)]">
+                                {parseUserAgent(event.user_agent)}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-[280px] break-all">
+                              {event.user_agent || "Unknown device"}
+                            </TooltipContent>
+                          </Tooltip>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="cursor-default text-xs tabular-nums text-[var(--color-text-muted)]">
+                                {formatRelativeTime(event.created_at)}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                              {formatDateTime(event.created_at, { seconds: true })}
+                            </TooltipContent>
+                          </Tooltip>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-          </TooltipProvider>
+
+            {/* Mobile card list */}
+            <ul className="divide-y divide-[var(--color-border)] md:hidden">
+              {pageEvents.map((event) => {
+                const Icon = EVENT_ICONS[event.event_type] ?? Shield;
+                const label = eventLabels[event.event_type] ?? event.event_type.replace(/_/g, " ");
+                return (
+                  <li key={event.id} className="flex items-center gap-3 py-3">
+                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-[var(--color-surface-1)] text-[var(--color-text-muted)] ring-1 ring-[var(--color-border)]">
+                      <Icon className="h-3.5 w-3.5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-[var(--color-text)]">
+                        {label}
+                      </p>
+                      <p className="truncate text-xs text-[var(--color-text-muted)]">
+                        {event.ip} · {parseUserAgent(event.user_agent)}
+                      </p>
+                    </div>
+                    <span className="flex-shrink-0 text-xs tabular-nums text-[var(--color-text-muted)]">
+                      {formatRelativeTime(event.created_at)}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+
+            <Pagination
+              currentPage={safePage}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              totalItems={events.length}
+              pageSize={PAGE_SIZE}
+            />
+          </div>
+        </TooltipProvider>
       )}
     </div>
   );

@@ -98,7 +98,7 @@ export function TelegramConnect({ onConnect, connecting, hasAccounts }: Telegram
         inFlight.current = false;
       }
     },
-    [botToken, stopPolling]
+    [botToken, stopPolling],
   );
 
   // Sequential polling: schedule the NEXT probe only after the current one
@@ -145,7 +145,11 @@ export function TelegramConnect({ onConnect, connecting, hasAccounts }: Telegram
     // a valueless startgroup/startchannel triggers a Telegram Desktop bug that
     // sends a /start DM instead of opening the chat picker.
     const admin = kind === "channel" ? "post_messages+delete_messages" : "delete_messages";
-    window.open(`https://t.me/${botUsername}?${param}=true&admin=${admin}`, "_blank", "noopener,noreferrer");
+    window.open(
+      `https://t.me/${botUsername}?${param}=true&admin=${admin}`,
+      "_blank",
+      "noopener,noreferrer",
+    );
     startPolling();
   };
 
@@ -185,7 +189,8 @@ export function TelegramConnect({ onConnect, connecting, hasAccounts }: Telegram
             >
               @BotFather
             </a>
-            . We&apos;ll help you add it to a channel and find the chat ID for you — no manual ID hunting.
+            . We&apos;ll help you add it to a channel and find the chat ID for you — no manual ID
+            hunting.
           </p>
           <div className="flex flex-col gap-3 sm:flex-row">
             <div className="flex-1">
@@ -225,8 +230,7 @@ export function TelegramConnect({ onConnect, connecting, hasAccounts }: Telegram
           <div className="flex items-center gap-2 text-sm text-[var(--color-text)]">
             <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-[var(--color-accent)]" />
             <span>
-              Bot{" "}
-              <span className="font-medium">@{botUsername}</span> verified.
+              Bot <span className="font-medium">@{botUsername}</span> verified.
             </span>
             <button
               type="button"
@@ -242,15 +246,23 @@ export function TelegramConnect({ onConnect, connecting, hasAccounts }: Telegram
             <div className="space-y-3">
               <p className="text-xs text-[var(--color-text-secondary)]">
                 Add the bot to where you want files stored, then we detect the chat automatically —
-                you never enter a chat ID. On the Telegram <span className="font-medium">mobile app</span> the
-                button below does it in one tap.
+                you never enter a chat ID. On the Telegram{" "}
+                <span className="font-medium">mobile app</span> the button below does it in one tap.
               </p>
               <div className="flex flex-col gap-2 sm:flex-row">
-                <Button variant="secondary" onClick={() => openDeepLink("channel")} className="flex-1">
+                <Button
+                  variant="secondary"
+                  onClick={() => openDeepLink("channel")}
+                  className="flex-1"
+                >
                   <ExternalLink className="h-3.5 w-3.5" />
                   Add to a channel
                 </Button>
-                <Button variant="secondary" onClick={() => openDeepLink("group")} className="flex-1">
+                <Button
+                  variant="secondary"
+                  onClick={() => openDeepLink("group")}
+                  className="flex-1"
+                >
                   <ExternalLink className="h-3.5 w-3.5" />
                   Add to a group
                 </Button>
@@ -266,7 +278,9 @@ export function TelegramConnect({ onConnect, connecting, hasAccounts }: Telegram
                 </summary>
                 <ol className="mt-2 list-decimal space-y-1 pl-5 text-xs text-[var(--color-text-secondary)]">
                   <li>Open (or create) your channel/group in Telegram.</li>
-                  <li>Channel name → <span className="font-medium">Administrators → Add Admin</span>.</li>
+                  <li>
+                    Channel name → <span className="font-medium">Administrators → Add Admin</span>.
+                  </li>
                   <li>
                     Search <span className="font-medium">@{botUsername}</span>, add it, and leave{" "}
                     <span className="font-medium">Post Messages</span> enabled.
@@ -301,7 +315,8 @@ export function TelegramConnect({ onConnect, connecting, hasAccounts }: Telegram
           ) : (
             <div className="space-y-3">
               <p className="text-xs text-[var(--color-text-secondary)]">
-                Found {chats.length === 1 ? "this destination" : "these destinations"} — pick where to store files:
+                Found {chats.length === 1 ? "this destination" : "these destinations"} — pick where
+                to store files:
               </p>
               <ul className="space-y-2">
                 {chats.map((chat) => {
@@ -315,7 +330,7 @@ export function TelegramConnect({ onConnect, connecting, hasAccounts }: Telegram
                           "flex w-full items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40",
                           active
                             ? "border-[var(--color-accent)]/40 bg-[var(--color-accent)]/10"
-                            : "border-[var(--color-border)] hover:bg-[var(--color-surface-1)]"
+                            : "border-[var(--color-border)] hover:bg-[var(--color-surface-1)]",
                         )}
                       >
                         <span
@@ -323,7 +338,7 @@ export function TelegramConnect({ onConnect, connecting, hasAccounts }: Telegram
                             "flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full border",
                             active
                               ? "border-[var(--color-accent)] bg-[var(--color-accent)]"
-                              : "border-[var(--color-border-hover)]"
+                              : "border-[var(--color-border-hover)]",
                           )}
                         >
                           {active && <span className="h-1.5 w-1.5 rounded-full bg-white" />}
@@ -375,7 +390,9 @@ export function TelegramConnect({ onConnect, connecting, hasAccounts }: Telegram
           aria-expanded={showManual}
           className="inline-flex items-center gap-1.5 rounded text-xs font-medium text-[var(--color-text-muted)] outline-none transition-colors hover:text-[var(--color-text)] focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40"
         >
-          <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", showManual && "rotate-180")} />
+          <ChevronDown
+            className={cn("h-3.5 w-3.5 transition-transform", showManual && "rotate-180")}
+          />
           Advanced: enter BOT_TOKEN|CHAT_ID manually
         </button>
         {showManual && (

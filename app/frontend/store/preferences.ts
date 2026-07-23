@@ -7,9 +7,7 @@ interface PreferencesStore {
 
 export const usePreferencesStore = create<PreferencesStore>((set) => ({
   advancedMode:
-    typeof window !== "undefined"
-      ? localStorage.getItem("zcrypt-advanced-mode") === "true"
-      : false,
+    typeof window !== "undefined" ? localStorage.getItem("zcrypt-advanced-mode") === "true" : false,
 
   setAdvancedMode: (enabled) => {
     localStorage.setItem("zcrypt-advanced-mode", String(enabled));

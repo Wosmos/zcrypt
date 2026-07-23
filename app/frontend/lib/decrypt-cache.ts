@@ -105,7 +105,7 @@ function store(id: string, blob: Blob, folderId: string | null): void {
 export function cachedDecrypt(
   id: string,
   folderId: string | null,
-  decrypt: () => Promise<Blob>
+  decrypt: () => Promise<Blob>,
 ): Promise<Blob> {
   const hit = getCachedBlob(id);
   if (hit) return Promise.resolve(hit);
@@ -193,7 +193,7 @@ function storeCEK(id: string, keyBytes: ArrayBuffer, folderId: string | null): v
 export function cachedResolveCEK(
   id: string,
   folderId: string | null,
-  resolve: () => Promise<ArrayBuffer>
+  resolve: () => Promise<ArrayBuffer>,
 ): Promise<ArrayBuffer> {
   const hit = getCachedCEK(id);
   if (hit) return Promise.resolve(hit);

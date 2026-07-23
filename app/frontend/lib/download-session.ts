@@ -14,7 +14,13 @@
  */
 
 import { getFileMeta, getFileChunk, type FileMetaResponse } from "@/lib/api";
-import { resolveFileKey, fromBase64, deriveDedupKeyBytes, createContentHasher, bytesToHex } from "@/lib/crypto";
+import {
+  resolveFileKey,
+  fromBase64,
+  deriveDedupKeyBytes,
+  createContentHasher,
+  bytesToHex,
+} from "@/lib/crypto";
 import { getDeviceProfile } from "@/lib/device-profile";
 import { WorkerPool } from "@/lib/worker-pool";
 import { OrderedWriter } from "@/lib/ordered-writer";
@@ -139,7 +145,7 @@ export interface DownloadOptions {
 export async function downloadAndDecryptFile(
   fileId: string,
   passphrase: string,
-  options?: DownloadOptions
+  options?: DownloadOptions,
 ): Promise<void> {
   const { onProgress, signal, resolvePassword, resolveKey, pausing } = options ?? {};
   const resume: DownloadResumeState = options?.resume ?? {};
@@ -155,7 +161,12 @@ export async function downloadAndDecryptFile(
   if (signal?.aborted) throw stopError();
 
   // Step 1: metadata (cached across resumes).
-  onProgress?.({ stage: "Fetching metadata...", percent: 0, chunksDone: 0, chunksTotal: resume.meta?.chunk_count ?? 0 });
+  onProgress?.({
+    stage: "Fetching metadata...",
+    percent: 0,
+    chunksDone: 0,
+    chunksTotal: resume.meta?.chunk_count ?? 0,
+  });
   const meta = resume.meta ?? (await getFileMeta(fileId));
   resume.meta = meta;
 
@@ -164,7 +175,12 @@ export async function downloadAndDecryptFile(
   // Step 2: file key (cached across resumes). Envelope files unwrap the per-file
   // CEK; a per-file resolver (folder-protected) or resolveKey (shared space)
   // overrides the vault passphrase.
-  onProgress?.({ stage: "Deriving key...", percent: 1, chunksDone: resume.done?.size ?? resume.writtenCount ?? 0, chunksTotal: meta.chunk_count });
+  onProgress?.({
+    stage: "Deriving key...",
+    percent: 1,
+    chunksDone: resume.done?.size ?? resume.writtenCount ?? 0,
+    chunksTotal: meta.chunk_count,
+  });
   let keyBytes: ArrayBuffer;
   let dedupPassphrase: string | undefined; // set only when we hold the passphrase (owner/folder path)
   if (resume.keyBytes) {
@@ -209,7 +225,10 @@ export async function downloadAndDecryptFile(
   let decryptedChunks: Uint8Array[] | undefined;
   let done: Set<number> | undefined;
   if (streaming) {
-    resume.hasher ??= (await createContentHasher(hashScheme, macKey)) as unknown as IncrementalHasher;
+    resume.hasher ??= (await createContentHasher(
+      hashScheme,
+      macKey,
+    )) as unknown as IncrementalHasher;
     resume.writtenCount ??= 0;
     hasher = resume.hasher;
     const diskWriter = saveToDisk as DiskWritable;
@@ -224,7 +243,7 @@ export async function downloadAndDecryptFile(
         },
       },
       Math.max(4, MAX_CONCURRENT * 2),
-      resume.writtenCount
+      resume.writtenCount,
     );
   } else {
     resume.decryptedChunks ??= new Array(meta.chunk_count);
@@ -246,10 +265,9 @@ export async function downloadAndDecryptFile(
     const processChunk = async (index: number) => {
       if (signal?.aborted) throw stopError();
 
-      const { data, compressed } = await retryTransient(
-        () => getFileChunk(fileId, index, signal),
-        { signal },
-      );
+      const { data, compressed } = await retryTransient(() => getFileChunk(fileId, index, signal), {
+        signal,
+      });
 
       if (signal?.aborted) throw stopError();
 
@@ -279,8 +297,12 @@ export async function downloadAndDecryptFile(
     // Only fetch what's still missing: streaming resumes at the write high-water
     // mark; in-memory skips indices already decrypted.
     const queue = streaming
-      ? Array.from({ length: meta.chunk_count }, (_, i) => i).filter((i) => i >= (resume.writtenCount ?? 0))
-      : Array.from({ length: meta.chunk_count }, (_, i) => i).filter((i) => !assertSet(done, "done").has(i));
+      ? Array.from({ length: meta.chunk_count }, (_, i) => i).filter(
+          (i) => i >= (resume.writtenCount ?? 0),
+        )
+      : Array.from({ length: meta.chunk_count }, (_, i) => i).filter(
+          (i) => !assertSet(done, "done").has(i),
+        );
 
     // Fan out fetchers up to the concurrency limit. Use allSettled (not
     // Promise.all's fail-fast) so EVERY fetcher finishes before we read the
@@ -295,7 +317,7 @@ export async function downloadAndDecryptFile(
             const idx = queue.shift()!;
             await processChunk(idx);
           }
-        })()
+        })(),
       );
     }
 
@@ -307,13 +329,20 @@ export async function downloadAndDecryptFile(
     // stop reason from the signal here yields DownloadPausedError while pausing,
     // so a pause stays a pause (and a real cancel stays a cancel).
     if (signal?.aborted) throw stopError();
-    const rejection = settled.find((r) => r.status === "rejected") as PromiseRejectedResult | undefined;
+    const rejection = settled.find((r) => r.status === "rejected") as
+      | PromiseRejectedResult
+      | undefined;
     if (rejection) throw rejection.reason;
 
     // Every chunk is in hand — verify integrity. Streaming has been hashing in
     // write-order as chunks landed; in-memory hashes the full array now. No
     // second full-file buffer either way (the old concat doubled peak memory).
-    onProgress?.({ stage: "Verifying integrity...", percent: 93, chunksDone: meta.chunk_count, chunksTotal: meta.chunk_count });
+    onProgress?.({
+      stage: "Verifying integrity...",
+      percent: 93,
+      chunksDone: meta.chunk_count,
+      chunksTotal: meta.chunk_count,
+    });
 
     let actualHash: string;
     if (streaming && writer) {
@@ -321,7 +350,8 @@ export async function downloadAndDecryptFile(
       actualHash = bytesToHex(assertSet(hasher, "hasher").digest());
     } else {
       const fullFileHasher = await createContentHasher(hashScheme, macKey);
-      for (const chunk of assertSet(decryptedChunks, "decryptedChunks")) fullFileHasher.update(chunk);
+      for (const chunk of assertSet(decryptedChunks, "decryptedChunks"))
+        fullFileHasher.update(chunk);
       actualHash = bytesToHex(fullFileHasher.digest());
     }
     // Skip the file-level compare only when we genuinely can't recompute the MAC
@@ -333,7 +363,12 @@ export async function downloadAndDecryptFile(
 
     // Finalize. Streaming commits the on-disk file; in-memory triggers a Blob
     // download (the browser backs a large Blob with a temp file).
-    onProgress?.({ stage: "Saving file...", percent: 97, chunksDone: meta.chunk_count, chunksTotal: meta.chunk_count });
+    onProgress?.({
+      stage: "Saving file...",
+      percent: 97,
+      chunksDone: meta.chunk_count,
+      chunksTotal: meta.chunk_count,
+    });
 
     if (streaming) {
       await assertSet(saveToDisk, "saveToDisk").close(); // commit — the file is already on disk
@@ -358,11 +393,18 @@ export async function downloadAndDecryptFile(
           }
         }
       }
-      const blob = new Blob(assertSet(decryptedChunks, "decryptedChunks") as BlobPart[], { type: "application/octet-stream" });
+      const blob = new Blob(assertSet(decryptedChunks, "decryptedChunks") as BlobPart[], {
+        type: "application/octet-stream",
+      });
       saveBlob(saveName || "download", blob);
     }
 
-    onProgress?.({ stage: "Done", percent: 100, chunksDone: meta.chunk_count, chunksTotal: meta.chunk_count });
+    onProgress?.({
+      stage: "Done",
+      percent: 100,
+      chunksDone: meta.chunk_count,
+      chunksTotal: meta.chunk_count,
+    });
   } catch (err) {
     // Decide the disk file's fate:
     //  • CANCEL (AbortError) or an INTEGRITY mismatch → discard it. Cancel is an
@@ -375,7 +417,11 @@ export async function downloadAndDecryptFile(
     const isCancel = err instanceof DOMException && err.name === "AbortError";
     const isIntegrity = err instanceof Error && err.message.includes("integrity check failed");
     if ((isCancel || isIntegrity) && resume.saveToDisk?.abort) {
-      try { await resume.saveToDisk.abort(); } catch { /* already closed/aborted */ }
+      try {
+        await resume.saveToDisk.abort();
+      } catch {
+        /* already closed/aborted */
+      }
       resume.saveToDisk = undefined;
     }
     throw err;

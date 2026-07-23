@@ -28,14 +28,58 @@ function categorizeFiles(files: FileMetadata[]): CategoryInfo[] {
   };
 
   const extMap: Record<string, string> = {
-    pdf: "documents", doc: "documents", docx: "documents", txt: "documents", rtf: "documents", odt: "documents",
-    xls: "documents", xlsx: "documents", csv: "documents", ppt: "documents", pptx: "documents",
-    jpg: "images", jpeg: "images", png: "images", gif: "images", webp: "images", svg: "images", bmp: "images", ico: "images",
-    mp4: "videos", mov: "videos", avi: "videos", mkv: "videos", webm: "videos", flv: "videos",
-    mp3: "audio", wav: "audio", flac: "audio", aac: "audio", ogg: "audio", m4a: "audio",
-    zip: "archives", rar: "archives", "7z": "archives", tar: "archives", gz: "archives", bz2: "archives",
-    js: "code", ts: "code", py: "code", go: "code", rs: "code", java: "code", cpp: "code", c: "code",
-    html: "code", css: "code", json: "code", yaml: "code", yml: "code", xml: "code", sh: "code",
+    pdf: "documents",
+    doc: "documents",
+    docx: "documents",
+    txt: "documents",
+    rtf: "documents",
+    odt: "documents",
+    xls: "documents",
+    xlsx: "documents",
+    csv: "documents",
+    ppt: "documents",
+    pptx: "documents",
+    jpg: "images",
+    jpeg: "images",
+    png: "images",
+    gif: "images",
+    webp: "images",
+    svg: "images",
+    bmp: "images",
+    ico: "images",
+    mp4: "videos",
+    mov: "videos",
+    avi: "videos",
+    mkv: "videos",
+    webm: "videos",
+    flv: "videos",
+    mp3: "audio",
+    wav: "audio",
+    flac: "audio",
+    aac: "audio",
+    ogg: "audio",
+    m4a: "audio",
+    zip: "archives",
+    rar: "archives",
+    "7z": "archives",
+    tar: "archives",
+    gz: "archives",
+    bz2: "archives",
+    js: "code",
+    ts: "code",
+    py: "code",
+    go: "code",
+    rs: "code",
+    java: "code",
+    cpp: "code",
+    c: "code",
+    html: "code",
+    css: "code",
+    json: "code",
+    yaml: "code",
+    yml: "code",
+    xml: "code",
+    sh: "code",
   };
 
   for (const f of files) {
@@ -58,8 +102,13 @@ export function StorageHero({ files, quotaInfo }: StorageHeroProps) {
     <div className="panel p-5 sm:p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">Your storage</h2>
-        <Badge variant="secondary" className="gap-1 bg-[var(--color-accent)]/10 text-[var(--color-accent)]">
+        <h2 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
+          Your storage
+        </h2>
+        <Badge
+          variant="secondary"
+          className="gap-1 bg-[var(--color-accent)]/10 text-[var(--color-accent)]"
+        >
           <Infinity className="h-3 w-3" />
           Unlimited
         </Badge>

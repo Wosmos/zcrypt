@@ -17,10 +17,7 @@ export default function ToolsLoading() {
       {/* Tab bar */}
       <div className="inline-flex h-auto w-max max-w-full gap-1 overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-1">
         {TAB_WIDTHS.map((w, i) => (
-          <div
-            key={i}
-            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 ${w}`}
-          >
+          <div key={i} className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 ${w}`}>
             <Skeleton className="h-3.5 w-3.5 flex-shrink-0 rounded-sm" />
             <Skeleton className="h-3.5 flex-1 rounded-md" />
           </div>

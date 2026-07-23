@@ -39,7 +39,18 @@ export const metadata: Metadata = {
 };
 
 export default function FileViewersPage() {
-  const { hero, viewersSection, viewers, zeroKnowledgeSection, pipeline, memoryNote, overlaySection, overlayFeatures, related, cta } = fileViewers;
+  const {
+    hero,
+    viewersSection,
+    viewers,
+    zeroKnowledgeSection,
+    pipeline,
+    memoryNote,
+    overlaySection,
+    overlayFeatures,
+    related,
+    cta,
+  } = fileViewers;
 
   return (
     <>
@@ -119,9 +130,15 @@ export default function FileViewersPage() {
                   </div>
                 ))}
                 <div className="flex items-center justify-center gap-1.5 pt-1 font-mono text-[10px] text-[var(--color-text-muted)]">
-                  <kbd className="rounded border border-[var(--color-border)] px-1.5 py-0.5">Esc</kbd>
-                  <kbd className="rounded border border-[var(--color-border)] px-1.5 py-0.5">&larr;</kbd>
-                  <kbd className="rounded border border-[var(--color-border)] px-1.5 py-0.5">&rarr;</kbd>
+                  <kbd className="rounded border border-[var(--color-border)] px-1.5 py-0.5">
+                    Esc
+                  </kbd>
+                  <kbd className="rounded border border-[var(--color-border)] px-1.5 py-0.5">
+                    &larr;
+                  </kbd>
+                  <kbd className="rounded border border-[var(--color-border)] px-1.5 py-0.5">
+                    &rarr;
+                  </kbd>
                   <kbd className="rounded border border-[var(--color-border)] px-1.5 py-0.5">f</kbd>
                 </div>
               </div>
@@ -155,9 +172,7 @@ export default function FileViewersPage() {
           <ol className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {pipeline.map(({ step, title, desc }) => (
               <li key={step} className="card p-6">
-                <div className="mb-3 font-mono text-2xl font-bold text-cyan-500/80">
-                  {step}
-                </div>
+                <div className="mb-3 font-mono text-2xl font-bold text-cyan-500/80">{step}</div>
                 <h3 className="text-sm font-bold">{title}</h3>
                 <p className="mt-1.5 text-sm leading-relaxed text-[var(--color-text-secondary)]">
                   {desc}
@@ -188,11 +203,7 @@ export default function FileViewersPage() {
       <section className="px-4 py-20">
         <div className="mx-auto max-w-5xl">
           <RelatedLinks heading="Keep exploring" items={related} />
-          <CtaSection
-            icon={Eye}
-            heading={cta.heading}
-            subtext={cta.subtext}
-          />
+          <CtaSection icon={Eye} heading={cta.heading} subtext={cta.subtext} />
         </div>
       </section>
     </>

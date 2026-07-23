@@ -13,11 +13,7 @@ interface LogoSpinnerProps {
   className?: string;
 }
 
-export function LogoSpinner({
-  size = "md",
-  speed = "slow",
-  className,
-}: LogoSpinnerProps) {
+export function LogoSpinner({ size = "md", speed = "slow", className }: LogoSpinnerProps) {
   const textRef = useRef<SVGTextElement>(null);
   const px = typeof size === "number" ? size : SIZE_MAP[size];
   const dur = SPEED_MAP[speed];
@@ -38,8 +34,7 @@ export function LogoSpinner({
     function tick(now: number) {
       const elapsed = (now - start) % durMs;
       if (elapsed >= scrambleStart && elapsed < scrambleEnd) {
-        el!.textContent =
-          CIPHER_CHARS[Math.floor(Math.random() * CIPHER_CHARS.length)];
+        el!.textContent = CIPHER_CHARS[Math.floor(Math.random() * CIPHER_CHARS.length)];
       } else if (elapsed >= scrambleEnd && elapsed < fadeOut) {
         el!.textContent = "z";
       } else if (elapsed < scrambleStart) {
@@ -65,75 +60,21 @@ export function LogoSpinner({
       }
     >
       {showAmbient && <div className="cd-ambient" />}
-      <svg
-        width={px}
-        height={px}
-        viewBox="0 0 88 88"
-        style={{ overflow: "visible" }}
-      >
+      <svg width={px} height={px} viewBox="0 0 88 88" style={{ overflow: "visible" }}>
         {/* Back plane */}
         {showGlow && (
-          <rect
-            className="cd-glow cd-glow-back"
-            x="2"
-            y="4"
-            width="48"
-            height="48"
-            rx="11"
-          />
+          <rect className="cd-glow cd-glow-back" x="2" y="4" width="48" height="48" rx="11" />
         )}
-        <rect
-          className="cd-stroke cd-stroke-back"
-          x="2"
-          y="4"
-          width="48"
-          height="48"
-          rx="11"
-        />
-        <rect
-          className="cd-fill-back"
-          x="2"
-          y="4"
-          width="48"
-          height="48"
-          rx="11"
-        />
+        <rect className="cd-stroke cd-stroke-back" x="2" y="4" width="48" height="48" rx="11" />
+        <rect className="cd-fill-back" x="2" y="4" width="48" height="48" rx="11" />
         {/* Front plane */}
         {showGlow && (
-          <rect
-            className="cd-glow cd-glow-front"
-            x="30"
-            y="28"
-            width="48"
-            height="48"
-            rx="11"
-          />
+          <rect className="cd-glow cd-glow-front" x="30" y="28" width="48" height="48" rx="11" />
         )}
-        <rect
-          className="cd-stroke cd-stroke-front"
-          x="30"
-          y="28"
-          width="48"
-          height="48"
-          rx="11"
-        />
-        <rect
-          className="cd-fill-front"
-          x="30"
-          y="28"
-          width="48"
-          height="48"
-          rx="11"
-        />
+        <rect className="cd-stroke cd-stroke-front" x="30" y="28" width="48" height="48" rx="11" />
+        <rect className="cd-fill-front" x="30" y="28" width="48" height="48" rx="11" />
         {/* Cipher z */}
-        <text
-          ref={textRef}
-          className="cd-cipher-z"
-          x="54"
-          y="59"
-          textAnchor="middle"
-          fontSize="22"
-        >
+        <text ref={textRef} className="cd-cipher-z" x="54" y="59" textAnchor="middle" fontSize="22">
           z
         </text>
       </svg>

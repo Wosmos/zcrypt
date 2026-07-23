@@ -56,8 +56,8 @@ export function VaultLockOverlay({ onUnlock }: { onUnlock: () => void }) {
         <div className="space-y-1.5">
           <h2 className="text-lg font-semibold text-[var(--color-text)]">Vault locked</h2>
           <p className="text-sm leading-relaxed text-[var(--color-text-secondary)]">
-            Your files, folder names, and previews are encrypted on this device.
-            Enter your passphrase to unlock and view them.
+            Your files, folder names, and previews are encrypted on this device. Enter your
+            passphrase to unlock and view them.
           </p>
         </div>
         <button

@@ -62,7 +62,15 @@ export function Sidebar() {
     return pathname === href;
   };
 
-  const NavItem = ({ href, label, icon: Icon }: { href: string; label: string; icon: typeof Shield }) => {
+  const NavItem = ({
+    href,
+    label,
+    icon: Icon,
+  }: {
+    href: string;
+    label: string;
+    icon: typeof Shield;
+  }) => {
     const active = isActive(href);
     return (
       <Link
@@ -74,13 +82,15 @@ export function Sidebar() {
           collapsed ? "justify-center px-0 py-2.5" : "px-3 py-2.5",
           active
             ? "bg-[var(--shell-active)] text-[var(--shell-active-text)]"
-            : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)]"
+            : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)]",
         )}
       >
         <Icon
           className={cn(
             "h-[18px] w-[18px] flex-shrink-0 transition-colors",
-            active ? "text-[var(--color-accent)]" : "text-[var(--color-text-muted)] group-hover:text-[var(--color-text-secondary)]"
+            active
+              ? "text-[var(--color-accent)]"
+              : "text-[var(--color-text-muted)] group-hover:text-[var(--color-text-secondary)]",
           )}
         />
         {!collapsed && <span className="truncate">{label}</span>}
@@ -94,11 +104,13 @@ export function Sidebar() {
       <aside
         className={cn(
           "panel hidden shrink-0 flex-col p-3 transition-all duration-200 md:flex",
-          collapsed ? "w-[68px]" : "w-[244px]"
+          collapsed ? "w-[68px]" : "w-[244px]",
         )}
       >
         {/* Logo */}
-        <div className={cn("flex items-center px-1.5 pb-3 pt-1", collapsed && "justify-center px-0")}>
+        <div
+          className={cn("flex items-center px-1.5 pb-3 pt-1", collapsed && "justify-center px-0")}
+        >
           <Logo
             size={collapsed ? "md" : "xl"}
             iconOnly={collapsed}
@@ -142,12 +154,18 @@ export function Sidebar() {
                   <div
                     className={cn(
                       "h-full rounded-full transition-all duration-500",
-                      storagePercent > 90 ? "bg-red-500" : storagePercent > 70 ? "bg-amber-500" : "bg-[var(--color-accent)]"
+                      storagePercent > 90
+                        ? "bg-red-500"
+                        : storagePercent > 70
+                          ? "bg-amber-500"
+                          : "bg-[var(--color-accent)]",
                     )}
                     style={{ width: `${storagePercent}%` }}
                   />
                 )}
-                {isUnlimited && <div className="h-full w-full rounded-full bg-[var(--color-accent)]/60" />}
+                {isUnlimited && (
+                  <div className="h-full w-full rounded-full bg-[var(--color-accent)]/60" />
+                )}
               </div>
               <p className="mt-2 text-[11px] tabular-nums text-[var(--color-text-muted)]">
                 {isUnlimited
@@ -160,7 +178,13 @@ export function Sidebar() {
           ) : (
             <div
               className="flex flex-col items-center gap-1.5"
-              title={isUnlimited ? `${formatBytes(totalUsed)} used` : totalMax > 0 ? `${formatBytes(totalUsed)} / ${formatBytes(totalMax)}` : "No platform"}
+              title={
+                isUnlimited
+                  ? `${formatBytes(totalUsed)} used`
+                  : totalMax > 0
+                    ? `${formatBytes(totalUsed)} / ${formatBytes(totalMax)}`
+                    : "No platform"
+              }
             >
               <Database className="h-4 w-4 text-[var(--color-text-muted)]" />
             </div>
@@ -168,7 +192,12 @@ export function Sidebar() {
         </div>
 
         {/* Collapse toggle */}
-        <div className={cn("mt-2 flex border-t border-[var(--color-border)] pt-2", collapsed ? "justify-center" : "justify-end")}>
+        <div
+          className={cn(
+            "mt-2 flex border-t border-[var(--color-border)] pt-2",
+            collapsed ? "justify-center" : "justify-end",
+          )}
+        >
           <button
             onClick={() => setCollapsed(!collapsed)}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text-secondary)]"

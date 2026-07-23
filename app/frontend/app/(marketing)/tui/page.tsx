@@ -16,14 +16,10 @@ import {
   Download,
 } from "@/lib/icons";
 import { tuiFeatures, tuiShortcuts, tuiCommands, tuiProfiles } from "@/lib/data";
-import {
-  TUIApplicationJsonLd,
-  BreadcrumbJsonLd,
-} from "@/components/seo/json-ld";
+import { TUIApplicationJsonLd, BreadcrumbJsonLd } from "@/components/seo/json-ld";
 
 export const metadata: Metadata = {
-  title:
-    "zcrypt TUI — Encrypted Cloud Storage from the Terminal | CLI for Linux, macOS, Windows",
+  title: "zcrypt TUI — Encrypted Cloud Storage from the Terminal | CLI for Linux, macOS, Windows",
   description:
     "Open-source terminal app for zcrypt. Upload, download, and manage your zero-knowledge encrypted vault with real-time progress, 2FA, and four performance profiles. Single binary, zero dependencies.",
   keywords: [
@@ -61,10 +57,17 @@ export const metadata: Metadata = {
   },
 };
 
-const featureIconMap: Record<
-  string,
-  React.ComponentType<{ className?: string; size?: number }>
-> = { Upload, Search, HardDrive, Lock, Settings, Shield, Terminal, Gauge, Cpu };
+const featureIconMap: Record<string, React.ComponentType<{ className?: string; size?: number }>> = {
+  Upload,
+  Search,
+  HardDrive,
+  Lock,
+  Settings,
+  Shield,
+  Terminal,
+  Gauge,
+  Cpu,
+};
 
 const featureAccents = [
   "from-cyan-500/15 to-cyan-500/5",
@@ -143,9 +146,8 @@ export default function TUIPage() {
           </h1>
 
           <p className="mt-6 text-base sm:text-lg text-[var(--color-text-secondary)] max-w-xl leading-relaxed">
-            A full-featured terminal app built with Go. Upload, download, and
-            manage your zero-knowledge encrypted vault without leaving the
-            command line.
+            A full-featured terminal app built with Go. Upload, download, and manage your
+            zero-knowledge encrypted vault without leaving the command line.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center gap-4 mt-10">
@@ -166,12 +168,14 @@ export default function TUIPage() {
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 mt-8 text-xs text-[var(--color-text-muted)]">
-            {["Open source", "Single binary", "Works over SSH", "Linux, macOS, Windows"].map((t) => (
-              <span key={t} className="flex items-center gap-1.5">
-                <Check className="h-3.5 w-3.5 text-emerald-500" />
-                {t}
-              </span>
-            ))}
+            {["Open source", "Single binary", "Works over SSH", "Linux, macOS, Windows"].map(
+              (t) => (
+                <span key={t} className="flex items-center gap-1.5">
+                  <Check className="h-3.5 w-3.5 text-emerald-500" />
+                  {t}
+                </span>
+              ),
+            )}
           </div>
         </div>
       </section>
@@ -190,13 +194,9 @@ export default function TUIPage() {
                     <div className="h-3 w-3 rounded-full bg-[#febc2e]" />
                     <div className="h-3 w-3 rounded-full bg-[#28c840]" />
                   </div>
-                  <span className="text-xs text-white/30 font-mono">
-                    zcrypt &mdash; terminal
-                  </span>
+                  <span className="text-xs text-white/30 font-mono">zcrypt &mdash; terminal</span>
                 </div>
-                <span className="text-[10px] font-mono text-emerald-400/50">
-                  normal
-                </span>
+                <span className="text-[10px] font-mono text-emerald-400/50">normal</span>
               </div>
               <div className="p-5 font-mono text-sm leading-relaxed">
                 <div className="text-white/40">
@@ -223,10 +223,7 @@ export default function TUIPage() {
                     { key: "?", label: "help" },
                   ].map((k) => (
                     <span key={k.key} className="text-white/40">
-                      <span className="text-cyan-400/60 font-medium">
-                        {k.key}
-                      </span>{" "}
-                      {k.label}
+                      <span className="text-cyan-400/60 font-medium">{k.key}</span> {k.label}
                     </span>
                   ))}
                 </div>
@@ -261,30 +258,36 @@ export default function TUIPage() {
                   <div className="h-3 w-3 rounded-full bg-[#febc2e]" />
                   <div className="h-3 w-3 rounded-full bg-[#28c840]" />
                 </div>
-                <span className="text-xs text-white/30 font-mono">
-                  install &mdash; zcrypt
-                </span>
+                <span className="text-xs text-white/30 font-mono">install &mdash; zcrypt</span>
               </div>
             </div>
             <div className="divide-y divide-white/5 font-mono text-sm">
               {[
-                { label: "Homebrew", note: "macOS / Linux", cmd: "brew install Wosmos/zcrypt/zcrypt" },
+                {
+                  label: "Homebrew",
+                  note: "macOS / Linux",
+                  cmd: "brew install Wosmos/zcrypt/zcrypt",
+                },
                 { label: "npm", note: "All platforms", cmd: "npm i -g @zcrypt/cli" },
-                { label: "Scoop", note: "Windows", cmd: "scoop bucket add zcrypt https://github.com/Wosmos/scoop-zcrypt && scoop install zcrypt" },
-                { label: "Shell", note: "macOS / Linux", cmd: "curl -fsSL https://zcrypt.cloud/install.sh | sh" },
+                {
+                  label: "Scoop",
+                  note: "Windows",
+                  cmd: "scoop bucket add zcrypt https://github.com/Wosmos/scoop-zcrypt && scoop install zcrypt",
+                },
+                {
+                  label: "Shell",
+                  note: "macOS / Linux",
+                  cmd: "curl -fsSL https://zcrypt.cloud/install.sh | sh",
+                },
               ].map((m) => (
                 <div
                   key={m.label}
                   className="group flex items-start gap-3 px-5 py-3 hover:bg-white/[0.02] transition-colors"
                 >
                   <span className="text-cyan-500/60 select-none pt-px">$</span>
-                  <code className="flex-1 min-w-0 text-cyan-400 break-all">
-                    {m.cmd}
-                  </code>
+                  <code className="flex-1 min-w-0 text-cyan-400 break-all">{m.cmd}</code>
                   <span className="hidden sm:flex items-center gap-1.5 flex-shrink-0 text-[10px] pt-1">
-                    <span className="text-white/40 font-sans font-medium">
-                      {m.label}
-                    </span>
+                    <span className="text-white/40 font-sans font-medium">{m.label}</span>
                     <span className="text-white/20 font-sans">{m.note}</span>
                   </span>
                 </div>
@@ -306,8 +309,7 @@ export default function TUIPage() {
           </div>
 
           <p className="text-center text-xs text-[var(--color-text-muted)] mt-4">
-            Linux, macOS, Windows &mdash; amd64 &amp; arm64. Single binary,
-            zero dependencies.
+            Linux, macOS, Windows &mdash; amd64 &amp; arm64. Single binary, zero dependencies.
           </p>
         </div>
       </section>
@@ -368,16 +370,11 @@ export default function TUIPage() {
             <div className="rounded-xl border border-[var(--color-border)] bg-[#09090b] overflow-hidden">
               <div className="flex items-center gap-3 px-4 py-2.5 border-b border-white/5 bg-white/[0.02]">
                 <Terminal className="h-3.5 w-3.5 text-cyan-500" />
-                <span className="text-xs font-medium text-white/50">
-                  Dashboard keys
-                </span>
+                <span className="text-xs font-medium text-white/50">Dashboard keys</span>
               </div>
               <ul className="divide-y divide-white/5 list-none">
                 {tuiShortcuts.map((s) => (
-                  <li
-                    key={s.keys}
-                    className="flex items-center justify-between px-4 py-2"
-                  >
+                  <li key={s.keys} className="flex items-center justify-between px-4 py-2">
                     <span className="text-xs text-white/40">{s.action}</span>
                     <kbd className="text-[11px] font-mono text-cyan-400/80 bg-white/5 rounded px-2 py-0.5">
                       {s.keys}
@@ -391,23 +388,16 @@ export default function TUIPage() {
             <div className="rounded-xl border border-[var(--color-border)] bg-[#09090b] overflow-hidden">
               <div className="flex items-center gap-3 px-4 py-2.5 border-b border-white/5 bg-white/[0.02]">
                 <ChevronRight className="h-3.5 w-3.5 text-violet-500" />
-                <span className="text-xs font-medium text-white/50">
-                  Command mode
-                </span>
+                <span className="text-xs font-medium text-white/50">Command mode</span>
                 <kbd className="text-[10px] font-mono text-violet-400/80 bg-violet-500/10 rounded px-1.5 py-0.5">
                   :
                 </kbd>
               </div>
               <ul className="divide-y divide-white/5 list-none">
                 {tuiCommands.map((c) => (
-                  <li
-                    key={c.cmd}
-                    className="flex items-center justify-between px-4 py-2"
-                  >
+                  <li key={c.cmd} className="flex items-center justify-between px-4 py-2">
                     <span className="text-xs text-white/40">{c.desc}</span>
-                    <code className="text-[11px] font-mono text-cyan-400/80">
-                      {c.cmd}
-                    </code>
+                    <code className="text-[11px] font-mono text-cyan-400/80">{c.cmd}</code>
                   </li>
                 ))}
               </ul>
@@ -457,26 +447,18 @@ export default function TUIPage() {
                 <div className="space-y-1 text-xs text-[var(--color-text-secondary)] mb-3">
                   <div className="flex justify-between">
                     <span>Workers</span>
-                    <span className="font-mono text-[var(--color-text)]">
-                      {p.workers}
-                    </span>
+                    <span className="font-mono text-[var(--color-text)]">{p.workers}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Chunks</span>
-                    <span className="font-mono text-[var(--color-text)]">
-                      {p.chunkSize}
-                    </span>
+                    <span className="font-mono text-[var(--color-text)]">{p.chunkSize}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Compression</span>
-                    <span className="font-mono text-[var(--color-text)]">
-                      {p.compression}
-                    </span>
+                    <span className="font-mono text-[var(--color-text)]">{p.compression}</span>
                   </div>
                 </div>
-                <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
-                  {p.desc}
-                </p>
+                <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">{p.desc}</p>
               </li>
             ))}
           </ul>
@@ -489,12 +471,9 @@ export default function TUIPage() {
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[400px] bg-cyan-500/8 rounded-full blur-[100px]" />
         </div>
         <div className="max-w-2xl mx-auto text-center">
-          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-            Ready to try it?
-          </h2>
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Ready to try it?</h2>
           <p className="text-[var(--color-text-secondary)] mt-4 text-lg">
-            Create a free account, install the TUI, and encrypt your first file
-            in under a minute.
+            Create a free account, install the TUI, and encrypt your first file in under a minute.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-8">
             <Link

@@ -1,5 +1,15 @@
 import type { Metadata } from "next";
-import { Upload, Download, Pause, Play, Archive, Smartphone, Shield, CheckCircle2, ChevronDown } from "@/lib/icons";
+import {
+  Upload,
+  Download,
+  Pause,
+  Play,
+  Archive,
+  Smartphone,
+  Shield,
+  CheckCircle2,
+  ChevronDown,
+} from "@/lib/icons";
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { FeatureHero } from "@/components/marketing/features/feature-hero";
 import { CapabilityGrid } from "@/components/marketing/features/capability-grid";
@@ -73,7 +83,8 @@ const stateStyles: Record<string, string> = {
 };
 
 export default function TransfersPage() {
-  const { hero, capabilitiesSection, capabilities, tieIn, deviceToDevice, related, cta } = transfers;
+  const { hero, capabilitiesSection, capabilities, tieIn, deviceToDevice, related, cta } =
+    transfers;
 
   return (
     <>
@@ -119,9 +130,7 @@ export default function TransfersPage() {
               <div key={q.name} className="px-4 py-3">
                 <div className="flex items-center gap-2.5">
                   <q.Icon className="h-4 w-4 flex-shrink-0 text-[var(--color-text-muted)]" />
-                  <span className="min-w-0 flex-1 truncate text-xs font-medium">
-                    {q.name}
-                  </span>
+                  <span className="min-w-0 flex-1 truncate text-xs font-medium">{q.name}</span>
                   {q.state === "done" ? (
                     <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-emerald-500" />
                   ) : q.state === "paused" ? (
@@ -172,12 +181,24 @@ export default function TransfersPage() {
             comment="// resuming a paused 24-chunk upload"
             success="✓ complete — 18 chunks never re-sent"
           >
-            <div><span className="text-cyan-600/80 dark:text-cyan-400/80">session</span> reused — same content key</div>
+            <div>
+              <span className="text-cyan-600/80 dark:text-cyan-400/80">session</span> reused — same
+              content key
+            </div>
             <div className="mt-1.5 text-emerald-500">chunk[0..17] already on server → skipped</div>
-            <div className="mt-1.5">chunk[18] encrypt → upload <span className="text-cyan-600/80 dark:text-cyan-400/80">✓</span></div>
-            <div className="mt-1.5">chunk[19] encrypt → upload <span className="text-cyan-600/80 dark:text-cyan-400/80">✓</span></div>
+            <div className="mt-1.5">
+              chunk[18] encrypt → upload{" "}
+              <span className="text-cyan-600/80 dark:text-cyan-400/80">✓</span>
+            </div>
+            <div className="mt-1.5">
+              chunk[19] encrypt → upload{" "}
+              <span className="text-cyan-600/80 dark:text-cyan-400/80">✓</span>
+            </div>
             <div className="mt-1.5 text-[var(--color-text-muted)]">…</div>
-            <div className="mt-1.5">chunk[23] encrypt → upload <span className="text-cyan-600/80 dark:text-cyan-400/80">✓</span></div>
+            <div className="mt-1.5">
+              chunk[23] encrypt → upload{" "}
+              <span className="text-cyan-600/80 dark:text-cyan-400/80">✓</span>
+            </div>
           </CodePanel>
         }
       />

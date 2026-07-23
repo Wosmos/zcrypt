@@ -38,7 +38,15 @@ export function MetaRow({
 
 /** A copyable value with an IconButton copy affordance. `mono` renders the value
  *  in a smaller monospace face. */
-export function CopyField({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+export function CopyField({
+  label,
+  value,
+  mono = false,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
   const [copied, setCopied] = useState(false);
   const copy = useCallback(async () => {
     const ok = await copyToClipboard(value);
@@ -54,7 +62,9 @@ export function CopyField({ label, value, mono = false }: { label: string; value
     <div className="flex items-center justify-between gap-2">
       <span className="text-sm text-[var(--color-text-muted)]">{label}</span>
       <div className="flex min-w-0 items-center gap-1">
-        <span className={cn("truncate text-sm text-[var(--color-text)]", mono && "font-mono text-xs")}>
+        <span
+          className={cn("truncate text-sm text-[var(--color-text)]", mono && "font-mono text-xs")}
+        >
           {value}
         </span>
         <IconButton
@@ -70,7 +80,13 @@ export function CopyField({ label, value, mono = false }: { label: string; value
 }
 
 /** The AES-256-GCM assurance callout shown at the foot of both detail drawers. */
-export function EncryptionAssuranceCard({ title, description }: { title: ReactNode; description: ReactNode }) {
+export function EncryptionAssuranceCard({
+  title,
+  description,
+}: {
+  title: ReactNode;
+  description: ReactNode;
+}) {
   return (
     <div className="flex items-start gap-3 rounded-xl border border-[var(--color-accent)]/20 bg-[var(--color-accent)]/5 p-4">
       <ShieldCheck className="mt-0.5 h-4 w-4 flex-shrink-0 text-[var(--color-accent)]" />
@@ -112,7 +128,7 @@ export function ShareLinkRow({
     <div
       className={cn(
         "flex items-center justify-between gap-2 rounded-lg border border-[var(--color-border)] px-3 py-2",
-        containerClassName
+        containerClassName,
       )}
     >
       <div className="min-w-0">
@@ -122,12 +138,16 @@ export function ShareLinkRow({
             …{token.slice(-8)}
           </code>
           {hasPassword && (
-            <Lock className="h-3 w-3 flex-shrink-0 text-amber-500" aria-label="Password protected" />
+            <Lock
+              className="h-3 w-3 flex-shrink-0 text-amber-500"
+              aria-label="Password protected"
+            />
           )}
         </div>
         <p className="text-[11px] tabular-nums text-[var(--color-text-muted)]">
           {fileCount !== undefined && `${fileCount} file${fileCount === 1 ? "" : "s"} · `}
-          {downloadCount}{maxDownloads > 0 ? `/${maxDownloads}` : ""} downloads
+          {downloadCount}
+          {maxDownloads > 0 ? `/${maxDownloads}` : ""} downloads
           {expiresAt && ` · expires ${formatDate(expiresAt)}`}
         </p>
       </div>

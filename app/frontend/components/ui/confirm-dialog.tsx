@@ -78,7 +78,7 @@ export function ConfirmDialog({
             className={cn(
               destructive &&
                 buttonVariants({ variant: "destructive" }) +
-                  " bg-red-500 text-white hover:bg-red-600"
+                  " bg-red-500 text-white hover:bg-red-600",
             )}
           >
             {loading ? (

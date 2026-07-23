@@ -21,11 +21,7 @@ const platformIcons: Record<string, React.ReactNode> = {
   telegram: <TelegramIcon className="h-4 w-4" />,
 };
 
-export function PlatformSelector({
-  statuses,
-  selected,
-  onSelect,
-}: PlatformSelectorProps) {
+export function PlatformSelector({ statuses, selected, onSelect }: PlatformSelectorProps) {
   const connected = statuses.filter((s) => s.connected);
 
   if (connected.length === 0) return null;
@@ -45,7 +41,7 @@ export function PlatformSelector({
             "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium transition-all duration-150 border",
             selected === null
               ? "bg-cyan-500/10 border-cyan-500/30 text-cyan-600 dark:text-cyan-300"
-              : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)] hover:bg-[var(--color-surface-1)]"
+              : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)] hover:bg-[var(--color-surface-1)]",
           )}
         >
           Auto
@@ -61,7 +57,7 @@ export function PlatformSelector({
                 "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium transition-all duration-150 border",
                 isSelected
                   ? "bg-cyan-500/10 border-cyan-500/30 text-cyan-600 dark:text-cyan-300"
-                  : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)] hover:bg-[var(--color-surface-1)]"
+                  : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)] hover:bg-[var(--color-surface-1)]",
               )}
             >
               {platformIcons[platform]}

@@ -9,7 +9,14 @@ import {
   deleteFolder as apiDeleteFolder,
   updateFolderStyle as apiUpdateFolderStyle,
 } from "@/lib/api";
-import { deriveNameKey, encryptName, decryptNameSafe, encryptStyle, decryptStyle, type CustomStyle } from "@/lib/name-crypto";
+import {
+  deriveNameKey,
+  encryptName,
+  decryptNameSafe,
+  encryptStyle,
+  decryptStyle,
+  type CustomStyle,
+} from "@/lib/name-crypto";
 import { useAuthStore } from "@/store/auth";
 import { usePassphraseStore } from "@/store/passphrase";
 import { useFolderStore } from "@/store/folders";
@@ -98,7 +105,7 @@ export function useFolders() {
           name: key ? await decryptNameSafe(f.encrypted_name, key) : "[locked]",
           protected: f.pw_salt != null,
           style: key ? await decryptStyle(f.encrypted_style, key) : null,
-        }))
+        })),
       );
       if (!cancelled) setFolders(decrypted);
     })();
@@ -126,7 +133,7 @@ export function useFolders() {
       await apiCreateFolder({ encrypted_name, parent_id: currentFolderId });
       await invalidateFolders();
     },
-    [getNameKey, currentFolderId, folders]
+    [getNameKey, currentFolderId, folders],
   );
 
   const renameFolder = useCallback(
@@ -134,14 +141,16 @@ export function useFolders() {
       const key = await getNameKey();
       if (!key) throw new Error("Unlock your vault to rename folders");
       const trimmed = name.trim();
-      if (folders.some((f) => f.id !== id && f.name.trim().toLowerCase() === trimmed.toLowerCase())) {
+      if (
+        folders.some((f) => f.id !== id && f.name.trim().toLowerCase() === trimmed.toLowerCase())
+      ) {
         throw new Error(`A folder named "${trimmed}" already exists here.`);
       }
       const encrypted_name = await encryptName(trimmed, key);
       await apiRenameFolder(id, encrypted_name);
       await invalidateFolders();
     },
-    [getNameKey, folders]
+    [getNameKey, folders],
   );
 
   const updateFolderStyle = useCallback(
@@ -152,7 +161,7 @@ export function useFolders() {
       await apiUpdateFolderStyle(folderId, encrypted_style);
       await invalidateFolders();
     },
-    [getNameKey]
+    [getNameKey],
   );
 
   const deleteFolder = useCallback(async (id: string) => {
@@ -168,14 +177,14 @@ export function useFolders() {
     (folder: DecryptedFolder) => {
       setCurrentFolder(folder.id, folder.name);
     },
-    [setCurrentFolder]
+    [setCurrentFolder],
   );
 
   const navigateToCrumb = useCallback(
     (index: number) => {
       navigateToCrumbStore(index);
     },
-    [navigateToCrumbStore]
+    [navigateToCrumbStore],
   );
 
   return {

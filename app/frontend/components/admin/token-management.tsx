@@ -42,7 +42,9 @@ export function TokenManagement({
   const [deleteTarget, setDeleteTarget] = useState<PlatformTokenInfo | null>(null);
 
   // Clear optimistic overrides when fresh data arrives from parent
-  useEffect(() => { setScopeOverrides({}); }, [tokens]);
+  useEffect(() => {
+    setScopeOverrides({});
+  }, [tokens]);
 
   const resolveGlobal = (t: PlatformTokenInfo) =>
     t.id in scopeOverrides ? scopeOverrides[t.id] : t.is_global;
@@ -74,7 +76,11 @@ export function TokenManagement({
       await adminToggleTokenScope(t.id, newScope);
       onRefresh();
     } catch (err) {
-      setScopeOverrides((prev) => { const next = { ...prev }; delete next[t.id]; return next; });
+      setScopeOverrides((prev) => {
+        const next = { ...prev };
+        delete next[t.id];
+        return next;
+      });
       toast.error(err instanceof Error ? err.message : "Failed to update token scope");
     }
   };
@@ -109,7 +115,9 @@ export function TokenManagement({
       <section className="panel overflow-hidden">
         <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] px-5 py-4">
           <div className="min-w-0">
-            <h2 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">Platform tokens</h2>
+            <h2 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
+              Platform tokens
+            </h2>
             <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
               {tokens.length} token{tokens.length !== 1 ? "s" : ""} registered
             </p>
@@ -159,7 +167,11 @@ export function TokenManagement({
                   Global token <span className="hidden sm:inline">(available to all users)</span>
                 </span>
               </label>
-              <Button onClick={handleCreate} disabled={creating || !token.trim()} className="w-full sm:w-auto">
+              <Button
+                onClick={handleCreate}
+                disabled={creating || !token.trim()}
+                className="w-full sm:w-auto"
+              >
                 {creating ? (
                   <span className="flex items-center gap-2">
                     <LogoSpinner size={14} speed="fast" />
@@ -196,9 +208,13 @@ export function TokenManagement({
                     <div className="flex items-center gap-1.5 sm:gap-2">
                       <span className="truncate text-sm font-medium text-[var(--color-text)]">
                         <span className="sm:hidden">{platformShort[t.platform] ?? t.platform}</span>
-                        <span className="hidden sm:inline">{platformNames[t.platform] ?? t.platform}</span>
+                        <span className="hidden sm:inline">
+                          {platformNames[t.platform] ?? t.platform}
+                        </span>
                       </span>
-                      <span className="truncate text-xs text-[var(--color-text-muted)]">@{t.username}</span>
+                      <span className="truncate text-xs text-[var(--color-text-muted)]">
+                        @{t.username}
+                      </span>
                     </div>
                     <p className="text-xs text-[var(--color-text-muted)] tabular-nums">
                       {new Date(t.created_at).toLocaleDateString()}
@@ -207,23 +223,39 @@ export function TokenManagement({
                   {isOwner ? (
                     <button
                       onClick={() => handleToggleScope(t)}
-                      title={isGlobalResolved ? "Click to make local (owner-only)" : "Click to make global (all users)"}
+                      title={
+                        isGlobalResolved
+                          ? "Click to make local (owner-only)"
+                          : "Click to make global (all users)"
+                      }
                       aria-label={isGlobalResolved ? "Make token local" : "Make token global"}
                       className={cn(
                         badgeVariants({ variant: scopeVariant(t) }),
                         scopePillClass,
                         // Neutralize badgeVariants' base focus: ring (fires on mouse click);
                         // keep only the intended focus-visible accent ring.
-                        "cursor-pointer hover:opacity-80 focus:ring-0 focus:ring-offset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40"
+                        "cursor-pointer hover:opacity-80 focus:ring-0 focus:ring-offset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40",
                       )}
                     >
-                      {isGlobalResolved ? <Globe className="h-3.5 w-3.5" /> : <User className="h-3.5 w-3.5" />}
-                      <span className="hidden sm:inline">{isGlobalResolved ? "Global" : "Local"}</span>
+                      {isGlobalResolved ? (
+                        <Globe className="h-3.5 w-3.5" />
+                      ) : (
+                        <User className="h-3.5 w-3.5" />
+                      )}
+                      <span className="hidden sm:inline">
+                        {isGlobalResolved ? "Global" : "Local"}
+                      </span>
                     </button>
                   ) : (
                     <Badge variant={scopeVariant(t)} className={scopePillClass}>
-                      {isGlobalResolved ? <Globe className="h-3.5 w-3.5" /> : <User className="h-3.5 w-3.5" />}
-                      <span className="hidden sm:inline">{isGlobalResolved ? "Global" : "Local"}</span>
+                      {isGlobalResolved ? (
+                        <Globe className="h-3.5 w-3.5" />
+                      ) : (
+                        <User className="h-3.5 w-3.5" />
+                      )}
+                      <span className="hidden sm:inline">
+                        {isGlobalResolved ? "Global" : "Local"}
+                      </span>
                     </Badge>
                   )}
                   {isOwner && (
@@ -245,7 +277,9 @@ export function TokenManagement({
 
       <ConfirmDialog
         open={!!deleteTarget}
-        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
         destructive
         title="Delete token?"
         description={

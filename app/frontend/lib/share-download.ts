@@ -33,7 +33,7 @@ export interface ShareDownloadOptions {
 export async function downloadSharedFile(
   token: string,
   shareKeyB64: string,
-  options?: ShareDownloadOptions
+  options?: ShareDownloadOptions,
 ): Promise<void> {
   const { onProgress, signal, sharePassword } = options ?? {};
 
@@ -46,7 +46,12 @@ export async function downloadSharedFile(
   if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
 
   // Step 2: Unwrap the file's CEK using the share key from the URL fragment.
-  onProgress?.({ stage: "Unwrapping key...", percent: 1, chunksDone: 0, chunksTotal: meta.chunk_count });
+  onProgress?.({
+    stage: "Unwrapping key...",
+    percent: 1,
+    chunksDone: 0,
+    chunksTotal: meta.chunk_count,
+  });
   if (!meta.wrapped_cek) {
     throw new Error("This share is missing its encryption key and cannot be decrypted.");
   }
@@ -71,7 +76,7 @@ export async function downloadSharedFile(
 
     const { data, compressed } = await retryTransient(
       () => getShareChunk(token, index, sharePassword),
-      { signal }
+      { signal },
     );
 
     if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
@@ -90,7 +95,7 @@ export async function downloadSharedFile(
         plaintext = await zstdDecompress(plaintext);
       } catch (decompressErr) {
         throw new Error(
-          `Decompression failed on chunk ${index}: ${decompressErr instanceof Error ? decompressErr.message : decompressErr}`
+          `Decompression failed on chunk ${index}: ${decompressErr instanceof Error ? decompressErr.message : decompressErr}`,
         );
       }
     }
@@ -113,7 +118,12 @@ export async function downloadSharedFile(
   if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
 
   // Step 4: Concatenate and verify
-  onProgress?.({ stage: "Verifying integrity...", percent: 93, chunksDone: meta.chunk_count, chunksTotal: meta.chunk_count });
+  onProgress?.({
+    stage: "Verifying integrity...",
+    percent: 93,
+    chunksDone: meta.chunk_count,
+    chunksTotal: meta.chunk_count,
+  });
 
   const fullFile = concatChunks(decryptedChunks);
 
@@ -133,7 +143,12 @@ export async function downloadSharedFile(
   if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
 
   // Step 5: Trigger browser download
-  onProgress?.({ stage: "Saving file...", percent: 97, chunksDone: meta.chunk_count, chunksTotal: meta.chunk_count });
+  onProgress?.({
+    stage: "Saving file...",
+    percent: 97,
+    chunksDone: meta.chunk_count,
+    chunksTotal: meta.chunk_count,
+  });
 
   // A recipient has only the share key, not the owner's vault passphrase, so a
   // zero-knowledge file's name (encrypted under the vault key) can't be resolved
@@ -141,5 +156,10 @@ export async function downloadSharedFile(
   // the share key (shares.enc_name) so recipients see the real filename.
   saveBlob(meta.original_name || "download", fullFile);
 
-  onProgress?.({ stage: "Done", percent: 100, chunksDone: meta.chunk_count, chunksTotal: meta.chunk_count });
+  onProgress?.({
+    stage: "Done",
+    percent: 100,
+    chunksDone: meta.chunk_count,
+    chunksTotal: meta.chunk_count,
+  });
 }

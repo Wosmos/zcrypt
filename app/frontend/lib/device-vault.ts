@@ -64,10 +64,7 @@ function openDB(): Promise<IDBDatabase> {
   });
 }
 
-function tx<T>(
-  mode: IDBTransactionMode,
-  run: (store: IDBObjectStore) => IDBRequest
-): Promise<T> {
+function tx<T>(mode: IDBTransactionMode, run: (store: IDBObjectStore) => IDBRequest): Promise<T> {
   return openDB().then(
     (db) =>
       new Promise<T>((resolve, reject) => {
@@ -76,7 +73,7 @@ function tx<T>(
         req.onsuccess = () => resolve(req.result as T);
         req.onerror = () => reject(req.error);
         t.oncomplete = () => db.close();
-      })
+      }),
   );
 }
 
@@ -94,7 +91,7 @@ async function getDeviceKey(): Promise<CryptoKey> {
   const key = await crypto.subtle.generateKey(
     { name: "AES-GCM", length: 256 },
     /* extractable */ DEVICE_KEY_EXTRACTABLE,
-    ["encrypt", "decrypt"]
+    ["encrypt", "decrypt"],
   );
   await tx("readwrite", (s) => s.put(key, KEY_ID));
   return key;
@@ -109,7 +106,7 @@ export async function persistPassphrase(passphrase: string): Promise<void> {
     const ct = await crypto.subtle.encrypt(
       { name: "AES-GCM", iv },
       key,
-      new TextEncoder().encode(passphrase)
+      new TextEncoder().encode(passphrase),
     );
     await tx("readwrite", (s) => s.put({ iv, ct } satisfies StoredPassphrase, PP_ID));
   } catch {
@@ -129,7 +126,7 @@ export async function loadPassphrase(): Promise<string | null> {
     const pt = await crypto.subtle.decrypt(
       { name: "AES-GCM", iv: new Uint8Array(rec.iv) },
       key,
-      rec.ct
+      rec.ct,
     );
     return new TextDecoder().decode(pt);
   } catch {

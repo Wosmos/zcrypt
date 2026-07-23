@@ -2,11 +2,7 @@
 
 import { useCallback } from "react";
 import { IncorrectPassphraseError } from "@/lib/crypto";
-import {
-  cachedDecrypt,
-  cachedResolveCEK,
-  isWarmOrInflight,
-} from "@/lib/decrypt-cache";
+import { cachedDecrypt, cachedResolveCEK, isWarmOrInflight } from "@/lib/decrypt-cache";
 import { getDeviceProfile } from "@/lib/device-profile";
 import { WorkerPool } from "@/lib/worker-pool";
 import { mediaMimeFor, extOf } from "@/lib/media-formats";
@@ -96,7 +92,7 @@ export interface UseFileDecryptor {
    */
   decryptToBlob: (
     file: FileMetadata,
-    onProgress?: (done: number, total: number) => void
+    onProgress?: (done: number, total: number) => void,
   ) => Promise<Blob>;
   /**
    * Best-effort, non-prompting cache warm-up for a file (e.g. a viewer
@@ -112,29 +108,66 @@ export interface UseFileDecryptor {
  */
 const MIME_BY_EXT: Record<string, string> = {
   // image
-  jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", gif: "image/gif",
-  webp: "image/webp", svg: "image/svg+xml", bmp: "image/bmp", ico: "image/x-icon",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  gif: "image/gif",
+  webp: "image/webp",
+  svg: "image/svg+xml",
+  bmp: "image/bmp",
+  ico: "image/x-icon",
   // video
-  mp4: "video/mp4", m4v: "video/mp4", mov: "video/quicktime",
-  webm: "video/webm", mkv: "video/x-matroska", ogv: "video/ogg", avi: "video/x-msvideo",
+  mp4: "video/mp4",
+  m4v: "video/mp4",
+  mov: "video/quicktime",
+  webm: "video/webm",
+  mkv: "video/x-matroska",
+  ogv: "video/ogg",
+  avi: "video/x-msvideo",
   // audio
-  mp3: "audio/mpeg", wav: "audio/wav", aac: "audio/aac", flac: "audio/flac",
-  m4a: "audio/mp4", ogg: "audio/ogg", oga: "audio/ogg", opus: "audio/ogg",
+  mp3: "audio/mpeg",
+  wav: "audio/wav",
+  aac: "audio/aac",
+  flac: "audio/flac",
+  m4a: "audio/mp4",
+  ogg: "audio/ogg",
+  oga: "audio/ogg",
+  opus: "audio/ogg",
   // documents
   pdf: "application/pdf",
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   // text / markup / code
-  txt: "text/plain", md: "text/markdown", markdown: "text/markdown",
-  html: "text/html", htm: "text/html",
-  csv: "text/csv", tsv: "text/tab-separated-values",
-  json: "application/json", xml: "application/xml",
-  yaml: "text/yaml", yml: "text/yaml",
-  js: "text/javascript", mjs: "text/javascript", cjs: "text/javascript",
-  ts: "text/plain", tsx: "text/plain", jsx: "text/javascript",
-  py: "text/x-python", go: "text/x-go", rs: "text/x-rustsrc",
-  java: "text/x-java", c: "text/x-csrc", cpp: "text/x-c++src", h: "text/x-chdr",
-  css: "text/css", sh: "text/x-shellscript", sql: "text/x-sql",
-  toml: "text/plain", ini: "text/plain", cfg: "text/plain", log: "text/plain",
+  txt: "text/plain",
+  md: "text/markdown",
+  markdown: "text/markdown",
+  html: "text/html",
+  htm: "text/html",
+  csv: "text/csv",
+  tsv: "text/tab-separated-values",
+  json: "application/json",
+  xml: "application/xml",
+  yaml: "text/yaml",
+  yml: "text/yaml",
+  js: "text/javascript",
+  mjs: "text/javascript",
+  cjs: "text/javascript",
+  ts: "text/plain",
+  tsx: "text/plain",
+  jsx: "text/javascript",
+  py: "text/x-python",
+  go: "text/x-go",
+  rs: "text/x-rustsrc",
+  java: "text/x-java",
+  c: "text/x-csrc",
+  cpp: "text/x-c++src",
+  h: "text/x-chdr",
+  css: "text/css",
+  sh: "text/x-shellscript",
+  sql: "text/x-sql",
+  toml: "text/plain",
+  ini: "text/plain",
+  cfg: "text/plain",
+  log: "text/plain",
 };
 
 /** Derive a MIME type from a filename's extension (octet-stream fallback). */
@@ -173,7 +206,7 @@ function looksLikeWrongKey(err: unknown): boolean {
 export async function runDecryptPipeline(
   file: FileMetadata,
   password: string,
-  onProgress?: (done: number, total: number) => void
+  onProgress?: (done: number, total: number) => void,
 ): Promise<Blob> {
   // Desktop: decrypt natively in the in-process Rust core — byos-direct bytes,
   // native crypto speed, and the same DNS/relay-fallback resilience as download.
@@ -202,7 +235,15 @@ export async function runDecryptPipeline(
   }
 
   const { getFileMeta, getFileChunk } = await import("@/lib/api");
-  const { resolveFileKey, decryptChunk, sha256Hex, fromBase64, createContentHasher, deriveDedupKeyBytes, bytesToHex } = await import("@/lib/crypto");
+  const {
+    resolveFileKey,
+    decryptChunk,
+    sha256Hex,
+    fromBase64,
+    createContentHasher,
+    deriveDedupKeyBytes,
+    bytesToHex,
+  } = await import("@/lib/crypto");
 
   const meta = await getFileMeta(file.id);
   const salt = fromBase64(meta.salt);
@@ -212,7 +253,7 @@ export async function runDecryptPipeline(
   // Crypto round trip. Cleared on the same lock/TTL/logout/folder-relock events
   // as the plaintext blob cache (see lib/decrypt-cache).
   const keyBytes = await cachedResolveCEK(file.id, file.folder_id ?? null, () =>
-    resolveFileKey(password, salt, meta.wrapped_cek)
+    resolveFileKey(password, salt, meta.wrapped_cek),
   );
 
   // Legacy files (no wrapped CEK) have no key verifier: a wrong passphrase only
@@ -270,7 +311,7 @@ export async function runDecryptPipeline(
             const idx = queue.shift()!;
             await processChunk(idx);
           }
-        })()
+        })(),
       );
     }
 
@@ -321,7 +362,7 @@ export function prefetchFileDecrypt(file: FileMetadata): void {
     try {
       const password = await resolveFilePasswordGlobal(file.id);
       await cachedDecrypt(file.id, file.folder_id ?? null, () =>
-        runDecryptPipeline(file, password)
+        runDecryptPipeline(file, password),
       );
     } catch {
       // Locked / unavailable / network — prefetch is an optimisation, ignore.
@@ -355,7 +396,7 @@ export function useFileDecryptor(folderProtection: UseFolderProtection): UseFile
   const decryptToBlob = useCallback(
     async (
       file: FileMetadata,
-      onProgress?: (done: number, total: number) => void
+      onProgress?: (done: number, total: number) => void,
     ): Promise<Blob> => {
       try {
         // Cache hit → returns instantly, skipping the prompt and the pipeline.
@@ -375,14 +416,12 @@ export function useFileDecryptor(folderProtection: UseFolderProtection): UseFile
           const fid = file.folder_id ?? null;
           // Throw a typed wrong-password error so callers can clear the cache +
           // re-prompt + retry, exactly mirroring the previous recovery branch.
-          throw new WrongPasswordError(
-            fid && folderProtection.isFileProtected(file) ? fid : null
-          );
+          throw new WrongPasswordError(fid && folderProtection.isFileProtected(file) ? fid : null);
         }
         throw err instanceof Error ? err : new Error("Decryption failed");
       }
     },
-    [folderProtection]
+    [folderProtection],
   );
 
   // Best-effort and NON-prompting — see prefetchFileDecrypt above. Prefetch

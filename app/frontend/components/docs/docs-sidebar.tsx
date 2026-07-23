@@ -34,7 +34,7 @@ function TreeLink({
     "group/link relative flex w-full items-center gap-2 rounded-md py-1.5 pl-5 pr-2 text-[13px] transition-colors",
     active
       ? "bg-cyan-500/10 font-medium text-cyan-700 dark:text-cyan-300"
-      : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-1)]/60 hover:text-[var(--color-text)]"
+      : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-1)]/60 hover:text-[var(--color-text)]",
   );
 
   const label = (
@@ -44,7 +44,7 @@ function TreeLink({
         aria-hidden
         className={cn(
           "absolute left-0 top-0 w-px bg-[var(--color-border)]",
-          isLast ? "h-1/2" : "h-full"
+          isLast ? "h-1/2" : "h-full",
         )}
       />
       {/* Branch stub from the trunk to the label */}
@@ -54,7 +54,7 @@ function TreeLink({
           "absolute left-0 top-1/2 h-px w-3 -translate-y-1/2 transition-colors",
           active
             ? "bg-cyan-500"
-            : "bg-[var(--color-border)] group-hover/link:bg-[var(--color-border-hover)]"
+            : "bg-[var(--color-border)] group-hover/link:bg-[var(--color-border-hover)]",
         )}
       />
       {/* Dot at the branch tip — cyan when active */}
@@ -64,7 +64,7 @@ function TreeLink({
           "absolute left-3 top-1/2 h-[5px] w-[5px] -translate-y-1/2 rounded-full transition-colors",
           active
             ? "bg-cyan-500"
-            : "bg-[var(--color-border)] group-hover/link:bg-[var(--color-border-hover)]"
+            : "bg-[var(--color-border)] group-hover/link:bg-[var(--color-border-hover)]",
         )}
       />
       <span className="min-w-0 flex-1 truncate">{link.title}</span>
@@ -72,7 +72,7 @@ function TreeLink({
         <span
           className={cn(
             "flex-shrink-0 rounded-full border px-1.5 py-px text-[9px] font-bold uppercase tracking-wide",
-            BADGE_STYLES[link.badge]
+            BADGE_STYLES[link.badge],
           )}
         >
           {link.badge}
@@ -133,13 +133,13 @@ function NavGroup({
           "flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-[10px] font-bold uppercase tracking-widest transition-colors",
           hasActive
             ? "text-[var(--color-text)]"
-            : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+            : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]",
         )}
       >
         <ChevronRight
           className={cn(
             "h-3 w-3 flex-shrink-0 transition-transform duration-200",
-            open && "rotate-90"
+            open && "rotate-90",
           )}
         />
         {group.title}
@@ -149,7 +149,7 @@ function NavGroup({
       <div
         className={cn(
           "grid transition-[grid-template-rows,opacity] duration-300 ease-in-out",
-          open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+          open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
         )}
       >
         <div className="min-h-0 overflow-hidden">
@@ -260,9 +260,7 @@ export function DocsMobileNav() {
   const [open, setOpen] = useState(false);
   const { open: openSearch } = useDocsSearch();
 
-  const currentGroup = docsNav.find((g) =>
-    g.links.some((l) => !l.external && l.href === pathname)
-  );
+  const currentGroup = docsNav.find((g) => g.links.some((l) => !l.external && l.href === pathname));
 
   return (
     <>
@@ -307,7 +305,7 @@ export function DocsMobileNav() {
       <aside
         className={cn(
           "fixed inset-y-0 left-0 z-50 flex h-dvh w-[280px] max-w-[85vw] flex-col border-r border-[var(--color-border)] bg-[var(--color-surface)] transition-transform duration-300 ease-in-out lg:hidden",
-          open ? "translate-x-0" : "-translate-x-full"
+          open ? "translate-x-0" : "-translate-x-full",
         )}
       >
         <div className="border-b border-[var(--color-border)] px-4 pb-3 pt-3">

@@ -111,7 +111,17 @@ export function AuthGuard({
     }
 
     init();
-  }, [initialized, accessToken, refreshTokenValue, router, skipOnboardingCheck, setUser, setTokens, setInitialized, clearAuth]);
+  }, [
+    initialized,
+    accessToken,
+    refreshTokenValue,
+    router,
+    skipOnboardingCheck,
+    setUser,
+    setTokens,
+    setInitialized,
+    clearAuth,
+  ]);
 
   // Start desktop sync worker whenever we have a valid token
   useEffect(() => {

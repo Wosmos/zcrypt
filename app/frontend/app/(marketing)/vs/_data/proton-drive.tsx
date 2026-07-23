@@ -148,11 +148,10 @@ export const protonDrive: VsData = {
     headlineGradient: "Only one is yours to run.",
     subtext: (
       <>
-        Proton Drive is a genuinely excellent, audited, zero-knowledge drive —
-        and we respect it. The differences are narrower here and more about
-        philosophy: zcrypt is open source <em>and</em> self-hostable, stores
-        files in accounts you already own, has no artificial caps, and even ships
-        a terminal app.
+        Proton Drive is a genuinely excellent, audited, zero-knowledge drive — and we respect it.
+        The differences are narrower here and more about philosophy: zcrypt is open source{" "}
+        <em>and</em> self-hostable, stores files in accounts you already own, has no artificial
+        caps, and even ships a terminal app.
       </>
     ),
     secondaryLabel: "How the encryption works",
@@ -160,37 +159,30 @@ export const protonDrive: VsData = {
   },
   respectNote: (
     <>
-      <strong className="text-[var(--color-text)]">
-        Credit where it&apos;s due.
-      </strong>{" "}
-      Proton Drive is end-to-end encrypted, independently audited, backed by an
-      established privacy company, and has mature mobile apps. If you&apos;re
-      weighing it against zcrypt, you&apos;re already making a privacy-respecting
-      choice. This page is about which trade-offs suit you — not about claiming
+      <strong className="text-[var(--color-text)]">Credit where it&apos;s due.</strong> Proton Drive
+      is end-to-end encrypted, independently audited, backed by an established privacy company, and
+      has mature mobile apps. If you&apos;re weighing it against zcrypt, you&apos;re already making
+      a privacy-respecting choice. This page is about which trade-offs suit you — not about claiming
       Proton gets anything wrong.
     </>
   ),
   pillarsHeading: "Where zcrypt is different",
   pillarsSubheading: (
-    <>
-      The encryption story is similar. These four things are where zcrypt takes a
-      different path.
-    </>
+    <>The encryption story is similar. These four things are where zcrypt takes a different path.</>
   ),
   pillars,
   table: {
     heading: "zcrypt vs Proton Drive, side by side",
     subheading: (
       <>
-        Both check the privacy boxes. The differences cluster around hosting,
-        storage ownership, and tooling.
+        Both check the privacy boxes. The differences cluster around hosting, storage ownership, and
+        tooling.
       </>
     ),
     footnote: (
       <>
-        Comparison reflects each product&apos;s standard offering as of 2026.
-        Proton Drive is a trademark of Proton AG; we&apos;re not affiliated with
-        or endorsed by them.
+        Comparison reflects each product&apos;s standard offering as of 2026. Proton Drive is a
+        trademark of Proton AG; we&apos;re not affiliated with or endorsed by them.
       </>
     ),
     rows,
@@ -199,43 +191,35 @@ export const protonDrive: VsData = {
     heading: "When Proton Drive is the better choice",
     paragraphs: [
       <>
-        Proton Drive is a serious, well-built product, and for many people
-        it&apos;s the smarter pick. We&apos;d rather you choose the right tool
-        than the one with our name on it.
+        Proton Drive is a serious, well-built product, and for many people it&apos;s the smarter
+        pick. We&apos;d rather you choose the right tool than the one with our name on it.
       </>,
       <>
         If you want{" "}
-        <strong className="text-[var(--color-text)]">
-          polished native mobile apps today
-        </strong>
-        , Proton has them and zcrypt does not — our mobile apps are still on the
-        roadmap. For people who manage files primarily from a phone, that
-        difference alone may settle it.
+        <strong className="text-[var(--color-text)]">polished native mobile apps today</strong>,
+        Proton has them and zcrypt does not — our mobile apps are still on the roadmap. For people
+        who manage files primarily from a phone, that difference alone may settle it.
       </>,
       <>
         If you value a{" "}
-        <strong className="text-[var(--color-text)]">
-          single, fully managed privacy suite
-        </strong>{" "}
-        — Drive, Mail, Calendar, and VPN under one audited provider in Swiss/EU
-        jurisdiction — Proton delivers that as a cohesive package. zcrypt is
-        focused on being an encrypted drive, not an ecosystem.
+        <strong className="text-[var(--color-text)]">single, fully managed privacy suite</strong> —
+        Drive, Mail, Calendar, and VPN under one audited provider in Swiss/EU jurisdiction — Proton
+        delivers that as a cohesive package. zcrypt is focused on being an encrypted drive, not an
+        ecosystem.
       </>,
       <>
         If you&apos;d rather{" "}
         <strong className="text-[var(--color-text)]">
           not manage your own storage or infrastructure at all
         </strong>
-        , Proton handles everything for you. zcrypt&apos;s
-        bring-your-own-storage model is powerful, but it does ask you to connect
-        an account and take responsibility for your passphrase. And some of our
-        more advanced collaboration features, like shared vaults, are still in
-        beta.
+        , Proton handles everything for you. zcrypt&apos;s bring-your-own-storage model is powerful,
+        but it does ask you to connect an account and take responsibility for your passphrase. And
+        some of our more advanced collaboration features, like shared vaults, are still in beta.
       </>,
       <>
-        zcrypt is the better fit when you want an encrypted drive you can fully
-        self-host, store in accounts you already own, scale without artificial
-        caps, and drive from the terminal — all open source and free.
+        zcrypt is the better fit when you want an encrypted drive you can fully self-host, store in
+        accounts you already own, scale without artificial caps, and drive from the terminal — all
+        open source and free.
       </>,
     ],
   },

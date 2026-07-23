@@ -94,12 +94,17 @@ export function PadTool() {
               description="Text is deleted after first view"
             />
           </div>
-          <Button onClick={handleEncryptAndShare} disabled={!text.trim() || isOverLimit} className="w-full">
+          <Button
+            onClick={handleEncryptAndShare}
+            disabled={!text.trim() || isOverLimit}
+            className="w-full"
+          >
             <Lock className="h-4 w-4 mr-2" /> Encrypt &amp; Share
           </Button>
           <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3">
             <p className="text-xs text-cyan-700 dark:text-cyan-300">
-              Your text is encrypted in your browser. The encryption key is embedded in the share link — the server stores only encrypted data.
+              Your text is encrypted in your browser. The encryption key is embedded in the share
+              link — the server stores only encrypted data.
             </p>
           </div>
         </div>

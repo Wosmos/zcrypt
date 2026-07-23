@@ -4,9 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { getSendInfo, getSendMeta, getSendChunk } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import {
-  Shield, Send, Download, AlertTriangle, Eye, Clock,
-} from "@/lib/icons";
+import { Shield, Send, Download, AlertTriangle, Eye, Clock } from "@/lib/icons";
 import { formatBytes, saveBlob } from "@/lib/utils";
 import { keyFromFragment } from "@/lib/share-link";
 import {
@@ -23,13 +21,7 @@ import {
 import { formatShortExpiry as formatExpiry } from "@/components/tokens/token-layout";
 import type { SendInfo } from "@/types";
 
-type PageState =
-  | "loading"
-  | "ready"
-  | "decrypting"
-  | "preview"
-  | "done"
-  | "error";
+type PageState = "loading" | "ready" | "decrypting" | "preview" | "done" | "error";
 
 function getPreviewType(filename: string): "image" | "video" | "audio" | "none" {
   const ext = filename.split(".").pop()?.toLowerCase() || "";
@@ -42,10 +34,23 @@ function getPreviewType(filename: string): "image" | "video" | "audio" | "none" 
 function getMimeType(filename: string): string | undefined {
   const ext = filename.split(".").pop()?.toLowerCase() || "";
   const map: Record<string, string> = {
-    jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", gif: "image/gif",
-    webp: "image/webp", bmp: "image/bmp", svg: "image/svg+xml", ico: "image/x-icon",
-    mp4: "video/mp4", webm: "video/webm", ogg: "video/ogg", mov: "video/quicktime",
-    mp3: "audio/mpeg", wav: "audio/wav", aac: "audio/aac", flac: "audio/flac", m4a: "audio/mp4",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    gif: "image/gif",
+    webp: "image/webp",
+    bmp: "image/bmp",
+    svg: "image/svg+xml",
+    ico: "image/x-icon",
+    mp4: "video/mp4",
+    webm: "video/webm",
+    ogg: "video/ogg",
+    mov: "video/quicktime",
+    mp3: "audio/mpeg",
+    wav: "audio/wav",
+    aac: "audio/aac",
+    flac: "audio/flac",
+    m4a: "audio/mp4",
   };
   return map[ext];
 }
@@ -93,7 +98,10 @@ export default function SendDownloadPage() {
     };
   }, []);
 
-  const decryptFile = useCallback(async (): Promise<{ blob: Blob; originalName: string } | null> => {
+  const decryptFile = useCallback(async (): Promise<{
+    blob: Blob;
+    originalName: string;
+  } | null> => {
     if (!token || !encryptionKey) return null;
 
     const { deriveKeyBytes, decryptChunk, sha256Hex, fromBase64 } = await import("@/lib/crypto");
@@ -136,7 +144,7 @@ export default function SendDownloadPage() {
             const idx = queue.shift()!;
             await processChunk(idx);
           }
-        })()
+        })(),
       );
     }
     await Promise.all(workers);
@@ -179,7 +187,7 @@ export default function SendDownloadPage() {
         setErrorMsg(err instanceof Error ? err.message : fallbackMsg);
       }
     },
-    [token, encryptionKey, decryptFile]
+    [token, encryptionKey, decryptFile],
   );
 
   const handleDecryptAndPreview = useCallback(
@@ -198,7 +206,7 @@ export default function SendDownloadPage() {
 
         setPageState("preview");
       }, "Decryption failed"),
-    [runDecrypt]
+    [runDecrypt],
   );
 
   const handleDirectDownload = useCallback(
@@ -208,7 +216,7 @@ export default function SendDownloadPage() {
         setPageState("done");
         setFileName(originalName);
       }, "Download failed"),
-    [runDecrypt]
+    [runDecrypt],
   );
 
   const handleSaveToDevice = useCallback(() => {
@@ -233,15 +241,17 @@ export default function SendDownloadPage() {
       <ViewerCard>
         {pageState === "loading" && <ViewerLoading message="Loading..." />}
 
-        {pageState === "error" && (
-          <ViewerError title="Unavailable" message={errorMsg} />
-        )}
+        {pageState === "error" && <ViewerError title="Unavailable" message={errorMsg} />}
 
         {pageState === "ready" && info && noKey && <ViewerIncompleteLink />}
 
         {pageState === "ready" && info && !noKey && (
           <>
-            <TokenFileHeader fileName={info.file_name} fileSize={info.file_size} previewType={previewType} />
+            <TokenFileHeader
+              fileName={info.file_name}
+              fileSize={info.file_size}
+              previewType={previewType}
+            />
 
             <div className="p-6 space-y-4">
               {/* Info badges */}
@@ -288,7 +298,8 @@ export default function SendDownloadPage() {
 
               <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3">
                 <p className="text-xs text-cyan-700 dark:text-cyan-300">
-                  This file is end-to-end encrypted. Decryption happens entirely in your browser — the server never sees your data.
+                  This file is end-to-end encrypted. Decryption happens entirely in your browser —
+                  the server never sees your data.
                 </p>
               </div>
             </div>
@@ -330,7 +341,8 @@ export default function SendDownloadPage() {
 
       {/* Footer */}
       <p className="text-center text-[10px] text-[var(--color-text-muted)] mt-6">
-        Sent via <span className="font-semibold">zcrypt</span> &middot; Private encrypted file sharing
+        Sent via <span className="font-semibold">zcrypt</span> &middot; Private encrypted file
+        sharing
       </p>
     </div>
   );

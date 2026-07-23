@@ -7,14 +7,10 @@
  * is used.
  */
 
-export const isTauri =
-  typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+export const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
 /** Invoke a Tauri command. No-op if not in Tauri. */
-export async function tauriInvoke<T>(
-  cmd: string,
-  args?: Record<string, unknown>
-): Promise<T> {
+export async function tauriInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
   if (!isTauri) {
     throw new Error("tauriInvoke called outside Tauri runtime");
   }
@@ -23,9 +19,10 @@ export async function tauriInvoke<T>(
 }
 
 /** Open a native file picker dialog. Returns selected file paths. */
-export async function pickFiles(
-  options?: { multiple?: boolean; title?: string }
-): Promise<string[]> {
+export async function pickFiles(options?: {
+  multiple?: boolean;
+  title?: string;
+}): Promise<string[]> {
   if (!isTauri) return [];
   const { open } = await import("@tauri-apps/plugin-dialog");
   const result = await open({
@@ -57,9 +54,7 @@ export function toDesktopFile(path: string): DesktopFile {
 }
 
 /** Open a native save dialog. Returns the selected path. */
-export async function pickSaveLocation(
-  defaultName: string
-): Promise<string | null> {
+export async function pickSaveLocation(defaultName: string): Promise<string | null> {
   if (!isTauri) return null;
   const { save } = await import("@tauri-apps/plugin-dialog");
   return save({ defaultPath: defaultName });
@@ -76,7 +71,7 @@ export async function sidecarUpload(
   passphrase: string,
   platform?: string,
   transferId?: string,
-  _onProgress?: (progress: SidecarProgress) => void
+  _onProgress?: (progress: SidecarProgress) => void,
 ): Promise<void> {
   return tauriInvoke("upload_file", {
     filePath,
@@ -122,7 +117,7 @@ export async function localUpload(
 export async function startSync(
   baseUrl: string,
   accessToken: string,
-  refreshToken: string
+  refreshToken: string,
 ): Promise<void> {
   return tauriInvoke("start_sync", { baseUrl, accessToken, refreshToken });
 }
@@ -131,7 +126,6 @@ export async function startSync(
 export async function stopSync(): Promise<void> {
   return tauriInvoke("stop_sync");
 }
-
 
 /** Get sync status from the core. */
 export async function getSyncStatus(): Promise<SyncStats> {
@@ -150,7 +144,7 @@ export async function sidecarDownload(
   userId: string,
   savePath: string,
   transferId?: string,
-  _onProgress?: (progress: SidecarProgress) => void
+  _onProgress?: (progress: SidecarProgress) => void,
 ): Promise<void> {
   return tauriInvoke("download_file", {
     fileId,
@@ -173,7 +167,7 @@ export async function sidecarBulkDownloadZip(
   files: { fileId: string; filename: string; passphrase: string }[],
   userId: string,
   savePath: string,
-  transferId?: string
+  transferId?: string,
 ): Promise<void> {
   return tauriInvoke("bulk_download_zip", {
     files: files.map((f) => ({
@@ -197,7 +191,7 @@ export async function sidecarBulkDownloadZip(
 export async function sidecarDecryptToMemory(
   fileId: string,
   passphrase: string,
-  userId: string
+  userId: string,
 ): Promise<ArrayBuffer> {
   return tauriInvoke<ArrayBuffer>("decrypt_to_memory", {
     fileId,
@@ -215,7 +209,7 @@ export async function sidecarDecryptToMemory(
 export async function sidecarDownloadSpace(
   fileId: string,
   spaceKeyBytes: Uint8Array,
-  savePath: string
+  savePath: string,
 ): Promise<void> {
   const { toBase64 } = await import("@/lib/crypto");
   return tauriInvoke("download_space_file", {
@@ -231,7 +225,7 @@ export async function sidecarDownloadSpace(
  */
 export async function sidecarDecryptSpaceToMemory(
   fileId: string,
-  spaceKeyBytes: Uint8Array
+  spaceKeyBytes: Uint8Array,
 ): Promise<ArrayBuffer> {
   const { toBase64 } = await import("@/lib/crypto");
   return tauriInvoke<ArrayBuffer>("decrypt_space_to_memory", {
@@ -317,7 +311,7 @@ export async function biometricAuthenticate(reason: string): Promise<boolean> {
  * Returns a function that unsubscribes when called.
  */
 export async function subscribeProgress(
-  cb: (progress: SidecarProgress) => void
+  cb: (progress: SidecarProgress) => void,
 ): Promise<() => void> {
   if (!isTauri) return () => {};
   const { listen } = await import("@tauri-apps/api/event");

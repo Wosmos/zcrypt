@@ -1,12 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import {
-  DocPage,
-  DocSection,
-  DocP,
-  DocList,
-  DocNote,
-} from "@/components/docs/doc-page";
+import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
 
 export const metadata: Metadata = {
   title: "Search & filters | zcrypt Docs",
@@ -37,34 +31,30 @@ export default function SearchDocPage() {
     >
       <DocSection id="box" title="The search box">
         <DocP>
-          Each folder has a <strong>search box</strong> that filters the current
-          location as you type. It matches both <strong>file names</strong> and{" "}
-          <strong>folder names</strong>, so you can narrow a busy folder to just
-          the items you mean in a few keystrokes.
+          Each folder has a <strong>search box</strong> that filters the current location as you
+          type. It matches both <strong>file names</strong> and <strong>folder names</strong>, so
+          you can narrow a busy folder to just the items you mean in a few keystrokes.
         </DocP>
       </DocSection>
 
       <DocSection id="local" title="Search stays on your device">
         <DocP>
-          zcrypt matches against the <strong>decrypted</strong> names held in
-          your browser after the vault is unlocked. The matching runs entirely{" "}
-          <strong>locally</strong>; your query is never sent anywhere. The server
-          only ever stores encrypted names, so there is nothing for it to search
-          even if it wanted to.
+          zcrypt matches against the <strong>decrypted</strong> names held in your browser after the
+          vault is unlocked. The matching runs entirely <strong>locally</strong>; your query is
+          never sent anywhere. The server only ever stores encrypted names, so there is nothing for
+          it to search even if it wanted to.
         </DocP>
         <DocNote type="security" title="Why this matters">
-          A search term can be as revealing as a file name. Keeping the match on
-          your device means neither your file names nor what you look for ever
-          reach our servers.
+          A search term can be as revealing as a file name. Keeping the match on your device means
+          neither your file names nor what you look for ever reach our servers.
         </DocNote>
       </DocSection>
 
       <DocSection id="filters" title="Type-filter chips">
         <DocP>
-          Alongside the search box, <strong>type-filter chips</strong> narrow the
-          view by category — images, documents, and so on — and stack with
-          whatever you have typed. Use them to sweep a folder down to one kind of
-          file, then refine by name.
+          Alongside the search box, <strong>type-filter chips</strong> narrow the view by category —
+          images, documents, and so on — and stack with whatever you have typed. Use them to sweep a
+          folder down to one kind of file, then refine by name.
         </DocP>
         <DocList
           items={[

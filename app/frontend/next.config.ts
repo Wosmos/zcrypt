@@ -24,7 +24,9 @@ const cspValue = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
-  `connect-src 'self' ${apiUrl} ${apiWss} https://va.vercel-scripts.com https://vitals.vercel-insights.com`.replace(/\s+/g, " ").trim(),
+  `connect-src 'self' ${apiUrl} ${apiWss} https://va.vercel-scripts.com https://vitals.vercel-insights.com`
+    .replace(/\s+/g, " ")
+    .trim(),
   "media-src 'self' blob:",
   "worker-src 'self' blob:",
   "frame-src 'self' blob:",
@@ -34,9 +36,10 @@ const cspValue = [
   "frame-ancestors 'self'",
   "upgrade-insecure-requests",
 ].join("; ");
-const cspHeaderKey = process.env.CSP_ENFORCE === "1"
-  ? "Content-Security-Policy"
-  : "Content-Security-Policy-Report-Only";
+const cspHeaderKey =
+  process.env.CSP_ENFORCE === "1"
+    ? "Content-Security-Policy"
+    : "Content-Security-Policy-Report-Only";
 
 const nextConfig: NextConfig = {
   reactCompiler: true,
@@ -103,8 +106,7 @@ const nextConfig: NextConfig = {
       const rules = [
         {
           source: "/install.sh",
-          destination:
-            "https://raw.githubusercontent.com/Wosmos/zcrypt/main/scripts/install.sh",
+          destination: "https://raw.githubusercontent.com/Wosmos/zcrypt/main/scripts/install.sh",
         },
       ];
       if (process.env.NODE_ENV === "development") {

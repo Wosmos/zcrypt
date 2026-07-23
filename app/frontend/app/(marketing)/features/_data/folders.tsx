@@ -31,9 +31,9 @@ export const folders: FoldersPageData = {
     headlineGradient: "lock themselves.",
     subtext: (
       <>
-        Organize with real, nestable folders whose names are encrypted on your
-        device. Then give any folder its own password — a second lock, separate
-        from your vault, that keeps it sealed even when everything else is open.
+        Organize with real, nestable folders whose names are encrypted on your device. Then give any
+        folder its own password — a second lock, separate from your vault, that keeps it sealed even
+        when everything else is open.
       </>
     ),
     secondaryLabel: "Read the docs",
@@ -42,7 +42,8 @@ export const folders: FoldersPageData = {
 
   capabilitiesSection: {
     heading: "Structure that keeps secrets",
-    subheading: "The folders you expect, plus a second layer of encryption you can drop onto any one of them — all the way down.",
+    subheading:
+      "The folders you expect, plus a second layer of encryption you can drop onto any one of them — all the way down.",
   },
   capabilities: [
     {
@@ -82,11 +83,10 @@ export const folders: FoldersPageData = {
     heading: "A key the server never sees",
     body: (
       <>
-        When you protect a folder, its files are re-encrypted under a key derived
-        from a password only you know. That password is verified locally against
-        the folder&apos;s own key material — it never travels to the server, and
-        neither does the key it unlocks. Move a file in or out and zcrypt re-keys
-        it for you, so nothing is ever left under the wrong lock.
+        When you protect a folder, its files are re-encrypted under a key derived from a password
+        only you know. That password is verified locally against the folder&apos;s own key material
+        — it never travels to the server, and neither does the key it unlocks. Move a file in or out
+        and zcrypt re-keys it for you, so nothing is ever left under the wrong lock.
       </>
     ),
     checklistItems: [
@@ -119,6 +119,7 @@ export const folders: FoldersPageData = {
 
   cta: {
     heading: "Lock the folders that matter most",
-    subtext: "Free and open source. Organize your vault and seal any folder with a password of its own.",
+    subtext:
+      "Free and open source. Organize your vault and seal any folder with a password of its own.",
   },
 };

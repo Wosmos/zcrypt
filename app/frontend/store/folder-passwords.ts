@@ -56,16 +56,19 @@ export const useFolderPasswordStore = create<FolderPasswordStore>((set, get) => 
     set((s) => ({ cache: { ...s.cache, [folderId]: { password, cacheUntil } } }));
 
     cancelTimer(folderId);
-    const timer = setTimeout(() => {
-      clearTimers.delete(folderId);
-      set((s) => {
-        const { [folderId]: _removed, ...rest } = s.cache;
-        return { cache: rest };
-      });
-      // Folder re-locked on TTL — drop its decrypted plaintext so a later open
-      // re-gates it instead of being served from the cache.
-      clearDecryptCacheForFolder(folderId);
-    }, ttlMinutes * 60 * 1000);
+    const timer = setTimeout(
+      () => {
+        clearTimers.delete(folderId);
+        set((s) => {
+          const { [folderId]: _removed, ...rest } = s.cache;
+          return { cache: rest };
+        });
+        // Folder re-locked on TTL — drop its decrypted plaintext so a later open
+        // re-gates it instead of being served from the cache.
+        clearDecryptCacheForFolder(folderId);
+      },
+      ttlMinutes * 60 * 1000,
+    );
     clearTimers.set(folderId, timer);
   },
 

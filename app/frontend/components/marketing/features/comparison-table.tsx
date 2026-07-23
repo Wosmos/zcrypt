@@ -70,7 +70,10 @@ export function ComparisonTable({
                   <td className="py-4 px-4">
                     <div className="flex gap-2">
                       {row.zcrypt.good ? (
-                        <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-cyan-500" strokeWidth={3} />
+                        <Check
+                          className="mt-0.5 h-4 w-4 flex-shrink-0 text-cyan-500"
+                          strokeWidth={3}
+                        />
                       ) : (
                         <X className="mt-0.5 h-4 w-4 flex-shrink-0 text-[var(--color-text-muted)]" />
                       )}
@@ -80,7 +83,10 @@ export function ComparisonTable({
                   <td className="py-4 px-4">
                     <div className="flex gap-2">
                       {row.other.good ? (
-                        <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-500" strokeWidth={3} />
+                        <Check
+                          className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-500"
+                          strokeWidth={3}
+                        />
                       ) : (
                         <X className="mt-0.5 h-4 w-4 flex-shrink-0 text-[var(--color-text-muted)]" />
                       )}

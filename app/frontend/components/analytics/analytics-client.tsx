@@ -20,7 +20,16 @@ import { StorageHealth } from "@/components/analytics/storage-health";
 import { StorageGrowth } from "@/components/analytics/storage-growth";
 import { VaultDetails } from "@/components/analytics/vault-details";
 import { AdvancedDetails } from "@/components/analytics/advanced-details";
-import { Layers, HardDrive, TrendingDown, Server, RefreshCw, BarChart3, FileText, Gauge } from "@/lib/icons";
+import {
+  Layers,
+  HardDrive,
+  TrendingDown,
+  Server,
+  RefreshCw,
+  BarChart3,
+  FileText,
+  Gauge,
+} from "@/lib/icons";
 import AnalyticsLoading from "@/app/(app)/analytics/loading";
 
 export function AnalyticsClient() {
@@ -69,7 +78,7 @@ export function AnalyticsClient() {
               "inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors",
               advanced
                 ? "border-cyan-500/30 bg-cyan-500/10 text-cyan-600 dark:text-cyan-400"
-                : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)] hover:text-[var(--color-text)]"
+                : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)] hover:text-[var(--color-text)]",
             )}
           >
             <Gauge className="h-4 w-4" />
