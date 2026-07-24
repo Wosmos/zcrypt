@@ -156,10 +156,13 @@ jobs:
 
       # tsgo = TypeScript 7 native compiler (fast `tsc --noEmit`). The Build step
       # below still type-checks with classic tsc 5.7 via `next build`, so this is
-      # a fast pre-gate, not the sole authority.
+      # a fast pre-gate, not the sole authority. Advisory (continue-on-error):
+      # @typescript/native-preview is a dated nightly pin that can be pruned or
+      # break upstream; `next build`'s classic tsc remains the blocking authority.
       - name: Type check
         if: github.event_name == 'pull_request'
         working-directory: app/frontend
+        continue-on-error: true
         run: bunx tsgo --noEmit
 
       # Rust toolchain gates — both sub-second. Fork PRs never ran the local
