@@ -496,10 +496,16 @@ if [ "$RUN_FE" = 1 ]; then
       -W typescript/no-misused-promises \
       -W typescript/await-thenable \
       app components lib hooks store) >"$talog" 2>&1
+  tarc=$?
   tacount="$(grep -cE ': (warning|error) typescript' "$talog" 2>/dev/null || true)"
   tacount="${tacount:-0}"
   [ "$tacount" -gt 0 ] && note "→ cd app/frontend && bunx oxlint --type-aware -W typescript/no-floating-promises -W typescript/no-misused-promises -W typescript/await-thenable app components lib hooks store"
-  handle_backlog "frontend typeaware lint" "$tacount"
+  if [ "$tarc" -ne 0 ] && [ "$tacount" -eq 0 ]; then
+    WARN+=("frontend typeaware lint")
+    warnln "scan failed (exit ${tarc}) — count unreliable, baseline untouched"
+  else
+    handle_backlog "frontend typeaware lint" "$tacount"
+  fi
 
   # knip — dead code: unused files, exports, dependencies
   step "frontend dead code ${DIM}(inspect · knip · ${MODE_LABEL})${RST}"
