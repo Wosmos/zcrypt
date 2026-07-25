@@ -1,4 +1,42 @@
-import type { FileMetadata, Folder, FolderRequest, PlatformStatus, RepoInfo, AppConfig, AdminUser, SystemStats, PlatformTokenInfo, QuotaInfo, PlanConfigs, AdminUserDetail, ShareLink, ShareInfo, SendInitRequest, SendInitResponse, SendInfo, SendMeta, PadCreateRequest, PadInfo, ClipboardItem, ClipboardPushRequest, SyncFolder, SyncFolderRequest, DecoyStatus, DecoyFile, DeadManSwitch, DeadManSwitchRequest, ExpiringVault, ExpiringVaultRequest, IntegritySnapshot, VaultSnapshot, SharedVault, SharedVaultDetail, SharedVaultMember, OfflinePin, PublicResourceInfo } from "@/types";
+import type {
+  FileMetadata,
+  Folder,
+  FolderRequest,
+  PlatformStatus,
+  RepoInfo,
+  AppConfig,
+  AdminUser,
+  SystemStats,
+  PlatformTokenInfo,
+  QuotaInfo,
+  PlanConfigs,
+  AdminUserDetail,
+  ShareLink,
+  ShareInfo,
+  SendInitRequest,
+  SendInitResponse,
+  SendInfo,
+  SendMeta,
+  PadCreateRequest,
+  PadInfo,
+  ClipboardItem,
+  ClipboardPushRequest,
+  SyncFolder,
+  SyncFolderRequest,
+  DecoyStatus,
+  DecoyFile,
+  DeadManSwitch,
+  DeadManSwitchRequest,
+  ExpiringVault,
+  ExpiringVaultRequest,
+  IntegritySnapshot,
+  VaultSnapshot,
+  SharedVault,
+  SharedVaultDetail,
+  SharedVaultMember,
+  OfflinePin,
+  PublicResourceInfo,
+} from "@/types";
 import { useAuthStore } from "@/store/auth";
 import { authedFetch, tryRefreshToken } from "@/lib/auth-fetch";
 import { throwResponseError, parseErrorJson } from "@/lib/http-error";
@@ -7,7 +45,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
 /** Build the chunk-download return payload from a response (body + chunk headers). */
 async function readChunkResponse(
-  res: Response
+  res: Response,
 ): Promise<{ data: ArrayBuffer; sha256: string; compressed: boolean }> {
   return {
     data: await res.arrayBuffer(),
@@ -83,9 +121,7 @@ export interface DevicePreference {
 }
 
 export function getDevicePreference(deviceId: string): Promise<DevicePreference> {
-  return request<DevicePreference>(
-    `/api/preferences?device_id=${encodeURIComponent(deviceId)}`
-  );
+  return request<DevicePreference>(`/api/preferences?device_id=${encodeURIComponent(deviceId)}`);
 }
 
 export function saveDevicePreference(pref: {
@@ -176,7 +212,11 @@ export function getFileMeta(fileId: string): Promise<FileMetaResponse> {
 // timeout covers the body read too, so it catches a mid-download stall.
 const CHUNK_TIMEOUT_MS = 90_000;
 
-export async function getFileChunk(fileId: string, index: number, signal?: AbortSignal): Promise<{
+export async function getFileChunk(
+  fileId: string,
+  index: number,
+  signal?: AbortSignal,
+): Promise<{
   data: ArrayBuffer;
   sha256: string;
   compressed: boolean;
@@ -195,7 +235,9 @@ export async function getFileChunk(fileId: string, index: number, signal?: Abort
     // left open) keeps going instead of every chunk failing with a 401. A bare
     // fetch here (no refresh) was why downloads failed "pretty much every time"
     // once the token went stale; this matches the upload path.
-    const res = await authedFetch(`${API_BASE}/api/files/${fileId}/chunks/${index}`, { signal: useSignal });
+    const res = await authedFetch(`${API_BASE}/api/files/${fileId}/chunks/${index}`, {
+      signal: useSignal,
+    });
 
     if (!res.ok) await throwResponseError(res);
 
@@ -268,21 +310,40 @@ export function listFolderSubtree(rootId: string): Promise<Folder[]> {
 }
 
 export function createFolder(data: FolderRequest): Promise<Folder> {
-  return request<Folder>("/api/folders", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify(data) });
+  return request<Folder>("/api/folders", {
+    method: "POST",
+    headers: JSON_HEADERS,
+    body: JSON.stringify(data),
+  });
 }
 
 export function renameFolder(id: string, encryptedName: string): Promise<{ success: boolean }> {
-  return request<{ success: boolean }>(`/api/folders/${id}`, { method: "PATCH", headers: JSON_HEADERS, body: JSON.stringify({ encrypted_name: encryptedName }) });
+  return request<{ success: boolean }>(`/api/folders/${id}`, {
+    method: "PATCH",
+    headers: JSON_HEADERS,
+    body: JSON.stringify({ encrypted_name: encryptedName }),
+  });
 }
 
 export function moveFolder(id: string, parentId: string | null): Promise<{ success: boolean }> {
-  return request<{ success: boolean }>(`/api/folders/${id}/move`, { method: "PATCH", headers: JSON_HEADERS, body: JSON.stringify({ parent_id: parentId }) });
+  return request<{ success: boolean }>(`/api/folders/${id}/move`, {
+    method: "PATCH",
+    headers: JSON_HEADERS,
+    body: JSON.stringify({ parent_id: parentId }),
+  });
 }
 
 /** Set/clear a folder's custom card style (icon + color). `encryptedStyle` is
  *  the opaque base64 blob from `encryptStyle`, or null to clear it. */
-export function updateFolderStyle(id: string, encryptedStyle: string | null): Promise<{ success: boolean }> {
-  return request<{ success: boolean }>(`/api/folders/${id}/style`, { method: "PATCH", headers: JSON_HEADERS, body: JSON.stringify({ encrypted_style: encryptedStyle }) });
+export function updateFolderStyle(
+  id: string,
+  encryptedStyle: string | null,
+): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/api/folders/${id}/style`, {
+    method: "PATCH",
+    headers: JSON_HEADERS,
+    body: JSON.stringify({ encrypted_style: encryptedStyle }),
+  });
 }
 
 export function deleteFolder(id: string): Promise<{ success: boolean }> {
@@ -290,13 +351,24 @@ export function deleteFolder(id: string): Promise<{ success: boolean }> {
 }
 
 export function moveFile(id: string, folderId: string | null): Promise<{ success: boolean }> {
-  return request<{ success: boolean }>(`/api/files/${id}/move`, { method: "PATCH", headers: JSON_HEADERS, body: JSON.stringify({ folder_id: folderId }) });
+  return request<{ success: boolean }>(`/api/files/${id}/move`, {
+    method: "PATCH",
+    headers: JSON_HEADERS,
+    body: JSON.stringify({ folder_id: folderId }),
+  });
 }
 
 /** Set/clear a file's custom card style (icon + color). `encryptedStyle` is
  *  the opaque base64 blob from `encryptStyle`, or null to clear it. */
-export function updateFileStyle(id: string, encryptedStyle: string | null): Promise<{ success: boolean }> {
-  return request<{ success: boolean }>(`/api/files/${id}/style`, { method: "PATCH", headers: JSON_HEADERS, body: JSON.stringify({ encrypted_style: encryptedStyle }) });
+export function updateFileStyle(
+  id: string,
+  encryptedStyle: string | null,
+): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/api/files/${id}/style`, {
+    method: "PATCH",
+    headers: JSON_HEADERS,
+    body: JSON.stringify({ encrypted_style: encryptedStyle }),
+  });
 }
 
 // ─── Per-Folder Password Protection (zero-knowledge) ───
@@ -305,8 +377,16 @@ export function updateFileStyle(id: string, encryptedStyle: string | null): Prom
 // the server stores them but can never recover the password.
 
 /** Set/replace a folder's password protection. `pw_salt` + `pw_verifier` are base64. */
-export function setFolderPassword(id: string, pw_salt: string, pw_verifier: string): Promise<{ success: boolean }> {
-  return request<{ success: boolean }>(`/api/folders/${id}/password`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ pw_salt, pw_verifier }) });
+export function setFolderPassword(
+  id: string,
+  pw_salt: string,
+  pw_verifier: string,
+): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/api/folders/${id}/password`, {
+    method: "POST",
+    headers: JSON_HEADERS,
+    body: JSON.stringify({ pw_salt, pw_verifier }),
+  });
 }
 
 /** Remove a folder's password protection (server nulls both columns). The client
@@ -317,8 +397,16 @@ export function removeFolderPassword(id: string): Promise<{ success: boolean }> 
 
 /** Re-key a file: update ONLY its `salt` (base64) + `wrapped_cek` (base64) when it
  *  crosses a protection boundary. The server never sees keys. */
-export function rekeyFile(id: string, salt: string, wrapped_cek: string): Promise<{ success: boolean }> {
-  return request<{ success: boolean }>(`/api/files/${id}/rekey`, { method: "PUT", headers: JSON_HEADERS, body: JSON.stringify({ salt, wrapped_cek }) });
+export function rekeyFile(
+  id: string,
+  salt: string,
+  wrapped_cek: string,
+): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/api/files/${id}/rekey`, {
+    method: "PUT",
+    headers: JSON_HEADERS,
+    body: JSON.stringify({ salt, wrapped_cek }),
+  });
 }
 
 export function listTrash(): Promise<FileMetadata[]> {
@@ -357,7 +445,10 @@ export function getPlatformStatus(): Promise<PlatformStatus[]> {
   return request<PlatformStatus[]>("/api/platforms/status");
 }
 
-export function connectPlatform(platform: string, token: string): Promise<{ success: boolean; username?: string }> {
+export function connectPlatform(
+  platform: string,
+  token: string,
+): Promise<{ success: boolean; username?: string }> {
   return request<{ success: boolean; username?: string }>("/api/platforms/connect", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -390,7 +481,10 @@ export function telegramProbe(botToken: string): Promise<TelegramProbeResult> {
   });
 }
 
-export function disconnectPlatform(platform: string, username: string): Promise<{ success: boolean }> {
+export function disconnectPlatform(
+  platform: string,
+  username: string,
+): Promise<{ success: boolean }> {
   return request<{ success: boolean }>("/api/platforms/disconnect", {
     method: "DELETE",
     headers: { "Content-Type": "application/json" },
@@ -398,7 +492,10 @@ export function disconnectPlatform(platform: string, username: string): Promise<
   });
 }
 
-export function toggleTokenScope(tokenId: string, isGlobal: boolean): Promise<{ success: boolean }> {
+export function toggleTokenScope(
+  tokenId: string,
+  isGlobal: boolean,
+): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/platforms/tokens/${tokenId}/scope`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -475,7 +572,10 @@ export function adminDeleteToken(tokenId: string): Promise<{ success: boolean }>
   });
 }
 
-export function adminToggleTokenScope(tokenId: string, isGlobal: boolean): Promise<{ success: boolean }> {
+export function adminToggleTokenScope(
+  tokenId: string,
+  isGlobal: boolean,
+): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/admin/tokens/${tokenId}/scope`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -509,7 +609,10 @@ export function adminSetUserPlan(userId: string, plan: string): Promise<{ succes
   });
 }
 
-export function adminSetUserQuota(userId: string, quotaBytes: number | null): Promise<{ success: boolean }> {
+export function adminSetUserQuota(
+  userId: string,
+  quotaBytes: number | null,
+): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/admin/users/${userId}/quota`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -534,7 +637,11 @@ export interface AdminAuditResponse {
 
 // ─── Feedback API ───
 
-export function submitFeedback(data: { rating: number; message: string; context: string }): Promise<{ success: boolean }> {
+export function submitFeedback(data: {
+  rating: number;
+  message: string;
+  context: string;
+}): Promise<{ success: boolean }> {
   return request<{ success: boolean }>("/api/feedback", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -640,7 +747,10 @@ export async function getShareInfo(token: string): Promise<ShareInfo> {
   return res.json();
 }
 
-export async function getShareFileMeta(token: string, password?: string): Promise<FileMetaResponse> {
+export async function getShareFileMeta(
+  token: string,
+  password?: string,
+): Promise<FileMetaResponse> {
   const headers: Record<string, string> = {};
   if (password) headers["X-Share-Password"] = password;
   const res = await fetch(`${API_BASE}/api/share/${token}/meta`, { headers });
@@ -648,7 +758,11 @@ export async function getShareFileMeta(token: string, password?: string): Promis
   return res.json();
 }
 
-export async function getShareChunk(token: string, index: number, password?: string): Promise<{
+export async function getShareChunk(
+  token: string,
+  index: number,
+  password?: string,
+): Promise<{
   data: ArrayBuffer;
   sha256: string;
   compressed: boolean;
@@ -754,7 +868,10 @@ async function shareFetchRetry(url: string, headers: Record<string, string>): Pr
 
 // Public folder-link access (no auth, rate-limited). The optional password
 // unlocks the file listing for a password-protected link.
-export async function getFolderShareInfo(token: string, password?: string): Promise<FolderShareInfo> {
+export async function getFolderShareInfo(
+  token: string,
+  password?: string,
+): Promise<FolderShareInfo> {
   const headers: Record<string, string> = {};
   if (password) headers["X-Share-Password"] = password;
   const res = await fetch(`${API_BASE}/api/folder-share/${token}`, { headers });
@@ -765,11 +882,14 @@ export async function getFolderShareInfo(token: string, password?: string): Prom
 export async function getFolderShareFileMeta(
   token: string,
   fileId: string,
-  password?: string
+  password?: string,
 ): Promise<FileMetaResponse> {
   const headers: Record<string, string> = {};
   if (password) headers["X-Share-Password"] = password;
-  const res = await shareFetchRetry(`${API_BASE}/api/folder-share/${token}/files/${fileId}/meta`, headers);
+  const res = await shareFetchRetry(
+    `${API_BASE}/api/folder-share/${token}/files/${fileId}/meta`,
+    headers,
+  );
   if (!res.ok) throw new Error(await parseErrorJson(res, "Failed to get file metadata"));
   return res.json();
 }
@@ -778,11 +898,14 @@ export async function getFolderShareChunk(
   token: string,
   fileId: string,
   index: number,
-  password?: string
+  password?: string,
 ): Promise<{ data: ArrayBuffer; sha256: string; compressed: boolean }> {
   const headers: Record<string, string> = {};
   if (password) headers["X-Share-Password"] = password;
-  const res = await shareFetchRetry(`${API_BASE}/api/folder-share/${token}/files/${fileId}/chunks/${index}`, headers);
+  const res = await shareFetchRetry(
+    `${API_BASE}/api/folder-share/${token}/files/${fileId}/chunks/${index}`,
+    headers,
+  );
   if (!res.ok) throw new Error("Failed to download chunk");
   return readChunkResponse(res);
 }
@@ -841,7 +964,10 @@ export async function getSendMeta(token: string): Promise<SendMeta> {
   return res.json();
 }
 
-export async function getSendChunk(token: string, idx: number): Promise<{
+export async function getSendChunk(
+  token: string,
+  idx: number,
+): Promise<{
   data: ArrayBuffer;
   sha256: string;
   compressed: boolean;
@@ -877,7 +1003,9 @@ export async function getPadContent(token: string): Promise<ArrayBuffer> {
 
 // ─── Clipboard Sync (authenticated) ──────────────────────────────────────────
 
-export function pushClipboard(data: ClipboardPushRequest): Promise<{ id: string; created_at: string }> {
+export function pushClipboard(
+  data: ClipboardPushRequest,
+): Promise<{ id: string; created_at: string }> {
   return request<{ id: string; created_at: string }>("/api/clipboard", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -889,7 +1017,9 @@ export function listClipboard(): Promise<ClipboardItem[]> {
   return request<ClipboardItem[]>("/api/clipboard");
 }
 
-export async function getClipboardContent(id: string): Promise<{ data: ArrayBuffer; contentType: string }> {
+export async function getClipboardContent(
+  id: string,
+): Promise<{ data: ArrayBuffer; contentType: string }> {
   const { accessToken } = useAuthStore.getState();
   const headers: Record<string, string> = {};
   if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
@@ -920,7 +1050,10 @@ export function createSyncFolder(data: SyncFolderRequest): Promise<SyncFolder> {
   });
 }
 
-export function updateSyncFolder(id: string, data: { enabled?: boolean; label?: string }): Promise<{ success: boolean }> {
+export function updateSyncFolder(
+  id: string,
+  data: { enabled?: boolean; label?: string },
+): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/sync/folders/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -938,7 +1071,10 @@ export function getDecoyStatus(): Promise<DecoyStatus> {
   return request<DecoyStatus>("/api/decoy");
 }
 
-export function setupDecoy(data: { decoy_password: string; enabled?: boolean }): Promise<{ success: boolean }> {
+export function setupDecoy(data: {
+  decoy_password: string;
+  enabled?: boolean;
+}): Promise<{ success: boolean }> {
   return request<{ success: boolean }>("/api/decoy/setup", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -1064,7 +1200,13 @@ export function listSharedVaults(): Promise<SharedVault[]> {
   return request<SharedVault[]>("/api/shared-vaults");
 }
 
-export function createSharedVault(data: { name: string; description: string; file_ids: string[]; wrapped_space_key?: string; size_limit_bytes?: number }): Promise<SharedVault> {
+export function createSharedVault(data: {
+  name: string;
+  description: string;
+  file_ids: string[];
+  wrapped_space_key?: string;
+  size_limit_bytes?: number;
+}): Promise<SharedVault> {
   return request<SharedVault>("/api/shared-vaults", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -1076,7 +1218,12 @@ export function getSharedVault(id: string): Promise<SharedVaultDetail> {
   return request<SharedVaultDetail>(`/api/shared-vaults/${id}`);
 }
 
-export function addSharedVaultMember(vaultId: string, email: string, role: string, wrappedSpaceKey?: string): Promise<SharedVaultMember> {
+export function addSharedVaultMember(
+  vaultId: string,
+  email: string,
+  role: string,
+  wrappedSpaceKey?: string,
+): Promise<SharedVaultMember> {
   return request<SharedVaultMember>(`/api/shared-vaults/${vaultId}/members`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -1090,8 +1237,13 @@ export function lookupUserKey(identifier: string): Promise<PublicKeyRecord> {
   return request<PublicKeyRecord>(`/api/keys/lookup?identifier=${encodeURIComponent(identifier)}`);
 }
 
-export function removeSharedVaultMember(vaultId: string, userId: string): Promise<{ success: boolean }> {
-  return request<{ success: boolean }>(`/api/shared-vaults/${vaultId}/members/${userId}`, { method: "DELETE" });
+export function removeSharedVaultMember(
+  vaultId: string,
+  userId: string,
+): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/api/shared-vaults/${vaultId}/members/${userId}`, {
+    method: "DELETE",
+  });
 }
 
 export function deleteSharedVault(id: string): Promise<{ success: boolean }> {
@@ -1101,7 +1253,12 @@ export function deleteSharedVault(id: string): Promise<{ success: boolean }> {
 /** Share a file into a space. wrappedCek is the file's CEK re-wrapped under the
  *  space key (opaque to the server). Caller must be an editor/admin and own the
  *  file. */
-export function addFileToSpace(vaultId: string, fileId: string, wrappedCek: string, wrappedName: string): Promise<{ success: boolean }> {
+export function addFileToSpace(
+  vaultId: string,
+  fileId: string,
+  wrappedCek: string,
+  wrappedName: string,
+): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/shared-vaults/${vaultId}/files`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -1110,8 +1267,13 @@ export function addFileToSpace(vaultId: string, fileId: string, wrappedCek: stri
 }
 
 /** Unshare a file from a space (editor/admin only). */
-export function removeFileFromSpace(vaultId: string, fileId: string): Promise<{ success: boolean }> {
-  return request<{ success: boolean }>(`/api/shared-vaults/${vaultId}/files/${fileId}`, { method: "DELETE" });
+export function removeFileFromSpace(
+  vaultId: string,
+  fileId: string,
+): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/api/shared-vaults/${vaultId}/files/${fileId}`, {
+    method: "DELETE",
+  });
 }
 
 /** Rotate a space's key (admin only): new key sealed to each remaining member,
@@ -1119,7 +1281,7 @@ export function removeFileFromSpace(vaultId: string, fileId: string): Promise<{ 
 export function rotateSpace(
   vaultId: string,
   members: { user_id: string; wrapped_space_key: string }[],
-  files: { file_id: string; wrapped_cek: string; wrapped_name: string }[]
+  files: { file_id: string; wrapped_cek: string; wrapped_name: string }[],
 ): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/shared-vaults/${vaultId}/rotate`, {
     method: "POST",

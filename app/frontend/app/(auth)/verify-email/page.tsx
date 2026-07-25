@@ -12,9 +12,9 @@ import { LogoSpinner } from "@/components/ui/logo-spinner";
 function VerifyEmailContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
-  const [status, setStatus] = useState<
-    "loading" | "success" | "error" | "invalid"
-  >(token ? "loading" : "invalid");
+  const [status, setStatus] = useState<"loading" | "success" | "error" | "invalid">(
+    token ? "loading" : "invalid",
+  );
   const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
@@ -24,9 +24,7 @@ function VerifyEmailContent() {
       .then(() => setStatus("success"))
       .catch((err) => {
         setStatus("error");
-        setErrorMessage(
-          err instanceof Error ? err.message : "Verification failed"
-        );
+        setErrorMessage(err instanceof Error ? err.message : "Verification failed");
       });
   }, [token]);
 
@@ -58,9 +56,7 @@ function VerifyEmailContent() {
           <LogoSpinner size={40} speed="default" />
         </div>
         <h2 className="text-xl font-bold">Verifying your email...</h2>
-        <p className="text-sm text-[var(--color-text-secondary)] mt-2">
-          Just a moment
-        </p>
+        <p className="text-sm text-[var(--color-text-secondary)] mt-2">Just a moment</p>
       </div>
     );
   }

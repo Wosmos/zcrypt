@@ -134,7 +134,9 @@ export function ComparisonPage({
                     <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-500">
                       <Icon className="h-5 w-5" />
                     </div>
-                    <PillarTitle className="font-heading text-base font-bold">{pillar.title}</PillarTitle>
+                    <PillarTitle className="font-heading text-base font-bold">
+                      {pillar.title}
+                    </PillarTitle>
                     <p className="mt-1.5 text-sm leading-relaxed text-[var(--color-text-secondary)]">
                       {pillar.desc}
                     </p>

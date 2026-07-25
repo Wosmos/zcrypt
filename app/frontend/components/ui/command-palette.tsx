@@ -12,7 +12,17 @@ import {
   CommandItem,
 } from "@/components/ui/command";
 import { useFilesQuery } from "@/store/files";
-import { Shield, Settings, Cog, Users, BarChart3, Layers, Trash2, RefreshCcw, File as FileIcon } from "@/lib/icons";
+import {
+  Shield,
+  Settings,
+  Cog,
+  Users,
+  BarChart3,
+  Layers,
+  Trash2,
+  RefreshCcw,
+  File as FileIcon,
+} from "@/lib/icons";
 
 interface CommandPaletteState {
   open: boolean;
@@ -92,7 +102,11 @@ export function CommandPalette() {
         {files.length > 0 && (
           <CommandGroup heading="Files">
             {files.slice(0, 200).map((f) => (
-              <CommandItem key={f.id} value={`file ${f.original_name}`} onSelect={() => openFile(f.original_name)}>
+              <CommandItem
+                key={f.id}
+                value={`file ${f.original_name}`}
+                onSelect={() => openFile(f.original_name)}
+              >
                 <FileIcon className="h-4 w-4 text-[var(--color-text-muted)]" />
                 <span className="truncate">{f.original_name}</span>
               </CommandItem>

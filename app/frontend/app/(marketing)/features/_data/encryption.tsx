@@ -36,10 +36,9 @@ export const encryption: EncryptionPageData = {
     headlineGradient: "That's the whole point.",
     subtext: (
       <>
-        Your files are encrypted on your own device with AES-256-GCM before
-        they ever leave it. The key is derived from your passphrase and never
-        transmitted. We store ciphertext and nothing else — no keys, no
-        plaintext, not even your folder names.
+        Your files are encrypted on your own device with AES-256-GCM before they ever leave it. The
+        key is derived from your passphrase and never transmitted. We store ciphertext and nothing
+        else — no keys, no plaintext, not even your folder names.
       </>
     ),
     secondaryLabel: "Read the docs",
@@ -132,18 +131,16 @@ export const encryption: EncryptionPageData = {
     heading: <>Lose your passphrase and even we can&apos;t recover it</>,
     body: (
       <>
-        True zero-knowledge has a price, and we won&apos;t pretend otherwise.
-        Because your key is derived from your passphrase and never reaches
-        us, we have no &ldquo;reset password and get your files back&rdquo;
-        button. If you lose your passphrase, your data stays encrypted
+        True zero-knowledge has a price, and we won&apos;t pretend otherwise. Because your key is
+        derived from your passphrase and never reaches us, we have no &ldquo;reset password and get
+        your files back&rdquo; button. If you lose your passphrase, your data stays encrypted
         forever — to you and to everyone else.
       </>
     ),
     checklist: (
       <p className="mt-4 leading-relaxed text-[var(--color-text-secondary)]">
-        That is exactly the property that makes the rest of these promises
-        real. A provider who can recover your files for you can also be
-        compelled to hand them over. We can&apos;t do either.
+        That is exactly the property that makes the rest of these promises real. A provider who can
+        recover your files for you can also be compelled to hand them over. We can&apos;t do either.
       </p>
     ),
     linkLabel: "Read the security model",
@@ -157,13 +154,26 @@ export const encryption: EncryptionPageData = {
   },
 
   related: [
-    { href: "/features/encrypted-drive", title: "The encrypted drive", desc: "Real folders, search, and previews on top of this encryption layer." },
-    { href: "/docs/zero-knowledge", title: "Zero-knowledge, explained", desc: "What the term means and how we hold ourselves to it." },
-    { href: "/docs/security", title: "Security model", desc: "The full technical picture: AES-256-GCM, PBKDF2-SHA256 key derivation at 600,000 iterations, key handling, and the threat model." },
+    {
+      href: "/features/encrypted-drive",
+      title: "The encrypted drive",
+      desc: "Real folders, search, and previews on top of this encryption layer.",
+    },
+    {
+      href: "/docs/zero-knowledge",
+      title: "Zero-knowledge, explained",
+      desc: "What the term means and how we hold ourselves to it.",
+    },
+    {
+      href: "/docs/security",
+      title: "Security model",
+      desc: "The full technical picture: AES-256-GCM, PBKDF2-SHA256 key derivation at 600,000 iterations, key handling, and the threat model.",
+    },
   ],
 
   cta: {
     heading: "Encryption you don't have to trust us about",
-    subtext: "Free and open source. Bring a storage account you already own and encrypt your first file in under a minute.",
+    subtext:
+      "Free and open source. Bring a storage account you already own and encrypt your first file in under a minute.",
   },
 };

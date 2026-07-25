@@ -29,7 +29,14 @@ import { useFileDecryptor } from "@/hooks/useFileDecryptor";
 import { useFolderProtection } from "@/hooks/useFolderProtection";
 import { useVaultLockContext } from "@/components/providers/vault-lock-provider";
 import {
-  Trash2, RotateCcw, RefreshCw, Eye, MoreHorizontal, CheckSquare, Square, X,
+  Trash2,
+  RotateCcw,
+  RefreshCw,
+  Eye,
+  MoreHorizontal,
+  CheckSquare,
+  Square,
+  X,
 } from "@/lib/icons";
 
 /**
@@ -40,8 +47,7 @@ const FOCUS_RING =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)]";
 
 /** Accent selection treatment, mirroring the explorer's selected-row look. */
-const ROW_SELECTED =
-  "bg-[var(--color-accent)]/10 ring-1 ring-inset ring-[var(--color-accent)]/40";
+const ROW_SELECTED = "bg-[var(--color-accent)]/10 ring-1 ring-inset ring-[var(--color-accent)]/40";
 
 export function TrashContent() {
   const trashQuery = useTrashQuery();
@@ -115,7 +121,7 @@ export function TrashContent() {
 
   const selectAll = useCallback(() => {
     setSelectedIds((prev) =>
-      prev.size === files.length ? new Set() : new Set(files.map((f) => f.id))
+      prev.size === files.length ? new Set() : new Set(files.map((f) => f.id)),
     );
   }, [files]);
 
@@ -128,7 +134,7 @@ export function TrashContent() {
         return next;
       });
     },
-    [files]
+    [files],
   );
 
   /** Mouse selection on the checkbox / select-mode click: cmd toggles, shift ranges. */
@@ -147,7 +153,7 @@ export function TrashContent() {
       }
       setFocusedIndex(index);
     },
-    [files, selectRange, toggleSelect]
+    [files, selectRange, toggleSelect],
   );
 
   // ── Per-row + bulk actions ───────────────────────────────────────────────────
@@ -177,7 +183,7 @@ export function TrashContent() {
         setBusyId(null);
       }
     },
-    [refresh]
+    [refresh],
   );
 
   const handlePurge = useCallback(async () => {
@@ -222,7 +228,7 @@ export function TrashContent() {
 
   const selectedFiles = useMemo(
     () => files.filter((f) => selectedIds.has(f.id)),
-    [files, selectedIds]
+    [files, selectedIds],
   );
 
   const handleBulkRestore = useCallback(async () => {
@@ -355,7 +361,16 @@ export function TrashContent() {
         openPreview(focusedIndex);
       }
     },
-    [files, focusedIndex, selectedCount, selectAll, clearSelection, selectRange, toggleSelect, openPreview]
+    [
+      files,
+      focusedIndex,
+      selectedCount,
+      selectAll,
+      clearSelection,
+      selectRange,
+      toggleSelect,
+      openPreview,
+    ],
   );
 
   rowRefs.current = [];
@@ -369,12 +384,7 @@ export function TrashContent() {
         actions={
           <>
             {files.length > 0 && (
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={selectAll}
-                aria-pressed={allSelected}
-              >
+              <Button variant="secondary" size="sm" onClick={selectAll} aria-pressed={allSelected}>
                 {allSelected ? (
                   <CheckSquare className="h-3.5 w-3.5" />
                 ) : (
@@ -459,7 +469,7 @@ export function TrashContent() {
           onKeyDown={handleListKeyDown}
           className={cn(
             "panel divide-y divide-[var(--color-border)] overflow-hidden p-0 outline-none",
-            FOCUS_RING
+            FOCUS_RING,
           )}
         >
           {files.map((file, index) => {
@@ -492,7 +502,7 @@ export function TrashContent() {
                   FOCUS_RING,
                   "focus-visible:ring-inset",
                   selected ? ROW_SELECTED : "hover:bg-[var(--color-surface-1)]",
-                  busy && "opacity-50"
+                  busy && "opacity-50",
                 )}
               >
                 {/* Selection checkbox (always present so multi-select is reachable). */}
@@ -504,9 +514,11 @@ export function TrashContent() {
                   }}
                   className={cn(
                     "flex flex-shrink-0 items-center justify-center rounded",
-                    FOCUS_RING
+                    FOCUS_RING,
                   )}
-                  aria-label={selected ? `Deselect ${file.original_name}` : `Select ${file.original_name}`}
+                  aria-label={
+                    selected ? `Deselect ${file.original_name}` : `Select ${file.original_name}`
+                  }
                   aria-pressed={selected}
                 >
                   {selected ? (
@@ -519,7 +531,7 @@ export function TrashContent() {
                 <div
                   className={cn(
                     "flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg",
-                    typeInfo.bg
+                    typeInfo.bg,
                   )}
                 >
                   <Icon className={cn("h-[18px] w-[18px]", typeInfo.color)} />
@@ -532,11 +544,12 @@ export function TrashContent() {
                     {formatBytes(file.original_size)}
                     {file.deleted_at && (
                       <>
-                        {" "}&middot;{" "}
+                        {" "}
+                        &middot;{" "}
                         <span title={new Date(file.deleted_at).toLocaleString()}>
                           deleted {formatDate(file.deleted_at)}
-                        </span>
-                        {" "}&middot; kept until you delete it
+                        </span>{" "}
+                        &middot; kept until you delete it
                       </>
                     )}
                   </p>
@@ -592,7 +605,7 @@ export function TrashContent() {
                         disabled={busy}
                         className={cn(
                           "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-[var(--color-text-muted)] transition-all hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)] data-[state=open]:bg-[var(--color-surface-2)] disabled:opacity-40",
-                          FOCUS_RING
+                          FOCUS_RING,
                         )}
                         aria-label={`Actions for ${file.original_name}`}
                       >
@@ -636,9 +649,7 @@ export function TrashContent() {
         decrypt={decryptToBlob}
         prefetch={prefetch}
         onWrongPassword={(folderId) =>
-          folderId == null
-            ? vault.lock()
-            : folderProtection.clearFolderPassword(folderId)
+          folderId == null ? vault.lock() : folderProtection.clearFolderPassword(folderId)
         }
         readOnly
       />
@@ -656,7 +667,8 @@ export function TrashContent() {
         description={
           <>
             <span className="block">
-              This file will be permanently deleted and its chunks removed from all storage platforms. This action cannot be undone.
+              This file will be permanently deleted and its chunks removed from all storage
+              platforms. This action cannot be undone.
             </span>
             {purgeTarget && (
               <span className="mt-3 block truncate rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2 font-mono text-xs text-[var(--color-text-muted)]">
@@ -678,7 +690,8 @@ export function TrashContent() {
         title={`Delete ${selectedCount} file${selectedCount > 1 ? "s" : ""} permanently?`}
         description={
           <span className="block">
-            These {selectedCount} file{selectedCount > 1 ? "s" : ""} will be permanently deleted and their chunks removed from all storage platforms. This action cannot be undone.
+            These {selectedCount} file{selectedCount > 1 ? "s" : ""} will be permanently deleted and
+            their chunks removed from all storage platforms. This action cannot be undone.
           </span>
         }
         confirmLabel="Delete permanently"

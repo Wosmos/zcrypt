@@ -34,7 +34,9 @@ export function StoragePool() {
         <div className="rounded-2xl border border-dashed border-[var(--color-border)] px-4 py-10 text-center">
           <Database className="mx-auto mb-2 h-7 w-7 text-[var(--color-text-muted)]" />
           <p className="text-sm text-[var(--color-text-secondary)]">No repos yet</p>
-          <p className="mt-1 text-xs text-[var(--color-text-muted)]">Auto-created on your first upload.</p>
+          <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+            Auto-created on your first upload.
+          </p>
         </div>
       ) : (
         <>
@@ -47,7 +49,9 @@ export function StoragePool() {
                     <PlatformIcon platform={repo.platform} className="h-4 w-4" />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-[var(--color-text)]">{repo.name}</p>
+                    <p className="truncate text-sm font-medium text-[var(--color-text)]">
+                      {repo.name}
+                    </p>
                     <p className="truncate text-xs text-[var(--color-text-muted)]">
                       <span className="capitalize">{repo.platform}</span>
                       {repo.account && <span> @{repo.account}</span>}
@@ -62,7 +66,7 @@ export function StoragePool() {
                       <div
                         className={cn(
                           "h-full rounded-full transition-all duration-500",
-                          repo.active ? "bg-[var(--color-accent)]" : "bg-[var(--color-text-muted)]"
+                          repo.active ? "bg-[var(--color-accent)]" : "bg-[var(--color-text-muted)]",
                         )}
                         style={{ width: `${usagePercent}%` }}
                       />
@@ -74,7 +78,7 @@ export function StoragePool() {
                       "flex-shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium",
                       repo.active
                         ? "bg-[var(--color-accent)]/10 text-[var(--color-accent)]"
-                        : "bg-[var(--color-surface-2)] text-[var(--color-text-muted)]"
+                        : "bg-[var(--color-surface-2)] text-[var(--color-text-muted)]",
                     )}
                   >
                     {repo.active ? "Active" : "Full"}

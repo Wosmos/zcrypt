@@ -26,9 +26,7 @@ export function CliBinaries({ release }: { release: ReleaseData | null }) {
                 key={g.os}
                 className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4"
               >
-                <p className="mb-2 text-[13px] font-semibold text-[var(--color-text)]">
-                  {g.os}
-                </p>
+                <p className="mb-2 text-[13px] font-semibold text-[var(--color-text)]">{g.os}</p>
                 <div className="flex flex-col gap-1">
                   {g.items.map((b) => (
                     <a

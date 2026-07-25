@@ -51,15 +51,16 @@ export function StatCards({ files }: StatCardsProps) {
   const knownExts = new Set(categories.flatMap((c) => c.extensions));
 
   const stats = categories.map((cat) => {
-    const matched = cat.extensions.length > 0
-      ? files.filter((f) => {
-          const ext = f.original_name.split(".").pop()?.toLowerCase() || "";
-          return cat.extensions.includes(ext);
-        })
-      : files.filter((f) => {
-          const ext = f.original_name.split(".").pop()?.toLowerCase() || "";
-          return !knownExts.has(ext);
-        });
+    const matched =
+      cat.extensions.length > 0
+        ? files.filter((f) => {
+            const ext = f.original_name.split(".").pop()?.toLowerCase() || "";
+            return cat.extensions.includes(ext);
+          })
+        : files.filter((f) => {
+            const ext = f.original_name.split(".").pop()?.toLowerCase() || "";
+            return !knownExts.has(ext);
+          });
 
     const totalSize = matched.reduce((s, f) => s + f.original_size, 0);
     const totalEncrypted = matched.reduce((s, f) => s + f.encrypted_size, 0);

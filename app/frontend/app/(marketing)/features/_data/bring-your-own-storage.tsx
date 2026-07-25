@@ -31,10 +31,9 @@ export const bringYourOwnStorage: BringYourOwnStoragePageData = {
     headlineGradient: "You already have it.",
     subtext: (
       <>
-        Connect accounts you own — GitHub, GitLab, Hugging Face, Telegram — and your
-        encrypted files are stored as disguised chunks in repos you own. Repos
-        rotate automatically as they fill, so your space grows on its own. Your
-        data, your infrastructure, no lock-in.
+        Connect accounts you own — GitHub, GitLab, Hugging Face, Telegram — and your encrypted files
+        are stored as disguised chunks in repos you own. Repos rotate automatically as they fill, so
+        your space grows on its own. Your data, your infrastructure, no lock-in.
       </>
     ),
     secondaryLabel: "Read the docs",
@@ -43,8 +42,10 @@ export const bringYourOwnStorage: BringYourOwnStoragePageData = {
 
   adaptersSection: {
     heading: "Connect what you already pay for",
-    subheading: "Four platforms, each with its own generous limits. Mix and match — the more you connect, the more room you have.",
-    footnote: "Capacities are approximate, per-repo or per-file platform limits and can change at the providers' discretion. zcrypt works within whatever each platform currently allows.",
+    subheading:
+      "Four platforms, each with its own generous limits. Mix and match — the more you connect, the more room you have.",
+    footnote:
+      "Capacities are approximate, per-repo or per-file platform limits and can change at the providers' discretion. zcrypt works within whatever each platform currently allows.",
   },
 
   capabilities: [
@@ -85,13 +86,12 @@ export const bringYourOwnStorage: BringYourOwnStoragePageData = {
     heading: "Nothing to be locked into",
     body: (
       <>
-        Most cloud storage rents you space on the provider&apos;s servers, on the
-        provider&apos;s terms. zcrypt flips that: it&apos;s an encryption and
-        orchestration layer over storage you already own. Everything is encrypted
-        on your device first, then chunks are disguised as ordinary build-cache
-        files in repos you own — your library spread across the accounts you
-        connect. Walk away whenever you like — the accounts, and the bytes in
-        them, were always yours.
+        Most cloud storage rents you space on the provider&apos;s servers, on the provider&apos;s
+        terms. zcrypt flips that: it&apos;s an encryption and orchestration layer over storage you
+        already own. Everything is encrypted on your device first, then chunks are disguised as
+        ordinary build-cache files in repos you own — your library spread across the accounts you
+        connect. Walk away whenever you like — the accounts, and the bytes in them, were always
+        yours.
       </>
     ),
     checklistItems: [
@@ -124,6 +124,7 @@ export const bringYourOwnStorage: BringYourOwnStoragePageData = {
 
   cta: {
     heading: "Storage you own, encryption you trust",
-    subtext: "Free and open source. Connect an account you already have and start in under a minute.",
+    subtext:
+      "Free and open source. Connect an account you already have and start in under a minute.",
   },
 };

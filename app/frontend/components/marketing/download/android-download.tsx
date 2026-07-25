@@ -74,9 +74,8 @@ export function AndroidDownload() {
           </div>
 
           <p className="mt-4 max-w-md text-xs leading-relaxed text-[var(--color-text-muted)]">
-            Open the file, allow installs from this source once, install. Android
-            flags &quot;unknown developer&quot; for anything outside Play — it&apos;s
-            the{" "}
+            Open the file, allow installs from this source once, install. Android flags
+            &quot;unknown developer&quot; for anything outside Play — it&apos;s the{" "}
             <a
               href={ANDROID_RELEASE_PAGE}
               target="_blank"

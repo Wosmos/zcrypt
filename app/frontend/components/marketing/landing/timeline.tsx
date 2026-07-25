@@ -51,7 +51,7 @@ export function TimelineStep({
       style={{ transitionDelay: `${index * 0.1}s` }}
       className={cn(
         "transition-[opacity,transform] duration-500 ease-out",
-        isVisible ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-5"
+        isVisible ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-5",
       )}
     >
       <div className="relative flex gap-5 py-7">
@@ -60,15 +60,13 @@ export function TimelineStep({
           className={cn(
             "relative z-10 flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl border border-cyan-500/20 bg-[var(--color-bg)] text-xs font-bold text-cyan-600 shadow-sm dark:text-cyan-400",
             "transition-[opacity,transform] duration-[400ms] ease-[cubic-bezier(0.34,1.56,0.64,1)]",
-            isVisible ? "opacity-100 scale-100" : "opacity-0 scale-50"
+            isVisible ? "opacity-100 scale-100" : "opacity-0 scale-50",
           )}
         >
           {step.num}
         </div>
         <div className="pt-0.5">
-          <h3 className="text-base font-bold tracking-tight font-heading">
-            {step.title}
-          </h3>
+          <h3 className="text-base font-bold tracking-tight font-heading">{step.title}</h3>
           <p className="text-sm text-[var(--color-text-secondary)] mt-1 leading-relaxed">
             {step.desc}
           </p>

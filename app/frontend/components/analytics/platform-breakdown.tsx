@@ -39,17 +39,21 @@ export function PlatformBreakdown({ statuses, repos }: PlatformBreakdownProps) {
     new Set([
       ...statuses.filter((s) => s.connected).map((s) => s.platform),
       ...repos.map((r) => r.platform),
-    ])
+    ]),
   );
 
   return (
     <div className="panel overflow-hidden">
       <div className="border-b border-[var(--color-border)] px-5 py-4">
-        <h3 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">Storage by platform</h3>
+        <h3 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
+          Storage by platform
+        </h3>
       </div>
       <div className="space-y-4 p-5">
         {platforms.length === 0 ? (
-          <p className="py-4 text-center text-sm text-[var(--color-text-muted)]">No platforms connected</p>
+          <p className="py-4 text-center text-sm text-[var(--color-text-muted)]">
+            No platforms connected
+          </p>
         ) : (
           platforms.map((platform) => {
             const data = usage.get(platform) || { used: 0, max: 0, repoCount: 0 };

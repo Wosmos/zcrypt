@@ -1,13 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import {
-  DocPage,
-  DocSection,
-  DocP,
-  DocList,
-  DocCode,
-  DocNote,
-} from "@/components/docs/doc-page";
+import { DocPage, DocSection, DocP, DocList, DocCode, DocNote } from "@/components/docs/doc-page";
 import { desktopEngine } from "@/lib/data";
 
 export const metadata: Metadata = {
@@ -47,11 +40,10 @@ export default function ArchitectureDocPage() {
     >
       <DocSection id="overview" title="Overview">
         <DocP>
-          A file's life in zcrypt is: your browser compresses, encrypts, and
-          chunks it; the chunks travel over a chunked HTTP API to the Go backend;
-          the backend stages them on durable disk and a background worker syncs
-          them to a storage platform you own; a PostgreSQL index records the
-          ciphertext metadata that lets you find and reassemble the file later.
+          A file's life in zcrypt is: your browser compresses, encrypts, and chunks it; the chunks
+          travel over a chunked HTTP API to the Go backend; the backend stages them on durable disk
+          and a background worker syncs them to a storage platform you own; a PostgreSQL index
+          records the ciphertext metadata that lets you find and reassemble the file later.
           Plaintext and keys never leave your device.
         </DocP>
       </DocSection>
@@ -76,124 +68,113 @@ export default function ArchitectureDocPage() {
 
       <DocSection id="client" title="Client pipeline">
         <DocP>
-          Everything that makes a file private happens before it leaves your
-          device, in this order:
+          Everything that makes a file private happens before it leaves your device, in this order:
         </DocP>
         <DocList
           ordered
           items={[
             <>
-              <strong>Compress.</strong> The file is compressed with zstd, so less
-              data is encrypted and stored.
+              <strong>Compress.</strong> The file is compressed with zstd, so less data is encrypted
+              and stored.
             </>,
             <>
-              <strong>Encrypt.</strong> It is sealed with AES-256-GCM under a key
-              derived from your passphrase (PBKDF2-SHA256, 600,000 iterations,
-              with a unique per-file salt and IV). Authenticated encryption means
-              tampering is detectable on the way back.
+              <strong>Encrypt.</strong> It is sealed with AES-256-GCM under a key derived from your
+              passphrase (PBKDF2-SHA256, 600,000 iterations, with a unique per-file salt and IV).
+              Authenticated encryption means tampering is detectable on the way back.
             </>,
             <>
-              <strong>Chunk.</strong> The ciphertext is split into fixed-size
-              chunks (10&nbsp;MB by default), each hashed with SHA-256. Chunking
-              is what makes large files fast, parallel, and resumable.
+              <strong>Chunk.</strong> The ciphertext is split into fixed-size chunks (10&nbsp;MB by
+              default), each hashed with SHA-256. Chunking is what makes large files fast, parallel,
+              and resumable.
             </>,
           ]}
         />
         <DocP>
-          In the web app this pipeline runs in a pool of Web Workers, so
-          compression, encryption, and hashing happen off the main thread and in
-          parallel across CPU cores. Chunk buffers are handed to and from the
-          workers by transfer (zero-copy, no duplicate allocation), and the pool
-          size scales to the device&rsquo;s cores and memory. The same worker pool
-          runs the reverse pipeline on download.
+          In the web app this pipeline runs in a pool of Web Workers, so compression, encryption,
+          and hashing happen off the main thread and in parallel across CPU cores. Chunk buffers are
+          handed to and from the workers by transfer (zero-copy, no duplicate allocation), and the
+          pool size scales to the device&rsquo;s cores and memory. The same worker pool runs the
+          reverse pipeline on download.
         </DocP>
         <DocP>
-          The same pipeline runs everywhere zcrypt runs: in the web app&rsquo;s
-          Web Worker pool, in <strong>{desktopEngine.name}</strong> &mdash; the
-          native {desktopEngine.language} engine behind the desktop and Android
-          apps &mdash; and in the Go terminal app (TUI). A file uploaded from any
-          one of them decrypts cleanly in the others.
+          The same pipeline runs everywhere zcrypt runs: in the web app&rsquo;s Web Worker pool, in{" "}
+          <strong>{desktopEngine.name}</strong> &mdash; the native {desktopEngine.language} engine
+          behind the desktop and Android apps &mdash; and in the Go terminal app (TUI). A file
+          uploaded from any one of them decrypts cleanly in the others.
         </DocP>
       </DocSection>
 
       <DocSection id="download" title="Download & streaming to disk">
         <DocP>
-          Downloads run the client pipeline in reverse. The app fetches each
-          encrypted chunk, verifies its SHA-256, then decrypts and (where needed)
-          decompresses it in the same Web Worker pool &mdash; so a large download
-          parallelizes across cores instead of freezing the tab.
+          Downloads run the client pipeline in reverse. The app fetches each encrypted chunk,
+          verifies its SHA-256, then decrypts and (where needed) decompresses it in the same Web
+          Worker pool &mdash; so a large download parallelizes across cores instead of freezing the
+          tab.
         </DocP>
         <DocP>
-          Small files are reassembled in memory and saved as a download. A file
-          too large to hold in a browser tab is instead{" "}
-          <strong>streamed straight to disk</strong>: using the browser&rsquo;s
-          File System Access API, the app opens a writable to the file you pick,
-          writes chunks in order as they are decrypted, and hashes them in
-          write-order &mdash; so peak memory stays flat no matter how large the
-          file. The whole-file hash is checked before the file is committed; an
-          integrity mismatch or a cancel discards the partial file rather than
-          leaving a corrupt one behind.
+          Small files are reassembled in memory and saved as a download. A file too large to hold in
+          a browser tab is instead <strong>streamed straight to disk</strong>: using the
+          browser&rsquo;s File System Access API, the app opens a writable to the file you pick,
+          writes chunks in order as they are decrypted, and hashes them in write-order &mdash; so
+          peak memory stays flat no matter how large the file. The whole-file hash is checked before
+          the file is committed; an integrity mismatch or a cancel discards the partial file rather
+          than leaving a corrupt one behind.
         </DocP>
         <DocP>
-          Downloads are resumable within a session: a pause or a transient network
-          failure keeps what has already been decrypted (or written to disk), so a
-          later run continues from the high-water mark instead of restarting at
-          chunk zero.
+          Downloads are resumable within a session: a pause or a transient network failure keeps
+          what has already been decrypted (or written to disk), so a later run continues from the
+          high-water mark instead of restarting at chunk zero.
         </DocP>
       </DocSection>
 
       <DocSection id="api" title="Chunked HTTP API">
         <DocP>
-          The backend is plain Go standard-library <code>net/http</code> — no web
-          framework. The client opens an upload session, then sends each encrypted
-          chunk as raw bytes with a SHA-256 header the server uses to verify
-          integrity (never to decrypt). Where a platform supports it, the client
-          can request a presigned URL and upload a chunk straight to the platform,
-          skipping the server relay. Downloads run the same path in reverse:
-          metadata first, then chunks by index.
+          The backend is plain Go standard-library <code>net/http</code> — no web framework. The
+          client opens an upload session, then sends each encrypted chunk as raw bytes with a
+          SHA-256 header the server uses to verify integrity (never to decrypt). Where a platform
+          supports it, the client can request a presigned URL and upload a chunk straight to the
+          platform, skipping the server relay. Downloads run the same path in reverse: metadata
+          first, then chunks by index.
         </DocP>
         <DocP>
-          Because uploads are session-based and chunk-addressed, they are
-          inherently resumable — the client asks which chunks already landed and
-          re-sends only the gaps.
+          Because uploads are session-based and chunk-addressed, they are inherently resumable — the
+          client asks which chunks already landed and re-sends only the gaps.
         </DocP>
       </DocSection>
 
       <DocSection id="staging" title="Staging & the sync worker">
         <DocP>
-          Uploaded chunks are not pushed to a storage platform inline. The server
-          first writes each chunk to a durable staging directory on disk, which
-          survives restarts. A background sync worker then drains that staging
-          area, pushing chunks to the right platform repository and recording the
-          result. This decouples the user-facing upload from the slower,
-          retry-prone platform push.
+          Uploaded chunks are not pushed to a storage platform inline. The server first writes each
+          chunk to a durable staging directory on disk, which survives restarts. A background sync
+          worker then drains that staging area, pushing chunks to the right platform repository and
+          recording the result. This decouples the user-facing upload from the slower, retry-prone
+          platform push.
         </DocP>
         <DocList
           items={[
             <>
-              <strong>Resilience.</strong> If a platform push fails, the chunk
-              stays staged and is retried; a crash mid-upload doesn't lose
-              already-received chunks.
+              <strong>Resilience.</strong> If a platform push fails, the chunk stays staged and is
+              retried; a crash mid-upload doesn't lose already-received chunks.
             </>,
             <>
-              <strong>Read-through.</strong> If you download a file whose chunks
-              haven't been synced off staging yet, the server serves them straight
-              from the staging directory.
+              <strong>Read-through.</strong> If you download a file whose chunks haven't been synced
+              off staging yet, the server serves them straight from the staging directory.
             </>,
             <>
-              <strong>Progress.</strong> Upload and sync progress is pushed to the
-              client over Server-Sent Events.
+              <strong>Progress.</strong> Upload and sync progress is pushed to the client over
+              Server-Sent Events.
             </>,
           ]}
         />
         <DocNote type="info" title="Desktop and Android skip the relay">
-          This staging-and-relay path is how the web app and the TUI move
-          chunks. The desktop and Android apps upload{" "}
-          <strong>directly</strong> to your connected platform using
-          credentials from your OS keychain &mdash; the backend only receives
-          metadata (file ID, chunk index, platform, ciphertext hash), never
-          the chunk bytes or your platform token. See{" "}
-          <Link href="/docs/desktop-app" className="text-cyan-600 hover:underline dark:text-cyan-400">
+          This staging-and-relay path is how the web app and the TUI move chunks. The desktop and
+          Android apps upload <strong>directly</strong> to your connected platform using credentials
+          from your OS keychain &mdash; the backend only receives metadata (file ID, chunk index,
+          platform, ciphertext hash), never the chunk bytes or your platform token. See{" "}
+          <Link
+            href="/docs/desktop-app"
+            className="text-cyan-600 hover:underline dark:text-cyan-400"
+          >
             Desktop app
           </Link>
           .
@@ -202,25 +183,25 @@ export default function ArchitectureDocPage() {
 
       <DocSection id="adapters" title="Platform adapters & repo pool">
         <DocP>
-          Each storage backend implements a common adapter interface — upload,
-          download, delete, create repo, list chunks, and report repo size — so
-          the pipeline treats GitHub, GitLab, Hugging Face, and Telegram
-          uniformly. Optional capabilities layer on top: some adapters batch many
-          chunk uploads into a single commit, and some support direct presigned
-          uploads.
+          Each storage backend implements a common adapter interface — upload, download, delete,
+          create repo, list chunks, and report repo size — so the pipeline treats GitHub, GitLab,
+          Hugging Face, and Telegram uniformly. Optional capabilities layer on top: some adapters
+          batch many chunk uploads into a single commit, and some support direct presigned uploads.
         </DocP>
         <DocP>
-          A <strong>repo pool</strong> sits in front of the adapters. Each file's
-          chunks go to a single platform, and as a repository approaches that
-          platform's size threshold the pool auto-rotates to a fresh repo. This is
-          why your usable space is bounded by your platform account, not by a
-          fixed cap.
+          A <strong>repo pool</strong> sits in front of the adapters. Each file's chunks go to a
+          single platform, and as a repository approaches that platform's size threshold the pool
+          auto-rotates to a fresh repo. This is why your usable space is bounded by your platform
+          account, not by a fixed cap.
         </DocP>
         <DocNote type="info" title="Disguise">
-          Repositories, commit messages, and stored chunk file names are
-          generated to look like ordinary developer activity, so the storage side
-          reveals nothing about your real files. See{" "}
-          <Link href="/docs/obfuscation" className="text-cyan-600 hover:underline dark:text-cyan-400">
+          Repositories, commit messages, and stored chunk file names are generated to look like
+          ordinary developer activity, so the storage side reveals nothing about your real files.
+          See{" "}
+          <Link
+            href="/docs/obfuscation"
+            className="text-cyan-600 hover:underline dark:text-cyan-400"
+          >
             Storage obfuscation
           </Link>
           .
@@ -229,72 +210,68 @@ export default function ArchitectureDocPage() {
 
       <DocSection id="index" title="The index (PostgreSQL)">
         <DocP>
-          A PostgreSQL database, accessed through <code>pgx</code> with raw SQL
-          (no ORM), is the index that ties everything together: users, folders and
-          files, per-file salts and chunk references, encrypted platform tokens,
-          shares, and more. Every record about a file is metadata or ciphertext —
-          the database holds no readable file contents and no passphrase. The
-          schema is applied automatically on startup.
+          A PostgreSQL database, accessed through <code>pgx</code> with raw SQL (no ORM), is the
+          index that ties everything together: users, folders and files, per-file salts and chunk
+          references, encrypted platform tokens, shares, and more. Every record about a file is
+          metadata or ciphertext — the database holds no readable file contents and no passphrase.
+          The schema is applied automatically on startup.
         </DocP>
       </DocSection>
 
       <DocSection id="spaces" title="Shared spaces & key grants">
         <DocP>
-          Sharing keeps the zero-knowledge boundary intact by moving keys, never
-          plaintext. Every user has an X25519 keypair generated on their device;
-          the private key is wrapped under their passphrase-derived key, so the
-          server stores only ciphertext, while the public key and a short
-          fingerprint are public so others can seal grants to them.
+          Sharing keeps the zero-knowledge boundary intact by moving keys, never plaintext. Every
+          user has an X25519 keypair generated on their device; the private key is wrapped under
+          their passphrase-derived key, so the server stores only ciphertext, while the public key
+          and a short fingerprint are public so others can seal grants to them.
         </DocP>
         <DocP>
-          A shared space (&ldquo;shared vault&rdquo;) has its own random symmetric
-          key. To grant a member access, that space key is{" "}
-          <strong>sealed</strong> to the member&rsquo;s public key with an ECIES
-          construction &mdash; an ephemeral X25519 key does ECDH with the
-          recipient, and the shared secret is hashed into an AES-256-GCM
-          wrapping key &mdash; and each shared file&rsquo;s content key is
-          re-wrapped under the space key. The server holds only these opaque
-          grants: it can store, hand out, and delete them, but can never open one.
-          Removing a member and rotating the space key re-seals a fresh key to the
-          people who remain and re-wraps every file under it, so the old grant is
-          dead.
+          A shared space (&ldquo;shared vault&rdquo;) has its own random symmetric key. To grant a
+          member access, that space key is <strong>sealed</strong> to the member&rsquo;s public key
+          with an ECIES construction &mdash; an ephemeral X25519 key does ECDH with the recipient,
+          and the shared secret is hashed into an AES-256-GCM wrapping key &mdash; and each shared
+          file&rsquo;s content key is re-wrapped under the space key. The server holds only these
+          opaque grants: it can store, hand out, and delete them, but can never open one. Removing a
+          member and rotating the space key re-seals a fresh key to the people who remain and
+          re-wraps every file under it, so the old grant is dead.
         </DocP>
         <DocP>
-          Public folder links work the same way: the link key is generated on the
-          client and lives only in the URL fragment, and each file&rsquo;s content
-          key is re-wrapped under it &mdash; the server serving the link never sees
-          the key.
+          Public folder links work the same way: the link key is generated on the client and lives
+          only in the URL fragment, and each file&rsquo;s content key is re-wrapped under it &mdash;
+          the server serving the link never sees the key.
         </DocP>
       </DocSection>
 
       <DocSection id="boundary" title="The zero-knowledge boundary">
         <DocP>
-          The line between your device and the server is the security boundary.
-          Cross it, and only ciphertext and metadata exist:
+          The line between your device and the server is the security boundary. Cross it, and only
+          ciphertext and metadata exist:
         </DocP>
         <DocList
           items={[
             <>
-              Your passphrase, and the key derived from it, never leave the
-              client — they are never sent, stored, or logged.
+              Your passphrase, and the key derived from it, never leave the client — they are never
+              sent, stored, or logged.
             </>,
             <>
-              Chunks arrive already encrypted; the server verifies their hashes
-              but cannot decrypt them.
+              Chunks arrive already encrypted; the server verifies their hashes but cannot decrypt
+              them.
             </>,
             <>
-              Platform tokens are the one secret the server does hold, and they're
-              encrypted at rest with a per-user key derived from the instance{" "}
-              <code>MASTER_KEY</code> via HKDF — so the storage platform never
-              sees plaintext, and the database never sees a usable token.
+              Platform tokens are the one secret the server does hold, and they're encrypted at rest
+              with a per-user key derived from the instance <code>MASTER_KEY</code> via HKDF — so
+              the storage platform never sees plaintext, and the database never sees a usable token.
             </>,
           ]}
         />
         <DocNote type="security" title="The trade-off">
-          Because the server has nothing to decrypt your files with, neither do
-          we — and neither does anyone who compromises the server. The flip side
-          is that a forgotten passphrase is unrecoverable. See{" "}
-          <Link href="/docs/zero-knowledge" className="text-cyan-600 hover:underline dark:text-cyan-400">
+          Because the server has nothing to decrypt your files with, neither do we — and neither
+          does anyone who compromises the server. The flip side is that a forgotten passphrase is
+          unrecoverable. See{" "}
+          <Link
+            href="/docs/zero-knowledge"
+            className="text-cyan-600 hover:underline dark:text-cyan-400"
+          >
             Zero-knowledge architecture
           </Link>
           .
@@ -304,16 +281,32 @@ export default function ArchitectureDocPage() {
       <DocSection id="next" title="Where to go next">
         <DocList
           items={[
-            <Link key="a" href="/docs/how-it-works" className="text-cyan-600 hover:underline dark:text-cyan-400">
+            <Link
+              key="a"
+              href="/docs/how-it-works"
+              className="text-cyan-600 hover:underline dark:text-cyan-400"
+            >
               How it works — a file's journey, step by step
             </Link>,
-            <Link key="b" href="/docs/repo-pool" className="text-cyan-600 hover:underline dark:text-cyan-400">
+            <Link
+              key="b"
+              href="/docs/repo-pool"
+              className="text-cyan-600 hover:underline dark:text-cyan-400"
+            >
               Repo pool & rotation — how storage grows across repositories
             </Link>,
-            <Link key="c" href="/docs/api" className="text-cyan-600 hover:underline dark:text-cyan-400">
+            <Link
+              key="c"
+              href="/docs/api"
+              className="text-cyan-600 hover:underline dark:text-cyan-400"
+            >
               API reference — the endpoints behind the pipeline
             </Link>,
-            <Link key="d" href="/docs/self-hosting" className="text-cyan-600 hover:underline dark:text-cyan-400">
+            <Link
+              key="d"
+              href="/docs/self-hosting"
+              className="text-cyan-600 hover:underline dark:text-cyan-400"
+            >
               Self-hosting — run the whole stack yourself
             </Link>,
           ]}

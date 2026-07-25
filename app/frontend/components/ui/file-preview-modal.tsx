@@ -22,26 +22,72 @@ function getPreviewType(filename: string): "image" | "text" | "pdf" | "video" | 
   if (ext === "pdf") return "pdf";
   if (["mp4", "webm", "mov", "mkv", "m4v", "ogv"].includes(ext)) return "video";
   if (["mp3", "wav", "aac", "flac", "m4a", "ogg", "oga", "opus"].includes(ext)) return "audio";
-  if ([
-    "txt", "md", "json", "js", "ts", "tsx", "jsx", "py", "go", "rs", "java",
-    "c", "cpp", "h", "css", "html", "xml", "yaml", "yml", "toml", "sh", "bat",
-    "env", "gitignore", "csv", "log", "cfg", "ini", "sql", "graphql",
-  ].includes(ext)) return "text";
+  if (
+    [
+      "txt",
+      "md",
+      "json",
+      "js",
+      "ts",
+      "tsx",
+      "jsx",
+      "py",
+      "go",
+      "rs",
+      "java",
+      "c",
+      "cpp",
+      "h",
+      "css",
+      "html",
+      "xml",
+      "yaml",
+      "yml",
+      "toml",
+      "sh",
+      "bat",
+      "env",
+      "gitignore",
+      "csv",
+      "log",
+      "cfg",
+      "ini",
+      "sql",
+      "graphql",
+    ].includes(ext)
+  )
+    return "text";
   return "none";
 }
 
 function getMimeType(filename: string): string | undefined {
   const ext = filename.split(".").pop()?.toLowerCase() || "";
   const map: Record<string, string> = {
-    mp4: "video/mp4", webm: "video/webm", mov: "video/quicktime",
-    mkv: "video/x-matroska", m4v: "video/mp4", ogv: "video/ogg",
-    mp3: "audio/mpeg", wav: "audio/wav", aac: "audio/aac", flac: "audio/flac",
-    m4a: "audio/mp4", ogg: "audio/ogg", oga: "audio/ogg", opus: "audio/ogg",
+    mp4: "video/mp4",
+    webm: "video/webm",
+    mov: "video/quicktime",
+    mkv: "video/x-matroska",
+    m4v: "video/mp4",
+    ogv: "video/ogg",
+    mp3: "audio/mpeg",
+    wav: "audio/wav",
+    aac: "audio/aac",
+    flac: "audio/flac",
+    m4a: "audio/mp4",
+    ogg: "audio/ogg",
+    oga: "audio/ogg",
+    opus: "audio/ogg",
   };
   return map[ext];
 }
 
-export function FilePreviewModal({ open, onClose, blob, filename, fileSize }: FilePreviewModalProps) {
+export function FilePreviewModal({
+  open,
+  onClose,
+  blob,
+  filename,
+  fileSize,
+}: FilePreviewModalProps) {
   const [textContent, setTextContent] = useState<string | null>(null);
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
   const previewType = getPreviewType(filename);
@@ -187,7 +233,7 @@ export function FilePreviewModal({ open, onClose, blob, filename, fileSize }: Fi
         </div>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }
 

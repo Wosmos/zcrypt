@@ -40,10 +40,10 @@ export const useNotificationStore = create<NotificationStore>((set) => ({
   add: (n) => {
     const id = genId("notif");
     set((s) => {
-      const next = [
-        { ...n, id, timestamp: Date.now(), read: false },
-        ...s.notifications,
-      ].slice(0, MAX_NOTIFICATIONS);
+      const next = [{ ...n, id, timestamp: Date.now(), read: false }, ...s.notifications].slice(
+        0,
+        MAX_NOTIFICATIONS,
+      );
       return {
         notifications: next,
         unreadCount: countUnread(next),
@@ -53,9 +53,7 @@ export const useNotificationStore = create<NotificationStore>((set) => ({
 
   markRead: (id) => {
     set((s) => {
-      const next = s.notifications.map((n) =>
-        n.id === id ? { ...n, read: true } : n
-      );
+      const next = s.notifications.map((n) => (n.id === id ? { ...n, read: true } : n));
       return {
         notifications: next,
         unreadCount: countUnread(next),

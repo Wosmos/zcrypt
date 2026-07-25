@@ -58,7 +58,9 @@ export function ExportImport({ files }: ExportImportProps) {
           return;
         }
         // For now, just show the data — actual import would need backend support
-        toast.success(`Found ${data.files.length} file records from ${data.exported_at ? new Date(data.exported_at).toLocaleDateString() : "unknown date"}. Backend import coming soon.`);
+        toast.success(
+          `Found ${data.files.length} file records from ${data.exported_at ? new Date(data.exported_at).toLocaleDateString() : "unknown date"}. Backend import coming soon.`,
+        );
       } catch {
         toast.error("Failed to parse export file");
       } finally {

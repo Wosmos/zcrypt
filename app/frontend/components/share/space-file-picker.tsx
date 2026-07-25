@@ -38,9 +38,7 @@ export function SpaceFilePicker({
 
   const { groups, ungrouped, matchCount } = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const matches = q
-      ? files.filter((f) => f.original_name.toLowerCase().includes(q))
-      : files;
+    const matches = q ? files.filter((f) => f.original_name.toLowerCase().includes(q)) : files;
 
     const byFolder = new Map<string, FileMetadata[]>();
     const loose: FileMetadata[] = [];
@@ -74,7 +72,7 @@ export function SpaceFilePicker({
     onChange(
       allIn
         ? selected.filter((id) => !ids.includes(id))
-        : Array.from(new Set([...selected, ...ids]))
+        : Array.from(new Set([...selected, ...ids])),
     );
   };
 

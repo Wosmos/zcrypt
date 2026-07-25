@@ -4,11 +4,7 @@ import { DesktopRedirect } from "@/components/guards/desktop-redirect";
 import { DocsSearchProvider } from "@/components/docs/docs-search";
 import { SiteChrome } from "@/components/layout/site-chrome";
 
-export default function MarketingLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function MarketingLayout({ children }: { children: React.ReactNode }) {
   return (
     <DesktopRedirect>
       <GuestGuard>

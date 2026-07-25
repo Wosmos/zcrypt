@@ -96,7 +96,7 @@ export function VaultLockProvider({ children }: { children: React.ReactNode }) {
       }
       vault.modalProps.onConfirm(passphrase);
     },
-    [filesQuery.data, vault.modalProps]
+    [filesQuery.data, vault.modalProps],
   );
 
   const confirmFirstTime = useCallback(() => {

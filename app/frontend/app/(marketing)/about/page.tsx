@@ -110,9 +110,7 @@ export default function AboutPage() {
 
         {/* ─── The origin story ─────────────────────────────── */}
         <Section className="mt-16">
-          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-            {about.origin.heading}
-          </h2>
+          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">{about.origin.heading}</h2>
           <div className="mt-6 space-y-4 text-base leading-relaxed text-[var(--color-text-secondary)]">
             {about.origin.paragraphsBeforeQuote.map((p, i) => (
               <p key={i}>{p}</p>
@@ -152,9 +150,7 @@ export default function AboutPage() {
                 className="group card p-5 transition-colors hover:border-cyan-500/40"
               >
                 <div className="flex items-center justify-between">
-                  <h3 className="text-base font-bold tracking-tight">
-                    {p.name}
-                  </h3>
+                  <h3 className="text-base font-bold tracking-tight">{p.name}</h3>
                   <ArrowUpRight className="h-4 w-4 text-cyan-500 opacity-0 transition-opacity group-hover:opacity-100" />
                 </div>
                 <p className="mt-1.5 text-sm leading-relaxed text-[var(--color-text-secondary)]">
@@ -182,9 +178,7 @@ export default function AboutPage() {
 
         {/* ─── The stack ────────────────────────────────────── */}
         <Section className="mt-20">
-          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-            {about.stack.heading}
-          </h2>
+          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">{about.stack.heading}</h2>
           <p className="mt-3 text-base leading-relaxed text-[var(--color-text-secondary)]">
             {about.stack.intro}
           </p>

@@ -59,12 +59,7 @@ const LINK_CLASS =
 function FooterNavLink({ label, href, external }: FooterLink) {
   if (external) {
     return (
-      <a
-        href={href}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={LINK_CLASS}
-      >
+      <a href={href} target="_blank" rel="noopener noreferrer" className={LINK_CLASS}>
         {label}
       </a>
     );
@@ -116,9 +111,9 @@ export function MarketingFooter() {
                 <Logo size="xl" />
               </Link>
               <p className="mt-4 mb-[1.4rem] max-w-[280px] text-[0.88rem] leading-[1.7] text-[var(--color-text-muted)]">
-                A zero-knowledge encrypted cloud drive — real folders, instant
-                previews, your own storage. Encrypted on your device, readable
-                only by you. Open source and self-hostable.
+                A zero-knowledge encrypted cloud drive — real folders, instant previews, your own
+                storage. Encrypted on your device, readable only by you. Open source and
+                self-hostable.
               </p>
               <span className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] px-[0.85rem] py-[0.4rem] text-[0.76rem] text-[var(--color-text-secondary)]">
                 <span className="h-[7px] w-[7px] rounded-full bg-[#34c779]" />

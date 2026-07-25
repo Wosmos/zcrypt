@@ -55,9 +55,7 @@ export default function OAuthCallbackPage() {
   return (
     <div className="flex flex-col items-center justify-center gap-4">
       <LogoSpinner size={32} speed="default" />
-      <p className="text-sm text-[var(--color-text-secondary)]">
-        Completing sign in...
-      </p>
+      <p className="text-sm text-[var(--color-text-secondary)]">Completing sign in...</p>
     </div>
   );
 }

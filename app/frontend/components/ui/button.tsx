@@ -33,11 +33,11 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         "squircle inline-flex items-center justify-center font-medium transition-all duration-150 outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40 focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--color-bg)] disabled:opacity-40 disabled:pointer-events-none cursor-pointer",
         variantStyles[variant],
         sizeStyles[size],
-        className
+        className,
       )}
       {...props}
     />
-  )
+  ),
 );
 
 Button.displayName = "Button";
@@ -55,13 +55,12 @@ export const buttonVariants = cva(
       variant: {
         default:
           "bg-primary text-primary-foreground hover:bg-[var(--color-accent-hover)] shadow-sm",
-        destructive:
-          "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
         outline:
           "border border-border bg-transparent hover:bg-[var(--color-surface-1)] hover:border-[var(--color-border-hover)]",
-        secondary:
-          "bg-secondary text-secondary-foreground hover:bg-[var(--color-surface-3)]",
-        ghost: "hover:bg-[var(--color-surface-1)] text-[var(--color-text-secondary)] hover:text-[var(--color-text)]",
+        secondary: "bg-secondary text-secondary-foreground hover:bg-[var(--color-surface-3)]",
+        ghost:
+          "hover:bg-[var(--color-surface-1)] text-[var(--color-text-secondary)] hover:text-[var(--color-text)]",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
@@ -72,5 +71,5 @@ export const buttonVariants = cva(
       },
     },
     defaultVariants: { variant: "default", size: "default" },
-  }
+  },
 );

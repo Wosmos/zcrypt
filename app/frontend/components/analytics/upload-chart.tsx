@@ -12,7 +12,11 @@ import {
 } from "recharts";
 import { formatBytes, localDateKey } from "@/lib/utils";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { CHART_TOOLTIP_STYLE, CHART_TOOLTIP_LABEL_STYLE, CHART_TOOLTIP_CURSOR } from "./chart-theme";
+import {
+  CHART_TOOLTIP_STYLE,
+  CHART_TOOLTIP_LABEL_STYLE,
+  CHART_TOOLTIP_CURSOR,
+} from "./chart-theme";
 import type { FileMetadata } from "@/types";
 
 interface UploadChartProps {
@@ -20,8 +24,6 @@ interface UploadChartProps {
 }
 
 type Range = "1d" | "7d" | "30d" | "all";
-
-
 
 function getChartData(files: FileMetadata[], range: Range) {
   if (files.length === 0) return [];
@@ -32,7 +34,8 @@ function getChartData(files: FileMetadata[], range: Range) {
 
   if (range === "1d") {
     startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    bucketFormat = (d) => d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
+    bucketFormat = (d) =>
+      d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
   } else if (range === "7d") {
     startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     bucketFormat = (d) => d.toLocaleDateString("en-US", { weekday: "short" });
@@ -148,15 +151,20 @@ export function UploadChart({ files }: UploadChartProps) {
     <div className="panel overflow-hidden">
       <div className="flex flex-col gap-3 border-b border-[var(--color-border)] px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h3 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">Upload activity</h3>
+          <h3 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
+            Upload activity
+          </h3>
           <p className="mt-0.5 text-xs tabular-nums text-[var(--color-text-muted)]">
-            {totalUploads.toLocaleString()} upload{totalUploads !== 1 ? "s" : ""} &middot; {formatBytes(totalSize)} in range
+            {totalUploads.toLocaleString()} upload{totalUploads !== 1 ? "s" : ""} &middot;{" "}
+            {formatBytes(totalSize)} in range
           </p>
         </div>
         <ToggleGroup
           type="single"
           value={range}
-          onValueChange={(v) => { if (v) setRange(v as Range); }}
+          onValueChange={(v) => {
+            if (v) setRange(v as Range);
+          }}
           className="self-start rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] p-0.5 sm:self-auto"
           aria-label="Select time range"
         >
@@ -215,7 +223,12 @@ export function UploadChart({ files }: UploadChartProps) {
                 strokeWidth={2}
                 fill="url(#uploadGrad)"
                 dot={false}
-                activeDot={{ r: 4, fill: "var(--color-accent)", stroke: "var(--color-surface)", strokeWidth: 2 }}
+                activeDot={{
+                  r: 4,
+                  fill: "var(--color-accent)",
+                  stroke: "var(--color-surface)",
+                  strokeWidth: 2,
+                }}
               />
             </AreaChart>
           </ResponsiveContainer>

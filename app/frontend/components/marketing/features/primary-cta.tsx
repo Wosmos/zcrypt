@@ -31,7 +31,10 @@ export function PrimaryCta({
   className,
 }: PrimaryCtaProps) {
   return (
-    <Link href={href} className={className ? `${PRIMARY_CTA_CLASS} ${className}` : PRIMARY_CTA_CLASS}>
+    <Link
+      href={href}
+      className={className ? `${PRIMARY_CTA_CLASS} ${className}` : PRIMARY_CTA_CLASS}
+    >
       {label}
       <ArrowRight className="h-4 w-4" />
     </Link>

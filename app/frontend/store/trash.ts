@@ -21,7 +21,7 @@ export function useTrashQuery() {
 
 /** Optimistic write to the trash cache (drop-on-restore / drop-on-purge). */
 export function setTrashData(
-  updater: FileMetadata[] | ((prev: FileMetadata[]) => FileMetadata[])
+  updater: FileMetadata[] | ((prev: FileMetadata[]) => FileMetadata[]),
 ): void {
   setListData<FileMetadata>(qk.trash, updater);
 }

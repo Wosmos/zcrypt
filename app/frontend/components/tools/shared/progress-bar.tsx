@@ -26,7 +26,10 @@ export function ProgressBar({
         <span className="font-medium tabular-nums">{percent}%</span>
       </div>
       <div className="h-2 rounded-full bg-[var(--color-surface-1)] overflow-hidden">
-        <div className={`h-full rounded-full bg-[var(--color-accent)] ${transitionClassName}`} style={{ width: `${percent}%` }} />
+        <div
+          className={`h-full rounded-full bg-[var(--color-accent)] ${transitionClassName}`}
+          style={{ width: `${percent}%` }}
+        />
       </div>
     </div>
   );

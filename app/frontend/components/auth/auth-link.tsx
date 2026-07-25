@@ -19,12 +19,7 @@ interface AuthLinkProps {
  * Cyan text link shared by the auth pages. Renders a Next `Link` when `href`
  * is given, otherwise a plain `button` (for onClick navigations/actions).
  */
-export function AuthLink({
-  href,
-  onClick,
-  className = AUTH_LINK_CLASS,
-  children,
-}: AuthLinkProps) {
+export function AuthLink({ href, onClick, className = AUTH_LINK_CLASS, children }: AuthLinkProps) {
   if (href) {
     return (
       <Link href={href} className={className}>

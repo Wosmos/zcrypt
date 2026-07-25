@@ -34,7 +34,9 @@ export function SendTool() {
     const file = files[0];
     if (!file) return;
     if (file.size > MAX_FILE_SIZE) {
-      setErrorMsg(`File too large (${formatBytes(file.size)}). Maximum is ${formatBytes(MAX_FILE_SIZE)} for anonymous sends.`);
+      setErrorMsg(
+        `File too large (${formatBytes(file.size)}). Maximum is ${formatBytes(MAX_FILE_SIZE)} for anonymous sends.`,
+      );
       setState("error");
       return;
     }
@@ -49,7 +51,15 @@ export function SendTool() {
     setErrorMsg("");
 
     try {
-      const { generateSalt, deriveKeyBytes, encryptChunk, sha256File, sha256Hex, toBase64, CHUNK_SIZE: CS } = await import("@/lib/crypto");
+      const {
+        generateSalt,
+        deriveKeyBytes,
+        encryptChunk,
+        sha256File,
+        sha256Hex,
+        toBase64,
+        CHUNK_SIZE: CS,
+      } = await import("@/lib/crypto");
 
       setProgress({ stage: "Hashing file...", percent: 1 });
       const fileHash = await sha256File(selectedFile);
@@ -82,11 +92,17 @@ export function SendTool() {
         const slice = selectedFile.slice(start, end);
         const plaintext = new Uint8Array(await slice.arrayBuffer());
 
-        setProgress({ stage: `Encrypting chunk ${i + 1}/${chunkCount}...`, percent: 3 + Math.round((i / chunkCount) * 42) });
+        setProgress({
+          stage: `Encrypting chunk ${i + 1}/${chunkCount}...`,
+          percent: 3 + Math.round((i / chunkCount) * 42),
+        });
         const encrypted = await encryptChunk(keyBytes, plaintext);
         const chunkHash = await sha256Hex(encrypted);
 
-        setProgress({ stage: `Uploading chunk ${i + 1}/${chunkCount}...`, percent: 45 + Math.round((i / chunkCount) * 47) });
+        setProgress({
+          stage: `Uploading chunk ${i + 1}/${chunkCount}...`,
+          percent: 45 + Math.round((i / chunkCount) * 47),
+        });
         await sendChunkUpload(session.session_id, i, encrypted, chunkHash, false);
       }
 
@@ -147,7 +163,8 @@ export function SendTool() {
           </Button>
           <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3">
             <p className="text-xs text-cyan-700 dark:text-cyan-300">
-              Your file is encrypted in your browser before upload. The encryption key is embedded in the share link — the server never sees your data.
+              Your file is encrypted in your browser before upload. The encryption key is embedded
+              in the share link — the server never sees your data.
             </p>
           </div>
         </div>
@@ -162,7 +179,9 @@ export function SendTool() {
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-semibold truncate">{selectedFile.name}</p>
-                <p className="text-xs text-[var(--color-text-muted)]">{formatBytes(selectedFile.size)}</p>
+                <p className="text-xs text-[var(--color-text-muted)]">
+                  {formatBytes(selectedFile.size)}
+                </p>
               </div>
             </div>
           </div>

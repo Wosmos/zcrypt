@@ -2,15 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import {
-  Layers,
-  ShieldCheck,
-  Clock,
-  MonitorSmartphone,
-  Send,
-  FileText,
-  Wifi,
-} from "@/lib/icons";
+import { Layers, ShieldCheck, Clock, MonitorSmartphone, Send, FileText, Wifi } from "@/lib/icons";
 import type { ComponentType } from "react";
 import { usePreferencesStore } from "@/store/preferences";
 import { PageHeader } from "@/components/ui/page-header";
@@ -49,7 +41,7 @@ export default function ToolsPage() {
   const advancedMode = usePreferencesStore((s) => s.advancedMode);
   const tabParam = searchParams.get("tab");
   const [activeTab, setActiveTab] = useState(
-    tabs.some((t) => t.id === tabParam) ? tabParam! : "send"
+    tabs.some((t) => t.id === tabParam) ? tabParam! : "send",
   );
   // Lazily mount tabs but keep them mounted once visited so in-flight client
   // state (transfers, uploads, decrypted clipboard) survives tab switches.

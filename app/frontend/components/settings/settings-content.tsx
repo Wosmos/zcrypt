@@ -24,7 +24,12 @@ import { SecurityActivity } from "@/components/settings/security-activity";
 import { useFileList } from "@/hooks/useFileList";
 import { PlatformIcon } from "@/components/icons/platform-icon";
 import { TelegramConnect } from "@/components/settings/telegram-connect";
-import { SettingGroup, ButtonRow, ValueRow, LinkRow } from "@/components/settings/settings-primitives";
+import {
+  SettingGroup,
+  ButtonRow,
+  ValueRow,
+  LinkRow,
+} from "@/components/settings/settings-primitives";
 import type { PlatformStatus } from "@/types";
 import {
   CheckCircle2,
@@ -56,7 +61,11 @@ import { PLATFORMS, platformName, parseTelegramToken } from "@/lib/platforms";
  * so the Tauri core can route uploads byos-direct. Never runs outside Tauri —
  * raw platform tokens must never be persisted in the browser. Best-effort.
  */
-async function storeDesktopPlatformCreds(platform: string, rawToken: string, username?: string): Promise<void> {
+async function storeDesktopPlatformCreds(
+  platform: string,
+  rawToken: string,
+  username?: string,
+): Promise<void> {
   if (!isTauri) return;
   try {
     const parsed = platform === "telegram" ? parseTelegramToken(rawToken) : null;
@@ -80,7 +89,14 @@ async function clearDesktopPlatformCreds(platform: string): Promise<void> {
   }
 }
 
-type SectionId = "appearance" | "account" | "platforms" | "storage" | "privacy" | "backup" | "security";
+type SectionId =
+  | "appearance"
+  | "account"
+  | "platforms"
+  | "storage"
+  | "privacy"
+  | "backup"
+  | "security";
 
 interface SectionDef {
   id: SectionId;
@@ -92,13 +108,56 @@ interface SectionDef {
 }
 
 const SECTIONS: SectionDef[] = [
-  { id: "appearance", label: "Appearance", desc: "Theme, colors & advanced mode", icon: Sparkles, group: "General" },
-  { id: "account", label: "Account access", desc: "Sign-in providers & device key", icon: User, group: "Account" },
-  { id: "platforms", label: "Platform connections", desc: "Connect your storage backends", icon: Box, group: "Account" },
-  { id: "storage", label: "Storage & quotas", desc: "Repositories, usage & limits", icon: Database, group: "Storage" },
-  { id: "privacy", label: "Privacy", desc: "Decoy vault & dead man's switch", icon: ShieldAlert, group: "Privacy & security" },
-  { id: "backup", label: "Vault backup", desc: "Export or import your metadata", icon: Download, group: "Privacy & security" },
-  { id: "security", label: "Security activity", desc: "Recent sign-ins & events", icon: Shield, group: "Privacy & security", adminOnly: true },
+  {
+    id: "appearance",
+    label: "Appearance",
+    desc: "Theme, colors & advanced mode",
+    icon: Sparkles,
+    group: "General",
+  },
+  {
+    id: "account",
+    label: "Account access",
+    desc: "Sign-in providers & device key",
+    icon: User,
+    group: "Account",
+  },
+  {
+    id: "platforms",
+    label: "Platform connections",
+    desc: "Connect your storage backends",
+    icon: Box,
+    group: "Account",
+  },
+  {
+    id: "storage",
+    label: "Storage & quotas",
+    desc: "Repositories, usage & limits",
+    icon: Database,
+    group: "Storage",
+  },
+  {
+    id: "privacy",
+    label: "Privacy",
+    desc: "Decoy vault & dead man's switch",
+    icon: ShieldAlert,
+    group: "Privacy & security",
+  },
+  {
+    id: "backup",
+    label: "Vault backup",
+    desc: "Export or import your metadata",
+    icon: Download,
+    group: "Privacy & security",
+  },
+  {
+    id: "security",
+    label: "Security activity",
+    desc: "Recent sign-ins & events",
+    icon: Shield,
+    group: "Privacy & security",
+    adminOnly: true,
+  },
 ];
 
 export function SettingsContent() {
@@ -107,7 +166,10 @@ export function SettingsContent() {
   const [disconnecting, setDisconnecting] = useState<string | null>(null);
   const [scopeOverrides, setScopeOverrides] = useState<Record<string, boolean>>({});
   const busyRef = useRef<Set<string>>(new Set());
-  const [disconnectTarget, setDisconnectTarget] = useState<{ platform: string; username: string } | null>(null);
+  const [disconnectTarget, setDisconnectTarget] = useState<{
+    platform: string;
+    username: string;
+  } | null>(null);
   const { statuses, repos, refresh } = usePlatformHealth();
   const { files } = useFileList();
   const { theme, setTheme } = useTheme();
@@ -120,13 +182,20 @@ export function SettingsContent() {
   // section (defaults to the first) in the right pane.
   const [active, setActive] = useState<SectionId | null>(null);
 
-  useEffect(() => { setScopeOverrides({}); }, [statuses]);
+  useEffect(() => {
+    setScopeOverrides({});
+  }, [statuses]);
 
   const effectiveStatuses = statuses.map((s) =>
-    s.token_id && s.token_id in scopeOverrides ? { ...s, is_global: scopeOverrides[s.token_id] } : s
+    s.token_id && s.token_id in scopeOverrides
+      ? { ...s, is_global: scopeOverrides[s.token_id] }
+      : s,
   );
-  const visibleStatuses = isAdmin ? effectiveStatuses : effectiveStatuses.filter((s) => !s.is_global);
-  const accountsFor = (platform: string) => visibleStatuses.filter((s) => s.platform === platform && s.connected);
+  const visibleStatuses = isAdmin
+    ? effectiveStatuses
+    : effectiveStatuses.filter((s) => !s.is_global);
+  const accountsFor = (platform: string) =>
+    visibleStatuses.filter((s) => s.platform === platform && s.connected);
 
   const handleConnect = async (platform: string, token: string): Promise<boolean> => {
     if (!token.trim()) return false;
@@ -178,7 +247,11 @@ export function SettingsContent() {
       await toggleTokenScope(tokenId, newScope);
       refresh();
     } catch (err) {
-      setScopeOverrides((prev) => { const next = { ...prev }; delete next[tokenId]; return next; });
+      setScopeOverrides((prev) => {
+        const next = { ...prev };
+        delete next[tokenId];
+        return next;
+      });
       toast.error(err instanceof Error ? err.message : "Failed to update token scope");
     }
   };
@@ -190,7 +263,12 @@ export function SettingsContent() {
     switch (id) {
       case "appearance":
         return (
-          <AppearanceContent theme={theme} setTheme={setTheme} advancedMode={advancedMode} setAdvancedMode={setAdvancedMode} />
+          <AppearanceContent
+            theme={theme}
+            setTheme={setTheme}
+            advancedMode={advancedMode}
+            setAdvancedMode={setAdvancedMode}
+          />
         );
       case "account":
         return (
@@ -242,9 +320,22 @@ export function SettingsContent() {
         );
       case "privacy":
         return (
-          <SettingGroup label="Advanced safeguards" footnote="For high-risk threat models. Both are optional.">
-            <LinkRow href="/settings/deadman" icon={<ShieldAlert className="h-4 w-4" />} title="Dead man's switch" subtitle="Auto-notify a contact if you go silent" />
-            <LinkRow href="/settings/decoy" icon={<Eye className="h-4 w-4" />} title="Decoy profile" subtitle="Plausible deniability with a decoy vault" />
+          <SettingGroup
+            label="Advanced safeguards"
+            footnote="For high-risk threat models. Both are optional."
+          >
+            <LinkRow
+              href="/settings/deadman"
+              icon={<ShieldAlert className="h-4 w-4" />}
+              title="Dead man's switch"
+              subtitle="Auto-notify a contact if you go silent"
+            />
+            <LinkRow
+              href="/settings/decoy"
+              icon={<Eye className="h-4 w-4" />}
+              title="Decoy profile"
+              subtitle="Plausible deniability with a decoy vault"
+            />
           </SettingGroup>
         );
       case "backup":
@@ -263,20 +354,26 @@ export function SettingsContent() {
         {active === null ? (
           <div className="space-y-6">
             <div className="px-1">
-              <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-accent)]">Configuration</p>
-              <h1 className="mt-1 text-2xl font-bold tracking-tight text-[var(--color-text)]">Settings</h1>
+              <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-accent)]">
+                Configuration
+              </p>
+              <h1 className="mt-1 text-2xl font-bold tracking-tight text-[var(--color-text)]">
+                Settings
+              </h1>
             </div>
             {groups.map((g) => (
               <SettingGroup key={g} label={g}>
-                {visibleSections.filter((s) => s.group === g).map((s) => (
-                  <ButtonRow
-                    key={s.id}
-                    onClick={() => setActive(s.id)}
-                    icon={<s.icon className="h-4 w-4" />}
-                    title={s.label}
-                    subtitle={s.desc}
-                  />
-                ))}
+                {visibleSections
+                  .filter((s) => s.group === g)
+                  .map((s) => (
+                    <ButtonRow
+                      key={s.id}
+                      onClick={() => setActive(s.id)}
+                      icon={<s.icon className="h-4 w-4" />}
+                      title={s.label}
+                      subtitle={s.desc}
+                    />
+                  ))}
               </SettingGroup>
             ))}
           </div>
@@ -290,8 +387,12 @@ export function SettingsContent() {
               <ArrowLeft className="h-4 w-4" /> Settings
             </button>
             <div className="px-1">
-              <h1 className="text-xl font-bold tracking-tight text-[var(--color-text)]">{activeDef(active).label}</h1>
-              <p className="mt-0.5 text-sm text-[var(--color-text-secondary)]">{activeDef(active).desc}</p>
+              <h1 className="text-xl font-bold tracking-tight text-[var(--color-text)]">
+                {activeDef(active).label}
+              </h1>
+              <p className="mt-0.5 text-sm text-[var(--color-text-secondary)]">
+                {activeDef(active).desc}
+              </p>
             </div>
             {renderSection(active)}
           </div>
@@ -301,39 +402,51 @@ export function SettingsContent() {
       {/* ── DESKTOP: two-pane (nav rail + active section) ──────────────── */}
       <div className="hidden md:flex md:gap-8">
         <nav className="w-60 flex-shrink-0">
-          <p className="px-3 text-xs font-medium uppercase tracking-wider text-[var(--color-accent)]">Configuration</p>
-          <h1 className="mt-1 px-3 text-lg font-bold tracking-tight text-[var(--color-text)]">Settings</h1>
+          <p className="px-3 text-xs font-medium uppercase tracking-wider text-[var(--color-accent)]">
+            Configuration
+          </p>
+          <h1 className="mt-1 px-3 text-lg font-bold tracking-tight text-[var(--color-text)]">
+            Settings
+          </h1>
           <div className="mt-4 space-y-4">
             {groups.map((g) => (
               <div key={g} className="space-y-1">
-                <p className="px-3 text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">{g}</p>
-                {visibleSections.filter((s) => s.group === g).map((s) => {
-                  const on = (active ?? "appearance") === s.id;
-                  return (
-                    <button
-                      key={s.id}
-                      type="button"
-                      onClick={() => setActive(s.id)}
-                      className={cn(
-                        "flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40",
-                        on
-                          ? "bg-[var(--color-accent)]/10 font-medium text-[var(--color-accent)]"
-                          : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)]"
-                      )}
-                    >
-                      <s.icon className="h-4 w-4 flex-shrink-0" />
-                      <span className="truncate">{s.label}</span>
-                    </button>
-                  );
-                })}
+                <p className="px-3 text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+                  {g}
+                </p>
+                {visibleSections
+                  .filter((s) => s.group === g)
+                  .map((s) => {
+                    const on = (active ?? "appearance") === s.id;
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => setActive(s.id)}
+                        className={cn(
+                          "flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40",
+                          on
+                            ? "bg-[var(--color-accent)]/10 font-medium text-[var(--color-accent)]"
+                            : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)]",
+                        )}
+                      >
+                        <s.icon className="h-4 w-4 flex-shrink-0" />
+                        <span className="truncate">{s.label}</span>
+                      </button>
+                    );
+                  })}
               </div>
             ))}
           </div>
         </nav>
         <div className="min-w-0 flex-1">
           <div className="mb-5">
-            <h2 className="text-lg font-bold tracking-tight text-[var(--color-text)]">{activeDef(active ?? "appearance").label}</h2>
-            <p className="mt-0.5 text-sm text-[var(--color-text-secondary)]">{activeDef(active ?? "appearance").desc}</p>
+            <h2 className="text-lg font-bold tracking-tight text-[var(--color-text)]">
+              {activeDef(active ?? "appearance").label}
+            </h2>
+            <p className="mt-0.5 text-sm text-[var(--color-text-secondary)]">
+              {activeDef(active ?? "appearance").desc}
+            </p>
           </div>
           {renderSection(active ?? "appearance")}
         </div>
@@ -341,7 +454,9 @@ export function SettingsContent() {
 
       <ConfirmDialog
         open={!!disconnectTarget}
-        onOpenChange={(open) => { if (!open) setDisconnectTarget(null); }}
+        onOpenChange={(open) => {
+          if (!open) setDisconnectTarget(null);
+        }}
         destructive
         title="Disconnect platform?"
         description={
@@ -382,7 +497,9 @@ function AppearanceContent({
           subtitle="Light, dark, or match your system"
           trailing={
             <div className="relative">
-              <label htmlFor="theme-select" className="sr-only">Theme</label>
+              <label htmlFor="theme-select" className="sr-only">
+                Theme
+              </label>
               <select
                 id="theme-select"
                 value={theme}
@@ -390,7 +507,9 @@ function AppearanceContent({
                 className="appearance-none rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] py-1.5 pl-3 pr-8 text-sm font-medium text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]/40 focus:ring-2 focus:ring-[var(--color-accent)]/10"
               >
                 {themeOptions.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
                 ))}
               </select>
               <ChevronDown className="pointer-events-none absolute inset-y-0 right-2 my-auto h-4 w-4 text-[var(--color-text-muted)]" />
@@ -402,7 +521,10 @@ function AppearanceContent({
       {/* ThemePicker renders its own "Color theme" heading — don't double it. */}
       <ThemePicker />
 
-      <SettingGroup label="Power user" footnote="Snapshots, integrity checks, expiring vaults, and device sync.">
+      <SettingGroup
+        label="Power user"
+        footnote="Snapshots, integrity checks, expiring vaults, and device sync."
+      >
         <ValueRow
           title="Advanced mode"
           subtitle="Show power-user tools across the app"
@@ -465,7 +587,10 @@ function PlatformSection({
           <h3 className="truncate text-sm font-semibold text-[var(--color-text)]">{name}</h3>
         </div>
         {connectedAccounts.length > 0 && (
-          <Badge variant="outline" className="flex-shrink-0 border-[var(--color-accent)]/25 bg-[var(--color-accent)]/10 text-[var(--color-accent)]">
+          <Badge
+            variant="outline"
+            className="flex-shrink-0 border-[var(--color-accent)]/25 bg-[var(--color-accent)]/10 text-[var(--color-accent)]"
+          >
             {connectedAccounts.length} connected
           </Badge>
         )}
@@ -477,27 +602,42 @@ function PlatformSection({
             {connectedAccounts.map((acc) => {
               const isDisconnecting = disconnecting === `${platform}:${acc.username}`;
               return (
-                <li key={`${acc.platform}:${acc.username}`} className="flex items-center gap-2 rounded-xl border border-[var(--color-accent)]/15 bg-[var(--color-accent)]/5 px-3 py-2">
+                <li
+                  key={`${acc.platform}:${acc.username}`}
+                  className="flex items-center gap-2 rounded-xl border border-[var(--color-accent)]/15 bg-[var(--color-accent)]/5 px-3 py-2"
+                >
                   <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0 text-[var(--color-accent)]" />
-                  <span className="min-w-0 flex-1 truncate text-sm text-[var(--color-text)]">@{acc.username}</span>
+                  <span className="min-w-0 flex-1 truncate text-sm text-[var(--color-text)]">
+                    @{acc.username}
+                  </span>
                   {isAdmin && acc.token_id && (
                     <button
                       type="button"
                       onClick={() => onToggleScope(acc.token_id!, !!acc.is_global)}
-                      title={acc.is_global ? "Global — shared with all users. Click to make local." : "Local — only you. Click to share with all users."}
+                      title={
+                        acc.is_global
+                          ? "Global — shared with all users. Click to make local."
+                          : "Local — only you. Click to share with all users."
+                      }
                       className={cn(
                         "inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40",
                         acc.is_global
                           ? "border-blue-500/20 bg-blue-500/10 text-blue-500 hover:bg-blue-500/20"
-                          : "border-amber-500/20 bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 dark:text-amber-400"
+                          : "border-amber-500/20 bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 dark:text-amber-400",
                       )}
                     >
-                      {acc.is_global ? <Globe className="h-3.5 w-3.5" /> : <User className="h-3.5 w-3.5" />}
+                      {acc.is_global ? (
+                        <Globe className="h-3.5 w-3.5" />
+                      ) : (
+                        <User className="h-3.5 w-3.5" />
+                      )}
                       {acc.is_global ? "Global" : "Local"}
                     </button>
                   )}
                   {isDisconnecting ? (
-                    <span className="flex h-9 w-9 items-center justify-center text-[var(--color-text-muted)]"><LogoSpinner size={14} speed="fast" /></span>
+                    <span className="flex h-9 w-9 items-center justify-center text-[var(--color-text-muted)]">
+                      <LogoSpinner size={14} speed="fast" />
+                    </span>
                   ) : (
                     <IconButton
                       icon={XCircle}
@@ -527,16 +667,31 @@ function PlatformSection({
                   aria-label={`${name} token`}
                 />
               </div>
-              <Button onClick={onConnect} disabled={connecting || !token.trim()} className="sm:self-start">
+              <Button
+                onClick={onConnect}
+                disabled={connecting || !token.trim()}
+                className="sm:self-start"
+              >
                 {connecting ? (
-                  <span className="flex items-center gap-2"><LogoSpinner size={14} speed="fast" /> Connecting...</span>
+                  <span className="flex items-center gap-2">
+                    <LogoSpinner size={14} speed="fast" /> Connecting...
+                  </span>
                 ) : (
-                  <span className="flex items-center gap-1.5">{connectedAccounts.length > 0 ? "Add account" : "Connect"}<ArrowRight className="h-3.5 w-3.5" /></span>
+                  <span className="flex items-center gap-1.5">
+                    {connectedAccounts.length > 0 ? "Add account" : "Connect"}
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </span>
                 )}
               </Button>
             </div>
-            <a href={tokenUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded text-xs text-[var(--color-accent)] outline-none transition-colors hover:underline focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40">
-              {tokenLabel}<ExternalLink className="h-3 w-3" />
+            <a
+              href={tokenUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded text-xs text-[var(--color-accent)] outline-none transition-colors hover:underline focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40"
+            >
+              {tokenLabel}
+              <ExternalLink className="h-3 w-3" />
             </a>
           </>
         )}
@@ -557,12 +712,15 @@ function EncryptionKeyInfo() {
   }
   return (
     <div className="flex items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)]/50 px-3.5 py-3">
-      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--color-accent)]/10 text-[var(--color-accent)]"><Key className="h-4 w-4" /></div>
+      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--color-accent)]/10 text-[var(--color-accent)]">
+        <Key className="h-4 w-4" />
+      </div>
       <div className="min-w-0">
         <p className="text-xs text-[var(--color-text-muted)]">Your key fingerprint</p>
-        <p className="font-mono text-sm font-semibold tracking-wide text-[var(--color-text)]">{fingerprint}</p>
+        <p className="font-mono text-sm font-semibold tracking-wide text-[var(--color-text)]">
+          {fingerprint}
+        </p>
       </div>
     </div>
   );
 }
-

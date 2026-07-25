@@ -1,11 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
-import {
-  usePlatformStatusQuery,
-  useReposQuery,
-  invalidatePlatforms,
-} from "@/store/platform";
+import { usePlatformStatusQuery, useReposQuery, invalidatePlatforms } from "@/store/platform";
 
 /**
  * Platform health adapter — keeps the `{ statuses, repos, loading, refresh,

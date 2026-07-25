@@ -84,14 +84,17 @@ export const usePassphraseStore = create<PassphraseStore>((set, get) => ({
     // Session unlock: cached in memory only, auto-clears after the TTL.
     const cacheUntil = ttlDeadline(ttlMinutes);
     set({ cachedPassphrase: passphrase, cacheUntil, persistent: false });
-    clearTimer = setTimeout(() => {
-      set({ cachedPassphrase: null, cacheUntil: null });
-      clearTimer = null;
-      // Vault auto-locked on TTL — drop decrypted plaintext too (it must not
-      // outlive the unlocked session).
-      clearDecryptCache();
-      void clearShellPassphrase();
-    }, ttlMinutes * 60 * 1000);
+    clearTimer = setTimeout(
+      () => {
+        set({ cachedPassphrase: null, cacheUntil: null });
+        clearTimer = null;
+        // Vault auto-locked on TTL — drop decrypted plaintext too (it must not
+        // outlive the unlocked session).
+        clearDecryptCache();
+        void clearShellPassphrase();
+      },
+      ttlMinutes * 60 * 1000,
+    );
   },
 
   getPassphrase: () => {
@@ -156,11 +159,14 @@ export const usePassphraseStore = create<PassphraseStore>((set, get) => ({
         const cacheUntil = ttlDeadline(SESSION_TTL_MIN);
         set({ persistent: false, cacheUntil });
         if (clearTimer) clearTimeout(clearTimer);
-        clearTimer = setTimeout(() => {
-          set({ cachedPassphrase: null, cacheUntil: null });
-          clearTimer = null;
-          clearDecryptCache();
-        }, SESSION_TTL_MIN * 60 * 1000);
+        clearTimer = setTimeout(
+          () => {
+            set({ cachedPassphrase: null, cacheUntil: null });
+            clearTimer = null;
+            clearDecryptCache();
+          },
+          SESSION_TTL_MIN * 60 * 1000,
+        );
       } else {
         set({ persistent: false });
       }

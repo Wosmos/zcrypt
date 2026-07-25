@@ -195,7 +195,7 @@ function entriesEqual(a: ExplorerEntry, b: ExplorerEntry): boolean {
 
 export function explorerItemPropsEqual(
   prev: ExplorerItemLikeProps,
-  next: ExplorerItemLikeProps
+  next: ExplorerItemLikeProps,
 ): boolean {
   return (
     prev.selectMode === next.selectMode &&
