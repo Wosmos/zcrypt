@@ -136,11 +136,10 @@ export const googleDrive: VsData = {
     headlineGradient: "zcrypt can't.",
     subtext: (
       <>
-        Google Drive is deeply integrated and incredibly convenient — but it
-        processes your content for search, previews, and smart features, and it
-        isn&apos;t end-to-end encrypted. zcrypt encrypts everything on your
-        device first, stores it in accounts you already own, and is open source
-        from top to bottom.
+        Google Drive is deeply integrated and incredibly convenient — but it processes your content
+        for search, previews, and smart features, and it isn&apos;t end-to-end encrypted. zcrypt
+        encrypts everything on your device first, stores it in accounts you already own, and is open
+        source from top to bottom.
       </>
     ),
     secondaryLabel: "How the encryption works",
@@ -151,15 +150,14 @@ export const googleDrive: VsData = {
     heading: "zcrypt vs Google Drive, side by side",
     subheading: (
       <>
-        An honest look at where each one fits. Google Drive wins on integration
-        and collaboration; zcrypt wins on privacy, ownership, and openness.
+        An honest look at where each one fits. Google Drive wins on integration and collaboration;
+        zcrypt wins on privacy, ownership, and openness.
       </>
     ),
     footnote: (
       <>
-        Comparison reflects each product&apos;s standard offering as of 2026.
-        Google Drive is a trademark of Google LLC; we&apos;re not affiliated with
-        or endorsed by them.
+        Comparison reflects each product&apos;s standard offering as of 2026. Google Drive is a
+        trademark of Google LLC; we&apos;re not affiliated with or endorsed by them.
       </>
     ),
     rows,
@@ -168,42 +166,39 @@ export const googleDrive: VsData = {
     heading: "When Google Drive is the better choice",
     paragraphs: [
       <>
-        Google Drive is one of the most capable products of its kind, and there
-        are plenty of situations where it&apos;s simply the right answer.
+        Google Drive is one of the most capable products of its kind, and there are plenty of
+        situations where it&apos;s simply the right answer.
       </>,
       <>
         If your work revolves around{" "}
         <strong className="text-[var(--color-text)]">
           real-time collaboration in Docs, Sheets, and Slides
         </strong>
-        , or you live inside Gmail, Calendar, and the broader Google ecosystem,
-        Drive&apos;s integration is unmatched. Multiple people editing the same
-        document live is something an encrypted-at-rest drive fundamentally
-        can&apos;t replicate, because that requires the server to read the
-        content.
+        , or you live inside Gmail, Calendar, and the broader Google ecosystem, Drive&apos;s
+        integration is unmatched. Multiple people editing the same document live is something an
+        encrypted-at-rest drive fundamentally can&apos;t replicate, because that requires the server
+        to read the content.
       </>,
       <>
         If you want{" "}
         <strong className="text-[var(--color-text)]">
           powerful search across the contents of your files
         </strong>
-        , AI-assisted features, or automatic photo organization, those rely on
-        Google being able to read your data. zcrypt can&apos;t offer them
-        precisely because it can&apos;t see your files — that&apos;s the
-        deliberate trade-off of zero-knowledge.
+        , AI-assisted features, or automatic photo organization, those rely on Google being able to
+        read your data. zcrypt can&apos;t offer them precisely because it can&apos;t see your files
+        — that&apos;s the deliberate trade-off of zero-knowledge.
       </>,
       <>
         And if polished native mobile apps are essential today,{" "}
         <strong className="text-[var(--color-text)]">
           zcrypt&apos;s mobile apps are still on the roadmap
         </strong>
-        . We ship web, desktop, and a terminal app now; Google Drive&apos;s
-        mobile apps are mature and complete.
+        . We ship web, desktop, and a terminal app now; Google Drive&apos;s mobile apps are mature
+        and complete.
       </>,
       <>
-        zcrypt is the better fit when you want storage that genuinely can&apos;t
-        read your files, lives in accounts you already own, and has nothing
-        hidden behind a proprietary client.
+        zcrypt is the better fit when you want storage that genuinely can&apos;t read your files,
+        lives in accounts you already own, and has nothing hidden behind a proprietary client.
       </>,
     ],
   },

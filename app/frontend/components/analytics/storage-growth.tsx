@@ -11,7 +11,11 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { formatBytes, localDateKey } from "@/lib/utils";
-import { CHART_TOOLTIP_STYLE, CHART_TOOLTIP_LABEL_STYLE, CHART_TOOLTIP_CURSOR } from "./chart-theme";
+import {
+  CHART_TOOLTIP_STYLE,
+  CHART_TOOLTIP_LABEL_STYLE,
+  CHART_TOOLTIP_CURSOR,
+} from "./chart-theme";
 import type { FileMetadata } from "@/types";
 
 /** Cumulative vault size over time — how your encrypted library grew. */
@@ -28,7 +32,10 @@ export function StorageGrowth({ files }: { files: FileMetadata[] }) {
     return keys.map((k) => {
       cumulative += byDay.get(k) ?? 0;
       return {
-        date: new Date(k + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+        date: new Date(k + "T00:00:00").toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+        }),
         bytes: cumulative,
       };
     });
@@ -40,7 +47,9 @@ export function StorageGrowth({ files }: { files: FileMetadata[] }) {
     <div className="panel overflow-hidden">
       <div className="flex items-start justify-between border-b border-[var(--color-border)] px-5 py-4">
         <div>
-          <h3 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">Storage growth</h3>
+          <h3 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
+            Storage growth
+          </h3>
           <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
             Cumulative vault size &middot; {formatBytes(peak)} total
           </p>
@@ -88,7 +97,12 @@ export function StorageGrowth({ files }: { files: FileMetadata[] }) {
                 strokeWidth={2}
                 fill="url(#growthGrad)"
                 dot={false}
-                activeDot={{ r: 4, fill: "#8b5cf6", stroke: "var(--color-surface)", strokeWidth: 2 }}
+                activeDot={{
+                  r: 4,
+                  fill: "#8b5cf6",
+                  stroke: "var(--color-surface)",
+                  strokeWidth: 2,
+                }}
               />
             </AreaChart>
           </ResponsiveContainer>

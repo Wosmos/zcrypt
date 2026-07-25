@@ -154,7 +154,10 @@ export default function AnalyticsLoading() {
         </div>
         <div className="px-5">
           {Array.from({ length: 6 }).map((_, i) => (
-            <SkeletonRow key={i} className="border-b border-[var(--color-border)] py-3 last:border-0" />
+            <SkeletonRow
+              key={i}
+              className="border-b border-[var(--color-border)] py-3 last:border-0"
+            />
           ))}
         </div>
       </div>

@@ -2,7 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { Download, ChevronDown } from "@/lib/icons";
-import { RELEASES_FALLBACK_URL, type PlatformId, type DownloadOption, type ReleaseData } from "@/lib/releases";
+import {
+  RELEASES_FALLBACK_URL,
+  type PlatformId,
+  type DownloadOption,
+  type ReleaseData,
+} from "@/lib/releases";
 import { OS_GLYPHS } from "./os-glyphs";
 
 const OS_LABEL: Record<PlatformId, string> = {
@@ -58,8 +63,8 @@ export function DownloadCta({ release }: { release: ReleaseData | null }) {
   if (platform) {
     primary =
       os === "macos" && macIntel
-        ? platform.options.find((o) => o.label === "Intel") ?? platform.options[0]
-        : platform.options.find((o) => o.recommended) ?? platform.options[0];
+        ? (platform.options.find((o) => o.label === "Intel") ?? platform.options[0])
+        : (platform.options.find((o) => o.recommended) ?? platform.options[0]);
   }
 
   const Glyph = os ? OS_GLYPHS[os] : null;

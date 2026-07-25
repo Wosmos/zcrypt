@@ -25,7 +25,7 @@ function FanBeams() {
     const el = ref.current;
     if (!el) return;
     const obs = new ResizeObserver(([entry]) =>
-      setBox({ w: entry.contentRect.width, h: entry.contentRect.height })
+      setBox({ w: entry.contentRect.width, h: entry.contentRect.height }),
     );
     obs.observe(el);
     return () => obs.disconnect();
@@ -95,10 +95,9 @@ export function BringYourOwnStorage() {
             </span>
           </h2>
           <p className="mx-auto mt-4 max-w-xl leading-relaxed text-[var(--color-text-secondary)]">
-            After encryption, your files are split into ~10 MB chunks and stored as
-            ordinary-looking objects across repos in your own GitHub, GitLab,
-            Hugging Face, and Telegram accounts — zcrypt rotates to fresh repos on
-            its own as they fill.
+            After encryption, your files are split into ~10 MB chunks and stored as ordinary-looking
+            objects across repos in your own GitHub, GitLab, Hugging Face, and Telegram accounts —
+            zcrypt rotates to fresh repos on its own as they fill.
           </p>
         </ScrollReveal>
 
@@ -131,7 +130,7 @@ export function BringYourOwnStorage() {
                     <div
                       className={cn(
                         "grid h-11 w-11 flex-shrink-0 place-items-center rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)]",
-                        b.colorClass
+                        b.colorClass,
                       )}
                     >
                       <Icon className="h-5 w-5" />

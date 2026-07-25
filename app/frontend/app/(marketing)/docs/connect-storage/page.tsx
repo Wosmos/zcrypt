@@ -1,13 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import {
-  DocPage,
-  DocSection,
-  DocP,
-  DocList,
-  DocNote,
-  DocTable,
-} from "@/components/docs/doc-page";
+import { DocPage, DocSection, DocP, DocList, DocNote, DocTable } from "@/components/docs/doc-page";
 
 export const metadata: Metadata = {
   title: "Connect your storage | zcrypt Docs",
@@ -41,28 +34,26 @@ export default function ConnectStorageDocPage() {
     >
       <DocSection id="byo" title="Bring your own storage">
         <DocP>
-          zcrypt is free and open source and does not run a storage farm. Your
-          encrypted chunks live inside a platform account you connect, which
-          means your capacity is simply the free space that platform gives you.
-          Today zcrypt supports <strong>GitHub</strong>, <strong>GitLab</strong>,{" "}
-          <strong>Hugging Face</strong>, and <strong>Telegram</strong>.
+          zcrypt is free and open source and does not run a storage farm. Your encrypted chunks live
+          inside a platform account you connect, which means your capacity is simply the free space
+          that platform gives you. Today zcrypt supports <strong>GitHub</strong>,{" "}
+          <strong>GitLab</strong>, <strong>Hugging Face</strong>, and <strong>Telegram</strong>.
         </DocP>
       </DocSection>
 
       <DocSection id="connect" title="Connecting a backend">
         <DocP>
-          Open <strong>Settings</strong> and go to the platforms section. Add the
-          platform you want, paste its token, and save. You can connect more than
-          one — adding a second backend simply adds its free space to your total.
+          Open <strong>Settings</strong> and go to the platforms section. Add the platform you want,
+          paste its token, and save. You can connect more than one — adding a second backend simply
+          adds its free space to your total.
         </DocP>
       </DocSection>
 
       <DocSection id="tokens" title="What tokens you need">
         <DocP>
-          At a high level, each platform needs a credential that lets zcrypt
-          create private storage and read and write to it on your behalf. You
-          generate these in the platform&apos;s own settings and paste them into
-          zcrypt:
+          At a high level, each platform needs a credential that lets zcrypt create private storage
+          and read and write to it on your behalf. You generate these in the platform&apos;s own
+          settings and paste them into zcrypt:
         </DocP>
         <DocTable
           head={["Platform", "What to provide"]}
@@ -74,9 +65,11 @@ export default function ConnectStorageDocPage() {
           ]}
         />
         <DocP>
-          The exact scopes and step-by-step instructions for each platform live
-          in{" "}
-          <Link href="/docs/platform-adapters" className="text-cyan-600 hover:underline dark:text-cyan-400">
+          The exact scopes and step-by-step instructions for each platform live in{" "}
+          <Link
+            href="/docs/platform-adapters"
+            className="text-cyan-600 hover:underline dark:text-cyan-400"
+          >
             Bring your own storage
           </Link>
           .
@@ -85,25 +78,22 @@ export default function ConnectStorageDocPage() {
 
       <DocSection id="at-rest" title="Tokens are encrypted at rest">
         <DocP>
-          The platform tokens you save are <strong>encrypted at rest</strong>{" "}
-          with AES-256-GCM before they are stored — they are not kept as plain
-          text in our database. zcrypt uses them only to move your already
-          encrypted chunks to and from your backend.
+          The platform tokens you save are <strong>encrypted at rest</strong> with AES-256-GCM
+          before they are stored — they are not kept as plain text in our database. zcrypt uses them
+          only to move your already encrypted chunks to and from your backend.
         </DocP>
         <DocNote type="security" title="Scope your tokens narrowly">
-          Grant each token only the access zcrypt needs, and revoke it from the
-          platform&apos;s own settings at any time to instantly cut zcrypt off
-          from that backend.
+          Grant each token only the access zcrypt needs, and revoke it from the platform&apos;s own
+          settings at any time to instantly cut zcrypt off from that backend.
         </DocNote>
       </DocSection>
 
       <DocSection id="grows" title="Space grows automatically">
         <DocP>
-          You never manage repositories by hand. zcrypt{" "}
-          <strong>auto-creates</strong> private repositories (or uses your
-          Telegram channel) and, as one fills toward its platform&apos;s limit,{" "}
-          <strong>rotates</strong> to a fresh one automatically. Your usable
-          space grows on its own as you upload.
+          You never manage repositories by hand. zcrypt <strong>auto-creates</strong> private
+          repositories (or uses your Telegram channel) and, as one fills toward its platform&apos;s
+          limit, <strong>rotates</strong> to a fresh one automatically. Your usable space grows on
+          its own as you upload.
         </DocP>
         <DocList
           items={[
@@ -117,10 +107,18 @@ export default function ConnectStorageDocPage() {
       <DocSection id="next" title="Where to go next">
         <DocList
           items={[
-            <Link key="a" href="/docs/platform-adapters" className="text-cyan-600 hover:underline dark:text-cyan-400">
+            <Link
+              key="a"
+              href="/docs/platform-adapters"
+              className="text-cyan-600 hover:underline dark:text-cyan-400"
+            >
               Bring your own storage — per-platform setup and token scopes
             </Link>,
-            <Link key="b" href="/docs/repo-pool" className="text-cyan-600 hover:underline dark:text-cyan-400">
+            <Link
+              key="b"
+              href="/docs/repo-pool"
+              className="text-cyan-600 hover:underline dark:text-cyan-400"
+            >
               Repo pool &amp; rotation — how storage grows across repositories
             </Link>,
           ]}

@@ -61,62 +61,59 @@ export function DesktopGrid({ release }: { release: ReleaseData | null }) {
       )}
       <ul className="grid grid-cols-1 gap-5 md:grid-cols-3 list-none">
         {release.desktop.map((platform) => {
-        const Glyph = OS_GLYPHS[platform.id];
-        const primary =
-          platform.options.find((o) => o.recommended) ?? platform.options[0];
-        const others = platform.options.filter((o) => o !== primary);
-        return (
-          <CardShell key={platform.id}>
-            <div
-              aria-hidden
-              className={`pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full opacity-0 blur-3xl transition-opacity duration-500 group-hover:opacity-100 ${glow[platform.id]}`}
-            />
-            <div className="relative flex items-start justify-between">
-              <Glyph
-                className={`h-12 w-12 transition-transform duration-300 group-hover:scale-105 ${glyphColor[platform.id]}`}
+          const Glyph = OS_GLYPHS[platform.id];
+          const primary = platform.options.find((o) => o.recommended) ?? platform.options[0];
+          const others = platform.options.filter((o) => o !== primary);
+          return (
+            <CardShell key={platform.id}>
+              <div
+                aria-hidden
+                className={`pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full opacity-0 blur-3xl transition-opacity duration-500 group-hover:opacity-100 ${glow[platform.id]}`}
               />
-              <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1 font-mono text-[11px] text-[var(--color-text-muted)]">
-                v{release.version}
-              </span>
-            </div>
+              <div className="relative flex items-start justify-between">
+                <Glyph
+                  className={`h-12 w-12 transition-transform duration-300 group-hover:scale-105 ${glyphColor[platform.id]}`}
+                />
+                <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1 font-mono text-[11px] text-[var(--color-text-muted)]">
+                  v{release.version}
+                </span>
+              </div>
 
-            <h3 className="relative mt-6 text-xl font-bold tracking-tight">
-              {platform.name}
-            </h3>
-            <p className="relative mt-1.5 min-h-[2.5rem] text-[13px] leading-relaxed text-[var(--color-text-muted)]">
-              {platform.blurb}
-            </p>
-
-            <div className="relative mt-6 flex flex-1 flex-col justify-end">
-              <a
-                href={primary.href}
-                className="group/dl flex items-center justify-center gap-2 rounded-xl bg-[var(--color-text)] px-4 py-3 text-sm font-semibold text-[var(--color-bg)] transition-opacity hover:opacity-90"
-              >
-                <Download className="h-4 w-4 transition-transform group-hover/dl:translate-y-0.5" />
-                Download for {platform.name}
-              </a>
-              <p className="mt-2.5 text-center text-[11px] text-[var(--color-text-muted)]">
-                {primary.sublabel}
-                {others.length > 0 && (
-                  <>
-                    {" · also "}
-                    {others.map((o, i) => (
-                      <span key={o.label}>
-                        {i > 0 && ", "}
-                        <a
-                          href={o.href}
-                          className="font-medium text-[var(--color-text-secondary)] underline-offset-2 transition-colors hover:text-cyan-600 hover:underline dark:hover:text-cyan-400"
-                        >
-                          {o.sublabel.split("·").pop()?.trim()}
-                        </a>
-                      </span>
-                    ))}
-                  </>
-                )}
+              <h3 className="relative mt-6 text-xl font-bold tracking-tight">{platform.name}</h3>
+              <p className="relative mt-1.5 min-h-[2.5rem] text-[13px] leading-relaxed text-[var(--color-text-muted)]">
+                {platform.blurb}
               </p>
-            </div>
-          </CardShell>
-        );
+
+              <div className="relative mt-6 flex flex-1 flex-col justify-end">
+                <a
+                  href={primary.href}
+                  className="group/dl flex items-center justify-center gap-2 rounded-xl bg-[var(--color-text)] px-4 py-3 text-sm font-semibold text-[var(--color-bg)] transition-opacity hover:opacity-90"
+                >
+                  <Download className="h-4 w-4 transition-transform group-hover/dl:translate-y-0.5" />
+                  Download for {platform.name}
+                </a>
+                <p className="mt-2.5 text-center text-[11px] text-[var(--color-text-muted)]">
+                  {primary.sublabel}
+                  {others.length > 0 && (
+                    <>
+                      {" · also "}
+                      {others.map((o, i) => (
+                        <span key={o.label}>
+                          {i > 0 && ", "}
+                          <a
+                            href={o.href}
+                            className="font-medium text-[var(--color-text-secondary)] underline-offset-2 transition-colors hover:text-cyan-600 hover:underline dark:hover:text-cyan-400"
+                          >
+                            {o.sublabel.split("·").pop()?.trim()}
+                          </a>
+                        </span>
+                      ))}
+                    </>
+                  )}
+                </p>
+              </div>
+            </CardShell>
+          );
         })}
       </ul>
     </>

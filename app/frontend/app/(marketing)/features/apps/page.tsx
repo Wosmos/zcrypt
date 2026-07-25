@@ -1,6 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Globe, Monitor, Smartphone, Terminal, ShieldCheck, Server, Check } from "@/lib/icons";
+import {
+  ArrowRight,
+  Globe,
+  Monitor,
+  Smartphone,
+  Terminal,
+  ShieldCheck,
+  Server,
+  Check,
+} from "@/lib/icons";
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { FeatureHero } from "@/components/marketing/features/feature-hero";
 import { RelatedLinks } from "@/components/marketing/features/related-links";
@@ -35,7 +44,16 @@ export const metadata: Metadata = {
 };
 
 export default function AppsPage() {
-  const { hero, sharedCoreNote, surfacesSection, surfaces, comparisonSection, comparison, related, cta } = apps;
+  const {
+    hero,
+    sharedCoreNote,
+    surfacesSection,
+    surfaces,
+    comparisonSection,
+    comparison,
+    related,
+    cta,
+  } = apps;
 
   return (
     <>
@@ -122,16 +140,12 @@ export default function AppsPage() {
                 <span className="h-2 w-2 rounded-full bg-[#ff5f57]" />
                 <span className="h-2 w-2 rounded-full bg-[#febc2e]" />
                 <span className="h-2 w-2 rounded-full bg-[#28c840]" />
-                <span className="ml-2 font-mono text-[9px] text-white/30">
-                  ssh · zcrypt
-                </span>
+                <span className="ml-2 font-mono text-[9px] text-white/30">ssh · zcrypt</span>
               </div>
               <div className="flex flex-col items-center gap-2 p-6 text-center">
                 <Terminal className="h-7 w-7 text-cyan-400" />
                 <div className="text-xs font-bold text-white/90">Terminal</div>
-                <div className="font-mono text-[10px] text-white/30">
-                  one binary
-                </div>
+                <div className="font-mono text-[10px] text-white/30">one binary</div>
               </div>
             </div>
           </div>
@@ -159,9 +173,7 @@ export default function AppsPage() {
             <h2 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
               {surfacesSection.heading}
             </h2>
-            <p className="mt-3 text-[var(--color-text-secondary)]">
-              {surfacesSection.subheading}
-            </p>
+            <p className="mt-3 text-[var(--color-text-secondary)]">{surfacesSection.subheading}</p>
           </div>
           <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 list-none">
             {surfaces.map((s) => (
@@ -188,7 +200,10 @@ export default function AppsPage() {
                 </p>
                 <ul className="mt-4 space-y-2">
                   {s.points.map((p) => (
-                    <li key={p} className="flex items-center gap-2 text-xs text-[var(--color-text-secondary)]">
+                    <li
+                      key={p}
+                      className="flex items-center gap-2 text-xs text-[var(--color-text-secondary)]"
+                    >
                       <Check className="h-3.5 w-3.5 flex-shrink-0 text-cyan-500" strokeWidth={3} />
                       {p}
                     </li>

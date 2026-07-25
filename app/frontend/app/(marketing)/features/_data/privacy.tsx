@@ -39,10 +39,9 @@ export const privacy: PrivacyPageData = {
     headlineGradient: "moments that matter.",
     subtext: (
       <>
-        Encryption keeps your files unreadable. These tools go a step further —
-        for being pressured to unlock, for going quiet unexpectedly, and for the
-        edge cases real privacy has to plan for. Built on the same zero-knowledge
-        core, and honest about what each one actually does.
+        Encryption keeps your files unreadable. These tools go a step further — for being pressured
+        to unlock, for going quiet unexpectedly, and for the edge cases real privacy has to plan
+        for. Built on the same zero-knowledge core, and honest about what each one actually does.
       </>
     ),
     secondaryLabel: "Read the docs",
@@ -80,12 +79,14 @@ export const privacy: PrivacyPageData = {
       "It does not release your passphrase or any keys.",
       "It is a heads-up to a person — not an automated handover of access.",
     ],
-    doesNotFootnote: "Because zcrypt is zero-knowledge, there are no keys for us to hand over — so the switch alerts a person rather than releasing your data.",
+    doesNotFootnote:
+      "Because zcrypt is zero-knowledge, there are no keys for us to hand over — so the switch alerts a person rather than releasing your data.",
   },
 
   betaSection: {
     heading: "Maturing, and honestly labelled",
-    subheading: "These two are real and usable, but still evolving. We'd rather tell you exactly where they stand than oversell them.",
+    subheading:
+      "These two are real and usable, but still evolving. We'd rather tell you exactly where they stand than oversell them.",
   },
   // Beta tools — visibly labelled, with their real current limits spelled out.
   betaTools: [
@@ -132,6 +133,7 @@ export const privacy: PrivacyPageData = {
 
   cta: {
     heading: "Privacy you can actually reason about",
-    subtext: "Free and open source. Bring a storage account you already own, set a decoy password, and arm your safety net in minutes.",
+    subtext:
+      "Free and open source. Bring a storage account you already own, set a decoy password, and arm your safety net in minutes.",
   },
 };

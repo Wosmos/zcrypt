@@ -68,7 +68,7 @@ export function ImageViewer({
       e.preventDefault();
       zoomBy(e.deltaY < 0 ? SCALE_STEP : -SCALE_STEP);
     },
-    [zoomBy]
+    [zoomBy],
   );
 
   const handlePointerDown = useCallback(
@@ -78,7 +78,7 @@ export function ImageViewer({
       draggingRef.current = true;
       lastPointer.current = { x: e.clientX, y: e.clientY };
     },
-    [scale]
+    [scale],
   );
 
   const handlePointerMove = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
@@ -110,7 +110,7 @@ export function ImageViewer({
         onDoubleClick={() => (scale > 1 ? reset() : setScale(2))}
         className={cn(
           "relative flex flex-1 items-center justify-center overflow-hidden touch-none select-none",
-          scale > 1 ? "cursor-grab active:cursor-grabbing" : "cursor-zoom-in"
+          scale > 1 ? "cursor-grab active:cursor-grabbing" : "cursor-zoom-in",
         )}
       >
         {/* LQIP: the cached thumbnail, blurred, shown until the full image decodes
@@ -150,7 +150,7 @@ export function ImageViewer({
             placeholderUrl && !loaded ? "opacity-0" : "opacity-100",
             !reduce && !draggingRef.current
               ? "transition-[opacity,transform] duration-200"
-              : "transition-opacity duration-200"
+              : "transition-opacity duration-200",
           )}
           style={{
             transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale}) rotate(${rotation}deg)`,
@@ -191,12 +191,7 @@ export function ImageViewer({
             onClick={reset}
             iconClassName="h-4 w-4"
           />
-          <IconButton
-            icon={RefreshCcw}
-            label="Reset"
-            onClick={reset}
-            iconClassName="h-4 w-4"
-          />
+          <IconButton icon={RefreshCcw} label="Reset" onClick={reset} iconClassName="h-4 w-4" />
         </div>
       </div>
     </div>

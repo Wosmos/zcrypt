@@ -1,6 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Eye, Shield, Lock, Clock, Bell, Mail, AlertTriangle, Check, X } from "@/lib/icons";
+import {
+  ArrowRight,
+  Eye,
+  Shield,
+  Lock,
+  Clock,
+  Bell,
+  Mail,
+  AlertTriangle,
+  Check,
+  X,
+} from "@/lib/icons";
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { FeatureHero } from "@/components/marketing/features/feature-hero";
 import { RelatedLinks } from "@/components/marketing/features/related-links";
@@ -40,7 +51,8 @@ export const metadata: Metadata = {
 };
 
 export default function PrivacyToolsPage() {
-  const { hero, decoy, deadMansSwitch, betaSection, betaTools, zeroKnowledgeTieIn, related, cta } = privacy;
+  const { hero, decoy, deadMansSwitch, betaSection, betaTools, zeroKnowledgeTieIn, related, cta } =
+    privacy;
 
   return (
     <>
@@ -73,9 +85,7 @@ export default function PrivacyToolsPage() {
             <h2 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
               {decoy.heading}
             </h2>
-            <p className="mt-4 leading-relaxed text-[var(--color-text-secondary)]">
-              {decoy.body}
-            </p>
+            <p className="mt-4 leading-relaxed text-[var(--color-text-secondary)]">{decoy.body}</p>
             <ul className="mt-6 space-y-2.5">
               {decoy.points.map((c) => (
                 <li
@@ -198,7 +208,10 @@ export default function PrivacyToolsPage() {
                     key={c}
                     className="flex items-start gap-2.5 text-sm text-[var(--color-text-secondary)]"
                   >
-                    <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-500" strokeWidth={3} />
+                    <Check
+                      className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-500"
+                      strokeWidth={3}
+                    />
                     {c}
                   </li>
                 ))}
@@ -242,9 +255,7 @@ export default function PrivacyToolsPage() {
             <h2 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
               {betaSection.heading}
             </h2>
-            <p className="mt-3 text-[var(--color-text-secondary)]">
-              {betaSection.subheading}
-            </p>
+            <p className="mt-3 text-[var(--color-text-secondary)]">{betaSection.subheading}</p>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {betaTools.map(({ Icon, title, desc, caveat, href }) => (

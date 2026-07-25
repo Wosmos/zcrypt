@@ -58,7 +58,9 @@ function RowBody({ icon, title, subtitle, trailing }: RowInner) {
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-medium text-[var(--color-text)]">{title}</span>
         {subtitle && (
-          <span className="mt-0.5 block truncate text-xs text-[var(--color-text-muted)]">{subtitle}</span>
+          <span className="mt-0.5 block truncate text-xs text-[var(--color-text-muted)]">
+            {subtitle}
+          </span>
         )}
       </span>
       {trailing}
@@ -67,13 +69,7 @@ function RowBody({ icon, title, subtitle, trailing }: RowInner) {
 }
 
 /** A tappable row that navigates to `href` (shows a chevron). */
-export function LinkRow({
-  href,
-  icon,
-  title,
-  subtitle,
-  trailing,
-}: { href: string } & RowInner) {
+export function LinkRow({ href, icon, title, subtitle, trailing }: { href: string } & RowInner) {
   return (
     <Link
       href={href}
@@ -116,7 +112,9 @@ export function ButtonRow({
         trailing={
           <span className="flex flex-shrink-0 items-center gap-2 text-[var(--color-text-muted)]">
             {trailing}
-            {chevron && <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />}
+            {chevron && (
+              <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+            )}
           </span>
         }
       />
@@ -128,7 +126,12 @@ export function ButtonRow({
 export function ValueRow({ icon, title, subtitle, trailing }: RowInner) {
   return (
     <div className="group flex items-center gap-3 px-4 py-3">
-      <RowBody icon={icon} title={title} subtitle={subtitle} trailing={<span className="flex-shrink-0">{trailing}</span>} />
+      <RowBody
+        icon={icon}
+        title={title}
+        subtitle={subtitle}
+        trailing={<span className="flex-shrink-0">{trailing}</span>}
+      />
     </div>
   );
 }

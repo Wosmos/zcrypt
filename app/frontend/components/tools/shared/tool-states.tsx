@@ -48,7 +48,9 @@ export function ToolErrorState({
           <p className="text-xs text-[var(--color-text-muted)]">{message}</p>
         </>
       )}
-      <Button variant="secondary" onClick={onAction} className="mt-2">{actionLabel}</Button>
+      <Button variant="secondary" onClick={onAction} className="mt-2">
+        {actionLabel}
+      </Button>
     </div>
   );
 
@@ -77,7 +79,9 @@ export function ToolSuccessState({
       </div>
       <h3 className="text-sm font-semibold">{title}</h3>
       <p className="text-xs text-[var(--color-text-muted)]">{message}</p>
-      <Button variant="secondary" onClick={onAction} className="mt-2">{actionLabel}</Button>
+      <Button variant="secondary" onClick={onAction} className="mt-2">
+        {actionLabel}
+      </Button>
     </div>
   );
 }

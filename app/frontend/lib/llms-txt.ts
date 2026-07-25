@@ -16,21 +16,69 @@ export function entry(title: string, href: string, desc: string, badge?: string)
 }
 
 const featureLinks: Array<[string, string, string]> = [
-  ["The encrypted drive", "/features/encrypted-drive", "A real, sealed file explorer — folders, previews, and search — over storage you own."],
-  ["Folders", "/features/folders", "Nestable folders with optional, real per-folder password encryption."],
-  ["File viewers", "/features/file-viewers", "Preview images, video, audio, PDF, DOCX, HTML, Markdown, CSV, and code in-app, decrypted client-side."],
-  ["Sharing", "/features/sharing", "Password-protected share links, whole-folder shares, anonymous Send, and one-time encrypted pads."],
-  ["Bring your own storage", "/features/bring-your-own-storage", "Store encrypted chunks in GitHub, GitLab, Hugging Face, and Telegram accounts you own; repos auto-rotate as they fill."],
-  ["Encryption", "/features/encryption", "Client-side AES-256-GCM with per-file keys and 600,000-iteration PBKDF2 key derivation."],
-  ["Transfers", "/features/transfers", "Pause, resume, retry, bulk ZIP downloads, and device-to-device transfer."],
-  ["Privacy tools", "/features/privacy", "Decoy profile, dead man's switch, snapshots, and shared vaults."],
-  ["Apps", "/features/apps", "Web, desktop (Tauri), and terminal (TUI) clients sharing one encrypted core."],
+  [
+    "The encrypted drive",
+    "/features/encrypted-drive",
+    "A real, sealed file explorer — folders, previews, and search — over storage you own.",
+  ],
+  [
+    "Folders",
+    "/features/folders",
+    "Nestable folders with optional, real per-folder password encryption.",
+  ],
+  [
+    "File viewers",
+    "/features/file-viewers",
+    "Preview images, video, audio, PDF, DOCX, HTML, Markdown, CSV, and code in-app, decrypted client-side.",
+  ],
+  [
+    "Sharing",
+    "/features/sharing",
+    "Password-protected share links, whole-folder shares, anonymous Send, and one-time encrypted pads.",
+  ],
+  [
+    "Bring your own storage",
+    "/features/bring-your-own-storage",
+    "Store encrypted chunks in GitHub, GitLab, Hugging Face, and Telegram accounts you own; repos auto-rotate as they fill.",
+  ],
+  [
+    "Encryption",
+    "/features/encryption",
+    "Client-side AES-256-GCM with per-file keys and 600,000-iteration PBKDF2 key derivation.",
+  ],
+  [
+    "Transfers",
+    "/features/transfers",
+    "Pause, resume, retry, bulk ZIP downloads, and device-to-device transfer.",
+  ],
+  [
+    "Privacy tools",
+    "/features/privacy",
+    "Decoy profile, dead man's switch, snapshots, and shared vaults.",
+  ],
+  [
+    "Apps",
+    "/features/apps",
+    "Web, desktop (Tauri), and terminal (TUI) clients sharing one encrypted core.",
+  ],
 ];
 
 const compareLinks: Array<[string, string, string]> = [
-  ["zcrypt vs Dropbox", "/vs/dropbox", "Bring-your-own-storage and zero-knowledge encryption compared with Dropbox."],
-  ["zcrypt vs Google Drive", "/vs/google-drive", "How zcrypt's client-side encryption and storage model compare with Google Drive."],
-  ["zcrypt vs Proton Drive", "/vs/proton-drive", "Two privacy-first drives compared: BYO-storage vs managed encrypted storage."],
+  [
+    "zcrypt vs Dropbox",
+    "/vs/dropbox",
+    "Bring-your-own-storage and zero-knowledge encryption compared with Dropbox.",
+  ],
+  [
+    "zcrypt vs Google Drive",
+    "/vs/google-drive",
+    "How zcrypt's client-side encryption and storage model compare with Google Drive.",
+  ],
+  [
+    "zcrypt vs Proton Drive",
+    "/vs/proton-drive",
+    "Two privacy-first drives compared: BYO-storage vs managed encrypted storage.",
+  ],
 ];
 
 const productLinks: Array<[string, string, string]> = [
@@ -46,16 +94,18 @@ const productLinks: Array<[string, string, string]> = [
 const companyLinks: Array<[string, string, string]> = [
   ["About", "/about", "The story and the people behind zcrypt."],
   ["Philosophy", "/philosophy", "Why zcrypt is zero-knowledge and bring-your-own-storage."],
-  ["Privacy Policy", "/privacy", "What zcrypt can see, what it collects, and what it never touches."],
+  [
+    "Privacy Policy",
+    "/privacy",
+    "What zcrypt can see, what it collects, and what it never touches.",
+  ],
   ["Terms of Service", "/terms", "The rules of engagement, in plain language."],
 ];
 
 export function buildLlmsTxt(): string {
   const docs = docsNav
     .map((group) => {
-      const items = group.links
-        .map((l) => entry(l.title, l.href, l.desc, l.badge))
-        .join("\n");
+      const items = group.links.map((l) => entry(l.title, l.href, l.desc, l.badge)).join("\n");
       return `### ${group.title}\n${group.summary}\n\n${items}`;
     })
     .join("\n\n");

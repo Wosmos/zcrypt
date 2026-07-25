@@ -54,10 +54,17 @@ export default function LoginPage() {
           if (data.access_token && data.refresh_token) {
             setTokens(data.access_token, data.refresh_token);
             getMe(data.access_token)
-              .then((user) => { setUser(user); router.replace("/dashboard"); })
-              .catch(() => { router.replace("/dashboard"); });
+              .then((user) => {
+                setUser(user);
+                router.replace("/dashboard");
+              })
+              .catch(() => {
+                router.replace("/dashboard");
+              });
           }
-        } catch { /* network error, keep polling */ }
+        } catch {
+          /* network error, keep polling */
+        }
       }, 2000);
     }
 
@@ -65,7 +72,9 @@ export default function LoginPage() {
     startPolling();
 
     // Also listen for new OAuth attempts
-    function onOAuthStart() { startPolling(); }
+    function onOAuthStart() {
+      startPolling();
+    }
     window.addEventListener("desktop-oauth-start", onOAuthStart);
 
     return () => {
@@ -115,9 +124,7 @@ export default function LoginPage() {
       setMagicLinkSent(true);
       toast.success("Login link sent! Check your inbox.");
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to send login link"
-      );
+      toast.error(err instanceof Error ? err.message : "Failed to send login link");
     } finally {
       setMagicLinkLoading(false);
     }
@@ -153,9 +160,8 @@ export default function LoginPage() {
         }
       >
         <p className="text-sm text-[var(--color-text-secondary)] mt-2 leading-relaxed">
-          We sent a login link to{" "}
-          <strong className="text-[var(--color-text)]">{email}</strong>. Click
-          it to sign in.
+          We sent a login link to <strong className="text-[var(--color-text)]">{email}</strong>.
+          Click it to sign in.
         </p>
         <p className="text-xs text-[var(--color-text-muted)] mt-2">
           Didn&apos;t get it? Check your spam folder.
@@ -166,8 +172,6 @@ export default function LoginPage() {
 
   return (
     <div className="animate-fade-in">
-
-
       <div className="space-y-4">
         <OAuthButtons />
 
@@ -234,10 +238,7 @@ export default function LoginPage() {
             </SubmitButton>
           </form>
         ) : (
-          <form
-            onSubmit={handleMagicLink}
-            className="space-y-3 animate-fade-in"
-          >
+          <form onSubmit={handleMagicLink} className="space-y-3 animate-fade-in">
             <Input
               label="Email"
               type="email"
@@ -250,8 +251,7 @@ export default function LoginPage() {
             />
 
             <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
-              We&apos;ll send a one-time login link to your email. No password
-              needed.
+              We&apos;ll send a one-time login link to your email. No password needed.
             </p>
 
             <SubmitButton
@@ -269,8 +269,7 @@ export default function LoginPage() {
       </div>
 
       <p className="text-center text-sm text-[var(--color-text-secondary)] mt-6">
-        Don&apos;t have an account?{" "}
-        <AuthLink href="/register">Sign up</AuthLink>
+        Don&apos;t have an account? <AuthLink href="/register">Sign up</AuthLink>
       </p>
     </div>
   );

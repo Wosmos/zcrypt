@@ -13,7 +13,6 @@ interface SpacesStore {
 
 export const useSpacesStore = create<SpacesStore>((set) => ({
   spaceKeys: {},
-  setSpaceKey: (vaultId, key) =>
-    set((s) => ({ spaceKeys: { ...s.spaceKeys, [vaultId]: key } })),
+  setSpaceKey: (vaultId, key) => set((s) => ({ spaceKeys: { ...s.spaceKeys, [vaultId]: key } })),
   reset: () => set({ spaceKeys: {} }),
 }));

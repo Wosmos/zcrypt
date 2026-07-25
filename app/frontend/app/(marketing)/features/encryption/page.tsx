@@ -131,16 +131,12 @@ export default function EncryptionPage() {
             <h2 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
               {pipelineSection.heading}
             </h2>
-            <p className="mt-3 text-[var(--color-text-secondary)]">
-              {pipelineSection.subheading}
-            </p>
+            <p className="mt-3 text-[var(--color-text-secondary)]">{pipelineSection.subheading}</p>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {pipeline.map((p) => (
               <div key={p.step} className="card relative p-6">
-                <div className="font-heading text-3xl font-bold text-cyan-500/20">
-                  {p.step}
-                </div>
+                <div className="font-heading text-3xl font-bold text-cyan-500/20">{p.step}</div>
                 <h3 className="mt-3 text-sm font-bold">{p.title}</h3>
                 <p className="mt-1.5 text-sm leading-relaxed text-[var(--color-text-secondary)]">
                   {p.desc}
@@ -156,16 +152,20 @@ export default function EncryptionPage() {
               success="✓ no passphrase. no derived key. no plaintext. no readable names."
             >
               <div className="break-all">
-                <span className="text-cyan-600/80 dark:text-cyan-400/80">wrapped_key</span> 8e30dd·91ac0c·77ae3f·b8d40e — sealed under your passphrase
+                <span className="text-cyan-600/80 dark:text-cyan-400/80">wrapped_key</span>{" "}
+                8e30dd·91ac0c·77ae3f·b8d40e — sealed under your passphrase
               </div>
               <div className="mt-1.5 break-all">
-                <span className="text-cyan-600/80 dark:text-cyan-400/80">name</span> 9f2a1c·b8d40e·7c5b13·f0e2a9 — sealed
+                <span className="text-cyan-600/80 dark:text-cyan-400/80">name</span>{" "}
+                9f2a1c·b8d40e·7c5b13·f0e2a9 — sealed
               </div>
               <div className="mt-1.5 break-all">
-                <span className="text-cyan-600/80 dark:text-cyan-400/80">chunk[0]</span> a4f9c1·0c77ae·3f5b2a·4f9c1e — AES-256-GCM
+                <span className="text-cyan-600/80 dark:text-cyan-400/80">chunk[0]</span>{" "}
+                a4f9c1·0c77ae·3f5b2a·4f9c1e — AES-256-GCM
               </div>
               <div className="mt-1.5 break-all">
-                <span className="text-cyan-600/80 dark:text-cyan-400/80">chunk[1]</span> 4d1b6c·77ae3f·5b2a4f·9c1e0c — AES-256-GCM
+                <span className="text-cyan-600/80 dark:text-cyan-400/80">chunk[1]</span>{" "}
+                4d1b6c·77ae3f·5b2a4f·9c1e0c — AES-256-GCM
               </div>
             </CodePanel>
           </div>

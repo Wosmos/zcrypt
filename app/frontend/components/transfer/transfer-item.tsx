@@ -19,13 +19,7 @@ import { cn, formatBytes, formatEta, easeProgress } from "@/lib/utils";
 // stores. The manager owns store wiring; this component is presentational and
 // only calls back the handlers it's given.
 type TransferDirection = "upload" | "download";
-export type TransferState =
-  | "queued"
-  | "active"
-  | "paused"
-  | "done"
-  | "failed"
-  | "cancelled";
+export type TransferState = "queued" | "active" | "paused" | "done" | "failed" | "cancelled";
 
 export interface TransferEntry {
   /** Stable key, prefixed by direction so upload + download ids never collide. */
@@ -152,9 +146,11 @@ function statusText(entry: TransferEntry, short = false): string {
   let eta: string | undefined;
   if (
     entry.direction === "upload" &&
-    typeof entry.rateBps === "number" && entry.rateBps > 0 &&
+    typeof entry.rateBps === "number" &&
+    entry.rateBps > 0 &&
     typeof entry.bytesProcessed === "number" &&
-    typeof entry.totalBytes === "number" && entry.totalBytes > 0
+    typeof entry.totalBytes === "number" &&
+    entry.totalBytes > 0
   ) {
     const speed = `${formatBytes(entry.rateBps)}/s`;
     const left = formatRemaining((entry.totalBytes - entry.bytesProcessed) / entry.rateBps);
@@ -208,16 +204,25 @@ function TransferItemBase({
     typeof entry.bytesProcessed === "number" &&
     typeof entry.totalBytes === "number" &&
     entry.totalBytes > 0;
-  const barProgress = entry.state === "done"
-    ? 100 // settling: animate the last stretch to a full bar before it collapses
-    : hasBytes
-    ? Math.min(100, Math.max(0, ((entry.bytesProcessed as number) / (entry.totalBytes as number)) * 100))
-    : entry.progress;
+  const barProgress =
+    entry.state === "done"
+      ? 100 // settling: animate the last stretch to a full bar before it collapses
+      : hasBytes
+        ? Math.min(
+            100,
+            Math.max(0, ((entry.bytesProcessed as number) / (entry.totalBytes as number)) * 100),
+          )
+        : entry.progress;
   // The % label MATCHES the bar when real bytes exist (the old log-eased label
   // said 74% while the bar showed half-width — two different lies). The eased
   // curve remains only for byte-less phases (encrypting) and downloads. Capped
   // at 99 while active so "100%" can only ever mean done.
-  const labelPct = Math.min(99, Math.round(hasBytes && (entry.bytesProcessed as number) > 0 ? barProgress : easeProgress(entry.progress)));
+  const labelPct = Math.min(
+    99,
+    Math.round(
+      hasBytes && (entry.bytesProcessed as number) > 0 ? barProgress : easeProgress(entry.progress),
+    ),
+  );
   // Finalize is a short server round-trip with no byte movement — show an
   // indeterminate full bar instead of a frozen 97%.
   const isFinalizing = entry.state === "active" && (entry.stage?.startsWith("Finalizing") ?? false);
@@ -227,7 +232,9 @@ function TransferItemBase({
       layout={!reduceMotion}
       initial={reduceMotion ? false : { opacity: 0, y: 6, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96, transition: { duration: 0.15 } }}
+      exit={
+        reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96, transition: { duration: 0.15 } }
+      }
       transition={{ type: "spring", stiffness: 420, damping: 34 }}
       className={cn(
         "rounded-xl border px-3 py-2.5 transition-colors",
@@ -294,22 +301,47 @@ function TransferItemBase({
           {entry.direction === "upload" && entry.state === "active" && (
             <>
               {!entry.desktop && (
-                <ControlButton icon={Pause} label="Pause upload" tone="accent" onClick={() => controls.onPause(entry.id)} />
+                <ControlButton
+                  icon={Pause}
+                  label="Pause upload"
+                  tone="accent"
+                  onClick={() => controls.onPause(entry.id)}
+                />
               )}
-              <ControlButton icon={X} label="Cancel upload" tone="danger" onClick={() => controls.onCancelUpload(entry.id)} />
+              <ControlButton
+                icon={X}
+                label="Cancel upload"
+                tone="danger"
+                onClick={() => controls.onCancelUpload(entry.id)}
+              />
             </>
           )}
 
           {/* Upload — queued: only Cancel (no chunks in flight yet) */}
           {entry.direction === "upload" && entry.state === "queued" && (
-            <ControlButton icon={X} label="Cancel upload" tone="danger" onClick={() => controls.onCancelUpload(entry.id)} />
+            <ControlButton
+              icon={X}
+              label="Cancel upload"
+              tone="danger"
+              onClick={() => controls.onCancelUpload(entry.id)}
+            />
           )}
 
           {/* Upload — paused: Resume + Cancel */}
           {entry.direction === "upload" && entry.state === "paused" && (
             <>
-              <ControlButton icon={Play} label="Resume upload" tone="accent" onClick={() => controls.onResume(entry.id)} />
-              <ControlButton icon={X} label="Cancel upload" tone="danger" onClick={() => controls.onCancelUpload(entry.id)} />
+              <ControlButton
+                icon={Play}
+                label="Resume upload"
+                tone="accent"
+                onClick={() => controls.onResume(entry.id)}
+              />
+              <ControlButton
+                icon={X}
+                label="Cancel upload"
+                tone="danger"
+                onClick={() => controls.onCancelUpload(entry.id)}
+              />
             </>
           )}
 
@@ -320,9 +352,19 @@ function TransferItemBase({
           {entry.direction === "upload" && entry.state === "failed" && (
             <>
               {entry.desktop ? (
-                <ControlButton icon={Play} label="Resume upload" tone="accent" onClick={() => controls.onRetryUpload(entry.id)} />
+                <ControlButton
+                  icon={Play}
+                  label="Resume upload"
+                  tone="accent"
+                  onClick={() => controls.onRetryUpload(entry.id)}
+                />
               ) : (
-                <ControlButton icon={RotateCcw} label="Retry upload" tone="accent" onClick={() => controls.onRetryUpload(entry.id)} />
+                <ControlButton
+                  icon={RotateCcw}
+                  label="Retry upload"
+                  tone="accent"
+                  onClick={() => controls.onRetryUpload(entry.id)}
+                />
               )}
               <ControlButton icon={X} label="Dismiss" onClick={() => controls.onDismiss(entry)} />
             </>
@@ -331,31 +373,62 @@ function TransferItemBase({
           {/* Download — active: Pause + Stop */}
           {entry.direction === "download" && entry.state === "active" && (
             <>
-              <ControlButton icon={Pause} label="Pause download" tone="accent" onClick={() => controls.onPauseDownload(entry.id)} />
-              <ControlButton icon={StopCircle} label="Stop download" tone="danger" onClick={() => controls.onStopDownload(entry.id)} />
+              <ControlButton
+                icon={Pause}
+                label="Pause download"
+                tone="accent"
+                onClick={() => controls.onPauseDownload(entry.id)}
+              />
+              <ControlButton
+                icon={StopCircle}
+                label="Stop download"
+                tone="danger"
+                onClick={() => controls.onStopDownload(entry.id)}
+              />
             </>
           )}
 
           {/* Download — queued: only Stop (nothing to pause yet) */}
           {entry.direction === "download" && entry.state === "queued" && (
-            <ControlButton icon={StopCircle} label="Stop download" tone="danger" onClick={() => controls.onStopDownload(entry.id)} />
+            <ControlButton
+              icon={StopCircle}
+              label="Stop download"
+              tone="danger"
+              onClick={() => controls.onStopDownload(entry.id)}
+            />
           )}
 
           {/* Download — paused: Resume + Stop */}
           {entry.direction === "download" && entry.state === "paused" && (
             <>
-              <ControlButton icon={Play} label="Resume download" tone="accent" onClick={() => controls.onResumeDownload(entry.id)} />
-              <ControlButton icon={StopCircle} label="Stop download" tone="danger" onClick={() => controls.onStopDownload(entry.id)} />
+              <ControlButton
+                icon={Play}
+                label="Resume download"
+                tone="accent"
+                onClick={() => controls.onResumeDownload(entry.id)}
+              />
+              <ControlButton
+                icon={StopCircle}
+                label="Stop download"
+                tone="danger"
+                onClick={() => controls.onStopDownload(entry.id)}
+              />
             </>
           )}
 
           {/* Download — failed/cancelled: Retry + Dismiss */}
-          {entry.direction === "download" && (entry.state === "failed" || entry.state === "cancelled") && (
-            <>
-              <ControlButton icon={RotateCcw} label="Retry download" tone="accent" onClick={() => controls.onRetryDownload(entry.id)} />
-              <ControlButton icon={X} label="Dismiss" onClick={() => controls.onDismiss(entry)} />
-            </>
-          )}
+          {entry.direction === "download" &&
+            (entry.state === "failed" || entry.state === "cancelled") && (
+              <>
+                <ControlButton
+                  icon={RotateCcw}
+                  label="Retry download"
+                  tone="accent"
+                  onClick={() => controls.onRetryDownload(entry.id)}
+                />
+                <ControlButton icon={X} label="Dismiss" onClick={() => controls.onDismiss(entry)} />
+              </>
+            )}
 
           {/* Done — Dismiss */}
           {entry.state === "done" && (

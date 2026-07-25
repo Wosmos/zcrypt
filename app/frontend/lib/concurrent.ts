@@ -15,7 +15,7 @@ export async function runWithConcurrency(
   count: number,
   limit: number,
   worker: (index: number) => Promise<void>,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<void> {
   const queue = Array.from({ length: count }, (_, i) => i);
   const runners: Promise<void>[] = [];
@@ -26,7 +26,7 @@ export async function runWithConcurrency(
           if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
           await worker(queue.shift()!);
         }
-      })()
+      })(),
     );
   }
   await Promise.all(runners);

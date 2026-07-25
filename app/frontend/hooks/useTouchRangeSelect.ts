@@ -140,7 +140,7 @@ export function useTouchRangeSelect({
       document.addEventListener("touchend", onEndRef.current);
       document.addEventListener("touchcancel", onEndRef.current);
     },
-    [teardown]
+    [teardown],
   );
 
   // Clean up if the component unmounts mid-press.

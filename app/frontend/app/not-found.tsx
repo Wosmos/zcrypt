@@ -33,8 +33,8 @@ export default function NotFound() {
 
         <h1 className="text-2xl font-bold mb-2">Page not found</h1>
         <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-sm mx-auto">
-          The page you&apos;re looking for doesn&apos;t exist or has been moved.
-          Check the URL or head back to safety.
+          The page you&apos;re looking for doesn&apos;t exist or has been moved. Check the URL or
+          head back to safety.
         </p>
 
         {/* Actions */}
@@ -57,7 +57,10 @@ export default function NotFound() {
 
         <div className="mt-12">
           <p className="text-xs text-[var(--color-text-muted)]">
-            Need help? Contact <a href="mailto:[EMAIL_ADDRESS]" className="text-[var(--color-accent)] hover:underline">support</a>
+            Need help? Contact{" "}
+            <a href="mailto:[EMAIL_ADDRESS]" className="text-[var(--color-accent)] hover:underline">
+              support
+            </a>
           </p>
         </div>
       </div>

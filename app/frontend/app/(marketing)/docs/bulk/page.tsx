@@ -1,12 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import {
-  DocPage,
-  DocSection,
-  DocP,
-  DocList,
-  DocNote,
-} from "@/components/docs/doc-page";
+import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
 
 export const metadata: Metadata = {
   title: "Bulk operations | zcrypt Docs",
@@ -38,52 +32,68 @@ export default function BulkDocPage() {
     >
       <DocSection id="select" title="Selecting multiple files">
         <DocP>
-          Multi-select is built into the explorer. Use your mouse to pick out
-          files, and the usual keyboard modifiers to extend a selection — add
-          individual files, or select a contiguous range — then keep going with
-          the keyboard to grow or shrink it. The toolbar updates to show how many
-          items are selected and which bulk actions apply.
+          Multi-select is built into the explorer. Use your mouse to pick out files, and the usual
+          keyboard modifiers to extend a selection — add individual files, or select a contiguous
+          range — then keep going with the keyboard to grow or shrink it. The toolbar updates to
+          show how many items are selected and which bulk actions apply.
         </DocP>
       </DocSection>
 
       <DocSection id="zip" title="Download as a ZIP">
         <DocP>
-          With several files selected, download them together as a single ZIP
-          archive. Each file is fetched, verified, decrypted, and decompressed{" "}
-          <strong>on your device</strong> — exactly like a normal download — and
-          then packed into the ZIP locally. Nothing is ever assembled or
-          decrypted on the server. Files from{" "}
-          <Link href="/docs/folder-encryption" className="text-cyan-600 hover:underline dark:text-cyan-400">protected folders</Link>{" "}
+          With several files selected, download them together as a single ZIP archive. Each file is
+          fetched, verified, decrypted, and decompressed <strong>on your device</strong> — exactly
+          like a normal download — and then packed into the ZIP locally. Nothing is ever assembled
+          or decrypted on the server. Files from{" "}
+          <Link
+            href="/docs/folder-encryption"
+            className="text-cyan-600 hover:underline dark:text-cyan-400"
+          >
+            protected folders
+          </Link>{" "}
           are decrypted with their folder password as part of the same pass.
         </DocP>
         <DocNote type="info" title="~2 GB cap">
-          ZIP creation happens in the browser, so the combined size is capped at
-          roughly 2 GB. If your selection totals more than that, zcrypt asks you
-          to download the larger files individually instead of building one
-          oversized archive.
+          ZIP creation happens in the browser, so the combined size is capped at roughly 2 GB. If
+          your selection totals more than that, zcrypt asks you to download the larger files
+          individually instead of building one oversized archive.
         </DocNote>
       </DocSection>
 
       <DocSection id="delete" title="Bulk delete">
         <DocP>
-          Select a batch and delete it in one action. Like single deletes, this
-          moves the files to the{" "}
-          <Link href="/docs/trash" className="text-cyan-600 hover:underline dark:text-cyan-400">Trash</Link>,
-          where they can be restored or purged later — so a bulk delete is
-          recoverable until you empty the Trash.
+          Select a batch and delete it in one action. Like single deletes, this moves the files to
+          the{" "}
+          <Link href="/docs/trash" className="text-cyan-600 hover:underline dark:text-cyan-400">
+            Trash
+          </Link>
+          , where they can be restored or purged later — so a bulk delete is recoverable until you
+          empty the Trash.
         </DocP>
       </DocSection>
 
       <DocSection id="next" title="Where to go next">
         <DocList
           items={[
-            <Link key="a" href="/docs/downloading" className="text-cyan-600 hover:underline dark:text-cyan-400">
+            <Link
+              key="a"
+              href="/docs/downloading"
+              className="text-cyan-600 hover:underline dark:text-cyan-400"
+            >
               Downloading — what happens to each file inside the ZIP
             </Link>,
-            <Link key="b" href="/docs/organizing" className="text-cyan-600 hover:underline dark:text-cyan-400">
+            <Link
+              key="b"
+              href="/docs/organizing"
+              className="text-cyan-600 hover:underline dark:text-cyan-400"
+            >
               Moving &amp; organizing — drag-and-drop and move-to-folder
             </Link>,
-            <Link key="c" href="/docs/trash" className="text-cyan-600 hover:underline dark:text-cyan-400">
+            <Link
+              key="c"
+              href="/docs/trash"
+              className="text-cyan-600 hover:underline dark:text-cyan-400"
+            >
               Trash &amp; restore — recovering bulk-deleted files
             </Link>,
           ]}

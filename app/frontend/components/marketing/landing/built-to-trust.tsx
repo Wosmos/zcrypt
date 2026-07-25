@@ -14,7 +14,11 @@ type Card = {
   body: string;
 } & (
   | { visual: "terminal" }
-  | { visual: "icon"; Icon: React.ComponentType<{ className?: string; strokeWidth?: number }>; accent: keyof typeof accentTile }
+  | {
+      visual: "icon";
+      Icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+      accent: keyof typeof accentTile;
+    }
 );
 
 const accentTile = {
@@ -80,7 +84,7 @@ const stickyTop = (index: number) => 88 + index * 14;
 const cardClass = cn(
   "relative origin-top overflow-hidden rounded-[28px] border border-[var(--color-border)]",
   "bg-gradient-to-b from-[var(--color-surface-1)] to-[var(--color-surface)] p-8 sm:p-10 lg:p-12",
-  "shadow-sm dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_30px_80px_-32px_rgba(0,0,0,0.85)]"
+  "shadow-sm dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_30px_80px_-32px_rgba(0,0,0,0.85)]",
 );
 
 function CardBody({ card }: { card: Card }) {
@@ -104,9 +108,7 @@ function CardBody({ card }: { card: Card }) {
           <h3 className="mt-4 font-heading text-2xl font-semibold tracking-tight text-[var(--color-text)] sm:text-3xl">
             {card.heading}
           </h3>
-          <p className="mt-3 leading-relaxed text-[var(--color-text-secondary)]">
-            {card.body}
-          </p>
+          <p className="mt-3 leading-relaxed text-[var(--color-text-secondary)]">{card.body}</p>
         </div>
 
         {/* Visual */}
@@ -138,7 +140,7 @@ function CardBody({ card }: { card: Card }) {
             <div
               className={cn(
                 "grid h-[72px] w-[72px] place-items-center rounded-[18px] border",
-                accentTile[card.accent]
+                accentTile[card.accent],
               )}
             >
               <card.Icon className="h-8 w-8" strokeWidth={1.8} />

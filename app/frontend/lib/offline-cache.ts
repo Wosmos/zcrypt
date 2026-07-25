@@ -58,7 +58,18 @@ class OfflineCache {
       this.db.run(
         `INSERT OR REPLACE INTO file_cache (id, user_id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, created_at, folder_id)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [f.id, userId, f.original_name, f.original_size, f.compressed_size, f.encrypted_size, f.chunk_count, f.sha256, f.created_at, f.folder_id ?? null]
+        [
+          f.id,
+          userId,
+          f.original_name,
+          f.original_size,
+          f.compressed_size,
+          f.encrypted_size,
+          f.chunk_count,
+          f.sha256,
+          f.created_at,
+          f.folder_id ?? null,
+        ],
       );
     }
     this.setMeta(`files_updated_${userId}`, new Date().toISOString());
@@ -70,7 +81,7 @@ class OfflineCache {
   getFiles(userId: string): FileMetadata[] {
     const result = this.db.exec(
       "SELECT id, original_name, original_size, compressed_size, encrypted_size, chunk_count, sha256, created_at, folder_id FROM file_cache WHERE user_id = ? ORDER BY created_at DESC",
-      [userId]
+      [userId],
     );
     if (!result.length) return [];
     return result[0].values.map((row: unknown[]) => ({
@@ -107,7 +118,11 @@ class OfflineCache {
     this.dirty = false;
 
     try {
-      if (typeof navigator !== "undefined" && "storage" in navigator && "getDirectory" in navigator.storage) {
+      if (
+        typeof navigator !== "undefined" &&
+        "storage" in navigator &&
+        "getDirectory" in navigator.storage
+      ) {
         const root = await navigator.storage.getDirectory();
         const fileHandle = await root.getFileHandle(DB_FILE, { create: true });
         const writable = await fileHandle.createWritable();
@@ -127,7 +142,11 @@ class OfflineCache {
 
 async function loadFromOPFS(): Promise<Uint8Array | null> {
   try {
-    if (typeof navigator === "undefined" || !("storage" in navigator) || !("getDirectory" in navigator.storage)) {
+    if (
+      typeof navigator === "undefined" ||
+      !("storage" in navigator) ||
+      !("getDirectory" in navigator.storage)
+    ) {
       return null;
     }
     const root = await navigator.storage.getDirectory();

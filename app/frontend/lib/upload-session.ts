@@ -61,7 +61,7 @@ function xhrPut(
   headers: Record<string, string>,
   data: Uint8Array,
   onProgress?: (sentBytes: number) => void,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<XhrResult> {
   // Stall watchdog. A fixed xhr.timeout would false-abort a large chunk on a
   // slow-but-progressing link, and NOT setting one (the old bug) let a dead
@@ -90,7 +90,11 @@ function xhrPut(
     let stallTimer: ReturnType<typeof setTimeout>;
     const onSignalAbort = () => {
       externallyAborted = true;
-      try { xhr.abort(); } catch { /* already settled */ }
+      try {
+        xhr.abort();
+      } catch {
+        /* already settled */
+      }
     };
     signal?.addEventListener("abort", onSignalAbort, { once: true });
     const clearStall = () => {
@@ -101,19 +105,43 @@ function xhrPut(
       clearTimeout(stallTimer);
       stallTimer = setTimeout(() => {
         stalled = true;
-        try { xhr.abort(); } catch { /* already settled */ }
+        try {
+          xhr.abort();
+        } catch {
+          /* already settled */
+        }
       }, STALL_MS);
     };
     // Always track upload progress for the watchdog; forward to the caller too.
-    xhr.upload.onprogress = (e: ProgressEvent) => { armStall(); onProgress?.(e.loaded); };
+    xhr.upload.onprogress = (e: ProgressEvent) => {
+      armStall();
+      onProgress?.(e.loaded);
+    };
     xhr.upload.onload = () => armStall(); // body sent — now watch for the response
-    xhr.onload = () => { clearStall(); resolve({ status: xhr.status, body: xhr.responseText }); };
-    xhr.onerror = () => { clearStall(); reject(new TypeError("Network request failed")); };
+    xhr.onload = () => {
+      clearStall();
+      resolve({ status: xhr.status, body: xhr.responseText });
+    };
+    xhr.onerror = () => {
+      clearStall();
+      reject(new TypeError("Network request failed"));
+    };
     xhr.onabort = () => {
       clearStall();
-      reject(new Error(externallyAborted ? "Upload paused" : stalled ? "Upload stalled (no progress for 60s)" : "Upload aborted"));
+      reject(
+        new Error(
+          externallyAborted
+            ? "Upload paused"
+            : stalled
+              ? "Upload stalled (no progress for 60s)"
+              : "Upload aborted",
+        ),
+      );
     };
-    xhr.ontimeout = () => { clearStall(); reject(new Error("Upload timed out")); };
+    xhr.ontimeout = () => {
+      clearStall();
+      reject(new Error("Upload timed out"));
+    };
     armStall(); // start the clock before the first byte
     xhr.send(data as unknown as XMLHttpRequestBodyInit);
   });
@@ -141,11 +169,17 @@ async function authedXhrPut(
   headers: Record<string, string>,
   data: Uint8Array,
   onProgress?: (sentBytes: number) => void,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<void> {
   const { accessToken } = useAuthStore.getState();
   const send = (token: string | null) =>
-    xhrPut(url, token ? { ...headers, Authorization: `Bearer ${token}` } : headers, data, onProgress, signal);
+    xhrPut(
+      url,
+      token ? { ...headers, Authorization: `Bearer ${token}` } : headers,
+      data,
+      onProgress,
+      signal,
+    );
 
   let res = await send(accessToken);
   if (res.status === 401 && accessToken) {
@@ -222,7 +256,7 @@ export async function uploadChunk(
   sha256: string,
   compressed: boolean,
   onProgress?: (sentBytes: number) => void,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<void> {
   const headers: Record<string, string> = {
     "Content-Type": "application/octet-stream",
@@ -237,7 +271,7 @@ export async function uploadChunk(
     headers,
     encryptedData,
     onProgress,
-    signal
+    signal,
   );
 }
 
@@ -253,16 +287,13 @@ export async function presignChunk(
   sessionId: string,
   index: number,
   sha256: string,
-  size: number
+  size: number,
 ): Promise<PresignResponse> {
-  const res = await authedFetch(
-    `${API_BASE}/api/upload/${sessionId}/presign/${index}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sha256, size }),
-    }
-  );
+  const res = await authedFetch(`${API_BASE}/api/upload/${sessionId}/presign/${index}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sha256, size }),
+  });
   return handleResponse<PresignResponse>(res);
 }
 
@@ -274,7 +305,7 @@ export async function directUploadToURL(
   headers: Record<string, string> | null,
   data: Uint8Array,
   onProgress?: (sentBytes: number) => void,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<void> {
   let lastError: Error | null = null;
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -290,7 +321,7 @@ export async function directUploadToURL(
         },
         data,
         onProgress,
-        signal
+        signal,
       );
       if (res.status >= 200 && res.status < 300) return;
       lastError = new Error(`Direct upload failed: ${res.status}`);
@@ -310,21 +341,18 @@ export async function confirmChunk(
   sha256: string,
   size: number,
   remotePath: string,
-  compressed: boolean
+  compressed: boolean,
 ): Promise<void> {
-  const res = await authedFetch(
-    `${API_BASE}/api/upload/${sessionId}/confirm/${index}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sha256,
-        size,
-        remote_path: remotePath,
-        compressed,
-      }),
-    }
-  );
+  const res = await authedFetch(`${API_BASE}/api/upload/${sessionId}/confirm/${index}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      sha256,
+      size,
+      remote_path: remotePath,
+      compressed,
+    }),
+  });
   await throwIfNotOk(res);
 }
 
@@ -336,7 +364,7 @@ export interface UploadCompleteResponse {
 export async function completeUpload(
   sessionId: string,
   encryptedSize: number,
-  compressedSize: number
+  compressedSize: number,
 ): Promise<UploadCompleteResponse> {
   const res = await authedFetch(`${API_BASE}/api/upload/${sessionId}/complete`, {
     method: "POST",

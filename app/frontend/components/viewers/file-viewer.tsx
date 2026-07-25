@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import NextImage from "next/image";
 import {
@@ -91,7 +85,7 @@ export interface FileViewerProps {
    */
   decrypt: (
     file: FileMetadata,
-    onProgress?: (done: number, total: number) => void
+    onProgress?: (done: number, total: number) => void,
   ) => Promise<Blob>;
   /**
    * Optional best-effort cache warm-up for a file (never prompts). When given,
@@ -197,9 +191,7 @@ export function FileViewer({
         // otherwise resurrect the spinner).
         const blob = await decryptRef.current(file, (done, total) => {
           if (cancelled) return;
-          setState((s) =>
-            s.status === "loading" ? { status: "loading", done, total } : s
-          );
+          setState((s) => (s.status === "loading" ? { status: "loading", done, total } : s));
         });
         if (cancelled) return;
         // Some sub-viewers want a URL (image/video/audio), others read the blob
@@ -346,9 +338,9 @@ export function FileViewer({
       } else if (e.key === "Tab") {
         const node = overlayRef.current;
         if (!node) return;
-        const focusable = Array.from(
-          node.querySelectorAll<HTMLElement>(FOCUSABLE)
-        ).filter((el) => el.offsetParent !== null);
+        const focusable = Array.from(node.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
+          (el) => el.offsetParent !== null,
+        );
         if (focusable.length === 0) {
           e.preventDefault();
           node.focus();
@@ -426,7 +418,7 @@ export function FileViewer({
           className={cn(
             "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl",
             info.bg,
-            info.color
+            info.color,
           )}
         >
           <FileText className="h-4 w-4" />
@@ -505,7 +497,7 @@ export function FileViewer({
         </div>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }
 
@@ -700,13 +692,7 @@ function DecryptProgress({ done, total }: { done?: number; total?: number }) {
   );
 }
 
-function FallbackBody({
-  file,
-  onDownload,
-}: {
-  file: FileMetadata;
-  onDownload: () => void;
-}) {
+function FallbackBody({ file, onDownload }: { file: FileMetadata; onDownload: () => void }) {
   const info = getFileTypeInfo(file.original_name);
   return (
     <div className="flex h-full flex-col items-center justify-center gap-4">
@@ -714,7 +700,7 @@ function FallbackBody({
         className={cn(
           "flex h-20 w-20 items-center justify-center rounded-2xl",
           info.bg,
-          info.color
+          info.color,
         )}
       >
         <FileText className="h-9 w-9" />

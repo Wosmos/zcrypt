@@ -13,13 +13,7 @@ import { SubmitButton } from "@/components/auth/submit-button";
 import { EmailField } from "@/components/auth/email-field";
 import { useAuthStore } from "@/store/auth";
 import { toast } from "@/store/toast";
-import {
-  Lock,
-  User,
-  ArrowRight,
-  CheckCircle2,
-  AlertTriangle,
-} from "@/lib/icons";
+import { Lock, User, ArrowRight, CheckCircle2, AlertTriangle } from "@/lib/icons";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -121,8 +115,8 @@ export default function RegisterPage() {
       >
         <p className="text-sm text-[var(--color-text-secondary)] mt-2 leading-relaxed">
           We sent a verification link to{" "}
-          <strong className="text-[var(--color-text)]">{email}</strong>. Click
-          it to activate your account.
+          <strong className="text-[var(--color-text)]">{email}</strong>. Click it to activate your
+          account.
         </p>
       </AuthStatusCard>
     );
@@ -130,8 +124,6 @@ export default function RegisterPage() {
 
   return (
     <div className="animate-fade-in">
-     
-
       <div className="space-y-4">
         <OAuthButtons />
 
@@ -177,8 +169,7 @@ export default function RegisterPage() {
               <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
                 <p className="text-xs text-amber-700 dark:text-amber-300 font-medium">
-                  Password found in{" "}
-                  {breachWarning.count.toLocaleString()} data breach
+                  Password found in {breachWarning.count.toLocaleString()} data breach
                   {breachWarning.count !== 1 ? "es" : ""}
                 </p>
                 <p className="text-xs text-amber-600/70 dark:text-amber-400/60 mt-0.5">
@@ -209,8 +200,7 @@ export default function RegisterPage() {
       </div>
 
       <p className="text-center text-sm text-[var(--color-text-secondary)] mt-5">
-        Already have an account?{" "}
-        <AuthLink href="/login">Sign in</AuthLink>
+        Already have an account? <AuthLink href="/login">Sign in</AuthLink>
       </p>
     </div>
   );

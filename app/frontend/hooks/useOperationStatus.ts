@@ -19,10 +19,7 @@ const BASE_DELAY = 1_000;
 // notification every few minutes.
 const ERROR_THRESHOLD = 8;
 
-export function useOperationStatus(
-  onProgress: ProgressCallback,
-  onAudit?: AuditCallback
-) {
+export function useOperationStatus(onProgress: ProgressCallback, onAudit?: AuditCallback) {
   const progressRef = useRef(onProgress);
   progressRef.current = onProgress;
   const auditRef = useRef(onAudit);

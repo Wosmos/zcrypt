@@ -38,10 +38,7 @@ export function getReposData(): RepoInfo[] {
 
 /** Refetch both platform views after a connect/disconnect/scope change. */
 export function invalidatePlatforms(): Promise<void> {
-  return Promise.all([
-    invalidateKey(qk.platforms),
-    invalidateKey(qk.repos),
-  ]).then(() => undefined);
+  return Promise.all([invalidateKey(qk.platforms), invalidateKey(qk.repos)]).then(() => undefined);
 }
 
 /**

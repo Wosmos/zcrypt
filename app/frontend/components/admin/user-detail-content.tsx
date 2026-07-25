@@ -3,7 +3,14 @@
 import { useCallback, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { adminGetUser, adminSetUserRole, adminDeleteUser, adminSetUserQuota, adminSetUserPlan, adminGetPlans } from "@/lib/api";
+import {
+  adminGetUser,
+  adminSetUserRole,
+  adminDeleteUser,
+  adminSetUserQuota,
+  adminSetUserPlan,
+  adminGetPlans,
+} from "@/lib/api";
 import { formatBytes, cn, bytesToGb, usagePercent, formatRelativeTime } from "@/lib/utils";
 import { quotaModeFor, parseQuotaInput, formatQuotaDisplay, type QuotaMode } from "@/lib/quota";
 import { EVENT_ICONS } from "@/lib/audit-events";
@@ -25,15 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  ArrowLeft,
-  Shield,
-  Mail,
-  Clock,
-  User,
-  Trash2,
-  FileText,
-} from "@/lib/icons";
+import { ArrowLeft, Shield, Mail, Clock, User, Trash2, FileText } from "@/lib/icons";
 
 const eventColors: Record<string, string> = {
   login: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
@@ -107,9 +106,10 @@ export function AdminUserDetailContent() {
     const newRole = u.role === Role.Admin ? Role.User : Role.Admin;
     setConfirmAction({
       type: "role",
-      detail: u.role === Role.Admin
-        ? `${u.username} will lose admin privileges.`
-        : `${u.username} will gain full admin access.`,
+      detail:
+        u.role === Role.Admin
+          ? `${u.username} will lose admin privileges.`
+          : `${u.username} will gain full admin access.`,
       newValue: newRole,
     });
   };
@@ -196,7 +196,11 @@ export function AdminUserDetailContent() {
         };
       case "plan": {
         const targetConfig = planConfigs.find((p) => p.id === confirmAction.newValue);
-        return { title: `Change to ${targetConfig?.name || confirmAction.newValue}`, confirmLabel: "Change plan", variant: "warning" as const };
+        return {
+          title: `Change to ${targetConfig?.name || confirmAction.newValue}`,
+          confirmLabel: "Change plan",
+          variant: "warning" as const,
+        };
       }
     }
   };
@@ -223,7 +227,9 @@ export function AdminUserDetailContent() {
                 <User className="h-7 w-7" />
               </div>
               <div className="min-w-0">
-                <h2 className="truncate text-lg font-semibold tracking-tight text-[var(--color-text)]">{u.username}</h2>
+                <h2 className="truncate text-lg font-semibold tracking-tight text-[var(--color-text)]">
+                  {u.username}
+                </h2>
                 <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-[var(--color-text-muted)]">
                   <span className="flex items-center gap-1">
                     <Mail className="h-3.5 w-3.5" />
@@ -258,9 +264,15 @@ export function AdminUserDetailContent() {
                   </SelectTrigger>
                   <SelectContent>
                     {sortedPlans.length > 0
-                      ? sortedPlans.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)
+                      ? sortedPlans.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.name}
+                          </SelectItem>
+                        ))
                       : ["free", "plus", "pro", "team"].map((p) => (
-                          <SelectItem key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</SelectItem>
+                          <SelectItem key={p} value={p}>
+                            {p.charAt(0).toUpperCase() + p.slice(1)}
+                          </SelectItem>
                         ))}
                   </SelectContent>
                 </Select>
@@ -284,20 +296,30 @@ export function AdminUserDetailContent() {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between border-b border-[var(--color-border)] py-2">
                     <span className="text-xs text-[var(--color-text-muted)]">Storage</span>
-                    <span className="text-sm font-semibold tabular-nums">{userPlanConfig.storage_display}</span>
+                    <span className="text-sm font-semibold tabular-nums">
+                      {userPlanConfig.storage_display}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between border-b border-[var(--color-border)] py-2">
                     <span className="text-xs text-[var(--color-text-muted)]">Max file size</span>
-                    <span className="text-sm font-semibold tabular-nums">{userPlanConfig.max_file_display}</span>
+                    <span className="text-sm font-semibold tabular-nums">
+                      {userPlanConfig.max_file_display}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between border-b border-[var(--color-border)] py-2">
-                    <span className="text-xs text-[var(--color-text-muted)]">Concurrent uploads</span>
-                    <span className="text-sm font-semibold tabular-nums">{userPlanConfig.concurrent_display}</span>
+                    <span className="text-xs text-[var(--color-text-muted)]">
+                      Concurrent uploads
+                    </span>
+                    <span className="text-sm font-semibold tabular-nums">
+                      {userPlanConfig.concurrent_display}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between py-2">
                     <span className="text-xs text-[var(--color-text-muted)]">Price</span>
                     <span className="text-sm font-semibold tabular-nums">
-                      {userPlanConfig.monthly_price > 0 ? `$${userPlanConfig.monthly_price}/mo` : "Free"}
+                      {userPlanConfig.monthly_price > 0
+                        ? `$${userPlanConfig.monthly_price}/mo`
+                        : "Free"}
                     </span>
                   </div>
                 </div>
@@ -315,7 +337,10 @@ export function AdminUserDetailContent() {
                   </Button>
                 ) : (
                   <div className="flex items-center gap-2">
-                    <Select value={quotaMode} onValueChange={(v) => setQuotaMode(v as typeof quotaMode)}>
+                    <Select
+                      value={quotaMode}
+                      onValueChange={(v) => setQuotaMode(v as typeof quotaMode)}
+                    >
                       <SelectTrigger className="h-8 w-28 text-xs" aria-label="Quota mode">
                         <SelectValue />
                       </SelectTrigger>
@@ -350,7 +375,9 @@ export function AdminUserDetailContent() {
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <p className="text-xs text-[var(--color-text-muted)]">Used</p>
-                  <p className="text-lg font-semibold tabular-nums">{formatBytes(data.used_bytes)}</p>
+                  <p className="text-lg font-semibold tabular-nums">
+                    {formatBytes(data.used_bytes)}
+                  </p>
                 </div>
                 <div>
                   <p className="text-xs text-[var(--color-text-muted)]">Quota</p>
@@ -369,7 +396,11 @@ export function AdminUserDetailContent() {
                   <div
                     className={cn(
                       "h-full rounded-full transition-all duration-500",
-                      storagePercent > 90 ? "bg-red-500" : storagePercent > 70 ? "bg-amber-500" : "bg-[var(--color-accent)]"
+                      storagePercent > 90
+                        ? "bg-red-500"
+                        : storagePercent > 70
+                          ? "bg-amber-500"
+                          : "bg-[var(--color-accent)]",
                     )}
                     style={{ width: `${storagePercent}%` }}
                   />
@@ -383,8 +414,12 @@ export function AdminUserDetailContent() {
         <section className="panel overflow-hidden">
           <div className="flex items-center gap-2 border-b border-[var(--color-border)] px-5 py-4">
             <FileText className="h-4 w-4 text-[var(--color-text-muted)]" />
-            <h3 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">Recent activity</h3>
-            <span className="text-xs text-[var(--color-text-muted)] tabular-nums">({events.length} events)</span>
+            <h3 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
+              Recent activity
+            </h3>
+            <span className="text-xs text-[var(--color-text-muted)] tabular-nums">
+              ({events.length} events)
+            </span>
           </div>
 
           {events.length === 0 ? (
@@ -397,17 +432,28 @@ export function AdminUserDetailContent() {
             <div className="divide-y divide-[var(--color-border)]">
               {events.map((event) => {
                 const Icon = EVENT_ICONS[event.event_type] ?? Shield;
-                const color = eventColors[event.event_type] ?? "bg-slate-500/10 text-slate-600 dark:text-slate-400";
+                const color =
+                  eventColors[event.event_type] ??
+                  "bg-slate-500/10 text-slate-600 dark:text-slate-400";
                 return (
                   <div key={event.id} className="flex items-center gap-3 px-5 py-3">
-                    <div className={cn("flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg", color)}>
+                    <div
+                      className={cn(
+                        "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg",
+                        color,
+                      )}
+                    >
                       <Icon className="h-3.5 w-3.5" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <span className={cn("rounded px-1.5 py-0.5 text-[10px] font-semibold", color)}>
+                      <span
+                        className={cn("rounded px-1.5 py-0.5 text-[10px] font-semibold", color)}
+                      >
                         {event.event_type.replace(/_/g, " ")}
                       </span>
-                      <span className="ml-2 text-xs text-[var(--color-text-muted)]">{event.ip}</span>
+                      <span className="ml-2 text-xs text-[var(--color-text-muted)]">
+                        {event.ip}
+                      </span>
                     </div>
                     <span className="flex-shrink-0 text-xs text-[var(--color-text-muted)] tabular-nums">
                       {formatRelativeTime(event.created_at)}

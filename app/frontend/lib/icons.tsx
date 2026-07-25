@@ -24,14 +24,14 @@ function makeIcon(iconData: IconSvgElement, displayName: string) {
         className={className}
         {...props}
       />
-    )
+    ),
   );
   Icon.displayName = displayName;
   return Icon;
 }
 
 // Helper to create icon with optional rename
-const icon = (name: keyof typeof HugeIcons, exportName?: string) => 
+const icon = (name: keyof typeof HugeIcons, exportName?: string) =>
   makeIcon(HugeIcons[name], exportName || name);
 
 export const Shield = icon("Shield");

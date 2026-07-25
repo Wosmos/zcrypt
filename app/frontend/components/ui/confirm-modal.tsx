@@ -21,13 +21,16 @@ interface ConfirmModalProps {
   loading?: boolean;
 }
 
-const variantConfig: Record<ConfirmVariant, {
-  icon: typeof Trash2;
-  iconBg: string;
-  iconColor: string;
-  confirmBg: string;
-  confirmHover: string;
-}> = {
+const variantConfig: Record<
+  ConfirmVariant,
+  {
+    icon: typeof Trash2;
+    iconBg: string;
+    iconColor: string;
+    confirmBg: string;
+    confirmHover: string;
+  }
+> = {
   danger: {
     icon: Trash2,
     iconBg: "bg-red-500/10",
@@ -101,7 +104,12 @@ export function ConfirmModal({
       >
         {/* Header */}
         <div className="flex items-start gap-3 p-6 pb-0">
-          <div className={cn("flex items-center justify-center h-10 w-10 rounded-xl flex-shrink-0", config.iconBg)}>
+          <div
+            className={cn(
+              "flex items-center justify-center h-10 w-10 rounded-xl flex-shrink-0",
+              config.iconBg,
+            )}
+          >
             <Icon className={cn("h-5 w-5", config.iconColor)} />
           </div>
           <div className="flex-1 min-w-0">
@@ -144,7 +152,7 @@ export function ConfirmModal({
             disabled={loading}
             className={cn(
               "flex-1 rounded-xl px-4 py-2.5 text-sm font-medium text-white transition-colors disabled:opacity-50",
-              config.confirmBg
+              config.confirmBg,
             )}
           >
             {loading ? (
@@ -159,6 +167,6 @@ export function ConfirmModal({
         </div>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }

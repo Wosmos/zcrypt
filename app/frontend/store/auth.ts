@@ -21,14 +21,9 @@ interface AuthStore {
 
 export const useAuthStore = create<AuthStore>((set) => ({
   user: null,
-  accessToken:
-    typeof window !== "undefined"
-      ? localStorage.getItem("zcrypt-access-token")
-      : null,
+  accessToken: typeof window !== "undefined" ? localStorage.getItem("zcrypt-access-token") : null,
   refreshTokenValue:
-    typeof window !== "undefined"
-      ? localStorage.getItem("zcrypt-refresh-token")
-      : null,
+    typeof window !== "undefined" ? localStorage.getItem("zcrypt-refresh-token") : null,
   loading: false,
   initialized: false,
 

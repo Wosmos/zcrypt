@@ -37,9 +37,7 @@ export function PlatformHealth({ statuses, repos }: PlatformHealthProps) {
   return (
     <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-semibold text-[var(--color-text-secondary)]">
-          Platforms
-        </span>
+        <span className="text-xs font-semibold text-[var(--color-text-secondary)]">Platforms</span>
         <Link
           href="/settings"
           className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors"
@@ -63,15 +61,15 @@ export function PlatformHealth({ statuses, repos }: PlatformHealthProps) {
                   <span className="text-[var(--color-text-secondary)]">
                     {platformIcons[platform]}
                   </span>
-                  <span className="text-xs font-medium">
-                    {platformName(platform)}
-                  </span>
+                  <span className="text-xs font-medium">{platformName(platform)}</span>
                   {accounts.length > 1 && (
                     <span className="text-[10px] text-[var(--color-text-muted)]">
                       ({accounts.length} accounts)
                     </span>
                   )}
-                  <span className={`h-1.5 w-1.5 rounded-full ${hasError ? "bg-red-500" : "bg-cyan-500"}`} />
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${hasError ? "bg-red-500" : "bg-cyan-500"}`}
+                  />
                 </div>
                 {platformRepos.length > 0 && (
                   <span className="text-xs tabular-nums text-[var(--color-text-muted)]">

@@ -21,7 +21,7 @@ export function ScrollReveal({
       className={cn(
         "transition-[opacity,transform] duration-[600ms] ease-out",
         isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-[30px]",
-        className
+        className,
       )}
     >
       {children}

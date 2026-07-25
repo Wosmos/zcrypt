@@ -25,7 +25,6 @@ function expiresInLabel(expiresAt: string, now: number): string {
   return `expires in ${weeks} week${weeks === 1 ? "" : "s"}`;
 }
 
-
 /**
  * Shows uploads that were started but never finished (from the server's active
  * upload sessions), so a user can see WHAT is pending — including which storage
@@ -38,7 +37,11 @@ function expiresInLabel(expiresAt: string, now: number): string {
  * so the platform pin survives) to the upload flow, which continues from the
  * server's already-received chunks on the session's original platform.
  */
-export function IncompleteUploads({ onResume }: { onResume: (file: File, upload: IncompleteUpload) => void }) {
+export function IncompleteUploads({
+  onResume,
+}: {
+  onResume: (file: File, upload: IncompleteUpload) => void;
+}) {
   const [uploads, setUploads] = useState<IncompleteUpload[]>([]);
   const [expanded, setExpanded] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -63,7 +66,10 @@ export function IncompleteUploads({ onResume }: { onResume: (file: File, upload:
   // appears here as "unfinished / resume or discard" while it's plainly still going.
   const queue = useUploadStore((s) => s.queue);
   const liveKeys = useMemo(
-    () => new Set(queue.filter((i) => i.status !== "done").map((i) => `${i.file.name}::${i.file.size}`)),
+    () =>
+      new Set(
+        queue.filter((i) => i.status !== "done").map((i) => `${i.file.name}::${i.file.size}`),
+      ),
     [queue],
   );
   // When an in-tab upload finishes, its server session flips to complete — re-fetch
@@ -80,7 +86,9 @@ export function IncompleteUploads({ onResume }: { onResume: (file: File, upload:
   const resumeWithFile = useCallback(
     (file: File, target: IncompleteUpload) => {
       if (file.name !== target.filename || file.size !== target.original_size) {
-        toast.warning(`That's not the same file — pick "${target.filename}" (${formatBytes(target.original_size)}) to resume.`);
+        toast.warning(
+          `That's not the same file — pick "${target.filename}" (${formatBytes(target.original_size)}) to resume.`,
+        );
         return;
       }
       onResume(file, target); // resumes the session on its ORIGINAL platform
@@ -158,7 +166,10 @@ export function IncompleteUploads({ onResume }: { onResume: (file: File, upload:
 
           <ul className="divide-y divide-[var(--color-border)]">
             {visible.map((u) => {
-              const pct = u.chunk_count > 0 ? Math.min(100, Math.round((u.uploaded_chunks / u.chunk_count) * 100)) : 0;
+              const pct =
+                u.chunk_count > 0
+                  ? Math.min(100, Math.round((u.uploaded_chunks / u.chunk_count) * 100))
+                  : 0;
               const platform = platformName(u.platform);
               return (
                 <li key={u.session_id} className="px-4 py-3">
@@ -176,10 +187,15 @@ export function IncompleteUploads({ onResume }: { onResume: (file: File, upload:
                         <span className="text-[var(--color-text-muted)]">·</span>
                         <span className="tabular-nums">{pct}%</span>
                         <span className="text-[var(--color-text-muted)]">·</span>
-                        <span className="text-amber-600 dark:text-amber-400">{expiresInLabel(u.expires_at, now)}</span>
+                        <span className="text-amber-600 dark:text-amber-400">
+                          {expiresInLabel(u.expires_at, now)}
+                        </span>
                       </div>
                       <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-[var(--color-surface)]">
-                        <div className="h-full rounded-full bg-amber-500" style={{ width: `${pct}%` }} />
+                        <div
+                          className="h-full rounded-full bg-amber-500"
+                          style={{ width: `${pct}%` }}
+                        />
                       </div>
                     </div>
 
@@ -198,7 +214,11 @@ export function IncompleteUploads({ onResume }: { onResume: (file: File, upload:
                         className="flex items-center justify-center rounded-lg border border-[var(--color-border)] p-1.5 text-[var(--color-text-muted)] transition-colors hover:border-red-400/40 hover:text-red-400 disabled:opacity-50"
                         title="Discard this unfinished upload"
                       >
-                        {busy === u.session_id ? <X className="h-3.5 w-3.5 animate-pulse" /> : <Trash2 className="h-3.5 w-3.5" />}
+                        {busy === u.session_id ? (
+                          <X className="h-3.5 w-3.5 animate-pulse" />
+                        ) : (
+                          <Trash2 className="h-3.5 w-3.5" />
+                        )}
                       </button>
                     </div>
                   </div>

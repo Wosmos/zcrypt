@@ -63,7 +63,12 @@ export default function BringYourOwnStoragePage() {
         secondaryHref={hero.secondaryHref}
       >
         {/* Adapters mock */}
-        <MockWindowFrame label="Connected storage" labelIcon={Server} badgeIcon={Lock} badgeLabel="Encrypted before upload">
+        <MockWindowFrame
+          label="Connected storage"
+          labelIcon={Server}
+          badgeIcon={Lock}
+          badgeLabel="Encrypted before upload"
+        >
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
             {adapters.map((a) => (
               <div
@@ -91,7 +96,9 @@ export default function BringYourOwnStoragePage() {
               <span className="rounded bg-cyan-500/10 px-1.5 py-0.5 text-cyan-600 dark:text-cyan-400">
                 chunk-03
               </span>
-              <span className="text-[var(--color-text-muted)]">→ stored as build-cache in a repo you own</span>
+              <span className="text-[var(--color-text-muted)]">
+                → stored as build-cache in a repo you own
+              </span>
             </div>
           </div>
         </MockWindowFrame>
@@ -104,9 +111,7 @@ export default function BringYourOwnStoragePage() {
             <h2 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
               {adaptersSection.heading}
             </h2>
-            <p className="mt-3 text-[var(--color-text-secondary)]">
-              {adaptersSection.subheading}
-            </p>
+            <p className="mt-3 text-[var(--color-text-secondary)]">{adaptersSection.subheading}</p>
           </div>
           <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 list-none">
             {adapters.map((a) => (
@@ -149,24 +154,23 @@ export default function BringYourOwnStoragePage() {
             success="✓ your accounts. your bytes. no zcrypt-sold quota."
           >
             <div>
-              <span className="text-cyan-600/80 dark:text-cyan-400/80">1</span> encrypt
-              on device — AES-256-GCM
+              <span className="text-cyan-600/80 dark:text-cyan-400/80">1</span> encrypt on device —
+              AES-256-GCM
             </div>
             <div className="mt-1.5">
-              <span className="text-cyan-600/80 dark:text-cyan-400/80">2</span> split
-              into chunks
+              <span className="text-cyan-600/80 dark:text-cyan-400/80">2</span> split into chunks
             </div>
             <div className="mt-1.5">
-              <span className="text-cyan-600/80 dark:text-cyan-400/80">3</span> disguise
-              as <span className="text-[var(--color-text-secondary)]">build-cache-*.bin</span>
+              <span className="text-cyan-600/80 dark:text-cyan-400/80">3</span> disguise as{" "}
+              <span className="text-[var(--color-text-secondary)]">build-cache-*.bin</span>
             </div>
             <div className="mt-1.5">
-              <span className="text-cyan-600/80 dark:text-cyan-400/80">4</span> upload to
-              a repo you own
+              <span className="text-cyan-600/80 dark:text-cyan-400/80">4</span> upload to a repo you
+              own
             </div>
             <div className="mt-1.5">
-              <span className="text-cyan-600/80 dark:text-cyan-400/80">5</span> repo near
-              limit? <span className="text-amber-500">rotate →</span> fresh repo
+              <span className="text-cyan-600/80 dark:text-cyan-400/80">5</span> repo near limit?{" "}
+              <span className="text-amber-500">rotate →</span> fresh repo
             </div>
           </CodePanel>
         }

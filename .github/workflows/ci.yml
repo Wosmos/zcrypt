@@ -154,10 +154,28 @@ jobs:
         working-directory: app/frontend
         run: bun install --frozen-lockfile
 
+      # tsgo = TypeScript 7 native compiler (fast `tsc --noEmit`). The Build step
+      # below still type-checks with classic tsc 5.7 via `next build`, so this is
+      # a fast pre-gate, not the sole authority. Advisory (continue-on-error):
+      # @typescript/native-preview is a dated nightly pin that can be pruned or
+      # break upstream; `next build`'s classic tsc remains the blocking authority.
       - name: Type check
         if: github.event_name == 'pull_request'
         working-directory: app/frontend
-        run: bunx tsc --noEmit
+        continue-on-error: true
+        run: bunx tsgo --noEmit
+
+      # Rust toolchain gates — both sub-second. Fork PRs never ran the local
+      # pre-push hook, so this is the only place their lint/format is checked.
+      - name: Lint (oxlint)
+        if: github.event_name == 'pull_request'
+        working-directory: app/frontend
+        run: bunx oxlint app components lib hooks store
+
+      - name: Format check (biome)
+        if: github.event_name == 'pull_request'
+        working-directory: app/frontend
+        run: bunx biome format .
 
       - name: Unit tests (with coverage)
         if: github.event_name == 'pull_request'

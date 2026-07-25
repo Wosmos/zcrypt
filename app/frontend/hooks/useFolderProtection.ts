@@ -95,7 +95,7 @@ export interface UseFolderProtection {
     folderId: string,
     folderName: string,
     action: () => void,
-    onCancel?: () => void
+    onCancel?: () => void,
   ) => void;
   /** Clear one folder's cached password (e.g. after a wrong-password decrypt). */
   clearFolderPassword: (folderId: string) => void;
@@ -109,7 +109,7 @@ export interface UseFolderProtection {
     newPassword: string,
     filesInFolder: FileMetadata[],
     vaultPassphrase: string,
-    onProgress?: (p: RekeyProgress) => void
+    onProgress?: (p: RekeyProgress) => void,
   ) => Promise<void>;
   /**
    * Unprotect a folder: re-key every file back to the vault passphrase using the
@@ -120,18 +120,14 @@ export interface UseFolderProtection {
     folderPassword: string,
     filesInFolder: FileMetadata[],
     vaultPassphrase: string,
-    onProgress?: (p: RekeyProgress) => void
+    onProgress?: (p: RekeyProgress) => void,
   ) => Promise<void>;
   /**
    * Re-key one file across a protection boundary: recover its CEK under the
    * source password, rewrap under the destination password with a fresh salt,
    * persist via rekeyFile. Caller does the moveFile AFTER this resolves.
    */
-  rekeyFileForMove: (
-    fileId: string,
-    sourcePassword: string,
-    destPassword: string
-  ) => Promise<void>;
+  rekeyFileForMove: (fileId: string, sourcePassword: string, destPassword: string) => Promise<void>;
   /** Spread onto exactly ONE folder-unlock modal rendered by the page. */
   modalState: FolderUnlockModalState;
 }
@@ -161,7 +157,7 @@ export function useFolderProtection(vault: UseVaultLock): UseFolderProtection {
       const info = registryGet(fid);
       return info != null && info.pwSalt != null;
     },
-    [registryGet]
+    [registryGet],
   );
 
   const openModal = useCallback(
@@ -169,7 +165,7 @@ export function useFolderProtection(vault: UseVaultLock): UseFolderProtection {
       fid: string,
       fname: string,
       onResolve: (password: string) => void,
-      onReject?: (err: FolderUnlockCancelled) => void
+      onReject?: (err: FolderUnlockCancelled) => void,
     ) => {
       pendingRef.current = { onResolve, onReject: onReject ?? (() => {}) };
       setFolderId(fid);
@@ -177,7 +173,7 @@ export function useFolderProtection(vault: UseVaultLock): UseFolderProtection {
       setError(null);
       setOpen(true);
     },
-    []
+    [],
   );
 
   const onConfirm = useCallback(
@@ -201,7 +197,7 @@ export function useFolderProtection(vault: UseVaultLock): UseFolderProtection {
       pendingRef.current = null;
       pending?.onResolve(password);
     },
-    [folderId, registryGet, cacheSet]
+    [folderId, registryGet, cacheSet],
   );
 
   // Cancel/close: reject the pending unlock so the awaiting caller can revert its
@@ -218,7 +214,7 @@ export function useFolderProtection(vault: UseVaultLock): UseFolderProtection {
 
   const modalState: FolderUnlockModalState = useMemo(
     () => ({ open, folderId, folderName, error, onConfirm, onClose }),
-    [open, folderId, folderName, error, onConfirm, onClose]
+    [open, folderId, folderName, error, onConfirm, onClose],
   );
 
   const withFolderPassword = useCallback(
@@ -231,15 +227,17 @@ export function useFolderProtection(vault: UseVaultLock): UseFolderProtection {
       // On cancel, run the caller's onCancel so it can stop a spinner / reset
       // state (FIX-2). We swallow the FolderUnlockCancelled here since this entry
       // point is callback-shaped (not promise-shaped).
-      openModal(fid, fname, () => action(), () => onCancel?.());
+      openModal(
+        fid,
+        fname,
+        () => action(),
+        () => onCancel?.(),
+      );
     },
-    [cacheGet, openModal]
+    [cacheGet, openModal],
   );
 
-  const clearFolderPassword = useCallback(
-    (fid: string) => cacheClear(fid),
-    [cacheClear]
-  );
+  const clearFolderPassword = useCallback((fid: string) => cacheClear(fid), [cacheClear]);
 
   // Resolve the password for a single file, prompting (and verifying) for a
   // protected folder when its password isn't cached.
@@ -272,11 +270,11 @@ export function useFolderProtection(vault: UseVaultLock): UseFolderProtection {
           fid!,
           name,
           (pw) => resolve(pw),
-          (err) => reject(err)
+          (err) => reject(err),
         );
       });
     },
-    [registryGet, cacheGet, vault, openModal]
+    [registryGet, cacheGet, vault, openModal],
   );
 
   // Best-effort folder name for the prompt (we only have ids here). The modal
@@ -298,7 +296,7 @@ export function useFolderProtection(vault: UseVaultLock): UseFolderProtection {
       }
       return cacheGet(fid!); // null if the folder is locked → thumbnail skipped
     },
-    [registryGet, cacheGet]
+    [registryGet, cacheGet],
   );
 
   // ── Re-key sweeps ───────────────────────────────────────────────────────────
@@ -318,13 +316,13 @@ export function useFolderProtection(vault: UseVaultLock): UseFolderProtection {
       // recovered CEK by construction) — the server never sees keys.
       await rekeyFile(fileId, saltB64, wrapped_cek);
     },
-    []
+    [],
   );
 
   const rekeyFileForMove = useCallback(
     (fileId: string, sourcePassword: string, destPassword: string) =>
       rekeyOneFile(fileId, sourcePassword, destPassword),
-    [rekeyOneFile]
+    [rekeyOneFile],
   );
 
   const protectFolder = useCallback(
@@ -333,7 +331,7 @@ export function useFolderProtection(vault: UseVaultLock): UseFolderProtection {
       newPassword: string,
       filesInFolder: FileMetadata[],
       vaultPassphrase: string,
-      onProgress?: (p: RekeyProgress) => void
+      onProgress?: (p: RekeyProgress) => void,
     ): Promise<void> => {
       const pwSalt = deriveFolderPwSalt();
       const verifier = await makeFolderVerifier(newPassword, pwSalt);
@@ -390,7 +388,7 @@ export function useFolderProtection(vault: UseVaultLock): UseFolderProtection {
       ]);
       cacheSet(fid, newPassword);
     },
-    [rekeyOneFile, cacheSet]
+    [rekeyOneFile, cacheSet],
   );
 
   const unprotectFolder = useCallback(
@@ -399,7 +397,7 @@ export function useFolderProtection(vault: UseVaultLock): UseFolderProtection {
       folderPassword: string,
       filesInFolder: FileMetadata[],
       vaultPassphrase: string,
-      onProgress?: (p: RekeyProgress) => void
+      onProgress?: (p: RekeyProgress) => void,
     ): Promise<void> => {
       // Re-key every file back to the vault passphrase BEFORE removing protection
       // (so files are recoverable with the vault pass once protection is gone).
@@ -451,7 +449,7 @@ export function useFolderProtection(vault: UseVaultLock): UseFolderProtection {
       ]);
       cacheClear(fid);
     },
-    [rekeyOneFile, cacheClear]
+    [rekeyOneFile, cacheClear],
   );
 
   return {

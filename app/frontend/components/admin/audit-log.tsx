@@ -17,16 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Shield,
-  Pause,
-  Play,
-  FileText,
-  Monitor,
-  Globe,
-  Smartphone,
-  Clock,
-} from "@/lib/icons";
+import { Shield, Pause, Play, FileText, Monitor, Globe, Smartphone, Clock } from "@/lib/icons";
 
 const PAGE_SIZE = 20;
 
@@ -59,9 +50,13 @@ function parseUserAgent(ua: string): { browser: string; os: string; device: stri
   if (ua.includes("Windows NT 10")) os = "Windows";
   else if (ua.includes("Windows")) os = "Windows";
   else if (ua.includes("Mac OS X")) os = "macOS";
-  else if (ua.includes("Android")) { os = "Android"; device = "Mobile"; }
-  else if (ua.includes("iPhone") || ua.includes("iPad")) { os = "iOS"; device = ua.includes("iPad") ? "Tablet" : "Mobile"; }
-  else if (ua.includes("Linux")) os = "Linux";
+  else if (ua.includes("Android")) {
+    os = "Android";
+    device = "Mobile";
+  } else if (ua.includes("iPhone") || ua.includes("iPad")) {
+    os = "iOS";
+    device = ua.includes("iPad") ? "Tablet" : "Mobile";
+  } else if (ua.includes("Linux")) os = "Linux";
   else if (ua.includes("zcrypt")) os = "CLI";
 
   // Device detection
@@ -83,7 +78,12 @@ function EventDetails({ event }: { event: AdminAuditResponse["events"][0] }) {
     case "login_failed":
       if (meta.email) details.push({ label: "Email", value: String(meta.email) });
       if (meta.method) details.push({ label: "Method", value: String(meta.method) });
-      if (meta.reason) details.push({ label: "Reason", value: String(meta.reason).replace(/_/g, " "), accent: true });
+      if (meta.reason)
+        details.push({
+          label: "Reason",
+          value: String(meta.reason).replace(/_/g, " "),
+          accent: true,
+        });
       break;
 
     case "register":
@@ -105,41 +105,54 @@ function EventDetails({ event }: { event: AdminAuditResponse["events"][0] }) {
 
     case "file_upload":
       if (meta.filename) details.push({ label: "File", value: String(meta.filename) });
-      if (meta.file_size_bytes) details.push({ label: "Size", value: formatBytes(Number(meta.file_size_bytes)) });
-      if (meta.compressed_size) details.push({ label: "Compressed", value: formatBytes(Number(meta.compressed_size)) });
-      if (meta.encrypted_size) details.push({ label: "Encrypted", value: formatBytes(Number(meta.encrypted_size)) });
+      if (meta.file_size_bytes)
+        details.push({ label: "Size", value: formatBytes(Number(meta.file_size_bytes)) });
+      if (meta.compressed_size)
+        details.push({ label: "Compressed", value: formatBytes(Number(meta.compressed_size)) });
+      if (meta.encrypted_size)
+        details.push({ label: "Encrypted", value: formatBytes(Number(meta.encrypted_size)) });
       if (meta.chunk_count) details.push({ label: "Chunks", value: String(meta.chunk_count) });
       break;
 
     case "file_download":
       if (meta.filename) details.push({ label: "File", value: String(meta.filename) });
-      if (meta.file_id) details.push({ label: "File ID", value: String(meta.file_id).slice(0, 8) + "..." });
+      if (meta.file_id)
+        details.push({ label: "File ID", value: String(meta.file_id).slice(0, 8) + "..." });
       break;
 
     case "file_delete":
       if (meta.filename) details.push({ label: "File", value: String(meta.filename) });
-      if (meta.file_id) details.push({ label: "File ID", value: String(meta.file_id).slice(0, 8) + "..." });
+      if (meta.file_id)
+        details.push({ label: "File ID", value: String(meta.file_id).slice(0, 8) + "..." });
       break;
 
     case "platform_connect":
     case "platform_disconnect":
       if (meta.platform) details.push({ label: "Platform", value: String(meta.platform) });
       if (meta.username) details.push({ label: "Account", value: `@${meta.username}` });
-      if (meta.token_id) details.push({ label: "Token", value: String(meta.token_id).slice(0, 8) + "..." });
-      if (meta.is_global !== undefined) details.push({ label: "Scope", value: meta.is_global ? "Global" : "Local" });
+      if (meta.token_id)
+        details.push({ label: "Token", value: String(meta.token_id).slice(0, 8) + "..." });
+      if (meta.is_global !== undefined)
+        details.push({ label: "Scope", value: meta.is_global ? "Global" : "Local" });
       break;
 
     case "admin_role_change":
-      if (meta.target_user) details.push({ label: "Target User", value: String(meta.target_user).slice(0, 8) + "..." });
+      if (meta.target_user)
+        details.push({ label: "Target User", value: String(meta.target_user).slice(0, 8) + "..." });
       if (meta.role) details.push({ label: "New Role", value: String(meta.role), accent: true });
       break;
 
     case "admin_user_delete":
-      if (meta.target_user) details.push({ label: "Deleted User", value: String(meta.target_user).slice(0, 8) + "..." });
+      if (meta.target_user)
+        details.push({
+          label: "Deleted User",
+          value: String(meta.target_user).slice(0, 8) + "...",
+        });
       break;
 
     case "admin_plan_change":
-      if (meta.target_user) details.push({ label: "Target User", value: String(meta.target_user).slice(0, 8) + "..." });
+      if (meta.target_user)
+        details.push({ label: "Target User", value: String(meta.target_user).slice(0, 8) + "..." });
       if (meta.plan) details.push({ label: "New Plan", value: String(meta.plan), accent: true });
       break;
 
@@ -157,7 +170,12 @@ function EventDetails({ event }: { event: AdminAuditResponse["events"][0] }) {
       {details.map((d) => (
         <div key={d.label} className="text-xs">
           <span className="text-[var(--color-text-muted)]">{d.label}: </span>
-          <span className={cn("font-medium", d.accent ? "text-amber-500" : "text-[var(--color-text-secondary)]")}>
+          <span
+            className={cn(
+              "font-medium",
+              d.accent ? "text-amber-500" : "text-[var(--color-text-secondary)]",
+            )}
+          >
             {d.value}
           </span>
         </div>
@@ -192,29 +210,47 @@ export function AuditLog() {
     }
   }, [page, eventTypeFilter]);
 
-  useEffect(() => { fetchEvents(); }, [fetchEvents]);
+  useEffect(() => {
+    fetchEvents();
+  }, [fetchEvents]);
 
   // Real-time SSE audit events (prepend to list if on page 1 and not paused)
   useOperationStatus(
     () => {},
-    useCallback((event: AuditEvent) => {
-      if (paused || page !== 1) return;
-      if (eventTypeFilter && event.event_type !== eventTypeFilter) return;
-      setEvents((prev) => [event, ...prev].slice(0, PAGE_SIZE));
-      setTotal((t) => t + 1);
-    }, [paused, page, eventTypeFilter])
+    useCallback(
+      (event: AuditEvent) => {
+        if (paused || page !== 1) return;
+        if (eventTypeFilter && event.event_type !== eventTypeFilter) return;
+        setEvents((prev) => [event, ...prev].slice(0, PAGE_SIZE));
+        setTotal((t) => t + 1);
+      },
+      [paused, page, eventTypeFilter],
+    ),
   );
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const eventTypes = [
-    "login", "login_failed", "register", "logout",
-    "oauth_login", "oauth_register", "oauth_link", "oauth_unlink",
-    "magic_link_sent", "magic_link_used",
-    "file_upload", "file_download", "file_delete",
-    "platform_connect", "platform_disconnect",
-    "2fa_enable", "2fa_disable",
-    "admin_role_change", "admin_user_delete", "admin_plan_change",
+    "login",
+    "login_failed",
+    "register",
+    "logout",
+    "oauth_login",
+    "oauth_register",
+    "oauth_link",
+    "oauth_unlink",
+    "magic_link_sent",
+    "magic_link_used",
+    "file_upload",
+    "file_download",
+    "file_delete",
+    "platform_connect",
+    "platform_disconnect",
+    "2fa_enable",
+    "2fa_disable",
+    "admin_role_change",
+    "admin_user_delete",
+    "admin_plan_change",
   ];
 
   if (loading && events.length === 0) {
@@ -227,8 +263,12 @@ export function AuditLog() {
       <div className="flex flex-col justify-between gap-3 border-b border-[var(--color-border)] px-5 py-4 sm:flex-row sm:items-center">
         <div className="flex items-center gap-2">
           <FileText className="h-4 w-4 text-[var(--color-text-muted)]" />
-          <h2 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">Audit log</h2>
-          <span className="text-xs text-[var(--color-text-muted)] tabular-nums">({total} events)</span>
+          <h2 className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
+            Audit log
+          </h2>
+          <span className="text-xs text-[var(--color-text-muted)] tabular-nums">
+            ({total} events)
+          </span>
         </div>
         <div className="flex items-center gap-2">
           <IconButton
@@ -238,13 +278,16 @@ export function AuditLog() {
             onClick={() => setPaused(!paused)}
             className={cn(
               !paused && "text-[var(--color-accent)]",
-              paused && "text-amber-600 dark:text-amber-400"
+              paused && "text-amber-600 dark:text-amber-400",
             )}
           />
           <div className="flex-1 sm:flex-initial sm:w-44">
             <Select
               value={eventTypeFilter || "all"}
-              onValueChange={(v) => { setEventTypeFilter(v === "all" ? "" : v); setPage(1); }}
+              onValueChange={(v) => {
+                setEventTypeFilter(v === "all" ? "" : v);
+                setPage(1);
+              }}
             >
               <SelectTrigger className="h-9 text-xs" aria-label="Filter by event type">
                 <SelectValue />
@@ -252,7 +295,9 @@ export function AuditLog() {
               <SelectContent>
                 <SelectItem value="all">All events</SelectItem>
                 {eventTypes.map((t) => (
-                  <SelectItem key={t} value={t}>{EVENT_LABELS[t] || t.replace(/_/g, " ")}</SelectItem>
+                  <SelectItem key={t} value={t}>
+                    {EVENT_LABELS[t] || t.replace(/_/g, " ")}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -265,7 +310,11 @@ export function AuditLog() {
           <EmptyState
             icon={<FileText className="h-7 w-7 text-[var(--color-text-muted)]" />}
             title="No events found"
-            description={eventTypeFilter ? "No events match this filter. Try a different event type." : "No audited activity has been recorded yet."}
+            description={
+              eventTypeFilter
+                ? "No events match this filter. Try a different event type."
+                : "No audited activity has been recorded yet."
+            }
           />
         ) : (
           events.map((event) => {
@@ -283,13 +332,23 @@ export function AuditLog() {
                 className="w-full text-left px-5 py-3 hover:bg-[var(--color-surface-1)] transition-colors"
               >
                 <div className="flex items-start gap-3">
-                  <div className={cn("flex items-center justify-center h-8 w-8 rounded-lg border flex-shrink-0 mt-0.5", color)}>
+                  <div
+                    className={cn(
+                      "flex items-center justify-center h-8 w-8 rounded-lg border flex-shrink-0 mt-0.5",
+                      color,
+                    )}
+                  >
                     <Icon className="h-3.5 w-3.5" />
                   </div>
                   <div className="flex-1 min-w-0">
                     {/* Row 1: event badge + IP + time */}
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded border whitespace-nowrap", color)}>
+                      <span
+                        className={cn(
+                          "text-[10px] font-semibold px-1.5 py-0.5 rounded border whitespace-nowrap",
+                          color,
+                        )}
+                      >
                         {label}
                       </span>
                       <span className="text-xs text-[var(--color-text-muted)] truncate hidden sm:inline">
@@ -327,12 +386,16 @@ export function AuditLog() {
                           {event.user_id && (
                             <div className="text-xs">
                               <span className="text-[var(--color-text-muted)]">User ID: </span>
-                              <span className="font-mono text-[var(--color-text-secondary)]">{event.user_id.slice(0, 12)}...</span>
+                              <span className="font-mono text-[var(--color-text-secondary)]">
+                                {event.user_id.slice(0, 12)}...
+                              </span>
                             </div>
                           )}
                           <div className="text-xs">
                             <span className="text-[var(--color-text-muted)]">IP Address: </span>
-                            <span className="font-mono text-[var(--color-text-secondary)]">{event.ip}</span>
+                            <span className="font-mono text-[var(--color-text-secondary)]">
+                              {event.ip}
+                            </span>
                           </div>
                           <div className="text-xs">
                             <span className="text-[var(--color-text-muted)]">Browser: </span>
@@ -348,7 +411,9 @@ export function AuditLog() {
                           </div>
                           <div className="text-xs">
                             <span className="text-[var(--color-text-muted)]">Time: </span>
-                            <span className="text-[var(--color-text-secondary)]">{formatDateTime(event.created_at, { seconds: true })}</span>
+                            <span className="text-[var(--color-text-secondary)]">
+                              {formatDateTime(event.created_at, { seconds: true })}
+                            </span>
                           </div>
                         </div>
 

@@ -22,7 +22,11 @@ export async function deriveNameKey(passphrase: string, userId: string): Promise
 /** Encrypt a name to base64 [iv || ciphertext+tag]. */
 export async function encryptName(name: string, key: CryptoKey): Promise<string> {
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const enc = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(name));
+  const enc = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv },
+    key,
+    new TextEncoder().encode(name),
+  );
   const combined = new Uint8Array(iv.length + new Uint8Array(enc).length);
   combined.set(iv);
   combined.set(new Uint8Array(enc), iv.length);
@@ -68,7 +72,7 @@ export async function encryptStyle(style: CustomStyle, key: CryptoKey): Promise<
  *  decrypt/parse failure — a corrupt style blob should never break rendering. */
 export async function decryptStyle(
   b64: string | null | undefined,
-  key: CryptoKey
+  key: CryptoKey,
 ): Promise<CustomStyle | null> {
   if (!b64) return null;
   try {

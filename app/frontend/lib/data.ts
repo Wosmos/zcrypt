@@ -152,8 +152,7 @@ export const features: Feature[] = [
 export const accentColors: Record<string, string> = {
   cyan: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 ring-cyan-500/20",
   amber: "bg-amber-500/10 text-amber-500 dark:text-amber-400 ring-amber-500/20",
-  violet:
-    "bg-violet-500/10 text-violet-500 dark:text-violet-400 ring-violet-500/20",
+  violet: "bg-violet-500/10 text-violet-500 dark:text-violet-400 ring-violet-500/20",
   rose: "bg-rose-500/10 text-rose-500 dark:text-rose-400 ring-rose-500/20",
 };
 
@@ -301,8 +300,7 @@ export const landingSections = {
   explore: {
     eyebrow: "Explore the drive",
     heading: "Everything it does",
-    subheading:
-      "A real file manager with a zero-knowledge core. Dig into any part of it.",
+    subheading: "A real file manager with a zero-knowledge core. Dig into any part of it.",
     cta: "See all features",
   },
   faq: {
@@ -350,14 +348,12 @@ export const downloadPageContent = {
   },
   web: {
     heading: "Prefer no install?",
-    body:
-      "The full encrypted drive runs in any modern browser — folders, previews, sharing, and transfers. Everything is still encrypted on your device. Nothing to download.",
+    body: "The full encrypted drive runs in any modern browser — folders, previews, sharing, and transfers. Everything is still encrypted on your device. Nothing to download.",
     cta: "Open the web app",
   },
   openSource: {
     heading: "Every build is open source",
-    body:
-      "Desktop, terminal, and web — all built in the open from the same repository. Read the code, check the checksums, or build it yourself.",
+    body: "Desktop, terminal, and web — all built in the open from the same repository. Read the code, check the checksums, or build it yourself.",
     githubCta: "Source on GitHub",
     selfHostCta: "Self-host zcrypt",
   },
@@ -365,11 +361,7 @@ export const downloadPageContent = {
 
 // ─── Trust Bar ────────────────────────────────────────────────
 
-export const trustBadges = [
-  "AES-256-GCM encryption",
-  "Zero-knowledge",
-  "Open source",
-] as const;
+export const trustBadges = ["AES-256-GCM encryption", "Zero-knowledge", "Open source"] as const;
 
 // ─── TUI Page Data ──────────────────────────────────────────
 
@@ -511,7 +503,8 @@ export const tuiInstallMethods = [
   },
   {
     label: "Scoop",
-    command: "scoop bucket add zcrypt https://github.com/Wosmos/scoop-zcrypt && scoop install zcrypt",
+    command:
+      "scoop bucket add zcrypt https://github.com/Wosmos/scoop-zcrypt && scoop install zcrypt",
     note: "Windows",
   },
   {
@@ -598,83 +591,223 @@ export const docsNav: DocsNavGroup[] = [
     title: "Getting Started",
     summary: "Set up your encrypted drive and upload your first file.",
     links: [
-      { title: "Introduction", href: "/docs", desc: "What zcrypt is and how the encrypted drive works." },
-      { title: "Quickstart", href: "/docs/getting-started", desc: "Create an account, connect storage, and upload your first file." },
-      { title: "Core concepts", href: "/docs/concepts", desc: "Vault, passphrase, folders, and chunks — and how they fit together." },
-      { title: "Connect your storage", href: "/docs/connect-storage", desc: "Link a GitHub, GitLab, Hugging Face, or Telegram account as your backend." },
+      {
+        title: "Introduction",
+        href: "/docs",
+        desc: "What zcrypt is and how the encrypted drive works.",
+      },
+      {
+        title: "Quickstart",
+        href: "/docs/getting-started",
+        desc: "Create an account, connect storage, and upload your first file.",
+      },
+      {
+        title: "Core concepts",
+        href: "/docs/concepts",
+        desc: "Vault, passphrase, folders, and chunks — and how they fit together.",
+      },
+      {
+        title: "Connect your storage",
+        href: "/docs/connect-storage",
+        desc: "Link a GitHub, GitLab, Hugging Face, or Telegram account as your backend.",
+      },
     ],
   },
   {
     title: "Organizing files",
     summary: "Folders, search, previews, and trash — the drive itself.",
     links: [
-      { title: "Folders & the file explorer", href: "/docs/folders", desc: "Create, nest, rename, and navigate folders in the unified explorer." },
-      { title: "Moving & organizing", href: "/docs/organizing", desc: "Drag and drop, move-to-folder, and bulk actions." },
-      { title: "Search & filters", href: "/docs/search", desc: "Find files fast and filter by type." },
-      { title: "Viewing & previewing files", href: "/docs/viewing-files", desc: "Open images, video, audio, PDFs, docs, and code without downloading." },
-      { title: "Trash & restore", href: "/docs/trash", desc: "Soft-delete, restore, and permanently purge files." },
+      {
+        title: "Folders & the file explorer",
+        href: "/docs/folders",
+        desc: "Create, nest, rename, and navigate folders in the unified explorer.",
+      },
+      {
+        title: "Moving & organizing",
+        href: "/docs/organizing",
+        desc: "Drag and drop, move-to-folder, and bulk actions.",
+      },
+      {
+        title: "Search & filters",
+        href: "/docs/search",
+        desc: "Find files fast and filter by type.",
+      },
+      {
+        title: "Viewing & previewing files",
+        href: "/docs/viewing-files",
+        desc: "Open images, video, audio, PDFs, docs, and code without downloading.",
+      },
+      {
+        title: "Trash & restore",
+        href: "/docs/trash",
+        desc: "Soft-delete, restore, and permanently purge files.",
+      },
     ],
   },
   {
     title: "Security",
     summary: "How the zero-knowledge encryption actually works.",
     links: [
-      { title: "Encryption model", href: "/docs/security", desc: "AES-256-GCM, key derivation, and per-file keys." },
-      { title: "Zero-knowledge architecture", href: "/docs/zero-knowledge", desc: "What we store, and what we can never see." },
-      { title: "Per-folder encryption", href: "/docs/folder-encryption", desc: "How password-protected folders are re-keyed end to end." },
-      { title: "Passphrase & key management", href: "/docs/key-management", desc: "How your keys are derived and kept on your device." },
-      { title: "Threat model", href: "/docs/threat-model", desc: "What zcrypt protects against — and what it can't." },
-      { title: "Storage obfuscation", href: "/docs/obfuscation", desc: "Disguised filenames, commit messages, and repo names." },
+      {
+        title: "Encryption model",
+        href: "/docs/security",
+        desc: "AES-256-GCM, key derivation, and per-file keys.",
+      },
+      {
+        title: "Zero-knowledge architecture",
+        href: "/docs/zero-knowledge",
+        desc: "What we store, and what we can never see.",
+      },
+      {
+        title: "Per-folder encryption",
+        href: "/docs/folder-encryption",
+        desc: "How password-protected folders are re-keyed end to end.",
+      },
+      {
+        title: "Passphrase & key management",
+        href: "/docs/key-management",
+        desc: "How your keys are derived and kept on your device.",
+      },
+      {
+        title: "Threat model",
+        href: "/docs/threat-model",
+        desc: "What zcrypt protects against — and what it can't.",
+      },
+      {
+        title: "Storage obfuscation",
+        href: "/docs/obfuscation",
+        desc: "Disguised filenames, commit messages, and repo names.",
+      },
     ],
   },
   {
     title: "Storage backends",
     summary: "Bring your own storage and let it grow automatically.",
     links: [
-      { title: "Bring your own storage", href: "/docs/platform-adapters", desc: "Connect GitHub, GitLab, Hugging Face, or Telegram, and manage tokens." },
-      { title: "Repo pool & rotation", href: "/docs/repo-pool", desc: "How your storage grows across repositories automatically." },
+      {
+        title: "Bring your own storage",
+        href: "/docs/platform-adapters",
+        desc: "Connect GitHub, GitLab, Hugging Face, or Telegram, and manage tokens.",
+      },
+      {
+        title: "Repo pool & rotation",
+        href: "/docs/repo-pool",
+        desc: "How your storage grows across repositories automatically.",
+      },
     ],
   },
   {
     title: "Sharing & sending",
     summary: "Get files to other people and your other devices.",
     links: [
-      { title: "Share links", href: "/docs/sharing", desc: "Share a file with an optional password, expiry, and download limit." },
-      { title: "Share a folder", href: "/docs/folder-sharing", desc: "One public link for a whole folder, read-only and still end-to-end encrypted.", badge: "New" },
-      { title: "Anonymous Send", href: "/docs/send", desc: "Send an encrypted file without an account." },
+      {
+        title: "Share links",
+        href: "/docs/sharing",
+        desc: "Share a file with an optional password, expiry, and download limit.",
+      },
+      {
+        title: "Share a folder",
+        href: "/docs/folder-sharing",
+        desc: "One public link for a whole folder, read-only and still end-to-end encrypted.",
+        badge: "New",
+      },
+      {
+        title: "Anonymous Send",
+        href: "/docs/send",
+        desc: "Send an encrypted file without an account.",
+      },
       { title: "Encrypted Pad", href: "/docs/pad", desc: "Share a one-time encrypted note." },
-      { title: "Sync & device transfer", href: "/docs/sync-transfer", desc: "Offline pins, encrypted clipboard sync, folder sync, and device-to-device transfer." },
+      {
+        title: "Sync & device transfer",
+        href: "/docs/sync-transfer",
+        desc: "Offline pins, encrypted clipboard sync, folder sync, and device-to-device transfer.",
+      },
     ],
   },
   {
     title: "Transfers",
     summary: "How files move in and out of your drive.",
     links: [
-      { title: "How it works", href: "/docs/how-it-works", desc: "A file's journey: compress, encrypt, chunk, upload." },
-      { title: "Uploading", href: "/docs/uploading", desc: "Compression, encryption, chunking, and direct uploads." },
-      { title: "Downloading", href: "/docs/downloading", desc: "Fetching, decrypting, and streaming large files to disk." },
-      { title: "Transfer manager", href: "/docs/transfer-manager", desc: "Pause, resume, retry, and track every transfer." },
-      { title: "Bulk operations", href: "/docs/bulk", desc: "Download many files as a ZIP, or bulk-delete." },
+      {
+        title: "How it works",
+        href: "/docs/how-it-works",
+        desc: "A file's journey: compress, encrypt, chunk, upload.",
+      },
+      {
+        title: "Uploading",
+        href: "/docs/uploading",
+        desc: "Compression, encryption, chunking, and direct uploads.",
+      },
+      {
+        title: "Downloading",
+        href: "/docs/downloading",
+        desc: "Fetching, decrypting, and streaming large files to disk.",
+      },
+      {
+        title: "Transfer manager",
+        href: "/docs/transfer-manager",
+        desc: "Pause, resume, retry, and track every transfer.",
+      },
+      {
+        title: "Bulk operations",
+        href: "/docs/bulk",
+        desc: "Download many files as a ZIP, or bulk-delete.",
+      },
     ],
   },
   {
     title: "Privacy tools",
     summary: "Optional power features for high-stakes privacy.",
     links: [
-      { title: "Decoy profile", href: "/docs/decoy-profile", desc: "A second password that opens an innocent-looking decoy vault." },
-      { title: "Dead man's switch", href: "/docs/dead-mans-switch", desc: "Notify a trusted contact if you stop checking in." },
-      { title: "Snapshots & integrity", href: "/docs/snapshots-integrity", desc: "Point-in-time manifests and tamper detection.", badge: "Beta" },
-      { title: "Timed vaults", href: "/docs/timed-vaults", desc: "Group files under a countdown; expiry flags the vault without deleting files.", badge: "Beta" },
-      { title: "Shared vaults", href: "/docs/shared-vaults", desc: "End-to-end encrypted spaces: named members, per-member key grants, and revocation.", badge: "Beta" },
+      {
+        title: "Decoy profile",
+        href: "/docs/decoy-profile",
+        desc: "A second password that opens an innocent-looking decoy vault.",
+      },
+      {
+        title: "Dead man's switch",
+        href: "/docs/dead-mans-switch",
+        desc: "Notify a trusted contact if you stop checking in.",
+      },
+      {
+        title: "Snapshots & integrity",
+        href: "/docs/snapshots-integrity",
+        desc: "Point-in-time manifests and tamper detection.",
+        badge: "Beta",
+      },
+      {
+        title: "Timed vaults",
+        href: "/docs/timed-vaults",
+        desc: "Group files under a countdown; expiry flags the vault without deleting files.",
+        badge: "Beta",
+      },
+      {
+        title: "Shared vaults",
+        href: "/docs/shared-vaults",
+        desc: "End-to-end encrypted spaces: named members, per-member key grants, and revocation.",
+        badge: "Beta",
+      },
     ],
   },
   {
     title: "Account",
     summary: "Sign-in, two-factor, and recovery.",
     links: [
-      { title: "Authentication & 2FA", href: "/docs/authentication", desc: "Sign-in, sessions, password rules, and TOTP two-factor." },
-      { title: "Sign in with Google or GitHub", href: "/docs/oauth", desc: "Link and use OAuth providers." },
-      { title: "Account recovery", href: "/docs/recovery", desc: "What is and isn't recoverable — and why." },
+      {
+        title: "Authentication & 2FA",
+        href: "/docs/authentication",
+        desc: "Sign-in, sessions, password rules, and TOTP two-factor.",
+      },
+      {
+        title: "Sign in with Google or GitHub",
+        href: "/docs/oauth",
+        desc: "Link and use OAuth providers.",
+      },
+      {
+        title: "Account recovery",
+        href: "/docs/recovery",
+        desc: "What is and isn't recoverable — and why.",
+      },
     ],
   },
   {
@@ -682,21 +815,59 @@ export const docsNav: DocsNavGroup[] = [
     summary: "zcrypt on the web, desktop, terminal, and Android.",
     links: [
       { title: "Web app", href: "/docs/web-app", desc: "Use zcrypt in any modern browser." },
-      { title: "Desktop app", href: "/docs/desktop-app", desc: "The native desktop build for macOS, Windows, and Linux." },
-      { title: "Android app", href: "/docs/android-app", desc: "Sideload the APK — same zero-knowledge core as desktop.", badge: "Beta" },
-      { title: "Terminal app (TUI)", href: "/tui", desc: "Manage your vault from the command line.", external: true },
+      {
+        title: "Desktop app",
+        href: "/docs/desktop-app",
+        desc: "The native desktop build for macOS, Windows, and Linux.",
+      },
+      {
+        title: "Android app",
+        href: "/docs/android-app",
+        desc: "Sideload the APK — same zero-knowledge core as desktop.",
+        badge: "Beta",
+      },
+      {
+        title: "Terminal app (TUI)",
+        href: "/tui",
+        desc: "Manage your vault from the command line.",
+        external: true,
+      },
     ],
   },
   {
     title: "Developers",
     summary: "Self-host, integrate, and understand the internals.",
     links: [
-      { title: "Self-hosting", href: "/docs/self-hosting", desc: "Run your own zcrypt instance with Docker." },
-      { title: "API reference", href: "/docs/api", desc: "REST endpoints, authentication, and the SSE event stream." },
-      { title: "Architecture", href: "/docs/architecture", desc: "How the pipeline, adapters, and services fit together." },
-      { title: "Tech stack & infrastructure", href: "/docs/tech-stack", desc: "The languages, frameworks, and hosting that run zcrypt." },
-      { title: "Contributing", href: "/docs/contributing", desc: "Build the project, pass the pre-push gate, and open a PR." },
-      { title: "License", href: "/docs/license", desc: "zcrypt is MIT-licensed — what that means for you." },
+      {
+        title: "Self-hosting",
+        href: "/docs/self-hosting",
+        desc: "Run your own zcrypt instance with Docker.",
+      },
+      {
+        title: "API reference",
+        href: "/docs/api",
+        desc: "REST endpoints, authentication, and the SSE event stream.",
+      },
+      {
+        title: "Architecture",
+        href: "/docs/architecture",
+        desc: "How the pipeline, adapters, and services fit together.",
+      },
+      {
+        title: "Tech stack & infrastructure",
+        href: "/docs/tech-stack",
+        desc: "The languages, frameworks, and hosting that run zcrypt.",
+      },
+      {
+        title: "Contributing",
+        href: "/docs/contributing",
+        desc: "Build the project, pass the pre-push gate, and open a PR.",
+      },
+      {
+        title: "License",
+        href: "/docs/license",
+        desc: "zcrypt is MIT-licensed — what that means for you.",
+      },
     ],
   },
   {
@@ -704,7 +875,11 @@ export const docsNav: DocsNavGroup[] = [
     summary: "Quick answers and definitions.",
     links: [
       { title: "FAQ", href: "/docs/faq", desc: "Common questions, answered plainly." },
-      { title: "Troubleshooting", href: "/docs/troubleshooting", desc: "Fixes for the most common issues." },
+      {
+        title: "Troubleshooting",
+        href: "/docs/troubleshooting",
+        desc: "Fixes for the most common issues.",
+      },
       { title: "Glossary", href: "/docs/glossary", desc: "Terms used across zcrypt, defined." },
     ],
   },
@@ -723,13 +898,58 @@ export interface FeaturesNavLink {
 }
 
 export const featuresNav: FeaturesNavLink[] = [
-  { href: "/features/encrypted-drive", icon: "HardDrive", title: "Encrypted drive", desc: "A real file explorer — folders, grid/list, search, sort — all encrypted on your device." },
-  { href: "/features/folders", icon: "FolderOpen", title: "Encrypted folders", desc: "Nestable folders with encrypted names, plus a separate password for any folder." },
-  { href: "/features/file-viewers", icon: "Eye", title: "File viewers", desc: "Preview images, video, audio, PDFs, documents, and code — decrypted locally." },
-  { href: "/features/sharing", icon: "Share2", title: "Sharing", desc: "Share links with an optional password, expiry, and limits. The key stays in the URL." },
-  { href: "/features/encryption", icon: "Lock", title: "Zero-knowledge encryption", desc: "AES-256-GCM on your device. The server only ever sees ciphertext." },
-  { href: "/features/bring-your-own-storage", icon: "RefreshCcw", title: "Bring your own storage", desc: "Use GitHub, GitLab, Hugging Face, or Telegram. Your data, no lock-in." },
-  { href: "/features/transfers", icon: "Send", title: "Transfer manager", desc: "Pause, resume, retry, and track every upload and download in one place." },
-  { href: "/features/privacy", icon: "Shield", title: "Privacy tools", desc: "Decoy profile and dead man's switch — with their real limits spelled out." },
-  { href: "/features/apps", icon: "Monitor", title: "Web, desktop, Android & terminal", desc: "The same zero-knowledge core across every surface — including a Rust-powered Android app and a single-binary TUI." },
+  {
+    href: "/features/encrypted-drive",
+    icon: "HardDrive",
+    title: "Encrypted drive",
+    desc: "A real file explorer — folders, grid/list, search, sort — all encrypted on your device.",
+  },
+  {
+    href: "/features/folders",
+    icon: "FolderOpen",
+    title: "Encrypted folders",
+    desc: "Nestable folders with encrypted names, plus a separate password for any folder.",
+  },
+  {
+    href: "/features/file-viewers",
+    icon: "Eye",
+    title: "File viewers",
+    desc: "Preview images, video, audio, PDFs, documents, and code — decrypted locally.",
+  },
+  {
+    href: "/features/sharing",
+    icon: "Share2",
+    title: "Sharing",
+    desc: "Share links with an optional password, expiry, and limits. The key stays in the URL.",
+  },
+  {
+    href: "/features/encryption",
+    icon: "Lock",
+    title: "Zero-knowledge encryption",
+    desc: "AES-256-GCM on your device. The server only ever sees ciphertext.",
+  },
+  {
+    href: "/features/bring-your-own-storage",
+    icon: "RefreshCcw",
+    title: "Bring your own storage",
+    desc: "Use GitHub, GitLab, Hugging Face, or Telegram. Your data, no lock-in.",
+  },
+  {
+    href: "/features/transfers",
+    icon: "Send",
+    title: "Transfer manager",
+    desc: "Pause, resume, retry, and track every upload and download in one place.",
+  },
+  {
+    href: "/features/privacy",
+    icon: "Shield",
+    title: "Privacy tools",
+    desc: "Decoy profile and dead man's switch — with their real limits spelled out.",
+  },
+  {
+    href: "/features/apps",
+    icon: "Monitor",
+    title: "Web, desktop, Android & terminal",
+    desc: "The same zero-knowledge core across every surface — including a Rust-powered Android app and a single-binary TUI.",
+  },
 ];

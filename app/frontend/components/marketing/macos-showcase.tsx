@@ -126,21 +126,10 @@ function AppleLogo({ className }: { className?: string }) {
   );
 }
 
-function WifiIcon({
-  online,
-  className,
-}: {
-  online: boolean;
-  className?: string;
-}) {
+function WifiIcon({ online, className }: { online: boolean; className?: string }) {
   if (!online) {
     return (
-      <svg
-        className={className}
-        viewBox="0 0 16 14"
-        fill="currentColor"
-        opacity={0.4}
-      >
+      <svg className={className} viewBox="0 0 16 14" fill="currentColor" opacity={0.4}>
         <path d="M8 11.5a1.2 1.2 0 100 2.4 1.2 1.2 0 000-2.4z" />
         <path
           d="M5.4 9.3a3.9 3.9 0 015.2 0"
@@ -163,14 +152,7 @@ function WifiIcon({
           strokeWidth="1.3"
           strokeLinecap="round"
         />
-        <line
-          x1="2"
-          y1="1"
-          x2="14"
-          y2="13"
-          stroke="currentColor"
-          strokeWidth="1.5"
-        />
+        <line x1="2" y1="1" x2="14" y2="13" stroke="currentColor" strokeWidth="1.5" />
       </svg>
     );
   }
@@ -202,41 +184,14 @@ function WifiIcon({
   );
 }
 
-function BatteryFrame({
-  level,
-  charging,
-}: {
-  level: number;
-  charging: boolean;
-}) {
+function BatteryFrame({ level, charging }: { level: number; charging: boolean }) {
   const pct = Math.round(level * 100);
-  const fillColor = charging
-    ? "#2de0ed"
-    : pct > 20
-      ? "#f5f5f5"
-      : pct > 10
-        ? "#fbbf24"
-        : "#ef4444";
+  const fillColor = charging ? "#2de0ed" : pct > 20 ? "#f5f5f5" : pct > 10 ? "#fbbf24" : "#ef4444";
   return (
     <div className="flex items-center gap-[3px]">
       <svg width="22" height="11" viewBox="0 0 22 11" fill="none">
-        <rect
-          x="0.5"
-          y="0.5"
-          width="18"
-          height="10"
-          rx="2"
-          stroke="#9ca3af"
-          strokeWidth="1"
-        />
-        <rect
-          x="1.5"
-          y="1.5"
-          width={Math.max(0, 16 * level)}
-          height="8"
-          rx="1"
-          fill={fillColor}
-        />
+        <rect x="0.5" y="0.5" width="18" height="10" rx="2" stroke="#9ca3af" strokeWidth="1" />
+        <rect x="1.5" y="1.5" width={Math.max(0, 16 * level)} height="8" rx="1" fill={fillColor} />
         <path d="M20 3.5v4a1 1 0 001-1v-2a1 1 0 00-1-1z" fill="#9ca3af" />
         {charging && (
           <path
@@ -247,9 +202,7 @@ function BatteryFrame({
           />
         )}
       </svg>
-      <span className="text-[10px] text-gray-400 tabular-nums w-6 text-right">
-        {pct}%
-      </span>
+      <span className="text-[10px] text-gray-400 tabular-nums w-6 text-right">{pct}%</span>
     </div>
   );
 }
@@ -311,12 +264,7 @@ function TrafficLights({ onClose }: { onClose?: () => void }) {
       >
         {hovered && (
           <svg width="6" height="2" viewBox="0 0 6 2" fill="none">
-            <path
-              d="M.5 1h5"
-              stroke="#995700"
-              strokeWidth="1.2"
-              strokeLinecap="round"
-            />
+            <path d="M.5 1h5" stroke="#995700" strokeWidth="1.2" strokeLinecap="round" />
           </svg>
         )}
       </div>
@@ -357,11 +305,7 @@ interface DockApp {
   bouncing?: boolean;
 }
 
-function Dock({
-  apps,
-}: {
-  apps: DockApp[];
-}) {
+function Dock({ apps }: { apps: DockApp[] }) {
   const dockRef = useRef<HTMLDivElement>(null);
   const mouseX = useMotionValue(-999);
   return (
@@ -383,13 +327,7 @@ function Dock({
       }
     >
       {apps.map((app, i) => (
-        <DockIcon
-          key={app.label}
-          app={app}
-          mouseX={mouseX}
-          dockRef={dockRef}
-          index={i}
-        />
+        <DockIcon key={app.label} app={app} mouseX={mouseX} dockRef={dockRef} index={i} />
       ))}
       <div className="w-px h-5 bg-white/10 mx-0.5 self-center" />
       <DockIcon
@@ -457,8 +395,7 @@ function DockIcon({
             style={
               {
                 background: "rgba(40,40,40,0.95)",
-                boxShadow:
-                  "0 2px 8px rgba(0,0,0,0.3), 0 0 0 0.5px rgba(255,255,255,0.08)",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.3), 0 0 0 0.5px rgba(255,255,255,0.08)",
               } as React.CSSProperties
             }
           >
@@ -480,9 +417,7 @@ function DockIcon({
         className="relative cursor-pointer origin-bottom"
       >
         <motion.div
-          style={
-            { width: size, height: size } as unknown as React.CSSProperties
-          }
+          style={{ width: size, height: size } as unknown as React.CSSProperties}
           className="rounded-[22%] flex items-center justify-center overflow-hidden"
         >
           <div
@@ -507,9 +442,7 @@ function DockIcon({
           </div>
         </motion.div>
       </motion.button>
-      {app.active && (
-        <div className="h-[4px] w-[4px] rounded-full bg-white/60 mt-[3px]" />
-      )}
+      {app.active && <div className="h-[4px] w-[4px] rounded-full bg-white/60 mt-[3px]" />}
     </div>
   );
 }
@@ -583,8 +516,7 @@ function BouncePanel({
       }}
       style={{
         borderRadius: 10,
-        boxShadow:
-          "0 24px 80px -12px rgba(0,0,0,0.6), 0 0 0 0.5px rgba(255,255,255,0.1)",
+        boxShadow: "0 24px 80px -12px rgba(0,0,0,0.6), 0 0 0 0.5px rgba(255,255,255,0.1)",
         ...style,
       }}
     >
@@ -599,65 +531,57 @@ function VideoModal({ open, onClose }: { open: boolean; onClose: () => void }) {
     <ModalBackdrop open={open} onClose={onClose}>
       <BouncePanel className="relative w-[85%] max-w-xl">
         <div
-              className="flex items-center px-3.5 py-2 rounded-t-[10px]"
-              style={{
-                background: "linear-gradient(180deg, #3a3a3c 0%, #2c2c2e 100%)",
-                borderBottom: "0.5px solid rgba(0,0,0,0.4)",
+          className="flex items-center px-3.5 py-2 rounded-t-[10px]"
+          style={{
+            background: "linear-gradient(180deg, #3a3a3c 0%, #2c2c2e 100%)",
+            borderBottom: "0.5px solid rgba(0,0,0,0.4)",
+          }}
+        >
+          <TrafficLights onClose={onClose} />
+          <span className="flex-1 text-center text-[11px] text-gray-400 font-medium">
+            zcrypt — Demo
+          </span>
+          <div style={{ width: TRAFFIC_LIGHTS_W }} className="shrink-0" />
+        </div>
+        <div
+          className="aspect-video flex items-center justify-center rounded-b-[10px]"
+          style={{
+            background: "linear-gradient(180deg, #1c1c1e 0%, #111113 100%)",
+          }}
+        >
+          <div className="text-center">
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{
+                delay: 0.15,
+                type: "spring",
+                stiffness: 400,
+                damping: 20,
               }}
+              className="inline-flex items-center justify-center h-16 w-16 rounded-full mb-4 cursor-pointer group"
+              style={
+                {
+                  background: "rgba(0,213,228,0.12)",
+                  border: "1px solid rgba(0,213,228,0.2)",
+                } as React.CSSProperties
+              }
             >
-              <TrafficLights onClose={onClose} />
-              <span className="flex-1 text-center text-[11px] text-gray-400 font-medium">
-                zcrypt — Demo
-              </span>
-              <div style={{ width: TRAFFIC_LIGHTS_W }} className="shrink-0" />
-            </div>
-            <div
-              className="aspect-video flex items-center justify-center rounded-b-[10px]"
-              style={{
-                background: "linear-gradient(180deg, #1c1c1e 0%, #111113 100%)",
-              }}
-            >
-              <div className="text-center">
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{
-                    delay: 0.15,
-                    type: "spring",
-                    stiffness: 400,
-                    damping: 20,
-                  }}
-                  className="inline-flex items-center justify-center h-16 w-16 rounded-full mb-4 cursor-pointer group"
-                  style={
-                    {
-                      background: "rgba(0,213,228,0.12)",
-                      border: "1px solid rgba(0,213,228,0.2)",
-                    } as React.CSSProperties
-                  }
-                >
-                  <Play className="h-7 w-7 text-cyan-400 ml-1 group-hover:text-cyan-300 transition-colors" />
-                </motion.div>
-                <p className="text-[13px] text-gray-400 font-medium">
-                  Demo coming soon
-                </p>
-                <p className="text-[11px] text-gray-600 mt-1">
-                  Watch zcrypt encrypt &amp; upload in real-time
-                </p>
-              </div>
-            </div>
+              <Play className="h-7 w-7 text-cyan-400 ml-1 group-hover:text-cyan-300 transition-colors" />
+            </motion.div>
+            <p className="text-[13px] text-gray-400 font-medium">Demo coming soon</p>
+            <p className="text-[11px] text-gray-600 mt-1">
+              Watch zcrypt encrypt &amp; upload in real-time
+            </p>
+          </div>
+        </div>
       </BouncePanel>
     </ModalBackdrop>
   );
 }
 
 // ─── Website Modal ─────────────────────────────────────────
-function WebsiteModal({
-  open,
-  onClose,
-}: {
-  open: boolean;
-  onClose: () => void;
-}) {
+function WebsiteModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   return (
     <ModalBackdrop open={open} onClose={onClose} className="p-4 pointer-events-auto">
       <motion.div
@@ -673,8 +597,7 @@ function WebsiteModal({
         }}
         style={{
           borderRadius: 10,
-          boxShadow:
-            "0 24px 80px -12px rgba(0,0,0,0.6), 0 0 0 0.5px rgba(255,255,255,0.1)",
+          boxShadow: "0 24px 80px -12px rgba(0,0,0,0.6), 0 0 0 0.5px rgba(255,255,255,0.1)",
           background: "#ffffff",
           overflow: "hidden",
         }}
@@ -704,13 +627,7 @@ function WebsiteModal({
 }
 
 // ─── Easter Egg Modal ──────────────────────────────────────
-function EasterEggModal({
-  open,
-  onClose,
-}: {
-  open: boolean;
-  onClose: () => void;
-}) {
+function EasterEggModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   return (
     <ModalBackdrop open={open} onClose={onClose} className="p-4">
       <BouncePanel
@@ -724,8 +641,7 @@ function EasterEggModal({
         <div
           className="flex items-center px-3.5 py-2 rounded-t-[10px]"
           style={{
-            background:
-              "linear-gradient(180deg, rgba(60,60,60,0.6) 0%, rgba(40,40,40,0.6) 100%)",
+            background: "linear-gradient(180deg, rgba(60,60,60,0.6) 0%, rgba(40,40,40,0.6) 100%)",
             borderBottom: "0.5px solid rgba(0,0,0,0.4)",
           }}
         >
@@ -768,9 +684,7 @@ function EasterEggModal({
               <span className="font-bold text-sm tracking-wider uppercase text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">
                 You found the secret!
               </span>
-              <p className="mt-2 text-cyan-400 font-normal">
-                Antigravity FTW.
-              </p>
+              <p className="mt-2 text-cyan-400 font-normal">Antigravity FTW.</p>
             </motion.div>
             <div className="flex items-center gap-2 mt-4 text-gray-400">
               <span className="animate-pulse">_</span>
@@ -783,13 +697,7 @@ function EasterEggModal({
 }
 
 // ─── About This Mac Modal ──────────────────────────────────
-function AboutThisMacModal({
-  open,
-  onClose,
-}: {
-  open: boolean;
-  onClose: () => void;
-}) {
+function AboutThisMacModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   return (
     <ModalBackdrop open={open} onClose={onClose} className="p-4">
       <motion.div
@@ -805,118 +713,107 @@ function AboutThisMacModal({
         }}
         style={{
           borderRadius: 12,
-          boxShadow:
-            "0 24px 80px -12px rgba(0,0,0,0.6), 0 0 0 0.5px rgba(255,255,255,0.1)",
+          boxShadow: "0 24px 80px -12px rgba(0,0,0,0.6), 0 0 0 0.5px rgba(255,255,255,0.1)",
           background: "rgba(30,30,30,0.92)",
           backdropFilter: "blur(40px)",
           overflow: "hidden",
         }}
       >
-            {/* Title bar */}
+        {/* Title bar */}
+        <div
+          className="flex items-center px-3.5 py-2"
+          style={{
+            background: "linear-gradient(180deg, rgba(60,60,60,0.6) 0%, rgba(40,40,40,0.6) 100%)",
+            borderBottom: "0.5px solid rgba(0,0,0,0.4)",
+          }}
+        >
+          <TrafficLights onClose={onClose} />
+          <span className="flex-1 text-center text-[11px] text-gray-400 font-medium">
+            About This Mac
+          </span>
+          <div style={{ width: TRAFFIC_LIGHTS_W }} className="shrink-0" />
+        </div>
+
+        {/* Wallpaper header */}
+        <div
+          className="h-28 relative overflow-hidden"
+          style={{
+            background:
+              "linear-gradient(135deg, #1a1a4e 0%, #0d2847 30%, #0a3d2f 60%, #1a4a3a 100%)",
+          }}
+        >
+          {/* Sequoia-style orbs */}
+          <div
+            className="absolute w-32 h-32 rounded-full blur-[40px] -top-8 left-1/4"
+            style={{ background: "rgba(99,102,241,0.3)" }}
+          />
+          <div
+            className="absolute w-28 h-28 rounded-full blur-[35px] top-2 right-1/4"
+            style={{ background: "rgba(0,213,228,0.25)" }}
+          />
+          <div
+            className="absolute w-20 h-20 rounded-full blur-[30px] bottom-0 left-1/2 -translate-x-1/2"
+            style={{ background: "rgba(245,158,11,0.15)" }}
+          />
+          {/* Monitor silhouette */}
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex flex-col items-center opacity-60">
             <div
-              className="flex items-center px-3.5 py-2"
+              className="w-16 h-10 rounded-[3px]"
               style={{
-                background:
-                  "linear-gradient(180deg, rgba(60,60,60,0.6) 0%, rgba(40,40,40,0.6) 100%)",
-                borderBottom: "0.5px solid rgba(0,0,0,0.4)",
+                background: "rgba(255,255,255,0.08)",
+                boxShadow: "0 0 0 1px rgba(255,255,255,0.1)",
               }}
-            >
-              <TrafficLights onClose={onClose} />
-              <span className="flex-1 text-center text-[11px] text-gray-400 font-medium">
-                About This Mac
-              </span>
-              <div style={{ width: TRAFFIC_LIGHTS_W }} className="shrink-0" />
-            </div>
-
-            {/* Wallpaper header */}
+            />
+            <div className="w-3 h-2" style={{ background: "rgba(255,255,255,0.06)" }} />
             <div
-              className="h-28 relative overflow-hidden"
-              style={{
-                background:
-                  "linear-gradient(135deg, #1a1a4e 0%, #0d2847 30%, #0a3d2f 60%, #1a4a3a 100%)",
-              }}
-            >
-              {/* Sequoia-style orbs */}
-              <div
-                className="absolute w-32 h-32 rounded-full blur-[40px] -top-8 left-1/4"
-                style={{ background: "rgba(99,102,241,0.3)" }}
-              />
-              <div
-                className="absolute w-28 h-28 rounded-full blur-[35px] top-2 right-1/4"
-                style={{ background: "rgba(0,213,228,0.25)" }}
-              />
-              <div
-                className="absolute w-20 h-20 rounded-full blur-[30px] bottom-0 left-1/2 -translate-x-1/2"
-                style={{ background: "rgba(245,158,11,0.15)" }}
-              />
-              {/* Monitor silhouette */}
-              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex flex-col items-center opacity-60">
-                <div
-                  className="w-16 h-10 rounded-[3px]"
-                  style={{
-                    background: "rgba(255,255,255,0.08)",
-                    boxShadow: "0 0 0 1px rgba(255,255,255,0.1)",
-                  }}
-                />
-                <div
-                  className="w-3 h-2"
-                  style={{ background: "rgba(255,255,255,0.06)" }}
-                />
-                <div
-                  className="w-8 h-1 rounded-b-sm"
-                  style={{ background: "rgba(255,255,255,0.06)" }}
-                />
-              </div>
+              className="w-8 h-1 rounded-b-sm"
+              style={{ background: "rgba(255,255,255,0.06)" }}
+            />
+          </div>
+        </div>
+
+        {/* System info */}
+        <div className="px-6 py-5 text-center space-y-1">
+          <h3 className="text-[17px] font-semibold text-white tracking-tight">macOS Sequoia</h3>
+          <p className="text-[11px] text-gray-500">Version 15.3.1</p>
+
+          {/* Info grid */}
+          <div className="grid grid-cols-[auto_1fr] gap-y-2.5 gap-x-4 text-[11px] mt-4 text-left pt-3">
+            <span className="text-gray-500">Chip</span>
+            <span className="text-gray-300">Apple M4 Max</span>
+            <span className="text-gray-500">Memory</span>
+            <span className="text-gray-300">128 GB Unified Memory</span>
+            <span className="text-gray-500">Startup Disk</span>
+            <span className="text-gray-300">zcrypt Vault</span>
+            <span className="text-gray-500">Serial Number</span>
+            <span className="text-gray-300 font-mono text-[10px]">ZP-2026-E2EE</span>
+            <span className="text-gray-500">macOS</span>
+            <span className="text-gray-300">Sequoia 15.3.1 (24D70)</span>
+          </div>
+
+          {/* Encryption badge */}
+          <div className="flex justify-center pt-3">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/20">
+              <Lock className="w-3 h-3 text-cyan-400" />
+              <span className="text-[10px] text-cyan-400 font-medium">AES-256-GCM Encrypted</span>
             </div>
+          </div>
 
-            {/* System info */}
-            <div className="px-6 py-5 text-center space-y-1">
-              <h3 className="text-[17px] font-semibold text-white tracking-tight">
-                macOS Sequoia
-              </h3>
-              <p className="text-[11px] text-gray-500">Version 15.3.1</p>
-
-              {/* Info grid */}
-              <div className="grid grid-cols-[auto_1fr] gap-y-2.5 gap-x-4 text-[11px] mt-4 text-left pt-3">
-                <span className="text-gray-500">Chip</span>
-                <span className="text-gray-300">Apple M4 Max</span>
-                <span className="text-gray-500">Memory</span>
-                <span className="text-gray-300">128 GB Unified Memory</span>
-                <span className="text-gray-500">Startup Disk</span>
-                <span className="text-gray-300">zcrypt Vault</span>
-                <span className="text-gray-500">Serial Number</span>
-                <span className="text-gray-300 font-mono text-[10px]">
-                  ZP-2026-E2EE
-                </span>
-                <span className="text-gray-500">macOS</span>
-                <span className="text-gray-300">Sequoia 15.3.1 (24D70)</span>
-              </div>
-
-              {/* Encryption badge */}
-              <div className="flex justify-center pt-3">
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/20">
-                  <Lock className="w-3 h-3 text-cyan-400" />
-                  <span className="text-[10px] text-cyan-400 font-medium">
-                    AES-256-GCM Encrypted
-                  </span>
-                </div>
-              </div>
-
-              {/* Footer */}
-              <div className="pt-3 border-t border-white/5 mt-3">
-                <p className="text-[10px] text-gray-600">
-                  Powered by zcrypt v0.2 — Zero-Knowledge Vault
-                </p>
-                <div className="flex justify-center gap-3 mt-2">
-                  <button className="text-[11px] text-blue-400 hover:text-blue-300 transition-colors">
-                    Software Update...
-                  </button>
-                  <button className="text-[11px] text-blue-400 hover:text-blue-300 transition-colors">
-                    More Info...
-                  </button>
-                </div>
-              </div>
+          {/* Footer */}
+          <div className="pt-3 border-t border-white/5 mt-3">
+            <p className="text-[10px] text-gray-600">
+              Powered by zcrypt v0.2 — Zero-Knowledge Vault
+            </p>
+            <div className="flex justify-center gap-3 mt-2">
+              <button className="text-[11px] text-blue-400 hover:text-blue-300 transition-colors">
+                Software Update...
+              </button>
+              <button className="text-[11px] text-blue-400 hover:text-blue-300 transition-colors">
+                More Info...
+              </button>
             </div>
+          </div>
+        </div>
       </motion.div>
     </ModalBackdrop>
   );
@@ -978,13 +875,7 @@ function DropdownScrim({
   );
 }
 
-function SpotlightOverlay({
-  open,
-  onClose,
-}: {
-  open: boolean;
-  onClose: () => void;
-}) {
+function SpotlightOverlay({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -1005,9 +896,7 @@ function SpotlightOverlay({
   }, [open, onClose]);
 
   const filtered = query
-    ? SPOTLIGHT_RESULTS.filter((r) =>
-        r.label.toLowerCase().includes(query.toLowerCase()),
-      )
+    ? SPOTLIGHT_RESULTS.filter((r) => r.label.toLowerCase().includes(query.toLowerCase()))
     : SPOTLIGHT_RESULTS.slice(0, 5);
 
   return (
@@ -1025,8 +914,7 @@ function SpotlightOverlay({
           style={{
             background: "rgba(30,30,32,0.92)",
             backdropFilter: "blur(40px) saturate(1.8)",
-            boxShadow:
-              "0 24px 80px -12px rgba(0,0,0,0.5), 0 0 0 0.5px rgba(255,255,255,0.1)",
+            boxShadow: "0 24px 80px -12px rgba(0,0,0,0.5), 0 0 0 0.5px rgba(255,255,255,0.1)",
           }}
         >
           {/* Search input */}
@@ -1060,12 +948,8 @@ function SpotlightOverlay({
                       <Icon className="w-3.5 h-3.5 text-gray-400" />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-[12px] text-gray-200 truncate">
-                        {result.label}
-                      </p>
-                      <p className="text-[10px] text-gray-500 truncate">
-                        {result.subtitle}
-                      </p>
+                      <p className="text-[12px] text-gray-200 truncate">{result.label}</p>
+                      <p className="text-[10px] text-gray-500 truncate">{result.subtitle}</p>
                     </div>
                   </button>
                 );
@@ -1124,123 +1008,106 @@ function ControlCenterPanel({
           style={{
             background: "rgba(30,30,32,0.88)",
             backdropFilter: "blur(40px) saturate(1.8)",
-            boxShadow:
-              "0 24px 80px -12px rgba(0,0,0,0.5), 0 0 0 0.5px rgba(255,255,255,0.1)",
+            boxShadow: "0 24px 80px -12px rgba(0,0,0,0.5), 0 0 0 0.5px rgba(255,255,255,0.1)",
           }}
         >
-              {/* Toggle grid */}
-              <div className="grid grid-cols-2 gap-2">
-                {/* Wi-Fi */}
-                <button
-                  onClick={() => setWifiOn((v) => !v)}
-                  className="flex items-center gap-2 p-2.5 rounded-xl transition-colors"
-                  style={{
-                    background: wifiOn
-                      ? "rgba(59,130,246,0.3)"
-                      : "rgba(255,255,255,0.06)",
-                  }}
-                >
-                  <WifiIcon online={wifiOn} className="w-3.5 h-auto text-white" />
-                  <div className="text-left">
-                    <p className="text-[9px] font-medium text-white">Wi-Fi</p>
-                    <p className="text-[8px] text-gray-400">
-                      {wifiOn ? "Home" : "Off"}
-                    </p>
-                  </div>
-                </button>
-
-                {/* Bluetooth */}
-                <button
-                  onClick={() => setBluetoothOn((v) => !v)}
-                  className="flex items-center gap-2 p-2.5 rounded-xl transition-colors"
-                  style={{
-                    background: bluetoothOn
-                      ? "rgba(59,130,246,0.3)"
-                      : "rgba(255,255,255,0.06)",
-                  }}
-                >
-                  <Bluetooth className="w-3.5 h-3.5 text-white" />
-                  <div className="text-left">
-                    <p className="text-[9px] font-medium text-white">
-                      Bluetooth
-                    </p>
-                    <p className="text-[8px] text-gray-400">
-                      {bluetoothOn ? "On" : "Off"}
-                    </p>
-                  </div>
-                </button>
-
-                {/* AirDrop */}
-                <button
-                  className="flex items-center gap-2 p-2.5 rounded-xl transition-colors"
-                  style={{ background: "rgba(255,255,255,0.06)" }}
-                >
-                  <LayoutGrid className="w-3.5 h-3.5 text-white" />
-                  <div className="text-left">
-                    <p className="text-[9px] font-medium text-white">AirDrop</p>
-                    <p className="text-[8px] text-gray-400">Everyone</p>
-                  </div>
-                </button>
-
-                {/* Focus */}
-                <button
-                  onClick={() => setFocusOn((v) => !v)}
-                  className="flex items-center gap-2 p-2.5 rounded-xl transition-colors"
-                  style={{
-                    background: focusOn
-                      ? "rgba(139,92,246,0.3)"
-                      : "rgba(255,255,255,0.06)",
-                  }}
-                >
-                  <Eye className="w-3.5 h-3.5 text-white" />
-                  <div className="text-left">
-                    <p className="text-[9px] font-medium text-white">Focus</p>
-                    <p className="text-[8px] text-gray-400">
-                      {focusOn ? "On" : "Off"}
-                    </p>
-                  </div>
-                </button>
+          {/* Toggle grid */}
+          <div className="grid grid-cols-2 gap-2">
+            {/* Wi-Fi */}
+            <button
+              onClick={() => setWifiOn((v) => !v)}
+              className="flex items-center gap-2 p-2.5 rounded-xl transition-colors"
+              style={{
+                background: wifiOn ? "rgba(59,130,246,0.3)" : "rgba(255,255,255,0.06)",
+              }}
+            >
+              <WifiIcon online={wifiOn} className="w-3.5 h-auto text-white" />
+              <div className="text-left">
+                <p className="text-[9px] font-medium text-white">Wi-Fi</p>
+                <p className="text-[8px] text-gray-400">{wifiOn ? "Home" : "Off"}</p>
               </div>
+            </button>
 
-              {/* Brightness slider */}
-              <div className="flex items-center gap-2 px-2 py-1.5 rounded-xl bg-white/[0.04]">
-                <Sun className="w-3 h-3 text-yellow-400 shrink-0" />
-                <input
-                  type="range"
-                  min={0}
-                  max={100}
-                  value={brightness}
-                  onChange={(e) => setBrightness(Number(e.target.value))}
-                  className="flex-1 h-1 appearance-none rounded-full bg-white/10 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md cursor-pointer"
-                />
+            {/* Bluetooth */}
+            <button
+              onClick={() => setBluetoothOn((v) => !v)}
+              className="flex items-center gap-2 p-2.5 rounded-xl transition-colors"
+              style={{
+                background: bluetoothOn ? "rgba(59,130,246,0.3)" : "rgba(255,255,255,0.06)",
+              }}
+            >
+              <Bluetooth className="w-3.5 h-3.5 text-white" />
+              <div className="text-left">
+                <p className="text-[9px] font-medium text-white">Bluetooth</p>
+                <p className="text-[8px] text-gray-400">{bluetoothOn ? "On" : "Off"}</p>
               </div>
+            </button>
 
-              {/* Volume slider */}
-              <div className="flex items-center gap-2 px-2 py-1.5 rounded-xl bg-white/[0.04]">
-                <Volume2 className="w-3 h-3 text-gray-400 shrink-0" />
-                <input
-                  type="range"
-                  min={0}
-                  max={100}
-                  value={volume}
-                  onChange={(e) => setVolume(Number(e.target.value))}
-                  className="flex-1 h-1 appearance-none rounded-full bg-white/10 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md cursor-pointer"
-                />
+            {/* AirDrop */}
+            <button
+              className="flex items-center gap-2 p-2.5 rounded-xl transition-colors"
+              style={{ background: "rgba(255,255,255,0.06)" }}
+            >
+              <LayoutGrid className="w-3.5 h-3.5 text-white" />
+              <div className="text-left">
+                <p className="text-[9px] font-medium text-white">AirDrop</p>
+                <p className="text-[8px] text-gray-400">Everyone</p>
               </div>
+            </button>
 
-              {/* Now Playing */}
-              <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-white/[0.04]">
-                <div className="w-7 h-7 rounded-lg bg-cyan-500/20 flex items-center justify-center shrink-0">
-                  <Music className="w-3.5 h-3.5 text-cyan-400" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[9px] font-medium text-white truncate">
-                    Encrypting Your Data
-                  </p>
-                  <p className="text-[8px] text-gray-400 truncate">zcrypt</p>
-                </div>
+            {/* Focus */}
+            <button
+              onClick={() => setFocusOn((v) => !v)}
+              className="flex items-center gap-2 p-2.5 rounded-xl transition-colors"
+              style={{
+                background: focusOn ? "rgba(139,92,246,0.3)" : "rgba(255,255,255,0.06)",
+              }}
+            >
+              <Eye className="w-3.5 h-3.5 text-white" />
+              <div className="text-left">
+                <p className="text-[9px] font-medium text-white">Focus</p>
+                <p className="text-[8px] text-gray-400">{focusOn ? "On" : "Off"}</p>
               </div>
+            </button>
+          </div>
+
+          {/* Brightness slider */}
+          <div className="flex items-center gap-2 px-2 py-1.5 rounded-xl bg-white/[0.04]">
+            <Sun className="w-3 h-3 text-yellow-400 shrink-0" />
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={brightness}
+              onChange={(e) => setBrightness(Number(e.target.value))}
+              className="flex-1 h-1 appearance-none rounded-full bg-white/10 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md cursor-pointer"
+            />
+          </div>
+
+          {/* Volume slider */}
+          <div className="flex items-center gap-2 px-2 py-1.5 rounded-xl bg-white/[0.04]">
+            <Volume2 className="w-3 h-3 text-gray-400 shrink-0" />
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={volume}
+              onChange={(e) => setVolume(Number(e.target.value))}
+              className="flex-1 h-1 appearance-none rounded-full bg-white/10 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md cursor-pointer"
+            />
+          </div>
+
+          {/* Now Playing */}
+          <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-white/[0.04]">
+            <div className="w-7 h-7 rounded-lg bg-cyan-500/20 flex items-center justify-center shrink-0">
+              <Music className="w-3.5 h-3.5 text-cyan-400" />
             </div>
+            <div className="min-w-0">
+              <p className="text-[9px] font-medium text-white truncate">Encrypting Your Data</p>
+              <p className="text-[8px] text-gray-400 truncate">zcrypt</p>
+            </div>
+          </div>
+        </div>
       </motion.div>
     </DropdownScrim>
   );
@@ -1248,23 +1115,9 @@ function ControlCenterPanel({
 
 // ─── Menu Bar Dropdown ─────────────────────────────────────
 const MENUS: Record<string, string[]> = {
-  File: [
-    "New Vault",
-    "Open Vault...",
-    "---",
-    "Import Keys",
-    "Export Keys",
-    "---",
-    "Close Window",
-  ],
+  File: ["New Vault", "Open Vault...", "---", "Import Keys", "Export Keys", "---", "Close Window"],
   Edit: ["Undo", "Redo", "---", "Cut", "Copy", "Paste", "---", "Select All"],
-  View: [
-    "as Grid",
-    "as List",
-    "---",
-    "Show Sidebar",
-    "Toggle Full Screen",
-  ],
+  View: ["as Grid", "as List", "---", "Show Sidebar", "Toggle Full Screen"],
   Window: ["Minimize", "Zoom", "---", "zcrypt Vault"],
   Help: [
     "zcrypt Help",
@@ -1304,16 +1157,12 @@ function MenuBarDropdown({
             style={{
               background: "rgba(40,40,42,0.95)",
               backdropFilter: "blur(30px) saturate(1.5)",
-              boxShadow:
-                "0 12px 40px -8px rgba(0,0,0,0.5), 0 0 0 0.5px rgba(255,255,255,0.08)",
+              boxShadow: "0 12px 40px -8px rgba(0,0,0,0.5), 0 0 0 0.5px rgba(255,255,255,0.08)",
             }}
           >
             {items.map((item, i) =>
               item === "---" ? (
-                <div
-                  key={`sep-${i}`}
-                  className="h-px bg-white/[0.06] my-1 mx-2"
-                />
+                <div key={`sep-${i}`} className="h-px bg-white/[0.06] my-1 mx-2" />
               ) : (
                 <button
                   key={item}
@@ -1423,8 +1272,7 @@ function IPadShowcase({
       <div
         className="relative rounded-[24px] p-3"
         style={{
-          background:
-            "linear-gradient(180deg, #3a3a3c 0%, #2a2a2c 40%, #1e1e20 100%)",
+          background: "linear-gradient(180deg, #3a3a3c 0%, #2a2a2c 40%, #1e1e20 100%)",
           boxShadow: [
             "0 40px 80px -20px rgba(0,0,0,0.6)",
             "inset 0 1px 0 rgba(255,255,255,0.12)",
@@ -1440,7 +1288,8 @@ function IPadShowcase({
             width: 10,
             height: 10,
             borderRadius: "50%",
-            background: "radial-gradient(circle at 40% 35%, rgba(60,60,65,1) 0%, rgba(25,25,28,1) 100%)",
+            background:
+              "radial-gradient(circle at 40% 35%, rgba(60,60,65,1) 0%, rgba(25,25,28,1) 100%)",
             boxShadow:
               "0 0 0 1.5px rgba(0,0,0,0.7), 0 0 0 2.5px rgba(50,50,55,0.5), inset 0 1px 2px rgba(0,0,0,0.6)",
           }}
@@ -1451,7 +1300,8 @@ function IPadShowcase({
               width: 4,
               height: 4,
               borderRadius: "50%",
-              background: "radial-gradient(circle at 35% 30%, rgba(45,50,65,0.9) 0%, rgba(15,15,20,1) 70%)",
+              background:
+                "radial-gradient(circle at 35% 30%, rgba(45,50,65,0.9) 0%, rgba(15,15,20,1) 70%)",
               boxShadow: "inset 0 0.5px 1px rgba(255,255,255,0.08), 0 0 3px rgba(0,0,0,0.4)",
             }}
           />
@@ -1462,8 +1312,7 @@ function IPadShowcase({
           className="rounded-[12px] overflow-hidden relative"
           style={{
             background: "#0a0a0a",
-            boxShadow:
-              "inset 0 0 0 1px rgba(255,255,255,0.04), inset 0 2px 8px rgba(0,0,0,0.8)",
+            boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.04), inset 0 2px 8px rgba(0,0,0,0.8)",
           }}
         >
           {/* iPadOS status bar */}
@@ -1475,16 +1324,11 @@ function IPadShowcase({
               borderBottom: "0.5px solid rgba(255,255,255,0.06)",
             }}
           >
-            <span className="text-[9px] text-gray-400 font-medium tabular-nums">
-              {time}
-            </span>
+            <span className="text-[9px] text-gray-400 font-medium tabular-nums">{time}</span>
             <div className="flex items-center gap-[8px] text-gray-400">
               <WifiIcon online={online} className="h-[10px] w-auto" />
               {battery.supported ? (
-                <BatteryFrame
-                  level={battery.level}
-                  charging={battery.charging}
-                />
+                <BatteryFrame level={battery.level} charging={battery.charging} />
               ) : (
                 <BatteryFrame level={0.92} charging={false} />
               )}
@@ -1504,7 +1348,11 @@ function IPadShowcase({
           </div>
 
           {/* iPad iframe */}
-          <ScaledIframeFrame visible={isInView} logicalWidth={IPAD_LOGICAL_W} logicalHeight={IPAD_LOGICAL_H} />
+          <ScaledIframeFrame
+            visible={isInView}
+            logicalWidth={IPAD_LOGICAL_W}
+            logicalHeight={IPAD_LOGICAL_H}
+          />
         </div>
 
         {/* Home indicator */}
@@ -1519,8 +1367,7 @@ function IPadShowcase({
           style={{
             width: 160,
             height: 6,
-            background:
-              "radial-gradient(ellipse at 50% 0%, rgba(0,0,0,0.25) 0%, transparent 70%)",
+            background: "radial-gradient(ellipse at 50% 0%, rgba(0,0,0,0.25) 0%, transparent 70%)",
             borderRadius: "50%",
           }}
         />
@@ -1616,18 +1463,9 @@ export function MacOSShowcase() {
     return () => clearInterval(id);
   }, []);
 
-  const handlePlayClick = useCallback(
-    () => openOverlay(setVideoOpen),
-    [openOverlay],
-  );
-  const handleWebsiteClick = useCallback(
-    () => openOverlay(setWebsiteOpen),
-    [openOverlay],
-  );
-  const handleEasterEggClick = useCallback(
-    () => openOverlay(setEasterEggOpen),
-    [openOverlay],
-  );
+  const handlePlayClick = useCallback(() => openOverlay(setVideoOpen), [openOverlay]);
+  const handleWebsiteClick = useCallback(() => openOverlay(setWebsiteOpen), [openOverlay]);
+  const handleEasterEggClick = useCallback(() => openOverlay(setEasterEggOpen), [openOverlay]);
 
   const { resolvedTheme, toggleTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
@@ -1668,12 +1506,7 @@ export function MacOSShowcase() {
   if (isMobile) {
     return (
       <div ref={containerRef} className="relative">
-        <IPadShowcase
-          isInView={isInView}
-          time={time}
-          online={online}
-          battery={battery}
-        />
+        <IPadShowcase isInView={isInView} time={time} online={online} battery={battery} />
       </div>
     );
   }
@@ -1705,8 +1538,7 @@ export function MacOSShowcase() {
           <div
             className="relative rounded-[18px] p-[14px] pb-[10px]"
             style={{
-              background:
-                "linear-gradient(180deg, #3a3a3c 0%, #2a2a2c 40%, #1e1e20 100%)",
+              background: "linear-gradient(180deg, #3a3a3c 0%, #2a2a2c 40%, #1e1e20 100%)",
               boxShadow: [
                 "0 60px 120px -20px rgba(0,0,0,0.75)",
                 "inset 0 1px 0 rgba(255,255,255,0.14)",
@@ -1800,10 +1632,7 @@ export function MacOSShowcase() {
                   <div className="flex items-center gap-[10px] text-gray-400">
                     <WifiIcon online={online} className="h-[13px] w-auto" />
                     {battery.supported ? (
-                      <BatteryFrame
-                        level={battery.level}
-                        charging={battery.charging}
-                      />
+                      <BatteryFrame level={battery.level} charging={battery.charging} />
                     ) : (
                       <BatteryFrame level={0.85} charging={false} />
                     )}
@@ -1828,7 +1657,11 @@ export function MacOSShowcase() {
                 </div>
 
                 {/* ── REAL APP IFRAME ── */}
-                <ScaledIframeFrame visible={isInView} logicalWidth={IFRAME_LOGICAL_W} logicalHeight={IFRAME_LOGICAL_H} />
+                <ScaledIframeFrame
+                  visible={isInView}
+                  logicalWidth={IFRAME_LOGICAL_W}
+                  logicalHeight={IFRAME_LOGICAL_H}
+                />
 
                 {/* ── DOCK ── */}
                 <div
@@ -1841,26 +1674,11 @@ export function MacOSShowcase() {
                 </div>
 
                 {/* ── Overlays ── */}
-                <VideoModal
-                  open={videoOpen}
-                  onClose={() => setVideoOpen(false)}
-                />
-                <WebsiteModal
-                  open={websiteOpen}
-                  onClose={() => setWebsiteOpen(false)}
-                />
-                <EasterEggModal
-                  open={easterEggOpen}
-                  onClose={() => setEasterEggOpen(false)}
-                />
-                <AboutThisMacModal
-                  open={aboutOpen}
-                  onClose={() => setAboutOpen(false)}
-                />
-                <SpotlightOverlay
-                  open={spotlightOpen}
-                  onClose={() => setSpotlightOpen(false)}
-                />
+                <VideoModal open={videoOpen} onClose={() => setVideoOpen(false)} />
+                <WebsiteModal open={websiteOpen} onClose={() => setWebsiteOpen(false)} />
+                <EasterEggModal open={easterEggOpen} onClose={() => setEasterEggOpen(false)} />
+                <AboutThisMacModal open={aboutOpen} onClose={() => setAboutOpen(false)} />
+                <SpotlightOverlay open={spotlightOpen} onClose={() => setSpotlightOpen(false)} />
                 <ControlCenterPanel
                   open={controlCenterOpen}
                   onClose={() => setControlCenterOpen(false)}
@@ -1880,8 +1698,7 @@ export function MacOSShowcase() {
                 className="h-[5px] w-[5px] rounded-full"
                 style={{
                   background: "rgba(30,30,32,0.9)",
-                  boxShadow:
-                    "0 0 0 1px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05)",
+                  boxShadow: "0 0 0 1px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05)",
                 }}
               />
             </div>

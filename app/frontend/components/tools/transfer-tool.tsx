@@ -7,23 +7,24 @@ import { Input } from "@/components/ui/input";
 import { IconButton } from "@/components/ui/icon-button";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { QRShare } from "@/components/ui/qr-code";
-import {
-  Send, Download, Lock, Copy, Check,
-} from "@/lib/icons";
+import { Send, Download, Lock, Copy, Check } from "@/lib/icons";
 import { formatBytes } from "@/lib/utils";
 import { copyToClipboard } from "@/lib/clipboard";
 import { SelectedFileCard } from "./shared/selected-file-card";
 import { ProgressBar } from "./shared/progress-bar";
 import { ToolErrorState, ToolSuccessState } from "./shared/tool-states";
 
-const WS_URL = (process.env.NEXT_PUBLIC_API_URL || "")
-  .replace(/^http/, "ws") + "/api/transfer/ws";
+const WS_URL = (process.env.NEXT_PUBLIC_API_URL || "").replace(/^http/, "ws") + "/api/transfer/ws";
 
 type Mode = "choose" | "send" | "receive";
 type SendState = "selecting" | "waiting" | "paired" | "transferring" | "done" | "error";
 type RecvState = "entering" | "connecting" | "paired" | "receiving" | "done" | "error";
 
-interface FileInfo { name: string; size: number; type: string }
+interface FileInfo {
+  name: string;
+  size: number;
+  type: string;
+}
 
 /**
  * Shared onerror/onclose wiring for both the send and receive sockets. After a
@@ -35,7 +36,7 @@ function attachWsLifecycle(
   ws: WebSocket,
   stateRef: { current: string },
   setState: (s: "error") => void,
-  setErrorMsg: (msg: string) => void
+  setErrorMsg: (msg: string) => void,
 ) {
   ws.onerror = () => {
     if (stateRef.current !== "done" && stateRef.current !== "error") {
@@ -66,7 +67,8 @@ export function TransferTool() {
           </Button>
           <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3">
             <p className="text-xs text-cyan-700 dark:text-cyan-300">
-              Files stream directly between devices with end-to-end encryption. The server relays encrypted data but cannot read it.
+              Files stream directly between devices with end-to-end encryption. The server relays
+              encrypted data but cannot read it.
             </p>
           </div>
         </div>
@@ -99,10 +101,12 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
       const { encryptChunk, toBase64 } = await import("@/lib/crypto");
       const CHUNK = 64 * 1024;
 
-      ws.send(JSON.stringify({
-        type: "file_info",
-        data: { name: file.name, size: file.size, type: file.type, key: toBase64(key) },
-      }));
+      ws.send(
+        JSON.stringify({
+          type: "file_info",
+          data: { name: file.name, size: file.size, type: file.type, key: toBase64(key) },
+        }),
+      );
 
       const totalChunks = Math.ceil(file.size / CHUNK);
       for (let i = 0; i < totalChunks; i++) {
@@ -112,13 +116,18 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
         const plaintext = new Uint8Array(await slice.arrayBuffer());
         const encrypted = await encryptChunk(key.buffer as ArrayBuffer, plaintext);
 
-        ws.send(JSON.stringify({
-          type: "chunk",
-          data: { index: i, total: totalChunks, payload: toBase64(encrypted) },
-        }));
+        ws.send(
+          JSON.stringify({
+            type: "chunk",
+            data: { index: i, total: totalChunks, payload: toBase64(encrypted) },
+          }),
+        );
 
-        setProgress({ stage: `Sending ${i + 1}/${totalChunks}`, percent: Math.round(((i + 1) / totalChunks) * 100) });
-        if (i % 5 === 0) await new Promise(r => setTimeout(r, 0));
+        setProgress({
+          stage: `Sending ${i + 1}/${totalChunks}`,
+          percent: Math.round(((i + 1) / totalChunks) * 100),
+        });
+        if (i % 5 === 0) await new Promise((r) => setTimeout(r, 0));
       }
 
       ws.send(JSON.stringify({ type: "done" }));
@@ -140,12 +149,16 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
     const ws = new WebSocket(WS_URL);
     wsRef.current = ws;
 
-    ws.onopen = () => { ws.send(JSON.stringify({ type: "create" })); };
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ type: "create" }));
+    };
 
     ws.onmessage = async (e) => {
       const msg = JSON.parse(e.data);
       switch (msg.type) {
-        case "code": setCode(msg.data); break;
+        case "code":
+          setCode(msg.data);
+          break;
         case "paired":
           setState("paired");
           setTimeout(() => startTransfer(ws, selectedFile, key), 200);
@@ -168,14 +181,22 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
     }
   }, [code]);
 
-  useEffect(() => { return () => { wsRef.current?.close(); }; }, []);
+  useEffect(() => {
+    return () => {
+      wsRef.current?.close();
+    };
+  }, []);
 
   return (
     <div className="p-6 space-y-4">
       {state === "selecting" && (
         <>
           {!selectedFile ? (
-            <UploadZone onFiles={handleFiles} hint="Select a file to send to another device" compact />
+            <UploadZone
+              onFiles={handleFiles}
+              hint="Select a file to send to another device"
+              compact
+            />
           ) : (
             <>
               <SelectedFileCard
@@ -188,7 +209,12 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
               </Button>
             </>
           )}
-          <button onClick={onBack} className="w-full text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors py-1">Back</button>
+          <button
+            onClick={onBack}
+            className="w-full text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors py-1"
+          >
+            Back
+          </button>
         </>
       )}
 
@@ -197,12 +223,16 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
           <div className="flex flex-col items-center gap-3">
             <LogoSpinner size={32} />
             <p className="text-sm font-medium">Waiting for receiver</p>
-            <p className="text-xs text-[var(--color-text-muted)]">Share this code with the receiving device</p>
+            <p className="text-xs text-[var(--color-text-muted)]">
+              Share this code with the receiving device
+            </p>
           </div>
           {code && (
             <>
               <div className="flex items-center justify-center gap-2">
-                <div className="text-4xl font-bold font-mono tracking-[0.3em] tabular-nums text-[var(--color-text)]">{code}</div>
+                <div className="text-4xl font-bold font-mono tracking-[0.3em] tabular-nums text-[var(--color-text)]">
+                  {code}
+                </div>
                 <IconButton
                   icon={copied ? Check : Copy}
                   label={copied ? "Copied" : "Copy code"}
@@ -211,7 +241,9 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
                   iconClassName={copied ? "h-4 w-4 text-cyan-500" : "h-4 w-4"}
                 />
               </div>
-              <QRShare url={`${typeof window !== "undefined" ? window.location.origin : ""}/transfer?code=${code}`} />
+              <QRShare
+                url={`${typeof window !== "undefined" ? window.location.origin : ""}/transfer?code=${code}`}
+              />
             </>
           )}
         </div>
@@ -223,7 +255,9 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
             <LogoSpinner size={24} speed="fast" />
             <div>
               <p className="text-sm font-semibold">{selectedFile?.name}</p>
-              <p className="text-xs text-[var(--color-text-muted)]">{formatBytes(selectedFile?.size || 0)}</p>
+              <p className="text-xs text-[var(--color-text-muted)]">
+                {formatBytes(selectedFile?.size || 0)}
+              </p>
             </div>
           </div>
           <ProgressBar stage={progress.stage || "Preparing..."} percent={progress.percent} />
@@ -274,12 +308,16 @@ function TransferReceiveMode({ onBack }: { onBack: () => void }) {
     const ws = new WebSocket(WS_URL);
     wsRef.current = ws;
 
-    ws.onopen = () => { ws.send(JSON.stringify({ type: "join", data: code })); };
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ type: "join", data: code }));
+    };
 
     ws.onmessage = async (e) => {
       const msg = JSON.parse(e.data);
       switch (msg.type) {
-        case "paired": setState("paired"); break;
+        case "paired":
+          setState("paired");
+          break;
         case "file_info": {
           const info = msg.data;
           const fi = { name: info.name, size: info.size, type: info.type };
@@ -298,7 +336,10 @@ function TransferReceiveMode({ onBack }: { onBack: () => void }) {
           if (!key) return;
           const plaintext = await decryptChunk(key, encrypted);
           chunksRef.current[msg.data.index] = plaintext;
-          setProgress({ stage: `Receiving ${msg.data.index + 1}/${msg.data.total}`, percent: Math.round(((msg.data.index + 1) / msg.data.total) * 100) });
+          setProgress({
+            stage: `Receiving ${msg.data.index + 1}/${msg.data.total}`,
+            percent: Math.round(((msg.data.index + 1) / msg.data.total) * 100),
+          });
           break;
         }
         case "done": {
@@ -306,7 +347,10 @@ function TransferReceiveMode({ onBack }: { onBack: () => void }) {
           const totalSize = chunksRef.current.reduce((s, c) => s + c.byteLength, 0);
           const fullFile = new Uint8Array(totalSize);
           let offset = 0;
-          for (const chunk of chunksRef.current) { fullFile.set(chunk, offset); offset += chunk.byteLength; }
+          for (const chunk of chunksRef.current) {
+            fullFile.set(chunk, offset);
+            offset += chunk.byteLength;
+          }
           const fi = fileInfoRef.current;
           const blob = new Blob([fullFile], { type: fi?.type || "application/octet-stream" });
           const url = URL.createObjectURL(blob);
@@ -329,27 +373,40 @@ function TransferReceiveMode({ onBack }: { onBack: () => void }) {
     attachWsLifecycle(ws, stateRef, setState, setErrorMsg);
   }, [code]);
 
-  useEffect(() => { return () => { wsRef.current?.close(); }; }, []);
+  useEffect(() => {
+    return () => {
+      wsRef.current?.close();
+    };
+  }, []);
 
   return (
     <div className="p-6 space-y-4">
       {state === "entering" && (
         <>
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-[var(--color-text-secondary)]">Enter 6-digit code</label>
+            <label className="text-xs font-medium text-[var(--color-text-secondary)]">
+              Enter 6-digit code
+            </label>
             <Input
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
               placeholder="000000"
               className="text-center text-2xl font-mono tracking-[0.3em]"
               maxLength={6}
-              onKeyDown={(e) => { if (e.key === "Enter" && code.length === 6) handleConnect(); }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && code.length === 6) handleConnect();
+              }}
             />
           </div>
           <Button onClick={handleConnect} disabled={code.length !== 6} className="w-full">
             <Download className="h-4 w-4 mr-2" /> Connect
           </Button>
-          <button onClick={onBack} className="w-full text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors py-1">Back</button>
+          <button
+            onClick={onBack}
+            className="w-full text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors py-1"
+          >
+            Back
+          </button>
         </>
       )}
 

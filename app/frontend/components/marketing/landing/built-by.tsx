@@ -36,13 +36,10 @@ export function BuiltBy() {
                 </h2>
                 <p className="mx-auto mt-3 max-w-xl leading-relaxed text-[var(--color-text-secondary)] sm:mx-0">
                   zcrypt is designed, built, and maintained by{" "}
-                  <span className="font-semibold text-[var(--color-text)]">
-                    {WOSMO.name}
-                  </span>{" "}
-                  &mdash; a {WOSMO.role.toLowerCase()} from {WOSMO.location} who
-                  got tired of clouds reading his files and built one that
-                  can&apos;t. It&apos;s open source, so you never have to take his
-                  word for it.
+                  <span className="font-semibold text-[var(--color-text)]">{WOSMO.name}</span>{" "}
+                  &mdash; a {WOSMO.role.toLowerCase()} from {WOSMO.location} who got tired of clouds
+                  reading his files and built one that can&apos;t. It&apos;s open source, so you
+                  never have to take his word for it.
                 </p>
 
                 <div className="mt-7 flex flex-wrap items-center justify-center gap-3 sm:justify-start">

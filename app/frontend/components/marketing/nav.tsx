@@ -3,12 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  motion,
-  AnimatePresence,
-  useScroll,
-  useMotionValueEvent,
-} from "motion/react";
+import { motion, AnimatePresence, useScroll, useMotionValueEvent } from "motion/react";
 import { cn } from "@/lib/utils";
 import {
   Menu,
@@ -38,18 +33,58 @@ type MenuItem = { href: string; title: string; desc?: string; icon?: IconType };
 
 // ─── Mega-menu content ───────────────────────────────────────
 const productFeatures: MenuItem[] = [
-  { href: "/features/encrypted-drive", icon: HardDrive, title: "Encrypted drive", desc: "Folders, search & previews — a real explorer." },
-  { href: "/features/folders", icon: FolderOpen, title: "Encrypted folders", desc: "Nestable folders with their own passwords." },
-  { href: "/features/file-viewers", icon: Eye, title: "File viewers", desc: "Preview files without downloading them." },
-  { href: "/features/sharing", icon: Share2, title: "Sharing", desc: "Links with passwords, expiry & limits." },
-  { href: "/features/encryption", icon: Lock, title: "Zero-knowledge encryption", desc: "AES-256-GCM, on your device." },
-  { href: "/features/bring-your-own-storage", icon: RefreshCcw, title: "Bring your own storage", desc: "GitHub, GitLab, Hugging Face, Telegram." },
+  {
+    href: "/features/encrypted-drive",
+    icon: HardDrive,
+    title: "Encrypted drive",
+    desc: "Folders, search & previews — a real explorer.",
+  },
+  {
+    href: "/features/folders",
+    icon: FolderOpen,
+    title: "Encrypted folders",
+    desc: "Nestable folders with their own passwords.",
+  },
+  {
+    href: "/features/file-viewers",
+    icon: Eye,
+    title: "File viewers",
+    desc: "Preview files without downloading them.",
+  },
+  {
+    href: "/features/sharing",
+    icon: Share2,
+    title: "Sharing",
+    desc: "Links with passwords, expiry & limits.",
+  },
+  {
+    href: "/features/encryption",
+    icon: Lock,
+    title: "Zero-knowledge encryption",
+    desc: "AES-256-GCM, on your device.",
+  },
+  {
+    href: "/features/bring-your-own-storage",
+    icon: RefreshCcw,
+    title: "Bring your own storage",
+    desc: "GitHub, GitLab, Hugging Face, Telegram.",
+  },
 ];
 
 const productTools: MenuItem[] = [
   { href: "/send", icon: Send, title: "Send a file", desc: "Encrypted one-off sharing." },
-  { href: "/pad", icon: FileText, title: "Encrypted notepad", desc: "Private, zero-knowledge notes." },
-  { href: "/transfer", icon: RefreshCcw, title: "Device transfer", desc: "Move files between devices." },
+  {
+    href: "/pad",
+    icon: FileText,
+    title: "Encrypted notepad",
+    desc: "Private, zero-knowledge notes.",
+  },
+  {
+    href: "/transfer",
+    icon: RefreshCcw,
+    title: "Device transfer",
+    desc: "Move files between devices.",
+  },
 ];
 
 const productCompare: MenuItem[] = [
@@ -59,15 +94,45 @@ const productCompare: MenuItem[] = [
 ];
 
 const docsStart: MenuItem[] = [
-  { href: "/docs/getting-started", icon: Rocket, title: "Quickstart", desc: "Set up and upload your first file." },
-  { href: "/docs/concepts", icon: Key, title: "Core concepts", desc: "Vault, passphrase, folders, chunks." },
-  { href: "/docs/connect-storage", icon: HardDrive, title: "Connect storage", desc: "Link a backend you already own." },
+  {
+    href: "/docs/getting-started",
+    icon: Rocket,
+    title: "Quickstart",
+    desc: "Set up and upload your first file.",
+  },
+  {
+    href: "/docs/concepts",
+    icon: Key,
+    title: "Core concepts",
+    desc: "Vault, passphrase, folders, chunks.",
+  },
+  {
+    href: "/docs/connect-storage",
+    icon: HardDrive,
+    title: "Connect storage",
+    desc: "Link a backend you already own.",
+  },
 ];
 
 const docsPopular: MenuItem[] = [
-  { href: "/docs/folders", icon: FolderOpen, title: "Folders & files", desc: "Organize your drive." },
-  { href: "/docs/security", icon: Shield, title: "Security model", desc: "How the encryption works." },
-  { href: "/docs/self-hosting", icon: Server, title: "Self-hosting", desc: "Run zcrypt with Docker." },
+  {
+    href: "/docs/folders",
+    icon: FolderOpen,
+    title: "Folders & files",
+    desc: "Organize your drive.",
+  },
+  {
+    href: "/docs/security",
+    icon: Shield,
+    title: "Security model",
+    desc: "How the encryption works.",
+  },
+  {
+    href: "/docs/self-hosting",
+    icon: Server,
+    title: "Self-hosting",
+    desc: "Run zcrypt with Docker.",
+  },
   { href: "/docs/api", icon: Code, title: "API reference", desc: "Endpoints, auth & events." },
 ];
 
@@ -87,9 +152,13 @@ function MegaItem({ item, onClick }: { item: MenuItem; onClick: () => void }) {
         </span>
       )}
       <span className="min-w-0">
-        <span className="block text-[13px] font-semibold text-[var(--color-text)]">{item.title}</span>
+        <span className="block text-[13px] font-semibold text-[var(--color-text)]">
+          {item.title}
+        </span>
         {item.desc && (
-          <span className="mt-0.5 block text-[11px] leading-snug text-[var(--color-text-muted)]">{item.desc}</span>
+          <span className="mt-0.5 block text-[11px] leading-snug text-[var(--color-text-muted)]">
+            {item.desc}
+          </span>
         )}
       </span>
     </Link>
@@ -112,7 +181,15 @@ function MobileNavLink({ item, onClick }: { item: MenuItem; onClick: () => void 
 }
 
 /** A titled group of links in the mobile menu (Features / Tools / Compare / Docs). */
-function MobileNavSection({ title, items, onClick }: { title: string; items: MenuItem[]; onClick: () => void }) {
+function MobileNavSection({
+  title,
+  items,
+  onClick,
+}: {
+  title: string;
+  items: MenuItem[];
+  onClick: () => void;
+}) {
   return (
     <>
       <p className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
@@ -137,7 +214,15 @@ function MegaHeading({ children }: { children: React.ReactNode }) {
   );
 }
 
-function MegaCtaLink({ href, onClick, children }: { href: string; onClick: () => void; children: React.ReactNode }) {
+function MegaCtaLink({
+  href,
+  onClick,
+  children,
+}: {
+  href: string;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
   return (
     <Link
       href={href}
@@ -209,7 +294,9 @@ function ProductMega({ onItem }: { onItem: () => void }) {
             ))}
           </ul>
         </div>
-        <MegaCtaLink href="/features" onClick={onItem}>All features</MegaCtaLink>
+        <MegaCtaLink href="/features" onClick={onItem}>
+          All features
+        </MegaCtaLink>
       </div>
 
       {/* Tools + Compare */}
@@ -273,7 +360,9 @@ function DocsMega({ onItem }: { onItem: () => void }) {
             ))}
           </ul>
         </div>
-        <MegaCtaLink href="/docs" onClick={onItem}>Open the docs</MegaCtaLink>
+        <MegaCtaLink href="/docs" onClick={onItem}>
+          Open the docs
+        </MegaCtaLink>
       </div>
 
       {/* Popular */}
@@ -361,7 +450,7 @@ export function MarketingNav() {
       "flex items-center gap-1 px-3.5 py-1.5 text-[13px] font-medium rounded-lg transition-all duration-200",
       active
         ? "text-[var(--color-text)] bg-[var(--color-surface-1)]"
-        : "text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-1)]/60"
+        : "text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-1)]/60",
     );
 
   return (
@@ -378,7 +467,7 @@ export function MarketingNav() {
               "pointer-events-auto flex items-center justify-between rounded-3xl corner-squircle border px-3 py-2 transition-all duration-300",
               scrolled || openMenu
                 ? "nav-glass border-[rgba(0,213,228,0.18)]"
-                : "border-transparent bg-transparent"
+                : "border-transparent bg-transparent",
             )}
           >
             {/* Logo */}
@@ -387,14 +476,8 @@ export function MarketingNav() {
             </Link>
 
             {/* Center nav */}
-            <nav
-              className="hidden items-center gap-0.5 md:flex"
-              onMouseLeave={scheduleClose}
-            >
-              <Link
-                href="/"
-                className={cn(triggerClass(pathname === "/"))}
-              >
+            <nav className="hidden items-center gap-0.5 md:flex" onMouseLeave={scheduleClose}>
+              <Link href="/" className={cn(triggerClass(pathname === "/"))}>
                 Home
               </Link>
 
@@ -412,30 +495,21 @@ export function MarketingNav() {
                   <ChevronDown
                     className={cn(
                       "h-3 w-3 transition-transform duration-200",
-                      openMenu === m.key && "rotate-180"
+                      openMenu === m.key && "rotate-180",
                     )}
                   />
                 </button>
               ))}
 
-              <Link
-                href="/download"
-                className={cn(triggerClass(pathname === "/download"))}
-              >
+              <Link href="/download" className={cn(triggerClass(pathname === "/download"))}>
                 Download
               </Link>
 
-              <Link
-                href="/philosophy"
-                className={cn(triggerClass(pathname === "/philosophy"))}
-              >
+              <Link href="/philosophy" className={cn(triggerClass(pathname === "/philosophy"))}>
                 Why zcrypt
               </Link>
 
-              <Link
-                href="/about"
-                className={cn(triggerClass(pathname === "/about"))}
-              >
+              <Link href="/about" className={cn(triggerClass(pathname === "/about"))}>
                 About
               </Link>
             </nav>
@@ -527,10 +601,26 @@ export function MarketingNav() {
                   Home
                 </Link>
 
-                <MobileNavSection title="Features" items={productFeatures} onClick={() => setMobileOpen(false)} />
-                <MobileNavSection title="Tools" items={productTools} onClick={() => setMobileOpen(false)} />
-                <MobileNavSection title="Compare" items={productCompare} onClick={() => setMobileOpen(false)} />
-                <MobileNavSection title="Docs" items={docsStart} onClick={() => setMobileOpen(false)} />
+                <MobileNavSection
+                  title="Features"
+                  items={productFeatures}
+                  onClick={() => setMobileOpen(false)}
+                />
+                <MobileNavSection
+                  title="Tools"
+                  items={productTools}
+                  onClick={() => setMobileOpen(false)}
+                />
+                <MobileNavSection
+                  title="Compare"
+                  items={productCompare}
+                  onClick={() => setMobileOpen(false)}
+                />
+                <MobileNavSection
+                  title="Docs"
+                  items={docsStart}
+                  onClick={() => setMobileOpen(false)}
+                />
                 <Link
                   href="/docs"
                   onClick={() => setMobileOpen(false)}

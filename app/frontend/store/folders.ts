@@ -63,5 +63,6 @@ export const useFolderStore = create<FolderStore>((set, get) => ({
     set({ currentFolderId: target.id, breadcrumb: breadcrumb.slice(0, index + 1) });
   },
 
-  reset: () => set({ currentFolderId: null, breadcrumb: [ROOT_CRUMB], folders: [], decryptedNames: {} }),
+  reset: () =>
+    set({ currentFolderId: null, breadcrumb: [ROOT_CRUMB], folders: [], decryptedNames: {} }),
 }));

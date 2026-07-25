@@ -30,6 +30,6 @@ export async function throwResponseError(res: Response): Promise<never> {
  * keeps its bespoke fallback message.
  */
 export async function parseErrorJson(res: Response, fallback: string): Promise<string> {
-  const body = await res.json().catch(() => ({} as unknown));
+  const body = await res.json().catch(() => ({}) as unknown);
   return (body as { error?: string })?.error || fallback;
 }

@@ -45,8 +45,7 @@ export default function ForgotPasswordPage() {
         }
       >
         <p className="text-sm text-[var(--color-text-secondary)] mt-2 leading-relaxed">
-          If an account exists for{" "}
-          <strong className="text-[var(--color-text)]">{email}</strong>,
+          If an account exists for <strong className="text-[var(--color-text)]">{email}</strong>,
           you&apos;ll receive a password reset link shortly.
         </p>
       </AuthStatusCard>
@@ -86,10 +85,7 @@ export default function ForgotPasswordPage() {
       </form>
 
       <p className="text-center text-sm text-[var(--color-text-secondary)] mt-6">
-        <AuthLink
-          href="/login"
-          className={`${AUTH_LINK_CLASS} inline-flex items-center gap-1`}
-        >
+        <AuthLink href="/login" className={`${AUTH_LINK_CLASS} inline-flex items-center gap-1`}>
           <ArrowLeft className="h-3.5 w-3.5" /> Back to login
         </AuthLink>
       </p>

@@ -197,7 +197,9 @@ async function measureCryptoThroughput(): Promise<number | null> {
     const ITERS = 4; // ~8MB of work total
     const data = new Uint8Array(SIZE);
     crypto.getRandomValues(data.subarray(0, 65536)); // seed a little; timing is data-independent
-    const key = await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, false, ["encrypt"]);
+    const key = await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, false, [
+      "encrypt",
+    ]);
     const iv = new Uint8Array(12);
     const start = performance.now();
     for (let i = 0; i < ITERS; i++) {
@@ -225,7 +227,7 @@ async function measureCryptoThroughput(): Promise<number | null> {
  * read per operation.
  */
 export async function calibrateDeviceProfile(
-  measure: () => Promise<number | null> = measureCryptoThroughput
+  measure: () => Promise<number | null> = measureCryptoThroughput,
 ): Promise<DeviceProfile> {
   const base = getDeviceProfile();
   if (calibrated) return cached as DeviceProfile;
