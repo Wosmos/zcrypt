@@ -44,25 +44,43 @@ export function ExpiringTab() {
 
   useEffect(() => {
     Promise.all([listExpiringVaults(), ensureFiles()])
-      .then(([v, f]) => { setVaults(v); setFiles(f); })
+      .then(([v, f]) => {
+        setVaults(v);
+        setFiles(f);
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
   const handleCreate = async () => {
     setError("");
-    if (!name.trim()) { setError("Vault name is required"); return; }
-    if (selectedFiles.length === 0) { setError("Select at least one file"); return; }
+    if (!name.trim()) {
+      setError("Vault name is required");
+      return;
+    }
+    if (selectedFiles.length === 0) {
+      setError("Select at least one file");
+      return;
+    }
     setCreating(true);
     try {
       const expiresAt = new Date(Date.now() + Number(expiresIn) * 3600000).toISOString();
-      const vault = await createExpiringVault({ name: name.trim(), description: description.trim(), expires_at: expiresAt, file_ids: selectedFiles });
+      const vault = await createExpiringVault({
+        name: name.trim(),
+        description: description.trim(),
+        expires_at: expiresAt,
+        file_ids: selectedFiles,
+      });
       setVaults((prev) => [vault, ...prev]);
       setShowCreate(false);
-      setName(""); setDescription(""); setSelectedFiles([]);
+      setName("");
+      setDescription("");
+      setSelectedFiles([]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create vault");
-    } finally { setCreating(false); }
+    } finally {
+      setCreating(false);
+    }
   };
 
   const handleDelete = async () => {
@@ -72,16 +90,35 @@ export function ExpiringTab() {
       await deleteExpiringVault(pendingDelete.id);
       setVaults((prev) => prev.filter((v) => v.id !== pendingDelete.id));
       setPendingDelete(null);
-    } catch { /* ignore */ }
-    finally { setDeleting(false); }
+    } catch {
+      /* ignore */
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-[var(--color-text-secondary)]">Group files under a shared countdown. When it runs out the vault is flagged expired — your files stay put.</p>
-        <Button onClick={() => { setShowCreate(!showCreate); setError(""); }} size="sm" variant={showCreate ? "secondary" : "primary"}>
-          {showCreate ? "Cancel" : <><Plus className="h-3.5 w-3.5" /> Create vault</>}
+        <p className="text-sm text-[var(--color-text-secondary)]">
+          Group files under a shared countdown. When it runs out the vault is flagged expired — your
+          files stay put.
+        </p>
+        <Button
+          onClick={() => {
+            setShowCreate(!showCreate);
+            setError("");
+          }}
+          size="sm"
+          variant={showCreate ? "secondary" : "primary"}
+        >
+          {showCreate ? (
+            "Cancel"
+          ) : (
+            <>
+              <Plus className="h-3.5 w-3.5" /> Create vault
+            </>
+          )}
         </Button>
       </div>
 
@@ -97,16 +134,36 @@ export function ExpiringTab() {
               <h3 className="text-sm font-semibold text-[var(--color-text)]">New timed vault</h3>
               <div className="space-y-1.5">
                 <label className={labelClass}>Name *</label>
-                <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Tax Documents 2025" className={inputClass} />
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Tax Documents 2026"
+                  className={inputClass}
+                />
               </div>
               <div className="space-y-1.5">
                 <label className={labelClass}>Description</label>
-                <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional description..." className={inputClass} />
+                <input
+                  type="text"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Optional description..."
+                  className={inputClass}
+                />
               </div>
               <div className="space-y-1.5">
                 <label className={labelClass}>Expires in</label>
-                <select value={expiresIn} onChange={(e) => setExpiresIn(e.target.value)} className={inputClass}>
-                  {EXPIRY_CHOICES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+                <select
+                  value={expiresIn}
+                  onChange={(e) => setExpiresIn(e.target.value)}
+                  className={inputClass}
+                >
+                  {EXPIRY_CHOICES.map((c) => (
+                    <option key={c.value} value={c.value}>
+                      {c.label}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div className="space-y-1.5">
@@ -116,20 +173,38 @@ export function ExpiringTab() {
                 ) : (
                   <div className="max-h-48 space-y-0.5 overflow-y-auto rounded-xl border border-[var(--color-border)] p-2">
                     {files.map((file) => (
-                      <label key={file.id} className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-[var(--color-surface-1)]">
+                      <label
+                        key={file.id}
+                        className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-[var(--color-surface-1)]"
+                      >
                         <Checkbox
                           checked={selectedFiles.includes(file.id)}
-                          onCheckedChange={() => setSelectedFiles((prev) => prev.includes(file.id) ? prev.filter((id) => id !== file.id) : [...prev, file.id])}
+                          onCheckedChange={() =>
+                            setSelectedFiles((prev) =>
+                              prev.includes(file.id)
+                                ? prev.filter((id) => id !== file.id)
+                                : [...prev, file.id],
+                            )
+                          }
                         />
-                        <span className="truncate text-sm text-[var(--color-text)]">{file.original_name}</span>
+                        <span className="truncate text-sm text-[var(--color-text)]">
+                          {file.original_name}
+                        </span>
                       </label>
                     ))}
                   </div>
                 )}
-                {selectedFiles.length > 0 && <p className="text-xs tabular-nums text-[var(--color-text-muted)]">{selectedFiles.length} file(s) selected</p>}
+                {selectedFiles.length > 0 && (
+                  <p className="text-xs tabular-nums text-[var(--color-text-muted)]">
+                    {selectedFiles.length} file(s) selected
+                  </p>
+                )}
               </div>
               {error && (
-                <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-3 text-sm text-red-600 dark:text-red-400" role="alert">
+                <div
+                  className="rounded-xl border border-red-500/20 bg-red-500/5 p-3 text-sm text-red-600 dark:text-red-400"
+                  role="alert"
+                >
                   {error}
                 </div>
               )}
@@ -143,7 +218,9 @@ export function ExpiringTab() {
 
       {loading ? (
         <div className="panel divide-y divide-[var(--color-border)] px-4">
-          {Array.from({ length: 3 }).map((_, i) => <SkeletonRow key={i} />)}
+          {Array.from({ length: 3 }).map((_, i) => (
+            <SkeletonRow key={i} />
+          ))}
         </div>
       ) : vaults.length === 0 && !showCreate ? (
         <div className="panel">
@@ -166,14 +243,22 @@ export function ExpiringTab() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <h3 className="truncate font-medium text-[var(--color-text)]">{vault.name}</h3>
-                    <span className={cn(
-                      "flex-shrink-0 rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide tabular-nums",
-                      vault.expired ? "bg-red-500/10 text-red-600 dark:text-red-400" : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                    )}>
+                    <span
+                      className={cn(
+                        "flex-shrink-0 rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide tabular-nums",
+                        vault.expired
+                          ? "bg-red-500/10 text-red-600 dark:text-red-400"
+                          : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+                      )}
+                    >
                       {vault.expired ? "Expired" : formatExpiry(vault.expires_at)}
                     </span>
                   </div>
-                  {vault.description && <p className="mt-0.5 truncate text-xs text-[var(--color-text-secondary)]">{vault.description}</p>}
+                  {vault.description && (
+                    <p className="mt-0.5 truncate text-xs text-[var(--color-text-secondary)]">
+                      {vault.description}
+                    </p>
+                  )}
                   <div className="mt-2 flex items-center gap-4 text-xs text-[var(--color-text-muted)]">
                     <span className="tabular-nums">{vault.file_ids.length} file(s)</span>
                     <span>Expires {formatDateTime(vault.expires_at)}</span>
@@ -181,13 +266,28 @@ export function ExpiringTab() {
                   {vault.file_ids.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-1">
                       {vault.file_ids.slice(0, 5).map((fid) => (
-                        <span key={fid} className="max-w-[150px] truncate rounded-md bg-[var(--color-surface-1)] px-2 py-0.5 text-[10px] text-[var(--color-text-muted)]">{fileNameById(files, fid)}</span>
+                        <span
+                          key={fid}
+                          className="max-w-[150px] truncate rounded-md bg-[var(--color-surface-1)] px-2 py-0.5 text-[10px] text-[var(--color-text-muted)]"
+                        >
+                          {fileNameById(files, fid)}
+                        </span>
                       ))}
-                      {vault.file_ids.length > 5 && <span className="px-1 py-0.5 text-[10px] text-[var(--color-text-muted)]">+{vault.file_ids.length - 5} more</span>}
+                      {vault.file_ids.length > 5 && (
+                        <span className="px-1 py-0.5 text-[10px] text-[var(--color-text-muted)]">
+                          +{vault.file_ids.length - 5} more
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>
-                <IconButton icon={Trash2} label="Delete vault" variant="danger" iconClassName="h-3.5 w-3.5" onClick={() => setPendingDelete(vault)} />
+                <IconButton
+                  icon={Trash2}
+                  label="Delete vault"
+                  variant="danger"
+                  iconClassName="h-3.5 w-3.5"
+                  onClick={() => setPendingDelete(vault)}
+                />
               </div>
             </motion.div>
           ))}
@@ -196,12 +296,16 @@ export function ExpiringTab() {
 
       <ConfirmDialog
         open={!!pendingDelete}
-        onOpenChange={(o) => { if (!o) setPendingDelete(null); }}
+        onOpenChange={(o) => {
+          if (!o) setPendingDelete(null);
+        }}
         destructive
         title="Delete timed vault?"
         description={
           <>
-            This removes the vault{pendingDelete?.name ? <> &ldquo;{pendingDelete.name}&rdquo;</> : null} and its timer. The files themselves are not deleted.
+            This removes the vault
+            {pendingDelete?.name ? <> &ldquo;{pendingDelete.name}&rdquo;</> : null} and its timer.
+            The files themselves are not deleted.
           </>
         }
         confirmLabel="Delete"
