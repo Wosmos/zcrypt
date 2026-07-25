@@ -45,7 +45,7 @@ const MOCK_FILES: FileMetadata[] = [
   },
   {
     id: "f2",
-    original_name: "photos-collection-2025.zip",
+    original_name: "photos-collection-6.zip",
     original_size: 8_120_000_000,
     compressed_size: 7_980_000_000,
     encrypted_size: 7_985_000_000,
@@ -95,7 +95,7 @@ const MOCK_FILES: FileMetadata[] = [
   },
   {
     id: "f7",
-    original_name: "family-videos-2025.mp4",
+    original_name: "family-videos-2026.mp4",
     original_size: 4_800_000_000,
     compressed_size: 4_780_000_000,
     encrypted_size: 4_785_000_000,
@@ -209,14 +209,10 @@ export default function DemoClient() {
   const filtered = useMemo(() => {
     return (
       search
-        ? files.filter((f) =>
-            f.original_name.toLowerCase().includes(search.toLowerCase()),
-          )
+        ? files.filter((f) => f.original_name.toLowerCase().includes(search.toLowerCase()))
         : files
     )
-      .filter((f) =>
-        typeFilter ? getFileCategory(f.original_name) === typeFilter : true,
-      )
+      .filter((f) => (typeFilter ? getFileCategory(f.original_name) === typeFilter : true))
       .slice()
       .sort((a, b) => {
         const dir = sortDir === "asc" ? 1 : -1;
@@ -226,28 +222,15 @@ export default function DemoClient() {
           case "size":
             return dir * (a.original_size - b.original_size);
           case "saved": {
-            const sa =
-              a.original_size > 0
-                ? 1 - a.encrypted_size / a.original_size
-                : 0;
-            const sb =
-              b.original_size > 0
-                ? 1 - b.encrypted_size / b.original_size
-                : 0;
+            const sa = a.original_size > 0 ? 1 - a.encrypted_size / a.original_size : 0;
+            const sb = b.original_size > 0 ? 1 - b.encrypted_size / b.original_size : 0;
             return dir * (sa - sb);
           }
           case "date":
-            return (
-              dir *
-              (new Date(a.created_at).getTime() -
-                new Date(b.created_at).getTime())
-            );
+            return dir * (new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
           case "type":
             return (
-              dir *
-              getFileCategory(a.original_name).localeCompare(
-                getFileCategory(b.original_name),
-              )
+              dir * getFileCategory(a.original_name).localeCompare(getFileCategory(b.original_name))
             );
           default:
             return 0;
@@ -276,10 +259,7 @@ export default function DemoClient() {
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(currentPage, totalPages);
-  const paginatedFiles = filtered.slice(
-    (safePage - 1) * PAGE_SIZE,
-    safePage * PAGE_SIZE,
-  );
+  const paginatedFiles = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   const downloadStates: Record<string, DownloadState> = {};
 
@@ -289,8 +269,7 @@ export default function DemoClient() {
       <div className="flex items-center gap-2.5 rounded-2xl border border-sky-500/20 bg-sky-500/5 px-4 py-3">
         <Info className="h-4 w-4 text-sky-500 shrink-0" />
         <p className="text-xs text-sky-600 dark:text-sky-300 font-medium">
-          Demo mode — all data is simulated. Uploads, downloads and deletes are
-          disabled.
+          Demo mode — all data is simulated. Uploads, downloads and deletes are disabled.
         </p>
       </div>
 
@@ -327,10 +306,7 @@ export default function DemoClient() {
       </div>
 
       {/* Upload zone (read-only) */}
-      <UploadZone
-        onFiles={readOnlyFiles}
-        hint="Read-only demo — uploads are disabled"
-      />
+      <UploadZone onFiles={readOnlyFiles} hint="Read-only demo — uploads are disabled" />
 
       {/* Mobile vault header */}
       <MobileVaultHeader
@@ -374,7 +350,11 @@ export default function DemoClient() {
 
         {/* ToggleGroup demo */}
         <div className="flex flex-col items-center justify-center gap-3 p-3">
-          <ToggleGroup type="single" value={demoToggleGroup || ""} onValueChange={setDemoToggleGroup}>
+          <ToggleGroup
+            type="single"
+            value={demoToggleGroup || ""}
+            onValueChange={setDemoToggleGroup}
+          >
             <ToggleGroupItem value="light" aria-label="Light mode">
               <Sun className="h-4 w-4" />
             </ToggleGroupItem>
@@ -453,11 +433,7 @@ export default function DemoClient() {
         <FileTypeFilter
           files={
             search
-              ? files.filter((f) =>
-                  f.original_name
-                    .toLowerCase()
-                    .includes(search.toLowerCase()),
-                )
+              ? files.filter((f) => f.original_name.toLowerCase().includes(search.toLowerCase()))
               : files
           }
           activeFilter={typeFilter}

@@ -1,96 +1,213 @@
-# zcrypt
+<div align="center">
 
-**zcrypt is a zero-knowledge, end-to-end encrypted cloud storage system that stores your encrypted files inside your own GitHub, GitLab, HuggingFace, and Telegram accounts.**
+# Zcrypt.cloud
 
-Your files are compressed, encrypted, chunked, and pushed as LFS objects to private repos that look like ordinary developer repositories. The server never sees your passphrase. The platform never sees your plaintext data.
+**Zero-knowledge, end-to-end encrypted cloud storage that lives inside _your own_ GitHub, GitLab, HuggingFace, and Telegram accounts.**
 
-## How It Works
+Your files are compressed, encrypted, and split into chunks _on your device_ before they ever move. The server never sees your passphrase. The storage platforms never see your plaintext. zcrypt is free and open source — there are no paid tiers.
 
+[Report a vulnerability](docs/SECURITY.md) · [Contributing](CONTRIBUTING.md) · [Support](SUPPORT.md) · [Changelog](CHANGELOG.md)
+
+</div>
+
+---
+
+## Table of contents
+
+- [What zcrypt is](#what-zcrypt-is)
+- [How it works](#how-it-works)
+- [Architecture](#architecture)
+- [Clients](#clients)
+- [Features](#features)
+- [Security](#security)
+- [Tech stack](#tech-stack)
+- [Quick start](#quick-start)
+- [Environment variables](#environment-variables)
+- [Project structure](#project-structure)
+- [API overview](#api-overview)
+- [Storage platforms](#storage-platforms)
+- [Contributing](#contributing)
+- [Support](#support)
+- [Sponsor zcrypt](#sponsor-zcrypt)
+- [License](#license)
+
+---
+
+## What zcrypt is
+
+zcrypt turns storage you already have — GitHub, GitLab, HuggingFace, and Telegram — into a single encrypted drive. Files are compressed with zstd, encrypted with AES-256-GCM under a key that never leaves your device, split into chunks, and stored across those platforms behind disguised repositories and innocuous filenames.
+
+Because encryption happens client-side, **zcrypt is zero-knowledge**: the server stores only ciphertext, encrypted filenames, a wrapped key, and a salt. It cannot read your files, recover your passphrase, or hand your plaintext to anyone — because it never has them.
+
+## How it works
+
+Every file goes through the same client-side pipeline before a single byte leaves your device:
+
+```mermaid
+flowchart LR
+    F["Your file"] --> C["zstd compress"]
+    C --> E["AES-256-GCM encrypt<br/>random per-file key (CEK)"]
+    E --> S["split into chunks"]
+    S --> U["upload chunks to<br/>your storage accounts"]
+    E --> W["wrap the CEK with a key<br/>derived from your passphrase<br/>(PBKDF2-SHA256, 600k iters)"]
+    W --> M["server stores only:<br/>wrapped CEK + salt +<br/>encrypted filename"]
 ```
-File  -->  zstd compress  -->  AES-256-GCM encrypt  -->  10 MB chunks  -->  Git LFS upload
-                                    ^
-                            PBKDF2-SHA256 key
-                           (600K iterations, user passphrase)
+
+**Download** reverses it: chunks are fetched and verified (per-chunk integrity), reassembled, decrypted with your passphrase, and decompressed — all locally.
+
+### The zero-knowledge trust boundary
+
+The line between what stays on your device and what the server can ever see is the whole point of the product:
+
+```mermaid
+flowchart TB
+    subgraph device["🔓 Your device — plaintext zone"]
+        P["Passphrase"]
+        PT["Plaintext files"]
+        K["Per-file keys (CEK)"]
+    end
+    subgraph server["🔒 zcrypt server — zero-knowledge zone"]
+        META["Encrypted filenames<br/>wrapped CEK · salt · metadata"]
+        CIPHER["Ciphertext chunks<br/>(in transit / relayed)"]
+    end
+    P -. "never transmitted" .-> server
+    PT -. "never transmitted" .-> server
+    PT --> K
+    K --> META
+    PT --> CIPHER
 ```
-
-**Upload pipeline (two-phase):**
-
-1. **Prepare** (local, synchronous) - Validate, compress with zstd, encrypt with AES-256-GCM, split into 10MB chunks
-2. **Upload** (network, async, resumable) - Push chunks via Git LFS to platform repos, batch commit, update DB
-
-**Download pipeline:**
-
-1. Fetch chunks concurrently (5 parallel) from platform repos
-2. Verify SHA-256 integrity per chunk
-3. Reassemble, decrypt (user provides passphrase), decompress
-4. Verify final file hash matches original
-
-**Repo disguise:**
-
-- Repos named like `utils-core-v1`, `config-helpers-v2`
-- Commits say `chore: clean up build cache`, `fix: resolve loader edge case`
-- Files named `a3f8c1d2e9b047a1.bin`
-- Auto-generated README with generic developer boilerplate
 
 ## Architecture
 
-```
-Frontend (Next.js 16 / Vercel)         Backend (Go / Railway)           Storage
-+--------------------------+           +------------------------+       +----------------+
-|  React 19 + Tailwind     |  <---->   |  stdlib net/http       | ----> | GitHub (850MB) |
-|  Zustand state mgmt      |  JSON/SSE |  chunk relay + commit  | ----> | GitLab (9GB)   |
-|  AES-256-GCM + zstd      |           |  repo pool + rotation  | ----> | HuggingFace    |
-|  Passphrase never leaves |           |  pgxpool (Neon PG)     |       |   (90GB/repo)  |
-|    the client            |           |  JWT + bcrypt + TOTP   | ----> | Telegram       |
-+--------------------------+           +------------------------+       +----------------+
-                                              |
-                                       +------+------+
-                                       | PostgreSQL  |
-                                       | (Neon)      |
-                                       +-------------+
+zcrypt has **two data planes**, and which one you use depends on the client:
+
+```mermaid
+flowchart LR
+    subgraph clients["Clients"]
+        W["Web · Next.js"]
+        T["TUI · Go"]
+        D["Desktop · Tauri + Rust core"]
+        A["Android · Tauri + Rust core"]
+    end
+
+    subgraph backend["Backend · Go (stdlib net/http)"]
+        CP["Control plane<br/>auth · metadata · upload sessions · sharing"]
+        RL["Chunk relay<br/>+ repo pool & rotation"]
+    end
+
+    DB[("PostgreSQL · Neon")]
+
+    subgraph storage["Your storage accounts"]
+        GH["GitHub"]
+        GL["GitLab"]
+        HF["HuggingFace"]
+        TG["Telegram"]
+    end
+
+    W & T -->|"ciphertext via relay"| RL
+    D & A -. "byos-direct: your token,<br/>server never sees it" .-> storage
+    W & T & D & A --> CP
+    RL --> storage
+    CP --> DB
 ```
 
-## Tech Stack
+- **Relay plane (web + TUI):** browser sandboxing blocks direct platform access, so the web app encrypts locally and relays ciphertext through the backend, which commits it to the storage platforms.
+- **BYOS-direct plane (desktop + Android):** the native clients hold your platform tokens in the OS keychain and push/pull encrypted chunks **straight to your own accounts**. The backend is used only for auth and metadata — it never touches your storage token or your chunks.
 
-| Layer       | Technology                                                           |
-| ----------- | -------------------------------------------------------------------- |
-| Frontend    | Next.js 16, React 19, TypeScript, Tailwind CSS, Zustand 5, motion 12 |
-| Backend     | Go 1.25, stdlib `net/http`, pgxpool (PostgreSQL)                     |
-| Database    | PostgreSQL on Neon (serverless)                                      |
-| Encryption  | AES-256-GCM, PBKDF2-SHA256 (600K iterations), HKDF for per-user KEK  |
-| Compression | zstd, client-side in the browser via `@oneidentity/zstd-js`          |
-| Auth        | JWT (HS256) + bcrypt + TOTP 2FA                                      |
-| Deploy      | Frontend on Vercel, Backend on Railway (Docker), DB on Neon          |
+Both planes share one **Rust core** (`app/core`, crate `zcrypt-core`) that implements the crypto, compression, chunk pipeline, offline ledger, and platform adapters. Its byte-format is locked to the Go backend and the TypeScript web client by a shared conformance test suite, so a file encrypted by one client decrypts identically on another.
+
+## Clients
+
+| Client | Status | Notes |
+| ------ | ------ | ----- |
+| **Web** (Next.js 16) | Production | The flagship. Deployed on Vercel. Client-side crypto via WebCrypto + WASM zstd. Uses the relay plane. |
+| **Desktop** (Tauri v2) | Shippable · unsigned | macOS / Windows / Linux. Embeds the Rust core in-process. BYOS-direct, OS-keychain credentials, Touch ID unlock, folder-watch auto-backup, background sync, launch-at-login, built-in updater. Installers are currently unsigned. |
+| **Android** (Tauri mobile) | Beta | A real native APK on the same Rust core (not a webview wrapper). Distributed as a sideload from the rolling [`android-latest`](https://github.com/Wosmos/zcrypt/releases) prerelease. Signed with an ephemeral CI key today, so it is not Play-Store-eligible and updates do not install over a prior sideload. |
+| **TUI** (Go · Bubble Tea) | Shippable | Cross-platform static binaries via GoReleaser, also published to npm as `@zcrypt/cli`. Talks to the backend HTTP API. |
+
+iOS compiles but is not yet built in CI — it is in development.
 
 ## Features
 
-- **Zero-knowledge encryption** - passphrase never leaves the browser, server can't read your files
-- **Multi-platform storage** - GitHub, GitLab, HuggingFace, Telegram as storage backends
-- **Repo auto-rotation** - new repos created automatically when size thresholds are hit
-- **Resumable uploads** - two-phase pipeline survives server restarts
-- **Concurrent uploads** - semaphore-based parallel chunk uploading with progress via SSE
-- **Repository disguise** - repos look like normal dev projects (fake names, commits, READMEs)
-- **Platform token encryption at rest** - tokens encrypted with per-user KEK derived from master key via HKDF
-- **2FA support** - TOTP-based two-factor authentication
-- **Admin panel** - user management, global tokens, quota management, analytics
-- **Three file views** - grid, list, and table views with sort/search/pagination
-- **Storage quotas** - per-user quotas with free/pro plan support
-- **Passphrase caching** - client-side TTL cache (15 min) so you don't re-enter for every download
-- **Folders** - nestable folders, optionally password-protected with a per-folder key
-- **Sharing** - password-protected share links, folder shares, and ephemeral Send links
-- **Spaces (shared vaults)** - multi-member encrypted vaults with membership and key rotation
-- **Dead-man's switch & decoy mode** - scheduled release, plus a duress/decoy profile
-- **Snapshots & integrity** - point-in-time metadata snapshots and chunk-integrity checks
-- **Trash** - soft-delete with restore and permanent purge
-- **Clients** - web app, terminal UI (Bubble Tea), and a Tauri desktop app
+**Encryption & privacy**
+- Zero-knowledge, client-side AES-256-GCM encryption — your passphrase never leaves your device
+- Envelope encryption: a random per-file key (CEK) wrapped by a passphrase-derived KEK (PBKDF2-SHA256, 600,000 iterations)
+- Encrypted filenames and keyed content hashing (HMAC) to resist confirmation-of-file attacks
+- Decoy / duress profile — a separate password opens a plausible decoy vault under coercion
 
-## Quick Start
+**Storage**
+- Multi-platform backends: GitHub, GitLab, HuggingFace, and Telegram
+- Bring-your-own-storage (BYOS-direct) on desktop/mobile — chunks go straight to your own accounts
+- Repository disguise — repos, commit messages, and filenames look like ordinary developer projects
+- Automatic repo rotation as size thresholds are hit (most useful on GitHub/GitLab; see [Storage platforms](#storage-platforms))
+- Resumable, chunked uploads that survive restarts; concurrent chunk transfer with live progress over SSE
+
+**Files & collaboration**
+- Folders, optionally protected with a per-folder password
+- Sharing: password-protected file & folder links, and ephemeral **Send** links (expiry + burn-after-read)
+- **Spaces** — multi-member shared vaults with per-member X25519 key wrapping and key rotation
+- **Timed Vaults** — self-destructing vaults that expire on a schedule
+- **Text Pad** — encrypted, expiring / burn-after-read paste
+- **Device Transfer** — direct device-to-device transfer over a WebSocket relay with code/QR pairing
+- **Sync & Offline** — folder sync, offline pinning, and encrypted clipboard sync across your devices
+- Trash with restore and permanent purge; point-in-time snapshots and on-demand integrity checks
+- Per-file / per-folder custom styling, file re-key (re-wrap into a Space), and bulk operations
+
+**Accounts & admin**
+- Email + password auth, OAuth (Google / GitHub), and passwordless magic-link login
+- TOTP 2FA (RFC-6238) with one-time-use codes and backup recovery codes
+- Per-user storage quotas (zcrypt is free — there are no paid tiers; quotas are an admin control, not a paywall)
+- Admin panel: user management, quotas, system stats, storage reconcile, and a tamper-evident, hash-chained audit log
+- Per-user analytics / "Insights"
+
+## Security
+
+> Full policy and private disclosure process: **[docs/SECURITY.md](docs/SECURITY.md)**. Please do not open a public issue for suspected vulnerabilities.
+
+### Encryption design
+- **File encryption:** AES-256-GCM. A fresh random CEK per file; a 12-byte IV and 16-byte tag per chunk. (Batch uploads share one passphrase-derived salt/KEK for the batch, but every file still gets its own random CEK and unique nonces.)
+- **Key derivation:** PBKDF2-SHA256, 600,000 iterations (OWASP-recommended), identical on the web, Go, and Rust implementations and pinned by shared test vectors.
+- **Platform tokens & TOTP secrets at rest:** AES-256-GCM sealed under a per-user KEK derived from `MASTER_KEY` via HKDF-SHA256.
+- **Passwords:** bcrypt (cost 12).
+- **Passphrase:** never stored, never logged, never sent to the server or the storage platforms.
+
+### Auth hardening
+- HS256 JWTs with strict algorithm validation (rejects `alg: none` / algorithm-confusion) and a separate short-lived token type for the 2FA step, so a password-only attacker can't skip 2FA.
+- One-time-use TOTP codes (replay-rejected) and hashed backup codes.
+- Login rate limiting per IP **and** per email; timing-equalized password checks and generic errors to resist user enumeration.
+
+### Server hardening
+- CORS allow-list (no wildcard); 1 MB JSON body cap; path-traversal and header-injection protection on filenames.
+- Global and per-endpoint rate limiting (in-memory, per instance).
+- Security headers: HSTS, `X-Frame-Options`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Permissions-Policy`, and a Content-Security-Policy on the frontend. **Note:** the CSP ships **report-only** by default — set `CSP_ENFORCE=1` to enforce it.
+- Errors are logged server-side only; clients receive sanitized messages.
+
+### What the server cannot do
+- Read your files (encrypted with a passphrase it never receives)
+- Recover your passphrase (PBKDF2 is one-way)
+- Access your storage without your token (tokens are sealed at rest; on desktop/mobile they never leave your device)
+
+## Tech stack
+
+| Layer | Technology |
+| ----- | ---------- |
+| Web frontend | Next.js 16, React 19, TypeScript, Tailwind CSS, Zustand 5, Motion 12 |
+| Client core | Rust (`zcrypt-core`) — crypto, zstd, chunk pipeline, SQLite ledger, platform adapters |
+| Desktop / mobile | Tauri v2 (Rust core embedded in-process) |
+| TUI | Go 1.25, Bubble Tea |
+| Backend | Go 1.25, stdlib `net/http` (no framework), pgxpool |
+| Database | PostgreSQL on Neon (serverless) |
+| Encryption | AES-256-GCM, PBKDF2-SHA256 (600k), HKDF-SHA256, X25519 (sharing), bcrypt, TOTP |
+| Compression | zstd (WebCrypto/WASM in the browser; native in the Rust core) |
+| Deploy | Web on Vercel, backend on Railway (distroless Docker), DB on Neon |
+
+## Quick start
 
 ### Prerequisites
-
 - Go 1.25+
 - Node.js 20+ and [Bun](https://bun.sh)
-- PostgreSQL (or a [Neon](https://neon.tech) account)
+- PostgreSQL (or a free [Neon](https://neon.tech) database)
+- Rust (stable) — only needed to build the desktop/mobile clients
 - Docker (optional)
 
 ### Backend
@@ -98,15 +215,13 @@ Frontend (Next.js 16 / Vercel)         Backend (Go / Railway)           Storage
 ```bash
 cd app/backend
 
-# Copy the example env file and fill in your OWN values.
-# .env is gitignored — never commit real secrets.
+# Copy the template and fill in your OWN values. .env is gitignored — never commit real secrets.
 cp .env.example .env
-# Edit .env: at minimum set DATABASE_URL, MASTER_KEY, and ZCRYPT_JWT_SECRET.
+# At minimum set DATABASE_URL, MASTER_KEY, and ZCRYPT_JWT_SECRET.
 
-# Generate a 32-byte key for MASTER_KEY / ZCRYPT_JWT_SECRET
+# Generate a 32-byte key for MASTER_KEY / ZCRYPT_JWT_SECRET:
 openssl rand -hex 32
 
-# Run
 go build -o zcrypt-server . && ./zcrypt-server
 ```
 
@@ -114,263 +229,190 @@ go build -o zcrypt-server . && ./zcrypt-server
 
 ```bash
 cd app/frontend
-
-# Install dependencies
 bun install
-
-# Set API URL
 echo "NEXT_PUBLIC_API_URL=http://localhost:8080" > .env.local
-
-# Dev server
-bun run dev
-
-# Production build
-bun run build
+bun run dev        # dev server
+bun run build      # production build
 ```
 
-### Docker
+### Desktop (Tauri + Rust core)
+
+```bash
+cd app/desktop
+bun install
+bun run tauri dev      # run the desktop app against your local/remote backend
+bun run tauri build    # produce an installer for the current OS
+```
+
+### TUI
+
+```bash
+cd app/tui
+go build ./... && ./zcrypt-tui
+```
+
+### Docker (backend)
 
 ```bash
 docker build -t zcrypt .
 docker run -p 8080:8080 \
   -e DATABASE_URL="postgresql://..." \
   -e MASTER_KEY="$(openssl rand -hex 32)" \
-  -e FRONTEND_URL="https://your-frontend.vercel.app" \
-  -e ALLOWED_ORIGINS="https://your-frontend.vercel.app" \
+  -e ZCRYPT_JWT_SECRET="$(openssl rand -hex 32)" \
+  -e FRONTEND_URL="https://your-frontend.example" \
+  -e BACKEND_URL="https://your-backend.example" \
   zcrypt
 ```
 
-## Environment Variables
+## Environment variables
 
-The backend is configured entirely through environment variables. A documented
-template with placeholder values lives at
-[`app/backend/.env.example`](app/backend/.env.example) — copy it to
-`app/backend/.env` and fill in your own values. The `.env` file is gitignored;
-never commit real secrets.
+The backend is configured entirely through environment variables. A documented template lives at [`app/backend/.env.example`](app/backend/.env.example) — copy it to `.env` and fill in your own values. `.env` is gitignored; never commit real secrets.
 
 ### Backend (required)
 
-| Variable            | Description                                                |
-| ------------------- | ---------------------------------------------------------- |
-| `DATABASE_URL`      | PostgreSQL connection string                               |
-| `MASTER_KEY`        | 32-byte hex key for envelope encryption of platform tokens |
-| `ZCRYPT_JWT_SECRET` | JWT signing secret (auto-generated if empty)               |
-| `FRONTEND_URL`      | Frontend URL — used for email links AND post-OAuth redirect; also added to the CORS whitelist |
-| `BACKEND_URL`       | Public backend URL (e.g. `https://NEXT_PUBLIC_API_URL`), no trailing slash. **Required for OAuth** — it builds the `redirect_uri` and MUST exactly match what is registered with Google/GitHub. If unset, it is derived per-request and usually breaks OAuth. |
-| `ALLOWED_ORIGINS`   | Comma-separated CORS whitelist (defaults to localhost; `FRONTEND_URL` is added automatically) |
+| Variable | Description |
+| -------- | ----------- |
+| `DATABASE_URL` | PostgreSQL connection string |
+| `MASTER_KEY` | 32-byte hex key for envelope encryption of platform tokens & TOTP secrets |
+| `ZCRYPT_JWT_SECRET` | JWT signing secret (≥32 chars). Set it explicitly — if empty it is auto-generated and will not persist across restarts on ephemeral hosts, logging everyone out. |
+| `FRONTEND_URL` | Frontend URL — used for email links and the post-OAuth redirect; also added to the CORS allow-list |
+| `BACKEND_URL` | Public backend URL, no trailing slash. **Required for OAuth** — it builds the `redirect_uri`, which must exactly match what is registered with Google/GitHub. If unset it is derived per request and usually breaks OAuth. |
+| `ALLOWED_ORIGINS` | Comma-separated CORS allow-list (defaults to localhost; `FRONTEND_URL` and the Tauri desktop origins are added automatically) |
 
-### OAuth (Google / GitHub login)
+### OAuth (optional — Google / GitHub login)
 
-OAuth is enabled only when both the client ID **and** secret are set for a provider.
+Enabled per provider only when both the client ID **and** secret are set.
 
-| Variable               | Description                          |
-| ---------------------- | ------------------------------------ |
-| `GOOGLE_CLIENT_ID`     | Google OAuth client ID               |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret           |
-| `GITHUB_CLIENT_ID`     | GitHub OAuth app client ID           |
-| `GITHUB_CLIENT_SECRET` | GitHub OAuth app client secret       |
+| Variable | Description |
+| -------- | ----------- |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth credentials |
+| `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | GitHub OAuth app credentials |
 
-Register these **exact** redirect URIs with each provider (substitute your real `BACKEND_URL`):
+Register these **exact** redirect URIs (substitute your real `BACKEND_URL`):
+- Google → `https://<BACKEND_URL>/api/auth/oauth/google/callback`
+- GitHub → `https://<BACKEND_URL>/api/auth/oauth/github/callback`
 
-- Google → *Authorized redirect URIs*: `https://<BACKEND_URL>/api/auth/oauth/google/callback`
-- GitHub → *Authorization callback URL*: `https://<BACKEND_URL>/api/auth/oauth/github/callback`
-
-The backend logs the exact URIs to register at startup, and serves them at
-`GET /api/auth/oauth/config` (no secrets) so you can verify the live configuration.
+The backend logs the exact URIs at startup and serves them (no secrets) at `GET /api/auth/oauth/config`.
 
 ### Backend (optional)
 
-| Variable         | Description                                                                  |
-| ---------------- | ---------------------------------------------------------------------------- |
-| `ZCRYPT_PORT`    | Server port (default: 8080; some hosts inject `PORT`)                        |
-| `RESEND_API_KEY` | [Resend](https://resend.com) API key — enables verification / reset emails   |
-| `RESEND_FROM`    | Sender identity, e.g. `zcrypt <noreply@example.com>`                         |
-| `DEV_MODE`       | `true` disables ALL rate limiting — local load testing only, NEVER in prod   |
+| Variable | Description |
+| -------- | ----------- |
+| `ZCRYPT_PORT` | Server port (default 8080; some hosts inject `PORT`) |
+| `RESEND_API_KEY` / `RESEND_FROM` | [Resend](https://resend.com) credentials — enables verification / reset emails |
+| `CSP_ENFORCE` | `1` enforces the frontend Content-Security-Policy (report-only otherwise) |
+| `DEV_MODE` | `true` disables ALL rate limiting — local load testing only, never in production |
 
 ### Frontend
 
-| Variable              | Description     |
-| --------------------- | --------------- |
+| Variable | Description |
+| -------- | ----------- |
 | `NEXT_PUBLIC_API_URL` | Backend API URL |
 
-## Project Structure
+## Project structure
 
 ```
-app/backend/
-  main.go              - HTTP server, routing, middleware
-  cmd/                 - HTTP handlers (auth, upload sessions, files, folders, shares, admin, events)
-  pipeline/            - Server-side upload progress tracking (SSE)
-  crypto/              - Token envelope encryption (HKDF per-user KEK), TOTP, sealed boxes
-  compression/         - zstd helpers (Go clients; file compression is client-side in the browser)
-  chunks/              - File splitting, merging, SHA-256 verification
-  adapters/            - Platform adapters (GitHub, GitLab, HuggingFace, Telegram)
-  reppool/             - Repository pool management with auto-rotation
-  index/               - PostgreSQL database layer (pgxpool, raw SQL)
-  auth/                - JWT, bcrypt, TOTP, email sending
-  config/              - Environment config, directory management
-  disguise/            - Fake repo names, commit messages, filenames
-  types/               - Shared types
+app/
+  backend/          Go backend — module github.com/zcrypt/zcrypt
+    cmd/            HTTP handlers (auth, upload sessions, files, folders, shares,
+                    spaces, send, pad, transfer, sync, deadman, decoy, keys, admin, events)
+    pipeline/       Server-side upload progress (SSE pub/sub)
+    crypto/         Token/TOTP envelope encryption (HKDF per-user KEK), sealed boxes
+    chunks/         Splitting, merging, SHA-256 verification
+    adapters/       Storage adapters: GitHub, GitLab, HuggingFace, Telegram
+    reppool/        Repository pool + auto-rotation
+    index/          PostgreSQL layer (pgxpool, raw SQL, migrations)
+    auth/           JWT, bcrypt, TOTP, backup codes, email
+    disguise/       Fake repo names, commit messages, filenames
 
-app/frontend/
-  app/(app)/           - Authenticated app pages (dashboard, settings, analytics, admin)
-  app/(auth)/          - Auth pages (login, register, 2FA, forgot-password)
-  app/(marketing)/     - Landing, features, docs, comparisons, philosophy, privacy, terms
-  components/          - UI components (upload, files, auth, admin, settings, ui)
-  store/               - Zustand stores (auth, upload, files, passphrase, toast, platform)
-  hooks/               - Custom hooks (useFileList, useOperationStatus, usePlatformHealth)
-  lib/                 - API client, auth API, utilities
-  types/               - TypeScript interfaces
+  core/             Rust client engine — crate zcrypt-core (embedded by desktop & Android)
+    src/crypto      AES-256-GCM, PBKDF2, key wrap/unwrap, content HMAC
+    src/engines     Upload / streaming download / bulk-zip / background sync / delete
+    src/adapters    BYOS-direct platform adapters (github/gitlab/huggingface/telegram)
+    src/localdb     Offline-first SQLite ledger
+    src/api         Backend control-plane HTTP client (token refresh, retry)
+    tests/          Cross-implementation conformance vectors
 
-app/tui/               - Terminal client (Go, Bubble Tea)
-app/desktop/           - Desktop app (Tauri; a Go sidecar reuses the pipeline)
+  frontend/         Next.js 16 / React 19 web app
+    app/(app)/      Authenticated pages (dashboard, spaces, settings, analytics, admin)
+    app/(auth)/     Auth pages (login, register, 2FA, magic-link, OAuth callback)
+    app/(marketing)/ Landing, docs, comparisons, privacy, terms
+    components/ store/ hooks/ lib/ types/
+
+  desktop/          Tauri v2 shell (macOS / Windows / Linux + Android build) — embeds core
+  tui/              Go Bubble Tea terminal client — module github.com/zcrypt/zcrypt-tui
 ```
 
-## Security
+## API overview
 
-### Encryption Design
-
-- **File encryption:** AES-256-GCM with unique salt (32 bytes) and IV (12 bytes) per file
-- **Key derivation:** PBKDF2-SHA256, 600,000 iterations (OWASP 2023 recommendation)
-- **Platform token encryption:** AES-256-GCM with per-user KEK derived via HKDF-SHA256 from master key
-- **Password storage:** bcrypt (cost 12)
-- **Passphrase handling:** Never stored, never logged, never sent to storage platforms
-
-### Server Security
-
-- **CORS whitelist** - only configured origins accepted (no wildcard)
-- **JWT algorithm validation** - rejects non-HS256 tokens (prevents algorithm confusion attacks)
-- **Auth rate limiting** - 5 attempts per 5 minutes per IP on login/register
-- **Global rate limiting** - 50 req/sec per IP with X-Forwarded-For support
-- **Password complexity** - min 8 chars, uppercase, digit, special character required
-- **Input validation** - filename path traversal protection, Content-Disposition header sanitization
-- **Error sanitization** - internal errors logged server-side only, safe messages returned to clients
-- **Security headers** - HSTS, X-Frame-Options DENY, nosniff, strict Referrer-Policy, Permissions-Policy
-
-### What the Server Cannot Do
-
-- Read your files (encrypted with your passphrase, which never reaches the server)
-- Recover your passphrase (PBKDF2 is one-way)
-- Access platform repos without your token (tokens encrypted at rest with master key)
-
-### Reporting a vulnerability
-
-Please report security issues privately — see [SECURITY.md](docs/SECURITY.md). Do not
-open a public issue for suspected vulnerabilities.
-
-## API Endpoints
+The backend speaks JSON over `net/http`, authenticated with `Authorization: Bearer <jwt>`, plus SSE for realtime. The tables below are a representative subset — the authoritative route list is `RegisterRoutes` in [`app/backend/cmd/server.go`](app/backend/cmd/server.go).
 
 ### Auth
-
-| Method | Endpoint                    | Description                          |
-| ------ | --------------------------- | ------------------------------------ |
-| POST   | `/api/auth/register`        | Create account                       |
-| POST   | `/api/auth/login`           | Login (returns JWT or 2FA challenge) |
-| POST   | `/api/auth/refresh`         | Refresh access token                 |
-| POST   | `/api/auth/logout`          | Invalidate refresh token             |
-| POST   | `/api/auth/forgot-password` | Send reset email                     |
-| POST   | `/api/auth/reset-password`  | Reset with token                     |
-| POST   | `/api/auth/verify-email`    | Verify email                         |
-| POST   | `/api/auth/2fa/setup`       | Generate TOTP secret                 |
-| POST   | `/api/auth/2fa/enable`      | Enable 2FA                           |
-| POST   | `/api/auth/2fa/verify`      | Verify 2FA code during login         |
-| GET    | `/api/auth/me`              | Get current user                     |
+| Method | Endpoint | Description |
+| ------ | -------- | ----------- |
+| POST | `/api/auth/register` · `/login` · `/logout` · `/refresh` | Account & session |
+| POST | `/api/auth/magic-link` · `/magic-link/verify` | Passwordless login |
+| GET | `/api/auth/oauth/{provider}` · `/callback` · `/desktop-poll` | OAuth (Google/GitHub) |
+| POST | `/api/auth/2fa/setup` · `/enable` · `/verify` · `/disable` · `/backup-codes` | TOTP 2FA |
+| POST | `/api/auth/forgot-password` · `/reset-password` · `/verify-email` | Recovery |
+| GET | `/api/auth/me` | Current user |
 
 ### Upload (resumable session, one chunk per request)
+| Method | Endpoint | Description |
+| ------ | -------- | ----------- |
+| POST | `/api/upload/init` | Start a session |
+| PUT | `/api/upload/{sid}/chunk/{idx}` | Relay-upload an encrypted chunk |
+| POST | `/api/upload/{sid}/presign/{idx}` · `/confirm/{idx}` | BYOS-direct chunk (presigned) |
+| POST | `/api/upload/{sid}/complete` | Finalize |
+| GET | `/api/upload/{sid}/status` · `/api/upload/incomplete` | Resume support |
 
-There is no single multipart `push`/`pull` endpoint — uploads run through a
-resumable session and each chunk is encrypted client-side before it leaves the
-browser.
+### Files, storage & realtime
+| Method | Endpoint | Description |
+| ------ | -------- | ----------- |
+| GET | `/api/files` · `/files/trash` · `/files/{id}/meta` | Listing & metadata |
+| GET | `/api/files/{id}/chunks/{idx}` · `/files/{id}/locators` | Relay / BYOS-direct download |
+| DELETE | `/api/files/{id}` · `/files/{id}/purge` | Trash / permanent delete |
+| POST | `/api/repos/register` · `/repos/{id}/deactivate` | Client-registered BYOS repos |
+| GET | `/api/changes?since=` · `/api/events` | Change feed & SSE progress |
+| GET | `/api/transfer/ws` | Device-to-device WebSocket transfer |
 
-| Method | Endpoint                          | Description                          |
-| ------ | --------------------------------- | ------------------------------------ |
-| POST   | `/api/upload/init`                | Start a session (returns session id) |
-| POST   | `/api/upload/{sid}/presign/{idx}` | Presign a direct-upload chunk (HF)   |
-| PUT    | `/api/upload/{sid}/chunk/{idx}`   | Relay-upload an encrypted chunk      |
-| POST   | `/api/upload/{sid}/confirm/{idx}` | Confirm a direct-uploaded chunk      |
-| POST   | `/api/upload/{sid}/complete`      | Finalize the session                 |
-| GET    | `/api/upload/{sid}/status`        | Uploaded-chunk set (for resume)      |
-| GET    | `/api/upload/incomplete`          | List resumable sessions              |
-| DELETE | `/api/upload/{sid}`               | Cancel a session                     |
+Sharing (`/api/shares`, `/api/folder-shares`, `/api/send`), Spaces (`/api/shared-vaults`), Timed Vaults (`/api/vaults`), Pad (`/api/pad`), keys (`/api/keys`), quota, snapshots/integrity, and admin (`/api/admin/*`, including `/audit` + `/audit/verify`) round out the surface.
 
-### Files & download
+## Storage platforms
 
-| Method | Endpoint                       | Description                        |
-| ------ | ------------------------------ | ---------------------------------- |
-| GET    | `/api/files`                   | List files                         |
-| GET    | `/api/files/trash`             | List trashed files                 |
-| GET    | `/api/files/{id}/meta`         | File metadata (chunk count, salt…) |
-| GET    | `/api/files/{id}/chunks/{idx}` | Fetch one encrypted chunk          |
-| DELETE | `/api/files/{id}`              | Move to trash                      |
-| DELETE | `/api/files/{id}/purge`        | Permanently delete                 |
+Each platform stores chunks differently — zcrypt hides that behind one adapter interface:
 
-### Platforms
+| Platform | How chunks are stored | Rotation threshold | Notes |
+| -------- | --------------------- | ------------------ | ----- |
+| **GitHub** | Base64 file commits via the Contents API (one commit per chunk) — **not** Git LFS | ~850 MB / repo | Rotation to a fresh disguised repo adds real capacity |
+| **GitLab** | Base64 files via the Repository Files REST API | ~9 GB / repo | Rotation adds real capacity |
+| **HuggingFace** | Git LFS batch protocol (presigned blob upload + commit) | ~90 GB | Safety threshold under HF's **100 GB per-account** cap — rotating repos does **not** add capacity |
+| **Telegram** | Bot API `sendDocument` (chunks >19 MB auto-split around the 20 MB limit) | virtual (~50 GB) | No real repos; effectively the unlimited backend |
 
-| Method | Endpoint                    | Description                |
-| ------ | --------------------------- | -------------------------- |
-| GET    | `/api/platforms/status`     | Platform connection status |
-| POST   | `/api/platforms/connect`    | Connect platform token     |
-| DELETE | `/api/platforms/disconnect` | Disconnect platform        |
-| GET    | `/api/repos`                | List repos                 |
-
-### Realtime
-
-| Method | Endpoint      | Description         |
-| ------ | ------------- | ------------------- |
-| GET    | `/api/events` | SSE progress stream |
-
-Pause / resume are handled client-side (the chunk loop stops and resumes from
-`/api/upload/{sid}/status`) — there are no pause/resume endpoints.
-
-### Admin
-
-| Method | Endpoint                      | Description       |
-| ------ | ----------------------------- | ----------------- |
-| GET    | `/api/admin/users`            | List all users    |
-| PUT    | `/api/admin/users/{id}/role`  | Set user role     |
-| PUT    | `/api/admin/users/{id}/plan`  | Set user plan     |
-| PUT    | `/api/admin/users/{id}/quota` | Set user quota    |
-| DELETE | `/api/admin/users/{id}`       | Delete user       |
-| GET    | `/api/admin/stats`            | System statistics |
-
-This is a representative subset. The backend also serves folders,
-shares / folder-shares, shared vaults (spaces), Send links, encrypted pads,
-notes, clipboard, snapshots & integrity, sync / offline, the dead-man's switch,
-decoy mode, keys, quota, and preferences. See
-[`app/backend/cmd/server.go`](app/backend/cmd/server.go) (`RegisterRoutes`) for
-the authoritative list.
+Repo rotation (`app/backend/reppool`) deactivates a repo once it crosses its threshold and creates a fresh disguised replacement. HuggingFace batches deletes into a single commit to stay under its ~128 commits/hour/repo limit.
 
 ## Contributing
 
-Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for local
-setup, coding conventions, and the branch/PR workflow. By contributing you agree
-that your work is licensed under the project's MIT license.
+Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for local setup, coding conventions, the module quality gates, and the branch/PR workflow. By contributing you agree your work is licensed under the project's [MIT License](LICENSE).
 
-If you believe you have found a security vulnerability, please follow the
-responsible-disclosure process in [SECURITY.md](docs/SECURITY.md) instead of opening a
-public issue.
+For anything that might be a security vulnerability, follow the private disclosure process in [docs/SECURITY.md](docs/SECURITY.md) instead of opening a public issue.
 
-## Commands
+## Support
 
-```bash
-# Backend
-cd app/backend && go build -o zcrypt-server .     # Build
-cd app/backend && go test ./...                   # Test
-cd app/backend && go vet ./...                    # Lint
+Need help, found a bug, or want to request a feature? See **[SUPPORT.md](SUPPORT.md)** for where to go and what to expect.
 
-# Frontend
-cd app/frontend && bun run dev                    # Dev server
-cd app/frontend && bun run build                  # Production build
-cd app/frontend && bun run lint                   # Lint
-cd app/frontend && bun run typecheck              # Type check
+## Sponsor zcrypt
 
-# Docker
-docker build -t zcrypt .
+zcrypt is free, open source, and has no paid tiers — the core will always be free. But it costs real money to run: database, hosting, and egress bandwidth. Donations go to exactly that — keeping the infrastructure (and the free tier) alive. No investors, no ads, nothing sold about you.
 
-# Pre-push quality gate (change-scoped: typecheck / lint / test / build)
-bash scripts/install-hooks.sh                     # once per clone — wires the hook
-bash scripts/prepush.sh --gates-only
-```
+If zcrypt is useful to you and you can spare it, sponsorship genuinely helps:
+
+- **GitHub Sponsors:** [github.com/sponsors/Wosmos](https://github.com/sponsors/Wosmos)
+
+<!-- SPONSOR-CHANNELS: additional channels (Ko-fi, crypto) are added here once configured. -->
+
+Every bit is appreciated, and none of it is required.
 
 ## License
 
-zcrypt is open source under the [MIT License](./LICENSE).
+zcrypt is open source under the [MIT License](LICENSE) © 2026 Muhammad Wasif Malik.
