@@ -211,7 +211,7 @@ export function AuditLog() {
   }, [page, eventTypeFilter]);
 
   useEffect(() => {
-    fetchEvents();
+    void fetchEvents();
   }, [fetchEvents]);
 
   // Real-time SSE audit events (prepend to list if on page 1 and not paused)

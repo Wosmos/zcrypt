@@ -38,7 +38,7 @@ export default function TwoFactorVerifyPage() {
     if (index === 5 && value) {
       const fullCode = newCode.join("");
       if (fullCode.length === 6) {
-        handleSubmit(fullCode);
+        void handleSubmit(fullCode);
       }
     }
   };
@@ -58,7 +58,7 @@ export default function TwoFactorVerifyPage() {
     }
     setCode(newCode);
     if (pasted.length === 6) {
-      handleSubmit(pasted);
+      void handleSubmit(pasted);
     } else {
       inputRefs.current[pasted.length]?.focus();
     }

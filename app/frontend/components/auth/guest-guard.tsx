@@ -66,7 +66,7 @@ export function GuestGuard({ children }: { children: React.ReactNode }) {
       setChecked(true);
     }
 
-    check();
+    void check();
   }, [accessToken, refreshTokenValue, router, setUser, setTokens, pathname]);
 
   if (!checked) {

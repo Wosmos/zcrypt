@@ -134,7 +134,7 @@ export function useVaultActions({
       // Arm lazy generation; each card generates its own thumbnail on render.
       primeThumbnails(passphrase, (fileId) => thumbnailResolver(fileId, fileById));
       // Ensure this account has an X25519 keypair (foundation for sharing).
-      ensureUserKeypair(passphrase);
+      void ensureUserKeypair(passphrase);
     }
   }, [files, vaultUnlocked, folderPwCache, thumbnailResolver, fileById]);
 
@@ -202,9 +202,9 @@ export function useVaultActions({
         // backend's Auto default — Telegram-first — ignoring the selection).
         const desktopPlatform = platformOverride ?? selectedPlatform ?? undefined;
         if (paths.length > 0) {
-          startDesktopUpload(wrapPassphrase, refresh, paths, desktopPlatform);
+          void startDesktopUpload(wrapPassphrase, refresh, paths, desktopPlatform);
         } else {
-          startDesktopUpload(wrapPassphrase, refresh, undefined, desktopPlatform);
+          void startDesktopUpload(wrapPassphrase, refresh, undefined, desktopPlatform);
         }
         return;
       }
@@ -583,7 +583,7 @@ export function useVaultActions({
       setFiles((cur) => cur.filter((f) => f.id !== target.id));
       clearDecryptCacheForFile(target.id);
       toast.success("File deleted");
-      refreshQuota();
+      void refreshQuota();
       // Fire-and-forget; reconcile against the server on failure (refresh, not a
       // captured snapshot, to avoid resurrecting a concurrently-deleted file).
       deleteFile(target.id)
@@ -593,8 +593,8 @@ export function useVaultActions({
         })
         .catch((err) => {
           toast.error(err instanceof Error ? err.message : "Delete failed");
-          refresh();
-          refreshQuota();
+          void refresh();
+          void refreshQuota();
         });
     },
     [setFiles, refresh, refreshQuota],
@@ -611,7 +611,7 @@ export function useVaultActions({
         const result = await bulkDeleteFiles(ids);
         if (result.failed > 0) {
           toast.warning(`${result.deleted} deleted, ${result.failed} failed`);
-          refresh(); // reconcile the partial failure against the server
+          void refresh(); // reconcile the partial failure against the server
         } else {
           toast.success(`Deleted ${result.deleted} file${result.deleted !== 1 ? "s" : ""}`);
         }
@@ -619,9 +619,9 @@ export function useVaultActions({
         void invalidateTrash();
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Bulk delete failed");
-        refresh();
+        void refresh();
       } finally {
-        refreshQuota();
+        void refreshQuota();
       }
     },
     [setFiles, refresh, refreshQuota],

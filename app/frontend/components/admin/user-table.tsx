@@ -49,7 +49,7 @@ interface RowHandlers {
   onRoleToggle: (userId: string, currentRole: Role, username: string) => void;
   onDelete: (userId: string, username: string) => void;
   onStartEditQuota: (u: AdminUser) => void;
-  onSaveQuota: (userId: string) => void;
+  onSaveQuota: (userId: string) => void | Promise<void>;
   onCancelEditQuota: () => void;
   onQuotaModeChange: (mode: QuotaMode) => void;
   onQuotaInputChange: (value: string) => void;

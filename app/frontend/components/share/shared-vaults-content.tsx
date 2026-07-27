@@ -85,7 +85,7 @@ function useFolderOptions(files: FileMetadata[], enabled: boolean) {
       setNames({});
       return;
     }
-    (async () => {
+    void (async () => {
       const key = await deriveNameKey(pass, user.id);
       if (cancelled) return;
       const entries = await Promise.all(
@@ -193,7 +193,7 @@ export function SharedVaultsContent() {
   // seal keys. Uses the cached vault passphrase if the vault is unlocked.
   useEffect(() => {
     const passphrase = usePassphraseStore.getState().getPassphrase();
-    if (passphrase) ensureUserKeypair(passphrase);
+    if (passphrase) void ensureUserKeypair(passphrase);
   }, []);
 
   // Resolve space-sealed file names whenever the open space's files change.
@@ -203,7 +203,7 @@ export function SharedVaultsContent() {
       return;
     }
     let cancelled = false;
-    (async () => {
+    void (async () => {
       const entries = await Promise.all(
         (detail.files ?? []).map(
           async (f) =>
