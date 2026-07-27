@@ -44,7 +44,7 @@ export function FeedbackList() {
   };
 
   useEffect(() => {
-    fetchPage(page * PAGE_SIZE);
+    void fetchPage(page * PAGE_SIZE);
   }, [page]);
 
   const feedback = data?.feedback ?? [];

@@ -75,7 +75,7 @@ export function FolderShareModal({ folder, open, onOpenChange, files }: FolderSh
     setCopied(false);
 
     let cancelled = false;
-    collectSubtreeFolderIds(folder.id).then((ids) => {
+    void collectSubtreeFolderIds(folder.id).then((ids) => {
       if (!cancelled) setSubtreeIds(ids);
     });
     return () => {

@@ -161,7 +161,9 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
           break;
         case "paired":
           setState("paired");
-          setTimeout(() => startTransfer(ws, selectedFile, key), 200);
+          setTimeout(() => {
+            void startTransfer(ws, selectedFile, key);
+          }, 200);
           break;
         case "error":
           setState("error");

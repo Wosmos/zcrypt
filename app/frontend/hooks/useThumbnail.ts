@@ -194,7 +194,7 @@ async function hydrate() {
     markHydrated();
   }
 }
-if (typeof window !== "undefined") hydrate();
+if (typeof window !== "undefined") void hydrate();
 
 // ── Canvas thumbnail generation ──────────────────────────────────────
 

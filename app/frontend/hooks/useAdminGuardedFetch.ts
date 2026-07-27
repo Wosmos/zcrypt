@@ -27,7 +27,7 @@ export function useAdminGuardedFetch(fetcher: () => Promise<void>) {
 
   useEffect(() => {
     if (user?.role === Role.Admin) {
-      refresh();
+      void refresh();
     }
   }, [user, refresh]);
 

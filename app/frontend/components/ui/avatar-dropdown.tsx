@@ -150,7 +150,7 @@ export function AvatarDropdown() {
             <div className="border-t border-[var(--color-border)] py-1">
               <button
                 onClick={() => {
-                  handleLogout();
+                  void handleLogout();
                   setOpen(false);
                 }}
                 aria-label="Log out"

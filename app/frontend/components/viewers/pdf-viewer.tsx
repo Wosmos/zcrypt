@@ -76,7 +76,7 @@ export function PdfViewer({
     setError(false);
     setCurrentPage(1);
 
-    (async () => {
+    void (async () => {
       try {
         const pdfjs = await loadPdfjs();
         const data = new Uint8Array(await blob.arrayBuffer());
@@ -295,7 +295,7 @@ function PdfPage({
     if (!visible || targetWidth <= 0) return;
     let cancelled = false;
 
-    (async () => {
+    void (async () => {
       try {
         const page = pageRef.current ?? (await doc.getPage(pageNumber));
         if (cancelled) return;
