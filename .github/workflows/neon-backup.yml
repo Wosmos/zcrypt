@@ -1,0 +1,51 @@
+name: Neon Nightly Backup
+
+# Offsite encrypted backup — independent of quota level and independent of
+# rotation. Closes docs/DB_SCALING_100_PROJECTS.md V-9: "nightly encrypted
+# offsite dump means Neon holds zero exclusive copies." Runs every night
+# regardless of whether a rotation ever happens.
+#
+# Setup (one-time):
+#   1. Generate an age keypair OFFLINE (NOT on this machine's CI runner):
+#        age-keygen -o neon-backup-key.txt
+#      This prints a public key ("age1...") and writes the private key to the
+#      file. Store the file somewhere safe and OFFLINE (password manager,
+#      encrypted USB, etc.) — it is the ONLY way to decrypt a backup, and it
+#      must NEVER be added as a repo secret or committed.
+#   2. gh secret set NEON_BACKUP_AGE_RECIPIENT --repo Wosmos/zcrypt
+#      (paste the public key line, e.g. "age1qyqszqgpqyqszqgpqyqszqgpqyqszqgp...")
+#   3. NEON_API_KEY must already be set (shared with neon-watch.yml).
+#
+# To restore: download the release asset, then
+#   age -d -i neon-backup-key.txt backup.dump.age > restore.dump
+#   pg_restore --no-owner --no-privileges -d "<target-db-url>" restore.dump
+
+on:
+  schedule:
+    - cron: "0 3 * * *" # 03:00 UTC nightly
+  workflow_dispatch:
+
+permissions:
+  contents: write # gh release create/delete
+
+jobs:
+  backup:
+    name: Nightly encrypted Neon backup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install neonctl, age, jq
+        run: |
+          npm install -g neonctl
+          sudo apt-get update -qq && sudo apt-get install -y -qq age jq
+          # Ubuntu runners already ship postgresql-client (pg_dump) + gh.
+
+      - name: Run nightly backup
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
+          NEON_BACKUP_AGE_RECIPIENT: ${{ secrets.NEON_BACKUP_AGE_RECIPIENT }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: bash scripts/neon-backup.sh

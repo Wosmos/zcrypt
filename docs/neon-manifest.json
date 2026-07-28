@@ -1,0 +1,7 @@
+{
+  "_comment": "Carousel state (docs/DB_SCALING_100_PROJECTS.md). Committed by the automation itself (neon-rotate.sh / GitHub Actions bot) after every rotation -- this file, not the NEON_PROJECT_ID secret, is the source of truth for which project is active once it is non-null. Contains project IDs only (low-sensitivity identifiers) -- never a connection string or credential.",
+  "active_project_id": null,
+  "standby_project_id": null,
+  "last_rotation_at": null,
+  "history": []
+}
