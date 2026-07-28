@@ -1,6 +1,10 @@
 # zcrypt — From One Database to One Hundred: The Neon Rotation Plan
 
-> **Status:** Draft for review — written 2026-07-20 during the quota-lockout incident.
+> **Status:** Implemented — written 2026-07-20 during the quota-lockout incident;
+> automation (nightly offsite backup, watcher-triggered rotation, health-gated
+> Railway cutover with auto-rollback) built and merged 2026-07-28. §7 describes
+> what actually runs, not a proposal. Setup still needs one-time secrets (age
+> keypair, Railway service/environment ids, health URL) — see §7's setup note.
 > **Decision:** Rotation carousel (Plan D) for the free-tier era. Per-user sharding
 > rejected with evidence (§4.2). The path to 1M users is §14 — and it is *not* sharding.
 > **Owner:** solo-dev. **Applies to:** `app/backend` (control plane), Neon, Railway.
@@ -408,7 +412,76 @@ sequenceDiagram
 
 ---
 
-## 7. The rotation runbook (`scripts/neon-rotate.sh` — to be built)
+## 7. The rotation runbook (`scripts/neon-rotate.sh` — BUILT, fully automated)
+
+**Setup (one-time, human):** `gh secret set` for `NEON_API_KEY`, `NEON_PROJECT_ID`
+(bootstrap only — `docs/neon-manifest.json` takes over as the active-project
+source of truth after the first rotation), `NTFY_TOPIC`, `RAILWAY_TOKEN`,
+`RAILWAY_SERVICE`, `RAILWAY_ENVIRONMENT`, `HEALTH_URL`. For the nightly backup,
+also generate an `age` keypair OFFLINE (`age-keygen`) and `gh secret set
+NEON_BACKUP_AGE_RECIPIENT` with the **public** key only — the private key must
+never touch this repo or CI; it is the one artifact that makes a backup useful,
+so keep it in a password manager, not on the runner.
+
+**Trigger:** `.github/workflows/neon-watch.yml` polls every 6h; at 80%+
+("CRITICAL") it runs `neon-rotate.sh` automatically — no human in the loop for
+the dump/restore/verify half. This replaces the original design's "run this
+manually at ~85%" — the watcher fires several points earlier (80%) precisely
+so an automated run has margin.
+
+Pre-flight (abort on any failure):
+1. **Confirm the old project is still dumpable** — `SELECT 1` over the direct URL.
+   (If it's already locked, this runbook is void; see §9 recovery path.)
+2. **Resolve the active project** from `docs/neon-manifest.json`
+   (`active_project_id`), falling back to the `NEON_PROJECT_ID` secret only
+   before the first rotation has ever run (bootstrap).
+
+Execute (`neon-rotate.sh`, steps 1-4 are exactly this original design):
+3. Create the fresh project (`neonctl projects create`), resolve its direct +
+   pooled connection strings.
+4. Dump OLD → restore into NEW (`pg_dump -Fc` / `pg_restore --single-transaction`).
+5. Verify gates — per-table row counts (`users`, `files`, `chunks`, `folders`)
+   old vs new; abort (new project untouched, old project unaffected) on any
+   mismatch. `ANALYZE` the new database (a restore has zero planner
+   statistics — the classic "restore succeeded, everything is a seq-scan" trap).
+6. **Cutover** (`scripts/neon-cutover.sh`, the one step that touches live
+   traffic): set Railway's `DATABASE_URL` to the new pooled URI, **read it
+   back** to confirm Railway actually stored it (the Railway CLI's
+   variable-set subcommand name has shifted across versions — the script
+   probes which one the installed CLI exposes rather than assuming), trigger
+   a redeploy, then health-gate: poll `/api/health` for 200 AND run one direct
+   `SELECT count(*)` against the new database as a real data-path check, not
+   just "the process started."
+7. **Auto-rollback on any cutover failure**: repoint `DATABASE_URL` back to
+   the old project, redeploy, verify ITS health gate passes, alert (ntfy,
+   urgent), and exit non-zero — the old project was never touched by
+   steps 3-5, so this is always safe. A double failure (rollback itself
+   doesn't pass its health gate) pages loudly and leaves the manifest's
+   `active_project_id` unchanged, since Railway's real state is then
+   unverified — this is the one case that needs a human immediately.
+8. **Record the outcome** in `docs/neon-manifest.json` (active/standby
+   project ids, a timestamped history entry) via a bot commit + push
+   (`permissions: contents: write` in the workflow) — this is what lets the
+   *next* rotation find the right project without a human updating a secret
+   each time. Old project is **never deleted** by automation; it's the
+   rollback anchor for ≥ 7 days (renaming/reclaiming it for reuse next month
+   stays a human housekeeping task — see §9's original day-0 guidance, which
+   still applies to old parked projects).
+
+Independent of all of the above: `.github/workflows/neon-backup.yml` runs
+**nightly** regardless of quota level — `scripts/neon-backup.sh` dumps the
+active project, encrypts with `age` to an offline-held key, and uploads as a
+private GitHub Release asset (pruned after `RETENTION_DAYS`, default 30). This
+is what actually closes V-9 below: Neon is never the *only* copy, on any given
+night, independent of whether a rotation ever happens.
+
+Rollback rule: **any gate failure → repoint back to the old project** (it is still
+consistent — the freeze guaranteed no divergence), delete the bad restore, alert,
+stop. Never debug forward on the new primary with users live.
+
+*(Original manual-runbook draft, superseded by the above but kept for
+historical context — the numbered list below described the intended design
+before `neon-cutover.sh` existed:)*
 
 Pre-flight (abort on any failure):
 1. **Confirm the old project is still dumpable** — `SELECT 1` over the direct URL.
@@ -568,11 +641,17 @@ between worker wakeups ≥ 3 h apart ⇒ Neon sleeps ≥ 96% of idle time ⇒ id
 - [x] Leak fix: `useFileEvents.ts` exponential backoff (gated: tests 9/9, tsc, eslint)
 - [x] Leak fix: `devices-tab.tsx` exponential backoff (gated: tsc, eslint)
 - [x] `scripts/db-clone-from-prod.sh` retargeted to zcrypt (local mirror tool)
-- [ ] `scripts/neon-rotate.sh` — the §7 runbook, automated
-- [ ] `.github/workflows/neon-watch.yml` — consumption watcher + ntfy + heartbeat
-- [ ] `.github/workflows/neon-backup.yml` — nightly encrypted offsite dump
-- [ ] Carousel manifest format + storage (repo-adjacent, no secrets)
+- [x] `scripts/neon-rotate.sh` — the §7 runbook, automated (2026-07-28)
+- [x] `scripts/neon-cutover.sh` — Railway cutover + health-gate + auto-rollback (2026-07-28)
+- [x] `.github/workflows/neon-watch.yml` — consumption watcher + ntfy + auto-rotate at 80% (2026-07-28)
+- [x] `.github/workflows/neon-backup.yml` — nightly encrypted offsite dump (2026-07-28)
+- [x] Carousel manifest format + storage — `docs/neon-manifest.json`, project ids
+      only, no secrets, bot-committed on each rotation (2026-07-28)
+- [ ] Heartbeat dead-man-switch (V-10) — the watcher alerts on quota, but nothing
+      yet alerts if the watcher itself stops running (Actions outage/cron skew)
 - [ ] Day-0 execution (§9) when the lock lifts
+- [ ] One-time human setup: generate the `age` keypair + add all secrets listed
+      in §7's setup note (repo owner action, not yet done as of this writing)
 - [x] Research confirmations spliced in: logical replication on Free = confirmed
       both directions (§6.2, with caveats); Import Data Assistant found (§6.2b);
       free-plan usage read = project-details endpoint, NOT consumption_history (§5);
