@@ -49,10 +49,10 @@ const MAX_UPLOAD_BYTES = 10 * 1024 * 1024 * 1024;
 // at most 1.5s after the last completion AND at least every 4s while
 // completions keep streaming in.
 let refreshTimer: ReturnType<typeof setTimeout> | null = null;
-let pendingRefresh: (() => void) | null = null;
+let pendingRefresh: (() => void | Promise<void>) | null = null;
 let refreshFirstPendingAt: number | null = null;
 
-function debouncedRefresh(fn?: () => void) {
+function debouncedRefresh(fn?: () => void | Promise<void>) {
   if (fn) pendingRefresh = fn;
   const now = Date.now();
   if (refreshFirstPendingAt === null) refreshFirstPendingAt = now;
@@ -64,7 +64,7 @@ function debouncedRefresh(fn?: () => void) {
     refreshTimer = null;
     const run = pendingRefresh;
     pendingRefresh = null;
-    run?.();
+    void run?.();
   }, delay);
 }
 
@@ -190,7 +190,7 @@ interface UploadStore {
     passphrase: string,
     platform?: string,
     maxConcurrent?: number,
-    onRefresh?: () => void,
+    onRefresh?: () => void | Promise<void>,
     folderId?: string | null,
   ) => void;
   retryUpload: (id: string, passphrase: string) => void;
@@ -203,10 +203,10 @@ interface UploadStore {
   getResumableUploadIds: () => string[];
   startDesktopUpload: (
     passphrase: string,
-    onRefresh?: () => void,
+    onRefresh?: () => void | Promise<void>,
     preSelectedPaths?: string[],
     platform?: string,
-  ) => void;
+  ) => Promise<void>;
 }
 
 // Resume context for an in-flight upload. Holds the raw CEK so a retry re-encrypts
@@ -305,7 +305,7 @@ async function loadPersistedResume(file: File, passphrase: string): Promise<Resu
 // live-run control state (generation token, abort controller, rate tracker).
 interface ItemMeta {
   platform?: string;
-  onRefresh?: () => void;
+  onRefresh?: () => void | Promise<void>;
   resume?: ResumeCtx;
   folderId?: string | null;
   /** Generation token for the CURRENT uploadOneFile run. Any emit/finalize from
@@ -469,7 +469,7 @@ interface UploadFileOpts {
   passphrase: string;
   platform?: string;
   profile: ReturnType<typeof getDeviceProfile>;
-  onRefresh?: () => void;
+  onRefresh?: () => void | Promise<void>;
   /**
    * Destination folder. When set, the file is moved into this folder right after
    * its upload completes. For a password-protected folder, `passphrase` is the
@@ -1407,7 +1407,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
         }
       }
 
-      onRefresh?.();
+      void onRefresh?.();
     })();
   },
 
@@ -1458,7 +1458,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
           // (removeFromQueue) can abort this in-flight core upload.
           await sidecarUpload(desktopPath, passphrase, meta.platform, id);
           updateStatus(id, "done", 100, "Done");
-          meta.onRefresh?.();
+          void meta.onRefresh?.();
         } catch (err) {
           setError(id, err instanceof Error ? err.message : "Upload failed");
         } finally {
@@ -1641,6 +1641,6 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
       unlisten();
     }
 
-    onRefresh?.();
+    void onRefresh?.();
   },
 }));

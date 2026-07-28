@@ -178,7 +178,7 @@ export function TrashContent() {
         void invalidateFilesViews();
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Restore failed");
-        refresh();
+        void refresh();
       } finally {
         setBusyId(null);
       }
@@ -250,7 +250,7 @@ export function TrashContent() {
       }
       if (failed > 0) {
         toast.error(`${failed} file${failed > 1 ? "s" : ""} could not be restored`);
-        refresh(); // reconcile: bring back the rows that didn't restore
+        void refresh(); // reconcile: bring back the rows that didn't restore
       } else {
         toast.success(`Restored ${targets.length} file${targets.length > 1 ? "s" : ""}`);
       }
@@ -258,7 +258,7 @@ export function TrashContent() {
       void invalidateFilesViews();
     } catch {
       toast.error("Could not restore the selected files");
-      refresh();
+      void refresh();
     } finally {
       setBulkRestoring(false);
     }
@@ -286,7 +286,7 @@ export function TrashContent() {
       }
       if (failed > 0) {
         toast.error(`${failed} file${failed > 1 ? "s" : ""} could not be deleted`);
-        refresh(); // reconcile: restore the rows that didn't actually purge
+        void refresh(); // reconcile: restore the rows that didn't actually purge
       } else {
         toast.success(`Permanently deleted ${targets.length} file${targets.length > 1 ? "s" : ""}`);
       }
@@ -295,7 +295,7 @@ export function TrashContent() {
     } catch {
       // The whole batch failed (network/auth) — put the rows back.
       toast.error("Could not delete the selected files");
-      refresh();
+      void refresh();
     } finally {
       setBulkPurging(false);
     }
@@ -574,7 +574,7 @@ export function TrashContent() {
                     size="sm"
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleRestore(file);
+                      void handleRestore(file);
                     }}
                     disabled={busy}
                   >

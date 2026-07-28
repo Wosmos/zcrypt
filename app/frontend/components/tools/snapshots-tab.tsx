@@ -76,7 +76,7 @@ export function SnapshotsTab() {
               onChange={(e) => setLabel(e.target.value)}
               placeholder="Snapshot label (optional)"
               onKeyDown={(e) => {
-                if (e.key === "Enter" && !creating) handleCreate();
+                if (e.key === "Enter" && !creating) void handleCreate();
               }}
               className="h-10 flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-sm placeholder:text-[var(--color-text-muted)] outline-none transition-all focus:border-[var(--color-accent)]/40 focus:ring-2 focus:ring-[var(--color-accent)]/10"
             />

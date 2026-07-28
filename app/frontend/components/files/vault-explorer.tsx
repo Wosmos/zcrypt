@@ -670,7 +670,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
         .then(() => refreshFolders())
         .catch((err) => {
           toast.error(err instanceof Error ? err.message : `Couldn't move "${prevName}"`);
-          refreshFolders();
+          void refreshFolders();
         });
     };
 

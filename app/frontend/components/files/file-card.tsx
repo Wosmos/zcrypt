@@ -75,7 +75,7 @@ export function FileCard({
 
   const copyHash = (e: React.MouseEvent) => {
     e.stopPropagation();
-    copyToClipboard(file.sha256);
+    void copyToClipboard(file.sha256);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };

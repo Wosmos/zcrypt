@@ -79,7 +79,7 @@ export function UploadZone({ onFiles, hint, compact }: UploadZoneProps) {
     // once and threading the real paths through `onFiles` (as DesktopFiles)
     // means exactly one dialog opens per click.
     if (isTauri) {
-      pickFiles({ multiple: true, title: "Select files to upload" })
+      void pickFiles({ multiple: true, title: "Select files to upload" })
         .then((paths) => {
           if (paths.length > 0) onFiles(paths.map(toDesktopFile));
         })

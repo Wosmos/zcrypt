@@ -148,7 +148,7 @@ export function AdminUserDetailContent() {
         toast.success(`Plan updated to ${confirmAction.newValue}`);
       }
       setConfirmAction(null);
-      fetchUser();
+      void fetchUser();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Action failed");
     } finally {
@@ -175,7 +175,7 @@ export function AdminUserDetailContent() {
       await adminSetUserQuota(u.id, parsed.bytes);
       toast.success("Quota updated");
       setEditingQuota(false);
-      fetchUser();
+      void fetchUser();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to update quota");
     } finally {

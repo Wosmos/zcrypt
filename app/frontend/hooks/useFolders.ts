@@ -95,7 +95,7 @@ export function useFolders() {
     // Record protection metadata so any browsed folder can be password-routed
     // by id (the backend has no get-by-id).
     useFolderRegistry.getState().record(raw);
-    (async () => {
+    void (async () => {
       const key = await getNameKey();
       if (cancelled) return;
       setLocked(!key);
