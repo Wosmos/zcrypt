@@ -339,7 +339,7 @@ function ClipboardSyncSection() {
           onKeyDown={(e) => {
             if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
               e.preventDefault();
-              handlePush();
+              void handlePush();
             }
           }}
         />

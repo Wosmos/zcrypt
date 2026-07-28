@@ -38,7 +38,7 @@ export function AuthGuard({
     // Never blocks initialization, so the dashboard renders immediately.
     const runOnboardingCheck = () => {
       if (skipOnboardingCheck) return;
-      ensurePlatformStatus().then((statuses) => {
+      void ensurePlatformStatus().then((statuses) => {
         // Empty means either nothing connected OR a transient error; only the
         // genuinely-empty connected set should bounce to onboarding, and an
         // error resolves to [] which we treat as "leave them where they are".
@@ -61,7 +61,7 @@ export function AuthGuard({
       const existingUser = useAuthStore.getState().user;
       if (existingUser && accessToken) {
         setInitialized(true);
-        prefetchFileList();
+        void prefetchFileList();
         runOnboardingCheck();
         return;
       }
@@ -72,7 +72,7 @@ export function AuthGuard({
           const me = await getMe(accessToken);
           setUser(me);
           setInitialized(true);
-          prefetchFileList();
+          void prefetchFileList();
           runOnboardingCheck();
           return;
         } catch {
@@ -88,7 +88,7 @@ export function AuthGuard({
           const me = await getMe(data.access_token);
           setUser(me);
           setInitialized(true);
-          prefetchFileList();
+          void prefetchFileList();
           runOnboardingCheck();
           return;
         } catch (err) {
@@ -110,7 +110,7 @@ export function AuthGuard({
       router.replace("/login");
     }
 
-    init();
+    void init();
   }, [
     initialized,
     accessToken,

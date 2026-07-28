@@ -36,7 +36,7 @@ export default function LoginPage() {
       if (!session) return;
 
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
-      intervalId = setInterval(async () => {
+      const poll = async () => {
         if (stopped) return;
         try {
           const res = await fetch(`${apiUrl}/api/auth/oauth/desktop-poll?session=${session}`);
@@ -65,6 +65,9 @@ export default function LoginPage() {
         } catch {
           /* network error, keep polling */
         }
+      };
+      intervalId = setInterval(() => {
+        void poll();
       }, 2000);
     }
 

@@ -184,7 +184,7 @@ export function FileViewer({
     // "0/N" immediately, instead of a blind spinner until the first chunk lands.
     setState({ status: "loading", done: 0, total: file.chunk_count });
 
-    (async () => {
+    void (async () => {
       try {
         // Chunk-level progress feeds the "Decrypting… X/Y" loading UI. Only
         // update while still loading (a stale callback after ready/error would

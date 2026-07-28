@@ -60,7 +60,7 @@ export function useExplorerFileName(file: FileMetadata): string {
       return;
     }
     let cancelled = false;
-    (async () => {
+    void (async () => {
       const key = await getNameKeyCached(passphrase, userId);
       const name = await decryptNameSafe(encryptedName as string, key);
       if (!cancelled) setDecrypted(name);

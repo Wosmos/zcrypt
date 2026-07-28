@@ -74,7 +74,7 @@ class OfflineCache {
     }
     this.setMeta(`files_updated_${userId}`, new Date().toISOString());
     this.dirty = true;
-    this.persist();
+    void this.persist();
   }
 
   /** Get cached files for a user. */

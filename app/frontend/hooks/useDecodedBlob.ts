@@ -21,7 +21,7 @@ export function useDecodedBlob<T>(
     let cancelled = false;
     setValue(null);
     setError(null);
-    (async () => {
+    void (async () => {
       try {
         const result = await decode(blob);
         if (!cancelled) setValue(result);

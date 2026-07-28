@@ -121,7 +121,7 @@ export function MoveToFolderDialog({
     setLoadingNodes(new Set());
     parentRef.current = new Map();
     setRootLoading(true);
-    (async () => {
+    void (async () => {
       try {
         const passphrase = getPassphrase();
         keyRef.current = passphrase && user ? await deriveNameKey(passphrase, user.id) : null;
