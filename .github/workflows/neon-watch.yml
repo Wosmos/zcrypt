@@ -2,36 +2,100 @@ name: Neon Quota Watch
 
 # The safety net that was missing on 2026-07-20: Neon's free tier silently
 # suspends compute when the 100 CU-hour quota is exhausted, with NO advance
-# warning. This polls the Neon management API on a schedule and pushes a phone
-# alert (ntfy) at 60% / 80% so a rotation can happen BEFORE lockout — critical
-# because once locked, even pg_dump is impossible.
-#
-# It lives in GitHub Actions ON PURPOSE: outside the Railway/Neon failure
-# domain, and the management API keeps answering even while compute is
-# suspended, so this keeps reporting during the very outage it exists to warn
-# about.
+# warning. This polls the Neon management API on a schedule, alerts at
+# 60%/80% (ntfy), and at 80% ("CRITICAL") automatically runs the full
+# rotation carousel (docs/DB_SCALING_100_PROJECTS.md): create a fresh
+# project, dump/restore/verify, cut Railway over, health-gate, and roll back
+# on failure — see scripts/neon-rotate.sh + scripts/neon-cutover.sh.
 #
 # Setup (one-time): add repo secrets
-#   NEON_API_KEY     — Neon console → Account settings → API keys
-#   NEON_PROJECT_ID  — the active project's id
-#   NTFY_TOPIC       — any hard-to-guess ntfy.sh topic; subscribe on your phone
+#   NEON_API_KEY            Neon console → Account settings → API keys
+#   NEON_PROJECT_ID         the CURRENT active project's id (bootstrap only —
+#                           docs/neon-manifest.json takes over as the source
+#                           of truth after the first rotation)
+#   NTFY_TOPIC              any hard-to-guess ntfy.sh topic; subscribe on your phone
+#   RAILWAY_TOKEN            Railway project token (needed only for auto-rotation)
+#   RAILWAY_SERVICE          the Go backend's service name/id on Railway
+#   RAILWAY_ENVIRONMENT      e.g. "production"
+#   HEALTH_URL               e.g. https://api.zcrypt.cloud/api/health
 
 on:
   schedule:
     - cron: "0 */6 * * *" # every 6h
   workflow_dispatch:
 
+permissions:
+  contents: write # neon-rotate.sh commits docs/neon-manifest.json on rotation
+
 jobs:
   quota:
     name: Check Neon compute quota
     runs-on: ubuntu-latest
+    outputs:
+      level: ${{ steps.quota.outputs.level }}
+      rotated: ${{ steps.rotate.outcome == 'success' }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve active project (manifest, falling back to the secret)
+        id: resolve
+        run: |
+          active="$(jq -r '.active_project_id // empty' docs/neon-manifest.json 2>/dev/null || true)"
+          if [[ -z "$active" ]]; then
+            active="${{ secrets.NEON_PROJECT_ID }}"
+            echo "bootstrap: using NEON_PROJECT_ID secret"
+          fi
+          echo "project_id=${active}" >>"$GITHUB_OUTPUT"
+
       - name: Check usage + alert
+        id: quota
+        continue-on-error: true # keep going so CRIT can trigger rotation below;
+        # the final step restores red CI if nothing auto-resolved the problem.
         env:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
-          NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
+          NEON_PROJECT_ID: ${{ steps.resolve.outputs.project_id }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           WARN_PCT: "60"
           CRIT_PCT: "80"
         run: bash scripts/neon-usage.sh
+
+      - name: Auto-rotate (85%+ quota — before lockout, per docs/DB_SCALING_100_PROJECTS.md)
+        id: rotate
+        if: steps.quota.outputs.level == 'CRITICAL'
+        continue-on-error: true # let the final step decide the job's pass/fail signal
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ steps.resolve.outputs.project_id }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_SERVICE: ${{ secrets.RAILWAY_SERVICE }}
+          RAILWAY_ENVIRONMENT: ${{ secrets.RAILWAY_ENVIRONMENT }}
+          HEALTH_URL: ${{ secrets.HEALTH_URL }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: |
+          npm install -g neonctl @railway/cli
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client jq
+          git config user.name "zcrypt-neon-bot"
+          git config user.email "actions@users.noreply.github.com"
+          bash scripts/neon-rotate.sh
+
+      - name: Report final status
+        if: always()
+        run: |
+          level="${{ steps.quota.outputs.level }}"
+          rotated="${{ steps.rotate.outcome }}"
+          echo "quota level: ${level:-OK} | rotation outcome: ${rotated:-not triggered}"
+          # Green if: quota is fine, OR quota was CRITICAL and rotation succeeded
+          # (the automation fully handled it — no human action needed).
+          # Red if: WARN (needs a human to watch it), or CRITICAL and rotation
+          # did not succeed (needs a human NOW — see the ntfy alert).
+          if [[ "$level" == "WARN" ]]; then
+            echo "::error::Quota WARN (60%+) — no auto-action yet, keep an eye on it."
+            exit 1
+          fi
+          if [[ "$level" == "CRITICAL" && "$rotated" != "success" ]]; then
+            echo "::error::Quota CRITICAL and auto-rotation did NOT succeed — see the ntfy alert and the 'Auto-rotate' step log above."
+            exit 1
+          fi
+          exit 0
