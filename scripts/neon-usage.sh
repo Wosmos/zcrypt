@@ -67,7 +67,7 @@ echo "storage_bytes_hour=${storage_bytes_hour}"
 # Push a phone alert only when we've crossed a threshold and a topic is configured.
 if [[ -n "${NTFY_TOPIC:-}" && "$code" -ne 0 ]]; then
   action=""
-  [[ "$code" -eq 20 ]] && action="ROTATE NOW: bash scripts/neon-rotate.sh (see docs/DB_SCALING_100_PROJECTS.md §7)."
+  [[ "$code" -eq 20 ]] && action="Auto-rotation is triggering now (neon-watch.yml) — watch for a follow-up ntfy confirming success/failure."
   curl -fsS \
     -H "Title: zcrypt DB quota ${level} (${pct}%)" \
     -H "Priority: ${prio}" \
@@ -75,5 +75,10 @@ if [[ -n "${NTFY_TOPIC:-}" && "$code" -ne 0 ]]; then
     -d "${summary} ${action}" \
     "https://ntfy.sh/${NTFY_TOPIC}" >/dev/null || echo "WARN: ntfy push failed (non-fatal)."
 fi
+
+# Expose the level as a step output when running under GitHub Actions, so the
+# workflow can gate an auto-rotation step on CRITICAL specifically (rather
+# than on "any non-zero exit", which WARN also produces).
+[[ -n "${GITHUB_OUTPUT:-}" ]] && echo "level=${level}" >>"$GITHUB_OUTPUT"
 
 exit "$code"
