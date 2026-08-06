@@ -212,7 +212,7 @@ func (s *Server) triggerDeadManSwitch(ctx context.Context, dms types.DeadManSwit
 		}
 	}
 
-	if err := auth.SendDeadManSwitchEmail(cfg, dms.ContactEmail, dms.ContactName, ownerName, dms.Message, dms.IncludeFiles); err != nil {
+	if err := auth.SendDeadManSwitchEmail(cfg, dms.ContactEmail, dms.ContactName, ownerName, dms.Message, s.cfg.FrontendURL, dms.IncludeFiles); err != nil {
 		// Leave triggered = FALSE so the next cleanup pass retries delivery.
 		log.Printf("cleanup: send dead man's switch email to %s failed (will retry): %v", dms.ContactEmail, err)
 		return

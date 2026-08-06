@@ -25,12 +25,13 @@ func TestEmailButton(t *testing.T) {
 }
 
 func TestWrapEmail(t *testing.T) {
-	out := wrapEmail("My Heading", "<p>my content</p>", "footer note")
+	out := wrapEmail("My Heading", "<p>my content</p>", "footer note", "https://staging.example.com")
 	assert.True(t, strings.HasPrefix(out, "<!DOCTYPE html>"))
 	assert.Contains(t, out, "My Heading")
 	assert.Contains(t, out, "<p>my content</p>")
 	assert.Contains(t, out, "footer note")
-	assert.Contains(t, out, "zcrypt.cloud")
+	assert.Contains(t, out, "staging.example.com")
+	assert.NotContains(t, out, "zcrypt.cloud")
 }
 
 // The Send* helpers short-circuit and return nil when email is not configured
@@ -49,5 +50,5 @@ func TestSendMagicLinkEmailNilConfig(t *testing.T) {
 }
 
 func TestSendDeadManSwitchEmailNilConfig(t *testing.T) {
-	assert.NoError(t, SendDeadManSwitchEmail(nil, "to@test.com", "Contact", "Owner", "msg", true))
+	assert.NoError(t, SendDeadManSwitchEmail(nil, "to@test.com", "Contact", "Owner", "msg", "https://app", true))
 }

@@ -29,7 +29,10 @@ const (
 )
 
 // wrapEmail builds a fully-branded zcrypt email with logo, content, and footer.
-func wrapEmail(heading, content, footerNote string) string {
+// baseURL drives the footer link so the email never advertises a different
+// domain than the one it's actually deployed under (e.g. a staging FRONTEND_URL).
+func wrapEmail(heading, content, footerNote, baseURL string) string {
+	displayHost := strings.TrimPrefix(strings.TrimPrefix(baseURL, "https://"), "http://")
 	return fmt.Sprintf(`<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
@@ -75,7 +78,7 @@ func wrapEmail(heading, content, footerNote string) string {
   <p style="margin:0 0 6px;font-size:12px;color:%s">%s</p>
   <p style="margin:0 0 4px;font-size:12px;color:%s">zcrypt — Private cloud storage that costs less</p>
   <p style="margin:0;font-size:11px;color:%s">
-    <a href="https://zcrypt.cloud" style="color:%s;text-decoration:none">zcrypt.cloud</a>
+    <a href="%s" style="color:%s;text-decoration:none">%s</a>
   </p>
 </td></tr>
 
@@ -90,7 +93,7 @@ func wrapEmail(heading, content, footerNote string) string {
 		content,
 		brandMuted, footerNote,
 		brandMuted,
-		brandMuted, brandCyanDark,
+		brandMuted, baseURL, brandCyanDark, displayHost,
 	)
 }
 
@@ -119,7 +122,7 @@ func SendVerificationEmail(cfg *EmailConfig, to, token, baseURL string) error {
 		brandMuted, link, brandCyanDark, link,
 	)
 
-	body := wrapEmail("Verify your email", content, "This link expires in 24 hours. If you didn't create this account, ignore this email.")
+	body := wrapEmail("Verify your email", content, "This link expires in 24 hours. If you didn't create this account, ignore this email.", baseURL)
 	return sendResend(cfg, to, subject, body)
 }
 
@@ -141,7 +144,7 @@ func SendPasswordResetEmail(cfg *EmailConfig, to, token, baseURL string) error {
 		brandMuted, link, brandCyanDark, link,
 	)
 
-	body := wrapEmail("Reset your password", content, "This link expires in 1 hour. If you didn't request this, ignore this email.")
+	body := wrapEmail("Reset your password", content, "This link expires in 1 hour. If you didn't request this, ignore this email.", baseURL)
 	return sendResend(cfg, to, subject, body)
 }
 
@@ -163,7 +166,7 @@ func SendMagicLinkEmail(cfg *EmailConfig, to, token, baseURL string) error {
 		brandMuted, link, brandCyanDark, link,
 	)
 
-	body := wrapEmail("Log in to zcrypt", content, "This link expires in 15 minutes. If you didn't request this, ignore this email.")
+	body := wrapEmail("Log in to zcrypt", content, "This link expires in 15 minutes. If you didn't request this, ignore this email.", baseURL)
 	return sendResend(cfg, to, subject, body)
 }
 
@@ -172,7 +175,7 @@ func SendMagicLinkEmail(cfg *EmailConfig, to, token, baseURL string) error {
 // ownerName is a human label for the account holder (email or username),
 // personalMessage is the optional message the user left for the contact, and
 // includeFiles indicates the user intended their files to be shared.
-func SendDeadManSwitchEmail(cfg *EmailConfig, to, contactName, ownerName, personalMessage string, includeFiles bool) error {
+func SendDeadManSwitchEmail(cfg *EmailConfig, to, contactName, ownerName, personalMessage, baseURL string, includeFiles bool) error {
 	if cfg == nil {
 		return nil // Email not configured, skip silently
 	}
@@ -202,7 +205,7 @@ func SendDeadManSwitchEmail(cfg *EmailConfig, to, contactName, ownerName, person
 
 	fmt.Fprintf(&b, `<p style="margin:0;font-size:13px;color:%s;line-height:1.6">If you believe this was sent in error, you can safely ignore it.</p>`, brandMuted)
 
-	body := wrapEmail("Dead man's switch triggered", b.String(), "You received this because you were named as an emergency contact on zcrypt.")
+	body := wrapEmail("Dead man's switch triggered", b.String(), "You received this because you were named as an emergency contact on zcrypt.", baseURL)
 	return sendResend(cfg, to, subject, body)
 }
 
