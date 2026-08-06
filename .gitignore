@@ -35,6 +35,8 @@ Thumbs.db
 .env.local
 .env.prod
 .env.prodtest
+# Local credentials for GitHub Actions secrets (Neon watchdog etc.) — never commit
+github.env
 
 # IDE
 .vscode/
