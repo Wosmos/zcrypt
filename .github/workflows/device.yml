@@ -97,11 +97,17 @@ jobs:
         env:
           NEXT_OUTPUT_EXPORT: "1"
           NEXT_TELEMETRY_DISABLED: "1"
-          # Baked into the static export — desktop/mobile have no Next.js
-          # rewrites, so they must talk to the live backend directly. Public
-          # value (already exposed in the web bundle), not a secret.
-          NEXT_PUBLIC_API_URL: "https://zcrypt-production-f608.up.railway.app"
-        run: bun run build
+        # Baked into the static export — desktop/mobile have no Next.js
+        # rewrites, so they must talk to the live backend directly. Public
+        # value (already exposed in the web bundle), not a secret — sourced
+        # from scripts/desktop.env, the single checked-in source of truth
+        # local builds (build-frontend.sh, build-desktop.sh) also read from.
+        # See that file's comment: it's a known-deprecated Railway URL
+        # pending the real custom domain going live.
+        run: |
+          set -a; source "$GITHUB_WORKSPACE/scripts/desktop.env"; set +a
+          export NEXT_PUBLIC_API_URL="$DESKTOP_API_URL"
+          bun run build
 
       - name: Prepare frontend-dist
         shell: bash

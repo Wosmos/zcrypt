@@ -12,10 +12,11 @@ rm -rf "app/frontend/app/send/[token]"
 rm -rf "app/frontend/app/(app)/admin/users/[id]"
 
 echo "== [2/5] build frontend static export =="
+source "$REPO/scripts/desktop.env"
 cd app/frontend
 NEXT_OUTPUT_EXPORT=1 \
 NEXT_TELEMETRY_DISABLED=1 \
-NEXT_PUBLIC_API_URL="https://zcrypt-production-f608.up.railway.app" \
+NEXT_PUBLIC_API_URL="$DESKTOP_API_URL" \
 bun run build
 
 echo "== [3/5] restore web-only routes from git (keep tree clean) =="

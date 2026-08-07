@@ -25,9 +25,14 @@ rm -rf .next-export
 
 # Build with static export enabled via env var.
 # The desktop app has no Next.js rewrites, so the backend URL must be baked in.
-# Defaults to the live backend; override NEXT_PUBLIC_API_URL to point elsewhere
-# (e.g. http://localhost:8080 against a local backend).
-NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-https://zcrypt-production-f608.up.railway.app}" \
+# Defaults to the live backend (single source of truth: scripts/desktop.env);
+# override NEXT_PUBLIC_API_URL to point elsewhere (e.g. http://localhost:8080
+# against a local backend).
+if [ -z "${NEXT_PUBLIC_API_URL:-}" ]; then
+  source "$SCRIPT_DIR/../../scripts/desktop.env"
+  NEXT_PUBLIC_API_URL="$DESKTOP_API_URL"
+fi
+NEXT_PUBLIC_API_URL="$NEXT_PUBLIC_API_URL" \
   NEXT_OUTPUT_EXPORT=1 bun run build
 
 # Copy the static export to desktop's frontend-dist.
