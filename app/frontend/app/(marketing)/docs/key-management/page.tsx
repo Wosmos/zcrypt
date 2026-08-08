@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { SITE_URL } from "@/lib/site";
 import {
   DocPage,
   DocSection,
@@ -14,12 +15,12 @@ export const metadata: Metadata = {
   title: "Passphrase & key management | zcrypt Docs",
   description:
     "How keys flow through zcrypt: the vault passphrase that never leaves your device, a per-user X25519 sharing keypair whose private half is wrapped under that passphrase, account login secured with bcrypt and TOTP, JWTs with algorithm-confusion defenses and version-based revocation, and IP-bound refresh tokens.",
-  alternates: { canonical: "https://zcrypt.cloud/docs/key-management" },
+  alternates: { canonical: `${SITE_URL}/docs/key-management` },
   openGraph: {
     title: "Passphrase & key management | zcrypt Docs",
     description:
       "The two secrets in zcrypt — your vault passphrase and your account password — plus the X25519 sharing keypair derived from your passphrase, and exactly how each is handled, hardened, and revoked.",
-    url: "https://zcrypt.cloud/docs/key-management",
+    url: `${SITE_URL}/docs/key-management`,
   },
 };
 

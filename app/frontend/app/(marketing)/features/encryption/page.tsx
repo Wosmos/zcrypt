@@ -9,6 +9,7 @@ import { TieInSection } from "@/components/marketing/features/tie-in-section";
 import { IconList } from "@/components/marketing/features/icon-list";
 import { CodePanel } from "@/components/marketing/features/code-panel";
 import { encryption } from "../_data/encryption";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Zero-Knowledge Encryption — AES-256-GCM, Encrypted on Your Device",
@@ -24,12 +25,12 @@ export const metadata: Metadata = {
     "encrypted cloud storage",
     "private cloud",
   ],
-  alternates: { canonical: "https://zcrypt.cloud/features/encryption" },
+  alternates: { canonical: `${SITE_URL}/features/encryption` },
   openGraph: {
     title: "Zero-Knowledge Encryption — Encrypted on Your Device | zcrypt",
     description:
       "AES-256-GCM, on your device, before anything leaves. Your passphrase never travels. The server only ever holds ciphertext — no keys, no plaintext, no folder names.",
-    url: "https://zcrypt.cloud/features/encryption",
+    url: `${SITE_URL}/features/encryption`,
     type: "website",
   },
 };
@@ -41,9 +42,9 @@ export default function EncryptionPage() {
     <>
       <BreadcrumbJsonLd
         items={[
-          { name: "Home", url: "https://zcrypt.cloud" },
-          { name: "Features", url: "https://zcrypt.cloud/features/encrypted-drive" },
-          { name: "Encryption", url: "https://zcrypt.cloud/features/encryption" },
+          { name: "Home", url: SITE_URL },
+          { name: "Features", url: `${SITE_URL}/features/encrypted-drive` },
+          { name: "Encryption", url: `${SITE_URL}/features/encryption` },
         ]}
       />
 

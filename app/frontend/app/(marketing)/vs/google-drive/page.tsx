@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ComparisonPage } from "@/components/marketing/features/comparison-page";
 import { googleDrive } from "../_data/google-drive";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "zcrypt vs Google Drive: Private, Open-Source Encrypted Drive",
@@ -15,12 +16,12 @@ export const metadata: Metadata = {
     "zcrypt vs google drive",
     "end-to-end encrypted storage",
   ],
-  alternates: { canonical: "https://zcrypt.cloud/vs/google-drive" },
+  alternates: { canonical: `${SITE_URL}/vs/google-drive` },
   openGraph: {
     title: "zcrypt vs Google Drive: Private, Open-Source Encrypted Drive",
     description:
       "zcrypt is zero-knowledge by default, open source, and stores files in accounts you already own. See how it compares to Google Drive — fairly.",
-    url: "https://zcrypt.cloud/vs/google-drive",
+    url: `${SITE_URL}/vs/google-drive`,
     type: "website",
   },
 };

@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DocPage, DocSection, DocP, DocList, DocNote, DocTable } from "@/components/docs/doc-page";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Threat model | zcrypt Docs",
   description:
     "An honest account of what zcrypt defends against — server breaches, storage-provider access, MITM, insider access, metadata leakage — and what it cannot protect: a compromised device, a weak passphrase, and frontend supply-chain risk.",
-  alternates: { canonical: "https://zcrypt.cloud/docs/threat-model" },
+  alternates: { canonical: `${SITE_URL}/docs/threat-model` },
   openGraph: {
     title: "Threat model | zcrypt Docs",
     description:
       "What zcrypt protects against and what it does not — stated plainly, with the reasoning and the mitigations for each gap.",
-    url: "https://zcrypt.cloud/docs/threat-model",
+    url: `${SITE_URL}/docs/threat-model`,
   },
 };
 

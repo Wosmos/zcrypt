@@ -1,12 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { buildLlmsTxt, entry } from "@/lib/llms-txt";
 import { docsNav } from "@/lib/data";
+import { SITE_URL } from "@/lib/site";
 
 describe("entry", () => {
   it("absolutises a relative href against the site origin", () => {
-    expect(entry("Login", "/login", "Sign in.")).toBe(
-      "- [Login](https://zcrypt.cloud/login): Sign in."
-    );
+    expect(entry("Login", "/login", "Sign in.")).toBe(`- [Login](${SITE_URL}/login): Sign in.`);
   });
 
   it("passes an already-absolute http(s) href through unchanged", () => {
@@ -17,7 +16,7 @@ describe("entry", () => {
 
   it("appends a badge in parentheses when provided", () => {
     expect(entry("Beta feature", "/beta", "New thing.", "Beta")).toBe(
-      "- [Beta feature](https://zcrypt.cloud/beta) (Beta): New thing."
+      `- [Beta feature](${SITE_URL}/beta) (Beta): New thing.`
     );
   });
 });
@@ -45,7 +44,7 @@ describe("buildLlmsTxt", () => {
       expect(out).toContain(`### ${group.title}`);
       expect(out).toContain(group.summary);
       for (const link of group.links) {
-        expect(out).toContain(`[${link.title}](https://zcrypt.cloud${link.href})`);
+        expect(out).toContain(`[${link.title}](${SITE_URL}${link.href})`);
       }
     }
   });
@@ -59,7 +58,7 @@ describe("buildLlmsTxt", () => {
   });
 
   it("renders the static feature/product links as absolute site URLs", () => {
-    expect(out).toContain("[Anonymous Send](https://zcrypt.cloud/send)");
-    expect(out).toContain("[Bring your own storage](https://zcrypt.cloud/features/bring-your-own-storage)");
+    expect(out).toContain(`[Anonymous Send](${SITE_URL}/send)`);
+    expect(out).toContain(`[Bring your own storage](${SITE_URL}/features/bring-your-own-storage)`);
   });
 });

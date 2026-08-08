@@ -20,17 +20,18 @@ import {
 import { docsNav, type DocsNavGroup, type DocsNavLink } from "@/lib/data";
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { cn } from "@/lib/utils";
+import { SITE_URL, SUPPORT_EMAIL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Documentation | zcrypt",
   description:
     "Learn how to use zcrypt — the zero-knowledge encrypted cloud drive. Guides for folders, file previews, per-folder encryption, sharing, storage backends, the API, and self-hosting.",
-  alternates: { canonical: "https://zcrypt.cloud/docs" },
+  alternates: { canonical: `${SITE_URL}/docs` },
   openGraph: {
     title: "Documentation | zcrypt",
     description:
       "Guides for the zcrypt encrypted cloud drive: folders, previews, per-folder encryption, sharing, storage backends, API, and self-hosting.",
-    url: "https://zcrypt.cloud/docs",
+    url: `${SITE_URL}/docs`,
   },
 };
 
@@ -165,8 +166,8 @@ export default function DocsPage() {
     <>
       <BreadcrumbJsonLd
         items={[
-          { name: "Home", url: "https://zcrypt.cloud" },
-          { name: "Documentation", url: "https://zcrypt.cloud/docs" },
+          { name: "Home", url: SITE_URL },
+          { name: "Documentation", url: `${SITE_URL}/docs` },
         ]}
       />
 
@@ -222,7 +223,7 @@ export default function DocsPage() {
             <ExternalLink className="h-3.5 w-3.5" />
           </a>
           <a
-            href="mailto:support@zcrypt.cloud"
+            href={`mailto:${SUPPORT_EMAIL}`}
             className="inline-flex items-center gap-2 rounded-xl border border-[var(--color-border)] px-5 py-2.5 text-sm font-semibold transition-colors hover:bg-[var(--color-surface-1)]"
           >
             Contact support

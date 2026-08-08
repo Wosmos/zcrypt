@@ -2,17 +2,18 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { DocPage, DocSection, DocP, DocList, DocCode, DocNote } from "@/components/docs/doc-page";
 import { desktopEngine } from "@/lib/data";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Architecture | zcrypt Docs",
   description:
     "How zcrypt fits together: a client-side compress-encrypt-chunk pipeline that runs in a Web Worker pool, a chunked HTTP API, streaming download-to-disk, durable disk staging plus a background sync worker, pluggable platform adapters, repo-pool auto-rotation, a PostgreSQL index, and end-to-end shared spaces — all behind a strict zero-knowledge boundary.",
-  alternates: { canonical: "https://zcrypt.cloud/docs/architecture" },
+  alternates: { canonical: `${SITE_URL}/docs/architecture` },
   openGraph: {
     title: "Architecture | zcrypt Docs",
     description:
       "The zcrypt worker-pool pipeline, streaming downloads, staging and sync worker, platform adapters, shared spaces, and the zero-knowledge boundary.",
-    url: "https://zcrypt.cloud/docs/architecture",
+    url: `${SITE_URL}/docs/architecture`,
   },
 };
 

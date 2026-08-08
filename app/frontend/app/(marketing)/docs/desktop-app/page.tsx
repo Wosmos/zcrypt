@@ -2,17 +2,18 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
 import { desktopEngine } from "@/lib/data";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Desktop app | zcrypt Docs",
   description:
     "The native zcrypt desktop build for macOS, Windows, and Linux, built with Tauri. A native file picker, OAuth sign-in through your system browser, and the same zero-knowledge encryption as the web app.",
-  alternates: { canonical: "https://zcrypt.cloud/docs/desktop-app" },
+  alternates: { canonical: `${SITE_URL}/docs/desktop-app` },
   openGraph: {
     title: "Desktop app | zcrypt Docs",
     description:
       "A native desktop build of zcrypt (Tauri) for macOS, Windows, and Linux — native file picker, system-browser OAuth, same zero-knowledge core.",
-    url: "https://zcrypt.cloud/docs/desktop-app",
+    url: `${SITE_URL}/docs/desktop-app`,
   },
 };
 

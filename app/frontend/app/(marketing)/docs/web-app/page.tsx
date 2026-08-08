@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Web app | zcrypt Docs",
   description:
     "zcrypt runs in any modern browser. How the vault lock works (one passphrase per session), the optional 'keep me unlocked on this device' that stores your passphrase encrypted in IndexedDB under a non-extractable key, and background notifications for uploads and downloads.",
-  alternates: { canonical: "https://zcrypt.cloud/docs/web-app" },
+  alternates: { canonical: `${SITE_URL}/docs/web-app` },
   openGraph: {
     title: "Web app | zcrypt Docs",
     description:
       "The zcrypt web app: the session vault lock, an encrypted-at-rest 'keep me unlocked on this device' option, and background transfer notifications — all in your browser.",
-    url: "https://zcrypt.cloud/docs/web-app",
+    url: `${SITE_URL}/docs/web-app`,
   },
 };
 

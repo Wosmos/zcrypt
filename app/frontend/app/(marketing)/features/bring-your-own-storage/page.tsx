@@ -11,6 +11,7 @@ import { IconList } from "@/components/marketing/features/icon-list";
 import { CodePanel } from "@/components/marketing/features/code-panel";
 import { STORAGE_PLATFORMS } from "@/components/marketing/landing/storage-platforms";
 import { bringYourOwnStorage } from "../_data/bring-your-own-storage";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Bring Your Own Storage — Your Data, Your Infrastructure",
@@ -25,12 +26,12 @@ export const metadata: Metadata = {
     "decentralized file storage",
     "encrypted storage backend",
   ],
-  alternates: { canonical: "https://zcrypt.cloud/features/bring-your-own-storage" },
+  alternates: { canonical: `${SITE_URL}/features/bring-your-own-storage` },
   openGraph: {
     title: "Bring Your Own Storage | zcrypt",
     description:
       "Connect GitHub, GitLab, Hugging Face, and Telegram accounts you already own. Encrypted files are stored as disguised chunks across repos you own, and repos rotate automatically as they fill. Your data, your infrastructure, no lock-in.",
-    url: "https://zcrypt.cloud/features/bring-your-own-storage",
+    url: `${SITE_URL}/features/bring-your-own-storage`,
     type: "website",
   },
 };
@@ -44,11 +45,11 @@ export default function BringYourOwnStoragePage() {
     <>
       <BreadcrumbJsonLd
         items={[
-          { name: "Home", url: "https://zcrypt.cloud" },
-          { name: "Features", url: "https://zcrypt.cloud/features/encrypted-drive" },
+          { name: "Home", url: SITE_URL },
+          { name: "Features", url: `${SITE_URL}/features/encrypted-drive` },
           {
             name: "Bring your own storage",
-            url: "https://zcrypt.cloud/features/bring-your-own-storage",
+            url: `${SITE_URL}/features/bring-your-own-storage`,
           },
         ]}
       />

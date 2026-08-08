@@ -9,6 +9,7 @@ import { NavProgress } from "@/components/ui/nav-progress";
 import { KeyboardAvoider } from "@/components/system/keyboard-avoider";
 import { OrganizationJsonLd, WebSiteJsonLd } from "@/components/seo/json-ld";
 import { Analytics } from "@vercel/analytics/react";
+import { SITE_URL } from "@/lib/site";
 
 const satoshi = localFont({
   src: [
@@ -46,7 +47,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://zcrypt.cloud"),
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "zcrypt — The Encrypted Cloud Drive You Actually Own | Zero-Knowledge",
     template: "%s | zcrypt",
@@ -93,7 +94,7 @@ export const metadata: Metadata = {
     "tresorit alternative",
     "sync.com alternative",
   ],
-  authors: [{ name: "zcrypt Team", url: "https://zcrypt.cloud" }],
+  authors: [{ name: "zcrypt Team", url: SITE_URL }],
   creator: "zcrypt",
   publisher: "zcrypt",
   category: "technology",
@@ -101,12 +102,12 @@ export const metadata: Metadata = {
     icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
   },
   alternates: {
-    canonical: "https://zcrypt.cloud",
+    canonical: SITE_URL,
   },
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://zcrypt.cloud",
+    url: SITE_URL,
     title: "zcrypt — The Encrypted Cloud Drive You Actually Own",
     description:
       "A zero-knowledge encrypted cloud drive with real folders and instant file previews. Encrypted on your device with AES-256-GCM, stored in accounts you already own. Free, open source, no artificial limits.",
@@ -211,10 +212,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               command line.
             </p>
             <p style={{ marginTop: "1.5rem" }}>
-              <a
-                href="https://zcrypt.cloud/tui"
-                style={{ color: "#00d5e4", textDecoration: "underline" }}
-              >
+              <a href={`${SITE_URL}/tui`} style={{ color: "#00d5e4", textDecoration: "underline" }}>
                 Learn about the TUI
               </a>
             </p>

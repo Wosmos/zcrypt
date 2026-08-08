@@ -4,8 +4,7 @@ import { BreadcrumbJsonLd, TechArticleJsonLd } from "@/components/seo/json-ld";
 import { DocToc, type TocItem } from "@/components/docs/doc-toc";
 import { ArrowLeft, ArrowRight, ChevronRight, AlertTriangle, Info, Lock } from "@/lib/icons";
 import { cn } from "@/lib/utils";
-
-const SITE = "https://zcrypt.cloud";
+import { SITE_URL as SITE } from "@/lib/site";
 
 // Flattened, ordered list of internal doc links — drives prev/next + section lookup.
 const flatDocs: { link: DocsNavLink; section: string }[] = docsNav.flatMap((group) =>

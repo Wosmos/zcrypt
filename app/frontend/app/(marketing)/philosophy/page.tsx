@@ -4,6 +4,7 @@ import { ArrowRight, ArrowUpRight } from "@/lib/icons";
 import { PullQuote } from "@/components/marketing/prose";
 import { Section } from "@/components/marketing/section-reveal";
 import { WOSMO, WosmoWordmark } from "@/components/marketing/wosmo";
+import { SITE_URL } from "@/lib/site";
 
 // Server Component (statically generated) — metadata lives here; the only client
 // parts are the <Section>/<PullQuote> scroll-reveal islands from prose.tsx.
@@ -12,13 +13,13 @@ export const metadata: Metadata = {
   description:
     "The zcrypt manifesto. Why cloud storage is overpriced, why zero-knowledge encryption matters, and why your data should belong to you. Open source, free, and private.",
   alternates: {
-    canonical: "https://zcrypt.cloud/philosophy",
+    canonical: `${SITE_URL}/philosophy`,
   },
   openGraph: {
     title: "Our Philosophy — Why We Built zcrypt",
     description:
       "The zcrypt manifesto. Cloud storage is overpriced. Your data should belong to you.",
-    url: "https://zcrypt.cloud/philosophy",
+    url: `${SITE_URL}/philosophy`,
   },
 };
 

@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Trash & restore | zcrypt Docs",
   description:
     "Deleting a file in zcrypt moves it to Trash as a soft delete. Restore it, preview it, or delete it forever to purge its chunks from every connected storage platform. Bulk selection supported.",
-  alternates: { canonical: "https://zcrypt.cloud/docs/trash" },
+  alternates: { canonical: `${SITE_URL}/docs/trash` },
   openGraph: {
     title: "Trash & restore | zcrypt Docs",
     description:
       "Soft-delete, restore, preview, and permanently purge files in zcrypt — including bulk actions.",
-    url: "https://zcrypt.cloud/docs/trash",
+    url: `${SITE_URL}/docs/trash`,
   },
 };
 

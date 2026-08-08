@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DocPage, DocSection, DocP, DocTable, DocNote } from "@/components/docs/doc-page";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Tech stack & infrastructure | zcrypt Docs",
   description:
     "The technology behind zcrypt: a Go standard-library backend, a shared Rust core for the native apps, a Next.js 16 + React 19 web app, PostgreSQL via pgx, and Tauri desktop/mobile shells — deployed on Vercel, a Docker-on-a-cloud-VM backend, and Neon serverless Postgres.",
-  alternates: { canonical: "https://zcrypt.cloud/docs/tech-stack" },
+  alternates: { canonical: `${SITE_URL}/docs/tech-stack` },
   openGraph: {
     title: "Tech stack & infrastructure | zcrypt Docs",
     description:
       "Languages, frameworks, and hosting behind zcrypt — Go, Rust, Next.js, PostgreSQL, Tauri — and how it's deployed.",
-    url: "https://zcrypt.cloud/docs/tech-stack",
+    url: `${SITE_URL}/docs/tech-stack`,
   },
 };
 

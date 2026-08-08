@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DocPage, DocSection, DocP, DocList, DocNote, DocTable } from "@/components/docs/doc-page";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Account recovery | zcrypt Docs",
   description:
     "What zcrypt can and cannot recover. Account access can be restored through email password reset and two-factor. Your vault passphrase and folder passwords are zero-knowledge: lose them and no one — including us — can decrypt your files.",
-  alternates: { canonical: "https://zcrypt.cloud/docs/recovery" },
+  alternates: { canonical: `${SITE_URL}/docs/recovery` },
   openGraph: {
     title: "Account recovery | zcrypt Docs",
     description:
       "Account access is recoverable; your vault passphrase and folder passwords are not. The exact line between the two, and how to protect what can't be recovered.",
-    url: "https://zcrypt.cloud/docs/recovery",
+    url: `${SITE_URL}/docs/recovery`,
   },
 };
 

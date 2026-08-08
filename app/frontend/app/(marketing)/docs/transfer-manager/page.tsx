@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Transfer manager | zcrypt Docs",
   description:
     "The docked transfer manager unifies every upload and download in zcrypt: per-item progress, speed and ETA, a direction cue, pause/resume and retry for both directions, and a non-destructive dismiss — all in a panel that survives navigation and stays put while work is in flight. Distinct from device transfer.",
-  alternates: { canonical: "https://zcrypt.cloud/docs/transfer-manager" },
+  alternates: { canonical: `${SITE_URL}/docs/transfer-manager` },
   openGraph: {
     title: "Transfer manager | zcrypt Docs",
     description:
       "Pause, resume, retry, stop, and track every upload and download from one docked panel that survives navigation and never hides work in flight.",
-    url: "https://zcrypt.cloud/docs/transfer-manager",
+    url: `${SITE_URL}/docs/transfer-manager`,
   },
 };
 

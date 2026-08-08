@@ -2,6 +2,7 @@ import Link from "next/link";
 import { LegalPage, LegalCta } from "@/components/marketing/legal-page";
 import { PullQuote, BulletList } from "@/components/marketing/prose";
 import { Section } from "@/components/marketing/section-reveal";
+import { LEGAL_EMAIL } from "@/lib/site";
 
 export default function TermsPage() {
   return (
@@ -186,10 +187,10 @@ export default function TermsPage() {
           <p>
             Questions about these Terms? Contact us at{" "}
             <a
-              href="mailto:legal@zcrypt.cloud"
+              href={`mailto:${LEGAL_EMAIL}`}
               className="text-cyan-600 dark:text-cyan-400 hover:underline font-medium"
             >
-              legal@zcrypt.cloud
+              {LEGAL_EMAIL}
             </a>
             .
           </p>

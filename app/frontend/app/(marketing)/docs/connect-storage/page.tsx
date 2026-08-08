@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DocPage, DocSection, DocP, DocList, DocNote, DocTable } from "@/components/docs/doc-page";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Connect your storage | zcrypt Docs",
   description:
     "zcrypt brings your own backend. Connect a GitHub, GitLab, Hugging Face, or Telegram account in Settings, hand it a token, and zcrypt auto-creates and rotates repositories so your space grows on its own.",
-  alternates: { canonical: "https://zcrypt.cloud/docs/connect-storage" },
+  alternates: { canonical: `${SITE_URL}/docs/connect-storage` },
   openGraph: {
     title: "Connect your storage | zcrypt Docs",
     description:
       "Link a GitHub, GitLab, Hugging Face, or Telegram account as your encrypted storage backend. Tokens are encrypted at rest; capacity grows automatically.",
-    url: "https://zcrypt.cloud/docs/connect-storage",
+    url: `${SITE_URL}/docs/connect-storage`,
   },
 };
 

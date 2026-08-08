@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { SITE_URL } from "@/lib/site";
 import {
   DocPage,
   DocSection,
@@ -14,12 +15,12 @@ export const metadata: Metadata = {
   title: "Share a folder | zcrypt Docs",
   description:
     "Share a whole folder with a single public link. Everyone with the link can browse and download the files, read-only, with no account — and it stays end-to-end encrypted because the folder key lives only in the URL fragment. Add an optional password that hides the file listing until it's entered.",
-  alternates: { canonical: "https://zcrypt.cloud/docs/folder-sharing" },
+  alternates: { canonical: `${SITE_URL}/docs/folder-sharing` },
   openGraph: {
     title: "Share a folder | zcrypt Docs",
     description:
       "One public link for a whole folder: read-only, no account needed, and still end-to-end encrypted — the folder key never leaves the link fragment.",
-    url: "https://zcrypt.cloud/docs/folder-sharing",
+    url: `${SITE_URL}/docs/folder-sharing`,
   },
 };
 
@@ -73,7 +74,7 @@ export default function FolderSharingDocPage() {
           </Link>
           , just for many files at once. The link has two parts that do very different jobs:
         </DocP>
-        <DocCode label="Anatomy of a folder link">{`https://zcrypt.cloud/f/<token>#key=<folder-share-key>
+        <DocCode label="Anatomy of a folder link">{`${SITE_URL}/f/<token>#key=<folder-share-key>
                        └── sent to server    └── never sent`}</DocCode>
         <DocP>
           Everything after the <code>#</code> is the URL <em>fragment</em>. Browsers never transmit

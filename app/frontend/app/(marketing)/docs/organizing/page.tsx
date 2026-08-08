@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DocPage, DocSection, DocP, DocList, DocNote, DocTable } from "@/components/docs/doc-page";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Moving & organizing | zcrypt Docs",
   description:
     "Move files and folders in zcrypt by dragging them onto a folder or breadcrumb, bulk-drag many at once, drop one file onto another to make a folder, use the Move-to-folder picker, multi-select, and bulk download or delete.",
-  alternates: { canonical: "https://zcrypt.cloud/docs/organizing" },
+  alternates: { canonical: `${SITE_URL}/docs/organizing` },
   openGraph: {
     title: "Moving & organizing | zcrypt Docs",
     description:
       "Drag-and-drop, the Move-to-folder picker, multi-select, and bulk download or delete in the zcrypt encrypted drive.",
-    url: "https://zcrypt.cloud/docs/organizing",
+    url: `${SITE_URL}/docs/organizing`,
   },
 };
 

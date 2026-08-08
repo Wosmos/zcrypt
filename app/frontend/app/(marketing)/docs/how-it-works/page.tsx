@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DocPage, DocSection, DocP, DocList, DocCode, DocNote } from "@/components/docs/doc-page";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "How it works | zcrypt Docs",
   description:
     "Follow a file through zcrypt end to end: on your device it is compressed with zstd, encrypted with AES-256-GCM under a random per-file key, split into device-tiered chunks (~4–16 MB), and pushed to your own storage. Downloading reverses every step.",
-  alternates: { canonical: "https://zcrypt.cloud/docs/how-it-works" },
+  alternates: { canonical: `${SITE_URL}/docs/how-it-works` },
   openGraph: {
     title: "How it works | zcrypt Docs",
     description:
       "A file's journey through zcrypt: compress, encrypt, chunk, and upload — all client-side and zero-knowledge.",
-    url: "https://zcrypt.cloud/docs/how-it-works",
+    url: `${SITE_URL}/docs/how-it-works`,
   },
 };
 

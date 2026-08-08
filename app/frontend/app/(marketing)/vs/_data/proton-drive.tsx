@@ -2,6 +2,7 @@ import { Lock, HardDrive, Github, Terminal } from "@/lib/icons";
 import type { ComparisonRow } from "@/components/marketing/features/comparison-table";
 import type { CapabilityItem } from "@/components/marketing/features/capability-grid";
 import { type VsData, VS_RELATED_LINKS } from "./dropbox";
+import { SITE_URL } from "@/lib/site";
 
 const rows: ComparisonRow[] = [
   {
@@ -230,8 +231,8 @@ export const protonDrive: VsData = {
       "Open source and free. Bring a storage account you already own, or self-host the whole stack.",
   },
   breadcrumb: [
-    { name: "Home", url: "https://zcrypt.cloud" },
-    { name: "Compare", url: "https://zcrypt.cloud/vs/proton-drive" },
-    { name: "zcrypt vs Proton Drive", url: "https://zcrypt.cloud/vs/proton-drive" },
+    { name: "Home", url: SITE_URL },
+    { name: "Compare", url: `${SITE_URL}/vs/proton-drive` },
+    { name: "zcrypt vs Proton Drive", url: `${SITE_URL}/vs/proton-drive` },
   ],
 };

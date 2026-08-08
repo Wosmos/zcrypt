@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DocPage, DocSection, DocP, DocTable } from "@/components/docs/doc-page";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Glossary | zcrypt Docs",
   description:
     "Plain-language definitions of the terms used across zcrypt: vault, passphrase, CEK, envelope encryption, chunk, salt, KEK, zero-knowledge, BYOB, repo pool, decoy vault, dead man's switch, TOTP, and zstd.",
-  alternates: { canonical: "https://zcrypt.cloud/docs/glossary" },
+  alternates: { canonical: `${SITE_URL}/docs/glossary` },
   openGraph: {
     title: "Glossary | zcrypt Docs",
     description:
       "Every zcrypt term, defined: vault, passphrase, CEK, envelope encryption, chunk, salt, KEK, zero-knowledge, BYOB, and more.",
-    url: "https://zcrypt.cloud/docs/glossary",
+    url: `${SITE_URL}/docs/glossary`,
   },
 };
 

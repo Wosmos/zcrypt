@@ -1,10 +1,12 @@
+import { SITE_URL } from "@/lib/site";
+
 export function OrganizationJsonLd() {
   const data = {
     "@context": "https://schema.org",
     "@type": "Organization",
     name: "zcrypt",
-    url: "https://zcrypt.cloud",
-    logo: "https://zcrypt.cloud/favicon.svg",
+    url: SITE_URL,
+    logo: `${SITE_URL}/favicon.svg`,
     description:
       "Free, open-source, zero-knowledge encrypted cloud drive. Organize files in real folders, preview them in the browser, and lock individual folders with their own passwords — all encrypted on your device with AES-256-GCM and stored in your own GitHub, GitLab, Hugging Face, or Telegram account. Only you can read them.",
     foundingDate: "2026",
@@ -12,7 +14,7 @@ export function OrganizationJsonLd() {
     contactPoint: {
       "@type": "ContactPoint",
       contactType: "customer support",
-      url: "https://zcrypt.cloud/docs",
+      url: `${SITE_URL}/docs`,
     },
   };
 
@@ -52,11 +54,11 @@ export function PersonJsonLd() {
       "https://www.instagram.com/wosmo_tech/",
       "https://hashnode.com/@Wosmo",
     ],
-    mainEntityOfPage: "https://zcrypt.cloud/about",
+    mainEntityOfPage: `${SITE_URL}/about`,
     worksFor: {
       "@type": "Organization",
       name: "zcrypt",
-      url: "https://zcrypt.cloud",
+      url: SITE_URL,
     },
   };
 
@@ -70,7 +72,7 @@ export function SoftwareApplicationJsonLd() {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
     name: "zcrypt",
-    url: "https://zcrypt.cloud",
+    url: SITE_URL,
     applicationCategory: "SecurityApplication",
     operatingSystem: "Web, Windows, macOS, Linux",
     description:
@@ -108,13 +110,13 @@ export function WebSiteJsonLd() {
     "@context": "https://schema.org",
     "@type": "WebSite",
     name: "zcrypt",
-    url: "https://zcrypt.cloud",
+    url: SITE_URL,
     description: "The private, open-source encrypted cloud drive you actually own.",
     potentialAction: {
       "@type": "SearchAction",
       target: {
         "@type": "EntryPoint",
-        urlTemplate: "https://zcrypt.cloud/docs?q={search_term_string}",
+        urlTemplate: `${SITE_URL}/docs?q={search_term_string}`,
       },
       "query-input": "required name=search_term_string",
     },
@@ -149,7 +151,7 @@ export function TUIApplicationJsonLd() {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
     name: "zcrypt TUI",
-    url: "https://zcrypt.cloud/tui",
+    url: `${SITE_URL}/tui`,
     applicationCategory: "DeveloperApplication",
     operatingSystem: "Windows, macOS, Linux",
     description:
@@ -175,7 +177,7 @@ export function TUIApplicationJsonLd() {
     ],
     softwareRequirements: "Go 1.25 or later",
     downloadUrl: "https://github.com/zcrypt/zcrypt-tui",
-    installUrl: "https://zcrypt.cloud/tui#install",
+    installUrl: `${SITE_URL}/tui#install`,
     releaseNotes: "https://github.com/zcrypt/zcrypt-tui/releases",
     programmingLanguage: "Go",
   };
@@ -231,20 +233,20 @@ export function TechArticleJsonLd({
     isPartOf: {
       "@type": "WebSite",
       name: "zcrypt",
-      url: "https://zcrypt.cloud",
+      url: SITE_URL,
     },
     author: {
       "@type": "Organization",
       name: "zcrypt",
-      url: "https://zcrypt.cloud",
+      url: SITE_URL,
     },
     publisher: {
       "@type": "Organization",
       name: "zcrypt",
-      url: "https://zcrypt.cloud",
+      url: SITE_URL,
       logo: {
         "@type": "ImageObject",
-        url: "https://zcrypt.cloud/favicon.svg",
+        url: `${SITE_URL}/favicon.svg`,
       },
     },
   };

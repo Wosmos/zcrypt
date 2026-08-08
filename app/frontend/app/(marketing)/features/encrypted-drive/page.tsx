@@ -10,6 +10,7 @@ import { CodePanel } from "@/components/marketing/features/code-panel";
 import { RelatedLinks } from "@/components/marketing/features/related-links";
 import { CtaSection } from "@/components/marketing/features/cta-section";
 import { encryptedDrive } from "../_data/encrypted-drive";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Encrypted Cloud Drive — Real Folders & File Explorer",
@@ -24,12 +25,12 @@ export const metadata: Metadata = {
     "secure file organization",
     "zero-knowledge drive",
   ],
-  alternates: { canonical: "https://zcrypt.cloud/features/encrypted-drive" },
+  alternates: { canonical: `${SITE_URL}/features/encrypted-drive` },
   openGraph: {
     title: "Encrypted Cloud Drive — Real Folders & File Explorer | zcrypt",
     description:
       "A real encrypted drive: nest folders, drag to organize, search and sort — every file and folder name encrypted on your device.",
-    url: "https://zcrypt.cloud/features/encrypted-drive",
+    url: `${SITE_URL}/features/encrypted-drive`,
     type: "website",
   },
 };
@@ -53,9 +54,9 @@ export default function EncryptedDrivePage() {
     <>
       <BreadcrumbJsonLd
         items={[
-          { name: "Home", url: "https://zcrypt.cloud" },
-          { name: "Features", url: "https://zcrypt.cloud/features/encrypted-drive" },
-          { name: "Encrypted Drive", url: "https://zcrypt.cloud/features/encrypted-drive" },
+          { name: "Home", url: SITE_URL },
+          { name: "Features", url: `${SITE_URL}/features/encrypted-drive` },
+          { name: "Encrypted Drive", url: `${SITE_URL}/features/encrypted-drive` },
         ]}
       />
 

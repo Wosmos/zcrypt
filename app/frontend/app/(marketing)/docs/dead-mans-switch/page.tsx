@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Dead man's switch | zcrypt Docs",
   description:
     "Configure zcrypt to email a trusted contact if you stop checking in. Set a timeout of 7 to 365 days; every login resets the timer. It sends a notification email — it does not deliver your files or keys.",
-  alternates: { canonical: "https://zcrypt.cloud/docs/dead-mans-switch" },
+  alternates: { canonical: `${SITE_URL}/docs/dead-mans-switch` },
   openGraph: {
     title: "Dead man's switch | zcrypt Docs",
     description:
       "Notify a trusted contact if you stop checking in. It sends an email — zero-knowledge means there are no keys for it to hand over.",
-    url: "https://zcrypt.cloud/docs/dead-mans-switch",
+    url: `${SITE_URL}/docs/dead-mans-switch`,
   },
 };
 

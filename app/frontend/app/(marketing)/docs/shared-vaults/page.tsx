@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { SITE_URL } from "@/lib/site";
 import {
   DocPage,
   DocSection,
@@ -15,12 +16,12 @@ export const metadata: Metadata = {
   title: "Shared vaults | zcrypt Docs",
   description:
     "Shared vaults (spaces) let you collaborate on end-to-end encrypted files with people you name. Each space has its own key, sealed to every member's public key with ECIES so the server never sees it; files are re-wrapped under the space key, members are verified by key fingerprint, and removing someone rotates the key for true revocation.",
-  alternates: { canonical: "https://zcrypt.cloud/docs/shared-vaults" },
+  alternates: { canonical: `${SITE_URL}/docs/shared-vaults` },
   openGraph: {
     title: "Shared vaults | zcrypt Docs",
     description:
       "Collaborate on end-to-end encrypted files: per-member sealed key grants, CEK re-wrapping under a space key, fingerprint verification, and true revocation via key rotation.",
-    url: "https://zcrypt.cloud/docs/shared-vaults",
+    url: `${SITE_URL}/docs/shared-vaults`,
   },
 };
 

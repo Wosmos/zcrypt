@@ -17,6 +17,7 @@ import { FeatureHero } from "@/components/marketing/features/feature-hero";
 import { RelatedLinks } from "@/components/marketing/features/related-links";
 import { CtaSection } from "@/components/marketing/features/cta-section";
 import { privacy } from "../_data/privacy";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Privacy Tools — Decoy Profile & Dead Man's Switch",
@@ -34,12 +35,12 @@ export const metadata: Metadata = {
     "shared encrypted vaults",
     "border crossing privacy",
   ],
-  alternates: { canonical: "https://zcrypt.cloud/features/privacy" },
+  alternates: { canonical: `${SITE_URL}/features/privacy` },
   openGraph: {
     title: "Privacy Tools — Decoy Profile & Dead Man's Switch | zcrypt",
     description:
       "A decoy vault for coercion, a dead man's switch that alerts a trusted contact, plus snapshots and shared vaults in beta — all on a zero-knowledge core.",
-    url: "https://zcrypt.cloud/features/privacy",
+    url: `${SITE_URL}/features/privacy`,
     type: "website",
   },
   twitter: {
@@ -58,9 +59,9 @@ export default function PrivacyToolsPage() {
     <>
       <BreadcrumbJsonLd
         items={[
-          { name: "Home", url: "https://zcrypt.cloud" },
-          { name: "Features", url: "https://zcrypt.cloud/features/privacy" },
-          { name: "Privacy Tools", url: "https://zcrypt.cloud/features/privacy" },
+          { name: "Home", url: SITE_URL },
+          { name: "Features", url: `${SITE_URL}/features/privacy` },
+          { name: "Privacy Tools", url: `${SITE_URL}/features/privacy` },
         ]}
       />
 

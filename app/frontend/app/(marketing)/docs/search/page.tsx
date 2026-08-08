@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Search & filters | zcrypt Docs",
   description:
     "Search the current folder in zcrypt against file and folder names — entirely on your device, so your query never reaches the server — and narrow results with type-filter chips.",
-  alternates: { canonical: "https://zcrypt.cloud/docs/search" },
+  alternates: { canonical: `${SITE_URL}/docs/search` },
   openGraph: {
     title: "Search & filters | zcrypt Docs",
     description:
       "Find files fast with a per-folder search box that runs locally on decrypted names, plus type-filter chips.",
-    url: "https://zcrypt.cloud/docs/search",
+    url: `${SITE_URL}/docs/search`,
   },
 };
 

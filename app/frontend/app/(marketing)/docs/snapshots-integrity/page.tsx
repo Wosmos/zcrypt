@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Snapshots & integrity | zcrypt Docs",
   description:
     "Two zcrypt tools for keeping tabs on your vault: snapshots capture a point-in-time manifest of your file list, and the integrity monitor records each file's SHA-256 and size to flag when a file's hash changes. Both are in beta.",
-  alternates: { canonical: "https://zcrypt.cloud/docs/snapshots-integrity" },
+  alternates: { canonical: `${SITE_URL}/docs/snapshots-integrity` },
   openGraph: {
     title: "Snapshots & integrity | zcrypt Docs",
     description:
       "Point-in-time file-list manifests and SHA-256 tamper detection — maturing features, not a version-history or rollback system.",
-    url: "https://zcrypt.cloud/docs/snapshots-integrity",
+    url: `${SITE_URL}/docs/snapshots-integrity`,
   },
 };
 

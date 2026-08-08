@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Bulk operations | zcrypt Docs",
   description:
     "Select many files in zcrypt to download them as a single ZIP (decrypted on your device, up to a ~2 GB cap) or to delete them in bulk — with mouse and keyboard multi-select.",
-  alternates: { canonical: "https://zcrypt.cloud/docs/bulk" },
+  alternates: { canonical: `${SITE_URL}/docs/bulk` },
   openGraph: {
     title: "Bulk operations | zcrypt Docs",
     description:
       "Multi-select files in zcrypt to download as a ZIP or delete in bulk, with mouse and keyboard selection.",
-    url: "https://zcrypt.cloud/docs/bulk",
+    url: `${SITE_URL}/docs/bulk`,
   },
 };
 

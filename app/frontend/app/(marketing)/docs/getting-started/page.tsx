@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
+import { SITE_URL, SITE_DOMAIN } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Quickstart | zcrypt Docs",
   description:
     "Create a free account, set your passphrase, connect a storage platform, and upload your first encrypted file to zcrypt in a few minutes. No plans, no credit card.",
-  alternates: { canonical: "https://zcrypt.cloud/docs/getting-started" },
+  alternates: { canonical: `${SITE_URL}/docs/getting-started` },
   openGraph: {
     title: "Quickstart | zcrypt Docs",
     description:
       "Sign up, understand your passphrase, connect storage, and upload your first encrypted file to zcrypt — free and open source.",
-    url: "https://zcrypt.cloud/docs/getting-started",
+    url: `${SITE_URL}/docs/getting-started`,
   },
 };
 
@@ -79,7 +80,7 @@ export default function GettingStartedPage() {
       <div className="mt-8">
         <Step id="account" n={1} title="Create a free account">
           <DocP>
-            Sign up at <strong>zcrypt.cloud</strong> with your email and a strong account password,
+            Sign up at <strong>{SITE_DOMAIN}</strong> with your email and a strong account password,
             then click the verification link we email you. Verifying your address activates your
             account.
           </DocP>

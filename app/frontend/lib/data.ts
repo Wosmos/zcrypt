@@ -2,6 +2,8 @@
 // All static content used across marketing/landing components.
 // Icon references use string keys — map them in the consuming component.
 
+import { SITE_URL } from "@/lib/site";
+
 // ─── Types ────────────────────────────────────────────────────
 
 export interface BentoFeature {
@@ -509,7 +511,7 @@ export const tuiInstallMethods = [
   },
   {
     label: "Shell Script",
-    command: "curl -fsSL https://zcrypt.cloud/install.sh | sh",
+    command: `curl -fsSL ${SITE_URL}/install.sh | sh`,
     note: "macOS / Linux",
   },
   {

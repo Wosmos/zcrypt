@@ -15,6 +15,7 @@ import {
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { featuresNav } from "@/lib/data";
 import DocsSearch from "@/components/docs/docs-search";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Features — The Encrypted Cloud Drive",
@@ -27,12 +28,12 @@ export const metadata: Metadata = {
     "encrypted file viewer",
     "zero-knowledge storage features",
   ],
-  alternates: { canonical: "https://zcrypt.cloud/features" },
+  alternates: { canonical: `${SITE_URL}/features` },
   openGraph: {
     title: "zcrypt Features — The Encrypted Cloud Drive",
     description:
       "A real encrypted file explorer: folders, previews, per-folder passwords, sharing, bring-your-own-storage, and apps for every surface.",
-    url: "https://zcrypt.cloud/features",
+    url: `${SITE_URL}/features`,
     type: "website",
   },
 };
@@ -56,8 +57,8 @@ export default function FeaturesPage() {
     <>
       <BreadcrumbJsonLd
         items={[
-          { name: "Home", url: "https://zcrypt.cloud" },
-          { name: "Features", url: "https://zcrypt.cloud/features" },
+          { name: "Home", url: SITE_URL },
+          { name: "Features", url: `${SITE_URL}/features` },
         ]}
       />
 

@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DocPage, DocSection, DocP, DocNote, DocTable } from "@/components/docs/doc-page";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Core concepts | zcrypt Docs",
   description:
     "The handful of ideas that make zcrypt work: your vault, your passphrase, folders, per-file keys and envelope encryption, encrypted chunks, the vault lock, and staying unlocked on a device.",
-  alternates: { canonical: "https://zcrypt.cloud/docs/concepts" },
+  alternates: { canonical: `${SITE_URL}/docs/concepts` },
   openGraph: {
     title: "Core concepts | zcrypt Docs",
     description:
       "Vault, passphrase, folders, per-file keys, chunks, and the vault lock — how the pieces of zcrypt fit together.",
-    url: "https://zcrypt.cloud/docs/concepts",
+    url: `${SITE_URL}/docs/concepts`,
   },
 };
 

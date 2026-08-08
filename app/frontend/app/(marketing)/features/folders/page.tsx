@@ -10,6 +10,7 @@ import { CodePanel } from "@/components/marketing/features/code-panel";
 import { RelatedLinks } from "@/components/marketing/features/related-links";
 import { CtaSection } from "@/components/marketing/features/cta-section";
 import { folders } from "../_data/folders";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Encrypted, Password-Protected Folders",
@@ -24,12 +25,12 @@ export const metadata: Metadata = {
     "zero-knowledge folders",
     "encrypted folder names",
   ],
-  alternates: { canonical: "https://zcrypt.cloud/features/folders" },
+  alternates: { canonical: `${SITE_URL}/features/folders` },
   openGraph: {
     title: "Encrypted, Password-Protected Folders | zcrypt",
     description:
       "Nestable folders with encrypted names, where any folder can have its own password — files re-encrypted under a folder key that never reaches the server.",
-    url: "https://zcrypt.cloud/features/folders",
+    url: `${SITE_URL}/features/folders`,
     type: "website",
   },
 };
@@ -56,9 +57,9 @@ export default function FoldersPage() {
     <>
       <BreadcrumbJsonLd
         items={[
-          { name: "Home", url: "https://zcrypt.cloud" },
-          { name: "Features", url: "https://zcrypt.cloud/features/encrypted-drive" },
-          { name: "Folders", url: "https://zcrypt.cloud/features/folders" },
+          { name: "Home", url: SITE_URL },
+          { name: "Features", url: `${SITE_URL}/features/encrypted-drive` },
+          { name: "Folders", url: `${SITE_URL}/features/folders` },
         ]}
       />
 

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { toolMetadata } from "@/lib/tool-metadata";
+import { SITE_URL } from "@/lib/site";
 
 const base = {
   title: "zcrypt Pad",
@@ -11,8 +12,8 @@ const base = {
 describe("toolMetadata", () => {
   it("builds the canonical + OG url from the site origin and path", () => {
     const meta = toolMetadata(base);
-    expect(meta.alternates?.canonical).toBe("https://zcrypt.cloud/pad");
-    expect(meta.openGraph?.url).toBe("https://zcrypt.cloud/pad");
+    expect(meta.alternates?.canonical).toBe(`${SITE_URL}/pad`);
+    expect(meta.openGraph?.url).toBe(`${SITE_URL}/pad`);
   });
 
   it("passes title, description, and keywords straight through", () => {

@@ -2,17 +2,18 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
 import { desktopEngine } from "@/lib/data";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Android app | zcrypt Docs",
   description:
     "The zcrypt Android app is a beta sideload APK built on the same in-process zcrypt-core Rust engine as the desktop app. How to install it, what beta means today, and why the encryption is identical to every other platform.",
-  alternates: { canonical: "https://zcrypt.cloud/docs/android-app" },
+  alternates: { canonical: `${SITE_URL}/docs/android-app` },
   openGraph: {
     title: "Android app | zcrypt Docs",
     description:
       "zcrypt for Android (beta): a sideloaded APK on the same zcrypt-core Rust engine as desktop, with the same zero-knowledge encryption.",
-    url: "https://zcrypt.cloud/docs/android-app",
+    url: `${SITE_URL}/docs/android-app`,
   },
 };
 

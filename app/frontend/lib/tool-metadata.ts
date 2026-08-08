@@ -6,8 +6,7 @@
  * `ogDescription` default to the page title/description when omitted.
  */
 import type { Metadata } from "next";
-
-const SITE_ORIGIN = "https://zcrypt.cloud";
+import { SITE_URL as SITE_ORIGIN } from "@/lib/site";
 
 export function toolMetadata(opts: {
   title: string;

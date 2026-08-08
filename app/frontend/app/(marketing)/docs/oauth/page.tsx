@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Sign in with Google or GitHub | zcrypt Docs",
   description:
     "Use Google or GitHub to sign in to zcrypt: how OAuth sign-up and login work, linking and unlinking providers in settings, and signing in from the desktop app via your system browser.",
-  alternates: { canonical: "https://zcrypt.cloud/docs/oauth" },
+  alternates: { canonical: `${SITE_URL}/docs/oauth` },
   openGraph: {
     title: "Sign in with Google or GitHub | zcrypt Docs",
     description:
       "OAuth sign-in and sign-up with Google and GitHub, linking and unlinking providers, and the desktop sign-in flow — and why this is not the same as connecting GitHub as storage.",
-    url: "https://zcrypt.cloud/docs/oauth",
+    url: `${SITE_URL}/docs/oauth`,
   },
 };
 

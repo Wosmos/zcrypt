@@ -31,6 +31,7 @@ import {
   MonitorSmartphone,
 } from "@/lib/icons";
 import { useTheme } from "@/components/providers/theme-provider";
+import { SITE_DOMAIN } from "@/lib/site";
 
 // ─── Sizes ─────────────────────────────────────────────────
 const IFRAME_LOGICAL_W = 1280;
@@ -833,7 +834,7 @@ const SPOTLIGHT_RESULTS = [
     label: "Upload Pipeline",
     subtitle: "Compress → Encrypt → Chunk → Push",
   },
-  { icon: Globe, label: "zcrypt.cloud", subtitle: "Website" },
+  { icon: Globe, label: SITE_DOMAIN, subtitle: "Website" },
   { icon: Cpu, label: "zstd Compression", subtitle: "Pipeline Stage" },
   {
     icon: MonitorSmartphone,

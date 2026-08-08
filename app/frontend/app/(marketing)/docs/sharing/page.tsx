@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { SITE_URL } from "@/lib/site";
 import {
   DocPage,
   DocSection,
@@ -14,12 +15,12 @@ export const metadata: Metadata = {
   title: "Share links | zcrypt Docs",
   description:
     "Create a share link for any file in zcrypt. The decryption key lives only in the URL fragment, so the server never sees it. Add an optional password, expiry, and download limit, and revoke anytime.",
-  alternates: { canonical: "https://zcrypt.cloud/docs/sharing" },
+  alternates: { canonical: `${SITE_URL}/docs/sharing` },
   openGraph: {
     title: "Share links | zcrypt Docs",
     description:
       "Share a file with an optional password, expiry, and download limit — the decryption key stays in the link fragment, never on the server.",
-    url: "https://zcrypt.cloud/docs/sharing",
+    url: `${SITE_URL}/docs/sharing`,
   },
 };
 
@@ -49,7 +50,7 @@ export default function SharingDocPage() {
           passphrase.
         </DocP>
         <DocP>The resulting link has two parts that do very different jobs:</DocP>
-        <DocCode label="Anatomy of a share link">{`https://zcrypt.cloud/s/<token>#<decryption-key>
+        <DocCode label="Anatomy of a share link">{`${SITE_URL}/s/<token>#<decryption-key>
                          └── sent to server   └── never sent`}</DocCode>
         <DocP>
           Need to hand over more than one file? See{" "}

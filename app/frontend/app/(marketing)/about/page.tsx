@@ -6,6 +6,7 @@ import { Section } from "@/components/marketing/section-reveal";
 import { WOSMO, WOSMO_SOCIALS, WosmoWordmark } from "@/components/marketing/wosmo";
 import { PersonJsonLd, BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { about } from "./_data/about";
+import { SITE_URL } from "@/lib/site";
 
 // Server Component (statically generated) — metadata lives here, and the only
 // client parts are the <Section> scroll-reveal islands from prose.tsx.
@@ -14,13 +15,13 @@ export const metadata: Metadata = {
   description:
     "zcrypt is built by Wasif Malik (Wosmo), a full-stack engineer from Karachi. A privacy tool should tell you who's behind it — so here I am. My story, the other things I've built, and how to reach me.",
   alternates: {
-    canonical: "https://zcrypt.cloud/about",
+    canonical: `${SITE_URL}/about`,
   },
   openGraph: {
     title: "About — The person behind zcrypt",
     description:
       "zcrypt isn't a faceless company. It's built by one engineer, in the open. Meet Wasif Malik (Wosmo).",
-    url: "https://zcrypt.cloud/about",
+    url: `${SITE_URL}/about`,
   },
 };
 
@@ -30,8 +31,8 @@ export default function AboutPage() {
       <PersonJsonLd />
       <BreadcrumbJsonLd
         items={[
-          { name: "Home", url: "https://zcrypt.cloud" },
-          { name: "About", url: "https://zcrypt.cloud/about" },
+          { name: "Home", url: SITE_URL },
+          { name: "About", url: `${SITE_URL}/about` },
         ]}
       />
       <article className="mx-auto max-w-3xl px-4">

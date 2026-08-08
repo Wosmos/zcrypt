@@ -2,6 +2,7 @@ import { Lock, Shield, HardDrive, Github } from "@/lib/icons";
 import type { ComparisonRow } from "@/components/marketing/features/comparison-table";
 import type { CapabilityItem } from "@/components/marketing/features/capability-grid";
 import { type VsData, VS_RELATED_LINKS } from "./dropbox";
+import { SITE_URL } from "@/lib/site";
 
 const rows: ComparisonRow[] = [
   {
@@ -209,8 +210,8 @@ export const googleDrive: VsData = {
       "Free and open source. Bring a storage account you already own and start in under a minute.",
   },
   breadcrumb: [
-    { name: "Home", url: "https://zcrypt.cloud" },
-    { name: "Compare", url: "https://zcrypt.cloud/vs/google-drive" },
-    { name: "zcrypt vs Google Drive", url: "https://zcrypt.cloud/vs/google-drive" },
+    { name: "Home", url: SITE_URL },
+    { name: "Compare", url: `${SITE_URL}/vs/google-drive` },
+    { name: "zcrypt vs Google Drive", url: `${SITE_URL}/vs/google-drive` },
   ],
 };

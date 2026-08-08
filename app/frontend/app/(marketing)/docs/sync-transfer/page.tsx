@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DocPage, DocSection, DocP, DocList, DocCode, DocNote } from "@/components/docs/doc-page";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Sync & device transfer | zcrypt Docs",
   description:
     "How zcrypt moves data between your own devices: offline pins that keep chosen files on hand per device, end-to-end encrypted clipboard sync pushed live over SSE, folder sync configured for the zcrypt desktop client, and real-time device-to-device file transfer over a 6-digit room code.",
-  alternates: { canonical: "https://zcrypt.cloud/docs/sync-transfer" },
+  alternates: { canonical: `${SITE_URL}/docs/sync-transfer` },
   openGraph: {
     title: "Sync & device transfer | zcrypt Docs",
     description:
       "Offline pins, encrypted clipboard sync, folder sync, and device-to-device transfer — the server holds ciphertext and metadata, never your plaintext.",
-    url: "https://zcrypt.cloud/docs/sync-transfer",
+    url: `${SITE_URL}/docs/sync-transfer`,
   },
 };
 

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { SITE_URL } from "@/lib/site";
 import {
   DocPage,
   DocSection,
@@ -14,12 +15,12 @@ export const metadata: Metadata = {
   title: "Repo pool & rotation | zcrypt Docs",
   description:
     "How zcrypt grows your storage across many repositories automatically: an active repo per account, a size threshold, and a disguised new repo created the moment one fills up.",
-  alternates: { canonical: "https://zcrypt.cloud/docs/repo-pool" },
+  alternates: { canonical: `${SITE_URL}/docs/repo-pool` },
   openGraph: {
     title: "Repo pool & rotation | zcrypt Docs",
     description:
       "How zcrypt grows your storage across many repositories automatically, with per-repo usage tracking and transparent rotation.",
-    url: "https://zcrypt.cloud/docs/repo-pool",
+    url: `${SITE_URL}/docs/repo-pool`,
   },
 };
 

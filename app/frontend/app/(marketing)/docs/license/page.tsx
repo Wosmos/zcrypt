@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "License | zcrypt Docs",
   description:
     "zcrypt is MIT-licensed — free to use, modify, and distribute, including commercially, with no warranty. Read the full license text on GitHub.",
-  alternates: { canonical: "https://zcrypt.cloud/docs/license" },
+  alternates: { canonical: `${SITE_URL}/docs/license` },
   openGraph: {
     title: "License | zcrypt Docs",
     description:
       "zcrypt is MIT-licensed — free to use, modify, and distribute, including commercially, with no warranty.",
-    url: "https://zcrypt.cloud/docs/license",
+    url: `${SITE_URL}/docs/license`,
   },
 };
 

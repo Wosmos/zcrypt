@@ -17,6 +17,7 @@ import {
 } from "@/lib/icons";
 import { tuiFeatures, tuiShortcuts, tuiCommands, tuiProfiles } from "@/lib/data";
 import { TUIApplicationJsonLd, BreadcrumbJsonLd } from "@/components/seo/json-ld";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "zcrypt TUI — Encrypted Cloud Storage from the Terminal | CLI for Linux, macOS, Windows",
@@ -40,13 +41,13 @@ export const metadata: Metadata = {
     "open source",
   ],
   alternates: {
-    canonical: "https://zcrypt.cloud/tui",
+    canonical: `${SITE_URL}/tui`,
   },
   openGraph: {
     title: "zcrypt TUI — Your Encrypted Vault, from the Terminal",
     description:
       "Upload, download, and manage your zero-knowledge encrypted vault from the command line. Real-time progress, 2FA, performance profiles. Single Go binary.",
-    url: "https://zcrypt.cloud/tui",
+    url: `${SITE_URL}/tui`,
     type: "website",
   },
   twitter: {
@@ -117,8 +118,8 @@ export default function TUIPage() {
       <TUIApplicationJsonLd />
       <BreadcrumbJsonLd
         items={[
-          { name: "zcrypt", url: "https://zcrypt.cloud" },
-          { name: "Terminal App", url: "https://zcrypt.cloud/tui" },
+          { name: "zcrypt", url: SITE_URL },
+          { name: "Terminal App", url: `${SITE_URL}/tui` },
         ]}
       />
 
@@ -277,7 +278,7 @@ export default function TUIPage() {
                 {
                   label: "Shell",
                   note: "macOS / Linux",
-                  cmd: "curl -fsSL https://zcrypt.cloud/install.sh | sh",
+                  cmd: `curl -fsSL ${SITE_URL}/install.sh | sh`,
                 },
               ].map((m) => (
                 <div

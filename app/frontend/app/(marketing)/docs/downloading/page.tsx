@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Downloading | zcrypt Docs",
   description:
     "How zcrypt downloads: your browser fetches encrypted chunks, decrypts and decompresses them in a Web Worker pool, verifies the file's SHA-256, and — for very large files — streams straight to disk. Every step runs on your device; the server never sees plaintext or your passphrase.",
-  alternates: { canonical: "https://zcrypt.cloud/docs/downloading" },
+  alternates: { canonical: `${SITE_URL}/docs/downloading` },
   openGraph: {
     title: "Downloading | zcrypt Docs",
     description:
       "Fetching, decrypting, and verifying your files locally in zcrypt — with a worker pool, streaming-to-disk for large files, and pause/resume.",
-    url: "https://zcrypt.cloud/docs/downloading",
+    url: `${SITE_URL}/docs/downloading`,
   },
 };
 

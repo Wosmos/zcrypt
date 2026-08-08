@@ -3,6 +3,7 @@ import type { ComparisonRow } from "@/components/marketing/features/comparison-t
 import type { CapabilityItem } from "@/components/marketing/features/capability-grid";
 import type { RelatedLinkItem } from "@/components/marketing/features/related-links";
 import type { ReactNode } from "react";
+import { SITE_URL } from "@/lib/site";
 // RelatedLinkItem is used in the VsData interface below.
 
 export interface VsData {
@@ -252,8 +253,8 @@ export const dropbox: VsData = {
       "Free and open source. Bring a storage account you already own and start in under a minute.",
   },
   breadcrumb: [
-    { name: "Home", url: "https://zcrypt.cloud" },
-    { name: "Compare", url: "https://zcrypt.cloud/vs/dropbox" },
-    { name: "zcrypt vs Dropbox", url: "https://zcrypt.cloud/vs/dropbox" },
+    { name: "Home", url: SITE_URL },
+    { name: "Compare", url: `${SITE_URL}/vs/dropbox` },
+    { name: "zcrypt vs Dropbox", url: `${SITE_URL}/vs/dropbox` },
   ],
 };

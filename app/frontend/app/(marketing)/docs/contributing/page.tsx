@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DocPage, DocSection, DocP, DocList, DocCode, DocNote } from "@/components/docs/doc-page";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Contributing | zcrypt Docs",
   description:
     "How to build zcrypt locally, the coding conventions, the pre-push quality gate, and how to open a pull request.",
-  alternates: { canonical: "https://zcrypt.cloud/docs/contributing" },
+  alternates: { canonical: `${SITE_URL}/docs/contributing` },
   openGraph: {
     title: "Contributing | zcrypt Docs",
     description:
       "How to build zcrypt locally, the coding conventions, the pre-push quality gate, and how to open a pull request.",
-    url: "https://zcrypt.cloud/docs/contributing",
+    url: `${SITE_URL}/docs/contributing`,
   },
 };
 

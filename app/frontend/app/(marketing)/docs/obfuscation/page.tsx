@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DocPage, DocSection, DocP, DocList, DocCode, DocNote } from "@/components/docs/doc-page";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Storage obfuscation | zcrypt Docs",
   description:
     "Encryption hides file contents; obfuscation hides that there is anything interesting to look at. zcrypt stores chunks under random hex .bin names in repos with plausible dev-project names, rotating commit messages, and a generic build-artifacts README.",
-  alternates: { canonical: "https://zcrypt.cloud/docs/obfuscation" },
+  alternates: { canonical: `${SITE_URL}/docs/obfuscation` },
   openGraph: {
     title: "Storage obfuscation | zcrypt Docs",
     description:
       "How zcrypt makes its storage repositories look like unremarkable build-cache projects — a second layer beneath the encryption.",
-    url: "https://zcrypt.cloud/docs/obfuscation",
+    url: `${SITE_URL}/docs/obfuscation`,
   },
 };
 

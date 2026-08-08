@@ -19,6 +19,7 @@ import { AndroidDownload } from "@/components/marketing/download/android-downloa
 import { CliBinaries } from "@/components/marketing/download/cli-binaries";
 import { MarketingHero } from "@/components/marketing/marketing-hero";
 import { getLatestRelease } from "@/lib/releases";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Download zcrypt — Desktop Apps for macOS, Windows & Linux, plus the CLI",
@@ -38,12 +39,12 @@ export const metadata: Metadata = {
     "dmg",
     "open source",
   ],
-  alternates: { canonical: "https://zcrypt.cloud/download" },
+  alternates: { canonical: `${SITE_URL}/download` },
   openGraph: {
     title: "Download zcrypt — Apps for macOS, Windows, Linux & the Terminal",
     description:
       "Native desktop apps, a single-binary CLI, and a no-install web app. Free, open source, zero-knowledge encrypted storage on every device.",
-    url: "https://zcrypt.cloud/download",
+    url: `${SITE_URL}/download`,
     type: "website",
   },
   twitter: {
@@ -63,8 +64,8 @@ export default async function DownloadPage() {
       <SoftwareApplicationJsonLd />
       <BreadcrumbJsonLd
         items={[
-          { name: "zcrypt", url: "https://zcrypt.cloud" },
-          { name: "Download", url: "https://zcrypt.cloud/download" },
+          { name: "zcrypt", url: SITE_URL },
+          { name: "Download", url: `${SITE_URL}/download` },
         ]}
       />
 

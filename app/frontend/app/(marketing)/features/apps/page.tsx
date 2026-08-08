@@ -15,6 +15,7 @@ import { FeatureHero } from "@/components/marketing/features/feature-hero";
 import { RelatedLinks } from "@/components/marketing/features/related-links";
 import { CtaSection } from "@/components/marketing/features/cta-section";
 import { apps } from "../_data/apps";
+import { SITE_URL, SITE_DOMAIN } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Web, Desktop, Android & Terminal — One Encrypted Vault, Four Surfaces",
@@ -33,12 +34,12 @@ export const metadata: Metadata = {
     "SSH file storage",
     "cross-platform encryption",
   ],
-  alternates: { canonical: "https://zcrypt.cloud/features/apps" },
+  alternates: { canonical: `${SITE_URL}/features/apps` },
   openGraph: {
     title: "Web, Desktop, Android & Terminal — One Encrypted Vault | zcrypt",
     description:
       "One zero-knowledge core across four surfaces: web in any browser, a native desktop app, an Android sideload APK, and a single-binary TUI that works over SSH.",
-    url: "https://zcrypt.cloud/features/apps",
+    url: `${SITE_URL}/features/apps`,
     type: "website",
   },
 };
@@ -59,9 +60,9 @@ export default function AppsPage() {
     <>
       <BreadcrumbJsonLd
         items={[
-          { name: "Home", url: "https://zcrypt.cloud" },
-          { name: "Features", url: "https://zcrypt.cloud/features/encrypted-drive" },
-          { name: "Apps", url: "https://zcrypt.cloud/features/apps" },
+          { name: "Home", url: SITE_URL },
+          { name: "Features", url: `${SITE_URL}/features/encrypted-drive` },
+          { name: "Apps", url: `${SITE_URL}/features/apps` },
         ]}
       />
 
@@ -84,7 +85,7 @@ export default function AppsPage() {
                 <span className="h-2 w-2 rounded-full bg-[#febc2e]" />
                 <span className="h-2 w-2 rounded-full bg-[#28c840]" />
                 <div className="ml-2 flex-1 truncate rounded-md bg-black/[0.04] px-2 py-0.5 font-mono text-[9px] text-[var(--color-text-muted)] dark:bg-white/[0.04]">
-                  zcrypt.cloud
+                  {SITE_DOMAIN}
                 </div>
               </div>
               <div className="flex flex-col items-center gap-2 p-6 text-center">

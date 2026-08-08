@@ -6,6 +6,7 @@ import { Logo } from "@/components/ui/logo";
 import { GuestGuard } from "@/components/auth/guest-guard";
 import { CircuitBackground } from "@/components/ui/circuit-background";
 import { Lock, Shield, Eye } from "@/lib/icons";
+import { SITE_DOMAIN } from "@/lib/site";
 
 const features = [
   {
@@ -122,7 +123,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
             {/* Bottom tagline */}
             <p className="text-[11px] text-zinc-600">
-              zcrypt.cloud &mdash; Your files, your keys, your cloud.
+              {SITE_DOMAIN} &mdash; Your files, your keys, your cloud.
             </p>
           </div>
 
@@ -147,7 +148,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           {/* Mobile bottom link */}
           <p className="lg:hidden absolute bottom-5 text-[11px] text-[var(--color-text-muted)]">
             <Link href="/" className="hover:text-[var(--color-text-secondary)] transition-colors">
-              zcrypt.cloud
+              {SITE_DOMAIN}
             </Link>{" "}
             &mdash; Zero-knowledge encrypted storage
           </p>

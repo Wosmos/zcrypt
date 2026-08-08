@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Timed vaults | zcrypt Docs",
   description:
     "A timed vault is a named group of files you have already uploaded, with a countdown attached. When the timer runs out the vault is flagged as expired and dimmed in the list — but nothing self-destructs: your files are not deleted. In beta.",
-  alternates: { canonical: "https://zcrypt.cloud/docs/timed-vaults" },
+  alternates: { canonical: `${SITE_URL}/docs/timed-vaults` },
   openGraph: {
     title: "Timed vaults | zcrypt Docs",
     description:
       "Group already-uploaded files under a shared countdown. Expiry flags the vault — it does not delete your files.",
-    url: "https://zcrypt.cloud/docs/timed-vaults",
+    url: `${SITE_URL}/docs/timed-vaults`,
   },
 };
 

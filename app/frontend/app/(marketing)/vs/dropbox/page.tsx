@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ComparisonPage } from "@/components/marketing/features/comparison-page";
 import { dropbox } from "../_data/dropbox";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "zcrypt vs Dropbox: Private, Open-Source Encrypted Drive",
@@ -15,12 +16,12 @@ export const metadata: Metadata = {
     "zcrypt vs dropbox",
     "end-to-end encrypted file storage",
   ],
-  alternates: { canonical: "https://zcrypt.cloud/vs/dropbox" },
+  alternates: { canonical: `${SITE_URL}/vs/dropbox` },
   openGraph: {
     title: "zcrypt vs Dropbox: Private, Open-Source Encrypted Drive",
     description:
       "zcrypt is zero-knowledge by default, open source, and stores files in accounts you already own. See how it compares to Dropbox — fairly.",
-    url: "https://zcrypt.cloud/vs/dropbox",
+    url: `${SITE_URL}/vs/dropbox`,
     type: "website",
   },
 };

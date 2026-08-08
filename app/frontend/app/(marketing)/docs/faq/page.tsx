@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DocPage, DocSection, DocP, DocNote } from "@/components/docs/doc-page";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "FAQ | zcrypt Docs",
   description:
     "Common questions about zcrypt: what it costs, how much storage you get, how the AES-256-GCM zero-knowledge encryption works, multi-device access, real folders, previewing files, password-protected folders, and what happens if you forget your passphrase.",
-  alternates: { canonical: "https://zcrypt.cloud/docs/faq" },
+  alternates: { canonical: `${SITE_URL}/docs/faq` },
   openGraph: {
     title: "FAQ | zcrypt Docs",
     description:
       "Cost, storage, encryption, multi-device, folders, previews, and passphrase recovery — answered plainly.",
-    url: "https://zcrypt.cloud/docs/faq",
+    url: `${SITE_URL}/docs/faq`,
   },
 };
 

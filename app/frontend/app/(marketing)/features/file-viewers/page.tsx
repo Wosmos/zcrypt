@@ -6,6 +6,7 @@ import { CapabilityGrid } from "@/components/marketing/features/capability-grid"
 import { RelatedLinks } from "@/components/marketing/features/related-links";
 import { CtaSection } from "@/components/marketing/features/cta-section";
 import { fileViewers } from "../_data/file-viewers";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "In-Browser File Viewers — Preview Encrypted Files Without Downloading",
@@ -22,12 +23,12 @@ export const metadata: Metadata = {
     "encrypted document viewer",
     "in-browser media player",
   ],
-  alternates: { canonical: "https://zcrypt.cloud/features/file-viewers" },
+  alternates: { canonical: `${SITE_URL}/features/file-viewers` },
   openGraph: {
     title: "In-Browser File Viewers — Preview Without Downloading | zcrypt",
     description:
       "Preview images, video, audio, PDFs, documents, and code from your encrypted vault — decrypted on the fly in your browser, never on a server.",
-    url: "https://zcrypt.cloud/features/file-viewers",
+    url: `${SITE_URL}/features/file-viewers`,
     type: "website",
   },
   twitter: {
@@ -56,9 +57,9 @@ export default function FileViewersPage() {
     <>
       <BreadcrumbJsonLd
         items={[
-          { name: "Home", url: "https://zcrypt.cloud" },
-          { name: "Features", url: "https://zcrypt.cloud/features/file-viewers" },
-          { name: "File Viewers", url: "https://zcrypt.cloud/features/file-viewers" },
+          { name: "Home", url: SITE_URL },
+          { name: "Features", url: `${SITE_URL}/features/file-viewers` },
+          { name: "File Viewers", url: `${SITE_URL}/features/file-viewers` },
         ]}
       />
 

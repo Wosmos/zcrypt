@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Troubleshooting | zcrypt Docs",
   description:
     "Fixes for common zcrypt issues: a wrong passphrase or stuck unlock, a protected folder that won't open, a stalled but resumable upload, a file too large for a platform, a disconnected or expired storage token, and rate limiting.",
-  alternates: { canonical: "https://zcrypt.cloud/docs/troubleshooting" },
+  alternates: { canonical: `${SITE_URL}/docs/troubleshooting` },
   openGraph: {
     title: "Troubleshooting | zcrypt Docs",
     description:
       "Quick fixes for stuck unlocks, protected folders, stalled uploads, oversized files, disconnected tokens, and rate limits.",
-    url: "https://zcrypt.cloud/docs/troubleshooting",
+    url: `${SITE_URL}/docs/troubleshooting`,
   },
 };
 

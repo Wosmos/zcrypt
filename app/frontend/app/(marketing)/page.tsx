@@ -29,19 +29,20 @@ import { BringYourOwnStorage } from "@/components/marketing/landing/bring-your-o
 import { BuiltToTrust } from "@/components/marketing/landing/built-to-trust";
 import { BuiltBy } from "@/components/marketing/landing/built-by";
 import { FAQJsonLd, SoftwareApplicationJsonLd } from "@/components/seo/json-ld";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "zcrypt — The Encrypted Cloud Drive You Actually Own",
   description:
     "zcrypt is a zero-knowledge encrypted cloud drive: real folders, instant in-browser previews, and per-folder passwords. Files are encrypted on your device with AES-256-GCM and stored inside your own GitHub, GitLab, Hugging Face, or Telegram account. Free, open source, no artificial limits.",
   alternates: {
-    canonical: "https://zcrypt.cloud",
+    canonical: SITE_URL,
   },
   openGraph: {
     title: "zcrypt — The Encrypted Cloud Drive You Actually Own",
     description:
       "Real folders, instant previews, encrypted on your device and stored in accounts you already own. Zero-knowledge AES-256-GCM, open source, no artificial limits.",
-    url: "https://zcrypt.cloud",
+    url: SITE_URL,
   },
 };
 

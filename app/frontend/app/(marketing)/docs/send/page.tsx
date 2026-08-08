@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Anonymous Send | zcrypt Docs",
   description:
     "Send an encrypted file with no account using zcrypt's Anonymous Send: up to about 50 MB, an expiry of 1 to 24 hours, and optional burn-after-read. Files are stored encrypted under a disguised name.",
-  alternates: { canonical: "https://zcrypt.cloud/docs/send" },
+  alternates: { canonical: `${SITE_URL}/docs/send` },
   openGraph: {
     title: "Anonymous Send | zcrypt Docs",
     description:
       "Send an encrypted file without an account — short-lived, optionally one-time, and encrypted in your browser before upload.",
-    url: "https://zcrypt.cloud/docs/send",
+    url: `${SITE_URL}/docs/send`,
   },
 };
 

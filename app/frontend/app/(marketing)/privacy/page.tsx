@@ -1,6 +1,7 @@
 import { LegalPage, LegalCta } from "@/components/marketing/legal-page";
 import { PullQuote, BulletList } from "@/components/marketing/prose";
 import { Section } from "@/components/marketing/section-reveal";
+import { PRIVACY_EMAIL } from "@/lib/site";
 
 export default function PrivacyPage() {
   return (
@@ -230,10 +231,10 @@ export default function PrivacyPage() {
           <p>
             For GDPR, CCPA, or other data protection requests, contact{" "}
             <a
-              href="mailto:privacy@zcrypt.cloud"
+              href={`mailto:${PRIVACY_EMAIL}`}
               className="text-cyan-600 dark:text-cyan-400 hover:underline font-medium"
             >
-              privacy@zcrypt.cloud
+              {PRIVACY_EMAIL}
             </a>
             .
           </p>
@@ -269,10 +270,10 @@ export default function PrivacyPage() {
           <p>
             Privacy questions? Contact us at{" "}
             <a
-              href="mailto:privacy@zcrypt.cloud"
+              href={`mailto:${PRIVACY_EMAIL}`}
               className="text-cyan-600 dark:text-cyan-400 hover:underline font-medium"
             >
-              privacy@zcrypt.cloud
+              {PRIVACY_EMAIL}
             </a>
             .
           </p>

@@ -1,11 +1,10 @@
 import { docsNav } from "@/lib/data";
+import { SITE_URL as SITE } from "@/lib/site";
 
 // Builds the LLM-friendly overview served at /llms.txt and /llm.txt (see
 // llmstxt.org). The documentation index is generated from `docsNav` — the same
 // single source of truth the sitemap uses — so it can never drift from the pages
 // that actually exist.
-
-const SITE = "https://zcrypt.cloud";
 
 /** A markdown link line: `- [Title](url) (Badge): description`. Relative hrefs
  *  are absolutised against SITE; already-absolute (http…) hrefs pass through.

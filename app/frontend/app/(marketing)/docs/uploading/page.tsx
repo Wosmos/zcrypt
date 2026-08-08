@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DocPage, DocSection, DocP, DocList, DocNote } from "@/components/docs/doc-page";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Uploading | zcrypt Docs",
   description:
     "How zcrypt uploads: client-side compression and encryption, device-sized chunks, durable resumable sessions that survive reloads and device switches, a real pause distinct from cancel, honest never-backwards progress, relay vs. direct (presigned) upload, and parallel batches on mobile too.",
-  alternates: { canonical: "https://zcrypt.cloud/docs/uploading" },
+  alternates: { canonical: `${SITE_URL}/docs/uploading` },
   openGraph: {
     title: "Uploading | zcrypt Docs",
     description:
       "Chunked, client-encrypted, resumable uploads in zcrypt — surviving reloads, real pause vs. cancel, honest progress, relay and direct modes, and parallel batches.",
-    url: "https://zcrypt.cloud/docs/uploading",
+    url: `${SITE_URL}/docs/uploading`,
   },
 };
 

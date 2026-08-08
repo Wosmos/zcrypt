@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { SITE_DOMAIN } from "@/lib/site";
 
 export const OG_SIZE = { width: 1200, height: 630 };
 export const OG_ALT = "zcrypt — Private Encrypted Cloud Storage";
@@ -202,7 +203,7 @@ export function renderBrandOgCard(opts: { variant?: "opengraph" | "twitter" } = 
           margin: 0,
         }}
       >
-        zcrypt.cloud
+        {SITE_DOMAIN}
       </p>
     </div>,
     {

@@ -20,6 +20,7 @@ import { TieInSection } from "@/components/marketing/features/tie-in-section";
 import { IconList } from "@/components/marketing/features/icon-list";
 import { CodePanel } from "@/components/marketing/features/code-panel";
 import { transfers } from "../_data/transfers";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Transfer Manager — Pause, Resume & Track Every Upload",
@@ -35,12 +36,12 @@ export const metadata: Metadata = {
     "device to device transfer",
     "transfer progress",
   ],
-  alternates: { canonical: "https://zcrypt.cloud/features/transfers" },
+  alternates: { canonical: `${SITE_URL}/features/transfers` },
   openGraph: {
     title: "Transfer Manager — Pause, Resume & Track Every Transfer | zcrypt",
     description:
       "A docked manager that survives navigation: live progress, pause/resume without re-encrypting, retry, and bulk ZIP downloads. Plus encrypted device-to-device transfer.",
-    url: "https://zcrypt.cloud/features/transfers",
+    url: `${SITE_URL}/features/transfers`,
     type: "website",
   },
 };
@@ -90,9 +91,9 @@ export default function TransfersPage() {
     <>
       <BreadcrumbJsonLd
         items={[
-          { name: "Home", url: "https://zcrypt.cloud" },
-          { name: "Features", url: "https://zcrypt.cloud/features/encrypted-drive" },
-          { name: "Transfers", url: "https://zcrypt.cloud/features/transfers" },
+          { name: "Home", url: SITE_URL },
+          { name: "Features", url: `${SITE_URL}/features/encrypted-drive` },
+          { name: "Transfers", url: `${SITE_URL}/features/transfers` },
         ]}
       />
 

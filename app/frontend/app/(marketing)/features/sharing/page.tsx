@@ -10,6 +10,7 @@ import { TieInSection } from "@/components/marketing/features/tie-in-section";
 import { IconList } from "@/components/marketing/features/icon-list";
 import { CodePanel } from "@/components/marketing/features/code-panel";
 import { sharing } from "../_data/sharing";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Encrypted File Sharing — Keys That Stay in the Link",
@@ -24,12 +25,12 @@ export const metadata: Metadata = {
     "burn after reading",
     "anonymous file send",
   ],
-  alternates: { canonical: "https://zcrypt.cloud/features/sharing" },
+  alternates: { canonical: `${SITE_URL}/features/sharing` },
   openGraph: {
     title: "Encrypted File Sharing | zcrypt",
     description:
       "Per-file share links where the decryption key lives only in the URL fragment, never on the server. Optional password, expiry, and download limits. Revoke anytime.",
-    url: "https://zcrypt.cloud/features/sharing",
+    url: `${SITE_URL}/features/sharing`,
     type: "website",
   },
 };
@@ -50,9 +51,9 @@ export default function SharingPage() {
     <>
       <BreadcrumbJsonLd
         items={[
-          { name: "Home", url: "https://zcrypt.cloud" },
-          { name: "Features", url: "https://zcrypt.cloud/features/encrypted-drive" },
-          { name: "Sharing", url: "https://zcrypt.cloud/features/sharing" },
+          { name: "Home", url: SITE_URL },
+          { name: "Features", url: `${SITE_URL}/features/encrypted-drive` },
+          { name: "Sharing", url: `${SITE_URL}/features/sharing` },
         ]}
       />
 
@@ -76,7 +77,7 @@ export default function SharingPage() {
         >
           {/* the url, with the fragment highlighted */}
           <div className="rounded-xl border border-[var(--color-border)] bg-black/[0.02] p-3 font-mono text-[11px] leading-relaxed break-all dark:bg-white/[0.02]">
-            <span className="text-[var(--color-text-muted)]">https://zcrypt.cloud/s/</span>
+            <span className="text-[var(--color-text-muted)]">{SITE_URL}/s/</span>
             <span className="text-[var(--color-text-secondary)]">3kQ9pX2v</span>
             <span className="text-amber-600 dark:text-amber-400">#key=8f4a…d20e</span>
           </div>

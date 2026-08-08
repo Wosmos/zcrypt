@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DocPage, DocSection, DocP, DocList, DocNote, DocTable } from "@/components/docs/doc-page";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Authentication & 2FA | zcrypt Docs",
   description:
     "How you sign in to zcrypt: email and password sign-up with breach checks, email verification, password reset, passwordless magic links, JWT sessions, and TOTP two-factor — and why your account password is not your vault passphrase.",
-  alternates: { canonical: "https://zcrypt.cloud/docs/authentication" },
+  alternates: { canonical: `${SITE_URL}/docs/authentication` },
   openGraph: {
     title: "Authentication & 2FA | zcrypt Docs",
     description:
       "Email/password sign-up, magic links, JWT sessions, and TOTP two-factor in zcrypt — plus the difference between your account password and your vault passphrase.",
-    url: "https://zcrypt.cloud/docs/authentication",
+    url: `${SITE_URL}/docs/authentication`,
   },
 };
 

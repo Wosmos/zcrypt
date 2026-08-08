@@ -1,12 +1,13 @@
 import type { MetadataRoute } from "next";
 import { docsNav } from "@/lib/data";
+import { SITE_URL } from "@/lib/site";
 
 type ChangeFreq = MetadataRoute.Sitemap[number]["changeFrequency"];
 
 export const dynamic = "force-static";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = "https://zcrypt.cloud";
+  const baseUrl = SITE_URL;
   const lastModified = "2026-06-27";
 
   const make = (path: string, priority: number, changeFrequency: ChangeFreq) => ({
@@ -21,6 +22,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     make("/download", 0.9, "weekly"),
     make("/features", 0.8, "monthly"),
     make("/tui", 0.8, "monthly"),
+    make("/about", 0.6, "monthly"),
     make("/philosophy", 0.6, "yearly"),
     make("/send", 0.7, "monthly"),
     make("/pad", 0.7, "monthly"),

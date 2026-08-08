@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { SITE_URL } from "@/lib/site";
 import {
   DocPage,
   DocSection,
@@ -14,12 +15,12 @@ export const metadata: Metadata = {
   title: "Bring your own storage | zcrypt Docs",
   description:
     "zcrypt has no storage farm of its own. Connect a GitHub, GitLab, Hugging Face, or Telegram account as your encrypted backend — tokens, scopes, and capacities, all explained.",
-  alternates: { canonical: "https://zcrypt.cloud/docs/platform-adapters" },
+  alternates: { canonical: `${SITE_URL}/docs/platform-adapters` },
   openGraph: {
     title: "Bring your own storage | zcrypt Docs",
     description:
       "Connect GitHub, GitLab, Hugging Face, or Telegram as your encrypted storage backend — with the tokens, scopes, and capacities for each.",
-    url: "https://zcrypt.cloud/docs/platform-adapters",
+    url: `${SITE_URL}/docs/platform-adapters`,
   },
 };
 
