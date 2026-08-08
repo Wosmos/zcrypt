@@ -1,0 +1,34 @@
+name: Reindex Nudge
+
+# After a marketing/content deploy, ping the search engines that actually
+# support an instant recrawl request (sitemap ping for Google, IndexNow for
+# Bing/Yandex/Seznam) and leave a reminder for anything that needs a manual
+# "Request Indexing" in Search Console. See scripts/reindex-search-engines.sh
+# for why Google itself doesn't get a real push here.
+#
+# Optional secret: NTFY_TOPIC — same topic used by neon-watch.yml — to also
+# get a phone push with the result.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app/frontend/app/**"
+      - "app/frontend/public/**"
+      - "app/frontend/lib/data.ts"
+  workflow_dispatch:
+
+jobs:
+  reindex:
+    name: Nudge search engines to recrawl
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Wait for Vercel deploy to land
+        run: sleep 60
+
+      - name: Ping search engines
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: bash scripts/reindex-search-engines.sh
