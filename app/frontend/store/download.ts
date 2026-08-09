@@ -220,6 +220,10 @@ function updateProgress(id: string, status: DownloadStatus, progress?: number, s
     setStatusNow(id, {
       status,
       ...(progress !== undefined ? { progress } : {}),
+      // Every terminal/paused call site below passes a literal stage string
+      // ("Done" / "Paused" / "Cancelled"), and this function is module-private,
+      // so the omitted-stage arm cannot be reached.
+      /* v8 ignore next */
       ...(stage !== undefined ? { stage } : {}),
     });
     return;
@@ -580,7 +584,12 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
       const unlisten = await subscribeProgress((p) => {
         if (!fileIds.has(p.file_id) || p.chunks_total <= 0) return;
         const idx = order.indexOf(p.file_id);
+        // Belt-and-braces: `order` and `fileIds` are built from the same `files`
+        // array and the guard above already required a `fileIds` hit, so indexOf
+        // cannot miss. Kept in case those two ever stop sharing a source.
+        /* v8 ignore start */
         if (idx === -1) return;
+        /* v8 ignore stop */
         const innerFraction = p.chunks_done / p.chunks_total;
         const percent = Math.round(((idx + innerFraction) / files.length) * 100);
         updateProgress(id, "downloading", percent, `${p.stage} (${idx + 1}/${files.length})`);
@@ -595,6 +604,9 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
           // that lets any real auth failure surface normally per-file
           // (same recovery path as today: wrong-key detection -> clear
           // that folder's cached password) instead of silently guessing.
+          // The loop above sets an entry for every file on BOTH its try and
+          // catch paths, so this fallback cannot fire today.
+          /* v8 ignore next */
           passphrase: filePassphrases.get(f.fileId) ?? passphrase,
         }));
         await sidecarBulkDownloadZip(sidecarFiles, userId, savePath);

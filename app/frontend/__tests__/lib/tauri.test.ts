@@ -62,6 +62,24 @@ describe("tauri (outside the Tauri runtime)", () => {
     await expect(mod.clearShellPassphrase()).resolves.toBeUndefined();
     expect(invokeMock).not.toHaveBeenCalled();
   });
+
+  it("biometricAvailable resolves false without invoking the bridge", async () => {
+    const mod = await import("@/lib/tauri");
+    await expect(mod.biometricAvailable()).resolves.toBe(false);
+    expect(invokeMock).not.toHaveBeenCalled();
+  });
+
+  it("biometricAuthenticate resolves false without invoking the bridge", async () => {
+    const mod = await import("@/lib/tauri");
+    await expect(mod.biometricAuthenticate("unlock your vault")).resolves.toBe(false);
+    expect(invokeMock).not.toHaveBeenCalled();
+  });
+
+  it("cancelTransfer resolves false without invoking the bridge", async () => {
+    const mod = await import("@/lib/tauri");
+    await expect(mod.cancelTransfer("xfer-1")).resolves.toBe(false);
+    expect(invokeMock).not.toHaveBeenCalled();
+  });
 });
 
 describe("toDesktopFile", () => {
@@ -280,6 +298,87 @@ describe("tauri (inside the Tauri runtime)", () => {
     const mod = await import("@/lib/tauri");
     await mod.clearShellPassphrase();
     expect(invokeMock).toHaveBeenCalledWith("clear_passphrase", undefined);
+  });
+
+  it("sidecarBulkDownloadZip invokes bulk_download_zip with the mapped file list", async () => {
+    const mod = await import("@/lib/tauri");
+    await mod.sidecarBulkDownloadZip(
+      [
+        { fileId: "f1", filename: "a.txt", passphrase: "pw1" },
+        { fileId: "f2", filename: "b.txt", passphrase: "pw2" },
+      ],
+      "user1",
+      "/save/all.zip",
+      "xfer-1"
+    );
+    expect(invokeMock).toHaveBeenCalledWith("bulk_download_zip", {
+      files: [
+        { fileId: "f1", filename: "a.txt", passphrase: "pw1" },
+        { fileId: "f2", filename: "b.txt", passphrase: "pw2" },
+      ],
+      userId: "user1",
+      savePath: "/save/all.zip",
+      transferId: "xfer-1",
+    });
+  });
+
+  it("sidecarDecryptToMemory invokes decrypt_to_memory and returns the bytes", async () => {
+    const bytes = new Uint8Array([1, 2, 3]).buffer;
+    invokeMock.mockResolvedValue(bytes);
+    const mod = await import("@/lib/tauri");
+    await expect(mod.sidecarDecryptToMemory("f1", "pw", "user1")).resolves.toBe(bytes);
+    expect(invokeMock).toHaveBeenCalledWith("decrypt_to_memory", {
+      fileId: "f1",
+      passphrase: "pw",
+      userId: "user1",
+    });
+  });
+
+  it("sidecarDeleteFile invokes delete_file with the file id", async () => {
+    const mod = await import("@/lib/tauri");
+    await mod.sidecarDeleteFile("f1");
+    expect(invokeMock).toHaveBeenCalledWith("delete_file", { fileId: "f1" });
+  });
+
+  it("sidecarDownloadSpace base64-encodes the space key and invokes download_space_file", async () => {
+    const mod = await import("@/lib/tauri");
+    const { toBase64 } = await import("@/lib/crypto");
+    const spaceKeyBytes = new Uint8Array([9, 9, 9]);
+    await mod.sidecarDownloadSpace("f1", spaceKeyBytes, "/save/f1.bin");
+    expect(invokeMock).toHaveBeenCalledWith("download_space_file", {
+      fileId: "f1",
+      spaceKeyB64: toBase64(spaceKeyBytes),
+      savePath: "/save/f1.bin",
+    });
+  });
+
+  it("sidecarDecryptSpaceToMemory base64-encodes the space key and returns the bytes", async () => {
+    const bytes = new Uint8Array([4, 5, 6]).buffer;
+    invokeMock.mockResolvedValue(bytes);
+    const mod = await import("@/lib/tauri");
+    const { toBase64 } = await import("@/lib/crypto");
+    const spaceKeyBytes = new Uint8Array([7, 7, 7]);
+    await expect(mod.sidecarDecryptSpaceToMemory("f1", spaceKeyBytes)).resolves.toBe(bytes);
+    expect(invokeMock).toHaveBeenCalledWith("decrypt_space_to_memory", {
+      fileId: "f1",
+      spaceKeyB64: toBase64(spaceKeyBytes),
+    });
+  });
+
+  it("biometricAvailable invokes biometric_available and returns the result", async () => {
+    invokeMock.mockResolvedValue(true);
+    const mod = await import("@/lib/tauri");
+    await expect(mod.biometricAvailable()).resolves.toBe(true);
+    expect(invokeMock).toHaveBeenCalledWith("biometric_available", undefined);
+  });
+
+  it("biometricAuthenticate invokes biometric_authenticate with the reason", async () => {
+    invokeMock.mockResolvedValue(true);
+    const mod = await import("@/lib/tauri");
+    await expect(mod.biometricAuthenticate("unlock your vault")).resolves.toBe(true);
+    expect(invokeMock).toHaveBeenCalledWith("biometric_authenticate", {
+      reason: "unlock your vault",
+    });
   });
 
   it("subscribeProgress listens on zcrypt://progress and forwards payloads", async () => {

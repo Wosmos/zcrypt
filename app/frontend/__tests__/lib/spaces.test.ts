@@ -24,6 +24,31 @@ vi.mock("@/lib/download-session", () => ({
   downloadAndDecryptFile: vi.fn(),
 }));
 
+const tauriMocks = vi.hoisted(() => {
+  let mockIsTauri = false;
+  return {
+    getIsTauri: () => mockIsTauri,
+    setIsTauri: (v: boolean) => {
+      mockIsTauri = v;
+    },
+    pickSaveLocation: vi.fn(),
+    subscribeProgress: vi.fn(),
+    sidecarDownloadSpace: vi.fn(),
+  };
+});
+vi.mock("@/lib/tauri", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/tauri")>();
+  return {
+    ...actual,
+    get isTauri() {
+      return tauriMocks.getIsTauri();
+    },
+    pickSaveLocation: tauriMocks.pickSaveLocation,
+    subscribeProgress: tauriMocks.subscribeProgress,
+    sidecarDownloadSpace: tauriMocks.sidecarDownloadSpace,
+  };
+});
+
 import {
   createSharedVault,
   addSharedVaultMember,
@@ -85,6 +110,7 @@ beforeEach(() => {
   useKeysStore.getState().reset();
   useSpacesStore.getState().reset();
   usePassphraseStore.getState().clear?.();
+  tauriMocks.setIsTauri(false);
 });
 
 describe("createSpace", () => {
@@ -257,6 +283,80 @@ describe("downloadSpaceFile", () => {
     ).rejects.toThrow("This space's key isn't available");
     expect(downloadAndDecryptFile).not.toHaveBeenCalled();
   });
+
+  describe("on desktop (Tauri)", () => {
+    beforeEach(() => {
+      tauriMocks.setIsTauri(true);
+    });
+
+    it("bails out without downloading when the save dialog is cancelled", async () => {
+      const spaceKey = generateSpaceKey();
+      useSpacesStore.getState().setSpaceKey("v", spaceKey);
+      const spaceWrappedCek = toBase64(await wrapKey(buf(spaceKey), generateCEK()));
+      tauriMocks.pickSaveLocation.mockResolvedValue(null);
+
+      await downloadSpaceFile(vault("v"), "file-9", spaceWrappedCek, "file-9.bin");
+
+      expect(tauriMocks.sidecarDownloadSpace).not.toHaveBeenCalled();
+    });
+
+    it("downloads via the sidecar using the resolved key, with no progress subscription by default", async () => {
+      const spaceKey = generateSpaceKey();
+      useSpacesStore.getState().setSpaceKey("v", spaceKey);
+      const cek = generateCEK();
+      const spaceWrappedCek = toBase64(await wrapKey(buf(spaceKey), cek));
+      tauriMocks.pickSaveLocation.mockResolvedValue("/tmp/file-9.bin");
+
+      await downloadSpaceFile(vault("v"), "file-9", spaceWrappedCek, "file-9.bin");
+
+      expect(tauriMocks.subscribeProgress).not.toHaveBeenCalled();
+      expect(tauriMocks.sidecarDownloadSpace).toHaveBeenCalledTimes(1);
+      const [fileId, keyBytes, savePath] = tauriMocks.sidecarDownloadSpace.mock.calls[0];
+      expect(fileId).toBe("file-9");
+      expect(new Uint8Array(keyBytes)).toEqual(cek);
+      expect(savePath).toBe("/tmp/file-9.bin");
+    });
+
+    it("subscribes to progress, forwards matching events, and unsubscribes when done", async () => {
+      const spaceKey = generateSpaceKey();
+      useSpacesStore.getState().setSpaceKey("v", spaceKey);
+      const spaceWrappedCek = toBase64(await wrapKey(buf(spaceKey), generateCEK()));
+      tauriMocks.pickSaveLocation.mockResolvedValue("/tmp/file-9.bin");
+
+      let progressCb: ((p: unknown) => void) | undefined;
+      const unlisten = vi.fn();
+      tauriMocks.subscribeProgress.mockImplementation(async (cb: (p: unknown) => void) => {
+        progressCb = cb;
+        return unlisten;
+      });
+
+      const onProgress = vi.fn();
+      await downloadSpaceFile(vault("v"), "file-9", spaceWrappedCek, "file-9.bin", { onProgress });
+
+      // A non-matching file id and a zero/negative total are both ignored.
+      progressCb!({ file_id: "other-file", bytes_total: 100 });
+      progressCb!({ file_id: "file-9", bytes_total: 0 });
+      expect(onProgress).not.toHaveBeenCalled();
+
+      // A matching event with real progress is forwarded, percent computed.
+      progressCb!({
+        file_id: "file-9",
+        bytes_total: 200,
+        bytes_done: 50,
+        stage: "downloading",
+        chunks_done: 1,
+        chunks_total: 4,
+      });
+      expect(onProgress).toHaveBeenCalledWith({
+        stage: "downloading",
+        percent: 25,
+        chunksDone: 1,
+        chunksTotal: 4,
+      });
+
+      expect(unlisten).toHaveBeenCalledTimes(1);
+    });
+  });
 });
 
 describe("rotateSpaceKey (revocation)", () => {
@@ -375,6 +475,18 @@ describe("decryptSpaceFileName", () => {
 
   it("returns null when the space key isn't available", async () => {
     await expect(decryptSpaceFileName(vault("locked"), "abc")).resolves.toBeNull();
+  });
+
+  it("returns null when the sealed name fails to unwrap under the space key", async () => {
+    const spaceKey = generateSpaceKey();
+    useSpacesStore.getState().setSpaceKey("v", spaceKey);
+    // Sealed under a DIFFERENT key — the real space key can't open it.
+    const wrongKey = generateSpaceKey();
+    const wrappedUnderWrongKey = toBase64(
+      await wrapKey(buf(wrongKey), new TextEncoder().encode("name.txt"))
+    );
+
+    await expect(decryptSpaceFileName(vault("v"), wrappedUnderWrongKey)).resolves.toBeNull();
   });
 });
 

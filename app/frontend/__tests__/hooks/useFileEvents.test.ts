@@ -141,4 +141,70 @@ describe("useFileEvents", () => {
     rerender();
     expect(createEventSource).toHaveBeenCalledTimes(1);
   });
+
+  it("closes the dropped connection and reconnects after the base delay on error", () => {
+    renderHook(() => useFileEvents());
+    const es = latestES();
+    es.onerror?.();
+    expect(es.closed).toBe(true);
+    expect(createEventSource).toHaveBeenCalledTimes(1);
+
+    vi.advanceTimersByTime(1000);
+    expect(createEventSource).toHaveBeenCalledTimes(2);
+  });
+
+  it("doubles the reconnect delay on each consecutive error (exponential backoff)", () => {
+    renderHook(() => useFileEvents());
+    latestES().onerror?.();
+    vi.advanceTimersByTime(1000); // 1st reconnect (delay was 1000 * 2^0)
+    expect(createEventSource).toHaveBeenCalledTimes(2);
+
+    latestES().onerror?.();
+    vi.advanceTimersByTime(1000); // not enough yet — 2nd delay is 1000 * 2^1 = 2000
+    expect(createEventSource).toHaveBeenCalledTimes(2);
+    vi.advanceTimersByTime(1000); // now at 2000 total
+    expect(createEventSource).toHaveBeenCalledTimes(3);
+  });
+
+  it("resets the backoff attempt counter after a successful open", () => {
+    renderHook(() => useFileEvents());
+    latestES().onerror?.();
+    vi.advanceTimersByTime(1000);
+    expect(createEventSource).toHaveBeenCalledTimes(2);
+
+    latestES().onopen?.(); // successful reconnect — resets reconnectAttempt to 0
+    latestES().onerror?.();
+    vi.advanceTimersByTime(1000); // back to the base delay, not the doubled one
+    expect(createEventSource).toHaveBeenCalledTimes(3);
+  });
+
+  it("does not reconnect on error after unmount", () => {
+    const { unmount } = renderHook(() => useFileEvents());
+    const es = latestES();
+    unmount();
+
+    es.onerror?.();
+    vi.advanceTimersByTime(30_000);
+    expect(createEventSource).toHaveBeenCalledTimes(1);
+  });
+
+  it("cancels a pending reconnect timer on unmount", () => {
+    const { unmount } = renderHook(() => useFileEvents());
+    latestES().onerror?.(); // schedules a reconnect timer
+    unmount(); // must clearTimeout it, not let it fire later
+    vi.advanceTimersByTime(30_000);
+    expect(createEventSource).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores a stale reconnect timer that outraces unmount", () => {
+    const { unmount } = renderHook(() => useFileEvents());
+    const es = latestES();
+    // Two errors back-to-back schedule two timers, but only the second
+    // (later) one is tracked for cancellation — the first is still pending.
+    es.onerror?.();
+    es.onerror?.();
+    unmount(); // cancels only the tracked (later) timer
+    vi.advanceTimersByTime(1000); // the untracked earlier timer now fires connect()
+    expect(createEventSource).toHaveBeenCalledTimes(1); // disposed guard bails out
+  });
 });
