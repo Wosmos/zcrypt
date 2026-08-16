@@ -395,4 +395,20 @@ describe("downloadSharedFile — failure paths", () => {
     });
     expect(createObjectURL).not.toHaveBeenCalled();
   });
+
+  it("stops before fetching any chunk when the cancel lands during the meta fetch", async () => {
+    const controller = new AbortController();
+    const f = await makeShareFixture({ finalChunks: [enc.encode("x")] });
+    // Cancel arrives while the share metadata is in flight, so it slips past the
+    // entry guard and must be caught by the per-chunk one.
+    getShareFileMeta.mockImplementationOnce(async () => {
+      controller.abort();
+      return f.meta;
+    });
+
+    await expect(downloadSharedFile("tok", f.shareKeyB64, { signal: controller.signal })).rejects.toMatchObject({
+      name: "AbortError",
+    });
+    expect(getShareChunk).not.toHaveBeenCalled();
+  });
 });

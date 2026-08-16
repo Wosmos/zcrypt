@@ -71,9 +71,11 @@ export async function downloadSharedFile(
   let chunksDone = 0;
   const MAX_CONCURRENT = getDeviceProfile().maxConcurrentDownloads;
 
+  // No entry guard: runWithConcurrency re-checks the signal immediately before
+  // every worker call, so a duplicate here can never be the one that fires. The
+  // post-fetch check below is the meaningful one — it catches a cancel that
+  // landed while this chunk was in flight.
   const processChunk = async (index: number) => {
-    if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
-
     const { data, compressed } = await retryTransient(
       () => getShareChunk(token, index, sharePassword),
       { signal },

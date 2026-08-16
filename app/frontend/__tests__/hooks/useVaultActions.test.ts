@@ -26,6 +26,7 @@ const {
   mockPrimeThumbnails,
   mockEnsureUserKeypair,
   tauriModuleMock,
+  authUser,
   capturedProgress,
 } = vi.hoisted(() => {
   return {
@@ -39,6 +40,8 @@ const {
     mockDownloadStoreState: {
       startDownload: vi.fn(),
       startBulkZipDownload: vi.fn(),
+      startDesktopDownload: vi.fn(),
+      startDesktopBulkZipDownload: vi.fn(),
       queue: [] as { fileId: string; status: string }[],
     },
     mockPassphraseGetPassphrase: vi.fn((): string | null => null),
@@ -76,6 +79,7 @@ const {
     mockPrimeThumbnails: vi.fn(),
     mockEnsureUserKeypair: vi.fn(async () => {}),
     tauriModuleMock: { isTauri: false, pickFiles: vi.fn(), localUpload: vi.fn() },
+    authUser: { current: { id: "test-user" } as { id: string } | undefined },
     capturedProgress: { current: null as ((e: unknown) => void) | null },
   };
 });
@@ -99,8 +103,10 @@ vi.mock("@/store/download", () => ({
 // The auth store persists to localStorage at module load — mock it so importing
 // the hook (which now reads useAuthStore.getState().user for desktop downloads)
 // doesn't touch localStorage in the test env.
+// Mutable holder: the desktop download paths read the signed-in user id and
+// fall back to "" when there isn't one.
 vi.mock("@/store/auth", () => ({
-  useAuthStore: { getState: () => ({ user: { id: "test-user" } }) },
+  useAuthStore: { getState: () => ({ user: authUser.current }) },
 }));
 
 vi.mock("@/store/passphrase", () => ({
@@ -346,6 +352,7 @@ beforeEach(() => {
     }
   );
   tauriModuleMock.isTauri = false;
+  authUser.current = { id: "test-user" };
   capturedProgress.current = null;
 });
 
@@ -555,6 +562,37 @@ describe("handleDownload", () => {
 
     expect(vault.withPassphrase).not.toHaveBeenCalled();
     expect(mockDownloadStoreState.startDownload).not.toHaveBeenCalled();
+  });
+
+  it.each(["queued", "paused"])("skips when the file is already %s", (status) => {
+    const file = makeFile({ id: "f1", original_name: "a.png" });
+    // Queued and paused rows are both live transfers the user can resume — a
+    // second click must not enqueue a duplicate alongside them.
+    mockDownloadStoreState.queue = [{ fileId: "f1", status }];
+    const vault = makeVault();
+    const args = makeArgs({ vault, files: [file] });
+    const { result } = renderHook(() => useVaultActions(args));
+
+    act(() => {
+      result.current.handleDownload("a.png");
+    });
+
+    expect(vault.withPassphrase).not.toHaveBeenCalled();
+    expect(mockDownloadStoreState.startDownload).not.toHaveBeenCalled();
+  });
+
+  it("starts a fresh download when the only queue entry for the file is finished", () => {
+    const file = makeFile({ id: "f1", original_name: "a.png" });
+    // A completed row is history, not a live transfer — re-downloading is valid.
+    mockDownloadStoreState.queue = [{ fileId: "f1", status: "done" }];
+    const args = makeArgs({ files: [file] });
+    const { result } = renderHook(() => useVaultActions(args));
+
+    act(() => {
+      result.current.handleDownload("a.png");
+    });
+
+    expect(mockDownloadStoreState.startDownload).toHaveBeenCalled();
   });
 
   it("unlocks the vault and starts the download with a per-file password resolver", () => {
@@ -1246,5 +1284,148 @@ describe("Tauri desktop upload routing", () => {
 
     tauriModuleMock.isTauri = false;
     vi.resetModules();
+  });
+
+  /** Re-imports the hook with isTauri flipped on, so the module-level `isTauri`
+   *  const is evaluated as true. Caller must restore via restoreWeb(). */
+  async function withDesktop() {
+    tauriModuleMock.isTauri = true;
+    vi.resetModules();
+    const { useVaultActions: fresh } = await import("@/hooks/useVaultActions");
+    return fresh;
+  }
+  async function restoreWeb() {
+    tauriModuleMock.isTauri = false;
+    vi.resetModules();
+  }
+
+  it("threads the dropzone's already-picked native paths straight through", async () => {
+    const fresh = await withDesktop();
+    const args = makeArgs({ vault: makeVault(), selectedPlatform: "huggingface" });
+    const { result } = renderHook(() => fresh(args));
+
+    // upload-zone.tsx hands us DesktopFiles carrying the real on-disk path from
+    // the native dialog it already opened. Passing them through is what stops
+    // startDesktopUpload opening a SECOND redundant dialog.
+    const withPath = (name: string, path: string) =>
+      Object.assign(new File(["x"], name), { path });
+    act(() => {
+      result.current.handleFilesSelected([
+        withPath("a.bin", "/Users/me/a.bin"),
+        withPath("b.bin", "/Users/me/b.bin"),
+      ]);
+    });
+
+    expect(mockUploadStoreState.startDesktopUpload).toHaveBeenCalledWith(
+      "vault-pass",
+      args.refresh,
+      ["/Users/me/a.bin", "/Users/me/b.bin"],
+      "huggingface",
+    );
+    expect(mockUploadStoreState.startUpload).not.toHaveBeenCalled();
+    await restoreWeb();
+  });
+
+  it("falls back to the core's own picker when the Files carry no path", async () => {
+    const fresh = await withDesktop();
+    const args = makeArgs({ vault: makeVault(), selectedPlatform: null });
+    const { result } = renderHook(() => fresh(args));
+
+    act(() => {
+      result.current.handleFilesSelected([new File(["x"], "pathless.bin")]);
+    });
+
+    // No paths to thread → undefined, and no platform selected → Auto.
+    expect(mockUploadStoreState.startDesktopUpload).toHaveBeenCalledWith(
+      "vault-pass",
+      args.refresh,
+      undefined,
+      undefined,
+    );
+    await restoreWeb();
+  });
+
+  it("routes a single download through the in-process core, not the webview", async () => {
+    const fresh = await withDesktop();
+    const file = makeFile({ id: "f1", original_name: "big.mp4", original_size: 5_000_000_000 });
+    const vault = makeVault();
+    const args = makeArgs({ vault, files: [file] });
+    const { result } = renderHook(() => fresh(args));
+
+    act(() => {
+      result.current.handleDownload("big.mp4");
+    });
+
+    // The browser pipeline buffers the whole file in the webview, which OOMs on
+    // a multi-GB file — desktop must stream to disk via the core instead.
+    expect(mockDownloadStoreState.startDesktopDownload).toHaveBeenCalledWith(
+      "f1",
+      "big.mp4",
+      5_000_000_000,
+      "vault-pass",
+      "test-user",
+      expect.any(Function),
+    );
+    expect(mockDownloadStoreState.startDownload).not.toHaveBeenCalled();
+    await restoreWeb();
+  });
+
+  it("passes an empty user id to the core downloads when nobody is signed in", async () => {
+    authUser.current = undefined;
+    const fresh = await withDesktop();
+    const file = makeFile({ id: "f1", original_name: "a.png", original_size: 10 });
+    const args = makeArgs({ vault: makeVault(), files: [file] });
+    const { result } = renderHook(() => fresh(args));
+
+    act(() => {
+      result.current.handleDownload("a.png");
+    });
+    expect(mockDownloadStoreState.startDesktopDownload).toHaveBeenCalledWith(
+      "f1",
+      "a.png",
+      10,
+      "vault-pass",
+      "",
+      expect.any(Function),
+    );
+
+    act(() => {
+      result.current.handleBulkDownload(["f1"]);
+    });
+    expect(mockDownloadStoreState.startDesktopBulkZipDownload).toHaveBeenCalledWith(
+      [{ fileId: "f1", filename: "a.png", fileSize: 10 }],
+      "vault-pass",
+      "",
+      expect.any(Function),
+    );
+    await restoreWeb();
+  });
+
+  it("routes a bulk zip download through the core and ignores the browser 2GB cap", async () => {
+    const fresh = await withDesktop();
+    // Over the web path's 2GB ZIP cap: desktop zips one file at a time, so the
+    // cap is a browser-only limitation and must not fire here.
+    const f1 = makeFile({ id: "f1", original_name: "one.bin", original_size: 2 * 1024 * 1024 * 1024 });
+    const f2 = makeFile({ id: "f2", original_name: "two.bin", original_size: 1024 * 1024 * 1024 });
+    const vault = makeVault();
+    const args = makeArgs({ vault, files: [f1, f2] });
+    const { result } = renderHook(() => fresh(args));
+
+    act(() => {
+      result.current.handleBulkDownload(["f1", "f2"]);
+    });
+
+    expect(mockToast.warning).not.toHaveBeenCalled();
+    expect(mockDownloadStoreState.startDesktopBulkZipDownload).toHaveBeenCalledWith(
+      [
+        { fileId: "f1", filename: "one.bin", fileSize: 2 * 1024 * 1024 * 1024 },
+        { fileId: "f2", filename: "two.bin", fileSize: 1024 * 1024 * 1024 },
+      ],
+      "vault-pass",
+      "test-user",
+      expect.any(Function),
+    );
+    expect(mockDownloadStoreState.startBulkZipDownload).not.toHaveBeenCalled();
+    await restoreWeb();
   });
 });

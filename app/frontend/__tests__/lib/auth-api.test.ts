@@ -61,6 +61,26 @@ describe("authRequest core", () => {
     await expect(authApi.login("e", "p")).rejects.toThrow('{"message":"nope"}');
   });
 
+  it("aborts a request that hangs past the 15s ceiling", async () => {
+    vi.useFakeTimers();
+    // Mirror a real fetch: reject with AbortError once the signal fires, so the
+    // self-imposed deadline is actually observable.
+    fetchMock.mockImplementation(
+      (_url: string, init: RequestInit) =>
+        new Promise((_resolve, reject) => {
+          init.signal?.addEventListener("abort", () =>
+            reject(new DOMException("aborted", "AbortError")),
+          );
+        }),
+    );
+
+    const pending = authApi.login("a@b.c", "pw");
+    const assertion = expect(pending).rejects.toThrow();
+    await vi.advanceTimersByTimeAsync(15000);
+    await assertion;
+    vi.useRealTimers();
+  });
+
   it("maps an aborted request to a backend-down timeout message", async () => {
     fetchMock.mockRejectedValueOnce(new DOMException("aborted", "AbortError"));
     await expect(authApi.login("e", "p")).rejects.toThrow(/Request timed out/);

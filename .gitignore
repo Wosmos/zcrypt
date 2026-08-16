@@ -65,6 +65,7 @@ tests/e2e/.cache/
 # Go coverage
 app/backend/coverage.out
 app/backend/coverage.html
+app/backend/coverage/
 app/tui/coverage.out
 
 # Frontend coverage

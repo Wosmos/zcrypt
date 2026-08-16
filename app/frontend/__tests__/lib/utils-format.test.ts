@@ -241,4 +241,11 @@ describe("saveBlob", () => {
     expect(passed.type).toBe("text/plain");
     expect(URL.revokeObjectURL).toHaveBeenCalled();
   });
+
+  it("defaults a raw BlobPart to octet-stream when no MIME is given", () => {
+    const createSpy = URL.createObjectURL as unknown as ReturnType<typeof vi.fn>;
+    saveBlob("part.bin", "raw string part");
+    const passed = createSpy.mock.calls[0][0] as Blob;
+    expect(passed.type).toBe("application/octet-stream");
+  });
 });

@@ -91,8 +91,22 @@ export function formatDate(dateStr: string): string {
   });
 }
 
+/** The icon names getFileTypeInfo can return. Keeping this a closed union makes
+ *  FILE_ICON_MAP provably total, so the lookup needs no runtime fallback — a new
+ *  icon name is a compile error instead of a silently-undefined component. */
+export type FileIconName =
+  | "File"
+  | "FileText"
+  | "Table"
+  | "Image"
+  | "Video"
+  | "Music"
+  | "Archive"
+  | "Code"
+  | "Cog";
+
 export interface FileTypeInfo {
-  icon: string;
+  icon: FileIconName;
   color: string;
   bg: string;
   label: string;
@@ -825,7 +839,7 @@ export function truncateMiddle(s: string, head = 6, tail = 6): string {
 /** Map getFileTypeInfo(filename).icon (a string) to the Hugeicon component via
  *  ONE internal table, falling back to File. Replaces the 8+ local `iconMap` +
  *  `|| File` copies. */
-const FILE_ICON_MAP: Record<string, typeof FileIcon> = {
+const FILE_ICON_MAP: Record<FileIconName, typeof FileIcon> = {
   File: FileIcon,
   FileText,
   Table,
@@ -838,7 +852,7 @@ const FILE_ICON_MAP: Record<string, typeof FileIcon> = {
 };
 
 export function fileIconFor(filename: string): typeof FileIcon {
-  return FILE_ICON_MAP[getFileTypeInfo(filename).icon] ?? FileIcon;
+  return FILE_ICON_MAP[getFileTypeInfo(filename).icon];
 }
 
 /** Look up a file's display name by id, falling back to the first 8 chars of the

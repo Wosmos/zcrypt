@@ -382,4 +382,21 @@ describe("downloadAsZip — failure paths", () => {
     ).rejects.toMatchObject({ name: "AbortError" });
     expect(createObjectURL).not.toHaveBeenCalled();
   });
+
+  it("stops before touching the network when the cancel lands during the meta fetch", async () => {
+    const controller = new AbortController();
+    const f = await makeFileFixture({ passphrase: "pw", finalChunks: [enc.encode("x")] });
+    // Cancel arrives while the metadata request is in flight — after the two
+    // outer guards have already passed, so only the per-chunk guard can catch it.
+    getFileMeta.mockImplementationOnce(async () => {
+      controller.abort();
+      return f.meta;
+    });
+
+    await expect(
+      downloadAsZip([{ fileId: "id1", filename: "a.txt", fileSize: 1 }], "pw", { signal: controller.signal })
+    ).rejects.toMatchObject({ name: "AbortError" });
+    // The chunk request is never issued at all.
+    expect(getFileChunk).not.toHaveBeenCalled();
+  });
 });

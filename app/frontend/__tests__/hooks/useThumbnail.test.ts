@@ -9,6 +9,8 @@ const {
   decryptChunkMock,
   getZstdCodecMock,
   isForegroundDecryptActiveMock,
+  tauriMock,
+  authUser,
 } = vi.hoisted(() => ({
   getFileMetaMock: vi.fn(),
   getFileChunkMock: vi.fn(),
@@ -16,6 +18,10 @@ const {
   decryptChunkMock: vi.fn(),
   getZstdCodecMock: vi.fn(),
   isForegroundDecryptActiveMock: vi.fn(),
+  // `isTauri` is a module-level const in lib/tauri, so the desktop decrypt
+  // branch is only reachable by mocking the module and re-importing with it on.
+  tauriMock: { isTauri: false, sidecarDecryptToMemory: vi.fn() },
+  authUser: { current: { id: "user-1" } as { id: string } | undefined },
 }));
 
 vi.mock("@/lib/api", () => ({
@@ -34,6 +40,14 @@ vi.mock("@/lib/crypto", async (importOriginal) => {
 
 vi.mock("@/lib/zstd", () => ({
   getZstdCodec: getZstdCodecMock,
+}));
+
+vi.mock("@/lib/tauri", () => tauriMock);
+
+// Mutable: the desktop decrypt passes the signed-in user id to the core and
+// falls back to "" when there isn't one.
+vi.mock("@/store/auth", () => ({
+  useAuthStore: { getState: () => ({ user: authUser.current }) },
 }));
 
 vi.mock("@/lib/decrypt-cache", () => ({
@@ -145,6 +159,9 @@ type CanvasBehavior = {
   /** Simulate a raster whose every pixel is fully transparent (e.g. an SVG
    *  Chrome draws as nothing) — generateThumbnail must reject it. */
   blank?: boolean;
+  /** Simulate a canvas whose pixels can't be read back at all (a real browser
+   *  throws SecurityError on a cross-origin-tainted canvas). */
+  getImageDataThrows?: boolean;
 };
 let canvasBehavior: CanvasBehavior = {
   ctxAvailable: true,
@@ -162,10 +179,13 @@ function makeFakeCanvas() {
         drawImage: () => {
           if (canvasBehavior.drawImageThrows) throw new Error("drawImage failed");
         },
-        getImageData: (_x: number, _y: number, w: number, h: number) => ({
+        getImageData: (_x: number, _y: number, w: number, h: number) => {
+          if (canvasBehavior.getImageDataThrows) throw new Error("SecurityError: tainted canvas");
           // RGBA buffer: alpha 0 everywhere when blank, opaque otherwise.
-          data: new Uint8ClampedArray(w * h * 4).fill(canvasBehavior.blank ? 0 : 255),
-        }),
+          return {
+            data: new Uint8ClampedArray(w * h * 4).fill(canvasBehavior.blank ? 0 : 255),
+          };
+        },
       };
     },
     toDataURL: () => canvasBehavior.dataUrl,
@@ -1082,5 +1102,293 @@ describe("useThumbnail", () => {
     const { seedThumbnailFromFile, hasCachedThumbnail } = await loadModule();
     await seedThumbnailFromFile("f1", new File(["x"], "photo.jpg"), "photo.jpg");
     expect(hasCachedThumbnail("f1")).toBe(false);
+  });
+
+  it("accepts a render whose pixels cannot be read back rather than calling it blank", async () => {
+    // A real browser throws SecurityError reading back a tainted canvas. That
+    // tells us nothing about whether the draw produced anything, so the
+    // blank-check must fail OPEN — rejecting here would throw away a perfectly
+    // good thumbnail and leave the tile on the type icon forever.
+    canvasBehavior = { ...canvasBehavior, getImageDataThrows: true };
+    const { primeThumbnails, useThumbnail, hasCachedThumbnail } = await loadModule();
+    getFileMetaMock.mockResolvedValue(makeMeta());
+    getFileChunkMock.mockResolvedValue({ data: new ArrayBuffer(4), sha256: "x", compressed: false });
+
+    act(() => primeThumbnails("vault-pass"));
+    const { result } = renderHook(() => useThumbnail("f1", "photo.jpg"));
+
+    await waitFor(() => expect(result.current.thumbnailUrl).toBe("data:image/webp;base64,FAKE"));
+    expect(hasCachedThumbnail("f1")).toBe(true);
+  });
+
+  it("setThumbnailVisibility marks a tile offscreen without stalling its generation", async () => {
+    const { primeThumbnails, useThumbnail, setThumbnailVisibility } = await loadModule();
+    getFileMetaMock.mockResolvedValue(makeMeta());
+    getFileChunkMock.mockResolvedValue({ data: new ArrayBuffer(4), sha256: "x", compressed: false });
+
+    act(() => primeThumbnails("vault-pass"));
+    // Pure bookkeeping: reporting visibility for a file nothing has mounted must
+    // not throw and must not start any work of its own.
+    act(() => setThumbnailVisibility("never-mounted", false));
+    act(() => setThumbnailVisibility("never-mounted", true));
+    expect(getFileMetaMock).not.toHaveBeenCalledWith("never-mounted");
+
+    const { result } = renderHook(() => useThumbnail("f1", "photo.jpg"));
+    // Scrolling the tile out only DEPRIORITIZES it against on-screen waiters —
+    // it must never cancel work that is already queued.
+    act(() => setThumbnailVisibility("f1", false));
+    await waitFor(() => expect(result.current.thumbnailUrl).toBe("data:image/webp;base64,FAKE"));
+
+    // And scrolling it back on-screen is equally harmless once cached.
+    act(() => setThumbnailVisibility("f1", true));
+    expect(result.current.thumbnailUrl).toBe("data:image/webp;base64,FAKE");
+  });
+
+  it("cardRef observes the tile, and disconnects when the node detaches", async () => {
+    const observe = vi.fn();
+    const disconnect = vi.fn();
+    let capturedCallback: ((entries: { isIntersecting: boolean }[]) => void) | undefined;
+    let capturedOptions: IntersectionObserverInit | undefined;
+    class FakeIO {
+      constructor(cb: (e: { isIntersecting: boolean }[]) => void, opts?: IntersectionObserverInit) {
+        capturedCallback = cb;
+        capturedOptions = opts;
+      }
+      observe = observe;
+      disconnect = disconnect;
+      unobserve = vi.fn();
+      takeRecords = vi.fn(() => []);
+      root = null;
+      rootMargin = "";
+      thresholds = [];
+    }
+    vi.stubGlobal("IntersectionObserver", FakeIO);
+
+    const { useThumbnail } = await loadModule();
+    const { result, unmount } = renderHook(() => useThumbnail("f1", "photo.jpg"));
+
+    const node = document.createElement("div");
+    act(() => result.current.cardRef(node));
+    expect(observe).toHaveBeenCalledWith(node);
+    // rootMargin gives visible-adjacent tiles a head start.
+    expect(capturedOptions).toEqual({ rootMargin: "200px" });
+
+    // The observer callback is what feeds the visibility bookkeeping.
+    act(() => capturedCallback?.([{ isIntersecting: false }]));
+    act(() => capturedCallback?.([{ isIntersecting: true }]));
+
+    // Re-attaching swaps the observer: the previous one is disconnected first.
+    act(() => result.current.cardRef(document.createElement("div")));
+    expect(disconnect).toHaveBeenCalledTimes(1);
+    expect(observe).toHaveBeenCalledTimes(2);
+
+    // A null node tears down without observing anything new.
+    act(() => result.current.cardRef(null));
+    expect(disconnect).toHaveBeenCalledTimes(2);
+    expect(observe).toHaveBeenCalledTimes(2);
+
+    unmount();
+    vi.unstubAllGlobals();
+  });
+
+  it("cardRef is a harmless no-op where IntersectionObserver does not exist", async () => {
+    vi.stubGlobal("IntersectionObserver", undefined);
+    const { useThumbnail } = await loadModule();
+    const { result } = renderHook(() => useThumbnail("f1", "photo.jpg"));
+
+    // Older browsers / non-DOM environments: the queue just stays plain FIFO.
+    expect(() => result.current.cardRef(document.createElement("div"))).not.toThrow();
+    vi.unstubAllGlobals();
+  });
+
+  it("drops a stale object store when opening at a newer schema version", async () => {
+    const { IDBFactory } = await import("fake-indexeddb");
+    globalThis.indexedDB = new IDBFactory();
+
+    // Seed a PRE-EXISTING database one version behind, already holding the store
+    // with an entry in the old (now-invalid) format. Opening at the current
+    // version must delete and recreate it, evicting that entry — a version bump
+    // exists precisely to drop caches whose format changed.
+    await new Promise<void>((resolve, reject) => {
+      const req = indexedDB.open("zcrypt_thumbs", 3);
+      req.onupgradeneeded = () => {
+        const store = req.result.createObjectStore("thumbnails");
+        store.put("stale-old-format-value", "f1");
+      };
+      req.onsuccess = () => {
+        req.result.close();
+        resolve();
+      };
+      req.onerror = () => reject(req.error);
+    });
+
+    const mod = await loadModule();
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(mod.hasCachedThumbnail("f1")).toBe(false);
+  });
+
+  it("finishes hydrating even when reading the cache errors", async () => {
+    // A cursor read that fails must not leave `hydrated` false forever — every
+    // tile would shimmer indefinitely, waiting for a cache load that never lands.
+    const failingCursor = () => {
+      const req = { error: new Error("cursor failed") } as unknown as IDBRequest & {
+        onerror?: () => void;
+      };
+      setTimeout(() => req.onerror?.(), 0);
+      return req;
+    };
+    const db = {
+      transaction: () => ({ objectStore: () => ({ openCursor: failingCursor }) }),
+      close: () => {},
+      objectStoreNames: { contains: () => false },
+    };
+    globalThis.indexedDB = {
+      open: () => {
+        const req = { result: db } as unknown as IDBOpenDBRequest & { onsuccess?: () => void };
+        setTimeout(() => req.onsuccess?.(), 0);
+        return req;
+      },
+    } as unknown as IDBFactory;
+
+    const mod = await loadModule();
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+
+    // Hydration completed (failed-open), so generation is allowed to proceed.
+    getFileMetaMock.mockResolvedValue(makeMeta());
+    getFileChunkMock.mockResolvedValue({ data: new ArrayBuffer(4), sha256: "x", compressed: false });
+    act(() => mod.primeThumbnails("vault-pass"));
+    const { result } = renderHook(() => mod.useThumbnail("f1", "photo.jpg"));
+    await waitFor(() => expect(result.current.thumbnailUrl).toBe("data:image/webp;base64,FAKE"));
+  });
+
+  it("replaces a pending retry timer instead of stacking a second one", async () => {
+    // Two failures inside the same backoff window: the first scheduled a retry,
+    // and the second must cancel it rather than leave two timers firing.
+    vi.useFakeTimers();
+    const { primeThumbnails, useThumbnail } = await loadModule();
+    getFileMetaMock.mockRejectedValue(new Error("chunk not synced yet"));
+
+    act(() => primeThumbnails("vault-pass"));
+    const first = renderHook(() => useThumbnail("f1", "photo.jpg"));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+
+    // Remount to force a second attempt while the first backoff is still pending.
+    first.unmount();
+    renderHook(() => useThumbnail("f1", "photo.jpg"));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+
+    expect(getFileMetaMock).toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it("still drains the queue when every waiting tile is off-screen", async () => {
+    // The scheduler prefers on-screen waiters; with none, it must fall back to
+    // strict FIFO rather than stalling with a full queue and no eligible pick.
+    const { primeThumbnails, useThumbnail, setThumbnailVisibility } = await loadModule();
+    getFileMetaMock.mockResolvedValue(makeMeta());
+    const gates: (() => void)[] = [];
+    getFileChunkMock.mockImplementation(
+      () => new Promise((res) => {
+        gates.push(() => res({ data: new ArrayBuffer(4), sha256: "x", compressed: false }));
+      }),
+    );
+
+    act(() => primeThumbnails("vault-pass"));
+    const ids = ["f1", "f2", "f3", "f4", "f5"];
+    const hooks = ids.map((id) => renderHook(() => useThumbnail(id, `${id}.jpg`)));
+    // Everything queued behind the concurrency cap is off-screen.
+    act(() => {
+      for (const id of ids) setThumbnailVisibility(id, false);
+    });
+
+    // Release the in-flight ones so slots free up and the queue is drained.
+    await waitFor(() => expect(gates.length).toBeGreaterThan(0));
+    for (const g of [...gates]) g();
+    await waitFor(() => expect(gates.length).toBeGreaterThan(3));
+    for (const g of [...gates]) g();
+
+    await waitFor(() =>
+      expect(hooks.some((h) => h.result.current.thumbnailUrl !== null)).toBe(true),
+    );
+  });
+
+  it("reports a non-Error decrypt rejection without crashing the failure bookkeeping", async () => {
+    const { primeThumbnails, useThumbnail, hasCachedThumbnail } = await loadModule();
+    getFileMetaMock.mockResolvedValue(makeMeta());
+    // Some platform/worker rejections are bare strings, not Errors.
+    getFileChunkMock.mockRejectedValue("bare string failure");
+
+    act(() => primeThumbnails("vault-pass"));
+    renderHook(() => useThumbnail("f1", "photo.jpg"));
+
+    // A bare string has no .message — stringifying it is what keeps the failure
+    // bookkeeping (and its retry schedule) from throwing on the error path.
+    await waitFor(() => expect(getFileChunkMock).toHaveBeenCalled());
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(hasCachedThumbnail("f1")).toBe(false);
+  });
+
+  // ── Desktop: decrypt in the in-process Rust core ──────────────────────────
+  describe("on desktop", () => {
+    afterEach(() => {
+      tauriMock.isTauri = false;
+      tauriMock.sidecarDecryptToMemory.mockReset();
+      authUser.current = { id: "user-1" };
+    });
+
+    it("passes an empty user id to the core when nobody is signed in", async () => {
+      tauriMock.isTauri = true;
+      authUser.current = undefined;
+      tauriMock.sidecarDecryptToMemory.mockResolvedValue(new Uint8Array([1, 2]));
+      const { primeThumbnails, useThumbnail } = await loadModule();
+
+      act(() => primeThumbnails("vault-pass"));
+      const { result } = renderHook(() => useThumbnail("f1", "photo.jpg"));
+
+      await waitFor(() => expect(result.current.thumbnailUrl).toBe("data:image/webp;base64,FAKE"));
+      expect(tauriMock.sidecarDecryptToMemory).toHaveBeenCalledWith("f1", "vault-pass", "");
+    });
+
+    it("rasterizes bytes decrypted by the core, skipping the browser pipeline", async () => {
+      tauriMock.isTauri = true;
+      tauriMock.sidecarDecryptToMemory.mockResolvedValue(new Uint8Array([1, 2, 3, 4]));
+      const { primeThumbnails, useThumbnail, hasCachedThumbnail } = await loadModule();
+
+      act(() => primeThumbnails("vault-pass"));
+      const { result } = renderHook(() => useThumbnail("f1", "photo.jpg"));
+
+      await waitFor(() => expect(result.current.thumbnailUrl).toBe("data:image/webp;base64,FAKE"));
+      expect(tauriMock.sidecarDecryptToMemory).toHaveBeenCalledWith("f1", "vault-pass", "user-1");
+      expect(hasCachedThumbnail("f1")).toBe(true);
+      // Native path only — no meta fetch, no chunk fetch, no key derivation.
+      expect(getFileMetaMock).not.toHaveBeenCalled();
+      expect(getFileChunkMock).not.toHaveBeenCalled();
+      expect(resolveFileKeyMock).not.toHaveBeenCalled();
+    });
+
+    it("falls back to the in-browser pipeline when the core cannot decrypt", async () => {
+      tauriMock.isTauri = true;
+      tauriMock.sidecarDecryptToMemory.mockRejectedValue(new Error("core not connected"));
+      const { primeThumbnails, useThumbnail } = await loadModule();
+      getFileMetaMock.mockResolvedValue(makeMeta());
+      getFileChunkMock.mockResolvedValue({ data: new ArrayBuffer(4), sha256: "x", compressed: false });
+
+      act(() => primeThumbnails("vault-pass"));
+      const { result } = renderHook(() => useThumbnail("f1", "photo.jpg"));
+
+      await waitFor(() => expect(result.current.thumbnailUrl).toBe("data:image/webp;base64,FAKE"));
+      // The browser path really ran — this is still the zero-knowledge fallback.
+      expect(getFileMetaMock).toHaveBeenCalledWith("f1");
+      expect(resolveFileKeyMock).toHaveBeenCalled();
+    });
   });
 });

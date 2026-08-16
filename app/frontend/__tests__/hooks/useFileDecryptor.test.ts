@@ -21,6 +21,8 @@ const {
   cachedDecryptMock,
   cachedResolveCEKMock,
   resolveFilePasswordGlobalMock,
+  authUser,
+  tauriMock,
 } = vi.hoisted(() => ({
   getFileMetaMock: vi.fn(),
   getFileChunkMock: vi.fn(),
@@ -37,12 +39,24 @@ const {
   cachedDecryptMock: vi.fn(),
   cachedResolveCEKMock: vi.fn(),
   resolveFilePasswordGlobalMock: vi.fn(),
+  // Mutable so a test can simulate a signed-out user.
+  authUser: { current: { id: "user-1" } as { id: string } | undefined },
+  // `isTauri` is a module-level const in lib/tauri, so the desktop branch is
+  // only reachable by mocking the module and re-importing with it flipped on.
+  // Mutable object (not a literal) so a test can toggle it in place.
+  tauriMock: {
+    isTauri: false,
+    sidecarDecryptToMemory: vi.fn(),
+    subscribeProgress: vi.fn(),
+  },
 }));
 
 vi.mock("@/lib/api", () => ({
   getFileMeta: getFileMetaMock,
   getFileChunk: getFileChunkMock,
 }));
+
+vi.mock("@/lib/tauri", () => tauriMock);
 
 vi.mock("@/lib/crypto", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/crypto")>();
@@ -57,9 +71,11 @@ vi.mock("@/lib/crypto", async (importOriginal) => {
   };
 });
 
-// The hmac_v1 verify path reads the signed-in user id to derive the MAC key.
+// The hmac_v1 verify path reads the signed-in user id to derive the MAC key,
+// and the desktop decrypt passes it to the core — both branch on whether an id
+// actually exists, so this is driven from a mutable holder.
 vi.mock("@/store/auth", () => ({
-  useAuthStore: { getState: () => ({ user: { id: "user-1" } }) },
+  useAuthStore: { getState: () => ({ user: authUser.current }) },
 }));
 
 vi.mock("@/lib/worker-pool", () => ({
@@ -164,6 +180,7 @@ beforeEach(() => {
       resolve()
   );
   resolveFileKeyMock.mockResolvedValue(new ArrayBuffer(32));
+  authUser.current = { id: "user-1" };
 });
 
 afterEach(() => {
@@ -365,6 +382,25 @@ describe("runDecryptPipeline", () => {
     await expect(runDecryptPipeline(file, "vault-pass")).rejects.toBeInstanceOf(IntegrityError);
   });
 
+  it("skips the keyed-MAC check entirely when no user is signed in", async () => {
+    // The hmac_v1 MAC key is derived from the user id, so with no signed-in user
+    // there is nothing to derive from. Verification is skipped rather than
+    // failing the file — the alternative is a bogus "corrupted" error on a file
+    // that is perfectly fine.
+    authUser.current = undefined;
+    const file = makeFile({ chunk_count: 1 });
+    const meta = makeMeta({ chunk_count: 1, sha256_scheme: "hmac_v1", sha256: "would-never-match" });
+    getFileMetaMock.mockResolvedValue(meta);
+    getFileChunkMock.mockResolvedValue({ data: new ArrayBuffer(4), sha256: "x", compressed: false });
+    processMock.mockResolvedValue({ chunkIndex: 0, plaintext: chunkPlaintext(0) });
+
+    const blob = await runDecryptPipeline(file, "vault-pass");
+
+    expect(blob).toBeInstanceOf(Blob);
+    expect(deriveDedupKeyBytesMock).not.toHaveBeenCalled();
+    expect(sha256HexMock).not.toHaveBeenCalled();
+  });
+
   it("handles a zero-chunk file without fanning out any fetchers", async () => {
     const file = makeFile({ chunk_count: 0, original_size: 0 });
     const meta = makeMeta({ chunk_count: 0, sha256: "empty-hash" });
@@ -377,6 +413,109 @@ describe("runDecryptPipeline", () => {
     expect(getFileChunkMock).not.toHaveBeenCalled();
     expect(processMock).not.toHaveBeenCalled();
     expect(terminateMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ── Desktop: decrypt inside the in-process Rust core ────────────────────────
+// On Tauri the pipeline hands off to the core (byos-direct bytes, native crypto
+// speed, the core's DNS/relay resilience). Any failure falls through to the
+// in-browser pipeline, which stays the zero-knowledge path and the source of
+// truth for wrong-password / integrity error typing.
+describe("runDecryptPipeline on desktop", () => {
+  /** Re-imports the module with isTauri true so its module-level const is set. */
+  async function importDesktop() {
+    tauriMock.isTauri = true;
+    vi.resetModules();
+    return await import("@/hooks/useFileDecryptor");
+  }
+
+  afterEach(async () => {
+    tauriMock.isTauri = false;
+    tauriMock.sidecarDecryptToMemory.mockReset();
+    tauriMock.subscribeProgress.mockReset();
+    vi.resetModules();
+  });
+
+  it("returns the core's bytes as a typed Blob without touching the web pipeline", async () => {
+    const { runDecryptPipeline: run } = await importDesktop();
+    tauriMock.sidecarDecryptToMemory.mockResolvedValue(new Uint8Array([1, 2, 3, 4, 5]));
+
+    const blob = await run(makeFile({ original_name: "clip.mp4" }), "pw");
+
+    expect(blob.size).toBe(5);
+    expect(blob.type).toBe("video/mp4");
+    expect(tauriMock.sidecarDecryptToMemory).toHaveBeenCalledWith("file-1", "pw", "user-1");
+    // The whole browser pipeline is skipped — no meta fetch, no chunk fetch.
+    expect(getFileMetaMock).not.toHaveBeenCalled();
+    expect(getFileChunkMock).not.toHaveBeenCalled();
+  });
+
+  it("forwards only this file's chunk progress and tears the listener down", async () => {
+    const { runDecryptPipeline: run } = await importDesktop();
+    let emit: (p: Record<string, unknown>) => void = () => {};
+    const unlisten = vi.fn();
+    tauriMock.subscribeProgress.mockImplementation(async (cb: (p: Record<string, unknown>) => void) => {
+      emit = cb;
+      return unlisten;
+    });
+    tauriMock.sidecarDecryptToMemory.mockImplementation(async () => {
+      // Events arrive while the core is working.
+      emit({ file_id: "someone-else", chunks_done: 5, chunks_total: 10 });
+      emit({ file_id: "file-1", chunks_done: 0, chunks_total: 0 });
+      emit({ file_id: "file-1", chunks_done: 3, chunks_total: 10 });
+      return new Uint8Array([9]);
+    });
+
+    const onProgress = vi.fn();
+    await run(makeFile(), "pw", onProgress);
+
+    // Another file's progress is ignored, and a not-yet-known total (0) would
+    // divide to NaN in the UI — both are filtered out.
+    expect(onProgress).toHaveBeenCalledExactlyOnceWith(3, 10);
+    expect(unlisten).toHaveBeenCalledTimes(1);
+  });
+
+  it("passes an empty user id to the core when nobody is signed in", async () => {
+    authUser.current = undefined;
+    const { runDecryptPipeline: run } = await importDesktop();
+    tauriMock.sidecarDecryptToMemory.mockResolvedValue(new Uint8Array([1]));
+
+    await run(makeFile(), "pw");
+
+    expect(tauriMock.sidecarDecryptToMemory).toHaveBeenCalledWith("file-1", "pw", "");
+  });
+
+  it("does not subscribe at all when the caller wants no progress", async () => {
+    const { runDecryptPipeline: run } = await importDesktop();
+    tauriMock.sidecarDecryptToMemory.mockResolvedValue(new Uint8Array([1]));
+
+    await run(makeFile(), "pw");
+
+    expect(tauriMock.subscribeProgress).not.toHaveBeenCalled();
+  });
+
+  it("falls through to the in-browser pipeline when the core fails", async () => {
+    const { runDecryptPipeline: run } = await importDesktop();
+    const unlisten = vi.fn();
+    tauriMock.subscribeProgress.mockResolvedValue(unlisten);
+    // e.g. core not connected yet, file oversized for memory, network down.
+    tauriMock.sidecarDecryptToMemory.mockRejectedValue(new Error("core not ready"));
+
+    getFileMetaMock.mockResolvedValue(makeMeta({ chunk_count: 1, sha256: "h" }));
+    getFileChunkMock.mockResolvedValue({ data: new ArrayBuffer(4), sha256: "x", compressed: false });
+    processMock.mockImplementation(async (input: { chunkIndex: number }) => ({
+      chunkIndex: input.chunkIndex,
+      plaintext: chunkPlaintext(input.chunkIndex),
+    }));
+    sha256HexMock.mockResolvedValue("h");
+
+    const blob = await run(makeFile(), "pw", vi.fn());
+
+    // The browser path really ran and produced the plaintext.
+    expect(getFileMetaMock).toHaveBeenCalledWith("file-1");
+    expect(blob.size).toBe(chunkPlaintext(0).byteLength);
+    // The subscription is released on the failure path too, not leaked.
+    expect(unlisten).toHaveBeenCalledTimes(1);
   });
 });
 

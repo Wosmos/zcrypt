@@ -160,14 +160,17 @@ export function useFolderProtection(vault: UseVaultLock): UseFolderProtection {
     [registryGet],
   );
 
+  // Internal only (not part of the returned API), and both call sites always
+  // supply an onReject — so it's required rather than optional-with-a-no-op
+  // default: a cancel must always reach somebody, never be silently dropped.
   const openModal = useCallback(
     (
       fid: string,
       fname: string,
       onResolve: (password: string) => void,
-      onReject?: (err: FolderUnlockCancelled) => void,
+      onReject: (err: FolderUnlockCancelled) => void,
     ) => {
-      pendingRef.current = { onResolve, onReject: onReject ?? (() => {}) };
+      pendingRef.current = { onResolve, onReject };
       setFolderId(fid);
       setFolderName(fname);
       setError(null);

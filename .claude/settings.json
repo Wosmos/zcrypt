@@ -5,7 +5,19 @@
       "WebFetch",
       "Read",
       "Grep",
-      "Glob"
+      "Glob",
+      "Bash(git fetch *)",
+      "Bash(gh pr *)",
+      "Bash(gh secret *)",
+      "Bash(git merge *)",
+      "Bash(git branch *)",
+      "Bash(dig +short api.zcrypt.cloud)",
+      "Bash(curl -sv --max-time 10 https://api.zcrypt.cloud/api/health)",
+      "Bash(dig +short NS zcrypt.cloud)",
+      "Bash(dig +short zcrypt.cloud)",
+      "Bash(dig +short A zcrypt.cloud)",
+      "Bash(dig +short www.zcrypt.cloud)",
+      "Bash(dig +short TXT zcrypt.cloud)"
     ]
   },
   "enabledPlugins": {

@@ -282,6 +282,18 @@ describe("measureCryptoThroughput (calibrate's default measure)", () => {
     }
   });
 
+  it("reports no measurement when the clock does not advance (avoids dividing by zero)", async () => {
+    const { calibrateDeviceProfile } = await loadProfile({ deviceMemory: 2 });
+    // A coarsened/frozen performance.now() (privacy-hardened browsers clamp it,
+    // and a fast enough machine can land inside one tick) would otherwise make
+    // elapsedSec 0 and yield Infinity MB/s — i.e. a bogus "ultra" upgrade.
+    vi.spyOn(performance, "now").mockReturnValue(1000);
+
+    const after = await calibrateDeviceProfile();
+
+    expect(after.tier).toBe("medium"); // null measurement → heuristic untouched
+  });
+
   it("swallows a benchmark that throws and keeps the heuristic profile", async () => {
     const { calibrateDeviceProfile } = await loadProfile({ deviceMemory: 2 });
     const real = globalThis.crypto;

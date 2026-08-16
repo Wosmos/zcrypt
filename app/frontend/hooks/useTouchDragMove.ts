@@ -131,8 +131,10 @@ export function useTouchDragMove({
   // ── stable document listeners (added on press, removed on cleanup) ───────────
   // Shared placeholder: overwritten by the wiring effect below before any press
   // can occur, so it's never actually invoked — just a type-satisfying initial
-  // value for each ref.
+  // value for each ref. Excluded from coverage for exactly that reason.
+  /* v8 ignore start */
   const noop = () => {};
+  /* v8 ignore stop */
   const onMoveRef = useRef<(e: TouchEvent) => void>(noop);
   const onEndRef = useRef<(e: TouchEvent) => void>(noop);
   const onCtxRef = useRef<(e: Event) => void>(noop);

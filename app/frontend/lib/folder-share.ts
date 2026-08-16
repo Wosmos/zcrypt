@@ -55,7 +55,10 @@ async function buildFolderPaths(rootId: string, nameKey: CryptoKey): Promise<Map
   while (frontier.length > 0) {
     const next: string[] = [];
     for (const pid of frontier) {
-      const parentPath = paths.get(pid) ?? "";
+      // Always present: the root is seeded into `paths`, and every id pushed onto
+      // the next frontier is written to `paths` in the same step below — so this
+      // is a lookup of something already there, not a defaulted miss.
+      const parentPath = paths.get(pid) as string;
       for (const f of childrenOf.get(pid) ?? []) {
         if (paths.has(f.id)) continue;
         const seg = sanitizeSegment(await decryptNameSafe(f.encrypted_name, nameKey));

@@ -36,6 +36,7 @@ import { formatBytes } from "@/lib/utils";
 import { createSemaphore } from "@/lib/async/semaphore";
 import { relaunchAfterPrior } from "@/lib/async/relaunch";
 import { genId } from "@/lib/id";
+import { extOf } from "@/lib/media-formats";
 
 // Mirrors the server's per-file cap (HandleUploadInit rejects larger with
 // 413). Checked before queueing so a 30GB drop fails instantly with a clear
@@ -505,6 +506,12 @@ interface UploadFileOpts {
 async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Promise<void> {
   const { passphrase, platform, profile, onRefresh, folderId } = opts;
   const { updateStatus, setFileId, setError } = useUploadStore.getState();
+  // Destination folder for this run, resolved once. The per-item meta wins (it
+  // carries the folder the row was queued into); the opts value is the fallback
+  // for a retry/resume that rebuilt its meta. Used both at init (so the row is
+  // born folder-filed) and for the optimistic row on completion — they must
+  // agree, which is exactly why it's computed in one place.
+  const destFolderId = itemMeta.get(id)?.folderId ?? folderId ?? null;
   let chunkSize = profile.chunkSize;
   // Use the batch-shared pool when startUpload handed one in; otherwise
   // (retry/resume) create a transient one. We only terminate a pool we own —
@@ -525,7 +532,13 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
   // true when the caller should bail out of the run.
   const pauseCheckpoint = (): boolean => {
     if (!isPaused()) return false;
+    // The stale-run case can't be reached today: retry/resume both go through
+    // relaunchAfterPrior, which awaits the previous run's promise before starting
+    // a new one — so no superseded run is ever still executing. The token check
+    // stays as the invariant that makes that safe to rely on.
+    /* v8 ignore start */
     if (isCurrentRun()) updateStatus(id, "paused", undefined, "Paused");
+    /* v8 ignore stop */
     return true;
   };
 
@@ -617,8 +630,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
       if (pauseCheckpoint()) return;
 
       chunkCount = Math.max(1, Math.ceil(file.size / chunkSize));
-      const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
-      shouldCompress = !COMPRESSED_EXTENSIONS.has(ext);
+      shouldCompress = !COMPRESSED_EXTENSIONS.has(extOf(file.name));
 
       updateStatus(id, "encrypting", 3, "Starting upload session...");
       // Init with a wait-for-slot retry loop. `explicitPlatform` overrides the
@@ -647,7 +659,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
               // protected folder the CEK was already wrapped under the folder
               // password above, so the file is born correctly folder-keyed AND
               // folder-filed in one step — no stranding window, no post-move.
-              folder_id: itemMeta.get(id)?.folderId ?? folderId ?? null,
+              folder_id: destFolderId,
             });
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
@@ -684,7 +696,9 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
         const adopted = await adoptServerSession(session, file, passphrase);
         if (adopted) {
           resume = adopted;
-          patchMeta(id, { resume, platform: adopted.platform ?? itemMeta.get(id)?.platform });
+          // adoptServerSession always carries the session's platform through, so
+          // there is nothing to fall back to here.
+          patchMeta(id, { resume, platform: adopted.platform });
           savePersistedResume(file, {
             sessionId: adopted.sessionId,
             fileId: adopted.fileId,
@@ -1017,7 +1031,11 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
       markPaused();
       return;
     }
+    // Same invariant as pauseCheckpoint: relaunchAfterPrior serializes runs per
+    // item, so a superseded run can never still be here to double-finalize.
+    /* v8 ignore start */
     if (!isCurrentRun()) return; // a newer run owns this item — let it finalize
+    /* v8 ignore stop */
 
     // Finalize
     updateStatus(id, "uploading", 97, "Finalizing...");
@@ -1051,7 +1069,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
                 sha256: fileSha256,
                 sha256_scheme: fileScheme,
                 created_at: new Date().toISOString(),
-                folder_id: itemMeta.get(id)?.folderId ?? folderId ?? null,
+                folder_id: destFolderId,
               } satisfies FileMetadata,
               ...prev,
             ],
@@ -1061,7 +1079,12 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
   } catch (err) {
     if (isPauseError(err)) {
       // Paused mid-run (e.g. during init/backoff) — this is a stop, not a failure.
+      // A PausedError can only be raised by the run that owns the item (runs are
+      // serialized by relaunchAfterPrior), so the token half of this check is an
+      // invariant rather than a branch a test can drive.
+      /* v8 ignore start */
       if (isCurrentRun() && isPaused()) updateStatus(id, "paused", undefined, "Paused");
+      /* v8 ignore stop */
       return;
     }
     const msg = err instanceof Error ? err.message : "Upload failed";
@@ -1105,7 +1128,6 @@ async function adoptServerSession(
     const chunkSize = session.chunk_size || rec?.chunkSize || 0;
     const chunkCount = session.chunk_count || rec?.chunkCount || 0;
     if (!chunkSize || !chunkCount) return undefined; // can't reslice at unknown boundaries
-    const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
     return {
       sessionId: session.session_id,
       fileId: session.file_id,
@@ -1113,7 +1135,7 @@ async function adoptServerSession(
       chunkCount,
       chunkSize,
       directUpload: session.direct_upload,
-      shouldCompress: rec?.shouldCompress ?? !COMPRESSED_EXTENSIONS.has(ext),
+      shouldCompress: rec?.shouldCompress ?? !COMPRESSED_EXTENSIONS.has(extOf(file.name)),
       platform: session.platform,
     };
   } catch {
@@ -1129,8 +1151,10 @@ async function adoptServerSession(
 function launchRun(file: File, id: string, opts: UploadFileOpts): Promise<void> {
   acquireWakeLock();
   const p = uploadOneFile(file, id, opts).finally(releaseWakeLock);
-  const m = itemMeta.get(id);
-  if (m) m.runPromise = p;
+  // patchMeta (not a get + guarded assign) so the promise is recorded even if no
+  // meta entry exists yet — resume/retry await it to stop two runs racing, and
+  // silently skipping it would let them overlap.
+  patchMeta(id, { runPromise: p });
   return p;
 }
 
@@ -1608,7 +1632,11 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
 
     try {
       for (const filePath of paths) {
-        const fileName = filePath.split("/").pop() ?? filePath;
+        // Last path segment, falling back to the whole path when there isn't one
+        // (a trailing slash yields an empty segment — showing the full path in the
+        // queue row beats showing a blank name).
+        const segments = filePath.split("/");
+        const fileName = segments[segments.length - 1] || filePath;
         // Create a minimal File object for the queue UI
         const dummyFile = new File([], fileName);
         const id = addToQueue(dummyFile);

@@ -118,8 +118,14 @@ function markThumbFailed(id: string, permanent: boolean): void {
     nextRetryAt: Date.now() + backoff,
     hard: attempts >= MAX_THUMB_ATTEMPTS,
   });
+  // Unreachable in practice: while a retry timer is pending, `nextRetryAt` is in
+  // the future so no hook will start another attempt for this id — and the timer
+  // deletes itself before the attempt it schedules can fail again. Kept as a
+  // belt-and-braces guard against ever stacking two timers for one file.
+  /* v8 ignore start */
   const existing = retryTimers.get(id);
   if (existing) clearTimeout(existing);
+  /* v8 ignore stop */
   if (attempts < MAX_THUMB_ATTEMPTS) {
     retryTimers.set(
       id,
@@ -734,7 +740,13 @@ export function useThumbnail(
     void storeVersion; // dependency: re-run this level-check on every state change
     if (!shouldGenerate) return;
     if (memCache.has(fileId) || inflight.has(fileId)) return;
+    // fetchAndCacheThumbnail resolves to null on every internal failure, so this
+    // rejection handler never actually runs — it only guards against a future
+    // edit introducing a throw outside its try, which would otherwise surface as
+    // an unhandled rejection in an effect.
+    /* v8 ignore start */
     fetchAndCacheThumbnail(fileId, filename, ctxPassphrase as string, ctxResolver).catch(() => {});
+    /* v8 ignore stop */
   }, [storeVersion, shouldGenerate, fileId, filename]);
 
   // Shimmer ONLY while a not-yet-cached preview is genuinely imminent, and never

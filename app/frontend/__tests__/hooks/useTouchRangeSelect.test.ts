@@ -321,4 +321,28 @@ describe("useTouchRangeSelect", () => {
     const { unmount } = mount();
     expect(() => unmount()).not.toThrow();
   });
+
+  it("ignores a move that reaches a stale listener after the press ended", () => {
+    // Changing scrollContainerId mid-press re-creates the move handler, so
+    // teardown's removeEventListener (which passes the NEW identity) can't
+    // detach the listener registered with the OLD one. That orphan keeps
+    // receiving touchmove after the sweep is over, with the anchor already
+    // cleared — the anchor guard is what stops it sweeping a dead gesture.
+    const { result, rerender } = renderHook(
+      ({ scrollContainerId }: { scrollContainerId: string }) =>
+        useTouchRangeSelect({ enabled: true, fileIdAt, onSweepStart, onSweep, scrollContainerId }),
+      { initialProps: { scrollContainerId: "main-content" } },
+    );
+
+    pointId = "f0";
+    press(result.current.onPressStart, "f0");
+    rerender({ scrollContainerId: "other-scroller" }); // orphans the first listener
+    endDoc(); // clears the anchor; only the new handler is detached
+
+    onSweep.mockClear();
+    pointId = "f9";
+    moveDoc(0, 120); // reaches the orphaned handler
+
+    expect(onSweep).not.toHaveBeenCalled();
+  });
 });

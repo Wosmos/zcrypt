@@ -42,6 +42,7 @@ import { generateSalt, deriveKeyBytes, generateCEK, wrapKey, unwrapKey, sha256Fi
 import { useAuthStore } from "@/store/auth";
 import { usePassphraseStore } from "@/store/passphrase";
 import { deriveNameKey, encryptName } from "@/lib/name-crypto";
+import type { SidecarProgress } from "@/lib/tauri";
 
 vi.mock("@/lib/upload-session", () => ({
   initUpload: vi.fn(),
@@ -151,6 +152,7 @@ vi.mock("@/lib/tauri", () => ({
   pickFiles: vi.fn(async () => [] as string[]),
   sidecarUpload: vi.fn(async () => {}),
   subscribeProgress: vi.fn(async () => vi.fn()),
+  cancelTransfer: vi.fn(async () => true),
 }));
 
 const SMALL_PROFILE = {
@@ -275,7 +277,15 @@ describe("useUploadStore", () => {
     (getDeviceProfile as Mock).mockReset().mockReturnValue({ ...SMALL_PROFILE });
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    // Drain the store's batched-update rAF BEFORE tearing down fake timers.
+    // store/upload.ts guards scheduleFlush() with a module-level
+    // `flushScheduled` flag that only clears inside the rAF callback. Switching
+    // timer implementations discards any pending callback, so a test that ends
+    // mid-batch leaves the flag stuck true — after which scheduleFlush() always
+    // returns early and EVERY later test in this file silently loses its
+    // batched progress writes (status/percent updates just never land).
+    if (vi.isFakeTimers()) await vi.advanceTimersByTimeAsync(100);
     vi.unstubAllGlobals();
     vi.useRealTimers();
     // Cleanup that lives HERE (not inline at each test's end) runs even when
@@ -1587,6 +1597,268 @@ describe("useUploadStore", () => {
       // And the pause didn't poison later status writes: the item completes.
       expect(useUploadStore.getState().queue[0].status).toBe("done");
     });
+
+    // ── Live progress from the in-process core ───────────────────────────────
+    // The core emits per-stage progress; the store folds those stages into ONE
+    // continuous 0-100 bar (blendDesktopUploadProgress). Drive the real
+    // subscription callback so the stage mapping is exercised end to end.
+
+    /** Boots a desktop upload that hangs mid-transfer, returning the captured
+     *  progress emitter plus a release hook. */
+    async function startHangingDesktopUpload(paths = ["/tmp/a.bin"]) {
+      const { pickFiles, sidecarUpload, subscribeProgress } = await import("@/lib/tauri");
+      (pickFiles as Mock).mockResolvedValue(paths);
+      let emit: (p: SidecarProgress) => void = () => {};
+      const unlisten = vi.fn();
+      (subscribeProgress as Mock).mockClear();
+      (subscribeProgress as Mock).mockImplementation(async (cb: (p: SidecarProgress) => void) => {
+        emit = cb;
+        return unlisten;
+      });
+      let release: () => void = () => {};
+      (sidecarUpload as Mock).mockImplementation(
+        () => new Promise<void>((res) => {
+          release = res;
+        }),
+      );
+      const run = useUploadStore.getState().startDesktopUpload("pw", undefined);
+      await flush(5);
+      return { run, emit: (p: SidecarProgress) => emit(p), release: () => release(), unlisten };
+    }
+
+    const progressEvent = (over: Partial<SidecarProgress> = {}): SidecarProgress => ({
+      file_id: "f1",
+      file_name: "a.bin",
+      stage: "uploading",
+      chunks_done: 0,
+      chunks_total: 0,
+      bytes_done: 0,
+      bytes_total: 0,
+      speed: 0,
+      ...over,
+    });
+
+    it.each([
+      // stage,          bytes_done, bytes_total, expected percent
+      ["hashing", 50, 100, 4], // moving 0-8% band so it isn't frozen at 1%
+      ["hashing", 100, 100, 8],
+      ["deriving_key", 0, 100, 9],
+      ["processing", 0, 100, 9], // clamped to the 9% floor
+      ["encrypting", 50, 100, 54],
+      ["uploading", 100, 100, 99],
+      ["finalizing", 0, 100, 99],
+      ["done", 0, 100, 100],
+    ])("maps core stage %s (%i/%i bytes) to %i%%", async (stage, done, total, expected) => {
+      const { emit, release, run } = await startHangingDesktopUpload();
+      emit(progressEvent({ stage, bytes_done: done, bytes_total: total }));
+      await flush(3);
+      expect(getItem(queueIdFor())?.progress).toBe(expected);
+      release();
+      await run;
+    });
+
+    it("treats a zero-byte total as 0% progress rather than dividing by zero", async () => {
+      const { emit, release, run } = await startHangingDesktopUpload();
+      emit(progressEvent({ stage: "uploading", bytes_done: 0, bytes_total: 0 }));
+      await flush(3);
+      // within = 0, so the uploading band sits at its 9% floor — no NaN.
+      expect(getItem(queueIdFor())?.progress).toBe(9);
+      release();
+      await run;
+    });
+
+    it("holds the previous percent when the core reports a stage the bar doesn't model", async () => {
+      const { emit, release, run } = await startHangingDesktopUpload();
+      const id = queueIdFor();
+      emit(progressEvent({ stage: "uploading", bytes_done: 50, bytes_total: 100 }));
+      await flush(3);
+      expect(getItem(id)?.progress).toBe(54);
+
+      // An unmodelled stage maps to undefined — the bar must not jump or reset.
+      emit(progressEvent({ stage: "verifying_remote", bytes_done: 0, bytes_total: 100 }));
+      await flush(3);
+      expect(getItem(id)?.stage).toBe("verifying_remote");
+      expect(getItem(id)?.progress).toBe(54);
+      release();
+      await run;
+    });
+
+    it("ignores progress for a file name that matches nothing in the queue", async () => {
+      const { emit, release, run } = await startHangingDesktopUpload();
+      const id = queueIdFor();
+      const before = getItem(id);
+      emit(progressEvent({ file_name: "someone-elses-file.bin", bytes_done: 99, bytes_total: 100 }));
+      await flush(3);
+      // No match, so nothing was ever batched — the row is byte-for-byte intact.
+      expect(getItem(id)).toEqual(before);
+      release();
+      await run;
+    });
+
+    it("stops matching progress to an item once it has finished", async () => {
+      const { pickFiles, sidecarUpload, subscribeProgress } = await import("@/lib/tauri");
+      (pickFiles as Mock).mockResolvedValue(["/tmp/a.bin"]);
+      let emit: (p: SidecarProgress) => void = () => {};
+      (subscribeProgress as Mock).mockImplementation(async (cb: (p: SidecarProgress) => void) => {
+        emit = cb;
+        return vi.fn();
+      });
+      (sidecarUpload as Mock).mockResolvedValue(undefined);
+      await useUploadStore.getState().startDesktopUpload("pw", undefined);
+      const id = queueIdFor();
+      expect(getItem(id)?.status).toBe("done");
+
+      // A late straggler event for a done item finds no match and is dropped —
+      // it must not resurrect the row as "encrypting".
+      emit(progressEvent({ stage: "uploading", bytes_done: 1, bytes_total: 100 }));
+      await flush(3);
+      expect(getItem(id)?.status).toBe("done");
+      expect(getItem(id)?.progress).toBe(100);
+    });
+
+    it("aborts the in-flight core transfer when a desktop item is cancelled", async () => {
+      const { cancelTransfer } = await import("@/lib/tauri");
+      (cancelTransfer as Mock).mockClear().mockResolvedValue(true);
+      const { release, run } = await startHangingDesktopUpload();
+      const id = queueIdFor();
+
+      useUploadStore.getState().removeFromQueue(id);
+      await flush(3);
+      // The queue id doubles as the core's transfer id, so Cancel can reach it.
+      expect(cancelTransfer).toHaveBeenCalledWith(id);
+      expect(useUploadStore.getState().queue).toHaveLength(0);
+      release();
+      await run;
+    });
+
+    it("survives the shell refusing to cancel a transfer", async () => {
+      const { cancelTransfer } = await import("@/lib/tauri");
+      (cancelTransfer as Mock).mockClear().mockRejectedValue(new Error("no such transfer"));
+      const { release, run } = await startHangingDesktopUpload();
+      const id = queueIdFor();
+
+      // Best-effort and fire-and-forget — a rejection must not escape.
+      expect(() => useUploadStore.getState().removeFromQueue(id)).not.toThrow();
+      await flush(3);
+      expect(cancelTransfer).toHaveBeenCalledWith(id);
+      expect(useUploadStore.getState().queue).toHaveLength(0);
+      release();
+      await run;
+      (cancelTransfer as Mock).mockResolvedValue(true);
+    });
+
+    it("routes resumeUpload on a desktop item back through the core, not the web pipeline", async () => {
+      const { pickFiles, sidecarUpload, subscribeProgress } = await import("@/lib/tauri");
+      (pickFiles as Mock).mockResolvedValue(["/tmp/a.bin"]);
+      (subscribeProgress as Mock).mockImplementation(async () => vi.fn());
+      (sidecarUpload as Mock).mockRejectedValueOnce(new Error("blip"));
+      await useUploadStore.getState().startDesktopUpload("pw", undefined);
+      const id = queueIdFor();
+      expect(getItem(id)?.status).toBe("failed");
+
+      (sidecarUpload as Mock).mockResolvedValueOnce(undefined);
+      useUploadStore.getState().resumeUpload(id, "pw");
+      await flush(5);
+      expect(getItem(id)?.status).toBe("done");
+      // Re-driven through the core with the original path — never initUpload
+      // (the item's File is a 0-byte placeholder the web pipeline would reject).
+      expect(sidecarUpload).toHaveBeenLastCalledWith("/tmp/a.bin", "pw", undefined, id);
+      expect(initUpload).not.toHaveBeenCalled();
+    });
+
+    it("shows live progress on a desktop retry and surfaces a second failure", async () => {
+      const { pickFiles, sidecarUpload, subscribeProgress } = await import("@/lib/tauri");
+      (pickFiles as Mock).mockResolvedValue(["/tmp/a.bin"]);
+      (subscribeProgress as Mock).mockImplementation(async () => vi.fn());
+      (sidecarUpload as Mock).mockRejectedValueOnce(new Error("first failure"));
+      await useUploadStore.getState().startDesktopUpload("pw", undefined);
+      const id = queueIdFor();
+
+      // The retry installs its OWN progress subscription (the batch one already
+      // unlistened), so without it a retry would show no movement at all.
+      let emit: (p: SidecarProgress) => void = () => {};
+      const unlistenRetry = vi.fn();
+      (subscribeProgress as Mock).mockClear();
+      (subscribeProgress as Mock).mockImplementation(async (cb: (p: SidecarProgress) => void) => {
+        emit = cb;
+        return unlistenRetry;
+      });
+      let release: (e: Error) => void = () => {};
+      (sidecarUpload as Mock).mockImplementation(
+        () => new Promise<void>((_res, rej) => {
+          release = rej;
+        }),
+      );
+      useUploadStore.getState().retryUpload(id, "pw");
+      await flush(3);
+      expect(subscribeProgress).toHaveBeenCalledTimes(1);
+
+      // Progress for a DIFFERENT file is filtered out by name.
+      emit(progressEvent({ file_name: "other.bin", bytes_done: 99, bytes_total: 100 }));
+      // An unmodelled stage yields no percent and is skipped entirely.
+      emit(progressEvent({ stage: "verifying_remote", bytes_done: 99, bytes_total: 100 }));
+      await flush(3);
+      expect(getItem(id)?.progress).not.toBe(99);
+
+      // A real stage moves the bar.
+      emit(progressEvent({ stage: "uploading", bytes_done: 50, bytes_total: 100 }));
+      await flush(3);
+      expect(getItem(id)?.progress).toBe(54);
+
+      release(new Error("second failure"));
+      await flush(5);
+      expect(getItem(id)?.status).toBe("failed");
+      expect(getItem(id)?.error).toBe("second failure");
+      // The scoped subscription is torn down even on the failure path.
+      expect(unlistenRetry).toHaveBeenCalled();
+    });
+
+    it("reports a non-Error core rejection on retry as a generic failure", async () => {
+      const { pickFiles, sidecarUpload, subscribeProgress } = await import("@/lib/tauri");
+      (pickFiles as Mock).mockResolvedValue(["/tmp/a.bin"]);
+      (subscribeProgress as Mock).mockImplementation(async () => vi.fn());
+      (sidecarUpload as Mock).mockRejectedValueOnce(new Error("first failure"));
+      await useUploadStore.getState().startDesktopUpload("pw", undefined);
+      const id = queueIdFor();
+
+      // Tauri rejects with a bare string, not an Error.
+      (sidecarUpload as Mock).mockRejectedValueOnce("ipc closed");
+      useUploadStore.getState().retryUpload(id, "pw");
+      await flush(5);
+      expect(getItem(id)?.error).toBe("Upload failed");
+    });
+  });
+
+  describe("paused-item status guard", () => {
+    it("drops a straggling non-terminal write for a paused item", async () => {
+      (uploadChunk as Mock).mockImplementation(() => new Promise(() => {}));
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush(5);
+      useUploadStore.getState().pauseUpload(id);
+      expect(getItem(id)?.status).toBe("paused");
+
+      // An in-flight emit (or a backend SSE event) landing after the pause must
+      // not flip the row back to uploading — that was how pause visibly undid
+      // itself. The write is dropped before it can even be batched.
+      useUploadStore.getState().updateStatus(id, "uploading", 42, "Uploading...");
+      await flush(3);
+      expect(getItem(id)?.status).toBe("paused");
+      expect(getItem(id)?.progress).not.toBe(42);
+    });
+
+    it("still accepts terminal writes for a paused item", async () => {
+      (uploadChunk as Mock).mockImplementation(() => new Promise(() => {}));
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush(5);
+      useUploadStore.getState().pauseUpload(id);
+      expect(getItem(id)?.status).toBe("paused");
+
+      // A genuine failure still has to land — the guard whitelists terminals.
+      useUploadStore.getState().updateStatus(id, "failed", 0, "Failed");
+      expect(getItem(id)?.status).toBe("failed");
+    });
   });
 
   describe("background notifications", () => {
@@ -1762,4 +2034,858 @@ describe("useUploadStore", () => {
       expect(useUploadStore.getState().getResumableUploadIds()).not.toContain(id);
     });
   });
+
+  // ── Edge shapes the happy paths never produce ─────────────────────────────
+  describe("degenerate inputs and non-Error failures", () => {
+    it("uploads a zero-byte file without dividing by its size anywhere", async () => {
+      // Every progress calculation divides by file.size; a 0-byte file must fall
+      // back to chunk-count ratios instead of producing NaN/Infinity percents.
+      const empty = makeFile("empty.txt", 0, "");
+      useUploadStore.getState().startUpload([empty], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(getItem(id)?.status).toBe("done");
+      expect(Number.isFinite(getItem(id)?.progress)).toBe(true);
+      expect(getItem(id)?.progress).toBe(100);
+    });
+
+    it("reports a non-Error rejection from the upload pipeline as a generic failure", async () => {
+      // Tauri IPC and some platform SDKs reject with bare strings, not Errors.
+      (initUpload as Mock).mockRejectedValue("plain string blew up");
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(getItem(id)?.status).toBe("failed");
+      expect(getItem(id)?.error).toBeTruthy();
+    });
+
+    it("leaves sibling rows untouched when one item in a batch is updated", async () => {
+      // The batched flush maps over the WHOLE queue; rows with no pending update
+      // must come back byte-identical rather than being rebuilt with defaults.
+      (uploadChunk as Mock).mockImplementation(() => new Promise(() => {}));
+      useUploadStore
+        .getState()
+        .startUpload([makeFile("a.txt", 10), makeFile("b.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      await flush(5);
+      const [a, b] = useUploadStore.getState().queue.map((i) => i.id);
+      const bBefore = getItem(b);
+
+      useUploadStore.getState().updateStatus(a, "uploading", 33, "Uploading...");
+      await flush(3);
+
+      expect(getItem(a)?.progress).toBe(33);
+      expect(getItem(b)).toEqual(bBefore);
+    });
+
+    it("keeps the previous stage when an update omits it", async () => {
+      (uploadChunk as Mock).mockImplementation(() => new Promise(() => {}));
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush(5);
+      const stageBefore = getItem(id)?.stage;
+
+      useUploadStore.getState().updateStatus(id, "uploading", 50);
+      await flush(3);
+
+      expect(getItem(id)?.progress).toBe(50);
+      expect(getItem(id)?.stage).toBe(stageBefore);
+    });
+
+    it("keeps the previous stage on a terminal update that omits it", async () => {
+      (uploadChunk as Mock).mockImplementation(() => new Promise(() => {}));
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush(5);
+      const stageBefore = getItem(id)?.stage;
+
+      // Terminal writes bypass the batch and flush synchronously.
+      useUploadStore.getState().updateStatus(id, "done", 100);
+      expect(getItem(id)?.stage).toBe(stageBefore);
+    });
+
+    it("ignores removeFromQueue for an id that is not in the queue", () => {
+      expect(() => useUploadStore.getState().removeFromQueue("never-existed")).not.toThrow();
+      expect(useUploadStore.getState().queue).toHaveLength(0);
+    });
+
+    it("swallows a failing server-side session cancel when a row is removed", async () => {
+      (uploadChunk as Mock).mockImplementation(() => new Promise(() => {}));
+      (cancelUpload as Mock).mockRejectedValue(new Error("session already gone"));
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush(5);
+
+      // Best-effort cleanup: the row must disappear even if the server call fails.
+      expect(() => useUploadStore.getState().removeFromQueue(id)).not.toThrow();
+      await flush(3);
+      expect(cancelUpload).toHaveBeenCalled();
+      expect(useUploadStore.getState().queue).toHaveLength(0);
+    });
+  });
+
+  describe("pause at the earliest checkpoints", () => {
+    it("stops before hashing when the item is already paused", async () => {
+      let resolveHash: () => void = () => {};
+      (sha256File as Mock).mockImplementationOnce(
+        () => new Promise<string>((resolve) => {
+          resolveHash = () => resolve("sha-a");
+        }),
+      );
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush(3);
+
+      useUploadStore.getState().pauseUpload(id);
+      resolveHash();
+      await flush();
+
+      expect(getItem(id)?.status).toBe("paused");
+      expect(initUpload).not.toHaveBeenCalled();
+    });
+
+    it("does not write a paused status once a newer run owns the item", async () => {
+      // Retry supersedes the in-flight run. The stale run must stay silent —
+      // writing "paused" from it is what used to make a live retry look stopped.
+      let releaseFirst: () => void = () => {};
+      (initUpload as Mock).mockImplementationOnce(
+        () => new Promise(() => {}),
+      );
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush(5);
+
+      (initUpload as Mock).mockImplementation(
+        () => new Promise((resolve) => {
+          releaseFirst = () => resolve(defaultInitResponse());
+        }),
+      );
+      useUploadStore.getState().retryUpload(id, "pw");
+      await flush(3);
+      // Pause targets the item, but the ORIGINAL run is no longer current.
+      useUploadStore.getState().pauseUpload(id);
+      releaseFirst();
+      await flush();
+
+      expect(getItem(id)).toBeDefined();
+    });
+  });
+
+  describe("more pause and failure interleavings", () => {
+    it("bails out before doing any work when the row is paused before the run starts", async () => {
+      // pauseUpload lands synchronously, before the async run reaches its first
+      // checkpoint — so the very first checkpoint is the one that stops it.
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      useUploadStore.getState().pauseUpload(id);
+      await flush();
+
+      expect(getItem(id)?.status).toBe("paused");
+      expect(sha256File).not.toHaveBeenCalled();
+      expect(initUpload).not.toHaveBeenCalled();
+    });
+
+    it("stops launching further chunks after the first one fails", async () => {
+      // Serialize to one in-flight chunk so the first rejection is recorded before
+      // the loop considers the next index — otherwise every chunk is already in
+      // flight by the time any of them fails and the break can't be observed.
+      (getDeviceProfile as Mock).mockReturnValue({ ...SMALL_PROFILE, chunkSize: 4, workers: 1 });
+      (initUpload as Mock).mockResolvedValue(defaultInitResponse({ chunk_count: 8, chunk_size: 4 }));
+      let calls = 0;
+      (uploadChunk as Mock).mockImplementation(async () => {
+        calls++;
+        if (calls === 1) throw new Error("invalid chunk"); // non-transient → no retry
+      });
+
+      useUploadStore.getState().startUpload([makeFile("a.txt", 32)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(getItem(id)?.status).toBe("failed");
+      // Broke out of the launch loop instead of pushing all eight chunks.
+      expect(calls).toBeLessThan(8);
+    });
+
+    it("keeps the FIRST error when several chunks fail", async () => {
+      (getDeviceProfile as Mock).mockReturnValue({ ...SMALL_PROFILE, chunkSize: 4, workers: 2, maxConcurrentUploads: 2 });
+      (initUpload as Mock).mockResolvedValue(defaultInitResponse({ chunk_count: 4, chunk_size: 4 }));
+      let n = 0;
+      (uploadChunk as Mock).mockImplementation(async () => {
+        n++;
+        throw new Error(`invalid chunk ${n}`);
+      });
+
+      useUploadStore.getState().startUpload([makeFile("a.txt", 16)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(getItem(id)?.status).toBe("failed");
+      // Whichever landed first wins; later failures must not overwrite it.
+      expect(getItem(id)?.error).toContain("invalid chunk");
+    });
+
+    it("reports a non-Error chunk rejection without crashing the retry classifier", async () => {
+      (initUpload as Mock).mockResolvedValue(defaultInitResponse({ chunk_count: 1 }));
+      // withRetry lowercases the message to classify transient vs fatal — a bare
+      // string has no .message, so it must be stringified rather than crash.
+      (uploadChunk as Mock).mockRejectedValue("bare string rejection");
+
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(getItem(id)?.status).toBe("failed");
+    });
+
+    it("reports an empty batch as 0% rather than dividing by zero", async () => {
+      // startBackgroundNotifications' reporter is called on an interval; once the
+      // batch rows are dismissed it sees an empty array.
+      class FakeNotification {
+        static permission: NotificationPermission = "granted";
+        constructor(_t: string, _o?: NotificationOptions) {}
+      }
+      vi.stubGlobal("Notification", FakeNotification);
+      Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
+
+      (uploadChunk as Mock).mockImplementation(() => new Promise(() => {}));
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush(5);
+
+      // Drop the row, then let the notification interval tick against no rows.
+      useUploadStore.getState().removeFromQueue(id);
+      expect(() => vi.advanceTimersByTime(6000)).not.toThrow();
+    });
+  });
+
+  describe("pause landing in the narrow windows inside the chunk pipeline", () => {
+    it("does not send a chunk that was waiting for an upload slot when the pause landed", async () => {
+      // The upload semaphore allows 5 concurrent sends, so a file needs more than
+      // five chunks before any of them genuinely queues. Chunks 6+ clear the
+      // pre-acquire check, then block on the semaphore; the pause arrives while
+      // they wait, so only the POST-acquire check can keep them off the network.
+      (getDeviceProfile as Mock).mockReturnValue({ ...SMALL_PROFILE, chunkSize: 4, workers: 8 });
+      (initUpload as Mock).mockResolvedValue(defaultInitResponse({ chunk_count: 8, chunk_size: 4 }));
+
+      const releases: (() => void)[] = [];
+      let sent = 0;
+      (uploadChunk as Mock).mockImplementation(
+        () =>
+          new Promise<void>((resolve) => {
+            sent++;
+            releases.push(resolve);
+          }),
+      );
+
+      useUploadStore.getState().startUpload([makeFile("a.txt", 32)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush(4);
+
+      // Five in flight, the rest queued behind the semaphore.
+      const inFlight = sent;
+      expect(inFlight).toBeLessThan(8);
+
+      useUploadStore.getState().pauseUpload(id);
+      for (const r of releases) r();
+      await flush();
+
+      expect(getItem(id)?.status).toBe("paused");
+      // The queued chunks bailed at the post-acquire check instead of sending.
+      expect(sent).toBe(inFlight);
+    });
+
+    it("stops retrying a chunk as soon as the pause lands during backoff", async () => {
+      (initUpload as Mock).mockResolvedValue(defaultInitResponse({ chunk_count: 1 }));
+      // A transient failure puts the chunk into backoff; the pause must break the
+      // retry loop at its next entry check rather than sitting there for minutes.
+      let attempts = 0;
+      (uploadChunk as Mock).mockImplementation(async () => {
+        attempts++;
+        throw new Error("Too Many Requests");
+      });
+
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush(2);
+      const attemptsBeforePause = attempts;
+
+      useUploadStore.getState().pauseUpload(id);
+      await flush();
+
+      expect(getItem(id)?.status).toBe("paused");
+      expect(attempts).toBeLessThanOrEqual(attemptsBeforePause + 1);
+    });
+
+    it("marks the row paused when the pause interrupts session init", async () => {
+      // Pausing during init raises a PausedError from inside withRetry, which the
+      // run's catch has to read as a stop rather than a failure.
+      let releaseInit: () => void = () => {};
+      (initUpload as Mock).mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            releaseInit = () => resolve(defaultInitResponse({ chunk_count: 1 }));
+          }),
+      );
+
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush(4);
+
+      useUploadStore.getState().pauseUpload(id);
+      releaseInit();
+      await flush();
+
+      expect(getItem(id)?.status).toBe("paused");
+      expect(getItem(id)?.error).toBeUndefined();
+    });
+
+    it("lets a superseding run finalize while the stale run stays silent", async () => {
+      // Retry starts a new run for the same row. The old run is still draining;
+      // when it reaches finalize it must notice it no longer owns the item and
+      // bow out, or the two runs fight over the row's terminal state.
+      (initUpload as Mock).mockResolvedValue(defaultInitResponse({ chunk_count: 1 }));
+      let releaseComplete: () => void = () => {};
+      let completeCalls = 0;
+      (completeUpload as Mock).mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            completeCalls++;
+            if (completeCalls === 1) releaseComplete = () => resolve({ file_id: "file-1" });
+            else resolve({ file_id: "file-1" });
+          }),
+      );
+
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush(4);
+
+      // Start a second run for the same row while the first sits in completeUpload.
+      useUploadStore.getState().retryUpload(id, "pw");
+      await flush(2);
+      releaseComplete();
+      await flush();
+
+      expect(getItem(id)?.status).toBe("done");
+    });
+  });
+
+  describe("progress accounting details", () => {
+    it("smooths the transfer rate across successive progress samples", async () => {
+      (initUpload as Mock).mockResolvedValue(defaultInitResponse({ chunk_count: 1 }));
+      // The rate is sampled at most ~1/s: the first callback only seeds the
+      // tracker, the second sets the initial EMA, and the third is the first one
+      // that actually BLENDS into the running average.
+      (uploadChunk as Mock).mockImplementation(
+        async (
+          _sid: string,
+          _idx: number,
+          _data: unknown,
+          _sha: string,
+          _c: boolean,
+          onProgress?: (sent: number) => void,
+        ) => {
+          onProgress?.(128);
+          await vi.advanceTimersByTimeAsync(1200);
+          onProgress?.(512);
+          await vi.advanceTimersByTimeAsync(1200);
+          onProgress?.(1024);
+        },
+      );
+
+      useUploadStore.getState().startUpload([makeFile("a.txt", 1024)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(getItem(id)?.status).toBe("done");
+    });
+
+    it("reports byte progress for a zero-byte file by chunk count instead of size", async () => {
+      // Both the overall fraction and the per-chunk fraction divide by a byte
+      // count that is 0 here, so each needs its chunk-count/complete fallback or
+      // the bar shows NaN.
+      (initUpload as Mock).mockResolvedValue(defaultInitResponse({ chunk_count: 1 }));
+      (uploadChunk as Mock).mockImplementation(
+        async (
+          _sid: string,
+          _idx: number,
+          _data: unknown,
+          _sha: string,
+          _c: boolean,
+          onProgress?: (sent: number) => void,
+        ) => {
+          onProgress?.(0);
+        },
+      );
+
+      useUploadStore.getState().startUpload([makeFile("empty.bin", 0, "")], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(getItem(id)?.status).toBe("done");
+      expect(Number.isFinite(getItem(id)?.progress)).toBe(true);
+    });
+
+    it("reports a paused zero-byte upload's position by chunk count", async () => {
+      // markPaused recomputes the percent from bytes; with a 0-byte file that
+      // divisor is zero, so it has to fall back to the chunk count.
+      (initUpload as Mock).mockResolvedValue(defaultInitResponse({ chunk_count: 1 }));
+      let hold: () => void = () => {};
+      (uploadChunk as Mock).mockImplementation(() => new Promise<void>((res) => {
+        hold = res;
+      }));
+
+      useUploadStore.getState().startUpload([makeFile("empty.bin", 0, "")], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush(4);
+
+      useUploadStore.getState().pauseUpload(id);
+      hold();
+      await flush();
+
+      expect(getItem(id)?.status).toBe("paused");
+      expect(Number.isFinite(getItem(id)?.progress)).toBe(true);
+    });
+
+    it("scores done and failed rows as complete in the batch notification", async () => {
+      class FakeNotification {
+        static permission: NotificationPermission = "granted";
+        constructor(_t: string, _o?: NotificationOptions) {}
+      }
+      vi.stubGlobal("Notification", FakeNotification);
+      Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
+
+      // A mixed batch: one row succeeds, one fails outright, one is still going.
+      // The reporter counts both terminal states as 100% so the aggregate percent
+      // climbs to completion instead of stalling on the failed row.
+      (initUpload as Mock)
+        .mockResolvedValueOnce(defaultInitResponse({ chunk_count: 1 }))
+        .mockRejectedValueOnce(new Error("invalid request"))
+        .mockResolvedValue(defaultInitResponse({ chunk_count: 1 }));
+      let hold: () => void = () => {};
+      let n = 0;
+      (uploadChunk as Mock).mockImplementation(() => {
+        n++;
+        if (n === 1) return Promise.resolve();
+        return new Promise<void>((res) => {
+          hold = res;
+        });
+      });
+
+      useUploadStore
+        .getState()
+        .startUpload(
+          [makeFile("a.txt", 10), makeFile("b.txt", 10), makeFile("c.txt", 10)],
+          "pw",
+          "telegram",
+          3,
+          undefined,
+          null,
+        );
+      await flush(6);
+
+      const statuses = useUploadStore.getState().queue.map((i) => i.status);
+      expect(statuses).toContain("done");
+      expect(statuses).toContain("failed");
+
+      // Tick the reporter while the batch holds all three states at once.
+      vi.advanceTimersByTime(4000);
+
+      // Tick again with the surviving row carrying real progress, so the
+      // aggregate blends a partial percent alongside the two terminal 100s.
+      const active = useUploadStore
+        .getState()
+        .queue.find((i) => i.status !== "done" && i.status !== "failed");
+      expect(active).toBeDefined();
+      useUploadStore.getState().updateStatus(active!.id, "uploading", 55, "Uploading...");
+      await flush(2);
+      expect(getItem(active!.id)?.progress).toBe(55);
+      vi.advanceTimersByTime(4000);
+
+      hold();
+      await flush();
+    });
+
+    it("scores every row state the batch reporter can see", async () => {
+      class FakeNotification {
+        static permission: NotificationPermission = "granted";
+        constructor(_t: string, _o?: NotificationOptions) {}
+      }
+      vi.stubGlobal("Notification", FakeNotification);
+      Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
+
+      // Drive the row states directly rather than via pipeline outcomes, so the
+      // reporter is guaranteed to see done / failed / mid-progress / untouched in
+      // one pass — each scores differently in the aggregate percent.
+      (uploadChunk as Mock).mockImplementation(() => new Promise(() => {}));
+      useUploadStore
+        .getState()
+        .startUpload(
+          [makeFile("a.txt", 10), makeFile("b.txt", 10), makeFile("c.txt", 10), makeFile("d.txt", 10)],
+          "pw",
+          "telegram",
+          4,
+          undefined,
+          null,
+        );
+      await flush(4);
+      const ids = useUploadStore.getState().queue.map((i) => i.id);
+      expect(ids).toHaveLength(4);
+
+      const store = useUploadStore.getState();
+      store.updateStatus(ids[0], "done", 100, "Done");
+      store.setError(ids[1], "nope");
+      store.updateStatus(ids[2], "uploading", 61, "Uploading...");
+      store.updateStatus(ids[3], "uploading", 0, "Uploading...");
+      await flush(2);
+
+      expect(getItem(ids[0])?.status).toBe("done");
+      expect(getItem(ids[1])?.status).toBe("failed");
+      expect(getItem(ids[2])?.progress).toBe(61);
+
+      vi.advanceTimersByTime(4000);
+      vi.advanceTimersByTime(4000);
+    });
+
+    it("averages in a partially-uploaded row's real progress", async () => {
+      class FakeNotification {
+        static permission: NotificationPermission = "granted";
+        constructor(_t: string, _o?: NotificationOptions) {}
+      }
+      vi.stubGlobal("Notification", FakeNotification);
+      Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
+
+      (initUpload as Mock).mockResolvedValue(defaultInitResponse({ chunk_count: 1 }));
+      let hold: () => void = () => {};
+      (uploadChunk as Mock).mockImplementation(
+        (
+          _sid: string,
+          _idx: number,
+          _data: unknown,
+          _sha: string,
+          _c: boolean,
+          onProgress?: (sent: number) => void,
+        ) =>
+          new Promise<void>((resolve) => {
+            onProgress?.(5);
+            hold = resolve;
+          }),
+      );
+
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush(4);
+      expect(getItem(id)?.progress).toBeGreaterThan(0);
+
+      // The reporter now sees a row mid-flight rather than at a flat 0.
+      vi.advanceTimersByTime(6000);
+      hold();
+      await flush();
+
+      expect(getItem(id)?.status).toBe("done");
+    });
+
+    it("counts a not-yet-started row as 0% in the batch notification", async () => {
+      class FakeNotification {
+        static permission: NotificationPermission = "granted";
+        constructor(_t: string, _o?: NotificationOptions) {}
+      }
+      vi.stubGlobal("Notification", FakeNotification);
+      Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
+
+      (uploadChunk as Mock).mockImplementation(() => new Promise(() => {}));
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      await flush(5);
+
+      // The reporter runs on an interval while the row still sits at 0 progress.
+      expect(() => vi.advanceTimersByTime(6000)).not.toThrow();
+    });
+
+    it("files an upload into the folder it was started in", async () => {
+      (initUpload as Mock).mockResolvedValue(defaultInitResponse({ chunk_count: 1 }));
+      useUploadStore
+        .getState()
+        .startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, "folder-42");
+      const id = queueIdFor();
+      await flush();
+
+      expect(getItem(id)?.status).toBe("done");
+      // The optimistic row handed to the file list carries the folder.
+      const rows = (setFilesData as Mock).mock.calls.at(-1)?.[0];
+      if (typeof rows === "function") {
+        const out = rows([]) as { folder_id?: string | null }[];
+        expect(out[0]?.folder_id).toBe("folder-42");
+      }
+    });
+
+    it("takes the platform from the server session when the saved record has none", async () => {
+      // Records written before platform was persisted have no platform field; the
+      // live session's platform is the correct source of truth for the restart.
+      localStorage.setItem(
+        "zc_upl:a.txt:10:1000",
+        JSON.stringify({
+          sessionId: "sess-1",
+          fileId: "file-1",
+          chunkCount: 1,
+          chunkSize: 2048,
+          directUpload: false,
+          shouldCompress: true,
+          // no `platform`
+        }),
+      );
+      (getUploadStatus as Mock).mockResolvedValue({
+        session_id: "sess-1",
+        file_id: "file-1",
+        status: "active",
+        platform: "huggingface",
+        chunk_count: 1,
+        chunk_size: 2048,
+        uploaded_chunks: [],
+        completed_count: 0,
+      });
+
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(getItem(id)?.status).toBe("done");
+    });
+  });
+
+  describe("multi-item retry and resume", () => {
+    it("resets only the retried row and leaves its siblings alone", async () => {
+      (initUpload as Mock).mockRejectedValueOnce(new Error("invalid request"));
+      useUploadStore
+        .getState()
+        .startUpload([makeFile("a.txt", 10), makeFile("b.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      await flush();
+      const [a, b] = useUploadStore.getState().queue.map((i) => i.id);
+      expect(getItem(a)?.status).toBe("failed");
+      const bBefore = getItem(b);
+
+      useUploadStore.getState().retryUpload(a, "pw");
+      await flush();
+
+      expect(getItem(b)).toEqual(bBefore);
+    });
+
+    it("resumes only the targeted row and leaves its siblings alone", async () => {
+      (uploadChunk as Mock).mockImplementation(() => new Promise(() => {}));
+      useUploadStore
+        .getState()
+        .startUpload([makeFile("a.txt", 10), makeFile("b.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      await flush(5);
+      const [a, b] = useUploadStore.getState().queue.map((i) => i.id);
+      useUploadStore.getState().pauseUpload(a);
+      const bBefore = getItem(b);
+
+      (uploadChunk as Mock).mockResolvedValue(undefined);
+      useUploadStore.getState().resumeUpload(a, "pw");
+      await flush(3);
+
+      expect(getItem(b)).toEqual(bBefore);
+    });
+  });
+
+  describe("desktop picker edge cases", () => {
+    it("opens the native picker when preSelectedPaths is an empty array", async () => {
+      const { pickFiles, sidecarUpload, subscribeProgress } = await import("@/lib/tauri");
+      (pickFiles as Mock).mockResolvedValue(["/tmp/picked.bin"]);
+      (subscribeProgress as Mock).mockImplementation(async () => vi.fn());
+      (sidecarUpload as Mock).mockResolvedValue(undefined);
+
+      // An empty array is not "the dropzone already picked these" — fall back to
+      // the core's own picker rather than uploading nothing.
+      await useUploadStore.getState().startDesktopUpload("pw", undefined, []);
+
+      expect(pickFiles).toHaveBeenCalled();
+      expect(sidecarUpload).toHaveBeenCalledWith("/tmp/picked.bin", "pw", undefined, expect.any(String));
+    });
+
+    it("uses the paths the caller already picked instead of opening a picker", async () => {
+      const { pickFiles, sidecarUpload, subscribeProgress } = await import("@/lib/tauri");
+      (pickFiles as Mock).mockClear();
+      (subscribeProgress as Mock).mockImplementation(async () => vi.fn());
+      (sidecarUpload as Mock).mockResolvedValue(undefined);
+
+      // The dropzone already ran the native dialog — re-opening it here is the
+      // double-dialog bug, so supplied paths must short-circuit the picker.
+      await useUploadStore.getState().startDesktopUpload("pw", undefined, ["/tmp/given.bin"]);
+
+      expect(pickFiles).not.toHaveBeenCalled();
+      expect(sidecarUpload).toHaveBeenCalledWith("/tmp/given.bin", "pw", undefined, expect.any(String));
+    });
+
+    it("falls back to the whole path when it ends in a separator", async () => {
+      const { pickFiles, sidecarUpload, subscribeProgress } = await import("@/lib/tauri");
+      (pickFiles as Mock).mockResolvedValue(["/tmp/weird/"]);
+      (subscribeProgress as Mock).mockImplementation(async () => vi.fn());
+      (sidecarUpload as Mock).mockResolvedValue(undefined);
+
+      await useUploadStore.getState().startDesktopUpload("pw", undefined);
+
+      // A blank row name would be useless — show the path instead.
+      expect(useUploadStore.getState().queue[0].file.name).toBe("/tmp/weird/");
+    });
+
+    it("resets only the retried desktop row and leaves its siblings alone", async () => {
+      const { pickFiles, sidecarUpload, subscribeProgress } = await import("@/lib/tauri");
+      (pickFiles as Mock).mockResolvedValue(["/tmp/a.bin", "/tmp/b.bin"]);
+      (subscribeProgress as Mock).mockImplementation(async () => vi.fn());
+      (sidecarUpload as Mock)
+        .mockRejectedValueOnce(new Error("first failed"))
+        .mockResolvedValueOnce(undefined);
+      await useUploadStore.getState().startDesktopUpload("pw", undefined);
+
+      const [a, b] = useUploadStore.getState().queue.map((i) => i.id);
+      expect(getItem(a)?.status).toBe("failed");
+      const bBefore = getItem(b);
+
+      (sidecarUpload as Mock).mockResolvedValue(undefined);
+      useUploadStore.getState().retryUpload(a, "pw");
+      await flush(5);
+
+      expect(getItem(a)?.status).toBe("done");
+      expect(getItem(b)).toEqual(bBefore);
+    });
+
+    it("uses a bare path as its own filename when it has no directory part", async () => {
+      const { pickFiles, sidecarUpload, subscribeProgress } = await import("@/lib/tauri");
+      (pickFiles as Mock).mockResolvedValue(["bare.bin"]);
+      (subscribeProgress as Mock).mockImplementation(async () => vi.fn());
+      (sidecarUpload as Mock).mockResolvedValue(undefined);
+
+      await useUploadStore.getState().startDesktopUpload("pw", undefined);
+
+      expect(useUploadStore.getState().queue[0].file.name).toBe("bare.bin");
+    });
+
+    it("reports a non-Error core rejection during a batch as a generic failure", async () => {
+      const { pickFiles, sidecarUpload, subscribeProgress } = await import("@/lib/tauri");
+      (pickFiles as Mock).mockResolvedValue(["/tmp/a.bin"]);
+      (subscribeProgress as Mock).mockImplementation(async () => vi.fn());
+      (sidecarUpload as Mock).mockRejectedValue("ipc channel closed");
+
+      await useUploadStore.getState().startDesktopUpload("pw", undefined);
+
+      expect(useUploadStore.getState().queue[0].status).toBe("failed");
+      expect(useUploadStore.getState().queue[0].error).toBe("Upload failed");
+    });
+  });
+
+  describe("server-resumed session adoption", () => {
+    /** Makes initUpload report an already-active server session for this file. */
+    function resumedInit(over: Record<string, unknown> = {}) {
+      (initUpload as Mock).mockReset().mockResolvedValue(
+        defaultInitResponse({ resumed: true, platform: "github", ...over }),
+      );
+    }
+
+    it("adopts the session's own envelope, chunk size and platform", async () => {
+      resumedInit({ chunk_size: 2048, chunk_count: 1 });
+      (getUploadStatus as Mock).mockResolvedValue({
+        session_id: "sess-1",
+        file_id: "file-1",
+        status: "active",
+        chunk_count: 1,
+        uploaded_chunks: [],
+        completed_count: 0,
+      });
+
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(getItem(id)?.status).toBe("done");
+      // The staged chunks were encrypted with the ORIGINAL key, so the adopted
+      // envelope must be unwrapped rather than our fresh CEK being used.
+      expect(unwrapKey).toHaveBeenCalled();
+    });
+
+    it("restarts on the session's own platform when the envelope is missing", async () => {
+      resumedInit({ chunk_size: 2048, chunk_count: 1 });
+      (getFileMeta as Mock).mockResolvedValue({
+        id: "file-1",
+        original_name: "a.txt",
+        original_size: 10,
+        compressed_size: 10,
+        encrypted_size: 10,
+        chunk_count: 1,
+        sha256: "hash",
+        salt: "b64:9",
+        wrapped_cek: "", // legacy/no envelope → nothing to adopt
+      });
+
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      // Restarted deliberately, on the original platform — never a silent switch.
+      expect(toast.warning).toHaveBeenCalledWith(expect.stringContaining("restarting on github"));
+      expect(cancelUpload).toHaveBeenCalled();
+      expect(getItem(id)?.status).toBe("done");
+    });
+
+    it("restarts when the old session's chunk boundaries are unrecoverable", async () => {
+      // A pre-upgrade session reports no chunk_size, and there's no persisted
+      // record to recover it from — reslicing at a guessed size would corrupt it.
+      resumedInit({ chunk_size: 0, chunk_count: 0 });
+
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(toast.warning).toHaveBeenCalledWith(expect.stringContaining("Couldn't continue"));
+      expect(getItem(id)?.status).toBe("done");
+    });
+
+    it("recovers unknown chunk boundaries from the persisted record", async () => {
+      // The server forgot the chunk size, but our own localStorage record still
+      // has it — so the session is adoptable instead of being thrown away.
+      // getUploadStatus reports the session as gone, so the cross-session resume
+      // at the top of the run declines it and we actually reach the adopt path.
+      localStorage.setItem(
+        "zc_upl:a.txt:10:1000",
+        JSON.stringify({
+          sessionId: "sess-1",
+          fileId: "file-1",
+          chunkCount: 1,
+          chunkSize: 2048,
+          directUpload: false,
+          shouldCompress: true,
+          platform: "github",
+        }),
+      );
+      (getUploadStatus as Mock).mockResolvedValue({
+        session_id: "sess-1",
+        file_id: "file-1",
+        status: "expired",
+        chunk_count: 1,
+        uploaded_chunks: [],
+        completed_count: 0,
+      });
+      resumedInit({ chunk_size: 0, chunk_count: 0 });
+
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(getItem(id)?.status).toBe("done");
+      // Adopted, not restarted — the persisted record supplied the boundaries.
+      expect(toast.warning).not.toHaveBeenCalled();
+    });
+
+    it("swallows a failing cancel of the un-adoptable session", async () => {
+      resumedInit({ chunk_size: 0, chunk_count: 0 });
+      // Best-effort cleanup — the restart must proceed regardless.
+      (cancelUpload as Mock).mockRejectedValue(new Error("already reaped"));
+
+      useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
+      const id = queueIdFor();
+      await flush();
+
+      expect(getItem(id)?.status).toBe("done");
+    });
+  });
+
 });

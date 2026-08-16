@@ -58,7 +58,12 @@ export function useTouchRangeSelect({
     scroller: null as HTMLElement | null,
   });
 
+  // Type-satisfying initial ref value only: the wiring effect below overwrites
+  // both refs on mount, before any touch can reach them, so this body is never
+  // executed. Excluded from coverage rather than contorted into being callable.
+  /* v8 ignore start */
   const noop = () => {};
+  /* v8 ignore stop */
   const onMoveRef = useRef<(e: TouchEvent) => void>(noop);
   const onEndRef = useRef<(e: TouchEvent) => void>(noop);
   const autoScroll = useRef<EdgeAutoScroll | null>(null);

@@ -89,7 +89,14 @@ export type DownloadProgressCallback = (info: {
  *  in the pipeline, failing loudly (instead of a bare `!` crashing on `undefined`
  *  access) if that invariant is ever violated. */
 function assertSet<T>(value: T | undefined, what: string): T {
+  // Unreachable by construction — every caller sits downstream of the branch
+  // that assigns the field. It exists to fail loudly rather than let a bare `!`
+  // crash on undefined access if that invariant is ever broken, so there is no
+  // legitimate way to exercise the throw. Excluded from coverage rather than
+  // deleted: the guard is worth keeping, and a test faking it would prove nothing.
+  /* v8 ignore start */
   if (value === undefined) throw new Error(`download-session: expected ${what} to be set`);
+  /* v8 ignore stop */
   return value;
 }
 
@@ -224,12 +231,19 @@ export async function downloadAndDecryptFile(
   let hasher: IncrementalHasher | undefined;
   let decryptedChunks: Uint8Array[] | undefined;
   let done: Set<number> | undefined;
+  // Chunks a previous attempt of THIS download already accounted for: the disk
+  // write high-water mark when streaming, the decrypted set otherwise. Captured
+  // inside each branch, right where that branch has just guaranteed its own
+  // resume field is set — so the readers below need no `?? 0` on a value that
+  // cannot be undefined by then.
+  let alreadyDone = 0;
   if (streaming) {
     resume.hasher ??= (await createContentHasher(
       hashScheme,
       macKey,
     )) as unknown as IncrementalHasher;
     resume.writtenCount ??= 0;
+    alreadyDone = resume.writtenCount;
     hasher = resume.hasher;
     const diskWriter = saveToDisk as DiskWritable;
     let written = resume.writtenCount;
@@ -250,6 +264,7 @@ export async function downloadAndDecryptFile(
     resume.done ??= new Set<number>();
     decryptedChunks = resume.decryptedChunks;
     done = resume.done;
+    alreadyDone = done.size;
   }
 
   // Progress is measured by chunks DECRYPTED (network + CPU work actually done),
@@ -259,12 +274,14 @@ export async function downloadAndDecryptFile(
   // freeze ("stuck at ~4%") then jump when the laggard landed. Counting decrypts
   // reflects true download progress; writtenCount stays the resume high-water
   // mark. Seeded from writtenCount so a resumed run continues the count.
-  let decryptedCount = streaming ? (resume.writtenCount ?? 0) : (resume.done?.size ?? 0);
+  let decryptedCount = alreadyDone;
 
   try {
+    // No entry guard here: the only caller is the fetcher loop below, which
+    // already checks the signal immediately before every call (and the whole
+    // pipeline is gated on it up front). The post-fetch check is the one that
+    // matters — it catches a cancel that landed while this chunk was in flight.
     const processChunk = async (index: number) => {
-      if (signal?.aborted) throw stopError();
-
       const { data, compressed } = await retryTransient(() => getFileChunk(fileId, index, signal), {
         signal,
       });
@@ -297,9 +314,7 @@ export async function downloadAndDecryptFile(
     // Only fetch what's still missing: streaming resumes at the write high-water
     // mark; in-memory skips indices already decrypted.
     const queue = streaming
-      ? Array.from({ length: meta.chunk_count }, (_, i) => i).filter(
-          (i) => i >= (resume.writtenCount ?? 0),
-        )
+      ? Array.from({ length: meta.chunk_count }, (_, i) => i).filter((i) => i >= alreadyDone)
       : Array.from({ length: meta.chunk_count }, (_, i) => i).filter(
           (i) => !assertSet(done, "done").has(i),
         );

@@ -109,13 +109,15 @@ describe("createFolderShareLink", () => {
     const res = await createFolderShareLink("root", "Root", [
       { id: "fA", folder_id: "A" }, // subfolder file → manifest dir "Alpha" (line 130/131 truthy)
       { id: "fRoot", folder_id: "root" }, // root file → dir "" (line 131 falsy)
+      { id: "fLoose", folder_id: null }, // no folder at all → folder_id ?? "" → dir ""
+      { id: "fGone", folder_id: "deleted-folder" }, // id absent from the path map → dir ""
     ]);
 
-    expect(res.shared).toBe(2);
+    expect(res.shared).toBe(4);
     expect(res.skipped).toBe(0);
     expect(res.nestingIncomplete).toBe(false); // path build succeeded
     const arg = createFolderShare.mock.calls[0][0] as { files: unknown[] };
-    expect(arg.files).toHaveLength(2);
+    expect(arg.files).toHaveLength(4);
   });
 
   it("passes folder_id as undefined when folderId is null", async () => {

@@ -453,6 +453,27 @@ describe("downloadAndDecryptFile — abort/cancel", () => {
     expect(resolveFileKey).not.toHaveBeenCalled();
   });
 
+  it("stops the next queued chunk at its own guard once an earlier chunk is cancelled", async () => {
+    // Serialize the queue so chunk 1 provably starts AFTER chunk 0 finished and
+    // aborted — the only window the per-chunk guard exists to catch.
+    getDeviceProfile.mockReturnValue({ maxConcurrentDownloads: 1 });
+    getFileMeta.mockResolvedValueOnce(baseMeta(2, "irrelevant-since-aborted"));
+    const controller = new AbortController();
+    let calls = 0;
+    getFileChunk.mockImplementation(async (_id: string, index: number) => {
+      calls++;
+      if (calls === 1) controller.abort();
+      return { data: chunkBytes(index).buffer, sha256: "", compressed: false };
+    });
+
+    await expect(
+      downloadAndDecryptFile("f1", "pw", { signal: controller.signal }),
+    ).rejects.toMatchObject({ name: "AbortError" });
+
+    // Chunk 1 never reached the network: its guard tripped first.
+    expect(calls).toBe(1);
+  });
+
   it("aborts right after key resolution", async () => {
     const controller = new AbortController();
     getFileMeta.mockResolvedValueOnce(baseMeta(1, "x"));

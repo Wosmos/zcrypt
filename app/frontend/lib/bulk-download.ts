@@ -86,8 +86,9 @@ export async function downloadAsZip(
     const MAX_CONCURRENT = Math.min(getDeviceProfile().maxConcurrentDownloads, 3);
     const chunkResults: Uint8Array[] = new Array(meta.chunk_count);
 
+    // No entry guard: runWithConcurrency re-checks the signal immediately before
+    // every worker call, so a duplicate here can never be the one that fires.
     const processChunk = async (index: number) => {
-      if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
       const { data, compressed } = await retryTransient(
         () => getFileChunk(file.fileId, index, signal),
         { signal },

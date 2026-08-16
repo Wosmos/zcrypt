@@ -166,4 +166,62 @@ describe("wake-lock", () => {
     expect(requestMock).not.toHaveBeenCalled();
     expect(isWakeLockHeld()).toBe(false);
   });
+
+  it("immediately drops a lock that arrives after the last holder already left", async () => {
+    // The request is async, so a short transfer can finish while it's still in
+    // flight. Keeping that sentinel would pin the screen awake with nothing
+    // running — the lock has to be handed straight back.
+    let grant: (s: FakeSentinel) => void = () => {};
+    const pending = new FakeSentinel();
+    requestMock.mockImplementation(
+      () => new Promise((resolve) => {
+        grant = () => resolve(pending);
+      }),
+    );
+
+    const { acquireWakeLock, releaseWakeLock, isWakeLockHeld } = await freshModule();
+    acquireWakeLock();
+    await Promise.resolve();
+    releaseWakeLock(); // refCount back to 0 while request() is still awaiting
+
+    grant(pending);
+    await vi.waitFor(() => {
+      expect(pending.release).toHaveBeenCalled();
+    });
+    expect(isWakeLockHeld()).toBe(false);
+  });
+
+  it("swallows a rejected release so a failing sentinel can't surface an unhandled rejection", async () => {
+    const { acquireWakeLock, releaseWakeLock, isWakeLockHeld } = await freshModule();
+    acquireWakeLock();
+    await Promise.resolve();
+    // Best-effort by design: the OS may already have revoked the lock.
+    sentinels[0].release.mockRejectedValueOnce(new Error("already released"));
+
+    expect(() => releaseWakeLock()).not.toThrow();
+    await Promise.resolve();
+    expect(isWakeLockHeld()).toBe(false);
+  });
+
+  it("swallows a rejected release on the drop-late-arrival path too", async () => {
+    const pending = new FakeSentinel();
+    pending.release.mockRejectedValueOnce(new Error("already released"));
+    let grant: () => void = () => {};
+    requestMock.mockImplementation(
+      () => new Promise((resolve) => {
+        grant = () => resolve(pending);
+      }),
+    );
+
+    const { acquireWakeLock, releaseWakeLock, isWakeLockHeld } = await freshModule();
+    acquireWakeLock();
+    await Promise.resolve();
+    releaseWakeLock();
+    grant();
+
+    await vi.waitFor(() => {
+      expect(pending.release).toHaveBeenCalled();
+    });
+    expect(isWakeLockHeld()).toBe(false);
+  });
 });

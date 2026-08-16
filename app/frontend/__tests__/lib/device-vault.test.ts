@@ -90,4 +90,48 @@ describe("device-vault", () => {
     await expect(clearPersistedPassphrase()).resolves.toBeUndefined();
     globalThis.indexedDB = saved;
   });
+
+  it("returns null when the store read itself errors", async () => {
+    // fake-indexeddb has no way to fail an individual request, so stand in a
+    // minimal IDB whose read rejects — the caller must degrade to "not stored"
+    // rather than propagate, or an unreadable vault would break unlock entirely.
+    const failingRequest = () => {
+      const req = { error: new Error("read failed") } as unknown as IDBRequest & {
+        onerror?: () => void;
+      };
+      setTimeout(() => req.onerror?.(), 0);
+      return req;
+    };
+    const db = {
+      transaction: () => ({ objectStore: () => ({ get: failingRequest }) }),
+      close: () => {},
+    };
+    const saved = globalThis.indexedDB;
+    globalThis.indexedDB = {
+      open: () => {
+        const req = { result: db } as unknown as IDBOpenDBRequest & { onsuccess?: () => void };
+        setTimeout(() => req.onsuccess?.(), 0);
+        return req;
+      },
+    } as unknown as IDBFactory;
+
+    expect(await loadPassphrase()).toBeNull();
+    globalThis.indexedDB = saved;
+  });
+
+  it("returns null when opening the database errors", async () => {
+    const saved = globalThis.indexedDB;
+    globalThis.indexedDB = {
+      open: () => {
+        const req = { error: new Error("blocked") } as unknown as IDBOpenDBRequest & {
+          onerror?: () => void;
+        };
+        setTimeout(() => req.onerror?.(), 0);
+        return req;
+      },
+    } as unknown as IDBFactory;
+
+    expect(await loadPassphrase()).toBeNull();
+    globalThis.indexedDB = saved;
+  });
 });

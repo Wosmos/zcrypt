@@ -117,6 +117,25 @@ describe("shareFetchRetry (via getFolderShareFileMeta)", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it("still retries a 429 when draining the throttled body fails", async () => {
+    vi.useFakeTimers();
+    // The body is drained only to free the connection; a torn stream there must
+    // not abort the retry that the 429 is specifically telling us to make.
+    const undrainable = {
+      ...res429("1"),
+      arrayBuffer: async () => {
+        throw new TypeError("stream closed");
+      },
+    };
+    fetchMock.mockResolvedValueOnce(undrainable).mockResolvedValueOnce(jsonRes({ id: "ok3" }));
+
+    const p = getFolderShareFileMeta("tok", "f1");
+    await vi.advanceTimersByTimeAsync(2000);
+
+    await expect(p).resolves.toEqual({ id: "ok3" });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("retries a 429 without Retry-After using exponential backoff", async () => {
     vi.useFakeTimers();
     fetchMock.mockResolvedValueOnce(res429()).mockResolvedValueOnce(jsonRes({ id: "ok2" }));

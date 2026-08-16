@@ -179,12 +179,17 @@ export function parseAssets(assets: RawAsset[], tag: string, htmlUrl: string): R
 
   // CLI/TUI binaries (GoReleaser): zcrypt_<ver>_<os>_<arch>.(tar.gz|zip)
   const cliRe = /_(darwin|linux|windows)_(amd64|arm64)\.(tar\.gz|zip)$/;
+  // Mirrors cliRe's arch group — see archName below.
+  type CliArch = "amd64" | "arm64";
   const osName: Record<string, CliBinary["os"]> = {
     darwin: "macOS",
     linux: "Linux",
     windows: "Windows",
   };
-  const archName: Record<string, string> = {
+  // Closed key set, matching cliRe's arch group exactly — so the lookup below is
+  // total and needs no runtime fallback. Widening cliRe without adding the arch
+  // here is a compile error rather than a raw "386" leaking into the UI.
+  const archName: Record<CliArch, string> = {
     amd64: "x64",
     arm64: "ARM64",
   };
@@ -198,7 +203,7 @@ export function parseAssets(assets: RawAsset[], tag: string, htmlUrl: string): R
           ? m[2] === "arm64"
             ? "Apple Silicon"
             : "Intel"
-          : (archName[m[2]] ?? m[2]);
+          : archName[m[2] as CliArch];
       return { os, arch, href: a.browser_download_url };
     })
     .filter(Boolean) as CliBinary[];

@@ -307,7 +307,11 @@ export async function directUploadToURL(
   onProgress?: (sentBytes: number) => void,
   signal?: AbortSignal,
 ): Promise<void> {
-  let lastError: Error | null = null;
+  // Seeded with the give-up message rather than null: every iteration either
+  // returns, throws, or overwrites this, so the initial value only ever surfaces
+  // if the loop somehow ran zero times — and keeping it non-nullable means the
+  // throw below needs no fallback branch that can never be taken.
+  let lastError: Error = new Error("Direct upload failed after retries");
   for (let attempt = 0; attempt < 3; attempt++) {
     // A pause/cancel abort must stop the internal retry loop immediately —
     // never re-send a chunk the user just paused.
@@ -331,7 +335,7 @@ export async function directUploadToURL(
     }
     await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
   }
-  throw lastError || new Error("Direct upload failed after retries");
+  throw lastError;
 }
 
 /** POST /api/upload/{sid}/confirm/{idx} — confirm a directly-uploaded chunk. */

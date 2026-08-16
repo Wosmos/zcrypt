@@ -37,6 +37,7 @@ vi.mock("@/lib/auth-fetch", () => ({ tryRefreshToken, authedFetch }));
 import {
   getConfig,
   getFileChunk,
+  bulkRestoreFiles,
   listFiles,
   deleteFile,
   bulkDeleteFiles,
@@ -152,6 +153,41 @@ describe("api request core", () => {
     fetchMock.mockRejectedValueOnce(new Error("network down"));
     await expect(getConfig()).rejects.toThrow("network down");
   });
+
+  it("aborts a request that hangs past the 30s ceiling", async () => {
+    vi.useFakeTimers();
+    // A real fetch rejects with AbortError when its signal fires; mirror that so
+    // the self-imposed timeout is actually observable.
+    fetchMock.mockImplementation(
+      (_url: string, init: RequestInit) =>
+        new Promise((_resolve, reject) => {
+          init.signal?.addEventListener("abort", () =>
+            reject(new DOMException("aborted", "AbortError")),
+          );
+        }),
+    );
+
+    const pending = getConfig();
+    const assertion = expect(pending).rejects.toThrow("Request timed out");
+    await vi.advanceTimersByTimeAsync(30_000);
+    await assertion;
+    vi.useRealTimers();
+  });
+});
+
+describe("bulkRestoreFiles", () => {
+  it("restores many files in ONE request instead of a per-file fan-out", async () => {
+    fetchMock.mockResolvedValueOnce(resp(200, { restored: 3, failed: 1 }));
+
+    const out = await bulkRestoreFiles(["a", "b", "c", "d"]);
+
+    expect(out).toEqual({ restored: 3, failed: 1 });
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toContain("/api/files/bulk-restore");
+    expect(init.method).toBe("POST");
+    expect((init.headers as Record<string, string>)["Content-Type"]).toBe("application/json");
+    expect(JSON.parse(init.body as string)).toEqual({ ids: ["a", "b", "c", "d"] });
+  });
 });
 
 describe("getFileChunk (custom download path)", () => {
@@ -224,6 +260,37 @@ describe("getFileChunk (custom download path)", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect((fetchMock.mock.calls[1][1].headers as Record<string, string>).Authorization).toBe("Bearer fresh-tok");
     expect(new Uint8Array(out.data)).toEqual(new Uint8Array([9]));
+  });
+
+  it("aborts a chunk that stalls past the 90s ceiling", async () => {
+    vi.useFakeTimers();
+    fetchMock.mockImplementation(
+      (_url: string, init: RequestInit) =>
+        new Promise((_resolve, reject) => {
+          init.signal?.addEventListener("abort", () =>
+            reject(new DOMException("aborted", "AbortError")),
+          );
+        }),
+    );
+
+    // The timer stays alive through the body read, so a mid-download stall
+    // aborts too — not just a stalled response head.
+    const pending = getFileChunk("f", 7);
+    const assertion = expect(pending).rejects.toThrow("chunk 7 download timed out");
+    await vi.advanceTimersByTimeAsync(90_000);
+    await assertion;
+    vi.useRealTimers();
+  });
+
+  it("keeps a caller's cancel as an AbortError instead of relabelling it a timeout", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    fetchMock.mockRejectedValueOnce(new DOMException("aborted", "AbortError"));
+
+    // The distinction matters: the download pipeline treats "timed out" as
+    // transient (retry) but an AbortError as a deliberate stop (pause/cancel).
+    // Collapsing the two made a paused download resume itself.
+    await expect(getFileChunk("f", 0, controller.signal)).rejects.toBeInstanceOf(DOMException);
   });
 });
 

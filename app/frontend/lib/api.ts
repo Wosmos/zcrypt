@@ -64,10 +64,13 @@ async function request<T>(path: string, options?: RequestInit, retries = 2): Pro
     headers["Authorization"] = `Bearer ${accessToken}`;
   }
 
-  // Timeout: use caller's signal or default 30s
-  const controller = options?.signal ? undefined : new AbortController();
-  const timeoutId = controller ? setTimeout(() => controller.abort(), 30_000) : undefined;
-  const signal = options?.signal ?? controller?.signal;
+  // Timeout: use the caller's signal if it supplied one, else bound the fetch
+  // ourselves at 30s. The timer is created unconditionally (and always cleared
+  // below) — when a caller signal is in play the controller's own signal is
+  // simply never wired to the fetch, so its abort is inert.
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30_000);
+  const signal = options?.signal ?? controller.signal;
 
   let res: Response;
   try {
@@ -77,13 +80,12 @@ async function request<T>(path: string, options?: RequestInit, retries = 2): Pro
       signal,
     });
   } catch (err) {
-    if (timeoutId) clearTimeout(timeoutId);
     if (err instanceof DOMException && err.name === "AbortError") {
       throw new Error("Request timed out");
     }
     throw err;
   } finally {
-    if (timeoutId) clearTimeout(timeoutId);
+    clearTimeout(timeoutId);
   }
 
   // On 401, try refreshing the token and retry once
