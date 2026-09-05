@@ -1,6 +1,5 @@
 "use client";
 
-import { useTheme } from "@/components/providers/theme-provider";
 import { useEffect, useState } from "react";
 
 const CIRCUITS = [
@@ -266,7 +265,6 @@ const CIRCUITS = [
 ];
 
 export function CircuitBackground() {
-  const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -275,10 +273,11 @@ export function CircuitBackground() {
 
   if (!mounted) return null;
 
-  const isDark = resolvedTheme === "dark";
-
+  // Colors come from --circuit-* vars (light/dark in globals.css) so a theme
+  // flip never re-renders this SVG — the View Transition in the theme provider
+  // covers the color change, hence no transition-colors on the wrapper either.
   return (
-    <div className="fixed inset-0 -z-50 overflow-hidden pointer-events-none bg-[var(--color-bg)] transition-colors duration-500">
+    <div className="fixed inset-0 -z-50 overflow-hidden pointer-events-none bg-[var(--color-bg)]">
       <svg
         className="absolute inset-0 w-full h-full opacity-50 dark:opacity-60"
         viewBox="0 0 1200 800"
@@ -287,7 +286,7 @@ export function CircuitBackground() {
       >
         {/* Faint background static traces */}
         <g
-          stroke={isDark ? "rgba(0,213,228,0.12)" : "rgba(0,147,163,0.15)"}
+          stroke="var(--circuit-trace)"
           fill="none"
           strokeWidth="1.5"
           strokeLinejoin="round"
@@ -302,7 +301,7 @@ export function CircuitBackground() {
                   cx={end[0]}
                   cy={end[1]}
                   r="3"
-                  fill={isDark ? "rgba(0,213,228,0.12)" : "rgba(0,147,163,0.15)"}
+                  fill="var(--circuit-trace)"
                   stroke="none"
                 />
               ))}
@@ -312,7 +311,7 @@ export function CircuitBackground() {
 
         {/* Animated flowing pulses - Removed Heavy SVG Blur Filter, heavily reduced stroke width & opacity */}
         <g
-          stroke={isDark ? "rgba(0,213,228,0.45)" : "rgba(0,147,163,0.4)"}
+          stroke="var(--circuit-pulse)"
           fill="none"
           strokeWidth="2"
           strokeLinejoin="round"
@@ -352,9 +351,8 @@ export function CircuitBackground() {
       <div
         className="absolute inset-0"
         style={{
-          background: isDark
-            ? "radial-gradient(ellipse at center, transparent 30%, var(--color-bg) 90%)"
-            : "radial-gradient(ellipse at center, transparent 30%, rgba(240,245,255,0.98) 90%)",
+          background:
+            "radial-gradient(ellipse at center, transparent 30%, var(--circuit-vignette-edge) 90%)",
         }}
       />
     </div>

@@ -6,9 +6,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * Light/dark toggle. The button itself reads as the mode — sun and moon
- * crossfade with a rotate/scale swap — and the page reveal (a circle growing
- * from this button) is seeded by passing the click event straight through to
- * toggleTheme, so the origin is exactly the button's center.
+ * crossfade with a rotate/scale swap; the page flip itself is instant.
  */
 export function ThemeToggle({ className }: { className?: string }) {
   const { resolvedTheme, toggleTheme } = useTheme();
