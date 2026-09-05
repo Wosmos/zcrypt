@@ -21,6 +21,19 @@
 
 set -uo pipefail
 
+# Git hooks — and any push started from a GUI client — run under a shell that
+# never sources ~/.zshrc, so the user toolchains are off PATH and every gate
+# dies with "bun: command not found". Re-add the standard install locations.
+for _toolbin in "$HOME/.bun/bin" "$HOME/.cargo/bin" "$HOME/go/bin" \
+  /opt/homebrew/bin /usr/local/bin /usr/local/go/bin; do
+  case ":$PATH:" in
+    *":$_toolbin:"*) ;;
+    *) [ -d "$_toolbin" ] && PATH="$_toolbin:$PATH" ;;
+  esac
+done
+unset _toolbin
+export PATH
+
 # Flags (combinable):
 #   --gates-only  skips the advisory INSPECT scans (knip/jscpd/golangci). They
 #                 never block, so the pre-push hook runs in this fast mode; a
