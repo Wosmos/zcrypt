@@ -116,7 +116,7 @@ describe("multi-chunk pipeline simulation", () => {
 
     const decrypted = await decryptChunk(key, encrypted);
     expect(decrypted).toEqual(chunk);
-  }, 15000);
+  });
 
   it("sha256 integrity check catches single-bit corruption", async () => {
     const salt = generateSalt();
