@@ -46,7 +46,7 @@ Clients                         Backend (Go / Railway)          Storage
 | ----------- | ------------------------------------------------------------------ |
 | Frontend    | Next.js 16, React 19, TypeScript, Tailwind, Zustand 5, motion 12    |
 | Icons       | Hugeicons (barrel at `app/frontend/lib/icons.tsx`)                  |
-| Backend     | Go 1.25 (`toolchain go1.25.12`), stdlib `net/http`, pgxpool         |
+| Backend     | Go 1.25 (`toolchain go1.25.14`), stdlib `net/http`, pgxpool         |
 | Database    | PostgreSQL on Neon; raw SQL, no ORM; UUID PKs (`gen_random_uuid()`) |
 | Crypto      | AES-256-GCM, PBKDF2-SHA256 (600k), HKDF per-user KEK, X25519 ECIES  |
 | Compression | zstd — client-side in the browser                                   |
