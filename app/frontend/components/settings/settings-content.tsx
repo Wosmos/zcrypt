@@ -208,7 +208,7 @@ export function SettingsContent() {
       await storeDesktopPlatformCreds(platform, trimmed, res.username);
       toast.success(`${platformName(platform)} connected!`);
       setTokens((prev) => ({ ...prev, [platform]: "" }));
-      refresh();
+      void refresh();
       return true;
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Connection failed");
@@ -231,7 +231,7 @@ export function SettingsContent() {
       await clearDesktopPlatformCreds(platform);
       toast.success(`${platformName(platform)} @${username} disconnected`);
       setDisconnectTarget(null);
-      refresh();
+      void refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Disconnect failed");
     } finally {
@@ -245,7 +245,7 @@ export function SettingsContent() {
     setScopeOverrides((prev) => ({ ...prev, [tokenId]: newScope }));
     try {
       await toggleTokenScope(tokenId, newScope);
-      refresh();
+      void refresh();
     } catch (err) {
       setScopeOverrides((prev) => {
         const next = { ...prev };
