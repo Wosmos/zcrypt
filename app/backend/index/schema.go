@@ -348,6 +348,13 @@ ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS user_agent TEXT NOT NULL DEF
 -- Token version for JWT revocation
 ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0;
 
+-- Editable profile. Kept separate from the username, which is an identity
+-- handle that public-key lookup resolves by (see key_queries.go) and is
+-- therefore immutable. avatar_url holds a small self-contained data: URI, so
+-- avatars need no object storage and no extra request to render.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name TEXT NOT NULL DEFAULT '';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT NOT NULL DEFAULT '';
+
 -- TOTP replay protection: the last accepted time-step counter (RFC 6238 §5.2).
 -- A code is one-time-use — verification only succeeds if its counter is
 -- strictly greater than this value.

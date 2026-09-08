@@ -1,14 +1,20 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"image"
+	_ "image/jpeg"
+	_ "image/png"
 	"log"
 	"net/http"
 	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 	"github.com/zcrypt/zcrypt/auth"
@@ -1030,6 +1036,200 @@ func (s *Server) HandleGetMe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, user)
+}
+
+// Avatar limits. The client downscales and re-encodes before upload, so a
+// legitimate avatar lands well under these; anything bigger is a client bug or
+// an abuse attempt. The value is stored inline in the users row and returned
+// with every /api/auth/me, so it is kept deliberately small.
+const (
+	maxAvatarBytes  = 128 * 1024 // the whole data: URI, base64 included
+	maxAvatarPixels = 512        // guards against a decompression bomb
+)
+
+// avatarMIMEs is an allowlist of raster formats the stdlib can also decode, so
+// a declared type is always verifiable. SVG is excluded on purpose: it is a
+// script-bearing document, and allowing it would turn the avatar field into
+// stored content served back to the account owner.
+var avatarMIMEs = map[string]struct{}{
+	"image/jpeg": {},
+	"image/png":  {},
+}
+
+// validateAvatar checks that the value is a small, self-contained raster image
+// data URI whose bytes really do decode as that image.
+func validateAvatar(uri string) error {
+	if len(uri) > maxAvatarBytes {
+		return fmt.Errorf("avatar is too large (max %d KB)", maxAvatarBytes/1024)
+	}
+	rest, ok := strings.CutPrefix(uri, "data:")
+	if !ok {
+		return fmt.Errorf("avatar must be an image data URI")
+	}
+	meta, b64, ok := strings.Cut(rest, ",")
+	if !ok || !strings.HasSuffix(meta, ";base64") {
+		return fmt.Errorf("avatar must be a base64 image data URI")
+	}
+	mime := strings.TrimSuffix(meta, ";base64")
+	if _, allowed := avatarMIMEs[mime]; !allowed {
+		return fmt.Errorf("avatar must be a JPEG or PNG image")
+	}
+	raw, err := base64.StdEncoding.DecodeString(b64)
+	if err != nil {
+		return fmt.Errorf("avatar is not valid base64")
+	}
+	// Decode only the header: confirms the bytes match a real image of the
+	// claimed type and exposes the dimensions without allocating the pixels.
+	cfg, format, err := image.DecodeConfig(bytes.NewReader(raw))
+	if err != nil {
+		return fmt.Errorf("avatar is not a readable image")
+	}
+	if "image/"+format != mime {
+		return fmt.Errorf("avatar content does not match its declared type")
+	}
+	if cfg.Width > maxAvatarPixels || cfg.Height > maxAvatarPixels {
+		return fmt.Errorf("avatar must be %dx%d or smaller", maxAvatarPixels, maxAvatarPixels)
+	}
+	return nil
+}
+
+// HandleUpdateProfile updates the caller's display name and avatar.
+// PATCH /api/auth/profile
+//
+// Username and email are deliberately not editable here: username is the
+// handle /api/keys/lookup resolves public keys by, so letting it change (and
+// freeing the old one for someone else to claim) would let a third party
+// inherit share lookups meant for the original owner.
+func (s *Server) HandleUpdateProfile(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID := GetUserID(r)
+
+	var req struct {
+		DisplayName string `json:"display_name"`
+		AvatarURL   string `json:"avatar_url"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+		return
+	}
+
+	req.DisplayName = strings.TrimSpace(req.DisplayName)
+	if utf8.RuneCountInString(req.DisplayName) > 64 {
+		http.Error(w, `{"error":"display name must be 64 characters or fewer"}`, http.StatusBadRequest)
+		return
+	}
+
+	// Only self-contained raster data URIs. An off-site URL would leak every
+	// viewer's IP to a third party and let its owner swap the content later.
+	req.AvatarURL = strings.TrimSpace(req.AvatarURL)
+	if req.AvatarURL != "" {
+		if err := validateAvatar(req.AvatarURL); err != nil {
+			http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusBadRequest)
+			return
+		}
+	}
+
+	if err := s.db.UpdateUserProfile(ctx, userID, req.DisplayName, req.AvatarURL); err != nil {
+		log.Printf("profile: update: %v", err)
+		http.Error(w, `{"error":"failed to update profile"}`, http.StatusInternalServerError)
+		return
+	}
+
+	user, err := s.db.GetUserByID(ctx, userID)
+	if err != nil {
+		http.Error(w, `{"error":"user not found"}`, http.StatusNotFound)
+		return
+	}
+
+	s.audit(r, &userID, "profile_update", map[string]interface{}{
+		"display_name_set": req.DisplayName != "",
+		"avatar_set":       req.AvatarURL != "",
+	})
+
+	writeJSON(w, http.StatusOK, user)
+}
+
+// HandleChangePassword changes the caller's password after re-verifying the
+// current one. POST /api/auth/change-password
+func (s *Server) HandleChangePassword(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID := GetUserID(r)
+
+	// Same limiter as the other auth writes: this endpoint verifies a password,
+	// so it is an online guessing target even behind a valid session.
+	if !s.devMode && !s.authLimiter.allow(s.clientIP(r)) {
+		http.Error(w, `{"error":"too many attempts, please try again later"}`, http.StatusTooManyRequests)
+		return
+	}
+
+	var req struct {
+		CurrentPassword string `json:"current_password"`
+		NewPassword     string `json:"new_password"`
+		Force           bool   `json:"force"` // bypass breach warning
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+		return
+	}
+
+	user, err := s.db.GetUserByID(ctx, userID)
+	if err != nil {
+		http.Error(w, `{"error":"user not found"}`, http.StatusNotFound)
+		return
+	}
+
+	if err := auth.CheckPassword(req.CurrentPassword, user.PasswordHash); err != nil {
+		s.audit(r, &userID, "password_change_failed", nil)
+		http.Error(w, `{"error":"current password is incorrect"}`, http.StatusUnauthorized)
+		return
+	}
+
+	if err := validatePassword(req.NewPassword); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusBadRequest)
+		return
+	}
+
+	if req.NewPassword == req.CurrentPassword {
+		http.Error(w, `{"error":"new password must differ from the current one"}`, http.StatusBadRequest)
+		return
+	}
+
+	if !req.Force {
+		if breachCount, _ := auth.CheckPasswordBreach(req.NewPassword); breachCount > 0 {
+			writeJSON(w, http.StatusOK, map[string]interface{}{
+				"warning":      fmt.Sprintf("This password has appeared in %d data breach(es). Consider using a different password.", breachCount),
+				"breach_count": breachCount,
+				"requires":     "force",
+			})
+			return
+		}
+	}
+
+	passwordHash, err := auth.HashPassword(req.NewPassword)
+	if err != nil {
+		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
+		return
+	}
+	if err := s.db.UpdateUserPassword(ctx, userID, passwordHash); err != nil {
+		log.Printf("profile: change password: %v", err)
+		http.Error(w, `{"error":"failed to change password"}`, http.StatusInternalServerError)
+		return
+	}
+
+	// A password change must log out every other session. Bumping the token
+	// version invalidates all outstanding JWTs, and the refresh tokens are
+	// deleted so nothing can mint a new one.
+	if err := s.db.IncrementTokenVersion(ctx, userID); err != nil {
+		log.Printf("profile: bump token version: %v", err)
+	}
+	s.tokenVersions.invalidate(userID) // drop cache so revocation is immediate
+	if err := s.db.DeleteRefreshTokensByUser(ctx, userID); err != nil {
+		log.Printf("profile: clear refresh tokens: %v", err)
+	}
+
+	s.audit(r, &userID, "password_changed", nil)
+
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
 // HandleMagicLinkRequest sends a magic link login email.

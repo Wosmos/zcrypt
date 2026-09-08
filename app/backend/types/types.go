@@ -209,6 +209,8 @@ type User struct {
 	ID            string    `json:"id"`
 	Email         string    `json:"email"`
 	Username      string    `json:"username"`
+	DisplayName   string    `json:"display_name"`
+	AvatarURL     string    `json:"avatar_url"`
 	PasswordHash  string    `json:"-"`
 	EmailVerified bool      `json:"email_verified"`
 	TOTPSecret    string    `json:"-"`

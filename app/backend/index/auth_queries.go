@@ -35,7 +35,7 @@ func (db *DB) CreateUser(ctx context.Context, u *types.User) error {
 // GetUserByEmail retrieves a user by email.
 func (db *DB) GetUserByEmail(ctx context.Context, email string) (*types.User, error) {
 	return db.scanUser(ctx,
-		`SELECT id, email, username, password_hash, email_verified, totp_secret, totp_enabled, role, plan, storage_quota_bytes, COALESCE(token_version, 0), created_at, updated_at
+		`SELECT id, email, username, display_name, avatar_url, password_hash, email_verified, totp_secret, totp_enabled, role, plan, storage_quota_bytes, COALESCE(token_version, 0), created_at, updated_at
 		 FROM users WHERE email = $1`, email,
 	)
 }
@@ -43,7 +43,7 @@ func (db *DB) GetUserByEmail(ctx context.Context, email string) (*types.User, er
 // GetUserByID retrieves a user by ID.
 func (db *DB) GetUserByID(ctx context.Context, id string) (*types.User, error) {
 	return db.scanUser(ctx,
-		`SELECT id, email, username, password_hash, email_verified, totp_secret, totp_enabled, role, plan, storage_quota_bytes, COALESCE(token_version, 0), created_at, updated_at
+		`SELECT id, email, username, display_name, avatar_url, password_hash, email_verified, totp_secret, totp_enabled, role, plan, storage_quota_bytes, COALESCE(token_version, 0), created_at, updated_at
 		 FROM users WHERE id = $1`, id,
 	)
 }
@@ -51,7 +51,7 @@ func (db *DB) GetUserByID(ctx context.Context, id string) (*types.User, error) {
 // GetUserByUsername retrieves a user by username.
 func (db *DB) GetUserByUsername(ctx context.Context, username string) (*types.User, error) {
 	return db.scanUser(ctx,
-		`SELECT id, email, username, password_hash, email_verified, totp_secret, totp_enabled, role, plan, storage_quota_bytes, COALESCE(token_version, 0), created_at, updated_at
+		`SELECT id, email, username, display_name, avatar_url, password_hash, email_verified, totp_secret, totp_enabled, role, plan, storage_quota_bytes, COALESCE(token_version, 0), created_at, updated_at
 		 FROM users WHERE username = $1`, username,
 	)
 }
@@ -59,7 +59,7 @@ func (db *DB) GetUserByUsername(ctx context.Context, username string) (*types.Us
 func (db *DB) scanUser(ctx context.Context, query string, args ...interface{}) (*types.User, error) {
 	row := db.pool.QueryRow(ctx, query, args...)
 	u := &types.User{}
-	err := row.Scan(&u.ID, &u.Email, &u.Username, &u.PasswordHash,
+	err := row.Scan(&u.ID, &u.Email, &u.Username, &u.DisplayName, &u.AvatarURL, &u.PasswordHash,
 		&u.EmailVerified, &u.TOTPSecret, &u.TOTPEnabled, &u.Role, &u.Plan, &u.StorageQuota, &u.TokenVersion, &u.CreatedAt, &u.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("get user: %w", err)
@@ -85,6 +85,15 @@ func (db *DB) GetUserCount(ctx context.Context) (int, error) {
 func (db *DB) SetEmailVerified(ctx context.Context, userID string) error {
 	_, err := db.pool.Exec(ctx,
 		`UPDATE users SET email_verified = TRUE, updated_at = NOW() WHERE id = $1`, userID,
+	)
+	return err
+}
+
+// UpdateUserProfile updates the editable profile fields.
+func (db *DB) UpdateUserProfile(ctx context.Context, userID, displayName, avatarURL string) error {
+	_, err := db.pool.Exec(ctx,
+		`UPDATE users SET display_name = $1, avatar_url = $2, updated_at = NOW() WHERE id = $3`,
+		displayName, avatarURL, userID,
 	)
 	return err
 }

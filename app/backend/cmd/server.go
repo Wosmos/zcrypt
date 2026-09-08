@@ -619,6 +619,8 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/auth/2fa/disable", maxJSON(s.AuthMiddleware(s.Handle2FADisable)))
 	mux.HandleFunc("POST /api/auth/2fa/backup-codes", maxJSON(s.AuthMiddleware(s.Handle2FARegenerateBackupCodes)))
 	mux.HandleFunc("GET /api/auth/me", s.AuthMiddleware(s.HandleGetMe))
+	mux.HandleFunc("PATCH /api/auth/profile", s.AuthMiddleware(s.HandleUpdateProfile))
+	mux.HandleFunc("POST /api/auth/change-password", s.AuthMiddleware(s.HandleChangePassword))
 	mux.HandleFunc("GET /api/auth/activity", s.AdminMiddleware(s.HandleUserActivity))
 	mux.HandleFunc("GET /api/auth/linked-accounts", s.AuthMiddleware(s.HandleLinkedAccounts))
 	mux.HandleFunc("DELETE /api/auth/linked-accounts/{provider}", s.AuthMiddleware(s.HandleUnlinkAccount))
