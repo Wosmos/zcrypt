@@ -109,10 +109,19 @@ const nextConfig: NextConfig = {
           destination: "https://raw.githubusercontent.com/Wosmos/zcrypt/main/scripts/install.sh",
         },
       ];
-      if (process.env.NODE_ENV === "development") {
+      // Same-origin API proxy. In dev this points at the local backend. In
+      // production it makes www.zcrypt.cloud/api/* a STABLE front for the
+      // backend: native desktop/Android builds bake this hostname (which we
+      // own) instead of a Railway-generated one, so when the backend moves the
+      // fix is a Vercel env change + redeploy — never a rebuild of shipped
+      // apps. (The web app itself keeps calling NEXT_PUBLIC_API_URL directly;
+      // WebSocket upgrades are not proxied by rewrites, so the web transfer
+      // tool also stays on the direct origin.)
+      const upstream = process.env.NODE_ENV === "development" ? "http://localhost:8080" : apiUrl;
+      if (upstream) {
         rules.push({
           source: "/api/:path*",
-          destination: "http://localhost:8080/api/:path*",
+          destination: `${upstream.replace(/\/$/, "")}/api/:path*`,
         });
       }
       return rules;
