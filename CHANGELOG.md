@@ -6,41 +6,239 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## [0.2.0] - 2026-07-13
+## [0.1.4] - 2026-09-05
 
 ### Added
 
-- Custom theme — pick your own accent, canvas, and background
-- Per-card customization — icon, color, and background for files and folders,
-  stored as an opaque encrypted style
+- Dedicated Insights dashboard
+- Make breadcrumb drop targets visible during drag
+- Guided connect with auto-detected chat ID
+- Folder details drawer + Apple-style name truncation + explorer refresh
+- App shell polish — top bar, sidebar, dropdowns, toasts, dark palette
+- Reusable hero component + nav and download refresh
+- Docs footer + sidebar and layout refresh
+- Per-device color themes, squircle corners, macOS-style folders
+- MacOS-style file icons, image+video thumbnails, lazy loading
+- CSP (Report-Only) + per-user X25519 keypairs for ZK sharing
+- P2 — per-member key grants + ECIES sealed-box for ZK sharing
+- Wire shared-vaults UI to end-to-end key grants
+- P3 backend — member file access + CEK re-wrap under space key
+- Expose shared-file list with space-wrapped CEKs in vault detail
+- Client lib for sharing + downloading files in a space
+- File management UI in shared vaults — add, download, remove
+- Show member key fingerprints for out-of-band verification
+- Optional per-space size limit with server-side enforcement
+- Dedicated /spaces destination + nav entry
+- P5 backend — space-key rotation for true revocation
+- P5 frontend — auto re-key on member removal + manual Re-key
+- Backend for public folder links
+- Shareable folders via public link (frontend)
+- Rework the vault UI for phones
+- Resume a partial upload across page reloads
+- Unfinished-uploads section (resume / discard)
+- Stream large downloads to disk (true 25GB support)
+- Throttle platform pushes to stay under rate caps (GitHub ~7GB/hr)
+- Pause / resume / retry-continue parity with uploads
+- Direction cue + progress sheen so active transfers read clearly
+- 3D-deck notification design with a11y hardening
+- Route-accurate loading skeletons and refined shimmer
+- Unify broad audio/video format detection
+- Player overhaul — aspect, audio skin, drawer, transport
+- Relabel tools and correct copy to match behavior
+- Created date in get-info, deleted-on in trash, folder share-link history
+- About page, wosmo branding assets, footer + json-ld
+- One nested .zip download via subtree endpoint
+- Deadpan maker voice + wire About into nav
+- Block duplicate sibling folder names
+- Show storage platform in the get-info drawer
+- Harden verification, encrypt secrets at rest, add backup codes
+- Cap single files at 10 GB
+- Tamper-evident audit log + re-auth friction on destructive ops
+- Per-user keyed content hash — close the confirmation-of-file leak
+- Encrypt file names — server stores only opaque ciphertext
+- Mask size + upload time on public share/send endpoints
+- Hold a screen wake lock during uploads + auto-resume after interruption
+- Calibrate the tuning tier with a crypto micro-benchmark
+- Auto-resume interrupted downloads on tab return / reconnect
+- Polish mobile file grid + gallery-style drag-to-select
+- DB-driven batch commit + single-commit delete for HuggingFace
 - First-time passphrase warning before unlocking a fresh vault
-- Deleted Files and Device Transfer surfaced across mobile nav and the command palette
-- Auto-resume for interrupted downloads on tab return / reconnect
-- Device tuning tier calibrated with a crypto micro-benchmark
-- Mobile file-grid polish with gallery-style drag-to-select
+- Expose Deleted Files and Device Transfer across mobile nav and command palette
+- Store opaque encrypted style for files and folders
+- Customizable icon, color, and background for cards
+- Custom theme with your own accent, canvas, and background
+- Generate a descriptive llms.txt (and /llm.txt) + tighten robots
+- Surface styles, themed folder shapes, and light/dark custom themes
+- Make surface styles a true design language, not a card reskin
+- Carry a per-file wrapped name for shared-vault files
+- Pick files to add into a shared space
+- Cross-implementation conformance vectors + normative format spec
+- Scaffold zcrypt-core with conformance-proven crypto + zstd
+- Port platform adapters + client architecture to zcrypt-core
+- Replace the Go sidecar with in-process zcrypt-core commands
+- Live cross-device file events on the web + desktop architecture doc
+- Port the pipeline engines + local ledger + control-plane API
+- Port the HuggingFace LFS adapter
+- Byos-direct control plane + cross-device change feed
+- Client-side delete engine + own-token credential provider
+- Byos-direct delete — metadata-only purge + locator contract
+- Keychain creds provider + delete_file command
+- Byos-direct download — fetch chunks from the user's own storage
+- Byos-direct upload — push chunks to the user's own storage
+- Emit cross-device file event on move
+- Launch-at-login (autostart) + folder-watch dep
+- Folder-watch backup agent + backup notifications
+- MacOS Touch ID unlock + gate desktop-only APIs for mobile builds
+- Touch ID unlock button + Android sideload download page
+- Mark the Android sideload build as Beta
+- Bigger QR + Download/Copy-link actions, trimmed copy
+- Decrypt_to_memory engine + shared acquire_chunk
+- Route thumbnails/preview/viewer through the core on desktop
+- Retry byos-direct chunk push before failing
+- Permanently delete via the core on desktop
+- Shared-space download/decrypt via an already-resolved key
+- Route shared-space download through the core
+- Zeroize key material after last use
+- Inactivity auto-lock for the cached passphrase
+- Bulk_download engine — N files streamed into one ZIP
+- Bulk ZIP download through the core
+- Parallel streaming upload engine + upload/sync hardening
+- Route desktop uploads through the streaming core
+- Docs overhaul — tree sidebar, site-wide search, new pages
+- Animated theme toggle and smoother switch transition
+- Client-facing repo deactivate endpoint for pool rotation
+- Cooperative cancellation for foreground transfers
+- Wire client repo rotation to the deactivate endpoint
+- Cancellable transfers via cancel_transfer command
+- Wire desktop transfer cancellation to Cancel
+- Type-aware promise-safety lint as ratcheted inspect scan
+- Nightly encrypted offsite Neon backup
+- Fully automated Neon quota rotation with health-gated cutover
+- Nudge search engines to recrawl after content deploys
 
 ### Changed
 
-- Settings redesign — responsive grids, pagination, and an activity table
-- Upload concurrency decoupled from the CPU tier — fans out by network and batch size
-- HuggingFace storage — DB-driven batch commit and single-commit delete
-- Trash — bulk purge/restore collapsed into a single request
-- Change-scoped pre-push quality gate (`scripts/prepush.sh`) with installable hooks
-- Corrected per-platform storage capacity and rate-limit copy
+- Adopt TanStack Query as the source of truth for server-state
+- Extract shared bounded-concurrency, chunk-decrypt & http-error helpers
+- Extract shared features/vs page primitives
+- Drop dead components and prune the icon barrel
+- Tidy UI primitives, touch hooks and deps
+- Centralize shared utils (date/clipboard/id/ttl/async) and dedupe pipeline helpers
+- Extract shared tool-page components for pad/send/transfer + token viewer
+- Share auth form chrome, error boundaries, and legal-page layout
+- Adopt central utils + shared components across files, admin, share and marketing
+- Finish adopting shared click-outside, share-link, and platform utils
+- Adopt central platform map in analytics, vault, and upload views
+- Move scroll-reveal off framer-motion, drop unneeded use-client boundaries
+- Fetch latest release server-side for download page
+- Replace div-soup with semantic ul/li/article/nav
+- Replace framer-motion marquee/underline/timeline animations with CSS
+- Typed PlatformId registry + shared PlatformIcon
+- Consolidate duplicated storage-platform data into lib/platforms
+- Trim unused radix sub-part exports
+- Share entry dispatch and prop types
+- Shared sweep-progress + blob-decode scaffold
+- Extract fullscreen/copy hooks + StepGrid shell
+- Share public-link viewer chrome
+- Shared load-error panel + guarded fetch
+- Centralize chart theme, expiry & time helpers
+- Adopt shared form fields
+- Shared feature-page primitives
+- Dedupe showcase chrome, vs links & nav
+- Dedupe bulk file handlers and settle new-code lint
+- Responsive grids, pagination, and an activity table
+- Dedupe folder/file style handlers into one helper
+- Native settings — two-pane desktop, grouped-list mobile
+- Centralize marketing content into typed data modules
+- Centralize the production origin in lib/site.ts
 
 ### Fixed
 
-- Thumbnails — seed the preview from the local file at upload time so a fresh
-  upload no longer shimmers while it re-decrypts; time-box the shimmer and reject
-  blank canvases
-- Vault lock is now genuine — decrypted thumbnails are evicted and a lock mask applied
-- Share dialogs truncate long file and folder names
-- Storage integrity — verify HuggingFace chunks are retrievable before marking them durable
+- Validate plan against configured plans
+- Replace dead /pricing links with /features
+- Surface all connected platforms incl. Telegram in usage views
+- Correct inaccurate platform limit labels
+- Bulk move/merge now moves every file, not just one
+- Serialize chat detection so getUpdates stops conflicting
+- Stop crash-loop on already-gone GitHub chunks
+- Explain DM-only dead-end + log getUpdates contents
+- Honest connect UX + working deep links + DM diagnostics
+- Harden authz from security audit — owner-gated membership + anti-lockout re-key
+- Reveal the file listing once the correct password is supplied
+- Stop distorted squircle fallback in Safari/Firefox
+- Time-box generation so one stuck file can't freeze the grid
+- Hero gradient reaches the top of the screen
+- Surface platform unreachability instead of silently failing
+- Upload resume counts staged chunks; reject duplicates early
+- Mobile picker actually works + batches stop serializing
+- Stop perpetual shimmer on freshly uploaded files
+- Stop silent upload hangs + add retry to up/downloads
+- Keep the transfer dock visible during active/failed work
+- Retry transient failures on bulk + share downloads too
+- Dismiss no longer destroys an upload; keep incompletes 7 days
+- Honest upload %, natural expiry label, no iOS input zoom
+- Telegram-first routing, server-side resume, platform chunk cleanup
+- Pin resume to original platform, real pause, monotonic progress
+- Retry transient failures instead of blacklisting until reload
+- Toasts sit on the theme surface instead of a see-through wash
+- Refresh token on chunk fetch, keep pause distinct from cancel, honest progress
+- FAB clears the transfers dock, smaller iOS-safe button, sheet overlaps FAB
+- Satisfy output:export with placeholder generateStaticParams
+- Stop select-mode reflow flicker in the vault grid
+- Distinct-count chunks, keep session on transient refresh, cap incomplete %
+- Track play/pause intent so the next track auto-continues
+- Dedupe + UNIQUE(file_id,idx), stop uploaded_chunks double-count; expose file platform
+- Don't log out on a transient refresh failure at app load
+- Render cached thumbnails instantly on reload
+- Close blob-orphaning gaps in the durable upload/deletion path
+- Verify hmac_v1 keyed hash in the client viewers, not plain SHA-256
+- Make the lock genuine — evict decrypted thumbnails, add lock mask
+- Correct effect dependency arrays
+- Improve frontend linting and duplication checks for changed files
+- Adjust main content class for better layout handling
+- Verify HuggingFace chunks are retrievable before marking durable
+- Time-box shimmer from first attempt and drop blank canvases
+- Seed preview from the local file at upload time
+- Truncate long file and folder names in share dialogs
+- Correct the storage and rate limits shown per platform
+- Give custom app backgrounds their own ambient set
+- Make repo IDs globally unique to stop repos_pkey collisions
+- Don't register the updater plugin without a config (launch crash)
+- Desktop UX pass — keychain prompt, login, upload, thumbnails, decrypt, squircles
+- Decrypt folder names, terminal thumbnail state, byos-direct on (desktop)
+- Stop OS-notification spam on SSE reconnects
+- Reliable DNS + resilient downloads (byos-direct→relay fallback)
+- Stop Android silent launch crash
+- Route desktop downloads through the core + Tools icon
+- Bulk_download takes a passphrase PER file, not one for the batch
+- Android login via opener plugin + enable in-app drag-drop
+- Android safe-area, keyboard avoidance, and WebView smoothness
+- Format JSON structure and ensure enabledPlugins section is correctly defined
+- Exponential backoff for SSE reconnects
+- Burn down type-aware promise-safety backlog
+- Drive transactional email footer from FRONTEND_URL
+- Drop View Transitions theme flip, make circuit bg CSS-driven
+- Put the user toolchains back on PATH in prepush
+- Clear govulncheck — Go 1.25.14, x/text v0.39.0
+- Mark the settings platform refreshes as fire-and-forget
 
-### Security
+### Performance
 
-- Pinned the Go toolchain to 1.25.12 to remediate GO-2026-5856 (Encrypted Client
-  Hello privacy leak in the `crypto/tls` standard library)
+- Use TanStack Query cache; stop focus-refetch; make folders shareable
+- Cache file meta + share links; dedupe folder-subtree walk
+- Decrypt + decompress in a Web Worker pool (off the main thread)
+- Edge-to-edge shell, solid nav, no per-item list animation
+- Ciphertext chunk cache + immutable cache headers on downloads
+- Parallel decrypt pipeline, key memo, hover prefetch, progress
+- Halve peak memory — incremental hash, no full-file copy
+- Decouple file concurrency from CPU tier — fan out by network + batch size
+- Batch bulk purge/restore and collapse chunk deletes into one commit
+- Collapse bulk purge/restore into a single request
+- Warm CEK cache for repeat file-key resolution
+
+### Reverted
+
+- Drop the surface-style + folder-shape experiment
 
 ## [0.1.3] - 2026-06-28
 
