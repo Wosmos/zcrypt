@@ -35,11 +35,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install neonctl, age, jq
+      - name: Install neonctl, age, jq, postgresql-client-17
         run: |
           npm install -g neonctl
           sudo apt-get update -qq && sudo apt-get install -y -qq age jq
-          # Ubuntu runners already ship postgresql-client (pg_dump) + gh.
+          # Ubuntu runners already ship gh.
+          # Neon runs PostgreSQL 17; Ubuntu 24.04 ships pg_dump 16, which
+          # refuses to dump a newer server ("aborting because of server version
+          # mismatch"). Pull the matching client from the PGDG apt repo.
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client-17
+          echo "/usr/lib/postgresql/17/bin" >>"$GITHUB_PATH"
 
       - name: Run nightly backup
         env:
