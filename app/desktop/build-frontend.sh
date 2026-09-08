@@ -25,13 +25,20 @@ rm -rf .next-export
 
 # Build with static export enabled via env var.
 # The desktop app has no Next.js rewrites, so the backend URL must be baked in.
-# Defaults to the live backend (single source of truth: scripts/desktop.env);
-# override NEXT_PUBLIC_API_URL to point elsewhere (e.g. http://localhost:8080
-# against a local backend).
+# Resolution order: NEXT_PUBLIC_API_URL env → DESKTOP_API_URL env →
+# scripts/desktop.env (LOCAL, gitignored — copy scripts/desktop.env.example).
+# No default is baked into the repo: the live host rotates with Railway
+# accounts, and CI reads the DESKTOP_API_URL repository variable instead.
+DESKTOP_ENV="$SCRIPT_DIR/../../scripts/desktop.env"
 if [ -z "${NEXT_PUBLIC_API_URL:-}" ]; then
-  source "$SCRIPT_DIR/../../scripts/desktop.env"
-  NEXT_PUBLIC_API_URL="$DESKTOP_API_URL"
+  [ -f "$DESKTOP_ENV" ] && source "$DESKTOP_ENV"
+  NEXT_PUBLIC_API_URL="${DESKTOP_API_URL:-}"
 fi
+if [ -z "$NEXT_PUBLIC_API_URL" ]; then
+  echo "ERROR: no backend origin. Set NEXT_PUBLIC_API_URL (or DESKTOP_API_URL), or create scripts/desktop.env from scripts/desktop.env.example." >&2
+  exit 1
+fi
+echo "baking backend origin: $NEXT_PUBLIC_API_URL"
 NEXT_PUBLIC_API_URL="$NEXT_PUBLIC_API_URL" \
   NEXT_OUTPUT_EXPORT=1 bun run build
 

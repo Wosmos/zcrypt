@@ -97,16 +97,19 @@ jobs:
         env:
           NEXT_OUTPUT_EXPORT: "1"
           NEXT_TELEMETRY_DISABLED: "1"
-        # Baked into the static export — desktop/mobile have no Next.js
-        # rewrites, so they must talk to the live backend directly. Public
-        # value (already exposed in the web bundle), not a secret — sourced
-        # from scripts/desktop.env, the single checked-in source of truth
-        # local builds (build-frontend.sh, build-desktop.sh) also read from.
-        # See that file's comment: it's a known-deprecated Railway URL
-        # pending the real custom domain going live.
+          # Baked into the static export — desktop/mobile have no Next.js
+          # rewrites, so they must talk to the live backend directly. Comes
+          # from the DESKTOP_API_URL repository VARIABLE (Settings → Secrets
+          # and variables → Actions → Variables), never from a checked-in
+          # file: the backend host rotates with Railway accounts and a stale
+          # committed value shipped an APK pointing at a dead host (v0.1.4).
+          NEXT_PUBLIC_API_URL: ${{ vars.DESKTOP_API_URL }}
         run: |
-          set -a; source "$GITHUB_WORKSPACE/scripts/desktop.env"; set +a
-          export NEXT_PUBLIC_API_URL="$DESKTOP_API_URL"
+          if [[ -z "$NEXT_PUBLIC_API_URL" ]]; then
+            echo "::error::DESKTOP_API_URL repository variable is unset — refusing to bake an empty/localhost backend into a shipped build."
+            exit 1
+          fi
+          echo "baking backend origin: $NEXT_PUBLIC_API_URL"
           bun run build
 
       - name: Prepare frontend-dist

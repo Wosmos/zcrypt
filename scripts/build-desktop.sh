@@ -12,7 +12,11 @@ rm -rf "app/frontend/app/send/[token]"
 rm -rf "app/frontend/app/(app)/admin/users/[id]"
 
 echo "== [2/5] build frontend static export =="
-source "$REPO/scripts/desktop.env"
+# Backend origin: DESKTOP_API_URL env, else the LOCAL gitignored
+# scripts/desktop.env (see scripts/desktop.env.example). Never baked in-repo.
+[ -f "$REPO/scripts/desktop.env" ] && source "$REPO/scripts/desktop.env"
+: "${DESKTOP_API_URL:?Set DESKTOP_API_URL or create scripts/desktop.env from scripts/desktop.env.example}"
+echo "baking backend origin: $DESKTOP_API_URL"
 cd app/frontend
 NEXT_OUTPUT_EXPORT=1 \
 NEXT_TELEMETRY_DISABLED=1 \
