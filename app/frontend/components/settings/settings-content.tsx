@@ -20,6 +20,7 @@ import { RateLimits } from "@/components/settings/rate-limits";
 import { ThemePicker } from "@/components/settings/theme-picker";
 import { ExportImport } from "@/components/vault/export-import";
 import { LinkedAccounts } from "@/components/settings/linked-accounts";
+import { ProfileSettings } from "@/components/settings/profile-settings";
 import { SecurityActivity } from "@/components/settings/security-activity";
 import { useFileList } from "@/hooks/useFileList";
 import { PlatformIcon } from "@/components/icons/platform-icon";
@@ -273,6 +274,7 @@ export function SettingsContent() {
       case "account":
         return (
           <div className="space-y-3">
+            <ProfileSettings />
             <EncryptionKeyInfo />
             <LinkedAccounts />
           </div>

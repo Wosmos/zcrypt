@@ -158,6 +158,36 @@ export function getMe(accessToken: string): Promise<AuthUser> {
   });
 }
 
+export function updateProfile(
+  accessToken: string,
+  profile: { display_name: string; avatar_url: string },
+): Promise<AuthUser> {
+  return authRequest("/api/auth/profile", {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify(profile),
+  });
+}
+
+/** Resolves to a breach warning instead of throwing when the new password
+ *  appears in a breach corpus; re-send with force to accept it anyway. */
+export function changePassword(
+  accessToken: string,
+  currentPassword: string,
+  newPassword: string,
+  force = false,
+): Promise<{ ok?: boolean; warning?: string; breach_count?: number; requires?: string }> {
+  return authRequest("/api/auth/change-password", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify({
+      current_password: currentPassword,
+      new_password: newPassword,
+      force,
+    }),
+  });
+}
+
 // --- Magic Links ---
 
 export function requestMagicLink(email: string): Promise<{ success: boolean; message: string }> {

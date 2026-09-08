@@ -113,6 +113,8 @@ export interface AuthUser {
   id: string;
   email: string;
   username: string;
+  display_name?: string;
+  avatar_url?: string;
   role: Role;
   email_verified: boolean;
   totp_enabled: boolean;
