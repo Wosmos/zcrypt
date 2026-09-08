@@ -95,7 +95,15 @@ jobs:
         run: |
           level="${{ steps.quota.outputs.level }}"
           rotated="${{ steps.rotate.outcome }}"
-          echo "quota level: ${level:-OK} | rotation outcome: ${rotated:-not triggered}"
+          echo "quota level: ${level:-UNKNOWN} | rotation outcome: ${rotated:-not triggered}"
+          # An empty level means neon-usage.sh never produced a verdict (missing
+          # secret, API failure, bad project id). That is NOT "OK" — it means
+          # nothing is being monitored, which is exactly how the 2026-07-20
+          # lockout arrived unannounced. Fail loudly instead of defaulting green.
+          if [[ -z "$level" ]]; then
+            echo "::error::Quota check produced no result — the watcher is blind. Check NEON_API_KEY / NEON_PROJECT_ID and the 'Check usage + alert' step log."
+            exit 1
+          fi
           # Green if: quota is fine, OR quota was CRITICAL and rotation succeeded
           # (the automation fully handled it — no human action needed).
           # Red if: WARN (needs a human to watch it), or CRITICAL and rotation

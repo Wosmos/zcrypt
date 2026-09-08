@@ -468,8 +468,10 @@ Execute (`neon-rotate.sh`, steps 1-4 are exactly this original design):
    stays a human housekeeping task — see §9's original day-0 guidance, which
    still applies to old parked projects).
 
-Independent of all of the above: `.github/workflows/neon-backup.yml` runs
-**nightly** regardless of quota level — `scripts/neon-backup.sh` dumps the
+Independent of all of the above: the nightly backup workflow — moved on 2026-09-09 to
+the **private** `Wosmos/zcrypt-backups` repo, so release assets sit behind GitHub auth
+as well as age encryption (this repo is public; a dump must never land here) — runs
+**nightly** regardless of quota level. Its `neon-backup.sh` dumps the
 active project, encrypts with `age` to an offline-held key, and uploads as a
 private GitHub Release asset (pruned after `RETENTION_DAYS`, default 30). This
 is what actually closes V-9 below: Neon is never the *only* copy, on any given
@@ -644,7 +646,7 @@ between worker wakeups ≥ 3 h apart ⇒ Neon sleeps ≥ 96% of idle time ⇒ id
 - [x] `scripts/neon-rotate.sh` — the §7 runbook, automated (2026-07-28)
 - [x] `scripts/neon-cutover.sh` — Railway cutover + health-gate + auto-rollback (2026-07-28)
 - [x] `.github/workflows/neon-watch.yml` — consumption watcher + ntfy + auto-rotate at 80% (2026-07-28)
-- [x] `.github/workflows/neon-backup.yml` — nightly encrypted offsite dump (2026-07-28)
+- [x] nightly encrypted offsite dump (2026-07-28) — relocated to private `Wosmos/zcrypt-backups` (2026-09-09)
 - [x] Carousel manifest format + storage — `docs/neon-manifest.json`, project ids
       only, no secrets, bot-committed on each rotation (2026-07-28)
 - [ ] Heartbeat dead-man-switch (V-10) — the watcher alerts on quota, but nothing
