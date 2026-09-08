@@ -4,6 +4,8 @@ import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SettingGroup } from "@/components/settings/settings-primitives";
+import { Check } from "@/lib/icons";
+import { cn } from "@/lib/utils";
 import { updateProfile, changePassword } from "@/lib/auth-api";
 import { useAuthStore } from "@/store/auth";
 import { toast } from "@/store/toast";
@@ -20,6 +22,15 @@ const AVATAR_QUALITIES = [0.8, 0.65, 0.5, 0.35];
 // An avatar never needs a big source file, and decoding a huge one would hang
 // the tab, so oversized picks are refused before any decoding happens.
 const AVATAR_SOURCE_MAX_BYTES = 1024 * 1024;
+
+/** Mirrors the server's validatePassword so the rules can be shown live.
+ *  The server still enforces them — this only removes the surprise. */
+const PASSWORD_RULES: { label: string; ok: (pw: string) => boolean }[] = [
+  { label: "At least 8 characters", ok: (pw) => pw.length >= 8 },
+  { label: "An uppercase letter", ok: (pw) => /[A-Z]/.test(pw) },
+  { label: "A digit", ok: (pw) => /[0-9]/.test(pw) },
+  { label: "A special character", ok: (pw) => /[^a-zA-Z0-9]/.test(pw) },
+];
 
 /** Center-crop and downscale to a square JPEG data URI in the browser, so the
  *  original photo never reaches the server and the stored value stays small.
@@ -70,6 +81,19 @@ export function ProfileSettings() {
   const [savingPassword, setSavingPassword] = useState(false);
 
   const initial = (user?.display_name || user?.username || "?").charAt(0).toUpperCase();
+
+  const unmetRules = PASSWORD_RULES.filter((r) => !r.ok(newPassword));
+  const mismatch = confirmPassword !== "" && newPassword !== confirmPassword;
+  const sameAsCurrent = newPassword !== "" && newPassword === currentPassword;
+  // The current password itself can only be checked by the server; everything
+  // else is gated here so the button never submits a known-bad form.
+  const passwordReady =
+    currentPassword !== "" &&
+    newPassword !== "" &&
+    confirmPassword !== "" &&
+    unmetRules.length === 0 &&
+    !mismatch &&
+    !sameAsCurrent;
   const profileDirty =
     displayName !== (user?.display_name ?? "") || avatar !== (user?.avatar_url ?? "");
 
@@ -264,19 +288,46 @@ export function ProfileSettings() {
                 id="confirm-password"
                 type="password"
                 autoComplete="new-password"
+                aria-invalid={mismatch}
+                aria-describedby={mismatch ? "confirm-password-error" : undefined}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
               />
+              {mismatch && (
+                <p id="confirm-password-error" className="text-xs text-[var(--toast-error)]">
+                  Passwords do not match
+                </p>
+              )}
             </div>
           </div>
-          <p className="text-xs text-[var(--color-text-muted)]">
-            At least 8 characters, with an uppercase letter, a digit and a special character.
-          </p>
+          <ul className="space-y-1">
+            {PASSWORD_RULES.map((rule) => {
+              const met = rule.ok(newPassword);
+              return (
+                <li
+                  key={rule.label}
+                  className={cn(
+                    "flex items-center gap-1.5 text-xs",
+                    met ? "text-[var(--toast-success)]" : "text-[var(--color-text-muted)]",
+                  )}
+                >
+                  {met ? (
+                    <Check className="h-3 w-3 shrink-0" />
+                  ) : (
+                    <span className="h-1 w-1 shrink-0 rounded-full bg-current opacity-60 mx-1" />
+                  )}
+                  {rule.label}
+                </li>
+              );
+            })}
+          </ul>
+          {sameAsCurrent && (
+            <p className="text-xs text-[var(--toast-error)]">
+              New password must differ from your current one
+            </p>
+          )}
           <div className="flex justify-end">
-            <Button
-              onClick={() => void savePassword()}
-              disabled={!currentPassword || !newPassword || !confirmPassword || savingPassword}
-            >
+            <Button onClick={() => void savePassword()} disabled={!passwordReady || savingPassword}>
               {savingPassword ? "Changing…" : "Change password"}
             </Button>
           </div>
