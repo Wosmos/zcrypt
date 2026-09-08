@@ -123,6 +123,9 @@ describe("auth-api endpoint wrappers", () => {
     { name: "getLinkedAccounts", run: () => authApi.getLinkedAccounts("at"), path: "/api/auth/linked-accounts", auth: "at" },
     { name: "unlinkAccount", run: () => authApi.unlinkAccount("at", "google"), path: "/api/auth/linked-accounts/google", method: "DELETE", auth: "at" },
     { name: "getUserActivity", run: () => authApi.getUserActivity("at"), path: "/api/auth/activity", auth: "at" },
+    { name: "updateProfile", run: () => authApi.updateProfile("at", { display_name: "Wasif", avatar_url: "data:image/jpeg;base64,AA" }), path: "/api/auth/profile", method: "PATCH", body: { display_name: "Wasif", avatar_url: "data:image/jpeg;base64,AA" }, auth: "at" },
+    { name: "changePassword", run: () => authApi.changePassword("at", "old", "new"), path: "/api/auth/change-password", method: "POST", body: { current_password: "old", new_password: "new", force: false }, auth: "at" },
+    { name: "changePassword (force)", run: () => authApi.changePassword("at", "old", "new", true), path: "/api/auth/change-password", method: "POST", body: { current_password: "old", new_password: "new", force: true }, auth: "at" },
   ];
 
   it.each(cases)("$name hits $method $path", async (c) => {

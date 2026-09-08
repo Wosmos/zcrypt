@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"image"
+	// Registered for image.DecodeConfig so validateAvatar can verify that an
+	// uploaded avatar's bytes really decode as its declared type.
 	_ "image/jpeg"
 	_ "image/png"
 	"log"
