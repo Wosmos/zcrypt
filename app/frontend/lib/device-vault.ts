@@ -77,22 +77,60 @@ function tx<T>(mode: IDBTransactionMode, run: (store: IDBObjectStore) => IDBRequ
   );
 }
 
-/**
- * Load the device key, generating + storing one on first use.
- *
- * If a non-extractable key from a prior run/build is already stored (e.g. an
- * existing desktop install upgrading from before this fix), it's returned
- * as-is — that key will still trigger the macOS keychain prompt until the
- * user clears it, but that's a one-time, self-resolving cost, not a bug.
- */
-async function getDeviceKey(): Promise<CryptoKey> {
-  const existing = await tx<CryptoKey | undefined>("readonly", (s) => s.get(KEY_ID));
-  if (existing) return existing;
-  const key = await crypto.subtle.generateKey(
+function generateDeviceKey(): Promise<CryptoKey> {
+  return crypto.subtle.generateKey(
     { name: "AES-GCM", length: 256 },
     /* extractable */ DEVICE_KEY_EXTRACTABLE,
     ["encrypt", "decrypt"],
   );
+}
+
+/**
+ * Replace a legacy non-extractable key with an extractable one, in the Tauri
+ * shell only. The legacy key was created before the WebKit keychain quirk
+ * above was understood; left in place it prompts for the Mac login password
+ * on every single use, and each rebuild of the (ad-hoc signed) app resets
+ * any "Always Allow" the user granted. Nothing ever cleared it, so the prompt
+ * never went away.
+ *
+ * The one decrypt below is the last time the legacy key is touched — the
+ * final prompt. If the user denies it (or the record is unreadable) the
+ * stored passphrase is dropped instead: they unlock once by hand and it is
+ * re-persisted under the new key.
+ */
+async function migrateLegacyKey(legacy: CryptoKey): Promise<CryptoKey> {
+  const fresh = await generateDeviceKey();
+  const rec = await tx<StoredPassphrase | undefined>("readonly", (s) => s.get(PP_ID));
+  if (rec) {
+    try {
+      const pt = await crypto.subtle.decrypt(
+        { name: "AES-GCM", iv: new Uint8Array(rec.iv) },
+        legacy,
+        rec.ct,
+      );
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, fresh, pt);
+      await tx("readwrite", (s) => s.put({ iv, ct } satisfies StoredPassphrase, PP_ID));
+    } catch {
+      await tx("readwrite", (s) => s.delete(PP_ID));
+    }
+  }
+  await tx("readwrite", (s) => s.put(fresh, KEY_ID));
+  return fresh;
+}
+
+/** The stored device key, migrated if it predates the extractable-key fix. */
+async function readDeviceKey(): Promise<CryptoKey | undefined> {
+  const existing = await tx<CryptoKey | undefined>("readonly", (s) => s.get(KEY_ID));
+  if (!existing || !DEVICE_KEY_EXTRACTABLE || existing.extractable) return existing;
+  return migrateLegacyKey(existing);
+}
+
+/** Load the device key, generating + storing one on first use. */
+async function getDeviceKey(): Promise<CryptoKey> {
+  const existing = await readDeviceKey();
+  if (existing) return existing;
+  const key = await generateDeviceKey();
   await tx("readwrite", (s) => s.put(key, KEY_ID));
   return key;
 }
@@ -118,8 +156,8 @@ export async function persistPassphrase(passphrase: string): Promise<void> {
 export async function loadPassphrase(): Promise<string | null> {
   if (!available()) return null;
   try {
+    const key = await readDeviceKey();
     const rec = await tx<StoredPassphrase | undefined>("readonly", (s) => s.get(PP_ID));
-    const key = await tx<CryptoKey | undefined>("readonly", (s) => s.get(KEY_ID));
     if (!rec || !key) return null;
     // Re-wrap the IV in a fresh Uint8Array so its buffer is a definite
     // ArrayBuffer (IndexedDB structured-clone widens the type to ArrayBufferLike).

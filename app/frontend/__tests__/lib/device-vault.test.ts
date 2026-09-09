@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { IDBFactory } from "fake-indexeddb";
 import {
   persistPassphrase,
@@ -133,5 +133,117 @@ describe("device-vault", () => {
 
     expect(await loadPassphrase()).toBeNull();
     globalThis.indexedDB = saved;
+  });
+});
+
+// The Tauri shell uses extractable keys to stay out of WebKit's keychain-backed
+// WebCrypto master key. A non-extractable key left over from an older build
+// must be migrated once — otherwise it prompts for the Mac login password on
+// every use, forever.
+describe("device-vault (Tauri shell) — legacy key migration", () => {
+  const DB = "zcrypt-device-vault";
+  const STORE = "kv";
+
+  function open(): Promise<IDBDatabase> {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB, 1);
+      req.onupgradeneeded = () => req.result.createObjectStore(STORE);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+  function put(id: string, value: unknown): Promise<void> {
+    return open().then(
+      (db) =>
+        new Promise((resolve, reject) => {
+          const t = db.transaction(STORE, "readwrite");
+          t.objectStore(STORE).put(value, id);
+          t.oncomplete = () => {
+            db.close();
+            resolve();
+          };
+          t.onerror = () => reject(t.error);
+        }),
+    );
+  }
+  function get<T>(id: string): Promise<T | undefined> {
+    return open().then(
+      (db) =>
+        new Promise((resolve, reject) => {
+          const req = db.transaction(STORE, "readonly").objectStore(STORE).get(id);
+          req.onsuccess = () => {
+            db.close();
+            resolve(req.result as T | undefined);
+          };
+          req.onerror = () => reject(req.error);
+        }),
+    );
+  }
+  async function seedLegacy(passphrase?: string): Promise<CryptoKey> {
+    const legacy = await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, false, [
+      "encrypt",
+      "decrypt",
+    ]);
+    await put("device-key", legacy);
+    if (passphrase !== undefined) {
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const ct = await crypto.subtle.encrypt(
+        { name: "AES-GCM", iv },
+        legacy,
+        new TextEncoder().encode(passphrase),
+      );
+      await put("passphrase", { iv, ct });
+    }
+    return legacy;
+  }
+  async function mod() {
+    vi.resetModules();
+    return import("@/lib/device-vault");
+  }
+
+  beforeEach(() => {
+    globalThis.indexedDB = new IDBFactory();
+    (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ = {};
+  });
+  afterEach(() => {
+    delete (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__;
+    vi.resetModules();
+  });
+
+  it("generates an extractable key on a fresh install", async () => {
+    const m = await mod();
+    await m.persistPassphrase("fresh");
+    const key = await get<CryptoKey>("device-key");
+    expect(key?.extractable).toBe(true);
+    expect(await m.loadPassphrase()).toBe("fresh");
+  });
+
+  it("re-wraps the stored passphrase under a new extractable key on load, then stops touching the legacy key", async () => {
+    await seedLegacy("keep-me");
+    const m = await mod();
+    expect(await m.loadPassphrase()).toBe("keep-me");
+    const key = await get<CryptoKey>("device-key");
+    expect(key?.extractable).toBe(true);
+    // Second load hits the already-migrated branch and still decrypts.
+    expect(await m.loadPassphrase()).toBe("keep-me");
+  });
+
+  it("drops an unreadable record during migration instead of failing forever", async () => {
+    await seedLegacy("secret");
+    const rec = (await get<{ iv: Uint8Array; ct: ArrayBuffer }>("passphrase"))!;
+    new Uint8Array(rec.ct)[0] ^= 0xff;
+    await put("passphrase", rec);
+    const m = await mod();
+    expect(await m.loadPassphrase()).toBeNull();
+    expect(await get("passphrase")).toBeUndefined();
+    expect((await get<CryptoKey>("device-key"))?.extractable).toBe(true);
+  });
+
+  it("migrates a legacy key that has no stored passphrase yet", async () => {
+    await seedLegacy();
+    const m = await mod();
+    await m.persistPassphrase("later");
+    expect((await get<CryptoKey>("device-key"))?.extractable).toBe(true);
+    expect(await m.loadPassphrase()).toBe("later");
   });
 });
