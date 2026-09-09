@@ -1,4 +1,5 @@
 import type { AuthUser, AuditEvent } from "@/types";
+import { isTauri } from "@/lib/tauri";
 
 // AuditEvent now lives in types/ (so admin types can reference it without a
 // types→lib inversion) — re-exported here so its existing consumers keep
@@ -281,7 +282,16 @@ export function getUserActivity(accessToken: string): Promise<AuditEvent[]> {
 
 // --- OAuth ---
 
+/**
+ * The OAuth start URL. The backend sets the CSRF state cookie on whichever
+ * host serves this request and registers its callback on BACKEND_URL
+ * (www.zcrypt.cloud), so the start leg must hit that same host or the cookie
+ * never reaches the callback and sign-in fails with "missing state". On the
+ * web the page is already on that origin and /api/* is proxied there, so a
+ * relative URL is correct; the Tauri static export has no proxy and must use
+ * the absolute origin it was built with.
+ */
 export function getOAuthURL(provider: string): string {
-  const base = process.env.NEXT_PUBLIC_API_URL || "";
+  const base = isTauri ? API_BASE : "";
   return `${base}/api/auth/oauth/${provider}`;
 }

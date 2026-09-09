@@ -144,7 +144,21 @@ describe("auth-api endpoint wrappers", () => {
 });
 
 describe("getOAuthURL", () => {
-  it("builds the provider start URL (no fetch)", () => {
-    expect(authApi.getOAuthURL("github")).toContain("/api/auth/oauth/github");
+  it("is same-origin on the web so the state cookie lands on the callback host", () => {
+    expect(authApi.getOAuthURL("github")).toBe("/api/auth/oauth/github");
+  });
+
+  it("is absolute inside Tauri, where the static export has no /api proxy", async () => {
+    (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ = {};
+    vi.stubEnv("NEXT_PUBLIC_API_URL", "https://www.zcrypt.cloud");
+    vi.resetModules();
+    try {
+      const mod = await import("@/lib/auth-api");
+      expect(mod.getOAuthURL("google")).toBe("https://www.zcrypt.cloud/api/auth/oauth/google");
+    } finally {
+      delete (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__;
+      vi.unstubAllEnvs();
+      vi.resetModules();
+    }
   });
 });
