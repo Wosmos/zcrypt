@@ -13,6 +13,7 @@
 import { generateCEK, resolveFileKey, wrapKey, toBase64, fromBase64 } from "@/lib/crypto";
 import { createFolderShare, getFileMeta, listFolderSubtree } from "@/lib/api";
 import { deriveNameKey, decryptNameSafe } from "@/lib/name-crypto";
+import { sealText, keyFromBytes } from "@/lib/sealed";
 import { usePassphraseStore } from "@/store/passphrase";
 
 export interface FolderShareOptions {
@@ -148,9 +149,11 @@ export async function createFolderShareLink(
     );
   }
 
+  // The share's display name is sealed under the folder-share key too: only
+  // someone holding the link can read what the folder was called.
   const { token } = await createFolderShare({
     folder_id: folderId ?? undefined,
-    name,
+    name: await sealText(name, await keyFromBytes(folderKey)),
     files: wraps,
     password: opts.password || undefined,
     expires_in_hours: opts.expiresHours || undefined,

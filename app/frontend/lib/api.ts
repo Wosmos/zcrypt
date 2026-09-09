@@ -38,6 +38,7 @@ import type {
   PublicResourceInfo,
 } from "@/types";
 import { useAuthStore } from "@/store/auth";
+import { sealText, openFields, userNameKey, requireNameKey } from "@/lib/sealed";
 import { authedFetch, tryRefreshToken } from "@/lib/auth-fetch";
 import { throwResponseError, parseErrorJson } from "@/lib/http-error";
 
@@ -321,6 +322,16 @@ export function createFolder(data: FolderRequest): Promise<Folder> {
 
 export function renameFolder(id: string, encryptedName: string): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/folders/${id}`, {
+    method: "PATCH",
+    headers: JSON_HEADERS,
+    body: JSON.stringify({ encrypted_name: encryptedName }),
+  });
+}
+
+/** Finish a legacy file's move to a zero-knowledge name: the server stores the
+ *  sealed name and blanks every plaintext copy it held. */
+export function setFileName(id: string, encryptedName: string): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/api/files/${id}/name`, {
     method: "PATCH",
     headers: JSON_HEADERS,
     body: JSON.stringify({ encrypted_name: encryptedName }),
@@ -1040,26 +1051,41 @@ export function deleteClipboardItem(id: string): Promise<{ success: boolean }> {
 
 // ─── Selective Folder Sync (authenticated) ───────────────────────────────────
 
-export function listSyncFolders(): Promise<SyncFolder[]> {
-  return request<SyncFolder[]>("/api/sync/folders");
+// Sync-folder paths, labels and device names are sealed under the user's name
+// key (lib/sealed) — a local filesystem path is as identifying as a filename.
+const SYNC_FOLDER_SEALED = ["folder_path", "label", "device_name"] as const;
+
+export async function listSyncFolders(): Promise<SyncFolder[]> {
+  const items = await request<SyncFolder[]>("/api/sync/folders");
+  return openFields(items, [...SYNC_FOLDER_SEALED], await userNameKey());
 }
 
-export function createSyncFolder(data: SyncFolderRequest): Promise<SyncFolder> {
-  return request<SyncFolder>("/api/sync/folders", {
+export async function createSyncFolder(data: SyncFolderRequest): Promise<SyncFolder> {
+  const key = await requireNameKey();
+  const created = await request<SyncFolder>("/api/sync/folders", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
+    body: JSON.stringify({
+      ...data,
+      folder_path: await sealText(data.folder_path, key),
+      label: data.label ? await sealText(data.label, key) : data.label,
+      device_name: data.device_name ? await sealText(data.device_name, key) : data.device_name,
+    }),
   });
+  return (await openFields([created], [...SYNC_FOLDER_SEALED], key))[0];
 }
 
-export function updateSyncFolder(
+export async function updateSyncFolder(
   id: string,
   data: { enabled?: boolean; label?: string },
 ): Promise<{ success: boolean }> {
+  const body = data.label
+    ? { ...data, label: await sealText(data.label, await requireNameKey()) }
+    : data;
   return request<{ success: boolean }>(`/api/sync/folders/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
+    body: JSON.stringify(body),
   });
 }
 
@@ -1088,15 +1114,33 @@ export function deleteDecoy(): Promise<{ success: boolean }> {
   return request<{ success: boolean }>("/api/decoy", { method: "DELETE" });
 }
 
-export function listDecoyFiles(): Promise<DecoyFile[]> {
-  return request<DecoyFile[]>("/api/decoy/files");
+// Decoy filenames are sealed under a key derived from the DECOY password (not the
+// real passphrase): that is the only secret the decoy session has, and the
+// database must not reveal which files are the fake ones. Pass `null` to read
+// the raw (sealed) values and open them yourself.
+export async function listDecoyFiles(key: CryptoKey | null): Promise<DecoyFile[]> {
+  const items = await request<DecoyFile[]>("/api/decoy/files");
+  return openFields(items, ["original_name"], key);
 }
 
-export function addDecoyFile(data: { name: string; size: number }): Promise<DecoyFile> {
-  return request<DecoyFile>("/api/decoy/files", {
+export async function addDecoyFile(
+  data: { name: string; size: number },
+  key: CryptoKey,
+): Promise<DecoyFile> {
+  const created = await request<DecoyFile>("/api/decoy/files", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
+    body: JSON.stringify({ ...data, name: await sealText(data.name, key) }),
+  });
+  return { ...created, original_name: data.name };
+}
+
+/** Re-store an already-sealed decoy name (legacy plaintext → enc1:). */
+export function renameDecoyFile(id: string, sealedName: string): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/api/decoy/files/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: sealedName }),
   });
 }
 
@@ -1128,16 +1172,23 @@ export function deleteDeadManSwitch(): Promise<{ success: boolean }> {
 
 // ─── Expiring Vaults ────────────────────────────────────────────────────────
 
-export function listExpiringVaults(): Promise<ExpiringVault[]> {
-  return request<ExpiringVault[]>("/api/vaults");
+export async function listExpiringVaults(): Promise<ExpiringVault[]> {
+  const items = await request<ExpiringVault[]>("/api/vaults");
+  return openFields(items, ["name", "description"], await userNameKey());
 }
 
-export function createExpiringVault(data: ExpiringVaultRequest): Promise<ExpiringVault> {
-  return request<ExpiringVault>("/api/vaults", {
+export async function createExpiringVault(data: ExpiringVaultRequest): Promise<ExpiringVault> {
+  const key = await requireNameKey();
+  const created = await request<ExpiringVault>("/api/vaults", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
+    body: JSON.stringify({
+      ...data,
+      name: await sealText(data.name, key),
+      description: data.description ? await sealText(data.description, key) : data.description,
+    }),
   });
+  return (await openFields([created], ["name", "description"], key))[0];
 }
 
 export function getExpiringVault(id: string): Promise<ExpiringVault> {
@@ -1176,16 +1227,19 @@ export function getChangedFiles(): Promise<IntegritySnapshot[]> {
 
 // ─── Vault Snapshots ────────────────────────────────────────────────────────
 
-export function listVaultSnapshots(): Promise<VaultSnapshot[]> {
-  return request<VaultSnapshot[]>("/api/snapshots");
+export async function listVaultSnapshots(): Promise<VaultSnapshot[]> {
+  const items = await request<VaultSnapshot[]>("/api/snapshots");
+  return openFields(items, ["label"], await userNameKey());
 }
 
-export function createVaultSnapshot(label: string): Promise<VaultSnapshot> {
-  return request<VaultSnapshot>("/api/snapshots", {
+export async function createVaultSnapshot(label: string): Promise<VaultSnapshot> {
+  const key = await requireNameKey();
+  const created = await request<VaultSnapshot>("/api/snapshots", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ label }),
+    body: JSON.stringify({ label: await sealText(label, key) }),
   });
+  return (await openFields([created], ["label"], key))[0];
 }
 
 export function getVaultSnapshot(id: string): Promise<VaultSnapshot> {

@@ -7,6 +7,7 @@ import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { Lock, Upload } from "@/lib/icons";
 import { formatBytes, easeProgress } from "@/lib/utils";
 import { sendInit, sendChunkUpload, sendComplete } from "@/lib/api";
+import { sealText, keyFromBytes } from "@/lib/sealed";
 import { useCopyFeedback } from "@/hooks/useCopyFeedback";
 import { SelectedFileCard } from "./shared/selected-file-card";
 import { ExpirySelector } from "./shared/expiry-selector";
@@ -73,8 +74,11 @@ export function SendTool() {
       const chunkCount = Math.ceil(selectedFile.size / CS);
 
       setProgress({ stage: "Starting upload session...", percent: 3 });
+      // The filename rides sealed under the same link key as the bytes — the
+      // server never learns what was sent, only that something was.
+      const nameKey = await keyFromBytes(keyBytes);
       const session = await sendInit({
-        filename: selectedFile.name,
+        filename: await sealText(selectedFile.name, nameKey),
         original_size: selectedFile.size,
         sha256: fileHash,
         salt: toBase64(salt),

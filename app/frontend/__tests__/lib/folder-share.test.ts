@@ -33,6 +33,11 @@ vi.mock("@/lib/api", () => ({ createFolderShare, getFileMeta, listFolderSubtree 
 vi.mock("@/lib/name-crypto", () => ({ deriveNameKey, decryptNameSafe }));
 vi.mock("@/store/auth", () => ({ useAuthStore: { getState: getAuthState } }));
 vi.mock("@/store/passphrase", () => ({ usePassphraseStore: { getState: () => ({ getPassphrase }) } }));
+// The share name is sealed under the folder key (covered by sealed.test.ts); pass it through here.
+vi.mock("@/lib/sealed", () => ({
+  sealText: (t: string) => Promise.resolve(t),
+  keyFromBytes: () => Promise.resolve({} as CryptoKey),
+}));
 
 import { createFolderShareLink } from "@/lib/folder-share";
 

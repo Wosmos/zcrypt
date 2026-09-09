@@ -8,6 +8,14 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 const { getState } = vi.hoisted(() => ({ getState: vi.fn(() => ({ accessToken: "t" })) }));
 vi.mock("@/store/auth", () => ({ useAuthStore: { getState } }));
 vi.mock("@/lib/auth-fetch", () => ({ tryRefreshToken: vi.fn() }));
+// This suite checks routing (path + method) only; sealing is covered by sealed.test.ts.
+// Pass names through untouched so the request bodies stay inspectable.
+vi.mock("@/lib/sealed", () => ({
+  sealText: (t: string) => Promise.resolve(t),
+  openFields: <T,>(items: T) => Promise.resolve(items),
+  userNameKey: () => Promise.resolve(null),
+  requireNameKey: () => Promise.resolve({} as CryptoKey),
+}));
 
 import * as api from "@/lib/api";
 
@@ -100,8 +108,8 @@ const cases: Case[] = [
   { name: "getDecoyStatus", run: () => api.getDecoyStatus(), path: "/api/decoy" },
   { name: "setupDecoy", run: () => api.setupDecoy({ decoy_password: "p" }), path: "/api/decoy/setup", method: "POST" },
   { name: "deleteDecoy", run: () => api.deleteDecoy(), path: "/api/decoy", method: "DELETE" },
-  { name: "listDecoyFiles", run: () => api.listDecoyFiles(), path: "/api/decoy/files" },
-  { name: "addDecoyFile", run: () => api.addDecoyFile({ name: "n", size: 1 }), path: "/api/decoy/files", method: "POST" },
+  { name: "listDecoyFiles", run: () => api.listDecoyFiles(null), path: "/api/decoy/files" },
+  { name: "addDecoyFile", run: () => api.addDecoyFile({ name: "n", size: 1 }, {} as CryptoKey), path: "/api/decoy/files", method: "POST" },
   { name: "deleteDecoyFile", run: () => api.deleteDecoyFile("id"), path: "/api/decoy/files/id", method: "DELETE" },
   // dead man's switch
   { name: "getDeadManSwitch", run: () => api.getDeadManSwitch(), path: "/api/deadman" },

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Shield, Send, Download, AlertTriangle, Eye, Clock } from "@/lib/icons";
 import { formatBytes, saveBlob } from "@/lib/utils";
 import { keyFromFragment } from "@/lib/share-link";
+import { isSealed, openText, keyFromBytes } from "@/lib/sealed";
 import {
   ViewerCard,
   ViewerLoading,
@@ -90,6 +91,19 @@ export default function SendDownloadPage() {
         setErrorMsg("Link not found");
       });
   }, [token]);
+
+  // The filename may be sealed under the link key (enc1:). Open it once both the
+  // key (fragment) and the KDF salt (public, in the info response) are known.
+  useEffect(() => {
+    if (!info || !encryptionKey || !info.salt || !isSealed(info.file_name)) return;
+    const sealed = info.file_name;
+    (async () => {
+      const { deriveKeyBytes, fromBase64 } = await import("@/lib/crypto");
+      const keyBytes = await deriveKeyBytes(encryptionKey, fromBase64(info.salt!));
+      const name = await openText(sealed, await keyFromBytes(keyBytes));
+      setInfo((cur) => (cur && cur.file_name === sealed ? { ...cur, file_name: name } : cur));
+    })().catch(() => {});
+  }, [info, encryptionKey]);
 
   // Cleanup
   useEffect(() => {

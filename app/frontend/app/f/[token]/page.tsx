@@ -23,6 +23,14 @@ import {
 } from "@/lib/icons";
 import { formatBytes } from "@/lib/utils";
 import { keyFromFragment, pathManifestFromFragment } from "@/lib/share-link";
+import { isSealed, openText, keyFromBytes } from "@/lib/sealed";
+import { fromBase64 } from "@/lib/crypto";
+
+// The share name is sealed (enc1:) under the folder-share key from the URL fragment.
+async function openShareName<T extends { name: string }>(info: T, key: string | null): Promise<T> {
+  if (!key || !isSealed(info.name)) return info;
+  return { ...info, name: await openText(info.name, await keyFromBytes(fromBase64(key))) };
+}
 
 type PageState = "loading" | "password" | "ready" | "error";
 
@@ -80,6 +88,7 @@ export default function FolderSharePage() {
     }
     setFolderKey(k);
     getFolderShareInfo(token)
+      .then((data) => openShareName(data, k))
       .then((data) => {
         setInfo(data);
         if (!data.valid) {
@@ -101,7 +110,7 @@ export default function FolderSharePage() {
     if (!token || !password) return;
     setErrorMsg("");
     try {
-      const data = await getFolderShareInfo(token, password);
+      const data = await openShareName(await getFolderShareInfo(token, password), folderKey);
       if (data.files) {
         setInfo(data);
         setState("ready");
@@ -111,7 +120,7 @@ export default function FolderSharePage() {
     } catch {
       setErrorMsg("Incorrect password.");
     }
-  }, [token, password]);
+  }, [token, password, folderKey]);
 
   /** Download + decrypt one file's bytes (no save). Returns the plaintext + its name. */
   const fetchDecryptFile = useCallback(

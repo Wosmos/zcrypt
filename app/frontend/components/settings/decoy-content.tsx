@@ -9,9 +9,13 @@ import {
   deleteDecoy,
   listDecoyFiles,
   addDecoyFile,
+  renameDecoyFile,
   deleteDecoyFile,
 } from "@/lib/api";
 import type { DecoyStatus, DecoyFile } from "@/types";
+import { deriveNameKey } from "@/lib/name-crypto";
+import { isSealed, openText, sealText, LOCKED } from "@/lib/sealed";
+import { useAuthStore } from "@/store/auth";
 import { formatBytes } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,6 +41,13 @@ export function DecoyContent() {
   // Add file form
   const [showAddFile, setShowAddFile] = useState(false);
   const [fileName, setFileName] = useState("");
+  // Decoy filenames are sealed under the DECOY password (the only secret a decoy
+  // session has). Managing them here needs that password once per visit; it never
+  // leaves the browser. `names` holds the opened labels for display.
+  const [decoyKeyPass, setDecoyKeyPass] = useState("");
+  const [decoyKey, setDecoyKey] = useState<CryptoKey | null>(null);
+  const [names, setNames] = useState<Record<string, string>>({});
+  const userId = useAuthStore((st) => st.user?.id);
   const [fileSize, setFileSize] = useState("");
   const [adding, setAdding] = useState(false);
 
@@ -47,7 +58,7 @@ export function DecoyContent() {
   const [deletingFile, setDeletingFile] = useState(false);
 
   useEffect(() => {
-    Promise.all([getDecoyStatus(), listDecoyFiles()])
+    Promise.all([getDecoyStatus(), listDecoyFiles(null)])
       .then(([s, f]) => {
         setStatus(s);
         setFiles(f);
@@ -93,12 +104,55 @@ export function DecoyContent() {
     }
   };
 
+  useEffect(() => {
+    if (!userId || decoyKeyPass.length < 6) {
+      setDecoyKey(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const key = await deriveNameKey(decoyKeyPass, userId);
+      const opened: Record<string, string> = {};
+      for (const f of files) opened[f.id] = await openText(f.original_name, key);
+      if (cancelled) return;
+      setDecoyKey(key);
+      setNames(opened);
+      // Legacy plaintext decoy names: seal them now that we hold the key — but
+      // only once this password is proven right against an existing sealed name
+      // (or there are none yet), so a typo can't seal names under a wrong key.
+      const sealed = files.filter((f) => isSealed(f.original_name));
+      const proven = sealed.length === 0 || sealed.some((f) => opened[f.id] !== LOCKED);
+      if (!proven) return;
+      for (const f of files) {
+        if (isSealed(f.original_name)) continue;
+        const enc = await sealText(f.original_name, key);
+        await renameDecoyFile(f.id, enc).catch(() => {});
+        if (!cancelled)
+          setFiles((prev) => prev.map((x) => (x.id === f.id ? { ...x, original_name: enc } : x)));
+      }
+    })().catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [decoyKeyPass, userId, files]);
+
+  const keyProven =
+    !!decoyKey &&
+    (!files.some((f) => isSealed(f.original_name)) ||
+      files.some((f) => isSealed(f.original_name) && names[f.id] && names[f.id] !== LOCKED));
+  const displayName = (f: DecoyFile) =>
+    isSealed(f.original_name) ? (names[f.id] ?? LOCKED) : f.original_name;
+
   const handleAddFile = async () => {
-    if (!fileName.trim()) return;
+    if (!fileName.trim() || !decoyKey || !keyProven) return;
     setAdding(true);
     try {
       const sizeBytes = parseFloat(fileSize || "0") * 1024 * 1024; // MB to bytes
-      const file = await addDecoyFile({ name: fileName.trim(), size: Math.round(sizeBytes) });
+      const file = await addDecoyFile(
+        { name: fileName.trim(), size: Math.round(sizeBytes) },
+        decoyKey,
+      );
+      setNames((prev) => ({ ...prev, [file.id]: file.original_name }));
       setFiles((prev) => [file, ...prev]);
       setFileName("");
       setFileSize("");
@@ -261,6 +315,20 @@ export function DecoyContent() {
                     className="overflow-hidden"
                   >
                     <div className="space-y-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)]/40 p-4">
+                      <Input
+                        type="password"
+                        label="Decoy password"
+                        value={decoyKeyPass}
+                        onChange={(e) => setDecoyKeyPass(e.target.value)}
+                        placeholder="Needed to seal file names — never sent to the server"
+                        autoComplete="off"
+                      />
+                      {decoyKey && !keyProven && (
+                        <p className="text-xs text-red-600 dark:text-red-400">
+                          That password doesn&apos;t open your existing decoy files — check it
+                          before adding more.
+                        </p>
+                      )}
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <Input
                           type="text"
@@ -279,7 +347,7 @@ export function DecoyContent() {
                       </div>
                       <Button
                         onClick={handleAddFile}
-                        disabled={adding || !fileName.trim()}
+                        disabled={adding || !fileName.trim() || !keyProven}
                         size="sm"
                       >
                         {adding ? (
@@ -315,7 +383,7 @@ export function DecoyContent() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm text-[var(--color-text)]">
-                          {file.original_name}
+                          {displayName(file)}
                         </p>
                         <p className="text-xs text-[var(--color-text-muted)] tabular-nums">
                           {formatBytes(file.original_size)}
@@ -323,7 +391,7 @@ export function DecoyContent() {
                       </div>
                       <IconButton
                         icon={Trash2}
-                        label={`Remove ${file.original_name}`}
+                        label={`Remove ${displayName(file)}`}
                         variant="ghost"
                         iconClassName="h-3.5 w-3.5"
                         onClick={() => setFileToDelete(file)}
@@ -383,7 +451,7 @@ export function DecoyContent() {
         destructive
         title="Remove decoy file?"
         description={
-          fileToDelete ? `Remove "${fileToDelete.original_name}" from the decoy vault?` : ""
+          fileToDelete ? `Remove "${displayName(fileToDelete)}" from the decoy vault?` : ""
         }
         confirmLabel="Remove"
         loading={deletingFile}

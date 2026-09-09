@@ -39,6 +39,10 @@ function StatusBadge({ status }: { status: string }) {
 
 export function IntegrityTab() {
   const [snapshots, setSnapshots] = useState<IntegritySnapshot[]>([]);
+  // Snapshots no longer carry a plaintext filename (zero-knowledge); resolve the
+  // name from the user's own decrypted file list instead.
+  const nameOf = (s: IntegritySnapshot) =>
+    files.find((f) => f.id === s.file_id)?.original_name || s.file_name || "Deleted file";
   const [changes, setChanges] = useState<IntegritySnapshot[]>([]);
   const [files, setFiles] = useState<FileMetadata[]>([]);
   const [loading, setLoading] = useState(true);
@@ -101,7 +105,7 @@ export function IntegrityTab() {
             <div className="mt-2 space-y-1">
               {changes.map((c) => (
                 <div key={c.id} className="flex items-center justify-between gap-3 text-sm">
-                  <span className="truncate text-[var(--color-text)]">{c.file_name}</span>
+                  <span className="truncate text-[var(--color-text)]">{nameOf(c)}</span>
                   <StatusBadge status={c.status} />
                 </div>
               ))}
@@ -177,7 +181,7 @@ export function IntegrityTab() {
               >
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-[var(--color-text)]">
-                    {snap.file_name}
+                    {nameOf(snap)}
                   </p>
                   <p className="mt-0.5 truncate font-mono text-xs text-[var(--color-text-muted)]">
                     {snap.sha256.slice(0, 16)}...

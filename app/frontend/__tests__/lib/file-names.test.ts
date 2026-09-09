@@ -10,6 +10,10 @@ const { getPassphrase, getUser } = vi.hoisted(() => ({
 vi.mock("@/store/passphrase", () => ({
   usePassphraseStore: { getState: () => ({ getPassphrase }) },
 }));
+const { setFileName } = vi.hoisted(() => ({
+  setFileName: vi.fn(() => Promise.resolve({ success: true })),
+}));
+vi.mock("@/lib/api", () => ({ setFileName }));
 vi.mock("@/store/auth", () => ({
   useAuthStore: { getState: () => ({ user: getUser() }) },
 }));
@@ -56,6 +60,24 @@ describe("decryptFileNames (zero-knowledge name dual-read)", () => {
     const list = [file({ id: "1", original_name: "a", encrypted_name: "" })];
     const out = await decryptFileNames(list);
     expect(out).toBe(list); // same reference — no work done
+  });
+
+  it("re-seals each legacy name once while unlocked, without changing what's displayed", async () => {
+    getPassphrase.mockReturnValue(PASS);
+    setFileName.mockClear();
+    const list = [
+      file({ id: "1", original_name: "a.txt", encrypted_name: "" }),
+      file({ id: "2", original_name: "b.txt", encrypted_name: "" }),
+    ];
+    const out = await decryptFileNames(list);
+    expect(out).toBe(list); // display untouched
+    await vi.waitFor(() => expect(setFileName).toHaveBeenCalledTimes(2));
+    const [id, sealed] = setFileName.mock.calls[0] as unknown as [string, string];
+    expect(id).toBe("1");
+    expect(sealed).not.toBe("a.txt");
+    expect(sealed.length).toBeGreaterThan(20); // base64 [iv || ct+tag]
+    await decryptFileNames(list); // second listing: already queued → no duplicate PATCH
+    expect(setFileName).toHaveBeenCalledTimes(2);
   });
 
   it("mixed list: encrypted decrypts, legacy untouched", async () => {

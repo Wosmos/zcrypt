@@ -245,7 +245,8 @@ export interface SendInitResponse {
 }
 
 export interface SendInfo extends PublicResourceInfo {
-  file_name: string;
+  file_name: string; // may be sealed (enc1:) — opened client-side with the link key
+  salt?: string;
   file_size: number;
   burn_after_read: boolean;
   expires_at: string;
