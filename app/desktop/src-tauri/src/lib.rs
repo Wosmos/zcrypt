@@ -728,32 +728,84 @@ async fn keychain_delete(key: String) -> Result<(), String> {
 #[derive(serde::Serialize)]
 struct UpdateCheck {
     available: bool,
+    current_version: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    notes: Option<String>,
 }
 
-/// Desktop-only update check; `{available:false}` whenever the updater is
-/// unconfigured or the check fails.
+/// Desktop-only update check. Distinguishes "no update" from "check failed":
+/// a network or manifest error is returned as Err so the UI can say so instead
+/// of falsely reporting the app is current.
 #[tauri::command]
 async fn check_for_updates(app: tauri::AppHandle) -> Result<UpdateCheck, String> {
+    let current_version = app.package_info().version.to_string();
     #[cfg(desktop)]
     {
         use tauri_plugin_updater::UpdaterExt;
-        if let Ok(updater) = app.updater()
-            && let Ok(Some(update)) = updater.check().await
-        {
+        let updater = app.updater().map_err(|e| format!("updater: {e}"))?;
+        let update = updater
+            .check()
+            .await
+            .map_err(|e| format!("update check: {e}"))?;
+        if let Some(update) = update {
             return Ok(UpdateCheck {
                 available: true,
+                current_version,
                 version: Some(update.version.clone()),
+                notes: update.body.clone(),
             });
         }
     }
-    #[cfg(not(desktop))]
-    let _ = app;
     Ok(UpdateCheck {
         available: false,
+        current_version,
         version: None,
+        notes: None,
     })
+}
+
+/// Downloads and installs the pending update, then relaunches. Only returns
+/// on failure — on success the process is replaced. Progress is emitted as
+/// `update-progress` events with `{downloaded, total}` so the UI can show it.
+#[tauri::command]
+async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
+    #[cfg(desktop)]
+    {
+        use tauri::Emitter;
+        use tauri_plugin_updater::UpdaterExt;
+        let update = app
+            .updater()
+            .map_err(|e| format!("updater: {e}"))?
+            .check()
+            .await
+            .map_err(|e| format!("update check: {e}"))?
+            .ok_or_else(|| "no update available".to_string())?;
+
+        let progress_app = app.clone();
+        let mut downloaded: u64 = 0;
+        update
+            .download_and_install(
+                move |chunk, total| {
+                    downloaded += chunk as u64;
+                    let _ = progress_app.emit(
+                        "update-progress",
+                        serde_json::json!({ "downloaded": downloaded, "total": total }),
+                    );
+                },
+                || {},
+            )
+            .await
+            .map_err(|e| format!("update install: {e}"))?;
+
+        app.restart();
+    }
+    #[cfg(not(desktop))]
+    {
+        let _ = app;
+        Err("updates are not supported on this platform".to_string())
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -902,6 +954,7 @@ pub fn run() {
             keychain_get,
             keychain_delete,
             check_for_updates,
+            install_update,
             write_temp_file,
             remove_temp_file,
             set_autostart,
@@ -919,12 +972,12 @@ pub fn run() {
                 // Launch-at-login support (no auto-enable — the UI toggles it).
                 app.handle()
                     .plugin(tauri_plugin_autostart::Builder::new().build())?;
-                // The updater plugin is intentionally NOT registered yet: it
-                // requires a signed `plugins.updater` config (pubkey + endpoints)
-                // set up with the release keypair, and registering it WITHOUT that
-                // config panics at launch ("invalid type: null, expected Config").
-                // check_for_updates() degrades to "no update" until the release/
-                // signing pipeline lands.
+                // Desktop-only: the updater has no Android/iOS backend. The
+                // plugin reads `plugins.updater` (pubkey + endpoints) from
+                // tauri.conf.json; only artifacts signed by that pubkey's
+                // private key are ever installed, so the key must never rotate.
+                app.handle()
+                    .plugin(tauri_plugin_updater::Builder::new().build())?;
             }
 
             // Register zcrypt:// scheme at runtime (Linux/Windows only — macOS

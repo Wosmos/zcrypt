@@ -1,7 +1,9 @@
 {
   "identifier": "default",
   "description": "Default capabilities for zcrypt desktop",
-  "windows": ["main"],
+  "windows": [
+    "main"
+  ],
   "permissions": [
     "core:default",
     "dialog:default",
@@ -14,13 +16,18 @@
     {
       "identifier": "fs:scope",
       "allow": [
-        { "path": "$TEMP/**" },
-        { "path": "$APPDATA/**" }
+        {
+          "path": "$TEMP/**"
+        },
+        {
+          "path": "$APPDATA/**"
+        }
       ]
     },
     "shell:default",
     "opener:default",
     "notification:default",
-    "notification:allow-notify"
+    "notification:allow-notify",
+    "updater:default"
   ]
 }
