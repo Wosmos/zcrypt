@@ -712,6 +712,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/decoy/files", s.AuthMiddleware(s.HandleListDecoyFiles))
 	mux.HandleFunc("POST /api/decoy/files", maxJSON(s.AuthMiddleware(s.HandleAddDecoyFile)))
 	mux.HandleFunc("DELETE /api/decoy/files/{id}", s.AuthMiddleware(s.HandleDeleteDecoyFile))
+	mux.HandleFunc("PATCH /api/decoy/files/{id}", maxJSON(s.AuthMiddleware(s.HandleRenameDecoyFile)))
 
 	// Dead man's switch (authenticated)
 	mux.HandleFunc("GET /api/deadman", s.AuthMiddleware(s.HandleGetDeadManSwitch))
@@ -745,6 +746,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/files/trash", s.AuthMiddleware(s.HandleListTrash))
 	mux.HandleFunc("PATCH /api/files/{id}/move", maxJSON(s.AuthMiddleware(s.HandleMoveFile)))
 	mux.HandleFunc("PATCH /api/files/{id}/style", maxJSON(s.AuthMiddleware(s.HandleUpdateFileStyle)))
+	mux.HandleFunc("PATCH /api/files/{id}/name", maxJSON(s.AuthMiddleware(s.HandleSetFileName)))
 	mux.HandleFunc("PUT /api/files/{id}/rekey", maxJSON(s.AuthMiddleware(s.HandleRekeyFile)))
 	mux.HandleFunc("POST /api/files/{id}/restore", maxJSON(s.AuthMiddleware(s.HandleRestoreFile)))
 	mux.HandleFunc("DELETE /api/files/{id}/purge", s.AuthMiddleware(s.HandlePurgeFile))

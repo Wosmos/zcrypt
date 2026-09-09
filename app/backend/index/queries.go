@@ -152,6 +152,33 @@ func (db *DB) UpdateFileKey(ctx context.Context, userID, fileID string, salt []b
 // UpdateFileStyle sets or clears a file's opaque encrypted style blob (icon + color),
 // scoped to the owning user. A nil encryptedStyle clears the column back to NULL (auto/default
 // styling); the server never validates or interprets the value beyond storing it verbatim.
+// SetFileEncryptedName finishes a legacy file's move to a zero-knowledge name:
+// the client re-seals the plaintext under its name key, and every plaintext copy
+// the server held (files.original_name, integrity_snapshots.file_name) is blanked
+// in the same transaction. Returns false when the file isn't the user's.
+func (db *DB) SetFileEncryptedName(ctx context.Context, userID, fileID, encryptedName string) (bool, error) {
+	tx, err := db.pool.Begin(ctx)
+	if err != nil {
+		return false, fmt.Errorf("set file name: begin: %w", err)
+	}
+	defer tx.Rollback(ctx)
+	tag, err := tx.Exec(ctx,
+		`UPDATE files SET encrypted_name = $3, original_name = '' WHERE id = $1 AND user_id = $2`,
+		fileID, userID, encryptedName)
+	if err != nil {
+		return false, fmt.Errorf("set file name: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return false, nil
+	}
+	if _, err := tx.Exec(ctx,
+		`UPDATE integrity_snapshots SET file_name = '' WHERE file_id = $1 AND user_id = $2`,
+		fileID, userID); err != nil {
+		return false, fmt.Errorf("set file name: blank snapshot names: %w", err)
+	}
+	return true, tx.Commit(ctx)
+}
+
 func (db *DB) UpdateFileStyle(ctx context.Context, userID, fileID string, encryptedStyle *string) error {
 	_, err := db.pool.Exec(ctx,
 		`UPDATE files SET encrypted_style = $3 WHERE id = $1 AND user_id = $2`,

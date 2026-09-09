@@ -114,7 +114,7 @@ func (s *Server) HandleSendInit(w http.ResponseWriter, r *http.Request) {
 		Status:        "uploading",
 		BurnAfterRead: req.BurnAfterRead,
 		ExpiresAt:     time.Now().Add(time.Duration(expiresHours) * time.Hour),
-		SenderIP:      s.clientIP(r),
+		SenderIP:      anonIP(s.clientIP(r)),
 	}
 
 	if err := s.db.CreateSendTransfer(ctx, transfer); err != nil {
@@ -404,6 +404,7 @@ func (s *Server) HandleGetSendInfo(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"valid":           true,
 		"file_name":       transfer.OriginalName,
+		"salt":            transfer.Salt,                     // public KDF salt: lets the link holder open a sealed file_name
 		"file_size":       SizeBucket(transfer.OriginalSize), // coarse band on a public endpoint
 		"burn_after_read": transfer.BurnAfterRead,
 		"expires_at":      transfer.ExpiresAt,

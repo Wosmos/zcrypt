@@ -61,3 +61,19 @@ func hostOnly(addr string) string {
 func (s *Server) clientIP(r *http.Request) string {
 	return clientIP(r, s.cfg.TrustedProxyCount)
 }
+
+// anonIP coarsens an address before it is written to a long-lived row (audit
+// log, pads, sends): IPv4 keeps its /24, IPv6 its /48. Enough to notice "a login
+// from somewhere new" or an abuse pattern, not enough to pin a person to a
+// household. Session rows (refresh_tokens) keep the exact IP on purpose — the
+// Devices page shows it to the account owner as a security signal.
+func anonIP(ip string) string {
+	p := net.ParseIP(ip)
+	if p == nil {
+		return ip
+	}
+	if v4 := p.To4(); v4 != nil {
+		return v4.Mask(net.CIDRMask(24, 32)).String()
+	}
+	return p.Mask(net.CIDRMask(48, 128)).String()
+}

@@ -821,4 +821,9 @@ DELETE FROM chunks c USING (
 WHERE c.chunk_id = ranked.chunk_id AND ranked.rn > 1;
 
 CREATE UNIQUE INDEX IF NOT EXISTS uq_chunks_file_idx ON chunks (file_id, idx);
+
+-- Integrity snapshots used to copy files.original_name. Names are zero-knowledge
+-- now (the client resolves them), so the plaintext copies are blanked. No-op once
+-- empty, so it is safe to run on every start.
+UPDATE integrity_snapshots SET file_name = '' WHERE file_name <> '';
 `

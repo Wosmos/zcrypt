@@ -11,6 +11,36 @@ import (
 	"github.com/zcrypt/zcrypt/types"
 )
 
+// sealedPrefix marks a client-sealed (AES-GCM, base64) string stored in a column
+// that historically held plaintext — see app/frontend/lib/sealed.ts. The server
+// only ever tests for the prefix; it never has the key.
+const sealedPrefix = "enc1:"
+
+// HandleRenameDecoyFile — PATCH /api/decoy/files/{id} {name}. The client uses it
+// to replace a legacy plaintext decoy name with its sealed form.
+func (s *Server) HandleRenameDecoyFile(w http.ResponseWriter, r *http.Request) {
+	userID := GetUserID(r)
+	id := r.PathValue("id")
+	var req struct {
+		Name string `json:"name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Name == "" {
+		http.Error(w, `{"error":"name is required"}`, http.StatusBadRequest)
+		return
+	}
+	found, err := s.db.SetDecoyFileName(r.Context(), userID, id, req.Name)
+	if err != nil {
+		http.Error(w, `{"error":"failed to update decoy file"}`, http.StatusInternalServerError)
+		return
+	}
+	if !found {
+		http.Error(w, `{"error":"decoy file not found"}`, http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]bool{"success": true})
+}
+
 // HandleGetDecoyStatus returns whether the user has a decoy vault configured.
 // GET /api/decoy
 func (s *Server) HandleGetDecoyStatus(w http.ResponseWriter, r *http.Request) {

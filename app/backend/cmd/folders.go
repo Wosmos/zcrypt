@@ -243,6 +243,44 @@ func (s *Server) HandleMoveFile(w http.ResponseWriter, r *http.Request) {
 // encrypted_style is an opaque client-encrypted base64 string, exactly like encrypted_name; the
 // server never decrypts or interprets it. An empty string or null clears the style (falls back
 // to the client's auto/default styling).
+// HandleSetFileName — PATCH /api/files/{id}/name {encrypted_name}. The client
+// calls this the first time it lists a legacy (plaintext-named) file while
+// unlocked, handing back the name sealed under its name key; the server stores
+// the ciphertext and blanks every plaintext copy it held. In a decoy session the
+// id addresses a decoy_files row instead — its names are sealed under the decoy
+// password with the same enc1: convention (see cmd/list.go).
+func (s *Server) HandleSetFileName(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID := GetUserID(r)
+	id := r.PathValue("id")
+	var req struct {
+		EncryptedName string `json:"encrypted_name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.EncryptedName == "" {
+		http.Error(w, `{"error":"encrypted_name is required"}`, http.StatusBadRequest)
+		return
+	}
+	var (
+		found bool
+		err   error
+	)
+	if IsDecoy(r) {
+		found, err = s.db.SetDecoyFileName(ctx, userID, id, sealedPrefix+req.EncryptedName)
+	} else {
+		found, err = s.db.SetFileEncryptedName(ctx, userID, id, req.EncryptedName)
+	}
+	if err != nil {
+		http.Error(w, `{"error":"failed to update file name"}`, http.StatusInternalServerError)
+		return
+	}
+	if !found {
+		http.Error(w, `{"error":"file not found"}`, http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]bool{"success": true})
+}
+
 func (s *Server) HandleUpdateFileStyle(w http.ResponseWriter, r *http.Request) {
 	updateStyle(w, r, "file", s.db.UpdateFileStyle)
 }

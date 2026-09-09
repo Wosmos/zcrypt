@@ -65,7 +65,7 @@ func (s *Server) HandleCreatePad(w http.ResponseWriter, r *http.Request) {
 		ContentSize:   req.ContentSize,
 		BurnAfterRead: req.BurnAfterRead,
 		ExpiresAt:     time.Now().Add(time.Duration(req.ExpiresHours) * time.Hour),
-		CreatorIP:     s.clientIP(r),
+		CreatorIP:     anonIP(s.clientIP(r)),
 	}
 
 	if err := s.db.CreatePad(r.Context(), pad); err != nil {

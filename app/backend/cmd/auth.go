@@ -43,7 +43,7 @@ func (s *Server) audit(r *http.Request, userID *string, eventType string, metada
 		ID:        uuid.New().String(),
 		UserID:    userID,
 		EventType: eventType,
-		IP:        s.clientIP(r),
+		IP:        anonIP(s.clientIP(r)),
 		UserAgent: r.UserAgent(),
 		Metadata:  metadata,
 		CreatedAt: time.Now(),

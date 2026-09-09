@@ -50,7 +50,7 @@ func (s *Server) HandleCreateIntegritySnapshot(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	snap, err := s.db.CreateIntegritySnapshot(ctx, userID, req.FileID, meta.OriginalName, meta.SHA256, meta.OriginalSize)
+	snap, err := s.db.CreateIntegritySnapshot(ctx, userID, req.FileID, "", meta.SHA256, meta.OriginalSize) // no filename: names are zero-knowledge, the client resolves them from its decrypted list
 	if err != nil {
 		log.Printf("integrity: create: %v", err)
 		http.Error(w, `{"error":"failed to create snapshot"}`, http.StatusInternalServerError)

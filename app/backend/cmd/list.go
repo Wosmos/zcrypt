@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/zcrypt/zcrypt/types"
 )
@@ -35,13 +36,21 @@ func (s *Server) HandleListFiles(w http.ResponseWriter, r *http.Request) {
 		// Convert to same shape as real files
 		fakeFiles := make([]types.FileMetadata, len(decoyFiles))
 		for i, df := range decoyFiles {
-			fakeFiles[i] = types.FileMetadata{
+			fm := types.FileMetadata{
 				ID:           df.ID,
-				OriginalName: df.Name,
 				OriginalSize: df.Size,
 				CreatedAt:    df.CreatedAt,
 				Status:       "complete",
 			}
+			// Sealed names (enc1:) travel exactly like a real file's encrypted_name,
+			// so the client opens them with the session passphrase — which in a
+			// decoy session IS the decoy password they were sealed under.
+			if strings.HasPrefix(df.Name, sealedPrefix) {
+				fm.EncryptedName = strings.TrimPrefix(df.Name, sealedPrefix)
+			} else {
+				fm.OriginalName = df.Name // legacy plaintext; the client re-seals it
+			}
+			fakeFiles[i] = fm
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(fakeFiles)
