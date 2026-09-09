@@ -278,9 +278,23 @@ export async function clearShellPassphrase(): Promise<void> {
   return tauriInvoke("clear_passphrase");
 }
 
-/** Check for desktop app updates. {available:false} when unconfigured. */
+/** Check for desktop app updates. Rejects when the check itself fails
+ *  (offline, bad manifest) so the UI never reports "up to date" by mistake. */
 export async function checkForUpdates(): Promise<UpdateInfo> {
   return tauriInvoke("check_for_updates");
+}
+
+/** Download, install and relaunch. Resolves only on failure — on success the
+ *  process is replaced. Subscribe with onUpdateProgress() for the bytes. */
+export async function installUpdate(): Promise<void> {
+  return tauriInvoke("install_update");
+}
+
+/** Download progress for installUpdate(). Returns an unsubscribe function. */
+export async function onUpdateProgress(cb: (p: UpdateProgress) => void): Promise<() => void> {
+  if (!isTauri) return () => {};
+  const { listen } = await import("@tauri-apps/api/event");
+  return listen<UpdateProgress>("update-progress", (e) => cb(e.payload));
 }
 
 /**
@@ -345,5 +359,12 @@ export interface EngineStatus {
 
 export interface UpdateInfo {
   available: boolean;
+  current_version: string;
   version?: string;
+  notes?: string;
+}
+
+export interface UpdateProgress {
+  downloaded: number;
+  total: number | null;
 }

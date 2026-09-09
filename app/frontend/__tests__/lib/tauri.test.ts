@@ -51,6 +51,13 @@ describe("tauri (outside the Tauri runtime)", () => {
     expect(() => unlisten()).not.toThrow();
   });
 
+  it("onUpdateProgress resolves a no-op unlisten without touching the event bridge", async () => {
+    const mod = await import("@/lib/tauri");
+    const unlisten = await mod.onUpdateProgress(() => {});
+    expect(listenMock).not.toHaveBeenCalled();
+    expect(() => unlisten()).not.toThrow();
+  });
+
   it("setShellPassphrase is a no-op without invoking the bridge", async () => {
     const mod = await import("@/lib/tauri");
     await expect(mod.setShellPassphrase("pw")).resolves.toBeUndefined();
@@ -284,6 +291,26 @@ describe("tauri (inside the Tauri runtime)", () => {
     const mod = await import("@/lib/tauri");
     await expect(mod.checkForUpdates()).resolves.toEqual({ available: false });
     expect(invokeMock).toHaveBeenCalledWith("check_for_updates", undefined);
+  });
+
+  it("installUpdate invokes install_update", async () => {
+    invokeMock.mockResolvedValue(undefined);
+    const mod = await import("@/lib/tauri");
+    await expect(mod.installUpdate()).resolves.toBeUndefined();
+    expect(invokeMock).toHaveBeenCalledWith("install_update", undefined);
+  });
+
+  it("onUpdateProgress subscribes to update-progress, forwards the payload, and returns unlisten", async () => {
+    const unlisten = vi.fn();
+    listenMock.mockResolvedValue(unlisten);
+    const mod = await import("@/lib/tauri");
+    const cb = vi.fn();
+    const off = await mod.onUpdateProgress(cb);
+    expect(listenMock).toHaveBeenCalledWith("update-progress", expect.any(Function));
+    const handler = listenMock.mock.calls[0][1] as (e: { payload: unknown }) => void;
+    handler({ payload: { downloaded: 10, total: 100 } });
+    expect(cb).toHaveBeenCalledWith({ downloaded: 10, total: 100 });
+    expect(off).toBe(unlisten);
   });
 
   it("setShellPassphrase invokes set_passphrase with the passphrase", async () => {

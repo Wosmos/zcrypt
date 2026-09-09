@@ -21,6 +21,7 @@ import { ThemePicker } from "@/components/settings/theme-picker";
 import { ExportImport } from "@/components/vault/export-import";
 import { LinkedAccounts } from "@/components/settings/linked-accounts";
 import { ProfileSettings } from "@/components/settings/profile-settings";
+import { AppUpdates } from "@/components/settings/app-updates";
 import { SecurityActivity } from "@/components/settings/security-activity";
 import { useFileList } from "@/hooks/useFileList";
 import { PlatformIcon } from "@/components/icons/platform-icon";
@@ -92,6 +93,7 @@ async function clearDesktopPlatformCreds(platform: string): Promise<void> {
 
 type SectionId =
   | "appearance"
+  | "updates"
   | "account"
   | "platforms"
   | "storage"
@@ -106,6 +108,8 @@ interface SectionDef {
   icon: typeof Shield;
   group: string;
   adminOnly?: boolean;
+  /** Only meaningful inside the Tauri shell (no web equivalent). */
+  desktopOnly?: boolean;
 }
 
 const SECTIONS: SectionDef[] = [
@@ -115,6 +119,14 @@ const SECTIONS: SectionDef[] = [
     desc: "Theme, colors & advanced mode",
     icon: Sparkles,
     group: "General",
+  },
+  {
+    id: "updates",
+    label: "App updates",
+    desc: "Check for and install new versions",
+    icon: Download,
+    group: "General",
+    desktopOnly: true,
   },
   {
     id: "account",
@@ -257,7 +269,9 @@ export function SettingsContent() {
     }
   };
 
-  const visibleSections = SECTIONS.filter((s) => !s.adminOnly || isAdmin);
+  const visibleSections = SECTIONS.filter(
+    (s) => (!s.adminOnly || isAdmin) && (!s.desktopOnly || isTauri),
+  );
   const groups = Array.from(new Set(visibleSections.map((s) => s.group)));
 
   const renderSection = (id: SectionId) => {
@@ -271,6 +285,8 @@ export function SettingsContent() {
             setAdvancedMode={setAdvancedMode}
           />
         );
+      case "updates":
+        return <AppUpdates />;
       case "account":
         return (
           <div className="space-y-3">
