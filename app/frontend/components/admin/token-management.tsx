@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { Key, Trash2, Globe, User, Plus, X } from "@/lib/icons";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import type { PlatformTokenInfo } from "@/types";
+import { TokenScopeConfirm } from "@/components/settings/token-scope-confirm";
 import { PLATFORM_NAMES as platformNames, PLATFORM_SHORT as platformShort } from "@/lib/platforms";
 
 export function TokenManagement({
@@ -40,6 +41,8 @@ export function TokenManagement({
   const [deleting, setDeleting] = useState<string | null>(null);
   const [scopeOverrides, setScopeOverrides] = useState<Record<string, boolean>>({});
   const [deleteTarget, setDeleteTarget] = useState<PlatformTokenInfo | null>(null);
+  const [scopeTarget, setScopeTarget] = useState<PlatformTokenInfo | null>(null);
+  const [scopeChanging, setScopeChanging] = useState(false);
 
   // Clear optimistic overrides when fresh data arrives from parent
   useEffect(() => {
@@ -69,12 +72,16 @@ export function TokenManagement({
     }
   };
 
-  const handleToggleScope = async (t: PlatformTokenInfo) => {
+  const executeScopeChange = async () => {
+    const t = scopeTarget;
+    if (!t) return;
     const newScope = !resolveGlobal(t);
+    setScopeChanging(true);
     setScopeOverrides((prev) => ({ ...prev, [t.id]: newScope }));
     try {
       await adminToggleTokenScope(t.id, newScope);
       onRefresh();
+      setScopeTarget(null);
     } catch (err) {
       setScopeOverrides((prev) => {
         const next = { ...prev };
@@ -82,6 +89,8 @@ export function TokenManagement({
         return next;
       });
       toast.error(err instanceof Error ? err.message : "Failed to update token scope");
+    } finally {
+      setScopeChanging(false);
     }
   };
 
@@ -222,11 +231,11 @@ export function TokenManagement({
                   </div>
                   {isOwner ? (
                     <button
-                      onClick={() => handleToggleScope(t)}
+                      onClick={() => setScopeTarget(t)}
                       title={
                         isGlobalResolved
-                          ? "Click to make local (owner-only)"
-                          : "Click to make global (all users)"
+                          ? "Click to review and make local (owner-only)"
+                          : "Click to review and make global (all users)"
                       }
                       aria-label={isGlobalResolved ? "Make token local" : "Make token global"}
                       className={cn(
@@ -290,6 +299,20 @@ export function TokenManagement({
         confirmLabel="Delete token"
         loading={deleting === deleteTarget?.id}
         onConfirm={executeDelete}
+      />
+      <TokenScopeConfirm
+        target={
+          scopeTarget
+            ? {
+                platform: scopeTarget.platform,
+                username: scopeTarget.username,
+                toGlobal: !resolveGlobal(scopeTarget),
+              }
+            : null
+        }
+        loading={scopeChanging}
+        onCancel={() => setScopeTarget(null)}
+        onConfirm={() => void executeScopeChange()}
       />
     </>
   );
