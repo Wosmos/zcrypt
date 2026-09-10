@@ -5,6 +5,7 @@ import {
   motion,
   AnimatePresence,
   useInView,
+  useReducedMotion,
   useMotionValue,
   useSpring,
   useTransform,
@@ -1251,10 +1252,14 @@ function IPadShowcase({
   online: boolean;
   battery: { level: number; charging: boolean; supported: boolean };
 }) {
+  // Reduced motion (or an observer that never fires) must never leave the
+  // showcase stuck at its initial opacity 0 — render it in place instead.
+  const reduce = useReducedMotion();
+  const shown = isInView || reduce;
   return (
     <motion.div
-      initial={{ opacity: 0, y: 40 }}
-      animate={isInView ? { opacity: 1, y: 0 } : {}}
+      initial={reduce ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }}
+      animate={shown ? { opacity: 1, y: 0 } : {}}
       transition={{ duration: 0.8, ease: [0.25, 0.46, 0.45, 0.94] }}
       className="relative mx-auto max-w-md"
     >
@@ -1381,6 +1386,7 @@ function IPadShowcase({
 export function MacOSShowcase() {
   const containerRef = useRef<HTMLDivElement>(null);
   const isInView = useInView(containerRef, { once: true, margin: "-80px" });
+  const reduceMotion = useReducedMotion();
   const battery = useBatteryStatus();
   const online = useNetworkStatus();
   const isMobile = useIsMobile();
@@ -1516,8 +1522,10 @@ export function MacOSShowcase() {
   return (
     <div ref={containerRef} className="relative">
       <motion.div
-        initial={{ opacity: 0, y: 50, rotateX: 8 }}
-        animate={isInView ? { opacity: 1, y: 0, rotateX: 0 } : {}}
+        initial={
+          reduceMotion ? { opacity: 1, y: 0, rotateX: 0 } : { opacity: 0, y: 50, rotateX: 8 }
+        }
+        animate={isInView || reduceMotion ? { opacity: 1, y: 0, rotateX: 0 } : {}}
         transition={{ duration: 1, ease: [0.25, 0.46, 0.45, 0.94] }}
         style={{ perspective: 1200 }}
         className="relative mx-auto max-w-4xl"
