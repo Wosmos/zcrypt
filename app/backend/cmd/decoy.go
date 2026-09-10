@@ -38,7 +38,7 @@ func (s *Server) HandleRenameDecoyFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]bool{"success": true})
+	_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})
 }
 
 // HandleGetDecoyStatus returns whether the user has a decoy vault configured.

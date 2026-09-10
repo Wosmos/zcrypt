@@ -161,7 +161,7 @@ func (db *DB) SetFileEncryptedName(ctx context.Context, userID, fileID, encrypte
 	if err != nil {
 		return false, fmt.Errorf("set file name: begin: %w", err)
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }() // no-op once Commit succeeded
 	tag, err := tx.Exec(ctx,
 		`UPDATE files SET encrypted_name = $3, original_name = '' WHERE id = $1 AND user_id = $2`,
 		fileID, userID, encryptedName)

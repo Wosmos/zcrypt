@@ -73,6 +73,26 @@ describe("sealed metadata", () => {
     await expect(requireNameKey()).rejects.toThrow(/unlock your vault/i);
   });
 
+  it("leaves non-string fields alone and accepts a raw ArrayBuffer key", async () => {
+    const raw = crypto.getRandomValues(new Uint8Array(32));
+    const fromView = await keyFromBytes(raw);
+    const fromBuffer = await keyFromBytes(raw.buffer.slice(0) as ArrayBuffer);
+    // Same bytes via either input shape → interchangeable keys.
+    expect(await openText(await sealText("x", fromView), fromBuffer)).toBe("x");
+
+    const items = [{ label: await sealText("Q3", fromView), count: 7 as unknown as string }];
+    const [out] = await openFields(items, ["label", "count"], fromView);
+    expect(out.label).toBe("Q3");
+    expect(out.count).toBe(7); // untouched: not a string
+  });
+
+  it("requireNameKey returns the key once unlocked", async () => {
+    store.user = { id: "u9" };
+    store.passphrase = "unlocked";
+    const key = await requireNameKey();
+    expect(await openText(await sealText("ok", key), key)).toBe("ok");
+  });
+
   it("userNameKey derives once per (passphrase, user) and re-derives on change", async () => {
     store.user = { id: "u1" };
     store.passphrase = "correct horse";

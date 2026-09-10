@@ -104,10 +104,12 @@ const cases: Case[] = [
   { name: "createSyncFolder", run: () => api.createSyncFolder({} as never), path: "/api/sync/folders", method: "POST" },
   { name: "updateSyncFolder", run: () => api.updateSyncFolder("id", { enabled: true }), path: "/api/sync/folders/id", method: "PUT" },
   { name: "deleteSyncFolder", run: () => api.deleteSyncFolder("id"), path: "/api/sync/folders/id", method: "DELETE" },
+  { name: "setFileName", run: () => api.setFileName("fid", "enc1:x"), path: "/api/files/fid/name", method: "PATCH" },
   // decoy
   { name: "getDecoyStatus", run: () => api.getDecoyStatus(), path: "/api/decoy" },
   { name: "setupDecoy", run: () => api.setupDecoy({ decoy_password: "p" }), path: "/api/decoy/setup", method: "POST" },
   { name: "deleteDecoy", run: () => api.deleteDecoy(), path: "/api/decoy", method: "DELETE" },
+  { name: "renameDecoyFile", run: () => api.renameDecoyFile("did", "enc1:x"), path: "/api/decoy/files/did", method: "PATCH" },
   { name: "listDecoyFiles", run: () => api.listDecoyFiles(null), path: "/api/decoy/files" },
   { name: "addDecoyFile", run: () => api.addDecoyFile({ name: "n", size: 1 }, {} as CryptoKey), path: "/api/decoy/files", method: "POST" },
   { name: "deleteDecoyFile", run: () => api.deleteDecoyFile("id"), path: "/api/decoy/files/id", method: "DELETE" },

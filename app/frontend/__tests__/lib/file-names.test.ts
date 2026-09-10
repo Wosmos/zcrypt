@@ -80,6 +80,37 @@ describe("decryptFileNames (zero-knowledge name dual-read)", () => {
     expect(setFileName).toHaveBeenCalledTimes(2);
   });
 
+  it("a failed re-seal is retried on the next listing (id released from the queue)", async () => {
+    getPassphrase.mockReturnValue(PASS);
+    setFileName.mockClear();
+    setFileName.mockRejectedValueOnce(new Error("offline"));
+    const list = [file({ id: "retry-1", original_name: "c.txt", encrypted_name: "" })];
+    await decryptFileNames(list);
+    await vi.waitFor(() => expect(setFileName).toHaveBeenCalledTimes(1));
+    await decryptFileNames(list); // first attempt failed → not stuck in the dedupe set
+    await vi.waitFor(() => expect(setFileName).toHaveBeenCalledTimes(2));
+  });
+
+  it("never re-seals while locked, nor a legacy row that has no name", async () => {
+    setFileName.mockClear();
+    getPassphrase.mockReturnValue(null); // locked
+    await decryptFileNames([file({ id: "lk", original_name: "x.txt", encrypted_name: "" })]);
+    getPassphrase.mockReturnValue(PASS); // unlocked, but nothing to seal
+    await decryptFileNames([file({ id: "empty", original_name: "", encrypted_name: "" })]);
+    expect(setFileName).not.toHaveBeenCalled();
+  });
+
+  it("in a mixed list, skips re-sealing a legacy row that has no name", async () => {
+    getPassphrase.mockReturnValue(PASS);
+    setFileName.mockClear();
+    const key = await deriveNameKey(PASS, USER.id);
+    await decryptFileNames([
+      file({ id: "enc", original_name: "", encrypted_name: await encryptName("real.txt", key) }),
+      file({ id: "nameless", original_name: "", encrypted_name: "" }),
+    ]);
+    expect(setFileName).not.toHaveBeenCalled();
+  });
+
   it("mixed list: encrypted decrypts, legacy untouched", async () => {
     const key = await deriveNameKey(PASS, USER.id);
     const enc = await encryptName("secret.zip", key);
