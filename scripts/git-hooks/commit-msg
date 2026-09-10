@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# commit-msg — strip AI co-author trailers before the commit is recorded.
+#
+# Commits in this repo are authored by the human who runs the tooling; assistant
+# attribution trailers are not wanted in history. Rather than reject the commit
+# (which just makes the tool retry), silently drop the line so nothing lands.
+set -euo pipefail
+msg="$1"
+if grep -qiE '^Co-Authored-By:.*(claude|anthropic)' "$msg"; then
+  tmp="$(mktemp)"
+  grep -viE '^Co-Authored-By:.*(claude|anthropic)' "$msg" | git stripspace >"$tmp"
+  mv "$tmp" "$msg"
+fi
