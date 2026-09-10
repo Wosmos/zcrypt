@@ -253,12 +253,30 @@ export function SettingsContent() {
     }
   };
 
-  const handleToggleScope = async (tokenId: string, currentIsGlobal: boolean) => {
-    const newScope = !currentIsGlobal;
-    setScopeOverrides((prev) => ({ ...prev, [tokenId]: newScope }));
+  // Changing a token's scope is an instance-wide decision, not a per-user
+  // toggle: Global routes every user's storage through this one account, and
+  // demoting it strands other users' chunks in its repositories. It never
+  // happens on a bare click — the ConfirmDialog below spells out the effect.
+  const [scopeTarget, setScopeTarget] = useState<{
+    tokenId: string;
+    platform: string;
+    username?: string;
+    toGlobal: boolean;
+  } | null>(null);
+  const [scopeChanging, setScopeChanging] = useState(false);
+
+  const executeScopeChange = async () => {
+    if (!scopeTarget) return;
+    const { tokenId, toGlobal } = scopeTarget;
+    setScopeChanging(true);
+    setScopeOverrides((prev) => ({ ...prev, [tokenId]: toGlobal }));
     try {
-      await toggleTokenScope(tokenId, newScope);
+      await toggleTokenScope(tokenId, toGlobal);
       void refresh();
+      toast.success(
+        toGlobal ? "Token is now shared with all users" : "Token is now local to your account",
+      );
+      setScopeTarget(null);
     } catch (err) {
       setScopeOverrides((prev) => {
         const next = { ...prev };
@@ -266,6 +284,8 @@ export function SettingsContent() {
         return next;
       });
       toast.error(err instanceof Error ? err.message : "Failed to update token scope");
+    } finally {
+      setScopeChanging(false);
     }
   };
 
@@ -314,7 +334,14 @@ export function SettingsContent() {
                 connectedAccounts={accountsFor(p.id)}
                 onDisconnect={(username) => setDisconnectTarget({ platform: p.id, username })}
                 disconnecting={disconnecting}
-                onToggleScope={handleToggleScope}
+                onToggleScope={(acc) =>
+                  setScopeTarget({
+                    tokenId: acc.token_id!,
+                    platform: acc.platform,
+                    username: acc.username,
+                    toGlobal: !acc.is_global,
+                  })
+                }
                 isAdmin={isAdmin}
                 customConnect={
                   p.id === "telegram" ? (
@@ -486,6 +513,72 @@ export function SettingsContent() {
         loading={!!disconnecting}
         onConfirm={executeDisconnect}
       />
+
+      <ConfirmDialog
+        open={!!scopeTarget}
+        onOpenChange={(open) => {
+          if (!open && !scopeChanging) setScopeTarget(null);
+        }}
+        destructive
+        title={
+          scopeTarget?.toGlobal
+            ? "Share this account with every user?"
+            : "Stop sharing this account with other users?"
+        }
+        description={
+          scopeTarget ? (
+            <div className="space-y-2">
+              <p>
+                {platformName(scopeTarget.platform)} account
+                {scopeTarget.username && (
+                  <>
+                    {" "}
+                    <span className="font-medium text-[var(--color-text)]">
+                      @{scopeTarget.username}
+                    </span>
+                  </>
+                )}
+              </p>
+              {scopeTarget.toGlobal ? (
+                <ul className="list-disc space-y-1 pl-5">
+                  <li>
+                    Every user on this instance will upload to and download from{" "}
+                    <span className="font-medium">your</span> account. You can never see what they
+                    store — it is encrypted with keys you do not have — but the account holder of
+                    record for it is you.
+                  </li>
+                  <li>
+                    Its quota, rate limits, and any enforcement the platform applies are shared with
+                    all of them. One user's abuse can get the whole account restricted.
+                  </li>
+                  <li>
+                    Files stored through it keep depending on it. Making it local again later cuts
+                    those users off from their own files.
+                  </li>
+                </ul>
+              ) : (
+                <ul className="list-disc space-y-1 pl-5">
+                  <li>
+                    Other users lose access through this account immediately. Their uploads to it
+                    stop.
+                  </li>
+                  <li>
+                    Any of their files whose chunks live in repositories under this account can no
+                    longer be downloaded until it is shared again or the files are re-uploaded
+                    elsewhere.
+                  </li>
+                  <li>Your own files are not affected.</li>
+                </ul>
+              )}
+            </div>
+          ) : (
+            ""
+          )
+        }
+        confirmLabel={scopeTarget?.toGlobal ? "Share with all users" : "Make it local"}
+        loading={scopeChanging}
+        onConfirm={() => void executeScopeChange()}
+      />
     </div>
   );
 }
@@ -591,7 +684,7 @@ function PlatformSection({
   connectedAccounts: PlatformStatus[];
   onDisconnect: (username: string) => void;
   disconnecting: string | null;
-  onToggleScope: (tokenId: string, currentIsGlobal: boolean) => void;
+  onToggleScope: (account: PlatformStatus) => void;
   isAdmin?: boolean;
   customConnect?: React.ReactNode;
 }) {
@@ -631,11 +724,11 @@ function PlatformSection({
                   {isAdmin && acc.token_id && (
                     <button
                       type="button"
-                      onClick={() => onToggleScope(acc.token_id!, !!acc.is_global)}
+                      onClick={() => onToggleScope(acc)}
                       title={
                         acc.is_global
-                          ? "Global — shared with all users. Click to make local."
-                          : "Local — only you. Click to share with all users."
+                          ? "Global — shared with all users. Click to review and make local."
+                          : "Local — only you. Click to review and share with all users."
                       }
                       className={cn(
                         "inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40",
