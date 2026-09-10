@@ -566,7 +566,12 @@ fi  # end: RUN_INSPECT guard
 
 # Persist the (merged) baseline so --ratchet has a moving target and --baseline
 # records it. Advisory/strict runs leave the baseline untouched.
-if [ "$SAVE_BASELINE" = 1 ] || [ "$RATCHET" = 1 ]; then
+#
+# --ratchet only writes when every gate passed: a run with a failed build may
+# have scanned a half-built tree, and the artificially low count it produces
+# is not an improvement to lock in — it makes the next healthy run look like
+# regression. --baseline is an explicit request and always writes.
+if [ "$SAVE_BASELINE" = 1 ] || { [ "$RATCHET" = 1 ] && [ "${#FAIL[@]}" -eq 0 ]; }; then
   persist_baseline
 fi
 
