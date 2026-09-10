@@ -87,6 +87,7 @@ export default function AdminPricingPage() {
   const [saving, setSaving] = useState(false);
   const [expandedPlan, setExpandedPlan] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<PlanConfig | null>(null);
+  const [confirmSave, setConfirmSave] = useState(false);
 
   const [storageInputs, setStorageInputs] = useState<Record<string, string>>({});
   const [storageUnits, setStorageUnits] = useState<Record<string, "MB" | "GB" | "TB">>({});
@@ -236,6 +237,7 @@ export default function AdminPricingPage() {
     setSaving(true);
     try {
       await adminSetPlans({ plans });
+      setConfirmSave(false);
       toast.success("Plans saved successfully");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to save plans");
@@ -260,7 +262,7 @@ export default function AdminPricingPage() {
             <Plus className="h-4 w-4" />
             Add plan
           </Button>
-          <Button onClick={handleSave} disabled={saving}>
+          <Button onClick={() => setConfirmSave(true)} disabled={saving}>
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
             Save changes
           </Button>
@@ -624,6 +626,30 @@ export default function AdminPricingPage() {
         }
         confirmLabel="Delete plan"
         onConfirm={() => deleteTarget && deletePlan(deleteTarget.id)}
+      />
+      <ConfirmDialog
+        open={confirmSave}
+        onOpenChange={(open) => {
+          if (!open && !saving) setConfirmSave(false);
+        }}
+        destructive
+        title="Apply this plan configuration to everyone?"
+        description={
+          <div className="space-y-2">
+            <p>These limits take effect immediately for every user on each plan.</p>
+            <ul className="list-disc space-y-1 pl-5">
+              <li>
+                Lowering storage, max file size, or parallel uploads blocks new uploads for users
+                already above the new limit. Nothing they have stored is deleted.
+              </li>
+              <li>The public pricing page shows the new names, prices, and features right away.</li>
+              <li>Removed plans stop existing; users still assigned to one must be moved first.</li>
+            </ul>
+          </div>
+        }
+        confirmLabel="Apply to all users"
+        loading={saving}
+        onConfirm={() => void handleSave()}
       />
     </div>
   );

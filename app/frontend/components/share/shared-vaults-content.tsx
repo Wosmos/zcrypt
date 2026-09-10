@@ -143,6 +143,8 @@ export function SharedVaultsContent() {
   const [memberError, setMemberError] = useState("");
 
   const [deleteTarget, setDeleteTarget] = useState<SharedVault | null>(null);
+
+  const [removeTarget, setRemoveTarget] = useState<{ userId: string; label: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   const [rotating, setRotating] = useState(false);
@@ -407,6 +409,7 @@ export function SharedVaultsContent() {
       void refreshDetail(id);
     } finally {
       setRotating(false);
+      setRemoveTarget(null);
     }
   };
 
@@ -867,7 +870,12 @@ export function SharedVaultsContent() {
                             icon={Trash2}
                             label="Remove member"
                             variant="ghost"
-                            onClick={() => handleRemoveMember(m.user_id)}
+                            onClick={() =>
+                              setRemoveTarget({
+                                userId: m.user_id,
+                                label: m.username || m.email || "this member",
+                              })
+                            }
                             disabled={rotating}
                             className="h-7 w-7 flex-shrink-0 hover:text-red-500"
                             iconClassName="h-3.5 w-3.5"
@@ -961,6 +969,35 @@ export function SharedVaultsContent() {
         confirmLabel="Delete space"
         loading={deleting}
         onConfirm={handleDelete}
+      />
+
+      <ConfirmDialog
+        open={!!removeTarget}
+        onOpenChange={(o) => {
+          if (!rotating && !o) setRemoveTarget(null);
+        }}
+        destructive
+        title="Remove member and re-key the space?"
+        description={
+          <div className="space-y-2">
+            <p>
+              <span className="font-medium text-[var(--color-text)]">{removeTarget?.label}</span>{" "}
+              loses access to this space immediately.
+            </p>
+            <ul className="list-disc space-y-1 pl-5">
+              <li>
+                The space key is rotated and every file is re-wrapped under the new key, so any copy
+                of the old key they kept becomes useless. This is what makes the removal a real
+                revocation rather than just hiding the space from them.
+              </li>
+              <li>Files stay in the space for the remaining members. Nothing is deleted.</li>
+              <li>Re-keying touches every file, so it can take a moment for a large space.</li>
+            </ul>
+          </div>
+        }
+        confirmLabel="Remove and re-key"
+        loading={rotating}
+        onConfirm={() => removeTarget && void handleRemoveMember(removeTarget.userId)}
       />
     </Section>
   );
