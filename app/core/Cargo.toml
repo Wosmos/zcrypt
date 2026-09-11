@@ -3,7 +3,7 @@ name = "zcrypt-core"
 version = "0.1.0"
 edition = "2021"
 description = "zcrypt shared client core: zero-knowledge crypto, chunk pipeline, local store, platform adapters. No UI/Tauri dependency — embedded by the desktop/mobile shells."
-license = "AGPL-3.0"
+license = "MIT"
 
 [dependencies]
 # Crypto — must stay byte-compatible with docs/CRYPTO_FORMAT.md.
