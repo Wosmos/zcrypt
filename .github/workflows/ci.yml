@@ -397,9 +397,14 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
+      # --archive=tgz uploads the build as ONE tarball instead of thousands of
+      # individual files. The free plan caps uploads at 5000 files per 24h, and
+      # a Next.js output blows through that in a few deploys a day — the failure
+      # surfaces as a wall of "Upload aborted" with the real cause
+      # ("api-upload-free") buried in the middle.
       - name: Deploy prebuilt output to Vercel
         working-directory: app/frontend
-        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel deploy --prebuilt --prod --archive=tgz --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
