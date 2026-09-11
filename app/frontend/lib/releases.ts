@@ -40,8 +40,9 @@ export interface ReleaseData {
 
 // Last release known to be fully published. Used only when the live lookup
 // fails (e.g. GitHub API rate limit) so the page never dead-ends — users still
-// get working downloads, just possibly not the newest. Bump on a new release.
-const FALLBACK_VERSION = "0.1.1";
+// get working downloads, just possibly not the newest. Bump on a new release:
+// a stale value here is silently served to everyone whenever GitHub throttles us.
+const FALLBACK_VERSION = "0.1.4";
 
 function fallbackUrl(file: string): string {
   return `${GITHUB_REPO}/releases/download/v${FALLBACK_VERSION}/${file}`;
@@ -219,13 +220,26 @@ export function parseAssets(assets: RawAsset[], tag: string, htmlUrl: string): R
   };
 }
 
-let cache: Promise<ReleaseData | null> | null = null;
+let cache: Promise<ReleaseData> | null = null;
 
-/** Fetch (and cache for the session) the latest release's download data. */
-export function getLatestRelease(): Promise<ReleaseData | null> {
+/**
+ * Fetch the latest release's download data.
+ *
+ * The response is cached for an hour (`next.revalidate`): unauthenticated
+ * GitHub API calls are capped at 60/hour per IP, and Next no longer caches
+ * `fetch` by default, so an uncached call here means every visit to /download
+ * spends one of those 60 — after which everyone is served the stale fallback
+ * version instead of the real latest release.
+ *
+ * A failed lookup is deliberately NOT memoised: caching the rejection would
+ * pin this server instance to the fallback until it recycled, long after
+ * GitHub started answering again.
+ */
+export function getLatestRelease(): Promise<ReleaseData> {
   if (cache) return cache;
-  cache = fetch(LATEST_RELEASE_API, {
+  const pending = fetch(LATEST_RELEASE_API, {
     headers: { Accept: "application/vnd.github+json" },
+    next: { revalidate: 3600 },
   })
     .then((res) => {
       if (!res.ok) throw new Error(`GitHub API ${res.status}`);
@@ -237,8 +251,12 @@ export function getLatestRelease(): Promise<ReleaseData | null> {
       // fall back so users still get working downloads.
       return parsed.desktop.length > 0 ? parsed : buildFallbackRelease();
     })
-    .catch(() => buildFallbackRelease());
-  return cache;
+    .catch(() => {
+      cache = null; // let the next request try GitHub again
+      return buildFallbackRelease();
+    });
+  cache = pending;
+  return pending;
 }
 
 /** Where to send people when the API is unavailable. */

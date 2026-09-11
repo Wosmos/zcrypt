@@ -125,8 +125,40 @@ describe("getLatestRelease", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledWith(
       "https://api.github.com/repos/Wosmos/zcrypt/releases/latest",
-      { headers: { Accept: "application/vnd.github+json" } }
+      {
+        headers: { Accept: "application/vnd.github+json" },
+        // Unauthenticated GitHub allows 60 calls/hour per IP and Next no longer
+        // caches fetch by default; without this every /download view spends one.
+        next: { revalidate: 3600 },
+      },
     );
+  });
+
+  it("does not memoise a failure — the next call retries GitHub", async () => {
+    // Caching the rejection would pin the server instance to the stale fallback
+    // long after GitHub started answering again.
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false, status: 403 })
+      .mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          tag_name: "v9.9.9",
+          html_url: "https://github.com/x/y/releases/tag/v9.9.9",
+          assets: [{ name: "zcrypt_9.9.9_aarch64.dmg", browser_download_url: "u" }],
+        }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+    const { getLatestRelease } = await import("@/lib/releases");
+
+    const throttled = await getLatestRelease();
+    expect(throttled.isFallback).toBe(true);
+
+    const recovered = await getLatestRelease();
+    expect(recovered.isFallback).toBeUndefined();
+    expect(recovered.version).toBe("9.9.9");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("falls back when the parsed release has no desktop installers yet", async () => {
