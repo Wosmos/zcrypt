@@ -8,10 +8,9 @@
 # What it does, in order, aborting (and rolling back) at the first failure:
 #   1. Set Railway's DATABASE_URL to the NEW pooled connection string.
 #   2. Read the variable back — confirm Railway actually stored the new value
-#      before trusting anything else (belt-and-braces: CLI subcommand names
-#      have shifted across Railway CLI versions, so this script probes for
-#      whichever of `variables`/`variable` the installed CLI actually has,
-#      rather than assuming one).
+#      before trusting anything else (belt-and-braces: this talks to Railway's
+#      GraphQL API directly with curl rather than through the `railway` CLI —
+#      see the note further down for why).
 #   3. Trigger + wait for a redeploy.
 #   4. Health-gate: poll HEALTH_URL for 200, then run one direct read against
 #      the NEW database to confirm the app's actual data path works, not just
@@ -24,8 +23,11 @@
 #
 # Required env:
 #   RAILWAY_TOKEN         Railway project token (railway.app → project → Tokens)
-#   RAILWAY_SERVICE       service name or id (the Go backend)
-#   RAILWAY_ENVIRONMENT   environment name or id, e.g. "production"
+#   RAILWAY_PROJECT_ID    the zcrypt project's id (Railway → project → Settings)
+#   RAILWAY_SERVICE       service id (the Go backend) — must be an id, not a
+#                         name; the GraphQL API this script talks to (below)
+#                         takes ids only
+#   RAILWAY_ENVIRONMENT   environment id — same reason (not a name like "production")
 #   NEW_DATABASE_URL      new project's POOLED connection string
 #   OLD_DATABASE_URL      current project's POOLED connection string (rollback target)
 #   HEALTH_URL            e.g. https://api.zcrypt.cloud/api/health
@@ -37,6 +39,7 @@
 set -euo pipefail
 
 : "${RAILWAY_TOKEN:?Set RAILWAY_TOKEN.}"
+: "${RAILWAY_PROJECT_ID:?Set RAILWAY_PROJECT_ID.}"
 : "${RAILWAY_SERVICE:?Set RAILWAY_SERVICE.}"
 : "${RAILWAY_ENVIRONMENT:?Set RAILWAY_ENVIRONMENT.}"
 : "${NEW_DATABASE_URL:?Set NEW_DATABASE_URL.}"
@@ -44,9 +47,8 @@ set -euo pipefail
 : "${HEALTH_URL:?Set HEALTH_URL.}"
 HEALTH_TIMEOUT_SECS="${HEALTH_TIMEOUT_SECS:-180}"
 CANARY_TABLE="${CANARY_TABLE:-users}"
-export RAILWAY_TOKEN
 
-for bin in railway curl psql jq; do
+for bin in curl psql jq; do
   command -v "$bin" >/dev/null 2>&1 || { echo "ERROR: '$bin' not found on PATH."; exit 1; }
 done
 
@@ -59,36 +61,57 @@ alert() {
   fi
 }
 
-# Railway CLI subcommand has been renamed across versions (`variable` vs
-# `variables`). Probe once, use whichever the installed CLI actually exposes,
-# so a version drift fails loudly at this line instead of silently later.
-VAR_CMD=""
-if railway variables --help >/dev/null 2>&1; then
-  VAR_CMD="variables"
-elif railway variable --help >/dev/null 2>&1; then
-  VAR_CMD="variable"
-else
-  alert "ABORT: neither 'railway variables' nor 'railway variable' exists on this CLI. Cutover did not run — old project is untouched."
-  exit 1
-fi
+# Railway's own CLI turned out to be the least reliable part of this pipeline:
+# its subcommand name has been renamed across versions (`variable` vs
+# `variables`), and as of CLI v5.54 it flatly rejects a project token
+# (RAILWAY_TOKEN) as "Invalid RAILWAY_TOKEN" on every command — including
+# read-only ones — even though that exact token authenticates fine against
+# Railway's GraphQL API directly (confirmed 2026-09-12). Rather than depend on
+# whatever CLI version `npm install -g @railway/cli` happens to resolve to at
+# rotation time, this script talks to the API directly with curl.
+RAILWAY_API="https://backboard.railway.com/graphql/v2"
+
+# POST a GraphQL request; print the response body; fail if curl itself failed
+# (network) OR the response carries a top-level "errors" array (GraphQL still
+# returns HTTP 200 on a query/permission error, so a curl-level check alone
+# would miss it).
+gql() {
+  local query="$1" vars="$2" resp
+  resp="$(curl -fsS -X POST "$RAILWAY_API" \
+    -H "Authorization: Bearer ${RAILWAY_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$(jq -nc --arg q "$query" --argjson v "$vars" '{query: $q, variables: $v}')")" || return 1
+  if jq -e '.errors' >/dev/null 2>&1 <<<"$resp"; then
+    echo "GraphQL error: $(jq -c '.errors' <<<"$resp")" >&2
+    return 1
+  fi
+  echo "$resp"
+}
 
 set_and_verify_db_url() {
   local target_url="$1" label="$2"
   echo "==> Setting DATABASE_URL (${label})…"
-  railway "$VAR_CMD" --set "DATABASE_URL=${target_url}" \
-    --service "$RAILWAY_SERVICE" --environment "$RAILWAY_ENVIRONMENT" --yes
+  gql 'mutation($input: VariableUpsertInput!) { variableUpsert(input: $input) }' \
+    "$(jq -nc --arg pid "$RAILWAY_PROJECT_ID" --arg eid "$RAILWAY_ENVIRONMENT" \
+        --arg sid "$RAILWAY_SERVICE" --arg url "$target_url" \
+        '{input: {projectId:$pid, environmentId:$eid, serviceId:$sid, name:"DATABASE_URL", value:$url}}')" \
+    >/dev/null
 
   echo "==> Reading DATABASE_URL back to confirm it actually took…"
   local readback
-  readback="$(railway "$VAR_CMD" --service "$RAILWAY_SERVICE" --environment "$RAILWAY_ENVIRONMENT" --json 2>/dev/null \
-    | jq -r '.DATABASE_URL // empty')"
+  readback="$(gql 'query($pid: String!, $eid: String!, $sid: String) { variables(projectId: $pid, environmentId: $eid, serviceId: $sid) }' \
+      "$(jq -nc --arg pid "$RAILWAY_PROJECT_ID" --arg eid "$RAILWAY_ENVIRONMENT" --arg sid "$RAILWAY_SERVICE" \
+          '{pid:$pid, eid:$eid, sid:$sid}')" \
+    | jq -r '.data.variables.DATABASE_URL // empty')"
   if [[ "$readback" != "$target_url" ]]; then
-    alert "ABORT: DATABASE_URL read-back did not match after setting it to ${label}. Railway CLI may have changed its variable-set syntax — refusing to proceed blind."
+    alert "ABORT: DATABASE_URL read-back did not match after setting it to ${label}. Refusing to proceed blind."
     return 1
   fi
 
   echo "==> Triggering redeploy…"
-  railway redeploy --service "$RAILWAY_SERVICE" --environment "$RAILWAY_ENVIRONMENT" --yes
+  gql 'mutation($eid: String!, $sid: String!) { serviceInstanceRedeploy(environmentId: $eid, serviceId: $sid) }' \
+    "$(jq -nc --arg eid "$RAILWAY_ENVIRONMENT" --arg sid "$RAILWAY_SERVICE" '{eid:$eid, sid:$sid}')" \
+    >/dev/null
 }
 
 wait_for_health() {

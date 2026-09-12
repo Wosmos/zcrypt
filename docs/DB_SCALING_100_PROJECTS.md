@@ -417,7 +417,14 @@ sequenceDiagram
 **Setup (one-time, human):** `gh secret set` for `NEON_API_KEY`, `NEON_PROJECT_ID`
 (bootstrap only — `docs/neon-manifest.json` takes over as the active-project
 source of truth after the first rotation), `NTFY_TOPIC`, `RAILWAY_TOKEN`,
-`RAILWAY_SERVICE`, `RAILWAY_ENVIRONMENT`, `HEALTH_URL`. For the nightly backup,
+`RAILWAY_PROJECT_ID`, `RAILWAY_SERVICE`, `RAILWAY_ENVIRONMENT`, `HEALTH_URL`.
+`RAILWAY_PROJECT_ID`/`SERVICE`/`ENVIRONMENT` must be Railway's internal **ids**,
+not display names (e.g. not the string `"production"`) — `neon-cutover.sh`
+talks to Railway's GraphQL API directly (`backboard.railway.com/graphql/v2`)
+rather than the `railway` CLI, which as of v5.54 rejects a project token on
+every command even though the same token works against the API directly
+(confirmed 2026-09-12); ids are visible in the Railway dashboard URL for the
+project/service/environment. For the nightly backup,
 also generate an `age` keypair OFFLINE (`age-keygen`) and `gh secret set
 NEON_BACKUP_AGE_RECIPIENT` with the **public** key only — the private key must
 never touch this repo or CI; it is the one artifact that makes a backup useful,

@@ -22,7 +22,7 @@
 #
 # Required env:
 #   NEON_API_KEY          Neon API key (also authenticates neonctl)
-#   RAILWAY_TOKEN, RAILWAY_SERVICE, RAILWAY_ENVIRONMENT, HEALTH_URL
+#   RAILWAY_TOKEN, RAILWAY_PROJECT_ID, RAILWAY_SERVICE, RAILWAY_ENVIRONMENT, HEALTH_URL
 #                         passed straight through to neon-cutover.sh
 # Optional env:
 #   NEON_PROJECT_ID       fallback active-project id, used only if

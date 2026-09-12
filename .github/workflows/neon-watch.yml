@@ -15,14 +15,23 @@ name: Neon Quota Watch
 #                           of truth after the first rotation)
 #   NTFY_TOPIC              any hard-to-guess ntfy.sh topic; subscribe on your phone
 #   RAILWAY_TOKEN            Railway project token (needed only for auto-rotation)
-#   RAILWAY_SERVICE          the Go backend's service name/id on Railway
-#   RAILWAY_ENVIRONMENT      e.g. "production"
+#   RAILWAY_PROJECT_ID       the zcrypt project's id (Railway → project → Settings)
+#   RAILWAY_SERVICE          the Go backend's service ID on Railway (an id, not
+#                            its display name — neon-cutover.sh calls Railway's
+#                            GraphQL API directly, which only accepts ids)
+#   RAILWAY_ENVIRONMENT      the environment's ID (e.g. the id behind
+#                            "production", NOT the string "production" itself)
 #   HEALTH_URL               e.g. https://api.zcrypt.cloud/api/health
 
 on:
   schedule:
     - cron: "0 */6 * * *" # every 6h
   workflow_dispatch:
+    inputs:
+      crit_pct:
+        description: "Override the CRITICAL (auto-rotate) threshold for THIS run only, e.g. 20 to force a live end-to-end rotation test against real usage. Leave blank for the real 80% default."
+        required: false
+        default: ""
 
 permissions:
   contents: write # neon-rotate.sh commits docs/neon-manifest.json on rotation
@@ -58,7 +67,7 @@ jobs:
           NEON_PROJECT_ID: ${{ steps.resolve.outputs.project_id }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           WARN_PCT: "60"
-          CRIT_PCT: "80"
+          CRIT_PCT: "${{ inputs.crit_pct || '80' }}"
         run: bash scripts/neon-usage.sh
 
       - name: Auto-rotate (85%+ quota — before lockout, per docs/DB_SCALING_100_PROJECTS.md)
@@ -69,12 +78,17 @@ jobs:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
           NEON_PROJECT_ID: ${{ steps.resolve.outputs.project_id }}
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
           RAILWAY_SERVICE: ${{ secrets.RAILWAY_SERVICE }}
           RAILWAY_ENVIRONMENT: ${{ secrets.RAILWAY_ENVIRONMENT }}
           HEALTH_URL: ${{ secrets.HEALTH_URL }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: |
-          npm install -g neonctl @railway/cli
+          # @railway/cli is deliberately NOT installed: as of CLI v5.54 it
+          # rejects a project token on every command (confirmed 2026-09-12),
+          # even though the same token works fine against Railway's GraphQL
+          # API directly — which is what neon-cutover.sh now talks to with curl.
+          npm install -g neonctl
           sudo apt-get update -qq && sudo apt-get install -y -qq jq
           # Neon runs PostgreSQL 17; Ubuntu 24.04 ships pg_dump 16, which
           # refuses to dump a newer server ("aborting because of server version
