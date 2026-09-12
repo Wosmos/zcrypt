@@ -22,6 +22,11 @@
 #
 # Required env:
 #   NEON_API_KEY          Neon API key (also authenticates neonctl)
+#   NEON_ORG_ID           the Neon org id `projects create` runs under — recent
+#                         neonctl versions reject project creation without it
+#                         ("org_id is required"); find it at console.neon.tech
+#                         → an existing project → Settings → General, or
+#                         `neonctl orgs list`
 #   RAILWAY_TOKEN, RAILWAY_PROJECT_ID, RAILWAY_SERVICE, RAILWAY_ENVIRONMENT, HEALTH_URL
 #                         passed straight through to neon-cutover.sh
 # Optional env:
@@ -38,6 +43,7 @@
 set -euo pipefail
 
 : "${NEON_API_KEY:?Set NEON_API_KEY.}"
+: "${NEON_ORG_ID:?Set NEON_ORG_ID.}"
 NEW_PROJECT_NAME="${NEW_PROJECT_NAME:-zcrypt-$(date +%s)}"
 NEON_REGION="${NEON_REGION:-aws-us-east-1}"
 GIT_COMMIT_MANIFEST="${GIT_COMMIT_MANIFEST:-1}"
@@ -86,7 +92,7 @@ if ! psql "$OLD_DATABASE_URL" -tAc "select 1" >/dev/null 2>&1; then
 fi
 
 echo "==> 1/6  Creating fresh project '${NEW_PROJECT_NAME}' in ${NEON_REGION}…"
-create_json="$(neonctl projects create --name "$NEW_PROJECT_NAME" --region-id "$NEON_REGION" --output json)"
+create_json="$(neonctl projects create --name "$NEW_PROJECT_NAME" --region-id "$NEON_REGION" --org-id "$NEON_ORG_ID" --output json)"
 NEW_PROJECT_ID="$(jq -r '.project.id' <<<"$create_json")"
 NEW_DIRECT_URL="$(neonctl connection-string --project-id "$NEW_PROJECT_ID" --output json 2>/dev/null | jq -r '.uri' 2>/dev/null || neonctl connection-string --project-id "$NEW_PROJECT_ID")"
 NEW_POOLED_URL="$(neonctl connection-string --project-id "$NEW_PROJECT_ID" --pooled --output json 2>/dev/null | jq -r '.uri' 2>/dev/null || neonctl connection-string --project-id "$NEW_PROJECT_ID" --pooled)"

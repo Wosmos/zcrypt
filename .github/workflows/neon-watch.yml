@@ -13,6 +13,9 @@ name: Neon Quota Watch
 #   NEON_PROJECT_ID         the CURRENT active project's id (bootstrap only —
 #                           docs/neon-manifest.json takes over as the source
 #                           of truth after the first rotation)
+#   NEON_ORG_ID              the Neon org id `neonctl projects create` runs
+#                            under (needed only for auto-rotation) — recent
+#                            neonctl versions reject creation without it
 #   NTFY_TOPIC              any hard-to-guess ntfy.sh topic; subscribe on your phone
 #   RAILWAY_TOKEN            Railway project token (needed only for auto-rotation)
 #   RAILWAY_PROJECT_ID       the zcrypt project's id (Railway → project → Settings)
@@ -76,6 +79,7 @@ jobs:
         continue-on-error: true # let the final step decide the job's pass/fail signal
         env:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_ORG_ID: ${{ secrets.NEON_ORG_ID }}
           NEON_PROJECT_ID: ${{ steps.resolve.outputs.project_id }}
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
