@@ -103,7 +103,11 @@ jobs:
           echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
             | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
           sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client-17
-          echo "/usr/lib/postgresql/17/bin" >>"$GITHUB_PATH"
+          # GITHUB_PATH only takes effect in the NEXT step's shell, not later in
+          # THIS one — and the dump runs in this same step. export PATH directly
+          # (confirmed needed: a live rotation test still picked up the stock
+          # pg_dump 16 here despite the GITHUB_PATH line, 2026-09-12).
+          export PATH="/usr/lib/postgresql/17/bin:$PATH"
           git config user.name "zcrypt-neon-bot"
           git config user.email "actions@users.noreply.github.com"
           bash scripts/neon-rotate.sh
