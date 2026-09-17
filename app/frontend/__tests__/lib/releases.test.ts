@@ -35,14 +35,14 @@ describe("parseAssets", () => {
 
     const mac = data.desktop.find((p) => p.id === "macos")!;
     expect(mac.options).toEqual([
-      { label: "Apple Silicon", sublabel: "M1–M4 · .dmg", href: "url-mac-arm", recommended: true },
-      { label: "Intel", sublabel: "x86_64 · .dmg", href: "url-mac-intel", recommended: undefined },
+      { label: "Apple Silicon", sublabel: "M1–M4 · .dmg", href: "/dl/macos-arm64", recommended: true, note: undefined },
+      { label: "Intel", sublabel: "x86_64 · .dmg", href: "/dl/macos-x64", recommended: undefined, note: undefined },
     ]);
 
     const win = data.desktop.find((p) => p.id === "windows")!;
     expect(win.options).toEqual([
-      { label: "Installer", sublabel: "x64 · .exe", href: "url-win-exe", recommended: true },
-      { label: "MSI package", sublabel: "x64 · .msi", href: "url-win-msi", recommended: undefined },
+      { label: "Installer", sublabel: "x64 · .exe", href: "/dl/windows-exe", recommended: true, note: undefined },
+      { label: "MSI package", sublabel: "x64 · .msi", href: "/dl/windows-msi", recommended: undefined, note: undefined },
     ]);
 
     const lin = data.desktop.find((p) => p.id === "linux")!;
@@ -50,33 +50,33 @@ describe("parseAssets", () => {
       {
         label: "Fedora / RHEL",
         sublabel: "x86_64 · .rpm",
-        href: "url-lin-rpm",
+        href: "/dl/linux-rpm",
         recommended: undefined,
         note: undefined,
       },
       {
         label: "Debian / Ubuntu",
         sublabel: "amd64 · .deb",
-        href: "url-lin-deb",
+        href: "/dl/linux-deb",
         recommended: undefined,
         note: undefined,
       },
       {
         label: "Portable",
         sublabel: "x86_64 · AppImage",
-        href: "url-lin-appimage",
+        href: "/dl/linux-appimage",
         recommended: undefined,
         note: "One-time setup: chmod +x the file, then run it. On Fedora, also install FUSE first — sudo dnf install fuse.",
       },
     ]);
 
     expect(data.cli).toEqual([
-      { os: "macOS", arch: "Apple Silicon", href: "url-cli-mac-arm" },
-      { os: "macOS", arch: "Intel", href: "url-cli-mac-intel" },
-      { os: "Linux", arch: "x64", href: "url-cli-linux-x64" },
-      { os: "Linux", arch: "ARM64", href: "url-cli-linux-arm" },
-      { os: "Windows", arch: "x64", href: "url-cli-win-x64" },
-      { os: "Windows", arch: "ARM64", href: "url-cli-win-arm" },
+      { os: "macOS", arch: "Apple Silicon", href: "/dl/cli-darwin-arm64" },
+      { os: "macOS", arch: "Intel", href: "/dl/cli-darwin-amd64" },
+      { os: "Linux", arch: "x64", href: "/dl/cli-linux-amd64" },
+      { os: "Linux", arch: "ARM64", href: "/dl/cli-linux-arm64" },
+      { os: "Windows", arch: "x64", href: "/dl/cli-windows-amd64" },
+      { os: "Windows", arch: "ARM64", href: "/dl/cli-windows-arm64" },
     ]);
 
     expect(data.checksumsUrl).toBe("url-checksums");
@@ -242,8 +242,27 @@ describe("getLatestRelease", () => {
     expect(data!.desktop.find((p) => p.id === "windows")!.options).toHaveLength(2);
     expect(data!.desktop.find((p) => p.id === "linux")!.options).toHaveLength(3);
     expect(data!.cli).toHaveLength(6);
-    expect(data!.checksumsUrl).toContain("checksums.txt");
-    expect(data!.htmlUrl).toContain("releases/tag/v");
+    // The fallback names no version and no filename — every href is a /dl
+    // redirect the backend resolves — so there is no checksums asset to point
+    // at, and the page link is just /releases/latest.
+    expect(data!.checksumsUrl).toBeNull();
+    expect(data!.htmlUrl).toBe(`${GITHUB_REPO}/releases/latest`);
+    const hrefs = [
+      ...data!.desktop.flatMap((p) => p.options.map((o) => o.href)),
+      ...data!.cli.map((c) => c.href),
+    ];
+    expect(hrefs.every((h) => h.startsWith("/dl/"))).toBe(true);
+  });
+
+  it("never pins a version into a fallback href, so it cannot go stale", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
+    const { getLatestRelease } = await import("@/lib/releases");
+    const data = await getLatestRelease();
+    const hrefs = [
+      ...data!.desktop.flatMap((p) => p.options.map((o) => o.href)),
+      ...data!.cli.map((c) => c.href),
+    ];
+    expect(hrefs.some((h) => /\d+\.\d+\.\d+/.test(h))).toBe(false);
   });
 });
 

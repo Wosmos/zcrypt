@@ -6,11 +6,36 @@ import { GITHUB_REPO } from "@/lib/data";
 
 const LATEST_RELEASE_API = "https://api.github.com/repos/Wosmos/zcrypt/releases/latest";
 
-// Rolling prerelease published by the device workflow: the `zcrypt.apk` asset
-// on the `android-latest` tag is overwritten on every push, so this URL is
-// constant and safe to link + QR-encode directly. Shared by the hero CTA and
-// the Android sideload card so there's one source of truth for it.
-export const ANDROID_APK_URL = `${GITHUB_REPO}/releases/download/android-latest/zcrypt.apk`;
+/**
+ * Every installer is served through our own redirect rather than linked at
+ * GitHub directly. Bundler filenames embed the version
+ * (`zcrypt_0.1.4_aarch64.dmg`), so a direct link has to know the current
+ * release — which is why the download page, the docs and install.sh had each
+ * drifted onto a different URL. `/dl/<target>` is stable forever: the backend
+ * resolves the asset at click time, and records the download on the way past.
+ */
+export type DownloadTarget =
+  | "macos-arm64"
+  | "macos-x64"
+  | "windows-exe"
+  | "windows-msi"
+  | "linux-appimage"
+  | "linux-deb"
+  | "linux-rpm"
+  | "android"
+  | "cli-darwin-arm64"
+  | "cli-darwin-amd64"
+  | "cli-linux-amd64"
+  | "cli-linux-arm64"
+  | "cli-windows-amd64"
+  | "cli-windows-arm64";
+
+export const dl = (target: DownloadTarget): string => `/dl/${target}`;
+
+// Shared by the hero CTA and the Android sideload card so there's one source
+// of truth. The APK lives on the rolling `android-latest` prerelease, which
+// the redirect knows about.
+export const ANDROID_APK_URL = dl("android");
 export const ANDROID_RELEASE_PAGE = `${GITHUB_REPO}/releases/tag/android-latest`;
 
 export type PlatformId = "macos" | "windows" | "linux";
@@ -54,22 +79,18 @@ export interface ReleaseData {
   isFallback?: boolean;
 }
 
-// Last release known to be fully published. Used only when the live lookup
-// fails (e.g. GitHub API rate limit) so the page never dead-ends — users still
-// get working downloads, just possibly not the newest. Bump on a new release:
-// a stale value here is silently served to everyone whenever GitHub throttles us.
-const FALLBACK_VERSION = "0.1.4";
-
-function fallbackUrl(file: string): string {
-  return `${GITHUB_REPO}/releases/download/v${FALLBACK_VERSION}/${file}`;
-}
-
-/** Static, always-available download set for when the live lookup fails. */
+/**
+ * Download set used when the live lookup fails (GitHub API rate limit, say).
+ *
+ * Every href is a `/dl/<target>` redirect, so unlike the old table this can no
+ * longer go stale: it names no version and no filename, and the backend still
+ * resolves each target to whatever the newest release actually holds. The only
+ * thing lost when the lookup fails is the cosmetic version label.
+ */
 function buildFallbackRelease(): ReleaseData {
-  const v = FALLBACK_VERSION;
   return {
-    version: v,
-    htmlUrl: `${GITHUB_REPO}/releases/tag/v${v}`,
+    version: "latest",
+    htmlUrl: `${GITHUB_REPO}/releases/latest`,
     isFallback: true,
     desktop: [
       {
@@ -81,7 +102,7 @@ function buildFallbackRelease(): ReleaseData {
           {
             label: "Apple Silicon",
             sublabel: "M1–M4 · .dmg",
-            href: fallbackUrl(`zcrypt_${v}_aarch64.dmg`),
+            href: dl("macos-arm64"),
             recommended: true,
           },
         ],
@@ -95,13 +116,13 @@ function buildFallbackRelease(): ReleaseData {
           {
             label: "Installer",
             sublabel: "x64 · .exe",
-            href: fallbackUrl(`zcrypt_${v}_x64-setup.exe`),
+            href: dl("windows-exe"),
             recommended: true,
           },
           {
             label: "MSI package",
             sublabel: "x64 · .msi",
-            href: fallbackUrl(`zcrypt_${v}_x64_en-US.msi`),
+            href: dl("windows-msi"),
           },
         ],
       },
@@ -113,31 +134,31 @@ function buildFallbackRelease(): ReleaseData {
           {
             label: "Fedora / RHEL",
             sublabel: "x86_64 · .rpm",
-            href: fallbackUrl(`zcrypt-${v}-1.x86_64.rpm`),
+            href: dl("linux-rpm"),
           },
           {
             label: "Debian / Ubuntu",
             sublabel: "amd64 · .deb",
-            href: fallbackUrl(`zcrypt_${v}_amd64.deb`),
+            href: dl("linux-deb"),
           },
           {
             label: "Portable",
             sublabel: "x86_64 · AppImage",
-            href: fallbackUrl(`zcrypt_${v}_amd64.AppImage`),
+            href: dl("linux-appimage"),
             note: APPIMAGE_NOTE,
           },
         ],
       },
     ],
     cli: [
-      { os: "macOS", arch: "Apple Silicon", href: fallbackUrl(`zcrypt_${v}_darwin_arm64.tar.gz`) },
-      { os: "macOS", arch: "Intel", href: fallbackUrl(`zcrypt_${v}_darwin_amd64.tar.gz`) },
-      { os: "Linux", arch: "x64", href: fallbackUrl(`zcrypt_${v}_linux_amd64.tar.gz`) },
-      { os: "Linux", arch: "ARM64", href: fallbackUrl(`zcrypt_${v}_linux_arm64.tar.gz`) },
-      { os: "Windows", arch: "x64", href: fallbackUrl(`zcrypt_${v}_windows_amd64.zip`) },
-      { os: "Windows", arch: "ARM64", href: fallbackUrl(`zcrypt_${v}_windows_arm64.zip`) },
+      { os: "macOS", arch: "Apple Silicon", href: dl("cli-darwin-arm64") },
+      { os: "macOS", arch: "Intel", href: dl("cli-darwin-amd64") },
+      { os: "Linux", arch: "x64", href: dl("cli-linux-amd64") },
+      { os: "Linux", arch: "ARM64", href: dl("cli-linux-arm64") },
+      { os: "Windows", arch: "x64", href: dl("cli-windows-amd64") },
+      { os: "Windows", arch: "ARM64", href: dl("cli-windows-arm64") },
     ],
-    checksumsUrl: fallbackUrl("checksums.txt"),
+    checksumsUrl: null,
   };
 }
 
@@ -185,32 +206,35 @@ export function parseAssets(assets: RawAsset[], tag: string, htmlUrl: string): R
   const linDeb = find((n) => n.endsWith(".deb"));
   const linRpm = find((n) => n.endsWith(".rpm"));
 
+  // The live asset list still decides WHICH options to show — an installer
+  // whose build leg didn't publish must not be offered — but the href is the
+  // stable redirect, never the versioned asset URL.
   const opt = (
     a: RawAsset | undefined,
+    target: DownloadTarget,
     label: string,
     sublabel: string,
     recommended?: boolean,
     note?: string,
-  ): DownloadOption | null =>
-    a ? { label, sublabel, href: a.browser_download_url, recommended, note } : null;
+  ): DownloadOption | null => (a ? { label, sublabel, href: dl(target), recommended, note } : null);
 
   const macOptions = [
-    opt(macAarch, "Apple Silicon", "M1–M4 · .dmg", true),
-    opt(macIntel, "Intel", "x86_64 · .dmg"),
+    opt(macAarch, "macos-arm64", "Apple Silicon", "M1–M4 · .dmg", true),
+    opt(macIntel, "macos-x64", "Intel", "x86_64 · .dmg"),
   ].filter(Boolean) as DownloadOption[];
 
   const winOptions = [
-    opt(winExe, "Installer", "x64 · .exe", true),
-    opt(winMsi, "MSI package", "x64 · .msi"),
+    opt(winExe, "windows-exe", "Installer", "x64 · .exe", true),
+    opt(winMsi, "windows-msi", "MSI package", "x64 · .msi"),
   ].filter(Boolean) as DownloadOption[];
 
   // Distro-named packages first — they're the correct answer for the vast
   // majority of Linux visitors and install cleanly with no extra steps.
   // Portable last: it works everywhere but needs the two steps in its note.
   const linOptions = [
-    opt(linRpm, "Fedora / RHEL", "x86_64 · .rpm"),
-    opt(linDeb, "Debian / Ubuntu", "amd64 · .deb"),
-    opt(linAppImage, "Portable", "x86_64 · AppImage", undefined, APPIMAGE_NOTE),
+    opt(linRpm, "linux-rpm", "Fedora / RHEL", "x86_64 · .rpm"),
+    opt(linDeb, "linux-deb", "Debian / Ubuntu", "amd64 · .deb"),
+    opt(linAppImage, "linux-appimage", "Portable", "x86_64 · AppImage", undefined, APPIMAGE_NOTE),
   ].filter(Boolean) as DownloadOption[];
 
   const allPlatforms: DesktopPlatform[] = [
@@ -259,7 +283,7 @@ export function parseAssets(assets: RawAsset[], tag: string, htmlUrl: string): R
             ? "Apple Silicon"
             : "Intel"
           : archName[m[2] as CliArch];
-      return { os, arch, href: a.browser_download_url };
+      return { os, arch, href: dl(`cli-${m[1]}-${m[2]}` as DownloadTarget) };
     })
     .filter(Boolean) as CliBinary[];
 

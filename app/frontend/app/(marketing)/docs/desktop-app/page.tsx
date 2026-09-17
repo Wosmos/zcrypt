@@ -103,12 +103,12 @@ export default function DesktopAppDocPage() {
           items={[
             <>
               <a
-                href="https://github.com/Wosmos/zcrypt/releases"
+                href="/download"
                 className="text-cyan-600 hover:underline dark:text-cyan-400"
                 target="_blank"
                 rel="noreferrer"
               >
-                github.com/Wosmos/zcrypt/releases
+                zcrypt.cloud/download
               </a>{" "}
               — pick the latest release and download the build for macOS, Windows, or Linux.
             </>,

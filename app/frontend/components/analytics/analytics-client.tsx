@@ -20,6 +20,7 @@ import { StorageHealth } from "@/components/analytics/storage-health";
 import { StorageGrowth } from "@/components/analytics/storage-growth";
 import { VaultDetails } from "@/components/analytics/vault-details";
 import { AdvancedDetails } from "@/components/analytics/advanced-details";
+import { AppDownloadsCard } from "@/components/analytics/app-downloads-card";
 import {
   Layers,
   HardDrive,
@@ -147,7 +148,7 @@ export function AnalyticsClient() {
       {header}
 
       {/* Headline metrics */}
-      <motion.div variants={item} className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+      <motion.div variants={item} className="grid grid-cols-2 gap-4 lg:grid-cols-6">
         <StatCard
           label="Total files"
           value={files.length.toLocaleString()}
@@ -179,6 +180,7 @@ export function AnalyticsClient() {
           hint={`${activeRepos} active repo${activeRepos !== 1 ? "s" : ""}`}
           icon={Server}
         />
+        <AppDownloadsCard />
       </motion.div>
 
       {/* Storage hero */}

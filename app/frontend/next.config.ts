@@ -109,6 +109,19 @@ const nextConfig: NextConfig = {
           destination: "https://raw.githubusercontent.com/Wosmos/zcrypt/main/scripts/install.sh",
         },
       ];
+      // Short, stable installer URLs: /dl/macos-arm64 and friends. The backend
+      // resolves each target to the current release asset and records the
+      // download, so nothing on the site, in the docs, or in a shell snippet
+      // has to know a version or a filename. Deliberately /dl, not /download —
+      // that path is the marketing page.
+      if (apiUrl || process.env.NODE_ENV === "development") {
+        const dlUpstream =
+          process.env.NODE_ENV === "development" ? "http://localhost:8080" : apiUrl;
+        rules.push({
+          source: "/dl/:target",
+          destination: `${dlUpstream.replace(/\/$/, "")}/api/download/:target`,
+        });
+      }
       // Same-origin API proxy. In dev this points at the local backend. In
       // production it makes www.zcrypt.cloud/api/* a STABLE front for the
       // backend: native desktop/Android builds bake this hostname (which we

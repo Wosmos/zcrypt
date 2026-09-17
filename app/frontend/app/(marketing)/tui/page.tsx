@@ -299,7 +299,7 @@ export default function TUIPage() {
           {/* Actions */}
           <div className="flex items-center justify-center mt-6">
             <a
-              href="https://github.com/Wosmos/zcrypt/releases/latest"
+              href="/download"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-5 py-2.5 text-sm rounded-lg border border-[var(--color-border)] hover:border-[var(--color-border-hover)] bg-[var(--color-surface)] text-[var(--color-text)] font-medium transition-colors"
@@ -485,7 +485,7 @@ export default function TUIPage() {
               <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
             </Link>
             <a
-              href="https://github.com/Wosmos/zcrypt/releases/latest"
+              href="/download"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-6 py-3.5 text-sm font-semibold text-[var(--color-text-secondary)] hover:text-[var(--color-text)] transition-colors"

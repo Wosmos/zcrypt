@@ -81,6 +81,8 @@ const cases: Case[] = [
   { name: "adminSetUserQuota", run: () => api.adminSetUserQuota("u", 100), path: "/api/admin/users/u/quota", method: "PUT" },
   { name: "adminListFeedback", run: () => api.adminListFeedback(), path: "/api/admin/feedback" },
   { name: "adminGetAuditLog", run: () => api.adminGetAuditLog({}), path: "/api/admin/audit" },
+  { name: "adminGetDownloads", run: () => api.adminGetDownloads(), path: "/api/admin/downloads?days=30" },
+  { name: "adminGetDownloads (range)", run: () => api.adminGetDownloads(7), path: "/api/admin/downloads?days=7" },
   { name: "adminGetPlans", run: () => api.adminGetPlans(), path: "/api/admin/plans" },
   { name: "adminSetPlans", run: () => api.adminSetPlans({} as never), path: "/api/admin/plans", method: "PUT" },
   { name: "adminGetUser", run: () => api.adminGetUser("u"), path: "/api/admin/users/u" },

@@ -14,12 +14,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { LayoutGrid, Users, FileText, Crown } from "@/lib/icons";
+import { LayoutGrid, Users, FileText, Crown, Download } from "@/lib/icons";
 
 const tabs = [
   { href: "/admin", label: "Overview", icon: LayoutGrid },
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/audit-logs", label: "Audit logs", icon: FileText },
+  { href: "/admin/downloads", label: "Downloads", icon: Download },
   { href: "/admin/pricing", label: "Pricing", icon: Crown },
 ];
 

@@ -393,3 +393,25 @@ describe("createEventSource", () => {
     expect(es.url).not.toContain("token=");
   });
 });
+
+// getDownloadTotal bypasses request() — it is unauthenticated, so it uses raw
+// fetch and must not attach a token or blow up the caller on a bad response.
+describe("getDownloadTotal", () => {
+  it("returns the total from the public stats endpoint", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ total: 1234 }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(api.getDownloadTotal()).resolves.toBe(1234);
+    expect(String(fetchMock.mock.calls[0][0])).toContain("/api/downloads/stats");
+    // No auth: a public counter must work for signed-out visitors.
+    expect(fetchMock.mock.calls[0][1]).toBeUndefined();
+  });
+
+  it("throws when the endpoint responds with a non-ok status", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 500 }));
+    await expect(api.getDownloadTotal()).rejects.toThrow("failed to load download total");
+  });
+});

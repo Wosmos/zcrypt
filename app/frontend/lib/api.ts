@@ -548,6 +548,58 @@ export function adminGetStats(): Promise<SystemStats> {
   return request<SystemStats>("/api/admin/stats");
 }
 
+// ─── App installer downloads ─────────────────────────────────
+// Downloads of the zcrypt app itself, recorded by the /dl/<target> redirect.
+// Not to be confused with a user downloading a file from their vault.
+
+export interface DownloadCount {
+  key: string;
+  count: number;
+}
+
+export interface DownloadDay {
+  date: string;
+  count: number;
+}
+
+export interface DownloadStats {
+  total: number;
+  last_30_days: number;
+  platforms: DownloadCount[];
+  targets: DownloadCount[];
+  versions: DownloadCount[];
+  countries: DownloadCount[];
+  referrers: DownloadCount[];
+  daily: DownloadDay[];
+  /** How many downloads came from a visitor who happened to be signed in. */
+  signed_in: number;
+}
+
+export interface GithubAssetCount {
+  name: string;
+  tag: string;
+  count: number;
+  is_apk: boolean;
+}
+
+export interface AdminDownloadsResponse {
+  stats: DownloadStats;
+  /** GitHub's own per-asset counts — covers people who never hit our redirect. */
+  github: GithubAssetCount[];
+}
+
+export function adminGetDownloads(days = 30): Promise<AdminDownloadsResponse> {
+  return request<AdminDownloadsResponse>(`/api/admin/downloads?days=${days}`);
+}
+
+/** Public all-time installer total. No auth, counts only. */
+export async function getDownloadTotal(): Promise<number> {
+  const res = await fetch(`${API_BASE}/api/downloads/stats`);
+  if (!res.ok) throw new Error("failed to load download total");
+  const body = (await res.json()) as { total: number };
+  return body.total;
+}
+
 export function adminSetUserRole(userId: string, role: string): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/admin/users/${userId}/role`, {
     method: "PUT",

@@ -516,7 +516,7 @@ export const tuiInstallMethods = [
   },
   {
     label: "Direct Download",
-    command: "https://github.com/Wosmos/zcrypt/releases/latest",
+    command: `${SITE_URL}/download`,
     note: "All platforms — prebuilt binaries",
   },
   {

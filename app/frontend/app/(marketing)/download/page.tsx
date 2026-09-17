@@ -13,6 +13,7 @@ import {
 import { tuiInstallMethods, GITHUB_REPO, downloadPageContent } from "@/lib/data";
 import { SoftwareApplicationJsonLd, BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { DownloadCta } from "@/components/marketing/download/download-cta";
+import { DownloadCount } from "@/components/marketing/download/download-count";
 import { InstallCommands } from "@/components/marketing/download/install-commands";
 import { DesktopGrid } from "@/components/marketing/download/desktop-grid";
 import { AndroidDownload } from "@/components/marketing/download/android-download";
@@ -196,6 +197,9 @@ export default async function DownloadPage() {
           <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-[var(--color-text-secondary)]">
             {openSource.body}
           </p>
+          <div className="mt-4 flex justify-center">
+            <DownloadCount />
+          </div>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
             <a
               href={GITHUB_REPO}
