@@ -542,6 +542,19 @@ jobs:
         if: steps.cache-tauri-cli.outputs.cache-hit != 'true'
         run: cargo install tauri-cli --version "^2" --locked
 
+      # `tauri icon` reads icons/icon.png (the same source the desktop bundle
+      # icons already come from) and writes the full per-platform set,
+      # including icons/android/mipmap-*/ic_launcher*.png + the adaptive-icon
+      # XML, back into `icons/`. `android init` below copies launcher icons
+      # from there into the freshly-generated gen/android project — skip this
+      # step and it silently falls back to the Tauri CLI's own template icon,
+      # which is why every build has shipped that instead of zcrypt's icon.
+      # Desktop bundle icons (tauri.conf.json's `bundle.icon`) are untouched:
+      # this only adds the icons/android (and icons/ios, for later) subfolders.
+      - name: Generate app icons for Android
+        working-directory: app/desktop/src-tauri
+        run: cargo tauri icon icons/icon.png
+
       # `android init` generates gen/android/ from tauri.conf.json + the Rust
       # crate. It isn't committed to the repo (app/desktop/src-tauri/gen only
       # ships the desktop `schemas/` dir), so every CI run (re)creates it from
