@@ -582,10 +582,31 @@ export interface GithubAssetCount {
   is_apk: boolean;
 }
 
+export interface ReleaseAsset {
+  target: string;
+  platform: string;
+  name: string;
+  present: boolean;
+  /** The version-less alias published, so the GitHub URL is stable on its own. */
+  stable: boolean;
+}
+
+/** Read-only release state. Cutting a release stays a terminal `git tag`. */
+export interface ReleaseInfo {
+  tag: string;
+  android_tag: string;
+  /** False when latest.json is absent — the cause of "couldn't check for updates". */
+  updater_manifest: boolean;
+  assets: ReleaseAsset[];
+  missing: number;
+}
+
 export interface AdminDownloadsResponse {
   stats: DownloadStats;
   /** GitHub's own per-asset counts — covers people who never hit our redirect. */
   github: GithubAssetCount[];
+  /** Null when the GitHub API was unreachable. */
+  release: ReleaseInfo | null;
 }
 
 export function adminGetDownloads(days = 30): Promise<AdminDownloadsResponse> {

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -289,6 +290,89 @@ func (s *Server) HandleDownloadStats(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"total": total})
 }
 
+// releaseAsset reports whether one download target actually published on the
+// current release. A missing installer is otherwise silent — the download page
+// just stops offering it, and /dl/<target> quietly falls back to the releases
+// page — so it is surfaced explicitly.
+type releaseAsset struct {
+	Target   string `json:"target"`
+	Platform string `json:"platform"`
+	Name     string `json:"name"`
+	Present  bool   `json:"present"`
+	// Stable is true when the version-less alias published, meaning the URL
+	// keeps working on GitHub even without our redirect in front of it.
+	Stable bool `json:"stable"`
+}
+
+// releaseInfo is the read-only release state behind the admin panel. There is
+// deliberately no way to cut a release from here: that would need a repo-write
+// token beside MASTER_KEY, and would bypass the pre-push gates that every tag
+// currently goes through.
+type releaseInfo struct {
+	Tag string `json:"tag"`
+	// AndroidTag is the rolling prerelease, usually ahead of the tagged one.
+	AndroidTag string `json:"android_tag"`
+	// UpdaterManifest is false when latest.json is absent, which is exactly
+	// what makes the desktop app report "couldn't check for updates".
+	UpdaterManifest bool           `json:"updater_manifest"`
+	Assets          []releaseAsset `json:"assets"`
+	Missing         int            `json:"missing"`
+}
+
+// buildReleaseInfo inspects the current release through the same cache the
+// download redirect uses, so it costs no extra GitHub API calls.
+func (s *Server) buildReleaseInfo(ctx context.Context) *releaseInfo {
+	latest, err := s.releases.get(ctx, githubLatestAPI)
+	if err != nil || latest == nil {
+		return nil
+	}
+	android, _ := s.releases.get(ctx, androidReleaseAPI)
+
+	info := &releaseInfo{Tag: latest.TagName}
+	if android != nil {
+		info.AndroidTag = android.TagName
+	}
+	for _, a := range latest.Assets {
+		if a.Name == "latest.json" {
+			info.UpdaterManifest = true
+			break
+		}
+	}
+
+	// Stable order: the map iterates randomly, and a checklist that reshuffles
+	// on every refresh is unreadable.
+	names := make([]string, 0, len(downloadTargets))
+	for name := range downloadTargets {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	for _, name := range names {
+		t := downloadTargets[name]
+		rel := latest
+		if t.android {
+			rel = android
+		}
+		asset := releaseAsset{Target: name, Platform: t.platform}
+		if rel != nil {
+			for _, a := range rel.Assets {
+				if t.stable != "" && a.Name == t.stable {
+					asset.Present, asset.Stable, asset.Name = true, true, a.Name
+					break
+				}
+				if t.match != nil && t.match(a.Name) {
+					asset.Present, asset.Name = true, a.Name
+				}
+			}
+		}
+		if !asset.Present {
+			info.Missing++
+		}
+		info.Assets = append(info.Assets, asset)
+	}
+	return info
+}
+
 // HandleAdminDownloads is the full rollup behind the admin downloads view.
 // GET /api/admin/downloads?days=30
 func (s *Server) HandleAdminDownloads(w http.ResponseWriter, r *http.Request) {
@@ -328,7 +412,8 @@ func (s *Server) HandleAdminDownloads(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
-		"stats":  stats,
-		"github": github,
+		"stats":   stats,
+		"github":  github,
+		"release": s.buildReleaseInfo(r.Context()),
 	})
 }

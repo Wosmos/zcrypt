@@ -10,7 +10,12 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { adminGetDownloads, type AdminDownloadsResponse, type DownloadCount } from "@/lib/api";
+import {
+  adminGetDownloads,
+  type AdminDownloadsResponse,
+  type DownloadCount,
+  type ReleaseInfo,
+} from "@/lib/api";
 import {
   CHART_TOOLTIP_CURSOR,
   CHART_TOOLTIP_LABEL_STYLE,
@@ -20,8 +25,9 @@ import { StatCard } from "@/components/ui/stat-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { Download, Globe, User, Box } from "@/lib/icons";
+import { Download, Globe, User, Box, CheckCircle2, XCircle } from "@/lib/icons";
 import { toast } from "@/store/toast";
+import { cn } from "@/lib/utils";
 
 const RANGES = [
   { value: "7", label: "7d" },
@@ -35,6 +41,96 @@ const PLATFORM_LABELS: Record<string, string> = {
   linux: "Linux",
   android: "Android",
 };
+
+/**
+ * Read-only view of what the current release actually published.
+ *
+ * There is intentionally no control here to cut a release: tagging is a git
+ * operation, and doing it from the admin panel would mean a GitHub write token
+ * living beside MASTER_KEY while bypassing the pre-push gates every tag goes
+ * through today. This answers the questions the product otherwise cannot —
+ * which installers exist, and why the desktop updater is or isn't working.
+ */
+function ReleaseCard({ release }: { release: ReleaseInfo }) {
+  const byPlatform = new Map<string, typeof release.assets>();
+  for (const a of release.assets) {
+    byPlatform.set(a.platform, [...(byPlatform.get(a.platform) ?? []), a]);
+  }
+
+  return (
+    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+        <h3 className="text-sm font-semibold text-[var(--color-text)]">
+          Released build
+          <span className="ml-2 font-mono text-xs text-[var(--color-text-muted)]">
+            {release.tag}
+          </span>
+        </h3>
+        {release.missing > 0 && (
+          <span className="text-xs text-[var(--toast-warning)]">
+            {release.missing} installer{release.missing === 1 ? "" : "s"} missing
+          </span>
+        )}
+      </div>
+
+      <div
+        className={cn(
+          "mb-4 rounded-lg border p-3 text-xs leading-relaxed",
+          release.updater_manifest
+            ? "border-[var(--color-border)] bg-[var(--color-surface-1)] text-[var(--color-text-muted)]"
+            : "border-[var(--toast-warning)]/30 bg-[var(--toast-warning)]/5 text-[var(--color-text)]",
+        )}
+      >
+        {release.updater_manifest ? (
+          <>Updater manifest published — desktop builds can find this release.</>
+        ) : (
+          <>
+            No <span className="font-mono">latest.json</span> on {release.tag}, so installed desktop
+            apps report &ldquo;couldn&apos;t check for updates&rdquo;. It is generated only when
+            updater signing succeeds during the release build.
+          </>
+        )}
+      </div>
+
+      <div className="space-y-3">
+        {[...byPlatform.entries()].map(([platform, assets]) => (
+          <div key={platform}>
+            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+              {PLATFORM_LABELS[platform] ?? platform}
+            </p>
+            <ul className="space-y-1">
+              {assets.map((a) => (
+                <li key={a.target} className="flex items-baseline gap-2 text-xs">
+                  {a.present ? (
+                    <CheckCircle2 className="h-3 w-3 shrink-0 translate-y-0.5 text-[var(--toast-success)]" />
+                  ) : (
+                    <XCircle className="h-3 w-3 shrink-0 translate-y-0.5 text-[var(--toast-error)]" />
+                  )}
+                  <span className="font-mono text-[var(--color-text)]">{a.target}</span>
+                  <span className="min-w-0 flex-1 truncate text-[var(--color-text-muted)]">
+                    {a.present ? a.name : "did not publish"}
+                  </span>
+                  {a.stable && (
+                    <span className="shrink-0 text-[10px] uppercase tracking-wide text-[var(--color-text-muted)]">
+                      stable
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+
+      <p className="mt-4 border-t border-[var(--color-border)] pt-3 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+        Releases are cut from the terminal — <span className="font-mono">git tag vX.Y.Z</span> then{" "}
+        <span className="font-mono">git push origin vX.Y.Z</span> — so every one passes the pre-push
+        gates. Android sideloads roll separately on{" "}
+        <span className="font-mono">{release.android_tag || "android-latest"}</span>.
+      </p>
+    </div>
+  );
+}
 
 /** A labelled horizontal bar list — used for every breakdown on this page. */
 function Breakdown({
@@ -107,7 +203,7 @@ export function DownloadsContent() {
   }
   if (!data) return null;
 
-  const { stats, github } = data;
+  const { stats, github, release } = data;
   // GitHub counts everyone, including people who went straight to the releases
   // page and never touched our redirect — so it is the larger, and truer, total.
   const githubTotal = github.reduce((sum, a) => sum + a.count, 0);
@@ -188,6 +284,8 @@ export function DownloadsContent() {
           </div>
         )}
       </div>
+
+      {release && <ReleaseCard release={release} />}
 
       <div className="grid gap-4 md:grid-cols-2">
         <Breakdown
