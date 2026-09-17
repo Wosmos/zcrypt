@@ -27,7 +27,6 @@
     "shell:default",
     "opener:default",
     "notification:default",
-    "notification:allow-notify",
-    "updater:default"
+    "notification:allow-notify"
   ]
 }

@@ -1,0 +1,15 @@
+{
+  "identifier": "updater",
+  "description": "Updater permissions — desktop only. The updater plugin has no Android/iOS backend (see lib.rs's #[cfg(desktop)] plugin registration), so `updater:default` doesn't resolve to anything on those targets and fails the mobile build if granted unconditionally.",
+  "windows": [
+    "main"
+  ],
+  "platforms": [
+    "linux",
+    "macOS",
+    "windows"
+  ],
+  "permissions": [
+    "updater:default"
+  ]
+}
