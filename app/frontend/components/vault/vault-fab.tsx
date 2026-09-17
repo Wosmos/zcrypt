@@ -28,8 +28,8 @@ export function VaultFab({ onNewFolder, onUpload }: VaultFabProps) {
   const dockVisible = useTransferDockStore((s) => s.visible);
   const dockHeight = useTransferDockStore((s) => s.height);
   const bottom = dockVisible
-    ? `calc(env(safe-area-inset-bottom, 8px) + ${92 + dockHeight}px)`
-    : "calc(env(safe-area-inset-bottom, 8px) + 84px)";
+    ? `calc(var(--safe-bottom) + ${92 + dockHeight}px)`
+    : "calc(var(--safe-bottom) + 84px)";
 
   const actions = [
     { label: "Upload files", Icon: FileUpload, run: onUpload },

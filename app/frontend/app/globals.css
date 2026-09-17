@@ -122,30 +122,44 @@
    Deliberately NOT combined with --kb-inset: the viewport export sets
    interactive-widget=resizes-content, so the layout viewport already shrinks
    when the keyboard opens and anything `fixed bottom-0` is lifted above it.
-   Adding the keyboard height again would double-count and leave a gap. */
+   Adding the keyboard height again would double-count and leave a gap.
+
+   Each utility reads a --safe-* variable that defaults to the real env()
+   value. That indirection exists so the insets can be faked from devtools on a
+   desktop browser — env() always resolves to 0 there, so without it a notch
+   could only be tested on a device. Set --safe-top/bottom/left/right on :root
+   to preview any phone's insets at phone width. Nothing sets them in
+   production. */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
 @utility pt-safe {
-  padding-top: env(safe-area-inset-top, 0px);
+  padding-top: var(--safe-top);
 }
 @utility pb-safe {
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-bottom: var(--safe-bottom);
 }
 @utility ps-safe {
-  padding-inline-start: env(safe-area-inset-left, 0px);
+  padding-inline-start: var(--safe-left);
 }
 @utility pe-safe {
-  padding-inline-end: env(safe-area-inset-right, 0px);
+  padding-inline-end: var(--safe-right);
 }
 /* Left/right insets only matter in landscape on a notched device, but they are
    the difference between a clipped control and a reachable one. */
 @utility px-safe {
-  padding-left: env(safe-area-inset-left, 0px);
-  padding-right: env(safe-area-inset-right, 0px);
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
 }
 @utility mt-safe {
-  margin-top: env(safe-area-inset-top, 0px);
+  margin-top: var(--safe-top);
 }
 @utility top-safe {
-  top: env(safe-area-inset-top, 0px);
+  top: var(--safe-top);
 }
 
 @layer base {

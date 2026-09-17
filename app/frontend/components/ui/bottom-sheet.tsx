@@ -64,7 +64,7 @@ export function BottomSheet({ open, onClose, children }: BottomSheetProps) {
               }
             }}
             className="fixed bottom-0 left-0 right-0 z-[60] max-h-[60dvh] overflow-y-auto rounded-t-2xl bg-[var(--color-surface)] border-t border-[var(--color-border)] shadow-2xl"
-            style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+            style={{ paddingBottom: "var(--safe-bottom)" }}
           >
             {/* Drag handle */}
             <div

@@ -125,7 +125,7 @@ export function ToastContainer() {
           aria-label="Notifications"
           className={cn(
             // Mobile: near-full-width, pinned near the top clear of the notch.
-            "fixed top-[calc(env(safe-area-inset-top,0px)+0.75rem)] inset-x-3 z-[100] flex flex-col gap-2",
+            "fixed top-[calc(var(--safe-top)+0.75rem)] inset-x-3 z-[100] flex flex-col gap-2",
             // Desktop: compact deck in the top-right.
             "sm:inset-x-auto sm:right-6 sm:top-5 sm:w-[380px]",
           )}

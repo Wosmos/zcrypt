@@ -400,7 +400,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
             if (allSettled && (info.offset.x > 110 || info.velocity.x > 600)) setDismissed(true);
           }}
           whileDrag={{ cursor: "grabbing" }}
-          className="panel fixed bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] right-4 z-40 w-[min(calc(100vw-2rem),380px)] touch-pan-y overflow-hidden rounded-2xl shadow-2xl backdrop-blur-sm md:bottom-4"
+          className="panel fixed bottom-[calc(5rem+var(--safe-bottom))] right-4 z-40 w-[min(calc(100vw-2rem),380px)] touch-pan-y overflow-hidden rounded-2xl shadow-2xl backdrop-blur-sm md:bottom-4"
           role="region"
           aria-label="Transfers"
         >

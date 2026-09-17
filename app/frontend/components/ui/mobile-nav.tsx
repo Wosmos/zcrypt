@@ -70,7 +70,7 @@ export function MobileNav() {
     <>
       <nav
         aria-label="Mobile navigation"
-        className="pointer-events-none fixed bottom-0 left-0 right-0 z-50 px-5 pb-[calc(env(safe-area-inset-bottom,8px)+8px)] pt-4 md:hidden"
+        className="pointer-events-none fixed bottom-0 left-0 right-0 z-50 px-5 pb-[calc(var(--safe-bottom)+8px)] pt-4 md:hidden"
       >
         <div className="pointer-events-auto mx-auto max-w-sm">
           <div
