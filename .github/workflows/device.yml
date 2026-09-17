@@ -343,6 +343,38 @@ jobs:
           printf 'uploading: %s\n' "${files[@]}"
           gh release upload "$TAG" "${files[@]}" --repo "$GITHUB_REPOSITORY" --clobber
 
+          # Version-less aliases. Every bundler name embeds the version
+          # (zcrypt_0.1.4_aarch64.dmg), so none of them can be fetched from a
+          # stable /releases/latest/download/<name> URL — the download page,
+          # the docs and install scripts all had to know the version. Upload a
+          # second copy of each under a fixed name (the same trick the Android
+          # job already uses for zcrypt.apk) so one URL per platform keeps
+          # working across releases. Identical bytes, --clobber replaces.
+          alias_for() {
+            case "$1" in
+              *_aarch64.dmg)    echo zcrypt-macos-arm64.dmg ;;
+              *_x64.dmg)        echo zcrypt-macos-x64.dmg ;;
+              *-setup.exe)      echo zcrypt-windows-x64-setup.exe ;;
+              *.msi)            echo zcrypt-windows-x64.msi ;;
+              *.AppImage)       echo zcrypt-linux-amd64.AppImage ;;
+              *.deb)            echo zcrypt-linux-amd64.deb ;;
+              *.rpm)            echo zcrypt-linux-x86_64.rpm ;;
+              *)                echo "" ;;
+            esac
+          }
+          aliasdir=$(mktemp -d)
+          aliases=()
+          for f in "${files[@]}"; do
+            name=$(alias_for "$f")
+            [ -z "$name" ] && continue   # .sig files and anything unmapped
+            cp "$f" "$aliasdir/$name"
+            aliases+=("$aliasdir/$name")
+          done
+          if [ ${#aliases[@]} -gt 0 ]; then
+            printf 'alias: %s\n' "${aliases[@]}"
+            gh release upload "$TAG" "${aliases[@]}" --repo "$GITHUB_REPOSITORY" --clobber
+          fi
+
   # ── Gate: is updater signing configured? ─────────────────────────────────────
   # The `secrets` context isn't available in `jobs.<job_id>.if` (only in `env:`
   # blocks), so we can't write `if: secrets.X != ''` directly on the job below.
@@ -516,13 +548,23 @@ jobs:
           name: frontend-dist
           path: app/desktop/frontend-dist
 
-      # On tag pushes, stamp the bundle version from the tag, same as build-desktop.
-      - name: Set version from tag
-        if: startsWith(github.ref, 'refs/tags/v')
+      # Stamp the bundle version. Unlike build-desktop, this must ALSO run off
+      # a tag: the rolling android-latest APK below is published on every push
+      # to main, so gating this on refs/tags/v meant every sideload build
+      # shipped tauri.conf.json's literal placeholder ("0.1.0") as its
+      # versionName, no matter how far ahead of v0.1.0 it actually was.
+      # Off a tag we stamp <conf version>-dev.<short sha>, which is honest
+      # about being a rolling build and still sorts under the next release.
+      - name: Set version
         shell: bash
         run: |
-          VER="${GITHUB_REF_NAME#v}"
           cd app/desktop/src-tauri
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VER="${GITHUB_REF_NAME#v}"
+          else
+            BASE=$(jq -r '.version' tauri.conf.json)
+            VER="${BASE}-dev.${GITHUB_SHA::7}"
+          fi
           tmp=$(mktemp)
           jq --arg v "$VER" '.version = $v' tauri.conf.json > "$tmp" && mv "$tmp" tauri.conf.json
           echo "tauri version set to $VER"
@@ -542,29 +584,50 @@ jobs:
         if: steps.cache-tauri-cli.outputs.cache-hit != 'true'
         run: cargo install tauri-cli --version "^2" --locked
 
-      # `tauri icon` reads icons/icon.png (the same source the desktop bundle
-      # icons already come from) and writes the full per-platform set,
-      # including icons/android/mipmap-*/ic_launcher*.png + the adaptive-icon
-      # XML, back into `icons/`. `android init` below copies launcher icons
-      # from there into the freshly-generated gen/android project — skip this
-      # step and it silently falls back to the Tauri CLI's own template icon,
-      # which is why every build has shipped that instead of zcrypt's icon.
-      # Desktop bundle icons (tauri.conf.json's `bundle.icon`) are untouched:
-      # this only adds the icons/android (and icons/ios, for later) subfolders.
-      - name: Generate app icons for Android
-        working-directory: app/desktop/src-tauri
-        run: cargo tauri icon icons/icon.png
-
       # `android init` generates gen/android/ from tauri.conf.json + the Rust
       # crate. It isn't committed to the repo (app/desktop/src-tauri/gen only
       # ships the desktop `schemas/` dir), so every CI run (re)creates it from
-      # scratch, same as a fresh clone would.
+      # scratch, same as a fresh clone would — including the Tauri CLI's own
+      # template launcher icons.
       - name: Initialize Android project
         working-directory: app/desktop/src-tauri
         env:
           NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
         run: cargo tauri android init
+
+      # MUST run AFTER `android init`, not before. `tauri icon` picks its
+      # Android output dir by probing for gen/android/app/src/main/res: if that
+      # exists it writes the mipmaps straight into the real project, and if it
+      # doesn't it falls back to staging them in icons/android/ — which
+      # `android init` never reads back. Running this first (as it was) meant
+      # the staged icons were silently discarded and every APK shipped Tauri's
+      # template logo. Desktop bundle icons (tauri.conf.json's `bundle.icon`)
+      # are regenerated from the same source and are unaffected.
+      - name: Generate app icons for Android
+        working-directory: app/desktop/src-tauri
+        run: cargo tauri icon icons/icon.png
+
+      # The icon path above is silent when it goes wrong — a wrong-order or
+      # renamed-source regression would just ship the Tauri logo again. Fail
+      # the build instead: the generated launcher icon must exist and must not
+      # be byte-identical to the CLI's template.
+      - name: Verify the Android launcher icon is ours
+        working-directory: app/desktop/src-tauri
+        shell: bash
+        run: |
+          set -euo pipefail
+          ICON=gen/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+          if [ ! -f "$ICON" ]; then
+            echo "::error::$ICON is missing — 'tauri icon' did not write into gen/android."
+            exit 1
+          fi
+          TEMPLATE=$(find ~/.cargo -path '*tauri-cli*' -name 'ic_launcher.png' -path '*xxxhdpi*' 2>/dev/null | head -1)
+          if [ -n "$TEMPLATE" ] && cmp -s "$ICON" "$TEMPLATE"; then
+            echo "::error::Launcher icon is byte-identical to the Tauri template — the zcrypt icon was not applied."
+            exit 1
+          fi
+          echo "launcher icon OK: $(wc -c < "$ICON") bytes"
 
       # ── Optional release signing ──
       # If ANDROID_KEY_BASE64 (a base64-encoded .jks keystore) plus its alias
