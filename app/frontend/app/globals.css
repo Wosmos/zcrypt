@@ -109,6 +109,45 @@
   corner-shape: square;
 }
 
+/* ═══ Safe areas ═══
+   The Android shell draws edge-to-edge under the status and gesture bars, so
+   anything pinned to a screen edge needs the matching inset or the system
+   chrome sits on top of it. `viewport-fit=cover` (app/layout.tsx) is what makes
+   env() resolve to real values — without it these are all 0.
+
+   These existed only as hand-written calc(env(...)) strings scattered across
+   eight components, with the fallback drifting between 0px and 8px. One
+   definition each, so a fix lands everywhere.
+
+   Deliberately NOT combined with --kb-inset: the viewport export sets
+   interactive-widget=resizes-content, so the layout viewport already shrinks
+   when the keyboard opens and anything `fixed bottom-0` is lifted above it.
+   Adding the keyboard height again would double-count and leave a gap. */
+@utility pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@utility ps-safe {
+  padding-inline-start: env(safe-area-inset-left, 0px);
+}
+@utility pe-safe {
+  padding-inline-end: env(safe-area-inset-right, 0px);
+}
+/* Left/right insets only matter in landscape on a notched device, but they are
+   the difference between a clipped control and a reachable one. */
+@utility px-safe {
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+@utility mt-safe {
+  margin-top: env(safe-area-inset-top, 0px);
+}
+@utility top-safe {
+  top: env(safe-area-inset-top, 0px);
+}
+
 @layer base {
   :root {
     color-scheme: light;
@@ -201,6 +240,30 @@
     @apply bg-[var(--color-bg)] text-[var(--color-text)] antialiased;
     font-family: var(--font-body), "Poppins", -apple-system, BlinkMacSystemFont,
       "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    /* Android WebView silently inflates font sizes in landscape without this. */
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* Touch-device polish. Scoped to coarse pointers so a desktop mouse keeps
+     native overscroll and focus behaviour untouched. */
+  @media (pointer: coarse) {
+    html,
+    body {
+      /* Stops the document itself rubber-banding under the app shell — the
+         glow made fixed UI look detached when scrolled past its bounds. The
+         inner <main> already sets overscroll-contain for its own scroller. */
+      overscroll-behavior: none;
+    }
+
+    /* The WebView's default grey flash fires on every Link and button and
+       reads as a rendering glitch rather than feedback; components provide
+       their own :active states. */
+    a,
+    button,
+    [role="button"],
+    summary {
+      -webkit-tap-highlight-color: transparent;
+    }
   }
 
   h1,

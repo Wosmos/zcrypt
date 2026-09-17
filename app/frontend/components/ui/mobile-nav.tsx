@@ -94,7 +94,9 @@ export function MobileNav() {
                     aria-current={active ? "page" : undefined}
                     className="group relative flex-1"
                   >
-                    <div className="relative z-10 flex flex-col items-center justify-center gap-1 py-2 transition-transform duration-200 active:scale-90">
+                    {/* min-h-12 = 48dp, Android's minimum touch target. At py-2
+                        these came out ~40px, which is a measurably harder tap. */}
+                    <div className="relative z-10 flex min-h-12 flex-col items-center justify-center gap-1 py-2 transition-transform duration-200 active:scale-90">
                       <motion.div
                         animate={{ scale: active ? 1.06 : 1 }}
                         transition={{ type: "spring", stiffness: 400, damping: 25 }}

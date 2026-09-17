@@ -35,7 +35,7 @@ export function NavProgress() {
   if (!loading && progress === 0) return null;
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-[999] h-0.5">
+    <div className="fixed top-safe left-0 right-0 z-[999] h-0.5">
       <div
         className="h-full bg-cyan-500 shadow-[0_0_10px_rgba(0,213,228,0.5)] transition-all duration-300 ease-out"
         style={{

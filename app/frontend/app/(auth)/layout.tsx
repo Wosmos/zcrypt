@@ -68,7 +68,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <GuestGuard>
-      <div className="flex min-h-dvh overflow-x-hidden">
+      <div className="flex min-h-dvh overflow-x-hidden pt-safe pb-safe px-safe">
         {/* ── Left brand panel (2.5/6) ── */}
         <div className="hidden lg:flex lg:w-[41.67%] flex-col relative bg-[rgba(5,5,7,0.92)] overflow-hidden">
           {/* Ambient glow — top-right cyan */}

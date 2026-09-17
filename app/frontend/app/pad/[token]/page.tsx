@@ -95,7 +95,7 @@ export default function PadViewPage() {
   const noKey = pageState === "ready" && !encryptionKey;
 
   return (
-    <div className="min-h-dvh flex items-center justify-center bg-[var(--color-bg)] p-4">
+    <div className="min-h-dvh flex items-center justify-center bg-[var(--color-bg)] p-4 pt-safe pb-safe px-safe">
       <div className="w-full max-w-2xl animate-fade-in">
         {/* Logo */}
         <div className="flex items-center justify-center gap-2 mb-8">

@@ -33,7 +33,7 @@ export function formatShortExpiry(expiresAt: string): string {
 
 export function TokenViewerMain({ children }: { children: ReactNode }) {
   return (
-    <main className="min-h-dvh flex items-center justify-center bg-[var(--color-bg)] p-4">
+    <main className="min-h-dvh flex items-center justify-center bg-[var(--color-bg)] p-4 pt-safe pb-safe px-safe">
       {children}
     </main>
   );

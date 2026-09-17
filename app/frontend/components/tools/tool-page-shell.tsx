@@ -21,7 +21,7 @@ export interface ToolFeature {
 /** Page frame: full-height column with the marketing nav, main region, footer. */
 export function ToolPageShell({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-dvh flex flex-col bg-[var(--color-bg)]">
+    <div className="min-h-dvh flex flex-col bg-[var(--color-bg)] pb-safe px-safe">
       <MarketingNav />
 
       <main className="flex-1">{children}</main>
