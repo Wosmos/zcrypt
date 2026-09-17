@@ -725,6 +725,20 @@ async fn keychain_delete(key: String) -> Result<(), String> {
 // Updater
 // ---------------------------------------------------------------------------
 
+/// Tauri's Linux updater backend only knows how to replace a *running
+/// AppImage* — it locates the file to overwrite via the `APPIMAGE` env var
+/// that the AppImage runtime itself sets, and has no concept of a system
+/// package at all. A `.deb`/`.rpm` install has no such env var, so without
+/// this check `check_for_updates` would report a real update as "available"
+/// (the manifest has no idea what package the caller is) and then
+/// `install_update` would fail trying to self-replace a file that was never
+/// an AppImage in the first place — a false positive followed by a broken
+/// install, not just silence.
+#[cfg(target_os = "linux")]
+fn running_as_appimage() -> bool {
+    std::env::var_os("APPIMAGE").is_some()
+}
+
 #[derive(serde::Serialize)]
 struct UpdateCheck {
     available: bool,
@@ -733,6 +747,10 @@ struct UpdateCheck {
     version: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     notes: Option<String>,
+    /// False for a Linux install that isn't running from an AppImage (i.e. a
+    /// `.deb`/`.rpm` package) — those manage their own updates outside the
+    /// app. Always true on macOS/Windows.
+    updatable: bool,
 }
 
 /// Desktop-only update check. Distinguishes "no update" from "check failed":
@@ -741,6 +759,18 @@ struct UpdateCheck {
 #[tauri::command]
 async fn check_for_updates(app: tauri::AppHandle) -> Result<UpdateCheck, String> {
     let current_version = app.package_info().version.to_string();
+
+    #[cfg(target_os = "linux")]
+    if !running_as_appimage() {
+        return Ok(UpdateCheck {
+            available: false,
+            current_version,
+            version: None,
+            notes: None,
+            updatable: false,
+        });
+    }
+
     #[cfg(desktop)]
     {
         use tauri_plugin_updater::UpdaterExt;
@@ -755,6 +785,7 @@ async fn check_for_updates(app: tauri::AppHandle) -> Result<UpdateCheck, String>
                 current_version,
                 version: Some(update.version.clone()),
                 notes: update.body.clone(),
+                updatable: true,
             });
         }
     }
@@ -763,6 +794,7 @@ async fn check_for_updates(app: tauri::AppHandle) -> Result<UpdateCheck, String>
         current_version,
         version: None,
         notes: None,
+        updatable: true,
     })
 }
 
@@ -771,6 +803,14 @@ async fn check_for_updates(app: tauri::AppHandle) -> Result<UpdateCheck, String>
 /// `update-progress` events with `{downloaded, total}` so the UI can show it.
 #[tauri::command]
 async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
+    #[cfg(target_os = "linux")]
+    if !running_as_appimage() {
+        return Err(
+            "this package doesn't self-update — get new versions from the download page"
+                .to_string(),
+        );
+    }
+
     #[cfg(desktop)]
     {
         use tauri::Emitter;
