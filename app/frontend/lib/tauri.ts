@@ -53,6 +53,28 @@ export function toDesktopFile(path: string): DesktopFile {
   return file;
 }
 
+/**
+ * Open a URL outside the app — system browser, or whichever installed app
+ * claims the link (Telegram, GitHub, …).
+ *
+ * Inside the shell a plain `<a target="_blank">` or `window.open()` does
+ * nothing at all: the webview has no concept of a second tab, so the click is
+ * swallowed and the user sees a dead control. Everything off-origin has to go
+ * through the opener plugin instead. NOT plugin-shell's open() — that routes to
+ * an xdg-open backend that silently fails on Android.
+ *
+ * Throws if nothing can handle the URL, so callers can surface it rather than
+ * leaving the user tapping a link that never responds.
+ */
+export async function openExternal(url: string): Promise<void> {
+  if (!isTauri) {
+    window.open(url, "_blank", "noopener,noreferrer");
+    return;
+  }
+  const { openUrl } = await import("@tauri-apps/plugin-opener");
+  await openUrl(url);
+}
+
 /** Open a native save dialog. Returns the selected path. */
 export async function pickSaveLocation(defaultName: string): Promise<string | null> {
   if (!isTauri) return null;

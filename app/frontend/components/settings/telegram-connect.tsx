@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { toast } from "@/store/toast";
+import { openExternal } from "@/lib/tauri";
 import { cn } from "@/lib/utils";
 import {
   Key,
@@ -145,12 +146,13 @@ export function TelegramConnect({ onConnect, connecting, hasAccounts }: Telegram
     // a valueless startgroup/startchannel triggers a Telegram Desktop bug that
     // sends a /start DM instead of opening the chat picker.
     const admin = kind === "channel" ? "post_messages+delete_messages" : "delete_messages";
-    window.open(
-      `https://t.me/${botUsername}?${param}=true&admin=${admin}`,
-      "_blank",
-      "noopener,noreferrer",
-    );
-    startPolling();
+    // Hands off to the Telegram app when it's installed, the browser otherwise.
+    // Only start polling once it actually opened: in the shell window.open() is
+    // a no-op, so this used to poll forever against a chat picker that never
+    // appeared.
+    void openExternal(`https://t.me/${botUsername}?${param}=true&admin=${admin}`)
+      .then(startPolling)
+      .catch(() => toast.error("Couldn't open Telegram on this device"));
   };
 
   const reset = useCallback(() => {

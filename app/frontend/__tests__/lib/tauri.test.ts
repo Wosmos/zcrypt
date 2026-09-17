@@ -4,10 +4,12 @@ const invokeMock = vi.hoisted(() => vi.fn());
 const openMock = vi.hoisted(() => vi.fn());
 const saveMock = vi.hoisted(() => vi.fn());
 const listenMock = vi.hoisted(() => vi.fn());
+const openUrlMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: invokeMock }));
 vi.mock("@tauri-apps/plugin-dialog", () => ({ open: openMock, save: saveMock }));
 vi.mock("@tauri-apps/api/event", () => ({ listen: listenMock }));
+vi.mock("@tauri-apps/plugin-opener", () => ({ openUrl: openUrlMock }));
 
 describe("tauri (outside the Tauri runtime)", () => {
   beforeEach(() => {
@@ -16,6 +18,7 @@ describe("tauri (outside the Tauri runtime)", () => {
     openMock.mockReset();
     saveMock.mockReset();
     listenMock.mockReset();
+    openUrlMock.mockReset();
     delete (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__;
   });
 
@@ -49,6 +52,15 @@ describe("tauri (outside the Tauri runtime)", () => {
     const unlisten = await mod.subscribeProgress(() => {});
     expect(listenMock).not.toHaveBeenCalled();
     expect(() => unlisten()).not.toThrow();
+  });
+
+  it("openExternal falls back to window.open, leaving the opener plugin alone", async () => {
+    const openMock = vi.fn();
+    vi.stubGlobal("open", openMock);
+    const mod = await import("@/lib/tauri");
+    await mod.openExternal("https://example.com");
+    expect(openMock).toHaveBeenCalledWith("https://example.com", "_blank", "noopener,noreferrer");
+    expect(openUrlMock).not.toHaveBeenCalled();
   });
 
   it("onUpdateProgress resolves a no-op unlisten without touching the event bridge", async () => {
@@ -127,6 +139,7 @@ describe("tauri (inside the Tauri runtime)", () => {
     openMock.mockReset();
     saveMock.mockReset();
     listenMock.mockReset();
+    openUrlMock.mockReset();
     (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ = {};
   });
 
@@ -291,6 +304,23 @@ describe("tauri (inside the Tauri runtime)", () => {
     const mod = await import("@/lib/tauri");
     await expect(mod.checkForUpdates()).resolves.toEqual({ available: false });
     expect(invokeMock).toHaveBeenCalledWith("check_for_updates", undefined);
+  });
+
+  it("openExternal hands the URL to the opener plugin instead of window.open", async () => {
+    openUrlMock.mockResolvedValue(undefined);
+    const openMock = vi.fn();
+    vi.stubGlobal("open", openMock);
+    const mod = await import("@/lib/tauri");
+    await mod.openExternal("https://t.me/BotFather");
+    expect(openUrlMock).toHaveBeenCalledWith("https://t.me/BotFather");
+    // window.open is a silent no-op in a webview — using it here is the bug.
+    expect(openMock).not.toHaveBeenCalled();
+  });
+
+  it("openExternal rejects when nothing can handle the URL, so callers can say so", async () => {
+    openUrlMock.mockRejectedValue(new Error("no activity found"));
+    const mod = await import("@/lib/tauri");
+    await expect(mod.openExternal("weird://nope")).rejects.toThrow("no activity found");
   });
 
   it("installUpdate invokes install_update", async () => {

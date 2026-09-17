@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/components/providers/theme-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { NavProgress } from "@/components/ui/nav-progress";
 import { KeyboardAvoider } from "@/components/system/keyboard-avoider";
+import { ExternalLinkHandler } from "@/components/providers/external-link-handler";
 import { OrganizationJsonLd, WebSiteJsonLd } from "@/components/seo/json-ld";
 import { Analytics } from "@vercel/analytics/react";
 import { SITE_URL } from "@/lib/site";
@@ -44,6 +45,14 @@ export const viewport: Viewport = {
   // Shrink the layout viewport (and dvh) when the on-screen keyboard opens, so
   // dvh shells + scroll containers keep the focused field visible on Android.
   interactiveWidget: "resizes-content",
+  // Tints the Android status and navigation bars to the app background. Without
+  // it the system draws its own grey scrim, so an edge-to-edge shell reads as a
+  // mismatched band above and below the UI. Values track --color-bg on the
+  // themed app shell (globals.css :620/:635).
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#eceef2" },
+    { media: "(prefers-color-scheme: dark)", color: "#090c16" },
+  ],
 };
 
 export const metadata: Metadata = {
@@ -222,6 +231,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <QueryProvider>
             <NavProgress />
             <KeyboardAvoider />
+            <ExternalLinkHandler />
             {children}
             <ToastContainer />
             <Analytics />

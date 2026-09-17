@@ -6,6 +6,7 @@ import { Download, ExternalLink, Plus, ChevronDown, RefreshCcw, AlertCircle } fr
 import { IconButton } from "@/components/ui/icon-button";
 import { Button } from "@/components/ui/button";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
+import { openExternal } from "@/lib/tauri";
 
 /**
  * In-app PDF viewer built on pdf.js (pdfjs-dist). Pages are rendered to <canvas>
@@ -126,11 +127,7 @@ export function PdfViewer({
           Could not render this PDF.
         </p>
         <div className="flex items-center gap-2">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => window.open(externalUrl, "_blank", "noopener,noreferrer")}
-          >
+          <Button variant="secondary" size="sm" onClick={() => void openExternal(externalUrl)}>
             <ExternalLink className="h-3.5 w-3.5" />
             Open in new tab
           </Button>
@@ -180,7 +177,7 @@ export function PdfViewer({
           <IconButton
             icon={ExternalLink}
             label="Open in new tab"
-            onClick={() => window.open(externalUrl, "_blank", "noopener,noreferrer")}
+            onClick={() => void openExternal(externalUrl)}
             iconClassName="h-4 w-4"
           />
           <IconButton
