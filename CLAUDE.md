@@ -25,6 +25,12 @@ app/backend/          — Go backend (module: github.com/zcrypt/zcrypt)
   types/              — Shared types
 app/tui/              — Go TUI app (module: github.com/zcrypt/zcrypt-tui)
   internal/           — TUI internals (api, auth, config, ui)
+app/core/             — Shared Rust client engine (crate: zcrypt-core). Crypto,
+                        chunk pipeline, local SQLite store, platform adapters.
+                        No Tauri dependency — the shells embed it.
+app/desktop/          — Tauri v2 shell for desktop AND Android. Links app/core
+                        in-process; UI is the frontend's static export.
+                        src-tauri/gen/ is generated, never committed.
 app/frontend/         — Next.js frontend
   app/(app)/          — Authenticated app pages (dashboard, settings, analytics, admin)
   app/(auth)/         — Auth pages (login, register, forgot-password, etc.)
@@ -67,11 +73,11 @@ bash scripts/prepush.sh --gates-only   # fast: gates only, no advisory scans
 (mirrors the `dorny/paths-filter` in `.github/workflows/ci.yml`): `frontend` /
 `backend` / `tui` / `desktop`. A changed shared/root file (e.g. `scripts/`,
 `Dockerfile`, `.github/`) runs everything; docs-only changes run nothing.
-- **Gates** (blocking): typecheck (tsgo) / format (biome) / lint (oxlint) / test / build per module; Go gofmt/vet; desktop = sidecar `go build` + `cargo check` (full Tauri bundle stays in CI). The lint gate blocks on oxlint errors; warnings are ratcheted.
+- **Gates** (blocking): typecheck (tsgo) / format (biome) / lint (oxlint) / test / build per module; Go gofmt/vet; core + desktop = `cargo fmt`/`clippy`/`cargo check` (full Tauri bundle stays in CI). The lint gate blocks on oxlint errors; warnings are ratcheted.
 - **Hardening** (`--enforce`, blocking, diff-scoped): fails only on issues *your change* introduces — `oxlint --max-warnings=0` + jscpd on changed FE files, `golangci-lint --new-from-rev` for Go. Never blocks on the pre-existing backlog.
 - **Old backlog** (whole-repo knip / jscpd / golangci scans): advisory by default. `--ratchet` blocks only if the backlog *grows* vs a saved baseline (improvements auto-lock); `--strict` blocks on *any* old issue; `--baseline` records current counts. Baseline lives in `docs/prepush-baseline.env` (gitignored, auto-seeds per module).
 - The **pre-push hook** runs `prepush.sh --gates-only --enforce --ratchet` — strong: blocks broken builds/tests, blocks new lint/duplication, and the backlog can only shrink. Bypass once with `git push --no-verify`. Overrides: `PREPUSH_ALL=1`, `PREPUSH_BASE=<ref>`, `PREPUSH_CHANGED_OVERRIDE=<newline-list>`.
-- Current backlog to burn down (`bash scripts/prepush.sh` shows the list): backend golangci ~147, tui ~10, frontend knip ~91, jscpd ~75; frontend oxlint is clean.
+- Current backlog lives in `docs/prepush-baseline.env` (gitignored, written by `--ratchet`/`--baseline`). Read it rather than trusting a number here — a hardcoded count goes stale silently and sends work at a backlog that no longer exists.
 
 ## Coding Conventions
 - **Backend:** Standard Go conventions. No frameworks — stdlib `net/http` with `HandleFunc`. Error wrapping with `fmt.Errorf("context: %w", err)`. UUID primary keys everywhere.
@@ -80,11 +86,11 @@ bash scripts/prepush.sh --gates-only   # fast: gates only, no advisory scans
 - **API Pattern:** JSON request/response. Auth via `Authorization: Bearer <jwt>`. SSE for real-time (`/api/events`).
 
 ## Architecture Notes
-- Upload pipeline: Validate → Compress (zstd) → Encrypt (AES-256-GCM) → Chunk (10MB) → Upload to git platform
-- Files are uploaded 1 per HTTP request. Frontend handles multi-file via semaphore-based parallel uploads.
+- Upload pipeline: the file is CHUNKED FIRST, then each chunk independently goes zstd → AES-256-GCM → hash. Chunk size is device-tiered (4/10/16/32 MiB), not a fixed 10MB. `docs/CRYPTO_FORMAT.md` §4 is normative.
+- Upload is a resumable session with one request PER CHUNK (`/api/upload/init` → per-chunk `presign`/`chunk`/`confirm` → `complete`), not one request per file. The frontend runs multiple files through a semaphore.
 - Platform tokens encrypted at rest with AES-256-GCM using master-key-derived KEK.
 - Repo pool auto-rotates when repos hit platform thresholds (GitHub 850MB, GitLab 9GB, HuggingFace 90GB — kept safely under HF's real 100GB/account free-tier cap).
-- Users have a `plan` field (free/pro) that controls `max_concurrent_uploads` returned by `/api/quota`.
+- Users have a `plan` field controlling `max_concurrent_uploads` from `/api/quota`. Plans are admin-editable at runtime (stored in `system_settings`), so treat `defaultPlanConfigs()` in cmd/admin.go as a seed, not the live set.
 
 ## Permissions
 - Claude has full read/write/execute access to this project.

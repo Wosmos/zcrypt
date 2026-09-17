@@ -24,7 +24,7 @@ clearCompleted: () => void;                               // removes items where
 findByFileId: (fileId: string) => UploadItem | undefined;
 startUpload: (files: File[], passphrase: string, platform?: string, maxConcurrent?: number, onRefresh?: () => void, hfConnected?: boolean) => void;
 retryUpload: (id: string, passphrase: string) => void;    // resumes from uploaded chunks (keeps id → keeps itemMeta.resume)
-startDesktopUpload: (passphrase: string, onRefresh?: () => void) => void;  // Tauri sidecar path
+startDesktopUpload: (passphrase: string, onRefresh?: () => void) => void;  // Tauri desktop path (Rust core)
 ```
 
 ### `UploadItem` (from `@/types`, types/index.ts:82–93)

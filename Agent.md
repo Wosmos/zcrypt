@@ -27,14 +27,15 @@ Clients                         Backend (Go / Railway)          Storage
 ┌─────────────────────────┐     ┌────────────────────────┐      ┌────────────────┐
 │ Web app (Next.js/Vercel)│     │ stdlib net/http        │ ───> │ GitHub (850MB) │
 │ TUI (Bubble Tea)        │ ──> │ chunk relay + commit   │ ───> │ GitLab (9GB)   │
-│ Desktop (Tauri+sidecar) │JSON │ repo pool + rotation   │ ───> │ HuggingFace    │
+│ Desktop+Android (Tauri) │JSON │ repo pool + rotation   │ ───> │ HuggingFace    │
 │                         │ SSE │ token envelope crypto  │      │  (90GB/repo)   │
 │ crypto + zstd run HERE  │     │ pgxpool (Neon Postgres)│ ───> │ Telegram       │
 └─────────────────────────┘     └────────────────────────┘      └────────────────┘
 ```
 
 - **File encryption and zstd compression run client-side** (browser Web Crypto /
-  `@noble/*` / `@oneidentity/zstd-js`; the sidecar mirrors this for desktop). The
+  `@noble/*` / `@oneidentity/zstd-js`; the Rust core mirrors it for desktop and
+  Android, and the TUI has its own Go implementation). The
   backend is **I/O-bound** — it relays already-encrypted chunks and commits them to
   storage. Do not move file crypto server-side, and do not parallelize server crypto.
 - The backend's `crypto/` package only does **platform-token envelope encryption**
@@ -65,7 +66,10 @@ app/backend/    Go backend (module github.com/zcrypt/zcrypt)
   auth/ config/ disguise/ types/
 app/frontend/   Next.js app (see app/(app), app/(auth), app/(marketing))
 app/tui/        Terminal client (Go, Bubble Tea; module ...-tui)
-app/desktop/    Tauri desktop app; a Go sidecar reuses the pipeline
+app/core/       Shared Rust client engine (zcrypt-core): crypto, chunk
+                pipeline, local store, platform adapters. No Tauri dependency.
+app/desktop/    Tauri v2 shell for desktop AND Android; links app/core
+                in-process and renders the frontend's static export
 ```
 
 ## 5. Upload / download model

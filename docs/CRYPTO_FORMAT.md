@@ -1,7 +1,7 @@
 # zcrypt Cryptographic Format Specification
 
-**Status: NORMATIVE.** Every zcrypt client implementation (web TypeScript, Go
-sidecar/backend, Rust core) MUST produce byte-identical results for the
+**Status: NORMATIVE.** Every zcrypt client implementation (web TypeScript, Rust
+core, Go TUI/backend) MUST produce byte-identical results for the
 operations below. A file encrypted by any client must decrypt on every other
 client. Conformance is enforced by the shared test vectors in
 `app/backend/crypto/testvectors/vectors.json` — see the README there for how to
@@ -10,8 +10,13 @@ regenerating the vectors and updating every implementation in the same change.**
 
 Reference implementations:
 - TypeScript: `app/frontend/lib/crypto.ts`, `app/frontend/lib/name-crypto.ts`
-- Go: `app/desktop/sidecar/crypto/{pbkdf2,aes,hash}.go`
-- Rust: `app/core` (must pass the vectors)
+- Rust: `app/core` (desktop + Android; must pass the vectors)
+
+The Go sidecar that originally generated the vectors was deleted in `36c1d37`
+once the Rust core replaced it. `vectors.json` is now a frozen fixture that
+every implementation verifies against — there is no longer a reference writer,
+so changing the format means hand-deriving new vectors and making every
+implementation green in the same change.
 
 ## 1. Primitives
 
@@ -76,7 +81,7 @@ Upload, per file:
 4. Per chunk, in order:
    a. **Compress** with zstd IF the filename's extension is not on the
       skip-list (already-compressed formats — see
-      `sidecar/compression/extensions.go`) AND the compressed output is at
+      `app/core/src/compression.rs`) AND the compressed output is at
       least **5% smaller** than the input; otherwise send the raw plaintext
       and mark the chunk `compressed = false`.
    b. **Encrypt** the (possibly compressed) bytes with the CEK → §3 wire.
@@ -118,9 +123,8 @@ PBKDF2 (incl. a Unicode passphrase), GCM decrypt (wire → plaintext), CEK
 unwrap, end-to-end passphrase→KEK→CEK resolution, SHA-256, HMAC-SHA256 +
 dedup-key derivation, name decryption, and a zstd round-trip blob.
 
-- **Generate** (Go is the reference writer):
-  `cd app/desktop/sidecar && ZCRYPT_GEN_VECTORS=1 go test ./crypto/ -run TestCryptoVectors`
-- **Verify Go**: same command without the env var.
+- **Generate**: no longer possible — the Go reference writer was deleted with the
+  sidecar (`36c1d37`). Treat `vectors.json` as frozen.
 - **Verify TS**: `cd app/frontend && bun run vitest run __tests__/lib/crypto-vectors.test.ts`
   (zstd is exempt on TS — the wasm codec isn't loadable under jsdom; the format
   guarantee covers it, and Rust/Go verify the blob.)
