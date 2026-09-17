@@ -11,6 +11,7 @@ import {
   type UpdateProgress,
 } from "@/lib/tauri";
 import { toast } from "@/store/toast";
+import { SITE_URL } from "@/lib/site";
 
 type Phase = "idle" | "checking" | "installing";
 
@@ -56,6 +57,35 @@ export function AppUpdates() {
       unlisten();
     }
   };
+
+  // A .deb/.rpm install manages its own updates via the system package
+  // manager — the in-app updater only knows how to replace a running
+  // AppImage, so there's nothing meaningful to check or install here.
+  if (info && !info.updatable) {
+    return (
+      <SettingGroup label="App updates">
+        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+          <p className="text-sm font-medium text-[var(--color-text)]">
+            zcrypt v{info.current_version}
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-muted)]">
+            This build doesn&apos;t check for updates automatically — it was installed as a native
+            Linux package, which manages updates through your system&apos;s package manager instead.
+            Get new releases from{" "}
+            <a
+              href={`${SITE_URL}/download`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-cyan-600 underline-offset-2 hover:underline dark:text-cyan-400"
+            >
+              {SITE_URL.replace(/^https?:\/\//, "")}/download
+            </a>
+            .
+          </p>
+        </div>
+      </SettingGroup>
+    );
+  }
 
   const status = (() => {
     if (phase === "checking") return "Checking for updates…";

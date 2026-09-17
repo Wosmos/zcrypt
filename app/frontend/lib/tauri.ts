@@ -362,6 +362,10 @@ export interface UpdateInfo {
   current_version: string;
   version?: string;
   notes?: string;
+  /** False on a Linux install that isn't running from an AppImage (a
+   *  `.deb`/`.rpm` package) — those update via the system package manager,
+   *  not this app. Always true on macOS/Windows. */
+  updatable: boolean;
 }
 
 export interface UpdateProgress {

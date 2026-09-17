@@ -1,5 +1,10 @@
 import { Download, ArrowRight } from "@/lib/icons";
-import { RELEASES_FALLBACK_URL, type PlatformId, type ReleaseData } from "@/lib/releases";
+import {
+  RELEASES_FALLBACK_URL,
+  type PlatformId,
+  type DownloadOption,
+  type ReleaseData,
+} from "@/lib/releases";
 import { OS_GLYPHS } from "./os-glyphs";
 
 const glyphColor: Record<PlatformId, string> = {
@@ -19,6 +24,52 @@ function CardShell({ children }: { children: React.ReactNode }) {
     <li className="group relative flex flex-col overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-[var(--color-border-hover)] hover:shadow-xl hover:shadow-black/5 dark:hover:shadow-black/30">
       {children}
     </li>
+  );
+}
+
+// Linux can't get a single confident "recommended" pick (the site can't see
+// distros — see the fallback note on the page), so all three packages are
+// shown as equal-weight rows naming the actual OS family instead of one big
+// button plus two extension-only footnotes.
+function LinuxOptions({ options }: { options: DownloadOption[] }) {
+  return (
+    <div className="relative mt-6 flex flex-col gap-2">
+      {options.map((o) => (
+        <div key={o.label}>
+          <a
+            href={o.href}
+            className="group/row flex items-center justify-between gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3.5 py-2.5 transition-colors hover:border-[var(--color-border-hover)] hover:bg-[var(--color-surface-1)]"
+          >
+            <span>
+              <span className="block text-sm font-semibold">{o.label}</span>
+              <span className="block text-[11px] text-[var(--color-text-muted)]">{o.sublabel}</span>
+            </span>
+            <Download className="h-4 w-4 flex-shrink-0 text-[var(--color-text-muted)] transition-transform group-hover/row:translate-y-0.5 group-hover/row:text-[var(--color-text)]" />
+          </a>
+          {o.note && (
+            <p className="mt-1.5 px-1 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+              {o.note}
+            </p>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Collapsed by default so the page doesn't shout a security warning at every
+// visitor — one click away for the person who actually hits the OS prompt.
+function SecurityNote({ note }: { note: { title: string; body: string } }) {
+  return (
+    <details className="group/note relative mt-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3.5 py-2.5">
+      <summary className="cursor-pointer list-none text-[11px] font-medium text-[var(--color-text-secondary)] marker:content-none">
+        {note.title}
+        <span className="ml-1 font-normal text-[var(--color-text-muted)] group-open/note:hidden">
+          — tap for how to proceed
+        </span>
+      </summary>
+      <p className="mt-2 text-[11px] leading-relaxed text-[var(--color-text-muted)]">{note.body}</p>
+    </details>
   );
 }
 
@@ -85,32 +136,39 @@ export function DesktopGrid({ release }: { release: ReleaseData | null }) {
               </p>
 
               <div className="relative mt-6 flex flex-1 flex-col justify-end">
-                <a
-                  href={primary.href}
-                  className="group/dl flex items-center justify-center gap-2 rounded-xl bg-[var(--color-text)] px-4 py-3 text-sm font-semibold text-[var(--color-bg)] transition-opacity hover:opacity-90"
-                >
-                  <Download className="h-4 w-4 transition-transform group-hover/dl:translate-y-0.5" />
-                  Download for {platform.name}
-                </a>
-                <p className="mt-2.5 text-center text-[11px] text-[var(--color-text-muted)]">
-                  {primary.sublabel}
-                  {others.length > 0 && (
-                    <>
-                      {" · also "}
-                      {others.map((o, i) => (
-                        <span key={o.label}>
-                          {i > 0 && ", "}
-                          <a
-                            href={o.href}
-                            className="font-medium text-[var(--color-text-secondary)] underline-offset-2 transition-colors hover:text-cyan-600 hover:underline dark:hover:text-cyan-400"
-                          >
-                            {o.sublabel.split("·").pop()?.trim()}
-                          </a>
-                        </span>
-                      ))}
-                    </>
-                  )}
-                </p>
+                {platform.id === "linux" ? (
+                  <LinuxOptions options={platform.options} />
+                ) : (
+                  <>
+                    <a
+                      href={primary.href}
+                      className="group/dl flex items-center justify-center gap-2 rounded-xl bg-[var(--color-text)] px-4 py-3 text-sm font-semibold text-[var(--color-bg)] transition-opacity hover:opacity-90"
+                    >
+                      <Download className="h-4 w-4 transition-transform group-hover/dl:translate-y-0.5" />
+                      Download for {platform.name}
+                    </a>
+                    <p className="mt-2.5 text-center text-[11px] text-[var(--color-text-muted)]">
+                      {primary.sublabel}
+                      {others.length > 0 && (
+                        <>
+                          {" · also "}
+                          {others.map((o, i) => (
+                            <span key={o.label}>
+                              {i > 0 && ", "}
+                              <a
+                                href={o.href}
+                                className="font-medium text-[var(--color-text-secondary)] underline-offset-2 transition-colors hover:text-cyan-600 hover:underline dark:hover:text-cyan-400"
+                              >
+                                {o.sublabel.split("·").pop()?.trim()}
+                              </a>
+                            </span>
+                          ))}
+                        </>
+                      )}
+                    </p>
+                  </>
+                )}
+                {platform.securityNote && <SecurityNote note={platform.securityNote} />}
               </div>
             </CardShell>
           );

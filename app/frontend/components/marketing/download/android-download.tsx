@@ -3,13 +3,7 @@
 import { useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { Download, Smartphone, Copy, Check } from "@/lib/icons";
-import { GITHUB_REPO } from "@/lib/data";
-
-// Rolling prerelease published by the device workflow: the `zcrypt.apk` asset on
-// the `android-latest` tag is overwritten each build, so this URL is constant
-// and safe to link + QR-encode directly.
-const ANDROID_APK_URL = `${GITHUB_REPO}/releases/download/android-latest/zcrypt.apk`;
-const ANDROID_RELEASE_PAGE = `${GITHUB_REPO}/releases/tag/android-latest`;
+import { ANDROID_APK_URL, ANDROID_RELEASE_PAGE } from "@/lib/releases";
 
 /**
  * Android sideload card — QR-forward: a big self-contained QR (qrcode.react →

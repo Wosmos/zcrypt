@@ -1,14 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Download, ChevronDown } from "@/lib/icons";
+import Link from "next/link";
+import { Download, ChevronDown, ArrowRight } from "@/lib/icons";
 import {
   RELEASES_FALLBACK_URL,
+  ANDROID_APK_URL,
   type PlatformId,
+  type DetectedDevice,
   type DownloadOption,
   type ReleaseData,
 } from "@/lib/releases";
-import { OS_GLYPHS } from "./os-glyphs";
+import { OS_GLYPHS, MOBILE_GLYPHS } from "./os-glyphs";
 
 const OS_LABEL: Record<PlatformId, string> = {
   macos: "macOS",
@@ -16,13 +19,24 @@ const OS_LABEL: Record<PlatformId, string> = {
   linux: "Linux",
 };
 
-function detectOS(): PlatformId | null {
+function detectDevice(): DetectedDevice | null {
   if (typeof navigator === "undefined") return null;
   const ua = navigator.userAgent.toLowerCase();
   const platform = (navigator.platform || "").toLowerCase();
-  if (/mac|iphone|ipad|ipod/.test(ua) || platform.includes("mac")) return "macos";
+  const touchPoints = navigator.maxTouchPoints || 0;
+
+  // Android's UA also contains "linux", so it has to be checked before that
+  // fallback below.
+  if (/android/.test(ua)) return "android";
+  // A phone/tablet always says so somewhere in its UA on older iOS/iPadOS.
+  if (/iphone|ipod|ipad/.test(ua)) return "ios";
+  // iPadOS 13+ defaults to a desktop-class UA that's byte-for-byte the same
+  // as macOS Safari's ("Macintosh" / platform "MacIntel") — the only
+  // remaining tell is that a real Mac reports zero touch points.
+  if (platform === "macintel" && touchPoints > 1) return "ios";
+  if (/mac/.test(ua) || platform.includes("mac")) return "macos";
   if (/win/.test(ua) || platform.includes("win")) return "windows";
-  if (/linux|x11|cros|android/.test(ua) || platform.includes("linux")) return "linux";
+  if (/linux|x11|cros/.test(ua) || platform.includes("linux")) return "linux";
   return null;
 }
 
@@ -35,12 +49,12 @@ const PRIMARY_BTN =
  * platform grid / releases page while loading or when detection fails.
  */
 export function DownloadCta({ release }: { release: ReleaseData | null }) {
-  const [os, setOs] = useState<PlatformId | null>(null);
+  const [device, setDevice] = useState<DetectedDevice | null>(null);
   const [macIntel, setMacIntel] = useState(false);
 
   useEffect(() => {
-    const detected = detectOS();
-    setOs(detected);
+    const detected = detectDevice();
+    setDevice(detected);
     if (detected === "macos") {
       const uaData = (
         navigator as Navigator & {
@@ -58,16 +72,81 @@ export function DownloadCta({ release }: { release: ReleaseData | null }) {
     }
   }, []);
 
-  const platform = release && os ? release.desktop.find((p) => p.id === os) : null;
+  // iOS/iPadOS: there's no native app yet — the web app is the real answer,
+  // and a Mac installer would just fail silently with no explanation.
+  if (device === "ios") {
+    const IosGlyph = MOBILE_GLYPHS.ios;
+    return (
+      <div className="flex flex-col items-center gap-4">
+        <Link href="/register" className={PRIMARY_BTN}>
+          <IosGlyph className="h-5 w-5" />
+          Use the web app
+          <ArrowRight className="h-4 w-4 opacity-70 transition-transform group-hover:translate-x-0.5" />
+        </Link>
+        <p className="max-w-xs text-center text-xs text-[var(--color-text-muted)]">
+          There&apos;s no iOS app yet. The web app works fully in Safari — no install needed.
+        </p>
+      </div>
+    );
+  }
+
+  // Android: one universal APK, so — unlike Linux below — this is a
+  // confident direct download rather than a guess.
+  if (device === "android") {
+    const AndroidGlyph = MOBILE_GLYPHS.android;
+    return (
+      <div className="flex flex-col items-center gap-4">
+        <a href={ANDROID_APK_URL} className={PRIMARY_BTN}>
+          <AndroidGlyph className="h-5 w-5" />
+          Download APK for Android
+          <Download className="h-4 w-4 opacity-70 transition-transform group-hover:translate-y-0.5" />
+        </a>
+        <p className="text-xs text-[var(--color-text-muted)]">
+          Sideloaded, not Play Store
+          <span aria-hidden> · </span>
+          <a
+            href="#android"
+            className="font-medium text-cyan-600 underline-offset-2 hover:underline dark:text-cyan-400"
+          >
+            install steps &amp; QR code
+          </a>
+        </p>
+      </div>
+    );
+  }
+
+  // Linux: we can tell it's Linux but never which distro, so a single
+  // confident download is exactly the wrong move — route to the picker
+  // instead of guessing (that guess is what put AppImage in Android's and
+  // iOS's hands too).
+  if (device === "linux") {
+    const LinuxGlyph = OS_GLYPHS.linux;
+    return (
+      <div className="flex flex-col items-center gap-4">
+        <a href="#desktop" className={PRIMARY_BTN}>
+          <LinuxGlyph className="h-5 w-5" />
+          Download for Linux
+          <ChevronDown className="h-4 w-4 opacity-70 transition-transform group-hover:translate-y-0.5" />
+        </a>
+        <p className="text-xs text-[var(--color-text-muted)]">
+          Fedora, Debian/Ubuntu, or a portable build — pick yours below.
+        </p>
+      </div>
+    );
+  }
+
+  // macOS / Windows / undetected from here on — device is narrowed to
+  // "macos" | "windows" | null by the returns above.
+  const platform = release && device ? release.desktop.find((p) => p.id === device) : null;
   let primary: DownloadOption | null = null;
   if (platform) {
     primary =
-      os === "macos" && macIntel
+      device === "macos" && macIntel
         ? (platform.options.find((o) => o.label === "Intel") ?? platform.options[0])
         : (platform.options.find((o) => o.recommended) ?? platform.options[0]);
   }
 
-  const Glyph = os ? OS_GLYPHS[os] : null;
+  const Glyph = device ? OS_GLYPHS[device] : null;
 
   // Resolved: OS detected and a matching build exists in the latest release.
   if (primary && platform && Glyph) {

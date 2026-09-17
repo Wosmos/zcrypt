@@ -47,9 +47,27 @@ describe("parseAssets", () => {
 
     const lin = data.desktop.find((p) => p.id === "linux")!;
     expect(lin.options).toEqual([
-      { label: "AppImage", sublabel: "x86_64 · portable", href: "url-lin-appimage", recommended: true },
-      { label: "Debian / Ubuntu", sublabel: "amd64 · .deb", href: "url-lin-deb", recommended: undefined },
-      { label: "Fedora / RHEL", sublabel: "x86_64 · .rpm", href: "url-lin-rpm", recommended: undefined },
+      {
+        label: "Fedora / RHEL",
+        sublabel: "x86_64 · .rpm",
+        href: "url-lin-rpm",
+        recommended: undefined,
+        note: undefined,
+      },
+      {
+        label: "Debian / Ubuntu",
+        sublabel: "amd64 · .deb",
+        href: "url-lin-deb",
+        recommended: undefined,
+        note: undefined,
+      },
+      {
+        label: "Portable",
+        sublabel: "x86_64 · AppImage",
+        href: "url-lin-appimage",
+        recommended: undefined,
+        note: "One-time setup: chmod +x the file, then run it. On Fedora, also install FUSE first — sudo dnf install fuse.",
+      },
     ]);
 
     expect(data.cli).toEqual([
