@@ -167,6 +167,16 @@ func (s *Server) runCleanupBatch(ctx context.Context) {
 		log.Printf("cleanup: deleted %d old clipboard items", cleaned)
 	}
 
+	// audit_events is append-only and was the one table with no expiry at all —
+	// already the largest in the database and still growing. Only the oldest
+	// rows go, which leaves the tamper-evident hash chain verifiable (see
+	// PruneAuditEvents).
+	if pruned, err := s.db.PruneAuditEvents(ctx); err != nil {
+		log.Printf("cleanup: prune audit events: %v", err)
+	} else if pruned > 0 {
+		log.Printf("cleanup: pruned %d audit events past retention", pruned)
+	}
+
 	if expired, err := s.db.ExpireVaults(ctx); err != nil {
 		log.Printf("cleanup: expire vaults: %v", err)
 	} else if expired > 0 {

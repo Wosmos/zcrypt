@@ -116,6 +116,33 @@ type AuditChainResult struct {
 // VerifyAuditChain recomputes the hash chain over all chained events (those with
 // a non-empty hash — pre-chain legacy rows are skipped) in seq order and reports
 // the first divergence. A break means a row was edited, deleted, or reordered.
+// auditRetentionDays bounds how long audit events are kept. The table is
+// append-only and had no expiry at all, so it grew without limit — already the
+// largest table in the database, on a 0.5 GB Neon budget, and the only one with
+// no upper bound. A year is long enough to investigate anything worth
+// investigating and still turns unbounded growth into a fixed ceiling.
+const auditRetentionDays = 365
+
+// PruneAuditEvents deletes audit events older than the retention window.
+//
+// The hash chain is what makes this table tamper-evident, and VerifyAuditChain
+// walks it in seq order expecting each row's prev_hash to match its
+// predecessor. Deleting from the middle or the end would break that. Pruning
+// strictly the OLDEST rows only moves where the chain starts — verification
+// already tolerates that, because it seeds `expectedPrev` from the first row it
+// actually sees rather than assuming it begins at seq 1.
+func (db *DB) PruneAuditEvents(ctx context.Context) (int64, error) {
+	tag, err := db.pool.Exec(ctx,
+		`DELETE FROM audit_events
+		  WHERE created_at < NOW() - make_interval(days => $1)`,
+		auditRetentionDays,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("prune audit events: %w", err)
+	}
+	return tag.RowsAffected(), nil
+}
+
 func (db *DB) VerifyAuditChain(ctx context.Context) (*AuditChainResult, error) {
 	rows, err := db.pool.Query(ctx,
 		`SELECT id, user_id, event_type, ip, user_agent, metadata, seq, prev_hash, hash
