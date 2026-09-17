@@ -1,0 +1,70 @@
+# Dependency updates.
+#
+# security.yml already runs govulncheck weekly, but it only reports Go
+# vulnerabilities and never opens a PR — nothing keeps Cargo or the frontend
+# lockfile moving. Grouped, monthly PRs so five ecosystems don't turn into a
+# constant stream of one-line bumps.
+#
+# Security updates arrive separately and immediately (enabled at the repo
+# level), independent of the schedules here.
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: /app/backend
+    schedule:
+      interval: monthly
+    groups:
+      go-backend:
+        patterns: ["*"]
+    open-pull-requests-limit: 3
+
+  - package-ecosystem: gomod
+    directory: /app/tui
+    schedule:
+      interval: monthly
+    groups:
+      go-tui:
+        patterns: ["*"]
+    open-pull-requests-limit: 3
+
+  - package-ecosystem: cargo
+    directory: /app/core
+    schedule:
+      interval: monthly
+    groups:
+      rust-core:
+        patterns: ["*"]
+    open-pull-requests-limit: 3
+
+  - package-ecosystem: cargo
+    directory: /app/desktop/src-tauri
+    schedule:
+      interval: monthly
+    groups:
+      rust-desktop:
+        patterns: ["*"]
+    open-pull-requests-limit: 3
+
+  - package-ecosystem: npm
+    directory: /app/frontend
+    schedule:
+      interval: monthly
+    groups:
+      # Next and React move together; splitting them produces PRs that can't
+      # pass CI on their own.
+      next-react:
+        patterns: ["next", "react", "react-dom", "@types/react*", "eslint-config-next"]
+      frontend:
+        patterns: ["*"]
+        exclude-patterns: ["next", "react", "react-dom", "@types/react*", "eslint-config-next"]
+    open-pull-requests-limit: 4
+
+  # Keeps the action SHAs in device.yml / ci.yml / release.yml current.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
+    open-pull-requests-limit: 2
