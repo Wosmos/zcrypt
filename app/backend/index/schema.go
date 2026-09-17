@@ -826,4 +826,31 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_chunks_file_idx ON chunks (file_id, idx);
 -- now (the client resolves them), so the plaintext copies are blanked. No-op once
 -- empty, so it is safe to run on every start.
 UPDATE integrity_snapshots SET file_name = '' WHERE file_name <> '';
+
+-- Installer downloads of the zcrypt app itself (NOT file downloads from a
+-- vault). Written by the /api/download/{target} redirect, which is public and
+-- unauthenticated, so this deliberately does NOT live in audit_events: that
+-- table's insert takes a global advisory lock to extend its hash chain, and an
+-- internet-facing endpoint must not queue behind it.
+--
+-- Privacy: ip_prefix holds anonIP() output (/24, /48) and never a full address;
+-- user_id is set only when the visitor happened to be signed in. No FK on
+-- user_id — audit_events drops its own for the same reason (a deleted user must
+-- not erase or block the historical record).
+CREATE TABLE IF NOT EXISTS app_downloads (
+	id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+	target     TEXT NOT NULL,
+	platform   TEXT NOT NULL,
+	version    TEXT NOT NULL DEFAULT '',
+	user_id    UUID,
+	ip_prefix  TEXT NOT NULL DEFAULT '',
+	country    TEXT NOT NULL DEFAULT '',
+	user_agent TEXT NOT NULL DEFAULT '',
+	referrer   TEXT NOT NULL DEFAULT '',
+	created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_app_downloads_time ON app_downloads(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_app_downloads_platform ON app_downloads(platform);
+CREATE INDEX IF NOT EXISTS idx_app_downloads_target ON app_downloads(target);
 `

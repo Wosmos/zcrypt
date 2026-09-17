@@ -53,6 +53,10 @@ type Server struct {
 	userLimiter *rateLimiter
 	// Share endpoint rate limiter: 30 req per 1 min per IP (prevents brute-force)
 	shareLimiter *rateLimiter
+	// releases memoises the GitHub releases API behind /api/download/{target},
+	// so a burst of installer downloads doesn't exhaust its 60/hr unauthenticated
+	// rate limit.
+	releases *releaseCache
 	// 2FA code limiters: per-IP caps code-spraying across accounts; per-user
 	// caps brute-forcing one account across rotating IPs. Deliberately separate
 	// from authLimiter so a 2FA login doesn't consume login-attempt budget.
@@ -133,6 +137,7 @@ func NewServer(db *index.DB, cfg *config.Config, progress *pipeline.ProgressEmit
 		emailLimiter:        newRateLimiter(3, 15*time.Minute),
 		userLimiter:         newRateLimiter(600, time.Minute),
 		shareLimiter:        newRateLimiter(30, time.Minute),
+		releases:            newReleaseCache(),
 		twoFAIPLimiter:      newRateLimiter(10, 5*time.Minute),
 		twoFAUserLimiter:    newRateLimiter(5, 5*time.Minute),
 		sendLimiter:         newRateLimiter(5, time.Hour),
@@ -665,6 +670,11 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/shares", s.AuthMiddleware(s.HandleListShares))
 	mux.HandleFunc("DELETE /api/shares/{id}", s.AuthMiddleware(s.HandleRevokeShare))
 
+	// Installer downloads of the app itself (no auth, rate-limited). One stable
+	// URL per platform; records the click, then redirects to the release asset.
+	mux.HandleFunc("GET /api/download/{target}", s.ShareRateLimitMiddleware(s.HandleAppDownload))
+	mux.HandleFunc("GET /api/downloads/stats", s.ShareRateLimitMiddleware(s.HandleDownloadStats))
+
 	// Public share access (no auth, rate-limited)
 	mux.HandleFunc("GET /api/share/{token}", s.ShareRateLimitMiddleware(s.HandleGetShareInfo))
 	mux.HandleFunc("GET /api/share/{token}/meta", s.ShareRateLimitMiddleware(s.HandleGetShareFileMeta))
@@ -798,6 +808,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	// Admin routes
 	mux.HandleFunc("GET /api/admin/users", s.AdminMiddleware(s.HandleAdminListUsers))
 	mux.HandleFunc("GET /api/admin/stats", s.AdminMiddleware(s.HandleAdminStats))
+	mux.HandleFunc("GET /api/admin/downloads", s.AdminMiddleware(s.HandleAdminDownloads))
 	mux.HandleFunc("GET /api/admin/reconcile", s.AdminMiddleware(s.HandleAdminReconcile))
 	mux.HandleFunc("PUT /api/admin/users/{id}/role", maxJSON(s.AdminMiddleware(s.HandleAdminSetRole)))
 	mux.HandleFunc("DELETE /api/admin/users/{id}", s.AdminMiddleware(s.HandleAdminDeleteUser))
