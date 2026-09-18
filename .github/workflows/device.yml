@@ -243,7 +243,7 @@ jobs:
 
       - name: Install Tauri CLI
         if: steps.cache-tauri-cli.outputs.cache-hit != 'true'
-        run: cargo install tauri-cli --version "$TAURI_CLI_VERSION" --locked
+        run: cargo install tauri-cli --version "${{ env.TAURI_CLI_VERSION }}" --locked
 
       # ── Updater artifact signing (optional, gated on secrets) ──
       # `cargo tauri build` only signs updater bundles (macOS .app.tar.gz,
@@ -590,7 +590,7 @@ jobs:
 
       - name: Install Tauri CLI
         if: steps.cache-tauri-cli.outputs.cache-hit != 'true'
-        run: cargo install tauri-cli --version "$TAURI_CLI_VERSION" --locked
+        run: cargo install tauri-cli --version "${{ env.TAURI_CLI_VERSION }}" --locked
 
       # `android init` generates gen/android/ from tauri.conf.json + the Rust
       # crate. It isn't committed to the repo (app/desktop/src-tauri/gen only
@@ -616,7 +616,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          MA=gen/android/app/src/main/MainActivity.kt
+          # The CLI relocates the activity into its package directory
+          # (app/src/main/java/app/zcrypt/desktop/), so find it rather than
+          # hardcoding a path that moves with the identifier.
+          MA=$(find gen/android/app/src/main -name MainActivity.kt | head -1)
+          [ -n "$MA" ] \
+            || { echo "::error::no MainActivity.kt under gen/android/app/src/main — 'android init' did not generate what we expect."; exit 1; }
+          echo "activity: $MA"
           grep -q 'enableEdgeToEdge()' "$MA" \
             || { echo "::error::$MA no longer calls enableEdgeToEdge() — safe-area insets will be 0 on Android 14 and below."; exit 1; }
           grep -q ': TauriActivity(' "$MA" \
@@ -639,8 +645,11 @@ jobs:
           PKG=$(jq -r '.identifier' tauri.conf.json)
           grep -qx "package $PKG" "$SRC" \
             || { echo "::error::$SRC declares a different package than tauri.conf.json's identifier ($PKG) — Android would not find the activity."; exit 1; }
-          cp "$SRC" gen/android/app/src/main/MainActivity.kt
-          echo "MainActivity replaced from $SRC"
+          DEST=$(find gen/android/app/src/main -name MainActivity.kt | head -1)
+          [ -n "$DEST" ] \
+            || { echo "::error::no generated MainActivity.kt to replace."; exit 1; }
+          cp "$SRC" "$DEST"
+          echo "MainActivity replaced from $SRC -> $DEST"
 
       # MUST run AFTER `android init`, not before. `tauri icon` picks its
       # Android output dir by probing for gen/android/app/src/main/res: if that
