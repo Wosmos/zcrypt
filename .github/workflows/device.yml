@@ -157,12 +157,26 @@ jobs:
         include:
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
+            bundle: target/release/bundle
+            args: ""
           - platform: macos-latest
             target: aarch64-apple-darwin
-          - platform: macos-13
+            bundle: target/release/bundle
+            args: ""
+          # Intel macOS is CROSS-COMPILED from the arm64 runner. It used to
+          # build natively on macos-13, but GitHub retired that runner: the leg
+          # has sat queued and then been cancelled on every run since, which is
+          # why no Intel .dmg has ever been published and why /dl/macos-x64 had
+          # nothing to resolve to. An explicit --target puts the bundle under
+          # target/<triple>/, hence the separate bundle path.
+          - platform: macos-latest
             target: x86_64-apple-darwin
+            bundle: target/x86_64-apple-darwin/release/bundle
+            args: "--target x86_64-apple-darwin"
           - platform: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
+            bundle: target/release/bundle
+            args: ""
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -186,6 +200,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+          targets: ${{ matrix.target }}
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -269,7 +284,7 @@ jobs:
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: cargo tauri build
+        run: cargo tauri build ${{ matrix.args }}
 
       # ── Upload artifacts ──
       # .sig globs below only ever match when updater signing is configured
@@ -281,10 +296,10 @@ jobs:
         with:
           name: zcrypt-windows-${{ matrix.target }}
           path: |
-            app/desktop/src-tauri/target/release/bundle/msi/*.msi
-            app/desktop/src-tauri/target/release/bundle/msi/*.msi.sig
-            app/desktop/src-tauri/target/release/bundle/nsis/*.exe
-            app/desktop/src-tauri/target/release/bundle/nsis/*.exe.sig
+            app/desktop/src-tauri/${{ matrix.bundle }}/msi/*.msi
+            app/desktop/src-tauri/${{ matrix.bundle }}/msi/*.msi.sig
+            app/desktop/src-tauri/${{ matrix.bundle }}/nsis/*.exe
+            app/desktop/src-tauri/${{ matrix.bundle }}/nsis/*.exe.sig
 
       - name: Upload artifacts (macOS)
         if: startsWith(matrix.platform, 'macos')
@@ -292,9 +307,9 @@ jobs:
         with:
           name: zcrypt-macos-${{ matrix.target }}
           path: |
-            app/desktop/src-tauri/target/release/bundle/dmg/*.dmg
-            app/desktop/src-tauri/target/release/bundle/macos/*.app.tar.gz
-            app/desktop/src-tauri/target/release/bundle/macos/*.app.tar.gz.sig
+            app/desktop/src-tauri/${{ matrix.bundle }}/dmg/*.dmg
+            app/desktop/src-tauri/${{ matrix.bundle }}/macos/*.app.tar.gz
+            app/desktop/src-tauri/${{ matrix.bundle }}/macos/*.app.tar.gz.sig
 
       - name: Upload artifacts (Linux)
         if: matrix.platform == 'ubuntu-22.04'
@@ -302,10 +317,10 @@ jobs:
         with:
           name: zcrypt-linux-${{ matrix.target }}
           path: |
-            app/desktop/src-tauri/target/release/bundle/deb/*.deb
-            app/desktop/src-tauri/target/release/bundle/appimage/*.AppImage
-            app/desktop/src-tauri/target/release/bundle/appimage/*.AppImage.sig
-            app/desktop/src-tauri/target/release/bundle/rpm/*.rpm
+            app/desktop/src-tauri/${{ matrix.bundle }}/deb/*.deb
+            app/desktop/src-tauri/${{ matrix.bundle }}/appimage/*.AppImage
+            app/desktop/src-tauri/${{ matrix.bundle }}/appimage/*.AppImage.sig
+            app/desktop/src-tauri/${{ matrix.bundle }}/rpm/*.rpm
 
       # ── Publish installers to the GitHub Release (tag pushes only) ──
       # GoReleaser (release.yml) creates the release and owns its notes; this
@@ -329,21 +344,21 @@ jobs:
           done
           shopt -s nullglob
           files=(
-            app/desktop/src-tauri/target/release/bundle/dmg/*.dmg
-            app/desktop/src-tauri/target/release/bundle/nsis/*.exe
-            app/desktop/src-tauri/target/release/bundle/msi/*.msi
-            app/desktop/src-tauri/target/release/bundle/appimage/*.AppImage
-            app/desktop/src-tauri/target/release/bundle/deb/*.deb
-            app/desktop/src-tauri/target/release/bundle/rpm/*.rpm
+            app/desktop/src-tauri/${{ matrix.bundle }}/dmg/*.dmg
+            app/desktop/src-tauri/${{ matrix.bundle }}/nsis/*.exe
+            app/desktop/src-tauri/${{ matrix.bundle }}/msi/*.msi
+            app/desktop/src-tauri/${{ matrix.bundle }}/appimage/*.AppImage
+            app/desktop/src-tauri/${{ matrix.bundle }}/deb/*.deb
+            app/desktop/src-tauri/${{ matrix.bundle }}/rpm/*.rpm
             # Updater signatures — only present when signing is configured
             # (see the "Build Tauri app" step). latest.json (built by the
             # publish-updater-manifest job below) embeds their contents
             # directly, but publishing the raw .sig files too makes them easy
             # to spot-check on the release page.
-            app/desktop/src-tauri/target/release/bundle/macos/*.app.tar.gz.sig
-            app/desktop/src-tauri/target/release/bundle/nsis/*.exe.sig
-            app/desktop/src-tauri/target/release/bundle/msi/*.msi.sig
-            app/desktop/src-tauri/target/release/bundle/appimage/*.AppImage.sig
+            app/desktop/src-tauri/${{ matrix.bundle }}/macos/*.app.tar.gz.sig
+            app/desktop/src-tauri/${{ matrix.bundle }}/nsis/*.exe.sig
+            app/desktop/src-tauri/${{ matrix.bundle }}/msi/*.msi.sig
+            app/desktop/src-tauri/${{ matrix.bundle }}/appimage/*.AppImage.sig
           )
           if [ ${#files[@]} -eq 0 ]; then
             echo "no installer files found for this platform"; exit 0
