@@ -6,6 +6,62 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.1.5] - 2026-09-18
+
+### Added
+
+- Proxy /api on www.zcrypt.cloud as a stable front for native apps
+- Editable profile and self-service password change
+- Profile panel for name, avatar and password
+- Turn on signed in-app updates
+- App updates panel in Settings (desktop only)
+- Confirm before changing a platform token's scope
+- Confirm before applying plan config and removing vault members
+- Stop storing plaintext filenames and exact IPs
+- Seal the metadata that still reached the server in plaintext
+- One stable download URL per platform, and count the installs
+- Route downloads through /dl, add the downloads dashboards
+- Show what the current release actually published
+- Bound audit_events with a retention window
+
+### Changed
+
+- Share the token-scope confirmation between settings and admin
+- Make safe-area insets testable off-device
+- Stop exporting names nothing imports
+
+### Fixed
+
+- Install postgresql-client-17 for Neon dump/restore
+- Move nightly DB backup to a private repo; fail the watcher when it's blind
+- Stop baking a committed backend host into shipped builds
+- Justify the image decoder imports, cover the new profile API wrappers
+- Validate the password form as it is typed
+- Start OAuth on the origin the callback returns to
+- Stop the desktop keychain prompt by migrating the legacy device key
+- Never lock in a ratchet baseline from a run with failed gates
+- Check the errors the new handlers ignored, cover the new branches
+- Stop the landing page rendering as empty voids
+- Upload the Vercel build as one archive, not thousands of files
+- Make zcrypt-core MIT, matching the rest of the project
+- Stop serving a stale version when GitHub throttles us
+- Stop depending on a broken Railway CLI for DB cutover
+- Pass the required org id to neonctl project creation
+- Export PATH for pg_dump 17, not just GITHUB_PATH
+- Stop misdetecting phones as desktop OSes, surface native Linux packages
+- Stop the updater lying to .deb/.rpm installs
+- Generate the real app icon for Android builds
+- Scope the updater permission to desktop, unbreaking Android builds
+- Android ships the right icon and a real version; stable installer URLs
+- External links do nothing in the app
+- Cover the screen edges the safe-area work missed
+- Safe-area insets survive an out-of-date system WebView
+- Clean up what the download endpoint's own lint found
+- Build on Go 1.26.6 and current x/crypto
+- The edge-to-edge assertion was looking in the wrong place
+- Build the Intel mac by cross-compiling, not on a runner that no longer exists
+- Move off the hickory-proto line that has no patch
+
 ## [0.1.4] - 2026-09-05
 
 ### Added
