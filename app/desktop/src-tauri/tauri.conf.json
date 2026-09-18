@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicerapp/tauri/refs/heads/dev/packages/tauri-cli/schema.json",
   "productName": "zcrypt",
-  "version": "0.1.0",
+  "version": "0.1.5",
   "identifier": "app.zcrypt.desktop",
   "build": {
     "beforeBuildCommand": "",
