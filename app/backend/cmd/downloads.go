@@ -38,6 +38,10 @@ const (
 
 // downloadTarget maps a stable URL segment to the asset that satisfies it.
 type downloadTarget struct {
+	// name is the map key, backfilled by init below. Logging this instead of
+	// the raw path segment keeps a caller-supplied string out of the log even
+	// though only valid keys can reach those lines.
+	name     string
 	platform string
 	// stable is the version-less alias uploaded alongside the real installer
 	// (see device.yml). Preferred when present.
@@ -47,6 +51,13 @@ type downloadTarget struct {
 	match func(string) bool
 	// android assets live on the rolling prerelease, not the tagged release.
 	android bool
+}
+
+func init() {
+	for k, t := range downloadTargets {
+		t.name = k
+		downloadTargets[k] = t
+	}
 }
 
 func suffix(s string) func(string) bool {
@@ -160,7 +171,7 @@ func fetchRelease(ctx context.Context, url string) (*ghRelease, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		return nil, errUnexpectedStatus(resp.StatusCode)
 	}
@@ -251,7 +262,7 @@ func (s *Server) HandleAppDownload(w http.ResponseWriter, r *http.Request) {
 	if !found {
 		// A target with no published asset (an installer whose build leg did
 		// not complete, say) must not dead-end — send them somewhere useful.
-		log.Printf("download: no asset for target %q (release %q)", name, version)
+		log.Printf("download: no asset for target %q (release %q)", t.name, version)
 		http.Redirect(w, r, releasesPageURL, http.StatusFound)
 		return
 	}
@@ -266,13 +277,16 @@ func (s *Server) HandleAppDownload(w http.ResponseWriter, r *http.Request) {
 		UserAgent: truncate(r.UserAgent(), 400),
 		Referrer:  truncate(r.Referer(), 400),
 	}
-	// Fire-and-forget on its own context: the redirect must not wait on the
-	// write, and the request context is cancelled the moment it is sent.
+	// Fire-and-forget: the redirect must not wait on the write.
+	// WithoutCancel, not Background: the write must outlive the request (the
+	// request context is cancelled the instant the redirect is written) but
+	// should still carry the request's values.
+	writeCtx := context.WithoutCancel(r.Context())
 	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(writeCtx, 5*time.Second)
 		defer cancel()
 		if err := s.db.InsertAppDownload(ctx, rec); err != nil {
-			log.Printf("download: record %s: %v", name, err)
+			log.Printf("download: record %s: %v", t.name, err)
 		}
 	}()
 
