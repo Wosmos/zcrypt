@@ -37,6 +37,14 @@ concurrency:
 permissions:
   contents: write
 
+# Pinned, not "^2", and the pin is part of the cache key below. `cargo install
+# tauri-cli --version "^2"` resolved a floating version into a cache whose key
+# had no version component, so the FIRST binary ever cached kept being restored
+# forever — a run in 2026 could still be handed a 2024 CLI, with a 2024 Android
+# template. Bumping this line both installs and re-caches the new one.
+env:
+  TAURI_CLI_VERSION: "2.10.1"
+
 jobs:
   # ── Shared: build the static frontend export ONCE ────────────────────────────
   # Desktop and Android used to each build this independently — same Next.js
@@ -231,11 +239,11 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cargo/bin/cargo-tauri*
-          key: tauri-cli-2-${{ runner.os }}-${{ runner.arch }}
+          key: tauri-cli-${{ env.TAURI_CLI_VERSION }}-${{ runner.os }}-${{ runner.arch }}
 
       - name: Install Tauri CLI
         if: steps.cache-tauri-cli.outputs.cache-hit != 'true'
-        run: cargo install tauri-cli --version "^2" --locked
+        run: cargo install tauri-cli --version "$TAURI_CLI_VERSION" --locked
 
       # ── Updater artifact signing (optional, gated on secrets) ──
       # `cargo tauri build` only signs updater bundles (macOS .app.tar.gz,
@@ -578,11 +586,11 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cargo/bin/cargo-tauri*
-          key: tauri-cli-2-${{ runner.os }}-${{ runner.arch }}
+          key: tauri-cli-${{ env.TAURI_CLI_VERSION }}-${{ runner.os }}-${{ runner.arch }}
 
       - name: Install Tauri CLI
         if: steps.cache-tauri-cli.outputs.cache-hit != 'true'
-        run: cargo install tauri-cli --version "^2" --locked
+        run: cargo install tauri-cli --version "$TAURI_CLI_VERSION" --locked
 
       # `android init` generates gen/android/ from tauri.conf.json + the Rust
       # crate. It isn't committed to the repo (app/desktop/src-tauri/gen only
@@ -595,6 +603,44 @@ jobs:
           NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
         run: cargo tauri android init
+
+      # The safe-area CSS (globals.css --safe-*) is only worth anything if the
+      # activity actually draws under the status/navigation bars. It does, via
+      # two independent mechanisms: the CLI's MainActivity template calls
+      # enableEdgeToEdge(), and targetSdk 36 means Android 15+ enforces
+      # edge-to-edge regardless. Both come from a generated file nobody reviews,
+      # so assert them rather than assume them — if a future CLI drops either,
+      # every inset silently reads 0 and the app quietly re-gains the notch bug.
+      - name: Assert Android draws edge-to-edge
+        working-directory: app/desktop/src-tauri
+        shell: bash
+        run: |
+          set -euo pipefail
+          MA=gen/android/app/src/main/MainActivity.kt
+          grep -q 'enableEdgeToEdge()' "$MA" \
+            || { echo "::error::$MA no longer calls enableEdgeToEdge() — safe-area insets will be 0 on Android 14 and below."; exit 1; }
+          grep -q ': TauriActivity(' "$MA" \
+            || { echo "::error::$MA no longer extends TauriActivity — the inset-injection step below is written against that base class."; exit 1; }
+          grep -qE 'targetSdk *= *3[5-9]' gen/android/app/build.gradle.kts \
+            || { echo "::error::generated targetSdk dropped below 35 — Android no longer enforces edge-to-edge."; exit 1; }
+          echo "edge-to-edge OK"
+
+      # Drawing edge-to-edge is necessary but not sufficient: the WebView also
+      # has to forward the window insets into env(safe-area-inset-*), and that
+      # support is gated on the Android System WebView's own version. Our
+      # MainActivity publishes them as CSS variables so a stale WebView can't
+      # silently zero every inset. Rationale in full lives in that file.
+      - name: Publish Android window insets to CSS
+        working-directory: app/desktop/src-tauri
+        shell: bash
+        run: |
+          set -euo pipefail
+          SRC=android/MainActivity.kt
+          PKG=$(jq -r '.identifier' tauri.conf.json)
+          grep -qx "package $PKG" "$SRC" \
+            || { echo "::error::$SRC declares a different package than tauri.conf.json's identifier ($PKG) — Android would not find the activity."; exit 1; }
+          cp "$SRC" gen/android/app/src/main/MainActivity.kt
+          echo "MainActivity replaced from $SRC"
 
       # MUST run AFTER `android init`, not before. `tauri icon` picks its
       # Android output dir by probing for gen/android/app/src/main/res: if that

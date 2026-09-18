@@ -129,12 +129,20 @@
    desktop browser — env() always resolves to 0 there, so without it a notch
    could only be tested on a device. Set --safe-top/bottom/left/right on :root
    to preview any phone's insets at phone width. Nothing sets them in
-   production. */
+   production.
+
+   --android-safe-* is the second source, pushed in from Kotlin by the Android
+   shell (app/desktop/src-tauri/android/MainActivity.kt). Android's WebView only
+   forwards insets into env() from a recent enough WebView build, and WebView
+   updates through Play independently of the OS — so on an out-of-date phone
+   env() reports 0px for all four and the UI runs under the notch. max() takes
+   whichever source has a real value; where both do they agree, and on desktop
+   and iOS the --android-safe-* vars are simply never defined, so env() wins. */
 :root {
-  --safe-top: env(safe-area-inset-top, 0px);
-  --safe-bottom: env(safe-area-inset-bottom, 0px);
-  --safe-left: env(safe-area-inset-left, 0px);
-  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-top: max(env(safe-area-inset-top, 0px), var(--android-safe-top, 0px));
+  --safe-bottom: max(env(safe-area-inset-bottom, 0px), var(--android-safe-bottom, 0px));
+  --safe-left: max(env(safe-area-inset-left, 0px), var(--android-safe-left, 0px));
+  --safe-right: max(env(safe-area-inset-right, 0px), var(--android-safe-right, 0px));
 }
 
 @utility pt-safe {
