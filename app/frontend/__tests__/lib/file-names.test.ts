@@ -72,10 +72,15 @@ describe("decryptFileNames (zero-knowledge name dual-read)", () => {
     const out = await decryptFileNames(list);
     expect(out).toBe(list); // display untouched
     await vi.waitFor(() => expect(setFileName).toHaveBeenCalledTimes(2));
-    const [id, sealed] = setFileName.mock.calls[0] as unknown as [string, string];
-    expect(id).toBe("1");
+    // Look the call up by id rather than taking calls[0]: the two re-seals are
+    // issued concurrently, so whichever key derivation finishes first lands
+    // first. Indexing by position made this test fail roughly one run in four.
+    const calls = setFileName.mock.calls as unknown as [string, string][];
+    const sealed = calls.find(([id]) => id === "1")?.[1];
+    expect(calls.map(([id]) => id).sort()).toEqual(["1", "2"]);
+    expect(sealed).toBeDefined();
     expect(sealed).not.toBe("a.txt");
-    expect(sealed.length).toBeGreaterThan(20); // base64 [iv || ct+tag]
+    expect(sealed!.length).toBeGreaterThan(20); // base64 [iv || ct+tag]
     await decryptFileNames(list); // second listing: already queued → no duplicate PATCH
     expect(setFileName).toHaveBeenCalledTimes(2);
   });
