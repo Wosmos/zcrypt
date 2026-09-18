@@ -4,9 +4,9 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 
-use hickory_resolver::config::ResolverConfig;
-use hickory_resolver::name_server::TokioConnectionProvider;
-use hickory_resolver::TokioResolver;
+use hickory_resolver::config::{ResolverConfig, CLOUDFLARE};
+use hickory_resolver::net::runtime::TokioRuntimeProvider;
+use hickory_resolver::Resolver;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
@@ -20,18 +20,31 @@ use tokio::sync::Mutex;
 /// This gives one reliable, cached lookup per host, independent of the flaky
 /// local resolver.
 struct PublicDnsResolver {
-    inner: Arc<TokioResolver>,
+    inner: Arc<Resolver<TokioRuntimeProvider>>,
 }
 
 impl PublicDnsResolver {
-    fn new() -> Self {
-        let resolver = TokioResolver::builder_with_config(
-            ResolverConfig::cloudflare(),
-            TokioConnectionProvider::default(),
+    // hickory 0.26 moved the Cloudflare preset from a ResolverConfig
+    // constructor to a CLOUDFLARE ServerGroup constant, and made build()
+    // fallible. Same servers, same UDP+TCP transport as before.
+    // None when the resolver cannot be constructed, so the caller falls back to
+    // reqwest's default (OS) resolver rather than failing to build a client at
+    // all. The OS resolver is the flaky thing this exists to avoid, but a
+    // degraded resolver beats no HTTP client.
+    fn new() -> Option<Self> {
+        match Resolver::builder_with_config(
+            ResolverConfig::udp_and_tcp(&CLOUDFLARE),
+            TokioRuntimeProvider::default(),
         )
-        .build();
-        Self {
-            inner: Arc::new(resolver),
+        .build()
+        {
+            Ok(resolver) => Some(Self {
+                inner: Arc::new(resolver),
+            }),
+            Err(e) => {
+                eprintln!("zcrypt: public DNS resolver unavailable, using the OS resolver: {e}");
+                None
+            }
         }
     }
 }
@@ -109,19 +122,20 @@ struct RefreshResponse {
 
 impl Client {
     pub fn new(base_url: &str, access: &str, refresh: &str) -> Self {
+        let mut http = reqwest::Client::builder()
+            .timeout(Duration::from_secs(30))
+            // Fail a stalled connect fast (flaky/filtered networks hang the
+            // TCP/TLS handshake) so with_retry gets a chance instead of
+            // burning the whole 30s budget on one dead attempt.
+            .connect_timeout(Duration::from_secs(10));
+        // Reliable public DNS (Cloudflare) + cache instead of the flaky OS
+        // resolver that returns intermittent EAI_NONAME on macOS.
+        if let Some(dns) = PublicDnsResolver::new() {
+            http = http.dns_resolver(Arc::new(dns));
+        }
         Client {
             base_url: base_url.trim_end_matches('/').to_string(),
-            http: reqwest::Client::builder()
-                .timeout(Duration::from_secs(30))
-                // Fail a stalled connect fast (flaky/filtered networks hang the
-                // TCP/TLS handshake) so with_retry gets a chance instead of
-                // burning the whole 30s budget on one dead attempt.
-                .connect_timeout(Duration::from_secs(10))
-                // Reliable public DNS (Cloudflare) + cache instead of the flaky
-                // OS resolver that returns intermittent EAI_NONAME on macOS.
-                .dns_resolver(Arc::new(PublicDnsResolver::new()))
-                .build()
-                .expect("reqwest client"),
+            http: http.build().expect("reqwest client"),
             tokens: Mutex::new(TokenState {
                 access: access.into(),
                 refresh: refresh.into(),
