@@ -286,6 +286,24 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: cargo tauri build ${{ matrix.args }}
 
+      # Both macOS legs bundle their updater tarball as "zcrypt.app.tar.gz".
+      # That was harmless while only arm64 built; now that Intel builds too,
+      # the second upload would clobber the first and latest.json would hand
+      # both architectures the same URL with different signatures — at most one
+      # could ever verify. Name them per target so each arch keeps its own.
+      - name: Name the macOS updater bundle per architecture
+        if: startsWith(matrix.platform, 'macos')
+        shell: bash
+        run: |
+          set -euo pipefail
+          d="app/desktop/src-tauri/${{ matrix.bundle }}/macos"
+          shopt -s nullglob
+          for f in "$d"/zcrypt.app.tar.gz "$d"/zcrypt.app.tar.gz.sig; do
+            base="$(basename "$f")"
+            mv "$f" "$d/zcrypt_${{ matrix.target }}.${base#zcrypt.}"
+            echo "renamed $base -> zcrypt_${{ matrix.target }}.${base#zcrypt.}"
+          done
+
       # ── Upload artifacts ──
       # .sig globs below only ever match when updater signing is configured
       # (see the "Build Tauri app" step); upload-artifact warns-not-fails on
@@ -350,6 +368,11 @@ jobs:
             app/desktop/src-tauri/${{ matrix.bundle }}/appimage/*.AppImage
             app/desktop/src-tauri/${{ matrix.bundle }}/deb/*.deb
             app/desktop/src-tauri/${{ matrix.bundle }}/rpm/*.rpm
+            # The macOS updater bundle. latest.json derives its URL from the
+            # .sig filename, and this was never uploaded — so every macOS
+            # update attempt resolved to a 404. Windows and Linux were fine
+            # because their updater artifact IS the installer.
+            app/desktop/src-tauri/${{ matrix.bundle }}/macos/*.app.tar.gz
             # Updater signatures — only present when signing is configured
             # (see the "Build Tauri app" step). latest.json (built by the
             # publish-updater-manifest job below) embeds their contents
