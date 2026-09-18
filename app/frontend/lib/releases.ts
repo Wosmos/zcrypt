@@ -30,7 +30,7 @@ export type DownloadTarget =
   | "cli-windows-amd64"
   | "cli-windows-arm64";
 
-export const dl = (target: DownloadTarget): string => `/dl/${target}`;
+const dl = (target: DownloadTarget): string => `/dl/${target}`;
 
 // Shared by the hero CTA and the Android sideload card so there's one source
 // of truth. The APK lives on the rolling `android-latest` prerelease, which

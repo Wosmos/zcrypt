@@ -557,12 +557,12 @@ export interface DownloadCount {
   count: number;
 }
 
-export interface DownloadDay {
+interface DownloadDay {
   date: string;
   count: number;
 }
 
-export interface DownloadStats {
+interface DownloadStats {
   total: number;
   last_30_days: number;
   platforms: DownloadCount[];
@@ -575,14 +575,14 @@ export interface DownloadStats {
   signed_in: number;
 }
 
-export interface GithubAssetCount {
+interface GithubAssetCount {
   name: string;
   tag: string;
   count: number;
   is_apk: boolean;
 }
 
-export interface ReleaseAsset {
+interface ReleaseAsset {
   target: string;
   platform: string;
   name: string;
