@@ -419,6 +419,11 @@ describe("contentMacFile", () => {
     expect(onProgress).toHaveBeenCalledWith(bytes.length);
   });
 
+  // 50MB of HMAC twice (streamed, then one-shot to compare) is genuinely slow,
+  // and v8 coverage instrumentation roughly triples it — enough to blow the
+  // default 30s timeout and fail a release push on a test that is not broken.
+  // The size has to stay above the 50MB threshold or it stops exercising the
+  // streaming path at all, so raise the timeout instead of shrinking the input.
   it("streams a >50MB file in chunks and yields the same MAC as the one-shot path", async () => {
     const key = new Uint8Array(32).fill(0x11);
     // Just over the 50MB threshold → forces the incremental @noble streaming path.
@@ -432,5 +437,5 @@ describe("contentMacFile", () => {
     // Final progress tick equals the full size.
     expect(onProgress).toHaveBeenLastCalledWith(bytes.length);
     expect(onProgress.mock.calls.length).toBeGreaterThan(1); // fired per streamed chunk
-  });
+  }, 120_000);
 });
