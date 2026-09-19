@@ -357,59 +357,47 @@ jobs:
         working-directory: app/tui
         run: go test ./...
 
-  # ── Deploy: backend → Railway ─────────────────────────────────────────────────
-  # This job existed, was deleted as "redundant" because Railway's own GitHub
-  # integration auto-deployed on push to main, and is back because that
-  # integration silently stopped firing. Production served a week-old image
-  # while main moved on; nothing anywhere went red, and the first symptom was
-  # /dl/<target> returning 404 in a browser, because the download route existed
-  # only in git.
+  # ── Backend: confirm the deploy actually landed ───────────────────────────────
+  # Railway deploys the backend itself, from its GitHub connection. This job does
+  # NOT deploy — it checks that the deploy happened.
   #
-  # "Redundant" was the wrong read. The GitHub integration deploys, but it
-  # cannot FAIL anywhere anyone looks. A CI job can. It was also deleted for
-  # failing on an invalid RAILWAY_TOKEN — the fix for a bad credential is a good
-  # credential, not removing the check that surfaced it.
-  deploy-backend:
-    name: Deploy Backend (Railway)
+  # That distinction is the whole point. The GitHub integration silently stopped
+  # firing and production served a week-old image while main moved on. Nothing
+  # went red anywhere, because /api/health answered a bare {"status":"ok"} the
+  # entire time: "something is answering" and "the right thing is answering"
+  # looked identical from outside. The first symptom was /dl/<target> returning
+  # 404 in a browser, a week later.
+  #
+  # A deploy job was tried here instead and is deliberately not what shipped: it
+  # needs a RAILWAY_TOKEN, and a previous copy of it was DELETED for failing on a
+  # stale one. A check that needs no credential cannot rot the same way. This one
+  # only reads a public URL.
+  verify-backend-deploy:
+    name: Verify Backend Deploy (Railway)
     needs: [changes, backend, backend-integration]
     if: needs.changes.outputs.backend == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Railway CLI
-        run: npm install -g @railway/cli
-
-      # --ci streams the build log and exits non-zero when the build fails,
-      # rather than returning the moment the upload is accepted. --project is
-      # explicit because a scripted run with no linked project fails instead of
-      # prompting, and a fresh checkout has no link.
-      - name: Deploy to Railway
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        run: |
-          railway up \
-            --project "${{ secrets.RAILWAY_PROJECT_ID }}" \
-            --service "${{ secrets.RAILWAY_SERVICE }}" \
-            --environment "${{ secrets.RAILWAY_ENVIRONMENT }}" \
-            --ci
-
-      # A built image is not a serving one. Poll until the backend answers and
-      # fail the job if it never does — silence is precisely what let production
-      # sit a week behind main with nobody noticing.
-      - name: Verify the backend is serving
+      # Railway injects RAILWAY_GIT_COMMIT_SHA into every deployment it builds
+      # from the connected repo, and /api/health reports it. So production
+      # naming the commit we just pushed is proof the new code is live — not
+      # merely that the host is up.
+      - name: Wait for production to report this commit
         run: |
           set -uo pipefail
-          for i in $(seq 1 30); do
-            code=$(curl -s -o /dev/null -w '%{http_code}' https://zcrypt-production-ff56.up.railway.app/api/health || echo 000)
-            if [ "$code" = "200" ]; then
-              echo "backend healthy after $((i * 10))s"
+          HEALTH=https://zcrypt-production-ff56.up.railway.app/api/health
+          echo "expecting commit $GITHUB_SHA"
+          for i in $(seq 1 60); do
+            body=$(curl -sf --max-time 10 "$HEALTH" || echo '{}')
+            live=$(printf '%s' "$body" | jq -r '.commit // ""')
+            if [ "$live" = "$GITHUB_SHA" ]; then
+              echo "production is serving $live after $((i * 15))s"
               exit 0
             fi
-            echo "waiting for backend ($i/30, last=$code)…"
-            sleep 10
+            echo "waiting ($i/60) — production reports '${live:-<no commit field>}'"
+            sleep 15
           done
-          echo "::error::backend never returned 200 after the deploy — production may still be serving the OLD image."
+          echo "::error::After 15 minutes production is still not serving $GITHUB_SHA. Railway's GitHub deploy did not fire, or the build failed. Check the Railway dashboard — do NOT ignore this, it is the exact failure that left production a week stale."
           exit 1
 
   # ── Deploy: frontend → Vercel ─────────────────────────────────────────────────
