@@ -34,6 +34,11 @@ jobs:
             backend:
               - 'app/backend/**'
               - 'tests/load/**'
+              # The image the backend ships in — a change here rebuilds it.
+              - 'Dockerfile'
+              # This file defines the deploy, so a change to it has to be able
+              # to exercise the path it just changed.
+              - '.github/workflows/ci.yml'
             frontend:
               - 'app/frontend/**'
               - 'tests/e2e/**'
@@ -353,10 +358,59 @@ jobs:
         run: go test ./...
 
   # ── Deploy: backend → Railway ─────────────────────────────────────────────────
-  # Handled by Railway's own GitHub integration (auto-deploys the Dockerfile on
-  # push to main), NOT by GitHub Actions. The old `railway up` job here was
-  # redundant and kept failing on an invalid RAILWAY_TOKEN, turning every run
-  # red. To gate deploys on CI, enable "Wait for CI" in the Railway dashboard.
+  # This job existed, was deleted as "redundant" because Railway's own GitHub
+  # integration auto-deployed on push to main, and is back because that
+  # integration silently stopped firing. Production served a week-old image
+  # while main moved on; nothing anywhere went red, and the first symptom was
+  # /dl/<target> returning 404 in a browser, because the download route existed
+  # only in git.
+  #
+  # "Redundant" was the wrong read. The GitHub integration deploys, but it
+  # cannot FAIL anywhere anyone looks. A CI job can. It was also deleted for
+  # failing on an invalid RAILWAY_TOKEN — the fix for a bad credential is a good
+  # credential, not removing the check that surfaced it.
+  deploy-backend:
+    name: Deploy Backend (Railway)
+    needs: [changes, backend, backend-integration]
+    if: needs.changes.outputs.backend == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      # --ci streams the build log and exits non-zero when the build fails,
+      # rather than returning the moment the upload is accepted. --project is
+      # explicit because a scripted run with no linked project fails instead of
+      # prompting, and a fresh checkout has no link.
+      - name: Deploy to Railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          railway up \
+            --project "${{ secrets.RAILWAY_PROJECT_ID }}" \
+            --service "${{ secrets.RAILWAY_SERVICE }}" \
+            --environment "${{ secrets.RAILWAY_ENVIRONMENT }}" \
+            --ci
+
+      # A built image is not a serving one. Poll until the backend answers and
+      # fail the job if it never does — silence is precisely what let production
+      # sit a week behind main with nobody noticing.
+      - name: Verify the backend is serving
+        run: |
+          set -uo pipefail
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' https://zcrypt-production-ff56.up.railway.app/api/health || echo 000)
+            if [ "$code" = "200" ]; then
+              echo "backend healthy after $((i * 10))s"
+              exit 0
+            fi
+            echo "waiting for backend ($i/30, last=$code)…"
+            sleep 10
+          done
+          echo "::error::backend never returned 200 after the deploy — production may still be serving the OLD image."
+          exit 1
 
   # ── Deploy: frontend → Vercel ─────────────────────────────────────────────────
   # Previously: `bun run build` (a generic Next.js build) then plain `vercel
