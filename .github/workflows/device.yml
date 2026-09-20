@@ -150,7 +150,7 @@ jobs:
           retention-days: 1
 
   build-desktop:
-    needs: build-frontend
+    needs: [build-frontend, check-updater-signing]
     strategy:
       fail-fast: false
       matrix:
@@ -266,18 +266,30 @@ jobs:
       #   1. TAURI_SIGNING_PRIVATE_KEY(_PASSWORD) are non-empty here, and
       #   2. app/desktop/src-tauri/tauri.conf.json has `bundle.createUpdaterArtifacts: true`
       #      and a `plugins.updater.pubkey` + `endpoints` configured.
-      # Neither is set up yet (tauri.conf.json is out of scope for this change.
-      # See blocked_on). Until then these env vars are empty and signing is a
-      # silent no-op: the build still succeeds and produces unsigned installers,
-      # exactly like before this step existed.
+      # Both ARE set up now, which is what makes the step below necessary.
       #
-      # One-time human setup to turn signing on:
-      #   1. `cargo tauri signer generate -w ~/.tauri/zcrypt.key`
-      #   2. Add repo secrets TAURI_SIGNING_PRIVATE_KEY (contents of the .key
-      #      file) and TAURI_SIGNING_PRIVATE_KEY_PASSWORD.
-      #   3. Put the printed public key + updater endpoint(s) into
-      #      tauri.conf.json's `plugins.updater` block, and set
-      #      `bundle.createUpdaterArtifacts: true`.
+      # With createUpdaterArtifacts on, an EMPTY key is no longer a no-op: tauri
+      # tries to sign, fails to parse "" and kills the build with "failed to
+      # decode secret key: Missing comment in secret key". GitHub withholds
+      # secrets from Dependabot and fork pull requests, so every one of those
+      # runs lost all four desktop legs to a signing key they are never allowed
+      # to have. Nothing was wrong with the code they were testing.
+      #
+      # So when no key is available, turn updater artifacts off for that run.
+      # The build then produces ordinary unsigned installers and still proves
+      # the thing a dependency PR needs proven: that it compiles and bundles.
+      # Signed updater artifacts are only ever needed on a real release, which
+      # runs on main or a tag and does have the secret.
+      - name: Build unsigned when no signing key is available
+        if: needs.check-updater-signing.outputs.configured != 'true'
+        working-directory: app/desktop/src-tauri
+        shell: bash
+        run: |
+          tmp=$(mktemp)
+          jq '.bundle.createUpdaterArtifacts = false' tauri.conf.json > "$tmp"
+          mv "$tmp" tauri.conf.json
+          echo "no TAURI_SIGNING_PRIVATE_KEY (fork or Dependabot run): updater artifacts disabled for this build"
+
       - name: Build Tauri app
         working-directory: app/desktop/src-tauri
         shell: bash
