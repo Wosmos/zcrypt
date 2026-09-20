@@ -5,9 +5,9 @@
  * and returns tuned parameters for the crypto pipeline.
  *
  * Signals used (in priority order):
- *  1. navigator.deviceMemory  — RAM in GB (Chromium: 0.25/0.5/1/2/4/8)
- *  2. navigator.hardwareConcurrency — logical CPU cores (all browsers)
- *  3. navigator.connection — network speed/type (Chromium)
+ *  1. navigator.deviceMemory : RAM in GB (Chromium: 0.25/0.5/1/2/4/8)
+ *  2. navigator.hardwareConcurrency: logical CPU cores (all browsers)
+ *  3. navigator.connection: network speed/type (Chromium)
  *
  * Security: all detection is local-only. No values are sent to the server
  * or persisted to storage (avoids fingerprinting risk).
@@ -41,20 +41,20 @@ interface NavigatorExtended extends Navigator {
 
 /**
  * Detect device tier from actual hardware signals.
- * Does NOT use screen size — a phone with an external monitor is still a phone.
+ * Does NOT use screen size: a phone with an external monitor is still a phone.
  */
 function detectTier(): DeviceTier {
   const nav = navigator as NavigatorExtended;
   const cores = nav.hardwareConcurrency || 2;
   const memory = nav.deviceMemory; // undefined on Safari/Firefox
 
-  // If we have RAM info (Chromium), use it as primary signal — it's the
+  // If we have RAM info (Chromium), use it as primary signal, it's the
   // best indicator of how much we can load into memory simultaneously.
   if (memory !== undefined) {
-    if (memory <= 1) return "low"; // ≤1GB — budget phone / very old device
-    if (memory <= 2) return "medium"; // 2GB — mid phone / old tablet
-    if (memory <= 4) return "high"; // 4GB — laptop / good tablet
-    return "ultra"; // 8GB+ — desktop / workstation
+    if (memory <= 1) return "low"; // ≤1GB: budget phone / very old device
+    if (memory <= 2) return "medium"; // 2GB: mid phone / old tablet
+    if (memory <= 4) return "high"; // 4GB, laptop / good tablet
+    return "ultra"; // 8GB+, desktop / workstation
   }
 
   // Fallback: core count is available everywhere.
@@ -133,7 +133,7 @@ function buildProfile(tier: DeviceTier): DeviceProfile {
   const cores = navigator.hardwareConcurrency || 2;
   profile.workers = Math.min(profile.workers, cores);
 
-  // Network-aware adjustments — clamp only on signals that reliably indicate a
+  // Network-aware adjustments: clamp only on signals that reliably indicate a
   // slow link: effectiveType 2g/slow-2g/3g or saveData (isConstrainedNetwork),
   // or a downlink estimate at the very bottom of the range.
   if (isConstrainedNetwork()) {
@@ -144,7 +144,7 @@ function buildProfile(tier: DeviceTier): DeviceProfile {
   // Chromium CAPS reported downlink at 10 Mbps (anti-fingerprinting), so a
   // "downlink < 10" rule catches fast connections too and would serialize
   // uploads/downloads on gigabit links. Only trust the estimate when it reads
-  // clearly slow (< 2 Mbps) — well below the cap.
+  // clearly slow (< 2 Mbps), well below the cap.
   const downlink = getDownlinkMbps();
   if (downlink !== undefined && downlink < 2) {
     profile.maxConcurrentUploads = 1;
@@ -154,7 +154,7 @@ function buildProfile(tier: DeviceTier): DeviceProfile {
   return profile;
 }
 
-// Cached profile — computed once per page load (hardware doesn't change
+// Cached profile: computed once per page load (hardware doesn't change
 // mid-session), then optionally UPGRADED once by calibrateDeviceProfile().
 let cached: DeviceProfile | null = null;
 let calibrated = false;
@@ -173,7 +173,7 @@ export function getDeviceProfile(): DeviceProfile {
  * Map measured crypto throughput (MB/s of AES-GCM + SHA-256 over the bench
  * buffer) to a tier. Thresholds are intentionally generous: this only ever
  * UPGRADES the heuristic tier, so a strong device that the heuristic under-rated
- * (notably iPhones — Safari doesn't expose navigator.deviceMemory, so they fall
+ * (notably iPhones: Safari doesn't expose navigator.deviceMemory, so they fall
  * back to the core-count guess) gets the profile its hardware can actually run.
  */
 export function tierFromThroughput(mbps: number): DeviceTier {
@@ -218,7 +218,7 @@ async function measureCryptoThroughput(): Promise<number | null> {
  * One-time capability calibration. Runs a crypto micro-benchmark and, if the
  * device measures FASTER than the heuristic guessed, upgrades the cached profile
  * to the measured tier (bigger chunks, more workers, better compression). Only
- * ever upgrades — the RAM/core heuristic stays a floor, so a noisy or throttled
+ * ever upgrades: the RAM/core heuristic stays a floor, so a noisy or throttled
  * benchmark can never make a good device worse. Idempotent and fire-and-forget:
  * call once at app start. `measure` is injectable for tests.
  *
@@ -256,11 +256,11 @@ export function getChunkSize(): number {
  *
  * Deliberately DECOUPLED from the CPU tier (`maxConcurrentUploads`, which stays
  * for the crypto worker pool): upload throughput is network-bound, not CPU-
- * bound — a 4 MB photo barely touches the CPU, and the real win of parallelism
+ * bound: a 4 MB photo barely touches the CPU, and the real win of parallelism
  * is amortizing each file's fixed init/complete round-trips. Tying file
  * concurrency to CPU/RAM made phones upload ~1-2 at a time even on fast Wi-Fi.
  *
- * Driven by the batch's TYPICAL (median) file size, not the largest — one big
+ * Driven by the batch's TYPICAL (median) file size, not the largest, one big
  * file in a 100-photo batch must not serialize the other 99 (the old "every
  * file must be small" rule did exactly that):
  *   - median small (≤16 MB)  → fan out wide (6)

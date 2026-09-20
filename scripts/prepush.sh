@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 #
-# prepush — local quality gate. Run it by hand before pushing:
+# prepush, local quality gate. Run it by hand before pushing:
 #
 #     cd app/frontend && bun run prepush     # or: bash scripts/prepush.sh
 #
-# It is NOT wired into a git hook — nothing runs it automatically on `git push`.
+# It is NOT wired into a git hook, nothing runs it automatically on `git push`.
 # It is deliberately heavy (full builds, tests, deep static analysis), so you
 # choose when to pay that cost.
 #
 # Two tiers:
-#   GATES     block the push — type errors, lint errors, failing tests, broken
+#   GATES     block the push: type errors, lint errors, failing tests, broken
 #             builds, unformatted Go. Fix these before pushing.
-#   INSPECT   advisory quality signals — dead code, duplication, security,
+#   INSPECT   advisory quality signals, dead code, duplication, security,
 #             bad-practice lint. Reported, never blocking (the codebase carries
 #             pre-existing findings). Each prints a summary + the command to see
 #             the full report.
@@ -21,7 +21,7 @@
 
 set -uo pipefail
 
-# Git hooks — and any push started from a GUI client — run under a shell that
+# Git hooks (and any push started from a GUI client) run under a shell that
 # never sources ~/.zshrc, so the user toolchains are off PATH and every gate
 # dies with "bun: command not found". Re-add the standard install locations.
 for _toolbin in "$HOME/.bun/bin" "$HOME/.cargo/bin" "$HOME/go/bin" \
@@ -38,17 +38,17 @@ export PATH
 #   --gates-only  skips the advisory INSPECT scans (knip/jscpd/golangci). They
 #                 never block, so the pre-push hook runs in this fast mode; a
 #                 manual `bun run prepush` runs the full suite + detailed report.
-#   --enforce     turns on the diff-scoped HARDENING checks — new-code-only
+#   --enforce     turns on the diff-scoped HARDENING checks, new-code-only
 #                 lint/duplication/go-lint that BLOCK the push (see HARDEN below).
 #                 The pre-push hook passes this; a manual run omits it.
 #
 # Old-backlog handling (the whole-repo dead-code / duplication / deep-lint scans):
-#   (default)   advisory — reported as warnings, never blocks.
+#   (default)   advisory: reported as warnings, never blocks.
 #   --ratchet   BLOCK only if the backlog grew vs the saved baseline; an
 #               improvement is locked in automatically. Lets you chip away
 #               without a wall. The pre-push hook uses this.
 #   --strict    BLOCK on ANY old issue (zero-tolerance, whole repo). Use for
-#               deliberate clean-up runs — with ~323 findings today it will
+#               deliberate clean-up runs: with ~323 findings today it will
 #               block until they're all gone.
 #   --baseline  record the current counts as the ratchet baseline, then pass.
 #
@@ -116,7 +116,7 @@ fi
 
 PASS=(); WARN=(); FAIL=()
 
-# inspect-scan log paths — pre-declared so the report writer is safe under
+# inspect-scan log paths: pre-declared so the report writer is safe under
 # `set -u` even in --gates-only mode, where the INSPECT section is skipped and
 # these files are never created (fence() renders "(no output)" for missing).
 klog="$LOGDIR/knip.log"
@@ -132,7 +132,7 @@ warnln()  { printf '  %s! %s%s\n' "$YEL" "$1" "$RST"; }
 failln()  { printf '  %s✗ %s%s\n' "$RED" "$1" "$RST"; }
 note()    { printf '  %s%s%s\n' "$DIM" "$1" "$RST"; }
 
-# gate NAME DIR CMD...  — blocking. Streams nothing; captures, shows curated
+# gate NAME DIR CMD... , blocking. Streams nothing; captures, shows curated
 # result on pass, full log on fail.
 gate() {
   local name="$1" dir="$2"; shift 2
@@ -143,7 +143,7 @@ gate() {
     return 0
   else
     FAIL+=("$name")
-    failln "FAILED — output below:"
+    failln "FAILED, output below:"
     sed 's/^/    /' "$log"
     return 1
   fi
@@ -166,7 +166,7 @@ status_of() {
 md_status() {
   case "$1" in
     PASS) echo "✅ PASS";; WARN) echo "⚠️ WARN";;
-    FAIL) echo "❌ FAIL";; *) echo "— skipped";;
+    FAIL) echo "❌ FAIL";; *) echo "- skipped";;
   esac
 }
 GATE_NAMES=("frontend typecheck" "frontend format" "frontend lint" "frontend tests + coverage" "frontend build" \
@@ -186,7 +186,7 @@ NEW_BASELINE=()
 # shellcheck disable=SC1090
 [ -f "$BASELINE_FILE" ] && . "$BASELINE_FILE"
 
-# handle_backlog NAME COUNT — record the count and decide PASS/WARN/FAIL for one
+# handle_backlog NAME COUNT: record the count and decide PASS/WARN/FAIL for one
 # whole-repo scan, per the active mode. Default advisory; --strict blocks on any;
 # --ratchet blocks only on growth (and auto-locks improvements); --baseline just
 # records.
@@ -198,26 +198,26 @@ handle_backlog() {
   if [ "$SAVE_BASELINE" = 1 ]; then
     PASS+=("$name"); ok "baseline recorded: $count"
   elif [ "$STRICT" = 1 ]; then
-    if [ "$count" -gt 0 ]; then FAIL+=("$name"); failln "$count issue(s) — strict mode blocks the push"
+    if [ "$count" -gt 0 ]; then FAIL+=("$name"); failln "$count issue(s): strict mode blocks the push"
     else PASS+=("$name"); ok "clean"; fi
   elif [ "$RATCHET" = 1 ]; then
     [ -z "$base" ] && base="$count"            # first run: seed baseline = current
     if [ "$count" -gt "$base" ]; then
-      FAIL+=("$name"); failln "backlog grew: ${base} → ${count} — ratchet blocks (drop the new ones)"
+      FAIL+=("$name"); failln "backlog grew: ${base} → ${count}: ratchet blocks (drop the new ones)"
       record="$base"                            # keep the target; don't raise it
     elif [ "$count" -lt "$base" ]; then
-      WARN+=("$name"); warnln "improved: ${base} → ${count} — locked in"
+      WARN+=("$name"); warnln "improved: ${base} → ${count}, locked in"
     else
       PASS+=("$name"); ok "held at ${count} (baseline)"
     fi
   else
-    if [ "$count" -gt 0 ]; then WARN+=("$name"); warnln "${count} issue(s) — advisory"
+    if [ "$count" -gt 0 ]; then WARN+=("$name"); warnln "${count} issue(s), advisory"
     else PASS+=("$name"); ok "clean"; fi
   fi
   NEW_BASELINE+=("$key=$record")
 }
 
-# persist_baseline — merge this run's counts over the previously-loaded ones (so
+# persist_baseline: merge this run's counts over the previously-loaded ones (so
 # modules not scanned this run keep their baseline) and write the file back.
 persist_baseline() {
   local kv k v
@@ -235,7 +235,7 @@ if [ "$GATES_ONLY" != 1 ] || [ "$STRICT" = 1 ] || [ "$RATCHET" = 1 ] || [ "$SAVE
   RUN_INSPECT=1
 fi
 
-# ── change detection — run only the modules that changed (mirrors ci.yml) ───────
+# ── change detection. Run only the modules that changed (mirrors ci.yml) ───────
 # Diff base defaults to origin/main; falls back to HEAD if that ref is missing.
 # Changed set = committed-since-base ∪ staged ∪ unstaged, so a manual run picks up
 # work-in-progress too. PREPUSH_ALL=1 forces the full suite.
@@ -255,24 +255,24 @@ RUN_FE=0; RUN_BE=0; RUN_TUI=0; RUN_DESKTOP=0; RUN_CORE=0; SCOPE_NOTE=""
 enable_all() { RUN_FE=1; RUN_BE=1; RUN_TUI=1; RUN_DESKTOP=1; RUN_CORE=1; }
 
 if [ "${PREPUSH_ALL:-0}" = 1 ]; then
-  enable_all; SCOPE_NOTE="PREPUSH_ALL set — full suite"
+  enable_all; SCOPE_NOTE="PREPUSH_ALL set, full suite"
 elif [ -z "$CHANGED" ]; then
-  enable_all; SCOPE_NOTE="no diff vs ${BASE} — full suite"
+  enable_all; SCOPE_NOTE="no diff vs ${BASE}, full suite"
 else
   while IFS= read -r f; do
     case "$f" in
       app/frontend/*|tests/e2e/*) RUN_FE=1 ;;
-      # The conformance vectors are the core's contract — regenerate ⇒ recheck core.
+      # The conformance vectors are the core's contract, regenerate ⇒ recheck core.
       app/backend/crypto/testvectors/*) RUN_BE=1; RUN_CORE=1 ;;
       app/backend/*|tests/load/*) RUN_BE=1 ;;
       app/tui/*)                  RUN_TUI=1 ;;
       # The desktop shell embeds zcrypt-core in-process.
       app/core/*)                 RUN_CORE=1; RUN_DESKTOP=1 ;;
       app/desktop/*)              RUN_DESKTOP=1 ;;
-      # docs / editor / meta — never trigger a build
+      # docs / editor / meta, never trigger a build
       *.md|docs/*|.claude/*|.vscode/*|.gitignore|LICENSE*) : ;;
-      # anything else shared (scripts/, .github/, root configs, Dockerfile) — play safe
-      *) enable_all; SCOPE_NOTE="shared file changed (${f}) — full suite" ;;
+      # anything else shared (scripts/, .github/, root configs, Dockerfile), play safe
+      *) enable_all; SCOPE_NOTE="shared file changed (${f}), full suite" ;;
     esac
   done <<< "$CHANGED"
   [ -z "$SCOPE_NOTE" ] && SCOPE_NOTE="scoped to changed modules (vs ${BASE})"
@@ -288,7 +288,7 @@ MODS=""
 
 echo ""
 printf '%s╔════════════════════════════════════════════════════════════╗%s\n' "$BOLD" "$RST"
-printf '%s║  prepush — quality gate                                    ║%s\n' "$BOLD" "$RST"
+printf '%s║  prepush: quality gate                                    ║%s\n' "$BOLD" "$RST"
 printf '%s╚════════════════════════════════════════════════════════════╝%s\n' "$BOLD" "$RST"
 printf '%sreport v%s · run #%s · commit %s (%s)%s%s%s%s%s%s\n' "$CYN" "$VERSION" "$RUN_NO" "$COMMIT_SHA" "$BRANCH" \
   "$([ "$GATES_ONLY" = 1 ] && printf ' · gates-only')" \
@@ -300,34 +300,34 @@ printf '%s↳ %s%s\n' "$DIM" "$SCOPE_NOTE" "$RST"
 printf '%s↳ modules: %s%s\n' "$DIM" "$MODS" "$RST"
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  GATES — frontend
+#  GATES, frontend
 # ══════════════════════════════════════════════════════════════════════════════
 
 if [ "$RUN_FE" = 1 ]; then
 
-# typecheck runs on tsgo (TypeScript 7 native / Go) — a fast `tsgo --noEmit`.
+# typecheck runs on tsgo (TypeScript 7 native / Go), a fast `tsgo --noEmit`.
 # The authoritative type-check is `next build` (still on classic tsc 5.7), which
 # runs as its own gate below, so a tsgo/tsc disagreement can never ship silently.
 if gate "frontend typecheck" "$FE" bun run typecheck; then
   ok "no type errors"
 fi
 
-# Biome (Rust) is the formatter — the JS/TS analogue of gofmt. Blocks on any
+# Biome (Rust) is the formatter: the JS/TS analogue of gofmt. Blocks on any
 # unformatted file. Fix with: cd app/frontend && bun run format
 if gate "frontend format" "$FE" bun run format:check; then
   ok "all files formatted"
 fi
 
-# The gate blocks on oxlint ERRORS. Warnings don't fail it here — they are
+# The gate blocks on oxlint ERRORS. Warnings don't fail it here. They are
 # ratcheted in the INSPECT section (can only shrink), and NEW warnings in files
 # you touch are blocked by --enforce (oxlint --max-warnings=0 on changed files).
 if gate "frontend lint" "$FE" bun run lint; then
-  # `grep -c` prints its count AND exits 1 when the count is 0 — a `|| echo 0`
+  # `grep -c` prints its count AND exits 1 when the count is 0, a `|| echo 0`
   # would then append a second "0". Swallow the exit with `|| true` and default
   # an empty result (missing log) to 0 instead.
   lwc=$(grep -cE ': warning ' "$LOGDIR/frontend_lint.log" 2>/dev/null || true)
   lwc=${lwc:-0}
-  if [ "$lwc" -gt 0 ]; then ok "no errors ${DIM}(${lwc} warnings — ratcheted below)${RST}"; else ok "clean"; fi
+  if [ "$lwc" -gt 0 ]; then ok "no errors ${DIM}(${lwc} warnings: ratcheted below)${RST}"; else ok "clean"; fi
 fi
 
 if gate "frontend tests + coverage" "$FE" bun run test:coverage; then
@@ -343,11 +343,11 @@ if gate "frontend build" "$FE" bun run build; then
 fi
 
 else
-  step "frontend gates ${DIM}(skipped — no frontend changes)${RST}"
+  step "frontend gates ${DIM}(skipped, no frontend changes)${RST}"
 fi
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  GATES — backend
+#  GATES, backend
 # ══════════════════════════════════════════════════════════════════════════════
 
 if [ "$RUN_BE" = 1 ]; then
@@ -378,11 +378,11 @@ if gate "backend build" "$BE" go build -o /dev/null .; then
 fi
 
 else
-  step "backend gates ${DIM}(skipped — no backend changes)${RST}"
+  step "backend gates ${DIM}(skipped, no backend changes)${RST}"
 fi
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  GATES — tui
+#  GATES, tui
 # ══════════════════════════════════════════════════════════════════════════════
 
 if [ "$RUN_TUI" = 1 ]; then
@@ -411,11 +411,11 @@ if gate "tui build" "$TUI" go build ./...; then
 fi
 
 else
-  step "tui gates ${DIM}(skipped — no tui changes)${RST}"
+  step "tui gates ${DIM}(skipped, no tui changes)${RST}"
 fi
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  GATES — core (zcrypt-core: the shared Rust client engine)
+#  GATES: core (zcrypt-core: the shared Rust client engine)
 # ══════════════════════════════════════════════════════════════════════════════
 
 if [ "$RUN_CORE" = 1 ]; then
@@ -431,15 +431,15 @@ if command -v cargo >/dev/null 2>&1; then
     ok "tests green (incl. crypto conformance vectors)"
   fi
 else
-  warnln "cargo not installed — skipping core gates (install rust to enable)"
+  warnln "cargo not installed: skipping core gates (install rust to enable)"
 fi
 
 else
-  step "core gates ${DIM}(skipped — no core changes)${RST}"
+  step "core gates ${DIM}(skipped, no core changes)${RST}"
 fi
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  GATES — desktop (fmt + clippy + compile check; full Tauri bundle stays in
+#  GATES: desktop (fmt + clippy + compile check; full Tauri bundle stays in
 #  device.yml)
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -448,7 +448,7 @@ if [ "$RUN_DESKTOP" = 1 ]; then
 if command -v cargo >/dev/null 2>&1; then
   # tauri::generate_context! validates that `frontendDist` exists at compile
   # time. A real static export is heavy (a full `bun run build`) and pointless
-  # just to lint/type-check Rust — src-tauri/build.rs seeds a placeholder
+  # just to lint/type-check Rust, src-tauri/build.rs seeds a placeholder
   # index.html whenever the real export (gitignored, from build-frontend.sh)
   # isn't present, so these gates never need a Next.js build.
   if gate "desktop fmt" "$DESKTOP/src-tauri" cargo fmt --check; then
@@ -461,20 +461,20 @@ if command -v cargo >/dev/null 2>&1; then
     ok "rust type-checks"
   fi
 else
-  warnln "cargo not installed — skipping desktop gates (install rust to enable)"
+  warnln "cargo not installed: skipping desktop gates (install rust to enable)"
 fi
 
 else
-  step "desktop gates ${DIM}(skipped — no desktop changes)${RST}"
+  step "desktop gates ${DIM}(skipped, no desktop changes)${RST}"
 fi
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  INSPECT — advisory quality signals (never block)
+#  INSPECT: advisory quality signals (never block)
 # ══════════════════════════════════════════════════════════════════════════════
 
 MODE_LABEL="advisory"
-[ "$RATCHET" = 1 ]      && MODE_LABEL="ratchet — blocks on growth"
-[ "$STRICT" = 1 ]       && MODE_LABEL="strict — blocks on any"
+[ "$RATCHET" = 1 ]      && MODE_LABEL="ratchet, blocks on growth"
+[ "$STRICT" = 1 ]       && MODE_LABEL="strict, blocks on any"
 [ "$SAVE_BASELINE" = 1 ] && MODE_LABEL="recording baseline"
 
 # count_knip LOG → total dead-code findings (sum of the "(N)" summary counts)
@@ -487,20 +487,20 @@ count_golangci() {
 }
 
 if [ "$RUN_INSPECT" != 1 ]; then
-  step "inspections ${DIM}(skipped — --gates-only)${RST}"
+  step "inspections ${DIM}(skipped, --gates-only)${RST}"
   note "run 'bun run prepush' for the backlog · --strict/--ratchet to enforce old code"
 else
 
 if [ "$RUN_FE" = 1 ]; then
-  # oxlint warnings — reuse the lint gate's output (no second oxlint run). Errors
+  # oxlint warnings: reuse the lint gate's output (no second oxlint run). Errors
   # already blocked at the gate; here the WARNING count is ratcheted.
   step "frontend lint warnings ${DIM}(inspect · oxlint · ${MODE_LABEL})${RST}"
   lwcount="$(grep -cE ': warning ' "$LOGDIR/frontend_lint.log" 2>/dev/null || echo 0)"
   [ "$lwcount" -gt 0 ] && note "→ cd app/frontend && bun run lint"
   handle_backlog "frontend lint warnings" "$lwcount"
 
-  # tsgolint — type-aware promise-safety lint (oxlint front-end, typescript-go
-  # engine). Catches unawaited/mishandled Promises — real bugs in an app where
+  # tsgolint: type-aware promise-safety lint (oxlint front-end, typescript-go
+  # engine). Catches unawaited/mishandled Promises: real bugs in an app where
   # every upload/download/decrypt is async crypto. Advisory backlog, ratcheted
   # like knip/jscpd so it can only shrink.
   step "frontend typeaware lint ${DIM}(inspect · oxlint --type-aware · ${MODE_LABEL})${RST}"
@@ -515,12 +515,12 @@ if [ "$RUN_FE" = 1 ]; then
   [ "$tacount" -gt 0 ] && note "→ cd app/frontend && bunx oxlint --type-aware -W typescript/no-floating-promises -W typescript/no-misused-promises -W typescript/await-thenable app components lib hooks store"
   if [ "$tarc" -ne 0 ] && [ "$tacount" -eq 0 ]; then
     WARN+=("frontend typeaware lint")
-    warnln "scan failed (exit ${tarc}) — count unreliable, baseline untouched"
+    warnln "scan failed (exit ${tarc}), count unreliable, baseline untouched"
   else
     handle_backlog "frontend typeaware lint" "$tacount"
   fi
 
-  # knip — dead code: unused files, exports, dependencies
+  # knip: dead code: unused files, exports, dependencies
   step "frontend dead code ${DIM}(inspect · knip · ${MODE_LABEL})${RST}"
   klog="$LOGDIR/knip.log"
   (cd "$FE" && bun run knip) >"$klog" 2>&1
@@ -528,7 +528,7 @@ if [ "$RUN_FE" = 1 ]; then
   [ -n "$ksummary" ] && { echo "$ksummary" | sed 's/^/      /'; note "→ cd app/frontend && bun run knip"; }
   handle_backlog "frontend dead code" "$(count_knip "$klog")"
 
-  # jscpd — copy-paste / DRY violations
+  # jscpd. Copy-paste / DRY violations
   step "frontend duplication ${DIM}(inspect · jscpd · ${MODE_LABEL})${RST}"
   jlog="$LOGDIR/jscpd.log"
   (cd "$FE" && bun run dupes) >"$jlog" 2>&1
@@ -538,7 +538,7 @@ if [ "$RUN_FE" = 1 ]; then
   handle_backlog "frontend duplication" "$jcount"
 fi  # end RUN_FE inspections
 
-# golangci-lint — deep Go analysis: dead code, dup, security (gosec),
+# golangci-lint: deep Go analysis: dead code, dup, security (gosec),
 # bad practice (revive/staticcheck/errcheck). Run for backend and TUI.
 if command -v golangci-lint >/dev/null 2>&1; then
   if [ "$RUN_BE" = 1 ]; then
@@ -559,7 +559,7 @@ if command -v golangci-lint >/dev/null 2>&1; then
   fi
 elif [ "$RUN_BE" = 1 ] || [ "$RUN_TUI" = 1 ]; then
   step "go deep lint ${DIM}(inspect)${RST}"
-  warnln "golangci-lint not installed — skipping (brew install golangci-lint)"
+  warnln "golangci-lint not installed, skipping (brew install golangci-lint)"
 fi
 
 fi  # end: RUN_INSPECT guard
@@ -569,16 +569,16 @@ fi  # end: RUN_INSPECT guard
 #
 # --ratchet only writes when every gate passed: a run with a failed build may
 # have scanned a half-built tree, and the artificially low count it produces
-# is not an improvement to lock in — it makes the next healthy run look like
+# is not an improvement to lock in: it makes the next healthy run look like
 # regression. --baseline is an explicit request and always writes.
 if [ "$SAVE_BASELINE" = 1 ] || { [ "$RATCHET" = 1 ] && [ "${#FAIL[@]}" -eq 0 ]; }; then
   persist_baseline
 fi
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  HARDEN — diff-scoped, BLOCKING (only with --enforce; used by the pre-push hook)
+#  HARDEN: diff-scoped, BLOCKING (only with --enforce; used by the pre-push hook)
 # ══════════════════════════════════════════════════════════════════════════════
-# These fail the push only on issues your CHANGE introduces — the pre-existing
+# These fail the push only on issues your CHANGE introduces, the pre-existing
 # backlog never blocks you. Scope: files changed vs $BASE. Runs even in
 # --gates-only mode (the hook wants it fast AND enforcing), independent of the
 # advisory INSPECT scans above.
@@ -589,7 +589,7 @@ if [ "$ENFORCE" = 1 ]; then
   #   - SCOPE to the same dirs `bun run lint` covers (app/components/lib/hooks/
   #     store). Linting test/config files the project itself never lints would
   #     make this gate fail on code that `bun run lint` reports clean.
-  #   - DROP paths that no longer exist on disk — a file deleted/renamed anywhere
+  #   - DROP paths that no longer exist on disk, a file deleted/renamed anywhere
   #     in the diff would otherwise be handed to oxlint/jscpd, which hard-error
   #     on a missing pattern ("No files matching the pattern ...").
   fe_arr=()
@@ -599,18 +599,18 @@ if [ "$ENFORCE" = 1 ]; then
              | grep -E '^app/frontend/(app|components|lib|hooks|store)/.*\.(ts|tsx|js|jsx)$' \
              | sed 's#^app/frontend/##')
 
-  # 1) frontend new-code lint — zero-tolerance on files you touched
+  # 1) frontend new-code lint: zero-tolerance on files you touched
   if [ "$RUN_FE" = 1 ] && [ "${#fe_arr[@]}" -gt 0 ]; then
     step "frontend new-code lint ${DIM}(harden · oxlint --max-warnings=0)${RST}"
     hlog="$LOGDIR/frontend_new-code_lint.log"
     if (cd "$FE" && bunx oxlint --max-warnings=0 "${fe_arr[@]}") >"$hlog" 2>&1; then
       PASS+=("frontend new-code lint"); ok "changed files clean (no errors or warnings)"
     else
-      FAIL+=("frontend new-code lint"); failln "lint issues in changed files — output below:"
+      FAIL+=("frontend new-code lint"); failln "lint issues in changed files, output below:"
       sed 's/^/    /' "$hlog"
     fi
 
-    # 2) frontend new-code duplication — copy-paste within your changeset
+    # 2) frontend new-code duplication. Copy-paste within your changeset
     step "frontend new-code duplication ${DIM}(harden · jscpd on changed files)${RST}"
     hlog="$LOGDIR/frontend_new-code_duplication.log"
     (cd "$FE" && bunx jscpd --silent "${fe_arr[@]}") >"$hlog" 2>&1
@@ -623,26 +623,26 @@ if [ "$ENFORCE" = 1 ]; then
     fi
   fi
 
-  # 3) backend new-code lint — golangci new-from-rev = only issues on changed lines
+  # 3) backend new-code lint: golangci new-from-rev = only issues on changed lines
   if [ "$RUN_BE" = 1 ] && command -v golangci-lint >/dev/null 2>&1; then
     step "backend new-code lint ${DIM}(harden · golangci --new-from-rev)${RST}"
     hlog="$LOGDIR/backend_new-code_lint.log"
     if (cd "$BE" && golangci-lint run --new-from-rev="$BASE" ./...) >"$hlog" 2>&1; then
       PASS+=("backend new-code lint"); ok "no new findings on changed lines"
     else
-      FAIL+=("backend new-code lint"); failln "new findings on changed lines — output below:"
+      FAIL+=("backend new-code lint"); failln "new findings on changed lines, output below:"
       sed 's/^/    /' "$hlog"
     fi
   fi
 
-  # 4) tui new-code lint — same, for the TUI module
+  # 4) tui new-code lint: same, for the TUI module
   if [ "$RUN_TUI" = 1 ] && command -v golangci-lint >/dev/null 2>&1; then
     step "tui new-code lint ${DIM}(harden · golangci --new-from-rev)${RST}"
     hlog="$LOGDIR/tui_new-code_lint.log"
     if (cd "$TUI" && golangci-lint run --new-from-rev="$BASE" ./...) >"$hlog" 2>&1; then
       PASS+=("tui new-code lint"); ok "no new findings on changed lines"
     else
-      FAIL+=("tui new-code lint"); failln "new findings on changed lines — output below:"
+      FAIL+=("tui new-code lint"); failln "new findings on changed lines, output below:"
       sed 's/^/    /' "$hlog"
     fi
   fi
@@ -653,11 +653,11 @@ fi  # end: ENFORCE
 # ══════════════════════════════════════════════════════════════════════════════
 
 if [ "${#FAIL[@]}" -gt 0 ]; then
-  VERDICT="FAILED"; VERDICT_MD="❌ **FAILED** — ${#FAIL[@]} gate(s) broke"
+  VERDICT="FAILED"; VERDICT_MD="❌ **FAILED**, ${#FAIL[@]} gate(s) broke"
 elif [ "${#WARN[@]}" -gt 0 ]; then
-  VERDICT="PASSED (advisories)"; VERDICT_MD="✅ **PASSED** — ${#PASS[@]} gates clean, ${#WARN[@]} advisory warning(s)"
+  VERDICT="PASSED (advisories)"; VERDICT_MD="✅ **PASSED**: ${#PASS[@]} gates clean, ${#WARN[@]} advisory warning(s)"
 else
-  VERDICT="PASSED"; VERDICT_MD="✅ **PASSED** — all ${#PASS[@]} gates clean"
+  VERDICT="PASSED"; VERDICT_MD="✅ **PASSED**, all ${#PASS[@]} gates clean"
 fi
 
 # ── persist versioning state + append run to history ───────────────────────────
@@ -665,7 +665,7 @@ fi
 printf '%s\t%s\t%s\t%s\t%s\n' "$VERSION" "$RUN_NO" "$COMMIT_SHA" "$VERDICT" "$RUN_TS" >> "$HISTORY"
 
 # ── detailed report (everything the terminal only summarised) ───────────────────
-fence() { # fence LOGFILE — dump a log file into a ```text code block, ANSI-stripped
+fence() { # fence LOGFILE: dump a log file into a ```text code block, ANSI-stripped
   echo '```text'
   if [ -f "$1" ]; then strip_ansi < "$1" | sed 's/`/'"'"'/g'; else echo "(no output)"; fi
   echo '```'
@@ -678,12 +678,12 @@ write_report() {
     echo "| | |"
     echo "|---|---|"
     echo "| **Version** | \`v${VERSION}\` · run #${RUN_NO} on this commit |"
-    echo "| **Commit** | \`${COMMIT_SHA}\` — ${COMMIT_MSG} |"
+    echo "| **Commit** | \`${COMMIT_SHA}\`, ${COMMIT_MSG} |"
     echo "| **Branch** | \`${BRANCH}\` |"
     echo "| **Run at** | ${RUN_TS} |"
     echo "| **Verdict** | ${VERDICT_MD} |"
     echo
-    echo "> **Version is commit-scoped.** It bumps once per commit — re-running on the"
+    echo "> **Version is commit-scoped.** It bumps once per commit, re-running on the"
     echo "> same commit keeps the version and only increments the run count."
     echo
     echo "## Gates (blocking)"
@@ -698,7 +698,7 @@ write_report() {
     echo "|---|---|"
     for n in "${INSPECT_NAMES[@]}"; do printf '| %s | %s |\n' "$n" "$(md_status "$(status_of "$n")")"; done
     echo
-    echo "## Hardening — new-code, blocking (only with --enforce)"
+    echo "## Hardening: new-code, blocking (only with --enforce)"
     echo
     echo "| Check | Result |"
     echo "|---|---|"
@@ -708,34 +708,34 @@ write_report() {
     echo
     echo "## Coverage"
     echo
-    echo "### Frontend — lib · hooks · store (UI is Playwright-tested, excluded here)"
+    echo "### Frontend: lib · hooks · store (UI is Playwright-tested, excluded here)"
     echo
     strip_ansi < "$LOGDIR/frontend_tests_+_coverage.log" \
       | awk '/Coverage report from/{f=1} f{print} /^=+$/{if(f)exit}' \
       | { echo '```text'; sed 's/`/'"'"'/g'; echo '```'; }
     echo
-    echo "### Backend — per package"
+    echo "### Backend, per package"
     echo
     strip_ansi < "$LOGDIR/backend_tests_+_coverage.log" | sed -E 's/\t+/  /g' \
       | { echo '```text'; sed 's/`/'"'"'/g'; echo '```'; }
     echo
-    echo "## Type-aware lint — oxlint + tsgolint"
+    echo "## Type-aware lint, oxlint + tsgolint"
     echo
     fence "$talog"
     echo
-    echo "## Dead code — knip"
+    echo "## Dead code, knip"
     echo
     fence "$klog"
     echo
-    echo "## Duplication — jscpd"
+    echo "## Duplication, jscpd"
     echo
     fence "$jlog"
     echo
-    echo "## Backend deep lint — golangci-lint"
+    echo "## Backend deep lint, golangci-lint"
     echo
     fence "$glog"
     echo
-    echo "## TUI deep lint — golangci-lint"
+    echo "## TUI deep lint, golangci-lint"
     echo
     fence "$tglog"
 
@@ -751,7 +751,7 @@ write_report() {
       done
     fi
 
-    # version history — one row per version (latest run of each), newest last
+    # version history: one row per version (latest run of each), newest last
     echo
     echo "## Version history"
     echo
@@ -762,7 +762,7 @@ write_report() {
       | awk -F'\t' '{printf "| v%s | %s | `%s` | %s | %s |\n", $1, $2, $3, $4, $5}'
     echo
     echo "---"
-    echo "_Generated by \`scripts/prepush.sh\`. This file is gitignored — it is a local artifact, regenerated each run._"
+    echo "_Generated by \`scripts/prepush.sh\`. This file is gitignored. It is a local artifact, regenerated each run._"
   } > "$REPORT"
 }
 write_report
@@ -783,15 +783,15 @@ printf '  %s📄 full detail: %s%s\n' "$DIM" "$REPORT_REL" "$RST"
 echo ""
 
 if [ "${#FAIL[@]}" -gt 0 ]; then
-  printf '%s✗ prepush FAILED%s — %d gate(s) broke: %s\n' "$RED" "$RST" "${#FAIL[@]}" "${FAIL[*]}"
+  printf '%s✗ prepush FAILED%s: %d gate(s) broke: %s\n' "$RED" "$RST" "${#FAIL[@]}" "${FAIL[*]}"
   printf '  fix the gate(s) above, then re-run: %sbun run prepush%s\n\n' "$BOLD" "$RST"
   exit 1
 fi
 
 if [ "${#WARN[@]}" -gt 0 ]; then
-  printf '%s✓ prepush PASSED%s — %d gate(s) clean, %d advisory warning(s) worth a look\n\n' \
+  printf '%s✓ prepush PASSED%s: %d gate(s) clean, %d advisory warning(s) worth a look\n\n' \
     "$GRN" "$RST" "${#PASS[@]}" "${#WARN[@]}"
 else
-  printf '%s✓ prepush PASSED%s — %d gate(s) clean, nothing flagged\n\n' "$GRN" "$RST" "${#PASS[@]}"
+  printf '%s✓ prepush PASSED%s: %d gate(s) clean, nothing flagged\n\n' "$GRN" "$RST" "${#PASS[@]}"
 fi
 exit 0

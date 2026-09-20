@@ -14,7 +14,7 @@ export default function SpacesPage() {
       <PageHeader
         eyebrow="Collaboration"
         title="Spaces"
-        description="Share encrypted files with people you invite. The space key is sealed to each member's key — the server never sees it."
+        description="Share encrypted files with people you invite. The space key is sealed to each member's key: the server never sees it."
       />
 
       <SharedVaultsContent />

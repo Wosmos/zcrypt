@@ -37,7 +37,7 @@ const fieldClass =
 const labelClass =
   "text-[10px] font-medium uppercase tracking-wider text-[var(--color-text-muted)]";
 
-/** Number input + MB/GB/TB unit select — shared by the storage and file-size limit fields. */
+/** Number input + MB/GB/TB unit select: shared by the storage and file-size limit fields. */
 function UnitInputField({
   label,
   value,

@@ -124,7 +124,7 @@ describe("toDesktopFile", () => {
   });
 
   it("falls back to the raw (empty) path if split().pop() ever yields falsy (defensive || path)", async () => {
-    // "".split(/[/\\]/) is [""], so pop() returns "" — the one real input that
+    // "".split(/[/\\]/) is [""], so pop() returns "": the one real input that
     // exercises the `|| path` fallback, mirroring extOf's defensive `?? ""`.
     const mod = await import("@/lib/tauri");
     const file = mod.toDesktopFile("");
@@ -313,7 +313,7 @@ describe("tauri (inside the Tauri runtime)", () => {
     const mod = await import("@/lib/tauri");
     await mod.openExternal("https://t.me/BotFather");
     expect(openUrlMock).toHaveBeenCalledWith("https://t.me/BotFather");
-    // window.open is a silent no-op in a webview — using it here is the bug.
+    // window.open is a silent no-op in a webview: using it here is the bug.
     expect(openMock).not.toHaveBeenCalled();
   });
 

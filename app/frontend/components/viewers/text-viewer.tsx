@@ -54,7 +54,7 @@ export function TextViewer({ blob, filename }: { blob: Blob; filename: string })
       <div className="flex shrink-0 items-center justify-between gap-2">
         {truncated ? (
           <p className="text-xs italic text-[var(--color-text-muted)]">
-            Large file — showing the first 2&nbsp;MB.
+            Large file, showing the first 2&nbsp;MB.
           </p>
         ) : (
           <span />
@@ -77,7 +77,7 @@ export function TextViewer({ blob, filename }: { blob: Blob; filename: string })
           {highlighted !== null ? (
             <code
               className="font-mono"
-              // hljs output over our own plaintext only — no untrusted markup.
+              // hljs output over our own plaintext only, no untrusted markup.
               dangerouslySetInnerHTML={{ __html: highlighted }}
             />
           ) : (

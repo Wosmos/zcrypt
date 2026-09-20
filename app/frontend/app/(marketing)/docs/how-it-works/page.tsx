@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "How it works | zcrypt Docs",
     description:
-      "A file's journey through zcrypt: compress, encrypt, chunk, and upload — all client-side and zero-knowledge.",
+      "A file's journey through zcrypt: compress, encrypt, chunk, and upload, all client-side and zero-knowledge.",
     url: `${SITE_URL}/docs/how-it-works`,
   },
 };
@@ -31,13 +31,13 @@ export default function HowItWorksDocPage() {
     <DocPage
       href="/docs/how-it-works"
       title="How it works"
-      description="Every transformation that protects a file happens on your device, in order, before a single byte leaves it. This is the whole journey — and downloading runs it precisely in reverse."
+      description="Every transformation that protects a file happens on your device, in order, before a single byte leaves it. This is the whole journey, and downloading runs it precisely in reverse."
       toc={toc}
     >
       <DocSection id="short" title="The short version">
         <DocP>
-          When you add a file, zcrypt compresses it, encrypts it, and breaks it into chunks — all on
-          your device — then pushes those chunks to repositories in your own connected account. The
+          When you add a file, zcrypt compresses it, encrypts it, and breaks it into chunks, all on
+          your device: then pushes those chunks to repositories in your own connected account. The
           plaintext never leaves your machine, and your passphrase never leaves your browser.
         </DocP>
         <DocCode label="the pipeline">{`compress (zstd)  →  encrypt (AES-256-GCM)  →  chunk (~4–16 MB)  →  upload to your storage`}</DocCode>
@@ -47,8 +47,8 @@ export default function HowItWorksDocPage() {
         <DocP>
           First, the file is compressed on your device with Zstandard (zstd). This happens{" "}
           <strong>before</strong> encryption, while the data is still readable and therefore still
-          compressible — encrypted data looks random and cannot be shrunk. Smaller payloads mean
-          less of your storage used and faster uploads.
+          compressible: encrypted data looks random and cannot be shrunk. Smaller payloads mean less
+          of your storage used and faster uploads.
         </DocP>
       </DocSection>
 
@@ -62,7 +62,7 @@ export default function HowItWorksDocPage() {
         <DocNote type="security" title="Why this makes zcrypt zero-knowledge">
           The server only ever receives ciphertext and a wrapped key it cannot open. Even if the
           server, the database, and your storage platform were all compromised at once, your files
-          would stay unreadable — because the key that unwraps the CEK exists only on your device,
+          would stay unreadable, because the key that unwraps the CEK exists only on your device,
           derived from a passphrase we never see.
         </DocNote>
       </DocSection>
@@ -83,9 +83,9 @@ export default function HowItWorksDocPage() {
 
       <DocSection id="upload" title="4. Upload to your storage">
         <DocP>
-          Each encrypted chunk is pushed to the platform you connected — GitHub, GitLab, Hugging
-          Face, or Telegram — stored as an ordinary-looking binary blob under disguised filenames
-          and commit messages. When a repository nears its size threshold, zcrypt creates a new one
+          Each encrypted chunk is pushed to the platform you connected. GitHub, GitLab, Hugging
+          Face, or Telegram: stored as an ordinary-looking binary blob under disguised filenames and
+          commit messages. When a repository nears its size threshold, zcrypt creates a new one
           automatically so your vault keeps growing without you managing anything.
         </DocP>
         <DocP>
@@ -130,21 +130,21 @@ export default function HowItWorksDocPage() {
               href="/docs/uploading"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Uploading — chunked, resumable, relay vs. direct upload
+              Uploading, chunked, resumable, relay vs. direct upload
             </Link>,
             <Link
               key="b"
               href="/docs/downloading"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Downloading — fetch, verify, decrypt, decompress
+              Downloading, fetch, verify, decrypt, decompress
             </Link>,
             <Link
               key="c"
               href="/docs/security"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Encryption model — the cryptographic detail behind each step
+              Encryption model: the cryptographic detail behind each step
             </Link>,
           ]}
         />

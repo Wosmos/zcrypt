@@ -14,7 +14,7 @@ interface RateLimitsProps {
 /**
  * Breaks a quota blurb like "850 MB / repo" or "5,000 req/hr (authenticated)"
  * into a big headline number/word plus a short caption, so the stat reads at
- * a glance instead of as a paragraph — the fine print (if any) moves to a
+ * a glance instead of as a paragraph: the fine print (if any) moves to a
  * tooltip instead of wrapping the tile onto three lines.
  */
 function parseStat(raw: string): { value: string; caption: string; note?: string } {
@@ -105,7 +105,7 @@ export function RateLimits({ statuses, repos }: RateLimitsProps) {
                     {pRepos.length} {pRepos.length === 1 ? "repo" : "repos"}
                   </span>
                 )}
-                {/* Ring gauge — the percentage lives inside the arc */}
+                {/* Ring gauge: the percentage lives inside the arc */}
                 <div className="relative z-10 h-[64px] w-[64px]">
                   <svg viewBox="0 0 36 36" className="h-full w-full -rotate-90">
                     <circle
@@ -166,7 +166,7 @@ export function RateLimits({ statuses, repos }: RateLimitsProps) {
                   </p>
                 </div>
 
-                {/* Limits — one whisper-light wrapped line, pinned to the bottom
+                {/* Limits: one whisper-light wrapped line, pinned to the bottom
                     so every tile aligns; the fine print shows on hover. */}
                 <div className="relative z-10 mt-auto hidden flex-wrap items-center justify-center gap-x-1.5 gap-y-0.5 pt-1.5 text-[10px] leading-tight text-[var(--color-text-muted)] sm:flex">
                   {[meta.capacity, meta.fileLimit, meta.rateInfo].map((raw, i) => {

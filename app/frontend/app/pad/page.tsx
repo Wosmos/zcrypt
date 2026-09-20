@@ -13,7 +13,7 @@ import {
 } from "@/components/tools/tool-page-shell";
 
 export const metadata: Metadata = toolMetadata({
-  title: "Encrypted Text Pad — Share Passwords & Secrets Securely | zcrypt",
+  title: "Encrypted Text Pad. Share Passwords & Secrets Securely | zcrypt",
   description:
     "Zero-knowledge encrypted text sharing. Paste text, get an encrypted link. The decryption key never leaves your browser. Perfect for sharing passwords, API keys, and sensitive notes. Auto-expiry and burn-after-read.",
   keywords: [
@@ -33,7 +33,7 @@ export const metadata: Metadata = toolMetadata({
     "one time secret",
   ],
   path: "/pad",
-  ogTitle: "Encrypted Text Pad — zcrypt",
+  ogTitle: "Encrypted Text Pad, zcrypt",
   ogDescription:
     "Zero-knowledge encrypted text sharing. Paste, encrypt, share. The server never sees your plaintext.",
 });
@@ -47,7 +47,7 @@ const features: ToolFeature[] = [
   {
     icon: Shield,
     title: "Key in the link",
-    desc: "The decryption key lives in the URL fragment — it never reaches the server, not even in access logs.",
+    desc: "The decryption key lives in the URL fragment. It never reaches the server, not even in access logs.",
   },
   {
     icon: Clock,

@@ -8,7 +8,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
   return (
     <DesktopRedirect>
       <GuestGuard>
-        {/* Cmd+K search palette works everywhere — docs and features alike. */}
+        {/* Cmd+K search palette works everywhere, docs and features alike. */}
         <DocsSearchProvider>
           <CircuitBackground />
           <SiteChrome>{children}</SiteChrome>

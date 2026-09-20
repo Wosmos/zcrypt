@@ -23,7 +23,7 @@ interface FileTypeFilterProps {
   files: FileMetadata[];
   activeFilter: string | null;
   onFilter: (category: string | null) => void;
-  /** Icon-only chips (mobile) — the category name becomes the aria-label/tooltip
+  /** Icon-only chips (mobile): the category name becomes the aria-label/tooltip
    *  instead of visible text, so the row stays compact next to the actions. */
   compact?: boolean;
 }

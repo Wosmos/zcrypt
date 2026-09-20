@@ -359,7 +359,7 @@ export function AuditLog() {
                       </span>
                     </div>
 
-                    {/* Row 2 (always visible): quick context — device + browser on mobile, metadata summary */}
+                    {/* Row 2 (always visible): quick context: device + browser on mobile, metadata summary */}
                     <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                       <span className="inline-flex items-center gap-1 text-[10px] text-[var(--color-text-muted)]">
                         <DeviceIcon className="h-3 w-3" />

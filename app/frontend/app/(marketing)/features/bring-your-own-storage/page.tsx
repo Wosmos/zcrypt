@@ -14,9 +14,9 @@ import { bringYourOwnStorage } from "../_data/bring-your-own-storage";
 import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Bring Your Own Storage — Your Data, Your Infrastructure",
+  title: "Bring Your Own Storage. Your Data, Your Infrastructure",
   description:
-    "zcrypt never sells you storage. Connect accounts you already own — GitHub, GitLab, Hugging Face, Telegram — and your encrypted files are stored as disguised chunks in repos you own. Repos rotate automatically as they fill, so your space grows on its own. No lock-in.",
+    "zcrypt never sells you storage. Connect accounts you already own (GitHub, GitLab, Hugging Face, Telegram) and your encrypted files are stored as disguised chunks in repos you own. Repos rotate automatically as they fill, so your space grows on its own. No lock-in.",
   keywords: [
     "bring your own storage",
     "BYO storage",
@@ -155,7 +155,7 @@ export default function BringYourOwnStoragePage() {
             success="✓ your accounts. your bytes. no zcrypt-sold quota."
           >
             <div>
-              <span className="text-cyan-600/80 dark:text-cyan-400/80">1</span> encrypt on device —
+              <span className="text-cyan-600/80 dark:text-cyan-400/80">1</span> encrypt on device.
               AES-256-GCM
             </div>
             <div className="mt-1.5">

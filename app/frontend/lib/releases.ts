@@ -1,5 +1,5 @@
 // Runtime lookup of the latest GitHub release so the /download page always
-// reflects what's actually published — no hardcoded version or filenames.
+// reflects what's actually published, no hardcoded version or filenames.
 // All three download islands share a single cached fetch.
 
 import { GITHUB_REPO } from "@/lib/data";
@@ -10,7 +10,7 @@ const LATEST_RELEASE_API = "https://api.github.com/repos/Wosmos/zcrypt/releases/
  * Every installer is served through our own redirect rather than linked at
  * GitHub directly. Bundler filenames embed the version
  * (`zcrypt_0.1.4_aarch64.dmg`), so a direct link has to know the current
- * release — which is why the download page, the docs and install.sh had each
+ * release: which is why the download page, the docs and install.sh had each
  * drifted onto a different URL. `/dl/<target>` is stable forever: the backend
  * resolves the asset at click time, and records the download on the way past.
  */
@@ -41,7 +41,7 @@ export const ANDROID_RELEASE_PAGE = `${GITHUB_REPO}/releases/tag/android-latest`
 export type PlatformId = "macos" | "windows" | "linux";
 
 // What the hero CTA can detect a visitor as, beyond the three desktop
-// platforms above — used only for picking what DownloadCta shows, never for
+// platforms above: used only for picking what DownloadCta shows, never for
 // indexing release.desktop (Android/iOS ship no desktop bundle).
 export type DetectedDevice = PlatformId | "android" | "ios";
 
@@ -174,24 +174,24 @@ const BLURB: Record<PlatformId, string> = {
 };
 
 // Both desktop installers are unsigned (no paid code-signing cert yet), so
-// the OS blocks them on first launch. Real, expected, dismissible — but
+// the OS blocks them on first launch. Real, expected, dismissible, but
 // undocumented until now, which is the worst first impression for an
 // encryption product. Surfaced as a collapsed note under each card.
 const SECURITY_NOTE: Record<"macos" | "windows", { title: string; body: string }> = {
   macos: {
-    title: "macOS will block it once — that's expected",
-    body: "zcrypt isn't notarized yet, so Gatekeeper flags it as from an unidentified developer the first time you open it. Right-click (or Control-click) the app, choose Open, then confirm in the dialog — a one-time step. Still blocked? System Settings → Privacy & Security → Open Anyway.",
+    title: "macOS will block it once, that's expected",
+    body: "zcrypt isn't notarized yet, so Gatekeeper flags it as from an unidentified developer the first time you open it. Right-click (or Control-click) the app, choose Open, then confirm in the dialog, a one-time step. Still blocked? System Settings → Privacy & Security → Open Anyway.",
   },
   windows: {
-    title: "Windows SmartScreen will flag it — that's expected",
-    body: 'We haven\'t bought a code-signing certificate yet, so Windows treats the installer as unrecognized. Click "More info", then "Run anyway". Normal for an independently-published app without a paid certificate — not a sign anything\'s wrong with the file.',
+    title: "Windows SmartScreen will flag it, that's expected",
+    body: 'We haven\'t bought a code-signing certificate yet, so Windows treats the installer as unrecognized. Click "More info", then "Run anyway". Normal for an independently-published app without a paid certificate, not a sign anything\'s wrong with the file.',
   },
 };
 
 // AppImages don't run on double-click out of the box, and Fedora needs an
-// extra package on top of that — neither step is discoverable without this.
+// extra package on top of that: neither step is discoverable without this.
 const APPIMAGE_NOTE =
-  "One-time setup: chmod +x the file, then run it. On Fedora, also install FUSE first — sudo dnf install fuse.";
+  "One-time setup: chmod +x the file, then run it. On Fedora, also install FUSE first, sudo dnf install fuse.";
 
 /** Turn a release's raw assets into categorized, ordered download options. */
 export function parseAssets(assets: RawAsset[], tag: string, htmlUrl: string): ReleaseData {
@@ -206,8 +206,8 @@ export function parseAssets(assets: RawAsset[], tag: string, htmlUrl: string): R
   const linDeb = find((n) => n.endsWith(".deb"));
   const linRpm = find((n) => n.endsWith(".rpm"));
 
-  // The live asset list still decides WHICH options to show — an installer
-  // whose build leg didn't publish must not be offered — but the href is the
+  // The live asset list still decides WHICH options to show, an installer
+  // whose build leg didn't publish must not be offered, but the href is the
   // stable redirect, never the versioned asset URL.
   const opt = (
     a: RawAsset | undefined,
@@ -228,7 +228,7 @@ export function parseAssets(assets: RawAsset[], tag: string, htmlUrl: string): R
     opt(winMsi, "windows-msi", "MSI package", "x64 · .msi"),
   ].filter(Boolean) as DownloadOption[];
 
-  // Distro-named packages first — they're the correct answer for the vast
+  // Distro-named packages first: they're the correct answer for the vast
   // majority of Linux visitors and install cleanly with no extra steps.
   // Portable last: it works everywhere but needs the two steps in its note.
   const linOptions = [
@@ -258,14 +258,14 @@ export function parseAssets(assets: RawAsset[], tag: string, htmlUrl: string): R
 
   // CLI/TUI binaries (GoReleaser): zcrypt_<ver>_<os>_<arch>.(tar.gz|zip)
   const cliRe = /_(darwin|linux|windows)_(amd64|arm64)\.(tar\.gz|zip)$/;
-  // Mirrors cliRe's arch group — see archName below.
+  // Mirrors cliRe's arch group. See archName below.
   type CliArch = "amd64" | "arm64";
   const osName: Record<string, CliBinary["os"]> = {
     darwin: "macOS",
     linux: "Linux",
     windows: "Windows",
   };
-  // Closed key set, matching cliRe's arch group exactly — so the lookup below is
+  // Closed key set, matching cliRe's arch group exactly, so the lookup below is
   // total and needs no runtime fallback. Widening cliRe without adding the arch
   // here is a compile error rather than a raw "386" leaking into the UI.
   const archName: Record<CliArch, string> = {
@@ -306,7 +306,7 @@ let cache: Promise<ReleaseData> | null = null;
  * The response is cached for an hour (`next.revalidate`): unauthenticated
  * GitHub API calls are capped at 60/hour per IP, and Next no longer caches
  * `fetch` by default, so an uncached call here means every visit to /download
- * spends one of those 60 — after which everyone is served the stale fallback
+ * spends one of those 60: after which everyone is served the stale fallback
  * version instead of the real latest release.
  *
  * A failed lookup is deliberately NOT memoised: caching the rejection would

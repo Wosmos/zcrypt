@@ -1,7 +1,7 @@
 /**
  * Quick-pick color shortcuts shown alongside the custom color picker for
  * folder/file card styling. The encrypted `style.color` value is a raw hex
- * CSS color, not one of these keys — these are shortcuts into the picker,
+ * CSS color, not one of these keys: these are shortcuts into the picker,
  * not the exhaustive set of choices.
  */
 export interface StyleColorPreset {

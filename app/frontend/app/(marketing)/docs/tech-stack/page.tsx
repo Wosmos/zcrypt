@@ -6,12 +6,12 @@ import { SITE_URL } from "@/lib/site";
 export const metadata: Metadata = {
   title: "Tech stack & infrastructure | zcrypt Docs",
   description:
-    "The technology behind zcrypt: a Go standard-library backend, a shared Rust core for the native apps, a Next.js 16 + React 19 web app, PostgreSQL via pgx, and Tauri desktop/mobile shells — deployed on Vercel, a Docker-on-a-cloud-VM backend, and Neon serverless Postgres.",
+    "The technology behind zcrypt: a Go standard-library backend, a shared Rust core for the native apps, a Next.js 16 + React 19 web app, PostgreSQL via pgx, and Tauri desktop/mobile shells: deployed on Vercel, a Docker-on-a-cloud-VM backend, and Neon serverless Postgres.",
   alternates: { canonical: `${SITE_URL}/docs/tech-stack` },
   openGraph: {
     title: "Tech stack & infrastructure | zcrypt Docs",
     description:
-      "Languages, frameworks, and hosting behind zcrypt — Go, Rust, Next.js, PostgreSQL, Tauri — and how it's deployed.",
+      "Languages, frameworks, and hosting behind zcrypt (Go, Rust, Next.js, PostgreSQL, Tauri) and how it's deployed.",
     url: `${SITE_URL}/docs/tech-stack`,
   },
 };
@@ -33,12 +33,12 @@ export default function TechStackPage() {
     <DocPage
       href="/docs/tech-stack"
       title="Tech stack & infrastructure"
-      description="Everything zcrypt is built with, layer by layer — and how each piece is deployed. Versions track the repository; the manifests (go.mod, package.json, Cargo.toml) are the source of truth."
+      description="Everything zcrypt is built with, layer by layer, and how each piece is deployed. Versions track the repository; the manifests (go.mod, package.json, Cargo.toml) are the source of truth."
       toc={toc}
     >
       <DocSection id="principles" title="How it's put together">
         <DocP>
-          zcrypt is one product across four surfaces — web, desktop, Android, and a terminal app —
+          zcrypt is one product across four surfaces: web, desktop, Android, and a terminal app:
           sharing a single design principle: all encryption happens on your device, and the server
           only ever handles ciphertext. That principle drives the stack. The backend stays
           deliberately thin (standard-library Go, no framework), the cryptography lives in code that
@@ -54,7 +54,7 @@ export default function TechStackPage() {
 
       <DocSection id="backend" title="Backend">
         <DocP>
-          A stateless HTTP service written in Go with the standard library only — no web framework,
+          A stateless HTTP service written in Go with the standard library only, no web framework,
           just <code>net/http</code>. It brokers the chunked upload/download API, coordinates the
           storage adapters, and holds no plaintext and no encryption keys.
         </DocP>
@@ -71,7 +71,7 @@ export default function TechStackPage() {
               <>
                 Standard library <code>net/http</code>
               </>,
-              "No framework — fewer moving parts, easy to audit.",
+              "No framework: fewer moving parts, easy to audit.",
             ],
             [
               <strong key="d">DB driver</strong>,
@@ -96,7 +96,7 @@ export default function TechStackPage() {
         <DocP>
           The browser client is a Next.js App Router application. The full encryption pipeline runs
           here in a pool of Web Workers, so compression, encryption, and hashing happen off the main
-          thread — the server never sees a plaintext byte.
+          thread: the server never sees a plaintext byte.
         </DocP>
         <DocTable
           head={["Piece", "Choice"]}
@@ -115,7 +115,7 @@ export default function TechStackPage() {
       <DocSection id="core" title="Native core & apps">
         <DocP>
           Desktop and mobile run <strong>zcrypt-core</strong>, a shared Rust crate that implements
-          the same zero-knowledge crypto and chunk pipeline as the web workers — compiled to native
+          the same zero-knowledge crypto and chunk pipeline as the web workers, compiled to native
           code and embedded in-process, so there is no subprocess (which is what makes it work
           inside Apple&apos;s app sandbox). The native shell is Tauri v2.
         </DocP>
@@ -166,8 +166,8 @@ export default function TechStackPage() {
       <DocSection id="tui" title="Terminal app">
         <DocP>
           The TUI is a separate, single-binary Go program built with Bubble Tea. It runs the same
-          client-side encryption pipeline and talks to the same backend API — no runtime, no
-          browser, works over SSH.
+          client-side encryption pipeline and talks to the same backend API, no runtime, no browser,
+          works over SSH.
         </DocP>
       </DocSection>
 
@@ -197,10 +197,10 @@ export default function TechStackPage() {
 
       <DocSection id="data" title="Data & storage">
         <DocP>
-          A PostgreSQL database is the index that ties everything together — users, folders,
-          per-file salts, chunk references, encrypted platform tokens, and shares. It holds no
-          readable file contents and no passphrase. Your actual encrypted bytes never live on
-          zcrypt&apos;s infrastructure at all: they go to a storage platform <em>you</em> own.
+          A PostgreSQL database is the index that ties everything together, users, folders, per-file
+          salts, chunk references, encrypted platform tokens, and shares. It holds no readable file
+          contents and no passphrase. Your actual encrypted bytes never live on zcrypt&apos;s
+          infrastructure at all: they go to a storage platform <em>you</em> own.
         </DocP>
         <DocTable
           head={["Layer", "Choice"]}
@@ -209,7 +209,7 @@ export default function TechStackPage() {
             [
               <strong key="a">Access</strong>,
               <>
-                Raw SQL via <code>pgx</code> / pgxpool — no ORM
+                Raw SQL via <code>pgx</code> / pgxpool, no ORM
               </>,
             ],
             [
@@ -224,7 +224,7 @@ export default function TechStackPage() {
         <DocP>
           Deployment is intentionally boring and portable. The backend is a small distroless Docker
           image that runs on any Linux host; nothing about it is tied to a specific provider, which
-          is the point — you can self-host the exact same image (see{" "}
+          is the point. You can self-host the exact same image (see{" "}
           <Link
             href="/docs/self-hosting"
             className="text-cyan-600 hover:underline dark:text-cyan-400"
@@ -250,7 +250,7 @@ export default function TechStackPage() {
         />
         <DocNote type="security" title="What our infrastructure can and can't see">
           Because encryption is client-side, our hosting only ever handles ciphertext and metadata.
-          Compromising the frontend, the backend VM, or the database would not expose your files —
+          Compromising the frontend, the backend VM, or the database would not expose your files:
           the keys to decrypt them exist only on your devices.
         </DocNote>
       </DocSection>

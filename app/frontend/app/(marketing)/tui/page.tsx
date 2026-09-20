@@ -20,7 +20,7 @@ import { TUIApplicationJsonLd, BreadcrumbJsonLd } from "@/components/seo/json-ld
 import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "zcrypt TUI — Encrypted Cloud Storage from the Terminal | CLI for Linux, macOS, Windows",
+  title: "zcrypt TUI. Encrypted Cloud Storage from the Terminal | CLI for Linux, macOS, Windows",
   description:
     "Open-source terminal app for zcrypt. Upload, download, and manage your zero-knowledge encrypted vault with real-time progress, 2FA, and four performance profiles. Single binary, zero dependencies.",
   keywords: [
@@ -44,7 +44,7 @@ export const metadata: Metadata = {
     canonical: `${SITE_URL}/tui`,
   },
   openGraph: {
-    title: "zcrypt TUI — Your Encrypted Vault, from the Terminal",
+    title: "zcrypt TUI. Your Encrypted Vault, from the Terminal",
     description:
       "Upload, download, and manage your zero-knowledge encrypted vault from the command line. Real-time progress, 2FA, performance profiles. Single Go binary.",
     url: `${SITE_URL}/tui`,
@@ -52,7 +52,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "zcrypt TUI — Encrypted Cloud Storage from the Terminal",
+    title: "zcrypt TUI. Encrypted Cloud Storage from the Terminal",
     description:
       "Single binary terminal app. AES-256-GCM encryption, real-time progress tracking. Open source.",
   },
@@ -354,7 +354,7 @@ export default function TUIPage() {
         </div>
       </section>
 
-      {/* ═══ KEYBOARD REFERENCE — terminal style ═══ */}
+      {/* ═══ KEYBOARD REFERENCE, terminal style ═══ */}
       <section id="shortcuts" className="py-20 px-4 scroll-mt-20">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-10">

@@ -14,13 +14,13 @@ export function TopBar() {
 
   return (
     <header className="flex h-14 shrink-0 items-center justify-between gap-3 rounded-lg px-2 pb-6 pt-[calc(1.5rem+var(--safe-top))] md:mt-0 md:py-0 md:pt-0">
-      {/* Left — logo on mobile (the global search bar was removed; the per-page
+      {/* Left: logo on mobile (the global search bar was removed; the per-page
           file search lives in the page header, and ⌘K still opens the palette). */}
       <div className="flex min-w-0 flex-1 items-center">
         <Logo size="lg" iconOnly href="/dashboard" className="sm:hidden" />
       </div>
 
-      {/* Right — vault lock (mobile only), notification + avatar, pinned right */}
+      {/* Right: vault lock (mobile only), notification + avatar, pinned right */}
       <div className="flex flex-shrink-0 items-center gap-1.5">
         <div className="sm:hidden">
           <VaultLock

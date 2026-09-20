@@ -36,7 +36,7 @@ export interface DecryptedFolder extends Folder {
 
 /** Invalidate every cached folder listing (any parent). Folder mutations change
  *  the current parent's children; restoring/cascading can touch others, so we
- *  reconcile the whole `folders` key space — the lists are small. */
+ *  reconcile the whole `folders` key space: the lists are small. */
 function invalidateFolders(): Promise<void> {
   return queryClient.invalidateQueries({ queryKey: ["folders"] });
 }
@@ -46,7 +46,7 @@ export function useFolders() {
   const getPassphrase = usePassphraseStore((s) => s.getPassphrase);
   // Subscribe to the raw cached passphrase (a reactive VALUE, not the stable
   // getPassphrase fn) so this hook re-decrypts the moment the vault is unlocked
-  // or locked anywhere — e.g. via the header VaultLock pill.
+  // or locked anywhere, e.g. via the header VaultLock pill.
   const cachedPassphrase = usePassphraseStore((s) => s.cachedPassphrase);
 
   const currentFolderId = useFolderStore((s) => s.currentFolderId);
@@ -54,7 +54,7 @@ export function useFolders() {
   const setCurrentFolder = useFolderStore((s) => s.setCurrentFolder);
   const navigateToCrumbStore = useFolderStore((s) => s.navigateToCrumb);
 
-  // Raw (encrypted) folder list for the current parent — the single source of
+  // Raw (encrypted) folder list for the current parent, the single source of
   // truth, cached per parent. Names are decrypted client-side below.
   const rawQuery = useQuery({
     queryKey: qk.folders(currentFolderId),
@@ -124,7 +124,7 @@ export function useFolders() {
       if (!key) throw new Error("Unlock your vault to create folders");
       const trimmed = name.trim();
       // Block a duplicate sibling name (case-insensitive). Folder names are
-      // E2E-encrypted so the server can't enforce this — the guard runs here
+      // E2E-encrypted so the server can't enforce this, the guard runs here
       // against the decrypted listing of the current folder.
       if (folders.some((f) => f.name.trim().toLowerCase() === trimmed.toLowerCase())) {
         throw new Error(`A folder named "${trimmed}" already exists here.`);
@@ -166,7 +166,7 @@ export function useFolders() {
 
   const deleteFolder = useCallback(async (id: string) => {
     await apiDeleteFolder(id);
-    // Deleting a folder soft-deletes its files too (cascade to Trash) — refresh
+    // Deleting a folder soft-deletes its files too (cascade to Trash), refresh
     // folders AND the vault list / trash / quota so those files don't linger as
     // ghosts in the explorer.
     await invalidateFolders();

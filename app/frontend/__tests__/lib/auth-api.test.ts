@@ -4,7 +4,7 @@ import * as authApi from "@/lib/auth-api";
 // auth-api.ts is a small authRequest() core (json headers, 15s timeout, error
 // parsing, abort->timeout) plus thin per-endpoint wrappers. We assert the core
 // behavior and then sweep every wrapper for the exact method / path / body /
-// auth header it must send — a wrong verb or path is a real, silent bug class.
+// auth header it must send: a wrong verb or path is a real, silent bug class.
 
 function resp(status: number, body: unknown) {
   const text = typeof body === "string" ? body : JSON.stringify(body);

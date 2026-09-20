@@ -86,10 +86,10 @@ test.describe("Authentication", () => {
 
     // Rate limiting is disabled when the backend runs with DEV_MODE=true (as the
     // E2E backend does, so the rest of this suite can run from a single IP).
-    // In that case there is nothing to assert — skip rather than fail.
+    // In that case there is nothing to assert, skip rather than fail.
     test.skip(
       !statuses.includes(429),
-      "backend appears to run with DEV_MODE=true — per-IP rate limiting disabled"
+      "backend appears to run with DEV_MODE=true, per-IP rate limiting disabled"
     );
 
     // At least some should be rate limited (429)

@@ -114,7 +114,7 @@ export function MobileVaultHeader({
   }, [files]);
 
   const totalUsed = repos.reduce((s, r) => s + r.used_bytes, 0);
-  // Storage is unbounded — bounded only by the connected platform. Show usage,
+  // Storage is unbounded: bounded only by the connected platform. Show usage,
   // never a fraction of a cap.
   const quotaUsed = quotaInfo?.used_bytes ?? totalUsed;
 

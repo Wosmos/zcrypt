@@ -16,11 +16,11 @@ export function UploadZone({ onFiles, hint, compact }: UploadZoneProps) {
 
   // "Preparing" covers the window between opening the native picker and the
   // input's change event. On iOS that window can be LONG: the OS transcodes
-  // HEIC/HEVC ("preparing" the files) BEFORE change fires, with no feedback —
+  // HEIC/HEVC ("preparing" the files) BEFORE change fires, with no feedback:
   // users re-tapped, spawning new pickers and orphaning their selection. While
   // preparing we show a spinner and ignore further clicks.
   const [preparing, setPreparing] = useState(false);
-  // Synchronous mirror of `preparing` — React state updates are async, so a
+  // Synchronous mirror of `preparing`. React state updates are async, so a
   // rapid double-tap could slip past a state-only guard and open two pickers.
   const preparingRef = useRef(false);
   const focusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -28,7 +28,7 @@ export function UploadZone({ onFiles, hint, compact }: UploadZoneProps) {
   // The file input is a PERSISTENT hidden element in the JSX (same pattern as
   // components/vault/upload-fab.tsx). The previous implementation created a
   // detached input via document.createElement that was never appended to the
-  // DOM — WebKit could garbage-collect it while the picker was open, so
+  // DOM. WebKit could garbage-collect it while the picker was open, so
   // onchange never fired and selecting 10-50 photos did nothing.
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -73,7 +73,7 @@ export function UploadZone({ onFiles, hint, compact }: UploadZoneProps) {
     // the desktop upload path (useVaultActions -> store/upload.ts) realize it
     // needed real filesystem paths and open a SECOND, separate native dialog
     // to get them. Two native dialogs stacking back-to-back on one click look
-    // identical, so the second one — the one that actually mattered — got
+    // identical, so the second one (the one that actually mattered) got
     // missed on the first attempt (toast fires, nothing ever attaches); only
     // a retry, landing on a since-settled dialog stack, worked. Picking here
     // once and threading the real paths through `onFiles` (as DesktopFiles)
@@ -115,7 +115,7 @@ export function UploadZone({ onFiles, hint, compact }: UploadZoneProps) {
   // Fallback for older iOS with no "cancel" event: when the window regains
   // focus (picker closed) and no change event arrives within 3s, assume the
   // picker was dismissed and clear the preparing state. A slow HEIC/HEVC
-  // transcode can outlive the 3s — worst case the spinner clears early and the
+  // transcode can outlive the 3s: worst case the spinner clears early and the
   // zone becomes clickable again, which is safe.
   useEffect(() => {
     const onFocus = () => {
@@ -136,7 +136,7 @@ export function UploadZone({ onFiles, hint, compact }: UploadZoneProps) {
     <div
       role="button"
       tabIndex={0}
-      aria-label="Upload files — drop files here or click to browse"
+      aria-label="Upload files. Drop files here or click to browse"
       aria-busy={preparing}
       onDrop={handleDrop}
       onDragOver={handleDragOver}
@@ -192,7 +192,7 @@ export function UploadZone({ onFiles, hint, compact }: UploadZoneProps) {
         </p>
         <p className="text-xs text-[var(--color-text-muted)] mt-1.5 max-w-xs mx-auto leading-relaxed">
           {preparing
-            ? "Large videos can take a minute — keep this page open"
+            ? "Large videos can take a minute. Keep this page open"
             : hint || "Files are compressed, encrypted, and chunked before upload"}
         </p>
       </div>

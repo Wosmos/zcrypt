@@ -39,15 +39,15 @@ export default function RepoPoolDocPage() {
     <DocPage
       href="/docs/repo-pool"
       title="Repo pool & rotation"
-      description="A single repository on any platform fills up. zcrypt sidesteps that by treating your storage as a pool of repositories that grows on demand — so your usable space climbs transparently while you just keep uploading."
+      description="A single repository on any platform fills up. zcrypt sidesteps that by treating your storage as a pool of repositories that grows on demand, so your usable space climbs transparently while you just keep uploading."
       toc={toc}
     >
       <DocSection id="why" title="Why a pool">
         <DocP>
-          Every backend caps how much one repository can comfortably hold — about 850 MB on GitHub,
-          9 GB on GitLab, 90 GiB on a Hugging Face dataset. If a vault were tied to one repo, that
-          cap would be your ceiling. Instead, zcrypt keeps a <strong>pool</strong> of repositories
-          per account and adds to it as needed.
+          Every backend caps how much one repository can comfortably hold: about 850 MB on GitHub, 9
+          GB on GitLab, 90 GiB on a Hugging Face dataset. If a vault were tied to one repo, that cap
+          would be your ceiling. Instead, zcrypt keeps a <strong>pool</strong> of repositories per
+          account and adds to it as needed.
         </DocP>
         <DocP>
           The pool is scoped to a unique combination of <strong>(you, platform, account)</strong>.
@@ -101,7 +101,7 @@ export default function RepoPoolDocPage() {
             [<strong key="t">GitHub</strong>, "~850 MB per repo"],
             [<strong key="t">GitLab</strong>, "~9 GB per repo"],
             [<strong key="t">Hugging Face</strong>, "~90 GiB per repo (Git LFS)"],
-            [<strong key="t">Telegram</strong>, "Virtual — spreads files across the channel"],
+            [<strong key="t">Telegram</strong>, "Virtual: spreads files across the channel"],
           ]}
         />
         <DocNote type="warning" title="Hugging Face doesn't grow by rotating">
@@ -123,7 +123,7 @@ export default function RepoPoolDocPage() {
         <DocP>
           Before sending each chunk, the background sync worker checks a per-platform budget over a
           trailing one-hour window. If pushing the chunk would exceed the limit, the worker holds it
-          just long enough for earlier bytes to age out of the window, then sends — so short bursts
+          just long enough for earlier bytes to age out of the window, then sends, so short bursts
           go straight through and only sustained, over-cap volume is slowed.
         </DocP>
         <DocList
@@ -162,15 +162,15 @@ export default function RepoPoolDocPage() {
           </DocP>
           <DocP>
             Resume is server-authoritative. zcrypt keys each upload to{" "}
-            <strong>(you, the file&apos;s hash, its size)</strong>, so restarting the same file —
-            even from another device or after clearing local storage — hands back the original
+            <strong>(you, the file&apos;s hash, its size)</strong>, so restarting the same file:
+            even from another device or after clearing local storage, hands back the original
             session instead of starting over. Chunks already pushed aren&apos;t re-sent or orphaned,
             and the transfer continues on the same platform it began on.
           </DocP>
         </DocSubsection>
         <DocSubsection title="Cleaning chunks off the platform">
           <DocP>
-            Deleting a file — or cancelling an upload — queues its chunks for removal from the
+            Deleting a file (or cancelling an upload) queues its chunks for removal from the
             backend. A deletion worker drains that queue and calls each platform&apos;s delete API
             to erase the encrypted blobs; chunks that were staged but never pushed are simply
             removed from the server&apos;s staging area.
@@ -192,21 +192,21 @@ export default function RepoPoolDocPage() {
               href="/docs/platform-adapters"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Bring your own storage — connect the accounts the pool draws on
+              Bring your own storage: connect the accounts the pool draws on
             </Link>,
             <Link
               key="b"
               href="/docs/obfuscation"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Storage obfuscation — how disguised names and commits hide the repos
+              Storage obfuscation: how disguised names and commits hide the repos
             </Link>,
             <Link
               key="c"
               href="/docs/uploading"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Uploading — how chunks reach the active repo
+              Uploading: how chunks reach the active repo
             </Link>,
           ]}
         />

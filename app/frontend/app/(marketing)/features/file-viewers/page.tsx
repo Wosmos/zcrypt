@@ -9,9 +9,9 @@ import { fileViewers } from "../_data/file-viewers";
 import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "In-Browser File Viewers — Preview Encrypted Files Without Downloading",
+  title: "In-Browser File Viewers. Preview Encrypted Files Without Downloading",
   description:
-    "Open images, video, audio, PDFs, DOCX, HTML, Markdown, CSV, and source code straight from your encrypted vault. Files are decrypted on the fly in your browser — plaintext never touches the server — then the preview is gone.",
+    "Open images, video, audio, PDFs, DOCX, HTML, Markdown, CSV, and source code straight from your encrypted vault. Files are decrypted on the fly in your browser (plaintext never touches the server) then the preview is gone.",
   keywords: [
     "in-browser file viewer",
     "preview encrypted files",
@@ -25,15 +25,15 @@ export const metadata: Metadata = {
   ],
   alternates: { canonical: `${SITE_URL}/features/file-viewers` },
   openGraph: {
-    title: "In-Browser File Viewers — Preview Without Downloading | zcrypt",
+    title: "In-Browser File Viewers. Preview Without Downloading | zcrypt",
     description:
-      "Preview images, video, audio, PDFs, documents, and code from your encrypted vault — decrypted on the fly in your browser, never on a server.",
+      "Preview images, video, audio, PDFs, documents, and code from your encrypted vault: decrypted on the fly in your browser, never on a server.",
     url: `${SITE_URL}/features/file-viewers`,
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "In-Browser File Viewers — Preview Encrypted Files | zcrypt",
+    title: "In-Browser File Viewers. Preview Encrypted Files | zcrypt",
     description:
       "See your files without downloading or trusting a server. Decryption happens in your browser; plaintext never leaves your device.",
   },
@@ -72,7 +72,7 @@ export default function FileViewersPage() {
         secondaryLabel={hero.secondaryLabel}
         secondaryHref={hero.secondaryHref}
       >
-        {/* Viewer mock — a full-bleed preview overlay */}
+        {/* Viewer mock: a full-bleed preview overlay */}
         <div className="mx-auto mt-16 max-w-4xl">
           <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] shadow-2xl shadow-black/20 dark:shadow-black/40">
             {/* overlay header */}

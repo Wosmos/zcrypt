@@ -131,7 +131,7 @@ class OfflineCache {
         await writable.close();
       }
     } catch {
-      // OPFS not available — cache is memory-only for this session
+      // OPFS not available: cache is memory-only for this session
     }
   }
 

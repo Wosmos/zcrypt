@@ -275,9 +275,9 @@ describe("decrypt-cache", () => {
     });
 
     it("evicts the oldest CEK entry once over the 256-entry cap", async () => {
-      // Mirrors CEK_CACHE_MAX in lib/decrypt-cache.ts: insertion-order eviction —
+      // Mirrors CEK_CACHE_MAX in lib/decrypt-cache.ts: insertion-order eviction:
       // keys are a fixed 32 bytes each, so a count cap (not a byte budget) applies.
-      // Note: don't peek at k0 via getCachedCEK before triggering eviction —
+      // Note: don't peek at k0 via getCachedCEK before triggering eviction:
       // getCachedCEK touches (re-inserts) its entry, which would make it the
       // MOST-recently-used instead of the oldest and defeat this test.
       for (let i = 0; i < 256; i++) {
@@ -305,7 +305,7 @@ describe("decrypt-cache", () => {
 
   it("onDecryptCacheClear notifies registered listeners when the cache clears", () => {
     // Listener registration is process-lifetime by design (mirrors real
-    // callers, e.g. useThumbnail, which register once at module init) — this
+    // callers, e.g. useThumbnail, which register once at module init), this
     // callback stays registered for the rest of this file's later
     // clearDecryptCache() calls (each beforeEach), which is harmless here since
     // nothing asserts on its call count elsewhere.

@@ -7,7 +7,7 @@ import { Role } from "@/types";
  * `fetcher` once the current user is confirmed an admin, tracks loading/error,
  * and exposes `refresh` so callers can retry (the error panel's "Try again")
  * or refetch after a mutation. `fetcher` must be memoized (`useCallback`) with
- * its own real dependencies (route params, etc.) — a new identity re-runs it.
+ * its own real dependencies (route params, etc.): a new identity re-runs it.
  */
 export function useAdminGuardedFetch(fetcher: () => Promise<void>) {
   const { user } = useAuthStore();

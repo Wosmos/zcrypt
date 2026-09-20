@@ -54,7 +54,7 @@ export function ThemePicker() {
               )}
             >
               {/* Mini app mockup: canvas + sidebar (with an accent logo dot) +
-                  an accent header pill + a surface card — so each theme's
+                  an accent header pill + a surface card, so each theme's
                   personality (accent, sidebar, surface) reads at a glance. */}
               <div
                 className="squircle relative h-20 w-full overflow-hidden rounded-lg ring-1 ring-black/5 transition-transform duration-200 group-hover:scale-[1.02] dark:ring-white/10"
@@ -99,7 +99,7 @@ export function ThemePicker() {
           );
         })}
 
-        {/* Custom — same mockup shape as the presets, driven by the user's own
+        {/* Custom: same mockup shape as the presets, driven by the user's own
             picks instead of a fixed palette. */}
         <button
           type="button"
@@ -202,7 +202,7 @@ function CustomThemeEditor({
             role="radio"
             aria-checked={!values.background}
             aria-label="None"
-            title="None — flat canvas color"
+            title="None, flat canvas color"
             onClick={() => selectDesign(undefined)}
             className={cn(
               "relative flex h-10 items-center justify-center rounded-lg border text-[10px] font-medium text-[var(--color-text-muted)] transition-all duration-200",

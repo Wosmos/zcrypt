@@ -2,7 +2,7 @@ import { create } from "zustand";
 import type { Severity } from "@/lib/utils";
 import { genId } from "@/lib/id";
 
-// The 4-member severity union is shared app-wide — aliased to Severity so toasts
+// The 4-member severity union is shared app-wide: aliased to Severity so toasts
 // and notifications can't drift.
 export type ToastType = Severity;
 
@@ -19,7 +19,7 @@ interface ToastStore {
 }
 
 // Hard cap on concurrent toasts. Capping at the data level (rather than only in
-// the renderer) means an over-cap toast is dropped outright — so it can never
+// the renderer) means an over-cap toast is dropped outright, so it can never
 // re-surface later and restart its countdown bar out of sync with its timer.
 const MAX_TOASTS = 5;
 

@@ -6,12 +6,12 @@ import { SITE_URL } from "@/lib/site";
 export const metadata: Metadata = {
   title: "Zero-knowledge architecture | zcrypt Docs",
   description:
-    "What zcrypt can and cannot see. An honest, line-by-line account of what the server stores — encrypted file contents, encrypted folder names, file metadata, a registry of public keys for sharing — and the single non-zero-knowledge surface: your storage-provider tokens.",
+    "What zcrypt can and cannot see. An honest, line-by-line account of what the server stores: encrypted file contents, encrypted folder names, file metadata, a registry of public keys for sharing, and the single non-zero-knowledge surface: your storage-provider tokens.",
   alternates: { canonical: `${SITE_URL}/docs/zero-knowledge` },
   openGraph: {
     title: "Zero-knowledge architecture | zcrypt Docs",
     description:
-      "Exactly what the zcrypt server stores and what it can never read — including how sharing stays zero-knowledge and the one honest exception involving storage-provider tokens.",
+      "Exactly what the zcrypt server stores and what it can never read: including how sharing stays zero-knowledge and the one honest exception involving storage-provider tokens.",
     url: `${SITE_URL}/docs/zero-knowledge`,
   },
 };
@@ -31,7 +31,7 @@ export default function ZeroKnowledgePage() {
     <DocPage
       href="/docs/zero-knowledge"
       title="Zero-knowledge architecture"
-      description="Zero-knowledge is a strong claim, so we state it precisely. zcrypt cannot read your file contents or your folder names — and we are equally clear about the metadata it does keep and the single surface that is not zero-knowledge."
+      description="Zero-knowledge is a strong claim, so we state it precisely. zcrypt cannot read your file contents or your folder names, and we are equally clear about the metadata it does keep and the single surface that is not zero-knowledge."
       toc={toc}
     >
       <DocSection id="meaning" title="What zero-knowledge means here">
@@ -39,12 +39,12 @@ export default function ZeroKnowledgePage() {
           Zero-knowledge means the service can store and serve your data without ever being able to
           read it. Your file contents are encrypted on your device with keys derived from a
           passphrase we never receive. Even with full administrative access to the database and
-          storage, we cannot reconstruct your files — and neither can anyone who compels us to hand
+          storage, we cannot reconstruct your files, and neither can anyone who compels us to hand
           over what we have.
         </DocP>
         <DocP>
           It does <em>not</em> mean we store nothing. Running a usable drive requires some metadata
-          — sizes, chunk counts, timestamps. The honest version of the claim is: encrypted content
+          , sizes, chunk counts, timestamps. The honest version of the claim is: encrypted content
           stays encrypted, and we are explicit about every piece of metadata that is not.
         </DocP>
       </DocSection>
@@ -96,7 +96,7 @@ export default function ZeroKnowledgePage() {
             [
               "File name",
               "Partially",
-              "New names are encrypted client-side; a legacy plaintext column persists for older files — see below",
+              "New names are encrypted client-side; a legacy plaintext column persists for older files. See below",
             ],
             [
               "Account + audit data",
@@ -106,7 +106,7 @@ export default function ZeroKnowledgePage() {
           ]}
         />
         <DocNote type="info" title="Audit metadata">
-          Security events — logins, folder deletions, key changes — are recorded with an IP address,
+          Security events (logins, folder deletions, key changes) are recorded with an IP address,
           user-agent, and event type so you and we can spot abuse. These records never contain key
           material, passphrases, or plaintext file contents.
         </DocNote>
@@ -116,7 +116,7 @@ export default function ZeroKnowledgePage() {
         <DocList
           items={[
             <>
-              <strong>Your passphrase.</strong> It is never transmitted and never stored — not even
+              <strong>Your passphrase.</strong> It is never transmitted and never stored, not even
               as a hash. It exists only in your device&apos;s memory while your vault is unlocked.
             </>,
             <>
@@ -159,7 +159,7 @@ export default function ZeroKnowledgePage() {
         <DocNote type="security" title="What a database breach yields">
           An attacker with our entire database walks away with ciphertext blobs, wrapped keys they
           cannot unwrap, bcrypt password hashes, and size metadata. They cannot decrypt a single
-          file. A subpoena produces the same useless set — we cannot comply with a demand to read
+          file. A subpoena produces the same useless set: we cannot comply with a demand to read
           your data because we have no means to.
         </DocNote>
       </DocSection>
@@ -176,7 +176,7 @@ export default function ZeroKnowledgePage() {
             space
           </Link>{" "}
           and its files, your device <em>seals</em> the space key to the recipient&apos;s public key
-          — an operation only their private key can reverse.
+          : an operation only their private key can reverse.
         </DocP>
         <DocList
           items={[
@@ -187,7 +187,7 @@ export default function ZeroKnowledgePage() {
             </>,
             <>
               The server is a{" "}
-              <strong>directory of public keys and a courier for sealed blobs</strong> — never a
+              <strong>directory of public keys and a courier for sealed blobs</strong>, never a
               party to the key exchange itself.
             </>,
             <>
@@ -210,7 +210,7 @@ export default function ZeroKnowledgePage() {
       <DocSection id="names" title="The honest nuance: file names">
         <DocP>
           We will not over-claim here. <strong>Folder names are fully encrypted client-side</strong>{" "}
-          — the database stores only an opaque <span className="font-mono">encrypted_name</span>{" "}
+          : the database stores only an opaque <span className="font-mono">encrypted_name</span>{" "}
           blob it cannot read.
           <strong> New file names are encrypted the same way</strong>: a zero-knowledge upload sends
           an opaque <span className="font-mono">encrypted_name</span> and leaves the legacy
@@ -248,7 +248,7 @@ export default function ZeroKnowledgePage() {
           There is exactly one surface that is not zero-knowledge, and we would rather you hear it
           from us. To push and pull encrypted chunks on your behalf, the server has to use{" "}
           <em>your</em> storage-provider credentials (GitHub, GitLab, Hugging Face, Telegram). Those
-          tokens are encrypted at rest, but not with your passphrase — they are encrypted with a key
+          tokens are encrypted at rest, but not with your passphrase. They are encrypted with a key
           the server itself can derive.
         </DocP>
         <DocList
@@ -259,7 +259,7 @@ export default function ZeroKnowledgePage() {
             </>,
             <>
               That KEK encrypts your storage-provider tokens with AES-256-GCM before they touch the
-              database — never plaintext at rest.
+              database, never plaintext at rest.
             </>,
             <>
               This lets zcrypt act on your storage account, but it does <strong>not</strong> give
@@ -271,7 +271,7 @@ export default function ZeroKnowledgePage() {
         <DocNote type="security" title="Why this is acceptable">
           The blast radius is your storage credentials, not your data. Even with your tokens, an
           attacker reaches encrypted chunks they cannot decrypt without your passphrase. We document
-          this trade-off rather than paper over it — see the{" "}
+          this trade-off rather than paper over it. See the{" "}
           <Link
             href="/docs/threat-model"
             className="text-cyan-600 hover:underline dark:text-cyan-400"
@@ -290,28 +290,28 @@ export default function ZeroKnowledgePage() {
               href="/docs/security"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Encryption model — the algorithms and the upload pipeline
+              Encryption model: the algorithms and the upload pipeline
             </Link>,
             <Link
               key="b"
               href="/docs/obfuscation"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Storage obfuscation — how stored chunks are made unremarkable
+              Storage obfuscation: how stored chunks are made unremarkable
             </Link>,
             <Link
               key="c"
               href="/docs/threat-model"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Threat model — the full list of what is and isn&apos;t covered
+              Threat model: the full list of what is and isn&apos;t covered
             </Link>,
             <Link
               key="d"
               href="/features/encryption"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Zero-knowledge encryption — the feature tour
+              Zero-knowledge encryption, the feature tour
             </Link>,
           ]}
         />

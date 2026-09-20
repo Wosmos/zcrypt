@@ -42,7 +42,7 @@ export const STORAGE_PLATFORMS: StoragePlatform[] = [
     Icon: Layers,
     colorClass: "text-[#ffd21e]",
     capacity: "90 GB / repo",
-    note: "Built for large files — serious headroom.",
+    note: "Built for large files, serious headroom.",
   },
   {
     id: "telegram",

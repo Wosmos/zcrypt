@@ -6,12 +6,12 @@ import { SITE_URL } from "@/lib/site";
 export const metadata: Metadata = {
   title: "Viewing & previewing files | zcrypt Docs",
   description:
-    "See image and video thumbnails generated on your device, then open images, video, audio, PDF, DOCX, HTML, Markdown, CSV, and code in zcrypt's full-screen viewer — decrypted on the fly, with keyboard paging, so plaintext never leaves your device.",
+    "See image and video thumbnails generated on your device, then open images, video, audio, PDF, DOCX, HTML, Markdown, CSV, and code in zcrypt's full-screen viewer: decrypted on the fly, with keyboard paging, so plaintext never leaves your device.",
   alternates: { canonical: `${SITE_URL}/docs/viewing-files` },
   openGraph: {
     title: "Viewing & previewing files | zcrypt Docs",
     description:
-      "A full-screen viewer that previews images, video, audio, PDFs, documents, and code by decrypting on the fly — zero-knowledge, with prev/next and keyboard control.",
+      "A full-screen viewer that previews images, video, audio, PDFs, documents, and code by decrypting on the fly: zero-knowledge, with prev/next and keyboard control.",
     url: `${SITE_URL}/docs/viewing-files`,
   },
 };
@@ -29,39 +29,39 @@ export default function ViewingFilesDocPage() {
     <DocPage
       href="/docs/viewing-files"
       title="Viewing & previewing files"
-      description="Open a file to read or watch it right in the browser — no download, no plaintext leaving your device."
+      description="Open a file to read or watch it right in the browser, no download, no plaintext leaving your device."
       toc={toc}
     >
       <DocSection id="thumbnails" title="Thumbnails & type icons">
         <DocP>
           Before you even open a file, the grid shows you what it is. Images and videos get a real{" "}
-          <strong>thumbnail</strong> — a small preview of the file itself — and everything else gets
-          a crisp, macOS-style <strong>type icon</strong>: a colored glyph and label (Document,
-          Image, Video, Audio, Spreadsheet, Code, Archive, and so on) on a little page tile.
+          <strong>thumbnail</strong> (a small preview of the file itself) and everything else gets a
+          crisp, macOS-style <strong>type icon</strong>: a colored glyph and label (Document, Image,
+          Video, Audio, Spreadsheet, Code, Archive, and so on) on a little page tile.
         </DocP>
         <DocList
           items={[
             <>
               <strong>Generated on your device.</strong> A thumbnail is built by decrypting the file
-              in your browser, drawing it to a canvas, and encoding a tiny preview — the same
+              in your browser, drawing it to a canvas, and encoding a tiny preview, the same
               zero-knowledge path as the viewer. For a video, zcrypt grabs a frame a little way in
               so you get a representative still rather than a black opening frame.
             </>,
             <>
               <strong>Lazy and cached.</strong> Each preview is generated the first time its card
-              comes into view, then cached locally on your device — so it appears instantly next
-              time without decrypting the file again.
+              comes into view, then cached locally on your device, so it appears instantly next time
+              without decrypting the file again.
             </>,
             <>
-              <strong>Icons for the rest.</strong> Files that aren&rsquo;t images or video — and
-              very large files that aren&rsquo;t worth decrypting just for a preview — fall back to
-              their type icon instead.
+              <strong>Icons for the rest.</strong> Files that aren&rsquo;t images or video, and very
+              large files that aren&rsquo;t worth decrypting just for a preview, fall back to their
+              type icon instead.
             </>,
           ]}
         />
         <DocNote type="security" title="Previews never leave your device">
           Thumbnails are made from the decrypted file <strong>in your browser</strong> and kept only
-          in your browser&rsquo;s local cache. They are never uploaded — your storage platform and
+          in your browser&rsquo;s local cache. They are never uploaded, your storage platform and
           our servers only ever hold the encrypted chunks.
         </DocNote>
       </DocSection>
@@ -89,7 +89,7 @@ export default function ViewingFilesDocPage() {
               <strong>DOCX</strong> word-processing documents.
             </>,
             <>
-              <strong>HTML</strong> — rendered <strong>sanitized, with scripts disabled</strong>.
+              <strong>HTML</strong>: rendered <strong>sanitized, with scripts disabled</strong>.
             </>,
             <>
               <strong>Markdown</strong>, rendered to formatted text.
@@ -112,7 +112,7 @@ export default function ViewingFilesDocPage() {
         <DocP>
           Previewing is <strong>zero-knowledge</strong>. zcrypt fetches the encrypted chunks, then
           decrypts and decompresses them <strong>in your browser</strong> just long enough to render
-          the preview. The plaintext <strong>stays local</strong> — it is never written to your
+          the preview. The plaintext <strong>stays local</strong>. It is never written to your
           storage platform and never sent to our servers.
         </DocP>
       </DocSection>

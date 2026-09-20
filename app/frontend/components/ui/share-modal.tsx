@@ -82,7 +82,7 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
     setLoading(true);
     try {
       // Recover the CEK, re-wrap it under a fresh share key, and create the
-      // share — the share key never leaves the browser except in the URL
+      // share: the share key never leaves the browser except in the URL
       // fragment. createFileShareLink also refreshes the shares cache so this
       // modal + the details drawer show the new link.
       const { token, shareKey } = await createFileShareLink(fileId, {
@@ -247,7 +247,7 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
 
                 <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
                   <p className="text-xs text-amber-700 dark:text-amber-300">
-                    This link contains the decryption key in its <strong>#fragment</strong> — anyone
+                    This link contains the decryption key in its <strong>#fragment</strong>, anyone
                     with the full link can download <em>and</em> decrypt the file, with no
                     passphrase needed. The key never reaches our servers. Share the link only with
                     people you trust, and use a password or expiry for extra safety.

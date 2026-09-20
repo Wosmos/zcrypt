@@ -35,7 +35,7 @@ const rows: ComparisonRow[] = [
     },
     other: {
       good: true,
-      note: "Proton-hosted in Swiss/EU data centers. Reputable and managed — but Proton runs the storage.",
+      note: "Proton-hosted in Swiss/EU data centers. Reputable and managed, but Proton runs the storage.",
     },
   },
   {
@@ -64,7 +64,7 @@ const rows: ComparisonRow[] = [
     label: "Self-hostable",
     zcrypt: {
       good: true,
-      note: "Run the entire stack yourself — client, server, and storage.",
+      note: "Run the entire stack yourself, client, server, and storage.",
     },
     other: {
       good: false,
@@ -86,7 +86,7 @@ const rows: ComparisonRow[] = [
     label: "In-browser previews",
     zcrypt: {
       good: true,
-      note: "Images, video, audio, PDFs, docs, and code — decrypted locally in the browser.",
+      note: "Images, video, audio, PDFs, docs, and code: decrypted locally in the browser.",
     },
     other: {
       good: true,
@@ -121,7 +121,7 @@ const pillars: CapabilityItem[] = [
   {
     Icon: Github,
     title: "Open source, top to bottom",
-    desc: "Like Proton, our apps are open source — and so is the server. You can audit, fork, or run the whole thing. There's no closed component you have to trust on faith.",
+    desc: "Like Proton, our apps are open source, and so is the server. You can audit, fork, or run the whole thing. There's no closed component you have to trust on faith.",
   },
   {
     Icon: HardDrive,
@@ -131,12 +131,12 @@ const pillars: CapabilityItem[] = [
   {
     Icon: Lock,
     title: "Self-host the entire stack",
-    desc: "Run your own zcrypt server and keep both the keys and the infrastructure under your control. Proton Drive is hosted only — you can't operate your own instance.",
+    desc: "Run your own zcrypt server and keep both the keys and the infrastructure under your control. Proton Drive is hosted only. You can't operate your own instance.",
   },
   {
     Icon: Terminal,
     title: "A real terminal app",
-    desc: "zcrypt ships a full TUI alongside web and desktop, so you can manage an encrypted vault straight from the command line — handy for servers and power users.",
+    desc: "zcrypt ships a full TUI alongside web and desktop, so you can manage an encrypted vault straight from the command line: handy for servers and power users.",
   },
 ];
 
@@ -149,10 +149,10 @@ export const protonDrive: VsData = {
     headlineGradient: "Only one is yours to run.",
     subtext: (
       <>
-        Proton Drive is a genuinely excellent, audited, zero-knowledge drive — and we respect it.
-        The differences are narrower here and more about philosophy: zcrypt is open source{" "}
-        <em>and</em> self-hostable, stores files in accounts you already own, has no artificial
-        caps, and even ships a terminal app.
+        Proton Drive is a genuinely excellent, audited, zero-knowledge drive, and we respect it. The
+        differences are narrower here and more about philosophy: zcrypt is open source <em>and</em>{" "}
+        self-hostable, stores files in accounts you already own, has no artificial caps, and even
+        ships a terminal app.
       </>
     ),
     secondaryLabel: "How the encryption works",
@@ -163,7 +163,7 @@ export const protonDrive: VsData = {
       <strong className="text-[var(--color-text)]">Credit where it&apos;s due.</strong> Proton Drive
       is end-to-end encrypted, independently audited, backed by an established privacy company, and
       has mature mobile apps. If you&apos;re weighing it against zcrypt, you&apos;re already making
-      a privacy-respecting choice. This page is about which trade-offs suit you — not about claiming
+      a privacy-respecting choice. This page is about which trade-offs suit you, not about claiming
       Proton gets anything wrong.
     </>
   ),
@@ -198,13 +198,13 @@ export const protonDrive: VsData = {
       <>
         If you want{" "}
         <strong className="text-[var(--color-text)]">polished native mobile apps today</strong>,
-        Proton has them and zcrypt does not — our mobile apps are still on the roadmap. For people
+        Proton has them and zcrypt does not: our mobile apps are still on the roadmap. For people
         who manage files primarily from a phone, that difference alone may settle it.
       </>,
       <>
         If you value a{" "}
-        <strong className="text-[var(--color-text)]">single, fully managed privacy suite</strong> —
-        Drive, Mail, Calendar, and VPN under one audited provider in Swiss/EU jurisdiction — Proton
+        <strong className="text-[var(--color-text)]">single, fully managed privacy suite</strong>.
+        Drive, Mail, Calendar, and VPN under one audited provider in Swiss/EU jurisdiction. Proton
         delivers that as a cohesive package. zcrypt is focused on being an encrypted drive, not an
         ecosystem.
       </>,
@@ -219,7 +219,7 @@ export const protonDrive: VsData = {
       </>,
       <>
         zcrypt is the better fit when you want an encrypted drive you can fully self-host, store in
-        accounts you already own, scale without artificial caps, and drive from the terminal — all
+        accounts you already own, scale without artificial caps, and drive from the terminal, all
         open source and free.
       </>,
     ],

@@ -1,5 +1,5 @@
 /**
- * Screen Wake Lock — keep the display awake while a transfer is running.
+ * Screen Wake Lock: keep the display awake while a transfer is running.
  *
  * On mobile, when the screen auto-locks or the device sleeps the browser
  * suspends the tab and aborts in-flight uploads/downloads. Holding a screen
@@ -13,14 +13,14 @@
  * something still holds a ref.
  *
  * Support: Screen Wake Lock is available on Android Chrome and iOS Safari
- * 16.4+. Where it's missing (older iOS, Firefox) every call is a safe no-op —
+ * 16.4+. Where it's missing (older iOS, Firefox) every call is a safe no-op:
  * uploads still work, they just aren't protected from auto-lock. Best-effort by
  * design: a request can also be rejected (tab not visible, low battery), which
  * we swallow.
  */
 
 // navigator.wakeLock is typed non-optional by lib.dom, but is genuinely absent
-// at runtime on older iOS / Firefox — access it through this to stay honest.
+// at runtime on older iOS / Firefox: access it through this to stay honest.
 type MaybeWakeLock = { wakeLock?: WakeLock };
 
 let sentinel: WakeLockSentinel | null = null;
@@ -37,7 +37,7 @@ function supported(): boolean {
 }
 
 async function requestLock(): Promise<void> {
-  // Already held, mid-request, or nobody wants it anymore — nothing to do.
+  // Already held, mid-request, or nobody wants it anymore, nothing to do.
   if (sentinel || acquiring || refCount === 0 || !supported()) return;
   if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
   acquiring = true;
@@ -55,7 +55,7 @@ async function requestLock(): Promise<void> {
       if (sentinel === s) sentinel = null;
     });
   } catch {
-    // Denied (not visible / battery saver) — best-effort, ignore.
+    // Denied (not visible / battery saver), best-effort, ignore.
   } finally {
     acquiring = false;
   }

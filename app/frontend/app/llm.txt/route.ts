@@ -1,6 +1,6 @@
 import { buildLlmsTxt } from "@/lib/llms-txt";
 
-// Serves /llm.txt — an alias of /llms.txt for the singular filename some tools
+// Serves /llm.txt: an alias of /llms.txt for the singular filename some tools
 // and users expect. Content is shared via lib/llms-txt.
 export const dynamic = "force-static";
 

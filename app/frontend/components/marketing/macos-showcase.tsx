@@ -56,7 +56,7 @@ function useIsMobile(breakpoint = 768) {
 
 // ─── Battery hook ──────────────────────────────────────────
 // The Battery Status API is non-standard and not in TS's lib.dom, so there's
-// no built-in BatteryManager type — declare the minimal shape we use.
+// no built-in BatteryManager type: declare the minimal shape we use.
 interface BatteryManager extends EventTarget {
   charging: boolean;
   level: number;
@@ -451,7 +451,7 @@ function DockIcon({
 
 /**
  * Dimmed, blurred backdrop shared by every centered "dialog" scene (Video,
- * Website, Easter Egg, About This Mac) — fades in/out, click-to-close on the
+ * Website, Easter Egg, About This Mac): fades in/out, click-to-close on the
  * backdrop itself. `className` carries each scene's own flex/padding needs.
  */
 function ModalBackdrop({
@@ -541,7 +541,7 @@ function VideoModal({ open, onClose }: { open: boolean; onClose: () => void }) {
         >
           <TrafficLights onClose={onClose} />
           <span className="flex-1 text-center text-[11px] text-gray-400 font-medium">
-            zcrypt — Demo
+            zcrypt. Demo
           </span>
           <div style={{ width: TRAFFIC_LIGHTS_W }} className="shrink-0" />
         </div>
@@ -804,7 +804,7 @@ function AboutThisMacModal({ open, onClose }: { open: boolean; onClose: () => vo
           {/* Footer */}
           <div className="pt-3 border-t border-white/5 mt-3">
             <p className="text-[10px] text-gray-600">
-              Powered by zcrypt v0.2 — Zero-Knowledge Vault
+              Powered by zcrypt v0.2. Zero-Knowledge Vault
             </p>
             <div className="flex justify-center gap-3 mt-2">
               <button className="text-[11px] text-blue-400 hover:text-blue-300 transition-colors">
@@ -828,7 +828,7 @@ const SPOTLIGHT_RESULTS = [
   {
     icon: Layers,
     label: "project-backup-2026.tar.gz",
-    subtitle: "2.5 GB — Encrypted",
+    subtitle: "2.5 GB. Encrypted",
   },
   {
     icon: UploadCloud,
@@ -846,7 +846,7 @@ const SPOTLIGHT_RESULTS = [
 
 /**
  * Invisible click-catching scrim shared by the menu-bar-style dropdowns
- * (Spotlight, Control Center) — unlike ModalBackdrop's dialogs, the desktop
+ * (Spotlight, Control Center): unlike ModalBackdrop's dialogs, the desktop
  * stays visible behind these, matching real macOS. Each panel keeps its own
  * position/entrance animation as `children`.
  */
@@ -1184,7 +1184,7 @@ function MenuBarDropdown({
 
 // ─── Scaled App iFrame ─────────────────────────────────────
 /** Scales a logical-pixel-sized `/demo` iframe down to fit its wrapper's
- *  measured width — shared by the desktop and iPad showcase scenes, which
+ *  measured width: shared by the desktop and iPad showcase scenes, which
  *  differ only in which logical width/height they scale from. */
 function ScaledIframeFrame({
   visible,
@@ -1253,7 +1253,7 @@ function IPadShowcase({
   battery: { level: number; charging: boolean; supported: boolean };
 }) {
   // Reduced motion (or an observer that never fires) must never leave the
-  // showcase stuck at its initial opacity 0 — render it in place instead.
+  // showcase stuck at its initial opacity 0: render it in place instead.
   const reduce = useReducedMotion();
   const shown = isInView || reduce;
   return (

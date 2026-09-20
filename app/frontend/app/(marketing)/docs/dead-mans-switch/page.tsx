@@ -6,12 +6,12 @@ import { SITE_URL } from "@/lib/site";
 export const metadata: Metadata = {
   title: "Dead man's switch | zcrypt Docs",
   description:
-    "Configure zcrypt to email a trusted contact if you stop checking in. Set a timeout of 7 to 365 days; every login resets the timer. It sends a notification email — it does not deliver your files or keys.",
+    "Configure zcrypt to email a trusted contact if you stop checking in. Set a timeout of 7 to 365 days; every login resets the timer. It sends a notification email. It does not deliver your files or keys.",
   alternates: { canonical: `${SITE_URL}/docs/dead-mans-switch` },
   openGraph: {
     title: "Dead man's switch | zcrypt Docs",
     description:
-      "Notify a trusted contact if you stop checking in. It sends an email — zero-knowledge means there are no keys for it to hand over.",
+      "Notify a trusted contact if you stop checking in. It sends an email: zero-knowledge means there are no keys for it to hand over.",
     url: `${SITE_URL}/docs/dead-mans-switch`,
   },
 };
@@ -20,7 +20,7 @@ const toc = [
   { id: "what", title: "What it does" },
   { id: "setup", title: "Setting it up" },
   { id: "checkin", title: "Checking in" },
-  { id: "honest", title: "What it does — and doesn't — do" },
+  { id: "honest", title: "What it does (and doesn't) do" },
   { id: "next", title: "Where to go next" },
 ];
 
@@ -29,7 +29,7 @@ export default function DeadMansSwitchDocPage() {
     <DocPage
       href="/docs/dead-mans-switch"
       title="Dead man's switch"
-      description="A safeguard that watches for your absence. If you stop checking in for a period you choose, zcrypt sends a message to a contact you trust — a way to make sure someone is alerted if something happens to you."
+      description="A safeguard that watches for your absence. If you stop checking in for a period you choose, zcrypt sends a message to a contact you trust: a way to make sure someone is alerted if something happens to you."
       toc={toc}
     >
       <DocSection id="what" title="What it does">
@@ -45,14 +45,14 @@ export default function DeadMansSwitchDocPage() {
         <DocList
           items={[
             <>
-              <strong>Contact email</strong> — who gets notified. A contact name is optional.
+              <strong>Contact email</strong>, who gets notified. A contact name is optional.
             </>,
             <>
-              <strong>Timeout</strong> — anywhere from <strong>7 to 365 days</strong> of inactivity
+              <strong>Timeout</strong>: anywhere from <strong>7 to 365 days</strong> of inactivity
               before it fires.
             </>,
             <>
-              <strong>A message</strong> — optional text included in the email to your contact.
+              <strong>A message</strong>: optional text included in the email to your contact.
             </>,
           ]}
         />
@@ -67,7 +67,7 @@ export default function DeadMansSwitchDocPage() {
         </DocP>
       </DocSection>
 
-      <DocSection id="honest" title="What it does — and doesn't — do">
+      <DocSection id="honest" title="What it does (and doesn't) do">
         <DocNote type="warning" title="Read this before you rely on it">
           <p className="mb-2">
             The dead man&rsquo;s switch sends a <strong>notification email</strong> to your contact.
@@ -75,13 +75,13 @@ export default function DeadMansSwitchDocPage() {
           </p>
           <p className="mb-2">
             It does <strong>not</strong> deliver your files, and it does <strong>not</strong> hand
-            over any keys — because zcrypt is zero-knowledge, there are no keys on our side to give
+            over any keys, because zcrypt is zero-knowledge, there are no keys on our side to give
             anyone. We cannot decrypt your vault, so the switch cannot pass your data to your
             contact.
           </p>
           <p>
             There is an &ldquo;include files&rdquo; option, but it only changes the{" "}
-            <strong>wording of the email</strong> — it does not attach, transfer, list, or unlock
+            <strong>wording of the email</strong>. It does not attach, transfer, list, or unlock
             anything. If you want a contact to be able to reach your actual files, you must arrange
             that yourself (for example, by sharing a passphrase through your own trusted channel).
           </p>
@@ -96,21 +96,21 @@ export default function DeadMansSwitchDocPage() {
               href="/docs/decoy-profile"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Decoy profile — a second password that opens a fake vault
+              Decoy profile: a second password that opens a fake vault
             </Link>,
             <Link
               key="b"
               href="/docs/recovery"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Account recovery — what is and isn&rsquo;t recoverable, and why
+              Account recovery: what is and isn&rsquo;t recoverable, and why
             </Link>,
             <Link
               key="c"
               href="/features/privacy"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Privacy tools — the feature tour
+              Privacy tools, the feature tour
             </Link>,
           ]}
         />

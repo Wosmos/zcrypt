@@ -61,7 +61,7 @@ export default function PadViewPage() {
       try {
         plaintext = await decryptChunk(keyBytes.buffer as ArrayBuffer, encrypted);
       } catch {
-        throw new Error("Decryption failed — the link may be incomplete or corrupted");
+        throw new Error("Decryption failed: the link may be incomplete or corrupted");
       }
 
       const text = new TextDecoder().decode(plaintext);

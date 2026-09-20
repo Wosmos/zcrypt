@@ -2,7 +2,7 @@
 
 /**
  * ════════════════════════════════════════════════════════════════════════════
- * <VaultExplorer /> — the unified file + folder explorer (REBUILD_SPEC §2).
+ * <VaultExplorer />: the unified file + folder explorer (REBUILD_SPEC §2).
  *
  * FOLDERS and FILES live in ONE listing under ONE breadcrumb. List + grid
  * modes, inline search, sortable columns, Select mode with checkboxes,
@@ -15,7 +15,7 @@
  * ── FINAL PROP INTERFACE (the integrator wires this) ────────────────────────
  *
  *   interface VaultExplorerProps {
- *     // Data — the full file list, already loaded by the page (useFileList).
+ *     // Data: the full file list, already loaded by the page (useFileList).
  *     files: FileMetadata[];
  *     loading: boolean;
  *     error: string | null;
@@ -40,7 +40,7 @@
  * Internally uses: useFolders() + useFolderStore (folder tree / current folder /
  * breadcrumb), useDragMove + canDrop + DRAG_MIME (DnD), useVaultSearch (⌘K seed),
  * useThumbnail (grid thumbs). It does NOT own the vault-unlock pill (that's
- * <VaultLock /> in the page header) — but folder create/rename unlock uses the
+ * <VaultLock /> in the page header): but folder create/rename unlock uses the
  * same PassphraseModal pattern as folder-browser.tsx.
  *
  * DEVIATIONS FROM SPEC: documented at the bottom of this file.
@@ -249,7 +249,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
 
     // Opening a folder is gated by the page when `onOpenFolderRequest` is supplied
     // (a protected folder verifies its password before navigating in). Otherwise
-    // navigate in directly — unprotected behavior is byte-for-byte unchanged.
+    // navigate in directly: unprotected behavior is byte-for-byte unchanged.
     const openFolderGated = (folder: DecryptedFolder) => {
       if (onOpenFolderRequest) onOpenFolderRequest(folder);
       else openFolder(folder);
@@ -285,7 +285,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
           setGridCols(Number(g) as GridCols);
         }
       } catch {
-        /* localStorage unavailable — defaults are fine */
+        /* localStorage unavailable, defaults are fine */
       }
     }, []);
 
@@ -405,7 +405,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
     const [focusedId, setFocusedId] = useState<string | null>(null);
     const anchorRef = useRef<string | null>(null);
 
-    // Flat ordered ids of every visible entry (folders first, then files) — drives
+    // Flat ordered ids of every visible entry (folders first, then files), drives
     // roving ↑/↓ + grid arrow movement. File-only ids drive Shift-range math.
     const entryIds = useMemo(
       () => entries.map((e) => (e.kind === "folder" ? e.folder.id : e.file.id)),
@@ -431,7 +431,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
       const a = fileIds.indexOf(anchor);
       const b = fileIds.indexOf(id);
       if (a === -1 || b === -1) {
-        // Target isn't a file (folder) — just move focus, no selection change.
+        // Target isn't a file (folder): just move focus, no selection change.
         return;
       }
       const [lo, hi] = a <= b ? [a, b] : [b, a];
@@ -451,7 +451,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
       const rangeMod = e.shiftKey;
 
       if (rangeMod) {
-        // Range select from the anchor — enter select mode so the bulk bar shows.
+        // Range select from the anchor: enter select mode so the bulk bar shows.
         if (!selectMode) setSelectMode(true);
         selectRangeTo(file.id, toggleMod);
         return;
@@ -488,7 +488,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
       anchorRef.current = null;
     };
 
-    // Enter select mode with one file already selected — the touch entry point
+    // Enter select mode with one file already selected, the touch entry point
     // (long-press a file → "Select"). On desktop the toolbar Select toggle handles
     // this; on mobile that toggle is hidden, so this is the way in.
     const enterSelectWith = (fileId: string) => {
@@ -661,7 +661,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
       }
     };
 
-    // Move a dragged folder into `destId` — shared by the desktop HTML5 drop and
+    // Move a dragged folder into `destId`: shared by the desktop HTML5 drop and
     // the touch drag-move path below, which drive the same store.
     const moveFolderTo = (item: DragItem, destId: string | null) => {
       if (!canDrop(item, destId)) return;
@@ -741,7 +741,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
     });
 
     // Touch drag-and-drop (mobile only). Drives the SAME useDragMove store as the
-    // desktop HTML5 path — folder drop-highlighting via `overTarget` is unchanged —
+    // desktop HTML5 path: folder drop-highlighting via `overTarget` is unchanged,
     // and on release moves the file/folder into the folder under the finger. The
     // press-hold-then-move gesture coexists with the long-press context menu.
     const touchDrag = useTouchDragMove({
@@ -768,7 +768,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
         const el = document.elementFromPoint(x, y) as HTMLElement | null;
         const id =
           el?.closest<HTMLElement>("[data-entry-id]")?.getAttribute("data-entry-id") ?? null;
-        // Only files are selectable — ignore folder cards under the finger.
+        // Only files are selectable: ignore folder cards under the finger.
         return id && fileIds.includes(id) ? id : null;
       },
       onSweepStart: () => {
@@ -781,7 +781,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
         if (a === -1 || b === -1) return;
         const [lo, hi] = a <= b ? [a, b] : [b, a];
         const next = new Set([...sweepBaseRef.current, ...fileIds.slice(lo, hi + 1)]);
-        // Soft tick each time the count changes (grows or shrinks) — gallery feel.
+        // Soft tick each time the count changes (grows or shrinks), gallery feel.
         if (next.size !== sweepSizeRef.current) {
           sweepSizeRef.current = next.size;
           haptic(8);
@@ -793,7 +793,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
     // Build the per-entry drag props. Folders: drag disabled when locked / in
     // select mode (unchanged). Files: draggable to move (desktop), drop targets
     // (file-on-file merge), and bulk-drag aware. Native HTML5 `draggable` is OFF on
-    // mobile — touchscreens don't fire it, and leaving it on made Android start its
+    // mobile: touchscreens don't fire it, and leaving it on made Android start its
     // own drag on long-press (the "cutout" ghost) AND broke Radix's long-press
     // cancellation so a second context menu opened. Mobile uses the touch gestures
     // below (move-drag out of select mode; range-select in it).
@@ -876,7 +876,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
     const [renameTarget, setRenameTarget] = useState<DecryptedFolder | null>(null);
     const [renameValue, setRenameValue] = useState("");
     const [deleteTarget, setDeleteTarget] = useState<DecryptedFolder | null>(null);
-    // "Get info" target — the folder whose details drawer is open.
+    // "Get info" target: the folder whose details drawer is open.
     const [detailsFolder, setDetailsFolder] = useState<DecryptedFolder | null>(null);
     const [shareFolder, setShareFolder] = useState<DecryptedFolder | null>(null);
     const [customizeTarget, setCustomizeTarget] = useState<{
@@ -1011,7 +1011,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
       }
       try {
         const trimmed = folderName.trim();
-        // Same dup-name guard as useFolders.createFolder — this path calls the API
+        // Same dup-name guard as useFolders.createFolder: this path calls the API
         // directly (it needs the new folder's id to move files in), so it must
         // check siblings itself. Names are E2E-encrypted; the server can't.
         if (folders.some((f) => f.name.trim().toLowerCase() === trimmed.toLowerCase())) {
@@ -1060,9 +1060,9 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
     // Empty / no-results both derive from the SAME final `entries` array the
     // listing renders (H2), so we can never land on an empty scroll area with no
     // message. When `entries` is empty we show exactly one of:
-    //   (a) "truly empty folder" — nothing exists at this level AND no filter/
+    //   (a) "truly empty folder", nothing exists at this level AND no filter/
     //       search is narrowing it, or
-    //   (b) "no results" — a search term or type-filter matched nothing.
+    //   (b) "no results": a search term or type-filter matched nothing.
     const hasFilter = search !== "" || typeFilter !== null;
     const isListingEmpty = !isLoading && entries.length === 0;
     const isNoResults = isListingEmpty && hasFilter;
@@ -1077,7 +1077,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
         : plural(folderCount + fileCount, "item", "items");
 
     // ExplorerRow and ExplorerCard share the exact same prop contract (list vs
-    // grid is purely a layout choice) — one map, dispatching on which renders.
+    // grid is purely a layout choice): one map, dispatching on which renders.
     const ExplorerItem = view === "list" ? ExplorerRow : ExplorerCard;
     const explorerItems = (
       <AnimatePresence initial={false}>
@@ -1150,7 +1150,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
         />
 
         {/* Type-filter chips (second line). Hidden in select mode for focus.
-          DESKTOP renders the chips exactly as before (bare — nothing when there's
+          DESKTOP renders the chips exactly as before (bare, nothing when there's
           ≤1 type). On MOBILE the chips get icon glyphs and stick under the search
           bar; New folder + Upload live in the floating "+" FAB (VaultFab). */}
         {!selectMode &&
@@ -1174,7 +1174,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
             />
           ))}
 
-        {/* Locked hint — non-blocking; listing still works. This is the single
+        {/* Locked hint, non-blocking; listing still works. This is the single
           contextual lock affordance in the listing (M6/L11 removed the noisy
           per-row glyphs; the header VaultLock pill owns the lock metaphor). */}
         {locked && (
@@ -1385,7 +1385,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
           </div>
         )}
 
-        {/* Count footer — uniform "N folders · M files", or "N items" when one
+        {/* Count footer: uniform "N folders · M files", or "N items" when one
           group is empty (H3-footer). */}
         {!isLoading && !error && entries.length > 0 && (
           <p className="px-1 text-xs tabular-nums text-[var(--color-text-secondary)]">
@@ -1476,7 +1476,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
           </DialogContent>
         </Dialog>
 
-        {/* Customize icon/color — shared by folders and files */}
+        {/* Customize icon/color: shared by folders and files */}
         <StylePickerDialog
           open={!!customizeTarget}
           onOpenChange={(o) => !o && setCustomizeTarget(null)}
@@ -1534,17 +1534,17 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
  *        so this exposes it without the explorer importing the dialog.
  *      - onUploadClick(): wired to the empty-folder EmptyState CTA (spec §2 lists
  *        onUploadClick in the prop shape; used here for the empty state).
- *    All extras are OPTIONAL — the integrator may omit them.
+ *    All extras are OPTIONAL: the integrator may omit them.
  * 2. Folder rows/cards show modified-date and a "Folder" type label; "N items"
  *    counts are not available from useFolders() (it only lists the current
- *    level), so the folder size/saved columns render "—" per the spec's
- *    "(or '—')" allowance rather than a child count.
+ *    level), so the folder size/saved columns render "-" per the spec's
+ *    "(or '-')" allowance rather than a child count.
  * 3. Pagination is intentionally dropped (spec §2) in favor of one scroll area
  *    (max-h + overflow-y-auto) rendering all items in the current folder.
  * 4. The single column-header row applies its sort to the FILES group only;
  *    folders always sort by name and render first (spec §2). When a type-filter
  *    chip is active, folders are hidden (a type filter is meaningless for them).
- * 5. The vault-unlock pill (<VaultLock />) is NOT rendered here — it belongs in
+ * 5. The vault-unlock pill (<VaultLock />) is NOT rendered here, it belongs in
  *    the PageHeader (spec §3 / §6). Folder create/rename still uses the local
  *    PassphraseModal unlock, exactly like folder-browser.tsx does today.
  */

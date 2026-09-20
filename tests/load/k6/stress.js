@@ -1,5 +1,5 @@
 /**
- * Stress test — ramps VUs to find the breaking point.
+ * Stress test: ramps VUs to find the breaking point.
  * Run this to find the maximum load your architecture handles
  * before errors exceed 1% or p95 latency exceeds 1s.
  *
@@ -36,7 +36,7 @@ export const options = {
     { duration: "2m", target: 0 },
   ],
   thresholds: {
-    // These are intentionally loose — stress test finds the breaking point
+    // These are intentionally loose: stress test finds the breaking point
     http_req_duration: ["p(99)<5000"],
     errors: ["rate<0.15"],
   },
@@ -62,11 +62,11 @@ export function setup() {
 export default function (data) {
   const token = data.token;
 
-  // Mixed workload — simulate real user behaviour
+  // Mixed workload, simulate real user behaviour
   const scenario = Math.random();
 
   if (scenario < 0.3) {
-    // 30% — auth
+    // 30%, auth
     const start = Date.now();
     const res = http.post(
       `${BASE_URL}/api/auth/login`,
@@ -77,7 +77,7 @@ export default function (data) {
     errors.add(res.status >= 500);
     check(res, { "auth ok": (r) => r.status < 400 || r.status === 401 });
   } else if (scenario < 0.6) {
-    // 30% — file list
+    // 30%, file list
     const start = Date.now();
     const res = http.get(`${BASE_URL}/api/files`, {
       headers: { Authorization: `Bearer ${token}`, ...publicHeaders() },
@@ -86,7 +86,7 @@ export default function (data) {
     errors.add(res.status >= 500);
     check(res, { "list ok": (r) => r.status === 200 || r.status === 401 });
   } else if (scenario < 0.85) {
-    // 25% — upload init
+    // 25%, upload init
     const start = Date.now();
     const res = http.post(
       `${BASE_URL}/api/upload/init`,
@@ -103,7 +103,7 @@ export default function (data) {
     errors.add(res.status >= 500);
     check(res, { "init ok": (r) => r.status < 500 });
   } else {
-    // 15% — quota check
+    // 15%, quota check
     const start = Date.now();
     const res = http.get(`${BASE_URL}/api/quota`, {
       headers: { Authorization: `Bearer ${token}`, ...publicHeaders() },

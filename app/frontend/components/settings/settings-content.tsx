@@ -61,7 +61,7 @@ import { PLATFORMS, platformName, parseTelegramToken } from "@/lib/platforms";
 
 /**
  * Desktop-only: mirror a freshly connected platform token into the OS keychain
- * so the Tauri core can route uploads byos-direct. Never runs outside Tauri —
+ * so the Tauri core can route uploads byos-direct. Never runs outside Tauri:
  * raw platform tokens must never be persisted in the browser. Best-effort.
  */
 async function storeDesktopPlatformCreds(
@@ -257,7 +257,7 @@ export function SettingsContent() {
   // Changing a token's scope is an instance-wide decision, not a per-user
   // toggle: Global routes every user's storage through this one account, and
   // demoting it strands other users' chunks in its repositories. It never
-  // happens on a bare click — the ConfirmDialog below spells out the effect.
+  // happens on a bare click: the ConfirmDialog below spells out the effect.
   const [scopeTarget, setScopeTarget] = useState<{
     tokenId: string;
     platform: string;
@@ -571,7 +571,7 @@ function AppearanceContent({
         />
       </SettingGroup>
 
-      {/* ThemePicker renders its own "Color theme" heading — don't double it. */}
+      {/* ThemePicker renders its own "Color theme" heading. Don't double it. */}
       <ThemePicker />
 
       <SettingGroup
@@ -669,8 +669,8 @@ function PlatformSection({
                       onClick={() => onToggleScope(acc)}
                       title={
                         acc.is_global
-                          ? "Global — shared with all users. Click to review and make local."
-                          : "Local — only you. Click to review and share with all users."
+                          ? "Global, shared with all users. Click to review and make local."
+                          : "Local, only you. Click to review and share with all users."
                       }
                       className={cn(
                         "inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40",

@@ -13,7 +13,7 @@ export function NavProgress() {
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
-    // Route changed — transition complete
+    // Route changed, transition complete
     setLoading(false);
     setProgress(0);
   }, [pathname]);

@@ -7,7 +7,7 @@ import { SITE_URL } from "@/lib/site";
 export const metadata: Metadata = {
   title: "Architecture | zcrypt Docs",
   description:
-    "How zcrypt fits together: a client-side compress-encrypt-chunk pipeline that runs in a Web Worker pool, a chunked HTTP API, streaming download-to-disk, durable disk staging plus a background sync worker, pluggable platform adapters, repo-pool auto-rotation, a PostgreSQL index, and end-to-end shared spaces — all behind a strict zero-knowledge boundary.",
+    "How zcrypt fits together: a client-side compress-encrypt-chunk pipeline that runs in a Web Worker pool, a chunked HTTP API, streaming download-to-disk, durable disk staging plus a background sync worker, pluggable platform adapters, repo-pool auto-rotation, a PostgreSQL index, and end-to-end shared spaces: all behind a strict zero-knowledge boundary.",
   alternates: { canonical: `${SITE_URL}/docs/architecture` },
   openGraph: {
     title: "Architecture | zcrypt Docs",
@@ -36,7 +36,7 @@ export default function ArchitectureDocPage() {
     <DocPage
       href="/docs/architecture"
       title="Architecture"
-      description="zcrypt is a thin, stateless server wrapped around a client-side encryption pipeline and your own storage accounts. Here is how the pieces connect — and why the server can never read your files."
+      description="zcrypt is a thin, stateless server wrapped around a client-side encryption pipeline and your own storage accounts. Here is how the pieces connect, and why the server can never read your files."
       toc={toc}
     >
       <DocSection id="overview" title="Overview">
@@ -130,7 +130,7 @@ export default function ArchitectureDocPage() {
 
       <DocSection id="api" title="Chunked HTTP API">
         <DocP>
-          The backend is plain Go standard-library <code>net/http</code> — no web framework. The
+          The backend is plain Go standard-library <code>net/http</code>, no web framework. The
           client opens an upload session, then sends each encrypted chunk as raw bytes with a
           SHA-256 header the server uses to verify integrity (never to decrypt). Where a platform
           supports it, the client can request a presigned URL and upload a chunk straight to the
@@ -138,7 +138,7 @@ export default function ArchitectureDocPage() {
           first, then chunks by index.
         </DocP>
         <DocP>
-          Because uploads are session-based and chunk-addressed, they are inherently resumable — the
+          Because uploads are session-based and chunk-addressed, they are inherently resumable, the
           client asks which chunks already landed and re-sends only the gaps.
         </DocP>
       </DocSection>
@@ -184,8 +184,8 @@ export default function ArchitectureDocPage() {
 
       <DocSection id="adapters" title="Platform adapters & repo pool">
         <DocP>
-          Each storage backend implements a common adapter interface — upload, download, delete,
-          create repo, list chunks, and report repo size — so the pipeline treats GitHub, GitLab,
+          Each storage backend implements a common adapter interface, upload, download, delete,
+          create repo, list chunks, and report repo size, so the pipeline treats GitHub, GitLab,
           Hugging Face, and Telegram uniformly. Optional capabilities layer on top: some adapters
           batch many chunk uploads into a single commit, and some support direct presigned uploads.
         </DocP>
@@ -214,7 +214,7 @@ export default function ArchitectureDocPage() {
           A PostgreSQL database, accessed through <code>pgx</code> with raw SQL (no ORM), is the
           index that ties everything together: users, folders and files, per-file salts and chunk
           references, encrypted platform tokens, shares, and more. Every record about a file is
-          metadata or ciphertext — the database holds no readable file contents and no passphrase.
+          metadata or ciphertext: the database holds no readable file contents and no passphrase.
           The schema is applied automatically on startup.
         </DocP>
       </DocSection>
@@ -251,7 +251,7 @@ export default function ArchitectureDocPage() {
         <DocList
           items={[
             <>
-              Your passphrase, and the key derived from it, never leave the client — they are never
+              Your passphrase, and the key derived from it, never leave the client. They are never
               sent, stored, or logged.
             </>,
             <>
@@ -260,14 +260,14 @@ export default function ArchitectureDocPage() {
             </>,
             <>
               Platform tokens are the one secret the server does hold, and they're encrypted at rest
-              with a per-user key derived from the instance <code>MASTER_KEY</code> via HKDF — so
-              the storage platform never sees plaintext, and the database never sees a usable token.
+              with a per-user key derived from the instance <code>MASTER_KEY</code> via HKDF, so the
+              storage platform never sees plaintext, and the database never sees a usable token.
             </>,
           ]}
         />
         <DocNote type="security" title="The trade-off">
-          Because the server has nothing to decrypt your files with, neither do we — and neither
-          does anyone who compromises the server. The flip side is that a forgotten passphrase is
+          Because the server has nothing to decrypt your files with, neither do we, and neither does
+          anyone who compromises the server. The flip side is that a forgotten passphrase is
           unrecoverable. See{" "}
           <Link
             href="/docs/zero-knowledge"
@@ -287,28 +287,28 @@ export default function ArchitectureDocPage() {
               href="/docs/how-it-works"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              How it works — a file's journey, step by step
+              How it works: a file's journey, step by step
             </Link>,
             <Link
               key="b"
               href="/docs/repo-pool"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Repo pool & rotation — how storage grows across repositories
+              Repo pool & rotation: how storage grows across repositories
             </Link>,
             <Link
               key="c"
               href="/docs/api"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              API reference — the endpoints behind the pipeline
+              API reference: the endpoints behind the pipeline
             </Link>,
             <Link
               key="d"
               href="/docs/self-hosting"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Self-hosting — run the whole stack yourself
+              Self-hosting. Run the whole stack yourself
             </Link>,
           ]}
         />

@@ -16,11 +16,11 @@ import { genId } from "@/lib/id";
 import { relaunchAfterPrior } from "@/lib/async/relaunch";
 
 // Files at/above this size stream to disk (a Save-As prompt) instead of being
-// assembled in memory — the only way to download something too big to hold in a
+// assembled in memory: the only way to download something too big to hold in a
 // browser tab. Smaller files keep the silent, no-prompt download.
 const STREAM_TO_DISK_MIN_BYTES = 1024 * 1024 * 1024; // 1 GB
 
-// showSaveFilePicker isn't in the default TS DOM lib — declare the bit we use.
+// showSaveFilePicker isn't in the default TS DOM lib: declare the bit we use.
 interface SaveFilePickerOptions {
   suggestedName?: string;
 }
@@ -77,7 +77,7 @@ function scheduleFlush() {
 }
 
 /** Set a terminal / paused status directly (bypassing the rAF throttle) AND
- *  purge any still-queued progress write for this id — otherwise a throttled
+ *  purge any still-queued progress write for this id: otherwise a throttled
  *  frame already scheduled from the last onProgress tick lands afterward and
  *  stomps the terminal status back to "downloading". */
 function setStatusNow(id: string, patch: Partial<DownloadItem> & { status: DownloadStatus }) {
@@ -130,7 +130,7 @@ interface SingleSession {
   runPromise?: Promise<void>;
 }
 const sessions = new Map<string, SingleSession>();
-// Ids the user has paused — the pipeline's `pausing()` reads this to preserve
+// Ids the user has paused: the pipeline's `pausing()` reads this to preserve
 // state (keep the disk writable open) instead of discarding on abort.
 const pausedIds = new Set<string>();
 
@@ -141,7 +141,7 @@ interface ZipSession {
   passphrase: string;
   resolvePassword?: DownloadPasswordResolver;
   abort: AbortController;
-  /** Present only for a desktop-originated session — lets retry re-invoke the
+  /** Present only for a desktop-originated session, lets retry re-invoke the
    *  core path instead of the browser one. */
   userId?: string;
 }
@@ -158,7 +158,7 @@ interface DownloadStore {
   ) => void;
   /** Desktop-only: download through the in-process Rust core. The core streams
    *  chunks straight to a native-picked path on disk (bounded memory) and pulls
-   *  byos-direct from the user's own storage when creds exist — unlike the
+   *  byos-direct from the user's own storage when creds exist: unlike the
    *  browser pipeline, which buffers the whole file in the webview (a multi-GB
    *  file there OOMs and freezes the app, since WKWebView has no
    *  showSaveFilePicker to stream with). */
@@ -172,8 +172,8 @@ interface DownloadStore {
   ) => void;
   /** Desktop-only: bulk ZIP through the in-process Rust core. Streams one file
    *  at a time into the archive (bounded by the single largest file, not the
-   *  sum of the whole batch), so — unlike the browser path, which holds every
-   *  file's full decrypted bytes in memory before zipping — there's no 2GB
+   *  sum of the whole batch), so: unlike the browser path, which holds every
+   *  file's full decrypted bytes in memory before zipping: there's no 2GB
    *  total-selection cap here. */
   startDesktopBulkZipDownload: (
     files: BulkDownloadFile[],
@@ -207,7 +207,7 @@ interface DownloadStore {
 }
 
 // A download that FAILED for a transient reason (network drop / suspended tab)
-// is safe to auto-resume; one that failed on a crypto/auth problem is NOT — it
+// is safe to auto-resume; one that failed on a crypto/auth problem is NOT, it
 // would just re-fail (and re-toast) on every tab focus. Unknown → assume
 // transient (network is the overwhelmingly common interruption cause).
 function isTransientDownloadFailure(error?: string): boolean {
@@ -233,7 +233,7 @@ function updateProgress(id: string, status: DownloadStatus, progress?: number, s
 }
 
 // Execute one run of a single-file download from its session. Shared by
-// start / resume / retry — each gives the session a fresh abort controller +
+// start / resume / retry: each gives the session a fresh abort controller +
 // run token, then interprets the outcome (done / paused / cancelled / failed).
 function runSingleDownload(id: string): Promise<void> {
   const session = sessions.get(id);
@@ -403,7 +403,7 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
     void (async () => {
       const { sidecarDownload, pickSaveLocation, subscribeProgress } = await import("@/lib/tauri");
 
-      // Native save dialog — MUST resolve to a path before the core can stream.
+      // Native save dialog. MUST resolve to a path before the core can stream.
       let savePath: string | null;
       try {
         savePath = await pickSaveLocation(filename);
@@ -416,7 +416,7 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
       }
 
       // Resolve the effective passphrase (folder password for a protected file,
-      // else the vault passphrase) up front — the core can't call back into JS.
+      // else the vault passphrase) up front: the core can't call back into JS.
       let effectivePass = passphrase;
       try {
         if (resolvePassword) effectivePass = await resolvePassword(fileId);
@@ -441,7 +441,7 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
         notifications.downloadComplete(filename);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        // A DNS/connect failure means we couldn't even reach zcrypt's servers —
+        // A DNS/connect failure means we couldn't even reach zcrypt's servers,
         // common on filtered/censored networks. Give the actionable hint (check
         // connection / try a VPN) instead of a raw reqwest dump.
         const isNetwork =
@@ -456,14 +456,14 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
         });
         if (isNetwork) {
           toast.error(
-            `Can't reach zcrypt's servers — check your internet, and if you're on a restricted or filtered network, connect a VPN and retry.`,
+            `Can't reach zcrypt's servers. Check your internet, and if you're on a restricted or filtered network, connect a VPN and retry.`,
           );
         } else if (recovered) {
           toast.error(`Wrong folder password for ${filename}. Retry to re-enter it.`);
         } else {
           toast.error(`Download failed: ${msg}`);
         }
-        notifications.downloadFailed(filename, isNetwork ? "Network/DNS — try a VPN" : msg);
+        notifications.downloadFailed(filename, isNetwork ? "Network/DNS: try a VPN" : msg);
       } finally {
         unlisten();
       }
@@ -568,7 +568,7 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
       }
 
       // Resolve the effective passphrase per file up front (folder password
-      // for a protected file, else the vault passphrase) — the core can't
+      // for a protected file, else the vault passphrase), the core can't
       // call back into JS mid-download the way the browser pipeline can.
       const resolve = resolvePassword ?? resolveFilePasswordGlobal;
       const filePassphrases = new Map<string, string>();
@@ -634,7 +634,7 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
         });
         if (isNetwork) {
           toast.error(
-            "Can't reach zcrypt's servers — check your internet, and if you're on a restricted or filtered network, connect a VPN and retry.",
+            "Can't reach zcrypt's servers. Check your internet, and if you're on a restricted or filtered network, connect a VPN and retry.",
           );
         } else if (recovered) {
           toast.error("Wrong folder password in this ZIP. Retry to re-enter it.");
@@ -649,7 +649,7 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
 
   // Pause a running single-file download: flag it, then abort the run's
   // in-flight fetches. The pipeline sees pausing()===true and throws
-  // DownloadPausedError instead of discarding — the disk writable stays open
+  // DownloadPausedError instead of discarding: the disk writable stays open
   // and the resume state (decrypted-so-far / high-water mark) is preserved.
   pauseDownload: (id) => {
     const item = get().queue.find((i) => i.id === id);
@@ -668,7 +668,7 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
   },
 
   // Resume a paused download: clear the flag, wait for the old run to fully
-  // settle (its aborted fetches reject promptly), then run again — the pipeline
+  // settle (its aborted fetches reject promptly), then run again, the pipeline
   // continues from the resume state on the same open disk writable.
   resumeDownload: (id, passphrase, resolvePassword) => {
     const session = sessions.get(id);
@@ -689,7 +689,7 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
 
   // Auto-resume single-file downloads that died mid-transfer (tab suspended /
   // network drop). Reuses each session's OWN stored passphrase + resume state
-  // (decrypted-so-far / disk high-water mark) — no re-prompt. Skips ZIP
+  // (decrypted-so-far / disk high-water mark), no re-prompt. Skips ZIP
   // downloads (no resume pipeline / session gone) and permanent crypto/auth
   // failures that would only re-fail. Idempotent: sets status to "downloading"
   // synchronously, so a second call skips anything already resuming.
@@ -698,8 +698,8 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
     const failed = get().queue.filter((i) => i.status === "failed");
     for (const item of failed) {
       const session = sessions.get(item.id);
-      if (!session) continue; // ZIP or discarded session — nothing to resume from
-      if (!isTransientDownloadFailure(item.error)) continue; // permanent — don't loop
+      if (!session) continue; // ZIP or discarded session, nothing to resume from
+      if (!isTransientDownloadFailure(item.error)) continue; // permanent. Don't loop
       pausedIds.delete(item.id);
       set((state) => ({
         queue: state.queue.map((i) =>
@@ -744,7 +744,7 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
     }
 
     // ZIP download (no resume pipeline): restart it fresh. A userId on the
-    // session means it was desktop-originated — re-invoke the core path, not
+    // session means it was desktop-originated: re-invoke the core path, not
     // the browser one.
     const zip = zipSessions.get(id);
     if (zip) {

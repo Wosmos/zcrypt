@@ -24,7 +24,7 @@ export interface FileMetadata {
   style?: CustomStyle | null;
 }
 
-/** A nested folder. `encrypted_name` is the AES-GCM-encrypted (base64) name —
+/** A nested folder. `encrypted_name` is the AES-GCM-encrypted (base64) name:
  *  decrypted client-side with the vault passphrase, never on the server. */
 export interface Folder {
   id: string;
@@ -96,10 +96,10 @@ export interface UploadItem {
   startedAt: number;
   bytesProcessed?: number;
   totalBytes?: number;
-  /** Smoothed transfer rate in bytes/sec (EMA) — drives the speed + ETA display. */
+  /** Smoothed transfer rate in bytes/sec (EMA): drives the speed + ETA display. */
   rateBps?: number;
   error?: string;
-  /** Core-driven desktop (Tauri) item — bytes never enter the webview and the
+  /** Core-driven desktop (Tauri) item: bytes never enter the webview and the
    *  Rust core has no pause, so the pause control is hidden for these. */
   desktop?: boolean;
 }
@@ -212,7 +212,7 @@ export interface ShareLink {
 /**
  * Common head of every public-link info response (share / send / pad / folder
  * share): whether the link resolved and, if not, why. Each concrete type keeps
- * its own distinct tail — this base is extracted ONLY to share those two fields,
+ * its own distinct tail: this base is extracted ONLY to share those two fields,
  * NOT to collapse them into one type.
  */
 export interface PublicResourceInfo {
@@ -245,7 +245,7 @@ export interface SendInitResponse {
 }
 
 export interface SendInfo extends PublicResourceInfo {
-  file_name: string; // may be sealed (enc1:) — opened client-side with the link key
+  file_name: string; // may be sealed (enc1:): opened client-side with the link key
   salt?: string;
   file_size: number;
   burn_after_read: boolean;
@@ -433,7 +433,7 @@ export interface SharedVaultFile {
    *  members can display a real name instead of a UUID. Empty for legacy shares. */
   wrapped_name?: string;
   /** Owner's plaintext file name/size, joined server-side. Empty for
-   *  zero-knowledge files — prefer decrypting `wrapped_name`. */
+   *  zero-knowledge files: prefer decrypting `wrapped_name`. */
   name?: string;
   size?: number;
   added_at: string;

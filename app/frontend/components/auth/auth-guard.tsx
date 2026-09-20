@@ -76,7 +76,7 @@ export function AuthGuard({
           runOnboardingCheck();
           return;
         } catch {
-          // token might be expired — try refresh
+          // token might be expired, try refresh
         }
       }
 
@@ -94,7 +94,7 @@ export function AuthGuard({
         } catch (err) {
           // Only a DEFINITIVE rejection (refresh token invalid/expired) should
           // log out. A transient failure on load (offline, 5xx, timeout) must
-          // NOT nuke a valid session — keep the tokens and let authedFetch
+          // NOT nuke a valid session. Keep the tokens and let authedFetch
           // refresh on the next real request. Mirrors the auth-fetch.ts fix.
           const status = (err as { status?: number })?.status;
           if (status !== 401 && status !== 403) {

@@ -7,9 +7,9 @@ import { useInViewOnce } from "@/hooks/useInViewOnce";
  * the first time it scrolls into view.
  *
  * Variants:
- * - "ink"       — tapered filled underline, like a gel-pen stroke
- * - "highlight" — wide semi-transparent band with wavy edges
- * - "circle"    — loose oval around the word (low-opacity fill + visible stroke)
+ * - "ink"      : tapered filled underline, like a gel-pen stroke
+ * - "highlight": wide semi-transparent band with wavy edges
+ * - "circle"   : loose oval around the word (low-opacity fill + visible stroke)
  */
 
 function InkBleedFilter() {
@@ -115,7 +115,7 @@ function PencilUnderline({
     );
   }
 
-  // Default: ink — tapered filled gel-pen stroke
+  // Default: ink, tapered filled gel-pen stroke
   return (
     <span
       className={`absolute left-[-2%] right-[-2%] ${className ?? ""}`}

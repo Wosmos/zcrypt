@@ -38,7 +38,7 @@ export const apps: AppsPageData = {
       <>
         The same zero-knowledge core, wherever you work: a web app in any browser, a native desktop
         app for macOS, Windows and Linux, an Android app you sideload in a minute, and a
-        single-binary terminal app that runs over SSH. The encryption never changes — only the
+        single-binary terminal app that runs over SSH. The encryption never changes, only the
         interface does.
       </>
     ),
@@ -54,7 +54,7 @@ export const apps: AppsPageData = {
       The web app runs the pipeline in Web Workers; desktop and Android run {desktopEngine.name},
       the in-process {desktopEngine.language} engine; the terminal app runs the same pipeline in Go.
       Every surface compresses, encrypts with AES-256-GCM, chunks, and uploads entirely on your
-      device. Pick a surface for the workflow, not for the security — it&apos;s the same vault and
+      device. Pick a surface for the workflow, not for the security: it&apos;s the same vault and
       the same guarantees on all four.
     </>
   ),
@@ -62,14 +62,14 @@ export const apps: AppsPageData = {
   surfacesSection: {
     heading: "Pick where you work",
     subheading:
-      "Four front ends over one encrypted backend. Use whichever fits the moment — or all four.",
+      "Four front ends over one encrypted backend. Use whichever fits the moment, or all four.",
   },
   surfaces: [
     {
       Icon: Globe,
       name: "Web app",
       tagline: "Any browser, nothing to install",
-      desc: "The full vault in any modern browser. Encryption runs in the page itself, so your files are sealed before they leave the tab — no extension, no download.",
+      desc: "The full vault in any modern browser. Encryption runs in the page itself, so your files are sealed before they leave the tab, no extension, no download.",
       points: [
         "Works on any OS",
         "Drag-and-drop uploads",
@@ -97,7 +97,7 @@ export const apps: AppsPageData = {
       Icon: Smartphone,
       name: "Android app",
       tagline: "Sideload the APK in a minute",
-      desc: `Your vault on your phone, running the same ${desktopEngine.name} ${desktopEngine.language} engine as desktop. Not on the Play Store yet — grab the APK, enable install, and you're in. No wait, no gatekeeper.`,
+      desc: `Your vault on your phone, running the same ${desktopEngine.name} ${desktopEngine.language} engine as desktop. Not on the Play Store yet: grab the APK, enable install, and you're in. No wait, no gatekeeper.`,
       points: [
         "Same Rust engine as desktop",
         "Installs in about a minute",
@@ -112,7 +112,7 @@ export const apps: AppsPageData = {
       Icon: Terminal,
       name: "Terminal app (TUI)",
       tagline: "One binary, works over SSH",
-      desc: "A single-binary terminal app written in Go. No runtime, no browser — just one small executable that runs anywhere you have a shell, including headless servers over SSH.",
+      desc: "A single-binary terminal app written in Go. No runtime, no browser: just one small executable that runs anywhere you have a shell, including headless servers over SSH.",
       points: ["Single binary", "Zero dependencies", "Runs over SSH", "Scriptable & fast"],
       href: "/tui",
       cta: "Explore the TUI",
@@ -121,15 +121,15 @@ export const apps: AppsPageData = {
 
   comparisonSection: {
     heading: "Which one when?",
-    subheading: "A quick way to choose. There's no wrong answer — they all open the same vault.",
+    subheading: "A quick way to choose. There's no wrong answer: they all open the same vault.",
     footnote:
-      "One account, one encrypted vault — switch surfaces any time without re-uploading a thing.",
+      "One account, one encrypted vault: switch surfaces any time without re-uploading a thing.",
   },
   comparison: [
     {
       surface: "Web app",
       bestFor: "Quick access from any machine",
-      install: "Nothing — open a browser",
+      install: "Nothing. Open a browser",
       runsOn: "Any OS with a modern browser",
     },
     {

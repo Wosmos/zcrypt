@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Passphrase & key management | zcrypt Docs",
     description:
-      "The two secrets in zcrypt — your vault passphrase and your account password — plus the X25519 sharing keypair derived from your passphrase, and exactly how each is handled, hardened, and revoked.",
+      "The two secrets in zcrypt (your vault passphrase and your account password) plus the X25519 sharing keypair derived from your passphrase, and exactly how each is handled, hardened, and revoked.",
     url: `${SITE_URL}/docs/key-management`,
   },
 };
@@ -52,11 +52,11 @@ export default function KeyManagementPage() {
           rows={[
             ["Purpose", "Derives your encryption keys", "Authenticates login"],
             ["Reaches the server?", "Never", "Verified, then only a hash is stored"],
-            ["Stored anywhere?", "No — device memory only", "As a bcrypt hash"],
+            ["Stored anywhere?", "No: device memory only", "As a bcrypt hash"],
             ["If forgotten", "Data is unrecoverable", "Reset via email"],
           ]}
         />
-        <DocNote type="info" title="They can be the same string — but they are not the same secret">
+        <DocNote type="info" title="They can be the same string, but they are not the same secret">
           Even if you choose to type the same value for both, they travel different paths: the
           passphrase is consumed locally by key derivation, while the password is checked
           server-side. One unlocks cryptography; the other unlocks an account session.
@@ -77,7 +77,7 @@ export default function KeyManagementPage() {
           items={[
             <>
               It is <strong>never transmitted</strong> to the server and{" "}
-              <strong>never stored</strong> — not even hashed.
+              <strong>never stored</strong>, not even hashed.
             </>,
             <>
               It lives only in your device&apos;s memory while the vault is unlocked, and is
@@ -93,7 +93,7 @@ export default function KeyManagementPage() {
         <DocNote type="warning" title="There is no passphrase reset">
           Recovery would require the server to hold a copy of your key, which would defeat
           zero-knowledge. If you lose your passphrase, your encrypted data cannot be recovered by
-          anyone — including us. This is the deliberate cost of the guarantee.
+          anyone, including us. This is the deliberate cost of the guarantee.
         </DocNote>
       </DocSection>
 
@@ -101,7 +101,7 @@ export default function KeyManagementPage() {
         <DocP>
           To share with another zcrypt user without ever handing a usable key to the server, every
           account is bootstrapped with its own <strong>X25519 keypair</strong>. It is not a third
-          secret for you to remember — it rides on your passphrase, the same way your file keys do.
+          secret for you to remember: it rides on your passphrase, the same way your file keys do.
           The keypair is generated on your device the first time an unlocked session needs it.
         </DocP>
         <DocList
@@ -109,7 +109,7 @@ export default function KeyManagementPage() {
             <>
               <strong>The public key is published</strong> to a small registry the server keeps in
               the clear, alongside a short fingerprint, so other members can wrap a shared key{" "}
-              <em>to</em> you. It reveals nothing sensitive — that is what public keys are for.
+              <em>to</em> you. It reveals nothing sensitive. That is what public keys are for.
             </>,
             <>
               <strong>The private key never leaves your device in the clear.</strong> It is wrapped
@@ -127,15 +127,15 @@ export default function KeyManagementPage() {
           Because your private key is decrypted into the browser while you are unlocked, a
           cross-site-scripting bug becomes the threat that matters most. As defense-in-depth against
           it, the web app serves a strict <strong>Content-Security-Policy</strong> in production. It
-          is currently deployed in <strong>Report-Only</strong> mode — it reports policy violations
-          without blocking anything — and is built to flip to full enforcement once a clean window
+          is currently deployed in <strong>Report-Only</strong> mode, it reports policy violations
+          without blocking anything, and is built to flip to full enforcement once a clean window
           confirms it breaks nothing legitimate.
         </DocP>
         <DocNote type="security" title="Fingerprints defend against a swapped key">
           Because the registry is served by us, a dishonest server could in principle hand a
           collaborator the wrong public key and interpose itself. Each key carries a short SHA-256
           fingerprint you can compare out of band (in person, over a call) to catch exactly that.
-          The sealing mechanics — an ephemeral-ECDH ECIES sealed-box — are in the{" "}
+          The sealing mechanics (an ephemeral-ECDH ECIES sealed-box) are in the{" "}
           <Link href="/docs/security" className="text-cyan-600 hover:underline dark:text-cyan-400">
             encryption model
           </Link>
@@ -143,8 +143,8 @@ export default function KeyManagementPage() {
         </DocNote>
         <DocNote type="warning" title="It shares the passphrase's fate">
           Since the private key is wrapped under your passphrase, losing the passphrase means it can
-          no longer be unwrapped either — consistent with the rest of zero-knowledge: nothing
-          derived from your passphrase is recoverable without it.
+          no longer be unwrapped either: consistent with the rest of zero-knowledge: nothing derived
+          from your passphrase is recoverable without it.
         </DocNote>
       </DocSection>
 
@@ -161,7 +161,7 @@ export default function KeyManagementPage() {
             At registration, your chosen password is checked against the HaveIBeenPwned database
             using <strong>k-anonymity</strong>: only the first five characters of its SHA-1 hash are
             sent, never the password itself. If it appears in known breaches, you get a warning with
-            the count. This <strong>warns rather than blocks</strong>, and it <em>fails open</em> —
+            the count. This <strong>warns rather than blocks</strong>, and it <em>fails open</em>,
             if the breach service is unreachable, signup is not held up.
           </DocP>
         </DocSubsection>
@@ -169,7 +169,7 @@ export default function KeyManagementPage() {
           <DocP>
             You can enable time-based one-time passwords (TOTP, RFC 6238) with any standard
             authenticator app. Once enabled, login issues only a short-lived intermediate token
-            until the correct code is supplied — the full session token is never minted on password
+            until the correct code is supplied: the full session token is never minted on password
             alone.
           </DocP>
         </DocSubsection>
@@ -199,7 +199,7 @@ export default function KeyManagementPage() {
             </>,
             <>
               <strong>Refresh tokens are stored hashed.</strong> Only a SHA-256 hash of each refresh
-              token is kept, and the issuing IP address and user-agent are recorded — a change of IP
+              token is kept, and the issuing IP address and user-agent are recorded, a change of IP
               is flagged in the logs.
             </>,
           ]}
@@ -209,14 +209,14 @@ export default function KeyManagementPage() {
       <DocSection id="revocation" title="Revocation & recovery">
         <DocP>
           Every account carries a <strong>token version</strong> embedded in its access tokens.
-          Bumping that version instantly invalidates every outstanding token for the account — a
+          Bumping that version instantly invalidates every outstanding token for the account, a
           single switch to sign out all sessions everywhere, used on password change and on demand.
         </DocP>
         <DocList
           items={[
             <>
               <strong>Account recovery</strong> (forgotten <em>password</em>) goes through an
-              emailed, single-use reset token — the hash of which is what we store, never the token
+              emailed, single-use reset token: the hash of which is what we store, never the token
               itself.
             </>,
             <>
@@ -231,8 +231,8 @@ export default function KeyManagementPage() {
         />
         <DocNote type="security" title="Login does not unlock your vault">
           Authenticating proves who you are to the service; it does not hand the server your keys.
-          After login you still supply your passphrase locally to decrypt — which is why even a
-          fully compromised account session cannot read your files without it.
+          After login you still supply your passphrase locally to decrypt: which is why even a fully
+          compromised account session cannot read your files without it.
         </DocNote>
       </DocSection>
 
@@ -244,28 +244,28 @@ export default function KeyManagementPage() {
               href="/docs/folder-encryption"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Per-folder encryption — add a second password to a sensitive folder
+              Per-folder encryption. Add a second password to a sensitive folder
             </Link>,
             <Link
               key="d"
               href="/docs/shared-vaults"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Shared vaults — how your keypair seals a space key to collaborators
+              Shared vaults: how your keypair seals a space key to collaborators
             </Link>,
             <Link
               key="b"
               href="/docs/threat-model"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Threat model — where a weak passphrase or compromised device leaves you
+              Threat model: where a weak passphrase or compromised device leaves you
             </Link>,
             <Link
               key="c"
               href="/docs/zero-knowledge"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Zero-knowledge architecture — what the server stores about your account
+              Zero-knowledge architecture: what the server stores about your account
             </Link>,
           ]}
         />

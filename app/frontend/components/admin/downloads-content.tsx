@@ -48,7 +48,7 @@ const PLATFORM_LABELS: Record<string, string> = {
  * There is intentionally no control here to cut a release: tagging is a git
  * operation, and doing it from the admin panel would mean a GitHub write token
  * living beside MASTER_KEY while bypassing the pre-push gates every tag goes
- * through today. This answers the questions the product otherwise cannot —
+ * through today. This answers the questions the product otherwise cannot:
  * which installers exist, and why the desktop updater is or isn't working.
  */
 function ReleaseCard({ release }: { release: ReleaseInfo }) {
@@ -82,7 +82,7 @@ function ReleaseCard({ release }: { release: ReleaseInfo }) {
         )}
       >
         {release.updater_manifest ? (
-          <>Updater manifest published — desktop builds can find this release.</>
+          <>Updater manifest published: desktop builds can find this release.</>
         ) : (
           <>
             No <span className="font-mono">latest.json</span> on {release.tag}, so installed desktop
@@ -123,8 +123,8 @@ function ReleaseCard({ release }: { release: ReleaseInfo }) {
       </div>
 
       <p className="mt-4 border-t border-[var(--color-border)] pt-3 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
-        Releases are cut from the terminal — <span className="font-mono">git tag vX.Y.Z</span> then{" "}
-        <span className="font-mono">git push origin vX.Y.Z</span> — so every one passes the pre-push
+        Releases are cut from the terminal: <span className="font-mono">git tag vX.Y.Z</span> then{" "}
+        <span className="font-mono">git push origin vX.Y.Z</span>, so every one passes the pre-push
         gates. Android sideloads roll separately on{" "}
         <span className="font-mono">{release.android_tag || "android-latest"}</span>.
       </p>
@@ -132,7 +132,7 @@ function ReleaseCard({ release }: { release: ReleaseInfo }) {
   );
 }
 
-/** A labelled horizontal bar list — used for every breakdown on this page. */
+/** A labelled horizontal bar list: used for every breakdown on this page. */
 function Breakdown({
   title,
   rows,
@@ -205,7 +205,7 @@ export function DownloadsContent() {
 
   const { stats, github, release } = data;
   // GitHub counts everyone, including people who went straight to the releases
-  // page and never touched our redirect — so it is the larger, and truer, total.
+  // page and never touched our redirect, so it is the larger, and truer, total.
   const githubTotal = github.reduce((sum, a) => sum + a.count, 0);
 
   return (
@@ -299,12 +299,12 @@ export function DownloadsContent() {
         <Breakdown
           title="Country"
           rows={stats.countries}
-          empty="No country data — the CDN header is absent in local dev."
+          empty="No country data: the CDN header is absent in local dev."
         />
         <Breakdown
           title="Referrer"
           rows={stats.referrers}
-          empty="No referrers — direct links and bookmarks send none."
+          empty="No referrers: direct links and bookmarks send none."
         />
         <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
           <h3 className="mb-1 text-sm font-semibold text-[var(--color-text)]">Counted by GitHub</h3>

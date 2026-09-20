@@ -18,7 +18,7 @@ import {
 } from "./chart-theme";
 import type { FileMetadata } from "@/types";
 
-/** Cumulative vault size over time — how your encrypted library grew. */
+/** Cumulative vault size over time: how your encrypted library grew. */
 export function StorageGrowth({ files }: { files: FileMetadata[] }) {
   const data = useMemo(() => {
     if (files.length === 0) return [];

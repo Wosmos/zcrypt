@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 import { SITE_DOMAIN } from "@/lib/site";
 
 export const OG_SIZE = { width: 1200, height: 630 };
-export const OG_ALT = "zcrypt — Private Encrypted Cloud Storage";
+export const OG_ALT = "zcrypt. Private Encrypted Cloud Storage";
 
 // The opengraph and twitter cards are identical except for spacing polish that
 // exists only on the opengraph variant (gap:0 on the brand row + letterSpacing
@@ -56,7 +56,7 @@ export function renderBrandOgCard(opts: { variant?: "opengraph" | "twitter" } = 
         }}
       />
 
-      {/* Logo icon — two overlapping planes */}
+      {/* Logo icon, two overlapping planes */}
       <div
         style={{
           display: "flex",

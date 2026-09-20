@@ -5,7 +5,7 @@ import { useTheme } from "@/components/providers/theme-provider";
 import { cn } from "@/lib/utils";
 
 /**
- * Light/dark toggle. The button itself reads as the mode — sun and moon
+ * Light/dark toggle. The button itself reads as the mode: sun and moon
  * crossfade with a rotate/scale swap; the page flip itself is instant.
  */
 export function ThemeToggle({ className }: { className?: string }) {
@@ -23,14 +23,14 @@ export function ThemeToggle({ className }: { className?: string }) {
         className,
       )}
     >
-      {/* Sun — shown in dark mode (the action: go light) */}
+      {/* Sun: shown in dark mode (the action: go light) */}
       <Sun
         className={cn(
           "absolute h-4 w-4 transition-all duration-300 ease-out motion-reduce:transition-none",
           isDark ? "rotate-0 scale-100 opacity-100" : "-rotate-90 scale-0 opacity-0",
         )}
       />
-      {/* Moon — shown in light mode (the action: go dark) */}
+      {/* Moon: shown in light mode (the action: go dark) */}
       <Moon
         className={cn(
           "absolute h-4 w-4 transition-all duration-300 ease-out motion-reduce:transition-none",

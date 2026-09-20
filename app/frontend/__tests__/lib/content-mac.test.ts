@@ -9,7 +9,7 @@ import {
 
 // Per-user keyed content MAC (confirmation-of-file defeat). The invariant that
 // matters for correctness: the MAC computed at UPLOAD time equals the MAC the
-// DOWNLOAD path recomputes by feeding the same plaintext in chunks — otherwise a
+// DOWNLOAD path recomputes by feeding the same plaintext in chunks, otherwise a
 // new (hmac_v1) file would fail its integrity check and be un-downloadable.
 
 const randBytes = (n: number, seed: number) => {

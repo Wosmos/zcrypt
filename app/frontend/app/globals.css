@@ -2,7 +2,7 @@
 @import "tw-animate-css";
 
 /* Class-based dark mode. v4 defaults to prefers-color-scheme; this restores the
-   v3 `.dark` class strategy the app relies on — 547 `dark:` utilities plus the
+   v3 `.dark` class strategy the app relies on: 547 `dark:` utilities plus the
    `.dark { --color-* }` variable overrides below. */
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -14,10 +14,10 @@
 
 /* ── Design tokens (CSS-first; replaces the old tailwind.config.js) ─────────── */
 @theme {
-  /* Custom mobile breakpoint — sm through 2xl match the v4 defaults. */
+  /* Custom mobile breakpoint: sm through 2xl match the v4 defaults. */
   --breakpoint-xs: 480px;
 
-  /* Design-system corner scale — one consistent, generously-rounded ramp used
+  /* Design-system corner scale: one consistent, generously-rounded ramp used
      for every corner in the app (cards, menus, modals, inputs, buttons …).
      Paired with the global squircle so corners read as smooth superellipses,
      not hard arcs. Bare `--radius` keeps the v3 `rounded` (10px) working. */
@@ -85,7 +85,7 @@
   --color-card-foreground: var(--color-text);
 }
 
-/* CSS `corner-shape` (CSS Borders & Box Decorations L4 — Chrome 139+).
+/* CSS `corner-shape` (CSS Borders & Box Decorations L4. Chrome 139+).
    Progressive enhancement: it only affects corners that already have a
    `border-radius`, so always pair these with a `rounded-*` utility. Browsers
    without support simply ignore it. (Was a JS plugin in the v3 config;
@@ -113,7 +113,7 @@
    The Android shell draws edge-to-edge under the status and gesture bars, so
    anything pinned to a screen edge needs the matching inset or the system
    chrome sits on top of it. `viewport-fit=cover` (app/layout.tsx) is what makes
-   env() resolve to real values — without it these are all 0.
+   env() resolve to real values, without it these are all 0.
 
    These existed only as hand-written calc(env(...)) strings scattered across
    eight components, with the fallback drifting between 0px and 8px. One
@@ -126,7 +126,7 @@
 
    Each utility reads a --safe-* variable that defaults to the real env()
    value. That indirection exists so the insets can be faked from devtools on a
-   desktop browser — env() always resolves to 0 there, so without it a notch
+   desktop browser: env() always resolves to 0 there, so without it a notch
    could only be tested on a device. Set --safe-top/bottom/left/right on :root
    to preview any phone's insets at phone width. Nothing sets them in
    production.
@@ -134,7 +134,7 @@
    --android-safe-* is the second source, pushed in from Kotlin by the Android
    shell (app/desktop/src-tauri/android/MainActivity.kt). Android's WebView only
    forwards insets into env() from a recent enough WebView build, and WebView
-   updates through Play independently of the OS — so on an out-of-date phone
+   updates through Play independently of the OS, so on an out-of-date phone
    env() reports 0px for all four and the UI runs under the notch. max() takes
    whichever source has a real value; where both do they agree, and on desktop
    and iOS the --android-safe-* vars are simply never defined, so env() wins. */
@@ -176,12 +176,12 @@
     --color-accent: #0093a3;
     --color-accent-hover: #00a8ba;
     --color-on-accent: #04181b;
-    /* Avatar orb (default theme) — overridden per color theme via the
+    /* Avatar orb (default theme): overridden per color theme via the
        derivation block; kept here so the signature look is the fallback. */
     --avatar-gradient: linear-gradient(135deg, #00b8cc 0%, #0077a8 48%, #5b21b6 100%);
     --avatar-shadow: 0 0 0 2px rgba(0, 184, 204, 0.25), 0 2px 8px rgba(91, 33, 182, 0.2);
     --avatar-shadow-open: 0 0 0 2.5px rgba(0, 184, 204, 0.5), 0 4px 14px rgba(91, 33, 182, 0.3);
-    /* Primary button (default theme: navy in light) — themed via the
+    /* Primary button (default theme: navy in light), themed via the
        derivation block so CTAs carry each theme's accent. */
     --btn-primary-bg: #1a1f36;
     --btn-primary-bg-hover: #252b45;
@@ -204,13 +204,13 @@
     --color-sidebar-text: #8f95b2;
     --color-sidebar-text-active: #ffffff;
     --color-sidebar-border: #252b45;
-    /* Toast semantic colours — darker -600 shades so the icon + drain bar clear
+    /* Toast semantic colours: darker -600 shades so the icon + drain bar clear
        the WCAG 3:1 graphical-contrast bar on a near-white surface. (info uses
        --color-accent, which is already light-tuned.) */
     --toast-success: #059669;
     --toast-error: #e11d48;
     --toast-warning: #d97706;
-    /* CircuitBackground (marketing/auth/onboarding) — CSS-driven so the SVG
+    /* CircuitBackground (marketing/auth/onboarding). CSS-driven so the SVG
        never re-renders on a theme flip. */
     --circuit-trace: rgba(0, 147, 163, 0.15);
     --circuit-pulse: rgba(0, 147, 163, 0.4);
@@ -243,7 +243,7 @@
     --color-sidebar-text: #5c6184;
     --color-sidebar-text-active: #e0e4f0;
     --color-sidebar-border: #1a1f38;
-    /* Toast semantic colours — bright -400 shades (the reference values), which
+    /* Toast semantic colours: bright -400 shades (the reference values), which
        read at ~10:1 on the deep dark surface. */
     --toast-success: #34d399;
     --toast-error: #fb7185;
@@ -271,7 +271,7 @@
   @media (pointer: coarse) {
     html,
     body {
-      /* Stops the document itself rubber-banding under the app shell — the
+      /* Stops the document itself rubber-banding under the app shell, the
          glow made fixed UI look detached when scrolled past its bounds. The
          inner <main> already sets overscroll-contain for its own scroller. */
       overscroll-behavior: none;
@@ -366,7 +366,7 @@
   }
 
   /* Same liquid-glass family as .nav-glass, tuned more opaque so menu text
-     stays readable — for the dropdown / mobile sheet (mega menus). Vertical
+     stays readable: for the dropdown / mobile sheet (mega menus). Vertical
      surface gradient + cyan radial sheen + frosted backdrop + cyan glow. */
   .nav-glass-panel {
     background:
@@ -434,7 +434,7 @@
   }
 }
 
-/* Toast countdown drain — the thin bar under each toast, scales from full to
+/* Toast countdown drain: the thin bar under each toast, scales from full to
    empty over its lifetime. Cosmetic; dismissal is driven by the store timer. */
 @keyframes toast-drain {
   from {
@@ -458,7 +458,7 @@
 }
 
 .animate-shimmer {
-  /* A tight diagonal glint sweeping over a calm surface-1 base — reads as a
+  /* A tight diagonal glint sweeping over a calm surface-1 base, reads as a
      moving light rather than a pulsing block. surface-2 peak keeps it subtle. */
   background: linear-gradient(
     100deg,
@@ -484,7 +484,7 @@
   animation: progress-shimmer 1.8s ease-in-out infinite;
 }
 
-/* Moving sheen swept across an active transfer's filled progress bar — the
+/* Moving sheen swept across an active transfer's filled progress bar, the
    Microsoft-style "it's actively moving" cue that reads as faster even at the
    same throughput. Rendered as a translucent highlight that travels left→right
    over the fill and repeats. */
@@ -501,7 +501,7 @@
 }
 
 /* Direction cue on an active transfer's icon: an upload arrow drifts up, a
-   download arrow drifts down — an at-a-glance "which way is this going". */
+   download arrow drifts down: an at-a-glance "which way is this going". */
 @keyframes nudge-up {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-2.5px); }
@@ -591,7 +591,7 @@
   animation-direction: var(--dir, normal);
 }
 
-/* Theme toggle is an instant flip — deliberately no whole-page animation.
+/* Theme toggle is an instant flip, deliberately no whole-page animation.
    A color crossfade looked broken (only color/bg faded while borders, shadows
    and icons snapped), and a View Transitions circular reveal hitched on every
    toggle: the API paints the whole page twice into snapshots, which this
@@ -691,13 +691,13 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   Authenticated app shell — redesigned, light-first paneled UI.
+   Authenticated app shell, redesigned, light-first paneled UI.
    All overrides are scoped to .app-shell so the marketing & auth pages
    (which share globals.css) are completely untouched.
    ═══════════════════════════════════════════════════════════════════════ */
 @layer base {
   /* Light theme: neutral gray canvas + crisp white panels (high contrast so
-     panels read as floating cards — the reference look). Scoped to
+     panels read as floating cards, the reference look). Scoped to
      html[data-app] (set by the app shell on mount) so the tokens reach both
      the shell AND portaled overlays (dropdowns/dialogs/popovers render in
      <body>, outside .app-shell). Marketing/auth pages never set data-app. */
@@ -740,7 +740,7 @@
    vs dark, so one derivation serves both modes.
 
    Scoping: every selector requires BOTH `[data-app]` (set on <html> by the
-   app shell on mount — see AppScope) and `[data-theme]` (set by ThemeProvider
+   app shell on mount. See AppScope) and `[data-theme]` (set by ThemeProvider
    from the per-device preference). data-app gates marketing/auth pages out
    (they never set it), while putting the tokens on <html> lets portaled
    overlays in <body> inherit them. The DEFAULT theme sets no data-theme, so
@@ -1114,7 +1114,7 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   Global squircle corners — one knob for the whole app.
+   Global squircle corners: one knob for the whole app.
    `--squircle-shape` controls the corner style of every rounded element
    (cards, dropdowns, modals, popovers, toasts, buttons, inputs …). It applies
    globally (incl. portaled overlays in <body>, which sit outside .app-shell).
@@ -1122,7 +1122,7 @@
    `corner-shape` is a NO-OP on elements without a border-radius, so we apply
    it to `*` rather than only `rounded-*` classes. That's deliberate: the most
    prominent surfaces (.panel, .card) get their radius from `@apply`/CSS, not a
-   `rounded-*` class, so a class-substring selector would skip them — which is
+   `rounded-*` class, so a class-substring selector would skip them, which is
    the whole reason cards looked un-squircled. Progressive enhancement:
    browsers without `corner-shape` render the normal rounded radius.
 
@@ -1163,8 +1163,8 @@
   }
 }
 
-/* No fallback clip on non-Chromium browsers. The obvious approach — an SVG
-   clipPath with clipPathUnits="objectBoundingBox" — is a trap: a normalized
+/* No fallback clip on non-Chromium browsers. The obvious approach, an SVG
+   clipPath with clipPathUnits="objectBoundingBox": is a trap: a normalized
    superellipse stretches to each element's aspect ratio, so wide cards/toolbars
    turn into grossly distorted lozenges, and clip-path additionally clips away
    box-shadows and borders (cards look flat and wrong). A fixed-radius squircle
@@ -1175,7 +1175,7 @@
 /* iOS Safari zooms into any focused field whose font-size is < 16px. Force
    >=16px on touch devices so tapping an input never triggers that jarring
    auto-zoom (Android is unaffected). We deliberately do NOT set maximum-scale
-   on the viewport — that would disable pinch-zoom and hurt accessibility. */
+   on the viewport. That would disable pinch-zoom and hurt accessibility. */
 @media (pointer: coarse) {
   input:not([type="checkbox"]):not([type="radio"]),
   textarea,

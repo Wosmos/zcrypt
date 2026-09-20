@@ -194,7 +194,7 @@ describe("shareFileIntoSpace", () => {
     expect(vaultId).toBe("v");
     expect(fileId).toBe("file-1");
 
-    // The envelope the server stores must unwrap — with the SPACE key — back to
+    // The envelope the server stores must unwrap (with the SPACE key) back to
     // the exact same CEK. That's what lets other members decrypt the file.
     const recovered = await unwrapKey(buf(spaceKey), fromBase64(spaceWrapped));
     expect(recovered).toEqual(cek);
@@ -480,7 +480,7 @@ describe("decryptSpaceFileName", () => {
   it("returns null when the sealed name fails to unwrap under the space key", async () => {
     const spaceKey = generateSpaceKey();
     useSpacesStore.getState().setSpaceKey("v", spaceKey);
-    // Sealed under a DIFFERENT key — the real space key can't open it.
+    // Sealed under a DIFFERENT key: the real space key can't open it.
     const wrongKey = generateSpaceKey();
     const wrappedUnderWrongKey = toBase64(
       await wrapKey(buf(wrongKey), new TextEncoder().encode("name.txt"))

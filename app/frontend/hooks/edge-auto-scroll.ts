@@ -5,7 +5,7 @@
  * top or bottom of a scroller, this nudges the scroller each frame and re-runs
  * the gesture's hit-test so fresh content slides under the stationary finger.
  *
- * Shared by useTouchRangeSelect and useTouchDragMove — they differ only in the
+ * Shared by useTouchRangeSelect and useTouchDragMove: they differ only in the
  * active guard, the scroller lookup, the tracked point, and the post-scroll
  * callback, all injected via `opts`. The factory owns its own rAF handle.
  */
@@ -14,7 +14,7 @@ const EDGE_ZONE = 72; // px from the scroller edge that auto-scrolls
 const EDGE_SPEED = 14; // px per frame while in the edge zone
 
 export interface EdgeAutoScroll {
-  /** Begin the rAF loop (idempotent — a no-op if already running). */
+  /** Begin the rAF loop (idempotent: a no-op if already running). */
   start(): void;
   /** Cancel the rAF loop if running. */
   stop(): void;

@@ -18,7 +18,7 @@ import type { DecryptOutput } from "@/workers/crypto-worker";
 import type { FileMetadata } from "@/types";
 
 /**
- * ── useFileDecryptor — PUBLIC INTERFACE ──────────────────────────────────────
+ * ── useFileDecryptor: PUBLIC INTERFACE ──────────────────────────────────────
  *
  *   const { decryptToBlob, prefetch } = useFileDecryptor(folderProtection);
  *   const blob = await decryptToBlob(file);   // typed MIME, ready for a viewer
@@ -26,10 +26,10 @@ import type { FileMetadata } from "@/types";
  *
  * `decryptToBlob(file: FileMetadata, onProgress?): Promise<Blob>`
  *   Faithfully replays the decrypt pipeline entirely in the browser (zero-
- *   knowledge — no plaintext or passphrase ever leaves the page or is logged):
+ *   knowledge: no plaintext or passphrase ever leaves the page or is logged):
  *     1. password = await folderProtection.passwordForFile(file)
  *        (vault pass for unprotected files; cached/prompted+verified folder pass
- *        for protected-folder files — routes through the existing unlock flow).
+ *        for protected-folder files: routes through the existing unlock flow).
  *     2. meta  = getFileMeta(file.id)
  *     3. key   = resolveFileKey(password, fromBase64(meta.salt), meta.wrapped_cek),
  *        routed through cachedResolveCEK (lib/decrypt-cache) so a file whose key
@@ -37,14 +37,14 @@ import type { FileMetadata } from "@/types";
  *        lookup, not a repeat unwrap.
  *     4. chunks: N parallel fetchers (device profile's download concurrency)
  *        pull getFileChunk, each fanning out to a WorkerPool whose 'decrypt'
- *        mode does AES-GCM + zstd-decompress off the main thread — mirroring
+ *        mode does AES-GCM + zstd-decompress off the main thread: mirroring
  *        lib/download-session.ts. `onProgress(done, total)` fires per chunk.
  *     5. concat → content hash must equal meta.sha256 (else integrity error);
  *        keyed HMAC for 'hmac_v1' files, plain SHA-256 for legacy ones
  *     6. new Blob([full], { type: <mime derived from extension> })
  *   The decrypted blob is cached in memory (see lib/decrypt-cache) keyed by
  *   file id, so re-opening / navigating back to a file is instant. The whole
- *   pipeline — including the password prompt — is skipped on a cache hit, and
+ *   pipeline (including the password prompt) is skipped on a cache hit, and
  *   concurrent callers for the same file are de-duplicated (onProgress does not
  *   fire on a cache hit or when joining another caller's in-flight decrypt).
  *
@@ -52,10 +52,10 @@ import type { FileMetadata } from "@/types";
  *   Best-effort, fire-and-forget cache warm-up used to decrypt a viewer's
  *   neighbours ahead of time. It NEVER prompts: it resolves a password only if
  *   one is already available (vault unlocked / folder unlocked) and otherwise
- *   silently does nothing. Errors are swallowed — prefetch is purely an
+ *   silently does nothing. Errors are swallowed: prefetch is purely an
  *   optimisation.
  *
- * Errors from `decryptToBlob` (so callers — e.g. <FileViewer> — can react):
+ * Errors from `decryptToBlob` (so callers (e.g. <FileViewer>) can react):
  *   - `WrongPasswordError`  → a wrong vault/folder password. Carries `folderId`
  *     (null for the vault). The caller may clear the cache + re-prompt + retry.
  *   - `IntegrityError`      → content-hash mismatch (corruption / tampering).
@@ -174,7 +174,7 @@ const MIME_BY_EXT: Record<string, string> = {
 export function mimeForFilename(filename: string): string {
   const ext = extOf(filename);
   // Prefer the local table, then the shared media table (broad audio/video
-  // coverage — mpeg/wma/mkv/etc.), then octet-stream.
+  // coverage, mpeg/wma/mkv/etc.), then octet-stream.
   return MIME_BY_EXT[ext] ?? mediaMimeFor(filename) ?? "application/octet-stream";
 }
 
@@ -208,7 +208,7 @@ export async function runDecryptPipeline(
   password: string,
   onProgress?: (done: number, total: number) => void,
 ): Promise<Blob> {
-  // Desktop: decrypt natively in the in-process Rust core — byos-direct bytes,
+  // Desktop: decrypt natively in the in-process Rust core, byos-direct bytes,
   // native crypto speed, and the same DNS/relay-fallback resilience as download.
   // Any failure (core not connected yet, oversized, network) falls through to
   // the in-browser pipeline below, which stays the zero-knowledge web path and
@@ -249,7 +249,7 @@ export async function runDecryptPipeline(
   const salt = fromBase64(meta.salt);
   // Warm CEK cache: the unwrap itself is cheap, but this file's key may already
   // be resolved (a thumbnail peek, a neighbour prefetch, a previous viewer open)
-  // — skip straight to a map lookup instead of paying another unwrap + Web
+  //: skip straight to a map lookup instead of paying another unwrap + Web
   // Crypto round trip. Cleared on the same lock/TTL/logout/folder-relock events
   // as the plaintext blob cache (see lib/decrypt-cache).
   const keyBytes = await cachedResolveCEK(file.id, file.folder_id ?? null, () =>
@@ -260,7 +260,7 @@ export async function runDecryptPipeline(
   // surfaces as an AES-GCM auth failure on the first chunk. Verify against
   // chunk 0 on the MAIN thread before fanning out, so a wrong password still
   // throws the same DOMException("OperationError") the sequential pipeline
-  // threw — a worker's async decrypt rejection never reaches its 'error' event,
+  // threw: a worker's async decrypt rejection never reaches its 'error' event,
   // which would leave the pool (and the viewer) waiting forever instead of
   // re-prompting. Envelope files already fail fast inside resolveFileKey.
   let chunk0: { data: ArrayBuffer; compressed: boolean } | null = null;
@@ -292,7 +292,7 @@ export async function runDecryptPipeline(
           compressed,
         });
       } catch {
-        throw new Error("Decryption failed — wrong passphrase?");
+        throw new Error("Decryption failed, wrong passphrase?");
       }
 
       decrypted[index] = new Uint8Array(out.plaintext);
@@ -322,13 +322,13 @@ export async function runDecryptPipeline(
 
   const full = concatChunks(decrypted);
 
-  // Integrity check — scheme-aware, mirroring lib/download-session.ts. 'hmac_v1'
+  // Integrity check, scheme-aware, mirroring lib/download-session.ts. 'hmac_v1'
   // files store a per-user KEYED MAC, NOT a plain SHA-256, so hashing with
   // sha256Hex would never match meta.sha256 (that was the "file may be corrupted"
   // bug in the in-app viewer). The viewer runs on the owner/folder path, which
   // holds the passphrase (`password`) + user id, so recompute the MAC and verify
   // for real. Legacy 'plain'/undefined files keep the SHA-256 compare. If the
-  // signed-in user id is unavailable we can't recompute the MAC — skip the
+  // signed-in user id is unavailable we can't recompute the MAC, skip the
   // file-level compare and rely on the per-chunk AES-GCM auth tags (which already
   // threw above on any tampered chunk), exactly as the download/share paths do.
   if (meta.sha256_scheme === "hmac_v1") {
@@ -353,7 +353,7 @@ export async function runDecryptPipeline(
 /**
  * Module-level, NON-prompting cache warm-up, usable outside React (e.g. grid
  * hover). It resolves a password only if one is already available (vault /
- * folder unlocked) and otherwise silently does nothing; errors are swallowed —
+ * folder unlocked) and otherwise silently does nothing; errors are swallowed:
  * prefetch is purely an optimisation. Deduped via the decrypt cache.
  */
 export function prefetchFileDecrypt(file: FileMetadata): void {
@@ -365,19 +365,19 @@ export function prefetchFileDecrypt(file: FileMetadata): void {
         runDecryptPipeline(file, password),
       );
     } catch {
-      // Locked / unavailable / network — prefetch is an optimisation, ignore.
+      // Locked / unavailable / network: prefetch is an optimisation, ignore.
     }
   })();
 }
 
 /** Hover sweeps many rows in a second, so cap what a stray pointer crossing can
- *  start pulling — a huge video prefetch would starve a deliberate open. */
+ *  start pulling: a huge video prefetch would starve a deliberate open. */
 const HOVER_PREFETCH_MAX_BYTES = 50 * 1024 * 1024;
 
 /**
- * Hover-driven prefetch for the explorer's rows/cards. Desktop only — guarded
+ * Hover-driven prefetch for the explorer's rows/cards. Desktop only, guarded
  * by `(hover: hover)` so touch devices (where pointerenter fires on tap) never
- * kick off decrypts — and only for files a viewer can actually preview, capped
+ * kick off decrypts: and only for files a viewer can actually preview, capped
  * by size. Non-prompting + deduped via prefetchFileDecrypt.
  */
 export function prefetchOnHover(file: FileMetadata): void {
@@ -403,14 +403,14 @@ export function useFileDecryptor(folderProtection: UseFolderProtection): UseFile
         // Concurrent callers for the same id share one decrypt.
         return await cachedDecrypt(file.id, file.folder_id ?? null, async () => {
           // Resolve the right password (vault, or folder pass for a protected
-          // folder — prompting/verifying through the existing unlock flow). Can
+          // folder: prompting/verifying through the existing unlock flow). Can
           // reject with FolderUnlockCancelled if the user cancels.
           const password = await folderProtection.passwordForFile(file);
           return runDecryptPipeline(file, password, onProgress);
         });
       } catch (err) {
         if (err instanceof IntegrityError) throw err;
-        // A cancelled unlock prompt is a clean no-op — let it propagate.
+        // A cancelled unlock prompt is a clean no-op, let it propagate.
         if (err instanceof FolderUnlockCancelled) throw err;
         if (looksLikeWrongKey(err)) {
           const fid = file.folder_id ?? null;
@@ -424,7 +424,7 @@ export function useFileDecryptor(folderProtection: UseFolderProtection): UseFile
     [folderProtection],
   );
 
-  // Best-effort and NON-prompting — see prefetchFileDecrypt above. Prefetch
+  // Best-effort and NON-prompting. See prefetchFileDecrypt above. Prefetch
   // must never pop an unlock modal for a neighbour.
   const prefetch = useCallback((file: FileMetadata): void => {
     prefetchFileDecrypt(file);

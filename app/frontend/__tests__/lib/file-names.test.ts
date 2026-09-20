@@ -59,7 +59,7 @@ describe("decryptFileNames (zero-knowledge name dual-read)", () => {
     getPassphrase.mockReturnValue(null); // would fail to derive a key if it tried
     const list = [file({ id: "1", original_name: "a", encrypted_name: "" })];
     const out = await decryptFileNames(list);
-    expect(out).toBe(list); // same reference — no work done
+    expect(out).toBe(list); // same reference, no work done
   });
 
   it("re-seals each legacy name once while unlocked, without changing what's displayed", async () => {

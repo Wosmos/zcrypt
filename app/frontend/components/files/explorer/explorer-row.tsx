@@ -150,12 +150,12 @@ function FolderRow({
       <span className="hidden w-[110px] flex-shrink-0 text-sm text-[var(--color-text-secondary)] sm:block">
         Folder
       </span>
-      {/* Size / saved / modified columns are "—" for folders */}
+      {/* Size / saved / modified columns are "-" for folders */}
       <span className="hidden w-[80px] flex-shrink-0 text-right text-sm tabular-nums text-[var(--color-text-secondary)] sm:block">
-        —
+        -
       </span>
       <span className="hidden w-[64px] flex-shrink-0 text-right text-sm tabular-nums text-[var(--color-text-secondary)] md:block">
-        —
+        -
       </span>
       <span className="hidden w-[110px] flex-shrink-0 text-right text-sm text-[var(--color-text-secondary)] sm:block">
         {formatDate(folder.created_at)}
@@ -208,7 +208,7 @@ function FolderRow({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      {/* Navigation affordance — visible at ALL widths so a folder reads as
+      {/* Navigation affordance: visible at ALL widths so a folder reads as
           tappable/openable even on mobile (H1). */}
       <ChevronRight className="h-4 w-4 flex-shrink-0 text-[var(--color-text-secondary)]" />
     </div>
@@ -231,7 +231,7 @@ function FileRow({
   drag,
 }: FileItemProps) {
   // Defensive fallback: use the already-decrypted original_name when present,
-  // else re-decrypt encrypted_name directly (see useExplorerFileName) — so a
+  // else re-decrypt encrypted_name directly (see useExplorerFileName), so a
   // folder's contents never fall back to the raw file id while a real name is
   // decryptable.
   const displayName = useExplorerFileName(file);
@@ -288,7 +288,7 @@ function FileRow({
           )}
         >
           {thumbnailUrl ? (
-            // Decrypted thumbnail (data: URI / blob object URL) — unoptimized via
+            // Decrypted thumbnail (data: URI / blob object URL), unoptimized via
             // next.config (see zero-knowledge note there). `fill` matches the
             // fixed 36×36 box.
             <NextImage src={thumbnailUrl} alt="" fill sizes="36px" className="object-cover" />
@@ -300,12 +300,12 @@ function FileRow({
           )}
         </div>
         {/* Hard-failed thumbnail (chunk data permanently unrecoverable) gets a
-            small warning badge — reads distinctly from an ordinary file that
+            small warning badge: reads distinctly from an ordinary file that
             simply has no preview. */}
         {unavailable && !thumbnailUrl && (
           <span
             className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[var(--color-surface)] text-amber-500 shadow-sm"
-            title="Preview unavailable — the original file data could not be retrieved"
+            title="Preview unavailable: the original file data could not be retrieved"
             aria-hidden="true"
           >
             <AlertTriangle className="h-2.5 w-2.5" strokeWidth={2.25} />
@@ -398,7 +398,7 @@ function ExplorerRowImpl(props: ExplorerItemProps) {
 
 /**
  * Memoized so a parent (vault-explorer) re-render doesn't re-render every row in
- * the `.map()` — only rows whose entry / selection / focus / drag-visual state
+ * the `.map()`: only rows whose entry / selection / focus / drag-visual state
  * actually changed. See `explorerItemPropsEqual` for why callback identity is
  * intentionally excluded from the comparison.
  */

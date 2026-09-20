@@ -61,7 +61,7 @@ export function FileCard({
   const [copied, setCopied] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Thumbnail from persistent cache (IndexedDB) — no passphrase needed here
+  // Thumbnail from persistent cache (IndexedDB), no passphrase needed here
   const { thumbnailUrl, loading: thumbLoading } = useThumbnail(file.id, file.original_name);
 
   const wasCompressed = file.compressed_size < file.original_size;
@@ -127,7 +127,7 @@ export function FileCard({
       <div className="flex-shrink-0">
         {thumbnailUrl ? (
           <div className="relative h-10 w-10 rounded-lg overflow-hidden bg-[var(--color-surface-1)]">
-            {/* Decrypted thumbnail (data:/blob:) — unoptimized via next.config. */}
+            {/* Decrypted thumbnail (data:/blob:), unoptimized via next.config. */}
             <NextImage src={thumbnailUrl} alt="" fill sizes="40px" className="object-cover" />
           </div>
         ) : (
@@ -316,7 +316,7 @@ export function FileCard({
           !thumbnailUrl && `bg-gradient-to-b ${typeInfo.gradient}`,
         )}
       >
-        {/* Image thumbnail — decrypted data:/blob:, unoptimized via next.config. */}
+        {/* Image thumbnail: decrypted data:/blob:, unoptimized via next.config. */}
         {thumbnailUrl ? (
           <NextImage
             src={thumbnailUrl}

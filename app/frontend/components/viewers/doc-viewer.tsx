@@ -10,7 +10,7 @@ import { ViewerLoading, ViewerError } from "./viewer-states";
  * DOCX viewer: mammoth.convertToHtml on the decrypted blob's ArrayBuffer →
  * DOMPurify.sanitize → rendered in a styled, scrollable reading pane. Both libs
  * are lazy-imported. The HTML is never executed (it's injected as sanitized
- * markup into a div, not an iframe — mammoth output is structural, no scripts).
+ * markup into a div, not an iframe: mammoth output is structural, no scripts).
  */
 export function DocViewer({ blob, onDownload }: { blob: Blob; onDownload: () => void }) {
   const decode = useCallback(async (b: Blob) => {

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Neon rotation — move the whole DB to a FRESH free project, fully automated
+# Neon rotation: move the whole DB to a FRESH free project, fully automated
 # end to end: create -> dump -> restore -> verify -> ANALYZE -> cutover
 # (Railway DATABASE_URL flip + redeploy + health-gate, via neon-cutover.sh) ->
 # record the new active project in docs/neon-manifest.json.
@@ -8,21 +8,21 @@
 # The free-tier carousel (docs/DB_SCALING_100_PROJECTS.md): one project active
 # at a time; when it nears its 100 CU-hour monthly quota, rotate to a fresh
 # project (fresh 100 CU-hours). Old projects go dormant, refill next month,
-# and can be reused. Triggered automatically by neon-watch.yml at 85% quota —
+# and can be reused. Triggered automatically by neon-watch.yml at 85% quota,
 # never wait for 100%, because a LOCKED project cannot be pg_dump'd.
 #
 # Cutover safety: dump/restore/verify is READ-ONLY on the old project. Only
 # neon-cutover.sh (called in step 6) touches production traffic, and it
-# health-gates + auto-rolls-back on failure — see that script's own header.
+# health-gates + auto-rolls-back on failure. See that script's own header.
 # The old project is NEVER deleted by this script; it is the rollback anchor
-# for >= 7 days (housekeeping — renaming/reclaiming it — stays a human task).
+# for >= 7 days (housekeeping (renaming/reclaiming it) stays a human task).
 #
 # Prereqs: neonctl (npm i -g neonctl); pg_dump/pg_restore/psql; jq; git (with
-#          push access — the workflow needs `permissions: contents: write`).
+#          push access: the workflow needs `permissions: contents: write`).
 #
 # Required env:
 #   NEON_API_KEY          Neon API key (also authenticates neonctl)
-#   NEON_ORG_ID           the Neon org id `projects create` runs under — recent
+#   NEON_ORG_ID           the Neon org id `projects create` runs under, recent
 #                         neonctl versions reject project creation without it
 #                         ("org_id is required"); find it at console.neon.tech
 #                         → an existing project → Settings → General, or
@@ -37,7 +37,7 @@
 #   NEW_PROJECT_NAME      name for the fresh project (default: zcrypt-<epoch>)
 #   NEON_REGION           region id (default: aws-us-east-1)
 #   NTFY_TOPIC            phone alert on any abort (also used by neon-cutover.sh)
-#   GIT_COMMIT_MANIFEST   default "1" — set "0" to skip the manifest commit
+#   GIT_COMMIT_MANIFEST   default "1". Set "0" to skip the manifest commit
 #                         (e.g. for a dry run against a scratch project)
 #
 set -euo pipefail
@@ -67,7 +67,7 @@ alert() {
 echo "==> 0a/6  Resolving the currently active project…"
 OLD_PROJECT_ID="$(jq -r '.active_project_id // empty' "$MANIFEST" 2>/dev/null || true)"
 if [[ -z "$OLD_PROJECT_ID" ]]; then
-  : "${NEON_PROJECT_ID:?No active_project_id in ${MANIFEST} yet (bootstrap) — set NEON_PROJECT_ID.}"
+  : "${NEON_PROJECT_ID:?No active_project_id in ${MANIFEST} yet (bootstrap). Set NEON_PROJECT_ID.}"
   OLD_PROJECT_ID="$NEON_PROJECT_ID"
   echo "    bootstrap: using NEON_PROJECT_ID (${OLD_PROJECT_ID})"
 else
@@ -75,7 +75,7 @@ else
 fi
 
 if [[ -n "${OLD_DATABASE_URL:-}" ]]; then
-  echo "    OLD_DATABASE_URL override supplied — skipping API resolution (manual/test mode)."
+  echo "    OLD_DATABASE_URL override supplied: skipping API resolution (manual/test mode)."
   OLD_POOLED_URL=""
 else
   OLD_DATABASE_URL="$(neonctl connection-string --project-id "$OLD_PROJECT_ID" --output json 2>/dev/null | jq -r '.uri' 2>/dev/null || true)"
@@ -87,7 +87,7 @@ fi
 
 echo "==> 0b/6  Pre-flight: confirm the OLD project is still reachable (not already locked)…"
 if ! psql "$OLD_DATABASE_URL" -tAc "select 1" >/dev/null 2>&1; then
-  alert "ABORT: cannot connect to the active Neon project (${OLD_PROJECT_ID}). If it is quota-locked, pg_dump is impossible — there is no rotation path until the monthly reset. (This is exactly why we rotate at 85%, not 100%.)"
+  alert "ABORT: cannot connect to the active Neon project (${OLD_PROJECT_ID}). If it is quota-locked, pg_dump is impossible. There is no rotation path until the monthly reset. (This is exactly why we rotate at 85%, not 100%.)"
   exit 1
 fi
 
@@ -114,7 +114,7 @@ for tbl in users files chunks folders; do
   [[ "$old_n" == "$new_n" ]] || ok=0
 done
 if [[ "$ok" -ne 1 ]]; then
-  alert "ABORT: rotation row-count verification failed (old vs new mismatch). New project ${NEW_PROJECT_ID} was NOT cut over — old project is untouched. Inspect the new project manually, then delete it and retry."
+  alert "ABORT: rotation row-count verification failed (old vs new mismatch). New project ${NEW_PROJECT_ID} was NOT cut over, old project is untouched. Inspect the new project manually, then delete it and retry."
   exit 1
 fi
 
@@ -139,7 +139,7 @@ write_manifest() {
     git config user.name "zcrypt-neon-bot"
     git config user.email "actions@users.noreply.github.com"
     git add "$MANIFEST"
-    git commit -m "chore(neon): rotation — ${note}" -q
+    git commit -m "chore(neon): rotation, ${note}" -q
     git push -q
   fi
 }
@@ -154,9 +154,9 @@ set -e
 echo "==> 6/6  Recording the outcome in ${MANIFEST}…"
 case "$cutover_rc" in
   0)
-    write_manifest "$NEW_PROJECT_ID" "$OLD_PROJECT_ID" "cutover succeeded — active=${NEW_PROJECT_ID}, old project parked as standby (dormant, quota refills next month)"
+    write_manifest "$NEW_PROJECT_ID" "$OLD_PROJECT_ID" "cutover succeeded: active=${NEW_PROJECT_ID}, old project parked as standby (dormant, quota refills next month)"
     echo "==> Rotation complete. Active project is now ${NEW_PROJECT_ID}."
-    # Success is quiet by design (no urgent alert) — but silent auto-rotation
+    # Success is quiet by design (no urgent alert), but silent auto-rotation
     # of production is exactly the kind of thing you want to know happened.
     if [[ -n "${NTFY_TOPIC:-}" ]]; then
       curl -fsS -H "Title: zcrypt DB auto-rotated" -H "Priority: default" -H "Tags: white_check_mark" \
@@ -165,15 +165,15 @@ case "$cutover_rc" in
     fi
     ;;
   1)
-    write_manifest "$OLD_PROJECT_ID" "$NEW_PROJECT_ID" "cutover FAILED health gate and rolled back — active remains ${OLD_PROJECT_ID}; ${NEW_PROJECT_ID} kept as a pre-verified standby for a quick manual retry"
-    alert "Rotation dump/restore succeeded but cutover rolled back — still on the OLD project (${OLD_PROJECT_ID}), which is still quota-limited. A verified standby (${NEW_PROJECT_ID}) is ready — investigate the cutover failure (see Action logs), then retry cutover manually."
+    write_manifest "$OLD_PROJECT_ID" "$NEW_PROJECT_ID" "cutover FAILED health gate and rolled back: active remains ${OLD_PROJECT_ID}; ${NEW_PROJECT_ID} kept as a pre-verified standby for a quick manual retry"
+    alert "Rotation dump/restore succeeded but cutover rolled back: still on the OLD project (${OLD_PROJECT_ID}), which is still quota-limited. A verified standby (${NEW_PROJECT_ID}) is ready: investigate the cutover failure (see Action logs), then retry cutover manually."
     exit 1
     ;;
   *)
-    # cutover_rc == 2: rollback itself failed too. State is uncertain — don't
+    # cutover_rc == 2: rollback itself failed too. State is uncertain. Don't
     # guess which project Railway is actually pointing at; record the incident
     # without touching active_project_id.
-    write_manifest "$OLD_PROJECT_ID" "$NEW_PROJECT_ID" "CUTOVER DOUBLE FAILURE — rollback also failed its health gate; active_project_id left unchanged in the manifest but Railway's real state is UNVERIFIED — manual intervention required"
+    write_manifest "$OLD_PROJECT_ID" "$NEW_PROJECT_ID" "CUTOVER DOUBLE FAILURE: rollback also failed its health gate; active_project_id left unchanged in the manifest but Railway's real state is UNVERIFIED, manual intervention required"
     exit 2
     ;;
 esac

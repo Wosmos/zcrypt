@@ -19,8 +19,8 @@ import type { FileMetadata } from "@/types";
 /**
  * Thrown when the user cancels/closes the folder-unlock modal (FIX-2). Callers
  * that awaited `passwordForFile` / `withFolderPassword` catch this to treat the
- * outcome as a clean "user cancelled" — revert any optimistic state, stop the
- * spinner — rather than surfacing a scary error. Never carries a password.
+ * outcome as a clean "user cancelled": revert any optimistic state, stop the
+ * spinner: rather than surfacing a scary error. Never carries a password.
  */
 export class FolderUnlockCancelled extends Error {
   constructor() {
@@ -30,7 +30,7 @@ export class FolderUnlockCancelled extends Error {
 }
 
 /**
- * useFolderProtection — the ONE owner of per-folder-password UX + crypto routing
+ * useFolderProtection: the ONE owner of per-folder-password UX + crypto routing
  * for the Vault page (spec §3 "UI / integration").
  *
  * Mirrors `useVaultLock` but per folder: it owns a single folder-unlock modal
@@ -54,7 +54,7 @@ export class FolderUnlockCancelled extends Error {
 
 export interface FolderUnlockModalState {
   open: boolean;
-  /** Folder being unlocked (id only — the name is shown for context). */
+  /** Folder being unlocked (id only: the name is shown for context). */
   folderId: string | null;
   folderName: string;
   error: string | null;
@@ -81,7 +81,7 @@ export interface UseFolderProtection {
   /**
    * Synchronous, NON-prompting resolver for thumbnails. Returns the vault pass
    * for unprotected files, the cached folder pass for an unlocked protected
-   * folder, or null (skip — never prompt) for a locked protected folder.
+   * folder, or null (skip: never prompt) for a locked protected folder.
    */
   thumbnailPasswordResolver: (fileId: string, fileById: Map<string, FileMetadata>) => string | null;
   /** True iff a file lives in a folder known to be password-protected. */
@@ -89,7 +89,7 @@ export interface UseFolderProtection {
   /**
    * Open a protected folder: verify its password, cache it, then run `action`.
    * If the user cancels/closes the unlock modal, `onCancel` runs (FIX-2) so the
-   * caller can stop a spinner / revert state — no stuck UI.
+   * caller can stop a spinner / revert state: no stuck UI.
    */
   withFolderPassword: (
     folderId: string,
@@ -161,7 +161,7 @@ export function useFolderProtection(vault: UseVaultLock): UseFolderProtection {
   );
 
   // Internal only (not part of the returned API), and both call sites always
-  // supply an onReject — so it's required rather than optional-with-a-no-op
+  // supply an onReject, so it's required rather than optional-with-a-no-op
   // default: a cancel must always reach somebody, never be silently dropped.
   const openModal = useCallback(
     (
@@ -184,7 +184,7 @@ export function useFolderProtection(vault: UseVaultLock): UseFolderProtection {
       if (!folderId) return;
       const info = registryGet(folderId);
       if (!info || info.pwSalt == null || info.pwVerifier == null) {
-        // Should not happen — only protected folders reach this modal.
+        // Should not happen: only protected folders reach this modal.
         setError("This folder is not password-protected.");
         return;
       }
@@ -254,7 +254,7 @@ export function useFolderProtection(vault: UseVaultLock): UseFolderProtection {
         // Unprotected: use the vault passphrase (vault must be unlocked).
         // `withPassphrase` resolves synchronously when unlocked, else after the
         // user confirms the vault modal; if they cancel, the promise stays
-        // pending — acceptable (the action simply never runs), mirroring the
+        // pending: acceptable (the action simply never runs), mirroring the
         // existing vault flow which also no-ops on cancel.
         return new Promise((resolve) => {
           vault.withPassphrase((pp) => resolve(pp));
@@ -293,7 +293,7 @@ export function useFolderProtection(vault: UseVaultLock): UseFolderProtection {
       const info = fid ? registryGet(fid) : null;
       const protectedFolder = !!fid && info != null && info.pwSalt != null;
       if (!protectedFolder) {
-        // Read the cached vault passphrase directly (no prompt) — caller only
+        // Read the cached vault passphrase directly (no prompt), caller only
         // batch-loads thumbnails while the vault is unlocked.
         return readVaultPassphrase();
       }
@@ -308,7 +308,7 @@ export function useFolderProtection(vault: UseVaultLock): UseFolderProtection {
     async (fileId: string, sourcePassword: string, destPassword: string): Promise<void> => {
       const meta = await getFileMeta(fileId);
       const salt = fromBase64(meta.salt);
-      // Recover the EXISTING CEK under the source password (never regenerate it —
+      // Recover the EXISTING CEK under the source password (never regenerate it:
       // the file's chunks must stay decryptable). Throws on wrong source password.
       const cekBuf = await resolveFileKey(sourcePassword, salt, meta.wrapped_cek);
       const cek = new Uint8Array(cekBuf);
@@ -316,7 +316,7 @@ export function useFolderProtection(vault: UseVaultLock): UseFolderProtection {
       const newSalt = generateSalt();
       const { salt: saltB64, wrapped_cek } = await rewrapFileKey(cek, destPassword, newSalt);
       // Persist only after the rewrap is proven (the new wrapped_cek decrypts the
-      // recovered CEK by construction) — the server never sees keys.
+      // recovered CEK by construction): the server never sees keys.
       await rekeyFile(fileId, saltB64, wrapped_cek);
     },
     [],
@@ -343,7 +343,7 @@ export function useFolderProtection(vault: UseVaultLock): UseFolderProtection {
       // folder password BEFORE persisting protection. Each rekeyFile only ever
       // persists a proven-decryptable wrapped_cek (no data loss), but a partial
       // failure would leave SOME files folder-keyed while the folder is still
-      // unprotected — so on failure we roll the re-keyed files BACK to the vault
+      // unprotected, so on failure we roll the re-keyed files BACK to the vault
       // pass, restoring a fully-consistent unprotected state before re-throwing.
       const total = filesInFolder.length;
       const rekeyed: string[] = [];
@@ -370,7 +370,7 @@ export function useFolderProtection(vault: UseVaultLock): UseFolderProtection {
 
       // Persist the protection record (opaque salt + verifier). If THIS fails
       // (FIX-5) the files are already folder-keyed but the server still shows the
-      // folder unprotected — roll the sweep back to the vault pass so the folder
+      // folder unprotected: roll the sweep back to the vault pass so the folder
       // + its files end fully consistent (unprotected) before re-throwing.
       try {
         await setFolderPassword(fid, pwSalt, verifier);
@@ -430,7 +430,7 @@ export function useFolderProtection(vault: UseVaultLock): UseFolderProtection {
       }
 
       // Remove the protection record. If THIS fails (FIX-5) the files are already
-      // vault-keyed but the server still shows the folder protected — roll the
+      // vault-keyed but the server still shows the folder protected, roll the
       // sweep back to the folder password so the still-protected folder + its
       // files end fully consistent before re-throwing.
       try {
@@ -491,14 +491,14 @@ export class FolderPasswordRequired extends Error {
 
 /**
  * Standalone, NON-prompting, folder-aware password resolver for a single file
- * (FIX-4). Reads only the global singleton stores — the file list (to find the
+ * (FIX-4). Reads only the global singleton stores: the file list (to find the
  * file's folder), the folder registry (protection metadata), the folder-password
- * cache, and the vault passphrase — so it works OUTSIDE the React tree (e.g. the
+ * cache, and the vault passphrase: so it works OUTSIDE the React tree (e.g. the
  * docked TransferManager and the download store's retry/bulk paths), exactly
  * mirroring `useFolderProtection.passwordForFile` minus the prompt.
  *
  *   - Unprotected file → the cached vault passphrase (throws if the vault is
- *     locked — the caller's onNeedUnlock opens the vault modal).
+ *     locked: the caller's onNeedUnlock opens the vault modal).
  *   - Protected-folder file, password cached → that folder password.
  *   - Protected-folder file, NOT cached → throws FolderPasswordRequired so the
  *     caller can prompt + retry (mirrors the preview recovery).

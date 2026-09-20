@@ -32,14 +32,14 @@ import { FAQJsonLd, SoftwareApplicationJsonLd } from "@/components/seo/json-ld";
 import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "zcrypt — The Encrypted Cloud Drive You Actually Own",
+  title: "zcrypt. The Encrypted Cloud Drive You Actually Own",
   description:
     "zcrypt is a zero-knowledge encrypted cloud drive: real folders, instant in-browser previews, and per-folder passwords. Files are encrypted on your device with AES-256-GCM and stored inside your own GitHub, GitLab, Hugging Face, or Telegram account. Free, open source, no artificial limits.",
   alternates: {
     canonical: SITE_URL,
   },
   openGraph: {
-    title: "zcrypt — The Encrypted Cloud Drive You Actually Own",
+    title: "zcrypt. The Encrypted Cloud Drive You Actually Own",
     description:
       "Real folders, instant previews, encrypted on your device and stored in accounts you already own. Zero-knowledge AES-256-GCM, open source, no artificial limits.",
     url: SITE_URL,
@@ -60,7 +60,7 @@ const howItWorksSteps = [
   {
     num: "01",
     title: "Connect your account",
-    desc: "Link a storage account you already have — GitHub, GitLab, Hugging Face, or Telegram. That account becomes your private vault.",
+    desc: "Link a storage account you already have. GitHub, GitLab, Hugging Face, or Telegram. That account becomes your private vault.",
     icon: Github,
   },
   {
@@ -72,7 +72,7 @@ const howItWorksSteps = [
   {
     num: "03",
     title: "Stored in your own cloud",
-    desc: "Your file is saved as encrypted pieces inside your own account. Only you, with your passphrase, can unlock it — from anywhere.",
+    desc: "Your file is saved as encrypted pieces inside your own account. Only you, with your passphrase, can unlock it, from anywhere.",
     icon: HardDrive,
   },
 ];
@@ -81,7 +81,7 @@ const howItWorksSteps = [
 const objections = [
   {
     q: "Do I need a GitHub account?",
-    a: "Yes — and that's the point. Your files live in storage you own, so there are no artificial limits and nothing is locked to us.",
+    a: "Yes, and that's the point. Your files live in storage you own, so there are no artificial limits and nothing is locked to us.",
   },
   {
     q: "Is this allowed by the platforms?",
@@ -98,12 +98,12 @@ const homeFeatures = [
   {
     href: "/features/encrypted-drive",
     title: "A real file & folder system",
-    desc: "Nest folders, drag to organize, search and sort — a proper drive.",
+    desc: "Nest folders, drag to organize, search and sort, a proper drive.",
   },
   {
     href: "/features/file-viewers",
     title: "Preview without downloading",
-    desc: "Open images, video, PDFs, docs, and code — decrypted in your browser.",
+    desc: "Open images, video, PDFs, docs, and code, decrypted in your browser.",
   },
   {
     href: "/features/folders",
@@ -194,7 +194,7 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* Under the hood — for the curious */}
+          {/* Under the hood, for the curious */}
           <ScrollReveal delay={0.2} className="mt-10 text-center">
             <p className="text-xs text-[var(--color-text-muted)] max-w-2xl mx-auto leading-relaxed">
               {landingSections.howItWorks.underTheHood}
@@ -209,10 +209,10 @@ export default function LandingPage() {
       {/* ═══ BRING YOUR OWN STORAGE ═══ */}
       <BringYourOwnStorage />
 
-      {/* ═══ FEATURES — BENTO GRID ═══ */}
+      {/* ═══ FEATURES. BENTO GRID ═══ */}
       <BentoGrid />
 
-      {/* ═══ EXPLORE THE DRIVE — feature links ═══ */}
+      {/* ═══ EXPLORE THE DRIVE, feature links ═══ */}
       <section className="py-24 px-4 bg-[var(--color-surface)]">
         <div className="mx-auto max-w-5xl">
           <ScrollReveal className="text-center mb-12">
@@ -257,7 +257,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ═══ WHY ZCRYPT — TRUST STACK ═══ */}
+      {/* ═══ WHY ZCRYPT. TRUST STACK ═══ */}
       <BuiltToTrust />
 
       {/* ═══ FAQ + OBJECTIONS ═══ */}
@@ -362,7 +362,7 @@ export default function LandingPage() {
             </h2>
             <p className="text-[var(--color-text-secondary)] mt-3 max-w-lg mx-auto leading-relaxed">
               There&apos;s a full terminal app with the same zero-knowledge
-              encryption — a single binary, no dependencies. Optional, and never
+              encryption: a single binary, no dependencies. Optional, and never
               required to use zcrypt.
             </p>
             <div className="mt-7">

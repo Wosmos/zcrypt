@@ -3,19 +3,19 @@
 import { isTauri } from "@/lib/tauri";
 
 /**
- * device-vault — persist the vault passphrase ON THIS DEVICE so the user unlocks
+ * device-vault: persist the vault passphrase ON THIS DEVICE so the user unlocks
  * once and is never re-prompted ("keep me unlocked on this device").
  *
  * The passphrase is encrypted at rest with an AES-GCM key kept in IndexedDB.
  * That key can be USED to decrypt but the passphrase is never stored in
  * plaintext. This is meaningfully safer than a raw localStorage string and
- * stays fully client-side — the passphrase never touches the server. It is
+ * stays fully client-side: the passphrase never touches the server. It is
  * NOT a defence against active malware/XSS already running on this device
  * (such code could call decrypt with the key, or in the desktop case below,
  * read the key bytes directly); that is the inherent trade-off of staying
  * unlocked on a device, and it's strictly the user's opt-in choice.
  *
- * extractable: false in the browser, true in the Tauri desktop shell —
+ * extractable: false in the browser, true in the Tauri desktop shell.
  * WebKit's keychain quirk:
  * In a real browser (Chrome/Firefox/Safari), a non-extractable
  * `crypto.subtle.generateKey` result that gets structured-cloned into
@@ -26,12 +26,12 @@ import { isTauri } from "@/lib/tauri";
  * Master Key" item). Because our Tauri build is ad-hoc code-signed, macOS
  * can't match the app's identity against the keychain ACL on each access, so
  * it re-prompts for the user's Mac login password every time the key is
- * touched — denying still works (WebKit falls back), so it's a pure UX
+ * touched: denying still works (WebKit falls back), so it's a pure UX
  * papercut, not a security backstop. Making the key extractable makes WebKit
  * store the raw key bytes directly in IndexedDB (structured-clone) instead of
  * routing through the keychain, which avoids the prompt entirely. This is an
  * acceptable trade-off here specifically because device-vault already isn't a
- * malware/XSS boundary (see above) — an extractable key doesn't weaken the
+ * malware/XSS boundary (see above): an extractable key doesn't weaken the
  * threat model this feature actually defends against.
  */
 const DEVICE_KEY_EXTRACTABLE = isTauri;
@@ -93,7 +93,7 @@ function generateDeviceKey(): Promise<CryptoKey> {
  * any "Always Allow" the user granted. Nothing ever cleared it, so the prompt
  * never went away.
  *
- * The one decrypt below is the last time the legacy key is touched — the
+ * The one decrypt below is the last time the legacy key is touched, the
  * final prompt. If the user denies it (or the record is unreadable) the
  * stored passphrase is dropped instead: they unlock once by hand and it is
  * re-persisted under the new key.

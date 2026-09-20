@@ -25,10 +25,10 @@ import type { UseVaultLock } from "@/hooks/useVaultLock";
 import type { UseFolderProtection } from "@/hooks/useFolderProtection";
 
 /**
- * useVaultActions — all the crypto / upload / download / preview / delete /
+ * useVaultActions: all the crypto / upload / download / preview / delete /
  * share / move / bulk handlers for the Vault page, lifted out of the page so it
  * reads as composition (REBUILD_SPEC §6). Every decrypt action routes through
- * the ONE vault unlock (`vault.withPassphrase`) — there is never a bespoke
+ * the ONE vault unlock (`vault.withPassphrase`): there is never a bespoke
  * per-file passphrase prompt (spec §3).
  *
  * Zero-knowledge: the passphrase is only ever read from the vault cache and
@@ -49,7 +49,7 @@ interface UseVaultActionsArgs {
   closePreview: () => void;
   /** Per-folder-password routing + re-key orchestration (spec §3). */
   folderProtection: UseFolderProtection;
-  /** The folder the explorer is currently browsing — uploads land here, and
+  /** The folder the explorer is currently browsing, uploads land here, and
    *  uploads into a protected folder are wrapped with its folder password. */
   currentFolderId: string | null;
 }
@@ -64,9 +64,9 @@ function desktopPath(file: File): string | undefined {
 }
 
 export interface VaultActions {
-  /** Upload entry point — dupe detection + quota guard + vault unlock. */
+  /** Upload entry point: dupe detection + quota guard + vault unlock. */
   handleFilesSelected: (selectedFiles: File[]) => void;
-  /** Resume an unfinished upload from the banner — pinned to the ORIGINAL
+  /** Resume an unfinished upload from the banner, pinned to the ORIGINAL
    *  session's platform (the already-uploaded chunks live there). */
   handleResumeIncomplete: (file: File, upload: IncompleteUpload) => void;
   /** Single-file download (filename-keyed, matches the explorer callback). */
@@ -142,7 +142,7 @@ export function useVaultActions({
   // TERMINAL events only (done / error). Intermediate progress events are
   // deliberately dropped: the local upload pipeline owns progress for uploads
   // this tab is running, and the backend's numbers use a different formula
-  // (staged chunks, 0-100 scale, single-chunk bytes_processed) — letting them
+  // (staged chunks, 0-100 scale, single-chunk bytes_processed), letting them
   // through made the percent oscillate (60→70→60), snapped the bar to ~1%
   // between local emits, and flipped paused rows back to "uploading".
   useOperationStatus((event) => {
@@ -186,7 +186,7 @@ export function useVaultActions({
     ) => {
       // Desktop: native picker + sidecar (no browser File data transfer).
       // `uploadFiles` here are the SAME `DesktopFile`s the dropzone already
-      // picked via the native dialog (upload-zone.tsx) — thread their real
+      // picked via the native dialog (upload-zone.tsx), thread their real
       // paths through instead of letting startDesktopUpload open a second,
       // redundant native dialog (that double-dialog was the flaky-first-
       // attempt bug: the picker that mattered got missed behind the one the
@@ -199,7 +199,7 @@ export function useVaultActions({
         // as before.
         // Honor the platform picker on desktop too (it was only wired to the
         // web path before, so desktop uploads silently fell back to the
-        // backend's Auto default — Telegram-first — ignoring the selection).
+        // backend's Auto default (Telegram-first) ignoring the selection).
         const desktopPlatform = platformOverride ?? selectedPlatform ?? undefined;
         if (paths.length > 0) {
           void startDesktopUpload(wrapPassphrase, refresh, paths, desktopPlatform);
@@ -210,7 +210,7 @@ export function useVaultActions({
       }
       // 0/unset means "unlimited" → defer to the device-profile default.
       const maxConcurrent = quotaInfo?.max_concurrent_uploads || undefined;
-      // The user's picker choice is honored as-is (no size-based re-routing —
+      // The user's picker choice is honored as-is (no size-based re-routing:
       // "Auto" resolves server-side, Telegram first). `platformOverride` pins a
       // resume to its original platform.
       storeStartUpload(
@@ -228,7 +228,7 @@ export function useVaultActions({
   const handleFilesSelected = useCallback(
     (selectedFiles: File[]) => {
       // Immediate acknowledgment, before ANY gating. On iOS the OS can spend
-      // many seconds transcoding HEIC/HEVC before this callback even fires —
+      // many seconds transcoding HEIC/HEVC before this callback even fires:
       // this toast is the first visible proof that the tap worked and the
       // batch is in hand, so users stop re-tapping the picker.
       toast.info(
@@ -266,7 +266,7 @@ export function useVaultActions({
 
       // Uploading into a PROTECTED folder: wrap the CEK with the FOLDER password.
       // The vault must still be unlocked (folder names + the rest of the app), and
-      // the folder must be unlocked too — withFolderPassword prompts/verifies if
+      // the folder must be unlocked too, withFolderPassword prompts/verifies if
       // its password isn't cached.
       if (folderProtected) {
         vault.withPassphrase(() => {
@@ -301,7 +301,7 @@ export function useVaultActions({
   // Resume an unfinished upload from the banner. The platform is passed
   // EXPLICITLY from the server session, so even if the resume misses (the
   // server session expired between listing and clicking), the restart stays on
-  // the original platform — never a silent switch. The store's server-side
+  // the original platform, never a silent switch. The store's server-side
   // resume (init → resumed:true) picks up the session's chunks and CEK.
   const handleResumeIncomplete = useCallback(
     (file: File, upload: IncompleteUpload) => {
@@ -343,7 +343,7 @@ export function useVaultActions({
         // Desktop: route through the in-process Rust core, which streams chunks
         // to a native-picked path on disk (bounded memory) and pulls byos-direct
         // from the user's own storage. The browser pipeline buffers the whole
-        // file in the webview — a multi-GB file there OOMs and freezes the app
+        // file in the webview: a multi-GB file there OOMs and freezes the app
         // (WKWebView has no showSaveFilePicker to stream with).
         if (isTauri) {
           const userId = useAuthStore.getState().user?.id ?? "";
@@ -377,12 +377,12 @@ export function useVaultActions({
       const totalSize = filesToDownload.reduce((s, f) => s + f.original_size, 0);
       // Desktop streams one file at a time into the zip (bounded by the
       // single largest file, not the sum), so the 2GB cap is a BROWSER-ONLY
-      // limitation — the in-memory-then-zip web path holds every file's full
+      // limitation: the in-memory-then-zip web path holds every file's full
       // decrypted bytes simultaneously, which is what that cap protects.
       const MAX_ZIP_SIZE = 2 * 1024 * 1024 * 1024; // 2GB
       if (!isTauri && totalSize > MAX_ZIP_SIZE) {
         toast.warning(
-          `Selected files total ${formatBytes(totalSize)} — too large for ZIP. Download individually instead.`,
+          `Selected files total ${formatBytes(totalSize)}, too large for ZIP. Download individually instead.`,
         );
         return;
       }
@@ -406,7 +406,7 @@ export function useVaultActions({
   // ── Preview (in-memory decrypt + zstd + SHA-256 integrity check) ────────────
   // Routed through the SAME parallel pipeline + in-memory blob cache as the
   // FileViewer (runDecryptPipeline: N concurrent chunk fetchers fanning out to a
-  // WorkerPool for off-main-thread AES-GCM + zstd) — the old bespoke loop here
+  // WorkerPool for off-main-thread AES-GCM + zstd): the old bespoke loop here
   // fetched and decrypted chunks strictly sequentially, which made previews of
   // multi-chunk files several times slower than downloads of the same file. A
   // re-open is now a cache hit and shows instantly.
@@ -419,7 +419,7 @@ export function useVaultActions({
 
       try {
         // Resolve the right password (vault, or folder pass for a protected
-        // folder — prompting/verifying if its password isn't cached).
+        // folder: prompting/verifying if its password isn't cached).
         const passphrase = await folderProtection.passwordForFile(file);
 
         const { cachedDecrypt } = await import("@/lib/decrypt-cache");
@@ -508,13 +508,13 @@ export function useVaultActions({
       const destProtected = destFolderId != null && reg.isProtected(destFolderId);
 
       // Same protection zone (both unprotected, OR both protected by the SAME
-      // folder password — but distinct folders never share a key, so "both
+      // folder password, but distinct folders never share a key, so "both
       // protected" still means different keys) ⇒ re-key only when the key
       // actually changes. Unprotected→unprotected needs no re-key.
       if (!srcProtected && !destProtected) {
         await moveFile(fileId, destFolderId);
         // Drop cached plaintext tagged with the old folder (covers the dialog
-        // move path; the drag path evicts optimistically too — both are safe).
+        // move path; the drag path evicts optimistically too, both are safe).
         clearDecryptCacheForFile(fileId);
         return;
       }
@@ -539,7 +539,7 @@ export function useVaultActions({
       if (!file) return;
       const originalFolderId = file.folder_id ?? null;
       if (originalFolderId === folderId) return; // already there
-      // Functional update against the LIVE cache — NOT the render-time `files`
+      // Functional update against the LIVE cache, NOT the render-time `files`
       // snapshot. A bulk drag / folder-merge fires this once per file in the same
       // tick; mapping over a captured snapshot made each call clobber the last
       // (only one file actually moved). Composing off `cur` moves every file.
@@ -553,7 +553,7 @@ export function useVaultActions({
           ? `Moved "${file.original_name}" to Root`
           : `Moved "${file.original_name}"`,
       );
-      // Revert THIS file only (functionally) on failure — never a whole-list
+      // Revert THIS file only (functionally) on failure, never a whole-list
       // snapshot, which would undo sibling moves still in flight from the same
       // bulk action.
       const revertThisFile = () =>
@@ -561,7 +561,7 @@ export function useVaultActions({
           cur.map((f) => (f.id === fileId ? { ...f, folder_id: originalFolderId } : f)),
         );
       moveFileWithRekey(fileId, folderId).catch((err) => {
-        // FIX-2: the user cancelled the folder-unlock prompt — revert quietly
+        // FIX-2: the user cancelled the folder-unlock prompt, revert quietly
         // (a soft, non-error hint), no scary toast and no reconcile fetch
         // (nothing changed server-side).
         if (err instanceof FolderUnlockCancelled) {
@@ -588,7 +588,7 @@ export function useVaultActions({
       // captured snapshot, to avoid resurrecting a concurrently-deleted file).
       deleteFile(target.id)
         .then(() => {
-          // The row now lives in Trash — keep that view in sync.
+          // The row now lives in Trash. Keep that view in sync.
           void invalidateTrash();
         })
         .catch((err) => {
@@ -604,7 +604,7 @@ export function useVaultActions({
     async (ids: string[]) => {
       if (ids.length === 0) return;
       const idSet = new Set(ids);
-      // Optimistic: drop the rows instantly — no spinner wait.
+      // Optimistic: drop the rows instantly, no spinner wait.
       setFiles((cur) => cur.filter((f) => !idSet.has(f.id)));
       ids.forEach((id) => clearDecryptCacheForFile(id));
       try {

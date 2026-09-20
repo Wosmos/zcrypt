@@ -23,7 +23,7 @@ describe("getFolderIcon", () => {
   });
 
   it("matches a singular key from a plural word", () => {
-    // "desktop" is a key, "desktops" is not — exercises the trailing-"s" strip.
+    // "desktop" is a key, "desktops" is not, exercises the trailing-"s" strip.
     expect(getFolderIcon("Desktops")).toBe(Monitor);
   });
 

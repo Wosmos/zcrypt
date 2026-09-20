@@ -12,7 +12,7 @@ import {
 } from "@/components/tools/tool-page-shell";
 
 export const metadata: Metadata = toolMetadata({
-  title: "Transfer Files Between Devices — Encrypted P2P File Transfer | zcrypt",
+  title: "Transfer Files Between Devices. Encrypted P2P File Transfer | zcrypt",
   description:
     "Stream encrypted files directly between devices with a 6-digit code. Peer-to-peer AES-256 encrypted transfer over WebSocket. No file size limit, no storage, no accounts. Phone to laptop, any device to any device.",
   keywords: [
@@ -32,7 +32,7 @@ export const metadata: Metadata = toolMetadata({
     "airdrop alternative",
   ],
   path: "/transfer",
-  ogTitle: "Transfer Files Between Devices — zcrypt",
+  ogTitle: "Transfer Files Between Devices, zcrypt",
   ogDescription:
     "Stream encrypted files directly between any two devices. 6-digit code, no storage, no limits.",
 });
@@ -41,7 +41,7 @@ const features: ToolFeature[] = [
   {
     icon: MonitorSmartphone,
     title: "Device to device",
-    desc: "Stream files directly between any two devices with a browser. Phone to laptop, laptop to desktop — any combination.",
+    desc: "Stream files directly between any two devices with a browser. Phone to laptop, laptop to desktop, any combination.",
   },
   {
     icon: Lock,

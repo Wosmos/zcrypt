@@ -14,7 +14,7 @@
 #   export PROD_DATABASE_URL="<prod NON-POOLING connection string>"
 #   bash scripts/db-clone-from-prod.sh
 #
-# Get the NON-POOLING url from Neon (avoid the -pooler host — pg_dump wants a
+# Get the NON-POOLING url from Neon (avoid the -pooler host, pg_dump wants a
 # direct connection). Make sure it ends with ?sslmode=require
 #
 set -euo pipefail

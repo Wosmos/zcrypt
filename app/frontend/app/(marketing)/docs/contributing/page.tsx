@@ -48,7 +48,7 @@ export default function ContributingDocPage() {
             CONTRIBUTING.md
           </Link>
           . Because it&apos;s a security/cryptography product, read <code>SECURITY.md</code> before
-          reporting anything that might be a vulnerability — do not open a public issue for security
+          reporting anything that might be a vulnerability. Do not open a public issue for security
           problems.
         </DocP>
       </DocSection>
@@ -115,7 +115,7 @@ go build ./...`}</DocCode>
       <DocSection id="env" title="Environment variables">
         <DocP>
           Never commit a real <code>.env</code>; it is gitignored. The backend template lives at{" "}
-          <code>app/backend/.env.example</code> — copy it to <code>.env</code> and supply your own
+          <code>app/backend/.env.example</code>. Copy it to <code>.env</code> and supply your own
           values. Each contributor is responsible for their own credentials. If you accidentally
           commit a secret, rotate it immediately and let a maintainer know.
         </DocP>
@@ -125,19 +125,19 @@ go build ./...`}</DocCode>
         <DocList
           items={[
             <>
-              <strong>Backend</strong> — Standard Go. stdlib <code>net/http</code> (no web
+              <strong>Backend</strong>. Standard Go. stdlib <code>net/http</code> (no web
               framework). Wrap errors with <code>fmt.Errorf(&quot;context: %w&quot;, err)</code>.
               UUID primary keys. Raw SQL via pgxpool (no ORM). Run <code>go vet ./...</code> and{" "}
               <code>go test ./...</code> before pushing.
             </>,
             <>
-              <strong>Frontend</strong> — TypeScript + React 19. <code>&quot;use client&quot;</code>{" "}
+              <strong>Frontend</strong>. TypeScript + React 19. <code>&quot;use client&quot;</code>{" "}
               for interactive components. Zustand for global state, Tailwind for styling, Hugeicons
               for icons. No emojis in code. Run <code>bun run lint</code> and{" "}
               <code>bun run typecheck</code> before pushing.
             </>,
             <>
-              <strong>Commits</strong> — Keep them focused and write clear messages.
+              <strong>Commits</strong>. Keep them focused and write clear messages.
             </>,
           ]}
         />
@@ -149,7 +149,7 @@ go build ./...`}</DocCode>
           build for whichever modules you touched (frontend / backend / tui / desktop), mirroring
           CI:
         </DocP>
-        <DocCode label="shell">{`bash scripts/install-hooks.sh          # once per clone — wires the pre-push hook
+        <DocCode label="shell">{`bash scripts/install-hooks.sh          # once per clone, wires the pre-push hook
 bash scripts/prepush.sh --gates-only   # fast: gates only
 bash scripts/prepush.sh                # full: gates + advisory backlog scans -> docs/report.md`}</DocCode>
         <DocNote type="info" title="The pre-push hook runs this for you">

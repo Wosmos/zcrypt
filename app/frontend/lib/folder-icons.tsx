@@ -230,7 +230,7 @@ function toLabel(key: string): string {
 }
 
 /**
- * Extra picker-only glyphs — not tied to a name-inference keyword, just more
+ * Extra picker-only glyphs: not tied to a name-inference keyword, just more
  * variety for the "Customize…" icon grid (file types, work, tech, nature,
  * hobbies, travel, food, health). `RULES` stays the single source of truth
  * for automatic inference; these only ever get chosen explicitly by the user.

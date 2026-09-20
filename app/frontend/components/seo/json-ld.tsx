@@ -8,7 +8,7 @@ export function OrganizationJsonLd() {
     url: SITE_URL,
     logo: `${SITE_URL}/favicon.svg`,
     description:
-      "Free, open-source, zero-knowledge encrypted cloud drive. Organize files in real folders, preview them in the browser, and lock individual folders with their own passwords — all encrypted on your device with AES-256-GCM and stored in your own GitHub, GitLab, Hugging Face, or Telegram account. Only you can read them.",
+      "Free, open-source, zero-knowledge encrypted cloud drive. Organize files in real folders, preview them in the browser, and lock individual folders with their own passwords: all encrypted on your device with AES-256-GCM and stored in your own GitHub, GitLab, Hugging Face, or Telegram account. Only you can read them.",
     foundingDate: "2026",
     sameAs: ["https://github.com/zcrypt"],
     contactPoint: {
@@ -23,7 +23,7 @@ export function OrganizationJsonLd() {
   );
 }
 
-// Structured data for the maker behind zcrypt — powers rich results for
+// Structured data for the maker behind zcrypt, powers rich results for
 // "who built zcrypt" and links the founder's verified profiles (sameAs).
 export function PersonJsonLd() {
   const data = {

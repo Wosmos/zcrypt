@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Web app | zcrypt Docs",
     description:
-      "The zcrypt web app: the session vault lock, an encrypted-at-rest 'keep me unlocked on this device' option, and background transfer notifications — all in your browser.",
+      "The zcrypt web app: the session vault lock, an encrypted-at-rest 'keep me unlocked on this device' option, and background transfer notifications, all in your browser.",
     url: `${SITE_URL}/docs/web-app`,
   },
 };
@@ -34,7 +34,7 @@ export default function WebAppDocPage() {
     >
       <DocSection id="browser" title="Runs in your browser">
         <DocP>
-          zcrypt works in any modern browser on desktop or mobile — there is nothing to install. All
+          zcrypt works in any modern browser on desktop or mobile. There is nothing to install. All
           encryption and decryption happen on your device using the Web Crypto API, so your files
           are sealed and opened locally and the server only ever handles ciphertext.
         </DocP>
@@ -43,18 +43,18 @@ export default function WebAppDocPage() {
       <DocSection id="vault-lock" title="The vault lock">
         <DocP>
           zcrypt uses <strong>one passphrase to unlock everything for a session</strong>. Rather
-          than prompting you per file or per action, the app shows a single lock indicator — a small
-          pill in the interface — and a single unlock modal. Enter your vault passphrase once and
-          the whole vault opens for that session.
+          than prompting you per file or per action, the app shows a single lock indicator, a small
+          pill in the interface, and a single unlock modal. Enter your vault passphrase once and the
+          whole vault opens for that session.
         </DocP>
         <DocList
           items={[
             <>
-              <strong>Locked</strong> — folder names show as placeholders and nothing can be
+              <strong>Locked</strong>: folder names show as placeholders and nothing can be
               decrypted. The pill invites you to unlock.
             </>,
             <>
-              <strong>Unlocked</strong> — your passphrase is held in memory for the session so
+              <strong>Unlocked</strong>: your passphrase is held in memory for the session so
               previews, downloads, and search work without re-prompting.
             </>,
             <>
@@ -80,7 +80,7 @@ export default function WebAppDocPage() {
         <DocP>
           On a device that&apos;s yours, you can opt in to{" "}
           <strong>keep me unlocked on this device</strong> so a page reload doesn&apos;t make you
-          re-enter your passphrase. This is convenience with real engineering behind it — not a
+          re-enter your passphrase. This is convenience with real engineering behind it, not a
           plaintext shortcut.
         </DocP>
         <DocList
@@ -96,7 +96,7 @@ export default function WebAppDocPage() {
             </>,
             <>
               The passphrase <strong>never leaves your device</strong> and is never sent to the
-              server — turning this on changes nothing about what the server can see.
+              server: turning this on changes nothing about what the server can see.
             </>,
             <>
               Locking the vault, or switching the option off, wipes the on-device copy so a later
@@ -107,7 +107,7 @@ export default function WebAppDocPage() {
         <DocNote type="security" title="The honest trade-off">
           Staying unlocked on a device is strictly your opt-in choice. The non-extractable key makes
           it far safer than a stored plaintext string, but it is not a defense against malware or a
-          hostile script already running in your browser — such code could ask the key to decrypt.
+          hostile script already running in your browser: such code could ask the key to decrypt.
           Leave it off on shared or untrusted machines.
         </DocNote>
       </DocSection>
@@ -117,7 +117,7 @@ export default function WebAppDocPage() {
           Uploads and downloads keep running while you work in other tabs. With your permission,
           zcrypt can post a browser notification when a transfer finishes, so you don&apos;t have to
           babysit a long job. Notifications are shown only while the zcrypt tab is in the background
-          — when it&apos;s focused, the in-app progress UI is enough — and they request permission
+          (when it&apos;s focused, the in-app progress UI is enough) and they request permission
           only when there&apos;s something worth telling you.
         </DocP>
         <DocNote type="info">
@@ -134,28 +134,28 @@ export default function WebAppDocPage() {
               href="/docs/desktop-app"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Desktop app — the native build for macOS, Windows, and Linux
+              Desktop app: the native build for macOS, Windows, and Linux
             </Link>,
             <Link
               key="b"
               href="/docs/folders"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Folders & the file explorer — organize your encrypted drive
+              Folders & the file explorer, organize your encrypted drive
             </Link>,
             <Link
               key="c"
               href="/docs/key-management"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Key management — what the passphrase unlocks and why
+              Key management: what the passphrase unlocks and why
             </Link>,
             <Link
               key="d"
               href="/features/apps"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              zcrypt everywhere — the same vault across web, desktop, and terminal
+              zcrypt everywhere: the same vault across web, desktop, and terminal
             </Link>,
           ]}
         />

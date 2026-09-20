@@ -104,7 +104,7 @@ export function PadTool() {
           <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3">
             <p className="text-xs text-cyan-700 dark:text-cyan-300">
               Your text is encrypted in your browser. The encryption key is embedded in the share
-              link — the server stores only encrypted data.
+              link: the server stores only encrypted data.
             </p>
           </div>
         </div>

@@ -18,7 +18,7 @@ import DocsSearch from "@/components/docs/docs-search";
 import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Features — The Encrypted Cloud Drive",
+  title: "Features. The Encrypted Cloud Drive",
   description:
     "Everything zcrypt does: a real encrypted file explorer with folders, in-browser previews, per-folder passwords, sharing, bring-your-own-storage, a transfer manager, and apps for web, desktop, Android, and terminal.",
   keywords: [
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   ],
   alternates: { canonical: `${SITE_URL}/features` },
   openGraph: {
-    title: "zcrypt Features — The Encrypted Cloud Drive",
+    title: "zcrypt Features. The Encrypted Cloud Drive",
     description:
       "A real encrypted file explorer: folders, previews, per-folder passwords, sharing, bring-your-own-storage, and apps for every surface.",
     url: `${SITE_URL}/features`,
@@ -38,7 +38,7 @@ export const metadata: Metadata = {
   },
 };
 
-// icon is a string key on featuresNav (lib/data.ts) — map it to the actual
+// icon is a string key on featuresNav (lib/data.ts): map it to the actual
 // component here, same convention used across the rest of lib/data.ts.
 const ICONS: Record<string, typeof HardDrive> = {
   HardDrive,
@@ -71,7 +71,7 @@ export default function FeaturesPage() {
             Everything the drive does
           </h1>
           <p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-[var(--color-text-secondary)]">
-            A real encrypted file manager with a zero-knowledge core. Here&apos;s every part of it —
+            A real encrypted file manager with a zero-knowledge core. Here&apos;s every part of it:
             dig into whichever matters to you.
           </p>
           <div className="mx-auto mt-8">

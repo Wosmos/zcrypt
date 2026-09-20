@@ -13,7 +13,7 @@ describe("og-brand constants", () => {
 });
 
 describe("renderBrandOgCard", () => {
-  // NOTE: we intentionally do NOT await res.arrayBuffer() — that triggers the
+  // NOTE: we intentionally do NOT await res.arrayBuffer(), that triggers the
   // heavy satori/resvg render. Constructing the ImageResponse already executes
   // the JSX builder, which is what we're covering.
   function assertImageResponse(res: unknown) {

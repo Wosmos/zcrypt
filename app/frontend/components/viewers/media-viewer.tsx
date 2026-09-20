@@ -18,7 +18,7 @@ export interface MediaTrack {
  * Audio/Video viewer that REUSES `components/ui/media-player.tsx` for transport,
  * scrubber and volume, and adds a playlist of the other media files in the
  * current folder. Selecting a track calls `onSelectTrack(index)` so the parent
- * <FileViewer> navigates to it (decrypting on demand) — the player itself stays
+ * <FileViewer> navigates to it (decrypting on demand): the player itself stays
  * single-source, exactly as built. Keyed by `src` upstream so switching tracks
  * remounts cleanly and the old blob URL is revoked by the parent.
  */
@@ -42,12 +42,12 @@ export function MediaViewer({
   onSelectTrack: (index: number) => void;
 }) {
   const hasPlaylist = tracks.length > 1;
-  // The playlist is an overlay DRAWER — a bottom sheet on mobile, a right-side
-  // drawer on desktop — opened on demand so the player always gets the full area
+  // The playlist is an overlay DRAWER: a bottom sheet on mobile, a right-side
+  // drawer on desktop: opened on demand so the player always gets the full area
   // and the list scrolls inside the drawer instead of crushing the player.
   const [playlistOpen, setPlaylistOpen] = useState(false);
 
-  // Playlist filter — only offered when the folder actually mixes both kinds.
+  // Playlist filter: only offered when the folder actually mixes both kinds.
   const [filter, setFilter] = useState<"all" | "audio" | "video">("all");
   const kindOf = (t: MediaTrack): "audio" | "video" =>
     mediaKindFor(t.file.original_name) ?? "audio";
@@ -70,7 +70,7 @@ export function MediaViewer({
 
   return (
     <div className="relative flex h-full w-full items-center justify-center overflow-hidden">
-      {/* Player — always centered and full-area; the drawer overlays it. */}
+      {/* Player: always centered and full-area; the drawer overlays it. */}
       <div className="flex h-full w-full max-w-2xl items-center justify-center overflow-y-auto">
         {/* key by src so the player remounts on track change */}
         <MediaPlayer
@@ -87,7 +87,7 @@ export function MediaViewer({
 
       {hasPlaylist && (
         <>
-          {/* Open affordance — hidden while the drawer is open. */}
+          {/* Open affordance: hidden while the drawer is open. */}
           {!playlistOpen && (
             <button
               type="button"
@@ -106,7 +106,7 @@ export function MediaViewer({
             </button>
           )}
 
-          {/* Scrim — mobile bottom-sheet only; tap to dismiss. */}
+          {/* Scrim: mobile bottom-sheet only; tap to dismiss. */}
           {playlistOpen && (
             <button
               type="button"

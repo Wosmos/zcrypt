@@ -6,7 +6,7 @@ const API_URL = process.env.E2E_API_URL || "http://localhost:8080";
 export default defineConfig({
   testDir: ".",
   testMatch: "**/*.spec.ts",
-  fullyParallel: false, // Upload/download tests share state — run sequentially
+  fullyParallel: false, // Upload/download tests share state. Run sequentially
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : 2,

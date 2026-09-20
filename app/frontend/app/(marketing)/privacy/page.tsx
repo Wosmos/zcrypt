@@ -30,22 +30,22 @@ export default function PrivacyPage() {
         <BulletList
           items={[
             <>
-              <strong className="text-[var(--color-text)]">File contents</strong> — encrypted
+              <strong className="text-[var(--color-text)]">File contents</strong>, encrypted
               client-side with AES-256-GCM before upload.
             </>,
             <>
-              <strong className="text-[var(--color-text)]">Your passphrase</strong> — never
+              <strong className="text-[var(--color-text)]">Your passphrase</strong>, never
               transmitted to or stored on our servers.
             </>,
             <>
-              <strong className="text-[var(--color-text)]">Encryption keys</strong> — derived
-              locally on your device from your passphrase.
+              <strong className="text-[var(--color-text)]">Encryption keys</strong>, derived locally
+              on your device from your passphrase.
             </>,
           ]}
         />
 
         <PullQuote>
-          We can&apos;t read your files. Not because of a policy — because of mathematics.
+          We can&apos;t read your files. Not because of a policy, because of mathematics.
         </PullQuote>
       </Section>
 
@@ -72,7 +72,7 @@ export default function PrivacyPage() {
           <h3 className="text-lg font-semibold text-[var(--color-text)]">Usage Metadata</h3>
           <BulletList
             items={[
-              "File and folder names — encrypted client-side by default, so the server stores only an opaque name it cannot read (some older files may retain a plaintext name in a legacy column we are retiring)",
+              "File and folder names: encrypted client-side by default, so the server stores only an opaque name it cannot read (some older files may retain a plaintext name in a legacy column we are retiring)",
               "File sizes (encrypted size, for storage-usage display)",
               "Upload/download timestamps",
               "Storage usage per account",
@@ -138,19 +138,19 @@ export default function PrivacyPage() {
             </>,
             <>
               <strong className="text-[var(--color-text)]">We do not</strong> scan your files for
-              any purpose (we cannot — they are encrypted).
+              any purpose (we cannot. They are encrypted).
             </>,
           ]}
         />
 
         <PullQuote>
-          No ads, no tracking, no data sales. Your data isn&apos;t our product — the service is.
+          No ads, no tracking, no data sales. Your data isn&apos;t our product, the service is.
         </PullQuote>
 
         <div className="space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
           <p>
             We do not share data with law enforcement without valid legal process, and even then, we
-            can only provide account metadata — not file contents.
+            can only provide account metadata, not file contents.
           </p>
         </div>
       </Section>
@@ -164,17 +164,17 @@ export default function PrivacyPage() {
         <BulletList
           items={[
             <>
-              <strong className="text-[var(--color-text)]">Neon</strong> — PostgreSQL database
+              <strong className="text-[var(--color-text)]">Neon</strong>. PostgreSQL database
               hosting (stores account metadata, not file contents)
             </>,
             <>
-              <strong className="text-[var(--color-text)]">Vercel</strong> — Frontend hosting
+              <strong className="text-[var(--color-text)]">Vercel</strong>. Frontend hosting
             </>,
             <>
-              <strong className="text-[var(--color-text)]">Railway</strong> — Backend hosting
+              <strong className="text-[var(--color-text)]">Railway</strong>. Backend hosting
             </>,
             <>
-              <strong className="text-[var(--color-text)]">Resend</strong> — Transactional email
+              <strong className="text-[var(--color-text)]">Resend</strong>. Transactional email
               (verification, password reset)
             </>,
           ]}
@@ -197,7 +197,7 @@ export default function PrivacyPage() {
             "Upon account deletion, your metadata is removed within 30 days.",
             "Encrypted files on managed storage are scheduled for deletion upon account closure.",
             "Security logs are retained for up to 90 days.",
-            "BYOB data remains on your infrastructure — you control its lifecycle.",
+            "BYOB data remains on your infrastructure, you control its lifecycle.",
           ]}
         />
       </Section>

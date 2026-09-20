@@ -24,7 +24,7 @@ const AVATAR_QUALITIES = [0.8, 0.65, 0.5, 0.35];
 const AVATAR_SOURCE_MAX_BYTES = 1024 * 1024;
 
 /** Mirrors the server's validatePassword so the rules can be shown live.
- *  The server still enforces them — this only removes the surprise. */
+ *  The server still enforces them: this only removes the surprise. */
 const PASSWORD_RULES: { label: string; ok: (pw: string) => boolean }[] = [
   { label: "At least 8 characters", ok: (pw) => pw.length >= 8 },
   { label: "An uppercase letter", ok: (pw) => /[A-Z]/.test(pw) },
@@ -104,13 +104,13 @@ export function ProfileSettings() {
       return;
     }
     if (file.size > AVATAR_SOURCE_MAX_BYTES) {
-      toast.error("That image is too large — pick one under 1 MB");
+      toast.error("That image is too large. Pick one under 1 MB");
       return;
     }
     try {
       const uri = await toAvatarDataURI(file);
       if (!uri) {
-        toast.error("Could not compress that image small enough — try a simpler one");
+        toast.error("Could not compress that image small enough, try a simpler one");
         return;
       }
       setAvatar(uri);
@@ -158,7 +158,7 @@ export function ProfileSettings() {
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-      toast.success("Password changed — other sessions have been signed out");
+      toast.success("Password changed: other sessions have been signed out");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not change password");
     } finally {
@@ -170,12 +170,12 @@ export function ProfileSettings() {
     <div className="space-y-3">
       <SettingGroup
         label="Profile"
-        footnote="Your username and email identify your account and can't be changed here — the username is how others resolve your public key when sharing."
+        footnote="Your username and email identify your account and can't be changed here: the username is how others resolve your public key when sharing."
       >
         <div className="space-y-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
           <div className="flex items-center gap-4">
             {avatar ? (
-              // A local data: URI capped at 128KB — there is nothing for
+              // A local data: URI capped at 128KB. There is nothing for
               // next/image to optimize, and its loader cannot fetch data URIs.
               // oxlint-disable-next-line no-img-element
               <img src={avatar} alt="Your avatar" className="h-16 w-16 rounded-full object-cover" />

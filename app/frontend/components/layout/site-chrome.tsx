@@ -8,7 +8,7 @@ import { DocsFooter } from "@/components/docs/docs-footer";
 
 /**
  * Docs pages get their own, simpler nav + footer instead of the marketing
- * site's mega-menu nav and full sitemap footer — a documentation reference
+ * site's mega-menu nav and full sitemap footer: a documentation reference
  * reads differently from a landing page. Everything else keeps the
  * marketing chrome.
  */

@@ -10,7 +10,7 @@ import { toast } from "@/store/toast";
 /**
  * Shared building blocks for the file + folder "Get info" drawers
  * (<DetailsDrawer /> and <FolderDetailsDrawer />). Behaviourally identical to
- * the copies each drawer used to carry — the props exist only to reproduce the
+ * the copies each drawer used to carry: the props exist only to reproduce the
  * few places the two drawers diverge (mono value, callout text, folder-only file
  * count, link glyph, row background).
  */

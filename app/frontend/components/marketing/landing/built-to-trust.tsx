@@ -32,14 +32,14 @@ const cards: Card[] = [
     num: "01",
     label: "ENCRYPTION",
     heading: "Encrypted before it ever leaves your device",
-    body: "Keys derive from your passphrase client-side and are never transmitted. AES-256-GCM detects tampering, not just blocks it. There's no key on our side — we literally cannot decrypt your data.",
+    body: "Keys derive from your passphrase client-side and are never transmitted. AES-256-GCM detects tampering, not just blocks it. There's no key on our side: we literally cannot decrypt your data.",
     visual: "terminal",
   },
   {
     num: "02",
     label: "SCALE",
     heading: "Effectively unlimited storage",
-    body: "Files split into ~10 MB chunks and upload in parallel. zcrypt watches repo sizes and auto-provisions a fresh repository before any platform limit — you're bounded only by the free space you already own.",
+    body: "Files split into ~10 MB chunks and upload in parallel. zcrypt watches repo sizes and auto-provisions a fresh repository before any platform limit: you're bounded only by the free space you already own.",
     visual: "icon",
     Icon: InfinityIcon,
     accent: "violet",
@@ -48,7 +48,7 @@ const cards: Card[] = [
     num: "03",
     label: "STEALTH",
     heading: "Nothing flags your vault",
-    body: "Chunks commit with plausible filenames, randomized messages, and ordinary repository names. Your storage repos blend in as unremarkable projects — by design.",
+    body: "Chunks commit with plausible filenames, randomized messages, and ordinary repository names. Your storage repos blend in as unremarkable projects, by design.",
     visual: "icon",
     Icon: Layers,
     accent: "blue",
@@ -57,7 +57,7 @@ const cards: Card[] = [
     num: "04",
     label: "OPEN",
     heading: "Open source & self-hostable",
-    body: "Audit the encryption yourself, or run the entire backend on your own infrastructure. Bring-your-own-backend is available to everyone. Your trust is never assumed — it's earned by code you can read.",
+    body: "Audit the encryption yourself, or run the entire backend on your own infrastructure. Bring-your-own-backend is available to everyone. Your trust is never assumed: it's earned by code you can read.",
     visual: "icon",
     Icon: Code,
     accent: "cyan",
@@ -153,7 +153,7 @@ function CardBody({ card }: { card: Card }) {
 }
 
 // Animated card: recedes (scale 1→0.93, lift 16px) as the NEXT card slides up
-// to cover it — scrubbed to scroll position. Disabled when not active.
+// to cover it, scrubbed to scroll position. Disabled when not active.
 function StackCard({
   card,
   index,
@@ -188,7 +188,7 @@ export function BuiltToTrust() {
   const reduce = useReducedMotion();
   const active = isDesktop && !reduce;
 
-  // Fixed refs (exactly 4 cards) — each animated card tracks the next card's
+  // Fixed refs (exactly 4 cards): each animated card tracks the next card's
   // wrapper to drive its recede. The last card never recedes.
   const r0 = useRef<HTMLDivElement>(null);
   const r1 = useRef<HTMLDivElement>(null);
@@ -208,7 +208,7 @@ export function BuiltToTrust() {
             Built so you never have to trust us.
           </h2>
           <p className="mx-auto mt-4 max-w-xl leading-relaxed text-[var(--color-text-secondary)]">
-            Every layer engineered for privacy — and every line of it open source.
+            Every layer engineered for privacy, and every line of it open source.
           </p>
         </ScrollReveal>
 

@@ -11,7 +11,7 @@ import type { Folder } from "@/types";
  * (useFolders.refresh, the move dialog's lazy tree) so any folder the user has
  * browsed to is recorded here.
  *
- * Stores ONLY the opaque base64 blobs the server already returned — never a
+ * Stores ONLY the opaque base64 blobs the server already returned, never a
  * password or any derived key. Purely a lookup cache; resets on reload.
  */
 

@@ -74,7 +74,7 @@ export function SendTool() {
       const chunkCount = Math.ceil(selectedFile.size / CS);
 
       setProgress({ stage: "Starting upload session...", percent: 3 });
-      // The filename rides sealed under the same link key as the bytes — the
+      // The filename rides sealed under the same link key as the bytes, the
       // server never learns what was sent, only that something was.
       const nameKey = await keyFromBytes(keyBytes);
       const session = await sendInit({
@@ -168,7 +168,7 @@ export function SendTool() {
           <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3">
             <p className="text-xs text-cyan-700 dark:text-cyan-300">
               Your file is encrypted in your browser before upload. The encryption key is embedded
-              in the share link — the server never sees your data.
+              in the share link: the server never sees your data.
             </p>
           </div>
         </div>

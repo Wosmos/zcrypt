@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 /**
  * True on small (phone-sized) viewports. SSR-safe: starts false and updates on
  * mount, so it never mismatches during hydration. Used to switch off expensive
- * effects on mobile — per-item layout animations, backdrop blur, etc.
+ * effects on mobile: per-item layout animations, backdrop blur, etc.
  */
 export function useIsMobile(query = "(max-width: 767px)"): boolean {
   const [isMobile, setIsMobile] = useState(false);

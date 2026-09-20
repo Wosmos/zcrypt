@@ -13,9 +13,9 @@ import { sharing } from "../_data/sharing";
 import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Encrypted File Sharing — Keys That Stay in the Link",
+  title: "Encrypted File Sharing. Keys That Stay in the Link",
   description:
-    "Share any file with a link whose decryption key lives only in the URL fragment — it never reaches the server. Add a password, an expiry, or a download limit, and revoke anytime. Recipients need no account and decrypt entirely in their browser.",
+    "Share any file with a link whose decryption key lives only in the URL fragment. It never reaches the server. Add a password, an expiry, or a download limit, and revoke anytime. Recipients need no account and decrypt entirely in their browser.",
   keywords: [
     "encrypted file sharing",
     "secure share link",
@@ -85,12 +85,12 @@ export default function SharingPage() {
             <div className="flex items-center gap-2 text-[var(--color-text-muted)]">
               <span className="inline-block h-2 w-2 rounded-full bg-[var(--color-text-muted)]" />
               <span className="font-mono">/s/3kQ9pX2v</span>
-              <span>— sent to the server</span>
+              <span>sent to the server</span>
             </div>
             <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
               <span className="inline-block h-2 w-2 rounded-full bg-amber-500" />
               <span className="font-mono">#key=…</span>
-              <span>— stays in the browser</span>
+              <span>stays in the browser</span>
             </div>
           </div>
 
@@ -143,7 +143,7 @@ export default function SharingPage() {
             </div>
             <div className="mt-1.5">
               <span className="text-cyan-600/80 dark:text-cyan-400/80">returns</span> ciphertext
-              blob — sealed
+              blob, sealed
             </div>
             <div className="mt-1.5 break-all">
               <span className="text-cyan-600/80 dark:text-cyan-400/80">#key=…</span>{" "}

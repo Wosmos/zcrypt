@@ -5,7 +5,7 @@ const GITHUB_REPO_URL = "https://github.com/Wosmos/zcrypt";
 const SPONSOR_URL = "https://github.com/sponsors/Wosmos";
 
 /**
- * The docs section's own footer — deliberately smaller than the marketing
+ * The docs section's own footer: deliberately smaller than the marketing
  * site's footer (no sitemap columns, no newsletter). Docs are a reference
  * you're scanning, not a landing page you're browsing.
  */

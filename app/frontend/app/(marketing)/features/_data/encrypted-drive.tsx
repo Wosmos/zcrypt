@@ -32,7 +32,7 @@ export const encryptedDrive: EncryptedDrivePageData = {
     subtext: (
       <>
         Most &ldquo;encrypted storage&rdquo; gives you a flat list of files. zcrypt gives you a real
-        file explorer — folders, search, previews, drag-and-drop — where everything is encrypted on
+        file explorer (folders, search, previews, drag-and-drop) where everything is encrypted on
         your device before it leaves.
       </>
     ),
@@ -43,13 +43,13 @@ export const encryptedDrive: EncryptedDrivePageData = {
   capabilitiesSection: {
     heading: "Everything a drive should do",
     subheading:
-      "The organization you expect from Finder or Google Drive — with a zero-knowledge encryption layer underneath all of it.",
+      "The organization you expect from Finder or Google Drive: with a zero-knowledge encryption layer underneath all of it.",
   },
   capabilities: [
     {
       Icon: FolderOpen,
       title: "Real, nestable folders",
-      desc: "Create folders inside folders, as deep as you like. Organize the way you already think — not a flat list of blobs.",
+      desc: "Create folders inside folders, as deep as you like. Organize the way you already think, not a flat list of blobs.",
     },
     {
       Icon: ChevronRight,
@@ -59,7 +59,7 @@ export const encryptedDrive: EncryptedDrivePageData = {
     {
       Icon: LayoutGrid,
       title: "Grid & list views",
-      desc: "Switch between a thumbnail grid and a sortable list. Sort by name, size, type, date — or by how much space compression saved.",
+      desc: "Switch between a thumbnail grid and a sortable list. Sort by name, size, type, date, or by how much space compression saved.",
     },
     {
       Icon: Search,
@@ -69,12 +69,12 @@ export const encryptedDrive: EncryptedDrivePageData = {
     {
       Icon: Eye,
       title: "Preview without downloading",
-      desc: "Open images, video, audio, PDFs, documents, and code right in the browser — decrypted on the fly, then gone.",
+      desc: "Open images, video, audio, PDFs, documents, and code right in the browser: decrypted on the fly, then gone.",
     },
     {
       Icon: Lock,
       title: "Encrypted folder names",
-      desc: "Folder names are encrypted on your device too. Even your structure stays private — the server only ever sees ciphertext.",
+      desc: "Folder names are encrypted on your device too. Even your structure stays private: the server only ever sees ciphertext.",
     },
   ],
 
@@ -85,7 +85,7 @@ export const encryptedDrive: EncryptedDrivePageData = {
       <>
         A nicer file manager usually means handing the provider more metadata. Not here. Folder
         names are encrypted on your device with your passphrase, so the server stores opaque
-        ciphertext — it can&apos;t read your files, your folder names, or how you&apos;ve arranged
+        ciphertext. It can&apos;t read your files, your folder names, or how you&apos;ve arranged
         them.
       </>
     ),
@@ -107,7 +107,7 @@ export const encryptedDrive: EncryptedDrivePageData = {
     {
       href: "/features/file-viewers",
       title: "In-browser file viewers",
-      desc: "Preview images, video, PDFs, docs, and code — decrypted locally.",
+      desc: "Preview images, video, PDFs, docs, and code, decrypted locally.",
     },
     {
       href: "/features/transfers",

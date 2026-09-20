@@ -93,7 +93,7 @@ function categorizeFiles(files: FileMetadata[]): CategoryInfo[] {
 
 export function StorageHero({ files, quotaInfo }: StorageHeroProps) {
   const totalOriginal = files.reduce((s, f) => s + f.original_size, 0);
-  // Storage is unbounded (bounded only by the connected platform) — show usage
+  // Storage is unbounded (bounded only by the connected platform), show usage
   // as a total, never a fraction of a cap.
   const totalUsed = quotaInfo?.used_bytes ?? totalOriginal;
   const categories = categorizeFiles(files);

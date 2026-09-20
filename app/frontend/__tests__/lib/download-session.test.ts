@@ -126,7 +126,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe("downloadAndDecryptFile — in-memory path", () => {
+describe("downloadAndDecryptFile: in-memory path", () => {
   it("downloads, decrypts, verifies integrity, and triggers a Blob download", async () => {
     const chunks = [chunkBytes(0), chunkBytes(1)];
     const hash = expectedHash(chunks);
@@ -263,7 +263,7 @@ describe("downloadAndDecryptFile — in-memory path", () => {
     getFileChunk.mockResolvedValueOnce({ data: chunkBytes(0).buffer, sha256: "", compressed: false });
     processMock.mockRejectedValueOnce(new Error("bad auth tag"));
 
-    await expect(downloadAndDecryptFile("f1", "pw")).rejects.toThrow(/Decryption failed — wrong passphrase\?/);
+    await expect(downloadAndDecryptFile("f1", "pw")).rejects.toThrow(/Decryption failed, wrong passphrase\?/);
   });
 
   it("does not retry a non-transient chunk-fetch error", async () => {
@@ -370,7 +370,7 @@ describe("downloadAndDecryptFile — in-memory path", () => {
   });
 });
 
-describe("downloadAndDecryptFile — streaming-to-disk path", () => {
+describe("downloadAndDecryptFile: streaming-to-disk path", () => {
   it("streams chunks to disk via DiskWritable in order instead of building a Blob", async () => {
     const chunks = [chunkBytes(0), chunkBytes(1), chunkBytes(2)];
     const hash = expectedHash(chunks);
@@ -429,7 +429,7 @@ describe("downloadAndDecryptFile — streaming-to-disk path", () => {
   });
 });
 
-describe("downloadAndDecryptFile — abort/cancel", () => {
+describe("downloadAndDecryptFile, abort/cancel", () => {
   it("rejects immediately when already aborted before starting", async () => {
     const controller = new AbortController();
     controller.abort();
@@ -455,7 +455,7 @@ describe("downloadAndDecryptFile — abort/cancel", () => {
 
   it("stops the next queued chunk at its own guard once an earlier chunk is cancelled", async () => {
     // Serialize the queue so chunk 1 provably starts AFTER chunk 0 finished and
-    // aborted — the only window the per-chunk guard exists to catch.
+    // aborted: the only window the per-chunk guard exists to catch.
     getDeviceProfile.mockReturnValue({ maxConcurrentDownloads: 1 });
     getFileMeta.mockResolvedValueOnce(baseMeta(2, "irrelevant-since-aborted"));
     const controller = new AbortController();

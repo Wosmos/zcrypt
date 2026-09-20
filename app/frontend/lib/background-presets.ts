@@ -1,8 +1,8 @@
 /**
  * Curated background designs shown alongside the flat color picker for
  * folder/file card styling. Every value is a self-contained CSS `background`
- * shorthand — gradients and repeating-pattern layers only, no images or
- * network-dependent assets — so it can be applied directly via
+ * shorthand: gradients and repeating-pattern layers only, no images or
+ * network-dependent assets: so it can be applied directly via
  * `style={{ background: design.css }}`.
  */
 export interface BackgroundDesign {

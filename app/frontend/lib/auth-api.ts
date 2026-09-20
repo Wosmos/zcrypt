@@ -2,7 +2,7 @@ import type { AuthUser, AuditEvent } from "@/types";
 import { isTauri } from "@/lib/tauri";
 
 // AuditEvent now lives in types/ (so admin types can reference it without a
-// types→lib inversion) — re-exported here so its existing consumers keep
+// types→lib inversion): re-exported here so its existing consumers keep
 // importing it from "@/lib/auth-api".
 export type { AuditEvent };
 
@@ -31,7 +31,7 @@ async function authRequest<T>(path: string, options?: RequestInit): Promise<T> {
         message = body;
       }
       // Carry the HTTP status on the error so callers can tell a DEFINITIVE auth
-      // failure (401/403) from a transient one (5xx/network) — the token-refresh
+      // failure (401/403) from a transient one (5xx/network), the token-refresh
       // path must only log out on the former.
       const err = new Error(message) as Error & { status?: number };
       err.status = res.status;

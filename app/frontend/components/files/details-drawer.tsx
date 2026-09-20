@@ -109,7 +109,7 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
   const [revoking, setRevoking] = useState(false);
 
   // Reset the drawer's UI state each time it opens for a file. Data (meta +
-  // shares) is served from the cached queries above — no fetch here.
+  // shares) is served from the cached queries above, no fetch here.
   useEffect(() => {
     if (!open || !fileId) return;
     setTab("details");
@@ -183,7 +183,7 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
   const typeInfo = getFileTypeInfo(file.original_name);
   const Icon = fileIconFor(file.original_name);
   const savings = savingsPercent(file.original_size, file.encrypted_size);
-  const shortSha = file.sha256 ? truncateMiddle(file.sha256, 16, 8) : "—";
+  const shortSha = file.sha256 ? truncateMiddle(file.sha256, 16, 8) : "-";
   const activeShares = shares.filter((s) => !s.revoked);
 
   return (
@@ -371,7 +371,7 @@ export function DetailsDrawer({ file, open, onOpenChange }: DetailsDrawerProps) 
                       />
                     </div>
                     <p className="text-[11px] text-[var(--color-text-secondary)]">
-                      The link&apos;s <strong>#fragment</strong> holds the decryption key — anyone
+                      The link&apos;s <strong>#fragment</strong> holds the decryption key, anyone
                       with the full link can download and decrypt without a passphrase. The key
                       never reaches our servers.
                     </p>

@@ -6,12 +6,12 @@ import { SITE_URL } from "@/lib/site";
 export const metadata: Metadata = {
   title: "Threat model | zcrypt Docs",
   description:
-    "An honest account of what zcrypt defends against — server breaches, storage-provider access, MITM, insider access, metadata leakage — and what it cannot protect: a compromised device, a weak passphrase, and frontend supply-chain risk.",
+    "An honest account of what zcrypt defends against (server breaches, storage-provider access, MITM, insider access, metadata leakage) and what it cannot protect: a compromised device, a weak passphrase, and frontend supply-chain risk.",
   alternates: { canonical: `${SITE_URL}/docs/threat-model` },
   openGraph: {
     title: "Threat model | zcrypt Docs",
     description:
-      "What zcrypt protects against and what it does not — stated plainly, with the reasoning and the mitigations for each gap.",
+      "What zcrypt protects against and what it does not: stated plainly, with the reasoning and the mitigations for each gap.",
     url: `${SITE_URL}/docs/threat-model`,
   },
 };
@@ -29,7 +29,7 @@ export default function ThreatModelPage() {
     <DocPage
       href="/docs/threat-model"
       title="Threat model"
-      description="A security tool is only as honest as its threat model. Here is what zcrypt is designed to stop, what it cannot, and why — so you can decide whether it fits your situation rather than taking a slogan on faith."
+      description="A security tool is only as honest as its threat model. Here is what zcrypt is designed to stop, what it cannot, and why, so you can decide whether it fits your situation rather than taking a slogan on faith."
       toc={toc}
     >
       <DocSection id="protected" title="What zcrypt protects against">
@@ -46,7 +46,7 @@ export default function ThreatModelPage() {
             </>,
             <>
               <strong>Storage-provider access.</strong> Your chunks live on GitHub, GitLab, Hugging
-              Face, or Telegram — all of which see only encrypted{" "}
+              Face, or Telegram: all of which see only encrypted{" "}
               <span className="font-mono">.bin</span> blobs, never plaintext.
             </>,
             <>
@@ -56,7 +56,7 @@ export default function ThreatModelPage() {
             </>,
             <>
               <strong>Insider access.</strong> No one operating zcrypt can read your files. There is
-              no internal tool, key escrow, or admin override that decrypts user data — the keys
+              no internal tool, key escrow, or admin override that decrypts user data, the keys
               simply are not on our side.
             </>,
             <>
@@ -102,7 +102,7 @@ export default function ThreatModelPage() {
         />
         <DocNote type="warning" title="The honest summary">
           zcrypt removes <em>us</em> and the <em>storage providers</em> from your trust boundary. It
-          cannot remove <em>your device</em> or the strength of your <em>passphrase</em> from it —
+          cannot remove <em>your device</em> or the strength of your <em>passphrase</em> from it:
           those remain yours to protect.
         </DocNote>
       </DocSection>
@@ -140,7 +140,7 @@ export default function ThreatModelPage() {
           >
             zero-knowledge architecture
           </Link>{" "}
-          — we would rather flag them here than quietly mark everything green.
+          . We would rather flag them here than quietly mark everything green.
         </DocP>
       </DocSection>
 
@@ -148,7 +148,7 @@ export default function ThreatModelPage() {
         <DocList
           items={[
             <>
-              Use a <strong>long, unique passphrase</strong> from a password manager — this is the
+              Use a <strong>long, unique passphrase</strong> from a password manager. This is the
               highest-leverage thing you can do.
             </>,
             <>
@@ -188,21 +188,21 @@ export default function ThreatModelPage() {
               href="/docs/zero-knowledge"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Zero-knowledge architecture — the precise list of what is stored
+              Zero-knowledge architecture: the precise list of what is stored
             </Link>,
             <Link
               key="b"
               href="/docs/obfuscation"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Storage obfuscation — how the metadata-leakage defense works
+              Storage obfuscation: how the metadata-leakage defense works
             </Link>,
             <Link
               key="c"
               href="/docs/security"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Encryption model — the cryptography underneath it all
+              Encryption model: the cryptography underneath it all
             </Link>,
           ]}
         />

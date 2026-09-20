@@ -157,7 +157,7 @@ type CanvasBehavior = {
   drawImageThrows: boolean;
   dataUrl: string;
   /** Simulate a raster whose every pixel is fully transparent (e.g. an SVG
-   *  Chrome draws as nothing) — generateThumbnail must reject it. */
+   *  Chrome draws as nothing): generateThumbnail must reject it. */
   blank?: boolean;
   /** Simulate a canvas whose pixels can't be read back at all (a real browser
    *  throws SecurityError on a cross-origin-tainted canvas). */
@@ -327,7 +327,7 @@ describe("useThumbnail", () => {
     first.unmount();
 
     // A brand new hook instance for the same file must read the cache
-    // synchronously — no new fetch/decrypt round trip.
+    // synchronously, no new fetch/decrypt round trip.
     const second = renderHook(() => useThumbnail("f1", "photo.jpg"));
     expect(second.result.current.thumbnailUrl).toBe("data:image/webp;base64,FAKE");
     expect(second.result.current.pending).toBe(false);
@@ -436,7 +436,7 @@ describe("useThumbnail", () => {
     act(() => primeThumbnails("vault-pass"));
     const { result } = renderHook(() => useThumbnail("f1", "photo.jpg"));
 
-    // First attempt fails — but a chunk-fetch error is TRANSIENT (e.g. a
+    // First attempt fails, but a chunk-fetch error is TRANSIENT (e.g. a
     // freshly-uploaded chunk still syncing), so the card keeps shimmering and a
     // retry is scheduled rather than immediately falling back to an icon.
     await act(async () => { await vi.advanceTimersByTimeAsync(100); });
@@ -544,7 +544,7 @@ describe("useThumbnail", () => {
 
   it("recovers WITHOUT a reload: fails once (chunk not synced), then succeeds on retry", async () => {
     // The reported bug: a just-uploaded file's chunk is still syncing when the
-    // thumbnail first tries to fetch it, so attempt 1 fails — previously that
+    // thumbnail first tries to fetch it, so attempt 1 fails, previously that
     // blacklisted the file until a full page reload. Now the retry, seconds
     // later (once the chunk lands), produces the thumbnail with no reload.
     vi.useFakeTimers();
@@ -582,7 +582,7 @@ describe("useThumbnail", () => {
     expect(result.current.pending).toBe(true);
 
     // A 30s decrypt-stage timeout is TRANSIENT and retries continue in the
-    // BACKGROUND — but the tile no longer shimmers open-ended: past the grace
+    // BACKGROUND, but the tile no longer shimmers open-ended: past the grace
     // window it drops to its type icon (pending false).
     await act(async () => { await vi.advanceTimersByTimeAsync(2_000); });
     expect(result.current.pending).toBe(false);
@@ -604,7 +604,7 @@ describe("useThumbnail", () => {
     act(() => primeThumbnails("vault-pass"));
     const { result } = renderHook(() => useThumbnail("f1", "file.svg"));
 
-    // The render "succeeds" but is fully transparent — caching it would leave
+    // The render "succeeds" but is fully transparent, caching it would leave
     // the tile looking like an eternal shimmer. It must fail permanently and
     // fall back to the type icon (pending false, nothing cached).
     await waitFor(() => expect(result.current.pending).toBe(false));
@@ -622,7 +622,7 @@ describe("useThumbnail", () => {
     await waitFor(() => expect(first.result.current.thumbnailUrl).not.toBeNull());
     first.unmount();
 
-    // A fresh hook for the same file reads the cache synchronously — no shimmer.
+    // A fresh hook for the same file reads the cache synchronously, no shimmer.
     const second = renderHook(() => useThumbnail("f1", "photo.jpg"));
     expect(second.result.current.thumbnailUrl).toBe("data:image/webp;base64,FAKE");
     expect(second.result.current.pending).toBe(false);
@@ -639,7 +639,7 @@ describe("useThumbnail", () => {
     first.unmount();
 
     // Lock/logout must NOT drop the cached preview (that is what caused the
-    // "shimmer on every login" — the cache was wiped and had to regenerate).
+    // "shimmer on every login": the cache was wiped and had to regenerate).
     act(() => clearThumbnails());
     expect(hasCachedThumbnail("f1")).toBe(true);
 
@@ -903,7 +903,7 @@ describe("useThumbnail", () => {
         };
         // Real IndexedDB failures (quota exceeded, private-mode restrictions,
         // blocked upgrades) surface via the request's onerror event, not a
-        // thrown exception — fire it on a microtask like a real browser would.
+        // thrown exception: fire it on a microtask like a real browser would.
         Promise.resolve().then(() => req.onerror?.());
         return req;
       }
@@ -1026,7 +1026,7 @@ describe("useThumbnail", () => {
     const { result } = renderHook(() => useThumbnail("f1", "photo.jpg"));
 
     // Even though acquireSlot threw, inflight/loading are cleared (the finally
-    // always runs) — this is the fix for the perpetual-shimmer-on-stuck-slot bug.
+    // always runs). This is the fix for the perpetual-shimmer-on-stuck-slot bug.
     await act(async () => { await vi.advanceTimersByTimeAsync(100); });
     expect(result.current.loading).toBe(false);
     expect(result.current.thumbnailUrl).toBeNull();
@@ -1051,7 +1051,7 @@ describe("useThumbnail", () => {
     expect(getFileMetaMock).not.toHaveBeenCalled();
     expect(getFileChunkMock).not.toHaveBeenCalled();
 
-    // The grid tile renders the seeded preview straight away — it never shimmers.
+    // The grid tile renders the seeded preview straight away. It never shimmers.
     const { result } = renderHook(() => useThumbnail("f1", "photo.jpg"));
     expect(result.current.thumbnailUrl).toBe("data:image/webp;base64,FAKE");
     expect(result.current.pending).toBe(false);
@@ -1107,7 +1107,7 @@ describe("useThumbnail", () => {
   it("accepts a render whose pixels cannot be read back rather than calling it blank", async () => {
     // A real browser throws SecurityError reading back a tainted canvas. That
     // tells us nothing about whether the draw produced anything, so the
-    // blank-check must fail OPEN — rejecting here would throw away a perfectly
+    // blank-check must fail OPEN: rejecting here would throw away a perfectly
     // good thumbnail and leave the tile on the type icon forever.
     canvasBehavior = { ...canvasBehavior, getImageDataThrows: true };
     const { primeThumbnails, useThumbnail, hasCachedThumbnail } = await loadModule();
@@ -1134,8 +1134,8 @@ describe("useThumbnail", () => {
     expect(getFileMetaMock).not.toHaveBeenCalledWith("never-mounted");
 
     const { result } = renderHook(() => useThumbnail("f1", "photo.jpg"));
-    // Scrolling the tile out only DEPRIORITIZES it against on-screen waiters —
-    // it must never cancel work that is already queued.
+    // Scrolling the tile out only DEPRIORITIZES it against on-screen waiters.
+    // It must never cancel work that is already queued.
     act(() => setThumbnailVisibility("f1", false));
     await waitFor(() => expect(result.current.thumbnailUrl).toBe("data:image/webp;base64,FAKE"));
 
@@ -1207,7 +1207,7 @@ describe("useThumbnail", () => {
 
     // Seed a PRE-EXISTING database one version behind, already holding the store
     // with an entry in the old (now-invalid) format. Opening at the current
-    // version must delete and recreate it, evicting that entry — a version bump
+    // version must delete and recreate it, evicting that entry, a version bump
     // exists precisely to drop caches whose format changed.
     await new Promise<void>((resolve, reject) => {
       const req = indexedDB.open("zcrypt_thumbs", 3);
@@ -1230,7 +1230,7 @@ describe("useThumbnail", () => {
   });
 
   it("finishes hydrating even when reading the cache errors", async () => {
-    // A cursor read that fails must not leave `hydrated` false forever — every
+    // A cursor read that fails must not leave `hydrated` false forever, every
     // tile would shimmer indefinitely, waiting for a cache load that never lands.
     const failingCursor = () => {
       const req = { error: new Error("cursor failed") } as unknown as IDBRequest & {
@@ -1328,7 +1328,7 @@ describe("useThumbnail", () => {
     act(() => primeThumbnails("vault-pass"));
     renderHook(() => useThumbnail("f1", "photo.jpg"));
 
-    // A bare string has no .message — stringifying it is what keeps the failure
+    // A bare string has no .message: stringifying it is what keeps the failure
     // bookkeeping (and its retry schedule) from throwing on the error path.
     await waitFor(() => expect(getFileChunkMock).toHaveBeenCalled());
     await act(async () => {
@@ -1369,7 +1369,7 @@ describe("useThumbnail", () => {
       await waitFor(() => expect(result.current.thumbnailUrl).toBe("data:image/webp;base64,FAKE"));
       expect(tauriMock.sidecarDecryptToMemory).toHaveBeenCalledWith("f1", "vault-pass", "user-1");
       expect(hasCachedThumbnail("f1")).toBe(true);
-      // Native path only — no meta fetch, no chunk fetch, no key derivation.
+      // Native path only, no meta fetch, no chunk fetch, no key derivation.
       expect(getFileMetaMock).not.toHaveBeenCalled();
       expect(getFileChunkMock).not.toHaveBeenCalled();
       expect(resolveFileKeyMock).not.toHaveBeenCalled();
@@ -1386,7 +1386,7 @@ describe("useThumbnail", () => {
       const { result } = renderHook(() => useThumbnail("f1", "photo.jpg"));
 
       await waitFor(() => expect(result.current.thumbnailUrl).toBe("data:image/webp;base64,FAKE"));
-      // The browser path really ran — this is still the zero-knowledge fallback.
+      // The browser path really ran. This is still the zero-knowledge fallback.
       expect(getFileMetaMock).toHaveBeenCalledWith("f1");
       expect(resolveFileKeyMock).toHaveBeenCalled();
     });

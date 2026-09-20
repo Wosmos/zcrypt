@@ -116,7 +116,7 @@ export function ImageViewer({
         {/* LQIP: the cached thumbnail, blurred, shown until the full image decodes
             then crossfaded out. Same object-contain box so it lines up. */}
         {placeholderUrl && !loaded && (
-          // Cached thumbnail (data:/blob:), blurred, as an LQIP — unoptimized via
+          // Cached thumbnail (data:/blob:), blurred, as an LQIP, unoptimized via
           // next.config; `fill` covers the same object-contain box below.
           <NextImage
             src={placeholderUrl}
@@ -133,7 +133,7 @@ export function ImageViewer({
             `max-h-full max-w-full object-contain` centers it at natural aspect,
             and pan bounds + the live `transform` (translate/scale/rotate) are
             computed against that intrinsic box. next/image needs known
-            width+height or a `fill` container — `fill` stretches to the parent
+            width+height or a `fill` container: `fill` stretches to the parent
             and would break the object-contain geometry the gestures rely on, and
             the decrypted image's real pixel size isn't known at render time. The
             src is an unoptimizable client-side blob: URL anyway (zero-knowledge;

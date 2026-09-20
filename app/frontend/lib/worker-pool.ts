@@ -94,7 +94,7 @@ export class WorkerPool {
 
     // Zero-copy send: transfer the data buffer this direction carries (the
     // plaintext for encrypt, the encrypted bytes for decrypt). keyBytes is NOT
-    // transferred — download reuses the same key object across every chunk.
+    // transferred: download reuses the same key object across every chunk.
     const buffer = "encrypted" in item.input ? item.input.encrypted : item.input.plaintext;
     worker.postMessage(item.input, [buffer]);
   }

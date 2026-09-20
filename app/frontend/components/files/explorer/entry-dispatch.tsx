@@ -12,7 +12,7 @@ import { usePassphraseStore } from "@/store/passphrase";
 
 // Cache the derived per-user name key across every card/row the explorer
 // renders, so a grid of many files doesn't re-run PBKDF2 (deriveNameKey) once
-// per tile — mirrors useFolders' nameKeyRef, just module-scoped since this is
+// per tile: mirrors useFolders' nameKeyRef, just module-scoped since this is
 // called from one hook instance per file.
 let nameKeyCache: { passphrase: string; userId: string; key: Promise<CryptoKey> } | null = null;
 
@@ -29,19 +29,19 @@ function getNameKeyCached(passphrase: string, userId: string): Promise<CryptoKey
  * Defensive fallback name resolver for the explorer's file card/row.
  *
  * Every file normally arrives with `original_name` already resolved by the
- * query source (lib/file-names.ts's `decryptFileNames`, run once per fetch —
- * see store/files.ts) — the SAME per-user name key (lib/name-crypto, keyed off
+ * query source (lib/file-names.ts's `decryptFileNames`, run once per fetch.
+ * See store/files.ts): the SAME per-user name key (lib/name-crypto, keyed off
  * the vault passphrase) used everywhere else names are decrypted. This hook
  * exists only for the case a `FileMetadata` reaches the explorer with that
  * resolve not yet applied (`original_name` empty but `encrypted_name`
- * present — e.g. an entry built ahead of the next refetch): it re-derives that
+ * present: e.g. an entry built ahead of the next refetch): it re-derives that
  * same key and decrypts `encrypted_name` directly, so a folder's contents
  * never fall through to showing the raw file id while a real name is
  * decryptable.
  *
  * Resolution order: an already-resolved `original_name` → a freshly decrypted
  * name → "[locked]" (encrypted but the vault isn't unlocked yet, or the
- * decrypt is still in flight) → the file id (truly nothing else to show — no
+ * decrypt is still in flight) → the file id (truly nothing else to show, no
  * `encrypted_name` AND no `original_name`, which should only happen for a
  * malformed legacy row).
  */
@@ -77,11 +77,11 @@ export function useExplorerFileName(file: FileMetadata): string {
 }
 
 /**
- * File selection-mode toggle button — shared by ExplorerCard and ExplorerRow.
+ * File selection-mode toggle button: shared by ExplorerCard and ExplorerRow.
  * `className` carries the only real difference between the two: absolute
  * positioning over the card thumbnail vs. an inline flex slot in the row.
  * `displayName` is the caller's already-resolved name (see
- * `useExplorerFileName`) — passed in rather than re-resolved here so a
+ * `useExplorerFileName`): passed in rather than re-resolved here so a
  * select-mode grid doesn't run a second decrypt per tile.
  */
 export function SelectCheckbox({
@@ -124,7 +124,7 @@ interface ExplorerEntryDispatchProps extends ExplorerItemProps {
 
 /**
  * Resolves an ExplorerEntry to its folder or file renderer, forwarding the
- * matching prop subset. Shared by ExplorerCardImpl and ExplorerRowImpl — the
+ * matching prop subset. Shared by ExplorerCardImpl and ExplorerRowImpl, the
  * list/grid dispatch differs only in which pair of leaf components it passes in.
  */
 export function ExplorerEntryDispatch({

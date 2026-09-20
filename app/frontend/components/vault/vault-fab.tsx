@@ -7,11 +7,11 @@ import { cn } from "@/lib/utils";
 import { useTransferDockStore } from "@/store/transfer-dock";
 
 /**
- * VaultFab — the single floating "+" action for the vault on mobile.
+ * VaultFab: the single floating "+" action for the vault on mobile.
  *
  * Replaces the cramped New folder + Upload buttons: one accent FAB floating just
  * above the bottom nav that opens a small speed-dial ("Upload files" / "New
- * folder"). Mobile only (md:hidden) — desktop keeps the header buttons.
+ * folder"). Mobile only (md:hidden): desktop keeps the header buttons.
  */
 interface VaultFabProps {
   onNewFolder: () => void;
@@ -42,7 +42,7 @@ export function VaultFab({ onNewFolder, onUpload }: VaultFabProps) {
 
   return (
     <div className="md:hidden">
-      {/* Scrim — dims the vault while the menu is open; tap anywhere to dismiss. */}
+      {/* Scrim: dims the vault while the menu is open; tap anywhere to dismiss. */}
       <AnimatePresence>
         {open && (
           <motion.button
@@ -100,7 +100,7 @@ export function VaultFab({ onNewFolder, onUpload }: VaultFabProps) {
             // diamond, so only the "+" glyph rotates (below).
             "flex h-14 w-14 items-center justify-center rounded-3xl bg-[var(--color-accent)] text-white",
             // iOS Safari paints its own inset/gradient chrome on <button> and a
-            // grey tap flash — both shrink the FAB visually. Reset them so it
+            // grey tap flash: both shrink the FAB visually. Reset them so it
             // renders as the full-size accent squircle everywhere.
             "appearance-none [-webkit-appearance:none] [-webkit-tap-highlight-color:transparent]",
             "shadow-[0_12px_30px_-6px_rgba(0,0,0,0.45)] transition-transform active:scale-95",

@@ -55,7 +55,7 @@ export function LinkedAccounts() {
 
   const linked = data?.providers ?? [];
 
-  // Renders as bare grid items — the parent (settings-content) owns the
+  // Renders as bare grid items: the parent (settings-content) owns the
   // shared panel/Section and grid that also holds the encryption key card.
   if (loading) {
     return (

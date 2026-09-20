@@ -14,7 +14,7 @@ export function relaunchAfterPrior(
     try {
       await prior;
     } catch {
-      /* previous run settled (paused / aborted / errored) — fine */
+      /* previous run settled (paused / aborted / errored), fine */
     }
     await run();
   })();

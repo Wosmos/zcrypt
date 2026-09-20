@@ -6,21 +6,21 @@ name: Neon Quota Watch
 # 60%/80% (ntfy), and at 80% ("CRITICAL") automatically runs the full
 # rotation carousel (docs/DB_SCALING_100_PROJECTS.md): create a fresh
 # project, dump/restore/verify, cut Railway over, health-gate, and roll back
-# on failure — see scripts/neon-rotate.sh + scripts/neon-cutover.sh.
+# on failure. See scripts/neon-rotate.sh + scripts/neon-cutover.sh.
 #
 # Setup (one-time): add repo secrets
 #   NEON_API_KEY            Neon console → Account settings → API keys
-#   NEON_PROJECT_ID         the CURRENT active project's id (bootstrap only —
+#   NEON_PROJECT_ID         the CURRENT active project's id (bootstrap only:
 #                           docs/neon-manifest.json takes over as the source
 #                           of truth after the first rotation)
 #   NEON_ORG_ID              the Neon org id `neonctl projects create` runs
-#                            under (needed only for auto-rotation) — recent
+#                            under (needed only for auto-rotation), recent
 #                            neonctl versions reject creation without it
 #   NTFY_TOPIC              any hard-to-guess ntfy.sh topic; subscribe on your phone
 #   RAILWAY_TOKEN            Railway project token (needed only for auto-rotation)
 #   RAILWAY_PROJECT_ID       the zcrypt project's id (Railway → project → Settings)
 #   RAILWAY_SERVICE          the Go backend's service ID on Railway (an id, not
-#                            its display name — neon-cutover.sh calls Railway's
+#                            its display name, neon-cutover.sh calls Railway's
 #                            GraphQL API directly, which only accepts ids)
 #   RAILWAY_ENVIRONMENT      the environment's ID (e.g. the id behind
 #                            "production", NOT the string "production" itself)
@@ -73,7 +73,7 @@ jobs:
           CRIT_PCT: "${{ inputs.crit_pct || '80' }}"
         run: bash scripts/neon-usage.sh
 
-      - name: Auto-rotate (85%+ quota — before lockout, per docs/DB_SCALING_100_PROJECTS.md)
+      - name: Auto-rotate (85%+ quota: before lockout, per docs/DB_SCALING_100_PROJECTS.md)
         id: rotate
         if: steps.quota.outputs.level == 'CRITICAL'
         continue-on-error: true # let the final step decide the job's pass/fail signal
@@ -91,7 +91,7 @@ jobs:
           # @railway/cli is deliberately NOT installed: as of CLI v5.54 it
           # rejects a project token on every command (confirmed 2026-09-12),
           # even though the same token works fine against Railway's GraphQL
-          # API directly — which is what neon-cutover.sh now talks to with curl.
+          # API directly: which is what neon-cutover.sh now talks to with curl.
           npm install -g neonctl
           sudo apt-get update -qq && sudo apt-get install -y -qq jq
           # Neon runs PostgreSQL 17; Ubuntu 24.04 ships pg_dump 16, which
@@ -104,7 +104,7 @@ jobs:
             | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
           sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client-17
           # GITHUB_PATH only takes effect in the NEXT step's shell, not later in
-          # THIS one — and the dump runs in this same step. export PATH directly
+          # THIS one, and the dump runs in this same step. export PATH directly
           # (confirmed needed: a live rotation test still picked up the stock
           # pg_dump 16 here despite the GITHUB_PATH line, 2026-09-12).
           export PATH="/usr/lib/postgresql/17/bin:$PATH"
@@ -119,23 +119,23 @@ jobs:
           rotated="${{ steps.rotate.outcome }}"
           echo "quota level: ${level:-UNKNOWN} | rotation outcome: ${rotated:-not triggered}"
           # An empty level means neon-usage.sh never produced a verdict (missing
-          # secret, API failure, bad project id). That is NOT "OK" — it means
+          # secret, API failure, bad project id). That is NOT "OK", it means
           # nothing is being monitored, which is exactly how the 2026-07-20
           # lockout arrived unannounced. Fail loudly instead of defaulting green.
           if [[ -z "$level" ]]; then
-            echo "::error::Quota check produced no result — the watcher is blind. Check NEON_API_KEY / NEON_PROJECT_ID and the 'Check usage + alert' step log."
+            echo "::error::Quota check produced no result, the watcher is blind. Check NEON_API_KEY / NEON_PROJECT_ID and the 'Check usage + alert' step log."
             exit 1
           fi
           # Green if: quota is fine, OR quota was CRITICAL and rotation succeeded
-          # (the automation fully handled it — no human action needed).
+          # (the automation fully handled it, no human action needed).
           # Red if: WARN (needs a human to watch it), or CRITICAL and rotation
-          # did not succeed (needs a human NOW — see the ntfy alert).
+          # did not succeed (needs a human NOW. See the ntfy alert).
           if [[ "$level" == "WARN" ]]; then
-            echo "::error::Quota WARN (60%+) — no auto-action yet, keep an eye on it."
+            echo "::error::Quota WARN (60%+), no auto-action yet, keep an eye on it."
             exit 1
           fi
           if [[ "$level" == "CRITICAL" && "$rotated" != "success" ]]; then
-            echo "::error::Quota CRITICAL and auto-rotation did NOT succeed — see the ntfy alert and the 'Auto-rotate' step log above."
+            echo "::error::Quota CRITICAL and auto-rotation did NOT succeed. See the ntfy alert and the 'Auto-rotate' step log above."
             exit 1
           fi
           exit 0

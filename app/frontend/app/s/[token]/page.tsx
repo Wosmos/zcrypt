@@ -158,7 +158,7 @@ export default function SharePage() {
       const cek = await unwrapKey(sk.buffer.slice(0) as ArrayBuffer, fromBase64(meta.wrapped_cek));
       keyBytes = cek.buffer.slice(0) as ArrayBuffer;
     } catch {
-      throw new Error("Invalid share key — the link may be incomplete or corrupt.");
+      throw new Error("Invalid share key: the link may be incomplete or corrupt.");
     }
 
     const decryptedChunks: Uint8Array[] = new Array(meta.chunk_count);
@@ -173,7 +173,7 @@ export default function SharePage() {
       try {
         plaintext = await decryptChunk(keyBytes, encrypted);
       } catch {
-        throw new Error("Decryption failed — the share link may be incomplete.");
+        throw new Error("Decryption failed: the share link may be incomplete.");
       }
 
       if (compressed && zstd) {
@@ -205,12 +205,12 @@ export default function SharePage() {
 
     // 'hmac_v1' files store a per-user KEYED MAC that only the owner (who holds
     // the vault passphrase) can recompute. A public share recipient has no
-    // passphrase, so the file-level compare is impossible — skip it and rely on
+    // passphrase, so the file-level compare is impossible: skip it and rely on
     // the per-chunk AES-GCM auth tags. Legacy 'plain'/undefined files still verify.
     if (meta.sha256_scheme !== "hmac_v1") {
       const actualHash = await sha256Hex(fullFile);
       if (actualHash !== meta.sha256) {
-        throw new Error("File integrity check failed — SHA-256 mismatch");
+        throw new Error("File integrity check failed. SHA-256 mismatch");
       }
     }
 
@@ -324,7 +324,7 @@ export default function SharePage() {
               {errorMsg && <p className="text-xs text-red-500 font-medium">{errorMsg}</p>}
 
               {/* Action buttons. The decryption key comes from the link
-                  fragment, so no passphrase is needed — only the optional
+                  fragment, so no passphrase is needed, only the optional
                   share password gates these. */}
               <div className="flex gap-2">
                 {isPreviewable ? (
@@ -361,7 +361,7 @@ export default function SharePage() {
               <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3">
                 <p className="text-xs text-cyan-700 dark:text-cyan-300">
                   This file is end-to-end encrypted. The decryption key is in this link and never
-                  reaches our servers — decryption happens entirely in your browser.
+                  reaches our servers: decryption happens entirely in your browser.
                 </p>
               </div>
             </div>

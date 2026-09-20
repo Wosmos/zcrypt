@@ -8,7 +8,7 @@ import { toast } from "@/store/toast";
  * Makes external links work inside the Tauri shell.
  *
  * A webview has no second tab, so `<a target="_blank">` and `window.open()` are
- * both swallowed — the user taps a link and nothing happens at all. Before
+ * both swallowed: the user taps a link and nothing happens at all. Before
  * this, exactly one call site (the OAuth buttons) routed through the opener
  * plugin; every other external link in the app was dead. The worst of them was
  * onboarding, where the "get a token" links to GitHub/GitLab/HuggingFace are
@@ -61,7 +61,7 @@ export function ExternalLinkHandler() {
 
       e.preventDefault();
       void openExternal(url.href).catch(() => {
-        // Thrown when no installed app claims the URL. Say so — the old
+        // Thrown when no installed app claims the URL. Say so, the old
         // behaviour was an unexplained dead tap.
         toast.error("Couldn't open that link on this device");
       });

@@ -2,7 +2,7 @@
  * URL #fragment parsers for public share/pad/send/folder links.
  *
  * The decryption key (and, for folder links, the per-file path manifest) travels
- * in the URL fragment — never sent to the server, not even in access logs. These
+ * in the URL fragment: never sent to the server, not even in access logs. These
  * are the ONE place that reads them, folding the four `#key=…` clones and the
  * app/f-only `&paths=…` manifest reader. SSR-guarded (fragment is client-only).
  */

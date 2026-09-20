@@ -7,7 +7,7 @@ import { createEdgeAutoScroll, type EdgeAutoScroll } from "@/hooks/edge-auto-scr
 /**
  * Touch drag-and-drop for the Vault explorer (mobile).
  *
- * The HTML5 drag API is mouse-only — touchscreens never fire it — so file moves
+ * The HTML5 drag API is mouse-only (touchscreens never fire it) so file moves
  * had no drag gesture on phones. This hook adds one, driving the SAME
  * `useDragMove` store the desktop path uses (so folder drop-highlighting reuses
  * `overTarget` unchanged) and handing the drop back to the explorer.
@@ -23,7 +23,7 @@ import { createEdgeAutoScroll, type EdgeAutoScroll } from "@/hooks/edge-auto-scr
  *     release drops the item in. Near the top/bottom edge we auto-scroll.
  *
  * The drag preview is positioned imperatively (a plain DOM node on <body>) so the
- * finger-follow never re-renders React — only the folder highlight (which changes
+ * finger-follow never re-renders React: only the folder highlight (which changes
  * rarely) goes through the store.
  *
  * Zero effect unless `enabled` (the explorer passes `isMobile`), so the desktop
@@ -56,7 +56,7 @@ export function useTouchDragMove({
   const setOverTarget = useDragMove((s) => s.setOverTarget);
 
   // Latest callbacks in a ref so the document listeners stay referentially stable
-  // (added once per press, removed on cleanup — must be the same fn identity).
+  // (added once per press, removed on cleanup: must be the same fn identity).
   const cbRef = useRef({ canDropOn, onDrop, enabled });
   cbRef.current = { canDropOn, onDrop, enabled };
 
@@ -130,7 +130,7 @@ export function useTouchDragMove({
 
   // ── stable document listeners (added on press, removed on cleanup) ───────────
   // Shared placeholder: overwritten by the wiring effect below before any press
-  // can occur, so it's never actually invoked — just a type-satisfying initial
+  // can occur, so it's never actually invoked, just a type-satisfying initial
   // value for each ref. Excluded from coverage for exactly that reason.
   /* v8 ignore start */
   const noop = () => {};
@@ -161,8 +161,8 @@ export function useTouchDragMove({
     }
   }, [endDrag, setOverTarget]);
 
-  // Sole call site (below) only ever invokes this once per press — after
-  // `!s.dragging` was just checked — and only while `s.item` is set (checked at
+  // Sole call site (below) only ever invokes this once per press, after
+  // `!s.dragging` was just checked, and only while `s.item` is set (checked at
   // the top of the same handler), so both are guaranteed true here; the edge
   // auto-scroll's own `start()` is idempotent, so a stray re-entry can't stack
   // a second rAF loop.
@@ -217,7 +217,7 @@ export function useTouchDragMove({
     };
 
     // Swallow the browser's long-press contextmenu ONLY once an actual drag is
-    // underway — otherwise a plain long-press (hold without moving) would be
+    // underway: otherwise a plain long-press (hold without moving) would be
     // eaten here and the file's context menu would never open on mobile.
     onCtxRef.current = (e: Event) => {
       if (st.current.dragging) e.preventDefault();

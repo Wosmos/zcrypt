@@ -22,14 +22,14 @@ interface ThemeContextValue {
   theme: Theme;
   resolvedTheme: ResolvedTheme;
   setTheme: (theme: Theme) => void;
-  /** Flip light <-> dark instantly — deliberately no whole-page animation;
+  /** Flip light <-> dark instantly, deliberately no whole-page animation;
    *  reveal/crossfade variants were tried and dropped (see git history):
    *  the double page snapshot made every toggle hitch. */
   toggleTheme: () => void;
   /** Color-theme family (palette). "default" = original zcrypt palette. */
   colorTheme: string;
   setColorTheme: (id: string) => void;
-  /** The user's own accent/canvas/background-design pick — live regardless of
+  /** The user's own accent/canvas/background-design pick, live regardless of
    *  whether "custom" is the active `colorTheme`, so the picker's editor can
    *  stay open and preview without losing the draft. */
   customTheme: CustomThemeValues;
@@ -65,7 +65,7 @@ function resolveTheme(theme: Theme): ResolvedTheme {
 }
 
 /** Apply (or clear) the color-theme attribute on <html>. "default" clears it
- *  so the original palette — which is gated on the attribute's absence —
+ *  so the original palette: which is gated on the attribute's absence,
  *  applies. Themes only engage where <html data-app> is also set (the app
  *  shell), so this is inert on marketing/auth pages. */
 function applyColorTheme(id: string) {
@@ -86,7 +86,7 @@ function applyColorTheme(id: string) {
 }
 
 /** Fire-and-forget persist of the per-device preference to the server. No-op
- *  when unauthenticated (e.g. marketing visitors) — localStorage still holds
+ *  when unauthenticated (e.g. marketing visitors): localStorage still holds
  *  the choice locally. */
 function syncPreferenceToServer(colorTheme: string, mode: string) {
   if (typeof window === "undefined") return;
@@ -191,7 +191,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     document.documentElement.classList.toggle("light", resolved === "light");
   }, []);
 
-  /** localStorage + server PUT — kept off the click frame so the flip paints
+  /** localStorage + server PUT: kept off the click frame so the flip paints
    *  before any I/O runs. */
   const persistMode = useCallback((t: Theme) => {
     localStorage.setItem(MODE_KEY, t);
@@ -219,7 +219,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Custom colors are per-device only (no backend field for arbitrary hex
-  // values yet) — persisted to localStorage, re-applied live only when
+  // values yet): persisted to localStorage, re-applied live only when
   // "custom" is actually the active colorTheme so editing the draft never
   // leaks into a currently-selected preset.
   const setCustomTheme = useCallback(

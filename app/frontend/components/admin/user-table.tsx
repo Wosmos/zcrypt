@@ -58,7 +58,7 @@ interface RowHandlers {
 }
 
 /**
- * Quota cell — either the inline editor (when this row is being edited) or a
+ * Quota cell: either the inline editor (when this row is being edited) or a
  * click-to-edit button. `quotaMode` / `quotaInput` are only meaningful while
  * `editing` is true; non-editing rows are handed stable sentinel values so their
  * props (and thus the memoized row wrapping them) don't churn on every keystroke
@@ -142,7 +142,7 @@ function QuotaEditor({
 /**
  * A single desktop table row. Memoized so parent state changes (another row's
  * `busy`, an unrelated quota edit, the confirm modal opening) don't re-render
- * every row — only rows whose own `user` / `busy` / `editing` / quota-edit
+ * every row: only rows whose own `user` / `busy` / `editing` / quota-edit
  * state actually changed. `h` is a reference-stable handler bundle, so React's
  * default shallow compare on it is a single identity check.
  */
@@ -156,7 +156,7 @@ interface RowProps {
   h: RowHandlers;
 }
 
-/** Promote/demote + delete actions — shared by the table row and mobile card. */
+/** Promote/demote + delete actions: shared by the table row and mobile card. */
 function UserRowActions({
   u,
   busy,
@@ -570,7 +570,7 @@ export function UserTable({
   };
 
   // Per-user row props, computed once and shared by the desktop table and the
-  // mobile card list below — they render the same users with the same state.
+  // mobile card list below: they render the same users with the same state.
   const rows = users.map((u) => {
     const editing = editingQuota === u.id;
     return {

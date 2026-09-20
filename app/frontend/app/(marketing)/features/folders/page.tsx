@@ -15,7 +15,7 @@ import { SITE_URL } from "@/lib/site";
 export const metadata: Metadata = {
   title: "Encrypted, Password-Protected Folders",
   description:
-    "Real nestable folders with encrypted names — and any folder can have its own password, separate from your vault passphrase. Files inside are re-encrypted under a folder-specific key, verified locally, and stay sealed even when the rest of your vault is unlocked.",
+    "Real nestable folders with encrypted names, and any folder can have its own password, separate from your vault passphrase. Files inside are re-encrypted under a folder-specific key, verified locally, and stay sealed even when the rest of your vault is unlocked.",
   keywords: [
     "password protected folders",
     "encrypted folders",
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Encrypted, Password-Protected Folders | zcrypt",
     description:
-      "Nestable folders with encrypted names, where any folder can have its own password — files re-encrypted under a folder key that never reaches the server.",
+      "Nestable folders with encrypted names, where any folder can have its own password: files re-encrypted under a folder key that never reaches the server.",
     url: `${SITE_URL}/features/folders`,
     type: "website",
   },
@@ -144,11 +144,11 @@ export default function FoldersPage() {
             </div>
             <div className="mt-1.5">
               <span className="text-cyan-600/80 dark:text-cyan-400/80">verify</span> key against
-              sealed marker — locally
+              sealed marker, locally
             </div>
             <div className="mt-1.5 break-all">
               <span className="text-cyan-600/80 dark:text-cyan-400/80">folder</span>{" "}
-              7c5b13·f0e2a9·9f2a1c·b8d40e — sealed
+              7c5b13·f0e2a9·9f2a1c·b8d40e, sealed
             </div>
             <div className="mt-1.5 text-[var(--color-text-muted)]">
               server receives: <span className="text-amber-500">nothing</span>

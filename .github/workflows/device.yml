@@ -24,7 +24,7 @@ on:
   workflow_dispatch:
 
 # A newer push/PR-update on the same ref makes any run already in flight for
-# that ref stale — cancel it instead of burning a full multi-platform bundle
+# that ref stale: cancel it instead of burning a full multi-platform bundle
 # build on code that's already superseded. Tag pushes are unaffected in the
 # normal case (each version tag is its own ref/group); only re-pushing the
 # same tag would cancel a stale in-flight release build for it.
@@ -40,15 +40,15 @@ permissions:
 # Pinned, not "^2", and the pin is part of the cache key below. `cargo install
 # tauri-cli --version "^2"` resolved a floating version into a cache whose key
 # had no version component, so the FIRST binary ever cached kept being restored
-# forever — a run in 2026 could still be handed a 2024 CLI, with a 2024 Android
+# forever: a run in 2026 could still be handed a 2024 CLI, with a 2024 Android
 # template. Bumping this line both installs and re-caches the new one.
 env:
   TAURI_CLI_VERSION: "2.10.1"
 
 jobs:
   # ── Shared: build the static frontend export ONCE ────────────────────────────
-  # Desktop and Android used to each build this independently — same Next.js
-  # static export, same stripped routes, byte-identical output — which meant
+  # Desktop and Android used to each build this independently, same Next.js
+  # static export, same stripped routes, byte-identical output, which meant
   # every relevant push paid for the full frontend build twice. Built here once
   # and handed to both native build jobs below via artifact.
   build-frontend:
@@ -60,7 +60,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
 
       # This job is now the one hard-serial step every native build waits on
-      # (see the comment on build-frontend above) — caching install + Next's
+      # (see the comment on build-frontend above), caching install + Next's
       # own build cache shrinks that wait on every run after the first.
       - name: Cache bun install cache
         uses: actions/cache@v4
@@ -86,7 +86,7 @@ jobs:
           restore-keys: |
             nextjs-${{ runner.os }}-${{ hashFiles('app/frontend/bun.lock') }}-
 
-      # Remove web-only dynamic routes before static export — Next.js App Router
+      # Remove web-only dynamic routes before static export. Next.js App Router
       # requires generateStaticParams for every [param] route in output:export
       # mode, but these pages (share/pad/send) are web-only and get stripped
       # from frontend-dist anyway. Deleting them pre-build is the only reliable
@@ -105,7 +105,7 @@ jobs:
         env:
           NEXT_OUTPUT_EXPORT: "1"
           NEXT_TELEMETRY_DISABLED: "1"
-          # Baked into the static export — desktop/mobile have no Next.js
+          # Baked into the static export, desktop/mobile have no Next.js
           # rewrites, so they must talk to the live backend directly. Comes
           # from the DESKTOP_API_URL repository VARIABLE (Settings → Secrets
           # and variables → Actions → Variables), never from a checked-in
@@ -114,7 +114,7 @@ jobs:
           NEXT_PUBLIC_API_URL: ${{ vars.DESKTOP_API_URL }}
         run: |
           if [[ -z "$NEXT_PUBLIC_API_URL" ]]; then
-            echo "::error::DESKTOP_API_URL repository variable is unset — refusing to bake an empty/localhost backend into a shipped build."
+            echo "::error::DESKTOP_API_URL repository variable is unset: refusing to bake an empty/localhost backend into a shipped build."
             exit 1
           fi
           echo "baking backend origin: $NEXT_PUBLIC_API_URL"
@@ -196,7 +196,7 @@ jobs:
 
       # ── Toolchains ──
       # The engine (zcrypt-core) is pure Rust and compiled into the Tauri shell
-      # in-process — the old Go sidecar subprocess is gone.
+      # in-process: the old Go sidecar subprocess is gone.
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
@@ -208,7 +208,7 @@ jobs:
             app/desktop/src-tauri
             app/core
 
-      # ── Fast Rust gate (Linux leg only — one leg is enough for lints) ──
+      # ── Fast Rust gate (Linux leg only: one leg is enough for lints) ──
       # Runs before the expensive bundle step. src-tauri/build.rs seeds a
       # placeholder frontend-dist when the real export isn't present, so
       # fmt/clippy never need the download-artifact step to have run first.
@@ -243,7 +243,7 @@ jobs:
           echo "tauri version set to $VER"
 
       # ── Tauri CLI + build ──
-      # `cargo install` compiles tauri-cli from source — several minutes, and it
+      # `cargo install` compiles tauri-cli from source, several minutes, and it
       # was paying that cost on every single run for every matrix leg (the
       # binary isn't portable across OS/arch, so each leg needs its own build).
       # Cache it keyed by OS+arch+major-version: once compiled for a given
@@ -266,8 +266,8 @@ jobs:
       #   1. TAURI_SIGNING_PRIVATE_KEY(_PASSWORD) are non-empty here, and
       #   2. app/desktop/src-tauri/tauri.conf.json has `bundle.createUpdaterArtifacts: true`
       #      and a `plugins.updater.pubkey` + `endpoints` configured.
-      # Neither is set up yet (tauri.conf.json is out of scope for this change —
-      # see blocked_on). Until then these env vars are empty and signing is a
+      # Neither is set up yet (tauri.conf.json is out of scope for this change.
+      # See blocked_on). Until then these env vars are empty and signing is a
       # silent no-op: the build still succeeds and produces unsigned installers,
       # exactly like before this step existed.
       #
@@ -289,7 +289,7 @@ jobs:
       # Both macOS legs bundle their updater tarball as "zcrypt.app.tar.gz".
       # That was harmless while only arm64 built; now that Intel builds too,
       # the second upload would clobber the first and latest.json would hand
-      # both architectures the same URL with different signatures — at most one
+      # both architectures the same URL with different signatures, at most one
       # could ever verify. Name them per target so each arch keeps its own.
       - name: Name the macOS updater bundle per architecture
         if: startsWith(matrix.platform, 'macos')
@@ -369,11 +369,11 @@ jobs:
             app/desktop/src-tauri/${{ matrix.bundle }}/deb/*.deb
             app/desktop/src-tauri/${{ matrix.bundle }}/rpm/*.rpm
             # The macOS updater bundle. latest.json derives its URL from the
-            # .sig filename, and this was never uploaded — so every macOS
+            # .sig filename, and this was never uploaded, so every macOS
             # update attempt resolved to a 404. Windows and Linux were fine
             # because their updater artifact IS the installer.
             app/desktop/src-tauri/${{ matrix.bundle }}/macos/*.app.tar.gz
-            # Updater signatures — only present when signing is configured
+            # Updater signatures: only present when signing is configured
             # (see the "Build Tauri app" step). latest.json (built by the
             # publish-updater-manifest job below) embeds their contents
             # directly, but publishing the raw .sig files too makes them easy
@@ -391,7 +391,7 @@ jobs:
 
           # Version-less aliases. Every bundler name embeds the version
           # (zcrypt_0.1.4_aarch64.dmg), so none of them can be fetched from a
-          # stable /releases/latest/download/<name> URL — the download page,
+          # stable /releases/latest/download/<name> URL, the download page,
           # the docs and install scripts all had to know the version. Upload a
           # second copy of each under a fixed name (the same trick the Android
           # job already uses for zcrypt.apk) so one URL per platform keeps
@@ -449,7 +449,7 @@ jobs:
   # release, so the desktop app's built-in updater has something to poll.
   #
   # Fully gated on TAURI_SIGNING_PRIVATE_KEY (via check-updater-signing above):
-  # if it isn't set, this job — and therefore the whole updater-manifest step —
+  # if it isn't set, this job, and therefore the whole updater-manifest step:
   # is skipped and the release is published exactly as it is today (installers,
   # no latest.json). It also self-skips (see "Build updater manifest" below) if
   # the secret is set but tauri.conf.json's `plugins.updater` /
@@ -492,12 +492,12 @@ jobs:
               *x86_64-apple-darwin) platform="darwin-x86_64" ;;
               *x86_64-pc-windows-msvc) platform="windows-x86_64" ;;
               *x86_64-unknown-linux-gnu) platform="linux-x86_64" ;;
-              *) echo "no updater platform mapping for '$name' — skipping"; continue ;;
+              *) echo "no updater platform mapping for '$name', skipping"; continue ;;
             esac
 
             sig_file="$(find "$dir" -name '*.sig' | head -n1)"
             if [ -z "$sig_file" ]; then
-              echo "no .sig in $dir — skipping $platform"; continue
+              echo "no .sig in $dir, skipping $platform"; continue
             fi
 
             bundle_name="$(basename "${sig_file%.sig}")"
@@ -510,7 +510,7 @@ jobs:
 
           count="$(echo "$json" | jq '.platforms | length')"
           if [ "$count" -eq 0 ]; then
-            echo "no signed updater artifacts found in any platform — tauri.conf.json's updater plugin is probably not configured yet; skipping latest.json"
+            echo "no signed updater artifacts found in any platform: tauri.conf.json's updater plugin is probably not configured yet; skipping latest.json"
             echo "found=false" >> "$GITHUB_OUTPUT"
           else
             echo "$json" | jq . > latest.json
@@ -616,7 +616,7 @@ jobs:
           echo "tauri version set to $VER"
 
       # ── Tauri CLI ──
-      # Same cache as build-desktop's ubuntu-22.04 leg — this job also runs on
+      # Same cache as build-desktop's ubuntu-22.04 leg: this job also runs on
       # ubuntu-22.04, so it's the SAME OS+arch key and genuinely reuses that
       # leg's cached binary instead of compiling its own copy.
       - name: Cache Tauri CLI
@@ -633,7 +633,7 @@ jobs:
       # `android init` generates gen/android/ from tauri.conf.json + the Rust
       # crate. It isn't committed to the repo (app/desktop/src-tauri/gen only
       # ships the desktop `schemas/` dir), so every CI run (re)creates it from
-      # scratch, same as a fresh clone would — including the Tauri CLI's own
+      # scratch, same as a fresh clone would: including the Tauri CLI's own
       # template launcher icons.
       - name: Initialize Android project
         working-directory: app/desktop/src-tauri
@@ -647,7 +647,7 @@ jobs:
       # two independent mechanisms: the CLI's MainActivity template calls
       # enableEdgeToEdge(), and targetSdk 36 means Android 15+ enforces
       # edge-to-edge regardless. Both come from a generated file nobody reviews,
-      # so assert them rather than assume them — if a future CLI drops either,
+      # so assert them rather than assume them, if a future CLI drops either,
       # every inset silently reads 0 and the app quietly re-gains the notch bug.
       - name: Assert Android draws edge-to-edge
         working-directory: app/desktop/src-tauri
@@ -659,14 +659,14 @@ jobs:
           # hardcoding a path that moves with the identifier.
           MA=$(find gen/android/app/src/main -name MainActivity.kt | head -1)
           [ -n "$MA" ] \
-            || { echo "::error::no MainActivity.kt under gen/android/app/src/main — 'android init' did not generate what we expect."; exit 1; }
+            || { echo "::error::no MainActivity.kt under gen/android/app/src/main: 'android init' did not generate what we expect."; exit 1; }
           echo "activity: $MA"
           grep -q 'enableEdgeToEdge()' "$MA" \
-            || { echo "::error::$MA no longer calls enableEdgeToEdge() — safe-area insets will be 0 on Android 14 and below."; exit 1; }
+            || { echo "::error::$MA no longer calls enableEdgeToEdge(): safe-area insets will be 0 on Android 14 and below."; exit 1; }
           grep -q ': TauriActivity(' "$MA" \
-            || { echo "::error::$MA no longer extends TauriActivity — the inset-injection step below is written against that base class."; exit 1; }
+            || { echo "::error::$MA no longer extends TauriActivity: the inset-injection step below is written against that base class."; exit 1; }
           grep -qE 'targetSdk *= *3[5-9]' gen/android/app/build.gradle.kts \
-            || { echo "::error::generated targetSdk dropped below 35 — Android no longer enforces edge-to-edge."; exit 1; }
+            || { echo "::error::generated targetSdk dropped below 35. Android no longer enforces edge-to-edge."; exit 1; }
           echo "edge-to-edge OK"
 
       # Drawing edge-to-edge is necessary but not sufficient: the WebView also
@@ -682,7 +682,7 @@ jobs:
           SRC=android/MainActivity.kt
           PKG=$(jq -r '.identifier' tauri.conf.json)
           grep -qx "package $PKG" "$SRC" \
-            || { echo "::error::$SRC declares a different package than tauri.conf.json's identifier ($PKG) — Android would not find the activity."; exit 1; }
+            || { echo "::error::$SRC declares a different package than tauri.conf.json's identifier ($PKG). Android would not find the activity."; exit 1; }
           DEST=$(find gen/android/app/src/main -name MainActivity.kt | head -1)
           [ -n "$DEST" ] \
             || { echo "::error::no generated MainActivity.kt to replace."; exit 1; }
@@ -692,7 +692,7 @@ jobs:
       # MUST run AFTER `android init`, not before. `tauri icon` picks its
       # Android output dir by probing for gen/android/app/src/main/res: if that
       # exists it writes the mipmaps straight into the real project, and if it
-      # doesn't it falls back to staging them in icons/android/ — which
+      # doesn't it falls back to staging them in icons/android/, which
       # `android init` never reads back. Running this first (as it was) meant
       # the staged icons were silently discarded and every APK shipped Tauri's
       # template logo. Desktop bundle icons (tauri.conf.json's `bundle.icon`)
@@ -701,7 +701,7 @@ jobs:
         working-directory: app/desktop/src-tauri
         run: cargo tauri icon icons/icon.png
 
-      # The icon path above is silent when it goes wrong — a wrong-order or
+      # The icon path above is silent when it goes wrong, a wrong-order or
       # renamed-source regression would just ship the Tauri logo again. Fail
       # the build instead: the generated launcher icon must exist and must not
       # be byte-identical to the CLI's template.
@@ -712,12 +712,12 @@ jobs:
           set -euo pipefail
           ICON=gen/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
           if [ ! -f "$ICON" ]; then
-            echo "::error::$ICON is missing — 'tauri icon' did not write into gen/android."
+            echo "::error::$ICON is missing: 'tauri icon' did not write into gen/android."
             exit 1
           fi
           TEMPLATE=$(find ~/.cargo -path '*tauri-cli*' -name 'ic_launcher.png' -path '*xxxhdpi*' 2>/dev/null | head -1)
           if [ -n "$TEMPLATE" ] && cmp -s "$ICON" "$TEMPLATE"; then
-            echo "::error::Launcher icon is byte-identical to the Tauri template — the zcrypt icon was not applied."
+            echo "::error::Launcher icon is byte-identical to the Tauri template: the zcrypt icon was not applied."
             exit 1
           fi
           echo "launcher icon OK: $(wc -c < "$ICON") bytes"
@@ -725,7 +725,7 @@ jobs:
       # ── Optional release signing ──
       # If ANDROID_KEY_BASE64 (a base64-encoded .jks keystore) plus its alias
       # and passwords are configured as repo secrets, sign the release APK.
-      # Without them, `android build` still succeeds — it just produces a
+      # Without them, `android build` still succeeds. It just produces a
       # debug-signed APK, which is fine for the workflow-artifact/internal
       # testing use case but NOT for a Play Store submission. See blocked_on.
       #
@@ -738,7 +738,7 @@ jobs:
       # unsigned release apk is rejected by Android as "package appears to be
       # invalid"). Prefer the persistent release keystore from secrets; if none
       # is set, generate an EPHEMERAL keystore here with keytool (the JDK is
-      # already installed above) — enough to sideload for testing. Caveat: a
+      # already installed above): enough to sideload for testing. Caveat: a
       # fresh key each run means updates can't install OVER a previous install
       # (uninstall first); add ANDROID_KEY_BASE64/ALIAS/PASSWORD for a persistent
       # key when you want update-over-install + Play.
@@ -756,7 +756,7 @@ jobs:
             base64 -d <<< "${ANDROID_KEY_BASE64}" > "$RUNNER_TEMP/zcrypt-release.jks"
             alias="${ANDROID_KEY_ALIAS}"; pass="${ANDROID_KEY_PASSWORD}"
           else
-            echo "No release keystore secret — generating an ephemeral one so the"
+            echo "No release keystore secret: generating an ephemeral one so the"
             echo "release APK is signed + sideloadable (see the step comment)."
             keytool -genkeypair -v -noprompt \
               -keystore "$RUNNER_TEMP/zcrypt-release.jks" \
@@ -786,7 +786,7 @@ jobs:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
         # RELEASE, all-ABI universal APK. Release (not --debug) keeps it ~100MB
         # instead of ~200MB+; no --target = one universal APK for every device
-        # (arm64/armv7/x86/x86_64). This emits an UNSIGNED release APK — the
+        # (arm64/armv7/x86/x86_64). This emits an UNSIGNED release APK, the
         # explicit apksigner step below makes it installable.
         run: cargo tauri android build --apk
 
@@ -794,7 +794,7 @@ jobs:
       # Tauri's generated Gradle does not reliably apply keystore.properties, so
       # the release APK comes out unsigned and Android rejects it with "package
       # appears to be invalid". We sign it ourselves with the SDK's apksigner
-      # (zipalign first, as the tooling expects), then apksigner verify — so an
+      # (zipalign first, as the tooling expects), then apksigner verify, so an
       # unsigned/broken APK fails the build instead of shipping uninstallable.
       # The signed APK path is exported as $SIGNED_APK for the publish steps.
       - name: Sign + verify the release APK
@@ -864,7 +864,7 @@ jobs:
       # /download on the site links to a single stable URL for the APK:
       #   https://github.com/Wosmos/zcrypt/releases/download/android-latest/zcrypt.apk
       # This is a separate, non-versioned prerelease from the tag-based
-      # release above — it exists purely so that link never breaks, and it's
+      # release above: it exists purely so that link never breaks, and it's
       # refreshed on every push that touches desktop/core (not just version
       # tags). The APK is signed (persistent keystore if configured, else an
       # ephemeral CI key) so it installs; it's just not Play-Store-eligible.
@@ -876,7 +876,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # $SIGNED_APK is the signed + verified $RUNNER_TEMP/zcrypt.apk — already
+          # $SIGNED_APK is the signed + verified $RUNNER_TEMP/zcrypt.apk, already
           # the exact asset name /download links to, so no copy/rename needed.
           echo "publishing: $SIGNED_APK"
 
@@ -884,7 +884,7 @@ jobs:
             gh release create android-latest \
               --repo "$GITHUB_REPOSITORY" \
               --title "zcrypt for Android (sideload build)" \
-              --notes "Rolling build for sideloading — updated automatically on every push to main, always tracks the latest commit. Not signed for the Play Store; Android will warn the APK is from an unknown developer, which is expected when installing outside the Play Store." \
+              --notes "Rolling build for sideloading: updated automatically on every push to main, always tracks the latest commit. Not signed for the Play Store; Android will warn the APK is from an unknown developer, which is expected when installing outside the Play Store." \
               --prerelease \
               --target "$GITHUB_SHA"
           else

@@ -1,7 +1,7 @@
 /**
  * Stable per-device identifier, persisted in localStorage. Used to key
  * per-device server preferences (e.g. the color theme), so each device keeps
- * its own look — "per-device set, per-device consistent". Not a security
+ * its own look: "per-device set, per-device consistent". Not a security
  * boundary; just a display-preference key.
  */
 const DEVICE_ID_KEY = "zcrypt-device-id";

@@ -47,7 +47,7 @@ function setVisibility(state: "visible" | "hidden") {
   });
 }
 
-// Fresh module per test — the wake-lock module holds module-level ref-count and
+// Fresh module per test: the wake-lock module holds module-level ref-count and
 // sentinel state that must not leak between tests.
 async function freshModule() {
   vi.resetModules();
@@ -135,7 +135,7 @@ describe("wake-lock", () => {
     setVisibility("visible");
     document.dispatchEvent(new Event("visibilitychange"));
     await Promise.resolve();
-    expect(requestMock).toHaveBeenCalledTimes(1); // no new request — nobody wants it
+    expect(requestMock).toHaveBeenCalledTimes(1); // no new request, nobody wants it
   });
 
   it("release never drops the ref count below zero", async () => {
@@ -170,7 +170,7 @@ describe("wake-lock", () => {
   it("immediately drops a lock that arrives after the last holder already left", async () => {
     // The request is async, so a short transfer can finish while it's still in
     // flight. Keeping that sentinel would pin the screen awake with nothing
-    // running — the lock has to be handed straight back.
+    // running: the lock has to be handed straight back.
     let grant: (s: FakeSentinel) => void = () => {};
     const pending = new FakeSentinel();
     requestMock.mockImplementation(

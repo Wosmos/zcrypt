@@ -14,7 +14,7 @@ services:
       timeout: 5s
       retries: 10
     tmpfs:
-      - /var/lib/postgresql/data   # in-memory — fast, ephemeral
+      - /var/lib/postgresql/data   # in-memory: fast, ephemeral
 
   # Optional: pgAdmin for inspecting test DB manually
   # pgadmin:

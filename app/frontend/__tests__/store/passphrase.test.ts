@@ -81,7 +81,7 @@ describe("usePassphraseStore", () => {
     s.setPassphrase("a", 5);
     s.setPassphrase("b", 10); // must cancel the first 5-min timer
     expect(s.getPassphrase()).toBe("b");
-    // The first timer would have fired here — confirm it did not.
+    // The first timer would have fired here, confirm it did not.
     vi.advanceTimersByTime(5 * 60 * 1000 + 1);
     expect(usePassphraseStore.getState().getPassphrase()).toBe("b");
     vi.advanceTimersByTime(5 * 60 * 1000);

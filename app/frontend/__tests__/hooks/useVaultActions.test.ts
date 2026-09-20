@@ -100,7 +100,7 @@ vi.mock("@/store/download", () => ({
   ),
 }));
 
-// The auth store persists to localStorage at module load — mock it so importing
+// The auth store persists to localStorage at module load, mock it so importing
 // the hook (which now reads useAuthStore.getState().user for desktop downloads)
 // doesn't touch localStorage in the test env.
 // Mutable holder: the desktop download paths read the signed-in user id and
@@ -190,7 +190,7 @@ vi.mock("@/lib/tauri", () => tauriModuleMock);
 vi.mock("@/lib/crypto", () => ({
   IncorrectPassphraseError: class IncorrectPassphraseError extends Error {
     constructor() {
-      super("Incorrect passphrase — could not unlock this file.");
+      super("Incorrect passphrase: could not unlock this file.");
       this.name = "IncorrectPassphraseError";
     }
   },
@@ -214,7 +214,7 @@ type Args = Parameters<typeof useVaultActions>[0];
 
 // Dynamic import() resolution inside startPreview spans more than one microtask
 // tick under vite-node's module loader, so a single setTimeout(0) isn't always
-// enough to drain it — loop a few macrotask turns to be safe.
+// enough to drain it: loop a few macrotask turns to be safe.
 async function flush(rounds = 10) {
   for (let i = 0; i < rounds; i++) {
     await new Promise<void>((resolve) => setTimeout(resolve, 0));
@@ -301,7 +301,7 @@ function makeArgs(overrides: Partial<Args> = {}): Args {
   const initialFiles = (overrides.files ?? []) as FileMetadata[];
   // Stateful, not just a recorder: applies the updater against the CURRENT
   // array (seeded from `files`) so per-element map/filter callbacks inside the
-  // updater actually run against real rows, not an empty array — needed to
+  // updater actually run against real rows, not an empty array, needed to
   // exercise both branches of e.g. `f.id === fileId ? ... : f`.
   let current = initialFiles;
   const setFiles = vi.fn((updater: unknown) => {
@@ -566,7 +566,7 @@ describe("handleDownload", () => {
 
   it.each(["queued", "paused"])("skips when the file is already %s", (status) => {
     const file = makeFile({ id: "f1", original_name: "a.png" });
-    // Queued and paused rows are both live transfers the user can resume — a
+    // Queued and paused rows are both live transfers the user can resume, a
     // second click must not enqueue a duplicate alongside them.
     mockDownloadStoreState.queue = [{ fileId: "f1", status }];
     const vault = makeVault();
@@ -583,7 +583,7 @@ describe("handleDownload", () => {
 
   it("starts a fresh download when the only queue entry for the file is finished", () => {
     const file = makeFile({ id: "f1", original_name: "a.png" });
-    // A completed row is history, not a live transfer — re-downloading is valid.
+    // A completed row is history, not a live transfer, re-downloading is valid.
     mockDownloadStoreState.queue = [{ fileId: "f1", status: "done" }];
     const args = makeArgs({ files: [file] });
     const { result } = renderHook(() => useVaultActions(args));
@@ -701,7 +701,7 @@ describe("handlePreview / startPreview", () => {
     const file = makeFile({ id: "f1", original_name: "a.png", original_size: 42 });
     const blob = new Blob(["plaintext"]);
     // Goes through the default cachedDecrypt passthrough, which invokes the
-    // lambda that calls runDecryptPipeline(file, passphrase) — exercising that
+    // lambda that calls runDecryptPipeline(file, passphrase), exercising that
     // closure body, not just constructing it.
     mockRunDecryptPipeline.mockResolvedValue(blob);
     const args = makeArgs({ files: [file] });
@@ -713,7 +713,7 @@ describe("handlePreview / startPreview", () => {
     expect(args.openPreview).toHaveBeenNthCalledWith(1, null, "a.png", 42); // synchronous, before any decrypt work starts
 
     // startPreview's chain runs through two sequential dynamic import()s before
-    // the decrypt result lands — a variable number of microtask/macrotask
+    // the decrypt result lands: a variable number of microtask/macrotask
     // ticks depending on module-cache state, not a fixed count. waitFor polls
     // until the assertion holds instead of gambling on flush()'s tick budget.
     await waitFor(() => {
@@ -726,7 +726,7 @@ describe("handlePreview / startPreview", () => {
     const file = makeFile({ id: "f1", original_name: "a.png", folder_id: null, original_size: 42 });
     // First decrypt fails with a wrong-key error; the retry (after vault.reopen
     // re-unlocks, using the DEFAULT vault mock which invokes its callback)
-    // succeeds — exercises the retry closure body, not just its construction.
+    // succeeds: exercises the retry closure body, not just its construction.
     mockCachedDecrypt
       .mockImplementationOnce(async () => {
         throw new IncorrectPassphraseError();
@@ -742,7 +742,7 @@ describe("handlePreview / startPreview", () => {
       result.current.handlePreview("a.png");
     });
 
-    // Same non-deterministic tick count as the success test above — wait for
+    // Same non-deterministic tick count as the success test above, wait for
     // the final effect (the retried preview opening) rather than a fixed delay.
     await waitFor(() => {
       expect(args.openPreview).toHaveBeenLastCalledWith(blob, "a.png", 42);
@@ -756,11 +756,11 @@ describe("handlePreview / startPreview", () => {
   it("recovers from a wrong FOLDER password by clearing the cache, re-prompting, and retrying", async () => {
     const file = makeFile({ id: "f1", original_name: "a.png", folder_id: "folder-1", original_size: 42 });
     // First decrypt fails with a wrong-key error; the retry (after the folder
-    // re-prompt) succeeds — exercises the actual retry closure, not just its
+    // re-prompt) succeeds: exercises the actual retry closure, not just its
     // construction, and confirms the preview eventually opens.
     mockCachedDecrypt
       .mockImplementationOnce(async () => {
-        throw new Error("Decryption failed — wrong passphrase?");
+        throw new Error("Decryption failed, wrong passphrase?");
       })
       .mockImplementation((_id: string, _folderId: string | null, decrypt: () => Promise<Blob>) => decrypt());
     const blob = new Blob(["retried"]);
@@ -1357,7 +1357,7 @@ describe("Tauri desktop upload routing", () => {
     });
 
     // The browser pipeline buffers the whole file in the webview, which OOMs on
-    // a multi-GB file — desktop must stream to disk via the core instead.
+    // a multi-GB file: desktop must stream to disk via the core instead.
     expect(mockDownloadStoreState.startDesktopDownload).toHaveBeenCalledWith(
       "f1",
       "big.mp4",

@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Core concepts | zcrypt Docs",
     description:
-      "Vault, passphrase, folders, per-file keys, chunks, and the vault lock — how the pieces of zcrypt fit together.",
+      "Vault, passphrase, folders, per-file keys, chunks, and the vault lock: how the pieces of zcrypt fit together.",
     url: `${SITE_URL}/docs/concepts`,
   },
 };
@@ -36,7 +36,7 @@ export default function ConceptsDocPage() {
     >
       <DocSection id="vault" title="Your vault">
         <DocP>
-          Your <strong>vault</strong> is your encrypted drive — the entire tree of folders and files
+          Your <strong>vault</strong> is your encrypted drive: the entire tree of folders and files
           that belong to you. It is presented like any normal drive, but every name and every byte
           inside it is encrypted on your device before it is stored. The server holds only
           ciphertext and the structure needed to fetch it back.
@@ -46,14 +46,14 @@ export default function ConceptsDocPage() {
       <DocSection id="passphrase" title="The passphrase">
         <DocP>
           Your <strong>passphrase</strong> is the one secret that unlocks the vault. It is not a
-          login credential — your account password handles signing in. Instead, zcrypt feeds the
+          login credential: your account password handles signing in. Instead, zcrypt feeds the
           passphrase through a key derivation function in your browser to produce your{" "}
           <strong>vault key</strong>. That key, and the passphrase behind it, are{" "}
           <strong>never transmitted</strong> to our servers.
         </DocP>
         <DocNote type="warning" title="No recovery">
-          Because nothing readable leaves your device, a forgotten passphrase cannot be reset —
-          there is nothing on our side to recover it from. Store it in a password manager. See{" "}
+          Because nothing readable leaves your device, a forgotten passphrase cannot be reset. There
+          is nothing on our side to recover it from. Store it in a password manager. See{" "}
           <Link
             href="/docs/key-management"
             className="text-cyan-600 hover:underline dark:text-cyan-400"
@@ -66,13 +66,13 @@ export default function ConceptsDocPage() {
 
       <DocSection id="folders" title="Folders">
         <DocP>
-          Folders are real and nestable, just like on a desktop drive — open one and create another
+          Folders are real and nestable, just like on a desktop drive. Open one and create another
           inside it, as deep as you like. A folder&apos;s <strong>name is encrypted</strong> on your
           device exactly like file contents, so your organization is private too. When the vault is
           locked, names show as placeholders until you unlock.
         </DocP>
         <DocP>
-          A folder can also have its own password layered on top — see{" "}
+          A folder can also have its own password layered on top. See{" "}
           <Link
             href="/docs/folder-encryption"
             className="text-cyan-600 hover:underline dark:text-cyan-400"
@@ -93,13 +93,13 @@ export default function ConceptsDocPage() {
         <DocP>
           The payoff: your passphrase only ever has to protect small wrapped keys, not gigabytes of
           data. To open a file, zcrypt unwraps its CEK with your vault key, then uses the CEK to
-          decrypt the content — all locally.
+          decrypt the content, all locally.
         </DocP>
       </DocSection>
 
       <DocSection id="chunks" title="Chunks">
         <DocP>
-          After compression and encryption, each file is split into <strong>chunks</strong> —
+          After compression and encryption, each file is split into <strong>chunks</strong>:
           encrypted pieces sized to your device (~4–16 MB, ~10 MB typical). Chunks are what actually
           get uploaded, one per request, to the repositories or channel on your connected platform.
           On download, zcrypt fetches the chunks, verifies them, and reassembles the file on your
@@ -111,8 +111,8 @@ export default function ConceptsDocPage() {
         <DocP>
           The vault has a single lock state, surfaced as <strong>one pill</strong> in the interface
           and unlocked through <strong>one modal</strong>. Enter your passphrase once and the whole
-          vault unlocks for the rest of the session — there is no per-file or per-folder prompting
-          to wade through.
+          vault unlocks for the rest of the session. There is no per-file or per-folder prompting to
+          wade through.
         </DocP>
         <DocP>
           The unlock lasts for a session <strong>time-to-live (TTL)</strong>. When it expires, the
@@ -136,7 +136,7 @@ export default function ConceptsDocPage() {
             ["Sent to server", "n/a", "Never"],
           ]}
         />
-        <DocNote type="security" title="Safer than localStorage — but still local trust">
+        <DocNote type="security" title="Safer than localStorage, but still local trust">
           This is meaningfully harder to scrape than a passphrase sitting in localStorage, and it is
           never sent to the server. It still trusts the device, so only enable it on hardware you
           control. Locking the vault or signing out clears it.

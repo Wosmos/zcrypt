@@ -9,7 +9,7 @@ export const metadata: Metadata = {
     canonical: `${SITE_URL}/terms`,
   },
   openGraph: {
-    title: "Terms of Service — zcrypt",
+    title: "Terms of Service, zcrypt",
     description: "Terms of service for using zcrypt encrypted cloud storage.",
     url: `${SITE_URL}/terms`,
   },

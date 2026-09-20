@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Anonymous Send | zcrypt Docs",
     description:
-      "Send an encrypted file without an account — short-lived, optionally one-time, and encrypted in your browser before upload.",
+      "Send an encrypted file without an account: short-lived, optionally one-time, and encrypted in your browser before upload.",
     url: `${SITE_URL}/docs/send`,
   },
 };
@@ -35,9 +35,9 @@ export default function SendDocPage() {
     >
       <DocSection id="what" title="What Send is for">
         <DocP>
-          Anonymous Send is the fastest way to hand off a single file when you don&rsquo;t have — or
-          don&rsquo;t want to use — an account. It&rsquo;s built for one-off transfers: a document
-          to a journalist, a build to a tester, a photo to a friend. You get a link to share; the
+          Anonymous Send is the fastest way to hand off a single file when you don&rsquo;t have, or
+          don&rsquo;t want to use, an account. It&rsquo;s built for one-off transfers: a document to
+          a journalist, a build to a tester, a photo to a friend. You get a link to share; the
           recipient needs no account either.
         </DocP>
       </DocSection>
@@ -52,7 +52,7 @@ export default function SendDocPage() {
         </DocP>
         <DocList
           items={[
-            <>The server stores only ciphertext — it cannot read the file.</>,
+            <>The server stores only ciphertext: it cannot read the file.</>,
             <>The stored chunks carry disguised filenames, not your original&rsquo;s.</>,
             <>No account, sign-in, or email is required to send or receive.</>,
           ]}
@@ -78,20 +78,20 @@ export default function SendDocPage() {
           <Link href="/docs/sharing" className="text-cyan-600 hover:underline dark:text-cyan-400">
             share link
           </Link>{" "}
-          — those support larger files and longer expiries.
+          : those support larger files and longer expiries.
         </DocNote>
       </DocSection>
 
       <DocSection id="burn" title="Burn after read">
         <DocP>
           Turn on <strong>burn after read</strong> to make the send a one-time link. After the first
-          successful access it is treated as already consumed, so a second visitor — or anyone who
-          later finds the link — sees only that it has been used.
+          successful access it is treated as already consumed, so a second visitor, or anyone who
+          later finds the link: sees only that it has been used.
         </DocP>
       </DocSection>
 
       <DocSection id="privacy" title="Privacy and what we log">
-        <DocNote type="security" title="What's private — and what isn't">
+        <DocNote type="security" title="What's private, and what isn't">
           The file&rsquo;s contents stay private: encryption happens in your browser and the server
           only ever holds ciphertext under a disguised name. For abuse prevention, the{" "}
           <strong>sender&rsquo;s IP address is recorded</strong> with the transfer. If that matters
@@ -107,14 +107,14 @@ export default function SendDocPage() {
               href="/docs/pad"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Encrypted Pad — for sharing text and notes instead of files
+              Encrypted Pad: for sharing text and notes instead of files
             </Link>,
             <Link
               key="b"
               href="/docs/sharing"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Share links — account-backed sharing with passwords and limits
+              Share links: account-backed sharing with passwords and limits
             </Link>,
           ]}
         />

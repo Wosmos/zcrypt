@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Storage obfuscation | zcrypt Docs",
     description:
-      "How zcrypt makes its storage repositories look like unremarkable build-cache projects — a second layer beneath the encryption.",
+      "How zcrypt makes its storage repositories look like unremarkable build-cache projects: a second layer beneath the encryption.",
     url: `${SITE_URL}/docs/obfuscation`,
   },
 };
@@ -30,16 +30,16 @@ export default function ObfuscationPage() {
     <DocPage
       href="/docs/obfuscation"
       title="Storage obfuscation"
-      description="Strong encryption already protects your file contents. Obfuscation is the layer on top that keeps your storage from advertising itself — so the repositories holding your data read as ordinary developer projects."
+      description="Strong encryption already protects your file contents. Obfuscation is the layer on top that keeps your storage from advertising itself, so the repositories holding your data read as ordinary developer projects."
       toc={toc}
     >
       <DocSection id="why" title="Why obfuscate at all">
         <DocP>
           Encryption answers &ldquo;can someone read this?&rdquo; with a firm no. Obfuscation
-          answers a different question — &ldquo;does this look worth attacking?&rdquo; Your
-          encrypted chunks live in repositories on general-purpose platforms like GitHub and GitLab.
-          If those repos were obviously a stash of encrypted secrets, they would draw attention even
-          though the contents are unreadable. So zcrypt makes them look mundane.
+          answers a different question: &ldquo;does this look worth attacking?&rdquo; Your encrypted
+          chunks live in repositories on general-purpose platforms like GitHub and GitLab. If those
+          repos were obviously a stash of encrypted secrets, they would draw attention even though
+          the contents are unreadable. So zcrypt makes them look mundane.
         </DocP>
         <DocNote type="info" title="A second layer, not a replacement">
           This is defense in depth. The confidentiality guarantee comes entirely from{" "}
@@ -54,7 +54,7 @@ export default function ObfuscationPage() {
       <DocSection id="filenames" title="Chunk filenames">
         <DocP>
           Each encrypted chunk is stored under a random hex filename with a{" "}
-          <span className="font-mono">.bin</span> extension — the kind of name a build tool or cache
+          <span className="font-mono">.bin</span> extension: the kind of name a build tool or cache
           would produce. There is no sequence number, no original name, and no extension that hints
           at the underlying file type.
         </DocP>
@@ -63,7 +63,7 @@ export default function ObfuscationPage() {
 0b5e2f7a16c94d3e.bin`}</DocCode>
         <DocP>
           Because names are random rather than ordered, the storage layout doesn&apos;t reveal how
-          many files you have, how they relate, or which chunks belong together — that mapping lives
+          many files you have, how they relate, or which chunks belong together, that mapping lives
           only in your encrypted index.
         </DocP>
       </DocSection>
@@ -76,7 +76,7 @@ export default function ObfuscationPage() {
         <DocList
           items={[
             <>
-              <strong>Plausible project names</strong> assembled from developer-flavored words —
+              <strong>Plausible project names</strong> assembled from developer-flavored words:
               things like <span className="font-mono">core-engine-v3</span> or{" "}
               <span className="font-mono">shared-cache-v1</span>.
             </>,
@@ -92,8 +92,8 @@ export default function ObfuscationPage() {
           ]}
         />
         <DocNote type="security" title="Stored as private repositories">
-          These repositories are created as <strong>private</strong> — the disguise is what they
-          look like to anyone who does gain access, not an invitation for the public to browse them.
+          These repositories are created as <strong>private</strong>: the disguise is what they look
+          like to anyone who does gain access, not an invitation for the public to browse them.
         </DocNote>
       </DocSection>
 
@@ -107,7 +107,7 @@ export default function ObfuscationPage() {
           items={[
             <>
               Connecting <strong>GitHub</strong> requires a token that can create and write to{" "}
-              <strong>private repositories</strong> — a classic{" "}
+              <strong>private repositories</strong>, a classic{" "}
               <span className="font-mono">repo</span> scope grants full control of private repos.
               That is the access level needed to manage your storage, not a read-only sliver.
             </>,
@@ -123,7 +123,7 @@ export default function ObfuscationPage() {
         />
         <DocP>
           Those tokens are encrypted at rest under a server-derived key, which is the one
-          non-zero-knowledge surface in the system — detailed in{" "}
+          non-zero-knowledge surface in the system, detailed in{" "}
           <Link
             href="/docs/zero-knowledge"
             className="text-cyan-600 hover:underline dark:text-cyan-400"
@@ -143,7 +143,7 @@ export default function ObfuscationPage() {
             </>,
             <>
               <strong>It does not</strong> hide that an account exists on the storage platform, nor
-              the aggregate size of what is stored — a determined platform operator can see byte
+              the aggregate size of what is stored: a determined platform operator can see byte
               totals.
             </>,
             <>
@@ -168,21 +168,21 @@ export default function ObfuscationPage() {
               href="/docs/zero-knowledge"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Zero-knowledge architecture — what the server stores, including tokens
+              Zero-knowledge architecture: what the server stores, including tokens
             </Link>,
             <Link
               key="b"
               href="/docs/threat-model"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Threat model — where metadata defenses sit among the risks
+              Threat model: where metadata defenses sit among the risks
             </Link>,
             <Link
               key="c"
               href="/docs/security"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Encryption model — the confidentiality guarantee underneath
+              Encryption model, the confidentiality guarantee underneath
             </Link>,
           ]}
         />

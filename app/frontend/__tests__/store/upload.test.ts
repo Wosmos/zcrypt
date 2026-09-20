@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from "vite
 // Same environment quirk as store/download.test.ts: Node's built-in
 // `localStorage` (not jsdom's) throws unguarded, and store/upload.ts calls it
 // directly (savePersistedResume/clearPersistedResume/readPersistedResume) at
-// call time, not just module load — so every test needs a working stub.
+// call time, not just module load, so every test needs a working stub.
 vi.hoisted(() => {
   const store = new Map<string, string>();
   Object.defineProperty(globalThis, "localStorage", {
@@ -73,7 +73,7 @@ vi.mock("@/store/toast", () => ({
 }));
 
 // The real crypto functions (PBKDF2 @ 600k iters, real AES-GCM) are correct
-// but slow and irrelevant here — this file tests ORCHESTRATION, not crypto
+// but slow and irrelevant here: this file tests ORCHESTRATION, not crypto
 // correctness (that's lib/crypto.test.ts's job). Fast deterministic fakes
 // still exercise every real branch (batch-shared KEK identity, CEK plumbing).
 let saltCounter = 0;
@@ -115,7 +115,7 @@ vi.mock("@/lib/name-crypto", () => ({
   encryptName: vi.fn(async (name: string) => `enc:${name}`),
 }));
 
-// WorkerPool spins up REAL Web Workers in its constructor — mock the whole
+// WorkerPool spins up REAL Web Workers in its constructor, mock the whole
 // module instead of faking `Worker` globally (store/upload.ts only touches
 // `process()`/`terminate()`, never worker internals). Each chunk's process()
 // resolves deterministically from its input unless a test overrides it.
@@ -183,7 +183,7 @@ function queueIdFor(index = 0) {
 
 // Every module-level timer (debouncedRefresh, background-notification
 // interval, withRetry's backoff, chunk pipeline's slot waits) and the
-// rAF-throttled progress flush are all driven by fake timers — mirrors
+// rAF-throttled progress flush are all driven by fake timers, mirrors
 // store/download.test.ts's convention for the identical pendingUpdates
 // throttle shape. `times` is generous because uploadOneFile's real path
 // crosses many chained microtasks (hash -> derive -> init -> N chunks -> complete).
@@ -211,12 +211,12 @@ describe("useUploadStore", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.restoreAllMocks();
-    // Clears call-count history on the @/lib/crypto mocks specifically — their
+    // Clears call-count history on the @/lib/crypto mocks specifically, their
     // baked-in factory implementations are never touched by the manual
     // .mockReset() calls below, so without this their call counts (e.g.
     // deriveKeyBytes) accumulate across every prior test in the file.
     // (vi.clearAllMocks() here also disturbs the WorkerPool constructor mock's
-    // internal call-tracking in a way that stalls the encrypt phase — clear
+    // internal call-tracking in a way that stalls the encrypt phase, clear
     // only what's actually needed instead of everything.)
     (generateSalt as Mock).mockClear();
     (deriveKeyBytes as Mock).mockClear();
@@ -230,7 +230,7 @@ describe("useUploadStore", () => {
     (encryptName as Mock).mockClear();
     (toBase64 as Mock).mockClear();
     (fromBase64 as Mock).mockClear();
-    // Deterministic backoff/jitter/wait-for-slot delays (withRetry, doInit) —
+    // Deterministic backoff/jitter/wait-for-slot delays (withRetry, doInit),
     // without this, Math.random()'s jitter makes the exact delay needed to
     // clear a backoff non-deterministic across runs.
     vi.spyOn(Math, "random").mockReturnValue(0);
@@ -282,19 +282,19 @@ describe("useUploadStore", () => {
     // store/upload.ts guards scheduleFlush() with a module-level
     // `flushScheduled` flag that only clears inside the rAF callback. Switching
     // timer implementations discards any pending callback, so a test that ends
-    // mid-batch leaves the flag stuck true — after which scheduleFlush() always
+    // mid-batch leaves the flag stuck true, after which scheduleFlush() always
     // returns early and EVERY later test in this file silently loses its
     // batched progress writes (status/percent updates just never land).
     if (vi.isFakeTimers()) await vi.advanceTimersByTimeAsync(100);
     vi.unstubAllGlobals();
     vi.useRealTimers();
     // Cleanup that lives HERE (not inline at each test's end) runs even when
-    // a test throws before reaching its own cleanup line — otherwise a failed
+    // a test throws before reaching its own cleanup line, otherwise a failed
     // notification test leaves document.hidden stuck for every test after it.
     delete (document as { hidden?: boolean }).hidden;
   });
 
-  describe("startUpload — routing (no size-based auto-route)", () => {
+  describe("startUpload: routing (no size-based auto-route)", () => {
     it("passes the user's explicit platform straight to initUpload regardless of file size", async () => {
       const big = makeFile("movie.mkv", 5000);
       useUploadStore.getState().startUpload([big], "pw", "telegram", undefined, undefined, null);
@@ -305,7 +305,7 @@ describe("useUploadStore", () => {
       );
     });
 
-    it("passes platform undefined through unchanged when the picker is on Auto — the server resolves it, not a size heuristic", async () => {
+    it("passes platform undefined through unchanged when the picker is on Auto: the server resolves it, not a size heuristic", async () => {
       const big = makeFile("movie.mkv", 50_000);
       useUploadStore.getState().startUpload([big], "pw", undefined, undefined, undefined, null);
       await flush();
@@ -316,7 +316,7 @@ describe("useUploadStore", () => {
     });
   });
 
-  describe("startUpload — fresh single-chunk upload happy path", () => {
+  describe("startUpload: fresh single-chunk upload happy path", () => {
     it("hashes, derives keys, inits, uploads the one chunk, completes, and lands on done", async () => {
       const file = makeFile("a.txt", 10, "0123456789");
       useUploadStore.getState().startUpload([file], "pw", "telegram", undefined, undefined, null);
@@ -366,7 +366,7 @@ describe("useUploadStore", () => {
     });
   });
 
-  describe("startUpload — multi-chunk file", () => {
+  describe("startUpload: multi-chunk file", () => {
     it("uploads every chunk exactly once and sums sizes into completeUpload", async () => {
       const file = makeFile("big.bin", SMALL_PROFILE.chunkSize * 3);
       useUploadStore.getState().startUpload([file], "pw", "telegram", undefined, undefined, null);
@@ -382,7 +382,7 @@ describe("useUploadStore", () => {
     });
   });
 
-  describe("startUpload — direct-upload mode", () => {
+  describe("startUpload: direct-upload mode", () => {
     it("uses presign -> directUploadToURL -> confirm instead of uploadChunk", async () => {
       (initUpload as Mock).mockResolvedValue(defaultInitResponse({ direct_upload: true }));
       const file = makeFile("a.txt", 10);
@@ -414,7 +414,7 @@ describe("useUploadStore", () => {
     });
   });
 
-  describe("startUpload — batch amortization", () => {
+  describe("startUpload: batch amortization", () => {
     it("derives the batch KEK exactly once and shares one worker pool across every file", async () => {
       const files = [makeFile("a.txt", 10), makeFile("b.txt", 10), makeFile("c.txt", 10)];
       const { deriveKeyBytes } = await import("@/lib/crypto");
@@ -422,7 +422,7 @@ describe("useUploadStore", () => {
       await flush();
 
       // One call for the batch KEK. Each fresh file ALSO derives no additional
-      // KEK — batchKek is reused, never re-derived per file.
+      // KEK: batchKek is reused, never re-derived per file.
       expect((deriveKeyBytes as Mock).mock.calls.length).toBe(1);
       expect(workerPoolInstances.length).toBe(1);
       expect(workerPoolInstances[0].terminate).toHaveBeenCalledTimes(1);
@@ -449,7 +449,7 @@ describe("useUploadStore", () => {
     });
   });
 
-  describe("startUpload — batch summary toast", () => {
+  describe("startUpload: batch summary toast", () => {
     it("shows a single-file success toast for one file", async () => {
       useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
       await flush();
@@ -457,7 +457,7 @@ describe("useUploadStore", () => {
     });
 
     it("shows a single-file failure toast for one file", async () => {
-      (uploadChunk as Mock).mockRejectedValue(new Error("nope — invalid request"));
+      (uploadChunk as Mock).mockRejectedValue(new Error("nope, invalid request"));
       useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
       await flush();
       expect(toast.error).toHaveBeenCalledWith("a.txt failed");
@@ -472,7 +472,7 @@ describe("useUploadStore", () => {
     });
 
     it("shows an all-failed toast for a multi-file batch", async () => {
-      (uploadChunk as Mock).mockRejectedValue(new Error("nope — invalid request"));
+      (uploadChunk as Mock).mockRejectedValue(new Error("nope, invalid request"));
       useUploadStore
         .getState()
         .startUpload([makeFile("a.txt", 10), makeFile("b.txt", 10)], "pw", "telegram", 2, undefined, null);
@@ -482,7 +482,7 @@ describe("useUploadStore", () => {
 
     it("shows a mixed partial-failure toast for a multi-file batch", async () => {
       (uploadChunk as Mock).mockImplementation(async (sessionId: string) => {
-        if (sessionId === "sess-fail") throw new Error("nope — invalid request");
+        if (sessionId === "sess-fail") throw new Error("nope, invalid request");
       });
       (initUpload as Mock)
         .mockResolvedValueOnce(defaultInitResponse({ session_id: "sess-ok" }))
@@ -685,7 +685,7 @@ describe("useUploadStore", () => {
       await flush();
 
       // Chunks are idempotent by SHA, so re-sending index 0 (already uploaded
-      // before the reject) is safe and correct — the fallback exists exactly
+      // before the reject) is safe and correct, the fallback exists exactly
       // for this case.
       expect((uploadChunk as Mock).mock.calls.map((c) => c[1])).toEqual([0]);
       expect(getItem(id)?.status).toBe("done");
@@ -693,7 +693,7 @@ describe("useUploadStore", () => {
 
     it("never lets a stale draining run finalize after resume replaces it", async () => {
       // Mirrors the REAL uploadChunk/xhrPut contract: an aborted signal
-      // rejects promptly with "Upload paused" — pause does not hang forever,
+      // rejects promptly with "Upload paused": pause does not hang forever,
       // it cuts the transfer. A mock that ignores the signal (hangs until
       // manually released) doesn't model reality and produces a false
       // "double completeUpload" result once resumeUpload's synchronous
@@ -798,7 +798,7 @@ describe("useUploadStore", () => {
   describe("retryUpload", () => {
     it("falls back to the item's original platform when the resume ctx has none set", async () => {
       (initUpload as Mock).mockResolvedValueOnce(defaultInitResponse({ platform: undefined }));
-      (uploadChunk as Mock).mockRejectedValueOnce(new Error("nope — invalid"));
+      (uploadChunk as Mock).mockRejectedValueOnce(new Error("nope, invalid"));
       const file = makeFile("a.txt", 10);
       useUploadStore.getState().startUpload([file], "pw", "telegram", undefined, undefined, null);
       const id = queueIdFor();
@@ -815,7 +815,7 @@ describe("useUploadStore", () => {
     });
 
     it("keeps the existing progress/bytes instead of resetting to 0", async () => {
-      (uploadChunk as Mock).mockRejectedValueOnce(new Error("nope — invalid"));
+      (uploadChunk as Mock).mockRejectedValueOnce(new Error("nope, invalid"));
       const file = makeFile("a.txt", 10);
       useUploadStore.getState().startUpload([file], "pw", "telegram", undefined, undefined, null);
       const id = queueIdFor();
@@ -848,7 +848,7 @@ describe("useUploadStore", () => {
           await new Promise<void>((resolve) => {
             releasePrev = resolve;
           });
-          throw new Error("nope — invalid, first attempt fails after release");
+          throw new Error("nope: invalid, first attempt fails after release");
         }
       });
       const file = makeFile("a.txt", 10);
@@ -910,7 +910,7 @@ describe("useUploadStore", () => {
   describe("error handling", () => {
     it("gives up and surfaces the underlying error once doInit exhausts all 60 wait-for-slot attempts", async () => {
       // On the LAST attempt (60/60), doInit's `isRetryable && attempt < 59`
-      // guard is false, so it re-throws the ORIGINAL error directly — the
+      // guard is false, so it re-throws the ORIGINAL error directly, the
       // loop's trailing `return null` is never actually reached this way (the
       // only path to a null return is the pause check at the top of the
       // loop). This locks in the real, user-visible behavior: persistent
@@ -921,7 +921,7 @@ describe("useUploadStore", () => {
       useUploadStore.getState().startUpload([file], "pw", "telegram", undefined, undefined, null);
       const id = queueIdFor();
       // 60 attempts * a deterministic 2000ms backoff (Math.random mocked to
-      // 0) = 120s of virtual time minimum — comfortably covered by flush()'s
+      // 0) = 120s of virtual time minimum, comfortably covered by flush()'s
       // 40 rounds * 5000ms (200s), but give it its own generous budget.
       await flush(50);
 
@@ -971,7 +971,7 @@ describe("useUploadStore", () => {
     });
 
     it("rewrites a 'storage not available' failure into a friendlier message", async () => {
-      (initUpload as Mock).mockRejectedValue(new Error("storage not available yet — managed storage is being configured"));
+      (initUpload as Mock).mockRejectedValue(new Error("storage not available yet: managed storage is being configured"));
       const file = makeFile("a.txt", 10);
       useUploadStore.getState().startUpload([file], "pw", "telegram", undefined, undefined, null);
       const id = queueIdFor();
@@ -1123,7 +1123,7 @@ describe("useUploadStore", () => {
     });
   });
 
-  describe("background notifications — full branch matrix", () => {
+  describe("background notifications: full branch matrix", () => {
     function stubNotification(permission: NotificationPermission) {
       const ctorSpy = vi.fn();
       class FakeNotification {
@@ -1153,13 +1153,13 @@ describe("useUploadStore", () => {
     });
 
     // The "all work settled" notification (lines ~52-65) fires from WITHIN
-    // the setInterval poller's own tick — but startUpload's own batch-settle
+    // the setInterval poller's own tick, but startUpload's own batch-settle
     // handler ALSO clears that interval the moment Promise.all resolves, via
     // a pure microtask chain with no timer delay in the happy path. That
     // microtask reaction always wins the race against the next real 3s tick,
     // so the interval never survives long enough to OBSERVE "done" through
     // real time advancement. Rather than fight that unwinnable race, capture
-    // the tick callback directly off `setInterval` and invoke it ourselves —
+    // the tick callback directly off `setInterval` and invoke it ourselves:
     // this exercises the exact same closure/branches with the same
     // `getBatchState` wiring, just without depending on wall-clock timing.
     function captureIntervalTick(): { getTick: () => (() => void) | undefined } {
@@ -1217,7 +1217,7 @@ describe("useUploadStore", () => {
 
   describe("pause at every early checkpoint (before any chunk exists)", () => {
     it("stops during hashing without ever calling initUpload", async () => {
-      // mockImplementationOnce (not mockImplementation) — a permanent override
+      // mockImplementationOnce (not mockImplementation), a permanent override
       // here would survive .mockClear() into every later test in the file,
       // since clearing call history does not undo a custom implementation.
       let resolveHash: (v: string) => void = () => {};
@@ -1269,7 +1269,7 @@ describe("useUploadStore", () => {
     // The batch-shared KEK (startUpload derives it ONCE for the whole batch)
     // means deriveKeyBytes's per-file branch and doInit's wait-for-slot retry
     // loop are only reachable via retryUpload/resumeUpload, which pass no
-    // batchKek — so these two checkpoints need a real fresh-path RETRY, not a
+    // batchKek, so these two checkpoints need a real fresh-path RETRY, not a
     // fresh startUpload (whose only "hang" point is the batch-level derive,
     // already covered by the sibling test above via a different mechanism).
     it("stops during a retry's per-file key derivation (no batch-shared KEK) without calling initUpload", async () => {
@@ -1302,7 +1302,7 @@ describe("useUploadStore", () => {
     it("stops while retrying initUpload's wait-for-slot loop, without ever calling uploadChunk", async () => {
       (initUpload as Mock)
         .mockRejectedValueOnce(new Error("too many concurrent uploads"))
-        .mockRejectedValueOnce(new Error("should never be reached — pause must win first"));
+        .mockRejectedValueOnce(new Error("should never be reached, pause must win first"));
       const file = makeFile("a.txt", 10);
       useUploadStore.getState().startUpload([file], "pw", "telegram", undefined, undefined, null);
       const id = queueIdFor();
@@ -1313,7 +1313,7 @@ describe("useUploadStore", () => {
       await vi.advanceTimersByTimeAsync(500);
 
       useUploadStore.getState().pauseUpload(id);
-      // Now let the backoff elapse — the loop's TOP-of-next-iteration
+      // Now let the backoff elapse, the loop's TOP-of-next-iteration
       // isPaused() check must short-circuit before ever calling initUpload
       // again (the second mock throws if it's reached, failing loudly).
       await vi.advanceTimersByTimeAsync(2000);
@@ -1331,14 +1331,14 @@ describe("useUploadStore", () => {
       (getFileMeta as Mock).mockRejectedValueOnce(new Error("not found")); // adoption fails -> restart
       (initUpload as Mock)
         .mockRejectedValueOnce(new Error("too many concurrent uploads"))
-        .mockRejectedValueOnce(new Error("should never be reached — pause must win first"));
+        .mockRejectedValueOnce(new Error("should never be reached, pause must win first"));
       const file = makeFile("a.txt", 10);
       useUploadStore.getState().startUpload([file], "pw", "huggingface", undefined, undefined, null);
       const id = queueIdFor();
       // Reach "restart's doInit attempt 0 rejected, now sleeping in its
       // backoff" via pure microtask draining only (everything up to that
-      // sleep — hash, derive, the resumed check, the failed adoption,
-      // cancelUpload, the restart's first initUpload call — is timer-free).
+      // sleep: hash, derive, the resumed check, the failed adoption,
+      // cancelUpload, the restart's first initUpload call, is timer-free).
       for (let i = 0; i < 25; i++) await Promise.resolve();
 
       await vi.advanceTimersByTimeAsync(500); // inside the restart's own backoff, not past it
@@ -1347,7 +1347,7 @@ describe("useUploadStore", () => {
       await flush();
 
       expect(cancelUpload).toHaveBeenCalledWith("sess-dead");
-      expect(initUpload).toHaveBeenCalledTimes(2); // resumed-check + one restart attempt — never the 2nd restart retry
+      expect(initUpload).toHaveBeenCalledTimes(2); // resumed-check + one restart attempt, never the 2nd restart retry
       expect(uploadChunk).not.toHaveBeenCalled();
       expect(getItem(id)?.status).toBe("paused");
     });
@@ -1355,7 +1355,7 @@ describe("useUploadStore", () => {
     it("treats an escaped error whose message happens to match the pause signature as a graceful stop, never a failure", async () => {
       // isPauseError matches purely on message text, by design (it can't tell
       // a real abort-driven "Upload paused" from any other source of that
-      // exact string) — this locks in that CONTRACT: whatever the origin,
+      // exact string): this locks in that CONTRACT: whatever the origin,
       // the outer catch must treat it as a stop, never call setError/toast.
       (sha256File as Mock).mockRejectedValueOnce(new Error("Upload paused"));
       const file = makeFile("a.txt", 10);
@@ -1373,7 +1373,7 @@ describe("useUploadStore", () => {
   describe("multi-chunk mid-loop pause and concurrency limits", () => {
     it("stops launching further chunks once paused mid-loop, leaving the row paused (not failed or done)", async () => {
       // Mirrors the REAL uploadChunk contract (signal-driven rejection) rather
-      // than hanging on a single shared external resolver — a shared resolver
+      // than hanging on a single shared external resolver, a shared resolver
       // only ever unblocks the LAST call, leaving every earlier chunk's
       // promise permanently pending and poisoning every test that runs after
       // this one in the same file.
@@ -1400,7 +1400,7 @@ describe("useUploadStore", () => {
 
     it("queues chunk uploads beyond the concurrency cap and still finishes every one", async () => {
       // Default pipelineDepth (workers*3=3) is smaller than maxUploads (5),
-      // so the upload-slot waiter queue never actually fills under it — bump
+      // so the upload-slot waiter queue never actually fills under it, bump
       // workers so pipelineDepth (9) comfortably exceeds maxUploads (5),
       // letting more chunks reach acquireUploadSlot() concurrently than
       // there are slots for.
@@ -1415,12 +1415,12 @@ describe("useUploadStore", () => {
       await flush(5);
 
       // Only maxUploads (5) chunks ever actually reach the uploadChunk() call
-      // — the other 3 are parked in the upload-slot waiter queue (line 639),
+      //: the other 3 are parked in the upload-slot waiter queue (line 639),
       // not yet past acquireUploadSlot().
       expect(uploadChunk).toHaveBeenCalledTimes(5);
 
       // Switch to auto-resolving for whatever comes after, then drain the 5
-      // currently-held calls — each release frees a slot for one of the 3
+      // currently-held calls: each release frees a slot for one of the 3
       // queued chunks, which then resolves immediately under the new default.
       (uploadChunk as Mock).mockResolvedValue(undefined);
       releasers.splice(0).forEach((r) => r());
@@ -1477,7 +1477,7 @@ describe("useUploadStore", () => {
 
       releaseChunk();
       await flush();
-      expect(getItem(id)?.status).toBe("paused"); // stays paused — resume is required to finish it
+      expect(getItem(id)?.status).toBe("paused"); // stays paused: resume is required to finish it
     });
   });
 
@@ -1570,7 +1570,7 @@ describe("useUploadStore", () => {
       await vi.waitFor(() => {
         expect(useUploadStore.getState().queue[0].status).toBe("done");
       });
-      // Retry re-drives the streaming core with the desktop path — the item's
+      // Retry re-drives the streaming core with the desktop path, the item's
       // 0-byte placeholder File never reached the web pipeline's init.
       expect(sidecarUpload).toHaveBeenLastCalledWith("/tmp/a.bin", "pw", undefined, expect.any(String));
     });
@@ -1588,7 +1588,7 @@ describe("useUploadStore", () => {
       });
       const id = useUploadStore.getState().queue[0].id;
       useUploadStore.getState().pauseUpload(id);
-      // NOT paused — "paused" writes flush synchronously, so if the desktop
+      // NOT paused: "paused" writes flush synchronously, so if the desktop
       // guard failed we would see it here. (The core kept syncing; pausing
       // only lied about it before.)
       expect(useUploadStore.getState().queue[0].status).not.toBe("paused");
@@ -1661,7 +1661,7 @@ describe("useUploadStore", () => {
       const { emit, release, run } = await startHangingDesktopUpload();
       emit(progressEvent({ stage: "uploading", bytes_done: 0, bytes_total: 0 }));
       await flush(3);
-      // within = 0, so the uploading band sits at its 9% floor — no NaN.
+      // within = 0, so the uploading band sits at its 9% floor, no NaN.
       expect(getItem(queueIdFor())?.progress).toBe(9);
       release();
       await run;
@@ -1674,7 +1674,7 @@ describe("useUploadStore", () => {
       await flush(3);
       expect(getItem(id)?.progress).toBe(54);
 
-      // An unmodelled stage maps to undefined — the bar must not jump or reset.
+      // An unmodelled stage maps to undefined: the bar must not jump or reset.
       emit(progressEvent({ stage: "verifying_remote", bytes_done: 0, bytes_total: 100 }));
       await flush(3);
       expect(getItem(id)?.stage).toBe("verifying_remote");
@@ -1689,7 +1689,7 @@ describe("useUploadStore", () => {
       const before = getItem(id);
       emit(progressEvent({ file_name: "someone-elses-file.bin", bytes_done: 99, bytes_total: 100 }));
       await flush(3);
-      // No match, so nothing was ever batched — the row is byte-for-byte intact.
+      // No match, so nothing was ever batched: the row is byte-for-byte intact.
       expect(getItem(id)).toEqual(before);
       release();
       await run;
@@ -1708,8 +1708,8 @@ describe("useUploadStore", () => {
       const id = queueIdFor();
       expect(getItem(id)?.status).toBe("done");
 
-      // A late straggler event for a done item finds no match and is dropped —
-      // it must not resurrect the row as "encrypting".
+      // A late straggler event for a done item finds no match and is dropped.
+      // It must not resurrect the row as "encrypting".
       emit(progressEvent({ stage: "uploading", bytes_done: 1, bytes_total: 100 }));
       await flush(3);
       expect(getItem(id)?.status).toBe("done");
@@ -1737,7 +1737,7 @@ describe("useUploadStore", () => {
       const { release, run } = await startHangingDesktopUpload();
       const id = queueIdFor();
 
-      // Best-effort and fire-and-forget — a rejection must not escape.
+      // Best-effort and fire-and-forget: a rejection must not escape.
       expect(() => useUploadStore.getState().removeFromQueue(id)).not.toThrow();
       await flush(3);
       expect(cancelTransfer).toHaveBeenCalledWith(id);
@@ -1760,7 +1760,7 @@ describe("useUploadStore", () => {
       useUploadStore.getState().resumeUpload(id, "pw");
       await flush(5);
       expect(getItem(id)?.status).toBe("done");
-      // Re-driven through the core with the original path — never initUpload
+      // Re-driven through the core with the original path, never initUpload
       // (the item's File is a 0-byte placeholder the web pipeline would reject).
       expect(sidecarUpload).toHaveBeenLastCalledWith("/tmp/a.bin", "pw", undefined, id);
       expect(initUpload).not.toHaveBeenCalled();
@@ -1839,7 +1839,7 @@ describe("useUploadStore", () => {
       expect(getItem(id)?.status).toBe("paused");
 
       // An in-flight emit (or a backend SSE event) landing after the pause must
-      // not flip the row back to uploading — that was how pause visibly undid
+      // not flip the row back to uploading. That was how pause visibly undid
       // itself. The write is dropped before it can even be batched.
       useUploadStore.getState().updateStatus(id, "uploading", 42, "Uploading...");
       await flush(3);
@@ -1855,7 +1855,7 @@ describe("useUploadStore", () => {
       useUploadStore.getState().pauseUpload(id);
       expect(getItem(id)?.status).toBe("paused");
 
-      // A genuine failure still has to land — the guard whitelists terminals.
+      // A genuine failure still has to land, the guard whitelists terminals.
       useUploadStore.getState().updateStatus(id, "failed", 0, "Failed");
       expect(getItem(id)?.status).toBe("failed");
     });
@@ -1974,7 +1974,7 @@ describe("useUploadStore", () => {
     });
   });
 
-  describe("startUpload — per-file size cap", () => {
+  describe("startUpload: per-file size cap", () => {
     function oversized(name: string): File {
       const f = new File(["x"], name);
       Object.defineProperty(f, "size", { value: 11 * 1024 * 1024 * 1024, configurable: true });
@@ -2015,7 +2015,7 @@ describe("useUploadStore", () => {
   describe("getResumableUploadIds", () => {
     it("returns the ids of failed uploads that still hold a resumable session", async () => {
       // Init succeeds (records a resume session), then the chunk upload fails
-      // non-transiently — leaving the item failed but resumable.
+      // non-transiently: leaving the item failed but resumable.
       (uploadChunk as Mock).mockRejectedValue(new Error("bad request: invalid chunk"));
       useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
       const id = queueIdFor();
@@ -2146,7 +2146,7 @@ describe("useUploadStore", () => {
     });
 
     it("does not write a paused status once a newer run owns the item", async () => {
-      // Retry supersedes the in-flight run. The stale run must stay silent —
+      // Retry supersedes the in-flight run. The stale run must stay silent:
       // writing "paused" from it is what used to make a live retry look stopped.
       let releaseFirst: () => void = () => {};
       (initUpload as Mock).mockImplementationOnce(
@@ -2175,7 +2175,7 @@ describe("useUploadStore", () => {
   describe("more pause and failure interleavings", () => {
     it("bails out before doing any work when the row is paused before the run starts", async () => {
       // pauseUpload lands synchronously, before the async run reaches its first
-      // checkpoint — so the very first checkpoint is the one that stops it.
+      // checkpoint, so the very first checkpoint is the one that stops it.
       useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
       const id = queueIdFor();
       useUploadStore.getState().pauseUpload(id);
@@ -2188,7 +2188,7 @@ describe("useUploadStore", () => {
 
     it("stops launching further chunks after the first one fails", async () => {
       // Serialize to one in-flight chunk so the first rejection is recorded before
-      // the loop considers the next index — otherwise every chunk is already in
+      // the loop considers the next index: otherwise every chunk is already in
       // flight by the time any of them fails and the break can't be observed.
       (getDeviceProfile as Mock).mockReturnValue({ ...SMALL_PROFILE, chunkSize: 4, workers: 1 });
       (initUpload as Mock).mockResolvedValue(defaultInitResponse({ chunk_count: 8, chunk_size: 4 }));
@@ -2227,7 +2227,7 @@ describe("useUploadStore", () => {
 
     it("reports a non-Error chunk rejection without crashing the retry classifier", async () => {
       (initUpload as Mock).mockResolvedValue(defaultInitResponse({ chunk_count: 1 }));
-      // withRetry lowercases the message to classify transient vs fatal — a bare
+      // withRetry lowercases the message to classify transient vs fatal, a bare
       // string has no .message, so it must be stringified rather than crash.
       (uploadChunk as Mock).mockRejectedValue("bare string rejection");
 
@@ -2516,7 +2516,7 @@ describe("useUploadStore", () => {
 
       // Drive the row states directly rather than via pipeline outcomes, so the
       // reporter is guaranteed to see done / failed / mid-progress / untouched in
-      // one pass — each scores differently in the aggregate percent.
+      // one pass: each scores differently in the aggregate percent.
       (uploadChunk as Mock).mockImplementation(() => new Promise(() => {}));
       useUploadStore
         .getState()
@@ -2694,7 +2694,7 @@ describe("useUploadStore", () => {
       (subscribeProgress as Mock).mockImplementation(async () => vi.fn());
       (sidecarUpload as Mock).mockResolvedValue(undefined);
 
-      // An empty array is not "the dropzone already picked these" — fall back to
+      // An empty array is not "the dropzone already picked these", fall back to
       // the core's own picker rather than uploading nothing.
       await useUploadStore.getState().startDesktopUpload("pw", undefined, []);
 
@@ -2708,7 +2708,7 @@ describe("useUploadStore", () => {
       (subscribeProgress as Mock).mockImplementation(async () => vi.fn());
       (sidecarUpload as Mock).mockResolvedValue(undefined);
 
-      // The dropzone already ran the native dialog — re-opening it here is the
+      // The dropzone already ran the native dialog: re-opening it here is the
       // double-dialog bug, so supplied paths must short-circuit the picker.
       await useUploadStore.getState().startDesktopUpload("pw", undefined, ["/tmp/given.bin"]);
 
@@ -2724,7 +2724,7 @@ describe("useUploadStore", () => {
 
       await useUploadStore.getState().startDesktopUpload("pw", undefined);
 
-      // A blank row name would be useless — show the path instead.
+      // A blank row name would be useless, show the path instead.
       expect(useUploadStore.getState().queue[0].file.name).toBe("/tmp/weird/");
     });
 
@@ -2820,7 +2820,7 @@ describe("useUploadStore", () => {
       const id = queueIdFor();
       await flush();
 
-      // Restarted deliberately, on the original platform — never a silent switch.
+      // Restarted deliberately, on the original platform, never a silent switch.
       expect(toast.warning).toHaveBeenCalledWith(expect.stringContaining("restarting on github"));
       expect(cancelUpload).toHaveBeenCalled();
       expect(getItem(id)?.status).toBe("done");
@@ -2828,7 +2828,7 @@ describe("useUploadStore", () => {
 
     it("restarts when the old session's chunk boundaries are unrecoverable", async () => {
       // A pre-upgrade session reports no chunk_size, and there's no persisted
-      // record to recover it from — reslicing at a guessed size would corrupt it.
+      // record to recover it from: reslicing at a guessed size would corrupt it.
       resumedInit({ chunk_size: 0, chunk_count: 0 });
 
       useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);
@@ -2841,7 +2841,7 @@ describe("useUploadStore", () => {
 
     it("recovers unknown chunk boundaries from the persisted record", async () => {
       // The server forgot the chunk size, but our own localStorage record still
-      // has it — so the session is adoptable instead of being thrown away.
+      // has it, so the session is adoptable instead of being thrown away.
       // getUploadStatus reports the session as gone, so the cross-session resume
       // at the top of the run declines it and we actually reach the adopt path.
       localStorage.setItem(
@@ -2871,13 +2871,13 @@ describe("useUploadStore", () => {
       await flush();
 
       expect(getItem(id)?.status).toBe("done");
-      // Adopted, not restarted — the persisted record supplied the boundaries.
+      // Adopted, not restarted: the persisted record supplied the boundaries.
       expect(toast.warning).not.toHaveBeenCalled();
     });
 
     it("swallows a failing cancel of the un-adoptable session", async () => {
       resumedInit({ chunk_size: 0, chunk_count: 0 });
-      // Best-effort cleanup — the restart must proceed regardless.
+      // Best-effort cleanup: the restart must proceed regardless.
       (cancelUpload as Mock).mockRejectedValue(new Error("already reaped"));
 
       useUploadStore.getState().startUpload([makeFile("a.txt", 10)], "pw", "telegram", undefined, undefined, null);

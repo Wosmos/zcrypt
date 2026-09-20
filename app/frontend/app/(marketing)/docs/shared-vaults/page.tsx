@@ -41,7 +41,7 @@ export default function SharedVaultsDocPage() {
     <DocPage
       href="/docs/shared-vaults"
       title="Shared vaults"
-      description="Shared vaults — spaces — let a group work on the same set of end-to-end encrypted files. Each space carries its own key, sealed to every member so only members can open its files, and the server only ever holds ciphertext it cannot read."
+      description="Shared vaults (spaces) let a group work on the same set of end-to-end encrypted files. Each space carries its own key, sealed to every member so only members can open its files, and the server only ever holds ciphertext it cannot read."
       badge="Beta"
       toc={toc}
     >
@@ -49,7 +49,7 @@ export default function SharedVaultsDocPage() {
         <DocP>
           A shared vault, or <strong>space</strong>, is a vault you own but open up to other zcrypt
           users. You give it a name, invite members by their account email, and add files. Every
-          member can download the space&rsquo;s files and decrypt them <strong>end-to-end</strong> —
+          member can download the space&rsquo;s files and decrypt them <strong>end-to-end</strong>,
           without ever learning your vault passphrase and without the server being able to read
           anything.
         </DocP>
@@ -64,7 +64,7 @@ export default function SharedVaultsDocPage() {
           The server holds only opaque ciphertext for a space: the per-member <em>sealed</em>{" "}
           space-key grants, the file keys <em>wrapped</em> under the space key, and members&rsquo;
           public keys and fingerprints. It <strong>never</strong> sees the space key, any
-          member&rsquo;s private key, file contents, or any vault passphrase — every unseal, unwrap,
+          member&rsquo;s private key, file contents, or any vault passphrase, every unseal, unwrap,
           and decrypt happens in the browser.
         </DocNote>
       </DocSection>
@@ -90,18 +90,18 @@ export default function SharedVaultsDocPage() {
         <DocSubsection title="2. The space key (per space)">
           <DocP>
             When you create a space, your browser generates a fresh random 256-bit{" "}
-            <strong>space key</strong>. For every member — including you — that key is{" "}
+            <strong>space key</strong>. For every member (including you) that key is{" "}
             <strong>sealed to their X25519 public key</strong> using an ECIES sealed box: an
             ephemeral X25519 keypair does ECDH with the recipient, the shared secret is hashed into
             an AES-256-GCM key, and the ephemeral public key rides along so the recipient can
-            reconstruct it. Only the holder of the matching private key can open it — the server
+            reconstruct it. Only the holder of the matching private key can open it, the server
             cannot, because it never has any private key.
           </DocP>
           <DocCode label="Per-member sealed space-key grant (base64)">
             {`ephemeralPublicKey[32]  ||  AES-256-GCM( 12B IV || ciphertext || 16B tag )`}
           </DocCode>
           <DocP>
-            An opened space key is cached in memory for the session only — it is never written to
+            An opened space key is cached in memory for the session only. It is never written to
             disk and is cleared on logout.
           </DocP>
         </DocSubsection>
@@ -111,7 +111,7 @@ export default function SharedVaultsDocPage() {
             Each file already has its own content-encryption key (CEK). To share a file into a
             space, your browser unwraps that CEK with your vault passphrase, then{" "}
             <strong>re-wraps it under the space key</strong> and uploads only the opaque envelope.
-            Any member downloads the file by unwrapping that envelope with the space key — no owner
+            Any member downloads the file by unwrapping that envelope with the space key, no owner
             passphrase involved. The file&rsquo;s chunks in storage never change; only a new wrapped
             copy of its key is added.
           </DocP>
@@ -141,7 +141,7 @@ export default function SharedVaultsDocPage() {
           New members default to <strong>viewer</strong> unless you choose otherwise. A few actions
           are reserved for the <strong>owner</strong> regardless of anyone&rsquo;s role:{" "}
           <strong>inviting and removing members</strong>, <strong>re-keying</strong> the space, and{" "}
-          <strong>deleting</strong> it. This owner-gating is deliberate — it keeps a member from
+          <strong>deleting</strong> it. This owner-gating is deliberate: it keeps a member from
           re-granting keys or locking others out.
         </DocP>
         <DocNote type="info" title="Adding a file requires owning it">
@@ -155,18 +155,18 @@ export default function SharedVaultsDocPage() {
         <DocList
           items={[
             <>
-              <strong>Invite by email</strong> — the account must already exist on zcrypt{" "}
+              <strong>Invite by email</strong>: the account must already exist on zcrypt{" "}
               <em>and</em> have set up its encryption key (the person needs to have signed in and
               unlocked their vault at least once). If they haven&rsquo;t, the invite is rejected
               until they do, because there&rsquo;s no public key to seal the space key to.
             </>,
             <>
-              <strong>Pick a role</strong> when inviting — viewer, editor, or admin. Re-inviting an
+              <strong>Pick a role</strong> when inviting, viewer, editor, or admin. Re-inviting an
               existing member updates their role and re-issues their key grant.
             </>,
             <>
               <strong>Remove a member</strong> at any time as the owner (this also rotates the space
-              key — see below).
+              key. See below).
             </>,
             <>
               <strong>Delete the space</strong> as the owner. The underlying files stay in each
@@ -175,7 +175,7 @@ export default function SharedVaultsDocPage() {
           ]}
         />
         <DocNote type="security" title="Verify fingerprints out of band">
-          Each member is shown with the <strong>fingerprint</strong> of their public key — the first
+          Each member is shown with the <strong>fingerprint</strong> of their public key, the first
           16 hex characters of its SHA-256, grouped like <code>A1B2-C3D4-E5F6-7890</code>. Compare
           that against the fingerprint the member sees in their own encryption-key settings, over a
           channel the server doesn&rsquo;t control (in person, a call, a signed message). Matching
@@ -189,18 +189,18 @@ export default function SharedVaultsDocPage() {
         <DocList
           items={[
             <>
-              <strong>Add files</strong> (owner, editor, admin) — pick files or whole folders from
+              <strong>Add files</strong> (owner, editor, admin). Pick files or whole folders from
               your vault. Each one&rsquo;s key is re-wrapped under the space key in your browser;
               the server stores only the re-wrapped envelope.
             </>,
             <>
-              <strong>Download</strong> (any member) — the space key unwraps the file&rsquo;s
+              <strong>Download</strong> (any member): the space key unwraps the file&rsquo;s
               envelope and the chunks are decrypted locally. Access is authorised through your
               membership without ever loosening the owner&rsquo;s file scoping; an unauthorised
               request is indistinguishable from a plain not-found.
             </>,
             <>
-              <strong>Remove files</strong> (editor, admin) — unshares the file from the space. The
+              <strong>Remove files</strong> (editor, admin): unshares the file from the space. The
               original file is untouched in the owner&rsquo;s vault.
             </>,
           ]}
@@ -208,7 +208,7 @@ export default function SharedVaultsDocPage() {
         <DocP>
           A space can carry an optional <strong>size limit</strong>, set when you create it. It caps
           the total original size of the files shared into the space and is{" "}
-          <strong>enforced on the server</strong> when a file is added — adds that would exceed the
+          <strong>enforced on the server</strong> when a file is added: adds that would exceed the
           cap are rejected. Re-adds during a re-key don&rsquo;t count twice, so rotation never trips
           the limit. Leave it blank for no limit.
         </DocP>
@@ -216,7 +216,7 @@ export default function SharedVaultsDocPage() {
 
       <DocSection id="revocation" title="Removing members & re-keying">
         <DocP>
-          Removing a member has to be more than deleting a database row — that member may have
+          Removing a member has to be more than deleting a database row, that member may have
           already opened the space key in their browser. So removal triggers a{" "}
           <strong>re-key</strong>: your browser generates a brand-new space key, seals it to every{" "}
           <em>remaining</em> member, and re-wraps <strong>every shared file&rsquo;s key</strong>{" "}
@@ -227,16 +227,16 @@ export default function SharedVaultsDocPage() {
         <DocList
           items={[
             <>
-              <strong>Automatic on removal</strong> — the re-key runs right after you remove
-              someone. If it doesn&rsquo;t complete (for example, the space wasn&rsquo;t unlocked),
+              <strong>Automatic on removal</strong>: the re-key runs right after you remove someone.
+              If it doesn&rsquo;t complete (for example, the space wasn&rsquo;t unlocked),
               you&rsquo;re told to finish it with the manual Re-key.
             </>,
             <>
-              <strong>Manual Re-key</strong> — the owner can rotate the space key at any time from
+              <strong>Manual Re-key</strong>: the owner can rotate the space key at any time from
               the members panel, to rotate periodically or to complete an interrupted revocation.
             </>,
             <>
-              <strong>Owner-gated</strong> — only the owner can re-key. A re-key hands out fresh
+              <strong>Owner-gated</strong>: only the owner can re-key. A re-key hands out fresh
               grants to everyone, so it&rsquo;s deliberately kept out of non-owner hands.
             </>,
           ]}
@@ -250,7 +250,7 @@ export default function SharedVaultsDocPage() {
         </DocNote>
         <DocNote type="warning" title="Revocation is forward-looking">
           Rotating the key stops a removed member from opening the space&rsquo;s files from that
-          point on. Like any sharing system, it can&rsquo;t recall data they already downloaded —
+          point on. Like any sharing system, it can&rsquo;t recall data they already downloaded:
           plaintext that has left the space is beyond its reach.
         </DocNote>
       </DocSection>
@@ -273,21 +273,21 @@ export default function SharedVaultsDocPage() {
               href="/docs/key-management"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Passphrase &amp; key management — your encryption keypair and fingerprint
+              Passphrase &amp; key management: your encryption keypair and fingerprint
             </Link>,
             <Link
               key="b"
               href="/docs/sharing"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Share links — share a single file end-to-end without an account
+              Share links: share a single file end-to-end without an account
             </Link>,
             <Link
               key="c"
               href="/docs/zero-knowledge"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Zero-knowledge — the model these guarantees rest on
+              Zero-knowledge: the model these guarantees rest on
             </Link>,
           ]}
         />

@@ -67,7 +67,7 @@ async function request<T>(path: string, options?: RequestInit, retries = 2): Pro
 
   // Timeout: use the caller's signal if it supplied one, else bound the fetch
   // ourselves at 30s. The timer is created unconditionally (and always cleared
-  // below) — when a caller signal is in play the controller's own signal is
+  // below), when a caller signal is in play the controller's own signal is
   // simply never wired to the fetch, so its abort is inert.
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 30_000);
@@ -148,7 +148,7 @@ export interface PublicKeyRecord {
 }
 
 // The caller's own record is exactly the public record plus the private-key
-// material — so it extends PublicKeyRecord rather than restating the shared
+// material, so it extends PublicKeyRecord rather than restating the shared
 // fields.
 export interface UserKeyRecord extends PublicKeyRecord {
   wrapped_private_key: string;
@@ -206,8 +206,8 @@ export function getFileMeta(fileId: string): Promise<FileMetaResponse> {
 
 /** Download a single encrypted chunk. Returns raw bytes + metadata headers. */
 // A chunk download is a bare fetch (not the `request()` wrapper), so it must
-// carry its own timeout. Without one, a stalled fetch — e.g. a chunk still
-// syncing from staging to the git platform, or an unresponsive server — hangs
+// carry its own timeout. Without one, a stalled fetch, e.g. a chunk still
+// syncing from staging to the git platform, or an unresponsive server, hangs
 // forever. Because foreground decrypts (viewer/preview/prefetch) go through
 // here and register in the decrypt cache's in-flight set, one hung fetch pins
 // `isForegroundDecryptActive()` true and starves the whole thumbnail queue
@@ -233,7 +233,7 @@ export async function getFileChunk(
 
   try {
     // authedFetch attaches the access token AND refreshes it on a 401, then
-    // retries — so a download that outlives the ~15-min access-token lifetime
+    // retries, so a download that outlives the ~15-min access-token lifetime
     // (a long/big transfer, a resume that skips the meta call, or just a tab
     // left open) keeps going instead of every chunk failing with a 401. A bare
     // fetch here (no refresh) was why downloads failed "pretty much every time"
@@ -249,7 +249,7 @@ export async function getFileChunk(
     if (err instanceof DOMException && err.name === "AbortError") {
       // Our own timeout fired → surface a retryable "timed out". The caller's
       // cancel/pause must instead stay an AbortError so the pipeline treats it
-      // as a stop (not a transient failure) — re-throw it unchanged.
+      // as a stop (not a transient failure), re-throw it unchanged.
       if (signal?.aborted) throw err;
       throw new Error(`chunk ${index} download timed out`);
     }
@@ -264,7 +264,7 @@ export function listFiles(filter?: string): Promise<FileMetadata[]> {
   return request<FileMetadata[]>(`/api/files${params}`);
 }
 
-/** An upload that was started but never finished — the data behind the
+/** An upload that was started but never finished, the data behind the
  *  "unfinished uploads" UI. `platform` is the storage the user picked, so the
  *  section can show it even after they've forgotten. Auto-removed after 24h. */
 export interface IncompleteUpload {
@@ -479,12 +479,12 @@ export interface TelegramProbeResult {
   bot_username: string;
   chats: TelegramDetectedChat[];
   /** Present when the token is valid but auto-detection couldn't run (e.g. the
-   *  bot has a webhook set) — the UI should suggest the manual fallback. */
+   *  bot has a webhook set): the UI should suggest the manual fallback. */
   detect_error?: string;
 }
 
 /** Validate a Telegram bot token and detect channels/groups it was added to.
- *  Stores nothing — the guided connect flow polls this after the user adds the
+ *  Stores nothing: the guided connect flow polls this after the user adds the
  *  bot to a chat via a deep link, so the chat ID is auto-filled. */
 export function telegramProbe(botToken: string): Promise<TelegramProbeResult> {
   return request<TelegramProbeResult>("/api/platforms/telegram/probe", {
@@ -595,7 +595,7 @@ interface ReleaseAsset {
 export interface ReleaseInfo {
   tag: string;
   android_tag: string;
-  /** False when latest.json is absent — the cause of "couldn't check for updates". */
+  /** False when latest.json is absent: the cause of "couldn't check for updates". */
   updater_manifest: boolean;
   assets: ReleaseAsset[];
   missing: number;
@@ -603,7 +603,7 @@ export interface ReleaseInfo {
 
 export interface AdminDownloadsResponse {
   stats: DownloadStats;
-  /** GitHub's own per-asset counts — covers people who never hit our redirect. */
+  /** GitHub's own per-asset counts: covers people who never hit our redirect. */
   github: GithubAssetCount[];
   /** Null when the GitHub API was unreachable. */
   release: ReleaseInfo | null;
@@ -775,7 +775,7 @@ export function adminGetAuditLog(params: {
 
 // ─── Plans API ───
 
-/** Public — no auth required. Fetches plan configs for landing/pricing pages. */
+/** Public, no auth required. Fetches plan configs for landing/pricing pages. */
 export async function getPlans(): Promise<PlanConfigs> {
   const res = await fetch(`${API_BASE}/api/plans`);
   if (!res.ok) throw new Error("Failed to fetch plans");
@@ -891,7 +891,7 @@ export interface FolderShareLink {
 }
 
 /** Create a public folder link (authenticated). The folder-share key never
- *  leaves the browser — only the per-file wrapped CEKs are sent. */
+ *  leaves the browser: only the per-file wrapped CEKs are sent. */
 export function createFolderShare(body: {
   folder_id?: string;
   name: string;
@@ -1125,7 +1125,7 @@ export function deleteClipboardItem(id: string): Promise<{ success: boolean }> {
 // ─── Selective Folder Sync (authenticated) ───────────────────────────────────
 
 // Sync-folder paths, labels and device names are sealed under the user's name
-// key (lib/sealed) — a local filesystem path is as identifying as a filename.
+// key (lib/sealed): a local filesystem path is as identifying as a filename.
 const SYNC_FOLDER_SEALED = ["folder_path", "label", "device_name"] as const;
 
 export async function listSyncFolders(): Promise<SyncFolder[]> {

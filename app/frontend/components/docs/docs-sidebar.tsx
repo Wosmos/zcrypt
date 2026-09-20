@@ -57,7 +57,7 @@ function TreeLink({
             : "bg-[var(--color-border)] group-hover/link:bg-[var(--color-border-hover)]",
         )}
       />
-      {/* Dot at the branch tip — cyan when active */}
+      {/* Dot at the branch tip, cyan when active */}
       <span
         aria-hidden
         className={cn(
@@ -190,7 +190,7 @@ function NavTree({ pathname, onNavigate }: { pathname: string; onNavigate: () =>
 
 // ─── Pinned footer card ──────────────────────────────────────
 // Fills the dead space at the bottom of the tree with a compact, quiet
-// "open source" card — a natural footer to the vault, not a billboard.
+// "open source" card: a natural footer to the vault, not a billboard.
 function SidebarFooterCard() {
   return (
     <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-3">
@@ -230,7 +230,7 @@ export function DocsSidebar() {
 
   return (
     <aside className="sticky top-14 hidden h-[calc(100dvh-3.5rem)] w-[268px] flex-shrink-0 flex-col border-r border-[var(--color-border)] bg-[var(--color-surface)] lg:flex">
-      {/* Header: label + search trigger — DocsTopBar (h-14) sits above this,
+      {/* Header: label + search trigger. DocsTopBar (h-14) sits above this,
           so no extra top offset is needed here. */}
       <div className="border-b border-[var(--color-border)] px-4 pb-4 pt-6">
         <p className="px-1 text-[11px] font-bold uppercase tracking-widest text-[var(--color-text-muted)]">
@@ -246,7 +246,7 @@ export function DocsSidebar() {
         <NavTree pathname={pathname} onNavigate={() => {}} />
       </div>
 
-      {/* Pinned footer card — fills the dead space at the bottom */}
+      {/* Pinned footer card: fills the dead space at the bottom */}
       <div className="mt-auto border-t border-[var(--color-border)] p-3">
         <SidebarFooterCard />
       </div>
@@ -301,7 +301,7 @@ export function DocsMobileNav() {
         />
       )}
 
-      {/* Slide-in drawer — full viewport height, over the top bar */}
+      {/* Slide-in drawer: full viewport height, over the top bar */}
       <aside
         className={cn(
           "fixed inset-y-0 left-0 z-50 flex h-dvh w-[280px] max-w-[85vw] flex-col border-r border-[var(--color-border)] bg-[var(--color-surface)] transition-transform duration-300 ease-in-out lg:hidden",

@@ -6,7 +6,7 @@ import { Download, Smartphone, Copy, Check } from "@/lib/icons";
 import { ANDROID_APK_URL, ANDROID_RELEASE_PAGE } from "@/lib/releases";
 
 /**
- * Android sideload card — QR-forward: a big self-contained QR (qrcode.react →
+ * Android sideload card: QR-forward: a big self-contained QR (qrcode.react →
  * inline SVG, no network) plus a Download + Copy-link action pair.
  */
 export function AndroidDownload() {
@@ -18,7 +18,7 @@ export function AndroidDownload() {
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
     } catch {
-      /* clipboard unavailable — the Download button still works */
+      /* clipboard unavailable: the Download button still works */
     }
   };
 
@@ -42,7 +42,7 @@ export function AndroidDownload() {
             </span>
           </h2>
           <p className="mt-2 max-w-md text-sm leading-relaxed text-[var(--color-text-secondary)]">
-            Sideload the APK — same zero-knowledge vault, no Play Store wait.
+            Sideload the APK: same zero-knowledge vault, no Play Store wait.
           </p>
 
           <div className="mt-6 flex flex-wrap items-center gap-3">
@@ -69,7 +69,7 @@ export function AndroidDownload() {
 
           <p className="mt-4 max-w-md text-xs leading-relaxed text-[var(--color-text-muted)]">
             Open the file, allow installs from this source once, install. Android flags
-            &quot;unknown developer&quot; for anything outside Play — it&apos;s the{" "}
+            &quot;unknown developer&quot; for anything outside Play, it&apos;s the{" "}
             <a
               href={ANDROID_RELEASE_PAGE}
               target="_blank"

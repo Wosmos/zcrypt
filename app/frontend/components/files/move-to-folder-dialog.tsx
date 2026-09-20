@@ -184,7 +184,7 @@ export function MoveToFolderDialog({
         onMoved?.();
         onClose();
       } catch (err) {
-        // FIX-3b: the backend is the authoritative cycle guard — a deep
+        // FIX-3b: the backend is the authoritative cycle guard, a deep
         // descendant the user never expanded into view is rejected here with
         // "cannot move a folder into its own subfolder". Surface it clearly and
         // reconcile (onMoved → refresh) so any stale tree state is reverted; the
@@ -211,7 +211,7 @@ export function MoveToFolderDialog({
     } catch (err) {
       // FIX-2: the user cancelled the folder-unlock prompt that the re-key needed
       // (onMoveFile rejects with FolderUnlockCancelled). Stop the spinner and
-      // close cleanly — no scary error toast, nothing moved server-side.
+      // close cleanly, no scary error toast, nothing moved server-side.
       if (err instanceof FolderUnlockCancelled) {
         setMoving(false);
         onClose();
@@ -298,7 +298,7 @@ export function MoveToFolderDialog({
             </p>
           ) : (children.root?.length ?? 0) === 0 ? (
             <p className="px-3 py-3 text-xs text-[var(--color-text-muted)]">
-              No folders yet — files can still move to Root.
+              No folders yet: files can still move to Root.
             </p>
           ) : (
             renderNodes("root", 0)

@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function VaultLoading() {
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Top row — search on the left (with the vault-lock pill hugging it on
+      {/* Top row: search on the left (with the vault-lock pill hugging it on
           desktop), [New folder, Upload, refresh] far right. */}
       <div className="flex flex-row items-center gap-2 sm:justify-between sm:gap-3">
         <div className="flex min-w-0 flex-1 items-center gap-2 sm:flex-initial">
@@ -25,7 +25,7 @@ export default function VaultLoading() {
 
       {/* Explorer */}
       <div className="space-y-3">
-        {/* Toolbar — breadcrumb (left) + grid density / view toggle / Select (right, desktop) */}
+        {/* Toolbar: breadcrumb (left) + grid density / view toggle / Select (right, desktop) */}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
           <div className="min-w-0 flex-1">
             <Skeleton className="h-5 w-28 rounded-md" />
@@ -44,7 +44,7 @@ export default function VaultLoading() {
           ))}
         </div>
 
-        {/* Listing — default GRID view (mirrors the explorer's own loading grid) */}
+        {/* Listing: default GRID view (mirrors the explorer's own loading grid) */}
         <div
           className="grid gap-2.5"
           style={{ gridTemplateColumns: "repeat(auto-fill, minmax(118px, 1fr))" }}

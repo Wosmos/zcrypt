@@ -47,7 +47,7 @@ export const OS_GLYPHS = {
   linux: LinuxGlyph,
 } as const;
 
-// iOS has no native app (yet) — reuse the Apple mark for that messaging.
+// iOS has no native app (yet): reuse the Apple mark for that messaging.
 export const MOBILE_GLYPHS = {
   android: AndroidGlyph,
   ios: AppleGlyph,

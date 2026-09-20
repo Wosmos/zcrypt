@@ -3,7 +3,7 @@ info:
   title: zcrypt API
   description: >
     Zero-knowledge encrypted cloud storage API. This is a curated subset of the
-    surface — the backend also serves folders, shares, folder-shares, shared
+    surface: the backend also serves folders, shares, folder-shares, shared
     vaults, Send, pads, notes, clipboard, snapshots, integrity, sync/offline, the
     dead-man's switch, and decoy mode. See app/backend/cmd/server.go
     (RegisterRoutes) for the authoritative list.

@@ -51,7 +51,7 @@ const rows: ComparisonRow[] = [
   },
   {
     label: "Open source",
-    zcrypt: { good: true, note: "Fully open source — audit the client and server yourself." },
+    zcrypt: { good: true, note: "Fully open source: audit the client and server yourself." },
     other: { good: false, note: "Proprietary, closed-source." },
   },
   {
@@ -67,14 +67,14 @@ const rows: ComparisonRow[] = [
     },
     other: {
       good: true,
-      note: "Excellent folders, search, and shared drives — but names and contents are visible to Google.",
+      note: "Excellent folders, search, and shared drives, but names and contents are visible to Google.",
     },
   },
   {
     label: "In-browser previews",
     zcrypt: {
       good: true,
-      note: "Images, video, audio, PDFs, docs, and code — decrypted in your browser, never on the server.",
+      note: "Images, video, audio, PDFs, docs, and code: decrypted in your browser, never on the server.",
     },
     other: {
       good: true,
@@ -89,7 +89,7 @@ const rows: ComparisonRow[] = [
     },
     other: {
       good: true,
-      note: "Very mature sharing and real-time collaboration — at the cost of provider access.",
+      note: "Very mature sharing and real-time collaboration: at the cost of provider access.",
     },
   },
   {
@@ -109,7 +109,7 @@ const pillars: CapabilityItem[] = [
   {
     Icon: Lock,
     title: "Only you can read it",
-    desc: "Your passphrase derives the encryption keys on your device with PBKDF2 (600k iterations). Nothing — not search, not smart features, not us — can read your files, because nobody else has the keys.",
+    desc: "Your passphrase derives the encryption keys on your device with PBKDF2 (600k iterations). Nothing (not search, not smart features, not us) can read your files, because nobody else has the keys.",
   },
   {
     Icon: Shield,
@@ -137,7 +137,7 @@ export const googleDrive: VsData = {
     headlineGradient: "zcrypt can't.",
     subtext: (
       <>
-        Google Drive is deeply integrated and incredibly convenient — but it processes your content
+        Google Drive is deeply integrated and incredibly convenient, but it processes your content
         for search, previews, and smart features, and it isn&apos;t end-to-end encrypted. zcrypt
         encrypts everything on your device first, stores it in accounts you already own, and is open
         source from top to bottom.
@@ -187,7 +187,7 @@ export const googleDrive: VsData = {
         </strong>
         , AI-assisted features, or automatic photo organization, those rely on Google being able to
         read your data. zcrypt can&apos;t offer them precisely because it can&apos;t see your files
-        — that&apos;s the deliberate trade-off of zero-knowledge.
+        : that&apos;s the deliberate trade-off of zero-knowledge.
       </>,
       <>
         And if polished native mobile apps are essential today,{" "}

@@ -2,7 +2,7 @@
 # Nudge search engines to recrawl zcrypt.cloud after a deploy.
 #
 # Google has no public "reindex this page now" API for ordinary sites (the
-# Indexing API is restricted to JobPosting/BroadcastEvent structured data —
+# Indexing API is restricted to JobPosting/BroadcastEvent structured data:
 # using it for regular pages risks the account getting throttled), so the
 # sanctioned move is a sitemap ping. IndexNow (Bing, Yandex, Seznam) does
 # support real instant reindex requests for any URL, so we push the full

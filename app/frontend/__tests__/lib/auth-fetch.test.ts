@@ -53,7 +53,7 @@ describe("tryRefreshToken", () => {
     expect(clearAuth).not.toHaveBeenCalled();
   });
 
-  it("does NOT clear auth on a transient refresh failure (network/timeout/5xx) — keeps the session so a long upload survives", async () => {
+  it("does NOT clear auth on a transient refresh failure (network/timeout/5xx): keeps the session so a long upload survives", async () => {
     refreshTokenApi.mockRejectedValueOnce(new Error("network error")); // no .status => transient
 
     const result = await tryRefreshToken();

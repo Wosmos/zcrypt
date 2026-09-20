@@ -16,7 +16,7 @@ export const FOCUS_RING =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)]";
 
 /**
- * Accent selection treatment (M4) — one consistent look shared by list rows and
+ * Accent selection treatment (M4): one consistent look shared by list rows and
  * grid cards: a soft accent tint plus an inset accent ring.
  */
 export const ROW_SELECTED =
@@ -53,7 +53,7 @@ export interface RowDragProps {
   draggable: boolean;
   onDragStart?: (e: React.DragEvent) => void;
   onDragEnd?: () => void;
-  /** Touch press-start — begins the mobile press-hold-drag gesture. */
+  /** Touch press-start: begins the mobile press-hold-drag gesture. */
   onTouchStart?: (e: React.TouchEvent) => void;
   /** Drop-target handlers (folder rows only). */
   dropHandlers?: {
@@ -67,7 +67,7 @@ export interface RowDragProps {
 }
 
 /**
- * Full prop contract shared by ExplorerRow and ExplorerCard — the list and grid
+ * Full prop contract shared by ExplorerRow and ExplorerCard: the list and grid
  * renderers for the same explorer entry. Byte-identical between the two (list
  * vs grid is purely a layout choice), so it lives here once: adding a field to
  * one view without the other would silently drift otherwise.
@@ -83,9 +83,9 @@ export interface ExplorerItemProps {
   onSelect: (id: string) => void;
   /** Enter select mode with this file pre-selected (touch long-press → Select). */
   onRequestSelect?: (fileId: string) => void;
-  /** Mouse activation on a FILE — explorer decides open vs toggle vs range. */
+  /** Mouse activation on a FILE: explorer decides open vs toggle vs range. */
   onFileClick: (file: FileMetadata, e: React.MouseEvent) => void;
-  /** Keyboard on any entry — explorer handles roving arrows / Space / Enter. */
+  /** Keyboard on any entry: explorer handles roving arrows / Space / Enter. */
   onEntryKeyDown: (entry: ExplorerEntry, e: React.KeyboardEvent) => void;
   /** Open: folder → nest in; file → details drawer. */
   onOpenFolder: (folder: DecryptedFolder) => void;
@@ -111,7 +111,7 @@ export interface ExplorerItemProps {
   drag: RowDragProps;
 }
 
-/** Folder-only subset of ExplorerItemProps — shared by FolderCard and FolderRow. */
+/** Folder-only subset of ExplorerItemProps: shared by FolderCard and FolderRow. */
 export type FolderItemProps = Pick<
   ExplorerItemProps,
   | "entry"
@@ -129,7 +129,7 @@ export type FolderItemProps = Pick<
   | "drag"
 > & { folder: DecryptedFolder };
 
-/** File-only subset of ExplorerItemProps — shared by FileCardInner and FileRow. */
+/** File-only subset of ExplorerItemProps: shared by FileCardInner and FileRow. */
 export type FileItemProps = Pick<
   ExplorerItemProps,
   | "entry"
@@ -156,14 +156,14 @@ export type FileItemProps = Pick<
  * memoization entirely. Instead we compare only the props that actually change
  * what a row renders: the entry payload, selection / focus / select-mode flags,
  * the `actions` bag identity (stable per parent render), and the *visual* drag
- * fields (`draggable`, `isBeingDragged`, `isDropOver`) — the drag handler
+ * fields (`draggable`, `isBeingDragged`, `isDropOver`): the drag handler
  * closures are ignored for the same reason as the other callbacks.
  *
  * The one callback we *cannot* ignore is `onRequestSelect`: unlike the other
- * callbacks it is not always defined — it toggles between a function and
+ * callbacks it is not always defined: it toggles between a function and
  * `undefined` based on `isMobile`, and its *presence* gates whether the mobile
  * "Select" menu item renders. So we compare it by presence (`!!prev === !!next`)
- * — enough to catch the mobile-breakpoint flip without keying off the unstable
+ *: enough to catch the mobile-breakpoint flip without keying off the unstable
  * closure identity.
  *
  * The entry is compared by reference first (the explorer memoizes its sorted

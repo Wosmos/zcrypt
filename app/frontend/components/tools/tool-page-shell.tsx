@@ -82,7 +82,7 @@ export interface ToolStep {
   desc: string;
 }
 
-/** Numbered "how it works" card grid — 3 steps, shared by the tool pages. */
+/** Numbered "how it works" card grid: 3 steps, shared by the tool pages. */
 export function StepGrid({ steps }: { steps: ToolStep[] }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -102,7 +102,7 @@ export function StepGrid({ steps }: { steps: ToolStep[] }) {
   );
 }
 
-/** Feature grid on a surface band — heading plus a responsive card grid. */
+/** Feature grid on a surface band: heading plus a responsive card grid. */
 export function FeatureGrid({ heading, features }: { heading: string; features: ToolFeature[] }) {
   return (
     <section className="py-16 sm:py-20 border-t border-[var(--color-border)] bg-[var(--color-surface)]">

@@ -40,7 +40,7 @@ import {
 } from "@/lib/icons";
 
 /**
- * Solid focus ring shared with the explorer rows (a11y) — a high-contrast accent
+ * Solid focus ring shared with the explorer rows (a11y): a high-contrast accent
  * ring offset against the surface, so keyboard focus is always visible.
  */
 const FOCUS_RING =
@@ -51,7 +51,7 @@ const ROW_SELECTED = "bg-[var(--color-accent)]/10 ring-1 ring-inset ring-[var(--
 
 export function TrashContent() {
   const trashQuery = useTrashQuery();
-  // Stable ref per data change — many effects/callbacks below depend on `files`.
+  // Stable ref per data change: many effects/callbacks below depend on `files`.
   const files = useMemo(() => trashQuery.data ?? [], [trashQuery.data]);
   const loading = trashQuery.isPending;
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -191,13 +191,13 @@ export function TrashContent() {
     const target = purgeTarget;
     setPurging(true);
     try {
-      // Desktop: purge via the in-process core first — chunks on a platform the
+      // Desktop: purge via the in-process core first: chunks on a platform the
       // user has personally connected are removed byos-direct (their own token,
       // zero backend byte-handling); the core still purges the backend metadata
       // row itself, so this is a full replacement for the web call, not a
       // pre-step. Fall back to the plain API purge on any core error (e.g. the
       // core failed before touching anything, or its own purge_file call
-      // dropped) — the backend purge is idempotent, so retrying it is safe.
+      // dropped): the backend purge is idempotent, so retrying it is safe.
       if (isTauri) {
         try {
           await sidecarDeleteFile(target.id);
@@ -217,7 +217,7 @@ export function TrashContent() {
       });
       toast.success("File permanently deleted");
       setPurgeTarget(null);
-      // Chunks were removed from storage — quota frees up.
+      // Chunks were removed from storage, quota frees up.
       void invalidateQuota();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Permanent delete failed");
@@ -242,7 +242,7 @@ export function TrashContent() {
     targets.forEach((f) => clearDecryptCacheForFile(f.id));
     clearSelection();
     try {
-      // One request per 500-id chunk (the server's per-batch cap) — no fan-out.
+      // One request per 500-id chunk (the server's per-batch cap), no fan-out.
       let failed = 0;
       for (let i = 0; i < idList.length; i += 500) {
         const res = await bulkRestoreFiles(idList.slice(i, i + 500));
@@ -276,7 +276,7 @@ export function TrashContent() {
     clearSelection();
     setBulkPurgeOpen(false);
     try {
-      // One request per 500-id chunk (the server's per-batch cap) — no per-file
+      // One request per 500-id chunk (the server's per-batch cap), no per-file
       // fan-out, which used to flood the rate limiter with 429s and 401s. A
       // 1,000-file purge is 2 requests, not 1,000.
       let failed = 0;
@@ -290,10 +290,10 @@ export function TrashContent() {
       } else {
         toast.success(`Permanently deleted ${targets.length} file${targets.length > 1 ? "s" : ""}`);
       }
-      // Chunks removed from storage — quota frees up.
+      // Chunks removed from storage, quota frees up.
       void invalidateQuota();
     } catch {
-      // The whole batch failed (network/auth) — put the rows back.
+      // The whole batch failed (network/auth), put the rows back.
       toast.error("Could not delete the selected files");
       void refresh();
     } finally {
@@ -400,7 +400,7 @@ export function TrashContent() {
         }
       />
 
-      {/* Bulk action bar — appears once anything is selected. */}
+      {/* Bulk action bar: appears once anything is selected. */}
       {selectedCount > 0 && (
         <div className="panel flex flex-wrap items-center gap-3 px-4 py-3">
           <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -639,7 +639,7 @@ export function TrashContent() {
         </div>
       )}
 
-      {/* Read-only preview overlay — no move/delete from inside it. */}
+      {/* Read-only preview overlay, no move/delete from inside it. */}
       <FileViewer
         open={viewerOpen}
         files={files}

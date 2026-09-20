@@ -18,9 +18,9 @@ import { apps } from "../_data/apps";
 import { SITE_URL, SITE_DOMAIN } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Web, Desktop, Android & Terminal — One Encrypted Vault, Four Surfaces",
+  title: "Web, Desktop, Android & Terminal. One Encrypted Vault, Four Surfaces",
   description:
-    "The same zero-knowledge core wherever you work: a web app in any browser, a native desktop app for macOS, Windows and Linux, an Android app you sideload in a minute, and a single-binary terminal app (TUI) that runs over SSH. Your encryption never changes — only the interface does.",
+    "The same zero-knowledge core wherever you work: a web app in any browser, a native desktop app for macOS, Windows and Linux, an Android app you sideload in a minute, and a single-binary terminal app (TUI) that runs over SSH. Your encryption never changes, only the interface does.",
   keywords: [
     "encrypted storage apps",
     "web app",
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
   ],
   alternates: { canonical: `${SITE_URL}/features/apps` },
   openGraph: {
-    title: "Web, Desktop, Android & Terminal — One Encrypted Vault | zcrypt",
+    title: "Web, Desktop, Android & Terminal. One Encrypted Vault | zcrypt",
     description:
       "One zero-knowledge core across four surfaces: web in any browser, a native desktop app, an Android sideload APK, and a single-binary TUI that works over SSH.",
     url: `${SITE_URL}/features/apps`,

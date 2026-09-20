@@ -25,7 +25,7 @@ import { SITE_URL, SUPPORT_EMAIL } from "@/lib/site";
 export const metadata: Metadata = {
   title: "Documentation | zcrypt",
   description:
-    "Learn how to use zcrypt — the zero-knowledge encrypted cloud drive. Guides for folders, file previews, per-folder encryption, sharing, storage backends, the API, and self-hosting.",
+    "Learn how to use zcrypt: the zero-knowledge encrypted cloud drive. Guides for folders, file previews, per-folder encryption, sharing, storage backends, the API, and self-hosting.",
   alternates: { canonical: `${SITE_URL}/docs` },
   openGraph: {
     title: "Documentation | zcrypt",
@@ -127,7 +127,7 @@ function GroupLinkRow({ link }: { link: DocsNavLink }) {
 }
 
 // A documentation-index section: an icon + title header, then the group's
-// pages as a plain indented list hanging off a guide line — the same tree
+// pages as a plain indented list hanging off a guide line, the same tree
 // language as the sidebar, laid out in balanced columns so uneven page
 // counts never leave empty boxes.
 function GroupBlock({ group }: { group: DocsNavGroup }) {
@@ -182,7 +182,7 @@ export default function DocsPage() {
         </h1>
         <p className="mt-4 max-w-2xl text-lg leading-relaxed text-[var(--color-text-secondary)]">
           zcrypt is a zero-knowledge encrypted cloud drive: real folders, instant in-browser
-          previews, and per-folder passwords — all encrypted on your device and stored in accounts
+          previews, and per-folder passwords: all encrypted on your device and stored in accounts
           you already own. These guides cover every part of it.
         </p>
         <div className="mt-6 inline-flex items-center gap-2 text-sm">
@@ -197,7 +197,7 @@ export default function DocsPage() {
         </div>
       </header>
 
-      {/* Continuous table of contents — every group stacked top to bottom,
+      {/* Continuous table of contents: every group stacked top to bottom,
           its pages nested underneath, as one flowing outline */}
       <div className="max-w-2xl">
         {docsNav.map((group) => (

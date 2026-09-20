@@ -30,7 +30,7 @@ export default function ConnectStorageDocPage() {
     <DocPage
       href="/docs/connect-storage"
       title="Connect your storage"
-      description="zcrypt doesn't sell you storage — you bring an account you already have. Connect a backend once and your encrypted files live there, under your control."
+      description="zcrypt doesn't sell you storage: you bring an account you already have. Connect a backend once and your encrypted files live there, under your control."
       toc={toc}
     >
       <DocSection id="byo" title="Bring your own storage">
@@ -45,7 +45,7 @@ export default function ConnectStorageDocPage() {
       <DocSection id="connect" title="Connecting a backend">
         <DocP>
           Open <strong>Settings</strong> and go to the platforms section. Add the platform you want,
-          paste its token, and save. You can connect more than one — adding a second backend simply
+          paste its token, and save. You can connect more than one: adding a second backend simply
           adds its free space to your total.
         </DocP>
       </DocSection>
@@ -80,7 +80,7 @@ export default function ConnectStorageDocPage() {
       <DocSection id="at-rest" title="Tokens are encrypted at rest">
         <DocP>
           The platform tokens you save are <strong>encrypted at rest</strong> with AES-256-GCM
-          before they are stored — they are not kept as plain text in our database. zcrypt uses them
+          before they are stored. They are not kept as plain text in our database. zcrypt uses them
           only to move your already encrypted chunks to and from your backend.
         </DocP>
         <DocNote type="security" title="Scope your tokens narrowly">
@@ -98,7 +98,7 @@ export default function ConnectStorageDocPage() {
         </DocP>
         <DocList
           items={[
-            "New repositories are created on demand — no setup step for you.",
+            "New repositories are created on demand, no setup step for you.",
             "When a repository nears its platform's size threshold, zcrypt moves new chunks to the next one.",
             "Connecting an additional platform expands the pool further.",
           ]}
@@ -113,14 +113,14 @@ export default function ConnectStorageDocPage() {
               href="/docs/platform-adapters"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Bring your own storage — per-platform setup and token scopes
+              Bring your own storage: per-platform setup and token scopes
             </Link>,
             <Link
               key="b"
               href="/docs/repo-pool"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Repo pool &amp; rotation — how storage grows across repositories
+              Repo pool &amp; rotation: how storage grows across repositories
             </Link>,
           ]}
         />

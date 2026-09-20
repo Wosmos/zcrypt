@@ -7,7 +7,7 @@ import { ScrollReveal } from "./scroll-reveal";
 import { STORAGE_PLATFORMS } from "./storage-platforms";
 
 // BYOB is the core of the model: zcrypt never sells storage. Encrypted chunks
-// live in accounts the user already owns — shown as a beam diagram from "your
+// live in accounts the user already owns: shown as a beam diagram from "your
 // device" to the platforms (each with its real capacity). A given file's chunks
 // stay within one repo on one platform; zcrypt rotates to fresh repos as they
 // fill. The diagram represents where your library lives, not one file split
@@ -96,7 +96,7 @@ export function BringYourOwnStorage() {
           </h2>
           <p className="mx-auto mt-4 max-w-xl leading-relaxed text-[var(--color-text-secondary)]">
             After encryption, your files are split into ~10 MB chunks and stored as ordinary-looking
-            objects across repos in your own GitHub, GitLab, Hugging Face, and Telegram accounts —
+            objects across repos in your own GitHub, GitLab, Hugging Face, and Telegram accounts:
             zcrypt rotates to fresh repos on its own as they fill.
           </p>
         </ScrollReveal>

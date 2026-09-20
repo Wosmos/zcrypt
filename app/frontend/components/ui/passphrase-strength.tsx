@@ -9,7 +9,7 @@ function evaluateStrength(passphrase: string): { score: number; label: string; c
 
   const len = passphrase.length;
 
-  // Simple length-based scoring — no nagging about special chars
+  // Simple length-based scoring, no nagging about special chars
   if (len < 4) return { score: 1, label: "Short", color: "#f97316" };
   if (len < 8) return { score: 2, label: "Okay", color: "#eab308" };
   if (len < 14) return { score: 3, label: "Good", color: "#22c55e" };

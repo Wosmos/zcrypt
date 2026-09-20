@@ -37,7 +37,7 @@ beforeEach(() => {
   vi.resetModules();
 });
 
-describe("getDeviceProfile — tier detection via deviceMemory", () => {
+describe("getDeviceProfile: tier detection via deviceMemory", () => {
   it.each([
     [0.5, "low"],
     [1, "low"],
@@ -50,7 +50,7 @@ describe("getDeviceProfile — tier detection via deviceMemory", () => {
   });
 });
 
-describe("getDeviceProfile — tier detection via hardwareConcurrency fallback (no deviceMemory)", () => {
+describe("getDeviceProfile: tier detection via hardwareConcurrency fallback (no deviceMemory)", () => {
   it.each([
     [0, "low"], // falsy -> defaults to 2 cores
     [2, "low"],
@@ -63,7 +63,7 @@ describe("getDeviceProfile — tier detection via hardwareConcurrency fallback (
   });
 });
 
-describe("getDeviceProfile — worker cap", () => {
+describe("getDeviceProfile: worker cap", () => {
   it("caps workers to the actual core count even when memory implies more", async () => {
     const { getDeviceProfile } = await loadProfile({ deviceMemory: 4, hardwareConcurrency: 2 });
     const profile = getDeviceProfile();
@@ -85,7 +85,7 @@ describe("getDeviceProfile — worker cap", () => {
   });
 });
 
-describe("getDeviceProfile — network awareness", () => {
+describe("getDeviceProfile: network awareness", () => {
   it("no connection info leaves concurrency at tier defaults", async () => {
     const { getDeviceProfile } = await loadProfile({ deviceMemory: 4 });
     const profile = getDeviceProfile();
@@ -133,7 +133,7 @@ describe("getDeviceProfile — network awareness", () => {
   });
 });
 
-describe("getDeviceProfile — caching", () => {
+describe("getDeviceProfile, caching", () => {
   it("computes once per module instance and returns the same object on subsequent calls", async () => {
     const { getDeviceProfile } = await loadProfile({ deviceMemory: 4 });
     const first = getDeviceProfile();
@@ -142,12 +142,12 @@ describe("getDeviceProfile — caching", () => {
   });
 });
 
-describe("recommendedUploadConcurrency — network-bound, decoupled from CPU tier", () => {
+describe("recommendedUploadConcurrency: network-bound, decoupled from CPU tier", () => {
   const MB = 1024 * 1024;
 
   it("fans a small-file batch out to 6 regardless of a weak CPU tier", async () => {
     // deviceMemory:1 → 'low' tier (maxConcurrentUploads:1). Upload concurrency
-    // must NOT inherit that — a batch of small photos should still fan out wide.
+    // must NOT inherit that: a batch of small photos should still fan out wide.
     const { recommendedUploadConcurrency } = await loadProfile({ deviceMemory: 1 });
     const sizes = Array.from({ length: 20 }, () => 4 * MB); // 20 × 4MB photos
     expect(recommendedUploadConcurrency(sizes)).toBe(6);
@@ -211,10 +211,10 @@ describe("tierFromThroughput", () => {
   });
 });
 
-describe("calibrateDeviceProfile — measured capability upgrades (never downgrades) the tier", () => {
+describe("calibrateDeviceProfile: measured capability upgrades (never downgrades) the tier", () => {
   it("upgrades an under-detected device (e.g. iPhone: no deviceMemory, few cores) when it benchmarks fast", async () => {
     // deviceMemory undefined + 2 cores → heuristic 'low'. A fast benchmark
-    // (ultra throughput) should upgrade it — the exact iPhone-under-detection fix.
+    // (ultra throughput) should upgrade it, the exact iPhone-under-detection fix.
     const { getDeviceProfile, calibrateDeviceProfile } = await loadProfile({ hardwareConcurrency: 2 });
     expect(getDeviceProfile().tier).toBe("low");
 
@@ -240,7 +240,7 @@ describe("calibrateDeviceProfile — measured capability upgrades (never downgra
     expect(after.tier).toBe("medium");
   });
 
-  it("is idempotent — only measures once", async () => {
+  it("is idempotent: only measures once", async () => {
     const { calibrateDeviceProfile } = await loadProfile({ hardwareConcurrency: 2 });
     const measure = vi.fn(async () => 500);
     await calibrateDeviceProfile(measure);
@@ -286,7 +286,7 @@ describe("measureCryptoThroughput (calibrate's default measure)", () => {
     const { calibrateDeviceProfile } = await loadProfile({ deviceMemory: 2 });
     // A coarsened/frozen performance.now() (privacy-hardened browsers clamp it,
     // and a fast enough machine can land inside one tick) would otherwise make
-    // elapsedSec 0 and yield Infinity MB/s — i.e. a bogus "ultra" upgrade.
+    // elapsedSec 0 and yield Infinity MB/s, i.e. a bogus "ultra" upgrade.
     vi.spyOn(performance, "now").mockReturnValue(1000);
 
     const after = await calibrateDeviceProfile();

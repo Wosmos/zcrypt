@@ -37,7 +37,7 @@ const productFeatures: MenuItem[] = [
     href: "/features/encrypted-drive",
     icon: HardDrive,
     title: "Encrypted drive",
-    desc: "Folders, search & previews — a real explorer.",
+    desc: "Folders, search & previews, a real explorer.",
   },
   {
     href: "/features/folders",
@@ -165,7 +165,7 @@ function MegaItem({ item, onClick }: { item: MenuItem; onClick: () => void }) {
   );
 }
 
-/** One row in a mobile-menu section — link + optional leading icon. */
+/** One row in a mobile-menu section: link + optional leading icon. */
 function MobileNavLink({ item, onClick }: { item: MenuItem; onClick: () => void }) {
   const Icon = item.icon;
   return (
@@ -282,7 +282,7 @@ function FeaturedCard({
 function ProductMega({ onItem }: { onItem: () => void }) {
   return (
     <div className="flex flex-1">
-      {/* Features — widest column */}
+      {/* Features, widest column */}
       <div className="flex flex-[2] flex-col justify-between border-r border-[var(--color-border)] px-6 py-7">
         <div>
           <MegaHeading>Features</MegaHeading>
@@ -336,7 +336,7 @@ function ProductMega({ onItem }: { onItem: () => void }) {
           href="/features/encrypted-drive"
           tag="Featured"
           title="The encrypted drive you actually own"
-          desc="Real folders, instant previews, and zero-knowledge encryption — on every platform."
+          desc="Real folders, instant previews, and zero-knowledge encryption, on every platform."
           cta="Explore the drive"
           onClick={onItem}
         />
@@ -383,7 +383,7 @@ function DocsMega({ onItem }: { onItem: () => void }) {
           href="/docs/api"
           tag="New"
           title="API reference"
-          desc="REST endpoints, authentication, and the SSE event stream — fully documented."
+          desc="REST endpoints, authentication, and the SSE event stream, fully documented."
           cta="Read the API docs"
           onClick={onItem}
         />

@@ -25,7 +25,7 @@ import { getMyKey, publishKey } from "@/lib/api";
 import { useKeysStore } from "@/store/keys";
 
 /** Short, human-verifiable fingerprint of a public key (first 16 hex chars of
- *  its SHA-256, grouped) — for out-of-band verification against a MITM. */
+ *  its SHA-256, grouped): for out-of-band verification against a MITM. */
 export async function keyFingerprint(publicKey: Uint8Array): Promise<string> {
   const hex = await sha256Hex(publicKey);
   return (hex.slice(0, 16).toUpperCase().match(/.{4}/g) ?? []).join("-");
@@ -43,7 +43,7 @@ function concatBytes(...arrays: Uint8Array[]): Uint8Array {
 }
 
 // Derive a symmetric AES key from an ECDH shared secret. We never use the raw
-// X25519 output directly — hash it, binding both public keys to the key so a
+// X25519 output directly: hash it, binding both public keys to the key so a
 // sealed blob is tied to this exact (ephemeral, recipient) pair.
 async function deriveSealKey(
   shared: Uint8Array,
@@ -66,7 +66,7 @@ export function generateSpaceKey(): Uint8Array {
  * ECIES construction: an ephemeral X25519 keypair does ECDH with the
  * recipient, the shared secret is hashed into an AES-256-GCM key, and the
  * ephemeral public key is prepended so the recipient can reconstruct it. Only
- * the recipient's private key can open it — the server never can.
+ * the recipient's private key can open it: the server never can.
  *
  * Layout (base64): ephemeralPublicKey[32] || AES-GCM([12B IV || ct || 16B tag]).
  */
@@ -96,7 +96,7 @@ export async function openSealed(sealed: string): Promise<Uint8Array> {
 /**
  * Ensure the user has an X25519 keypair loaded into the session store: fetch +
  * unwrap it if already published, otherwise generate + publish one. Idempotent
- * per session (guarded by the store). Never throws — if it fails, sharing is
+ * per session (guarded by the store). Never throws: if it fails, sharing is
  * simply unavailable until it succeeds, and the rest of the app is unaffected.
  */
 export async function ensureUserKeypair(passphrase: string): Promise<void> {
@@ -107,7 +107,7 @@ export async function ensureUserKeypair(passphrase: string): Promise<void> {
     const existing = await getMyKey();
     if (existing) {
       const kek = await deriveKeyBytes(passphrase, fromBase64(existing.kdf_salt));
-      // Throws if the passphrase is wrong (GCM auth failure) — we leave the
+      // Throws if the passphrase is wrong (GCM auth failure), we leave the
       // store not-ready and let a later unlock retry.
       const privateKey = await unwrapKey(kek, fromBase64(existing.wrapped_private_key));
       useKeysStore.setState({

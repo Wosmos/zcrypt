@@ -153,7 +153,7 @@ export function ToastContainer() {
             {ordered.map((t, i) => {
               const type = TYPE[t.type];
               // Only the front card is interactive when collapsed; expanding
-              // reveals the rest. Non-interactive cards are inert — removed from
+              // reveals the rest. Non-interactive cards are inert, removed from
               // the tab order and the a11y tree, so a keyboard user can never
               // land on the Dismiss button of a card they can't see.
               const interactive = expanded || i === 0;
@@ -235,7 +235,7 @@ export function ToastContainer() {
             })}
           </div>
 
-          {/* "N more" bar — mirrors the app; toggles the fan open/closed. */}
+          {/* "N more" bar: mirrors the app; toggles the fan open/closed. */}
           {hidden > 0 && (
             <div className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5 shadow-[0_8px_20px_-12px_rgba(0,0,0,0.5)]">
               <span className="text-[13px] text-[var(--color-text-secondary)]">

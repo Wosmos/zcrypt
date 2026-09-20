@@ -151,7 +151,7 @@ export const about: AboutPageData = {
       },
       {
         name: "DocXO",
-        blurb: "Real-time collaborative documents — multiple cursors, live editing, zero lag.",
+        blurb: "Real-time collaborative documents: multiple cursors, live editing, zero lag.",
         stack: "Next.js · Liveblocks · Lexical",
         href: "https://github.com/Wosmos/DocXO",
       },
@@ -169,7 +169,7 @@ export const about: AboutPageData = {
       },
       {
         name: "DevToolsHQ",
-        blurb: "A dashboard of everyday developer tools — formatters, converters, generators.",
+        blurb: "A dashboard of everyday developer tools, formatters, converters, generators.",
         stack: "Next.js · TypeScript · Firebase",
         href: "https://github.com/Wosmos/DevToolsHQ",
       },

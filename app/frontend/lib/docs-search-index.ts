@@ -50,7 +50,7 @@ export const docsSearchIndex: SearchEntry[] = [...featuresEntries, ...docsEntrie
 
 // ─── Search ───────────────────────────────────────────────────
 // Predictable word-prefix matching (NOT fuzzy). A query term matches an entry
-// only when some *word* in the entry starts with it — so "rust" matches
+// only when some *word* in the entry starts with it, so "rust" matches
 // "Rust-powered" but never "t[rust]ed" or "re[st]ore". Every query term must
 // match somewhere; results rank title matches above tag/content matches.
 

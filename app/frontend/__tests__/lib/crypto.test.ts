@@ -278,7 +278,7 @@ describe("sha256File", () => {
   it("hashes a large file via the streaming path", async () => {
     // Reports just over the 50MB fast-path threshold so the streaming branch
     // runs, but each slice yields only a few bytes so hashing is instant. The
-    // resulting digest is arbitrary — we only assert it produced a valid hash.
+    // resulting digest is arbitrary. We only assert it produced a valid hash.
     const bigFile = {
       size: 51 * 1024 * 1024,
       slice: () => ({ arrayBuffer: async () => new Uint8Array(8).buffer }),
@@ -324,7 +324,7 @@ describe("deriveKeyBytesCached (derived-key memo)", () => {
     const salt = saltOf(1);
     const a = await deriveKeyBytesCached("pw", salt);
     const b = await deriveKeyBytesCached("pw", salt);
-    // Second call was a cache hit — no second derivation.
+    // Second call was a cache hit, no second derivation.
     expect(deriveSpy).toHaveBeenCalledTimes(1);
     // Same bytes, but a FRESH buffer each time so a caller that transfers the
     // buffer to a worker can never corrupt the cached copy.
@@ -354,7 +354,7 @@ describe("deriveKeyBytesCached (derived-key memo)", () => {
     for (let i = 0; i < MAX; i++) await deriveKeyBytesCached("pw", saltOf(i));
     expect(deriveSpy).toHaveBeenCalledTimes(MAX); // all misses
 
-    // The oldest entry (index 0) is still cached — a hit, no new derivation.
+    // The oldest entry (index 0) is still cached: a hit, no new derivation.
     await deriveKeyBytesCached("pw", saltOf(0));
     expect(deriveSpy).toHaveBeenCalledTimes(MAX);
 
@@ -420,7 +420,7 @@ describe("contentMacFile", () => {
   });
 
   // 50MB of HMAC twice (streamed, then one-shot to compare) is genuinely slow,
-  // and v8 coverage instrumentation roughly triples it — enough to blow the
+  // and v8 coverage instrumentation roughly triples it, enough to blow the
   // default 30s timeout and fail a release push on a test that is not broken.
   // The size has to stay above the 50MB threshold or it stops exercising the
   // streaming path at all, so raise the timeout instead of shrinking the input.

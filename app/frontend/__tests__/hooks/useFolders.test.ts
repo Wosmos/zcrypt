@@ -10,7 +10,7 @@ configure({ asyncUtilTimeout: 10_000 });
 
 // This environment's Node runtime ships a global `localStorage` that shadows
 // jsdom's real one and throws unless `--localstorage-file` points at a valid
-// path — store/auth.ts's module-level `localStorage.getItem(...)` read (no
+// path: store/auth.ts's module-level `localStorage.getItem(...)` read (no
 // try/catch, unlike the passphrase store's) crashes on import as a result.
 // Stub a working in-memory Storage before anything imports that module; scoped
 // to this file only (vitest.setup.ts is shared and off-limits).
@@ -44,7 +44,7 @@ import * as api from "@/lib/api";
 import type { Folder } from "@/types";
 import type { AuthUser } from "@/types";
 
-// Folder CRUD is network I/O — mocked. Name encryption/decryption is real
+// Folder CRUD is network I/O, mocked. Name encryption/decryption is real
 // (fast, synchronous-ish WebCrypto) so round-trips are exercised for real.
 vi.mock("@/lib/api", () => ({
   listFolders: vi.fn(),
@@ -191,7 +191,7 @@ describe("useFolders", () => {
       const { result } = renderFolders();
 
       await waitFor(() => expect(result.current.folders).toHaveLength(3));
-      // Vault-level lock state is unaffected — the KEY is present and valid.
+      // Vault-level lock state is unaffected: the KEY is present and valid.
       expect(result.current.locked).toBe(false);
 
       const byId = Object.fromEntries(result.current.folders.map((f) => [f.id, f]));
@@ -281,7 +281,7 @@ describe("useFolders", () => {
       await waitFor(() => expect(result.current.locked).toBe(true));
       expect(result.current.folders[0]?.name).toBe("[locked]");
 
-      // The superseded decrypt finally resolves — its result must be discarded.
+      // The superseded decrypt finally resolves: its result must be discarded.
       resolveStale("Report");
       await stale;
       await Promise.resolve();
@@ -403,7 +403,7 @@ describe("useFolders", () => {
       expect(api.renameFolder).not.toHaveBeenCalled();
 
       // Renaming a folder to (a case variant of) its OWN current name is allowed
-      // — the guard excludes the folder being renamed (f.id !== id).
+      //: the guard excludes the folder being renamed (f.id !== id).
       await act(async () => {
         await result.current.renameFolder("f2", "beta");
       });

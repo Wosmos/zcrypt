@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { usePassphraseStore } from "@/store/passphrase";
 
 /**
- * useVaultLock — the single source of truth for the "one vault passphrase"
+ * useVaultLock: the single source of truth for the "one vault passphrase"
  * mental model (REBUILD_SPEC §3).
  *
  * Wraps `usePassphraseStore` so the whole app talks to ONE lock. Unlocking once
@@ -27,7 +27,7 @@ export interface UseVaultLock {
   /** True when a passphrase is currently cached (not expired). Reactive. */
   unlocked: boolean;
   /**
-   * True when unlocked via "keep me unlocked on this device" — no TTL, survives
+   * True when unlocked via "keep me unlocked on this device": no TTL, survives
    * reloads. The pill shows "on this device" instead of a countdown. Reactive.
    */
   persistent: boolean;
@@ -53,7 +53,7 @@ export interface UseVaultLock {
   /**
    * Spread onto exactly ONE <PassphraseModal /> rendered by the caller. The
    * modal is titled "Unlock your vault". Includes the wrong-passphrase error
-   * banner plumbing — call `setError` from the caller's catch path to re-prompt.
+   * banner plumbing: call `setError` from the caller's catch path to re-prompt.
    */
   modalProps: VaultLockModalProps;
   /** Set the modal's error banner (e.g. "Incorrect passphrase."). */
@@ -101,7 +101,7 @@ export function useVaultLock(opts?: {
   // Tick a local clock so the pill re-renders without changing the store.
   // Resync on every `cacheUntil` change; tick every 1s while unlocked so the
   // MM:SS pill counts down smoothly (a 30s tick made the seconds jump in 30s
-  // steps and read as a broken clock — L5). Remaining seconds are derived from
+  // steps and read as a broken clock. L5). Remaining seconds are derived from
   // `cacheUntil` so the displayed value stays accurate regardless of cadence.
   // The interval only runs while a cache window exists (cheap), and is cleared
   // on unmount / on the next `cacheUntil` change.
@@ -109,7 +109,7 @@ export function useVaultLock(opts?: {
   useEffect(() => {
     if (!cacheUntil) return;
     setNow(Date.now());
-    if (Date.now() >= cacheUntil) return; // already expired — no ticking needed
+    if (Date.now() >= cacheUntil) return; // already expired, no ticking needed
     const interval = setInterval(() => setNow(Date.now()), 1_000);
     return () => clearInterval(interval);
   }, [cacheUntil]);

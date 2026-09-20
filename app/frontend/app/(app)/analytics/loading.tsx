@@ -17,7 +17,7 @@ export default function AnalyticsLoading() {
         </div>
       </div>
 
-      {/* Headline metrics — 5 stat cards */}
+      {/* Headline metrics, 5 stat cards */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
         {Array.from({ length: 5 }).map((_, i) => (
           <SkeletonStat key={i} />
@@ -44,7 +44,7 @@ export default function AnalyticsLoading() {
         </div>
       </div>
 
-      {/* Storage by file type — 4 stat cards */}
+      {/* Storage by file type, 4 stat cards */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <SkeletonStat key={i} />
@@ -102,7 +102,7 @@ export default function AnalyticsLoading() {
         </div>
       </div>
 
-      {/* The details (VaultDetails) — 3 grouped metric columns */}
+      {/* The details (VaultDetails): 3 grouped metric columns */}
       <div className="panel overflow-hidden">
         <div className="border-b border-[var(--color-border)] px-5 py-4">
           <Skeleton className="h-4 w-24 rounded-md" />

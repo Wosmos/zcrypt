@@ -7,8 +7,8 @@ import { ttlDeadline, minutesUntil } from "@/lib/ttl";
 // clearDecryptCache() drops the in-memory blob cache + derived KEKs AND fans out
 // to registered plaintext holders (notably the decrypted-thumbnail cache, memory
 // + the on-disk `zcrypt_thumbs` store, via useThumbnail's onDecryptCacheClear).
-// So every lock path below that calls it leaves NO readable plaintext anywhere —
-// memory or IndexedDB — and this store never imports useThumbnail (which would
+// So every lock path below that calls it leaves NO readable plaintext anywhere:
+// memory or IndexedDB, and this store never imports useThumbnail (which would
 // pull lib/api → store/auth into its module graph and cycle).
 
 let clearTimer: ReturnType<typeof setTimeout> | null = null;
@@ -40,7 +40,7 @@ interface PassphraseStore {
   cachedPassphrase: string | null;
   /** Expiry timestamp for a SESSION (15-min) unlock. `null` when persistent or locked. */
   cacheUntil: number | null;
-  /** True when unlocked via "keep me unlocked on this device" — no expiry. */
+  /** True when unlocked via "keep me unlocked on this device", no expiry. */
   persistent: boolean;
   /** Preference: persist the passphrase on this device on unlock (survives reloads). */
   rememberDevice: boolean;
@@ -88,7 +88,7 @@ export const usePassphraseStore = create<PassphraseStore>((set, get) => ({
       () => {
         set({ cachedPassphrase: null, cacheUntil: null });
         clearTimer = null;
-        // Vault auto-locked on TTL — drop decrypted plaintext too (it must not
+        // Vault auto-locked on TTL. Drop decrypted plaintext too (it must not
         // outlive the unlocked session).
         clearDecryptCache();
         void clearShellPassphrase();
@@ -108,7 +108,7 @@ export const usePassphraseStore = create<PassphraseStore>((set, get) => ({
         clearTimeout(clearTimer);
         clearTimer = null;
       }
-      // Lazy TTL expiry on read — same plaintext eviction as the timer path.
+      // Lazy TTL expiry on read: same plaintext eviction as the timer path.
       clearDecryptCache();
       void clearShellPassphrase();
       return null;

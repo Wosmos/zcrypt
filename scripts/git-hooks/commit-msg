@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# commit-msg — strip AI co-author trailers before the commit is recorded.
+# commit-msg: strip AI co-author trailers before the commit is recorded.
 #
 # Commits in this repo are authored by the human who runs the tooling; assistant
 # attribution trailers are not wanted in history. Rather than reject the commit

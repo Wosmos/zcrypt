@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 import { TransferItem, type TransferEntry, type TransferState } from "./transfer-item";
 
 // ---------------------------------------------------------------------------
-// <TransferManager /> — a single docked bottom-right panel unifying uploads +
+// <TransferManager />: a single docked bottom-right panel unifying uploads +
 // downloads. Mounted ONCE in app/(app)/layout.tsx so it persists across
 // navigation (the stores are singletons). Renders null when both queues are
 // empty.
@@ -72,7 +72,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
   const removeDownload = useDownloadStore((s) => s.removeFromQueue);
   const clearDownloads = useDownloadStore((s) => s.clearCompleted);
 
-  // Read the cached vault passphrase silently (never sent anywhere — only handed
+  // Read the cached vault passphrase silently (never sent anywhere, only handed
   // to the local store method that re-encrypts/decrypts client-side). If absent,
   // defer to the page's vault-unlock flow via onNeedUnlock.
   const withPassphrase = (run: (passphrase: string) => void) => {
@@ -89,7 +89,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
 
   // FIX-4: resolve the password an UPLOAD item must (re-)encrypt under. A
   // protected-folder upload re-encrypts its remaining chunks with the FOLDER
-  // password — never the vault passphrase — so resume/retry must derive the KEK
+  // password (never the vault passphrase) so resume/retry must derive the KEK
   // from the same folder password the chunks already uploaded used. The dock
   // lives outside the page's useFolderProtection (it can't open the folder-unlock
   // modal), so if the folder isn't currently unlocked we ask the user to open it
@@ -109,7 +109,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
     }
     // Locked protected folder: the folder-unlock prompt only lives on the Vault
     // page. Tell the user to open the folder there (which caches its password),
-    // then retry — never fall back to the vault pass (would produce undecryptable
+    // then retry, never fall back to the vault pass (would produce undecryptable
     // chunks).
     toast.info("Open the protected folder to unlock it, then retry this transfer.");
   };
@@ -142,7 +142,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
   // connection. When the tab becomes visible again or the network returns, pick
   // up any FAILED-with-session upload from where it stopped. The password is
   // resolved SILENTLY (cached vault pass, or cached folder password for a
-  // protected folder); anything that would need a prompt is skipped — auto-resume
+  // protected folder); anything that would need a prompt is skipped, auto-resume
   // must never pop a modal. Deliberately paused items are left alone (they aren't
   // in getResumableUploadIds). The wake lock (held during active uploads) already
   // prevents auto-lock while the user is watching; this covers manual lock, app
@@ -162,7 +162,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
         if (pass) resumeUpload(id, pass);
       }
       // Downloads resume from their own stored session (passphrase + high-water
-      // mark), so no password plumbing here — the store handles it.
+      // mark), so no password plumbing here, the store handles it.
       autoResumeDownloads();
     };
     const onVisible = () => {
@@ -270,7 +270,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
   );
   const allSettled = activeCount === 0;
 
-  // Aggregate progress over ALL entries, with settled ones counted at 100 — so
+  // Aggregate progress over ALL entries, with settled ones counted at 100, so
   // a file finishing (leaving the "running" set) can never make the collapsed
   // number DROP, which read as yet another "percent went down" bug.
   const aggregateProgress =
@@ -287,14 +287,14 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
         )
       : 100;
 
-  // Force the dock back whenever work is active OR something has failed — a
+  // Force the dock back whenever work is active OR something has failed, a
   // dismissed dock must never hide an in-flight or failed transfer. (The
   // entries.length effect above misses failures, which don't change the count.)
   useEffect(() => {
     if (activeCount > 0 || failedCount > 0) setDismissed(false);
   }, [activeCount, failedCount]);
 
-  // Warn before closing the tab while transfers are actually moving — closing
+  // Warn before closing the tab while transfers are actually moving, closing
   // kills every in-flight chunk. Paused uploads are safe to close over (their
   // session + resume record survive), so they don't trigger the warning.
   const transferring = entries.some((e) => e.state === "active" || e.state === "queued");
@@ -318,7 +318,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
     onCancelUpload: (id: string) => removeUpload(id),
     onRetryUpload: (id: string) => withUploadPassword(id, (pass) => retryUpload(id, pass)),
     onStopDownload: (id: string) => cancelDownload(id),
-    // Pause needs no password (it just stops fetching). Resume/retry do — same
+    // Pause needs no password (it just stops fetching). Resume/retry do, same
     // folder-aware routing as the initial download: the vault gate covers the
     // unprotected/base case, and the global resolver swaps in the folder
     // password per file so a protected-folder download continues correctly.
@@ -341,7 +341,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
         retryDownload(id, pass, resolveFilePasswordGlobal),
       );
     },
-    // Dismiss is NON-destructive for uploads — it clears the dock row but keeps
+    // Dismiss is NON-destructive for uploads: it clears the dock row but keeps
     // the session recoverable (a stray swipe must never delete a partial
     // upload). Downloads have no server state, so removing the row is safe.
     onDismiss: (entry: TransferEntry) =>
@@ -389,7 +389,7 @@ export function TransferManager({ onNeedUnlock }: TransferManagerProps) {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: 40, scale: 0.96 }}
           transition={{ type: "spring", stiffness: 380, damping: 32 }}
-          // Swipe-to-dismiss is disabled while any transfer is in flight — an
+          // Swipe-to-dismiss is disabled while any transfer is in flight, an
           // active upload/download must stay visible so it can't be flicked
           // away and silently forgotten. Only a fully-settled dock can be swiped.
           drag={reduceMotion || activeCount > 0 ? false : "x"}

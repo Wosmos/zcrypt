@@ -22,7 +22,7 @@ const platformIcons: Record<string, React.ReactNode> = {
 };
 
 export function PlatformHealth({ statuses, repos }: PlatformHealthProps) {
-  // Show every platform the user has connected — personal and shared/global alike.
+  // Show every platform the user has connected, personal and shared/global alike.
   const personalStatuses = statuses.filter((s) => s.connected);
   if (personalStatuses.length === 0) return null;
 

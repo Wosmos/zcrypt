@@ -5,7 +5,7 @@
 # suite that actually drives those handlers lives in its own package behind
 # //go:build integration, so (a) it never runs by default and (b) even when it
 # does, per-package coverage credits nothing outside the package under test.
-# Both are fixed here — run the unit and integration suites with
+# Both are fixed here. Run the unit and integration suites with
 # -coverpkg=./... and merge the two profiles.
 #
 # Needs a Postgres for the integration half. Honors TEST_DATABASE_URL if set
@@ -39,7 +39,7 @@ boot_pg() {
   if [[ ! -x "$PGBIN/initdb" ]]; then
     # Fall back to whatever's on PATH (Linux/CI without Postgres.app).
     PGBIN="$(dirname "$(command -v initdb)")" || {
-      echo "no initdb found — set TEST_DATABASE_URL or install Postgres" >&2
+      echo "no initdb found. Set TEST_DATABASE_URL or install Postgres" >&2
       return 1
     }
   fi
@@ -77,7 +77,7 @@ else
 fi
 
 # ── Merge ───────────────────────────────────────────────────────────────────
-# Text profile lines are "file.go:sLine.sCol,eLine.eCol numStmt count" — the
+# Text profile lines are "file.go:sLine.sCol,eLine.eCol numStmt count", the
 # location is one whitespace-free field, so grouping on $1 and taking the max
 # count is a correct union of "was this block covered". Cheaper and more
 # reproducible than vendoring gocovmerge for what amounts to ten lines of awk.
@@ -98,7 +98,7 @@ awk '
 # ── Report ──────────────────────────────────────────────────────────────────
 # Statement-weighted per package, straight from the merged profile. (Averaging
 # `go tool cover -func`'s per-function percentages would weight a one-line
-# helper the same as a 200-line handler — not the number we're tracking.)
+# helper the same as a 200-line handler, not the number we're tracking.)
 echo
 echo "════════ per-package statement coverage (merged) ════════"
 awk '

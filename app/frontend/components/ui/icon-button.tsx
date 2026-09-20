@@ -10,7 +10,7 @@ type IconComponent = ComponentType<{ className?: string; size?: number }>;
 interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "aria-label"> {
   /** Icon component (from "@/lib/icons"). */
   icon: IconComponent;
-  /** Accessible label — used for both the tooltip text and aria-label. */
+  /** Accessible label: used for both the tooltip text and aria-label. */
   label: string;
   /** Visual style of the underlying Button. */
   variant?: "primary" | "secondary" | "danger" | "ghost";
@@ -21,7 +21,7 @@ interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 
 }
 
 /**
- * Icon-only button — the app-wide standard for icon actions. Always renders a
+ * Icon-only button: the app-wide standard for icon actions. Always renders a
  * shadcn Tooltip showing `label` and sets `aria-label`, so every icon action
  * stays accessible and consistent.
  */

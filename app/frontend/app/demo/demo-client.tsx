@@ -269,11 +269,11 @@ export default function DemoClient() {
       <div className="flex items-center gap-2.5 rounded-2xl border border-sky-500/20 bg-sky-500/5 px-4 py-3">
         <Info className="h-4 w-4 text-sky-500 shrink-0" />
         <p className="text-xs text-sky-600 dark:text-sky-300 font-medium">
-          Demo mode — all data is simulated. Uploads, downloads and deletes are disabled.
+          Demo mode, all data is simulated. Uploads, downloads and deletes are disabled.
         </p>
       </div>
 
-      {/* Header — matches real vault */}
+      {/* Header, matches real vault */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2.5 mb-3">
@@ -306,7 +306,7 @@ export default function DemoClient() {
       </div>
 
       {/* Upload zone (read-only) */}
-      <UploadZone onFiles={readOnlyFiles} hint="Read-only demo — uploads are disabled" />
+      <UploadZone onFiles={readOnlyFiles} hint="Read-only demo, uploads are disabled" />
 
       {/* Mobile vault header */}
       <MobileVaultHeader
@@ -319,7 +319,7 @@ export default function DemoClient() {
         activeCategory={typeFilter}
       />
 
-      {/* Component demos — Switch, Toggle, ToggleGroup */}
+      {/* Component demos. Switch, Toggle, ToggleGroup */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border)]">
         {/* Switch demo */}
         <div className="flex flex-col items-center justify-center gap-3 p-3">

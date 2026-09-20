@@ -63,7 +63,7 @@ export function canDrop(item: DragItem | null, destFolderId: string | null): boo
 export const DRAG_MIME = "application/x-zcrypt-move";
 
 /* ────────────────────────────────────────────────────────────────────────────
- * Custom drag ghost (OWNER 2 — "tilt-on-drag" + bulk stacked-count ghost).
+ * Custom drag ghost (OWNER 2: "tilt-on-drag" + bulk stacked-count ghost).
  *
  * Native HTML5 DnD lets us swap the drag image via `dataTransfer.setDragImage`.
  * We build a styled, throwaway node, position it off-screen, register it as the
@@ -71,7 +71,7 @@ export const DRAG_MIME = "application/x-zcrypt-move";
  * synchronously). A single dragged sheet is lifted + tilted + shadowed; a bulk
  * drag (≥2 selected) becomes a stacked card showing the count ("4 items").
  *
- * Zero hardcoded hex — only `--color-*` tokens. Reduced-motion → NO tilt/scale
+ * Zero hardcoded hex: only `--color-*` tokens. Reduced-motion → NO tilt/scale
  * (a plain, upright ghost), honoring the caller's `tilt` flag which the explorer
  * derives from `useReducedMotion()`.
  * ──────────────────────────────────────────────────────────────────────────── */
@@ -104,7 +104,7 @@ export function setDragGhost(
 
   const bulk = count >= 2;
 
-  // A single folder drags as a mini macOS folder glyph (+ name), not the pill —
+  // A single folder drags as a mini macOS folder glyph (+ name), not the pill,
   // so the drag image reads as the folder itself, on a transparent backdrop.
   if (!bulk && kind === "folder") {
     const root = getComputedStyle(document.documentElement);

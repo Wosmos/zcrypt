@@ -93,7 +93,7 @@ function defaultResolveFileKey(password: string, _salt: Uint8Array, wrappedCek?:
   if (!wrappedCek) return Promise.resolve(new TextEncoder().encode(`legacy:${password}`).buffer);
   const [, pw, cekTag] = wrappedCek.split(":");
   if (cekTag && cekTag.endsWith("FAIL")) return Promise.reject(new Error("simulated decrypt failure"));
-  if (pw !== password) return Promise.reject(new Error("Incorrect passphrase — could not unlock this file."));
+  if (pw !== password) return Promise.reject(new Error("Incorrect passphrase: could not unlock this file."));
   return Promise.resolve(new TextEncoder().encode(cekTag).buffer);
 }
 
@@ -158,7 +158,7 @@ function makeMeta(id: string, password: string, cekTag: string, salt = `salt-${i
 
 /** A tiny stateful fake "server": getFileMeta + rekeyFile share a Map so a
  *  forward rekey persists and a LATER getFileMeta (e.g. a rollback sweep)
- *  observes the new wrapping — the same round trip the real backend gives. */
+ *  observes the new wrapping: the same round trip the real backend gives. */
 function makeFileServer(initial: Record<string, { password: string; cekTag: string; salt: string }>) {
   const state = new Map(Object.entries(initial));
   getFileMeta.mockImplementation(async (id: string) => {
@@ -447,7 +447,7 @@ describe("rekeyFileForMove", () => {
     expect(resolveFileKey).toHaveBeenCalledWith("vault-pw", fromBase64("salt-a"), "wrapped:vault-pw:CEK-1");
     // Wrapped in `new Uint8Array(...)` (not a bare TextEncoder().encode()
     // result) because the hook's `cek` is itself a `new Uint8Array(cekBuf)`
-    // view over the resolved ArrayBuffer — on this runtime a raw
+    // view over the resolved ArrayBuffer: on this runtime a raw
     // TextEncoder() output and a same-content Uint8Array(buffer) view compare
     // unequal by reference-y identity checks despite identical bytes.
     expect(rewrapFileKey).toHaveBeenCalledWith(
@@ -537,7 +537,7 @@ describe("protectFolder", () => {
     );
 
     // file-1 was rekeyed forward, then rolled all the way back to the vault
-    // pass — the CEK tag (CEK-1) is identical in both wrapped_cek writes, so
+    // pass: the CEK tag (CEK-1) is identical in both wrapped_cek writes, so
     // nothing was lost even though the operation failed partway through.
     expect(rekeyFile).toHaveBeenCalledWith("file-1", "salt(new-folder-pw)", "wrapped:new-folder-pw:CEK-1");
     expect(rekeyFile).toHaveBeenCalledWith("file-1", "salt(vault-pw)", "wrapped:vault-pw:CEK-1");
@@ -570,7 +570,7 @@ describe("protectFolder", () => {
     );
 
     // The forward rekey persisted; only the ROLLBACK write failed and was
-    // swallowed (best-effort) — the file is left folder-keyed, not corrupted.
+    // swallowed (best-effort): the file is left folder-keyed, not corrupted.
     expect(state.get("file-1")).toEqual({ password: "new-folder-pw", cekTag: "CEK-1", salt: "salt(new-folder-pw)" });
     expect(setFolderPassword).not.toHaveBeenCalled();
   });

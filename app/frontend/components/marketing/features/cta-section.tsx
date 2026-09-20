@@ -16,7 +16,7 @@ export interface CtaSectionProps {
  * The closing "big CTA card" that ends every features/* and vs/* page: a
  * surface-filled rounded card with a heading, a short subtext, and the gradient
  * primary CTA. An optional icon renders above the heading. Does not render an
- * outer <section> — the page owns the wrapping section (and its padding).
+ * outer <section>: the page owns the wrapping section (and its padding).
  */
 export function CtaSection({ heading, subtext, ctaLabel, ctaHref, icon: Icon }: CtaSectionProps) {
   return (

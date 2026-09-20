@@ -6,12 +6,12 @@ import { SITE_URL } from "@/lib/site";
 export const metadata: Metadata = {
   title: "License | zcrypt Docs",
   description:
-    "zcrypt is MIT-licensed — free to use, modify, and distribute, including commercially, with no warranty. Read the full license text on GitHub.",
+    "zcrypt is MIT-licensed: free to use, modify, and distribute, including commercially, with no warranty. Read the full license text on GitHub.",
   alternates: { canonical: `${SITE_URL}/docs/license` },
   openGraph: {
     title: "License | zcrypt Docs",
     description:
-      "zcrypt is MIT-licensed — free to use, modify, and distribute, including commercially, with no warranty.",
+      "zcrypt is MIT-licensed: free to use, modify, and distribute, including commercially, with no warranty.",
     url: `${SITE_URL}/docs/license`,
   },
 };
@@ -28,13 +28,13 @@ export default function LicenseDocPage() {
     <DocPage
       href="/docs/license"
       title="License"
-      description="zcrypt is open source under the MIT License — one of the most permissive licenses there is."
+      description="zcrypt is open source under the MIT License: one of the most permissive licenses there is."
       toc={toc}
     >
       <DocSection id="overview" title="Overview">
         <DocP>
-          The entire zcrypt codebase — backend, frontend, TUI, and everything else in the repository
-          — is released under the <strong>MIT License</strong>. It&apos;s a short, permissive
+          The entire zcrypt codebase: backend, frontend, TUI, and everything else in the repository
+          : is released under the <strong>MIT License</strong>. It&apos;s a short, permissive
           license: you can do almost anything with the code as long as you keep the copyright notice
           attached.
         </DocP>
@@ -69,7 +69,7 @@ export default function LicenseDocPage() {
         <DocNote type="info" title="Provided as-is">
           The software is provided &quot;as is&quot;, without warranty of any kind. The authors are
           not liable for any claim, damages, or other liability arising from its use. Run it, fork
-          it, ship it — but the risk is yours.
+          it, ship it, but the risk is yours.
         </DocNote>
       </DocSection>
 

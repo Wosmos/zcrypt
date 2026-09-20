@@ -140,7 +140,7 @@ export default function SendDownloadPage() {
       try {
         plaintext = await decryptChunk(keyBytes, encrypted);
       } catch {
-        throw new Error("Decryption failed — the link may be incomplete or corrupted");
+        throw new Error("Decryption failed: the link may be incomplete or corrupted");
       }
 
       decryptedChunks[index] = plaintext;
@@ -174,7 +174,7 @@ export default function SendDownloadPage() {
 
     const actualHash = await sha256Hex(fullFile);
     if (actualHash !== meta.sha256) {
-      throw new Error("File integrity check failed — SHA-256 mismatch");
+      throw new Error("File integrity check failed. SHA-256 mismatch");
     }
 
     const originalName = info?.file_name || "download";
@@ -312,7 +312,7 @@ export default function SendDownloadPage() {
 
               <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3">
                 <p className="text-xs text-cyan-700 dark:text-cyan-300">
-                  This file is end-to-end encrypted. Decryption happens entirely in your browser —
+                  This file is end-to-end encrypted. Decryption happens entirely in your browser:
                   the server never sees your data.
                 </p>
               </div>

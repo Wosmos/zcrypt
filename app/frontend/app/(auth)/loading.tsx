@@ -4,7 +4,7 @@ export default function AuthLoading() {
   return (
     <div className="animate-fade-in">
       <div className="space-y-4">
-        {/* OAuth buttons — two side-by-side */}
+        {/* OAuth buttons, two side-by-side */}
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <Skeleton className="h-11 w-full rounded-xl" />

@@ -36,7 +36,7 @@ export function StorageHealth({ repos }: { repos: RepoInfo[] }) {
       <div className="space-y-3 p-5">
         {ranked.length === 0 ? (
           <p className="py-4 text-center text-sm text-[var(--color-text-muted)]">
-            No storage repositories yet — upload a file to get started.
+            No storage repositories yet: upload a file to get started.
           </p>
         ) : flagged.length === 0 ? (
           <div className="flex items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
@@ -83,8 +83,8 @@ export function StorageHealth({ repos }: { repos: RepoInfo[] }) {
                 </div>
                 <p className="text-xs text-[var(--color-text-muted)]">
                   {danger
-                    ? "Nearly full — zcrypt will move new uploads to a fresh repository."
-                    : "Filling up — a new repository will be added automatically when needed."}{" "}
+                    ? "Nearly full: zcrypt will move new uploads to a fresh repository."
+                    : "Filling up: a new repository will be added automatically when needed."}{" "}
                   {formatBytes(r.used_bytes)} / {formatBytes(r.max_bytes)}
                 </p>
               </div>

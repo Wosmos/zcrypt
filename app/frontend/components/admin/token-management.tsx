@@ -293,7 +293,7 @@ export function TokenManagement({
         title="Delete token?"
         description={
           deleteTarget
-            ? `Delete the ${platformNames[deleteTarget.platform] ?? deleteTarget.platform} token for @${deleteTarget.username}?${deleteTarget.is_global ? " This is a global token — removing it will affect all users." : ""}`
+            ? `Delete the ${platformNames[deleteTarget.platform] ?? deleteTarget.platform} token for @${deleteTarget.username}?${deleteTarget.is_global ? " This is a global token: removing it will affect all users." : ""}`
             : ""
         }
         confirmLabel="Delete token"

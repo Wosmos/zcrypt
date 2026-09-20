@@ -9,7 +9,7 @@ const MAX_ROWS = 2000;
 
 /**
  * Parse delimited text into rows of cells, honoring quoted fields that contain
- * the delimiter, embedded quotes ("") and newlines. Pure string work — no eval.
+ * the delimiter, embedded quotes ("") and newlines. Pure string work, no eval.
  */
 function parseDelimited(text: string, delimiter: string): string[][] {
   const rows: string[][] = [];
@@ -43,7 +43,7 @@ function parseDelimited(text: string, delimiter: string): string[][] {
       row = [];
       field = "";
     } else if (ch === "\r") {
-      // swallow — handled by the following \n (or end of input)
+      // swallow: handled by the following \n (or end of input)
     } else {
       field += ch;
     }
@@ -91,7 +91,7 @@ export function CsvViewer({ blob, filename }: { blob: Blob; filename: string }) 
     <div className="flex h-full w-full flex-col gap-2">
       {(truncatedBytes || truncatedRows) && (
         <p className="shrink-0 text-xs italic text-[var(--color-text-muted)]">
-          Large file — showing the first {Math.min(rows.length, MAX_ROWS).toLocaleString()} rows.
+          Large file: showing the first {Math.min(rows.length, MAX_ROWS).toLocaleString()} rows.
         </p>
       )}
       <div className="min-h-0 flex-1 overflow-auto rounded-xl border border-[var(--color-border)]">

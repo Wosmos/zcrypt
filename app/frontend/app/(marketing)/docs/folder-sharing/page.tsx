@@ -14,12 +14,12 @@ import {
 export const metadata: Metadata = {
   title: "Share a folder | zcrypt Docs",
   description:
-    "Share a whole folder with a single public link. Everyone with the link can browse and download the files, read-only, with no account — and it stays end-to-end encrypted because the folder key lives only in the URL fragment. Add an optional password that hides the file listing until it's entered.",
+    "Share a whole folder with a single public link. Everyone with the link can browse and download the files, read-only, with no account, and it stays end-to-end encrypted because the folder key lives only in the URL fragment. Add an optional password that hides the file listing until it's entered.",
   alternates: { canonical: `${SITE_URL}/docs/folder-sharing` },
   openGraph: {
     title: "Share a folder | zcrypt Docs",
     description:
-      "One public link for a whole folder: read-only, no account needed, and still end-to-end encrypted — the folder key never leaves the link fragment.",
+      "One public link for a whole folder: read-only, no account needed, and still end-to-end encrypted: the folder key never leaves the link fragment.",
     url: `${SITE_URL}/docs/folder-sharing`,
   },
 };
@@ -40,7 +40,7 @@ export default function FolderSharingDocPage() {
     <DocPage
       href="/docs/folder-sharing"
       title="Share a folder"
-      description="Hand someone a whole folder with one public link. Anyone with the link can browse and download the files read-only, no account required — and it stays zero-knowledge, because the folder's decryption key rides in the part of the URL that never reaches our servers."
+      description="Hand someone a whole folder with one public link. Anyone with the link can browse and download the files read-only, no account required, and it stays zero-knowledge, because the folder's decryption key rides in the part of the URL that never reaches our servers."
       toc={toc}
       badge="New"
     >

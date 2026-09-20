@@ -66,7 +66,7 @@ function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-// Highlight where a search term starts a word (word-boundary prefix) — so
+// Highlight where a search term starts a word (word-boundary prefix), so
 // "rust" highlights "Rust" in "Rust-powered" but not the middle of "trusted".
 function highlightTerms(text: string, terms: string[]) {
   if (terms.length === 0) return text;
@@ -219,7 +219,7 @@ export function DocsSearchTrigger({
   onBeforeOpen,
 }: {
   className?: string;
-  /** Runs before the modal opens — e.g. close the mobile drawer first. */
+  /** Runs before the modal opens, e.g. close the mobile drawer first. */
   onBeforeOpen?: () => void;
 }) {
   const { open } = useDocsSearch();

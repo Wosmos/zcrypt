@@ -46,7 +46,7 @@ const MAX_UPLOAD_BYTES = 10 * 1024 * 1024 * 1024;
 // --- Debounced refresh to avoid hammering the API ---
 // Trailing debounce WITH a max-wait: a busy batch used to reset the timer on
 // every completion, so the explorer refresh never fired until the whole batch
-// quieted — files uploaded minutes ago stayed invisible. Now the refresh fires
+// quieted: files uploaded minutes ago stayed invisible. Now the refresh fires
 // at most 1.5s after the last completion AND at least every 4s while
 // completions keep streaming in.
 let refreshTimer: ReturnType<typeof setTimeout> | null = null;
@@ -87,7 +87,7 @@ function startBackgroundNotifications(
     const { done, failed, total, percent } = getBatchState();
     const active = total - done - failed;
     if (active <= 0) {
-      // All done — send final notification
+      // All done, send final notification
       const body = failed > 0 ? `${done} uploaded, ${failed} failed` : `All ${done} files uploaded`;
       new Notification("Upload complete", {
         body,
@@ -198,7 +198,7 @@ interface UploadStore {
   pauseUpload: (id: string) => void; // aborts in-flight chunks; preserves resume context (does NOT cancel session)
   resumeUpload: (id: string, passphrase: string) => void; // continue from getUploadStatus uploaded_chunks
   /** Ids of uploads that FAILED mid-transfer but still have a live server
-   *  session to continue from — used to auto-resume after the phone wakes /
+   *  session to continue from: used to auto-resume after the phone wakes /
    *  reconnects. Excludes deliberately paused items and permanent pre-session
    *  failures (oversized, no storage connected), which never got a session. */
   getResumableUploadIds: () => string[];
@@ -211,18 +211,18 @@ interface UploadStore {
 }
 
 // Resume context for an in-flight upload. Holds the raw CEK so a retry re-encrypts
-// remaining chunks with the SAME key as the chunks already uploaded — a fresh key
+// remaining chunks with the SAME key as the chunks already uploaded, a fresh key
 // would corrupt the file. Lives only in memory for the page session.
 interface ResumeCtx {
   sessionId: string;
   fileId: string;
   cekBytes: ArrayBuffer;
   chunkCount: number;
-  chunkSize: number; // MUST match the original — reslicing at a different size misaligns chunk boundaries
+  chunkSize: number; // MUST match the original: reslicing at a different size misaligns chunk boundaries
   directUpload: boolean;
   shouldCompress: boolean;
   /** The platform the session's chunks already live on. A resume MUST stay on
-   *  this platform — the already-uploaded chunks are there, and silently
+   *  this platform: the already-uploaded chunks are there, and silently
    *  switching (the old HF re-route bug) restarted the upload from zero. */
   platform?: string;
 }
@@ -271,11 +271,11 @@ function readPersistedResume(file: File): PersistedResume | null {
     return null;
   }
 }
-/** Rebuild an in-memory resume context from a persisted record if — and only if
- *  — the server session is still active. Returns undefined on any miss (the
+/** Rebuild an in-memory resume context from a persisted record if, and only if
+ * : the server session is still active. Returns undefined on any miss (the
  *  fresh path then re-inits; the server-side duplicate-init detection gives it
  *  a second chance to resume). A fully-staged session (all chunks uploaded,
- *  complete never called) is also resumable — it skips straight to complete. */
+ *  complete never called) is also resumable: it skips straight to complete. */
 async function loadPersistedResume(file: File, passphrase: string): Promise<ResumeCtx | undefined> {
   const rec = readPersistedResume(file);
   if (!rec) return undefined;
@@ -283,7 +283,7 @@ async function loadPersistedResume(file: File, passphrase: string): Promise<Resu
     const status = await getUploadStatus(rec.sessionId);
     if (status.status !== "active") return undefined;
     const meta = await getFileMeta(rec.fileId);
-    if (!meta.wrapped_cek) return undefined; // legacy/no envelope — can't rebuild the key
+    if (!meta.wrapped_cek) return undefined; // legacy/no envelope, can't rebuild the key
     const kek = await deriveKeyBytes(passphrase, fromBase64(meta.salt));
     const cek = await unwrapKey(kek, fromBase64(meta.wrapped_cek));
     return {
@@ -312,14 +312,14 @@ interface ItemMeta {
   /** Generation token for the CURRENT uploadOneFile run. Any emit/finalize from
    *  an older run (e.g. one draining after a pause) is a stale write and drops. */
   runToken?: symbol;
-  /** The current run's promise — resume/retry await it so two runs never race. */
+  /** The current run's promise: resume/retry await it so two runs never race. */
   runPromise?: Promise<void>;
   /** Aborts the current run's in-flight chunk transfers (pause/cancel). */
   abort?: AbortController;
   /** EMA byte-rate tracker for the speed/ETA display. */
   rate?: { lastBytes: number; lastTime: number; ema: number };
   /** Desktop-core item: absolute disk path the Rust core reads from. Its
-   *  presence marks the item as core-driven — retry/resume MUST re-drive the
+   *  presence marks the item as core-driven: retry/resume MUST re-drive the
    *  core, never the web pipeline: the item's `file` is a 0-byte placeholder
    *  (bytes never enter the webview), so the web path would init with size 0
    *  and die on the backend's "a name …, original_size, … required" 400. */
@@ -343,7 +343,7 @@ const pausedIds = new Set<string>();
 /**
  * Map the streaming core's per-stage progress to ONE continuous 0–100 bar.
  * The streaming upload fuses encrypt+upload into a single "uploading" stage
- * (chunks stream out as they're encrypted), so there's one phase, not two —
+ * (chunks stream out as they're encrypted), so there's one phase, not two:
  * hashing/deriving are a tiny lead-in, uploading is the whole bar.
  * Returns undefined for stages this bar doesn't represent (keep prior percent).
  */
@@ -384,7 +384,7 @@ function isPauseError(err: unknown): boolean {
   return err instanceof PausedError || (err instanceof Error && err.message === "Upload paused");
 }
 
-// File extensions that are already compressed — skip zstd to save CPU.
+// File extensions that are already compressed: skip zstd to save CPU.
 const COMPRESSED_EXTENSIONS = new Set([
   "jpg",
   "jpeg",
@@ -429,7 +429,7 @@ const COMPRESSED_EXTENSIONS = new Set([
 // Retry wrapper for transient chunk-upload failures. Over a multi-GB upload
 // (hundreds/thousands of chunks) a transient blip on any one chunk is likely,
 // so we retry not just rate-limits but network errors, stalls, timeouts and 5xx
-// — with exponential backoff + jitter. Non-transient failures (4xx: invalid,
+//: with exponential backoff + jitter. Non-transient failures (4xx: invalid,
 // unauthorized, not found) throw immediately so they surface instead of looping.
 // `shouldStop` (the pause check) is consulted before every attempt AND before
 // every backoff sleep, so pausing can't leave a chunk retrying for minutes.
@@ -481,7 +481,7 @@ interface UploadFileOpts {
   /**
    * Batch-shared KEK (startUpload derives it ONCE): PBKDF2 at 600k iterations is
    * the single most expensive CPU step of an upload, so a 50-photo batch must
-   * not pay it 50 times. Sharing the PBKDF2 salt across a batch is safe —
+   * not pay it 50 times. Sharing the PBKDF2 salt across a batch is safe:
    * security rests on the passphrase; each file still gets its own random CEK
    * and unique AES-GCM nonces. Absent on retry/resume, which derive per-file.
    */
@@ -499,7 +499,7 @@ interface UploadFileOpts {
 //
 // If itemMeta[id] already holds a resume context (set on the first attempt once
 // the session was created), it reuses that session + CEK and skips chunks the
-// server already has — so a retry continues instead of restarting. Used by both
+// server already has, so a retry continues instead of restarting. Used by both
 // startUpload and retryUpload. The server ALSO resumes: an init for a file with
 // an active session returns that session (`resumed: true`), pinned to its
 // original platform and chunk size.
@@ -509,12 +509,12 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
   // Destination folder for this run, resolved once. The per-item meta wins (it
   // carries the folder the row was queued into); the opts value is the fallback
   // for a retry/resume that rebuilt its meta. Used both at init (so the row is
-  // born folder-filed) and for the optimistic row on completion — they must
+  // born folder-filed) and for the optimistic row on completion. They must
   // agree, which is exactly why it's computed in one place.
   const destFolderId = itemMeta.get(id)?.folderId ?? folderId ?? null;
   let chunkSize = profile.chunkSize;
   // Use the batch-shared pool when startUpload handed one in; otherwise
-  // (retry/resume) create a transient one. We only terminate a pool we own —
+  // (retry/resume) create a transient one. We only terminate a pool we own:
   // the batch pool is torn down by startUpload once the WHOLE batch settles.
   const pool = opts.pool ?? new WorkerPool();
   const ownsPool = opts.pool === undefined;
@@ -528,13 +528,13 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
   patchMeta(id, { runToken, abort, rate: undefined });
   const isCurrentRun = () => itemMeta.get(id)?.runToken === runToken;
   const isPaused = () => pausedIds.has(id);
-  // Early-phase pause stop (hash/derive/init — no chunk state yet). Returns
+  // Early-phase pause stop (hash/derive/init, no chunk state yet). Returns
   // true when the caller should bail out of the run.
   const pauseCheckpoint = (): boolean => {
     if (!isPaused()) return false;
     // The stale-run case can't be reached today: retry/resume both go through
     // relaunchAfterPrior, which awaits the previous run's promise before starting
-    // a new one — so no superseded run is ever still executing. The token check
+    // a new one, so no superseded run is ever still executing. The token check
     // stays as the invariant that makes that safe to rely on.
     /* v8 ignore start */
     if (isCurrentRun()) updateStatus(id, "paused", undefined, "Paused");
@@ -606,7 +606,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
       if (pauseCheckpoint()) return;
 
       // Zero-knowledge file name: encrypt it under the per-user NAME key derived
-      // from the VAULT passphrase (getPassphrase) — NOT the upload `passphrase`,
+      // from the VAULT passphrase (getPassphrase), NOT the upload `passphrase`,
       // which for a protected folder is the folder password. This keeps it
       // decryptable by decryptFileNames (which also uses the vault passphrase),
       // and independent of the file's content key. If the vault passphrase or
@@ -634,7 +634,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
 
       updateStatus(id, "encrypting", 3, "Starting upload session...");
       // Init with a wait-for-slot retry loop. `explicitPlatform` overrides the
-      // picker choice (used when a dead resumed session forces a restart — the
+      // picker choice (used when a dead resumed session forces a restart, the
       // restart must stay on the ORIGINAL platform).
       const doInit = async (
         explicitPlatform?: string,
@@ -658,7 +658,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
               // FIX-1b: create the row directly in its destination folder. For a
               // protected folder the CEK was already wrapped under the folder
               // password above, so the file is born correctly folder-keyed AND
-              // folder-filed in one step — no stranding window, no post-move.
+              // folder-filed in one step, no stranding window, no post-move.
               folder_id: destFolderId,
             });
           } catch (err) {
@@ -681,7 +681,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
       let session = await doInit();
       // doInit only ever returns null via its own pause check (retry
       // exhaustion re-throws the underlying error directly instead of
-      // falling through) — so reaching here always means paused; surface
+      // falling through), so reaching here always means paused; surface
       // that status and stop rather than guarding a case that can't occur.
       if (!session) {
         pauseCheckpoint();
@@ -689,7 +689,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
       }
 
       if (session.resumed) {
-        // The server found an ACTIVE session for this exact file — adopt it.
+        // The server found an ACTIVE session for this exact file, adopt it.
         // Our freshly-generated CEK/salt were discarded server-side; the real
         // key is the session's stored envelope, unwrapped with the passphrase.
         // Adopting also pins the ORIGINAL platform and chunk size.
@@ -710,10 +710,10 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
           });
         } else {
           // Can't continue the old session (its envelope won't unwrap with this
-          // passphrase, or its chunk size is unknown). Discard it and restart —
+          // passphrase, or its chunk size is unknown). Discard it and restart.
           // ON ITS PLATFORM, never a silently different one.
           toast.warning(
-            `Couldn't continue the previous upload of "${file.name}" — restarting on ${session.platform}.`,
+            `Couldn't continue the previous upload of "${file.name}", restarting on ${session.platform}.`,
           );
           await cancelUpload(session.session_id).catch(() => {
             /* best-effort */
@@ -735,7 +735,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
         setFileId(id, fileId);
         void seedThumbnailFromFile(fileId, file, file.name);
         // The server's returned platform is the session's REAL home (it applies
-        // the default when the picker was on Auto) — remember it so any retry
+        // the default when the picker was on Auto): remember it so any retry
         // or resume of this item stays there.
         patchMeta(id, { platform: session.platform || itemMeta.get(id)?.platform });
 
@@ -752,7 +752,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
         };
         patchMeta(id, { resume: ctx });
         // Also persist session pointers (NOT the key) so this upload can resume
-        // after a page reload — see loadPersistedResume.
+        // after a page reload. See loadPersistedResume.
         savePersistedResume(file, {
           sessionId,
           fileId,
@@ -784,11 +784,11 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
         const status = await getUploadStatus(sessionId);
         done = new Set(status.uploaded_chunks);
       } catch {
-        done = new Set(); // status unavailable — re-send all (chunks are idempotent by SHA)
+        done = new Set(); // status unavailable: re-send all (chunks are idempotent by SHA)
       }
     }
 
-    // Chunk pipeline — TWO-STAGE BACKPRESSURE:
+    // Chunk pipeline. TWO-STAGE BACKPRESSURE:
     //   RELAY:  [worker] -> [upload to server] -> [server relays to platform]
     //   DIRECT: [worker] -> [presign] -> [upload directly to platform] -> [confirm]
     // Direct (HuggingFace LFS) sends data once; relay (GitHub/GitLab/Telegram) twice.
@@ -798,7 +798,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
 
     // Byte-level progress: completed chunks count their full plaintext size;
     // in-flight chunks (fed by xhr.upload.onprogress) contribute their sent
-    // bytes at 90% weight — sent-to-server is real work (relay PUTs stage to
+    // bytes at 90% weight: sent-to-server is real work (relay PUTs stage to
     // disk on receipt) but not yet confirmed, so it's slightly discounted. The
     // emitted value is MONOTONIC per run: a retried/aborted chunk can shrink
     // the underlying sum, but the displayed number never goes backwards.
@@ -865,7 +865,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
     if (wasResumed) emitByteProgress();
 
     // Emits "paused" with the run's real byte position. No-op if a resume was
-    // already requested (pausedIds cleared) — the next run owns the row then.
+    // already requested (pausedIds cleared): the next run owns the row then.
     const markPaused = () => {
       if (!isCurrentRun() || !isPaused()) return;
       const percent =
@@ -906,7 +906,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
         .process({
           chunkIndex: i,
           plaintext: chunkData, // transferred to worker (zero-copy)
-          keyBytes: cekBytes.slice(0), // CEK — copy since buffer gets neutered on transfer
+          keyBytes: cekBytes.slice(0), // CEK. Copy since buffer gets neutered on transfer
           compress: shouldCompress,
           compressionLevel: profile.compressionLevel,
         })
@@ -998,7 +998,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
         })
         .finally(() => pipelineSem.release())
         .catch((err) => {
-          // A pause-triggered abort is a stop, not a failure — swallow it here so
+          // A pause-triggered abort is a stop, not a failure, swallow it here so
           // the finalize guard (uploadedChunks < chunkCount) handles the pause.
           if (isPauseError(err)) {
             inFlightPlainBytes.clear();
@@ -1013,7 +1013,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
     await Promise.all(chunkPromises);
     // firstError can never be pause-classified: the chunk .catch() above
     // already intercepts and swallows isPauseError(err) before it would ever
-    // be assigned here (see the comment at that catch) — the finalize guard
+    // be assigned here (see the comment at that catch), the finalize guard
     // below (uploadedChunks < chunkCount) is what actually handles a pause.
     if (firstError) throw firstError;
 
@@ -1026,7 +1026,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
       return;
     }
     if (isPaused()) {
-      // All chunks landed but the user paused before finalize — hold there so
+      // All chunks landed but the user paused before finalize, hold there so
       // the file never appears in the vault while "paused". Resume completes it.
       markPaused();
       return;
@@ -1034,7 +1034,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
     // Same invariant as pauseCheckpoint: relaunchAfterPrior serializes runs per
     // item, so a superseded run can never still be here to double-finalize.
     /* v8 ignore start */
-    if (!isCurrentRun()) return; // a newer run owns this item — let it finalize
+    if (!isCurrentRun()) return; // a newer run owns this item, let it finalize
     /* v8 ignore stop */
 
     // Finalize
@@ -1043,14 +1043,14 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
 
     // FIX-1b: no post-complete moveFile. The file was created in its destination
     // folder atomically at init (initUpload's folder_id), so it is already filed
-    // in the right folder AND keyed correctly — there is no stranding window.
+    // in the right folder AND keyed correctly. There is no stranding window.
 
     updateStatus(id, "done", 100, "Done");
-    patchMeta(id, { resume: undefined }); // complete — nothing to resume
+    patchMeta(id, { resume: undefined }); // complete, nothing to resume
     clearPersistedResume(file); // drop the cross-session resume record
 
     // Optimistic completion: materialize the row in the explorer immediately
-    // (the debounced refetch reconciles). Fresh uploads only — a resumed run's
+    // (the debounced refetch reconciles). Fresh uploads only, a resumed run's
     // size bookkeeping covers only the chunks IT sent, so its row would carry
     // wrong compressed/encrypted sizes; the refresh covers it instead.
     if (!wasResumed && fileSha256) {
@@ -1078,7 +1078,7 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
     debouncedRefresh(onRefresh);
   } catch (err) {
     if (isPauseError(err)) {
-      // Paused mid-run (e.g. during init/backoff) — this is a stop, not a failure.
+      // Paused mid-run (e.g. during init/backoff). This is a stop, not a failure.
       // A PausedError can only be raised by the run that owns the item (runs are
       // serialized by relaunchAfterPrior), so the token half of this check is an
       // invariant rather than a branch a test can drive.
@@ -1092,21 +1092,21 @@ async function uploadOneFile(file: File, id: string, opts: UploadFileOpts): Prom
       ? "No storage platform connected. Go to Settings to connect one."
       : msg;
     if (isCurrentRun()) setError(id, friendlyMsg);
-    // Deliberately do NOT cancel the session here — keeping it lets the user
+    // Deliberately do NOT cancel the session here: keeping it lets the user
     // resume via Retry (skipping chunks already uploaded). The session is
     // cancelled only when the user dismisses the item (removeFromQueue).
   } finally {
-    // Batch-shared pools outlive this file — startUpload terminates them once
+    // Batch-shared pools outlive this file, startUpload terminates them once
     // the whole batch settles. Only tear down a pool this call created.
     if (ownsPool) pool.terminate();
   }
 }
 
 /** Adopt a server-resumed session: unwrap ITS stored envelope (our fresh CEK is
- *  irrelevant — the staged chunks were encrypted with the original key) and
+ *  irrelevant: the staged chunks were encrypted with the original key) and
  *  take its chunk size / platform. Returns undefined when the envelope won't
  *  unwrap with this passphrase or the chunk size is unrecoverable (pre-upgrade
- *  sessions) — the caller then restarts on the session's platform. */
+ *  sessions): the caller then restarts on the session's platform. */
 async function adoptServerSession(
   session: {
     session_id: string;
@@ -1152,7 +1152,7 @@ function launchRun(file: File, id: string, opts: UploadFileOpts): Promise<void> 
   acquireWakeLock();
   const p = uploadOneFile(file, id, opts).finally(releaseWakeLock);
   // patchMeta (not a get + guarded assign) so the promise is recorded even if no
-  // meta entry exists yet — resume/retry await it to stop two runs racing, and
+  // meta entry exists yet: resume/retry await it to stop two runs racing, and
   // silently skipping it would let them overlap.
   patchMeta(id, { runPromise: p });
   return p;
@@ -1201,8 +1201,8 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
   },
 
   updateStatus: (id, status, progress, stage, bytesProcessed, totalBytes, rateBps) => {
-    // A paused item accepts only pause/terminal writes. Anything else — a
-    // straggling in-flight emit, an SSE event from the backend — must not flip
+    // A paused item accepts only pause/terminal writes. Anything else, a
+    // straggling in-flight emit, an SSE event from the backend, must not flip
     // it back to "uploading" (that was how pause visibly undid itself).
     if (pausedIds.has(id) && status !== "paused" && status !== "failed" && status !== "done")
       return;
@@ -1229,13 +1229,13 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
       }));
       return;
     }
-    // Batch intermediate progress — one render per frame
+    // Batch intermediate progress, one render per frame
     pendingUpdates.set(id, { status, progress, stage, bytesProcessed, totalBytes, rateBps });
     scheduleFlush();
   },
 
   setError: (id, error) => {
-    // Sets "failed" directly, bypassing updateStatus's throttle — so it must
+    // Sets "failed" directly, bypassing updateStatus's throttle, so it must
     // also purge any still-queued progress write for this id, the same way
     // updateStatus's own terminal branch does. Otherwise a requestAnimationFrame
     // flush already scheduled from the last progress tick lands AFTER this and
@@ -1250,16 +1250,16 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
   },
 
   removeFromQueue: (id) => {
-    // DESTRUCTIVE — the explicit "Cancel/Discard" path. Aborts any in-flight
+    // DESTRUCTIVE, the explicit "Cancel/Discard" path. Aborts any in-flight
     // chunks, cancels the session server-side (deletes staged data) and drops
     // the resume record, so the upload is intentionally, permanently gone. Must
-    // ONLY be reached from an explicit Cancel button — never from swipe/dismiss
+    // ONLY be reached from an explicit Cancel button, never from swipe/dismiss
     // (that's dismissUpload).
     const meta = itemMeta.get(id);
     meta?.abort?.abort();
     // Desktop items run inside the in-process core (no AbortController); signal
     // the shell to cancel the in-flight core transfer by its transfer id (= the
-    // queue id). Best-effort and fire-and-forget — the core aborts at the next
+    // queue id). Best-effort and fire-and-forget: the core aborts at the next
     // chunk boundary.
     if (meta?.desktopPath) {
       void import("@/lib/tauri").then(({ cancelTransfer }) => cancelTransfer(id).catch(() => {}));
@@ -1277,7 +1277,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
   },
 
   dismissUpload: (id) => {
-    // NON-destructive — just clears the row from the transfer dock. Stops the
+    // NON-destructive: just clears the row from the transfer dock. Stops the
     // local run (no point uploading into a row that no longer exists) but
     // leaves the server session ALIVE and keeps the resume record, so an
     // interrupted or failed upload stays recoverable in the unfinished-uploads
@@ -1307,7 +1307,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
     const { addBatchToQueue } = get();
     const profile = getDeviceProfile();
 
-    // Per-file size cap — reject oversized files up front, keep the rest.
+    // Per-file size cap: reject oversized files up front, keep the rest.
     const tooBig = files.filter((f) => f.size > MAX_UPLOAD_BYTES);
     if (tooBig.length > 0) {
       files = files.filter((f) => f.size <= MAX_UPLOAD_BYTES);
@@ -1324,7 +1324,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
 
     // Effective file-level concurrency. This is NETWORK-bound, not CPU-bound, so
     // it's driven by recommendedUploadConcurrency (batch median size + network),
-    // NOT the CPU tier's maxConcurrentUploads — tying it to CPU/RAM made phones
+    // NOT the CPU tier's maxConcurrentUploads: tying it to CPU/RAM made phones
     // crawl at 1-2 parallel files even on fast Wi-Fi, so a 100-photo batch ran as
     // ~50-100 sequential rounds each paying fixed init/complete RTTs. The median-
     // based rule also stops one big file in a photo batch from serializing the
@@ -1339,7 +1339,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
     // Add all files to queue in a single state update (prevents 10k re-renders)
     const items = addBatchToQueue(files);
     // The platform is the USER'S pick (or undefined = Auto, which the server
-    // resolves — Telegram first). There is deliberately no size-based re-route
+    // resolves. Telegram first). There is deliberately no size-based re-route
     // any more: the old "large files → HuggingFace" nudge silently overrode the
     // picker, capped big files to HF's small real quota, and broke resume by
     // switching platforms. `folderId` is the destination folder (the current
@@ -1372,10 +1372,10 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
     });
 
     // Launch all uploads with concurrency control, show summary when done.
-    // BATCH AMORTIZATION: derive ONE KEK (PBKDF2 600k iterations — the single
+    // BATCH AMORTIZATION: derive ONE KEK (PBKDF2 600k iterations, the single
     // most expensive CPU step) and spin up ONE worker pool (workers + zstd WASM
     // init) for the whole batch, instead of once per file. Both are shared by
-    // every uploadOneFile call and torn down when the batch settles — the
+    // every uploadOneFile call and torn down when the batch settles, the
     // finally runs even if setup or an upload throws. uploadOneFile catches its
     // own per-file errors (setError), so Promise.all settles when all files do.
     void (async () => {
@@ -1407,7 +1407,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
         stopBackgroundNotifications();
       }
 
-      // Batch complete — show a single summary toast
+      // Batch complete: show a single summary toast
       const { queue } = get();
       const batchItems = queue.filter((q) => batchIds.has(q.id));
       const doneCount = batchItems.filter((i) => i.status === "done").length;
@@ -1415,7 +1415,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
       const pausedCount = batchItems.filter((i) => i.status === "paused").length;
       const total = batchItems.length;
 
-      // If any item is paused, the batch isn't truly finished — suppress the
+      // If any item is paused, the batch isn't truly finished, suppress the
       // summary toast. Resuming re-runs uploadOneFile (via resumeUpload), and the
       // user will see the per-item completion in the transfer manager.
       if (pausedCount === 0) {
@@ -1439,10 +1439,10 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
     const item = get().queue.find((i) => i.id === id);
     if (!item) return;
     const meta = itemMeta.get(id);
-    // Desktop-core item: NEVER route into the web pipeline — item.file is a
+    // Desktop-core item: NEVER route into the web pipeline, item.file is a
     // 0-byte placeholder, so the web path inits with size 0 and fails with the
     // backend's "a name (filename or encrypted_name), original_size, … required"
-    // 400. Re-drive the streaming core instead — it auto-resumes from whatever
+    // 400. Re-drive the streaming core instead, it auto-resumes from whatever
     // chunks the backend already has, re-streaming only the missing ones.
     if (meta?.desktopPath) {
       const desktopPath = meta.desktopPath;
@@ -1455,7 +1455,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
         ),
       }));
       void (async () => {
-        // Scoped progress subscription for just this retry — startDesktopUpload's
+        // Scoped progress subscription for just this retry, startDesktopUpload's
         // subscription already unlistened once its original batch finished, so
         // without this a retry would show no live movement at all.
         const { sidecarUpload, subscribeProgress } = await import("@/lib/tauri");
@@ -1493,7 +1493,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
     }
     // Reset the existing item in place (keeps its id, so its resume context in
     // itemMeta still applies and the upload continues from where it failed).
-    // Progress/bytes are KEPT — a retry continues, so the bar must not snap to 0.
+    // Progress/bytes are KEPT: a retry continues, so the bar must not snap to 0.
     set((state) => ({
       queue: state.queue.map((i) =>
         i.id === id
@@ -1520,12 +1520,12 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
   // on the wire (the upload-session wrappers take an AbortSignal now). The
   // server session + resume context (CEK, sessionId) stay untouched, so
   // resumeUpload continues from the server's uploaded_chunks. We do NOT call
-  // cancelUpload — that's the "give up" path (removeFromQueue).
+  // cancelUpload: that's the "give up" path (removeFromQueue).
   pauseUpload: (id) => {
     const item = get().queue.find((i) => i.id === id);
     if (!item) return;
     // Desktop-core items can't pause: the Rust core's sync has no pause and
-    // "pausing" here only froze the UI row while the core kept working — then
+    // "pausing" here only froze the UI row while the core kept working, then
     // any later status write made it look failed. The pause control is hidden
     // for these rows; this guard covers any stray caller.
     if (itemMeta.get(id)?.desktopPath) return;
@@ -1538,13 +1538,13 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
 
   // Resume a paused upload. Clears the paused flag, waits for the previous run
   // to fully settle (its aborted chunks reject quickly), then re-runs
-  // uploadOneFile — which reads itemMeta[id].resume and continues from
+  // uploadOneFile: which reads itemMeta[id].resume and continues from
   // getUploadStatus's uploaded_chunks on the ORIGINAL platform, re-encrypting
   // only the remaining chunks with the SAME CEK.
   resumeUpload: (id, passphrase) => {
     const item = get().queue.find((i) => i.id === id);
     if (!item) return;
-    // Desktop-core item: same routing rule as retryUpload — never the web
+    // Desktop-core item: same routing rule as retryUpload, never the web
     // pipeline. retryUpload's desktop branch re-drives the core correctly.
     if (itemMeta.get(id)?.desktopPath) {
       pausedIds.delete(id);
@@ -1578,16 +1578,16 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
       .map((i) => i.id),
 
   // Desktop-only: encrypts locally via the in-process core. No browser File
-  // objects, no IPC data transfer — the core reads from disk path.
+  // objects, no IPC data transfer: the core reads from disk path.
   //
   // `preSelectedPaths`: the dropzone (upload-zone.tsx) opens the native picker
   // itself before calling into the vault action chain, so the SAME dialog
-  // result reaches here — we must not open a second one. Two native "Open"
+  // result reaches here. We must not open a second one. Two native "Open"
   // dialogs stacking back-to-back on the first click (one from this function
   // re-picking, one from the dropzone) look identical, so the one that
   // actually mattered got missed on the first attempt: the toast fired
-  // ("Preparing…") but nothing was ever attached, and only the retry — which
-  // landed on a since-settled dialog stack — worked. Falls back to opening the
+  // ("Preparing…") but nothing was ever attached, and only the retry, which
+  // landed on a since-settled dialog stack, worked. Falls back to opening the
   // picker here only when no paths were supplied (e.g. a direct/legacy call).
   startDesktopUpload: async (passphrase, onRefresh, preSelectedPaths, platform) => {
     const { addToQueue, updateStatus, setError } = get();
@@ -1608,7 +1608,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
     // file name against the currently-uploading item as a best effort; if
     // several queued items share a name, only the most recently touched one
     // will reflect live progress. Good enough for the common single/few-file
-    // case — see the shared command contract note on zcrypt://progress.
+    // case. See the shared command contract note on zcrypt://progress.
     const unlisten = await subscribeProgress((progress) => {
       const state = get();
       const item = state.queue.find(
@@ -1633,7 +1633,7 @@ export const useUploadStore = create<UploadStore>((set, get) => ({
     try {
       for (const filePath of paths) {
         // Last path segment, falling back to the whole path when there isn't one
-        // (a trailing slash yields an empty segment — showing the full path in the
+        // (a trailing slash yields an empty segment: showing the full path in the
         // queue row beats showing a blank name).
         const segments = filePath.split("/");
         const fileName = segments[segments.length - 1] || filePath;

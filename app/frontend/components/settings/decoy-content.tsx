@@ -117,7 +117,7 @@ export function DecoyContent() {
       if (cancelled) return;
       setDecoyKey(key);
       setNames(opened);
-      // Legacy plaintext decoy names: seal them now that we hold the key — but
+      // Legacy plaintext decoy names: seal them now that we hold the key, but
       // only once this password is proven right against an existing sealed name
       // (or there are none yet), so a typo can't seal names under a wrong key.
       const sealed = files.filter((f) => isSealed(f.original_name));
@@ -200,7 +200,7 @@ export function DecoyContent() {
       <PageHeader
         eyebrow="Privacy"
         title="Plausible deniability"
-        description="Set a decoy password that reveals a fake vault when used — for journalists, activists, and border crossings."
+        description="Set a decoy password that reveals a fake vault when used: for journalists, activists, and border crossings."
       />
 
       {/* Setup / Status */}
@@ -225,8 +225,8 @@ export function DecoyContent() {
           {!configured ? (
             <div className="space-y-4">
               <p className="text-xs leading-relaxed text-[var(--color-text-muted)]">
-                Set a decoy password. When someone forces you to log in, use this password instead —
-                they will see fake files rather than your real vault.
+                Set a decoy password. When someone forces you to log in, use this password instead.
+                They will see fake files rather than your real vault.
               </p>
               <Input
                 type="password"
@@ -320,13 +320,13 @@ export function DecoyContent() {
                         label="Decoy password"
                         value={decoyKeyPass}
                         onChange={(e) => setDecoyKeyPass(e.target.value)}
-                        placeholder="Needed to seal file names — never sent to the server"
+                        placeholder="Needed to seal file names, never sent to the server"
                         autoComplete="off"
                       />
                       {decoyKey && !keyProven && (
                         <p className="text-xs text-red-600 dark:text-red-400">
-                          That password doesn&apos;t open your existing decoy files — check it
-                          before adding more.
+                          That password doesn&apos;t open your existing decoy files. Check it before
+                          adding more.
                         </p>
                       )}
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -411,7 +411,7 @@ export function DecoyContent() {
         <Section title="How it works">
           <ol className="space-y-2.5">
             {[
-              "Set a decoy password — different from your real password.",
+              "Set a decoy password: different from your real password.",
               "Add innocent-looking fake files to the decoy vault.",
               "If forced to log in, use the decoy password instead.",
               "The attacker sees the fake files; your real vault stays hidden.",

@@ -8,13 +8,13 @@
       "at": "2026-09-12T09:51:10Z",
       "old_project_id": "royal-mud-98972458",
       "new_project_id": "snowy-bonus-50199348",
-      "note": "LIVE END-TO-END TEST of the rotation pipeline (crit_pct=20, real prod data, 30/167/1191/35 rows verified identical on the new project) — cutover succeeded. Manually reverted back to royal-mud-98972458 immediately after (see 2026-09-12T10:1x entry) since the test's purpose was proving the mechanism works, not actually migrating off a healthy project."
+      "note": "LIVE END-TO-END TEST of the rotation pipeline (crit_pct=20, real prod data, 30/167/1191/35 rows verified identical on the new project), cutover succeeded. Manually reverted back to royal-mud-98972458 immediately after (see 2026-09-12T10:1x entry) since the test's purpose was proving the mechanism works, not actually migrating off a healthy project."
     },
     {
       "at": "2026-09-12T10:15:00Z",
       "old_project_id": "snowy-bonus-50199348",
       "new_project_id": "royal-mud-98972458",
-      "note": "Manual revert after the test above: DATABASE_URL set back to royal-mud-98972458, redeployed, health-gated (200 + canary read), row counts re-confirmed unchanged. snowy-bonus-50199348 deleted — see docs/DB_SCALING_100_PROJECTS.md history."
+      "note": "Manual revert after the test above: DATABASE_URL set back to royal-mud-98972458, redeployed, health-gated (200 + canary read), row counts re-confirmed unchanged. snowy-bonus-50199348 deleted. See docs/DB_SCALING_100_PROJECTS.md history."
     }
   ]
 }

@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Encrypted Pad | zcrypt Docs",
     description:
-      "Share a one-time encrypted note — encrypted in your browser, expiring on a schedule, optionally readable only once.",
+      "Share a one-time encrypted note: encrypted in your browser, expiring on a schedule, optionally readable only once.",
     url: `${SITE_URL}/docs/pad`,
   },
 };
@@ -30,14 +30,14 @@ export default function PadDocPage() {
     <DocPage
       href="/docs/pad"
       title="Encrypted Pad"
-      description="Send a snippet of text — a password, a note, a paste — that's encrypted in your browser and can be set to self-destruct after a single read. Think of it as an encrypted, expiring pastebin."
+      description="Send a snippet of text (a password, a note, a paste) that's encrypted in your browser and can be set to self-destruct after a single read. Think of it as an encrypted, expiring pastebin."
       toc={toc}
     >
       <DocSection id="what" title="What a Pad is">
         <DocP>
           A Pad is a short-lived, encrypted note. You type or paste text, zcrypt encrypts it on your
           device, and you get a link to share. It&rsquo;s the right tool when you need to pass along
-          something sensitive in text form — credentials, a recovery phrase, a private message —
+          something sensitive in text form: credentials, a recovery phrase, a private message,
           without leaving it sitting in a chat log or email forever.
         </DocP>
       </DocSection>
@@ -45,7 +45,7 @@ export default function PadDocPage() {
       <DocSection id="how" title="How it works">
         <DocP>
           The text is encrypted in your browser before upload. The server receives and stores{" "}
-          <strong>only the ciphertext</strong> — it has no way to read what you wrote. When the
+          <strong>only the ciphertext</strong>. It has no way to read what you wrote. When the
           recipient opens the link, the ciphertext is fetched and decrypted locally in their
           browser.
         </DocP>
@@ -62,7 +62,7 @@ export default function PadDocPage() {
         <DocList
           items={[
             <>
-              <strong>Size:</strong> up to about <strong>1 MB</strong> of text — ample for notes,
+              <strong>Size:</strong> up to about <strong>1 MB</strong> of text, ample for notes,
               keys, and pastes, but not for files. For files, use{" "}
               <Link href="/docs/send" className="text-cyan-600 hover:underline dark:text-cyan-400">
                 Anonymous Send
@@ -86,8 +86,8 @@ export default function PadDocPage() {
       </DocSection>
 
       <DocSection id="privacy" title="Privacy and what we log">
-        <DocNote type="security" title="What's private — and what isn't">
-          The note&rsquo;s contents stay private — the server only ever stores ciphertext. For abuse
+        <DocNote type="security" title="What's private, and what isn't">
+          The note&rsquo;s contents stay private: the server only ever stores ciphertext. For abuse
           prevention, the <strong>creator&rsquo;s IP address is recorded</strong> alongside the Pad.
           If that matters to you, create the Pad from a network you&rsquo;re comfortable being
           associated with.
@@ -102,14 +102,14 @@ export default function PadDocPage() {
               href="/docs/send"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Anonymous Send — share a file instead of text
+              Anonymous Send: share a file instead of text
             </Link>,
             <Link
               key="b"
               href="/docs/sync-transfer"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Sync &amp; device transfer — push text and links to your own devices
+              Sync &amp; device transfer: push text and links to your own devices
             </Link>,
           ]}
         />

@@ -34,7 +34,7 @@ import { useToggleFullscreen } from "@/hooks/useToggleFullscreen";
 import type { FileMetadata } from "@/types";
 
 /**
- * ── <FileViewer> — PUBLIC INTERFACE ──────────────────────────────────────────
+ * ── <FileViewer>: PUBLIC INTERFACE ──────────────────────────────────────────
  *
  *   <FileViewer
  *     open={boolean}                         // mount/show the overlay
@@ -50,20 +50,20 @@ import type { FileMetadata } from "@/types";
  * entirely in-browser:
  *   • Header: filename + type label, Fullscreen toggle (Fullscreen API on the
  *     overlay element), Download (re-decrypts if needed), Close.
- *   • Prev/Next across `files` (clamped) with a "3 / 18" counter — drives
+ *   • Prev/Next across `files` (clamped) with a "3 / 18" counter: drives
  *     `onIndexChange`. Audio/video also expose a playlist of the other media
  *     files that calls `onIndexChange`.
  *   • Keyboard: Esc closes (exits fullscreen first if active), ←/→ prev/next,
  *     `f` toggles fullscreen. Focus is trapped inside the dialog and restored to
  *     the previously-focused element on close. role="dialog" + aria-modal.
  *   • Per-type rendering via `viewerKindFor`: image / video / audio / pdf / docx
- *     / html / markdown / csv / text — DOMPurify sanitization + a sandboxed
+ *     / html / markdown / csv / text: DOMPurify sanitization + a sandboxed
  *     (script-less) HTML iframe live in the sub-viewers. Unknown → fallback card.
  *   • Loading spinner while decrypting; error state with Retry + Download; wrong
  *     password is surfaced (the decryptor re-prompts via the existing flow).
  *   • Blob object URLs are created lazily and revoked on file change / close.
  *
- * The component owns NO decryption logic itself — it delegates to `decrypt`,
+ * The component owns NO decryption logic itself: it delegates to `decrypt`,
  * keeping zero-knowledge concerns in useFileDecryptor.
  * ─────────────────────────────────────────────────────────────────────────────
  */
@@ -109,14 +109,14 @@ const FOCUSABLE =
   'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
 type LoadState =
-  // `done`/`total` are chunk counts from the decrypt pipeline — undefined until
+  // `done`/`total` are chunk counts from the decrypt pipeline, undefined until
   // the first chunk lands (metadata / key derivation still in flight).
   | { status: "loading"; done?: number; total?: number }
   | { status: "ready"; blob: Blob }
   | { status: "error"; kind: "wrong-password" | "integrity" | "generic"; message: string }
   | { status: "cancelled" }
   // Non-previewable type (archive, binary, …): intentionally NOT decrypted on
-  // open — the download card is shown instead, and Download decrypts on demand.
+  // open: the download card is shown instead, and Download decrypts on demand.
   | { status: "skipped" };
 
 export function FileViewer({
@@ -130,7 +130,7 @@ export function FileViewer({
   onWrongPassword,
 }: FileViewerProps) {
   const file = files[index];
-  // Cached thumbnail (if any) for the current image — drives the instant blurred
+  // Cached thumbnail (if any) for the current image, drives the instant blurred
   // placeholder while the full file decrypts (LQIP). Null for non-images.
   const { thumbnailUrl } = useThumbnail(file?.id ?? "", file?.original_name ?? "");
   const [state, setState] = useState<LoadState>({ status: "loading" });
@@ -143,7 +143,7 @@ export function FileViewer({
   const blobUrlRef = useRef<string | null>(null);
   // Latest `decrypt` without making it an effect dependency: the prop's identity
   // changes on most renders (it closes over the non-memoized folderProtection),
-  // and keying the decrypt effect on it would restart the decrypt every render —
+  // and keying the decrypt effect on it would restart the decrypt every render:
   // leaving the viewer stuck "loading" and spawning overlapping decrypt runs.
   const decryptRef = useRef(decrypt);
   decryptRef.current = decrypt;
@@ -173,7 +173,7 @@ export function FileViewer({
 
     // Non-previewable types have no in-browser viewer, so decrypting on open
     // would grind through the entire file (hundreds of chunks for a large .zip)
-    // only to land on the "No preview available" card. Skip it — the download
+    // only to land on the "No preview available" card. Skip it, the download
     // action decrypts on demand instead.
     if (viewerKindFor(file.original_name) === "fallback") {
       setState({ status: "skipped" });
@@ -220,7 +220,7 @@ export function FileViewer({
         }
         if (err instanceof WrongPasswordError) {
           // Clear the wrong cached password (via the consumer) so Retry re-prompts
-          // instead of reusing it forever — the vault unlock has no verifier.
+          // instead of reusing it forever: the vault unlock has no verifier.
           onWrongPasswordRef.current?.(err.folderId);
           setState({
             status: "error",
@@ -233,7 +233,7 @@ export function FileViewer({
           setState({
             status: "error",
             kind: "integrity",
-            message: "File integrity check failed — the file may be corrupted.",
+            message: "File integrity check failed: the file may be corrupted.",
           });
           return;
         }
@@ -249,7 +249,7 @@ export function FileViewer({
       cancelled = true;
     };
     // Keyed on the file IDENTITY (id) + retry, NOT on `decrypt` (unstable each
-    // render) — so the decrypt runs once per opened file, not on every render.
+    // render), so the decrypt runs once per opened file, not on every render.
     // `files`/`index` are read for prefetch but intentionally omitted: the effect
     // already re-runs on every navigation (file.id changes), so they're current.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -350,7 +350,7 @@ export function FileViewer({
         const last = focusable[focusable.length - 1];
         const active = document.activeElement as HTMLElement | null;
         const inside = !!active && node.contains(active) && active !== node;
-        // Focus sitting on the overlay itself (or escaped) — pull it back in.
+        // Focus sitting on the overlay itself (or escaped), pull it back in.
         if (!inside) {
           e.preventDefault();
           (e.shiftKey ? last : first).focus();
@@ -537,13 +537,13 @@ function ViewerBody({
 
   if (state.status === "loading") {
     // For an image with a cached thumbnail, show it blurred immediately (instead
-    // of a bare spinner) so the decrypt wait feels instant — it then crossfades
+    // of a bare spinner) so the decrypt wait feels instant, it then crossfades
     // to the full image once ready (see ImageViewer's placeholderUrl).
     if (kind === "image" && thumbnailUrl) {
       return (
         <div className="relative flex h-full w-full items-center justify-center overflow-hidden">
           {/* Blurred cached thumbnail (data:/blob:) shown while the full image
-              decrypts — unoptimized via next.config; `fill` covers the box. */}
+              decrypts: unoptimized via next.config; `fill` covers the box. */}
           <NextImage
             src={thumbnailUrl}
             alt=""
@@ -661,7 +661,7 @@ function ViewerBody({
  * Progressive decrypt indicator. Multi-chunk files get a determinate bar with
  * "X/Y · NN%" that fills as chunks land (total is seeded from chunk_count, so it
  * appears immediately). A single large chunk has no sub-progress, so it shows an
- * indeterminate sweeping bar instead of a frozen 0% — the wait still feels alive.
+ * indeterminate sweeping bar instead of a frozen 0%: the wait still feels alive.
  */
 function DecryptProgress({ done, total }: { done?: number; total?: number }) {
   const reduce = useReducedMotion() ?? false;

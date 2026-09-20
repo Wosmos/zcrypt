@@ -1,14 +1,14 @@
 /**
- * Single source of truth for storage-platform metadata — display names, short
+ * Single source of truth for storage-platform metadata: display names, short
  * codes, brand colors, capacities, and connection details (token URLs, scopes,
  * placeholders). Previously this data was redeclared across onboarding,
  * settings, rate-limits, admin token management, and several analytics/marketing
- * panels — each copy drifting on capacity numbers and wording. Everything now
+ * panels: each copy drifting on capacity numbers and wording. Everything now
  * derives from the one `PLATFORMS` array below.
  *
  * NOTE: marketing display data (generic geometric icons + precise platform
  * thresholds, e.g. "850 MB / repo") lives separately in
- * components/marketing/landing/storage-platforms.ts — it deliberately uses a
+ * components/marketing/landing/storage-platforms.ts: it deliberately uses a
  * different visual language and precise threshold numbers, and is derived from
  * the canonical ids/names here.
  */
@@ -30,7 +30,7 @@ export interface PlatformMeta {
   scope: string;
   /** Short capacity blurb for platform pickers, e.g. "Up to 1 GB per repo". */
   tagline: string;
-  /** Long connect-form blurb, e.g. "Personal access token with repo scope — …". */
+  /** Long connect-form blurb, e.g. "Personal access token with repo scope, …". */
   description: string;
   /** Per-repo capacity for quota tables, e.g. "1 GB / repo" or "Unlimited". */
   capacity: string;
@@ -57,7 +57,7 @@ export const PLATFORMS: PlatformMeta[] = [
     tagline: "Large repos · 100 MiB per file",
     description: "Personal access token with repo scope",
     // Values below are GitHub's REAL documented limits, not zcrypt's internal
-    // rotation threshold (850 MB, in backend config) — that safety margin is
+    // rotation threshold (850 MB, in backend config), that safety margin is
     // surfaced separately in the Storage pool panel.
     // GitHub recommends repos stay ~10 GB on disk but enforces no hard repo cap.
     capacity: "10 GB / repo (recommended; no hard cap)",
@@ -88,7 +88,7 @@ export const PLATFORMS: PlatformMeta[] = [
     // upload limit, not a git push limit.
     fileLimit: "5 GiB / push (no per-file cap)",
     // GitLab.com authenticated API limit is 2k req/min per user. (7,200/hr was
-    // the self-managed default, which GitLab.com overrides — ~16x too low.)
+    // the self-managed default, which GitLab.com overrides, ~16x too low.)
     rateInfo: "2k req / min (authenticated)",
     placeholder: "glpat-xxxxxxxxxxxx",
     tokenUrl: "https://gitlab.com/-/user_settings/personal_access_tokens?name=zcrypt&scopes=api",
@@ -110,7 +110,7 @@ export const PLATFORMS: PlatformMeta[] = [
     // HuggingFace genuinely uploads via LFS. Hard per-file limit is 500 GB
     // (200 GB recommended); ≤10k files per folder.
     fileLimit: "500 GB / file (LFS; 200 GB rec.)",
-    // HF enforces ~128 commits/hour — hit empirically during a bulk delete (each
+    // HF enforces ~128 commits/hour: hit empirically during a bulk delete (each
     // upload/delete is one commit), even though HF deliberately does NOT publish
     // this number. This is the limit that actually gates zcrypt's bulk ops; the
     // documented per-5-min request buckets (1k API req/5 min free) rarely bind.
@@ -127,8 +127,8 @@ export const PLATFORMS: PlatformMeta[] = [
     iconClass: "text-sky-500 dark:text-sky-400",
     scope: "bot token + channel",
     tagline: "Unlimited storage via channels",
-    description: "Bot token + channel — guided setup, unlimited storage",
-    // Telegram channels have no storage cap — zcrypt's per-channel rotation
+    description: "Bot token + channel, guided setup, unlimited storage",
+    // Telegram channels have no storage cap, zcrypt's per-channel rotation
     // threshold is a virtual housekeeping value, not a platform limit.
     capacity: "Unlimited",
     fileLimit: "Unlimited (chunked)",
@@ -166,7 +166,7 @@ export function platformName(id: string): string {
 }
 
 /**
- * Parse a Telegram `"BOT_TOKEN|CHAT_ID"` token into its parts — mirrors the
+ * Parse a Telegram `"BOT_TOKEN|CHAT_ID"` token into its parts: mirrors the
  * backend's split in `NewTelegramAdapter` (adapters/telegram.go: SplitN at the
  * FIRST `|` only). Needed because the desktop keychain stores Telegram creds
  * as two separate fields (`platform.telegram.token` / `.account`, read by

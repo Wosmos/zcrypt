@@ -274,7 +274,7 @@ export function CircuitBackground() {
   if (!mounted) return null;
 
   // Colors come from --circuit-* vars (light/dark in globals.css) so a theme
-  // flip never re-renders this SVG — the View Transition in the theme provider
+  // flip never re-renders this SVG: the View Transition in the theme provider
   // covers the color change, hence no transition-colors on the wrapper either.
   return (
     <div className="fixed inset-0 -z-50 overflow-hidden pointer-events-none bg-[var(--color-bg)]">

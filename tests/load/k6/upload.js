@@ -57,7 +57,7 @@ function strToBytes(s) {
 }
 
 export function setup() {
-  // Register (ignore conflict — server returns 200 but no token, so we always login after)
+  // Register (ignore conflict: server returns 200 but no token, so we always login after)
   http.post(
     `${BASE_URL}/api/auth/register`,
     JSON.stringify({ email: TEST_EMAIL, password: TEST_PASSWORD, username: "loadtest_upload" }),

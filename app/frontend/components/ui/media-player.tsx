@@ -49,7 +49,7 @@ function coverGradient(seed: string): string {
 
 // Session-persisted playback settings. The player remounts on every track
 // switch (keyed by src, so old blob URLs are revoked cleanly), which would
-// otherwise reset volume/speed/loop to defaults each time — so we carry the
+// otherwise reset volume/speed/loop to defaults each time, so we carry the
 // user's last choices onto the next track within the session.
 let lastVolume = 1;
 let lastSpeed = 1;
@@ -77,7 +77,7 @@ function useMediaController() {
   const [ready, setReady] = useState(false);
   const [scrubbing, setScrubbing] = useState(false);
   // True when the browser can't decode this source (unsupported codec/container
-  // for a recognised-but-unplayable format) — the skin swaps to a Download panel.
+  // for a recognised-but-unplayable format): the skin swaps to a Download panel.
   const [error, setError] = useState(false);
   const [loop, setLoop] = useState(lastLoop);
 
@@ -569,7 +569,7 @@ function AudioPlayer({
         <MediaErrorFallback src={src} filename={filename} kind="audio" />
       ) : (
         <>
-          {/* Album cover — a default gradient (audio has no real thumbnail), with
+          {/* Album cover: a default gradient (audio has no real thumbnail), with
           an equalizer that dances while playing. Deliberately unlike the
           video's black cinematic frame. */}
           <div className="flex flex-col items-center gap-5 py-4">
@@ -706,7 +706,7 @@ function VideoPlayer({
   const containerRef = useRef<HTMLDivElement>(null);
   const [showControls, setShowControls] = useState(true);
   // Intrinsic aspect ratio (w/h) read from the decoded video, so the frame hugs
-  // the real shape — portrait (9:16), square (1:1), landscape (16:9) — instead
+  // the real shape (portrait (9:16), square (1:1), landscape (16:9)) instead
   // of floating pillarboxed in a fixed landscape box. Null until metadata loads.
   const [aspect, setAspect] = useState<number | null>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -901,7 +901,7 @@ function TimeReadoutLight({ current, duration }: { current: number; duration: nu
 export interface MediaPlayerProps {
   /** Object URL (or any playable src) for the decrypted media blob. */
   src: string;
-  /** Original filename — used as the audio title. */
+  /** Original filename: used as the audio title. */
   filename: string;
   /** MIME type of the media (used to pick the audio vs video skin). */
   mime?: string;
@@ -909,7 +909,7 @@ export interface MediaPlayerProps {
   kind?: "audio" | "video";
   /** Optional still frame (the cached grid thumbnail) shown before video play. */
   poster?: string;
-  /** Playlist navigation — go to the previous / next track (undefined at ends). */
+  /** Playlist navigation: go to the previous / next track (undefined at ends). */
   onPrev?: () => void;
   onNext?: () => void;
 }

@@ -3,7 +3,7 @@
  *
  * Runs `worker(0..count-1)` with at most `limit` in flight, pulling indices off a
  * shared queue. Aborts promptly (before starting the next index) when `signal`
- * fires, throwing an AbortError so callers treat it as a cancel — not a transient
+ * fires, throwing an AbortError so callers treat it as a cancel, not a transient
  * failure.
  *
  * Note: this is the plain all-or-throw fan-out used by the public share / bulk

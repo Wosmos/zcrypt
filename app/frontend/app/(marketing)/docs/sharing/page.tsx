@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Share links | zcrypt Docs",
     description:
-      "Share a file with an optional password, expiry, and download limit — the decryption key stays in the link fragment, never on the server.",
+      "Share a file with an optional password, expiry, and download limit: the decryption key stays in the link fragment, never on the server.",
     url: `${SITE_URL}/docs/sharing`,
   },
 };
@@ -39,7 +39,7 @@ export default function SharingDocPage() {
     <DocPage
       href="/docs/sharing"
       title="Share links"
-      description="Hand a single file to someone with a link. zcrypt puts the decryption key in the part of the URL that never reaches our servers, so the share stays zero-knowledge — and you stay in control with optional passwords, expiry, limits, and instant revocation."
+      description="Hand a single file to someone with a link. zcrypt puts the decryption key in the part of the URL that never reaches our servers, so the share stays zero-knowledge, and you stay in control with optional passwords, expiry, limits, and instant revocation."
       toc={toc}
     >
       <DocSection id="create" title="Creating a share link">
@@ -67,9 +67,9 @@ export default function SharingDocPage() {
       <DocSection id="key-in-fragment" title="The key lives in the link, not on our servers">
         <DocP>
           Everything after the <code>#</code> is the URL <em>fragment</em>. Browsers never transmit
-          the fragment to the server — it stays in the address bar and is only readable by
-          JavaScript running on the page. zcrypt puts the share&rsquo;s decryption key there, so our
-          servers store only the token, the encrypted file, and a wrapped key they can never unwrap.
+          the fragment to the server: it stays in the address bar and is only readable by JavaScript
+          running on the page. zcrypt puts the share&rsquo;s decryption key there, so our servers
+          store only the token, the encrypted file, and a wrapped key they can never unwrap.
         </DocP>
         <DocNote type="security" title="What this means for you">
           Anyone with the full link can open the file, because the link itself carries the key.
@@ -142,7 +142,7 @@ export default function SharingDocPage() {
       <DocSection id="counter" title="About the download counter">
         <DocNote type="info" title="Honest note on counting">
           The download counter increments when a recipient&rsquo;s browser fetches the link&rsquo;s
-          file metadata — the step that precedes the actual chunk downloads. It is a close proxy for
+          file metadata: the step that precedes the actual chunk downloads. It is a close proxy for
           &ldquo;times opened,&rdquo; not a byte-exact count of completed downloads, so a page
           reload or an interrupted download can move the number. Keep that in mind if you set a
           tight download limit.
@@ -158,35 +158,35 @@ export default function SharingDocPage() {
               href="/docs/folder-sharing"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Share a folder — one public link for a whole folder
+              Share a folder: one public link for a whole folder
             </Link>,
             <Link
               key="a"
               href="/docs/send"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Anonymous Send — send a file with no account at all
+              Anonymous Send: send a file with no account at all
             </Link>,
             <Link
               key="b"
               href="/docs/pad"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Encrypted Pad — share a one-time encrypted note
+              Encrypted Pad: share a one-time encrypted note
             </Link>,
             <Link
               key="c"
               href="/docs/sync-transfer"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Sync &amp; device transfer — move data between your own devices
+              Sync &amp; device transfer: move data between your own devices
             </Link>,
             <Link
               key="e"
               href="/features/sharing"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Encrypted sharing — the feature tour
+              Encrypted sharing, the feature tour
             </Link>,
           ]}
         />

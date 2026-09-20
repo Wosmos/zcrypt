@@ -9,7 +9,7 @@ import { formatBytes, easeProgress } from "@/lib/utils";
 
 /**
  * Presentational shells shared by the public token viewers (s / send / pad).
- * These are pure chrome — every page keeps its own decrypt / key-derivation /
+ * These are pure chrome: every page keeps its own decrypt / key-derivation /
  * password / preview-type logic inline and only borrows the exact markup that
  * was byte-for-byte identical across pages. The folder viewer (app/f) has its
  * own bespoke card/loading/error markup and intentionally does not use these.
@@ -64,7 +64,7 @@ export function ViewerIncompleteLink() {
 }
 
 /** Icon + filename + size (with an optional preview-available badge) atop the
- *  credential/ready state — shared by every public token page. */
+ *  credential/ready state: shared by every public token page. */
 export function TokenFileHeader({
   fileName,
   fileSize,

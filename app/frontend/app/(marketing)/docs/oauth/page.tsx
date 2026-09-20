@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Sign in with Google or GitHub | zcrypt Docs",
     description:
-      "OAuth sign-in and sign-up with Google and GitHub, linking and unlinking providers, and the desktop sign-in flow — and why this is not the same as connecting GitHub as storage.",
+      "OAuth sign-in and sign-up with Google and GitHub, linking and unlinking providers, and the desktop sign-in flow, and why this is not the same as connecting GitHub as storage.",
     url: `${SITE_URL}/docs/oauth`,
   },
 };
@@ -29,7 +29,7 @@ export default function OAuthDocPage() {
     <DocPage
       href="/docs/oauth"
       title="Sign in with Google or GitHub"
-      description="Skip the password and authenticate to zcrypt with an identity you already have. OAuth covers signing in only — your files stay protected by your vault passphrase exactly as they would otherwise."
+      description="Skip the password and authenticate to zcrypt with an identity you already have. OAuth covers signing in only: your files stay protected by your vault passphrase exactly as they would otherwise."
       toc={toc}
     >
       <DocNote type="warning" title="Sign-in with GitHub ≠ GitHub as storage">
@@ -58,7 +58,7 @@ export default function OAuthDocPage() {
           OAuth sign-in answers one question: <em>who are you?</em> Where your encrypted data lives
           is a completely separate decision. You could sign in with Google and store chunks on
           GitHub, sign in with GitHub and store on HuggingFace, or sign in with a password and store
-          anywhere — the two choices never constrain each other.
+          anywhere: the two choices never constrain each other.
         </DocP>
       </DocSection>
 
@@ -71,16 +71,16 @@ export default function OAuthDocPage() {
         <DocList
           items={[
             <>
-              <strong>Already linked</strong> — if that provider account is tied to an existing
+              <strong>Already linked</strong>, if that provider account is tied to an existing
               zcrypt user, you&apos;re signed straight in.
             </>,
             <>
-              <strong>Matching email</strong> — if a zcrypt account already uses the provider&apos;s
+              <strong>Matching email</strong>, if a zcrypt account already uses the provider&apos;s
               email <em>and that email is verified</em>, the provider is auto-linked to it and
               you&apos;re signed in.
             </>,
             <>
-              <strong>New to zcrypt</strong> — otherwise a fresh account is created with a username
+              <strong>New to zcrypt</strong>: otherwise a fresh account is created with a username
               derived from your name or email, and a verified email. OAuth-only accounts have no
               password until you add one.
             </>,
@@ -99,14 +99,14 @@ export default function OAuthDocPage() {
       <DocSection id="linking" title="Linking & unlinking">
         <DocP>
           From your account settings you can see which providers are connected and link additional
-          ones. Linking lets you sign in to the same zcrypt account through more than one identity —
+          ones. Linking lets you sign in to the same zcrypt account through more than one identity:
           handy if you sometimes have Google handy and sometimes GitHub.
         </DocP>
         <DocP>
           You can unlink a provider just as easily, with one guardrail: zcrypt will not let you
           remove your <strong>last remaining sign-in method</strong>. If a provider is the only way
-          into your account, add a password or link a second provider before unlinking it —
-          otherwise you&apos;d lock yourself out.
+          into your account, add a password or link a second provider before unlinking it: otherwise
+          you&apos;d lock yourself out.
         </DocP>
         <DocNote type="info">
           Unlinking a provider only removes it as a way to sign in. It does not delete your zcrypt
@@ -130,7 +130,7 @@ export default function OAuthDocPage() {
         />
         <DocP>
           The session identifier must carry real entropy and each result is handed out exactly once,
-          then expires quickly — so the hand-off can&apos;t be guessed or replayed to capture your
+          then expires quickly, so the hand-off can&apos;t be guessed or replayed to capture your
           tokens. See{" "}
           <Link
             href="/docs/desktop-app"
@@ -150,21 +150,21 @@ export default function OAuthDocPage() {
               href="/docs/connect-storage"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Connect your storage — add GitHub, GitLab, Hugging Face, or Telegram as a backend
+              Connect your storage. Add GitHub, GitLab, Hugging Face, or Telegram as a backend
             </Link>,
             <Link
               key="b"
               href="/docs/authentication"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Authentication & 2FA — passwords, sessions, and two-factor
+              Authentication & 2FA, passwords, sessions, and two-factor
             </Link>,
             <Link
               key="c"
               href="/docs/recovery"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Account recovery — what is and isn&apos;t recoverable
+              Account recovery: what is and isn&apos;t recoverable
             </Link>,
           ]}
         />

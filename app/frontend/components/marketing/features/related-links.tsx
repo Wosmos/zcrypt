@@ -22,7 +22,7 @@ export interface RelatedLinksProps {
  * The "Keep exploring" / "Go deeper" grid of related-page link cards shown near
  * the bottom of every features/* and vs/* page. Each card reveals a trailing
  * arrow on hover; an optional leading icon is shown when the item provides one.
- * Does not render an outer <section> — the page owns the wrapping section.
+ * Does not render an outer <section>: the page owns the wrapping section.
  */
 export function RelatedLinks({
   heading,

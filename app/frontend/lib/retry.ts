@@ -6,7 +6,7 @@
  * surface immediately, not loop).
  */
 
-/** True for errors worth retrying — transport blips and server-side 5xx. */
+/** True for errors worth retrying: transport blips and server-side 5xx. */
 export function isTransientError(err: unknown): boolean {
   if (err instanceof DOMException && err.name === "AbortError") return false;
   const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();

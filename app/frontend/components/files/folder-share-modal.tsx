@@ -44,7 +44,7 @@ interface FolderShareModalProps {
   folder: DecryptedFolder | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** The full vault file list — the folder's subtree files are selected from it. */
+  /** The full vault file list: the folder's subtree files are selected from it. */
   files: FileMetadata[];
 }
 
@@ -113,13 +113,13 @@ export function FolderShareModal({ folder, open, onOpenChange, files }: FolderSh
       setLink(url);
       if (nestingIncomplete) {
         toast.error(
-          "Link created, but the folder layout couldn't be read — its download will be flat. Recreate the link to include the folder structure.",
+          "Link created, but the folder layout couldn't be read: its download will be flat. Recreate the link to include the folder structure.",
         );
       } else {
         toast.success(
           skipped > 0
-            ? `Folder link created — ${shared} file${shared === 1 ? "" : "s"} shared, ${skipped} skipped`
-            : `Folder link created — ${shared} file${shared === 1 ? "" : "s"}`,
+            ? `Folder link created: ${shared} file${shared === 1 ? "" : "s"} shared, ${skipped} skipped`
+            : `Folder link created: ${shared} file${shared === 1 ? "" : "s"}`,
         );
       }
       void queryClient.invalidateQueries({ queryKey: qk.folderShares(folder.id) });
@@ -162,7 +162,7 @@ export function FolderShareModal({ folder, open, onOpenChange, files }: FolderSh
           </DialogTitle>
           <DialogDescription className="text-[var(--color-text-secondary)]">
             Create a public link to this folder. Anyone with the link can open and download its
-            files — the decryption key stays in the link and never reaches the server.
+            files: the decryption key stays in the link and never reaches the server.
           </DialogDescription>
         </DialogHeader>
 
@@ -186,7 +186,7 @@ export function FolderShareModal({ folder, open, onOpenChange, files }: FolderSh
               />
             </div>
             <p className="text-xs text-[var(--color-text-muted)]">
-              Keep the whole link — the part after <span className="font-mono">#</span> is the
+              Keep the whole link: the part after <span className="font-mono">#</span> is the
               decryption key and is required to open the folder.
             </p>
           </div>

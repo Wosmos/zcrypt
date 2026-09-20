@@ -1,5 +1,5 @@
 /**
- * A minimal counting semaphore — `acquire()` resolves when a slot is free,
+ * A minimal counting semaphore: `acquire()` resolves when a slot is free,
  * `release()` frees one and wakes the next waiter (FIFO). Folds the count +
  * waiters limiter reimplemented three times in store/upload.ts (batch file
  * concurrency, pipeline depth, upload slots).

@@ -8,7 +8,7 @@ const deviceSteps = [
   {
     icon: Key,
     title: "Derive your key",
-    desc: "PBKDF2-SHA256, 600,000 iterations — computed on your device from your passphrase. Never sent.",
+    desc: "PBKDF2-SHA256, 600,000 iterations: computed on your device from your passphrase. Never sent.",
   },
   {
     icon: Layers,
@@ -33,7 +33,7 @@ const neverLeaves = [
   "Your plaintext files or filenames",
 ];
 
-// Theme-aware subtle fill for nested insets — same trick the bento grid uses.
+// Theme-aware subtle fill for nested insets: same trick the bento grid uses.
 const inset = "border border-[var(--color-border)] bg-black/[0.02] dark:bg-white/[0.02]";
 
 export function EncryptionBoundary() {
@@ -56,12 +56,12 @@ export function EncryptionBoundary() {
           </h2>
           <p className="mx-auto mt-4 max-w-xl leading-relaxed text-[var(--color-text-secondary)]">
             Everything sensitive happens on your device. What crosses to our servers is already
-            unreadable — no keys, no names, no plaintext.
+            unreadable, no keys, no names, no plaintext.
           </p>
         </ScrollReveal>
 
         <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-[1fr_auto_1fr]">
-          {/* YOUR DEVICE — trusted */}
+          {/* YOUR DEVICE, trusted */}
           <ScrollReveal className="h-full">
             <div className="h-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-7 sm:p-9">
               <div className="mb-7 flex items-center justify-between">
@@ -106,7 +106,7 @@ export function EncryptionBoundary() {
             </div>
           </div>
 
-          {/* WHAT OUR SERVERS SEE — ciphertext only */}
+          {/* WHAT OUR SERVERS SEE, ciphertext only */}
           <ScrollReveal delay={0.1} className="h-full">
             <div className="h-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-7 sm:p-9">
               <div className="mb-7 flex items-center justify-between">
@@ -127,10 +127,7 @@ export function EncryptionBoundary() {
                 </span>{" "}
                 9f2a1c b8d40e 7c5b13 f0e2a9 4d1b6c 8e30dd 91ac0c 77ae3f 5b2a4f 9c1e20 7b8d40 e7c5b1
                 3f0e2a 94d1b6 c8e30d
-                <span className="text-cyan-600/80 dark:text-cyan-400/80">
-                  {" "}
-                  6b13fa f0e2 — sealed
-                </span>
+                <span className="text-cyan-600/80 dark:text-cyan-400/80"> 6b13fa f0e2, sealed</span>
               </div>
 
               <p className="mb-3 mt-7 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
@@ -159,7 +156,7 @@ export function EncryptionBoundary() {
               <span className="font-semibold text-[var(--color-text)]">
                 That&apos;s zero-knowledge.
               </span>{" "}
-              Lose your passphrase and even we can&apos;t recover your files — there&apos;s nothing
+              Lose your passphrase and even we can&apos;t recover your files, there&apos;s nothing
               on our side to recover them from.
             </p>
           </div>

@@ -58,7 +58,7 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "zcrypt — The Encrypted Cloud Drive You Actually Own | Zero-Knowledge",
+    default: "zcrypt. The Encrypted Cloud Drive You Actually Own | Zero-Knowledge",
     template: "%s | zcrypt",
   },
   description:
@@ -117,14 +117,14 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     url: SITE_URL,
-    title: "zcrypt — The Encrypted Cloud Drive You Actually Own",
+    title: "zcrypt. The Encrypted Cloud Drive You Actually Own",
     description:
       "A zero-knowledge encrypted cloud drive with real folders and instant file previews. Encrypted on your device with AES-256-GCM, stored in accounts you already own. Free, open source, no artificial limits.",
     siteName: "zcrypt",
   },
   twitter: {
     card: "summary_large_image",
-    title: "zcrypt — The Encrypted Cloud Drive You Actually Own",
+    title: "zcrypt. The Encrypted Cloud Drive You Actually Own",
     description:
       "A zero-knowledge encrypted cloud drive: real folders, instant previews, AES-256-GCM, your own storage. Free and open source.",
     creator: "@zcryptcloud",
@@ -209,7 +209,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             }}
           >
             <h1 style={{ fontSize: "1.5rem", marginBottom: "1rem" }}>
-              zcrypt — Private Cloud Storage
+              zcrypt. Private Cloud Storage
             </h1>
             <p style={{ lineHeight: 1.6, color: "#a1a1aa" }}>
               zcrypt is a zero-knowledge encrypted cloud storage platform. Your files are encrypted

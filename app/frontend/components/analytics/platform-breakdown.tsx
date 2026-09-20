@@ -32,7 +32,7 @@ export function PlatformBreakdown({ statuses, repos }: PlatformBreakdownProps) {
     usage.set(r.platform, existing);
   }
 
-  // Show every connected platform — including ones with no uploads yet (0 B) —
+  // Show every connected platform: including ones with no uploads yet (0 B),
   // so a freshly-linked platform like Telegram appears here instead of vanishing
   // until its first upload. Union in any platform that has repos as a fallback.
   const platforms = Array.from(

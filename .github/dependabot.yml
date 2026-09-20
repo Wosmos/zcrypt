@@ -1,7 +1,7 @@
 # Dependency updates.
 #
 # security.yml already runs govulncheck weekly, but it only reports Go
-# vulnerabilities and never opens a PR — nothing keeps Cargo or the frontend
+# vulnerabilities and never opens a PR, nothing keeps Cargo or the frontend
 # lockfile moving. Grouped, monthly PRs so five ecosystems don't turn into a
 # constant stream of one-line bumps.
 #

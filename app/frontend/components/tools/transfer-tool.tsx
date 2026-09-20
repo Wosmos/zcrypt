@@ -29,7 +29,7 @@ interface FileInfo {
 /**
  * Shared onerror/onclose wiring for both the send and receive sockets. After a
  * successful transfer the server tears down the room and closes the socket,
- * which fires an error event — don't overwrite a terminal state, or that
+ * which fires an error event: don't overwrite a terminal state, or that
  * produces a bogus "Connection failed" after the transfer already completed.
  */
 function attachWsLifecycle(

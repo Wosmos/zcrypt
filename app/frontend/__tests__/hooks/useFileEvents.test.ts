@@ -160,7 +160,7 @@ describe("useFileEvents", () => {
     expect(createEventSource).toHaveBeenCalledTimes(2);
 
     latestES().onerror?.();
-    vi.advanceTimersByTime(1000); // not enough yet — 2nd delay is 1000 * 2^1 = 2000
+    vi.advanceTimersByTime(1000); // not enough yet: 2nd delay is 1000 * 2^1 = 2000
     expect(createEventSource).toHaveBeenCalledTimes(2);
     vi.advanceTimersByTime(1000); // now at 2000 total
     expect(createEventSource).toHaveBeenCalledTimes(3);
@@ -172,7 +172,7 @@ describe("useFileEvents", () => {
     vi.advanceTimersByTime(1000);
     expect(createEventSource).toHaveBeenCalledTimes(2);
 
-    latestES().onopen?.(); // successful reconnect — resets reconnectAttempt to 0
+    latestES().onopen?.(); // successful reconnect, resets reconnectAttempt to 0
     latestES().onerror?.();
     vi.advanceTimersByTime(1000); // back to the base delay, not the doubled one
     expect(createEventSource).toHaveBeenCalledTimes(3);
@@ -200,7 +200,7 @@ describe("useFileEvents", () => {
     const { unmount } = renderHook(() => useFileEvents());
     const es = latestES();
     // Two errors back-to-back schedule two timers, but only the second
-    // (later) one is tracked for cancellation — the first is still pending.
+    // (later) one is tracked for cancellation: the first is still pending.
     es.onerror?.();
     es.onerror?.();
     unmount(); // cancels only the tracked (later) timer

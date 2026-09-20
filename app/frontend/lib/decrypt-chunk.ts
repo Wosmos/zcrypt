@@ -26,7 +26,7 @@ export async function decryptChunkInPool(
       compressed,
     });
   } catch {
-    throw new Error("Decryption failed — wrong passphrase?");
+    throw new Error("Decryption failed, wrong passphrase?");
   }
   return new Uint8Array(out.plaintext);
 }

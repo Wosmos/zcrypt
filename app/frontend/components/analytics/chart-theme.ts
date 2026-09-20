@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 
-/** Shared recharts <Tooltip> theming — one look across every analytics chart. */
+/** Shared recharts <Tooltip> theming: one look across every analytics chart. */
 export const CHART_TOOLTIP_STYLE: CSSProperties = {
   backgroundColor: "var(--color-surface)",
   border: "1px solid var(--color-border)",

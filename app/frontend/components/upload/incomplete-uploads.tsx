@@ -27,12 +27,12 @@ function expiresInLabel(expiresAt: string, now: number): string {
 
 /**
  * Shows uploads that were started but never finished (from the server's active
- * upload sessions), so a user can see WHAT is pending — including which storage
- * platform it was going to — resume it, or discard it. Unfinished uploads are
+ * upload sessions), so a user can see WHAT is pending: including which storage
+ * platform it was going to: resume it, or discard it. Unfinished uploads are
  * auto-removed after 7 days; that caution is shown so their disappearance isn't
  * a surprise.
  *
- * Resume needs the file's bytes, which the browser can't re-read on its own — so
+ * Resume needs the file's bytes, which the browser can't re-read on its own, so
  * Resume prompts to re-select the file, then hands it (WITH the session record,
  * so the platform pin survives) to the upload flow, which continues from the
  * server's already-received chunks on the session's original platform.
@@ -53,7 +53,7 @@ export function IncompleteUploads({
       const { uploads } = await getIncompleteUploads();
       setUploads(uploads);
     } catch {
-      // Non-critical UI — a failed fetch just leaves the section empty.
+      // Non-critical UI: a failed fetch just leaves the section empty.
     }
   }, []);
 
@@ -72,7 +72,7 @@ export function IncompleteUploads({
       ),
     [queue],
   );
-  // When an in-tab upload finishes, its server session flips to complete — re-fetch
+  // When an in-tab upload finishes, its server session flips to complete, re-fetch
   // so it drops off the list instead of lingering as "unfinished".
   const doneCount = queue.filter((i) => i.status === "done").length;
   useEffect(() => {
@@ -82,12 +82,12 @@ export function IncompleteUploads({
   const visible = uploads.filter((u) => !liveKeys.has(`${u.filename}::${u.original_size}`));
 
   // Hand a picked file to the resume flow, guarding against the wrong file (the
-  // server chunks belong to a specific file — a mismatch would corrupt it).
+  // server chunks belong to a specific file: a mismatch would corrupt it).
   const resumeWithFile = useCallback(
     (file: File, target: IncompleteUpload) => {
       if (file.name !== target.filename || file.size !== target.original_size) {
         toast.warning(
-          `That's not the same file — pick "${target.filename}" (${formatBytes(target.original_size)}) to resume.`,
+          `That's not the same file. Pick "${target.filename}" (${formatBytes(target.original_size)}) to resume.`,
         );
         return;
       }
@@ -100,7 +100,7 @@ export function IncompleteUploads({
 
   const onResumeClick = async (u: IncompleteUpload) => {
     // Desktop: use the native Tauri picker and wrap the result so it carries an
-    // absolute .path — the hidden HTML <input> below yields a browser File with
+    // absolute .path: the hidden HTML <input> below yields a browser File with
     // NO path, which makes the desktop upload flow open a SECOND native dialog
     // to re-acquire the path. Web keeps the hidden-input path (no disk paths).
     if (isTauri) {
@@ -129,7 +129,7 @@ export function IncompleteUploads({
       setUploads((prev) => prev.filter((x) => x.session_id !== u.session_id));
       toast.info(`Discarded "${u.filename}"`);
     } catch {
-      toast.error("Couldn't discard that upload — try again.");
+      toast.error("Couldn't discard that upload, try again.");
     } finally {
       setBusy(null);
     }
@@ -151,7 +151,7 @@ export function IncompleteUploads({
         <span className="text-sm font-medium text-[var(--color-text)]">
           {visible.length} unfinished upload{visible.length > 1 ? "s" : ""}
         </span>
-        <span className="text-xs text-[var(--color-text-muted)]">— resume or discard</span>
+        <span className="text-xs text-[var(--color-text-muted)]">resume or discard</span>
         <ChevronDown
           className={`ml-auto h-4 w-4 text-[var(--color-text-muted)] transition-transform ${expanded ? "rotate-180" : ""}`}
         />

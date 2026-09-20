@@ -6,7 +6,7 @@ import { SITE_URL } from "@/lib/site";
 export const metadata: Metadata = {
   title: "Account recovery | zcrypt Docs",
   description:
-    "What zcrypt can and cannot recover. Account access can be restored through email password reset and two-factor. Your vault passphrase and folder passwords are zero-knowledge: lose them and no one — including us — can decrypt your files.",
+    "What zcrypt can and cannot recover. Account access can be restored through email password reset and two-factor. Your vault passphrase and folder passwords are zero-knowledge: lose them and no one (including us) can decrypt your files.",
   alternates: { canonical: `${SITE_URL}/docs/recovery` },
   openGraph: {
     title: "Account recovery | zcrypt Docs",
@@ -60,14 +60,14 @@ export default function RecoveryDocPage() {
               <span key="c2" className="text-amber-600 dark:text-amber-400">
                 No
               </span>,
-              "Nothing — by design",
+              "Nothing, by design",
             ],
             [
               <strong key="d">Folder password</strong>,
               <span key="d2" className="text-amber-600 dark:text-amber-400">
                 No
               </span>,
-              "Nothing — by design",
+              "Nothing, by design",
             ],
           ]}
         />
@@ -108,7 +108,7 @@ export default function RecoveryDocPage() {
         />
         <DocP>
           Recovering account access gets you back to your file list. It does <strong>not</strong>{" "}
-          unlock your files — for that you still need your vault passphrase.
+          unlock your files: for that you still need your vault passphrase.
         </DocP>
       </DocSection>
 
@@ -121,7 +121,7 @@ export default function RecoveryDocPage() {
         <DocNote type="warning" title="If you lose your vault passphrase, your files are gone">
           <p className="mb-2">
             There is no reset link, no backdoor, and no support request that can recover a lost
-            vault passphrase — not for you, and not for us. Without it, the keys that decrypt your
+            vault passphrase, not for you, and not for us. Without it, the keys that decrypt your
             files cannot be reconstructed, so the files (and their folder names) are permanently
             unreadable. This is not a limitation we can lift; it is the whole point of
             zero-knowledge encryption. The same protection that stops <em>us</em>
@@ -139,7 +139,7 @@ export default function RecoveryDocPage() {
 
       <DocSection id="protect" title="How to protect your passphrase">
         <DocP>
-          Because the passphrase can never be recovered, protecting it is entirely on you — and
+          Because the passphrase can never be recovered, protecting it is entirely on you, and
           it&apos;s straightforward:
         </DocP>
         <DocList
@@ -149,9 +149,9 @@ export default function RecoveryDocPage() {
               passwords) in a reputable manager like 1Password, Bitwarden, or KeePass. This is the
               single best thing you can do.
             </>,
-            "Choose a long, memorable passphrase rather than a short complex one — length beats cleverness.",
+            "Choose a long, memorable passphrase rather than a short complex one, length beats cleverness.",
             "Keep at least one secure offline copy somewhere only you can reach, especially before storing anything important.",
-            "Never email it to yourself or paste it into a chat — that would defeat the zero-knowledge guarantee.",
+            "Never email it to yourself or paste it into a chat. That would defeat the zero-knowledge guarantee.",
           ]}
         />
         <DocNote type="info">
@@ -168,21 +168,21 @@ export default function RecoveryDocPage() {
               href="/docs/key-management"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Key management — how your passphrase becomes your encryption keys
+              Key management: how your passphrase becomes your encryption keys
             </Link>,
             <Link
               key="b"
               href="/docs/zero-knowledge"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Zero-knowledge — what the server can and can&apos;t see
+              Zero-knowledge: what the server can and can&apos;t see
             </Link>,
             <Link
               key="c"
               href="/docs/authentication"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Authentication & 2FA — resetting your password and managing two-factor
+              Authentication & 2FA: resetting your password and managing two-factor
             </Link>,
           ]}
         />

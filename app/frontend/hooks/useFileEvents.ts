@@ -23,14 +23,14 @@ interface FileEvent {
  * views current without the user having to refresh.
  *
  * There's no shared EventSource singleton in this codebase today (each
- * consumer — useOperationStatus, devices-tab — opens its own via
+ * consumer (useOperationStatus, devices-tab) opens its own via
  * createEventSource()), so this hook follows the same pattern rather than
  * inventing a new seam. It only connects while authenticated.
  *
  * Reconnects use the same manual exponential backoff as useOperationStatus:
  * without an onerror handler here, the browser's native EventSource retry
  * (a fixed ~3s interval, uncapped) would re-fire the reconnect invalidation
- * below on every retry — turning a flaky connection into a runaway refetch
+ * below on every retry: turning a flaky connection into a runaway refetch
  * loop against every active session's files/trash/quota queries.
  */
 export function useFileEvents() {
@@ -55,7 +55,7 @@ export function useFileEvents() {
         try {
           JSON.parse(e.data) as FileEvent;
         } catch {
-          // Malformed payload — still worth an invalidation pass below since we
+          // Malformed payload: still worth an invalidation pass below since we
           // know *something* changed, but skip acting on the (unusable) data.
         }
         if (debounceTimer) clearTimeout(debounceTimer);
@@ -65,7 +65,7 @@ export function useFileEvents() {
       });
 
       es.onopen = () => {
-        // First open isn't a "reconnect" — nothing was missed. Every open after
+        // First open isn't a "reconnect", nothing was missed. Every open after
         // that means we may have missed events while disconnected, so do one
         // catch-up invalidation.
         // TODO: once GET /api/changes?since=<seq> ships, replace this blanket

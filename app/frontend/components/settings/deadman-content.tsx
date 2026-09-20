@@ -112,7 +112,7 @@ export function DeadManContent() {
       await checkinDeadManSwitch();
       const data = await getDeadManSwitch();
       if (data && data.id) setDms(data);
-      setSuccess("Check-in successful — timer reset.");
+      setSuccess("Check-in successful, timer reset.");
     } catch {
       setError("Check-in failed");
     } finally {

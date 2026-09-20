@@ -23,7 +23,7 @@ export function CompactStats({
 
   if (fileCount === 0) return null;
 
-  // Storage is unbounded — bounded only by the connected platform. Show usage,
+  // Storage is unbounded: bounded only by the connected platform. Show usage,
   // never a fraction of a cap.
   const usedBytes = quotaInfo?.used_bytes ?? totalSize;
 

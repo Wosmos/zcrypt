@@ -2,12 +2,12 @@
  * Public folder link (zero-knowledge). Mirrors the single-file share: one random
  * folder-share key is generated in the browser and each file's CEK is re-wrapped
  * under it. The key lives only in the returned URL #fragment and never reaches
- * the server — so anyone with the link can open the folder, no account needed,
+ * the server: so anyone with the link can open the folder, no account needed,
  * while the server only ever stores opaque per-file envelopes.
  *
  * The recipient's "Download all" rebuilds the EXACT folder tree as a single zip.
  * The per-file relative paths that make that possible are also carried in the
- * #fragment (a compact, gzipped manifest) — never sent to the server — because
+ * #fragment (a compact, gzipped manifest) (never sent to the server) because
  * folder names are E2E-encrypted and the server can't reconstruct them.
  */
 import { generateCEK, resolveFileKey, wrapKey, toBase64, fromBase64 } from "@/lib/crypto";
@@ -22,7 +22,7 @@ export interface FolderShareOptions {
   maxDownloads?: number;
 }
 
-/** Neutralize a decrypted name so it's safe as a single zip path segment — no
+/** Neutralize a decrypted name so it's safe as a single zip path segment, no
  *  separators, no traversal. */
 function sanitizeSegment(name: string): string {
   const s = name.replace(/[/\\]/g, "_").trim();
@@ -35,7 +35,7 @@ function sanitizeSegment(name: string): string {
  * can never be silently dropped by a failed per-folder fetch (which used to
  * flatten deep files in the recipient's zip). Folder names are decrypted
  * client-side, so paths are only ever assembled in the browser. Throws if the
- * subtree can't be loaded — the caller then falls back to a flat zip and warns,
+ * subtree can't be loaded: the caller then falls back to a flat zip and warns,
  * rather than emitting a silently half-nested one.
  */
 async function buildFolderPaths(rootId: string, nameKey: CryptoKey): Promise<Map<string, string>> {
@@ -57,7 +57,7 @@ async function buildFolderPaths(rootId: string, nameKey: CryptoKey): Promise<Map
     const next: string[] = [];
     for (const pid of frontier) {
       // Always present: the root is seeded into `paths`, and every id pushed onto
-      // the next frontier is written to `paths` in the same step below — so this
+      // the next frontier is written to `paths` in the same step below, so this
       // is a lookup of something already there, not a defaulted miss.
       const parentPath = paths.get(pid) as string;
       for (const f of childrenOf.get(pid) ?? []) {
@@ -102,7 +102,7 @@ export async function createFolderShareLink(
   // Map each subfolder to its relative path so the recipient's zip mirrors the
   // exact cloud tree. Needs the name key (folder names are E2E-encrypted). If the
   // subtree can't be loaded we leave paths off (flat zip) and flag it so the
-  // caller can warn — never a silently half-nested link.
+  // caller can warn, never a silently half-nested link.
   let folderPaths: Map<string, string> | null = null;
   let pathBuildFailed = false;
   try {
@@ -126,7 +126,7 @@ export async function createFolderShareLink(
     try {
       const meta = await getFileMeta(f.id);
       if (!meta.wrapped_cek) {
-        skipped++; // legacy file (no envelope) — can't be link-shared
+        skipped++; // legacy file (no envelope), can't be link-shared
         continue;
       }
       // Recover the file's CEK with the owner's passphrase, then re-wrap it under
@@ -145,7 +145,7 @@ export async function createFolderShareLink(
   }
   if (wraps.length === 0) {
     throw new Error(
-      "None of this folder's files could be shared — they may be in a password-protected folder, or were uploaded before sharing was supported.",
+      "None of this folder's files could be shared. They may be in a password-protected folder, or were uploaded before sharing was supported.",
     );
   }
 
@@ -169,11 +169,11 @@ export async function createFolderShareLink(
       const packed = gzipSync(strToU8(JSON.stringify(manifest)));
       url += `&paths=${toBase64(packed)}`;
     } catch {
-      // Omit on failure — the recipient's zip falls back to a flat layout.
+      // Omit on failure: the recipient's zip falls back to a flat layout.
     }
   }
 
-  // The share HAS subfolder files but we couldn't build the layout — the link
+  // The share HAS subfolder files but we couldn't build the layout, the link
   // works, but its download will be flat. Let the caller warn so the user can
   // recreate it rather than unknowingly share a flattened folder.
   const hasSubfolderFiles = files.some((f) => f.folder_id && f.folder_id !== folderId);

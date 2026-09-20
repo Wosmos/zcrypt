@@ -23,9 +23,9 @@ import { transfers } from "../_data/transfers";
 import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Transfer Manager — Pause, Resume & Track Every Upload",
+  title: "Transfer Manager. Pause, Resume & Track Every Upload",
   description:
-    "A unified, docked transfer manager that survives navigation. Live progress and ETA, pause and resume without re-encrypting, retry on failure, and bulk ZIP downloads — plus encrypted device-to-device transfer with a 6-digit code.",
+    "A unified, docked transfer manager that survives navigation. Live progress and ETA, pause and resume without re-encrypting, retry on failure, and bulk ZIP downloads: plus encrypted device-to-device transfer with a 6-digit code.",
   keywords: [
     "upload manager",
     "resumable uploads",
@@ -38,7 +38,7 @@ export const metadata: Metadata = {
   ],
   alternates: { canonical: `${SITE_URL}/features/transfers` },
   openGraph: {
-    title: "Transfer Manager — Pause, Resume & Track Every Transfer | zcrypt",
+    title: "Transfer Manager. Pause, Resume & Track Every Transfer | zcrypt",
     description:
       "A docked manager that survives navigation: live progress, pause/resume without re-encrypting, retry, and bulk ZIP downloads. Plus encrypted device-to-device transfer.",
     url: `${SITE_URL}/features/transfers`,
@@ -180,10 +180,10 @@ export default function TransfersPage() {
         panel={
           <CodePanel
             comment="// resuming a paused 24-chunk upload"
-            success="✓ complete — 18 chunks never re-sent"
+            success="✓ complete, 18 chunks never re-sent"
           >
             <div>
-              <span className="text-cyan-600/80 dark:text-cyan-400/80">session</span> reused — same
+              <span className="text-cyan-600/80 dark:text-cyan-400/80">session</span> reused, same
               content key
             </div>
             <div className="mt-1.5 text-emerald-500">chunk[0..17] already on server → skipped</div>

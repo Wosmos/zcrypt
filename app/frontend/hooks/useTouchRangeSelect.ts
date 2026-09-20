@@ -6,7 +6,7 @@ import { createEdgeAutoScroll, type EdgeAutoScroll } from "@/hooks/edge-auto-scr
 /**
  * Drag-to-select for the Vault grid (mobile), like the phone gallery: while
  * already in select mode, press a file card and sweep your finger across others
- * to select the range — no tapping each one. Dragging back toward the start
+ * to select the range: no tapping each one. Dragging back toward the start
  * shrinks the range (releasing the newly-swept cards but never the ones that were
  * already selected when the sweep began).
  *
@@ -16,8 +16,8 @@ import { createEdgeAutoScroll, type EdgeAutoScroll } from "@/hooks/edge-auto-scr
  * select mode. A short slop distance separates a plain tap (toggle one card,
  * handled by the card's onClick) from a sweep (range select).
  *
- * `onSweep` fires at most once per NEW card the finger enters — not once per
- * touchmove — so the explorer's selection setState (and the optional haptic tick)
+ * `onSweep` fires at most once per NEW card the finger enters: not once per
+ * touchmove: so the explorer's selection setState (and the optional haptic tick)
  * runs a bounded number of times, and finger travel within one card is free.
  */
 
@@ -81,7 +81,7 @@ export function useTouchRangeSelect({
   }, []);
 
   // Dispatch a range select only when the finger has entered a DIFFERENT file
-  // card than last time — bounds setState/haptics to one call per card crossed.
+  // card than last time: bounds setState/haptics to one call per card crossed.
   const sweepTo = (x: number, y: number) => {
     const s = st.current;
     const id = cbRef.current.fileIdAt(x, y);
@@ -112,7 +112,7 @@ export function useTouchRangeSelect({
       const dist = Math.hypot(t.clientX - s.startX, t.clientY - s.startY);
 
       if (!s.sweeping) {
-        if (dist <= MOVE_START_PX) return; // still might be a tap — wait
+        if (dist <= MOVE_START_PX) return; // still might be a tap, wait
         s.sweeping = true;
         s.scroller = document.getElementById(scrollContainerId);
         cbRef.current.onSweepStart?.();

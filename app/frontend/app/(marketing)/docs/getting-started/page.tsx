@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Quickstart | zcrypt Docs",
     description:
-      "Sign up, understand your passphrase, connect storage, and upload your first encrypted file to zcrypt — free and open source.",
+      "Sign up, understand your passphrase, connect storage, and upload your first encrypted file to zcrypt, free and open source.",
     url: `${SITE_URL}/docs/getting-started`,
   },
 };
@@ -54,7 +54,7 @@ function Step({
           />
         )}
       </div>
-      {/* Content — last step drops the trailing space the connector needed */}
+      {/* Content: last step drops the trailing space the connector needed */}
       <div className={`min-w-0 flex-1 pt-0.5 ${last ? "" : "pb-9"}`}>
         <h2 className="font-heading text-lg font-bold tracking-tight sm:text-xl">{title}</h2>
         <div className="mt-3 space-y-4">{children}</div>
@@ -68,13 +68,13 @@ export default function GettingStartedPage() {
     <DocPage
       href="/docs/getting-started"
       title="Quickstart"
-      description="Sign up, set your passphrase, connect a storage platform you already use, and upload your first encrypted file — in a few minutes."
+      description="Sign up, set your passphrase, connect a storage platform you already use, and upload your first encrypted file, in a few minutes."
       toc={toc}
     >
       <DocNote type="info" title="Free, open source, and yours">
         zcrypt has no paid tiers, no credit card, and no storage to sell you. You bring your own
-        backend — your encrypted files live in a GitHub, GitLab, Hugging Face, or Telegram account
-        you already have — so your capacity is whatever free space those platforms give you.
+        backend: your encrypted files live in a GitHub, GitLab, Hugging Face, or Telegram account
+        you already have, so your capacity is whatever free space those platforms give you.
       </DocNote>
 
       <div className="mt-8">
@@ -85,8 +85,8 @@ export default function GettingStartedPage() {
             account.
           </DocP>
           <DocP>
-            This account password only logs you in. It is <em>not</em> what encrypts your files —
-            that is the passphrase you set next, and the two are intentionally different.
+            This account password only logs you in. It is <em>not</em> what encrypts your files.
+            That is the passphrase you set next, and the two are intentionally different.
           </DocP>
         </Step>
 
@@ -94,7 +94,7 @@ export default function GettingStartedPage() {
           <DocP>
             On your first sign-in you create a <strong>passphrase</strong>. zcrypt uses it to derive
             your encryption key locally, in your browser. The passphrase and the key it derives
-            never leave your device and are never sent to our servers — that is what makes zcrypt
+            never leave your device and are never sent to our servers. That is what makes zcrypt
             zero-knowledge.
           </DocP>
           <DocP>
@@ -119,8 +119,8 @@ export default function GettingStartedPage() {
             zcrypt does not run a storage farm. Your encrypted data lives in a platform account you
             connect: <strong>GitHub</strong>, <strong>GitLab</strong>, <strong>Hugging Face</strong>
             , or <strong>Telegram</strong>. Open <strong>Settings</strong> and add an access token
-            (or a bot token and channel for Telegram). zcrypt then creates private repositories — or
-            a private channel — on your behalf and stores your encrypted chunks there.
+            (or a bot token and channel for Telegram). zcrypt then creates private repositories, or
+            a private channel: on your behalf and stores your encrypted chunks there.
           </DocP>
           <DocP>
             Want more room? Connect more than one platform. For per-platform setup and how tokens
@@ -143,7 +143,7 @@ export default function GettingStartedPage() {
           <DocList
             items={[
               <>
-                <strong>Compresses</strong> the file with zstd — client-side, so the savings happen
+                <strong>Compresses</strong> the file with zstd: client-side, so the savings happen
                 before encryption.
               </>,
               <>
@@ -164,7 +164,7 @@ export default function GettingStartedPage() {
 
         <Step id="open" n={5} title="Preview or download it" last>
           <DocP>
-            Click the file to open it in the full-screen viewer — images, video, audio, PDFs,
+            Click the file to open it in the full-screen viewer, images, video, audio, PDFs,
             documents, and text are decrypted on the fly and rendered locally, with no plaintext
             leaving your device. Or download it: zcrypt fetches the chunks, reassembles, decrypts,
             and decompresses them back into the original file on your device.
@@ -184,21 +184,21 @@ export default function GettingStartedPage() {
               href="/docs/concepts"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Core concepts — vault, passphrase, folders, and chunks
+              Core concepts: vault, passphrase, folders, and chunks
             </Link>,
             <Link
               key="b"
               href="/docs/connect-storage"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Connect your storage — tokens, encryption at rest, and auto-rotation
+              Connect your storage: tokens, encryption at rest, and auto-rotation
             </Link>,
             <Link
               key="c"
               href="/docs/folders"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Folders &amp; the file explorer — organize your encrypted drive
+              Folders &amp; the file explorer, organize your encrypted drive
             </Link>,
           ]}
         />

@@ -98,7 +98,7 @@ export async function downloadAsZip(
       try {
         plain = await decryptChunk(keyBytes, new Uint8Array(data));
       } catch {
-        throw new Error(`Decryption failed for ${file.filename} — wrong passphrase?`);
+        throw new Error(`Decryption failed for ${file.filename}, wrong passphrase?`);
       }
 
       if (compressed) {
@@ -117,10 +117,10 @@ export async function downloadAsZip(
     let contentHash: string;
     if (meta.sha256_scheme === "hmac_v1") {
       // Lazy import so this module (and its tests) don't eagerly load the auth
-      // store — only an actual hmac_v1 download needs the current user id.
+      // store: only an actual hmac_v1 download needs the current user id.
       const { useAuthStore } = await import("@/store/auth");
       const uid = useAuthStore.getState().user?.id;
-      if (!uid) throw new Error(`Integrity check failed for ${file.filename} — not signed in`);
+      if (!uid) throw new Error(`Integrity check failed for ${file.filename}, not signed in`);
       contentHash = await contentMacBytes(fullFile, await deriveDedupKeyBytes(filePassphrase, uid));
     } else {
       contentHash = await sha256Hex(fullFile);

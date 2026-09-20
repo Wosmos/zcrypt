@@ -31,7 +31,7 @@ function detectDevice(): DetectedDevice | null {
   // A phone/tablet always says so somewhere in its UA on older iOS/iPadOS.
   if (/iphone|ipod|ipad/.test(ua)) return "ios";
   // iPadOS 13+ defaults to a desktop-class UA that's byte-for-byte the same
-  // as macOS Safari's ("Macintosh" / platform "MacIntel") — the only
+  // as macOS Safari's ("Macintosh" / platform "MacIntel"), the only
   // remaining tell is that a real Mac reports zero touch points.
   if (platform === "macintel" && touchPoints > 1) return "ios";
   if (/mac/.test(ua) || platform.includes("mac")) return "macos";
@@ -72,7 +72,7 @@ export function DownloadCta({ release }: { release: ReleaseData | null }) {
     }
   }, []);
 
-  // iOS/iPadOS: there's no native app yet — the web app is the real answer,
+  // iOS/iPadOS: there's no native app yet: the web app is the real answer,
   // and a Mac installer would just fail silently with no explanation.
   if (device === "ios") {
     const IosGlyph = MOBILE_GLYPHS.ios;
@@ -84,13 +84,13 @@ export function DownloadCta({ release }: { release: ReleaseData | null }) {
           <ArrowRight className="h-4 w-4 opacity-70 transition-transform group-hover:translate-x-0.5" />
         </Link>
         <p className="max-w-xs text-center text-xs text-[var(--color-text-muted)]">
-          There&apos;s no iOS app yet. The web app works fully in Safari — no install needed.
+          There&apos;s no iOS app yet. The web app works fully in Safari, no install needed.
         </p>
       </div>
     );
   }
 
-  // Android: one universal APK, so — unlike Linux below — this is a
+  // Android: one universal APK, so (unlike Linux below) this is a
   // confident direct download rather than a guess.
   if (device === "android") {
     const AndroidGlyph = MOBILE_GLYPHS.android;
@@ -116,7 +116,7 @@ export function DownloadCta({ release }: { release: ReleaseData | null }) {
   }
 
   // Linux: we can tell it's Linux but never which distro, so a single
-  // confident download is exactly the wrong move — route to the picker
+  // confident download is exactly the wrong move, route to the picker
   // instead of guessing (that guess is what put AppImage in Android's and
   // iOS's hands too).
   if (device === "linux") {
@@ -129,13 +129,13 @@ export function DownloadCta({ release }: { release: ReleaseData | null }) {
           <ChevronDown className="h-4 w-4 opacity-70 transition-transform group-hover:translate-y-0.5" />
         </a>
         <p className="text-xs text-[var(--color-text-muted)]">
-          Fedora, Debian/Ubuntu, or a portable build — pick yours below.
+          Fedora, Debian/Ubuntu, or a portable build. Pick yours below.
         </p>
       </div>
     );
   }
 
-  // macOS / Windows / undetected from here on — device is narrowed to
+  // macOS / Windows / undetected from here on, device is narrowed to
   // "macos" | "windows" | null by the returns above.
   const platform = release && device ? release.desktop.find((p) => p.id === device) : null;
   let primary: DownloadOption | null = null;
@@ -181,7 +181,7 @@ export function DownloadCta({ release }: { release: ReleaseData | null }) {
         <ChevronDown className="h-4 w-4 opacity-70 transition-transform group-hover:translate-y-0.5" />
       </a>
       <p className="text-xs text-[var(--color-text-muted)]">
-        Pick your platform below — macOS, Windows, Linux &amp; the terminal app.
+        Pick your platform below: macOS, Windows, Linux &amp; the terminal app.
       </p>
     </div>
   );

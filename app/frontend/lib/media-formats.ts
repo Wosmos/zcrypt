@@ -1,5 +1,5 @@
 /**
- * Canonical audio/video format tables — the ONE place that decides whether a
+ * Canonical audio/video format tables: the ONE place that decides whether a
  * filename is playable media, which skin it gets, and its MIME type. Imported by
  * the viewer dispatch (viewer-kind.ts), the decryptor's blob typing
  * (useFileDecryptor.ts), the file-type/icon logic (lib/utils.ts) and the player
@@ -12,12 +12,12 @@
  * separate matter (WebKit/Chromium play mp4/webm/ogg + mp3/aac/flac/wav/opus
  * reliably; avi/wmv/flv/mkv/mpeg-video usually not). The player attempts
  * playback and falls back to a Download panel on error, so broad recognition is
- * safe — an unplayable-but-known type still gets the right icon and a clean exit.
+ * safe: an unplayable-but-known type still gets the right icon and a clean exit.
  */
 
 // MPEG containers (.mpeg/.mpg/.mpe/.mpga) are treated as AUDIO on purpose:
 // browsers can't decode MPEG-1/2 *video*, while the overwhelmingly common
-// real-world case — WhatsApp/consumer voice notes — is MP3 audio wearing a
+// real-world case (WhatsApp/consumer voice notes) is MP3 audio wearing a
 // .mpeg extension. So we map them to audio/mpeg, which actually plays.
 export const AUDIO_EXTENSIONS = new Set([
   "mp3",

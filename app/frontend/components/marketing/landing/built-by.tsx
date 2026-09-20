@@ -4,7 +4,7 @@ import { ScrollReveal } from "./scroll-reveal";
 import { WOSMO, WosmoWordmark } from "@/components/marketing/wosmo";
 
 /**
- * Landing "built by" strip — a personal signature band that names the maker
+ * Landing "built by" strip: a personal signature band that names the maker
  * before the final CTA. Ties the whole product back to a real, accountable
  * human (the trust play for a zero-knowledge tool).
  */

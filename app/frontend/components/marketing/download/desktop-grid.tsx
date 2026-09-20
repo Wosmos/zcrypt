@@ -28,7 +28,7 @@ function CardShell({ children }: { children: React.ReactNode }) {
 }
 
 // Linux can't get a single confident "recommended" pick (the site can't see
-// distros — see the fallback note on the page), so all three packages are
+// distros. See the fallback note on the page), so all three packages are
 // shown as equal-weight rows naming the actual OS family instead of one big
 // button plus two extension-only footnotes.
 function LinuxOptions({ options }: { options: DownloadOption[] }) {
@@ -58,14 +58,14 @@ function LinuxOptions({ options }: { options: DownloadOption[] }) {
 }
 
 // Collapsed by default so the page doesn't shout a security warning at every
-// visitor — one click away for the person who actually hits the OS prompt.
+// visitor: one click away for the person who actually hits the OS prompt.
 function SecurityNote({ note }: { note: { title: string; body: string } }) {
   return (
     <details className="group/note relative mt-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3.5 py-2.5">
       <summary className="cursor-pointer list-none text-[11px] font-medium text-[var(--color-text-secondary)] marker:content-none">
         {note.title}
         <span className="ml-1 font-normal text-[var(--color-text-muted)] group-open/note:hidden">
-          — tap for how to proceed
+          : tap for how to proceed
         </span>
       </summary>
       <p className="mt-2 text-[11px] leading-relaxed text-[var(--color-text-muted)]">{note.body}</p>
@@ -98,7 +98,7 @@ export function DesktopGrid({ release }: { release: ReleaseData | null }) {
     <>
       {release.isFallback && (
         <div className="mx-auto mb-5 max-w-lg rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-center text-xs text-amber-700 dark:text-amber-400">
-          Couldn&apos;t reach GitHub for the latest release — showing{" "}
+          Couldn&apos;t reach GitHub for the latest release, showing{" "}
           <span className="font-semibold">v{release.version}</span>.{" "}
           <a
             href={RELEASES_FALLBACK_URL}

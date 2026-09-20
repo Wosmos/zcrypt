@@ -20,7 +20,7 @@ import {
 
 /**
  * Guided Telegram connect: paste the bot token once, then add the bot to a
- * channel/group via a deep link — we auto-detect the chat ID (the old painful
+ * channel/group via a deep link: we auto-detect the chat ID (the old painful
  * manual step) by polling getUpdates server-side. Manual BOT_TOKEN|CHAT_ID entry
  * stays as an advanced fallback for bots with a webhook or other edge cases.
  *
@@ -116,7 +116,7 @@ export function TelegramConnect({ onConnect, connecting, hasAccounts }: Telegram
       try {
         found = await probe(true);
       } catch {
-        // transient — keep polling
+        // transient. Keep polling
       }
       if (found || !pollActive.current) return;
       pollNext.current = setTimeout(() => void tick(), POLL_MS);
@@ -191,7 +191,7 @@ export function TelegramConnect({ onConnect, connecting, hasAccounts }: Telegram
             >
               @BotFather
             </a>
-            . We&apos;ll help you add it to a channel and find the chat ID for you — no manual ID
+            . We&apos;ll help you add it to a channel and find the chat ID for you, no manual ID
             hunting.
           </p>
           <div className="flex flex-col gap-3 sm:flex-row">
@@ -247,8 +247,8 @@ export function TelegramConnect({ onConnect, connecting, hasAccounts }: Telegram
           {chats.length === 0 ? (
             <div className="space-y-3">
               <p className="text-xs text-[var(--color-text-secondary)]">
-                Add the bot to where you want files stored, then we detect the chat automatically —
-                you never enter a chat ID. On the Telegram{" "}
+                Add the bot to where you want files stored, then we detect the chat automatically.
+                You never enter a chat ID. On the Telegram{" "}
                 <span className="font-medium">mobile app</span> the button below does it in one tap.
               </p>
               <div className="flex flex-col gap-2 sm:flex-row">
@@ -271,12 +271,12 @@ export function TelegramConnect({ onConnect, connecting, hasAccounts }: Telegram
               </div>
 
               {/* Telegram Desktop/Web has a known bug where these deep links open
-                  a bot DM instead of the chat picker — give the reliable manual
+                  a bot DM instead of the chat picker, give the reliable manual
                   path so the flow is never a dead end. */}
               <details className="group rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)]/50 px-3 py-2.5">
                 <summary className="flex cursor-pointer list-none items-center gap-1.5 text-xs font-medium text-[var(--color-text-secondary)] outline-none transition-colors hover:text-[var(--color-text)]">
                   <ChevronDown className="h-3.5 w-3.5 transition-transform group-open:rotate-180" />
-                  On desktop? The button opens a chat — add the bot manually instead
+                  On desktop? The button opens a chat. Add the bot manually instead
                 </summary>
                 <ol className="mt-2 list-decimal space-y-1 pl-5 text-xs text-[var(--color-text-secondary)]">
                   <li>Open (or create) your channel/group in Telegram.</li>
@@ -287,7 +287,7 @@ export function TelegramConnect({ onConnect, connecting, hasAccounts }: Telegram
                     Search <span className="font-medium">@{botUsername}</span>, add it, and leave{" "}
                     <span className="font-medium">Post Messages</span> enabled.
                   </li>
-                  <li>Come back here — it&apos;s detected automatically (or hit Check now).</li>
+                  <li>Come back here: it&apos;s detected automatically (or hit Check now).</li>
                 </ol>
               </details>
 
@@ -317,7 +317,7 @@ export function TelegramConnect({ onConnect, connecting, hasAccounts }: Telegram
           ) : (
             <div className="space-y-3">
               <p className="text-xs text-[var(--color-text-secondary)]">
-                Found {chats.length === 1 ? "this destination" : "these destinations"} — pick where
+                Found {chats.length === 1 ? "this destination" : "these destinations"}. Pick where
                 to store files:
               </p>
               <ul className="space-y-2">
@@ -384,7 +384,7 @@ export function TelegramConnect({ onConnect, connecting, hasAccounts }: Telegram
         </div>
       )}
 
-      {/* Advanced fallback — manual BOT_TOKEN|CHAT_ID entry. */}
+      {/* Advanced fallback, manual BOT_TOKEN|CHAT_ID entry. */}
       <div className="border-t border-[var(--color-border)] pt-3">
         <button
           type="button"

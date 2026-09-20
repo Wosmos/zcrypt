@@ -67,7 +67,7 @@ export function SnapshotsTab() {
       <div className="panel p-6">
         <Section
           title="Take snapshot"
-          description="Record a labelled list of what's in your vault right now. This is a manifest, not a backup — it can't restore files."
+          description="Record a labelled list of what's in your vault right now. This is a manifest, not a backup. It can't restore files."
         >
           <div className="flex flex-col gap-3 sm:flex-row">
             <input
@@ -99,7 +99,7 @@ export function SnapshotsTab() {
           <EmptyState
             icon={<Layers className="h-7 w-7 text-[var(--color-text-muted)]" />}
             title="No snapshots yet"
-            description="Take a snapshot to record which files are in your vault right now. It's a manifest you can review later — not a backup or restore point."
+            description="Take a snapshot to record which files are in your vault right now. It's a manifest you can review later, not a backup or restore point."
           />
         </div>
       ) : (

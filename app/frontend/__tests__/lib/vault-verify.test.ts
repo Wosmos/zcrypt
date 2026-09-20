@@ -7,7 +7,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 const { getFileMeta, ensureFiles, resolveFileKey, fromBase64, IncorrectPassphraseError } = vi.hoisted(() => {
   class IncorrectPassphraseError extends Error {
     constructor() {
-      super("Incorrect passphrase — could not unlock this file.");
+      super("Incorrect passphrase: could not unlock this file.");
       this.name = "IncorrectPassphraseError";
     }
   }

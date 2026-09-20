@@ -20,7 +20,7 @@ export function GuestGuard({ children }: { children: React.ReactNode }) {
     async function check() {
       // OAuth relay/callback routes must NEVER be redirected to /dashboard, even
       // when this browser already holds a session. The desktop OAuth flow opens
-      // the user's default browser — often already logged into the web app — and
+      // the user's default browser (often already logged into the web app) and
       // lands on /oauth/desktop-relay; redirecting it here is exactly what made a
       // desktop login also spin up a full web session. Let these pages render as
       // themselves (relay shows "return to the app"; callback handles its own
@@ -30,7 +30,7 @@ export function GuestGuard({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // No tokens at all — user is a guest, show the page
+      // No tokens at all: user is a guest, show the page
       if (!accessToken && !refreshTokenValue) {
         setChecked(true);
         return;
@@ -58,11 +58,11 @@ export function GuestGuard({ children }: { children: React.ReactNode }) {
           router.replace("/dashboard");
           return;
         } catch {
-          // Refresh failed — user is not authenticated
+          // Refresh failed, user is not authenticated
         }
       }
 
-      // Not authenticated — show the page
+      // Not authenticated, show the page
       setChecked(true);
     }
 

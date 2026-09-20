@@ -41,7 +41,7 @@ export async function deriveKeyBytes(passphrase: string, salt: Uint8Array): Prom
  * preview, then its download. Memoize the derived bytes so each pair pays
  * PBKDF2 exactly once per session.
  *
- * SECURITY: the cache holds raw key bytes in memory ONLY — the same exposure
+ * SECURITY: the cache holds raw key bytes in memory ONLY: the same exposure
  * class as the in-memory passphrase cache and the decrypt-cache plaintext. It
  * is never persisted or logged, and it is cleared on every lock event via
  * clearDerivedKeyCache() (wired into lib/decrypt-cache's clear paths). The
@@ -118,7 +118,7 @@ export async function decryptChunk(keyBytes: ArrayBuffer, data: Uint8Array): Pro
  * with a Key Encryption Key (KEK): the passphrase-derived key for the owner, or
  * a random share key for a share link. This lets a file be decrypted by anyone
  * holding a wrapped copy of its CEK, without ever revealing the owner's
- * passphrase — the foundation for zero-knowledge sharing.
+ * passphrase: the foundation for zero-knowledge sharing.
  *
  * The wrapped CEK reuses the chunk wire format: [12B IV || ciphertext || 16B tag].
  */
@@ -142,14 +142,14 @@ export async function unwrapKey(kekBytes: ArrayBuffer, wrapped: Uint8Array): Pro
  * Thrown when a file key can't be resolved because the passphrase is wrong.
  *
  * For envelope files, an incorrect passphrase derives the wrong KEK, so unwrapping
- * the CEK fails AES-GCM authentication — Web Crypto surfaces that as a bare
+ * the CEK fails AES-GCM authentication: Web Crypto surfaces that as a bare
  * `DOMException("OperationError")`, which is NOT `instanceof Error`, so callers that
  * do `err instanceof Error ? err.message : "…"` silently lose the reason. Re-throwing
  * this typed Error gives every download path a clear, surfaceable "wrong passphrase".
  */
 export class IncorrectPassphraseError extends Error {
   constructor() {
-    super("Incorrect passphrase — could not unlock this file.");
+    super("Incorrect passphrase: could not unlock this file.");
     this.name = "IncorrectPassphraseError";
   }
 }
@@ -170,8 +170,8 @@ export async function resolveFileKey(
   salt: Uint8Array,
   wrappedCek?: string | null,
 ): Promise<ArrayBuffer> {
-  // Memoized: repeated opens of the same (passphrase, salt) pair — thumbnail,
-  // then preview, then download — pay the 600k-iteration PBKDF2 only once.
+  // Memoized: repeated opens of the same (passphrase, salt) pair, thumbnail,
+  // then preview, then download: pay the 600k-iteration PBKDF2 only once.
   const kek = await deriveKeyBytesCached(passphrase, salt);
   if (!wrappedCek) {
     return kek; // legacy: passphrase-derived key encrypts content directly
@@ -186,10 +186,10 @@ export async function resolveFileKey(
   return cek.buffer.slice(0) as ArrayBuffer;
 }
 
-/** Lowercase hex encoding of raw bytes. The ONE hex encoder — sha256Hex,
+/** Lowercase hex encoding of raw bytes. The ONE hex encoder, sha256Hex,
  *  sha256File, and the content-MAC helpers below all route through it, and
  *  external hex sites (download-session, useFileDecryptor, oauth-buttons) should
- *  import it. (The crypto worker keeps its own copy — separate bundle.) */
+ *  import it. (The crypto worker keeps its own copy: separate bundle.) */
 export function bytesToHex(bytes: Uint8Array): string {
   return Array.from(bytes)
     .map((b) => b.toString(16).padStart(2, "0"))
@@ -199,7 +199,7 @@ export function bytesToHex(bytes: Uint8Array): string {
 /** A Uint8Array's bytes as a standalone ArrayBuffer, honoring byteOffset /
  *  byteLength (a subarray/view is copied out correctly). Use this instead of the
  *  `.buffer.slice(0)` pattern, which silently copies the WHOLE backing buffer of
- *  a view rather than just its window — a latent corruption bug for any
+ *  a view rather than just its window: a latent corruption bug for any
  *  Uint8Array that isn't a full-buffer view. */
 export function toArrayBuffer(u8: Uint8Array): ArrayBuffer {
   return u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength) as ArrayBuffer;
@@ -217,8 +217,8 @@ export async function sha256Hex(data: Uint8Array): Promise<string> {
 // the PLAINTEXT, which let anyone with DB access confirm a user stores a known
 // file. We replace it (scheme 'hmac_v1') with a per-user KEYED MAC: HMAC-SHA256
 // under a passphrase-derived key with a stable per-user salt. It stays
-// deterministic over (user, passphrase, content) — so single-user dedup/resume
-// still matches on the stored value — but a passphrase-less attacker cannot
+// deterministic over (user, passphrase, content), so single-user dedup/resume
+// still matches on the stored value, but a passphrase-less attacker cannot
 // compute it for a known file, and two users storing the same bytes get
 // different MACs. Mirrors the name-key derivation ("zcrypt-names-<uid>").
 
@@ -244,7 +244,7 @@ export async function contentMacBytes(data: Uint8Array, keyBytes: Uint8Array): P
 }
 
 /** HMAC-SHA256 hex of a File, streaming for large files (Web Crypto HMAC can't
- *  stream, so >50MB uses @noble/hashes incrementally — mirrors sha256File). */
+ *  stream, so >50MB uses @noble/hashes incrementally: mirrors sha256File). */
 export async function contentMacFile(
   file: File,
   keyBytes: Uint8Array,

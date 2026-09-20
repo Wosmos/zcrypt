@@ -22,7 +22,7 @@ function fetchFiles(): Promise<FileMetadata[]> {
  * Files server-state, backed by TanStack Query.
  *
  * `/api/files` returns the entire flat file list (the explorer filters by folder
- * client-side), so this is ONE global query — `qk.files`. Being the single
+ * client-side), so this is ONE global query: `qk.files`. Being the single
  * source of truth is the whole point: every view reads this key and every
  * mutation invalidates it, so a delete/move can no longer leave a stale second
  * copy behind (the ghost-file bug class).
@@ -59,7 +59,7 @@ export function invalidateFiles(): Promise<void> {
 
 /** Set/clear a file's custom card style (icon + color). Encrypts with the same
  *  per-user name key as file/folder names, calls the API, then invalidates the
- *  files list so the decrypted `style` is reconciled from the server response —
+ *  files list so the decrypted `style` is reconciled from the server response:
  *  mirrors useFolders' renameFolder (call, then invalidate; no manual patch). */
 export async function updateFileStyle(fileId: string, style: CustomStyle | null): Promise<void> {
   const user = useAuthStore.getState().user;
@@ -74,7 +74,7 @@ export async function updateFileStyle(fileId: string, style: CustomStyle | null)
 /**
  * Fetch-or-cache the file list, returning it directly. For one-off readers
  * (integrity / snapshots / devices / shared-vault / expiring tabs) that need the
- * file list as a reference but aren't part of the reactive vault UI — they share
+ * file list as a reference but aren't part of the reactive vault UI, they share
  * the one cache (instant if the vault was just open) instead of issuing their own
  * independent `/api/files`.
  */
@@ -84,7 +84,7 @@ export function ensureFiles(): Promise<FileMetadata[]> {
 
 // Single deduped initial fetch, shared by AuthGuard's prefetch and useFileList's
 // mount. prefetchQuery is a no-op when the cache is still fresh, and TanStack
-// dedupes concurrent fetches of the same key — so a fresh dashboard load issues
+// dedupes concurrent fetches of the same key, so a fresh dashboard load issues
 // ONE /api/files even when both fire at once.
 export function prefetchFileList(force = false): Promise<void> {
   if (force) {
@@ -119,14 +119,14 @@ export async function hydrateFilesFromCache(): Promise<void> {
       queryClient.setQueryData<FileMetadata[]>(qk.files, cached);
     }
   } catch {
-    // OPFS unavailable — fall back to the network fetch only
+    // OPFS unavailable: fall back to the network fetch only
   }
 }
 
 // Blank the decrypted name/style of zero-knowledge files before they touch disk,
 // so the OPFS cache never persists plaintext (it holds only the opaque
 // encrypted_name/encrypted_style, exactly like the server). Legacy plaintext-name
-// files are unaffected — their name is already plaintext on the server.
+// files are unaffected: their name is already plaintext on the server.
 function stripDecryptedNames(files: FileMetadata[]): FileMetadata[] {
   return files.map((f) =>
     f.encrypted_name || f.encrypted_style

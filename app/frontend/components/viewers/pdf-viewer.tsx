@@ -10,7 +10,7 @@ import { openExternal } from "@/lib/tauri";
 
 /**
  * In-app PDF viewer built on pdf.js (pdfjs-dist). Pages are rendered to <canvas>
- * entirely in the browser — no <iframe>, no browser PDF plugin — so it renders
+ * entirely in the browser (no <iframe>, no browser PDF plugin) so it renders
  * consistently across Chrome / Firefox / Safari and inside the Tauri webview,
  * and is never "blocked by Chrome" the way a sandboxed plugin iframe is.
  *
@@ -220,7 +220,7 @@ export function PdfViewer({
 }
 
 /* -------------------------------------------------------------------------- */
-/* One page — lazily painted to a canvas, re-painted crisply on zoom          */
+/* One page: lazily painted to a canvas, re-painted crisply on zoom          */
 /* -------------------------------------------------------------------------- */
 
 function PdfPage({
@@ -244,7 +244,7 @@ function PdfPage({
   // Real display height, set once the page has been rendered (0 until then).
   const [displayHeight, setDisplayHeight] = useState(0);
   // Reserve a sensible height before the page paints (estimated from the current
-  // width) so placeholders don't collapse to 0 — which would make the lazy-render
+  // width) so placeholders don't collapse to 0: which would make the lazy-render
   // gate fire for every page at once and the scrollbar jump on first paint.
   const placeholderHeight =
     displayHeight || (targetWidth > 0 ? Math.round(targetWidth * FALLBACK_ASPECT) : 400);
@@ -327,7 +327,7 @@ function PdfPage({
         await task.promise;
       } catch {
         // RenderingCancelledException (from .cancel()) and transient errors are
-        // expected when zoom changes mid-render — the next effect run repaints.
+        // expected when zoom changes mid-render: the next effect run repaints.
       }
     })();
 

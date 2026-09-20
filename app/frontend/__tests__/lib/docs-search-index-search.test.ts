@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 
 // A small, hand-picked fixture designed so each search term lands on exactly
 // one scoring tier (title-exact, title-prefix, tag-exact, tag-prefix,
-// content-prefix, section-only) — see searchDocs's scoring ladder in
+// content-prefix, section-only). See searchDocs's scoring ladder in
 // lib/docs-search-index.ts.
 vi.mock("@/lib/data", () => ({
   featuresNav: [
@@ -65,14 +65,14 @@ describe("searchDocs", () => {
   });
 
   it("falls back to a content-word-prefix match", () => {
-    // "stor" only prefixes "storage" in the description — not the title or tags.
+    // "stor" only prefixes "storage" in the description, not the title or tags.
     const results = searchDocs("stor");
     expect(results.map((r) => r.href)).toEqual(["/docs/getting-started"]);
   });
 
   it("falls back to a section-only match as the lowest tier", () => {
     // "fo" prefixes the section word "for" ("For Reference"), a stopword
-    // that was filtered out of tags — so only the raw section words see it.
+    // that was filtered out of tags, so only the raw section words see it.
     const results = searchDocs("fo");
     expect(results.map((r) => r.href)).toEqual(["/docs/appendix"]);
   });
@@ -90,7 +90,7 @@ describe("searchDocs", () => {
 
   it("ranks higher-scoring entries first and respects the limit", () => {
     // "a" prefixes a title word only for "Appendix" (score 6), and only a
-    // content word for the other two entries (score 2 each) — forcing a
+    // content word for the other two entries (score 2 each), forcing a
     // real multi-result sort with both a clear winner and a tie.
     const all = searchDocs("a");
     expect(all.map((r) => r.href)).toEqual([

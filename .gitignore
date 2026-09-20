@@ -35,9 +35,9 @@ Thumbs.db
 .env.local
 .env.prod
 .env.prodtest
-# Local credentials for GitHub Actions secrets (Neon watchdog etc.) — never commit
+# Local credentials for GitHub Actions secrets (Neon watchdog etc.), never commit
 github.env
-# Local desktop/Android build target — CI uses the DESKTOP_API_URL repo variable
+# Local desktop/Android build target. CI uses the DESKTOP_API_URL repo variable
 scripts/desktop.env
 
 # IDE
@@ -50,7 +50,7 @@ scripts/desktop.env
 # Codacy
 .github/instructions/codacy.instructions.md
 
-# Claude Code — ignore personal permissions but commit MCP server config
+# Claude Code: ignore personal permissions but commit MCP server config
 .claude/settings.local.json
 
 .vercel
@@ -73,7 +73,7 @@ app/tui/coverage.out
 # Frontend coverage
 app/frontend/coverage/
 
-# prepush quality-gate artifacts (report + versioning state + ratchet baseline — local only)
+# prepush quality-gate artifacts (report + versioning state + ratchet baseline, local only)
 docs/report.md
 docs/state.env
 docs/history.tsv

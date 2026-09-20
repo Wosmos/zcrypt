@@ -7,20 +7,20 @@ import { Checkbox } from "@/components/ui/checkbox";
 
 interface VaultFirstTimeWarningProps {
   open: boolean;
-  /** The passphrase the user just entered — the re-type must match it exactly. */
+  /** The passphrase the user just entered: the re-type must match it exactly. */
   passphrase: string;
   /** Acknowledged: re-type matched AND the box was checked. Commit the passphrase. */
   onConfirm: () => void;
-  /** Backed out — return to the unlock modal without setting a passphrase. */
+  /** Backed out. Return to the unlock modal without setting a passphrase. */
   onCancel: () => void;
 }
 
 /**
- * First-time passphrase warning — shown ONCE, on the first unlock of an empty
+ * First-time passphrase warning: shown ONCE, on the first unlock of an empty
  * vault (i.e. the moment the user is really SETTING their vault passphrase, since
  * zcrypt has no separate set step). zcrypt is zero-knowledge: the passphrase
  * never leaves this device and can't be recovered, so before it becomes the key
- * that wraps the first file we make the user prove they've got it — re-type it
+ * that wraps the first file we make the user prove they've got it, re-type it
  * exactly AND tick an explicit acknowledgement. Deliberately heavier than the
  * ordinary unlock modal; this is the one irreversible ceremony in the app.
  *
@@ -90,7 +90,7 @@ export function VaultFirstTimeWarning({
           <div className="flex-1 min-w-0">
             <h3 className="text-base font-semibold">This passphrase is your only key</h3>
             <p className="text-sm text-[var(--color-text-muted)] mt-0.5">
-              Read this before you continue — it only happens once.
+              Read this before you continue. It only happens once.
             </p>
           </div>
           <button
@@ -107,7 +107,7 @@ export function VaultFirstTimeWarning({
         <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3.5">
           <p className="text-sm leading-relaxed text-[var(--color-text-secondary)]">
             Only you can unlock this vault. Your passphrase never leaves this device and is never
-            sent to us — so if you lose it, your files are gone for good. No reset, no recovery, no
+            sent to us, so if you lose it, your files are gone for good. No reset, no recovery, no
             back door. That&apos;s the point.
           </p>
           <p className="text-sm leading-relaxed text-[var(--color-text-secondary)] mt-2">
@@ -148,7 +148,7 @@ export function VaultFirstTimeWarning({
               onCheckedChange={(checked) => setAcknowledged(checked === true)}
             />
             <span className="text-xs leading-relaxed text-[var(--color-text-secondary)]">
-              I understand my passphrase can&apos;t be recovered, and no one — not even zcrypt — can
+              I understand my passphrase can&apos;t be recovered, and no one (not even zcrypt) can
               unlock my files without it.
             </span>
           </label>
@@ -166,7 +166,7 @@ export function VaultFirstTimeWarning({
               disabled={!canConfirm}
               className="flex-1 rounded-xl bg-[#1a1f36] dark:bg-cyan-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-[#252b45] dark:hover:bg-cyan-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              I understand — continue
+              I understand, continue
             </button>
           </div>
         </form>

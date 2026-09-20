@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Per-folder encryption | zcrypt Docs",
     description:
-      "A second password layer for sensitive folders — verified on-device, never sent to the server, with automatic re-keying across the boundary.",
+      "A second password layer for sensitive folders: verified on-device, never sent to the server, with automatic re-keying across the boundary.",
     url: `${SITE_URL}/docs/folder-encryption`,
   },
 };
@@ -30,14 +30,14 @@ export default function FolderEncryptionPage() {
     <DocPage
       href="/docs/folder-encryption"
       title="Per-folder encryption"
-      description="A folder can have its own password, separate from your vault passphrase — a second lock for the things that need one. It is built entirely on the same envelope primitive, and the folder password never leaves your device."
+      description="A folder can have its own password, separate from your vault passphrase: a second lock for the things that need one. It is built entirely on the same envelope primitive, and the folder password never leaves your device."
       toc={toc}
     >
       <DocSection id="what" title="What it is">
         <DocP>
           By default, every file in your vault is protected by your vault passphrase. Per-folder
           encryption adds an <em>independent</em> password to a specific folder, so opening that
-          folder requires something extra — useful for the handful of folders you want sealed off
+          folder requires something extra: useful for the handful of folders you want sealed off
           even from your own everyday session.
         </DocP>
         <DocP>
@@ -46,7 +46,7 @@ export default function FolderEncryptionPage() {
             envelope encryption
           </Link>{" "}
           scheme used everywhere else in zcrypt. The only thing that changes is <em>which</em>{" "}
-          password derives the key that wraps each file&apos;s Content Encryption Key — the folder
+          password derives the key that wraps each file&apos;s Content Encryption Key, the folder
           password instead of the vault passphrase.
         </DocP>
       </DocSection>
@@ -63,7 +63,7 @@ export default function FolderEncryptionPage() {
 KEK_pw      = PBKDF2-HMAC-SHA256(folder_password, pw_salt, 600000, 32)
 pw_verifier = AES-256-GCM(key = KEK_pw, plaintext = "zcrypt-folder-verify-v1")
 
-// later, to verify a typed password — entirely on-device:
+// later, to verify a typed password, entirely on-device:
 AES-256-GCM-open(KEK_pw', pw_verifier) == "zcrypt-folder-verify-v1" ?`}</DocCode>
         <DocNote type="info" title="Why a verifier instead of asking the server">
           The verifier lets the app tell you immediately whether a password is correct without
@@ -74,8 +74,8 @@ AES-256-GCM-open(KEK_pw', pw_verifier) == "zcrypt-folder-verify-v1" ?`}</DocCode
 
       <DocSection id="rekey" title="Re-keying across the boundary">
         <DocP>
-          A file&apos;s already-uploaded chunks never get re-encrypted when you protect a folder —
-          that would mean re-uploading everything. Instead, only the tiny wrapped key changes. When
+          A file&apos;s already-uploaded chunks never get re-encrypted when you protect a folder.
+          That would mean re-uploading everything. Instead, only the tiny wrapped key changes. When
           a file enters a protected folder, the client recovers its existing CEK under the source
           key, then re-wraps that same CEK under a fresh folder-password-derived key and a new salt.
         </DocP>
@@ -92,7 +92,7 @@ AES-256-GCM-open(KEK_pw', pw_verifier) == "zcrypt-folder-verify-v1" ?`}</DocCode
             </>,
             <>
               <strong>Persist</strong> the new salt and wrapped CEK via the{" "}
-              <span className="font-mono">/rekey</span> endpoint — it updates only those two fields
+              <span className="font-mono">/rekey</span> endpoint: it updates only those two fields
               and touches no chunk data.
             </>,
           ]}
@@ -112,11 +112,11 @@ AES-256-GCM-open(KEK_pw', pw_verifier) == "zcrypt-folder-verify-v1" ?`}</DocCode
         <DocList
           items={[
             <>
-              <span className="font-mono">pw_salt</span> — the random per-folder salt used to derive
+              <span className="font-mono">pw_salt</span>: the random per-folder salt used to derive
               the folder-password key on your device.
             </>,
             <>
-              <span className="font-mono">pw_verifier</span> — the small ciphertext used for local
+              <span className="font-mono">pw_verifier</span>: the small ciphertext used for local
               verification. It reveals nothing about the password.
             </>,
           ]}
@@ -125,8 +125,8 @@ AES-256-GCM-open(KEK_pw', pw_verifier) == "zcrypt-folder-verify-v1" ?`}</DocCode
           The server never derives, sees, or logs the folder password or any key derived from it. A
           folder counts as &ldquo;protected&rdquo; purely because{" "}
           <span className="font-mono">pw_salt</span> is present. Audit events for setting or
-          clearing a folder password record only the folder ID — never the salt, the verifier, or
-          any key material.
+          clearing a folder password record only the folder ID, never the salt, the verifier, or any
+          key material.
         </DocNote>
       </DocSection>
 
@@ -135,7 +135,7 @@ AES-256-GCM-open(KEK_pw', pw_verifier) == "zcrypt-folder-verify-v1" ?`}</DocCode
           items={[
             <>
               <strong>A forgotten folder password is unrecoverable.</strong> Just like the vault
-              passphrase, there is no reset — the key exists nowhere we can reach. Store it in a
+              passphrase, there is no reset: the key exists nowhere we can reach. Store it in a
               password manager.
             </>,
             <>
@@ -160,28 +160,28 @@ AES-256-GCM-open(KEK_pw', pw_verifier) == "zcrypt-folder-verify-v1" ?`}</DocCode
               href="/docs/key-management"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Passphrase &amp; key management — how every key in zcrypt is derived and held
+              Passphrase &amp; key management: how every key in zcrypt is derived and held
             </Link>,
             <Link
               key="b"
               href="/docs/folders"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Folders &amp; the file explorer — create, nest, and navigate folders
+              Folders &amp; the file explorer: create, nest, and navigate folders
             </Link>,
             <Link
               key="c"
               href="/docs/zero-knowledge"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Zero-knowledge architecture — what the server can and cannot see
+              Zero-knowledge architecture: what the server can and cannot see
             </Link>,
             <Link
               key="d"
               href="/features/folders"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Encrypted folders — the feature tour
+              Encrypted folders, the feature tour
             </Link>,
           ]}
         />

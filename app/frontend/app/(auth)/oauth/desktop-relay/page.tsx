@@ -4,7 +4,7 @@ import { useSearchParams } from "next/navigation";
 
 /**
  * Browser page shown after desktop OAuth completes.
- * Tokens are stored server-side for the desktop app to poll —
+ * Tokens are stored server-side for the desktop app to poll:
  * this page just tells the user to go back to the app.
  */
 export default function DesktopRelayPage() {

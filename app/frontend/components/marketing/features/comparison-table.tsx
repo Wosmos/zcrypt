@@ -25,7 +25,7 @@ export interface ComparisonTableProps {
 
 /**
  * The side-by-side capability comparison table shared by every vs/* page. Two
- * value columns — zcrypt (cyan checks) and the competitor (emerald checks) —
+ * value columns: zcrypt (cyan checks) and the competitor (emerald checks):
  * with muted X marks where a capability is absent. Renders inside its own
  * surface-filled, border-y section with a centered heading block and a
  * horizontally scrollable table on narrow screens.

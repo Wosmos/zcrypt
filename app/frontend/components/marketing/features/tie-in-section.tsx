@@ -6,11 +6,11 @@ export interface TieInSectionProps {
   eyebrow: ReactNode;
   heading: ReactNode;
   body: ReactNode;
-  /** The left column's checklist/callout — typically an <IconList />. */
+  /** The left column's checklist/callout, typically an <IconList />. */
   checklist?: ReactNode;
   linkLabel?: ReactNode;
   linkHref?: string;
-  /** The right column — typically a <CodePanel /> or other mock. */
+  /** The right column: typically a <CodePanel /> or other mock. */
   panel: ReactNode;
   /** Section background. `true` (default) adds the border-y + surface
    *  treatment; `false` renders a plain section. */

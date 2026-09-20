@@ -6,7 +6,7 @@ import type { FileMetadata, RepoInfo, QuotaInfo } from "@/types";
 
 // Per-repo platform limits (mirrors the backend defaults in cmd/server.go).
 // These are zcrypt's auto-rotation thresholds (when the repo pool spins up a new
-// repo/channel), NOT the platforms' own hard caps — Telegram in particular has
+// repo/channel), NOT the platforms' own hard caps. Telegram in particular has
 // no storage limit, so its value is a virtual housekeeping threshold.
 const PLATFORM_THRESHOLDS: { platform: string; limit: string }[] = [
   { platform: "GitHub", limit: "850 MB / repo" },
@@ -73,7 +73,7 @@ export function AdvancedDetails({
             </h3>
           </div>
           <div className="divide-y divide-[var(--color-border)] px-5 py-2">
-            <Row label="Plan" value={quotaInfo?.plan ? quotaInfo.plan : "—"} />
+            <Row label="Plan" value={quotaInfo?.plan ? quotaInfo.plan : "-"} />
             <Row label="Storage used" value={formatBytes(quotaInfo?.used_bytes ?? encrypted)} />
             <Row
               label="Storage quota"
@@ -134,7 +134,7 @@ export function AdvancedDetails({
                       <td className="px-5 py-2.5 text-[var(--color-text)]">
                         {platformName(r.platform)}
                       </td>
-                      <td className="px-3 py-2.5">{r.account || "—"}</td>
+                      <td className="px-3 py-2.5">{r.account || "-"}</td>
                       <td className="max-w-[180px] truncate px-3 py-2.5 font-mono text-xs">
                         {r.name}
                       </td>

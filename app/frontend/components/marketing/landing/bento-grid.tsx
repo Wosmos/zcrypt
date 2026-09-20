@@ -70,7 +70,7 @@ function BentoCard({
         className,
       )}
     >
-      {/* hover glow — brightens from 0.5 → 1 on hover (matches mockup .bglow) */}
+      {/* hover glow: brightens from 0.5 → 1 on hover (matches mockup .bglow) */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 opacity-50 transition-opacity duration-500 group-hover:opacity-100"
@@ -113,14 +113,14 @@ export function BentoGrid() {
             </span>
           </h2>
           <p className="mt-4 leading-relaxed text-[var(--color-text-secondary)]">
-            Everything engineered so your data stays yours — and you never have to take our word for
+            Everything engineered so your data stays yours, and you never have to take our word for
             it.
           </p>
         </div>
 
         {/* Bento */}
         <div className="grid grid-cols-1 items-stretch gap-2.5 md:grid-cols-3">
-          {/* Row 1 — Encrypted (wide) */}
+          {/* Row 1. Encrypted (wide) */}
           <BentoCard
             index={0}
             glow="radial-gradient(50% 80% at 85% 10%, rgba(0,213,228,0.05), transparent 70%)"
@@ -131,13 +131,13 @@ export function BentoGrid() {
                 Encrypted before it ever leaves your device
               </h3>
               <p className="text-sm leading-relaxed text-[var(--color-text-secondary)]">
-                The key comes from your passphrase and never leaves your device — so only you can
+                The key comes from your passphrase and never leaves your device, so only you can
                 open your files.
               </p>
               <OutlineButton href="/docs/security">Explore security</OutlineButton>
             </div>
             <div className="relative z-[2] flex min-w-0 flex-col justify-center md:flex-[1.5]">
-              {/* mac window — vault preview */}
+              {/* mac window, vault preview */}
               <div className="overflow-hidden rounded-[14px] border border-[var(--color-border)] bg-[var(--color-bg)] shadow-sm dark:shadow-[0_30px_60px_-28px_rgba(0,0,0,0.9)]">
                 <div
                   className={cn(
@@ -149,7 +149,7 @@ export function BentoGrid() {
                   <i className="block h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
                   <i className="block h-2.5 w-2.5 rounded-full bg-[#28c840]" />
                   <span className="ml-2 font-mono text-[0.68rem] text-[var(--color-text-muted)]">
-                    zcrypt — My Vault
+                    zcrypt. My Vault
                   </span>
                 </div>
                 <div className="space-y-2 p-3 sm:p-4">
@@ -180,7 +180,7 @@ export function BentoGrid() {
             </div>
           </BentoCard>
 
-          {/* Row 1 — Platforms */}
+          {/* Row 1. Platforms */}
           <BentoCard
             index={1}
             glow="radial-gradient(70% 60% at 50% 0%, rgba(0,213,228,0.05), transparent 70%)"
@@ -224,7 +224,7 @@ export function BentoGrid() {
             </div>
           </BentoCard>
 
-          {/* Row 2 — Apps */}
+          {/* Row 2. Apps */}
           <BentoCard
             index={2}
             glow="radial-gradient(70% 60% at 50% 0%, rgba(0,213,228,0.05), transparent 70%)"
@@ -267,7 +267,7 @@ export function BentoGrid() {
             </div>
           </BentoCard>
 
-          {/* Row 2 — Self-host (wide, reversed) */}
+          {/* Row 2. Self-host (wide, reversed) */}
           <BentoCard
             index={3}
             glow="radial-gradient(40% 90% at 12% 50%, rgba(0,213,228,0.05), transparent 70%)"
@@ -279,7 +279,7 @@ export function BentoGrid() {
               </h3>
               <p className="text-sm leading-relaxed text-[var(--color-text-secondary)]">
                 Audit every line, or run the entire backend on your own infrastructure.
-                Bring-your-own-backend is available to everyone — your trust is earned by code you
+                Bring-your-own-backend is available to everyone: your trust is earned by code you
                 can read.
               </p>
               <ul className="mt-5 flex flex-col gap-2.5">

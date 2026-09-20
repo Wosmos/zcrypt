@@ -158,7 +158,7 @@ describe("useOperationStatus", () => {
     latestES().onopen?.(); // establish hadConnection
 
     // Threshold is 8 consecutive failures (~2 min of 1s->30s backoff). Every
-    // failure below it stays silent — a normal SSE reconnect recovers well
+    // failure below it stays silent: a normal SSE reconnect recovers well
     // before then and must not warn.
     for (let i = 0; i < 8; i++) {
       latestES().onerror?.();
@@ -166,10 +166,10 @@ describe("useOperationStatus", () => {
       vi.advanceTimersByTime(30_000);
     }
 
-    latestES().onerror?.(); // 9th failure — threshold crossed
+    latestES().onerror?.(); // 9th failure, threshold crossed
     expect(notifications.serverError).toHaveBeenCalledTimes(1);
     expect(toast.error).toHaveBeenCalledTimes(1);
-    // An SSE drop must NEVER raise an OS-level notification — it auto-recovers,
+    // An SSE drop must NEVER raise an OS-level notification, it auto-recovers,
     // and one lingering in the notification centre is pure noise.
     expect(MockNotification.instances).toHaveLength(0);
 
@@ -244,8 +244,8 @@ describe("useOperationStatus", () => {
 
   it("no-ops a reconnect timer orphaned by a second error before it fired, once disposed", () => {
     // Two onerror calls in a row (re)assign the closure's single `reconnectTimer`
-    // variable, so the FIRST timer (1s) is orphaned — still pending, but no
-    // longer referenced — while the SECOND timer (2s) is what cleanup tracks
+    // variable, so the FIRST timer (1s) is orphaned, still pending, but no
+    // longer referenced, while the SECOND timer (2s) is what cleanup tracks
     // and clears. Unmounting clears only the tracked (2s) timer; the orphaned
     // (1s) one still fires and invokes `connect()` with `disposed` already
     // true, which must no-op instead of opening a new EventSource.

@@ -1,14 +1,14 @@
 /**
  * In-memory, session-only cache of fully-decrypted file blobs, shared across the
- * whole app so re-opening — or navigating back to — a file is instant instead of
+ * whole app so re-opening (or navigating back to) a file is instant instead of
  * re-running the fetch → AES-256-GCM → zstd → SHA-256 pipeline every time.
  *
  * Zero-knowledge: entries hold DECRYPTED plaintext, so they live ONLY in memory
- * and are dropped on every lock-state transition — explicit vault lock, vault TTL
+ * and are dropped on every lock-state transition: explicit vault lock, vault TTL
  * expiry, logout (clearDecryptCache), and a protected folder re-locking / expiring
  * (clearDecryptCacheForFolder). They are deliberately NEVER persisted to disk
- * (IndexedDB / Cache API) — unlike the small, lossy thumbnail previews in
- * useThumbnail — because writing plaintext to disk would break the zero-knowledge
+ * (IndexedDB / Cache API): unlike the small, lossy thumbnail previews in
+ * useThumbnail: because writing plaintext to disk would break the zero-knowledge
  * guarantee.
  *
  * Bounded by a byte budget with LRU eviction so a few large media files can't
@@ -21,7 +21,7 @@
  * protected folder re-locks, without coupling this module to the file store.
  *
  * Also hosts a sibling cache for the per-file unwrapped CEK (see `cachedResolveCEK`
- * below) — the same file is often key-resolved twice (a thumbnail's chunk-0 peek,
+ * below): the same file is often key-resolved twice (a thumbnail's chunk-0 peek,
  * then the full viewer), so memoizing the unwrap avoids paying it again. It shares
  * this module's clear/generation lifecycle so a CEK never outlives the lock event
  * that should have revoked it.
@@ -44,7 +44,7 @@ let totalBytes = 0;
 
 // Bumped on every clear (vault lock / TTL / logout / folder lock). A decrypt run
 // captures the generation when it starts; if it has changed by the time the run
-// resolves, the run must NOT repopulate the cache — the access window closed
+// resolves, the run must NOT repopulate the cache, the access window closed
 // mid-decrypt (e.g. the user locked while the file was still downloading), so
 // caching its plaintext would let it outlive the lock.
 let generation = 0;
@@ -71,7 +71,7 @@ export function isWarmOrInflight(id: string): boolean {
 
 /**
  * True while any full-file decrypt is in flight (viewer open, download reuse,
- * neighbour prefetch). Background work — e.g. the thumbnail queue — uses this
+ * neighbour prefetch). Background work (e.g. the thumbnail queue) uses this
  * to yield network + CPU to the file the user is actually waiting on.
  */
 export function isForegroundDecryptActive(): boolean {
@@ -85,7 +85,7 @@ function store(id: string, blob: Blob, folderId: string | null): void {
   cache.set(id, { blob, folderId });
   totalBytes += blob.size;
   // Evict least-recently-used entries until back under budget (never the one we
-  // just added — iteration starts at the LRU front, and the new entry is at the
+  // just added: iteration starts at the LRU front, and the new entry is at the
   // back).
   for (const key of cache.keys()) {
     if (totalBytes <= MAX_BYTES) break;
@@ -115,7 +115,7 @@ export function cachedDecrypt(
 
   const gen = generation;
   const run = decrypt().then((blob) => {
-    // Only cache if no lock/clear happened while we were decrypting — otherwise
+    // Only cache if no lock/clear happened while we were decrypting, otherwise
     // we'd repopulate a cache the user just locked. The caller still gets the
     // blob it requested (it asked while unlocked); we just don't retain it.
     if (gen === generation) store(id, blob, folderId);
@@ -123,7 +123,7 @@ export function cachedDecrypt(
   });
   inflight.set(id, run);
   // Clear the in-flight entry whether it resolves or rejects. The trailing catch
-  // is only to avoid an unhandled rejection on this bookkeeping chain — callers
+  // is only to avoid an unhandled rejection on this bookkeeping chain, callers
   // still receive the original `run` rejection.
   run
     .finally(() => {
@@ -134,18 +134,18 @@ export function cachedDecrypt(
 }
 
 /**
- * CEK cache — the per-file Content Encryption Key, already unwrapped from
+ * CEK cache: the per-file Content Encryption Key, already unwrapped from
  * `meta.wrapped_cek`. Unwrapping is one cheap AES-GCM call (the expensive part
- * — 600k-iteration PBKDF2 KEK derivation — is already memoized separately by
+ * (600k-iteration PBKDF2 KEK derivation) is already memoized separately by
  * lib/crypto's deriveKeyBytesCached, keyed by salt+passphrase), BUT a file's
- * key is resolved from more than one place — the thumbnail pipeline
+ * key is resolved from more than one place: the thumbnail pipeline
  * (useThumbnail) generates its LQIP from chunk 0, then the full viewer
  * (useFileDecryptor) resolves the SAME file's key again to decrypt every
  * chunk. Caching the final unwrapped CEK here turns the second (and every
  * later) resolution for a given file into a plain map lookup instead of a
  * repeat unwrap + await round trip through Web Crypto.
  *
- * Same exposure class + lifecycle as the plaintext blob cache above — a CEK
+ * Same exposure class + lifecycle as the plaintext blob cache above, a CEK
  * lets its holder decrypt that file's chunks, so it rides the exact same
  * lock/TTL/logout/folder-relock eviction below (and the same generation
  * guard: a resolve that finishes after a lock/clear must not repopulate it).
@@ -175,7 +175,7 @@ export function getCachedCEK(id: string): ArrayBuffer | undefined {
 
 function storeCEK(id: string, keyBytes: ArrayBuffer, folderId: string | null): void {
   if (!cekCache.has(id) && cekCache.size >= CEK_CACHE_MAX) {
-    // Simple insertion-order eviction (Map iterates oldest-first) — keys are a
+    // Simple insertion-order eviction (Map iterates oldest-first), keys are a
     // fixed 32 bytes each, so a count cap (not a byte budget) is sufficient.
     const oldest = cekCache.keys().next().value as string;
     cekCache.delete(oldest);
@@ -185,7 +185,7 @@ function storeCEK(id: string, keyBytes: ArrayBuffer, folderId: string | null): v
 
 /**
  * Return the cached CEK for `id`, or run `resolve()` exactly once
- * (de-duplicating concurrent callers — e.g. a thumbnail generation and a
+ * (de-duplicating concurrent callers: e.g. a thumbnail generation and a
  * viewer open racing for the same file) and cache the result. Rejections
  * (wrong password) are not cached, so a retry re-resolves; and a resolve that
  * finishes after a lock/clear does not repopulate the cache.
@@ -235,8 +235,8 @@ export function clearDecryptCacheForFile(id: string): void {
 
 /**
  * Modules that hold their OWN decrypted plaintext-at-rest (e.g. the thumbnail
- * cache in useThumbnail) register a clearer here. `clearDecryptCache()` — the one
- * lock / TTL / logout eviction call the stores already make — then drops their
+ * cache in useThumbnail) register a clearer here. `clearDecryptCache()`, the one
+ * lock / TTL / logout eviction call the stores already make: then drops their
  * plaintext too. This inversion keeps the stores from importing those modules
  * directly (which pulled lib/api → store/auth into store/passphrase's graph and
  * both created an import cycle and eagerly ran store/auth's module init).
@@ -257,11 +257,11 @@ export function clearDecryptCache(): void {
   cekInflight.clear();
   totalBytes = 0;
   generation++; // invalidate any in-flight run so it can't repopulate post-lock
-  // Derived keys are the same exposure class as this plaintext — a lock event
+  // Derived keys are the same exposure class as this plaintext, a lock event
   // must drop both, or a re-lock would leave 600k-iteration PBKDF2 results
   // usable in memory.
   clearDerivedKeyCache();
-  // Fan out to registered plaintext holders (thumbnails) — same eviction event.
+  // Fan out to registered plaintext holders (thumbnails), same eviction event.
   for (const cb of clearListeners) cb();
 }
 
@@ -269,7 +269,7 @@ export function clearDecryptCache(): void {
  * Drop only the plaintext belonging to one protected folder. Called when a
  * folder's password is forgotten (explicit re-lock, unprotect, wrong-password
  * recovery, or TTL expiry) so re-locking a folder again gates content already
- * viewed — a cache hit must never serve a folder's file after it re-locks.
+ * viewed: a cache hit must never serve a folder's file after it re-locks.
  */
 export function clearDecryptCacheForFolder(folderId: string): void {
   for (const [id, entry] of cache) {
@@ -289,6 +289,6 @@ export function clearDecryptCacheForFolder(folderId: string): void {
   // re-decrypts/re-resolves later).
   generation++;
   // Same story for derived keys: there is no folder→salt mapping, so the safe
-  // fallback is a FULL clear — unaffected files merely re-derive on next open.
+  // fallback is a FULL clear: unaffected files merely re-derive on next open.
   clearDerivedKeyCache();
 }

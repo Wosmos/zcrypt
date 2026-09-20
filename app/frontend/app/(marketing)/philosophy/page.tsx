@@ -6,17 +6,17 @@ import { Section } from "@/components/marketing/section-reveal";
 import { WOSMO, WosmoWordmark } from "@/components/marketing/wosmo";
 import { SITE_URL } from "@/lib/site";
 
-// Server Component (statically generated) — metadata lives here; the only client
+// Server Component (statically generated): metadata lives here; the only client
 // parts are the <Section>/<PullQuote> scroll-reveal islands from prose.tsx.
 export const metadata: Metadata = {
-  title: "Our Philosophy — Why We Built zcrypt",
+  title: "Our Philosophy. Why We Built zcrypt",
   description:
     "The zcrypt manifesto. Why cloud storage is overpriced, why zero-knowledge encryption matters, and why your data should belong to you. Open source, free, and private.",
   alternates: {
     canonical: `${SITE_URL}/philosophy`,
   },
   openGraph: {
-    title: "Our Philosophy — Why We Built zcrypt",
+    title: "Our Philosophy. Why We Built zcrypt",
     description:
       "The zcrypt manifesto. Cloud storage is overpriced. Your data should belong to you.",
     url: `${SITE_URL}/philosophy`,
@@ -84,7 +84,7 @@ export default function PhilosophyPage() {
           <div className="space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
             <p>
               AWS S3 charges $23 per terabyte per month. That&apos;s $276 per year for a terabyte of
-              storage. A 4TB hard drive costs $80 on Amazon — the same Amazon. You could buy the
+              storage. A 4TB hard drive costs $80 on Amazon, the same Amazon. You could buy the
               physical hardware to store your data four times over for what they charge you in a
               single year to store it on their servers.
             </p>
@@ -104,15 +104,15 @@ export default function PhilosophyPage() {
           <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
             <p>
               GitLab gives you 10GB per repo. For free. Hugging Face gives you 100GB per account.
-              GitHub doesn&apos;t even publish a hard cap — just stay under a few gigabytes and
-              nobody blinks. These aren&apos;t hidden terms buried in legalese — they&apos;re
+              GitHub doesn&apos;t even publish a hard cap: just stay under a few gigabytes and
+              nobody blinks. These aren&apos;t hidden terms buried in legalese, they&apos;re
               published limits (and unwritten norms) that platform teams actively maintain and
               support.
             </p>
             <p>
               This isn&apos;t a bug. This is a feature. These platforms need generous storage to
               host large repositories, ML models, and binary assets. They built the infrastructure.
-              They set the limits. We just use them as intended — for storing data.
+              They set the limits. We just use them as intended, for storing data.
             </p>
           </div>
 
@@ -166,7 +166,7 @@ export default function PhilosophyPage() {
 
           <div className="space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
             <p>
-              AES-256-GCM provides authenticated encryption — meaning tampering with the ciphertext
+              AES-256-GCM provides authenticated encryption: meaning tampering with the ciphertext
               is detectable. The GCM mode gives you both confidentiality and integrity in a single
               pass. No separate HMAC step. No room for implementation mistakes.
             </p>

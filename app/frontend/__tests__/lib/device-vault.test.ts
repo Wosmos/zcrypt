@@ -93,7 +93,7 @@ describe("device-vault", () => {
 
   it("returns null when the store read itself errors", async () => {
     // fake-indexeddb has no way to fail an individual request, so stand in a
-    // minimal IDB whose read rejects — the caller must degrade to "not stored"
+    // minimal IDB whose read rejects: the caller must degrade to "not stored"
     // rather than propagate, or an unreadable vault would break unlock entirely.
     const failingRequest = () => {
       const req = { error: new Error("read failed") } as unknown as IDBRequest & {
@@ -138,9 +138,9 @@ describe("device-vault", () => {
 
 // The Tauri shell uses extractable keys to stay out of WebKit's keychain-backed
 // WebCrypto master key. A non-extractable key left over from an older build
-// must be migrated once — otherwise it prompts for the Mac login password on
+// must be migrated once: otherwise it prompts for the Mac login password on
 // every use, forever.
-describe("device-vault (Tauri shell) — legacy key migration", () => {
+describe("device-vault (Tauri shell): legacy key migration", () => {
   const DB = "zcrypt-device-vault";
   const STORE = "kv";
 

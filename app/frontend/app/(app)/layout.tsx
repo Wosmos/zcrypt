@@ -12,8 +12,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <>
       {/* Marks <html data-app> so color themes engage for the app (and its
           portaled overlays) but never for marketing/auth pages. Mounted
-          outside AuthGuard so data-app is set during the auth spinner —
-          before the shell ever paints — avoiding any unthemed flash. */}
+          outside AuthGuard so data-app is set during the auth spinner,
+          before the shell ever paints, avoiding any unthemed flash. */}
       <AppScope />
       <AuthGuard>
         {/* One vault-unlock instance + one PassphraseModal for the whole app, so the
@@ -29,7 +29,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             a `var(--color-bg)` base). It's unset for every theme except a
             Custom theme with a background design picked (see lib/custom-theme.ts
             and lib/app-backgrounds.ts), in which case it falls back to a plain
-            canvas fill. It's a decorative frame only — every panel/card above it
+            canvas fill. It's a decorative frame only, every panel/card above it
             is fully opaque, so it never affects text contrast. */}
           <div
             className="app-shell flex h-dvh gap-0 p-0 md:gap-3 md:p-3"
@@ -47,7 +47,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 </div>
               </main>
             </div>
-            {/* Unified transfer manager — docked bottom-right, persists across
+            {/* Unified transfer manager, docked bottom-right, persists across
               navigation (stores are singletons). Renders null when idle. */}
             <AppTransfers />
             <FileEventsBridge />

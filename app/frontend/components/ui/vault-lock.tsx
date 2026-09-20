@@ -6,12 +6,12 @@ import { Toggle } from "@/components/ui/toggle";
 import { cn, formatDuration } from "@/lib/utils";
 
 /**
- * VaultLock — the single header control for the one-vault-passphrase model
+ * VaultLock: the single header control for the one-vault-passphrase model
  * (REBUILD_SPEC §3). There is exactly ONE vault passphrase; unlocking once
  * unlocks everything for the TTL.
  *
  * Rendered as a lock/unlock Toggle button (reusing the shared <Toggle>), NOT an
- * iOS-style slider — a padlock icon that clearly reads "locked / unlocked" so it
+ * iOS-style slider: a padlock icon that clearly reads "locked / unlocked" so it
  * can't be mistaken for a dark-mode switch. Pressing it while locked opens the
  * unlock modal (`onUnlock`) and shows an optimistic "Unlocking…" state; if the
  * modal is cancelled the button reverts. Pressing an unlocked vault re-locks
@@ -23,14 +23,14 @@ import { cn, formatDuration } from "@/lib/utils";
 export interface VaultLockProps {
   /** Whether the vault is currently unlocked (a passphrase is cached). */
   unlocked: boolean;
-  /** Seconds left on the TTL — drives the MM:SS countdown when unlocked. */
+  /** Seconds left on the TTL: drives the MM:SS countdown when unlocked. */
   remainingSeconds: number;
   /**
-   * Unlocked persistently ("kept on this device") — no TTL. Shows "on this
+   * Unlocked persistently ("kept on this device"): no TTL. Shows "on this
    * device" instead of a countdown.
    */
   persistent?: boolean;
-  /** Whether the unlock modal is currently open — lets the button revert if the
+  /** Whether the unlock modal is currently open: lets the button revert if the
    *  user cancels instead of entering a passphrase. */
   modalOpen?: boolean;
   /** Open the single "Unlock your vault" modal. */
@@ -95,11 +95,11 @@ export function VaultLock({
       aria-label={
         unlocked
           ? persistent
-            ? "Vault unlocked on this device — click to lock"
-            : `Vault unlocked, locks in ${formatCountdown(remainingSeconds)} — click to lock`
+            ? "Vault unlocked on this device, click to lock"
+            : `Vault unlocked, locks in ${formatCountdown(remainingSeconds)}, click to lock`
           : pending
             ? "Unlocking vault"
-            : "Vault locked — click to unlock"
+            : "Vault locked, click to unlock"
       }
       className={cn(
         "h-9 gap-1.5 rounded-full px-3 text-xs font-medium transition-colors",
@@ -115,7 +115,7 @@ export function VaultLock({
         <LockKey weight="bold" className="h-5 w-5" aria-hidden />
       )}
 
-      {/* Label — hidden on mobile (the icon + aria-label carry the state there). */}
+      {/* Label: hidden on mobile (the icon + aria-label carry the state there). */}
       <span className="hidden items-center sm:inline-flex">
         {unlocked ? (
           persistent ? (

@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Trash & restore | zcrypt Docs",
     description:
-      "Soft-delete, restore, preview, and permanently purge files in zcrypt — including bulk actions.",
+      "Soft-delete, restore, preview, and permanently purge files in zcrypt, including bulk actions.",
     url: `${SITE_URL}/docs/trash`,
   },
 };
@@ -29,12 +29,12 @@ export default function TrashDocPage() {
     <DocPage
       href="/docs/trash"
       title="Trash & restore"
-      description="Deletes are reversible by default. Items go to Trash first, so a mis-click is a quick restore — until you decide to purge them for good."
+      description="Deletes are reversible by default. Items go to Trash first, so a mis-click is a quick restore, until you decide to purge them for good."
       toc={toc}
     >
       <DocSection id="soft-delete" title="Deleting is a soft delete">
         <DocP>
-          Deleting a file moves it to <strong>Trash</strong> rather than removing it outright — a{" "}
+          Deleting a file moves it to <strong>Trash</strong> rather than removing it outright, a{" "}
           <strong>soft delete</strong>. The file leaves your folders but its encrypted chunks stay
           on your storage platform, untouched, so it can be brought back.
         </DocP>
@@ -43,7 +43,7 @@ export default function TrashDocPage() {
       <DocSection id="restore" title="Restoring">
         <DocP>
           From Trash, <strong>restore</strong> an item to return it to your vault. Because nothing
-          was actually purged, a restore is instant and complete — the file comes back exactly as it
+          was actually purged, a restore is instant and complete: the file comes back exactly as it
           was.
         </DocP>
       </DocSection>
@@ -57,7 +57,7 @@ export default function TrashDocPage() {
         </DocP>
         <DocNote type="warning" title="Permanent and unrecoverable">
           Delete-forever cannot be undone. Once the chunks are purged from your platforms, the file
-          is gone for good — restore anything you might still want before you purge.
+          is gone for good: restore anything you might still want before you purge.
         </DocNote>
       </DocSection>
 

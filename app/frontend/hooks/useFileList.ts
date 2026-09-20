@@ -8,7 +8,7 @@ import { useFilesQuery, setFilesData, invalidateFiles, hydrateFilesFromCache } f
  * Vault file list. A thin adapter over the TanStack Query `files` cache so every
  * existing consumer keeps the same shape (`files`, `loading`, `error`, `refresh`,
  * `setFiles`) while the underlying source of truth is now a single query that
- * mutations invalidate — no second stale copy to drift out of sync.
+ * mutations invalidate: no second stale copy to drift out of sync.
  */
 export function useFileList() {
   const query = useFilesQuery();

@@ -31,7 +31,7 @@ export const bringYourOwnStorage: BringYourOwnStoragePageData = {
     headlineGradient: "You already have it.",
     subtext: (
       <>
-        Connect accounts you own — GitHub, GitLab, Hugging Face, Telegram — and your encrypted files
+        Connect accounts you own (GitHub, GitLab, Hugging Face, Telegram) and your encrypted files
         are stored as disguised chunks in repos you own. Repos rotate automatically as they fill, so
         your space grows on its own. Your data, your infrastructure, no lock-in.
       </>
@@ -43,7 +43,7 @@ export const bringYourOwnStorage: BringYourOwnStoragePageData = {
   adaptersSection: {
     heading: "Connect what you already pay for",
     subheading:
-      "Four platforms, each with its own generous limits. Mix and match — the more you connect, the more room you have.",
+      "Four platforms, each with its own generous limits. Mix and match: the more you connect, the more room you have.",
     footnote:
       "Capacities are approximate, per-repo or per-file platform limits and can change at the providers' discretion. zcrypt works within whatever each platform currently allows.",
   },
@@ -62,12 +62,12 @@ export const bringYourOwnStorage: BringYourOwnStoragePageData = {
     {
       Icon: InfinityIcon,
       title: "Space that grows",
-      desc: "Connect more accounts, get more room. There's no zcrypt-sold quota to bump against — your capacity is whatever you already have.",
+      desc: "Connect more accounts, get more room. There's no zcrypt-sold quota to bump against: your capacity is whatever you already have.",
     },
     {
       Icon: Lock,
       title: "Disguised on arrival",
-      desc: "Chunks are stored looking like ordinary build-cache files — unremarkable artifacts in a code repo, not obvious encrypted blobs.",
+      desc: "Chunks are stored looking like ordinary build-cache files: unremarkable artifacts in a code repo, not obvious encrypted blobs.",
     },
     {
       Icon: Server,
@@ -77,7 +77,7 @@ export const bringYourOwnStorage: BringYourOwnStoragePageData = {
     {
       Icon: HardDrive,
       title: "No lock-in",
-      desc: "Disconnect a platform or leave entirely — your accounts are yours. Open source, so the mechanics are never a black box.",
+      desc: "Disconnect a platform or leave entirely, your accounts are yours. Open source, so the mechanics are never a black box.",
     },
   ],
 
@@ -89,8 +89,8 @@ export const bringYourOwnStorage: BringYourOwnStoragePageData = {
         Most cloud storage rents you space on the provider&apos;s servers, on the provider&apos;s
         terms. zcrypt flips that: it&apos;s an encryption and orchestration layer over storage you
         already own. Everything is encrypted on your device first, then chunks are disguised as
-        ordinary build-cache files in repos you own — your library spread across the accounts you
-        connect. Walk away whenever you like — the accounts, and the bytes in them, were always
+        ordinary build-cache files in repos you own: your library spread across the accounts you
+        connect. Walk away whenever you like: the accounts, and the bytes in them, were always
         yours.
       </>
     ),
@@ -98,7 +98,7 @@ export const bringYourOwnStorage: BringYourOwnStoragePageData = {
       "Encrypted on your device before any upload",
       "Chunks disguised as routine build-cache artifacts",
       "Stored in repos across accounts you control",
-      "Disconnect or leave anytime — no captive data",
+      "Disconnect or leave anytime, no captive data",
     ],
     linkLabel: "How the repo pool rotates",
     linkHref: "/docs/repo-pool",
@@ -108,7 +108,7 @@ export const bringYourOwnStorage: BringYourOwnStoragePageData = {
     {
       href: "/features/encrypted-drive",
       title: "The encrypted drive",
-      desc: "What sits on top of your storage — a real, sealed file explorer.",
+      desc: "What sits on top of your storage: a real, sealed file explorer.",
     },
     {
       href: "/docs/platform-adapters",

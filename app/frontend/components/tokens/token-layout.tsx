@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 // "missing generateStaticParams()". These share pages are fully client-rendered
 // (token read from the URL at runtime) and are stripped from the desktop bundle
 // anyway, so a single throwaway shell satisfies the export. On the web build
-// (no export) the route stays fully dynamic — dynamicParams defaults to true.
+// (no export) the route stays fully dynamic, dynamicParams defaults to true.
 const TOKEN_STATIC_PARAMS = [{ token: "placeholder" }];
 
 export function generateStaticParams() {
@@ -20,7 +20,7 @@ export function tokenMetadata(title: string): Metadata {
   };
 }
 
-/** "Expires in" countdown for a share/pad/send link — "Xd Xh", "Xh Xm", "Xm", or "Expired". */
+/** "Expires in" countdown for a share/pad/send link: "Xd Xh", "Xh Xm", "Xm", or "Expired". */
 export function formatShortExpiry(expiresAt: string): string {
   const diff = new Date(expiresAt).getTime() - Date.now();
   if (diff <= 0) return "Expired";

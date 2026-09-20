@@ -1,6 +1,6 @@
 name: Security Scan
 
-# govulncheck (Go dependency CVE scanning) doesn't need to run on every push —
+# govulncheck (Go dependency CVE scanning) doesn't need to run on every push:
 # a new vulnerability shows up because of an upstream advisory, not because of
 # your own commit, so checking on every push just re-ran the same scan for no
 # new information. Weekly + on-demand catches new advisories just as fast in

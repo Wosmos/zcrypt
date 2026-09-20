@@ -44,7 +44,7 @@ describe("collectSubtreeFolderIds", () => {
   it("does not revisit an id it has already collected (cycle-safe)", async () => {
     listFolders.mockImplementation(async (id: string) => {
       if (id === "root") return [{ id: "a" }];
-      // "a" points back at "root" — must not be re-added or re-queued.
+      // "a" points back at "root": must not be re-added or re-queued.
       if (id === "a") return [{ id: "root" }, { id: "d" }];
       if (id === "d") return [];
       return [];
@@ -53,7 +53,7 @@ describe("collectSubtreeFolderIds", () => {
     const ids = await collectSubtreeFolderIds("root");
 
     expect(ids).toEqual(new Set(["root", "a", "d"]));
-    expect(listFolders).toHaveBeenCalledTimes(3); // root, a, d — never re-fetches root
+    expect(listFolders).toHaveBeenCalledTimes(3); // root, a, d, never re-fetches root
   });
 
   it("treats a failed fetch for one branch as empty, without failing the whole walk", async () => {

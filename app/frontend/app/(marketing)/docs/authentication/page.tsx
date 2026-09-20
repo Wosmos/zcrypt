@@ -6,12 +6,12 @@ import { SITE_URL } from "@/lib/site";
 export const metadata: Metadata = {
   title: "Authentication & 2FA | zcrypt Docs",
   description:
-    "How you sign in to zcrypt: email and password sign-up with breach checks, email verification, password reset, passwordless magic links, JWT sessions, and TOTP two-factor — and why your account password is not your vault passphrase.",
+    "How you sign in to zcrypt: email and password sign-up with breach checks, email verification, password reset, passwordless magic links, JWT sessions, and TOTP two-factor, and why your account password is not your vault passphrase.",
   alternates: { canonical: `${SITE_URL}/docs/authentication` },
   openGraph: {
     title: "Authentication & 2FA | zcrypt Docs",
     description:
-      "Email/password sign-up, magic links, JWT sessions, and TOTP two-factor in zcrypt — plus the difference between your account password and your vault passphrase.",
+      "Email/password sign-up, magic links, JWT sessions, and TOTP two-factor in zcrypt: plus the difference between your account password and your vault passphrase.",
     url: `${SITE_URL}/docs/authentication`,
   },
 };
@@ -32,7 +32,7 @@ export default function AuthenticationDocPage() {
     <DocPage
       href="/docs/authentication"
       title="Authentication & 2FA"
-      description="Signing in proves who you are to the service. It is deliberately separate from the passphrase that encrypts your files — so the server can authenticate you without ever being able to read your data."
+      description="Signing in proves who you are to the service. It is deliberately separate from the passphrase that encrypts your files, so the server can authenticate you without ever being able to read your data."
       toc={toc}
     >
       <DocSection id="password-vs-passphrase" title="Password vs. passphrase">
@@ -49,7 +49,7 @@ export default function AuthenticationDocPage() {
           <p>
             Your <strong>vault passphrase</strong> encrypts your files. It is used only on your
             device to derive your encryption keys and is <strong>never sent to the server</strong>.
-            Because we never see it, we can never reset it for you — see{" "}
+            Because we never see it, we can never reset it for you. See{" "}
             <Link
               href="/docs/recovery"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
@@ -75,7 +75,7 @@ export default function AuthenticationDocPage() {
       <DocSection id="sign-up" title="Signing up">
         <DocP>
           Create an account with an email address, a username, and a password. Passwords are hashed
-          with <strong>bcrypt</strong> before storage — the server never keeps your password in
+          with <strong>bcrypt</strong> before storage: the server never keeps your password in
           plaintext. To be accepted, a password must meet a basic complexity bar:
         </DocP>
         <DocList
@@ -88,13 +88,13 @@ export default function AuthenticationDocPage() {
         />
         <DocP>
           zcrypt also checks your chosen password against the <strong>HaveIBeenPwned</strong> breach
-          corpus using a k-anonymity range query — only the first five characters of a SHA-1 hash
+          corpus using a k-anonymity range query: only the first five characters of a SHA-1 hash
           leave your session, never the password itself. If the password has appeared in a known
           breach, you get a warning with the breach count and can choose a stronger one or proceed
           anyway. The same check runs when you set a new password during a reset.
         </DocP>
         <DocNote type="info">
-          A breach warning never silently blocks you — it is advice. The check also fails open: if
+          A breach warning never silently blocks you. It is advice. The check also fails open: if
           the breach service is unreachable, sign-up is not held up.
         </DocNote>
       </DocSection>
@@ -136,8 +136,8 @@ export default function AuthenticationDocPage() {
           ]}
         />
         <DocNote type="warning" title="A password reset does not touch your files">
-          Resetting your account password restores <em>access to the service</em>. It does not — and
-          cannot — decrypt your vault. Your files stay sealed under your vault passphrase, which the
+          Resetting your account password restores <em>access to the service</em>. It does not, and
+          cannot, decrypt your vault. Your files stay sealed under your vault passphrase, which the
           reset flow never sees.
         </DocNote>
       </DocSection>
@@ -168,7 +168,7 @@ export default function AuthenticationDocPage() {
         </DocP>
         <DocNote type="security" title="Log out everywhere, instantly">
           Each JWT carries a <strong>token version</strong>. Bumping your token version invalidates
-          every outstanding access token at once and clears your refresh tokens — an instant
+          every outstanding access token at once and clears your refresh tokens, an instant
           &ldquo;sign out of all sessions&rdquo;. A password reset does exactly this for you.
         </DocNote>
       </DocSection>
@@ -176,8 +176,8 @@ export default function AuthenticationDocPage() {
       <DocSection id="totp" title="Two-factor (TOTP)">
         <DocP>
           For a second layer on sign-in, enable time-based one-time-password (TOTP) two-factor
-          authentication. It works with any standard authenticator app — Google Authenticator,
-          1Password, Aegis, Authy, and others — using the usual 6-digit, 30-second codes.
+          authentication. It works with any standard authenticator app. Google Authenticator,
+          1Password, Aegis, Authy, and others: using the usual 6-digit, 30-second codes.
         </DocP>
         <DocList
           ordered
@@ -189,13 +189,13 @@ export default function AuthenticationDocPage() {
         />
         <DocP>
           When you enable 2FA, zcrypt also issues a set of <strong>one-time backup codes</strong>.
-          Save them somewhere safe — if you lose your authenticator, a backup code gets you back in.
+          Save them somewhere safe, if you lose your authenticator, a backup code gets you back in.
           Each code works once, and you can regenerate a fresh set at any time, which invalidates
           the old ones.
         </DocP>
         <DocP>
           To turn 2FA off, you must confirm <strong>both</strong> your current password and a valid
-          code — so a stranger who briefly has your unlocked session still can&apos;t strip the
+          code, so a stranger who briefly has your unlocked session still can&apos;t strip the
           second factor. Code validation allows a one-step time window on either side to tolerate
           minor clock drift between your phone and the server.
         </DocP>
@@ -214,21 +214,21 @@ export default function AuthenticationDocPage() {
               href="/docs/oauth"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Sign in with Google or GitHub — OAuth login, linking, and desktop sign-in
+              Sign in with Google or GitHub. OAuth login, linking, and desktop sign-in
             </Link>,
             <Link
               key="b"
               href="/docs/recovery"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Account recovery — what is and isn&apos;t recoverable, and why
+              Account recovery: what is and isn&apos;t recoverable, and why
             </Link>,
             <Link
               key="c"
               href="/docs/key-management"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Key management — how your passphrase derives your encryption keys
+              Key management: how your passphrase derives your encryption keys
             </Link>,
           ]}
         />

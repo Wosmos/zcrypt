@@ -1,6 +1,6 @@
 /**
  * Auth endpoint load test.
- * Tests login/register/refresh throughput — these hit on every page load.
+ * Tests login/register/refresh throughput: these hit on every page load.
  *
  * Scenarios:
  *   - 70% existing users logging in (bcrypt verify)

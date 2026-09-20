@@ -289,7 +289,7 @@ function FeatureRow({ icon, title, desc }: { icon: React.ReactNode; title: strin
   );
 }
 
-/** Primary step-advance button + "Skip for now" link — shared by the welcome and platform steps. */
+/** Primary step-advance button + "Skip for now" link: shared by the welcome and platform steps. */
 function PrimaryWithSkip({
   onPrimaryClick,
   primaryDisabled,

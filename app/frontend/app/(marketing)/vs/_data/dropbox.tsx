@@ -80,7 +80,7 @@ const rows: ComparisonRow[] = [
   },
   {
     label: "Open source",
-    zcrypt: { good: true, note: "Fully open source — audit the client and server yourself." },
+    zcrypt: { good: true, note: "Fully open source: audit the client and server yourself." },
     other: { good: false, note: "Proprietary, closed-source clients and backend." },
   },
   {
@@ -96,14 +96,14 @@ const rows: ComparisonRow[] = [
     },
     other: {
       good: true,
-      note: "Mature, polished folders and sync. Excellent organization — but names are visible to Dropbox.",
+      note: "Mature, polished folders and sync. Excellent organization, but names are visible to Dropbox.",
     },
   },
   {
     label: "In-browser previews",
     zcrypt: {
       good: true,
-      note: "Images, video, audio, PDFs, docs, and code — decrypted in your browser, never on the server.",
+      note: "Images, video, audio, PDFs, docs, and code: decrypted in your browser, never on the server.",
     },
     other: {
       good: true,
@@ -118,7 +118,7 @@ const rows: ComparisonRow[] = [
     },
     other: {
       good: true,
-      note: "Very mature sharing, links, and collaboration — at the cost of provider access.",
+      note: "Very mature sharing, links, and collaboration: at the cost of provider access.",
     },
   },
   {
@@ -138,7 +138,7 @@ const pillars: CapabilityItem[] = [
   {
     Icon: Lock,
     title: "You hold the keys",
-    desc: "Your passphrase derives the encryption keys on your device with PBKDF2 (600k iterations). We never see them. Lose the passphrase and even we can't recover your files — that's the point.",
+    desc: "Your passphrase derives the encryption keys on your device with PBKDF2 (600k iterations). We never see them. Lose the passphrase and even we can't recover your files, that's the point.",
   },
   {
     Icon: Shield,
@@ -157,14 +157,14 @@ const pillars: CapabilityItem[] = [
   },
 ];
 
-/** "Go deeper" links shown at the bottom of every vs/* page — the same two
+/** "Go deeper" links shown at the bottom of every vs/* page, the same two
  *  feature deep-dives regardless of which competitor the page compares against. */
 export const VS_RELATED_LINKS: RelatedLinkItem[] = [
   {
     href: "/features/encrypted-drive",
     Icon: FolderOpen,
     title: "The encrypted drive",
-    desc: "Real folders, search, and previews — with a zero-knowledge layer underneath.",
+    desc: "Real folders, search, and previews: with a zero-knowledge layer underneath.",
   },
   {
     href: "/features/encryption",
@@ -183,8 +183,8 @@ export const dropbox: VsData = {
     headlineGradient: "zcrypt is private.",
     subtext: (
       <>
-        Dropbox is a polished, friction-free place to keep files — but it holds the keys and can
-        read what you store. zcrypt is a real encrypted drive where everything is encrypted on your
+        Dropbox is a polished, friction-free place to keep files, but it holds the keys and can read
+        what you store. zcrypt is a real encrypted drive where everything is encrypted on your
         device, stored in accounts you already own, and the code is open for anyone to audit.
       </>
     ),
@@ -227,16 +227,16 @@ export const dropbox: VsData = {
         <strong className="text-[var(--color-text)]">
           want the provider to host and manage storage for you
         </strong>{" "}
-        — no accounts to connect, no keys to remember — Dropbox removes that responsibility
-        entirely. With zcrypt, if you lose your passphrase, your data is unrecoverable. That
-        trade-off is the price of zero-knowledge, and it isn&apos;t for everyone.
+        (no accounts to connect, no keys to remember) Dropbox removes that responsibility entirely.
+        With zcrypt, if you lose your passphrase, your data is unrecoverable. That trade-off is the
+        price of zero-knowledge, and it isn&apos;t for everyone.
       </>,
       <>
         And if you need polished mobile apps today,{" "}
         <strong className="text-[var(--color-text)]">
           zcrypt&apos;s native mobile apps are still on the roadmap
         </strong>{" "}
-        — we ship web, desktop, and a terminal app right now. Dropbox&apos;s mobile experience is
+        : we ship web, desktop, and a terminal app right now. Dropbox&apos;s mobile experience is
         mature and complete.
       </>,
       <>

@@ -66,7 +66,7 @@ describe("parseAssets", () => {
         sublabel: "x86_64 · AppImage",
         href: "/dl/linux-appimage",
         recommended: undefined,
-        note: "One-time setup: chmod +x the file, then run it. On Fedora, also install FUSE first — sudo dnf install fuse.",
+        note: "One-time setup: chmod +x the file, then run it. On Fedora, also install FUSE first, sudo dnf install fuse.",
       },
     ]);
 
@@ -152,7 +152,7 @@ describe("getLatestRelease", () => {
     );
   });
 
-  it("does not memoise a failure — the next call retries GitHub", async () => {
+  it("does not memoise a failure: the next call retries GitHub", async () => {
     // Caching the rejection would pin the server instance to the stale fallback
     // long after GitHub started answering again.
     const fetchMock = vi
@@ -242,8 +242,8 @@ describe("getLatestRelease", () => {
     expect(data!.desktop.find((p) => p.id === "windows")!.options).toHaveLength(2);
     expect(data!.desktop.find((p) => p.id === "linux")!.options).toHaveLength(3);
     expect(data!.cli).toHaveLength(6);
-    // The fallback names no version and no filename — every href is a /dl
-    // redirect the backend resolves — so there is no checksums asset to point
+    // The fallback names no version and no filename: every href is a /dl
+    // redirect the backend resolves, so there is no checksums asset to point
     // at, and the page link is just /releases/latest.
     expect(data!.checksumsUrl).toBeNull();
     expect(data!.htmlUrl).toBe(`${GITHUB_REPO}/releases/latest`);

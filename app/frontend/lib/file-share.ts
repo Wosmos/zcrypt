@@ -2,12 +2,12 @@
  * Public single-file link (zero-knowledge). Mirrors lib/folder-share.ts: recover
  * the file's CEK with the vault passphrase, re-wrap it under a fresh random share
  * key, and create the share storing only that share-wrapped envelope. The share
- * key lives only in the returned URL #fragment and never reaches the server — so
+ * key lives only in the returned URL #fragment and never reaches the server, so
  * anyone with the link can decrypt, no account needed.
  *
  * Single home for the copy-pasted file-share crypto flow (previously duplicated
  * in the details drawer and the share modal). Callers keep their own form state,
- * toasts, and cache refresh — this just performs the crypto + create + URL build,
+ * toasts, and cache refresh: this just performs the crypto + create + URL build,
  * plus the shares-cache invalidation so the drawer/modal reflect the new link.
  */
 import {

@@ -6,7 +6,7 @@ import { SITE_URL } from "@/lib/site";
 export const metadata: Metadata = {
   title: "zcrypt vs Proton Drive: Private, Open-Source Encrypted Drive",
   description:
-    "A fair comparison of two end-to-end encrypted drives. Proton Drive is audited, established, and has mobile apps. zcrypt adds open-source self-hosting, bring-your-own-storage, no artificial caps, and a terminal app — all free.",
+    "A fair comparison of two end-to-end encrypted drives. Proton Drive is audited, established, and has mobile apps. zcrypt adds open-source self-hosting, bring-your-own-storage, no artificial caps, and a terminal app, all free.",
   keywords: [
     "proton drive alternative",
     "open source proton drive alternative",

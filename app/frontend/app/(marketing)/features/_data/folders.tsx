@@ -32,7 +32,7 @@ export const folders: FoldersPageData = {
     subtext: (
       <>
         Organize with real, nestable folders whose names are encrypted on your device. Then give any
-        folder its own password — a second lock, separate from your vault, that keeps it sealed even
+        folder its own password: a second lock, separate from your vault, that keeps it sealed even
         when everything else is open.
       </>
     ),
@@ -43,18 +43,18 @@ export const folders: FoldersPageData = {
   capabilitiesSection: {
     heading: "Structure that keeps secrets",
     subheading:
-      "The folders you expect, plus a second layer of encryption you can drop onto any one of them — all the way down.",
+      "The folders you expect, plus a second layer of encryption you can drop onto any one of them, all the way down.",
   },
   capabilities: [
     {
       Icon: FolderOpen,
       title: "Real, nestable folders",
-      desc: "Build the hierarchy you actually think in — folders inside folders, as deep as you need. Not tags pretending to be structure.",
+      desc: "Build the hierarchy you actually think in: folders inside folders, as deep as you need. Not tags pretending to be structure.",
     },
     {
       Icon: Lock,
       title: "Encrypted folder names",
-      desc: "Every folder name is encrypted on your device. The server stores opaque ciphertext — it never learns what you called anything.",
+      desc: "Every folder name is encrypted on your device. The server stores opaque ciphertext. It never learns what you called anything.",
     },
     {
       Icon: Key,
@@ -74,7 +74,7 @@ export const folders: FoldersPageData = {
     {
       Icon: Layers,
       title: "Verified locally",
-      desc: "The folder password is checked on your device against the folder's own key material — never sent to the server, never round-tripped.",
+      desc: "The folder password is checked on your device against the folder's own key material, never sent to the server, never round-tripped.",
     },
   ],
 
@@ -85,13 +85,13 @@ export const folders: FoldersPageData = {
       <>
         When you protect a folder, its files are re-encrypted under a key derived from a password
         only you know. That password is verified locally against the folder&apos;s own key material
-        — it never travels to the server, and neither does the key it unlocks. Move a file in or out
+        . It never travels to the server, and neither does the key it unlocks. Move a file in or out
         and zcrypt re-keys it for you, so nothing is ever left under the wrong lock.
       </>
     ),
     checklistItems: [
       "Folder password derived to a key on your device",
-      "Verified locally — no server round-trip, no guess oracle",
+      "Verified locally, no server round-trip, no guess oracle",
       "Stays sealed even while your vault is unlocked",
       "Files re-encrypted automatically when moved in or out",
     ],
@@ -103,7 +103,7 @@ export const folders: FoldersPageData = {
     {
       href: "/features/encrypted-drive",
       title: "The encrypted drive",
-      desc: "Folders, search, previews, drag-and-drop — encrypted end to end.",
+      desc: "Folders, search, previews, drag-and-drop, encrypted end to end.",
     },
     {
       href: "/docs/folders",

@@ -11,7 +11,7 @@ const PAGE_SIZE = 6;
 
 /**
  * The user's storage repositories, as a flat native list (divided rows in one
- * container — no card-per-repo). Rendered inside the Settings "Storage &
+ * container: no card-per-repo). Rendered inside the Settings "Storage &
  * quotas" pane, so it carries a light sub-header rather than its own panel.
  */
 export function StoragePool() {
@@ -26,7 +26,7 @@ export function StoragePool() {
       <div className="px-1">
         <h3 className="text-sm font-semibold text-[var(--color-text)]">Storage pool</h3>
         <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-          Repositories zcrypt manages — auto-created and rotated as they fill up.
+          Repositories zcrypt manages: auto-created and rotated as they fill up.
         </p>
       </div>
 

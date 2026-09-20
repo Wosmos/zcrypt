@@ -13,7 +13,7 @@ import { Cog, Users, LogOut, ArrowRight, BarChart3, Layers, Trash2 } from "@/lib
 import { VaultIcon, GearIcon, MoreDotsIcon } from "@/components/icons/nav-icons";
 import { Role } from "@/types";
 
-// Primary tabs — kept to the essentials so the bar stays light. Share, Settings,
+// Primary tabs: kept to the essentials so the bar stays light. Share, Settings,
 // Tools and Admin live in the "More" sheet instead of crowding the bar.
 const NAV_LINKS = [
   { href: "/dashboard", label: "Vault", Icon: VaultIcon },
@@ -38,7 +38,7 @@ export function MobileNav() {
   const drawerLinks = useMemo<DrawerLink[]>(() => {
     const items: DrawerLink[] = [
       { href: "/settings", label: "Settings", icon: GearIcon },
-      // Parity with the desktop sidebar's "Deleted Files" — without this, a
+      // Parity with the desktop sidebar's "Deleted Files", without this, a
       // mobile user has no way to reach /trash at all.
       { href: "/trash", label: "Deleted Files", icon: Trash2 },
     ];
@@ -173,7 +173,7 @@ export function MobileNav() {
 
       <BottomSheet open={sheetOpen} onClose={() => setSheetOpen(false)}>
         <div className="space-y-1 pb-1">
-          {/* Navigation — Share + Settings always; Tools/Admin when relevant. */}
+          {/* Navigation. Share + Settings always; Tools/Admin when relevant. */}
           <div className="px-3 pb-1">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--color-text-muted)]">
               Navigation

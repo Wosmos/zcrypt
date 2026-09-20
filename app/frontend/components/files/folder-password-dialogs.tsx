@@ -11,7 +11,7 @@ import type { FolderUnlockModalState } from "@/hooks/useFolderProtection";
  * Folder-password dialogs (spec §3): a verify-on-open unlock modal, a
  * set-password dialog (with confirm + a re-key progress view), and a
  * remove-protection confirm. All reuse the look of the vault PassphraseModal but
- * NEVER touch the vault passphrase store — folder passwords route through the
+ * NEVER touch the vault passphrase store: folder passwords route through the
  * caller's verify/cache callbacks only. The password never leaves the device.
  */
 
@@ -94,7 +94,7 @@ function SweepProgress({
   );
 }
 
-// ── Open a protected folder — verify, then enter ──────────────────────────────
+// ── Open a protected folder. Verify, then enter ──────────────────────────────
 
 /**
  * The single folder-unlock modal, fed by `useFolderProtection().modalState`.
@@ -181,7 +181,7 @@ export interface SetFolderPasswordState {
   folderName: string;
   /** Number of files that will be re-keyed (drives the "this will re-key N files" copy). */
   fileCount: number;
-  /** Whether the vault is unlocked — required to re-key existing files. */
+  /** Whether the vault is unlocked: required to re-key existing files. */
   vaultUnlocked: boolean;
   /** Re-key progress while submitting, or null when idle. */
   progress: { done: number; total: number } | null;
@@ -276,7 +276,7 @@ export function SetFolderPasswordDialog({ state }: { state: SetFolderPasswordSta
                 <p className="text-xs text-[var(--color-text-secondary)]">
                   This folder has {fileCount} file{fileCount === 1 ? "" : "s"}. They will be
                   re-keyed to the new folder password{" "}
-                  {vaultUnlocked ? "now" : "— unlock your vault first"}.
+                  {vaultUnlocked ? "now" : "once you unlock your vault"}.
                 </p>
               </div>
             )}

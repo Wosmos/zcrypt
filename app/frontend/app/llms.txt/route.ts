@@ -1,6 +1,6 @@
 import { buildLlmsTxt } from "@/lib/llms-txt";
 
-// Serves /llms.txt — the standard LLM-friendly overview (see llmstxt.org).
+// Serves /llms.txt: the standard LLM-friendly overview (see llmstxt.org).
 // Content is shared with /llm.txt via lib/llms-txt.
 export const dynamic = "force-static";
 

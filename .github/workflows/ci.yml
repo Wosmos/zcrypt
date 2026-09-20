@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 # A newer push/PR-update on the same ref makes any run already in flight for
-# that ref stale — cancel it instead of letting it finish uselessly. Distinct
+# that ref stale: cancel it instead of letting it finish uselessly. Distinct
 # refs (different branches/PRs) get their own group, so they never cancel
 # each other.
 concurrency:
@@ -34,7 +34,7 @@ jobs:
             backend:
               - 'app/backend/**'
               - 'tests/load/**'
-              # The image the backend ships in — a change here rebuilds it.
+              # The image the backend ships in: a change here rebuilds it.
               - 'Dockerfile'
               # This file defines the deploy, so a change to it has to be able
               # to exercise the path it just changed.
@@ -56,7 +56,7 @@ jobs:
 
   # ── Backend: unit tests ──────────────────────────────────────────────────────
   # gofmt/vet/build/test already ran locally via the (now-installed) pre-push
-  # hook before this commit could even be pushed — re-running them here on a
+  # hook before this commit could even be pushed: re-running them here on a
   # plain `push` is pure duplicate work. The one thing the hook DOESN'T do
   # (too slow for a fast local gate) is the race detector, so that step always
   # runs. Everything else is gated to `pull_request` only, since a PR from a
@@ -137,13 +137,13 @@ jobs:
 
   # ── Frontend: unit tests + typecheck ─────────────────────────────────────────
   # typecheck/tests/build already ran locally via the (now-installed) pre-push
-  # hook before this commit could be pushed — re-running the identical checks
+  # hook before this commit could be pushed, re-running the identical checks
   # here on a plain `push` is pure duplicate work (this job doesn't even lint,
   # so it's a strict subset of what the hook already gated). Gated to
   # `pull_request` only, since a fork PR (this is AGPL/open source) never ran
   # your local hook and needs the full independent check. The job itself still
-  # runs (and still reports success) on push — frontend-e2e's dependency on it
-  # stays intact — it just does no redundant work.
+  # runs (and still reports success) on push, frontend-e2e's dependency on it
+  # stays intact. It just does no redundant work.
   frontend:
     name: Next.js Frontend
     needs: changes
@@ -170,7 +170,7 @@ jobs:
         continue-on-error: true
         run: bunx tsgo --noEmit
 
-      # Rust toolchain gates — both sub-second. Fork PRs never ran the local
+      # Rust toolchain gates, both sub-second. Fork PRs never ran the local
       # pre-push hook, so this is the only place their lint/format is checked.
       - name: Lint (oxlint)
         if: github.event_name == 'pull_request'
@@ -193,7 +193,7 @@ jobs:
         run: bun run build
 
   # ── Frontend: E2E tests (Playwright) ─────────────────────────────────────────
-  # Runs on main branch pushes only — too slow for every PR
+  # Runs on main branch pushes only: too slow for every PR
   frontend-e2e:
     name: Playwright E2E
     needs: [changes, frontend, backend]
@@ -284,8 +284,8 @@ jobs:
   # ── Rust core: fmt + clippy + conformance tests ──────────────────────────────
   # zcrypt-core is the shared client engine (desktop in-process + mobile). Its
   # conformance suite verifies the crate against the same crypto vectors the TS
-  # and Go implementations pass — a red here means a cross-client format break.
-  # fmt/clippy/test already ran locally via the (now-installed) pre-push hook —
+  # and Go implementations pass: a red here means a cross-client format break.
+  # fmt/clippy/test already ran locally via the (now-installed) pre-push hook:
   # identical commands, zero added value on a plain `push`. Gated to
   # `pull_request` only (fork PRs never ran your local hook); the job still
   # runs and reports success on push, so it doesn't affect anything downstream.
@@ -321,7 +321,7 @@ jobs:
         run: cargo test
 
   # ── TUI: vet + build + test ───────────────────────────────────────────────────
-  # vet/build/test already ran locally via the (now-installed) pre-push hook —
+  # vet/build/test already ran locally via the (now-installed) pre-push hook:
   # identical commands, zero added value on a plain `push`. Gated to
   # `pull_request` only (fork PRs never ran your local hook); the job still
   # runs and reports success on push, so it doesn't affect anything downstream.
@@ -359,7 +359,7 @@ jobs:
 
   # ── Backend: confirm the deploy actually landed ───────────────────────────────
   # Railway deploys the backend itself, from its GitHub connection. This job does
-  # NOT deploy — it checks that the deploy happened.
+  # NOT deploy: it checks that the deploy happened.
   #
   # That distinction is the whole point. The GitHub integration silently stopped
   # firing and production served a week-old image while main moved on. Nothing
@@ -380,7 +380,7 @@ jobs:
     steps:
       # Railway injects RAILWAY_GIT_COMMIT_SHA into every deployment it builds
       # from the connected repo, and /api/health reports it. So production
-      # naming the commit we just pushed is proof the new code is live — not
+      # naming the commit we just pushed is proof the new code is live, not
       # merely that the host is up.
       - name: Wait for production to report this commit
         run: |
@@ -394,16 +394,16 @@ jobs:
               echo "production is serving $live after $((i * 15))s"
               exit 0
             fi
-            echo "waiting ($i/60) — production reports '${live:-<no commit field>}'"
+            echo "waiting ($i/60): production reports '${live:-<no commit field>}'"
             sleep 15
           done
-          echo "::error::After 15 minutes production is still not serving $GITHUB_SHA. Railway's GitHub deploy did not fire, or the build failed. Check the Railway dashboard — do NOT ignore this, it is the exact failure that left production a week stale."
+          echo "::error::After 15 minutes production is still not serving $GITHUB_SHA. Railway's GitHub deploy did not fire, or the build failed. Check the Railway dashboard. Do NOT ignore this, it is the exact failure that left production a week stale."
           exit 1
 
   # ── Deploy: frontend → Vercel ─────────────────────────────────────────────────
   # Previously: `bun run build` (a generic Next.js build) then plain `vercel
   # --prod`. Without `--prebuilt`, `vercel deploy` ignores any local build and
-  # uploads source for Vercel to build AGAIN on its own infrastructure — so
+  # uploads source for Vercel to build AGAIN on its own infrastructure, so
   # that local build was pure wasted compute, not just a duplicate of the
   # `frontend` job's build, but of literally nothing (its output was never
   # used). Switched to Vercel's own documented CI flow: `pull` fetches the
@@ -441,7 +441,7 @@ jobs:
 
       # --archive=tgz uploads the build as ONE tarball instead of thousands of
       # individual files. The free plan caps uploads at 5000 files per 24h, and
-      # a Next.js output blows through that in a few deploys a day — the failure
+      # a Next.js output blows through that in a few deploys a day, the failure
       # surfaces as a wall of "Upload aborted" with the real cause
       # ("api-upload-free") buried in the middle.
       - name: Deploy prebuilt output to Vercel

@@ -38,7 +38,7 @@ export const encryption: EncryptionPageData = {
       <>
         Your files are encrypted on your own device with AES-256-GCM before they ever leave it. The
         key is derived from your passphrase and never transmitted. We store ciphertext and nothing
-        else — no keys, no plaintext, not even your folder names.
+        else, no keys, no plaintext, not even your folder names.
       </>
     ),
     secondaryLabel: "Read the docs",
@@ -90,7 +90,7 @@ export const encryption: EncryptionPageData = {
     {
       Icon: Server,
       title: "The server only sees ciphertext",
-      desc: "On our side there are no keys and no plaintext — only opaque encrypted blobs we couldn't open even if compelled to.",
+      desc: "On our side there are no keys and no plaintext: only opaque encrypted blobs we couldn't open even if compelled to.",
     },
     {
       Icon: ShieldCheck,
@@ -134,7 +134,7 @@ export const encryption: EncryptionPageData = {
         True zero-knowledge has a price, and we won&apos;t pretend otherwise. Because your key is
         derived from your passphrase and never reaches us, we have no &ldquo;reset password and get
         your files back&rdquo; button. If you lose your passphrase, your data stays encrypted
-        forever — to you and to everyone else.
+        forever: to you and to everyone else.
       </>
     ),
     checklist: (
@@ -146,9 +146,9 @@ export const encryption: EncryptionPageData = {
     linkLabel: "Read the security model",
     linkHref: "/docs/security",
     panelIntro: [
-      "Choose a strong passphrase you won't forget — it is the one key to everything.",
+      "Choose a strong passphrase you won't forget. It is the one key to everything.",
       "Previews and downloads are decrypted in your browser, then discarded.",
-      "Sharing wraps a file's key for the recipient — without ever exposing your passphrase.",
+      "Sharing wraps a file's key for the recipient, without ever exposing your passphrase.",
       "Password-protected folders add a second key, separate from your vault.",
     ],
   },

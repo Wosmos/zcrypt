@@ -7,7 +7,7 @@ import { ttlDeadline, minutesUntil } from "@/lib/ttl";
  * by folder ID. A protected folder asks for its password once on open; we cache
  * it here for a TTL (default 15 min) so the user isn't nagged per file.
  *
- * Folder passwords live ONLY here, in memory — never persisted to localStorage,
+ * Folder passwords live ONLY here, in memory: never persisted to localStorage,
  * IndexedDB, cookies, or anywhere else, and never sent to the server. The cache
  * is cleared on reload (state resets), on explicit lock, and lazily on TTL
  * expiry.
@@ -19,7 +19,7 @@ interface CacheEntry {
 }
 
 // Per-folder auto-clear timers. Kept outside zustand state (not serializable,
-// not reactive) — same pattern as the single timer in store/passphrase.ts.
+// not reactive): same pattern as the single timer in store/passphrase.ts.
 const clearTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 function cancelTimer(folderId: string) {
@@ -63,7 +63,7 @@ export const useFolderPasswordStore = create<FolderPasswordStore>((set, get) => 
           const { [folderId]: _removed, ...rest } = s.cache;
           return { cache: rest };
         });
-        // Folder re-locked on TTL — drop its decrypted plaintext so a later open
+        // Folder re-locked on TTL. Drop its decrypted plaintext so a later open
         // re-gates it instead of being served from the cache.
         clearDecryptCacheForFolder(folderId);
       },
@@ -81,7 +81,7 @@ export const useFolderPasswordStore = create<FolderPasswordStore>((set, get) => 
         const { [folderId]: _removed, ...rest } = s.cache;
         return { cache: rest };
       });
-      // Lazy TTL expiry on read — same plaintext eviction as the timer path.
+      // Lazy TTL expiry on read: same plaintext eviction as the timer path.
       clearDecryptCacheForFolder(folderId);
       return null;
     }

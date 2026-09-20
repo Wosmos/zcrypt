@@ -100,7 +100,7 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Desktop sidebar — floating panel */}
+      {/* Desktop sidebar, floating panel */}
       <aside
         className={cn(
           "panel hidden shrink-0 flex-col p-3 transition-all duration-200 md:flex",
@@ -146,7 +146,7 @@ export function Sidebar() {
                   Storage
                 </span>
                 <span className="text-[11px] tabular-nums text-[var(--color-text-muted)]">
-                  {isUnlimited ? "∞" : totalMax > 0 ? `${storagePercent.toFixed(0)}%` : "—"}
+                  {isUnlimited ? "∞" : totalMax > 0 ? `${storagePercent.toFixed(0)}%` : "-"}
                 </span>
               </div>
               <div className="h-1.5 overflow-hidden rounded-full bg-[var(--color-surface-3)]">

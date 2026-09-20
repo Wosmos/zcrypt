@@ -205,7 +205,7 @@ function ClipboardSyncSection() {
   }, []);
 
   // SSE for real-time sync. Manual exponential backoff (1s→30s) like
-  // useOperationStatus/useFileEvents — without onerror, the browser's native
+  // useOperationStatus/useFileEvents, without onerror, the browser's native
   // EventSource retry (~3s fixed, uncapped) hammers /api/events on any flaky
   // connection and keeps the backend/DB awake for no reason.
   useEffect(() => {
@@ -494,7 +494,7 @@ function FolderSyncSection() {
   return (
     <Section
       title="Folder sync"
-      description="Managed by the zcrypt TUI — point it at local folders to back them up automatically."
+      description="Managed by the zcrypt TUI: point it at local folders to back them up automatically."
       actions={
         <Button
           onClick={() => {

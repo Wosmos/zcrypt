@@ -5,7 +5,7 @@ import { lazy, Suspense } from "react";
 import { queryClient } from "@/lib/query-client";
 
 // Devtools are dev-only and dynamically imported so they never reach the prod
-// bundle. They render a floating panel that shows the live cache state — useful
+// bundle. They render a floating panel that shows the live cache state, useful
 // for verifying that a delete/move/restore actually invalidates what it should.
 const ReactQueryDevtools =
   process.env.NODE_ENV === "development"

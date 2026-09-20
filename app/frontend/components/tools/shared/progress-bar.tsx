@@ -3,7 +3,7 @@
 /**
  * Labelled progress bar shared by send-tool and transfer-tool.
  *
- * `percent` is the already-computed display value — the caller decides whether
+ * `percent` is the already-computed display value: the caller decides whether
  * to ease it (send eases via `easeProgress`, transfer passes the raw percent),
  * and both the label and the bar width use exactly this number.
  *

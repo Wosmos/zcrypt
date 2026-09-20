@@ -26,7 +26,7 @@ export async function throwResponseError(res: Response): Promise<never> {
  * caller's `fallback` string when the body isn't JSON, has no `error`, or can't
  * be read. Complements parseErrorBody (which reads text). Folds the ubiquitous
  *   `const body = await res.json().catch(() => ({})); throw new Error(body.error || "…")`
- * pattern — callers wrap the result in their own `throw new Error(...)`, so each
+ * pattern: callers wrap the result in their own `throw new Error(...)`, so each
  * keeps its bespoke fallback message.
  */
 export async function parseErrorJson(res: Response, fallback: string): Promise<string> {

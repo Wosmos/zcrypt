@@ -49,7 +49,7 @@ export default function ApiDocPage() {
     <DocPage
       href="/docs/api"
       title="API reference"
-      description="zcrypt exposes a JSON REST API. Encryption happens on the client, so the API only ever moves opaque ciphertext, metadata, and chunks — never plaintext or keys."
+      description="zcrypt exposes a JSON REST API. Encryption happens on the client, so the API only ever moves opaque ciphertext, metadata, and chunks, never plaintext or keys."
       toc={toc}
     >
       <DocSection id="basics" title="Basics">
@@ -78,7 +78,7 @@ export default function ApiDocPage() {
         />
         <DocNote type="info" title="Stability">
           This documents the routes the web and terminal apps use today. zcrypt is open source and
-          pre-1.0 — treat the surface as evolving, and read <code>RegisterRoutes</code> in{" "}
+          pre-1.0. Treat the surface as evolving, and read <code>RegisterRoutes</code> in{" "}
           <code>app/backend/cmd/server.go</code> as the authoritative route table.
         </DocNote>
       </DocSection>
@@ -93,7 +93,7 @@ export default function ApiDocPage() {
         <DocP>
           When an account has two-factor enabled, <code>login</code> returns a 2FA challenge instead
           of tokens; complete it with <code>POST /api/auth/2fa/verify</code>. Access tokens are
-          short-lived — use <code>POST /api/auth/refresh</code> to mint a new one.
+          short-lived. Use <code>POST /api/auth/refresh</code> to mint a new one.
         </DocP>
         <DocTable
           head={["Method", "Path", "Purpose"]}
@@ -185,7 +185,7 @@ export default function ApiDocPage() {
         <DocP>
           Uploads are client-side encrypted and chunked. Initialise a session, push each encrypted
           chunk (or upload it directly to the platform via a presigned URL where supported), then
-          complete the session. Sessions are resumable — query status and re-send only the chunks
+          complete the session. Sessions are resumable: query status and re-send only the chunks
           that are missing.
         </DocP>
         <DocTable
@@ -233,14 +233,14 @@ export default function ApiDocPage() {
         <DocNote type="info" title="Chunk integrity headers">
           Chunk uploads carry an <code>X-Chunk-SHA256</code> hash and an{" "}
           <code>X-Chunk-Compressed</code> flag so the server can verify each chunk and record how it
-          was packed — without ever decrypting it.
+          was packed, without ever decrypting it.
         </DocNote>
       </DocSection>
 
       <DocSection id="download" title="Download (chunked)">
         <DocP>
           Downloads fetch metadata, then pull chunks by index. The client verifies each chunk,
-          reassembles, decrypts with your passphrase-derived key, and decompresses — all locally.
+          reassembles, decrypts with your passphrase-derived key, and decompresses, all locally.
         </DocP>
         <DocTable
           head={["Method", "Path", "Purpose"]}

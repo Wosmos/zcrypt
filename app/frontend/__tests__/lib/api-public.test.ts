@@ -394,7 +394,7 @@ describe("createEventSource", () => {
   });
 });
 
-// getDownloadTotal bypasses request() — it is unauthenticated, so it uses raw
+// getDownloadTotal bypasses request(). It is unauthenticated, so it uses raw
 // fetch and must not attach a token or blow up the caller on a bad response.
 describe("getDownloadTotal", () => {
   it("returns the total from the public stats endpoint", async () => {

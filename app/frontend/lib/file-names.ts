@@ -9,7 +9,7 @@ import { setFileName } from "@/lib/api";
  * A file's name lives in one of two columns: legacy files carry a plaintext
  * `original_name` (encrypted_name == ""); zero-knowledge files carry an opaque
  * `encrypted_name` and an empty `original_name`. Every display/sort/search site
- * reads `original_name`, so we resolve it ONCE here — at the query source — into
+ * reads `original_name`, so we resolve it ONCE here (at the query source) into
  * the real name (decrypted with the per-user name key) or a "[locked]" placeholder
  * when the vault is locked. Legacy files pass through unchanged.
  *
@@ -31,7 +31,7 @@ function resealLegacyName(f: FileMetadata, key: CryptoKey) {
 
 export async function decryptFileNames(files: FileMetadata[]): Promise<FileMetadata[]> {
   if (files.length === 0) return files;
-  const key = await userNameKey(); // null while locked — no derivation happens
+  const key = await userNameKey(); // null while locked, no derivation happens
 
   // Fast path: nothing to decrypt. Legacy names display as-is; while unlocked
   // they're also queued for re-sealing so the server can drop its plaintext.

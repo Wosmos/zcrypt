@@ -42,12 +42,12 @@ interface FolderDetailsDrawerProps {
   folder: DecryptedFolder | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** The full vault file list — stats aggregate every file under `folder`. */
+  /** The full vault file list: stats aggregate every file under `folder`. */
   files: FileMetadata[];
 }
 
 /**
- * FolderDetailsDrawer — the folder equivalent of <DetailsDrawer /> (Get info).
+ * FolderDetailsDrawer: the folder equivalent of <DetailsDrawer /> (Get info).
  * Reuses the same right-side Sheet chrome and row style, and aggregates stats
  * over the folder's ENTIRE subtree: every file in it and in all nested
  * subfolders, the storage they take (original + encrypted), and space saved.
@@ -63,7 +63,7 @@ export function FolderDetailsDrawer({
 
   const folderId = folder?.id ?? "";
 
-  // Active folder-share links — the folder equivalent of the file drawer's
+  // Active folder-share links: the folder equivalent of the file drawer's
   // sharing history. Same query key as the share modal, so a link created or
   // revoked there is reflected here instantly.
   const sharesQuery = useQuery({
@@ -166,7 +166,7 @@ export function FolderDetailsDrawer({
           </SheetHeader>
 
           <div className="flex-1 space-y-5 overflow-y-auto px-5 py-4">
-            {/* Contents — aggregated over the whole subtree */}
+            {/* Contents: aggregated over the whole subtree */}
             <div className="space-y-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-4">
               {!ready || !stats ? (
                 <div className="space-y-2.5">
@@ -229,7 +229,7 @@ export function FolderDetailsDrawer({
               <CopyField label="Folder ID" value={folder.id} mono />
             </div>
 
-            {/* Share links — the same sharing history the file drawer shows */}
+            {/* Share links: the same sharing history the file drawer shows */}
             <div className="space-y-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-4">
               <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
                 <Share2 className="h-3.5 w-3.5" /> Share links

@@ -7,7 +7,7 @@ export interface IconListProps {
   icon?: ComponentType<{ className?: string; strokeWidth?: number }>;
   iconClassName?: string;
   iconStrokeWidth?: number;
-  /** Per-`<li>` classes — callers vary gap size and items-center vs items-start
+  /** Per-`<li>` classes: callers vary gap size and items-center vs items-start
    *  (the latter when a line may wrap, usually paired with a `mt-0.5` on the icon). */
   itemClassName?: string;
   className?: string;
@@ -15,7 +15,7 @@ export interface IconListProps {
 
 /**
  * The icon + one-line bullet list used across features/* pages (checklists,
- * trade-off callouts, trust signals). Every occurrence shares this shape —
+ * trade-off callouts, trust signals). Every occurrence shares this shape:
  * only the icon and the copy vary.
  */
 export function IconList({

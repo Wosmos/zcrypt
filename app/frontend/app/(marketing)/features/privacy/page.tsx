@@ -20,7 +20,7 @@ import { privacy } from "../_data/privacy";
 import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Privacy Tools — Decoy Profile & Dead Man's Switch",
+  title: "Privacy Tools. Decoy Profile & Dead Man's Switch",
   description:
     "zcrypt's privacy toolkit: a decoy profile that opens a fake vault under coercion, and a dead man's switch that emails a trusted contact if you stop checking in. Plus snapshots and shared vaults, in beta. All built on zero-knowledge encryption.",
   keywords: [
@@ -37,17 +37,17 @@ export const metadata: Metadata = {
   ],
   alternates: { canonical: `${SITE_URL}/features/privacy` },
   openGraph: {
-    title: "Privacy Tools — Decoy Profile & Dead Man's Switch | zcrypt",
+    title: "Privacy Tools. Decoy Profile & Dead Man's Switch | zcrypt",
     description:
-      "A decoy vault for coercion, a dead man's switch that alerts a trusted contact, plus snapshots and shared vaults in beta — all on a zero-knowledge core.",
+      "A decoy vault for coercion, a dead man's switch that alerts a trusted contact, plus snapshots and shared vaults in beta: all on a zero-knowledge core.",
     url: `${SITE_URL}/features/privacy`,
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Privacy Tools — Decoy Profile & Dead Man's Switch | zcrypt",
+    title: "Privacy Tools. Decoy Profile & Dead Man's Switch | zcrypt",
     description:
-      "Plausible deniability and a dead man's switch, built on top of zero-knowledge encryption. Honest about what each one does — and doesn't.",
+      "Plausible deniability and a dead man's switch, built on top of zero-knowledge encryption. Honest about what each one does, and doesn't.",
   },
 };
 

@@ -30,20 +30,20 @@ export default function TroubleshootingDocPage() {
     <DocPage
       href="/docs/troubleshooting"
       title="Troubleshooting"
-      description="The handful of issues people hit most, and how to clear them. Most have a simple cause — the wrong key, a transient network hiccup, or a platform limit doing its job."
+      description="The handful of issues people hit most, and how to clear them. Most have a simple cause: the wrong key, a transient network hiccup, or a platform limit doing its job."
       toc={toc}
     >
       <DocSection id="wrong-passphrase" title="Wrong passphrase / stuck unlock">
         <DocP>
           If decryption keeps failing or you land in a unlock/Retry loop, the most likely cause is a
-          passphrase that doesn't match the one a file was encrypted with — a typo, a different
+          passphrase that doesn't match the one a file was encrypted with, a typo, a different
           keyboard layout, or an old passphrase. zcrypt can't tell you the passphrase is wrong
           before it tries to decrypt, because there's nothing readable on the server to check it
           against.
         </DocP>
         <DocList
           items={[
-            "Re-enter the passphrase carefully — watch for caps lock and trailing spaces.",
+            "Re-enter the passphrase carefully: watch for caps lock and trailing spaces.",
             "Lock the vault and unlock again to clear any cached attempt, then retry.",
             "If you have multiple accounts, confirm you're signed into the right one.",
           ]}
@@ -61,13 +61,13 @@ export default function TroubleshootingDocPage() {
       <DocSection id="protected-folder" title="A protected folder won't open">
         <DocP>
           A password-protected folder is sealed under its own key, separate from your account
-          passphrase. Having the vault unlocked is not enough — the folder stays locked until you
+          passphrase. Having the vault unlocked is not enough: the folder stays locked until you
           enter its specific password.
         </DocP>
         <DocList
           items={[
             "Open the folder and enter the folder password (not your account passphrase) when prompted.",
-            "Remember that each protected folder can have a different password — use the one set for that folder.",
+            "Remember that each protected folder can have a different password. Use the one set for that folder.",
             "If you removed the password earlier, the folder's files were re-keyed back to your account passphrase; unlock the vault normally.",
           ]}
         />
@@ -85,13 +85,13 @@ export default function TroubleshootingDocPage() {
 
       <DocSection id="upload-stalled" title="An upload stalled">
         <DocP>
-          Uploads are chunked and resumable, so a stall is rarely fatal. If progress stops — a
-          dropped connection, a closed tab, a sleeping laptop — the chunks already received are kept
+          Uploads are chunked and resumable, so a stall is rarely fatal. If progress stops, a
+          dropped connection, a closed tab, a sleeping laptop: the chunks already received are kept
           server-side, and the transfer can pick up where it left off.
         </DocP>
         <DocList
           items={[
-            "Retry or resume the transfer from the transfer manager — only the missing chunks are re-sent.",
+            "Retry or resume the transfer from the transfer manager: only the missing chunks are re-sent.",
             "Check your network connection; large files over flaky links may pause and resume several times.",
             "Leave the tab open while a big upload finishes, or use the desktop or terminal app for long transfers.",
           ]}
@@ -117,7 +117,7 @@ export default function TroubleshootingDocPage() {
         </DocP>
         <DocList
           items={[
-            "For large files, connect Hugging Face — it offers by far the most room per repository.",
+            "For large files, connect Hugging Face: it offers by far the most room per repository.",
             "Confirm the target platform actually has free space; rotation creates new repos but can't exceed your account's quota.",
             "Splitting a huge archive into smaller files can also help spread it across the pool.",
           ]}
@@ -160,12 +160,12 @@ export default function TroubleshootingDocPage() {
         <DocP>
           The API limits how many requests an IP can make in a short window to keep the service
           healthy and to blunt brute-force attempts. Auth and public share/send links are limited
-          more tightly. A burst of activity — or retrying too aggressively after a failure — can
-          trip these limits.
+          more tightly. A burst of activity (or retrying too aggressively after a failure) can trip
+          these limits.
         </DocP>
         <DocList
           items={[
-            "Wait a short while, then retry — limits reset on a rolling window.",
+            "Wait a short while, then retry: limits reset on a rolling window.",
             "Avoid hammering retries in a tight loop; space them out.",
             "On your own self-hosted instance behind a proxy, make sure the trusted-proxy setting is correct so legitimate traffic isn't grouped under one IP.",
           ]}

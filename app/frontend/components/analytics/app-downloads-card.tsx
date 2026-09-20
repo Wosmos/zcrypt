@@ -6,7 +6,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { Download } from "@/lib/icons";
 
 /**
- * Installs of the zcrypt app across every device — not files downloaded from a
+ * Installs of the zcrypt app across every device: not files downloaded from a
  * vault. Everything else on this dashboard is derived client-side from the
  * file list; this is the one card backed by a server aggregate, so it fetches
  * on its own and simply renders nothing if the call fails rather than taking

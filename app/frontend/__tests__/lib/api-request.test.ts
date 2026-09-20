@@ -12,7 +12,7 @@ const { getState, tryRefreshToken, authedFetch } = vi.hoisted(() => {
   const getState = vi.fn();
   const tryRefreshToken = vi.fn();
   // Mirror the real authedFetch (lib/auth-fetch): attach the access token and,
-  // on a 401, refresh once and retry with the new token — against the mocked
+  // on a 401, refresh once and retry with the new token, against the mocked
   // global fetch. getFileChunk now goes through this, so it must exercise the
   // same header + refresh behavior the request() core does.
   const authedFetch = vi.fn(async (input: string, init?: RequestInit) => {
@@ -274,7 +274,7 @@ describe("getFileChunk (custom download path)", () => {
     );
 
     // The timer stays alive through the body read, so a mid-download stall
-    // aborts too — not just a stalled response head.
+    // aborts too, not just a stalled response head.
     const pending = getFileChunk("f", 7);
     const assertion = expect(pending).rejects.toThrow("chunk 7 download timed out");
     await vi.advanceTimersByTimeAsync(90_000);

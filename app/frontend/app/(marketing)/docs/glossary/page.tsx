@@ -39,11 +39,11 @@ export default function GlossaryDocPage() {
           rows={[
             [
               <strong key="t">Vault</strong>,
-              "Your private, encrypted drive in zcrypt — the folders and files only you can decrypt. It is locked until you unlock it with your passphrase.",
+              "Your private, encrypted drive in zcrypt: the folders and files only you can decrypt. It is locked until you unlock it with your passphrase.",
             ],
             [
               <strong key="t">Passphrase</strong>,
-              "The secret you choose to protect your vault. It is used on your device to derive your encryption keys and is never sent to or stored by the server — so it cannot be recovered if lost.",
+              "The secret you choose to protect your vault. It is used on your device to derive your encryption keys and is never sent to or stored by the server, so it cannot be recovered if lost.",
             ],
             [
               <strong key="t">CEK (content encryption key)</strong>,
@@ -67,7 +67,7 @@ export default function GlossaryDocPage() {
             ],
             [
               <strong key="t">Zero-knowledge</strong>,
-              "An architecture where the service holds no ability to read your data — no plaintext and no keys ever cross to the server. The trade-off is that nobody, including us, can recover a lost passphrase.",
+              "An architecture where the service holds no ability to read your data, no plaintext and no keys ever cross to the server. The trade-off is that nobody, including us, can recover a lost passphrase.",
             ],
             [
               <strong key="t">BYOB (bring your own backend)</strong>,
@@ -83,11 +83,11 @@ export default function GlossaryDocPage() {
             ],
             [
               <strong key="t">Dead man's switch</strong>,
-              "An optional safeguard that notifies a trusted contact if you stop checking in within a configured window — useful for handing off access if something happens to you.",
+              "An optional safeguard that notifies a trusted contact if you stop checking in within a configured window: useful for handing off access if something happens to you.",
             ],
             [
               <strong key="t">TOTP</strong>,
-              "Time-based One-Time Password — the six-digit, 30-second codes from an authenticator app. zcrypt uses TOTP for two-factor authentication on sign-in.",
+              "Time-based One-Time Password: the six-digit, 30-second codes from an authenticator app. zcrypt uses TOTP for two-factor authentication on sign-in.",
             ],
             [
               <strong key="t">Zstd</strong>,

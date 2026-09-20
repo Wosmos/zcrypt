@@ -72,7 +72,7 @@ vi.mock("@/lib/crypto", async (importOriginal) => {
 });
 
 // The hmac_v1 verify path reads the signed-in user id to derive the MAC key,
-// and the desktop decrypt passes it to the core — both branch on whether an id
+// and the desktop decrypt passes it to the core: both branch on whether an id
 // actually exists, so this is driven from a mutable holder.
 vi.mock("@/store/auth", () => ({
   useAuthStore: { getState: () => ({ user: authUser.current }) },
@@ -164,8 +164,8 @@ function flushMicrotasks() {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  // A plain function (not an arrow function) so `new WorkerPool()` — a real
-  // `new` invocation — can construct it; arrow functions aren't constructible.
+  // A plain function (not an arrow function) so `new WorkerPool()`, a real
+  // `new` invocation: can construct it; arrow functions aren't constructible.
   workerPoolCtorMock.mockImplementation(function WorkerPoolMock() {
     return { process: processMock, terminate: terminateMock };
   });
@@ -200,7 +200,7 @@ describe("mimeForFilename", () => {
 
   it("falls back to octet-stream if split().pop() ever yields undefined (defensive ?? \"\")", () => {
     // A real string's split(".") always returns a non-empty array, so pop()
-    // never actually returns undefined — the `?? ""` guards a case that can't
+    // never actually returns undefined, the `?? ""` guards a case that can't
     // happen for any real string. Force it anyway with a fake "string" (typed
     // through as `string` to invoke the function's real logic) whose split()
     // returns an empty array, to prove the fallback itself is correct.
@@ -319,7 +319,7 @@ describe("runDecryptPipeline", () => {
     processMock.mockRejectedValue(new Error("worker exploded"));
 
     await expect(runDecryptPipeline(file, "pw")).rejects.toThrow(
-      "Decryption failed — wrong passphrase?"
+      "Decryption failed, wrong passphrase?"
     );
     expect(terminateMock).toHaveBeenCalledTimes(1);
   });
@@ -344,7 +344,7 @@ describe("runDecryptPipeline", () => {
   it("verifies an hmac_v1 file against its per-user KEYED MAC, not a plain SHA-256 (regression: viewer falsely reported 'corrupted')", async () => {
     // Every recently-uploaded file stores its content hash as a per-user HMAC
     // (sha256_scheme='hmac_v1'). The viewer used to compute a PLAIN sha256Hex and
-    // compare — which can never equal the HMAC — so it threw IntegrityError on
+    // compare (which can never equal the HMAC) so it threw IntegrityError on
     // perfectly good files ("the file may be corrupted"). It must recompute the
     // keyed MAC instead. This test's stored hash IS an HMAC; it only passes if the
     // scheme-aware branch runs.
@@ -385,7 +385,7 @@ describe("runDecryptPipeline", () => {
   it("skips the keyed-MAC check entirely when no user is signed in", async () => {
     // The hmac_v1 MAC key is derived from the user id, so with no signed-in user
     // there is nothing to derive from. Verification is skipped rather than
-    // failing the file — the alternative is a bogus "corrupted" error on a file
+    // failing the file: the alternative is a bogus "corrupted" error on a file
     // that is perfectly fine.
     authUser.current = undefined;
     const file = makeFile({ chunk_count: 1 });
@@ -445,7 +445,7 @@ describe("runDecryptPipeline on desktop", () => {
     expect(blob.size).toBe(5);
     expect(blob.type).toBe("video/mp4");
     expect(tauriMock.sidecarDecryptToMemory).toHaveBeenCalledWith("file-1", "pw", "user-1");
-    // The whole browser pipeline is skipped — no meta fetch, no chunk fetch.
+    // The whole browser pipeline is skipped, no meta fetch, no chunk fetch.
     expect(getFileMetaMock).not.toHaveBeenCalled();
     expect(getFileChunkMock).not.toHaveBeenCalled();
   });
@@ -470,7 +470,7 @@ describe("runDecryptPipeline on desktop", () => {
     await run(makeFile(), "pw", onProgress);
 
     // Another file's progress is ignored, and a not-yet-known total (0) would
-    // divide to NaN in the UI — both are filtered out.
+    // divide to NaN in the UI, both are filtered out.
     expect(onProgress).toHaveBeenCalledExactlyOnceWith(3, 10);
     expect(unlisten).toHaveBeenCalledTimes(1);
   });

@@ -65,7 +65,7 @@ import {
 } from "@/lib/icons";
 
 /** Root-level folders that currently contain files, with decrypted names + a
- *  live file count — the pickable "share a whole folder" options. */
+ *  live file count: the pickable "share a whole folder" options. */
 function useFolderOptions(files: FileMetadata[], enabled: boolean) {
   const user = useAuthStore((s) => s.user);
   const cachedPassphrase = usePassphraseStore((s) => s.cachedPassphrase);
@@ -112,7 +112,7 @@ function useFolderOptions(files: FileMetadata[], enabled: boolean) {
 export function SharedVaultsContent() {
   const user = useAuthStore((s) => s.user);
 
-  // ── Server state (TanStack Query — cached, so re-opening a space is instant) ──
+  // ── Server state (TanStack Query: cached, so re-opening a space is instant) ──
   const vaultsQuery = useQuery({ queryKey: qk.spaces, queryFn: listSharedVaults });
   const vaults = useMemo(() => vaultsQuery.data ?? [], [vaultsQuery.data]);
   const loading = vaultsQuery.isPending;
@@ -261,7 +261,7 @@ export function SharedVaultsContent() {
       toast.success(`Space “${vault.name}” created`);
       if (skipped > 0) {
         toast.warning(
-          `${skipped} file${skipped === 1 ? "" : "s"} couldn't be added — files in password-protected folders can't be shared into a space.`,
+          `${skipped} file${skipped === 1 ? "" : "s"} couldn't be added: files in password-protected folders can't be shared into a space.`,
         );
       }
     } catch (err) {
@@ -271,7 +271,7 @@ export function SharedVaultsContent() {
     }
   };
 
-  // Opening a space is now just selecting its id — the cached query serves the
+  // Opening a space is now just selecting its id: the cached query serves the
   // detail instantly if it's warm, and refetches in the background if stale.
   const openDetail = (vaultId: string) => {
     setMemberError("");
@@ -336,7 +336,7 @@ export function SharedVaultsContent() {
       setAddFileIds([]);
       if (failures > 0) {
         setFileError(
-          `${failures} of ${total} file${total === 1 ? "" : "s"} couldn't be added — files in password-protected folders can't be shared into a space.`,
+          `${failures} of ${total} file${total === 1 ? "" : "s"} couldn't be added: files in password-protected folders can't be shared into a space.`,
         );
       } else {
         toast.success(`Added ${total} file${total === 1 ? "" : "s"}`);
@@ -378,7 +378,7 @@ export function SharedVaultsContent() {
       const msg = err instanceof Error ? err.message : "";
       setMemberError(
         /no user|not found|404|published key/i.test(msg)
-          ? "That user hasn't set up sharing yet — they need to sign in and unlock their vault once."
+          ? "That user hasn't set up sharing yet: they need to sign in and unlock their vault once."
           : "Failed to add member",
       );
     } finally {
@@ -463,7 +463,7 @@ export function SharedVaultsContent() {
   return (
     <Section
       title="Your spaces"
-      description="Encrypted files you share with people you invite — end-to-end, zero-knowledge."
+      description="Encrypted files you share with people you invite, end-to-end, zero-knowledge."
       actions={
         <Button
           onClick={() => {
@@ -535,7 +535,7 @@ export function SharedVaultsContent() {
                       onClick={() => openDetail(vault.id)}
                       className="flex min-w-0 flex-1 items-center gap-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)] rounded-lg"
                     >
-                      {/* A space is people-first, not a folder — use the Users glyph. */}
+                      {/* A space is people-first, not a folder. Use the Users glyph. */}
                       <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--color-accent)]/10 text-[var(--color-accent)] ring-1 ring-[var(--color-accent)]/20">
                         <Users className="h-4 w-4" />
                       </div>
@@ -591,7 +591,7 @@ export function SharedVaultsContent() {
           <DialogHeader>
             <DialogTitle>Create a space</DialogTitle>
             <DialogDescription className="text-[var(--color-text-secondary)]">
-              Group files and invite people to collaborate. Files stay encrypted end-to-end — the
+              Group files and invite people to collaborate. Files stay encrypted end-to-end, the
               server never sees the key.
             </DialogDescription>
           </DialogHeader>
@@ -617,7 +617,7 @@ export function SharedVaultsContent() {
               step="0.5"
               value={sizeLimitGb}
               onChange={(e) => setSizeLimitGb(e.target.value)}
-              placeholder="Optional — leave blank for no limit"
+              placeholder="Optional. Leave blank for no limit"
             />
 
             {files.length > 0 && (
@@ -721,7 +721,7 @@ export function SharedVaultsContent() {
                     </div>
                     <p className="text-[11px] tabular-nums text-[var(--color-text-muted)]">
                       {formatBytes(usedBytes)} of {formatBytes(limitBytes)} used
-                      {overLimit && " — limit reached"}
+                      {overLimit && ", limit reached"}
                     </p>
                   </div>
                 ) : (

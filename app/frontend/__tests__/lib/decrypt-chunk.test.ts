@@ -30,6 +30,6 @@ describe("decryptChunkInPool", () => {
     const process = vi.fn().mockRejectedValue(new Error("AES-GCM auth tag mismatch"));
     await expect(
       decryptChunkInPool(poolWith(process), 0, new ArrayBuffer(8), new ArrayBuffer(32), false)
-    ).rejects.toThrow("Decryption failed — wrong passphrase?");
+    ).rejects.toThrow("Decryption failed, wrong passphrase?");
   });
 });

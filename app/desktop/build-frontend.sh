@@ -1,7 +1,7 @@
 #!/bin/bash
 # Build the Next.js frontend as a static export for Tauri.
 # Output goes to app/desktop/frontend-dist/
-# Marketing/public pages are stripped — desktop only needs auth + app pages.
+# Marketing/public pages are stripped: desktop only needs auth + app pages.
 
 set -euo pipefail
 
@@ -26,7 +26,7 @@ rm -rf .next-export
 # Build with static export enabled via env var.
 # The desktop app has no Next.js rewrites, so the backend URL must be baked in.
 # Resolution order: NEXT_PUBLIC_API_URL env → DESKTOP_API_URL env →
-# scripts/desktop.env (LOCAL, gitignored — copy scripts/desktop.env.example).
+# scripts/desktop.env (LOCAL, gitignored. Copy scripts/desktop.env.example).
 # No default is baked into the repo: the live host rotates with Railway
 # accounts, and CI reads the DESKTOP_API_URL repository variable instead.
 DESKTOP_ENV="$SCRIPT_DIR/../../scripts/desktop.env"
@@ -45,7 +45,7 @@ NEXT_PUBLIC_API_URL="$NEXT_PUBLIC_API_URL" \
 # Copy the static export to desktop's frontend-dist.
 # next.config.ts sets output:"export" + distDir:".next-export", which keeps the
 # build out of the dev .next cache AND writes the static HTML directly into
-# .next-export (there is no nested out/ — the distDir is the export root).
+# .next-export (there is no nested out/: the distDir is the export root).
 rm -rf "$OUT_DIR"
 cp -r "$FRONTEND_DIR/.next-export" "$OUT_DIR"
 

@@ -47,7 +47,7 @@ const nextConfig: NextConfig = {
   // Zero-knowledge: every image the app renders is a client-side blob: object
   // URL or a canvas-generated data: URI holding DECRYPTED plaintext. The Vercel
   // image optimizer can neither fetch those (they only exist in the browser) nor
-  // be trusted with plaintext (it's a third-party server — routing previews
+  // be trusted with plaintext (it's a third-party server, routing previews
   // through it would break the zero-knowledge model). The Tauri static export
   // also has no optimizer. So all `next/image` usage runs unoptimized: it
   // renders a plain <img> under the hood while keeping one consistent image
@@ -92,7 +92,7 @@ const nextConfig: NextConfig = {
             value: "max-age=63072000; includeSubDomains; preload",
           },
           // CSP only in production (dev needs eval/ws for HMR). Report-Only by
-          // default — flip with CSP_ENFORCE=1 after verifying a deploy.
+          // default: flip with CSP_ENFORCE=1 after verifying a deploy.
           ...(process.env.NODE_ENV === "production"
             ? [{ key: cspHeaderKey, value: cspValue }]
             : []),
@@ -112,7 +112,7 @@ const nextConfig: NextConfig = {
       // Short, stable installer URLs: /dl/macos-arm64 and friends. The backend
       // resolves each target to the current release asset and records the
       // download, so nothing on the site, in the docs, or in a shell snippet
-      // has to know a version or a filename. Deliberately /dl, not /download —
+      // has to know a version or a filename. Deliberately /dl, not /download:
       // that path is the marketing page.
       if (apiUrl || process.env.NODE_ENV === "development") {
         const dlUpstream =
@@ -126,7 +126,7 @@ const nextConfig: NextConfig = {
       // production it makes www.zcrypt.cloud/api/* a STABLE front for the
       // backend: native desktop/Android builds bake this hostname (which we
       // own) instead of a Railway-generated one, so when the backend moves the
-      // fix is a Vercel env change + redeploy — never a rebuild of shipped
+      // fix is a Vercel env change + redeploy, never a rebuild of shipped
       // apps. (The web app itself keeps calling NEXT_PUBLIC_API_URL directly;
       // WebSocket upgrades are not proxied by rewrites, so the web transfer
       // tool also stays on the direct origin.)

@@ -7,7 +7,7 @@
  * API is unavailable or rejects. Returns whether the copy succeeded.
  *
  * The single home for the ~11 hand-rolled copy helpers. Callers keep their own
- * toast / "copied!" flag / reset-timer UI — this only performs the copy.
+ * toast / "copied!" flag / reset-timer UI: this only performs the copy.
  */
 export async function copyToClipboard(text: string): Promise<boolean> {
   try {

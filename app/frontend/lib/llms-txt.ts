@@ -2,8 +2,8 @@ import { docsNav } from "@/lib/data";
 import { SITE_URL as SITE } from "@/lib/site";
 
 // Builds the LLM-friendly overview served at /llms.txt and /llm.txt (see
-// llmstxt.org). The documentation index is generated from `docsNav` — the same
-// single source of truth the sitemap uses — so it can never drift from the pages
+// llmstxt.org). The documentation index is generated from `docsNav`, the same
+// single source of truth the sitemap uses, so it can never drift from the pages
 // that actually exist.
 
 /** A markdown link line: `- [Title](url) (Badge): description`. Relative hrefs
@@ -18,7 +18,7 @@ const featureLinks: Array<[string, string, string]> = [
   [
     "The encrypted drive",
     "/features/encrypted-drive",
-    "A real, sealed file explorer — folders, previews, and search — over storage you own.",
+    "A real, sealed file explorer (folders, previews, and search) over storage you own.",
   ],
   [
     "Folders",
@@ -111,9 +111,9 @@ export function buildLlmsTxt(): string {
 
   return `# zcrypt
 
-> Zero-knowledge, end-to-end encrypted cloud storage that keeps your files inside storage accounts you already own — GitHub, GitLab, Hugging Face, and Telegram. Files are compressed and encrypted in your browser before they ever leave your device, so neither zcrypt's servers nor the storage platforms can read your files, file names, or keys.
+> Zero-knowledge, end-to-end encrypted cloud storage that keeps your files inside storage accounts you already own. GitHub, GitLab, Hugging Face, and Telegram. Files are compressed and encrypted in your browser before they ever leave your device, so neither zcrypt's servers nor the storage platforms can read your files, file names, or keys.
 
-zcrypt (pronounced "z-crypt") is a privacy-first cloud drive. It is free and open source, and it never sells you storage — you connect accounts you already have, and zcrypt turns them into one encrypted drive.
+zcrypt (pronounced "z-crypt") is a privacy-first cloud drive. It is free and open source, and it never sells you storage: you connect accounts you already have, and zcrypt turns them into one encrypted drive.
 
 ## How it works
 
@@ -124,10 +124,10 @@ zcrypt (pronounced "z-crypt") is a privacy-first cloud drive. It is free and ope
 
 ## Key facts
 
-- **Storage backends:** GitHub, GitLab, Hugging Face, Telegram — you bring your own accounts and tokens (encrypted at rest).
+- **Storage backends:** GitHub, GitLab, Hugging Face, Telegram: you bring your own accounts and tokens (encrypted at rest).
 - **Encryption:** AES-256-GCM; PBKDF2-SHA256 at 600k iterations; per-file envelope keys; X25519 ECIES sealed boxes for shared vaults.
 - **Clients:** web app, desktop app (Tauri; macOS/Windows/Linux), and a terminal app (TUI).
-- **Pricing:** free and open source — no paid tiers.
+- **Pricing:** free and open source: no paid tiers.
 - **Tech:** Next.js + React frontend; Go (stdlib net/http) backend; PostgreSQL. Frontend on Vercel, backend on Railway.
 - **Not this:** not a storage reseller, not a place that can read your files, not closed source.
 

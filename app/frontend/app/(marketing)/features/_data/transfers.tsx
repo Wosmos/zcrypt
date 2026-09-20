@@ -38,8 +38,8 @@ export const transfers: TransfersPageData = {
     subtext: (
       <>
         One docked panel tracks every upload and download. Live progress and ETA, pause and resume
-        without re-encrypting, retry on failure, and bulk ZIP downloads — and it keeps running as
-        you move around the app.
+        without re-encrypting, retry on failure, and bulk ZIP downloads, and it keeps running as you
+        move around the app.
       </>
     ),
     secondaryLabel: "Read the docs",
@@ -55,7 +55,7 @@ export const transfers: TransfersPageData = {
     {
       Icon: Clock,
       title: "Live progress & ETA",
-      desc: "Watch every transfer move in real time — per-file percentage, current stage, and a running estimate of time remaining.",
+      desc: "Watch every transfer move in real time: per-file percentage, current stage, and a running estimate of time remaining.",
     },
     {
       Icon: Pause,
@@ -75,7 +75,7 @@ export const transfers: TransfersPageData = {
     {
       Icon: Archive,
       title: "Bulk ZIP downloads",
-      desc: "Select many files and download them as a single ZIP — each one decrypted in your browser and packed locally.",
+      desc: "Select many files and download them as a single ZIP: each one decrypted in your browser and packed locally.",
     },
     {
       Icon: Upload,
@@ -91,12 +91,12 @@ export const transfers: TransfersPageData = {
       <>
         When you pause or hit a network hiccup, the upload stops at a clean chunk boundary and holds
         onto its session. Resuming reuses the very same content key, so the chunks already on the
-        server still line up — it simply continues with the chunks that are missing.
+        server still line up: it simply continues with the chunks that are missing.
       </>
     ),
     checklistItems: [
       "Pauses at a chunk boundary, keeps the session alive",
-      "Resumes with the same key — already-encrypted chunks stay valid",
+      "Resumes with the same key, already-encrypted chunks stay valid",
       "Skips chunks the server already confirmed",
       "Retry after a failure continues from the last confirmed chunk",
     ],
@@ -111,7 +111,7 @@ export const transfers: TransfersPageData = {
       <>
         Separate from the vault, zcrypt can stream a file directly from one device to another. The
         sender gets a six-digit code; whoever enters it on the other end starts receiving. The data
-        is end-to-end encrypted — our server is a blind relay that passes along ciphertext it
+        is end-to-end encrypted: our server is a blind relay that passes along ciphertext it
         can&apos;t read.
       </>
     ),
@@ -126,7 +126,7 @@ export const transfers: TransfersPageData = {
     {
       href: "/features/encrypted-drive",
       title: "The encrypted drive",
-      desc: "Where your transfers land — real folders, search, and previews.",
+      desc: "Where your transfers land: real folders, search, and previews.",
     },
     {
       href: "/docs/transfer-manager",

@@ -37,7 +37,7 @@ export class OrderedWriter {
   /**
    * Hand a decrypted chunk to the writer. Resolves once it's been buffered and
    * any now-contiguous run has been flushed to the sink. Applies backpressure:
-   * if the reorder buffer is full it waits — unless this chunk is the one the
+   * if the reorder buffer is full it waits: unless this chunk is the one the
    * cursor is waiting for, which is always accepted so it can never deadlock.
    *
    * `signal` breaks the backpressure wait on pause/cancel: without it, a put

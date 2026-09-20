@@ -28,7 +28,7 @@ import type { FileMetadata } from "@/types";
  *   2. moves BOTH files into it through the existing move/re-key path (so
  *      protected-folder rules + cross-boundary re-keying still hold),
  *   3. refreshes.
- * The folder name is encrypted end-to-end before it leaves the device — the
+ * The folder name is encrypted end-to-end before it leaves the device, the
  * dialog never sends or logs a plaintext name itself.
  * ─────────────────────────────────────────────────────────────────────────────
  */

@@ -27,7 +27,7 @@ export interface StylePickerDialogProps {
   onSave: (style: CustomStyle | null) => void | Promise<void>;
   entityLabel?: string;
   /** A gradient/pattern background only reads as a "cover" on a big folder
-   *  face — on a small file tile it just looks like a broken color square, so
+   *  face: on a small file tile it just looks like a broken color square, so
    *  files get solid color only. Defaults to true (folders). */
   allowBackgroundDesign?: boolean;
 }
@@ -37,7 +37,7 @@ const DEFAULT_PICKER_COLOR = "#3b82f6";
 
 /**
  * Icon + color picker for a folder/file's custom card appearance. One dialog
- * shared by both entity kinds — the caller supplies the current style and gets
+ * shared by both entity kinds: the caller supplies the current style and gets
  * back either a full `CustomStyle` or `null` (reset to the auto-inferred icon
  * / default color).
  */
@@ -72,7 +72,7 @@ export function StylePickerDialog({
   }, [open, initialStyle, allowBackgroundDesign]);
 
   // Keep the hex text field in sync whenever the color changes some other way
-  // (swatch color input, quick-pick, reset) — without fighting the user's own
+  // (swatch color input, quick-pick, reset), without fighting the user's own
   // keystrokes while they're mid-edit (see handleHexInput below).
   useEffect(() => {
     setHexDraft(pendingColor ?? "");
@@ -91,7 +91,7 @@ export function StylePickerDialog({
     setPendingBackground(undefined);
   };
 
-  // Solid color and design background are mutually exclusive — picking one clears the other.
+  // Solid color and design background are mutually exclusive: picking one clears the other.
   const handleColorChange = (value: string) => {
     setPendingColor(value);
     setPendingBackground(undefined);
@@ -255,7 +255,7 @@ export function StylePickerDialog({
 
         {/* Color: a compact native swatch (opens the OS color picker) + hex
             entry + quick-pick presets. Folders also get a "Design" tab of
-            curated gradients/patterns — skipped for files, where a design
+            curated gradients/patterns: skipped for files, where a design
             background has no coherent surface to sit on (see
             `allowBackgroundDesign`). */}
         <div className="space-y-2">

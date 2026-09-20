@@ -59,7 +59,7 @@ export function AppUpdates() {
   };
 
   // A .deb/.rpm install manages its own updates via the system package
-  // manager — the in-app updater only knows how to replace a running
+  // manager: the in-app updater only knows how to replace a running
   // AppImage, so there's nothing meaningful to check or install here.
   if (info && !info.updatable) {
     return (
@@ -69,7 +69,7 @@ export function AppUpdates() {
             zcrypt v{info.current_version}
           </p>
           <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-muted)]">
-            This build doesn&apos;t check for updates automatically — it was installed as a native
+            This build doesn&apos;t check for updates automatically. It was installed as a native
             Linux package, which manages updates through your system&apos;s package manager instead.
             Get new releases from{" "}
             <a

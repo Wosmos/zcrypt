@@ -11,7 +11,7 @@ export const WOSMO = {
   handle: "Wosmo",
   role: "Full-stack engineer",
   location: "Karachi, Pakistan",
-  tagline: "I build real systems — not just CRUD apps.",
+  tagline: "I build real systems, not just CRUD apps.",
   portfolio: "https://wosmos.vercel.app",
   github: "https://github.com/Wosmos",
   linkedin: "https://www.linkedin.com/in/wasif-m-79205a1bb/",
@@ -21,7 +21,7 @@ export const WOSMO = {
 } as const;
 
 /**
- * The full "Wosmo" wordmark — vector, supplied by Wasif (public/wosmo-wordmark.svg).
+ * The full "Wosmo" wordmark: vector, supplied by Wasif (public/wosmo-wordmark.svg).
  * The source art is white-fill; here it inherits `currentColor` so it stays
  * visible in both light and dark themes. Size it via className height, e.g.
  * `h-4 w-auto`.

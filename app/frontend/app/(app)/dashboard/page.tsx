@@ -71,7 +71,7 @@ import {
 import type { FileMetadata } from "@/types";
 
 /**
- * Vault page — composition over a god-component (REBUILD_SPEC §6).
+ * Vault page: composition over a god-component (REBUILD_SPEC §6).
  *
  * The unified <VaultExplorer /> owns browsing / folders / search / view / sort /
  * selection / drag. This page owns the page chrome (header + tabs + accordion),
@@ -87,7 +87,7 @@ export default function VaultPage() {
   const explorerRef = useRef<VaultExplorerHandle>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
-  // "/" focuses the search box (GitHub/Slack convention) — unless the user is
+  // "/" focuses the search box (GitHub/Slack convention), unless the user is
   // already typing in a field. Escape (handled on the input) clears + blurs.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -130,11 +130,11 @@ export default function VaultPage() {
   const folderProtection = useFolderProtection(vault);
 
   // In-browser decryptor for the full file viewer (OWNER 1). Same password
-  // routing as every other vault action — folder pass for protected files, else
+  // routing as every other vault action: folder pass for protected files, else
   // the vault passphrase; no plaintext/passphrase ever leaves the page.
   const { decryptToBlob, prefetch } = useFileDecryptor(folderProtection);
 
-  // Current folder (global store) — uploads land here; reads gate protected ones.
+  // Current folder (global store): uploads land here; reads gate protected ones.
   const currentFolderId = useFolderStore((s) => s.currentFolderId);
   const setCurrentFolder = useFolderStore((s) => s.setCurrentFolder);
 
@@ -342,17 +342,17 @@ export default function VaultPage() {
           !statuses.some((s) => s.platform === "huggingface" && s.connected)
         ? "Tip: connect Hugging Face for faster large-file (2GB+) uploads"
         : vault.unlocked
-          ? "Vault unlocked — drop files to upload instantly"
+          ? "Vault unlocked. Drop files to upload instantly"
           : undefined;
 
   // Full-screen lock mask: shown ONLY once the rehydrate attempt has settled
   // (`vault.ready`, so a remembered-device session never flashes it), the vault
   // is locked, and there are actually encrypted files to protect (a brand-new
-  // empty vault keeps its normal onboarding — no forced unlock wall). The real
+  // empty vault keeps its normal onboarding, no forced unlock wall). The real
   // protection is the plaintext eviction on lock; this is the visible signal.
   //
   // The file content ALSO holds on a skeleton until `vault.ready` (see the
-  // explorer branch below) — so a locked vault never flashes its file grid
+  // explorer branch below), so a locked vault never flashes its file grid
   // before this mask mounts, and a remembered-device vault never flashes this
   // mask before its content. Both resolve together on the `ready` flip.
   const showLockOverlay = vault.ready && !vault.unlocked && files.length > 0;
@@ -363,9 +363,9 @@ export default function VaultPage() {
     // sticky mobile rows (search bar here + the filter row inside the explorer)
     // and lets content leak past them. Correct sticky beats a 0.25s entrance.
     <div className="space-y-6">
-      {/* Top row — search + actions. DESKTOP (sm+): search with the vault-lock
+      {/* Top row, search + actions. DESKTOP (sm+): search with the vault-lock
           toggle hugging its right edge, then [New folder, Upload, refresh] far right.
-          On MOBILE this row is sticky and carries only search — the vault-lock toggle
+          On MOBILE this row is sticky and carries only search, the vault-lock toggle
           lives in the global TopBar and refresh is replaced by pull-to-refresh; New
           folder + Upload move beside the type filters. */}
       <div className="sticky -top-1 z-20 -mx-3 flex flex-row items-center gap-2 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-3 sm:static sm:z-auto sm:mx-0 sm:justify-between sm:gap-3 sm:border-b-0 sm:bg-transparent sm:p-0">
@@ -413,7 +413,7 @@ export default function VaultPage() {
             className="hidden flex-shrink-0 sm:inline-flex"
           />
         </div>
-        {/* Desktop actions — New folder, Upload, refresh. Hidden on mobile (moved to TopBar + filters). */}
+        {/* Desktop actions. New folder, Upload, refresh. Hidden on mobile (moved to TopBar + filters). */}
         <div className="hidden flex-shrink-0 items-center gap-2 sm:flex">
           <Button
             variant="secondary"
@@ -434,7 +434,7 @@ export default function VaultPage() {
             onClick={() => refresh()}
           />
         </div>
-        {/* Mobile has no refresh button — native pull-to-refresh (drag down at the
+        {/* Mobile has no refresh button: native pull-to-refresh (drag down at the
             top) reloads the vault. The desktop refresh above stays. */}
       </div>
 
@@ -462,7 +462,7 @@ export default function VaultPage() {
           </div>
         )}
 
-        {/* Unfinished uploads (started but never completed) — resume or discard.
+        {/* Unfinished uploads (started but never completed), resume or discard.
               Resume goes through handleResumeIncomplete so the ORIGINAL session's
               platform is pinned (never re-resolved through the picker). */}
         <IncompleteUploads
@@ -472,7 +472,7 @@ export default function VaultPage() {
         {/* Empty vault → CTA; otherwise the unified explorer. The explorer
               renders its own loading / locked / no-results states. Until the
               lock decision has settled (`vault.ready`), hold on the explorer's
-              neutral skeleton — never paint real file content (tiles / names /
+              neutral skeleton, never paint real file content (tiles / names /
               thumbnails) that would then get masked by the lock overlay, and
               never show the empty-state before we know the vault is truly empty. */}
         {vault.ready && !loading && !error && files.length === 0 ? (
@@ -513,7 +513,7 @@ export default function VaultPage() {
           />
         )}
 
-        {/* Storage & backup — de-emphasized, collapsed by default. Only render
+        {/* Storage & backup, de-emphasized, collapsed by default. Only render
               when there's content: a personal platform or files to back up.
               Hidden on mobile (md-): platform storage lives in Insights and vault
               export/import in Settings, so it'd only clutter the phone. */}
@@ -545,7 +545,7 @@ export default function VaultPage() {
         />
       </div>
 
-      {/* Floating "+" — the single mobile entry to New folder / Upload. Hidden
+      {/* Floating "+": the single mobile entry to New folder / Upload. Hidden
           while the full-screen viewer is open, or while the lock mask is up (it
           would poke through the mask at z-50). */}
       {!viewerOpen && !showLockOverlay && vault.ready && (
@@ -561,7 +561,7 @@ export default function VaultPage() {
 
       {/* ── Modals the explorer hands control back to ───────────────────────── */}
 
-      {/* File preview modal (decrypted in-memory by useVaultActions) — retained
+      {/* File preview modal (decrypted in-memory by useVaultActions), retained
           for any legacy in-memory preview path; the click/kebab now open the
           richer <FileViewer> below. */}
       <FilePreviewModal
@@ -572,7 +572,7 @@ export default function VaultPage() {
         fileSize={preview.fileSize}
       />
 
-      {/* Full multi-format file viewer (OWNER 1) — opened by a file click / the
+      {/* Full multi-format file viewer (OWNER 1): opened by a file click / the
           kebab Preview, with the file's folder as the prev/next list. Decrypts
           entirely in-browser via useFileDecryptor (zero-knowledge). */}
       <FileViewer
@@ -678,7 +678,7 @@ export default function VaultPage() {
         description={
           <>
             <span className="block">
-              This file will be moved to Trash — you can restore it from Deleted Files.
+              This file will be moved to Trash. You can restore it from Deleted Files.
             </span>
             {deleteTarget && (
               <span className="mt-3 block truncate rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2 font-mono text-xs text-[var(--color-text-muted)]">
@@ -699,13 +699,13 @@ export default function VaultPage() {
         title="Move selected files to Trash?"
         description={`${bulkDeleteIds?.length ?? 0} file${
           (bulkDeleteIds?.length ?? 0) !== 1 ? "s" : ""
-        } will be moved to Trash — you can restore them from Deleted Files.`}
+        } will be moved to Trash. You can restore them from Deleted Files.`}
         confirmLabel={`Move ${bulkDeleteIds?.length ?? 0} file${
           (bulkDeleteIds?.length ?? 0) !== 1 ? "s" : ""
         } to Trash`}
       />
 
-      {/* Upload dialog — upload zone + platform selector. Lives outside the tab
+      {/* Upload dialog: upload zone + platform selector. Lives outside the tab
           conditional so the header Upload button works from any tab. */}
       <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
         <DialogContent className="max-w-xl border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)]">

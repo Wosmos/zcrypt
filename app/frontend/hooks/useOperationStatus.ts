@@ -15,7 +15,7 @@ const BASE_DELAY = 1_000;
 // Only surface a connection warning after a SUSTAINED outage. With the 1s→30s
 // backoff below, 8 consecutive failures is ~2 minutes down. A normal SSE
 // reconnect (proxy idle-close, laptop sleep/wake, network blip) recovers in
-// 1-2 attempts and must NOT warn — firing at 3 (~7s) was spamming an OS
+// 1-2 attempts and must NOT warn: firing at 3 (~7s) was spamming an OS
 // notification every few minutes.
 const ERROR_THRESHOLD = 8;
 

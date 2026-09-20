@@ -111,7 +111,7 @@ export function MarketingFooter() {
                 <Logo size="xl" />
               </Link>
               <p className="mt-4 mb-[1.4rem] max-w-[280px] text-[0.88rem] leading-[1.7] text-[var(--color-text-muted)]">
-                A zero-knowledge encrypted cloud drive — real folders, instant previews, your own
+                A zero-knowledge encrypted cloud drive: real folders, instant previews, your own
                 storage. Encrypted on your device, readable only by you. Open source and
                 self-hostable.
               </p>
@@ -141,7 +141,7 @@ export function MarketingFooter() {
           {/* Bottom bar */}
           <div className="flex flex-wrap items-center justify-between gap-4 border-t border-[var(--color-border)] pt-8">
             <p className="text-[0.82rem] text-[var(--color-text-muted)]">
-              &copy; {new Date().getFullYear()} zcrypt — your files, your keys.
+              &copy; {new Date().getFullYear()} zcrypt, your files, your keys.
             </p>
 
             {/* Built by Wosmo */}

@@ -6,7 +6,7 @@ import { ChevronRight } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
 /**
- * Native-settings primitives — the iOS/Android "grouped list" look that replaces
+ * Native-settings primitives: the iOS/Android "grouped list" look that replaces
  * the old card-under-card layout on mobile: an uppercase group label over a
  * single rounded container whose rows are separated by hairline dividers (not
  * nested cards). Used by the mobile settings index and inside sections.

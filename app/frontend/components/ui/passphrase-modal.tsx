@@ -22,7 +22,7 @@ interface PassphraseModalProps {
    * Resolves `false` only when the passphrase is definitively wrong; the modal
    * then shows an inline error and STAYS OPEN instead of silently accepting a bad
    * passphrase (which used to surface later as failed decrypts). Omit it where
-   * there's nothing to verify against — e.g. when SETTING a new passphrase.
+   * there's nothing to verify against: e.g. when SETTING a new passphrase.
    */
   verify?: (passphrase: string) => Promise<boolean>;
 }
@@ -47,7 +47,7 @@ export function PassphraseModal({
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Touch ID (desktop only): offered when the shell reports biometrics are
-  // enrolled AND this device already has a passphrase to hand back — nothing
+  // enrolled AND this device already has a passphrase to hand back, nothing
   // to unlock with otherwise. Re-checked every time the modal opens.
   const [bioAvailable, setBioAvailable] = useState(false);
   const [bioBusy, setBioBusy] = useState(false);
@@ -102,7 +102,7 @@ export function PassphraseModal({
         try {
           ok = await verify(candidate);
         } catch {
-          ok = true; // inconclusive — don't block; decrypt still guards downstream
+          ok = true; // inconclusive. Don't block; decrypt still guards downstream
         }
         setVerifying(false);
         if (!ok) {
@@ -136,17 +136,17 @@ export function PassphraseModal({
     try {
       const ok = await biometricAuthenticate("Unlock your zcrypt vault");
       if (!ok) {
-        setBioError("Touch ID didn't confirm — enter your passphrase instead.");
+        setBioError("Touch ID didn't confirm, enter your passphrase instead.");
         return;
       }
       const saved = await loadPassphrase();
       if (!saved) {
-        setBioError("No saved passphrase on this device — enter it instead.");
+        setBioError("No saved passphrase on this device, enter it instead.");
         return;
       }
       await confirmWithPassphrase(saved);
     } catch {
-      setBioError("Touch ID failed — enter your passphrase instead.");
+      setBioError("Touch ID failed, enter your passphrase instead.");
     } finally {
       setBioBusy(false);
     }

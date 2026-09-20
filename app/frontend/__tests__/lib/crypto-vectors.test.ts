@@ -1,5 +1,5 @@
 /**
- * Cross-implementation conformance vectors — TypeScript verifier.
+ * Cross-implementation conformance vectors: TypeScript verifier.
  *
  * Verifies the REAL web crypto implementation (lib/crypto.ts, lib/name-crypto.ts)
  * against the shared fixture app/backend/crypto/testvectors/vectors.json, the

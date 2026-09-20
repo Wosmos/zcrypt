@@ -1,6 +1,6 @@
 import { Skeleton } from "@/components/ui/skeleton";
 
-// 7 tabs — widths roughly track the real labels (Send File, Text Pad,
+// 7 tabs: widths roughly track the real labels (Send File, Text Pad,
 // Transfer, Snapshots, Integrity, Expiring, Devices).
 const TAB_WIDTHS = ["w-24", "w-24", "w-24", "w-28", "w-24", "w-24", "w-24"];
 
@@ -24,7 +24,7 @@ export default function ToolsLoading() {
         ))}
       </div>
 
-      {/* Active panel — default "Send File" tab: an upload dropzone */}
+      {/* Active panel: default "Send File" tab: an upload dropzone */}
       <div className="panel overflow-hidden">
         <div className="p-6">
           <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-[var(--color-border)] p-10 sm:p-14">

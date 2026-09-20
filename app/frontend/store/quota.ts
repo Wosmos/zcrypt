@@ -8,8 +8,8 @@ import { getQueryData, invalidateKey } from "@/lib/query-cache";
 
 /**
  * Quota server-state, backed by TanStack Query so a delete/move/restore/upload
- * can invalidate it (`qk.quota`) and every consumer — sidebar gauge, vault
- * stats, analytics — updates together instead of showing a stale used-bytes
+ * can invalidate it (`qk.quota`) and every consumer: sidebar gauge, vault
+ * stats, analytics: updates together instead of showing a stale used-bytes
  * figure after files change.
  */
 export function useQuotaQuery() {

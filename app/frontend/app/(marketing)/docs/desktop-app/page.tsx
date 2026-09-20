@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Desktop app | zcrypt Docs",
     description:
-      "A native desktop build of zcrypt (Tauri) for macOS, Windows, and Linux — native file picker, system-browser OAuth, same zero-knowledge core.",
+      "A native desktop build of zcrypt (Tauri) for macOS, Windows, and Linux: native file picker, system-browser OAuth, same zero-knowledge core.",
     url: `${SITE_URL}/docs/desktop-app`,
   },
 };
@@ -30,7 +30,7 @@ export default function DesktopAppDocPage() {
     <DocPage
       href="/docs/desktop-app"
       title="Desktop app"
-      description="A native desktop build of zcrypt for people who'd rather have a real app window than a browser tab — with OS-level file handling and the exact same client-side encryption."
+      description="A native desktop build of zcrypt for people who'd rather have a real app window than a browser tab: with OS-level file handling and the exact same client-side encryption."
       toc={toc}
     >
       <DocSection id="what" title="What it is">
@@ -42,7 +42,7 @@ export default function DesktopAppDocPage() {
         </DocP>
         <DocP>
           Underneath that shell, encryption, compression, chunking, and storage sync run in{" "}
-          <strong>{desktopEngine.name}</strong>, an in-process {desktopEngine.language} engine — not
+          <strong>{desktopEngine.name}</strong>, an in-process {desktopEngine.language} engine, not
           a browser sandbox and not a background subprocess. It replaces what used to be{" "}
           {desktopEngine.replaces}: {desktopEngine.why} The same engine backs the Android app, so a
           file encrypted on desktop opens cleanly there too.
@@ -54,12 +54,12 @@ export default function DesktopAppDocPage() {
         <DocList
           items={[
             <>
-              <strong>Native file picker</strong> — choose files and folders to upload through your
+              <strong>Native file picker</strong>: choose files and folders to upload through your
               operating system&apos;s own dialog.
             </>,
             <>
-              <strong>OAuth via your system browser</strong> — signing in with Google or GitHub
-              opens your default browser rather than an embedded webview, so you authenticate in a
+              <strong>OAuth via your system browser</strong>: signing in with Google or GitHub opens
+              your default browser rather than an embedded webview, so you authenticate in a
               trusted, familiar environment and the app receives your tokens through a one-time,
               single-use hand-off. See{" "}
               <Link href="/docs/oauth" className="text-cyan-600 hover:underline dark:text-cyan-400">
@@ -86,7 +86,7 @@ export default function DesktopAppDocPage() {
         <DocNote type="security">
           Because the cryptography is identical to the web app, the recovery rules are too: lose
           your vault passphrase and your files cannot be decrypted on any platform. Keep it in a
-          password manager — see{" "}
+          password manager. See{" "}
           <Link href="/docs/recovery" className="text-cyan-600 hover:underline dark:text-cyan-400">
             Account recovery
           </Link>
@@ -110,7 +110,7 @@ export default function DesktopAppDocPage() {
               >
                 zcrypt.cloud/download
               </a>{" "}
-              — pick the latest release and download the build for macOS, Windows, or Linux.
+              . Pick the latest release and download the build for macOS, Windows, or Linux.
             </>,
           ]}
         />
@@ -132,31 +132,31 @@ export default function DesktopAppDocPage() {
               href="/docs/web-app"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Web app — the same product in any modern browser
+              Web app: the same product in any modern browser
             </Link>,
             <Link key="b" href="/tui" className="text-cyan-600 hover:underline dark:text-cyan-400">
-              Terminal app (TUI) — manage your vault from the command line
+              Terminal app (TUI): manage your vault from the command line
             </Link>,
             <Link
               key="d"
               href="/download#android"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Android app — the same engine, sideloaded on your phone
+              Android app: the same engine, sideloaded on your phone
             </Link>,
             <Link
               key="c"
               href="/docs/oauth"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Sign in with Google or GitHub — including the desktop sign-in flow
+              Sign in with Google or GitHub: including the desktop sign-in flow
             </Link>,
             <Link
               key="e"
               href="/features/apps"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              zcrypt everywhere — the same vault across web, desktop, and terminal
+              zcrypt everywhere: the same vault across web, desktop, and terminal
             </Link>,
           ]}
         />

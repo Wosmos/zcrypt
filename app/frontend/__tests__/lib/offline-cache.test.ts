@@ -218,7 +218,7 @@ describe("offline-cache", () => {
       await flush();
     });
 
-    it("caches the singleton — a second call reuses the same instance", async () => {
+    it("caches the singleton: a second call reuses the same instance", async () => {
       const { getOfflineCache } = await import("@/lib/offline-cache");
       const a = await getOfflineCache();
       const b = await getOfflineCache();

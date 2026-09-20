@@ -35,15 +35,15 @@ export interface TransferEntry {
   error?: string;
   /** Bytes label shown on the right (file size). */
   sizeBytes?: number;
-  /** Bytes uploaded so far (uploads only) — drives the true-ratio bar width. */
+  /** Bytes uploaded so far (uploads only): drives the true-ratio bar width. */
   bytesProcessed?: number;
-  /** Total bytes to upload (uploads only) — drives the true-ratio bar width. */
+  /** Total bytes to upload (uploads only): drives the true-ratio bar width. */
   totalBytes?: number;
-  /** Smoothed transfer rate in bytes/sec (uploads only) — speed + ETA display. */
+  /** Smoothed transfer rate in bytes/sec (uploads only), speed + ETA display. */
   rateBps?: number;
-  /** For download ETA math — kept raw, never eased. */
+  /** For download ETA math, kept raw, never eased. */
   startedAt: number;
-  /** Core-driven desktop (Tauri) upload — the Rust core has no pause, so the
+  /** Core-driven desktop (Tauri) upload: the Rust core has no pause, so the
    *  pause control is hidden for these rows. */
   desktop?: boolean;
 }
@@ -105,7 +105,7 @@ function StatusGlyph({ entry }: { entry: TransferEntry }) {
       return <Pause className="h-4 w-4 text-[var(--color-text-secondary)]" />;
     case "active":
       // Direction-explicit + animated: an upload arrow drifts up in the accent
-      // colour, a download arrow drifts down in cyan — so "which way is this
+      // colour, a download arrow drifts down in cyan, so "which way is this
       // going" is obvious at a glance without reading the stage text. (The dock
       // header still shows the brand spinner for overall "working" state.)
       return (
@@ -159,7 +159,7 @@ function statusText(entry: TransferEntry, short = false): string {
     eta = formatEta(entry.startedAt, entry.progress);
   }
   const verb = entry.stage || (entry.direction === "upload" ? "Uploading" : "Downloading");
-  // Mobile: the spinner + name already convey direction — show just the ETA when
+  // Mobile: the spinner + name already convey direction: show just the ETA when
   // we have one, so the line stays tight on narrow screens.
   if (short) return eta || verb;
   if (eta) return `${verb} · ${eta}`;
@@ -176,7 +176,7 @@ function TransferItemBase({
   const reduceMotion = useReducedMotion();
 
   // A tiny file (a few hundred bytes) finishes in a couple of milliseconds, so
-  // its "active" phase — and thus the progress bar — would flash in and vanish
+  // its "active" phase (and thus the progress bar) would flash in and vanish
   // before the fill animation could play ("woop"). Hold the bar for a short beat
   // after completion so it animates to a satisfying 100% and settles, instead of
   // blinking out. Only triggered on the active/paused → done transition.
@@ -214,7 +214,7 @@ function TransferItemBase({
           )
         : entry.progress;
   // The % label MATCHES the bar when real bytes exist (the old log-eased label
-  // said 74% while the bar showed half-width — two different lies). The eased
+  // said 74% while the bar showed half-width, two different lies). The eased
   // curve remains only for byte-less phases (encrypting) and downloads. Capped
   // at 99 while active so "100%" can only ever mean done.
   const labelPct = Math.min(
@@ -223,7 +223,7 @@ function TransferItemBase({
       hasBytes && (entry.bytesProcessed as number) > 0 ? barProgress : easeProgress(entry.progress),
     ),
   );
-  // Finalize is a short server round-trip with no byte movement — show an
+  // Finalize is a short server round-trip with no byte movement, show an
   // indeterminate full bar instead of a frozen 97%.
   const isFinalizing = entry.state === "active" && (entry.stage?.startsWith("Finalizing") ?? false);
 
@@ -273,7 +273,7 @@ function TransferItemBase({
                 transition={reduceMotion ? { duration: 0 } : { duration: 0.45, ease: "easeOut" }}
               >
                 {/* Microsoft-style sheen swept across the fill while actively
-                    transferring (not while paused/finalizing) — reads as motion
+                    transferring (not while paused/finalizing), reads as motion
                     even when a chunk is momentarily stalled. */}
                 {entry.state === "active" && !isFinalizing && !reduceMotion && (
                   <span className="animate-bar-sheen absolute inset-y-0 left-0 w-1/2 bg-gradient-to-r from-transparent via-white/50 to-transparent" />
@@ -295,7 +295,7 @@ function TransferItemBase({
         </div>
 
         <div className="flex flex-shrink-0 items-center gap-0.5">
-          {/* Upload — active: Pause + Cancel. Desktop-core uploads hide Pause —
+          {/* Upload, active: Pause + Cancel. Desktop-core uploads hide Pause:
               the Rust core's sync has no pause, so the button only froze the UI
               row while the core kept uploading. */}
           {entry.direction === "upload" && entry.state === "active" && (
@@ -317,7 +317,7 @@ function TransferItemBase({
             </>
           )}
 
-          {/* Upload — queued: only Cancel (no chunks in flight yet) */}
+          {/* Upload: queued: only Cancel (no chunks in flight yet) */}
           {entry.direction === "upload" && entry.state === "queued" && (
             <ControlButton
               icon={X}
@@ -327,7 +327,7 @@ function TransferItemBase({
             />
           )}
 
-          {/* Upload — paused: Resume + Cancel */}
+          {/* Upload: paused: Resume + Cancel */}
           {entry.direction === "upload" && entry.state === "paused" && (
             <>
               <ControlButton
@@ -345,10 +345,10 @@ function TransferItemBase({
             </>
           )}
 
-          {/* Upload — failed: Retry + Dismiss. Desktop (core-streamed) uploads
+          {/* Upload, failed: Retry + Dismiss. Desktop (core-streamed) uploads
               can't "pause" but DO resume from the backend's already-uploaded
               chunks, so the same control reads as "Resume" (Play) rather than
-              "Retry" — it re-drives the core, which continues, not restarts. */}
+              "Retry": it re-drives the core, which continues, not restarts. */}
           {entry.direction === "upload" && entry.state === "failed" && (
             <>
               {entry.desktop ? (
@@ -370,7 +370,7 @@ function TransferItemBase({
             </>
           )}
 
-          {/* Download — active: Pause + Stop */}
+          {/* Download: active: Pause + Stop */}
           {entry.direction === "download" && entry.state === "active" && (
             <>
               <ControlButton
@@ -388,7 +388,7 @@ function TransferItemBase({
             </>
           )}
 
-          {/* Download — queued: only Stop (nothing to pause yet) */}
+          {/* Download: queued: only Stop (nothing to pause yet) */}
           {entry.direction === "download" && entry.state === "queued" && (
             <ControlButton
               icon={StopCircle}
@@ -398,7 +398,7 @@ function TransferItemBase({
             />
           )}
 
-          {/* Download — paused: Resume + Stop */}
+          {/* Download: paused: Resume + Stop */}
           {entry.direction === "download" && entry.state === "paused" && (
             <>
               <ControlButton
@@ -416,7 +416,7 @@ function TransferItemBase({
             </>
           )}
 
-          {/* Download — failed/cancelled: Retry + Dismiss */}
+          {/* Download: failed/cancelled: Retry + Dismiss */}
           {entry.direction === "download" &&
             (entry.state === "failed" || entry.state === "cancelled") && (
               <>
@@ -430,7 +430,7 @@ function TransferItemBase({
               </>
             )}
 
-          {/* Done — Dismiss */}
+          {/* Done. Dismiss */}
           {entry.state === "done" && (
             <ControlButton icon={X} label="Dismiss" onClick={() => controls.onDismiss(entry)} />
           )}

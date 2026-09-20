@@ -30,7 +30,7 @@ export function DocToc({ toc }: { toc: TocItem[] }) {
           if (entry.isIntersecting) visibleIds.current.add(entry.target.id);
           else visibleIds.current.delete(entry.target.id);
         }
-        // First TOC entry currently inside the band wins — keeps DOM order.
+        // First TOC entry currently inside the band wins, keeps DOM order.
         const current = toc.find((item) => visibleIds.current.has(item.id));
         if (current) setActiveId(current.id);
       },

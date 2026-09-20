@@ -1,5 +1,5 @@
 /**
- * Smoke test — 1 VU, 30 seconds.
+ * Smoke test: 1 VU, 30 seconds.
  * Confirms the backend is up and all critical endpoints respond.
  * Run before any load or stress test.
  *
@@ -13,7 +13,7 @@ export const options = {
   vus: 1,
   duration: "30s",
   thresholds: {
-    // Upload init with no platform connected returns 402 — exclude it from failure rate
+    // Upload init with no platform connected returns 402: exclude it from failure rate
     // by counting only actual server errors (5xx)
     http_req_duration: ["p(95)<8000"], // HIBP check + cold Neon can be slow on first run
     http_req_failed: ["rate<0.25"],    // upload init 402s are expected without platform tokens
@@ -25,7 +25,7 @@ const TEST_EMAIL = "smoke-test@test.zcrypt.io";
 const TEST_PASSWORD = "Zc7!kP#9mQvR2sNxWdEjLbYtUh";
 
 export function setup() {
-  // Create test account (idempotent — ignore conflict)
+  // Create test account (idempotent, ignore conflict)
   http.post(
     `${BASE_URL}/api/auth/register`,
     JSON.stringify({ email: TEST_EMAIL, password: TEST_PASSWORD, username: "smoke_tester" }),
@@ -65,7 +65,7 @@ export default function (data) {
 
   if (!token) { sleep(1); return; }
 
-  // ── 2. Auth — get current user ──
+  // ── 2. Auth, get current user ──
   {
     const res = http.get(`${BASE_URL}/api/auth/me`, { headers: authHeaders(token) });
     check(res, { "me: 200": (r) => r.status === 200 });
@@ -86,11 +86,11 @@ export default function (data) {
   // ── 5. Platform status ──
   {
     const res = http.get(`${BASE_URL}/api/platforms/status`, { headers: authHeaders(token) });
-    // 200 (no platforms) or 200 with platforms — both valid
+    // 200 (no platforms) or 200 with platforms, both valid
     check(res, { "platform status: 200": (r) => r.status === 200 });
   }
 
-  // ── 6. Upload init (may 402/400 if no platform connected — that's fine) ──
+  // ── 6. Upload init (may 402/400 if no platform connected, that's fine) ──
   {
     const res = http.post(
       `${BASE_URL}/api/upload/init`,

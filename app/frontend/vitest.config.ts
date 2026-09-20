@@ -7,7 +7,7 @@ export default defineConfig({
     setupFiles: ["./vitest.setup.ts"],
     include: ["__tests__/**/*.test.{ts,tsx}"],
     // PBKDF2 (600k iterations) and 1MB AES-GCM are CPU-heavy, and v8 coverage
-    // instrumentation slows them further — enough to blow the 5s default on
+    // instrumentation slows them further: enough to blow the 5s default on
     // slower machines and CI runners. Give crypto tests generous headroom.
     testTimeout: 30_000,
     coverage: {
@@ -18,7 +18,7 @@ export default defineConfig({
       // so including them would drown the signal in 0%-covered view files.
       include: ["lib/**", "hooks/**", "store/**"],
       exclude: ["**/*.d.ts", "**/*.test.{ts,tsx}", "lib/icons.tsx"],
-      // This layer is at a full 100% on every metric — pin it so a regression
+      // This layer is at a full 100% on every metric: pin it so a regression
       // fails the run (and the pre-push gate) instead of quietly sliding.
       // The handful of genuinely unreachable spots (invariant guards, and
       // ref placeholders overwritten before first use) carry `v8 ignore`

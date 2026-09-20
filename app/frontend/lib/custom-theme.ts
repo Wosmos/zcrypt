@@ -4,15 +4,15 @@ import { getAppBackgroundByKey } from "@/lib/app-backgrounds";
  * A user-defined color theme: just two picked colors (accent + canvas), plus
  * an optional decorative background design layered behind the app shell. The
  * rest of the `--t-*` palette (surfaces, borders, sidebar, text) is derived
- * from these two via CSS `color-mix` at apply time — see
- * `applyCustomThemeVars` — the same way every preset in `lib/themes.ts`
+ * from these two via CSS `color-mix` at apply time: see
+ * `applyCustomThemeVars`: the same way every preset in `lib/themes.ts`
  * derives its own full palette from a small base set.
  */
 export interface CustomThemeValues {
   accent: string;
   bg: string;
   /** An `APP_BACKGROUNDS` key (see lib/app-backgrounds.ts), or unset for a
-   *  flat canvas. These are the ambient full-canvas treatments — distinct from
+   *  flat canvas. These are the ambient full-canvas treatments: distinct from
    *  the folder-card backgrounds in lib/background-presets.ts. */
   background?: string;
 }
@@ -38,7 +38,7 @@ export function loadCustomTheme(): CustomThemeValues {
       };
     }
   } catch {
-    // Corrupt/foreign value — fall through to the default.
+    // Corrupt/foreign value: fall through to the default.
   }
   return DEFAULT_CUSTOM_THEME;
 }
@@ -48,7 +48,7 @@ export function saveCustomTheme(values: CustomThemeValues) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(values));
 }
 
-/** Relative luminance (WCAG formula) — used to pick a readable near-black or
+/** Relative luminance (WCAG formula): used to pick a readable near-black or
  *  near-white text color for whatever bg/accent the user lands on, so a
  *  two-color custom theme can never produce illegible text. */
 function hexLuminance(hex: string): number {

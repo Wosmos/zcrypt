@@ -101,7 +101,7 @@ export function ExpiringTab() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm text-[var(--color-text-secondary)]">
-          Group files under a shared countdown. When it runs out the vault is flagged expired — your
+          Group files under a shared countdown. When it runs out the vault is flagged expired, your
           files stay put.
         </p>
         <Button
@@ -227,7 +227,7 @@ export function ExpiringTab() {
           <EmptyState
             icon={<Clock className="h-7 w-7 text-[var(--color-text-muted)]" />}
             title="No timed vaults yet"
-            description="Create one to group files under a countdown. When it expires the vault is flagged — the files themselves stay in your vault."
+            description="Create one to group files under a countdown. When it expires the vault is flagged: the files themselves stay in your vault."
           />
         </div>
       ) : vaults.length > 0 ? (

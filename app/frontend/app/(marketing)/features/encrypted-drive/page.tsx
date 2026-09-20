@@ -13,9 +13,9 @@ import { encryptedDrive } from "../_data/encrypted-drive";
 import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Encrypted Cloud Drive — Real Folders & File Explorer",
+  title: "Encrypted Cloud Drive. Real Folders & File Explorer",
   description:
-    "zcrypt is a real encrypted drive, not a flat bucket of files. Nest folders, drag to organize, search, sort, and switch between grid and list — with every file and even folder names encrypted on your device.",
+    "zcrypt is a real encrypted drive, not a flat bucket of files. Nest folders, drag to organize, search, sort, and switch between grid and list: with every file and even folder names encrypted on your device.",
   keywords: [
     "encrypted drive",
     "encrypted file manager",
@@ -27,9 +27,9 @@ export const metadata: Metadata = {
   ],
   alternates: { canonical: `${SITE_URL}/features/encrypted-drive` },
   openGraph: {
-    title: "Encrypted Cloud Drive — Real Folders & File Explorer | zcrypt",
+    title: "Encrypted Cloud Drive. Real Folders & File Explorer | zcrypt",
     description:
-      "A real encrypted drive: nest folders, drag to organize, search and sort — every file and folder name encrypted on your device.",
+      "A real encrypted drive: nest folders, drag to organize, search and sort: every file and folder name encrypted on your device.",
     url: `${SITE_URL}/features/encrypted-drive`,
     type: "website",
   },
@@ -138,15 +138,15 @@ export default function EncryptedDrivePage() {
           >
             <div className="break-all">
               <span className="text-cyan-600/80 dark:text-cyan-400/80">folder</span>{" "}
-              9f2a1c·b8d40e·7c5b13·f0e2a9 — sealed
+              9f2a1c·b8d40e·7c5b13·f0e2a9, sealed
             </div>
             <div className="mt-1.5 break-all">
               <span className="text-cyan-600/80 dark:text-cyan-400/80">folder</span>{" "}
-              4d1b6c·8e30dd·91ac0c·77ae3f — sealed
+              4d1b6c·8e30dd·91ac0c·77ae3f, sealed
             </div>
             <div className="mt-1.5 break-all">
               <span className="text-cyan-600/80 dark:text-cyan-400/80">file</span>{" "}
-              a4f9c1·0c77ae·3f5b2a·4f9c1e — sealed
+              a4f9c1·0c77ae·3f5b2a·4f9c1e, sealed
             </div>
           </CodePanel>
         }

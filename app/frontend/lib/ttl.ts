@@ -1,6 +1,6 @@
 /**
  * Pure TTL time helpers shared by the passphrase and folder-password caches.
- * These fold ONLY the deadline math — the two TTL stores (their timers, cache
+ * These fold ONLY the deadline math: the two TTL stores (their timers, cache
  * shape, decrypt-cache eviction) stay separate on purpose.
  */
 

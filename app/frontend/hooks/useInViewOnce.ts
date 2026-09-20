@@ -8,7 +8,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
  * know we can bring it back: JS is running, IntersectionObserver exists, the
  * visitor hasn't asked for reduced motion, and the element is actually below
  * the fold. That hiding happens in a layout effect (before paint), so there's
- * no flash — and every other case, including server-rendered HTML, no-JS
+ * no flash: and every other case, including server-rendered HTML, no-JS
  * crawlers, print, and screenshots taken before hydration, keeps the content
  * on screen instead of leaving a blank void where a section should be.
  *
@@ -35,7 +35,7 @@ export function useInViewOnce<T extends Element>(rootMargin = "0px") {
     setIsVisible(false);
     const observer = new IntersectionObserver(
       ([entry]) => {
-        // Reveal on intersection — or if the element is already ABOVE the
+        // Reveal on intersection, or if the element is already ABOVE the
         // viewport. A fast scroll, an anchor jump, or a restored scroll
         // position can carry an element clean past the observer between two
         // ticks; without this it would never intersect and would stay

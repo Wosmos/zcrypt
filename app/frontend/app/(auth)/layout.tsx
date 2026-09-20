@@ -71,14 +71,14 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       <div className="flex min-h-dvh overflow-x-hidden pt-safe pb-safe px-safe">
         {/* ── Left brand panel (2.5/6) ── */}
         <div className="hidden lg:flex lg:w-[41.67%] flex-col relative bg-[rgba(5,5,7,0.92)] overflow-hidden">
-          {/* Ambient glow — top-right cyan */}
+          {/* Ambient glow, top-right cyan */}
           <div
             className="absolute -top-32 -right-48 w-[520px] h-[520px] rounded-full pointer-events-none"
             style={{
               background: "radial-gradient(circle, rgba(0,213,228,0.07) 0%, transparent 70%)",
             }}
           />
-          {/* Ambient glow — bottom-left teal */}
+          {/* Ambient glow, bottom-left teal */}
           <div
             className="absolute -bottom-24 -left-36 w-[440px] h-[440px] rounded-full pointer-events-none"
             style={{
@@ -107,7 +107,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
               </h2>
               <p className="text-[15px] text-zinc-400 mt-3 max-w-sm leading-relaxed">{sub}</p>
 
-              {/* Trust features — minimal */}
+              {/* Trust features, minimal */}
               <div className="mt-12 space-y-4">
                 {features.map((f) => (
                   <div key={f.title} className="flex items-start gap-3">

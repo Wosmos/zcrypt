@@ -59,7 +59,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  // Tear down any press left active by a test that never released — otherwise its
+  // Tear down any press left active by a test that never released, otherwise its
   // document touch listeners linger and, because the mocks are module-level, fire
   // again during the next test (cross-test pollution).
   try {
@@ -226,7 +226,7 @@ describe("useTouchRangeSelect", () => {
     const { result } = mount();
     pointId = "f0";
     press(result.current.onPressStart, "f0", 0, 150);
-    moveDoc(0, 150 + ABOVE_START); // commit mid-container — a frame is scheduled
+    moveDoc(0, 150 + ABOVE_START); // commit mid-container, a frame is scheduled
     expect(rafQueue.size).toBe(1);
 
     // Move into the bottom edge zone (dispatches for the card there, f7).
@@ -327,7 +327,7 @@ describe("useTouchRangeSelect", () => {
     // teardown's removeEventListener (which passes the NEW identity) can't
     // detach the listener registered with the OLD one. That orphan keeps
     // receiving touchmove after the sweep is over, with the anchor already
-    // cleared — the anchor guard is what stops it sweeping a dead gesture.
+    // cleared: the anchor guard is what stops it sweeping a dead gesture.
     const { result, rerender } = renderHook(
       ({ scrollContainerId }: { scrollContainerId: string }) =>
         useTouchRangeSelect({ enabled: true, fileIdAt, onSweepStart, onSweep, scrollContainerId }),

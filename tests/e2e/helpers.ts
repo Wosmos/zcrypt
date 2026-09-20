@@ -50,7 +50,7 @@ export async function loginUser(
   await page.waitForURL(/\/dashboard/, { timeout: 10_000 });
 }
 
-// Log in via API (faster than UI — use for test setup)
+// Log in via API (faster than UI. Use for test setup)
 export async function loginViaAPI(
   page: Page,
   email: string,
@@ -64,7 +64,7 @@ export async function loginViaAPI(
   return body.access_token;
 }
 
-// Register + login via API — fastest setup path for E2E tests.
+// Register + login via API: fastest setup path for E2E tests.
 // NOTE: /api/auth/register does NOT return tokens (the real frontend logs in
 // after registering), so we must call /api/auth/login to obtain them.
 export async function setupAuthenticatedUser(page: Page): Promise<{

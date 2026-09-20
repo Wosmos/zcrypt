@@ -27,7 +27,7 @@ export function HeroSection() {
       }
       subtext={
         <>
-          A real drive — folders, instant previews, organized your way — encrypted before anything
+          A real drive (folders, instant previews, organized your way) encrypted before anything
           leaves your device and stored in accounts you already own,{" "}
           <Underlined variant="highlight" delay={0.6}>
             readable only by you

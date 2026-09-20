@@ -62,7 +62,7 @@ describe("useAuthStore", () => {
       initialized: false,
     });
     // usePassphraseStore/useKeysStore/useSpacesStore are the REAL stores here
-    // (clearAuth's whole job is to fan out to them) — reset to a known baseline.
+    // (clearAuth's whole job is to fan out to them): reset to a known baseline.
     usePassphraseStore.getState().setRememberDevice(false);
     usePassphraseStore.setState({ cachedPassphrase: null, cacheUntil: null, persistent: false });
     useKeysStore.getState().reset();

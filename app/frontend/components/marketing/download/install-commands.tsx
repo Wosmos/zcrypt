@@ -18,7 +18,7 @@ export function InstallCommands({ methods }: { methods: readonly InstallMethod[]
       setCopied(label);
       window.setTimeout(() => setCopied((c) => (c === label ? null : c)), 1600);
     } catch {
-      // Clipboard unavailable (insecure context) — silently ignore.
+      // Clipboard unavailable (insecure context), silently ignore.
     }
   };
 

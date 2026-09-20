@@ -30,7 +30,7 @@ export function cn(...inputs: ClassValue[]) {
 
 /**
  * Grid column classes that adapt to item count instead of a fixed column
- * count — 1 item fills the row, 2-3 items get one column each, 4 settles
+ * count: 1 item fills the row, 2-3 items get one column each, 4 settles
  * into a balanced 2x2 rather than leaving an awkward gap.
  */
 export function smartGridCols(count: number): string {
@@ -41,7 +41,7 @@ export function smartGridCols(count: number): string {
   return "grid-cols-1 sm:grid-cols-2 md:grid-cols-3";
 }
 
-/** Row width `smartGridCols` would use for this many items — see {@link chunk}. */
+/** Row width `smartGridCols` would use for this many items. See {@link chunk}. */
 export function smartGridColCount(count: number): number {
   if (count <= 1) return 1;
   if (count === 2) return 2;
@@ -52,8 +52,8 @@ export function smartGridColCount(count: number): number {
 
 /**
  * Splits items into rows of `size`. Pair with a flex row (each item
- * `sm:flex-1`) instead of a CSS grid so a trailing partial row — e.g. 5 items
- * at 3-per-row leaves a lone row of 2 — stretches to fill the full width
+ * `sm:flex-1`) instead of a CSS grid so a trailing partial row: e.g. 5 items
+ * at 3-per-row leaves a lone row of 2: stretches to fill the full width
  * instead of leaving a gap where the missing 3rd column would sit. CSS grid
  * can't do this because column tracks are shared across every row.
  */
@@ -92,7 +92,7 @@ export function formatDate(dateStr: string): string {
 }
 
 /** The icon names getFileTypeInfo can return. Keeping this a closed union makes
- *  FILE_ICON_MAP provably total, so the lookup needs no runtime fallback — a new
+ *  FILE_ICON_MAP provably total, so the lookup needs no runtime fallback, a new
  *  icon name is a compile error instead of a silently-undefined component. */
 export type FileIconName =
   | "File"
@@ -605,7 +605,7 @@ export function isImageFile(filename: string): boolean {
 
 /**
  * Best-guess MIME type from a file extension. Used to type decrypted Blobs so
- * the browser will actually decode them — an <img> won't render an SVG (or a
+ * the browser will actually decode them: an <img> won't render an SVG (or a
  * <video> a clip) if the Blob is `application/octet-stream`. Unknown types fall
  * back to octet-stream.
  */
@@ -647,7 +647,7 @@ export function formatEta(startedAt: number, percent: number): string | undefine
 
 /** Map raw 0-100 progress through a logarithmic ease-out curve.
  *  Produces fast initial movement that gradually slows toward 100%.
- *  Use for display only — keep raw percent for ETA math. */
+ *  Use for display only: keep raw percent for ETA math. */
 export function easeProgress(raw: number): number {
   const p = Math.min(100, Math.max(0, raw));
   if (p <= 0) return 0;
@@ -689,7 +689,7 @@ export type Severity = "success" | "error" | "warning" | "info";
  * ABSOLUTE date + time, e.g. "Jul 8, 2026, 09:41 PM". THE canonical replacement
  * for the hand-copied local `formatDate(iso)` absolute formatters (integrity /
  * snapshots / expiring tabs, dead-man switch, details drawer). Distinct from the
- * RELATIVE `formatDate` in this same file — do NOT route one through the other.
+ * RELATIVE `formatDate` in this same file: do NOT route one through the other.
  * `opts.seconds` adds a 2-digit seconds field (covers audit-log's formatFullTime;
  * note that adopting this also forces the "en-US" locale on that site).
  */
@@ -706,7 +706,7 @@ export function formatDateTime(iso: string | number | Date, opts?: { seconds?: b
 
 /**
  * Date-only, e.g. "Jul 8, 2026". For date-only displays and the bare
- * `.toLocaleDateString()` admin/settings sites — adopting this forces "en-US"
+ * `.toLocaleDateString()` admin/settings sites: adopting this forces "en-US"
  * on those locale-default sites (intended).
  */
 export function formatDateShort(iso: string | number | Date): string {
@@ -721,7 +721,7 @@ export function formatDateShort(iso: string | number | Date): string {
  * ONE relative "X ago" policy. Accepts an ISO string, an epoch-ms number, or a
  * Date. Lowercase "just now"; single 30-day cutoff after which it falls back to
  * formatDateShort. Distinct from the RELATIVE `formatDate` (which uses "Just
- * now" and a 7-day cutoff) — that one may optionally delegate here later, but
+ * now" and a 7-day cutoff): that one may optionally delegate here later, but
  * they are not merged.
  */
 export function formatRelativeTime(input: string | number | Date): string {
@@ -856,7 +856,7 @@ export function fileIconFor(filename: string): typeof FileIcon {
 }
 
 /** Look up a file's display name by id, falling back to the first 8 chars of the
- *  id — folds the identical snapshots/expiring-tab `getFileName` helper. */
+ *  id: folds the identical snapshots/expiring-tab `getFileName` helper. */
 export function fileNameById(files: FileMetadata[], id: string): string {
   return files.find((f) => f.id === id)?.original_name || id.slice(0, 8);
 }

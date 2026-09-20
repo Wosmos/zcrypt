@@ -232,7 +232,7 @@ export default function FolderSharePage() {
         entries[entry] = bytes;
       };
 
-      // Fetch/decrypt several files at once — the slow part is per-file network +
+      // Fetch/decrypt several files at once: the slow part is per-file network +
       // the backend fetching from the storage platform, so overlapping them cuts
       // wall-clock roughly Nx. A broken file (missing from storage) is skipped,
       // not fatal. fflate needs every file's bytes in memory to build the zip, so
@@ -260,7 +260,7 @@ export default function FolderSharePage() {
       const okCount = Object.keys(entries).length;
       if (okCount === 0) {
         throw new Error(
-          `None of the ${info.files.length} files could be downloaded — they may be missing from storage.`,
+          `None of the ${info.files.length} files could be downloaded. They may be missing from storage.`,
         );
       }
 
@@ -272,7 +272,7 @@ export default function FolderSharePage() {
         const shown = failed.slice(0, 4).join(", ");
         const more = failed.length > 4 ? ` and ${failed.length - 4} more` : "";
         setNoticeMsg(
-          `Downloaded ${okCount} of ${info.files.length} files. Couldn't fetch ${shown}${more} — those files appear to be missing from storage (an incomplete upload).`,
+          `Downloaded ${okCount} of ${info.files.length} files. Couldn't fetch ${shown}${more}: those files appear to be missing from storage (an incomplete upload).`,
         );
       }
     } catch (err) {

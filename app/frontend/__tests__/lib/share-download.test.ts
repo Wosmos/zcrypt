@@ -8,7 +8,7 @@ const { getShareFileMeta, getShareChunk } = vi.hoisted(() => ({
 vi.mock("@/lib/api", () => ({ getShareFileMeta, getShareChunk }));
 
 // share-download.ts checks `signal?.aborted` right after key-unwrap, after
-// decrypting each chunk's worth of work, and after the final integrity hash —
+// decrypting each chunk's worth of work, and after the final integrity hash,
 // none of which are otherwise mockable since they're real Web Crypto calls.
 // Hook into them (still delegating to the real implementation) so a few tests
 // can flip the abort signal at those exact points deterministically.
@@ -79,7 +79,7 @@ function concatUint8(chunks: Uint8Array[]): Uint8Array {
 
 /** Builds a real share fixture: a random "share key" (as if from the URL
  *  fragment) wraps a random CEK, and the CEK (or a mismatched one, for
- *  failure tests) encrypts each chunk. No passphrase/PBKDF2 involved — shares
+ *  failure tests) encrypts each chunk. No passphrase/PBKDF2 involved, shares
  *  skip key derivation entirely. */
 async function makeShareFixture(opts: { finalChunks: Uint8Array[]; wrongChunkKey?: boolean; badHash?: boolean }) {
   const shareKey = crypto.getRandomValues(new Uint8Array(32));
@@ -141,7 +141,7 @@ async function capturedBlobText(): Promise<string> {
   return dec.decode(new Uint8Array(await blob.arrayBuffer()));
 }
 
-describe("downloadSharedFile — success paths", () => {
+describe("downloadSharedFile: success paths", () => {
   it("downloads, decrypts, verifies, and triggers a Blob download for a multi-chunk share", async () => {
     const f = await makeShareFixture({ finalChunks: [enc.encode("hello "), enc.encode("share")] });
     getShareFileMeta.mockResolvedValueOnce(f.meta);
@@ -206,7 +206,7 @@ describe("downloadSharedFile — success paths", () => {
   });
 });
 
-describe("downloadSharedFile — failure paths", () => {
+describe("downloadSharedFile: failure paths", () => {
   it("throws when the share metadata has no wrapped CEK", async () => {
     const f = await makeShareFixture({ finalChunks: [enc.encode("x")] });
     getShareFileMeta.mockResolvedValueOnce({ ...f.meta, wrapped_cek: undefined });
@@ -223,7 +223,7 @@ describe("downloadSharedFile — failure paths", () => {
     const wrongKeyB64 = toBase64(crypto.getRandomValues(new Uint8Array(32)));
 
     await expect(downloadSharedFile("tok", wrongKeyB64)).rejects.toThrow(
-      "Invalid or corrupt share key — check that you copied the full link."
+      "Invalid or corrupt share key. Check that you copied the full link."
     );
     expect(getShareChunk).not.toHaveBeenCalled();
   });
@@ -234,7 +234,7 @@ describe("downloadSharedFile — failure paths", () => {
     getShareChunk.mockResolvedValueOnce({ data: f.encryptedChunks[0], sha256: "", compressed: false });
 
     await expect(downloadSharedFile("tok", f.shareKeyB64)).rejects.toThrow(
-      "Decryption failed — the share key may be wrong or the link incomplete."
+      "Decryption failed: the share key may be wrong or the link incomplete."
     );
   });
 
@@ -270,7 +270,7 @@ describe("downloadSharedFile — failure paths", () => {
     getShareChunk.mockResolvedValueOnce({ data: f.encryptedChunks[0], sha256: "", compressed: false });
 
     await expect(downloadSharedFile("tok", f.shareKeyB64)).rejects.toThrow(
-      "File integrity check failed — SHA-256 mismatch"
+      "File integrity check failed. SHA-256 mismatch"
     );
   });
 

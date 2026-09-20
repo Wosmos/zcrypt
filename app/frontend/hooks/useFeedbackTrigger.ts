@@ -44,7 +44,7 @@ export function useFeedbackTrigger(usedBytes: number, quotaBytes: number) {
         }
       })
       .catch(() => {
-        // Silently fail — don't nag on network errors
+        // Silently fail. Don't nag on network errors
       })
       .finally(() => setChecked(true));
   }, [usedBytes, quotaBytes, checked]);

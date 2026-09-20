@@ -4,10 +4,10 @@ import { useEffect } from "react";
 import { Lock } from "@/lib/icons";
 
 /**
- * VaultLockOverlay — the full-screen mask shown while the vault is LOCKED and it
+ * VaultLockOverlay: the full-screen mask shown while the vault is LOCKED and it
  * actually holds encrypted files. It is the VISIBLE half of the lock.
  *
- * The SECURITY guarantee is not this overlay — it is that, while locked, file
+ * The SECURITY guarantee is not this overlay: it is that, while locked, file
  * content, file/folder names, and thumbnail previews are genuinely absent from
  * memory and disk (store/passphrase `evictPlaintextOnLock` +
  * useThumbnail `clearThumbnails`, and names resolve to the literal "[locked]").
@@ -17,7 +17,7 @@ import { Lock } from "@/lib/icons";
  *
  * Rendered as `absolute inset-0` inside the app shell's `<main>` (which is
  * `position: relative` + `overflow` clips to its rounded panel), so the mask
- * covers ONLY the vault content — the sidebar and top bar stay visible and
+ * covers ONLY the vault content: the sidebar and top bar stay visible and
  * usable. Sits below the app-wide PassphraseModal (z-50, portaled), which the
  * click opens on top of it.
  */

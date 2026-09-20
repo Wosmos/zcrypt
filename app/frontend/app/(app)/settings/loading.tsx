@@ -185,7 +185,7 @@ export default function SettingsLoading() {
         </div>
       </div>
 
-      {/* How it works — collapsed header bar */}
+      {/* How it works, collapsed header bar */}
       <div className="panel flex items-center justify-between px-6 py-4">
         <Skeleton className="h-4 w-28 rounded-md" />
         <Skeleton className="h-4 w-4 rounded-md" />

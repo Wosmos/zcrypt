@@ -6,7 +6,7 @@ import { SITE_URL } from "@/lib/site";
 export const metadata: Metadata = {
   title: "zcrypt vs Dropbox: Private, Open-Source Encrypted Drive",
   description:
-    "A fair, accurate comparison of zcrypt and Dropbox. zcrypt is a free, open-source, zero-knowledge encrypted drive where you hold the keys and bring your own storage — Dropbox is a convenient, proprietary host that can access your files by default.",
+    "A fair, accurate comparison of zcrypt and Dropbox. zcrypt is a free, open-source, zero-knowledge encrypted drive where you hold the keys and bring your own storage. Dropbox is a convenient, proprietary host that can access your files by default.",
   keywords: [
     "dropbox alternative",
     "zero-knowledge dropbox alternative",
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "zcrypt vs Dropbox: Private, Open-Source Encrypted Drive",
     description:
-      "zcrypt is zero-knowledge by default, open source, and stores files in accounts you already own. See how it compares to Dropbox — fairly.",
+      "zcrypt is zero-knowledge by default, open source, and stores files in accounts you already own. See how it compares to Dropbox, fairly.",
     url: `${SITE_URL}/vs/dropbox`,
     type: "website",
   },

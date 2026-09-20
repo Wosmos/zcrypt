@@ -41,7 +41,7 @@ export const fileViewers: FileViewersPageData = {
     subtext: (
       <>
         Most encrypted storage makes you download a file and trust a server to show it. zcrypt
-        previews images, video, PDFs, documents, and code right in your browser — decrypted on the
+        previews images, video, PDFs, documents, and code right in your browser, decrypted on the
         fly, then gone.
       </>
     ),
@@ -52,7 +52,7 @@ export const fileViewers: FileViewersPageData = {
   viewersSection: {
     heading: "A viewer for almost everything",
     subheading:
-      "Pick a file and it opens in a viewer built for its type — every one of them fed by plaintext that only ever exists in your browser.",
+      "Pick a file and it opens in a viewer built for its type: every one of them fed by plaintext that only ever exists in your browser.",
   },
   // Mirrors the real dispatch in components/viewers/viewer-kind.ts.
   viewers: [
@@ -66,14 +66,14 @@ export const fileViewers: FileViewersPageData = {
     {
       Icon: Video,
       title: "Video & audio",
-      desc: "A custom player for MP4, MOV, WebM, MP3, FLAC, and more — with a playlist of the other media in the same folder.",
+      desc: "A custom player for MP4, MOV, WebM, MP3, FLAC, and more: with a playlist of the other media in the same folder.",
       accent: "from-violet-500/15 to-violet-500/5",
       color: "text-violet-500",
     },
     {
       Icon: FileText,
       title: "PDF",
-      desc: "Rendered natively, page by page, with lazy loading — no browser plugin and no third-party PDF service.",
+      desc: "Rendered natively, page by page, with lazy loading, no browser plugin and no third-party PDF service.",
       accent: "from-rose-500/15 to-rose-500/5",
       color: "text-rose-500",
     },
@@ -87,14 +87,14 @@ export const fileViewers: FileViewersPageData = {
     {
       Icon: Code,
       title: "HTML",
-      desc: "Sanitized and shown in a sandboxed frame with scripts disabled — preview a page safely without it phoning home.",
+      desc: "Sanitized and shown in a sandboxed frame with scripts disabled: preview a page safely without it phoning home.",
       accent: "from-amber-500/15 to-amber-500/5",
       color: "text-amber-500",
     },
     {
       Icon: FileText,
       title: "Markdown",
-      desc: "Rendered to formatted, sanitized HTML — headings, lists, links, and code blocks, the way you wrote them.",
+      desc: "Rendered to formatted, sanitized HTML: headings, lists, links, and code blocks, the way you wrote them.",
       accent: "from-emerald-500/15 to-emerald-500/5",
       color: "text-emerald-500",
     },
@@ -108,7 +108,7 @@ export const fileViewers: FileViewersPageData = {
     {
       Icon: Code,
       title: "Text & source code",
-      desc: "Around 40 languages — JS, TS, Python, Go, Rust, SQL, YAML, and more — with syntax highlighting and a line-wrap toggle.",
+      desc: "Around 40 languages (JS, TS, Python, Go, Rust, SQL, YAML, and more) with syntax highlighting and a line-wrap toggle.",
       accent: "from-indigo-500/15 to-indigo-500/5",
       color: "text-indigo-500",
     },
@@ -130,7 +130,7 @@ export const fileViewers: FileViewersPageData = {
     {
       step: "02",
       title: "Decrypt with AES-256-GCM",
-      desc: "Your passphrase-derived key decrypts each chunk locally. The key is never sent anywhere — there is nothing on the server to decrypt with.",
+      desc: "Your passphrase-derived key decrypts each chunk locally. The key is never sent anywhere. There is nothing on the server to decrypt with.",
     },
     {
       step: "03",
@@ -140,7 +140,7 @@ export const fileViewers: FileViewersPageData = {
     {
       step: "04",
       title: "Render from a local blob URL",
-      desc: "The plaintext becomes an in-memory blob URL that feeds the viewer — then it's revoked the moment you close or move to the next file.",
+      desc: "The plaintext becomes an in-memory blob URL that feeds the viewer: then it's revoked the moment you close or move to the next file.",
     },
   ],
   memoryNote: (
@@ -149,7 +149,7 @@ export const fileViewers: FileViewersPageData = {
       <span className="font-semibold text-[var(--color-text)]">
         revoked the moment you close or navigate away
       </span>
-      . It is never written to disk and never uploaded — so a preview leaves nothing behind on your
+      . It is never written to disk and never uploaded, so a preview leaves nothing behind on your
       machine or our servers.
     </>
   ),
@@ -157,13 +157,13 @@ export const fileViewers: FileViewersPageData = {
   overlaySection: {
     heading: "One overlay, the whole folder",
     subheading:
-      "The viewer is a full-screen overlay you drive from the keyboard — built to move through a folder, not just stare at one file.",
+      "The viewer is a full-screen overlay you drive from the keyboard: built to move through a folder, not just stare at one file.",
   },
   overlayFeatures: [
     {
       Icon: Layers,
       title: "Walk the whole folder",
-      desc: "Prev/next moves through every file in the folder, with a clear 3 / 18 counter — no closing and reopening.",
+      desc: "Prev/next moves through every file in the folder, with a clear 3 / 18 counter, no closing and reopening.",
     },
     {
       Icon: Monitor,
@@ -178,7 +178,7 @@ export const fileViewers: FileViewersPageData = {
     {
       Icon: RefreshCcw,
       title: "Honest errors & retry",
-      desc: "Wrong password, failed integrity check, or an unsupported type each get a clear message — with Retry and Download to fall back to.",
+      desc: "Wrong password, failed integrity check, or an unsupported type each get a clear message: with Retry and Download to fall back to.",
     },
     {
       Icon: Search,
@@ -196,7 +196,7 @@ export const fileViewers: FileViewersPageData = {
     {
       href: "/features/encrypted-drive",
       title: "The encrypted drive",
-      desc: "Real, nestable folders and a file explorer — every name encrypted on your device.",
+      desc: "Real, nestable folders and a file explorer: every name encrypted on your device.",
     },
     {
       href: "/docs/how-it-works",
@@ -206,7 +206,7 @@ export const fileViewers: FileViewersPageData = {
     {
       href: "/docs/folders",
       title: "Password-protected folders",
-      desc: "Give a folder its own password — previews unlock only after you enter it.",
+      desc: "Give a folder its own password: previews unlock only after you enter it.",
     },
   ],
 

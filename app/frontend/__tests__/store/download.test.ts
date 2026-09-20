@@ -247,7 +247,7 @@ describe("useDownloadStore", () => {
       queryClient.setQueryData(qk.files, [file({ id: "f1", folder_id: "folder-1" })]);
       useFolderRegistry.setState({ byId: { "folder-1": { pwSalt: "s", pwVerifier: "v" } } });
       useFolderPasswordStore.getState().set("folder-1", "cached-pw");
-      (downloadAndDecryptFile as Mock).mockRejectedValue(new Error("Decryption failed — wrong passphrase?"));
+      (downloadAndDecryptFile as Mock).mockRejectedValue(new Error("Decryption failed, wrong passphrase?"));
 
       useDownloadStore.getState().startDownload("f1", "secret.txt", 10, "vault-pw");
       const id = firstId();
@@ -260,11 +260,11 @@ describe("useDownloadStore", () => {
 
     it("reports a generic failure (no password cleared) when a wrong-key error hits a non-protected file", async () => {
       // File lives in a folder that is NOT in the protected registry, so
-      // protectedFolderOf() falls through to `return null` — recovery is skipped
+      // protectedFolderOf() falls through to `return null`, recovery is skipped
       // even though the message looks like a decrypt failure.
       queryClient.setQueryData(qk.files, [file({ id: "f1", folder_id: "folder-1" })]);
       useFolderPasswordStore.getState().set("folder-1", "cached-pw");
-      (downloadAndDecryptFile as Mock).mockRejectedValue(new Error("Decryption failed — wrong passphrase?"));
+      (downloadAndDecryptFile as Mock).mockRejectedValue(new Error("Decryption failed, wrong passphrase?"));
 
       useDownloadStore.getState().startDownload("f1", "plain.txt", 10, "pw");
       const id = firstId();
@@ -273,7 +273,7 @@ describe("useDownloadStore", () => {
       expect(getItem(id)?.status).toBe("failed");
       // Not protected → password untouched, and the generic (not recovery) toast.
       expect(useFolderPasswordStore.getState().get("folder-1")).toBe("cached-pw");
-      expect(toast.error).toHaveBeenCalledWith("Download failed: Decryption failed — wrong passphrase?");
+      expect(toast.error).toHaveBeenCalledWith("Download failed: Decryption failed, wrong passphrase?");
     });
 
     it("paints progress from the pipeline's onProgress callback", async () => {
@@ -484,7 +484,7 @@ describe("useDownloadStore", () => {
       useDownloadStore.getState().retryDownload(id, "pw");
       await flush();
 
-      // Same queue row, same resume object — a continuation, not a new download.
+      // Same queue row, same resume object: a continuation, not a new download.
       expect(useDownloadStore.getState().queue).toHaveLength(1);
       expect(lastCallOptions().resume).toBe(firstResume);
       expect(getItem(id)?.status).toBe("done");
@@ -507,7 +507,7 @@ describe("useDownloadStore", () => {
     });
 
     it("falls back to a fresh single download when the session is already gone", async () => {
-      // A row with no session/zip session (e.g. survived a store reset) — retry
+      // A row with no session/zip session (e.g. survived a store reset), retry
       // must still restart it as a plain single download rather than no-op.
       useDownloadStore.setState({
         queue: [{ id: "orphan", fileId: "f9", filename: "z.bin", fileSize: 10, status: "failed", progress: 0, stage: "Failed", startedAt: 0 }],
@@ -575,13 +575,13 @@ describe("useDownloadStore", () => {
       );
       // Two retries fired back-to-back (before either's relaunch has run) both
       // capture the SAME prior (already-settled) promise, so both eventually
-      // invoke runSingleDownload — the second one supersedes the first's token.
+      // invoke runSingleDownload: the second one supersedes the first's token.
       useDownloadStore.getState().retryDownload(id, "pw");
       useDownloadStore.getState().retryDownload(id, "pw");
       await flush();
       expect(resolvers).toHaveLength(2);
 
-      // Resolve the now-stale first run — its own completion must be a no-op.
+      // Resolve the now-stale first run: its own completion must be a no-op.
       resolvers[0]!();
       await flush();
       expect(toast.success).not.toHaveBeenCalled();
@@ -610,10 +610,10 @@ describe("useDownloadStore", () => {
       await flush();
       expect(rejecters).toHaveLength(2);
 
-      // Ignore the setup failure's toast — only the post-retry ones matter here.
+      // Ignore the setup failure's toast: only the post-retry ones matter here.
       (toast.error as Mock).mockClear();
 
-      // The stale (superseded) run rejects with a non-Error value — its
+      // The stale (superseded) run rejects with a non-Error value, its
       // failure must be a total no-op (not even a stringified toast).
       rejecters[0]!("plain string failure");
       await flush();
@@ -662,7 +662,7 @@ describe("useDownloadStore", () => {
       await flush();
       expect(getItem(id)?.status).toBe("failed");
 
-      // No passphrase passed — it reuses the session's stored one + resume state.
+      // No passphrase passed: it reuses the session's stored one + resume state.
       useDownloadStore.getState().autoResumeInterrupted();
       await flush();
 
@@ -671,9 +671,9 @@ describe("useDownloadStore", () => {
       expect(getItem(id)?.status).toBe("done");
     });
 
-    it("does NOT auto-resume a permanent (integrity) failure — avoids a re-fail/re-toast loop", async () => {
+    it("does NOT auto-resume a permanent (integrity) failure: avoids a re-fail/re-toast loop", async () => {
       (downloadAndDecryptFile as Mock).mockRejectedValueOnce(
-        new Error("File integrity check failed — content hash mismatch")
+        new Error("File integrity check failed, content hash mismatch")
       );
       useDownloadStore.getState().startDownload("f1", "a.bin", 10, "pw");
       const id = firstId();
@@ -1000,7 +1000,7 @@ describe("useDownloadStore", () => {
 
       progressCb!({ file_id: "f1", stage: "Downloading", bytes_done: 0, bytes_total: 0 });
       await flush();
-      expect(getItem(id)?.progress).toBe(0); // no total yet — percent stays unset, prior value kept
+      expect(getItem(id)?.progress).toBe(0); // no total yet: percent stays unset, prior value kept
 
       progressCb!({ file_id: "f1", stage: "Downloading", bytes_done: 30, bytes_total: 120 });
       await flush();
@@ -1047,11 +1047,11 @@ describe("useDownloadStore", () => {
       expect(getItem(id)?.status).toBe("failed");
       expect(getItem(id)?.error).toBe("Can't reach zcrypt's servers (network/DNS)");
       expect(toast.error).toHaveBeenCalledWith(
-        "Can't reach zcrypt's servers — check your internet, and if you're on a restricted or filtered network, connect a VPN and retry."
+        "Can't reach zcrypt's servers. Check your internet, and if you're on a restricted or filtered network, connect a VPN and retry."
       );
       expect(notifications.downloadFailed).toHaveBeenCalledWith(
         "a.bin",
-        "Network/DNS — try a VPN"
+        "Network/DNS: try a VPN"
       );
     });
 
@@ -1198,7 +1198,7 @@ describe("useDownloadStore", () => {
       expect(getItem(id)?.status).toBe("failed");
       expect(getItem(id)?.error).toBe("Can't reach zcrypt's servers (network/DNS)");
       expect(toast.error).toHaveBeenCalledWith(
-        "Can't reach zcrypt's servers — check your internet, and if you're on a restricted or filtered network, connect a VPN and retry."
+        "Can't reach zcrypt's servers. Check your internet, and if you're on a restricted or filtered network, connect a VPN and retry."
       );
     });
 
@@ -1319,7 +1319,7 @@ describe("useDownloadStore", () => {
       useFolderRegistry.setState({ byId: { "folder-1": { pwSalt: "s1", pwVerifier: "v1" }, "folder-2": { pwSalt: "s2", pwVerifier: "v2" } } });
       useFolderPasswordStore.getState().set("folder-1", "pw1");
       useFolderPasswordStore.getState().set("folder-2", "pw2");
-      (downloadAsZip as Mock).mockRejectedValue(new Error("Decryption failed — wrong passphrase?"));
+      (downloadAsZip as Mock).mockRejectedValue(new Error("Decryption failed, wrong passphrase?"));
 
       useDownloadStore.getState().startBulkZipDownload(files, "pw");
       const id = firstId();
@@ -1352,14 +1352,14 @@ describe("useDownloadStore", () => {
     });
 
     it("recovers only the files that are actually in a protected folder", async () => {
-      // f1 is protected; f2 is not — recovery must be per-file, not all-or-nothing.
+      // f1 is protected; f2 is not: recovery must be per-file, not all-or-nothing.
       queryClient.setQueryData(qk.files, [
         file({ id: "f1", folder_id: "folder-1" }),
         file({ id: "f2", folder_id: null }),
       ]);
       useFolderRegistry.setState({ byId: { "folder-1": { pwSalt: "s", pwVerifier: "v" } } });
       useFolderPasswordStore.getState().set("folder-1", "cached-1");
-      (downloadAsZip as Mock).mockRejectedValue(new Error("Decryption failed — wrong passphrase?"));
+      (downloadAsZip as Mock).mockRejectedValue(new Error("Decryption failed, wrong passphrase?"));
 
       useDownloadStore.getState().startBulkZipDownload(files, "pw");
       await flush();

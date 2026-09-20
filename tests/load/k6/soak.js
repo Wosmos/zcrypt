@@ -1,5 +1,5 @@
 /**
- * Soak test — moderate load, very long duration (30 min default).
+ * Soak test: moderate load, very long duration (30 min default).
  * Detects memory leaks, goroutine leaks, connection pool exhaustion,
  * and database connection rot over time.
  *

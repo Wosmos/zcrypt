@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Sync & device transfer | zcrypt Docs",
     description:
-      "Offline pins, encrypted clipboard sync, folder sync, and device-to-device transfer — the server holds ciphertext and metadata, never your plaintext.",
+      "Offline pins, encrypted clipboard sync, folder sync, and device-to-device transfer: the server holds ciphertext and metadata, never your plaintext.",
     url: `${SITE_URL}/docs/sync-transfer`,
   },
 };
@@ -30,7 +30,7 @@ export default function SyncTransferDocPage() {
     <DocPage
       href="/docs/sync-transfer"
       title="Sync & device transfer"
-      description="Keep your own devices in step without handing anyone your plaintext. The Sync & Offline tab holds three tools — offline pins, encrypted clipboard sync, and folder sync — while a separate Transfer tab streams a file straight from one device to another."
+      description="Keep your own devices in step without handing anyone your plaintext. The Sync & Offline tab holds three tools (offline pins, encrypted clipboard sync, and folder sync) while a separate Transfer tab streams a file straight from one device to another."
       toc={toc}
     >
       <DocSection id="offline" title="Offline pins">
@@ -172,21 +172,21 @@ export default function SyncTransferDocPage() {
               href="/docs/send"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Anonymous Send — store-and-forward file sharing
+              Anonymous Send, store-and-forward file sharing
             </Link>,
             <Link
               key="b"
               href="/docs/sharing"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Share links — password, expiry, and download limits
+              Share links: password, expiry, and download limits
             </Link>,
             <Link
               key="c"
               href="/docs/pad"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Encrypted Pad — share a one-time encrypted note
+              Encrypted Pad: share a one-time encrypted note
             </Link>,
           ]}
         />

@@ -45,7 +45,7 @@ describe("OrderedWriter", () => {
     await expect(w.close(3)).rejects.toThrow(/incomplete/);
   });
 
-  it("bounds memory but never deadlocks — the cursor chunk is always accepted", async () => {
+  it("bounds memory but never deadlocks: the cursor chunk is always accepted", async () => {
     const { sink, order } = recordingSink();
     const w = new OrderedWriter(sink, 3); // tiny reorder buffer
     // Buffer future chunks while the cursor (0) is missing, then release it.

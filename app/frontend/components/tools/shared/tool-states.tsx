@@ -7,7 +7,7 @@ import { AlertTriangle, CheckCircle2 } from "@/lib/icons";
 /**
  * Terminal status cards shared by the anonymous tool composers (pad / send /
  * transfer). Both render the same centered icon + title + message + action
- * skeleton — success is cyan/CheckCircle2, error is red/AlertTriangle.
+ * skeleton: success is cyan/CheckCircle2, error is red/AlertTriangle.
  */
 
 /**
@@ -16,7 +16,7 @@ import { AlertTriangle, CheckCircle2 } from "@/lib/icons";
  * `wrapped` reproduces the pad/send composer shape: an outer `p-6` container
  * with the title + message nested in a `<div>` and the message given
  * `mt-1 max-w-xs`. Unwrapped (the default, used by transfer) renders the bare
- * card with the title + message as direct siblings — the caller supplies the
+ * card with the title + message as direct siblings: the caller supplies the
  * surrounding padding.
  */
 export function ToolErrorState({
@@ -58,7 +58,7 @@ export function ToolErrorState({
 }
 
 /**
- * Success card — the bare centered layout used by transfer's "complete" states.
+ * Success card: the bare centered layout used by transfer's "complete" states.
  * The caller supplies the surrounding padding.
  */
 export function ToolSuccessState({

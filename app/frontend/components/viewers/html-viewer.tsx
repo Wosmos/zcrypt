@@ -8,7 +8,7 @@ import { ViewerLoading, ViewerError } from "./viewer-states";
 /**
  * HTML viewer: reads the decrypted blob as text, sanitizes it with DOMPurify
  * (lazy-imported), then renders the result inside a sandboxed <iframe srcdoc>
- * with NO `allow-scripts` — so even if sanitization missed something, scripts
+ * with NO `allow-scripts`: so even if sanitization missed something, scripts
  * cannot execute and the frame is origin-isolated. A banner makes the
  * "scripts disabled for safety" guarantee explicit to the user.
  */

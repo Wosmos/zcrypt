@@ -14,12 +14,12 @@ import {
 export const metadata: Metadata = {
   title: "Encryption model | zcrypt Docs",
   description:
-    "The exact cryptography behind zcrypt: AES-256-GCM with envelope encryption, PBKDF2-HMAC-SHA256 at 600,000 iterations, a random per-file content key, X25519 ECIES sealed-boxes for zero-knowledge sharing, and client-side zstd compression — all performed on your device before anything leaves it.",
+    "The exact cryptography behind zcrypt: AES-256-GCM with envelope encryption, PBKDF2-HMAC-SHA256 at 600,000 iterations, a random per-file content key, X25519 ECIES sealed-boxes for zero-knowledge sharing, and client-side zstd compression: all performed on your device before anything leaves it.",
   alternates: { canonical: `${SITE_URL}/docs/security` },
   openGraph: {
     title: "Encryption model | zcrypt Docs",
     description:
-      "AES-256-GCM, envelope encryption, PBKDF2 at 600k iterations, per-file content keys, and X25519 sealed-boxes for sharing — the precise cryptography zcrypt runs on your device.",
+      "AES-256-GCM, envelope encryption, PBKDF2 at 600k iterations, per-file content keys, and X25519 sealed-boxes for sharing: the precise cryptography zcrypt runs on your device.",
     url: `${SITE_URL}/docs/security`,
   },
 };
@@ -39,13 +39,13 @@ export default function EncryptionModelPage() {
     <DocPage
       href="/docs/security"
       title="Encryption model"
-      description="Everything in zcrypt is encrypted on your device before it touches the network. This page documents exactly which algorithms run, in what order, and where each key lives — no hand-waving."
+      description="Everything in zcrypt is encrypted on your device before it touches the network. This page documents exactly which algorithms run, in what order, and where each key lives, no hand-waving."
       toc={toc}
     >
       <DocSection id="primitives" title="The primitives">
         <DocP>
           zcrypt uses a small, deliberately boring set of well-understood primitives. There is no
-          custom cipher and no novel construction — just standard authenticated encryption and a
+          custom cipher and no novel construction: just standard authenticated encryption and a
           standard key-derivation function, run client-side via the Web Crypto API (in the browser)
           or the Go standard library (in the TUI). The exact parameters below are shared by both
           clients, so a file encrypted in the browser decrypts in the TUI and vice versa.
@@ -96,7 +96,7 @@ export default function EncryptionModelPage() {
           than returning garbage. You get confidentiality and tamper-detection from one pass.
         </DocNote>
         <DocP>
-          The last row — token wrapping — is the one place zcrypt holds a key server-side, and it
+          The last row (token wrapping) is the one place zcrypt holds a key server-side, and it
           never touches your files. It is covered honestly in{" "}
           <Link
             href="/docs/zero-knowledge"
@@ -118,7 +118,7 @@ export default function EncryptionModelPage() {
         <DocList
           items={[
             <>
-              <strong>The CEK</strong> is generated fresh, at random, per file — never derived from
+              <strong>The CEK</strong> is generated fresh, at random, per file, never derived from
               anything you type.
             </>,
             <>
@@ -140,11 +140,11 @@ export default function EncryptionModelPage() {
             per-folder passwords
           </Link>{" "}
           possible without ever exposing your passphrase: zcrypt can re-wrap a file&apos;s CEK under
-          a different key — a link&apos;s one-time share key, a folder-password key, or a key{" "}
+          a different key: a link&apos;s one-time share key, a folder-password key, or a key{" "}
           <Link href="#sharing" className="text-cyan-600 hover:underline dark:text-cyan-400">
             sealed to another user&apos;s public key
           </Link>{" "}
-          — so a recipient (or a different password) can decrypt that one file while your master
+          , so a recipient (or a different password) can decrypt that one file while your master
           passphrase never moves. The underlying chunks are untouched; only the small wrapped CEK
           changes. See{" "}
           <Link
@@ -157,9 +157,9 @@ export default function EncryptionModelPage() {
         </DocP>
         <DocNote type="security" title="Legacy files">
           A small number of files predate envelope encryption and were encrypted directly with the
-          passphrase-derived key (no wrapped CEK). zcrypt detects this automatically on download — a
+          passphrase-derived key (no wrapped CEK). zcrypt detects this automatically on download, a
           file with no stored wrapped CEK uses the passphrase-derived key as the content key
-          directly — so either path just works and you never have to think about it.
+          directly, so either path just works and you never have to think about it.
         </DocNote>
       </DocSection>
 
@@ -169,18 +169,18 @@ export default function EncryptionModelPage() {
           a usable key to the server. Every account is bootstrapped with its own{" "}
           <strong>X25519 keypair</strong>. The public half is published to a registry the server
           keeps in the clear, so anyone can wrap a key <em>to</em> you; the private half is wrapped
-          under your passphrase-derived key — the very same PBKDF2 &rarr; AES-256-GCM envelope used
-          for file CEKs — so the server stores only ciphertext it cannot open.
+          under your passphrase-derived key: the very same PBKDF2 &rarr; AES-256-GCM envelope used
+          for file CEKs, so the server stores only ciphertext it cannot open.
         </DocP>
         <DocP>
-          To grant access — for example, to a{" "}
+          To grant access: for example, to a{" "}
           <Link
             href="/docs/shared-vaults"
             className="text-cyan-600 hover:underline dark:text-cyan-400"
           >
             shared space
           </Link>{" "}
-          and its files — the client seals the relevant symmetric key to the recipient&apos;s public
+          and its files: the client seals the relevant symmetric key to the recipient&apos;s public
           key with an <strong>ECIES sealed-box</strong>: a fresh ephemeral keypair performs an
           X25519 Diffie&ndash;Hellman with the recipient, the shared secret is hashed with SHA-256
           into an AES-256-GCM key, and the ephemeral public key is prepended so the recipient can
@@ -200,7 +200,7 @@ sealed  = eph.public || AES-256-GCM(key = aesKey, plaintext = spaceKey)`}</DocCo
         <DocNote type="security" title="Verify a fingerprint out of band">
           Each published public key carries a short SHA-256 fingerprint. Compare it with your
           collaborator over a channel that isn&apos;t zcrypt (in person, a phone call) to rule out a
-          substituted key — the only way an honest-but-curious server could interpose itself in the
+          substituted key: the only way an honest-but-curious server could interpose itself in the
           exchange. How the keypair is derived and held is covered in{" "}
           <Link
             href="/docs/key-management"
@@ -227,7 +227,7 @@ KEK  = PBKDF2-HMAC-SHA256(passphrase, salt,    // 600,000 iterations
 CEK  = random(32 bytes)                        // unique per file
 wrappedCEK = AES-256-GCM(key = KEK, plaintext = CEK)`}</DocCode>
         <DocP>
-          The salt is not secret — it is stored alongside the file&apos;s metadata. The passphrase
+          The salt is not secret. It is stored alongside the file&apos;s metadata. The passphrase
           is. It is never transmitted, never written to our database, and exists only in your
           device&apos;s memory for the duration of an unlocked session.
         </DocP>
@@ -235,7 +235,7 @@ wrappedCEK = AES-256-GCM(key = KEK, plaintext = CEK)`}</DocCode>
 
       <DocSection id="pipeline" title="The upload pipeline">
         <DocP>
-          When you add a file, all of the heavy lifting happens locally — in a Web Worker in the
+          When you add a file, all of the heavy lifting happens locally: in a Web Worker in the
           browser, or on-device in the TUI. The server only ever receives finished, encrypted
           chunks.
         </DocP>
@@ -265,7 +265,7 @@ wrappedCEK = AES-256-GCM(key = KEK, plaintext = CEK)`}</DocCode>
         <DocNote type="warning" title="Compression is client-side only">
           The backend does <strong>not</strong> compress anything. It merely carries a per-chunk{" "}
           <span className="font-mono">compressed</span> flag so the client knows whether to run zstd
-          in reverse on the way back down. Older documentation implied server-side zstd — that was
+          in reverse on the way back down. Older documentation implied server-side zstd. That was
           never how it worked.
         </DocNote>
       </DocSection>
@@ -274,8 +274,8 @@ wrappedCEK = AES-256-GCM(key = KEK, plaintext = CEK)`}</DocCode>
         <DocP>
           Files are split into chunks so uploads can run in parallel, resume after interruption, and
           stay within storage-provider size limits. The plaintext chunk size is chosen adaptively
-          for your device — <strong>4 MB</strong> on constrained hardware up to{" "}
-          <strong>16 MB</strong> on machines with plenty of memory — and each encrypted chunk adds a
+          for your device: <strong>4 MB</strong> on constrained hardware up to{" "}
+          <strong>16 MB</strong> on machines with plenty of memory, and each encrypted chunk adds a
           12-byte nonce plus a 16-byte tag of overhead. Encrypted chunks therefore top out around{" "}
           <strong>16–17 MB</strong>.
         </DocP>
@@ -295,7 +295,7 @@ wrappedCEK = AES-256-GCM(key = KEK, plaintext = CEK)`}</DocCode>
             </>,
             <>
               On the way back down, decryption and zstd decompression run across a device-aware pool
-              of Web Workers, off the main thread — the same client-side pipeline as upload, just in
+              of Web Workers, off the main thread: the same client-side pipeline as upload, just in
               reverse. Plaintext never leaves your device.
             </>,
           ]}
@@ -316,28 +316,28 @@ wrappedCEK = AES-256-GCM(key = KEK, plaintext = CEK)`}</DocCode>
               href="/docs/zero-knowledge"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Zero-knowledge architecture — what the server can and cannot see
+              Zero-knowledge architecture: what the server can and cannot see
             </Link>,
             <Link
               key="b"
               href="/docs/key-management"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Passphrase &amp; key management — how keys are derived, held, and revoked
+              Passphrase &amp; key management: how keys are derived, held, and revoked
             </Link>,
             <Link
               key="c"
               href="/docs/threat-model"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Threat model — what zcrypt defends against, and what it does not
+              Threat model: what zcrypt defends against, and what it does not
             </Link>,
             <Link
               key="d"
               href="/features/encryption"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Zero-knowledge encryption — the feature tour
+              Zero-knowledge encryption, the feature tour
             </Link>,
           ]}
         />

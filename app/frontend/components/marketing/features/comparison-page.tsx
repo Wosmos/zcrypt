@@ -26,7 +26,7 @@ export interface ComparisonPageProps {
     subtext: ReactNode;
     secondaryLabel: ReactNode;
     secondaryHref: string;
-    /** CTA label. Defaults to the vs-page "Create your vault — free". */
+    /** CTA label. Defaults to the vs-page "Create your vault, free". */
     ctaLabel?: ReactNode;
   };
 
@@ -59,8 +59,8 @@ export interface ComparisonPageProps {
  * Full-page scaffold for the vs/* comparison pages. Composes the shared
  * FeatureHero, an inline 4-pillar grid (title styling diverges from
  * CapabilityGrid, so it's rendered here), the ComparisonTable, an "honest part"
- * prose block, and the closing RelatedLinks + CtaSection. Proton-only extras —
- * a respect-note card and a heading above the pillars — are optional slots.
+ * prose block, and the closing RelatedLinks + CtaSection. Proton-only extras:
+ * a respect-note card and a heading above the pillars: are optional slots.
  * Also emits the BreadcrumbJsonLd since all three vs pages need identical
  * structured data.
  */
@@ -89,7 +89,7 @@ export function ComparisonPage({
         headlineTop={hero.headlineTop}
         headlineGradient={hero.headlineGradient}
         subtext={hero.subtext}
-        ctaLabel={hero.ctaLabel ?? "Create your vault — free"}
+        ctaLabel={hero.ctaLabel ?? "Create your vault, free"}
         secondaryLabel={hero.secondaryLabel}
         secondaryHref={hero.secondaryHref}
       />

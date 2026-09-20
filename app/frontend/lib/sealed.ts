@@ -1,9 +1,9 @@
 /**
- * Sealed metadata — zero-knowledge for everything that ISN'T a file body.
+ * Sealed metadata: zero-knowledge for everything that ISN'T a file body.
  *
  * File and folder names already travel as opaque ciphertext (`encrypted_name`).
- * The smaller labels around them — timed-vault names, snapshot labels, sync-folder
- * paths, decoy filenames, Send / folder-share display names — were still plaintext
+ * The smaller labels around them: timed-vault names, snapshot labels, sync-folder
+ * paths, decoy filenames, Send / folder-share display names: were still plaintext
  * in the database. They now reuse the exact same AES-GCM primitive (name-crypto)
  * and ride in their EXISTING columns behind a self-describing `enc1:` prefix, so
  * the server needs no schema change and treats the value as an opaque string.
@@ -65,11 +65,11 @@ export function userNameKey(): Promise<CryptoKey | null> {
   return memo.key;
 }
 
-/** Like userNameKey, but refuses to proceed unsealed — writes must never leak plaintext. */
+/** Like userNameKey, but refuses to proceed unsealed: writes must never leak plaintext. */
 export async function requireNameKey(): Promise<CryptoKey> {
   const key = await userNameKey();
   if (!key)
-    throw new Error("Unlock your vault first — this name is encrypted with your passphrase.");
+    throw new Error("Unlock your vault first: this name is encrypted with your passphrase.");
   return key;
 }
 

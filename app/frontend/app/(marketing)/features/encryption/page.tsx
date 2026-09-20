@@ -12,9 +12,9 @@ import { encryption } from "../_data/encryption";
 import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Zero-Knowledge Encryption — AES-256-GCM, Encrypted on Your Device",
+  title: "Zero-Knowledge Encryption. AES-256-GCM, Encrypted on Your Device",
   description:
-    "Your files are encrypted on your own device with AES-256-GCM before they ever leave. Your key is derived from your passphrase with PBKDF2-SHA256 (600,000 iterations) and never transmitted. The server only ever sees ciphertext — no keys, no plaintext, not even your folder names.",
+    "Your files are encrypted on your own device with AES-256-GCM before they ever leave. Your key is derived from your passphrase with PBKDF2-SHA256 (600,000 iterations) and never transmitted. The server only ever sees ciphertext, no keys, no plaintext, not even your folder names.",
   keywords: [
     "zero-knowledge encryption",
     "client-side encryption",
@@ -27,9 +27,9 @@ export const metadata: Metadata = {
   ],
   alternates: { canonical: `${SITE_URL}/features/encryption` },
   openGraph: {
-    title: "Zero-Knowledge Encryption — Encrypted on Your Device | zcrypt",
+    title: "Zero-Knowledge Encryption. Encrypted on Your Device | zcrypt",
     description:
-      "AES-256-GCM, on your device, before anything leaves. Your passphrase never travels. The server only ever holds ciphertext — no keys, no plaintext, no folder names.",
+      "AES-256-GCM, on your device, before anything leaves. Your passphrase never travels. The server only ever holds ciphertext, no keys, no plaintext, no folder names.",
     url: `${SITE_URL}/features/encryption`,
     type: "website",
   },
@@ -118,7 +118,7 @@ export default function EncryptionPage() {
       {/* ═══ GUARANTEES ═══ */}
       <CapabilityGrid
         heading="What zero-knowledge actually means"
-        subheading="Not a privacy policy promise. A cryptographic one — enforced by where the keys live and what code runs where."
+        subheading="Not a privacy policy promise. A cryptographic one: enforced by where the keys live and what code runs where."
         items={guarantees}
       />
 
@@ -154,19 +154,19 @@ export default function EncryptionPage() {
             >
               <div className="break-all">
                 <span className="text-cyan-600/80 dark:text-cyan-400/80">wrapped_key</span>{" "}
-                8e30dd·91ac0c·77ae3f·b8d40e — sealed under your passphrase
+                8e30dd·91ac0c·77ae3f·b8d40e, sealed under your passphrase
               </div>
               <div className="mt-1.5 break-all">
                 <span className="text-cyan-600/80 dark:text-cyan-400/80">name</span>{" "}
-                9f2a1c·b8d40e·7c5b13·f0e2a9 — sealed
+                9f2a1c·b8d40e·7c5b13·f0e2a9, sealed
               </div>
               <div className="mt-1.5 break-all">
                 <span className="text-cyan-600/80 dark:text-cyan-400/80">chunk[0]</span>{" "}
-                a4f9c1·0c77ae·3f5b2a·4f9c1e — AES-256-GCM
+                a4f9c1·0c77ae·3f5b2a·4f9c1e. AES-256-GCM
               </div>
               <div className="mt-1.5 break-all">
                 <span className="text-cyan-600/80 dark:text-cyan-400/80">chunk[1]</span>{" "}
-                4d1b6c·77ae3f·5b2a4f·9c1e0c — AES-256-GCM
+                4d1b6c·77ae3f·5b2a4f·9c1e0c. AES-256-GCM
               </div>
             </CodePanel>
           </div>

@@ -6,7 +6,7 @@
  *   - `getQueryData` / `invalidateKey` fold the thin get/invalidate wrappers.
  *
  * The bespoke fetch-or-cache `ensureX` variants (with their own try/catch and
- * side effects) stay in their stores — they're not just cache reads.
+ * side effects) stay in their stores: they're not just cache reads.
  */
 import type { QueryKey } from "@tanstack/react-query";
 import { queryClient } from "@/lib/query-client";

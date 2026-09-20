@@ -6,7 +6,7 @@ import { SITE_URL } from "@/lib/site";
 export const metadata: Metadata = {
   title: "Search & filters | zcrypt Docs",
   description:
-    "Search the current folder in zcrypt against file and folder names — entirely on your device, so your query never reaches the server — and narrow results with type-filter chips.",
+    "Search the current folder in zcrypt against file and folder names (entirely on your device, so your query never reaches the server) and narrow results with type-filter chips.",
   alternates: { canonical: `${SITE_URL}/docs/search` },
   openGraph: {
     title: "Search & filters | zcrypt Docs",
@@ -27,7 +27,7 @@ export default function SearchDocPage() {
     <DocPage
       href="/docs/search"
       title="Search & filters"
-      description="Find what you need inside a folder fast — without your search ever leaving your device."
+      description="Find what you need inside a folder fast, without your search ever leaving your device."
       toc={toc}
     >
       <DocSection id="box" title="The search box">
@@ -53,8 +53,8 @@ export default function SearchDocPage() {
 
       <DocSection id="filters" title="Type-filter chips">
         <DocP>
-          Alongside the search box, <strong>type-filter chips</strong> narrow the view by category —
-          images, documents, and so on — and stack with whatever you have typed. Use them to sweep a
+          Alongside the search box, <strong>type-filter chips</strong> narrow the view by category:
+          images, documents, and so on, and stack with whatever you have typed. Use them to sweep a
           folder down to one kind of file, then refine by name.
         </DocP>
         <DocList
@@ -64,7 +64,7 @@ export default function SearchDocPage() {
           ]}
         />
         <DocP>
-          Search and filtering also appear inside the file explorer — see{" "}
+          Search and filtering also appear inside the file explorer. See{" "}
           <Link href="/docs/folders" className="text-cyan-600 hover:underline dark:text-cyan-400">
             Folders &amp; the file explorer
           </Link>

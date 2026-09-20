@@ -41,7 +41,7 @@ import {
 } from "@/components/ui/context-menu";
 
 /**
- * MacFolder — a big, filled, macOS/iOS-style folder glyph. Two-tone (a darker
+ * MacFolder: a big, filled, macOS/iOS-style folder glyph. Two-tone (a darker
  * back panel + raised tab behind a brighter front pocket), a glassy top sheen,
  * and a soft drop shadow for depth. Tinted with the accent via `currentColor`,
  * so it lives on the card surface like a desktop folder icon. ~116px wide.
@@ -91,13 +91,13 @@ function MacFolder({
       <g filter={`url(#${shadow})`}>
         {/* Back panel + raised tab (darker, sits behind the front pocket). When a
             design background is set it becomes a plain dark sliver instead of
-            trying to tint a gradient — reads as the same "layered folder" shadow. */}
+            trying to tint a gradient: reads as the same "layered folder" shadow. */}
         <path
           d={backPanel}
           fill={background ? "#000000" : "currentColor"}
           fillOpacity={background ? 0.25 : 0.55}
         />
-        {/* Front pocket — a design background is painted as real content (via
+        {/* Front pocket: a design background is painted as real content (via
             foreignObject + a CSS clip-path matching the pocket outline) so the
             gradient/pattern lives ON the folder shape, not on the SVG's own
             rectangular bounding box (which is what a plain CSS `background` on
@@ -122,7 +122,7 @@ function MacFolder({
   );
 }
 
-/** A clean, filled padlock — shackle + rounded body with a punched keyhole. */
+/** A clean, filled padlock: shackle + rounded body with a punched keyhole. */
 function PadlockGlyph({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
@@ -159,7 +159,7 @@ function FolderCard({
   // (name can't be decrypted → "[locked]", set in useFolders).
   const isLocked = folder.protected || folder.name === "[locked]";
   // Custom icon (set via "Customize…") wins, then the name-inferred glyph,
-  // falling back to its initial letter — like macOS special folders.
+  // falling back to its initial letter, like macOS special folders.
   const customIcon = folder.style?.icon ? getIconByKey(folder.style.icon) : null;
   const FolderGlyph = isLocked ? null : (customIcon ?? getFolderIcon(folder.name));
   const initial = isLocked ? "" : getFolderInitial(folder.name);
@@ -228,7 +228,7 @@ function FolderCard({
             )}
           </div>
 
-          {/* Name only — the rest lives in Get info (right-click / long-press).
+          {/* Name only: the rest lives in Get info (right-click / long-press).
               Matches the file card's smaller mobile name size. */}
           <p
             className="w-full truncate text-center text-[11px] font-medium text-[var(--color-text)] sm:text-sm"
@@ -305,7 +305,7 @@ function FileCardInner({
   drag,
 }: FileItemProps) {
   // Defensive fallback: use the already-decrypted original_name when present,
-  // else re-decrypt encrypted_name directly (see useExplorerFileName) — so a
+  // else re-decrypt encrypted_name directly (see useExplorerFileName), so a
   // folder's contents never fall back to the raw file id while a real name is
   // decryptable.
   const displayName = useExplorerFileName(file);
@@ -366,7 +366,7 @@ function FileCardInner({
             />
           )}
 
-          {/* Preview — free-standing, sized to the file's own aspect ratio
+          {/* Preview: free-standing, sized to the file's own aspect ratio
               (landscape stays landscape, portrait stays portrait), macOS-icon
               style: a photo for image/video, a small document tile otherwise. */}
           <div className="flex h-[104px] w-full items-end justify-center sm:h-[92px]">
@@ -376,7 +376,7 @@ function FileCardInner({
                     sized by its OWN intrinsic aspect ratio (w-auto/h-auto +
                     max-h): a portrait thumb renders tall, a landscape one wide,
                     macOS-icon style. next/image needs known width+height or a
-                    `fill` container — `fill` would stretch every preview to a
+                    `fill` container: `fill` would stretch every preview to a
                     fixed box and destroy that intrinsic sizing, and the real
                     pixel dimensions of the decrypted thumbnail aren't known at
                     render time. The src is already an unoptimizable client-side
@@ -401,11 +401,11 @@ function FileCardInner({
                 )}
               </div>
             ) : pending ? (
-              /* Brief loader — a clean shimmer (not a blurry placeholder) while
+              /* Brief loader: a clean shimmer (not a blurry placeholder) while
                  this file's thumbnail decrypts + generates lazily on render. */
               <div className="h-[88px] w-[88px] animate-shimmer rounded-[10px] ring-1 ring-black/5 dark:ring-white/10 sm:h-[76px] sm:w-[76px]" />
             ) : (
-              /* Document tile — a small white page with a folded corner, the
+              /* Document tile: a small white page with a folded corner, the
                  file-type glyph, and its extension. A hard-failed thumbnail
                  (chunk data permanently unrecoverable, not just "not yet
                  generated") gets a small warning badge so it reads distinctly
@@ -427,7 +427,7 @@ function FileCardInner({
                 {unavailable && (
                   <span
                     className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--color-surface)] text-amber-500 shadow-sm ring-1 ring-black/5 dark:ring-white/10"
-                    title="Preview unavailable — the original file data could not be retrieved"
+                    title="Preview unavailable: the original file data could not be retrieved"
                     aria-hidden="true"
                   >
                     <AlertTriangle className="h-3 w-3" strokeWidth={2.25} />
@@ -437,7 +437,7 @@ function FileCardInner({
             )}
           </div>
 
-          {/* Name — bottom, wraps to 2 lines like macOS Finder. Smaller on phones
+          {/* Name: bottom, wraps to 2 lines like macOS Finder. Smaller on phones
               (11px) so long names don't dominate the tighter 2-column grid. */}
           <p
             className="line-clamp-2 w-full break-words text-center text-[11px] font-medium leading-tight text-[var(--color-text)] sm:text-[12.5px]"
@@ -504,7 +504,7 @@ function ExplorerCardImpl(props: ExplorerItemProps) {
 
 /**
  * Memoized so a parent (vault-explorer) re-render doesn't re-render every card
- * in the `.map()` — only cards whose entry / selection / focus / drag-visual
+ * in the `.map()`: only cards whose entry / selection / focus / drag-visual
  * state actually changed. See `explorerItemPropsEqual` for why callback identity
  * is intentionally excluded from the comparison.
  */

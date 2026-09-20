@@ -61,10 +61,10 @@ test-integration:
 		(echo "" && \
 		 echo "  Docker not found. Two options:" && \
 		 echo "" && \
-		 echo "  Option A — Install Docker Desktop:" && \
+		 echo "  Option A. Install Docker Desktop:" && \
 		 echo "    https://www.docker.com/products/docker-desktop/" && \
 		 echo "" && \
-		 echo "  Option B — Use Neon (no Docker needed):" && \
+		 echo "  Option B. Use Neon (no Docker needed):" && \
 		 echo "    Create a test branch on neon.tech, then:" && \
 		 echo "    TEST_DATABASE_URL='postgres://...' make test-integration-nodb" && \
 		 echo "" && \
@@ -75,7 +75,7 @@ test-integration:
 		go test -tags=integration -v -timeout=120s ./integration/...
 	@$(MAKE) db-test-down
 
-# Run integration tests against any existing Postgres — no Docker required.
+# Run integration tests against any existing Postgres, no Docker required.
 # Usage: TEST_DATABASE_URL="postgres://user:pass@host/db" make test-integration-nodb
 test-integration-nodb:
 	@test -n "$(TEST_DATABASE_URL)" || \
@@ -86,7 +86,7 @@ test-integration-nodb:
 	cd app/backend && TEST_DATABASE_URL="$(TEST_DATABASE_URL)" \
 		go test -tags=integration -v -timeout=120s ./integration/...
 
-# ── E2E Tests (Playwright — requires running dev stack) ───────────────────────
+# ── E2E Tests (Playwright: requires running dev stack) ───────────────────────
 
 test-e2e:
 	@echo "Running Playwright E2E tests..."
@@ -102,7 +102,7 @@ test-e2e-debug:
 test-e2e-report:
 	cd tests/e2e && bun x playwright show-report
 
-# ── Load Tests (k6 — requires running backend) ────────────────────────────────
+# ── Load Tests (k6, requires running backend) ────────────────────────────────
 
 test-load-smoke:
 	@echo "Running smoke test (1 VU, 30s)..."
@@ -118,23 +118,23 @@ test-load-smoke:
 
 test-load-auth:
 	@echo "Running auth load test (50 VUs, 4 min)..."
-	@curl -sf http://localhost:8080/api/health > /dev/null 2>&1 || (echo "ERROR: Backend not running on :8080 — run: cd app/backend && go run ." && exit 1)
+	@curl -sf http://localhost:8080/api/health > /dev/null 2>&1 || (echo "ERROR: Backend not running on :8080. Run: cd app/backend && go run ." && exit 1)
 	k6 run tests/load/k6/auth.js
 
 test-load-upload:
 	@echo "Running upload pipeline load test..."
-	@curl -sf http://localhost:8080/api/health > /dev/null 2>&1 || (echo "ERROR: Backend not running on :8080 — run: cd app/backend && go run ." && exit 1)
+	@curl -sf http://localhost:8080/api/health > /dev/null 2>&1 || (echo "ERROR: Backend not running on :8080. Run: cd app/backend && go run ." && exit 1)
 	k6 run tests/load/k6/upload.js
 
 test-load-stress:
 	@echo "Running stress test (ramp to 300 VUs)..."
 	@echo "WARNING: This generates significant load. Use on staging only."
-	@curl -sf http://localhost:8080/api/health > /dev/null 2>&1 || (echo "ERROR: Backend not running on :8080 — run: cd app/backend && go run ." && exit 1)
+	@curl -sf http://localhost:8080/api/health > /dev/null 2>&1 || (echo "ERROR: Backend not running on :8080. Run: cd app/backend && go run ." && exit 1)
 	k6 run tests/load/k6/stress.js
 
 test-load-soak:
 	@echo "Running soak test (30 min, looking for memory/goroutine leaks)..."
-	@curl -sf http://localhost:8080/api/health > /dev/null 2>&1 || (echo "ERROR: Backend not running on :8080 — run: cd app/backend && go run ." && exit 1)
+	@curl -sf http://localhost:8080/api/health > /dev/null 2>&1 || (echo "ERROR: Backend not running on :8080. Run: cd app/backend && go run ." && exit 1)
 	k6 run tests/load/k6/soak.js
 
 test-load: test-load-smoke test-load-auth test-load-upload
@@ -213,7 +213,7 @@ install:
 
 install-test-deps:
 	@which k6 > /dev/null || (echo "Installing k6..." && brew install k6)
-	@which docker > /dev/null || echo "WARNING: Docker not found — integration tests require Docker"
+	@which docker > /dev/null || echo "WARNING: Docker not found, integration tests require Docker"
 	cd tests/e2e && bun install
 	cd tests/e2e && bun x playwright install chromium
 	@echo "Test dependencies installed."

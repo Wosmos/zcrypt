@@ -17,7 +17,7 @@ function topExtension(files: FileMetadata[]): string {
     const ext = f.original_name.split(".").pop()?.toLowerCase() || "none";
     counts.set(ext, (counts.get(ext) || 0) + 1);
   }
-  let best = "—";
+  let best = "-";
   let max = 0;
   for (const [ext, n] of counts) {
     if (n > max) {
@@ -25,7 +25,7 @@ function topExtension(files: FileMetadata[]): string {
       best = ext;
     }
   }
-  return best === "none" ? "—" : `.${best}`;
+  return best === "none" ? "-" : `.${best}`;
 }
 
 interface Metric {
@@ -36,7 +36,7 @@ interface Metric {
 
 /**
  * Dense, real "nitty-gritty" metrics derived entirely from the loaded file
- * metadata — no estimates. Grouped into Files, Sizes, and Timeline.
+ * metadata: no estimates. Grouped into Files, Sizes, and Timeline.
  */
 export function VaultDetails({ files }: { files: FileMetadata[] }) {
   const groups = useMemo<{ title: string; metrics: Metric[] }[]>(() => {
@@ -83,7 +83,7 @@ export function VaultDetails({ files }: { files: FileMetadata[] }) {
           day: "numeric",
           year: "numeric",
         })
-      : "—";
+      : "-";
 
     const compressionRatio = original > 0 ? (compressed / original) * 100 : 100;
     const dateFmt: Intl.DateTimeFormatOptions = { month: "short", day: "numeric", year: "numeric" };

@@ -23,7 +23,7 @@ import { getLatestRelease } from "@/lib/releases";
 import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Download zcrypt — Desktop Apps for macOS, Windows & Linux, plus the CLI",
+  title: "Download zcrypt. Desktop Apps for macOS, Windows & Linux, plus the CLI",
   description:
     "Get the zcrypt encrypted drive on every device. Native desktop apps for macOS, Windows, and Linux, a single-binary terminal client, and a web app that needs no install. Free, open source, zero-knowledge.",
   keywords: [
@@ -42,7 +42,7 @@ export const metadata: Metadata = {
   ],
   alternates: { canonical: `${SITE_URL}/download` },
   openGraph: {
-    title: "Download zcrypt — Apps for macOS, Windows, Linux & the Terminal",
+    title: "Download zcrypt. Apps for macOS, Windows, Linux & the Terminal",
     description:
       "Native desktop apps, a single-binary CLI, and a no-install web app. Free, open source, zero-knowledge encrypted storage on every device.",
     url: `${SITE_URL}/download`,
@@ -50,7 +50,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Download zcrypt — Encrypted storage for every device",
+    title: "Download zcrypt. Encrypted storage for every device",
     description:
       "Desktop apps for macOS, Windows, Linux, a single-binary CLI, and a web app. Free and open source.",
   },

@@ -4,7 +4,7 @@ import { refreshToken as refreshTokenApi } from "@/lib/auth-api";
 // Shared across the JSON API client (lib/api.ts) and the chunked-upload path
 // (lib/upload-session.ts) so refreshes are deduped. This is critical: refresh
 // tokens ROTATE on use, so two independent concurrent refreshes with the same
-// token would make one fail and clearAuth() — logging the user out mid-upload.
+// token would make one fail and clearAuth(): logging the user out mid-upload.
 let refreshPromise: Promise<string | null> | null = null;
 
 export async function tryRefreshToken(): Promise<string | null> {
@@ -20,8 +20,8 @@ export async function tryRefreshToken(): Promise<string | null> {
     })
     .catch((err: unknown) => {
       // Only a DEFINITIVE auth failure (the refresh token itself is invalid/
-      // expired → 401/403) should log the user out. A transient failure — network
-      // blip, timeout, or 5xx during a long upload — must NOT clearAuth, or the
+      // expired → 401/403) should log the user out. A transient failure, network
+      // blip, timeout, or 5xx during a long upload: must NOT clearAuth, or the
       // whole transfer dies and the user is bounced to login mid-upload (the prod
       // bug). On a transient miss we return null; the caller keeps the old token
       // and the next chunk simply retries the refresh.
@@ -44,7 +44,7 @@ export async function tryRefreshToken(): Promise<string | null> {
  * access-token lifetime keeps going (every chunk that hits a 401 transparently
  * refreshes) instead of dying with "invalid or expired token".
  *
- * No timeout is imposed — chunk uploads can legitimately take a while on a slow
+ * No timeout is imposed: chunk uploads can legitimately take a while on a slow
  * relay. Pass `init.signal` if a caller needs cancellation. The body must be a
  * buffered type (string / ArrayBuffer / typed array) so it survives the retry;
  * all upload-session callers use those, never a one-shot ReadableStream.

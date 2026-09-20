@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * Superellipse (squircle) clip path using SVG.
- * Works in all browsers/WebViews — no corner-shape required.
+ * Works in all browsers/WebViews: no corner-shape required.
  * n=5 matches the iOS icon shape.
  */
 function SquircleClipPath({ id, size }: { id: string; size: number }) {
@@ -35,7 +35,7 @@ function SquircleClipPath({ id, size }: { id: string; size: number }) {
 
 /**
  * 3D overlap-planes icon rendered with CSS perspective transforms.
- * Two squircle planes with depth — front one carries the "z".
+ * Two squircle planes with depth: front one carries the "z".
  * On hover: layers merge together + glassy shine sweeps across.
  */
 function LogoIcon({
@@ -84,7 +84,7 @@ function LogoIcon({
         }}
       />
 
-      {/* Back plane — darker teal */}
+      {/* Back plane, darker teal */}
       <span
         className="absolute"
         style={{
@@ -102,7 +102,7 @@ function LogoIcon({
         }}
       />
 
-      {/* Front plane — brand cyan */}
+      {/* Front plane, brand cyan */}
       <span
         className="absolute flex items-center justify-center overflow-hidden"
         style={{

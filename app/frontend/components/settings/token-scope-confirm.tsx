@@ -13,7 +13,7 @@ export interface TokenScopeTarget {
  * Confirmation for changing a platform token between Local and Global. The
  * backend resolves usable tokens as `user_id = me OR is_global`, so Global
  * routes every user's storage through one account and demoting it strands
- * other users' chunks in that account's repositories — an instance-wide
+ * other users' chunks in that account's repositories: an instance-wide
  * decision, never a bare click. Shared by the user settings and admin pages
  * so the consequences are stated identically in both.
  */
@@ -57,8 +57,8 @@ export function TokenScopeConfirm({
                 <li>
                   Every user on this instance will upload to and download from{" "}
                   <span className="font-medium">this</span> account. Its holder can never see what
-                  they store — it is encrypted with keys they do not have — but is the account
-                  holder of record for it.
+                  they store (it is encrypted with keys they do not have) but is the account holder
+                  of record for it.
                 </li>
                 <li>
                   Its quota, rate limits, and any enforcement the platform applies are shared with

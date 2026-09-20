@@ -18,7 +18,7 @@ const LINKS = [
 ];
 
 /**
- * The docs section's own top bar — a three-column grid with the marketing
+ * The docs section's own top bar: a three-column grid with the marketing
  * nav links on the left, a simple centered logo, and the auth actions + theme
  * toggle on the right. Sticky and in normal flow (not a floating overlay), so
  * DocsSidebar sticks right below it rather than under a fixed header.

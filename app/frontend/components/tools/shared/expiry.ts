@@ -3,7 +3,7 @@
  * `{ label, hours }` options duplicated in pad-tool and send-tool.
  *
  * NOTE: distinct from the expiring-tab `EXPIRY_CHOICES`, which uses a different
- * `{ value, label }` shape and a wider set of durations — do not merge them.
+ * `{ value, label }` shape and a wider set of durations: do not merge them.
  */
 export interface ExpiryOption {
   label: string;

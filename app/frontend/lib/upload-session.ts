@@ -1,5 +1,5 @@
 /**
- * Upload session API — thin wrappers for the chunked upload endpoints.
+ * Upload session API: thin wrappers for the chunked upload endpoints.
  *
  * All authenticated calls refresh the access token on a 401 and retry (JSON
  * calls via authedFetch; chunk PUTs via the XHR helper below, which mirrors the
@@ -41,7 +41,7 @@ async function throwIfNotOk(res: Response): Promise<void> {
   }
 }
 
-// Minimal XHR result — enough to reproduce the fetch error-handling shape
+// Minimal XHR result: enough to reproduce the fetch error-handling shape
 // (status check + server-message extraction) without touching Response.
 interface XhrResult {
   status: number;
@@ -65,14 +65,14 @@ function xhrPut(
 ): Promise<XhrResult> {
   // Stall watchdog. A fixed xhr.timeout would false-abort a large chunk on a
   // slow-but-progressing link, and NOT setting one (the old bug) let a dead
-  // socket hang the promise forever — stalling the whole upload at ~95% with no
+  // socket hang the promise forever: stalling the whole upload at ~95% with no
   // error. Instead we abort only when NO progress happens for STALL_MS: reset
   // the clock on every upload-progress tick, and again once the body is sent
   // (so a server that never responds is caught too). An abort rejects, so the
   // caller's retry can re-send the chunk.
   //
   // `signal` is the caller's pause/cancel abort: it kills the transfer
-  // immediately and rejects with "Upload paused" — a message the store's retry
+  // immediately and rejects with "Upload paused": a message the store's retry
   // wrapper treats as a stop, never as a transient error to retry.
   const STALL_MS = 60_000;
   return new Promise<XhrResult>((resolve, reject) => {
@@ -117,7 +117,7 @@ function xhrPut(
       armStall();
       onProgress?.(e.loaded);
     };
-    xhr.upload.onload = () => armStall(); // body sent — now watch for the response
+    xhr.upload.onload = () => armStall(); // body sent: now watch for the response
     xhr.onload = () => {
       clearStall();
       resolve({ status: xhr.status, body: xhr.responseText });
@@ -147,7 +147,7 @@ function xhrPut(
   });
 }
 
-// Extract the server's error message from a non-2xx XHR body — same shape as
+// Extract the server's error message from a non-2xx XHR body, same shape as
 // throwIfNotOk above ({ error } JSON if parseable, raw body otherwise).
 function xhrErrorMessage(body: string): string {
   try {
@@ -159,7 +159,7 @@ function xhrErrorMessage(body: string): string {
 }
 
 /**
- * Authenticated XHR PUT — mirrors authedFetch's contract for chunk payloads:
+ * Authenticated XHR PUT: mirrors authedFetch's contract for chunk payloads:
  * attach the current access token, and on a 401 refresh once (deduped inside
  * tryRefreshToken, so concurrent chunks can't race a rotating refresh token)
  * and retry with the new one. Throws Error(serverMessage) on non-2xx.
@@ -206,13 +206,13 @@ export interface UploadInitParams {
   salt: string; // base64
   wrapped_cek: string; // base64 envelope-wrapped Content Encryption Key
   chunk_count: number;
-  /** Chunk size this client will slice at — stored server-side so a resume from
+  /** Chunk size this client will slice at: stored server-side so a resume from
    *  ANY device can reslice at the same boundaries. */
   chunk_size?: number;
   platform?: string;
   /**
    * Destination folder (FIX-1b). When set, the backend creates the file row IN
-   * this folder atomically at init — so a protected-folder file is born in its
+   * this folder atomically at init: so a protected-folder file is born in its
    * folder and there is no stranding window (no separate best-effort move).
    * Omitted/null ⇒ the file is created at Root, exactly as before.
    */
@@ -229,14 +229,14 @@ export interface UploadInitResponse {
    * sha256 + size) and returned it instead of creating a new one. The client
    * must then adopt that session: unwrap its stored envelope for the CEK and
    * reslice at its chunk_size. This is what pins a resume to the ORIGINAL
-   * platform — the server, not localStorage, is the source of truth.
+   * platform: the server, not localStorage, is the source of truth.
    */
   resumed?: boolean;
   chunk_size?: number;
   chunk_count?: number;
 }
 
-/** POST /api/upload/init — start a new chunked upload session. */
+/** POST /api/upload/init. Start a new chunked upload session. */
 export async function initUpload(params: UploadInitParams): Promise<UploadInitResponse> {
   const res = await authedFetch(`${API_BASE}/api/upload/init`, {
     method: "POST",
@@ -246,7 +246,7 @@ export async function initUpload(params: UploadInitParams): Promise<UploadInitRe
   return handleResponse<UploadInitResponse>(res);
 }
 
-/** PUT /api/upload/{sid}/chunk/{idx} — upload a single encrypted chunk.
+/** PUT /api/upload/{sid}/chunk/{idx}: upload a single encrypted chunk.
  *  `onProgress` (optional) receives sent-byte counts as the body streams out,
  *  so the store can show intra-chunk progress instead of a frozen bar. */
 export async function uploadChunk(
@@ -282,7 +282,7 @@ export interface PresignResponse {
   already_exists: boolean;
 }
 
-/** POST /api/upload/{sid}/presign/{idx} — get a presigned URL for direct upload. */
+/** POST /api/upload/{sid}/presign/{idx}: get a presigned URL for direct upload. */
 export async function presignChunk(
   sessionId: string,
   index: number,
@@ -298,7 +298,7 @@ export async function presignChunk(
 }
 
 /** Upload data directly to a presigned platform URL with retries.
- *  No Authorization header — the presigned URL/headers carry the credentials.
+ *  No Authorization header: the presigned URL/headers carry the credentials.
  *  `onProgress` (optional) receives sent-byte counts as the body streams out. */
 export async function directUploadToURL(
   url: string,
@@ -309,11 +309,11 @@ export async function directUploadToURL(
 ): Promise<void> {
   // Seeded with the give-up message rather than null: every iteration either
   // returns, throws, or overwrites this, so the initial value only ever surfaces
-  // if the loop somehow ran zero times — and keeping it non-nullable means the
+  // if the loop somehow ran zero times, and keeping it non-nullable means the
   // throw below needs no fallback branch that can never be taken.
   let lastError: Error = new Error("Direct upload failed after retries");
   for (let attempt = 0; attempt < 3; attempt++) {
-    // A pause/cancel abort must stop the internal retry loop immediately —
+    // A pause/cancel abort must stop the internal retry loop immediately,
     // never re-send a chunk the user just paused.
     if (signal?.aborted) throw new Error("Upload paused");
     try {
@@ -338,7 +338,7 @@ export async function directUploadToURL(
   throw lastError;
 }
 
-/** POST /api/upload/{sid}/confirm/{idx} — confirm a directly-uploaded chunk. */
+/** POST /api/upload/{sid}/confirm/{idx}, confirm a directly-uploaded chunk. */
 export async function confirmChunk(
   sessionId: string,
   index: number,
@@ -364,7 +364,7 @@ export interface UploadCompleteResponse {
   file_id: string;
 }
 
-/** POST /api/upload/{sid}/complete — finalize the upload session. */
+/** POST /api/upload/{sid}/complete, finalize the upload session. */
 export async function completeUpload(
   sessionId: string,
   encryptedSize: number,
@@ -378,7 +378,7 @@ export async function completeUpload(
   return handleResponse<UploadCompleteResponse>(res);
 }
 
-/** DELETE /api/upload/{sid} — cancel an upload session. */
+/** DELETE /api/upload/{sid}, cancel an upload session. */
 export async function cancelUpload(sessionId: string): Promise<void> {
   const res = await authedFetch(`${API_BASE}/api/upload/${sessionId}`, {
     method: "DELETE",
@@ -402,7 +402,7 @@ export interface UploadStatusResponse {
   platform?: string;
 }
 
-/** GET /api/upload/{sid}/status — check upload session progress. */
+/** GET /api/upload/{sid}/status. Check upload session progress. */
 export async function getUploadStatus(sessionId: string): Promise<UploadStatusResponse> {
   const res = await authedFetch(`${API_BASE}/api/upload/${sessionId}/status`);
   return handleResponse<UploadStatusResponse>(res);

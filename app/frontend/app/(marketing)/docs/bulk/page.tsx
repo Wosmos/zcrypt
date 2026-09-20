@@ -6,7 +6,7 @@ import { SITE_URL } from "@/lib/site";
 export const metadata: Metadata = {
   title: "Bulk operations | zcrypt Docs",
   description:
-    "Select many files in zcrypt to download them as a single ZIP (decrypted on your device, up to a ~2 GB cap) or to delete them in bulk — with mouse and keyboard multi-select.",
+    "Select many files in zcrypt to download them as a single ZIP (decrypted on your device, up to a ~2 GB cap) or to delete them in bulk: with mouse and keyboard multi-select.",
   alternates: { canonical: `${SITE_URL}/docs/bulk` },
   openGraph: {
     title: "Bulk operations | zcrypt Docs",
@@ -34,18 +34,18 @@ export default function BulkDocPage() {
       <DocSection id="select" title="Selecting multiple files">
         <DocP>
           Multi-select is built into the explorer. Use your mouse to pick out files, and the usual
-          keyboard modifiers to extend a selection — add individual files, or select a contiguous
-          range — then keep going with the keyboard to grow or shrink it. The toolbar updates to
-          show how many items are selected and which bulk actions apply.
+          keyboard modifiers to extend a selection. Add individual files, or select a contiguous
+          range: then keep going with the keyboard to grow or shrink it. The toolbar updates to show
+          how many items are selected and which bulk actions apply.
         </DocP>
       </DocSection>
 
       <DocSection id="zip" title="Download as a ZIP">
         <DocP>
           With several files selected, download them together as a single ZIP archive. Each file is
-          fetched, verified, decrypted, and decompressed <strong>on your device</strong> — exactly
-          like a normal download — and then packed into the ZIP locally. Nothing is ever assembled
-          or decrypted on the server. Files from{" "}
+          fetched, verified, decrypted, and decompressed <strong>on your device</strong>, exactly
+          like a normal download, and then packed into the ZIP locally. Nothing is ever assembled or
+          decrypted on the server. Files from{" "}
           <Link
             href="/docs/folder-encryption"
             className="text-cyan-600 hover:underline dark:text-cyan-400"
@@ -68,7 +68,7 @@ export default function BulkDocPage() {
           <Link href="/docs/trash" className="text-cyan-600 hover:underline dark:text-cyan-400">
             Trash
           </Link>
-          , where they can be restored or purged later — so a bulk delete is recoverable until you
+          , where they can be restored or purged later, so a bulk delete is recoverable until you
           empty the Trash.
         </DocP>
       </DocSection>
@@ -81,21 +81,21 @@ export default function BulkDocPage() {
               href="/docs/downloading"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Downloading — what happens to each file inside the ZIP
+              Downloading: what happens to each file inside the ZIP
             </Link>,
             <Link
               key="b"
               href="/docs/organizing"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Moving &amp; organizing — drag-and-drop and move-to-folder
+              Moving &amp; organizing, drag-and-drop and move-to-folder
             </Link>,
             <Link
               key="c"
               href="/docs/trash"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Trash &amp; restore — recovering bulk-deleted files
+              Trash &amp; restore, recovering bulk-deleted files
             </Link>,
           ]}
         />

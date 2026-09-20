@@ -26,7 +26,7 @@ export interface ShareDownloadOptions {
  *
  * `shareKeyB64` is the base64 key from the share link's URL fragment. It unwraps
  * the file's Content Encryption Key (returned wrapped by the share meta
- * endpoint) — no passphrase is involved, so anyone with the link can decrypt.
+ * endpoint): no passphrase is involved, so anyone with the link can decrypt.
  *
  * Throws on a bad/missing key, integrity failure, or abort.
  */
@@ -61,7 +61,7 @@ export async function downloadSharedFile(
     const cek = await unwrapKey(toArrayBuffer(shareKey), fromBase64(meta.wrapped_cek));
     keyBytes = toArrayBuffer(cek);
   } catch {
-    throw new Error("Invalid or corrupt share key — check that you copied the full link.");
+    throw new Error("Invalid or corrupt share key. Check that you copied the full link.");
   }
 
   if (signal?.aborted) throw new DOMException("Download cancelled", "AbortError");
@@ -73,7 +73,7 @@ export async function downloadSharedFile(
 
   // No entry guard: runWithConcurrency re-checks the signal immediately before
   // every worker call, so a duplicate here can never be the one that fires. The
-  // post-fetch check below is the meaningful one — it catches a cancel that
+  // post-fetch check below is the meaningful one: it catches a cancel that
   // landed while this chunk was in flight.
   const processChunk = async (index: number) => {
     const { data, compressed } = await retryTransient(
@@ -89,7 +89,7 @@ export async function downloadSharedFile(
     try {
       plaintext = await decryptChunk(keyBytes, encrypted);
     } catch {
-      throw new Error("Decryption failed — the share key may be wrong or the link incomplete.");
+      throw new Error("Decryption failed: the share key may be wrong or the link incomplete.");
     }
 
     if (compressed) {
@@ -132,13 +132,13 @@ export async function downloadSharedFile(
   // A recipient holds only the share key, never the owner's passphrase, so it
   // cannot recompute an 'hmac_v1' keyed MAC. Integrity for those files rests on
   // the per-chunk AES-GCM auth tags (every one of meta.chunk_count chunks was
-  // fetched and decrypted above — a tampered or missing chunk already throws),
+  // fetched and decrypted above: a tampered or missing chunk already throws),
   // so there is no file-level hash to check. Legacy 'plain' files still verify
   // their SHA-256 end to end.
   if (meta.sha256_scheme !== "hmac_v1") {
     const actualHash = await sha256Hex(fullFile);
     if (actualHash !== meta.sha256) {
-      throw new Error("File integrity check failed — SHA-256 mismatch");
+      throw new Error("File integrity check failed. SHA-256 mismatch");
     }
   }
 
@@ -154,7 +154,7 @@ export async function downloadSharedFile(
 
   // A recipient has only the share key, not the owner's vault passphrase, so a
   // zero-knowledge file's name (encrypted under the vault key) can't be resolved
-  // here — fall back to a generic name. TODO: carry the name re-encrypted under
+  // here: fall back to a generic name. TODO: carry the name re-encrypted under
   // the share key (shares.enc_name) so recipients see the real filename.
   saveBlob(meta.original_name || "download", fullFile);
 

@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "FAQ | zcrypt Docs",
     description:
-      "Cost, storage, encryption, multi-device, folders, previews, and passphrase recovery — answered plainly.",
+      "Cost, storage, encryption, multi-device, folders, previews, and passphrase recovery, answered plainly.",
     url: `${SITE_URL}/docs/faq`,
   },
 };
@@ -39,8 +39,8 @@ export default function FaqDocPage() {
         <DocP>
           zcrypt is free and open source. There are no paid plans and none are planned. You connect
           your own storage account, so your available space is bounded only by that platform's free
-          space — not by us. Every line of code is public, so you can verify what it does rather
-          than take our word for it.
+          space, not by us. Every line of code is public, so you can verify what it does rather than
+          take our word for it.
         </DocP>
       </DocSection>
 
@@ -57,7 +57,7 @@ export default function FaqDocPage() {
         <DocP>
           Files are sealed with AES-256-GCM, an authenticated encryption standard, before they leave
           your device. The key is derived locally from your passphrase and is never transmitted.
-          This zero-knowledge design means even we cannot read your files — and neither can your
+          This zero-knowledge design means even we cannot read your files, and neither can your
           storage platform, which only ever receives encrypted chunks.
         </DocP>
       </DocSection>
@@ -66,7 +66,7 @@ export default function FaqDocPage() {
         <DocP>
           Yes. Sign in to zcrypt from any modern browser or the terminal app (TUI), enter your
           passphrase, and your encrypted files are there. Everything is decrypted locally on
-          whichever device you're using — the plaintext is never reconstructed on our servers.
+          whichever device you're using: the plaintext is never reconstructed on our servers.
         </DocP>
       </DocSection>
 
@@ -85,8 +85,8 @@ export default function FaqDocPage() {
       <DocSection id="preview" title="Can I preview files without downloading them?">
         <DocP>
           Yes. zcrypt previews images, video, audio, PDFs, documents (DOCX), Markdown, CSVs, and
-          source code directly in the browser. Each file is decrypted on the fly on your device —
-          the plaintext never touches our servers. See{" "}
+          source code directly in the browser. Each file is decrypted on the fly on your device: the
+          plaintext never touches our servers. See{" "}
           <Link
             href="/docs/viewing-files"
             className="text-cyan-600 hover:underline dark:text-cyan-400"
@@ -115,7 +115,7 @@ export default function FaqDocPage() {
       <DocSection id="forgot" title="What happens if I forget my passphrase?">
         <DocP>
           Because zcrypt is strictly zero-knowledge, your passphrase is never stored on our servers
-          and key derivation is one-way. If you lose it, your encrypted files cannot be recovered —
+          and key derivation is one-way. If you lose it, your encrypted files cannot be recovered:
           by us or anyone else. There is no reset link for the passphrase itself, by design.
         </DocP>
         <DocNote type="warning" title="Back up your passphrase">

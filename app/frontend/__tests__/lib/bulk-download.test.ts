@@ -131,7 +131,7 @@ async function capturedZipContents(): Promise<Record<string, string>> {
   return out;
 }
 
-describe("downloadAsZip — success paths", () => {
+describe("downloadAsZip: success paths", () => {
   it("downloads, decrypts, and zips multiple files with correct content and progress stages", async () => {
     const f1 = await makeFileFixture({ passphrase: "pw", finalChunks: [enc.encode("hello "), enc.encode("world")] });
     const f2 = await makeFileFixture({ passphrase: "pw", finalChunks: [enc.encode("second file")] });
@@ -269,14 +269,14 @@ describe("downloadAsZip — success paths", () => {
   });
 });
 
-describe("downloadAsZip — failure paths", () => {
+describe("downloadAsZip: failure paths", () => {
   it("surfaces a per-file decryption error when the CEK doesn't match the ciphertext", async () => {
     const f = await makeFileFixture({ passphrase: "pw", finalChunks: [enc.encode("x")], wrongChunkKey: true });
     getFileMeta.mockResolvedValueOnce(f.meta);
     getFileChunk.mockResolvedValueOnce({ data: f.encryptedChunks[0], sha256: "", compressed: false });
 
     await expect(downloadAsZip([{ fileId: "id1", filename: "bad.txt", fileSize: 1 }], "pw")).rejects.toThrow(
-      "Decryption failed for bad.txt — wrong passphrase?"
+      "Decryption failed for bad.txt, wrong passphrase?"
     );
   });
 
@@ -288,7 +288,7 @@ describe("downloadAsZip — failure paths", () => {
 
     await expect(
       downloadAsZip([{ fileId: "id1", filename: "keyed.txt", fileSize: 1 }], "pw")
-    ).rejects.toThrow("Integrity check failed for keyed.txt — not signed in");
+    ).rejects.toThrow("Integrity check failed for keyed.txt, not signed in");
   });
 
   it("surfaces a per-file integrity error on SHA-256 mismatch", async () => {
@@ -386,7 +386,7 @@ describe("downloadAsZip — failure paths", () => {
   it("stops before touching the network when the cancel lands during the meta fetch", async () => {
     const controller = new AbortController();
     const f = await makeFileFixture({ passphrase: "pw", finalChunks: [enc.encode("x")] });
-    // Cancel arrives while the metadata request is in flight — after the two
+    // Cancel arrives while the metadata request is in flight, after the two
     // outer guards have already passed, so only the per-chunk guard can catch it.
     getFileMeta.mockImplementationOnce(async () => {
       controller.abort();

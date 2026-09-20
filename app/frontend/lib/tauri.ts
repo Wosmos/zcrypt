@@ -38,7 +38,7 @@ export async function pickFiles(options?: {
  * A placeholder File carrying the absolute desktop path `pickFiles()`
  * resolved, so a native-picker result can flow through the same
  * `onFiles(files: File[])` contract the browser `<input type="file">` path
- * uses. It holds no bytes — the desktop upload pipeline reads straight from
+ * uses. It holds no bytes: the desktop upload pipeline reads straight from
  * disk via `.path`, never through browser File data.
  */
 export interface DesktopFile extends File {
@@ -54,13 +54,13 @@ export function toDesktopFile(path: string): DesktopFile {
 }
 
 /**
- * Open a URL outside the app — system browser, or whichever installed app
+ * Open a URL outside the app: system browser, or whichever installed app
  * claims the link (Telegram, GitHub, …).
  *
  * Inside the shell a plain `<a target="_blank">` or `window.open()` does
  * nothing at all: the webview has no concept of a second tab, so the click is
  * swallowed and the user sees a dead control. Everything off-origin has to go
- * through the opener plugin instead. NOT plugin-shell's open() — that routes to
+ * through the opener plugin instead. NOT plugin-shell's open(): that routes to
  * an xdg-open backend that silently fails on Android.
  *
  * Throws if nothing can handle the URL, so callers can surface it rather than
@@ -117,7 +117,7 @@ export async function cancelTransfer(transferId: string): Promise<boolean> {
 
 /**
  * Local-first upload: encrypts locally via the in-process core, stores in
- * SQLite + disk. Returns almost instantly — background sync pushes to cloud
+ * SQLite + disk. Returns almost instantly: background sync pushes to cloud
  * later. Resolves to the local file id.
  */
 export async function localUpload(
@@ -134,7 +134,7 @@ export async function localUpload(
 
 /**
  * Start the background sync worker in the core. The refresh token is
- * required — without it, sync dies silently once the access token expires.
+ * required: without it, sync dies silently once the access token expires.
  */
 export async function startSync(
   baseUrl: string,
@@ -180,7 +180,7 @@ export async function sidecarDownload(
 /**
  * Bulk-download N files into ONE ZIP via the in-process core (desktop only).
  * Each entry carries its OWN resolved passphrase (vault passphrase, or the
- * relevant folder password) — NOT one shared passphrase for the whole batch,
+ * relevant folder password): NOT one shared passphrase for the whole batch,
  * since a bulk selection can span files from different password-protected
  * folders. Memory/disk use is bounded by the single largest file, not the
  * sum of the whole batch (unlike the in-browser bulk-ZIP path).
@@ -204,7 +204,7 @@ export async function sidecarBulkDownloadZip(
 }
 
 /**
- * Decrypt a file to raw bytes IN MEMORY via the in-process core (desktop only) —
+ * Decrypt a file to raw bytes IN MEMORY via the in-process core (desktop only):
  * for thumbnails / preview / the in-app viewer. Returns the plaintext as an
  * ArrayBuffer (the command sends a raw byte IPC response, no base64). The core
  * caps this at 512 MiB; above that it errors and callers fall back to the
@@ -224,7 +224,7 @@ export async function sidecarDecryptToMemory(
 
 /**
  * Download a shared-space file via the in-process core (desktop only), using
- * the space's symmetric key instead of the vault passphrase — works for the
+ * the space's symmetric key instead of the vault passphrase: works for the
  * owner and any member alike. `spaceKeyBytes` is the raw space key; base64
  * encoding for the IPC call happens here so callers just pass bytes.
  */
@@ -243,7 +243,7 @@ export async function sidecarDownloadSpace(
 
 /**
  * Decrypt a shared-space file to bytes in memory via the in-process core
- * (desktop only) — the space-key sibling of `sidecarDecryptToMemory`.
+ * (desktop only): the space-key sibling of `sidecarDecryptToMemory`.
  */
 export async function sidecarDecryptSpaceToMemory(
   fileId: string,
@@ -261,7 +261,7 @@ export async function sidecarDecryptSpaceToMemory(
  * each chunk directly from the user's OWN storage where the device holds the
  * token (byos-direct, zero backend byte-handling), then purges the backend
  * metadata row. Chunks on a platform the device has no creds for are left for
- * the backend to clean up. Idempotent — safe to retry.
+ * the backend to clean up. Idempotent: safe to retry.
  */
 export async function sidecarDeleteFile(fileId: string): Promise<void> {
   return tauriInvoke("delete_file", { fileId });
@@ -287,7 +287,7 @@ export async function keychainDelete(key: string): Promise<void> {
  * so the desktop core's background folder-watch agent can encrypt newly
  * dropped files without prompting. No-op outside Tauri. Call on unlock;
  * pair with `clearShellPassphrase` on lock/logout. Not yet wired to a caller
- * — see the passphrase store's `setPassphrase`/`clear`.
+ *. See the passphrase store's `setPassphrase`/`clear`.
  */
 export async function setShellPassphrase(passphrase: string): Promise<void> {
   if (!isTauri) return;
@@ -306,7 +306,7 @@ export async function checkForUpdates(): Promise<UpdateInfo> {
   return tauriInvoke("check_for_updates");
 }
 
-/** Download, install and relaunch. Resolves only on failure — on success the
+/** Download, install and relaunch. Resolves only on failure, on success the
  *  process is replaced. Subscribe with onUpdateProgress() for the bytes. */
 export async function installUpdate(): Promise<void> {
   return tauriInvoke("install_update");
@@ -333,7 +333,7 @@ export async function biometricAvailable(): Promise<boolean> {
  * Present the OS Touch ID prompt with `reason` as the shown text. Resolves
  * `false` outside Tauri, on user cancel, or on any declined/failed
  * authentication (not enrolled, locked out, denied, etc). Callers should
- * still guard against a rejected promise — the shell only rejects if the OS
+ * still guard against a rejected promise: the shell only rejects if the OS
  * never answers the request at all.
  */
 export async function biometricAuthenticate(reason: string): Promise<boolean> {
@@ -385,7 +385,7 @@ export interface UpdateInfo {
   version?: string;
   notes?: string;
   /** False on a Linux install that isn't running from an AppImage (a
-   *  `.deb`/`.rpm` package) — those update via the system package manager,
+   *  `.deb`/`.rpm` package): those update via the system package manager,
    *  not this app. Always true on macOS/Windows. */
   updatable: boolean;
 }

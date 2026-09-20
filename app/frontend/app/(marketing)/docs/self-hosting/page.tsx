@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Self-hosting | zcrypt Docs",
     description:
-      "Run your own zcrypt instance with Docker — real required and optional environment variables, OAuth setup, and the frontend env.",
+      "Run your own zcrypt instance with Docker: real required and optional environment variables, OAuth setup, and the frontend env.",
     url: `${SITE_URL}/docs/self-hosting`,
   },
 };
@@ -48,14 +48,14 @@ export default function SelfHostingDocPage() {
           A zcrypt deployment is two pieces: a stateless Go backend (the API, built into a tiny
           distroless container image) and a Next.js frontend. The backend talks to a PostgreSQL
           database and is configured entirely through environment variables. It holds no plaintext
-          and no encryption keys — encryption and decryption happen in the browser — so the only
+          and no encryption keys (encryption and decryption happen in the browser) so the only
           long-lived secret you must protect is the <code>MASTER_KEY</code>, which wraps your
           connected storage tokens at rest.
         </DocP>
         <DocP>
           A documented template with placeholder values lives at{" "}
           <code>app/backend/.env.example</code>. Copy it to <code>app/backend/.env</code> and fill
-          in your own values — the <code>.env</code> file is gitignored, so never commit real
+          in your own values: the <code>.env</code> file is gitignored, so never commit real
           secrets.
         </DocP>
       </DocSection>
@@ -64,20 +64,20 @@ export default function SelfHostingDocPage() {
         <DocList
           items={[
             <>
-              <strong>PostgreSQL</strong> — a local instance or a managed provider such as Neon. The
+              <strong>PostgreSQL</strong>: a local instance or a managed provider such as Neon. The
               schema is applied automatically on first boot (or run the <code>migrate</code>{" "}
               subcommand).
             </>,
             <>
-              <strong>Docker</strong> — the simplest way to run the backend. The repository ships a
+              <strong>Docker</strong>: the simplest way to run the backend. The repository ships a
               multi-stage <code>Dockerfile</code> at its root.
             </>,
             <>
-              <strong>Go 1.25+</strong> — only needed if you build the backend from source instead
-              of using Docker.
+              <strong>Go 1.25+</strong>: only needed if you build the backend from source instead of
+              using Docker.
             </>,
             <>
-              <strong>Node.js 20+ and Bun</strong> — for building or running the frontend.
+              <strong>Node.js 20+ and Bun</strong>: for building or running the frontend.
             </>,
           ]}
         />
@@ -109,7 +109,7 @@ docker run -p 8080:8080 \\
           The <code>MASTER_KEY</code> is a 32-byte hex value that encrypts every stored platform
           token at rest. Generate a fresh one with <code>openssl rand -hex 32</code> and keep it
           safe. If you lose it, connected storage tokens can no longer be decrypted; if it leaks,
-          those tokens are exposed. It never encrypts your files — those are sealed in the browser
+          those tokens are exposed. It never encrypts your files. Those are sealed in the browser
           under your passphrase.
         </DocNote>
       </DocSection>
@@ -168,7 +168,7 @@ docker run -p 8080:8080 \\
               <code key="v">BACKEND_URL</code>,
               <>
                 Public backend URL (e.g. <code>https://api.example.com</code>), no trailing slash.{" "}
-                <strong>Required for OAuth</strong> — it builds the <code>redirect_uri</code> and
+                <strong>Required for OAuth</strong>: it builds the <code>redirect_uri</code> and
                 must exactly match what is registered with Google/GitHub. If unset it is derived
                 per-request, which usually breaks OAuth.
               </>,
@@ -202,8 +202,8 @@ docker run -p 8080:8080 \\
             [
               <code key="v">DEV_MODE</code>,
               <>
-                Set to <code>true</code> only for local load testing — it disables all rate
-                limiting. Never enable it in production.
+                Set to <code>true</code> only for local load testing, it disables all rate limiting.
+                Never enable it in production.
               </>,
             ],
           ]}
@@ -281,21 +281,21 @@ bun run build`}</DocCode>
               href="/docs/architecture"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Architecture — how the pipeline, staging, sync worker, and adapters fit together
+              Architecture: how the pipeline, staging, sync worker, and adapters fit together
             </Link>,
             <Link
               key="b"
               href="/docs/api"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              API reference — the REST endpoints your instance exposes
+              API reference: the REST endpoints your instance exposes
             </Link>,
             <Link
               key="c"
               href="/docs/platform-adapters"
               className="text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              Bring your own storage — connect GitHub, GitLab, Hugging Face, or Telegram
+              Bring your own storage: connect GitHub, GitLab, Hugging Face, or Telegram
             </Link>,
           ]}
         />

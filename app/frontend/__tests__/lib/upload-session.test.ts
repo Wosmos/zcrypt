@@ -416,7 +416,7 @@ describe("uploadChunk (authedXhrPut over XMLHttpRequest)", () => {
     // Attach a throwaway consumer synchronously: the actual rejection happens
     // mid-await inside advanceTimersByTimeAsync below, and Node flags a promise
     // as "unhandled" if nothing is listening at that point in the microtask
-    // queue — even though the `rejects.toThrow` consumer is attached moments
+    // queue: even though the `rejects.toThrow` consumer is attached moments
     // later in this same test.
     promise.catch(() => {});
     const xhr = lastXHR();
@@ -609,7 +609,7 @@ describe("directUploadToURL (unauthenticated XHR PUT with its own 3-attempt retr
 
   it("normalizes a non-Error rejection reason into an Error", async () => {
     // A Promise executor that throws synchronously rejects with whatever was
-    // thrown, not necessarily an Error — e.g. a pre-flight XHR construction
+    // thrown, not necessarily an Error, e.g. a pre-flight XHR construction
     // failure in some exotic environment. The retry loop's catch block must
     // coerce that into an Error rather than propagating a bare string.
     const originalOpen = FakeXHR.prototype.open;

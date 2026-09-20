@@ -25,7 +25,7 @@ async function startOAuth(provider: string) {
 
       const url = getOAuthURL(provider) + `?platform=desktop&session=${session}`;
       // Open the OAuth page in the system browser via the opener plugin. NOT the
-      // shell plugin's open() — that routes to a desktop-only (xdg-open) backend
+      // shell plugin's open(): that routes to a desktop-only (xdg-open) backend
       // that silently fails on Android, which made these buttons appear frozen.
       const { openUrl } = await import("@tauri-apps/plugin-opener");
       await openUrl(url);

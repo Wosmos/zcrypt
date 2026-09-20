@@ -1,7 +1,7 @@
 {
   "name": "@zcrypt/cli",
   "version": "0.0.0",
-  "description": "zcrypt — Private cloud storage that costs less (CLI)",
+  "description": "zcrypt. Private cloud storage that costs less (CLI)",
   "license": "MIT",
   "homepage": "https://zcrypt.cloud",
   "repository": {

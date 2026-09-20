@@ -4,12 +4,12 @@
  * Downloads encrypted chunks from server, decrypts in browser,
  * decompresses if needed, verifies SHA-256, and triggers browser download.
  *
- * Supports cancellation via AbortController, and — via an optional caller-owned
- * `resume` object — PAUSE/RESUME/RETRY-continue: a run can stop partway (pause
+ * Supports cancellation via AbortController, and: via an optional caller-owned
+ * `resume` object: PAUSE/RESUME/RETRY-continue: a run can stop partway (pause
  * or transient failure) keeping everything it has decrypted so far, and a later
  * run continues from there instead of restarting at chunk 0. In-session only:
  * the partial data lives client-side (memory, or an open disk writable), so
- * closing the tab still restarts the download — unlike uploads, whose partial
+ * closing the tab still restarts the download: unlike uploads, whose partial
  * state is held server-side.
  */
 
@@ -29,7 +29,7 @@ import { decryptChunkInPool } from "@/lib/decrypt-chunk";
 import { saveBlob } from "@/lib/utils";
 import type { DownloadPasswordResolver } from "@/store/download";
 
-/** The subset of FileSystemWritableFileStream we use — structural so this module
+/** The subset of FileSystemWritableFileStream we use, structural so this module
  *  doesn't depend on lib.dom File System Access typings. */
 export interface DiskWritable {
   write(data: Uint8Array): Promise<void>;
@@ -69,7 +69,7 @@ export interface DownloadResumeState {
   /** Indices already decrypted into `decryptedChunks`. */
   done?: Set<number>;
   // ── streaming-to-disk mode ──
-  /** The open disk writable — kept OPEN across pause/failure so a resume can
+  /** The open disk writable: kept OPEN across pause/failure so a resume can
    *  keep appending; closed only on success, aborted only on explicit cancel. */
   saveToDisk?: DiskWritable;
   /** Write-order hasher, alive across runs (streaming hashes as it writes). */
@@ -89,7 +89,7 @@ export type DownloadProgressCallback = (info: {
  *  in the pipeline, failing loudly (instead of a bare `!` crashing on `undefined`
  *  access) if that invariant is ever violated. */
 function assertSet<T>(value: T | undefined, what: string): T {
-  // Unreachable by construction — every caller sits downstream of the branch
+  // Unreachable by construction: every caller sits downstream of the branch
   // that assigns the field. It exists to fail loudly rather than let a bare `!`
   // crash on undefined access if that invariant is ever broken, so there is no
   // legitimate way to exercise the throw. Excluded from coverage rather than
@@ -105,7 +105,7 @@ export interface DownloadOptions {
   signal?: AbortSignal;
   /**
    * Optional per-file password resolver. When provided, its return value is used
-   * to decrypt THIS file instead of the `passphrase` argument — this is how a
+   * to decrypt THIS file instead of the `passphrase` argument: this is how a
    * file in a password-protected folder uses its folder password rather than the
    * vault passphrase. Omitted by all unprotected/legacy callers, so their
    * behavior is byte-for-byte unchanged (the plain `passphrase` is used).
@@ -122,7 +122,7 @@ export interface DownloadOptions {
   /**
    * When provided, decrypted chunks are STREAMED to this disk writable (from
    * showSaveFilePicker().createWritable()) in order, instead of being assembled
-   * in memory — the only way to download a file too big to hold in a browser
+   * in memory: the only way to download a file too big to hold in a browser
    * tab (e.g. 25GB). On integrity failure / cancel the writable is aborted so a
    * corrupt/partial file is never committed. On PAUSE the writable is left open.
    *
@@ -205,13 +205,13 @@ export async function downloadAndDecryptFile(
   if (signal?.aborted) throw stopError();
 
   // Integrity scheme. 'hmac_v1' files verify against a per-user keyed MAC, which
-  // requires the passphrase — available on the owner/folder path but NOT on the
+  // requires the passphrase: available on the owner/folder path but NOT on the
   // shared-space (resolveKey) path. When we can't recompute the MAC, we skip the
   // file-level compare and rely on per-chunk AES-GCM auth tags + the chunk-count
   // assertion (writer.close) for integrity, exactly like the public share path.
   let macKey: Uint8Array | undefined;
   if (meta.sha256_scheme === "hmac_v1" && dedupPassphrase) {
-    const { useAuthStore } = await import("@/store/auth"); // lazy — keep module load test-safe
+    const { useAuthStore } = await import("@/store/auth"); // lazy. Keep module load test-safe
     const uid = useAuthStore.getState().user?.id;
     if (uid) macKey = await deriveDedupKeyBytes(dedupPassphrase, uid);
   }
@@ -227,14 +227,14 @@ export async function downloadAndDecryptFile(
   // IN-MEMORY: the decrypted-chunk array persists; we hash it at finalize.
   let writer: OrderedWriter | null = null;
   // Once set on this branch, these are guaranteed defined for the rest of this
-  // call — captured into locals so downstream code doesn't need `resume.x!`.
+  // call: captured into locals so downstream code doesn't need `resume.x!`.
   let hasher: IncrementalHasher | undefined;
   let decryptedChunks: Uint8Array[] | undefined;
   let done: Set<number> | undefined;
   // Chunks a previous attempt of THIS download already accounted for: the disk
   // write high-water mark when streaming, the decrypted set otherwise. Captured
   // inside each branch, right where that branch has just guaranteed its own
-  // resume field is set — so the readers below need no `?? 0` on a value that
+  // resume field is set, so the readers below need no `?? 0` on a value that
   // cannot be undefined by then.
   let alreadyDone = 0;
   if (streaming) {
@@ -270,7 +270,7 @@ export async function downloadAndDecryptFile(
   // Progress is measured by chunks DECRYPTED (network + CPU work actually done),
   // not by the in-order disk-write cursor. On the streaming path a slow early
   // chunk holds the write cursor (writtenCount) back while later chunks are
-  // already downloaded + decrypted — driving the bar off writtenCount made it
+  // already downloaded + decrypted: driving the bar off writtenCount made it
   // freeze ("stuck at ~4%") then jump when the laggard landed. Counting decrypts
   // reflects true download progress; writtenCount stays the resume high-water
   // mark. Seeded from writtenCount so a resumed run continues the count.
@@ -280,7 +280,7 @@ export async function downloadAndDecryptFile(
     // No entry guard here: the only caller is the fetcher loop below, which
     // already checks the signal immediately before every call (and the whole
     // pipeline is gated on it up front). The post-fetch check is the one that
-    // matters — it catches a cancel that landed while this chunk was in flight.
+    // matters: it catches a cancel that landed while this chunk was in flight.
     const processChunk = async (index: number) => {
       const { data, compressed } = await retryTransient(() => getFileChunk(fileId, index, signal), {
         signal,
@@ -299,7 +299,7 @@ export async function downloadAndDecryptFile(
       }
 
       // Count this chunk as done for the PROGRESS display the moment it's
-      // decrypted (and, streaming, handed to the reorder buffer) — independent
+      // decrypted (and, streaming, handed to the reorder buffer), independent
       // of when it's flushed to disk in order.
       decryptedCount++;
       const percent = 2 + Math.round((decryptedCount / meta.chunk_count) * 90);
@@ -321,7 +321,7 @@ export async function downloadAndDecryptFile(
 
     // Fan out fetchers up to the concurrency limit. Use allSettled (not
     // Promise.all's fail-fast) so EVERY fetcher finishes before we read the
-    // high-water mark — otherwise a straggler could still advance it after we
+    // high-water mark: otherwise a straggler could still advance it after we
     // sampled, corrupting the resume point.
     const fetchers: Promise<void>[] = [];
     for (let w = 0; w < Math.min(MAX_CONCURRENT, queue.length); w++) {
@@ -349,7 +349,7 @@ export async function downloadAndDecryptFile(
       | undefined;
     if (rejection) throw rejection.reason;
 
-    // Every chunk is in hand — verify integrity. Streaming has been hashing in
+    // Every chunk is in hand. Verify integrity. Streaming has been hashing in
     // write-order as chunks landed; in-memory hashes the full array now. No
     // second full-file buffer either way (the old concat doubled peak memory).
     onProgress?.({
@@ -373,7 +373,7 @@ export async function downloadAndDecryptFile(
     // (hmac_v1 file downloaded without the passphrase, e.g. shared space); per-chunk
     // GCM + the chunk-count assertion above still guarantee integrity there.
     if (canVerifyHash && actualHash !== meta.sha256) {
-      throw new Error("File integrity check failed — content hash mismatch");
+      throw new Error("File integrity check failed, content hash mismatch");
     }
 
     // Finalize. Streaming commits the on-disk file; in-memory triggers a Blob
@@ -386,11 +386,11 @@ export async function downloadAndDecryptFile(
     });
 
     if (streaming) {
-      await assertSet(saveToDisk, "saveToDisk").close(); // commit — the file is already on disk
+      await assertSet(saveToDisk, "saveToDisk").close(); // commit: the file is already on disk
       resume.saveToDisk = undefined; // committed; nothing left to abort
     } else {
       // Save name: a zero-knowledge file has an empty original_name, so decrypt
-      // encrypted_name with the VAULT name key — the name is always encrypted
+      // encrypted_name with the VAULT name key: the name is always encrypted
       // under the vault passphrase (even for a folder-protected file, whose
       // CONTENT key differs), matching upload and decryptFileNames.
       let saveName = meta.original_name;
@@ -425,7 +425,7 @@ export async function downloadAndDecryptFile(
     //  • CANCEL (AbortError) or an INTEGRITY mismatch → discard it. Cancel is an
     //    explicit stop; an integrity failure means every chunk was written but
     //    the whole-file hash is wrong (corrupt) and re-fetching the same chunks
-    //    can't fix it — never leave a corrupt/truncated file committed.
+    //    can't fix it, never leave a corrupt/truncated file committed.
     //  • PAUSE or a transient/network FAILURE (chunks still missing) → keep the
     //    writable OPEN so resume/retry can keep appending from the high-water
     //    mark. The store aborts it on explicit dismiss/cancel instead.

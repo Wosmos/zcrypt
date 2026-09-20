@@ -6,7 +6,7 @@ name: Reindex Nudge
 # "Request Indexing" in Search Console. See scripts/reindex-search-engines.sh
 # for why Google itself doesn't get a real push here.
 #
-# Optional secret: NTFY_TOPIC — same topic used by neon-watch.yml — to also
+# Optional secret: NTFY_TOPIC (same topic used by neon-watch.yml) to also
 # get a phone push with the result.
 
 on:

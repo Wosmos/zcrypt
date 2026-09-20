@@ -177,7 +177,7 @@ describe("useTouchDragMove", () => {
 
     press(result.current.onPressStart, 0, 0);
     act(() => vi.advanceTimersByTime(HOLD_MS));
-    act(() => moveDoc(0, 3)); // held, but under DRAG_START_PX(6) — no commit yet
+    act(() => moveDoc(0, 3)); // held, but under DRAG_START_PX(6), no commit yet
     expect(useDragMove.getState().dragging).toBeNull();
 
     act(() => moveDoc(0, 3 + ABOVE_DRAG_START));
@@ -411,7 +411,7 @@ describe("useTouchDragMove", () => {
   it("a touchmove from a listener orphaned by a scrollContainerId change still no-ops once the press it belonged to is torn down", () => {
     // beginDrag's identity depends on scrollContainerId, so changing it reruns
     // the effect that reassigns onMoveRef/onEndRef/onCtxRef.current to NEW
-    // closures — but the OLD closure is what's actually attached to `document`
+    // closures, but the OLD closure is what's actually attached to `document`
     // (nothing re-attaches it on a prop change). A later teardown() reads
     // onMoveRef.current fresh, so its removeEventListener call targets the NEW
     // closure and silently fails to detach the OLD one, leaking it. The OLD

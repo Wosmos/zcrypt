@@ -53,7 +53,7 @@ export async function decryptNameSafe(b64: string, key: CryptoKey): Promise<stri
 
 /** A folder/file's custom card appearance (icon key + raw hex color and/or a
  *  curated background design key), encrypted client-side via the same
- *  per-user name key — the server only ever sees the opaque `encrypted_style`
+ *  per-user name key: the server only ever sees the opaque `encrypted_style`
  *  base64 blob. `color` and `background` are mutually exclusive at the UI
  *  level (solid vs. design mode), but both fields are kept so older data
  *  saved with only `color` set keeps rendering exactly as before. */
@@ -69,7 +69,7 @@ export async function encryptStyle(style: CustomStyle, key: CryptoKey): Promise<
 }
 
 /** Decrypt a CustomStyle. Returns null for null/undefined/empty input and on any
- *  decrypt/parse failure — a corrupt style blob should never break rendering. */
+ *  decrypt/parse failure: a corrupt style blob should never break rendering. */
 export async function decryptStyle(
   b64: string | null | undefined,
   key: CryptoKey,

@@ -3,7 +3,7 @@
  *
  * A protected folder reuses the EXISTING per-file envelope primitive (random CEK
  * wrapped by a PBKDF2-derived KEK from `lib/crypto.ts`). The ONLY thing that
- * differs for a protected folder's files is WHICH password derives the KEK — the
+ * differs for a protected folder's files is WHICH password derives the KEK, the
  * folder password instead of the vault passphrase. There is NO new cipher and NO
  * new key-derivation here: every function below is a thin composition of the
  * existing primitives.
@@ -55,7 +55,7 @@ export async function makeFolderVerifier(password: string, pwSalt: string): Prom
 
 /**
  * Verify a typed folder password against the stored `pw_salt` + `pw_verifier`
- * (both base64) — entirely client-side, no server round-trip and no need to
+ * (both base64): entirely client-side, no server round-trip and no need to
  * decrypt any real file. Derives the KEK, decrypts the verifier, and checks the
  * plaintext equals the version constant. A wrong password derives the wrong KEK,
  * so AES-GCM authentication fails and we return `false` (never throw).
@@ -76,7 +76,7 @@ export async function verifyFolderPassword(
   const expected = verifyConstantBytes();
   if (plaintext.length !== expected.length) return false;
   // Length-checked byte compare. Not constant-time, but the verifier value is
-  // not a secret — the password it gates already had to derive a valid KEK.
+  // not a secret: the password it gates already had to derive a valid KEK.
   for (let i = 0; i < expected.length; i++) {
     if (plaintext[i] !== expected[i]) return false;
   }
@@ -89,7 +89,7 @@ export async function verifyFolderPassword(
  * file crosses a protection boundary (protect/unprotect a folder, or move a file
  * between protection zones).
  *
- * IMPORTANT: this does NOT generate a new CEK — the caller must first recover the
+ * IMPORTANT: this does NOT generate a new CEK: the caller must first recover the
  * EXISTING CEK (via `resolveFileKey` under the SOURCE password) so the file's
  * already-uploaded chunks stay decryptable. This helper only changes the KEK that
  * wraps that CEK. Returns `{ salt, wrapped_cek }` (both base64) ready for

@@ -3,7 +3,7 @@ import { qk } from "./query-keys";
 
 /**
  * Cross-view invalidation helpers. A file/folder mutation touches more than one
- * server-state view — deleting a file removes it from the vault AND adds it to
+ * server-state view: deleting a file removes it from the vault AND adds it to
  * trash AND changes quota; restoring does the reverse; deleting a folder cascades
  * its files into trash. Routing every mutation through these helpers is what
  * structurally kills the stale-island bug class (deleted file still in a folder,
@@ -19,7 +19,7 @@ export function invalidateFilesViews(): Promise<void> {
   ]).then(() => undefined);
 }
 
-/** After a folder delete (cascades files into trash) — also refresh folders. */
+/** After a folder delete (cascades files into trash), also refresh folders. */
 export function invalidateFolderViews(): Promise<void> {
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: ["folders"] }),

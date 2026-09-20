@@ -8,7 +8,7 @@ type IconProps = SVGProps<SVGSVGElement> & {
   size?: number | string;
   strokeWidth?: number;
   /** Active-state variant (mobile nav): slightly heavier stroke, mirroring the
-   *  custom nav-icons' `filled` contract. Consumed HERE — it must never spread
+   *  custom nav-icons' `filled` contract. Consumed HERE: it must never spread
    *  onto the <svg> element (React warns on non-boolean DOM attributes). */
   filled?: boolean;
 };

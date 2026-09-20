@@ -13,7 +13,7 @@ import { isTauri, sidecarDecryptToMemory } from "@/lib/tauri";
 const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB
 const DB_NAME = "zcrypt_thumbs";
 const STORE_NAME = "thumbnails";
-// v4: reset the store once more — v3 could cache an ALL-TRANSPARENT raster (an
+// v4: reset the store once more: v3 could cache an ALL-TRANSPARENT raster (an
 // SVG Chrome draws as nothing) as a "valid" thumbnail, leaving that tile looking
 // like a permanent shimmer. Blank renders are rejected at generation time now;
 // the bump evicts any blank entry already persisted. (v1 was plaintext, v2 the
@@ -22,7 +22,7 @@ const DB_VERSION = 4;
 const MAX_CONCURRENT = 3;
 // A not-yet-cached tile shimmers at most this long, then drops to its type icon
 // while generation continues in the background; the real thumbnail swaps in the
-// moment it lands. A CACHED tile never shimmers — it renders instantly.
+// moment it lands. A CACHED tile never shimmers, it renders instantly.
 const SHIMMER_MAX_MS = 2000;
 
 // ── In-memory mirror of IndexedDB ────────────────────────────────────
@@ -30,16 +30,16 @@ const memCache = new Map<string, string>();
 // Files whose thumbnail generation failed, with a bounded RETRY schedule rather
 // than a permanent blacklist. This matters most right after an upload: the
 // file's chunks may still be syncing to the storage platform when the thumbnail
-// first tries to fetch them, so the first attempt fails — a permanent blacklist
+// first tries to fetch them, so the first attempt fails, a permanent blacklist
 // then left the file iconless until a full page reload. With retry, the shimmer
 // simply resolves into the real thumbnail once the chunk lands (a few seconds),
 // no reload needed; a genuinely un-thumbnailable file gives up after MAX_ATTEMPTS.
 const MAX_THUMB_ATTEMPTS = 3;
 // `hard` marks a TERMINAL failure that reflects unrecoverable data (the chunk
-// fetch/decrypt kept failing across every retry — e.g. the file's bytes are
+// fetch/decrypt kept failing across every retry, e.g. the file's bytes are
 // genuinely gone from the storage platform), as opposed to an immediate
 // permanent give-up that isn't data loss at all (a locked protected folder, or
-// a file whose bytes are fine but can't be rasterized — see markThumbFailed).
+// a file whose bytes are fine but can't be rasterized. See markThumbFailed).
 // Only `hard` should ever surface as the "preview unavailable" UI state; a
 // locked folder or an unsupported format both just fall back to the plain
 // type icon, same as any other non-thumbnailable file.
@@ -51,7 +51,7 @@ const genStartedAt = new Map<string, number>();
 const graceTimers = new Map<string, ReturnType<typeof setTimeout>>();
 let version = 0; // bumped on every change so per-file hooks re-render
 // False until the IndexedDB cache has finished loading into memCache. Cards must
-// NOT shimmer or start (re)generating before this — otherwise on every reload a
+// NOT shimmer or start (re)generating before this: otherwise on every reload a
 // card sees an empty memCache, re-decrypts a thumbnail that's actually cached on
 // disk, and shimmers through it. Gating on this makes cached thumbnails appear
 // instantly across reloads/logouts (the cache itself already survives both).
@@ -74,13 +74,13 @@ function getVersion() {
   return version;
 }
 
-/** Given up after MAX_THUMB_ATTEMPTS — show the type icon, stop retrying. */
+/** Given up after MAX_THUMB_ATTEMPTS: show the type icon, stop retrying. */
 function isPermanentlyFailed(id: string): boolean {
   const f = failed.get(id);
   return !!f && f.attempts >= MAX_THUMB_ATTEMPTS;
 }
 /** Terminal AND unrecoverable: every fetch/decrypt attempt failed (not a locked
- *  folder, not just an unsupported format) — the file's bytes are presumed
+ *  folder, not just an unsupported format): the file's bytes are presumed
  *  gone from the storage platform. Bounded by construction: once this is true,
  *  `canGenerateNow` below already refuses further attempts, so a hard-failed
  *  tile never resumes shimmering. */
@@ -88,7 +88,7 @@ function isHardFailed(id: string): boolean {
   const f = failed.get(id);
   return !!f && f.hard;
 }
-/** May a (re)generation run now — never tried, or a prior failure's backoff has
+/** May a (re)generation run now, never tried, or a prior failure's backoff has
  *  elapsed and attempts remain. */
 function canGenerateNow(id: string): boolean {
   const f = failed.get(id);
@@ -97,14 +97,14 @@ function canGenerateNow(id: string): boolean {
   return Date.now() >= f.nextRetryAt;
 }
 /** Record a failed attempt. `permanent` (render/decode/locked) gives up
- *  immediately → type icon — NEITHER case is data loss (a locked folder is
+ *  immediately → type icon: NEITHER case is data loss (a locked folder is
  *  just not unlocked yet; a render/decode failure means the bytes are fine but
  *  the format can't be rasterized), so neither is ever marked `hard`. A
  *  transient failure (fetch/decrypt/timeout) gets a bounded backoff and
  *  schedules a wake-up so mounted cards retry once it elapses (effects only
  *  re-fire on state change, so without this notify the retry would wait for an
  *  unrelated re-render). Once MAX attempts is reached this way, EVERY attempt
- *  to actually fetch/decrypt the file's bytes failed — that's the signal for a
+ *  to actually fetch/decrypt the file's bytes failed: that's the signal for a
  *  genuinely unavailable (not merely un-generated-yet) thumbnail. */
 function markThumbFailed(id: string, permanent: boolean): void {
   if (permanent) {
@@ -119,7 +119,7 @@ function markThumbFailed(id: string, permanent: boolean): void {
     hard: attempts >= MAX_THUMB_ATTEMPTS,
   });
   // Unreachable in practice: while a retry timer is pending, `nextRetryAt` is in
-  // the future so no hook will start another attempt for this id — and the timer
+  // the future so no hook will start another attempt for this id, and the timer
   // deletes itself before the attempt it schedules can fail again. Kept as a
   // belt-and-braces guard against ever stacking two timers for one file.
   /* v8 ignore start */
@@ -170,7 +170,7 @@ async function dbPut(key: string, value: string) {
 }
 
 // ── Boot: hydrate memCache from IndexedDB ────────────────────────────
-// Only ever invoked once, below — no re-entrancy guard needed.
+// Only ever invoked once, below, no re-entrancy guard needed.
 function markHydrated() {
   if (hydrated) return;
   hydrated = true;
@@ -191,7 +191,7 @@ async function hydrate() {
         memCache.set(cursor.key as string, cursor.value as string);
         cursor.continue();
       } else {
-        markHydrated(); // cache fully loaded — a memCache miss is now trustworthy
+        markHydrated(); // cache fully loaded: a memCache miss is now trustworthy
       }
     };
     req.onerror = () => markHydrated();
@@ -204,13 +204,13 @@ if (typeof window !== "undefined") void hydrate();
 
 // ── Canvas thumbnail generation ──────────────────────────────────────
 
-/** True when every sampled pixel is (near-)fully transparent — the raster
+/** True when every sampled pixel is (near-)fully transparent, the raster
  *  produced nothing visible. Chrome can "successfully" draw an SVG with no
  *  intrinsic width/height (or empty/unsupported content) as pure transparency;
  *  caching that invisible image would leave the tile looking like a stuck
  *  shimmer FOREVER (a transparent <img> on the dark theme is indistinguishable
  *  from the loading placeholder). Returns false when pixels can't be inspected
- *  (jsdom/test fakes) — assume the render is fine rather than reject it. */
+ *  (jsdom/test fakes): assume the render is fine rather than reject it. */
 function canvasLooksBlank(ctx: CanvasRenderingContext2D, w: number, h: number): boolean {
   try {
     const data = ctx.getImageData(0, 0, w, h).data;
@@ -220,7 +220,7 @@ function canvasLooksBlank(ctx: CanvasRenderingContext2D, w: number, h: number): 
     }
     return true;
   } catch {
-    return false; // can't read pixels — don't reject a probably-fine render
+    return false; // can't read pixels. Don't reject a probably-fine render
   }
 }
 
@@ -230,7 +230,7 @@ async function generateThumbnail(blob: Blob, maxW: number, maxH: number): Promis
     const url = URL.createObjectURL(blob);
     img.onload = () => {
       URL.revokeObjectURL(url);
-      // SVGs (and some formats) can report 0 intrinsic size — fall back so we
+      // SVGs (and some formats) can report 0 intrinsic size, fall back so we
       // still rasterize something rather than dividing by zero.
       const iw = img.naturalWidth || img.width || 300;
       const ih = img.naturalHeight || img.height || 300;
@@ -247,7 +247,7 @@ async function generateThumbnail(blob: Blob, maxW: number, maxH: number): Promis
       }
       ctx.drawImage(img, 0, 0, w, h);
       // An all-transparent raster must FAIL (→ type icon), never be cached as a
-      // "thumbnail" — an invisible preview reads as an eternal shimmer.
+      // "thumbnail": an invisible preview reads as an eternal shimmer.
       if (canvasLooksBlank(ctx, w, h)) {
         reject(new Error("blank render"));
         return;
@@ -364,14 +364,14 @@ const queue: { fileId: string; run: () => void }[] = [];
 
 // Files whose card is confirmed scrolled OFF-SCREEN (via the IntersectionObserver
 // wired up by useThumbnail's `cardRef`). A file never reported (no observer
-// support, or not yet observed) is absent here and treated as on-screen — that
+// support, or not yet observed) is absent here and treated as on-screen, that
 // keeps plain FIFO the default, so this can only reprioritize, never starve, a
 // file the app can't see. See `setThumbnailVisibility` / `releaseSlot`.
 const offscreen = new Set<string>();
 
 /** Report whether a file's card is currently within (or near) the viewport.
  *  The background queue drains on-screen waiters first, so a long folder's
- *  visible thumbnails resolve before ones further down the list — scrolling
+ *  visible thumbnails resolve before ones further down the list: scrolling
  *  past a big not-yet-generated stretch can no longer hold up the tiles the
  *  user is actually looking at. Call from an IntersectionObserver; harmless
  *  no-op bookkeeping if nothing is ever reported. */
@@ -392,12 +392,12 @@ function releaseSlot() {
 }
 
 /** Resolve once no foreground decrypt (file open / preview / neighbour
- *  prefetch) is in flight. Thumbnails are background polish — while the user is
+ *  prefetch) is in flight. Thumbnails are background polish: while the user is
  *  waiting on a real file, queued thumbnail starts hold back instead of
  *  competing for network + CPU. Simple 500ms poll; thumbnails already running
  *  just finish (they're bounded by their own timeouts). */
 async function waitForForegroundIdle(): Promise<void> {
-  // Yield to foreground decrypts — but never indefinitely. If foreground work
+  // Yield to foreground decrypts, but never indefinitely. If foreground work
   // stays "active" past this cap (a decrypt hung on some path we don't guard),
   // proceed anyway rather than starve every thumbnail into a perpetual spinner.
   // getFileChunk now carries its own timeout, so this is belt-and-suspenders.
@@ -424,7 +424,7 @@ async function acquireSlot(fileId: string): Promise<void> {
       },
     });
   });
-  // A foreground decrypt may have started while this item sat in the queue —
+  // A foreground decrypt may have started while this item sat in the queue:
   // re-check before letting it run. It holds its slot while waiting, which
   // conveniently pauses the rest of the queue too.
   await waitForForegroundIdle();
@@ -434,7 +434,7 @@ async function acquireSlot(fileId: string): Promise<void> {
  * Optional per-file password resolver for thumbnails. For a file in a protected
  * folder it returns the cached folder password; if that folder is locked it
  * returns `null` so the thumbnail is silently skipped (thumbnails must never
- * prompt — we don't nag for a locked folder just to draw a grid preview). For
+ * prompt: we don't nag for a locked folder just to draw a grid preview). For
  * unprotected files it returns the vault passphrase. When NOT supplied, the
  * plain `passphrase` is used (legacy/unprotected behavior, byte-for-byte).
  */
@@ -448,7 +448,7 @@ async function decryptFileToBlob(
 ): Promise<Blob> {
   const filePassphrase = resolvePassword ? resolvePassword(fileId) : passphrase;
   if (filePassphrase == null) {
-    // Protected folder is locked — skip (don't prompt for a thumbnail).
+    // Protected folder is locked: skip (don't prompt for a thumbnail).
     throw new Error("locked");
   }
 
@@ -472,7 +472,7 @@ async function decryptFileToBlob(
   // download of the same file will just re-pay.
   const keyBytes = await resolveFileKey(filePassphrase, salt, meta.wrapped_cek);
 
-  // Use the single app-wide zstd codec — NEVER call ZstdInit() here. The
+  // Use the single app-wide zstd codec, NEVER call ZstdInit() here. The
   // thumbnail loader runs several decrypts concurrently; a per-call ZstdInit()
   // re-initialises the shared wasm mid-use and corrupts other in-flight
   // decompression (the file viewer's), throwing "ZSTD_ERROR: Src size is
@@ -501,7 +501,7 @@ async function fetchAndCacheThumbnail(
   resolvePassword?: ThumbnailPasswordResolver,
 ): Promise<string | null> {
   // Sole caller (the hook's effect) already checks memCache/inflight/failedSet
-  // synchronously right before calling — no gap for that state to change.
+  // synchronously right before calling, no gap for that state to change.
   inflight.add(fileId);
   // Time-box the shimmer from the first attempt: record when generation began
   // and wake mounted cards when the grace window closes, so a still-generating
@@ -519,7 +519,7 @@ async function fetchAndCacheThumbnail(
   notify(); // surface the loading state to mounted cards right away
 
   // acquireSlot() lives INSIDE the try so the finally always runs and clears
-  // `inflight` — otherwise a slow/blocked acquire would leave the card's
+  // `inflight`: otherwise a slow/blocked acquire would leave the card's
   // `loading` flag stuck true forever (the perpetual-shimmer bug). releaseSlot
   // is paired only when a slot was actually taken.
   let slotHeld = false;
@@ -528,10 +528,10 @@ async function fetchAndCacheThumbnail(
     slotHeld = true;
     const video = isVideoFile(filename);
 
-    // STAGE 1 — fetch + decrypt. Failures here (a chunk still syncing to the
+    // STAGE 1, fetch + decrypt. Failures here (a chunk still syncing to the
     // platform right after upload, a network blip, a slow-link timeout) are
     // TRANSIENT: mark with a bounded backoff so the shimmer resolves into the
-    // real thumbnail on a retry a few seconds later — no page reload needed. A
+    // real thumbnail on a retry a few seconds later, no page reload needed. A
     // locked protected folder is the one permanent case (don't re-poll it).
     let blob: Blob;
     try {
@@ -546,7 +546,7 @@ async function fetchAndCacheThumbnail(
       return null;
     }
 
-    // STAGE 2 — rasterize. Failures here (unsupported codec, undecodable image,
+    // STAGE 2, rasterize. Failures here (unsupported codec, undecodable image,
     // no canvas context) are PERMANENT: the bytes are fine but this file can't
     // become a thumbnail, so fall straight back to the type icon rather than
     // burning retries re-decrypting a file that will never render.
@@ -571,7 +571,7 @@ async function fetchAndCacheThumbnail(
     dbPut(fileId, dataUrl).catch(() => {});
     return dataUrl;
   } catch {
-    // acquireSlot (or something unexpected) threw — treat as transient so a
+    // acquireSlot (or something unexpected) threw. Treat as transient so a
     // retry can still succeed once the queue frees up.
     markThumbFailed(fileId, /* permanent */ false);
     return null;
@@ -609,12 +609,12 @@ export async function seedThumbnailFromFile(
     dbPut(fileId, dataUrl).catch(() => {});
     notify();
   } catch {
-    // Unsupported/undecodable source — the grid will fetch-decrypt it instead.
+    // Unsupported/undecodable source: the grid will fetch-decrypt it instead.
   }
 }
 
 /** Arm lazy thumbnail generation. Call once after the passphrase is entered
- *  (on unlock). Nothing is decrypted here — each file's `useThumbnail` hook
+ *  (on unlock). Nothing is decrypted here: each file's `useThumbnail` hook
  *  generates its own thumbnail the first time its card renders, so we never
  *  block on decrypting the whole vault. `resolvePassword` routes
  *  protected-folder files to their folder password (locked ones are skipped). */
@@ -626,7 +626,7 @@ export function primeThumbnails(passphrase: string, resolvePassword?: ThumbnailP
 
 /**
  * On a vault LOCK / logout, stop NEW thumbnail generation (drop the armed
- * passphrase) but KEEP the already-generated previews cached — both the in-memory
+ * passphrase) but KEEP the already-generated previews cached: both the in-memory
  * mirror and the on-disk `zcrypt_thumbs` store. That is what makes an unlock /
  * reload / re-login show thumbnails INSTANTLY with no shimmer instead of
  * regenerating (and shimmering through) every tile.
@@ -646,7 +646,7 @@ export function clearThumbnails() {
 
 // A vault lock / TTL expiry / logout goes through clearDecryptCache(); piggyback
 // on that single eviction event so thumbnails are dropped in lockstep with the
-// blob cache — no store→hook import (which would cycle through lib/api).
+// blob cache, no store→hook import (which would cycle through lib/api).
 onDecryptCacheClear(clearThumbnails);
 
 /** Check if a file has a cached thumbnail (no passphrase needed). */
@@ -667,19 +667,19 @@ export function useThumbnail(
 ): {
   thumbnailUrl: string | null;
   loading: boolean;
-  /** True while a thumbnail is expected but not ready yet — show a loader. */
+  /** True while a thumbnail is expected but not ready yet, show a loader. */
   pending: boolean;
   /** Terminal: every fetch/decrypt attempt failed (the file's bytes are
-   *  presumed permanently gone from the storage platform — NOT a locked
+   *  presumed permanently gone from the storage platform: NOT a locked
    *  folder, NOT just an unsupported preview format). Bounded by construction
-   *  — generation has already stopped retrying by the time this is true — so
+   *  (generation has already stopped retrying by the time this is true) so
    *  the card can swap in a distinct "preview unavailable" affordance instead
    *  of silently reading the same as any other non-thumbnailable file. */
   unavailable: boolean;
   /** Attach to the card's root element (`<div ref={cardRef}>`) so the
    *  background queue can tell an on-screen tile from an off-screen one and
    *  prioritize accordingly. Backed by IntersectionObserver; a harmless no-op
-   *  where it isn't available (older browsers, tests) — the queue then just
+   *  where it isn't available (older browsers, tests): the queue then just
    *  stays plain FIFO for this file. */
   cardRef: (node: Element | null) => void;
 } {
@@ -692,7 +692,7 @@ export function useThumbnail(
       observerRef.current?.disconnect();
       observerRef.current = null;
       if (!node || typeof IntersectionObserver === "undefined") return;
-      // rootMargin gives visible-adjacent tiles a head start — generation can
+      // rootMargin gives visible-adjacent tiles a head start, generation can
       // begin just before the tile actually scrolls into view.
       const observer = new IntersectionObserver(
         ([entry]) => setThumbnailVisibility(fileId, entry.isIntersecting),
@@ -718,8 +718,8 @@ export function useThumbnail(
   const withinSize = size === undefined || size < MAX_FILE_SIZE;
   const ctxReady = ctxPassphrase !== null;
 
-  // Whether a (re)generation should run right now. Recomputed every render —
-  // including the notify() the retry timer fires — so `canGenerateNow` flips
+  // Whether a (re)generation should run right now. Recomputed every render:
+  // including the notify() the retry timer fires, so `canGenerateNow` flips
   // false→true when a failed attempt's backoff elapses and the effect re-runs.
   const shouldGenerate =
     hydrated && ctxReady && thumbable && withinSize && !thumbnailUrl && canGenerateNow(fileId);
@@ -732,7 +732,7 @@ export function useThumbnail(
   // so this effect re-evaluates whenever thumbnail state moves (re-prime on
   // unlock, retry-backoff wake-up, a run dropped by a lock). Keying it only on a
   // `shouldGenerate` false->true transition used to strand a tile at pending=true
-  // with nothing in flight — no cache, no failed entry, no future trigger — until
+  // with nothing in flight (no cache, no failed entry, no future trigger) until
   // a full reload reset the module. The guard below still blocks duplicate
   // dispatch, and `shouldGenerate` folds in `canGenerateNow` (backoff), so
   // re-running on every notify cannot spam.
@@ -741,7 +741,7 @@ export function useThumbnail(
     if (!shouldGenerate) return;
     if (memCache.has(fileId) || inflight.has(fileId)) return;
     // fetchAndCacheThumbnail resolves to null on every internal failure, so this
-    // rejection handler never actually runs — it only guards against a future
+    // rejection handler never actually runs. It only guards against a future
     // edit introducing a throw outside its try, which would otherwise surface as
     // an unhandled rejection in an effect.
     /* v8 ignore start */
@@ -768,7 +768,7 @@ export function useThumbnail(
     !isPermanentlyFailed(fileId) &&
     withinGrace;
 
-  // Only a thumbable, in-size file can ever have been attempted at all — a
+  // Only a thumbable, in-size file can ever have been attempted at all, a
   // plain document never touches `failed`, so this is naturally false for it.
   const unavailable = thumbable && withinSize && !thumbnailUrl && isHardFailed(fileId);
 

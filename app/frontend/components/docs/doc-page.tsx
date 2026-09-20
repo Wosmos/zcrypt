@@ -6,7 +6,7 @@ import { ArrowLeft, ArrowRight, ChevronRight, AlertTriangle, Info, Lock } from "
 import { cn } from "@/lib/utils";
 import { SITE_URL as SITE } from "@/lib/site";
 
-// Flattened, ordered list of internal doc links — drives prev/next + section lookup.
+// Flattened, ordered list of internal doc links: drives prev/next + section lookup.
 const flatDocs: { link: DocsNavLink; section: string }[] = docsNav.flatMap((group) =>
   group.links
     .filter((l) => !l.external && l.href.startsWith("/docs"))
@@ -122,7 +122,7 @@ export function DocPage({
         </p>
       </header>
 
-      {/* On this page — client component with scroll-spy */}
+      {/* On this page: client component with scroll-spy */}
       {toc && toc.length > 0 && <DocToc toc={toc} />}
 
       {/* Body */}

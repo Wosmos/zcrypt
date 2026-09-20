@@ -29,13 +29,13 @@ export default function TrashLoading() {
               <Skeleton className="h-3.5 w-48 max-w-full rounded-md" />
               <Skeleton className="h-3 w-32 rounded-md" />
             </div>
-            {/* inline actions (Preview / Restore / Delete) — sm and up */}
+            {/* inline actions (Preview / Restore / Delete), sm and up */}
             <div className="hidden flex-shrink-0 items-center gap-2 sm:flex">
               <Skeleton className="h-8 w-20 rounded-lg" />
               <Skeleton className="h-8 w-20 rounded-lg" />
               <Skeleton className="h-8 w-20 rounded-lg" />
             </div>
-            {/* kebab — narrow screens */}
+            {/* kebab, narrow screens */}
             <Skeleton className="h-8 w-8 flex-shrink-0 rounded-lg sm:hidden" />
           </div>
         ))}

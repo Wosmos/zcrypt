@@ -40,7 +40,7 @@ export async function createSpace(
   sizeLimitBytes = 0,
 ): Promise<SharedVault> {
   const { publicKey } = useKeysStore.getState();
-  if (!publicKey) throw new Error("Your encryption key isn't ready — unlock your vault first.");
+  if (!publicKey) throw new Error("Your encryption key isn't ready, unlock your vault first.");
   const spaceKey = generateSpaceKey();
   const wrapped = await sealTo(publicKey, spaceKey);
   const vault = await createSharedVault({
@@ -66,11 +66,11 @@ export async function loadSpaceKey(vault: SharedVault): Promise<Uint8Array | nul
 }
 
 /** Derive a shared file's key from its space-wrapped CEK: unwrap the CEK with
- *  the space key. The resulting key decrypts the file's chunks — for both the
+ *  the space key. The resulting key decrypts the file's chunks: for both the
  *  owner and any member, since it never touches the vault passphrase. */
 async function spaceFileKey(vault: SharedVault, spaceWrappedCek: string): Promise<ArrayBuffer> {
   const spaceKey = await loadSpaceKey(vault);
-  if (!spaceKey) throw new Error("This space's key isn't available — unlock your vault first.");
+  if (!spaceKey) throw new Error("This space's key isn't available, unlock your vault first.");
   const cek = await unwrapKey(toArrayBuffer(spaceKey), fromBase64(spaceWrappedCek));
   return toArrayBuffer(cek);
 }
@@ -109,13 +109,13 @@ export async function shareFileIntoSpace(
   name = "",
 ): Promise<void> {
   const spaceKey = await loadSpaceKey(vault);
-  if (!spaceKey) throw new Error("This space's key isn't available — unlock your vault first.");
+  if (!spaceKey) throw new Error("This space's key isn't available, unlock your vault first.");
   const passphrase = usePassphraseStore.getState().getPassphrase();
   if (!passphrase) throw new Error("Unlock your vault to share files.");
 
   const meta = await getFileMeta(fileId);
   // The file key under the OWNER's protection (CEK for envelope files, or the
-  // derived key for legacy files) — whatever decrypts this file's chunks.
+  // derived key for legacy files): whatever decrypts this file's chunks.
   const fileKey = await resolveFileKey(passphrase, fromBase64(meta.salt), meta.wrapped_cek);
   const rewrapped = await wrapKey(toArrayBuffer(spaceKey), new Uint8Array(fileKey));
   const wrappedName = await sealName(spaceKey, name);
@@ -128,7 +128,7 @@ export async function unshareFileFromSpace(vaultId: string, fileId: string): Pro
 }
 
 /** Download + decrypt a file from a space, using the space-wrapped CEK (from the
- *  vault detail) rather than the vault passphrase — works for owner and members
+ *  vault detail) rather than the vault passphrase: works for owner and members
  *  alike. Desktop routes through the in-process core (byos-direct bytes, native
  *  save dialog); the browser path is unchanged. */
 export async function downloadSpaceFile(
@@ -169,7 +169,7 @@ export async function downloadSpaceFile(
  *  fresh space key, seals it to every REMAINING member's public key, and
  *  re-wraps every shared file's CEK under it. Call this AFTER removing the
  *  member. Requires the space to be unlocked (needs the old key to re-wrap).
- *  Members with no published key are skipped — they have no functional access
+ *  Members with no published key are skipped: they have no functional access
  *  either way. */
 export async function rotateSpaceKey(
   vault: SharedVault,
@@ -177,7 +177,7 @@ export async function rotateSpaceKey(
   files: SharedVaultFile[],
 ): Promise<void> {
   const oldKey = await loadSpaceKey(vault);
-  if (!oldKey) throw new Error("This space's key isn't available — unlock your vault first.");
+  if (!oldKey) throw new Error("This space's key isn't available, unlock your vault first.");
   const newKey = generateSpaceKey();
 
   const memberGrants: { user_id: string; wrapped_space_key: string }[] = [];
@@ -189,7 +189,7 @@ export async function rotateSpaceKey(
         wrapped_space_key: await sealTo(fromBase64(pk.public_key), newKey),
       });
     } catch {
-      /* member has no published key — nothing to seal, and no access to lose */
+      /* member has no published key, nothing to seal, and no access to lose */
     }
   }
 
@@ -204,7 +204,7 @@ export async function rotateSpaceKey(
         const nameBytes = await unwrapKey(toArrayBuffer(oldKey), fromBase64(f.wrapped_name));
         wrappedName = toBase64(await wrapKey(toArrayBuffer(newKey), nameBytes));
       } catch {
-        /* leave empty — falls back to the owner-side name */
+        /* leave empty: falls back to the owner-side name */
       }
     }
     fileWraps.push({

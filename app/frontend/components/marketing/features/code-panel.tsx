@@ -13,7 +13,7 @@ export interface CodePanelProps {
  * The terminal/code-block mock used across features/* pages: a monospace
  * panel with a comment header and an emerald success footer. The body lines
  * vary too much per page (inline colored spans, break-all, numbered steps) to
- * parameterize — only this shell is shared.
+ * parameterize: only this shell is shared.
  */
 export function CodePanel({ comment, success, children }: CodePanelProps) {
   return (

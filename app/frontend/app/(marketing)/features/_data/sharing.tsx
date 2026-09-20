@@ -33,7 +33,7 @@ export const sharing: SharingPageData = {
     headlineGradient: "Not the key to your vault.",
     subtext: (
       <>
-        Every share link carries its own decryption key inside the URL fragment — the one piece of a
+        Every share link carries its own decryption key inside the URL fragment: the one piece of a
         link a browser never transmits. The recipient opens it, their browser decrypts the file, and
         the server only ever held ciphertext.
       </>
@@ -51,7 +51,7 @@ export const sharing: SharingPageData = {
     {
       Icon: Link2,
       title: "The key rides in the fragment",
-      desc: "The decryption key lives in the part of the URL after the # — which browsers never send to a server. We literally can't receive it.",
+      desc: "The decryption key lives in the part of the URL after the #: which browsers never send to a server. We literally can't receive it.",
     },
     {
       Icon: Lock,
@@ -61,7 +61,7 @@ export const sharing: SharingPageData = {
     {
       Icon: Clock,
       title: "Expiry dates",
-      desc: "Set a link to stop working after a date or duration. When it lapses, the door closes on its own — no cleanup required.",
+      desc: "Set a link to stop working after a date or duration. When it lapses, the door closes on its own, no cleanup required.",
     },
     {
       Icon: Download,
@@ -76,7 +76,7 @@ export const sharing: SharingPageData = {
     {
       Icon: Eye,
       title: "No account for recipients",
-      desc: "Whoever you send it to just opens the link. The file is decrypted in their browser — never on our servers, never in the clear on the wire.",
+      desc: "Whoever you send it to just opens the link. The file is decrypted in their browser, never on our servers, never in the clear on the wire.",
     },
   ],
 
@@ -85,11 +85,11 @@ export const sharing: SharingPageData = {
     heading: <>Why we can&apos;t read your shares</>,
     body: (
       <>
-        A URL fragment — everything after the <span className="font-mono">#</span> — is processed
-        only by the browser and is never included in the request sent to a server. We put the
-        decryption key there on purpose. The server hands over encrypted bytes; the recipient&apos;s
-        browser uses the key from the fragment to decrypt them locally. The plaintext never exists
-        on our side.
+        A URL fragment (everything after the <span className="font-mono">#</span>) is processed only
+        by the browser and is never included in the request sent to a server. We put the decryption
+        key there on purpose. The server hands over encrypted bytes; the recipient&apos;s browser
+        uses the key from the fragment to decrypt them locally. The plaintext never exists on our
+        side.
       </>
     ),
     checklistItems: [
@@ -110,11 +110,11 @@ export const sharing: SharingPageData = {
   moreWays: [
     {
       title: "Anonymous Send",
-      desc: "Drop a file without an account and get a single link to pass along. It's built to burn after reading — once it's been picked up, it's gone. Good for the thing you want to hand off and forget.",
+      desc: "Drop a file without an account and get a single link to pass along. It's built to burn after reading, once it's been picked up, it's gone. Good for the thing you want to hand off and forget.",
     },
     {
       title: "Encrypted Pad",
-      desc: "Write a one-time note, encrypt it, and share the link. The recipient reads it once — then it's burned. For a password, an address, a short message that shouldn't linger in anyone's inbox.",
+      desc: "Write a one-time note, encrypt it, and share the link. The recipient reads it once, then it's burned. For a password, an address, a short message that shouldn't linger in anyone's inbox.",
     },
   ],
 
@@ -122,7 +122,7 @@ export const sharing: SharingPageData = {
     {
       href: "/features/encrypted-drive",
       title: "The encrypted drive",
-      desc: "Where shared files live — folders, search, and previews, sealed.",
+      desc: "Where shared files live: folders, search, and previews, sealed.",
     },
     {
       href: "/docs/sharing",
