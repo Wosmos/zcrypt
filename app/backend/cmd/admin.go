@@ -471,9 +471,12 @@ func (s *Server) HandleGetQuota(w http.ResponseWriter, r *http.Request) {
 
 	hasPersonal, _ := s.db.UserHasPersonalTokens(ctx, userID)
 
-	// zcrypt is free and open source: storage is effectively unlimited and
-	// users are bounded only by the real git-platform thresholds. We still
-	// report the plan label (kept on the user record) for display purposes.
+	// Storage on your own account is unlimited. Shared storage is capped, so
+	// report the real numbers: the dashboard banner and the upload UI both
+	// need to know how much room is actually left before they let someone
+	// start a transfer that will be refused.
+	quota := s.getEffectiveQuota(ctx, userID)
+
 	plan := "free"
 	if user, uErr := s.db.GetUserByID(ctx, userID); uErr == nil && user != nil {
 		if user.Plan != "" {
@@ -487,9 +490,9 @@ func (s *Server) HandleGetQuota(w http.ResponseWriter, r *http.Request) {
 
 	info := types.QuotaInfo{
 		UsedBytes:            used,
-		QuotaBytes:           0, // 0 = unlimited
+		QuotaBytes:           quota, // 0 = unlimited (own storage connected)
 		HasPersonalKey:       hasPersonal,
-		IsUnlimited:          true,
+		IsUnlimited:          quota == 0,
 		Plan:                 plan,
 		MaxConcurrentUploads: 0,              // 0 = unlimited
 		MaxFileSize:          maxUploadBytes, // per-file cap enforced by HandleUploadInit

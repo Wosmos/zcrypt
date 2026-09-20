@@ -441,24 +441,49 @@ func (s *Server) resolveAdapterForUser(ctx context.Context, userID, platform, ac
 	return nil
 }
 
-// getEffectiveQuota returns the effective storage quota in bytes for a user.
+// sharedStorageQuotaBytes caps a user who is riding somebody else's global
+// token. Storage on your OWN connected account stays unlimited, because it
+// costs us nothing: it is your account and your quota with the platform. The
+// shared pool is different. It runs on an admin's personal token, so every
+// byte a user stores there is a byte charged against a real person's real
+// account, and an unbounded free tier on someone else's credentials is a bill
+// waiting to happen.
 //
-// zcrypt is free and open source: storage is effectively unlimited (0 = no
-// limit). An admin may still set an explicit per-user override for display,
-// which is honored here, but nothing in the upload path consults this value
-// anymore: uploads are bounded only by the real git-platform thresholds.
+// 1 GiB is enough to try the product properly, and connecting your own storage
+// removes the cap entirely, which is exactly the behaviour we want to
+// encourage.
+const sharedStorageQuotaBytes = int64(1) << 30
+
+// getEffectiveQuota returns the effective storage quota in bytes for a user,
+// where 0 means unlimited.
+//
+// Three cases, in priority order:
+//  1. An explicit per-user admin override always wins, including an override
+//     of 0 to grant somebody unlimited shared storage.
+//  2. A user with at least one personal token is unlimited. They are spending
+//     their own platform quota.
+//  3. Everyone else is on the shared pool and gets sharedStorageQuotaBytes.
 func (s *Server) getEffectiveQuota(ctx context.Context, userID string) int64 {
 	user, err := s.db.GetUserByID(ctx, userID)
 	if err != nil {
-		return 0 // unlimited
+		// Fail closed onto the shared cap. Failing open here would hand an
+		// unbounded allowance to any request whose user lookup hiccuped.
+		return sharedStorageQuotaBytes
 	}
 
-	// Honor an explicit per-user admin override if one is set (0 = unlimited).
 	if user.StorageQuota != nil {
 		return *user.StorageQuota
 	}
 
-	return 0 // unlimited
+	hasPersonal, err := s.db.UserHasPersonalTokens(ctx, userID)
+	if err != nil {
+		return sharedStorageQuotaBytes
+	}
+	if hasPersonal {
+		return 0 // their own account, their own quota
+	}
+
+	return sharedStorageQuotaBytes
 }
 
 // getGlobalAdapters returns adapters created from global platform tokens (for anonymous send).

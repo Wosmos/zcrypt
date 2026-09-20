@@ -190,9 +190,34 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		directUpload = true
 		// repoID/repoURL stay empty: the client owns placement in this mode.
 	} else {
-		// zcrypt is free and open source: there are no artificial plan/quota
-		// limits. Users are bounded only by the real git-platform thresholds
-		// enforced in reppool. Select the adapter + repo pool to use.
+		// Storage on your own connected account is unlimited and always was.
+		// The shared pool is not: it runs on an admin's personal token, so it
+		// carries a cap (see getEffectiveQuota). Check it before reserving a
+		// session, not after, so a user who is over the line never starts an
+		// upload that cannot finish.
+		if quota := s.getEffectiveQuota(ctx, userID); quota > 0 {
+			used, uErr := s.db.GetUserStorageUsed(ctx, userID)
+			if uErr != nil {
+				log.Printf("upload: storage usage lookup failed: %v", uErr)
+				http.Error(w, `{"error":"could not verify your storage usage"}`, http.StatusInternalServerError)
+				return
+			}
+			if used+req.OriginalSize > quota {
+				writeJSON(w, http.StatusRequestEntityTooLarge, map[string]interface{}{
+					"error":        "shared storage is full",
+					"detail":       "You are using zcrypt's shared storage, which is capped. Connect your own GitHub, GitLab, HuggingFace or Telegram account to get unlimited space.",
+					"used_bytes":   used,
+					"quota_bytes":  quota,
+					"needed_bytes": req.OriginalSize,
+					"remedy":       "connect_own_storage",
+				})
+				return
+			}
+		}
+
+		// Select the adapter + repo pool to use. Beyond the shared cap above,
+		// users are bounded only by the real git-platform thresholds enforced
+		// in reppool.
 		key, _, pool, err := s.selectAdapter(ctx, userID, req.Platform)
 		if err != nil {
 			hasPersonal, _ := s.db.UserHasPersonalTokens(ctx, userID)
