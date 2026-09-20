@@ -1,0 +1,368 @@
+/* The Vault: scoped 3D and scene styles for the landing prototype.
+
+   Everything here is transform and opacity, so it stays on the compositor.
+   No layout properties animate. Depth is real CSS 3D: a perspective on the
+   scene, preserve-3d on the stage, translateZ on the objects. That gives true
+   parallax and foreshortening without WebGL, and the hero headline stays real
+   text for LCP.
+
+   One motif, repeated: the seam of light and the lock. */
+
+.vault {
+  --seam: var(--color-accent);
+  /* Where the door parts. Kept out of the copy at every width: near the right
+     edge on phones, where the text runs full width, and at 72% on large
+     screens where the dial has room beside the headline. */
+  --seam-x: 86%;
+  --steel: color-mix(in oklab, var(--color-surface) 82%, black);
+  --steel-hi: color-mix(in oklab, var(--color-surface-2) 70%, white 4%);
+  --ink: var(--color-bg);
+}
+
+/* ─── Scene primitives ──────────────────────────────────────────────────── */
+
+.vault-scene {
+  perspective: 1400px;
+  perspective-origin: 50% 45%;
+}
+
+.vault-stage {
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+/* A glass slab: the shared surface language for cards on this page. */
+.vault-slab {
+  position: relative;
+  border-radius: 1.25rem;
+  background: linear-gradient(
+    160deg,
+    color-mix(in oklab, var(--color-surface) 92%, white 3%),
+    var(--color-surface) 60%
+  );
+  border: 1px solid color-mix(in oklab, var(--color-border) 70%, var(--seam) 12%);
+  box-shadow:
+    0 1px 0 0 color-mix(in oklab, white 6%, transparent),
+    0 30px 80px -40px rgba(0, 0, 0, 0.7),
+    0 0 0 1px rgba(0, 0, 0, 0.25);
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+.vault-slab::after {
+  /* Specular edge that moves with the tilt because it is a real child plane. */
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    115deg,
+    transparent 42%,
+    color-mix(in oklab, var(--seam) 9%, transparent) 50%,
+    transparent 58%
+  );
+  opacity: 0.35;
+  transform: translateZ(1px);
+}
+
+/* The seam of light. A one-pixel line that glows, used vertically and
+   horizontally. */
+.vault-seam {
+  position: relative;
+  background: linear-gradient(to bottom, transparent, var(--seam) 20%, var(--seam) 80%, transparent);
+  box-shadow:
+    0 0 12px 2px color-mix(in oklab, var(--seam) 55%, transparent),
+    0 0 48px 8px color-mix(in oklab, var(--seam) 25%, transparent);
+}
+.vault-seam-h {
+  background: linear-gradient(to right, transparent, var(--seam) 20%, var(--seam) 80%, transparent);
+}
+
+/* Lock node that sits on a seam. */
+.vault-lock {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  background: var(--color-surface);
+  border: 1px solid color-mix(in oklab, var(--seam) 55%, transparent);
+  box-shadow:
+    0 0 0 4px var(--ink),
+    0 0 24px 4px color-mix(in oklab, var(--seam) 45%, transparent);
+  color: var(--seam);
+}
+
+/* ─── The door ──────────────────────────────────────────────────────────── */
+
+.vault-door {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+}
+
+/* Each leaf is a plane hinged on its outer edge, so rotateY swings it open
+   the way a real door swings, not a flat slide. */
+.vault-leaf {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 50%;
+  transform-style: preserve-3d;
+  background:
+    radial-gradient(120% 80% at 50% 50%, color-mix(in oklab, var(--steel-hi) 60%, transparent), transparent 70%),
+    repeating-linear-gradient(90deg, transparent 0 46px, rgba(255, 255, 255, 0.025) 46px 47px),
+    linear-gradient(180deg, var(--steel-hi), var(--steel) 55%, color-mix(in oklab, var(--steel) 80%, black));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  will-change: transform;
+  backface-visibility: hidden;
+}
+.vault-leaf-l {
+  left: 0;
+  width: var(--seam-x);
+  transform-origin: left center;
+  border-right: 1px solid rgba(0, 0, 0, 0.6);
+}
+.vault-leaf-r {
+  right: 0;
+  width: calc(100% - var(--seam-x));
+  transform-origin: right center;
+  border-left: 1px solid rgba(0, 0, 0, 0.6);
+}
+@media (min-width: 1024px) {
+  .vault {
+    --seam-x: 72%;
+  }
+}
+
+/* Material. Riveted plate: a hairline frame inset from the edge with a row of
+   rivets along it. Deliberately thin. A thick bevel here made each leaf read
+   as a tablet bezel, which is the opposite of heavy. */
+.vault-leaf::before {
+  content: "";
+  position: absolute;
+  inset: 3.5%;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.055);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.11) 0 1.3px, transparent 1.9px) 0 0 / 22px 22px
+      padding-box;
+  -webkit-mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  padding: 11px;
+  pointer-events: none;
+}
+
+/* The dial: a half ring on each leaf's seam edge so together they form one
+   circle around the lock. Drawn as concentric radial-gradient rings on a
+   square box. (A border-radius circle with inset shadows rasterised as a
+   rounded square inside this 3D stage in Chrome, so no rounding is used.) */
+.vault-leaf::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 26vmin;
+  height: 26vmin;
+  display: none;
+  transform: translateY(-50%);
+  background:
+    radial-gradient(circle at 42% 36%, rgba(255, 255, 255, 0.07), transparent 48%),
+    radial-gradient(
+      circle,
+      color-mix(in oklab, var(--steel-hi) 45%, var(--steel)) 0 31%,
+      rgba(255, 255, 255, 0.06) 31.4%,
+      color-mix(in oklab, var(--steel) 85%, black) 31.8% 38%,
+      rgba(0, 0, 0, 0.65) 38.4%,
+      color-mix(in oklab, var(--steel-hi) 60%, var(--steel)) 38.8% 46.5%,
+      rgba(255, 255, 255, 0.08) 46.9%,
+      rgba(0, 0, 0, 0.6) 47.4% 49.2%,
+      transparent 49.6%
+    );
+  filter: drop-shadow(0 18px 30px rgba(0, 0, 0, 0.55));
+  pointer-events: none;
+}
+.vault-leaf-l::after {
+  right: 0;
+  transform: translate(50%, -50%);
+  clip-path: inset(-20% 50% -20% -20%);
+}
+.vault-leaf-r::after {
+  left: 0;
+  transform: translate(-50%, -50%);
+  clip-path: inset(-20% -20% -20% 50%);
+}
+@media (min-width: 1024px) {
+  .vault-leaf::after {
+    display: block;
+  }
+}
+
+/* Light leaking through the gap. Lives behind the leaves. */
+.vault-glow {
+  position: absolute;
+  inset: 0;
+  /* Narrow beam from the seam, not a wash. The centre core is bright and the
+     falloff is fast, so it reads as light through a gap rather than a filter
+     over the whole frame. */
+  background:
+    radial-gradient(18% 110% at var(--seam-x) 50%, color-mix(in oklab, var(--seam) 55%, transparent), transparent 70%),
+    radial-gradient(6% 70% at var(--seam-x) 50%, color-mix(in oklab, var(--seam) 90%, white 15%), transparent 80%);
+  filter: blur(4px);
+  mix-blend-mode: screen;
+  will-change: opacity, transform;
+}
+
+/* The room behind the door, a dark receding grid. */
+.vault-room {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to bottom, var(--ink), transparent 30%, transparent 70%, var(--ink)),
+    linear-gradient(to right, color-mix(in oklab, var(--seam) 10%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklab, var(--seam) 10%, transparent) 1px, transparent 1px);
+  background-size:
+    100% 100%,
+    64px 64px,
+    64px 64px;
+  transform: rotateX(62deg) translateY(-8%) scale(1.6);
+  transform-origin: 50% 100%;
+  mask-image: radial-gradient(70% 60% at 50% 60%, black 30%, transparent 100%);
+  opacity: 0.7;
+}
+
+/* ─── Depth field (floating files) ──────────────────────────────────────── */
+
+.vault-float {
+  position: absolute;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+.vault-float-edge {
+  /* Ciphertext on the slab's edge, drawn as a rotated plane. */
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -14px;
+  height: 14px;
+  transform: rotateX(-90deg);
+  transform-origin: top;
+  background: color-mix(in oklab, var(--steel) 85%, var(--seam) 10%);
+  color: color-mix(in oklab, var(--seam) 70%, transparent);
+  font-size: 9px;
+  line-height: 14px;
+  letter-spacing: 0.08em;
+  padding-inline: 10px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* ─── Pipeline (signature scene) ────────────────────────────────────────── */
+
+.vault-tile {
+  position: absolute;
+  border-radius: 0.5rem;
+  background: linear-gradient(160deg, var(--steel-hi), var(--steel));
+  border: 1px solid color-mix(in oklab, var(--seam) 30%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 0 18px -6px color-mix(in oklab, var(--seam) 60%, transparent);
+  will-change: transform, opacity;
+}
+/* Fractured edge: a hairline of seam light along one side, so each piece
+   reads as cut from the same slab rather than stamped out fresh. */
+.vault-tile::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg, color-mix(in oklab, var(--seam) 25%, transparent), transparent 45%);
+  opacity: 0.7;
+}
+
+.vault-node {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 1rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  transform-style: preserve-3d;
+  will-change: transform, opacity, box-shadow;
+}
+.vault-node.is-lit {
+  border-color: color-mix(in oklab, var(--seam) 60%, transparent);
+  color: var(--seam);
+  box-shadow: 0 0 40px -8px color-mix(in oklab, var(--seam) 70%, transparent);
+}
+
+/* ─── Decoding text ─────────────────────────────────────────────────────── */
+
+.vault-decode .word {
+  display: inline-block;
+  white-space: nowrap;
+}
+.vault-decode .char {
+  display: inline-block;
+  will-change: opacity, transform;
+}
+.vault-decode .char.is-hex {
+  color: color-mix(in oklab, var(--seam) 70%, var(--color-text-muted));
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 500;
+}
+
+/* ─── Big numeral ───────────────────────────────────────────────────────── */
+
+.vault-numeral {
+  font-size: clamp(6rem, 22vw, 16rem);
+  line-height: 0.9;
+  letter-spacing: -0.04em;
+  background: linear-gradient(180deg, var(--color-text) 30%, color-mix(in oklab, var(--color-text) 40%, transparent));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.vault-strike {
+  position: relative;
+  display: inline-block;
+}
+.vault-strike::after {
+  content: "";
+  position: absolute;
+  left: -2%;
+  right: -2%;
+  top: 52%;
+  height: 2px;
+  background: var(--seam);
+  transform: scaleX(0);
+  transform-origin: left center;
+  box-shadow: 0 0 10px color-mix(in oklab, var(--seam) 70%, transparent);
+}
+.vault-strike.is-struck::after {
+  transform: scaleX(1);
+  transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.vault-strike.is-struck {
+  color: var(--color-text-muted);
+  transition: color 300ms 200ms;
+}
+
+/* ─── Reduced motion ────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .vault-strike::after {
+    transform: scaleX(1);
+    transition: none;
+  }
+  .vault-strike {
+    color: var(--color-text-muted);
+  }
+  .vault-glow {
+    filter: none;
+  }
+}

@@ -417,6 +417,7 @@ function DockIcon({
         animate={app.bouncing ? { y: [0, -16, 0, -8, 0] } : {}}
         transition={app.bouncing ? { duration: 0.6, ease: "easeInOut" } : {}}
         className="relative cursor-pointer origin-bottom"
+        aria-label={app.label}
       >
         <motion.div
           style={{ width: size, height: size } as unknown as React.CSSProperties}
@@ -1621,6 +1622,7 @@ export function MacOSShowcase() {
                     <button
                       onClick={() => openOverlay(setAboutOpen)}
                       className="cursor-pointer hover:opacity-100 transition-opacity"
+                      aria-label="About this Mac"
                     >
                       <AppleLogo className="h-[11px] w-[11px] opacity-90" />
                     </button>
@@ -1648,12 +1650,14 @@ export function MacOSShowcase() {
                     <button
                       onClick={() => openOverlay(setControlCenterOpen)}
                       className="cursor-pointer hover:opacity-100 transition-opacity"
+                      aria-label="Control Center"
                     >
                       <ControlCenterIcon className="h-[11px] w-auto opacity-70 hover:opacity-100" />
                     </button>
                     <button
                       onClick={() => openOverlay(setSpotlightOpen)}
                       className="cursor-pointer hover:opacity-100 transition-opacity"
+                      aria-label="Spotlight search"
                     >
                       <SpotlightIcon className="h-[12px] w-auto opacity-60 hover:opacity-100" />
                     </button>
