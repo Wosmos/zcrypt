@@ -51,7 +51,7 @@ func TestSealProducesUniqueCiphertexts(t *testing.T) {
 func TestOpenSecretLegacyPlaintextPassthrough(t *testing.T) {
 	kek := userKEK(t, "user-1")
 
-	// Rows written before encryption-at-rest are raw base32 — returned as-is.
+	// Rows written before encryption-at-rest are raw base32, returned as-is.
 	opened, err := OpenSecret(kek, "JBSWY3DPEHPK3PXP")
 	require.NoError(t, err)
 	assert.Equal(t, "JBSWY3DPEHPK3PXP", opened)
@@ -73,7 +73,7 @@ func TestOpenSecretTamperDetected(t *testing.T) {
 
 	// Flip one bit of a REAL ciphertext byte (decode → mutate → re-encode).
 	// Mutating the base64 text directly can hit padding bits a lenient decoder
-	// ignores, yielding identical bytes — and a decryption that succeeds.
+	// ignores, yielding identical bytes, and a decryption that succeeds.
 	parts := strings.SplitN(strings.TrimPrefix(sealed, "enc:v1:"), ":", 2)
 	require.Len(t, parts, 2)
 	ct, err := base64.StdEncoding.DecodeString(parts[1])

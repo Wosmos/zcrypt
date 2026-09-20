@@ -172,7 +172,7 @@ func (s *Server) HandleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 	// 1. Check if this OAuth account is already linked
 	oauthProvider, _ := s.db.GetOAuthProvider(ctx, provider, userInfo.ProviderID)
 	if oauthProvider != nil {
-		// Existing link — load user and issue tokens
+		// Existing link: load user and issue tokens
 		user, err := s.db.GetUserByID(ctx, oauthProvider.UserID)
 		if err != nil {
 			s.oauthError(w, r, "user not found", isDesktop, desktopSession)
@@ -191,7 +191,7 @@ func (s *Server) HandleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 		// hijack it. Require logging in with the existing method, then link in Settings.
 		if !existingUser.EmailVerified {
 			s.audit(r, &existingUser.ID, "oauth_link_rejected", map[string]interface{}{"provider": provider, "email": userInfo.Email, "reason": "local_email_unverified"})
-			s.oauthError(w, r, "an account with this email already exists — log in with your existing method, then link "+provider+" in Settings", isDesktop, desktopSession)
+			s.oauthError(w, r, "an account with this email already exists: log in with your existing method, then link "+provider+" in Settings", isDesktop, desktopSession)
 			return
 		}
 		// Auto-link OAuth to existing user
@@ -223,7 +223,7 @@ func (s *Server) HandleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Role is set atomically by CreateUser — first user becomes admin via SQL CASE.
+	// Role is set atomically by CreateUser: first user becomes admin via SQL CASE.
 	user := &types.User{
 		ID:            uuid.New().String(),
 		Email:         userInfo.Email,
@@ -292,7 +292,7 @@ func (s *Server) HandleUnlinkAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if count <= 1 {
-		http.Error(w, `{"error":"cannot remove last login method — add a password or link another provider first"}`, http.StatusBadRequest)
+		http.Error(w, `{"error":"cannot remove last login method. Add a password or link another provider first"}`, http.StatusBadRequest)
 		return
 	}
 
@@ -313,8 +313,8 @@ func (s *Server) oauthCallbackURL(r *http.Request, provider string) string {
 }
 
 // backendBaseURL returns the public-facing base URL of the backend (no trailing slash).
-// It prefers the explicit BACKEND_URL — which MUST match the redirect URIs registered
-// with the OAuth providers — and otherwise derives the value from the request, honoring
+// It prefers the explicit BACKEND_URL: which MUST match the redirect URIs registered
+// with the OAuth providers, and otherwise derives the value from the request, honoring
 // the reverse-proxy headers that Railway and similar platforms set.
 func (s *Server) backendBaseURL(r *http.Request) string {
 	if s.cfg.BackendURL != "" {
@@ -341,7 +341,7 @@ func (s *Server) backendBaseURL(r *http.Request) string {
 func (s *Server) LogOAuthConfig() {
 	backend := strings.TrimRight(s.cfg.BackendURL, "/")
 	if backend == "" {
-		slog.Warn("oauth: BACKEND_URL is not set — callback URLs will be derived from each request. " +
+		slog.Warn("oauth: BACKEND_URL is not set: callback URLs will be derived from each request. " +
 			"This frequently mismatches what is registered with Google/GitHub and breaks login. " +
 			"Set BACKEND_URL to your public backend URL, e.g. https://NEXT_PUBLIC_API_URL")
 	}
@@ -354,11 +354,11 @@ func (s *Server) LogOAuthConfig() {
 		if backend != "" {
 			redirect = backend + "/api/auth/oauth/" + provider + "/callback"
 		}
-		slog.Info("oauth: provider enabled — register this EXACT redirect URI with the provider",
+		slog.Info("oauth: provider enabled: register this EXACT redirect URI with the provider",
 			"provider", provider, "redirect_uri", redirect)
 	}
 	if s.cfg.FrontendURL == "" {
-		slog.Warn("oauth: FRONTEND_URL is not set — falling back to http://localhost:3000 after login")
+		slog.Warn("oauth: FRONTEND_URL is not set: falling back to http://localhost:3000 after login")
 	} else {
 		slog.Info("oauth: post-login redirect", "frontend_url", strings.TrimRight(s.cfg.FrontendURL, "/"))
 	}

@@ -70,12 +70,12 @@ func (g *GithubAdapter) Upload(ctx context.Context, repo string, chunk types.Chu
 	owner, repoName := g.parseRepo(repo)
 
 	// Retry on 409 (SHA conflict from concurrent commits) with exponential backoff + jitter.
-	// GitHub Contents API creates one commit per CreateFile — concurrent uploads to the same
+	// GitHub Contents API creates one commit per CreateFile: concurrent uploads to the same
 	// repo race on HEAD SHA. With the server-side per-repo semaphore limiting to 2 concurrent,
 	// 10 retries with jitter handles residual contention reliably. The path is held STABLE
 	// across retries: a 409 is a HEAD-SHA race, not a path collision, so re-committing the
 	// same path after backoff resolves it. Rotating the path here would break the sync
-	// worker's invariant that the caller-planned path is authoritative — a rotated-then-lost
+	// worker's invariant that the caller-planned path is authoritative, a rotated-then-lost
 	// path (crash before return) would strand the blob where deletion can never find it.
 	var lastErr error
 	for attempt := 0; attempt < 10; attempt++ {
@@ -121,7 +121,7 @@ func (g *GithubAdapter) Upload(ctx context.Context, repo string, chunk types.Chu
 func (g *GithubAdapter) Download(ctx context.Context, ref types.ChunkRef) ([]byte, error) {
 	owner, repoName := g.parseRepo(ref.Repo)
 
-	// Use raw.githubusercontent.com directly — single request, no size limit,
+	// Use raw.githubusercontent.com directly: single request, no size limit,
 	// avoids the 2-request Contents API dance.
 	rawURL := fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/main/%s", owner, repoName, ref.RemotePath)
 	req, err := http.NewRequestWithContext(ctx, "GET", rawURL, nil)
@@ -156,7 +156,7 @@ func (g *GithubAdapter) parseRepo(repo string) (owner, name string) {
 	if parts := strings.SplitN(repo, "/", 2); len(parts) == 2 {
 		return parts[0], parts[1]
 	}
-	// Legacy format: github_owner_reponame — strip "github_" prefix, split on first "_"
+	// Legacy format: github_owner_reponame: strip "github_" prefix, split on first "_"
 	legacy := repo
 	legacy = strings.TrimPrefix(legacy, "github_")
 	if parts := strings.SplitN(legacy, "_", 2); len(parts) == 2 {
@@ -182,7 +182,7 @@ func (g *GithubAdapter) Delete(ctx context.Context, ref types.ChunkRef) error {
 	}
 
 	// GetContents returns a nil file-content (with no error) when the path isn't a
-	// single file — e.g. it's a directory, or the file is otherwise absent. There
+	// single file, e.g. it's a directory, or the file is otherwise absent. There
 	// is no SHA to delete, so the chunk is effectively gone. Guard this: a nil
 	// dereference here previously panicked and crash-looped the whole deletion
 	// worker on the entire batch.
@@ -226,7 +226,7 @@ func (g *GithubAdapter) ListChunks(ctx context.Context, repo string) ([]types.Ch
 	// are stored under a 2-hex-char shard directory (e.g. "02/abc.bin"), so a
 	// root-only listing would miss every blob. recursive=true returns the whole
 	// tree in one call and each entry's Path is the full sharded path, which is
-	// exactly what chunks.remote_path stores — so a reconciliation diff matches.
+	// exactly what chunks.remote_path stores, so a reconciliation diff matches.
 	tree, resp, err := g.client.Git.GetTree(ctx, owner, repoName, "HEAD", true)
 	if err != nil {
 		// An empty repo (no commits yet) has no tree → nothing stored, not an error.
@@ -253,7 +253,7 @@ func (g *GithubAdapter) ListChunks(ctx context.Context, repo string) ([]types.Ch
 	}
 	// GitHub truncates the tree response above ~100k entries / 7MB. Our repos cap
 	// far below that (GitHub threshold 850MB of ~10-17MB chunks ≈ <90 blobs), so
-	// truncation should never happen — but surface it rather than silently
+	// truncation should never happen, but surface it rather than silently
 	// under-reporting, which for a reconciliation sweep would hide real orphans.
 	if tree.GetTruncated() {
 		return refs, fmt.Errorf("tree listing truncated for %s: results incomplete", repo)

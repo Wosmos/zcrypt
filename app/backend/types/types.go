@@ -164,7 +164,7 @@ type UploadSession struct {
 	OriginalSize   int64     `json:"original_size"`
 	Salt           []byte    `json:"-"`
 	SHA256         string    `json:"sha256"`
-	SHA256Scheme   string    `json:"sha256_scheme"` // 'plain' (legacy) or 'hmac_v1' — see FileMetadata.SHA256Scheme
+	SHA256Scheme   string    `json:"sha256_scheme"` // 'plain' (legacy) or 'hmac_v1'. See FileMetadata.SHA256Scheme
 	ChunkCount     int       `json:"chunk_count"`
 	ChunkSize      int64     `json:"chunk_size"` // plaintext chunk size the client slices with; 0 = unknown (legacy)
 	Platform       string    `json:"platform"`
@@ -825,8 +825,8 @@ type FileKeyWrap struct {
 // SharedVaultRotateRequest re-keys a space after a membership change: a fresh
 // space key is sealed to each REMAINING member's public key, and every shared
 // file's CEK is re-wrapped under the new space key. A removed member is simply
-// absent from Members, so they get no grant for the new key and — because the
-// files are re-wrapped — any copy of the old key they kept becomes useless.
+// absent from Members, so they get no grant for the new key and, because the
+// files are re-wrapped: any copy of the old key they kept becomes useless.
 type SharedVaultRotateRequest struct {
 	Members []MemberKeyGrant `json:"members"`
 	Files   []FileKeyWrap    `json:"files"`

@@ -77,7 +77,7 @@ func (s *Server) HandleSendInit(w http.ResponseWriter, r *http.Request) {
 	adapterKey, _, err := s.selectGlobalAdapter(ctx)
 	if err != nil {
 		log.Printf("send: no global adapter: %v", err)
-		http.Error(w, `{"error":"send service not available — no global storage configured"}`, http.StatusServiceUnavailable)
+		http.Error(w, `{"error":"send service not available, no global storage configured"}`, http.StatusServiceUnavailable)
 		return
 	}
 
@@ -278,7 +278,7 @@ func (s *Server) HandleSendChunkUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Extract platform info from the adapter key resolved above (reuse it —
+	// Extract platform info from the adapter key resolved above (reuse it:
 	// re-selecting here could pick a different adapter or swallow an error,
 	// storing a chunk row with an empty platform/account that can't be downloaded).
 	parts := strings.SplitN(adapterKey, ":", 2)

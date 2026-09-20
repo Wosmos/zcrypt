@@ -180,8 +180,8 @@ const adapterRetryTTL = 60 * time.Second
 
 // getUserAdapters returns all adapters for a user (own tokens + global tokens).
 // Results are cached per userID. A map built with ≥1 failed adapter (e.g. the
-// platform is unreachable from this server) is still cached — the working
-// adapters stay usable — but only for adapterRetryTTL, so failures aren't
+// platform is unreachable from this server) is still cached, the working
+// adapters stay usable, but only for adapterRetryTTL, so failures aren't
 // negative-cached until process restart.
 func (s *Server) getUserAdapters(ctx context.Context, userID string) (map[string]adapters.PlatformAdapter, error) {
 	s.adapterMu.RLock()
@@ -238,7 +238,7 @@ func (s *Server) getUserAdapters(ctx context.Context, userID string) (map[string
 		delete(s.adapterCacheExpiry, userID)
 		delete(s.adapterErrors, userID)
 	}
-	// Pools are derived from the adapter map — drop them so they rebuild from
+	// Pools are derived from the adapter map. Drop them so they rebuild from
 	// this fresh map (a retried adapter that now works must get a pool too).
 	delete(s.poolCache, userID)
 	s.adapterMu.Unlock()
@@ -387,7 +387,7 @@ func (s *Server) selectAdapter(ctx context.Context, userID, targetPlatform strin
 	}
 
 	// No explicit platform: pick by fixed preference order instead of random
-	// map iteration. Telegram first — it is the primary storage backend
+	// map iteration. Telegram first. It is the primary storage backend
 	// (effectively unlimited capacity); the git platforms are fallbacks.
 	if key := preferredAdapterKey(keys); key != "" {
 		return key, userAdapters[key], pools[key], nil
@@ -397,7 +397,7 @@ func (s *Server) selectAdapter(ctx context.Context, userID, targetPlatform strin
 
 // adapterPreferenceOrder is the product decision for "Auto" uploads: Telegram
 // is the primary storage backend (no capacity ceiling), then github, gitlab,
-// huggingface (HF last — its free tier is a 100 GB per-ACCOUNT cap).
+// huggingface (HF last: its free tier is a 100 GB per-ACCOUNT cap).
 var adapterPreferenceOrder = []string{"telegram", "github", "gitlab", "huggingface"}
 
 // preferredAdapterKey picks the first key (from a pre-sorted "platform:account"
@@ -446,7 +446,7 @@ func (s *Server) resolveAdapterForUser(ctx context.Context, userID, platform, ac
 // zcrypt is free and open source: storage is effectively unlimited (0 = no
 // limit). An admin may still set an explicit per-user override for display,
 // which is honored here, but nothing in the upload path consults this value
-// anymore — uploads are bounded only by the real git-platform thresholds.
+// anymore: uploads are bounded only by the real git-platform thresholds.
 func (s *Server) getEffectiveQuota(ctx context.Context, userID string) int64 {
 	user, err := s.db.GetUserByID(ctx, userID)
 	if err != nil {
@@ -522,7 +522,7 @@ func (s *Server) selectGlobalAdapter(ctx context.Context) (string, adapters.Plat
 }
 
 // resolveGlobalAdapter returns the global adapter matching a specific
-// platform:account key — the account a chunk was actually uploaded with. Picking
+// platform:account key: the account a chunk was actually uploaded with. Picking
 // a random global adapter on download/cleanup can land on a different account
 // whose token can't see the chunk's private repo, causing intermittent
 // "Repository not found" 404s. Falls back to any adapter for the same platform.
@@ -592,7 +592,7 @@ func createAdapter(platform, token string) (adapters.PlatformAdapter, error) {
 
 // RegisterRoutes wires every HTTP route onto mux. Both main.go and the
 // integration test harness call this, so tests exercise the exact production
-// route table — there is no second, drifting copy to keep in sync.
+// route table. There is no second, drifting copy to keep in sync.
 func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	// maxJSON wraps a handler with a 1MB request body limit for JSON endpoints.
 	maxJSON := func(h http.HandlerFunc) http.HandlerFunc {
@@ -611,7 +611,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/auth/magic-link", maxJSON(s.HandleMagicLinkRequest))
 	mux.HandleFunc("POST /api/auth/magic-link/verify", maxJSON(s.HandleMagicLinkVerify))
 
-	// OAuth routes (public — redirect-based)
+	// OAuth routes (public, redirect-based)
 	mux.HandleFunc("GET /api/auth/oauth/config", s.HandleOAuthConfig)
 	mux.HandleFunc("GET /api/auth/oauth/{provider}", s.HandleOAuthStart)
 	mux.HandleFunc("GET /api/auth/oauth/{provider}/callback", s.HandleOAuthCallback)
@@ -680,7 +680,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/share/{token}/meta", s.ShareRateLimitMiddleware(s.HandleGetShareFileMeta))
 	mux.HandleFunc("GET /api/share/{token}/chunks/{idx}", s.ShareRateLimitMiddleware(s.HandleGetShareChunk))
 
-	// Folder shares — public link for a whole folder (management is authed;
+	// Folder shares: public link for a whole folder (management is authed;
 	// access mirrors the single-file public share above)
 	mux.HandleFunc("POST /api/folder-shares", maxJSON(s.AuthMiddleware(s.HandleCreateFolderShare)))
 	mux.HandleFunc("GET /api/folder-shares", s.AuthMiddleware(s.HandleListFolderShares))

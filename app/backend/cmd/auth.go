@@ -30,7 +30,7 @@ var usernameRe = regexp.MustCompile(`^[a-zA-Z0-9_]{3,32}$`)
 // dummyPasswordHash is a bcrypt hash (same cost as auth.HashPassword) of a
 // random throwaway string. Login compares against it when the email is
 // unknown, so the request burns the same ~quarter second as a real password
-// check — otherwise the fast unknown-email path would let an attacker
+// check: otherwise the fast unknown-email path would let an attacker
 // enumerate which emails have accounts by timing responses.
 const dummyPasswordHash = "$2a$12$jwwcg/vWlmCOz/dPW1to.OtzGR8q8t7A4OlpzO7f9PTPsjOBCi6rS"
 
@@ -100,7 +100,7 @@ func (s *Server) emailCfg() *auth.EmailConfig {
 }
 
 func (s *Server) baseURL(r *http.Request) string {
-	// Always prefer configured frontend URL — never trust forwarded headers for email links
+	// Always prefer configured frontend URL, never trust forwarded headers for email links
 	if s.cfg.FrontendURL != "" {
 		return strings.TrimRight(s.cfg.FrontendURL, "/")
 	}
@@ -169,7 +169,7 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Check uniqueness — use generic messages to prevent account enumeration
+	// Check uniqueness. Use generic messages to prevent account enumeration
 	if existing, _ := s.db.GetUserByEmail(ctx, req.Email); existing != nil {
 		http.Error(w, `{"error":"an account with this email or username already exists"}`, http.StatusConflict)
 		return
@@ -185,7 +185,7 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Role is set atomically by CreateUser — first user becomes admin via SQL CASE.
+	// Role is set atomically by CreateUser: first user becomes admin via SQL CASE.
 	user := &types.User{
 		ID:           uuid.New().String(),
 		Email:        req.Email,
@@ -264,7 +264,7 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 
 	user, err := s.db.GetUserByEmail(ctx, req.Email)
 	if err != nil {
-		_ = auth.CheckPassword(req.Password, dummyPasswordHash) // timing equalization — see dummyPasswordHash
+		_ = auth.CheckPassword(req.Password, dummyPasswordHash) // timing equalization. See dummyPasswordHash
 		log.Printf("auth: login failed email=%s ip=%s reason=not_found", req.Email, clientIP)
 		s.audit(r, nil, "login_failed", map[string]interface{}{"email": req.Email, "reason": "not_found"})
 		http.Error(w, `{"error":"invalid email or password"}`, http.StatusUnauthorized)
@@ -276,7 +276,7 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		decoy, decoyErr := s.db.GetDecoyVault(ctx, user.ID)
 		if decoyErr == nil && decoy.Enabled {
 			if auth.CheckPassword(req.Password, decoy.DecoyPasswordHash) == nil {
-				// Decoy password match — issue decoy tokens
+				// Decoy password match, issue decoy tokens
 				s.audit(r, &user.ID, "login_decoy", map[string]interface{}{"email": user.Email})
 				s.issueDecoyTokens(w, r, user)
 				return
@@ -336,7 +336,7 @@ func (s *Server) HandleRefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Log IP mismatch (potential stolen token usage) but don't block — IPs change legitimately
+	// Log IP mismatch (potential stolen token usage) but don't block. IPs change legitimately
 	clientIP := s.clientIP(r)
 	if rt.IP != "" && rt.IP != clientIP {
 		log.Printf("security: refresh token IP mismatch for user %s: issued=%s current=%s", rt.UserID, rt.IP, clientIP)
@@ -434,7 +434,7 @@ func (s *Server) HandleForgotPassword(w http.ResponseWriter, r *http.Request) {
 
 	// Send asynchronously (like register/magic-link do): a synchronous send
 	// makes known emails measurably slower than the instant generic response
-	// for unknown ones — a timing oracle on account existence.
+	// for unknown ones: a timing oracle on account existence.
 	emailCfg := s.emailCfg()
 	baseURL := s.baseURL(r)
 	go func() {
@@ -604,7 +604,7 @@ func (s *Server) HandleResendVerification(w http.ResponseWriter, r *http.Request
 
 // reauthActingUser re-verifies the currently-authenticated user's identity for a
 // sensitive action (e.g. an admin deleting another account): a valid access token
-// alone is not enough — they must re-enter their password, and a fresh TOTP code
+// alone is not enough. They must re-enter their password, and a fresh TOTP code
 // if they have 2FA. Returns a human-readable reason on failure. This is the
 // "destructive-op friction" that keeps a stolen/borrowed admin session from
 // quietly nuking data. The TOTP code is claimed (one-time) to prevent replay.
@@ -630,7 +630,7 @@ func (s *Server) reauthActingUser(ctx context.Context, r *http.Request, password
 			return fmt.Errorf("internal error")
 		}
 		if !claimed {
-			return fmt.Errorf("this 2FA code was already used — wait for the next one")
+			return fmt.Errorf("this 2FA code was already used: wait for the next one")
 		}
 	}
 	return nil
@@ -669,7 +669,7 @@ func (s *Server) Handle2FASetup(w http.ResponseWriter, r *http.Request) {
 	// A stolen access token must not be able to silently rotate the secret of
 	// an already-protected account (locking the owner out of their authenticator).
 	if user.TOTPEnabled {
-		http.Error(w, `{"error":"2FA is already enabled — disable it first to generate a new secret"}`, http.StatusBadRequest)
+		http.Error(w, `{"error":"2FA is already enabled. Disable it first to generate a new secret"}`, http.StatusBadRequest)
 		return
 	}
 
@@ -679,7 +679,7 @@ func (s *Server) Handle2FASetup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Seal before storing — the plaintext secret goes only to the user's
+	// Seal before storing: the plaintext secret goes only to the user's
 	// authenticator app (below), never to the database.
 	kek, err := crypto.DeriveUserKEK(s.masterKey, claims.Sub)
 	if err != nil {
@@ -756,7 +756,7 @@ func (s *Server) Handle2FAEnable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !claimed {
-		http.Error(w, `{"error":"this code was already used — wait for the next one"}`, http.StatusBadRequest)
+		http.Error(w, `{"error":"this code was already used: wait for the next one"}`, http.StatusBadRequest)
 		return
 	}
 
@@ -766,7 +766,7 @@ func (s *Server) Handle2FAEnable(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Mint one-time recovery codes so a lost authenticator can't permanently lock
-	// the user out. Returned once, here — only their hashes are stored.
+	// the user out. Returned once, here: only their hashes are stored.
 	codes, err := s.issueBackupCodes(ctx, user.ID)
 	if err != nil {
 		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
@@ -835,7 +835,7 @@ func (s *Server) Handle2FARegenerateBackupCodes(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	// Require a fresh, unused TOTP code — same replay guard as the login step, so
+	// Require a fresh, unused TOTP code: same replay guard as the login step, so
 	// a stolen access token alone can't rotate (and reveal) the recovery codes.
 	counter, ok := auth.ValidateTOTPCodeCounter(secret, req.Code)
 	if !ok {
@@ -848,7 +848,7 @@ func (s *Server) Handle2FARegenerateBackupCodes(w http.ResponseWriter, r *http.R
 		return
 	}
 	if !claimed {
-		http.Error(w, `{"error":"this code was already used — wait for the next one"}`, http.StatusUnauthorized)
+		http.Error(w, `{"error":"this code was already used: wait for the next one"}`, http.StatusUnauthorized)
 		return
 	}
 
@@ -910,7 +910,7 @@ func (s *Server) Handle2FAVerify(w http.ResponseWriter, r *http.Request) {
 
 	counter, ok := auth.ValidateTOTPCodeCounter(secret, req.Code)
 	if !ok {
-		// Not a live TOTP code — try it as a one-time recovery code. Consuming is
+		// Not a live TOTP code: try it as a one-time recovery code. Consuming is
 		// atomic (used_at guard), so a backup code works exactly once.
 		consumed, cErr := s.db.ConsumeBackupCode(ctx, user.ID, auth.HashToken(auth.NormalizeBackupCode(req.Code)))
 		if cErr != nil {
@@ -934,15 +934,15 @@ func (s *Server) Handle2FAVerify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !claimed {
-		// Correct code, but its time step was already consumed — a replayed or
+		// Correct code, but its time step was already consumed, a replayed or
 		// intercepted code. Refuse it and leave a trace.
 		s.audit(r, &user.ID, "2fa_replay", map[string]interface{}{"email": user.Email})
-		http.Error(w, `{"error":"this code was already used — wait for the next one"}`, http.StatusUnauthorized)
+		http.Error(w, `{"error":"this code was already used: wait for the next one"}`, http.StatusUnauthorized)
 		return
 	}
 
 	// Legacy row (plaintext at rest, pre-encryption): re-seal it now that the
-	// user has proven the code. Best-effort — a failure must not block login.
+	// user has proven the code. Best-effort: a failure must not block login.
 	if !crypto.IsSealed(user.TOTPSecret) {
 		if kek, kekErr := crypto.DeriveUserKEK(s.masterKey, user.ID); kekErr == nil {
 			if sealed, sealErr := crypto.SealSecret(kek, secret); sealErr == nil {
@@ -1009,7 +1009,7 @@ func (s *Server) Handle2FADisable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !claimed {
-		http.Error(w, `{"error":"this code was already used — wait for the next one"}`, http.StatusUnauthorized)
+		http.Error(w, `{"error":"this code was already used: wait for the next one"}`, http.StatusUnauthorized)
 		return
 	}
 

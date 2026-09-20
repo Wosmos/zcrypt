@@ -8,7 +8,7 @@ import (
 )
 
 // BackupCodeCount is how many one-time recovery codes are minted when 2FA is
-// enabled (or regenerated). Ten is the common default — enough to survive a lost
+// enabled (or regenerated). Ten is the common default: enough to survive a lost
 // authenticator without becoming a long-lived password list.
 const BackupCodeCount = 10
 

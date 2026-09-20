@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The web upload path caps a single file at 10 GiB — init must reject larger
+// The web upload path caps a single file at 10 GiB, init must reject larger
 // declared sizes with 413 before any session or platform work happens.
 func TestUploadInitPerFileCap(t *testing.T) {
 	ts := setupTestServer(t)

@@ -18,7 +18,7 @@ const hex64 = "abababababababababababababababababababababababababababababababab"
 
 // givePersonalToken inserts a PERSONAL (non-global) platform token so the
 // byos-direct init/register personal-token gate passes. The encrypted bytes are
-// dummy — byos-direct never decrypts the token server-side (the client holds the
+// dummy: byos-direct never decrypts the token server-side (the client holds the
 // real one); PersonalTokenAccount only reads the username.
 func (ts *testServer) givePersonalToken(email, platform, username string) {
 	ts.t.Helper()
@@ -148,7 +148,7 @@ func TestByosDirectFlow(t *testing.T) {
 }
 
 // TestByosDirectRequiresPersonalToken: byos-direct init is refused (403) when
-// the user has not connected their own token for the platform — the managed
+// the user has not connected their own token for the platform, the managed
 // pool token is never eligible for a client-direct transfer.
 func TestByosDirectRequiresPersonalToken(t *testing.T) {
 	ts := setupTestServer(t)
@@ -180,7 +180,7 @@ func TestByosDirectRejectsUnsupportedPlatform(t *testing.T) {
 }
 
 // TestByosConfirmRejectsUnownedRepo: a byos-direct confirm that names a repo_id
-// the caller does not own is rejected (400) — never trust a client repo_id.
+// the caller does not own is rejected (400), never trust a client repo_id.
 func TestByosConfirmRejectsUnownedRepo(t *testing.T) {
 	ts := setupTestServer(t)
 	email := "unowned@example.com"

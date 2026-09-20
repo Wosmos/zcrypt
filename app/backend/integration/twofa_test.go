@@ -86,7 +86,7 @@ func TestTwoFALifecycle(t *testing.T) {
 	_, secret := setup2FA(ts, t, email, password)
 	tempToken := loginFor2FA(ts, t, email, password)
 
-	// Enable consumed the current counter — verify with the next window's code,
+	// Enable consumed the current counter. Verify with the next window's code,
 	// which the server accepts (+1 tolerance) and which claims a fresh counter.
 	code := auth.TOTPCodeAt(secret, time.Now().Add(30*time.Second))
 
@@ -133,8 +133,8 @@ func TestTwoFABruteForceCap(t *testing.T) {
 	tempToken := loginFor2FA(ts, t, email, password)
 
 	// The per-user limiter allows 5 attempts per 5 minutes; enabling consumed
-	// one. Wrong codes burn the remaining 4, then the limiter kicks in with 429
-	// — an attacker never gets an unbounded run at the 10^6 code space.
+	// one. Wrong codes burn the remaining 4, then the limiter kicks in with 429:
+	// an attacker never gets an unbounded run at the 10^6 code space.
 	// "000000" can collide with a live code (1-in-10^6 per window); accept 401
 	// or 429 per attempt and require that the run ends rate-limited.
 	sawUnauthorized := false
@@ -186,7 +186,7 @@ func TestTwoFAEnableRejectsReusedCode(t *testing.T) {
 	resp = ts.POST("/api/auth/2fa/enable", map[string]string{"code": code}, token)
 	requireStatus(t, resp, http.StatusOK)
 
-	// Disable requires password + a FRESH code — the enable code is spent.
+	// Disable requires password + a FRESH code: the enable code is spent.
 	resp = ts.POST("/api/auth/2fa/disable", map[string]string{
 		"password": "SecurePass@123!",
 		"code":     code,
@@ -202,7 +202,7 @@ func TestTwoFAEnableRejectsReusedCode(t *testing.T) {
 	requireStatus(t, resp, http.StatusOK)
 }
 
-// dbTOTPSecret reads the stored totp_secret column directly — asserting on
+// dbTOTPSecret reads the stored totp_secret column directly, asserting on
 // what an attacker with a database dump would actually see.
 func dbTOTPSecret(ts *testServer, t *testing.T, email string) string {
 	t.Helper()
@@ -279,7 +279,7 @@ func TestTwoFABackupCodeLogin(t *testing.T) {
 	require.Len(t, codes, 10)
 	require.Equal(t, 10, backupCodesRemaining(ts, t, email), "all codes unused after enable")
 
-	// Log in once and reuse the temp token across attempts — the per-email login
+	// Log in once and reuse the temp token across attempts, the per-email login
 	// limiter (3/15min) would otherwise trip before we exercise every case, and
 	// temp tokens are not single-use (they're a short-lived JWT).
 	tempToken := loginFor2FA(ts, t, email, password)
@@ -371,7 +371,7 @@ func TestTwoFADisableClearsBackupCodes(t *testing.T) {
 	assert.Equal(t, 0, backupCodesRemaining(ts, t, email), "disable drops all recovery codes")
 
 	// Re-enable, then confirm an OLD (pre-disable) code does not work against the
-	// new set — disable truly invalidated them.
+	// new set. Disable truly invalidated them.
 	setup2FA(ts, t, email, password)
 	tt := loginFor2FA(ts, t, email, password)
 	resp = ts.POST("/api/auth/2fa/verify", map[string]string{

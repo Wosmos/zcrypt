@@ -41,7 +41,7 @@ func OpenSecret(kek []byte, stored string) (string, error) {
 		return "", fmt.Errorf("open secret: malformed sealed value")
 	}
 	// Strict decoding rejects non-canonical base64 (trailing-padding bit
-	// tricks) instead of silently canonicalizing it — one stored value, one
+	// tricks) instead of silently canonicalizing it, one stored value, one
 	// accepted encoding.
 	nonce, err := base64.StdEncoding.Strict().DecodeString(parts[0])
 	if err != nil {

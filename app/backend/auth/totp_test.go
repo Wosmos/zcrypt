@@ -59,7 +59,7 @@ func TestValidateTOTPCodeValid(t *testing.T) {
 // and returns that stable counter plus fn's result. Without this, asserts like
 // "counter+2 must be rejected" race the wall clock: if the 30s boundary is
 // crossed between computing the counter and validating, the accepted window
-// shifts and the assert flips — a once-in-a-blue-moon CI flake.
+// shifts and the assert flips, a once-in-a-blue-moon CI flake.
 func runInWindow(t *testing.T, fn func(counter int64) bool) (int64, bool) {
 	t.Helper()
 	for i := 0; i < 20; i++ {

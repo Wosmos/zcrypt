@@ -64,7 +64,7 @@ func (s *Server) HandlePlatformStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Tokens whose adapter failed to build (e.g. the platform is unreachable
-	// from this server) still count as connected — the token exists — but are
+	// from this server) still count as connected (the token exists) but are
 	// flagged unreachable with the recorded reason instead of silently showing
 	// as disconnected.
 	for key, info := range tokenMap {
@@ -213,7 +213,7 @@ type TelegramProbeRequest struct {
 // HandleTelegramProbe validates a Telegram bot token and reports the
 // channels/groups the bot has been added to, so the guided connect flow can
 // auto-fill the chat ID (the painful manual step) instead of making the user
-// hunt for it. The token is never stored here — it's a transient lookup the UI
+// hunt for it. The token is never stored here: it's a transient lookup the UI
 // polls after the user adds the bot to a chat via a deep link.
 // POST /api/platforms/telegram/probe
 func (s *Server) HandleTelegramProbe(w http.ResponseWriter, r *http.Request) {
@@ -231,7 +231,7 @@ func (s *Server) HandleTelegramProbe(w http.ResponseWriter, r *http.Request) {
 	// An empty username means getMe failed → the token itself is bad (don't log
 	// the token). A non-empty username with an error means the token is valid but
 	// chat detection hit a snag (e.g. the bot has a webhook set, which disables
-	// getUpdates) — that's not fatal; the UI keeps the manual fallback.
+	// getUpdates): that's not fatal; the UI keeps the manual fallback.
 	if username == "" {
 		writeJSON(w, http.StatusBadRequest, map[string]interface{}{
 			"error": "invalid bot token",

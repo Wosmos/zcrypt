@@ -31,7 +31,7 @@ func TestGenerateBackupCodesUniqueAcrossCalls(t *testing.T) {
 }
 
 func TestNormalizeBackupCode(t *testing.T) {
-	// Dashes and spaces stripped, letters lowercased — so any reasonable way the
+	// Dashes and spaces stripped, letters lowercased, so any reasonable way the
 	// user retypes the code hashes to the same value.
 	canonical := "abcd1234ef567890"
 	for _, in := range []string{

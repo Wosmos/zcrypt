@@ -43,7 +43,7 @@ const (
 //   - deletion worker: processes pending file deletions from git platforms every 15 min
 //   - cleanup worker:  expires sessions, pads, vaults, etc. every 6 hours
 func (s *Server) StartCleanupWorker(ctx context.Context) {
-	// Deletion worker — users expect deleted files to disappear "soon". Event-driven
+	// Deletion worker: users expect deleted files to disappear "soon". Event-driven
 	// via deletionCh (a delete wakes it immediately) with an idle-backoff safety poll.
 	s.runDeletionWorker(ctx)
 
@@ -60,7 +60,7 @@ func (s *Server) StartCleanupWorker(ctx context.Context) {
 		s.sweepOrphanedStagingFiles(ctx)
 	}()
 
-	// Cleanup worker — non-urgent expiry, 6 hours is plenty
+	// Cleanup worker: non-urgent expiry, 6 hours is plenty
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -85,7 +85,7 @@ func (s *Server) StartCleanupWorker(ctx context.Context) {
 // runDeletionWorker launches the deletion-drain goroutine. Like the sync worker, it
 // self-restarts on panic: with the event-driven design the goroutine is the ONLY
 // reader of deletionCh, so if it died without relaunching, every future signalDeletion
-// would hit the full buffer and be dropped — silently stranding all deletions for the
+// would hit the full buffer and be dropped: silently stranding all deletions for the
 // life of the process. Relaunching keeps deletions self-healing.
 func (s *Server) runDeletionWorker(ctx context.Context) {
 	go func() {
@@ -111,7 +111,7 @@ func (s *Server) runDeletionWorker(ctx context.Context) {
 			case <-ctx.Done():
 				return
 			case <-s.deletionCh:
-				// A file was just deleted — drain the whole queue now.
+				// A file was just deleted: drain the whole queue now.
 				for s.processPendingDeletions(ctx) {
 				}
 				backoff = deletionMinInterval
@@ -167,7 +167,7 @@ func (s *Server) runCleanupBatch(ctx context.Context) {
 		log.Printf("cleanup: deleted %d old clipboard items", cleaned)
 	}
 
-	// audit_events is append-only and was the one table with no expiry at all —
+	// audit_events is append-only and was the one table with no expiry at all:
 	// already the largest in the database and still growing. Only the oldest
 	// rows go, which leaves the tamper-evident hash chain verifiable (see
 	// PruneAuditEvents).
@@ -203,7 +203,7 @@ func (s *Server) triggerDeadManSwitch(ctx context.Context, dms types.DeadManSwit
 	cfg := s.emailCfg()
 	if cfg == nil {
 		// Email isn't configured for this deployment. There's no delivery
-		// channel, so retrying forever is pointless — mark it triggered and
+		// channel, so retrying forever is pointless, mark it triggered and
 		// log loudly so it's visible in ops.
 		log.Printf("cleanup: WARNING dead man's switch %s expired but email is not configured; cannot notify %s", dms.ID, dms.ContactEmail)
 		if err := s.db.MarkDeadManSwitchTriggered(ctx, dms.ID); err != nil {
@@ -236,7 +236,7 @@ func (s *Server) triggerDeadManSwitch(ctx context.Context, dms types.DeadManSwit
 // processPendingDeletions deletes one batch of queued chunks from their platforms.
 // Items are GROUPED by (user, platform, account, repo) so a batch-capable platform
 // (HuggingFace) deletes a whole repo's chunks in ONE commit instead of one commit
-// per file — HF caps commits at 128/hour/repo, so per-file deletes storm the limit.
+// per file. HF caps commits at 128/hour/repo, so per-file deletes storm the limit.
 // Returns true when a full batch was processed (caller keeps draining); false when
 // the queue is drained, errored, cancelled, or a platform asked us to back off.
 func (s *Server) processPendingDeletions(ctx context.Context) bool {
@@ -251,7 +251,7 @@ func (s *Server) processPendingDeletions(ctx context.Context) bool {
 
 	log.Printf("deletion: processing %d pending deletions", len(pending))
 
-	// Group by (user, platform, account, repo) — one batch commit per repo.
+	// Group by (user, platform, account, repo): one batch commit per repo.
 	type gkey struct{ userID, platform, account, repo string }
 	groups := map[gkey][]index.PendingDeletion{}
 	var order []gkey
@@ -279,7 +279,7 @@ func (s *Server) processPendingDeletions(ctx context.Context) bool {
 		}
 		if s.processDeletionGroup(ctx, k.userID, k.platform, k.account, k.repo, groups[k]) {
 			rateLimited[k.platform] = true
-			log.Printf("deletion: %s hit its commit rate limit — backing off, leaving the rest queued (not counted as failures)", k.platform)
+			log.Printf("deletion: %s hit its commit rate limit: backing off, leaving the rest queued (not counted as failures)", k.platform)
 		}
 	}
 
@@ -291,7 +291,7 @@ func (s *Server) processPendingDeletions(ctx context.Context) bool {
 	if len(rateLimited) > 0 {
 		return false
 	}
-	// A full batch likely means more remain — tell the caller to keep draining.
+	// A full batch likely means more remain: tell the caller to keep draining.
 	return len(pending) == batchSize
 }
 
@@ -354,7 +354,7 @@ func (s *Server) processDeletionGroup(ctx context.Context, userID, platform, acc
 		}
 		if isRateLimited(err) {
 			log.Printf("deletion: batch delete of %d from %s rate-limited: %v", len(items), repo, err)
-			return true // transient — do NOT bump attempts; caller backs off
+			return true // transient. Do NOT bump attempts; caller backs off
 		}
 		log.Printf("deletion: batch delete of %d from %s failed: %v", len(items), repo, err)
 		for _, it := range items {
@@ -416,7 +416,7 @@ func (s *Server) processDeletionItem(ctx context.Context, item index.PendingDele
 }
 
 // isRateLimited reports whether an adapter error is a platform rate-limit (HTTP
-// 429 / secondary limit). Such errors are TRANSIENT — the deletion worker backs
+// 429 / secondary limit). Such errors are TRANSIENT, the deletion worker backs
 // off and retries later instead of counting them as failed attempts (which would
 // eventually dead-letter a perfectly deletable chunk just for being throttled).
 func isRateLimited(err error) bool {
@@ -442,10 +442,10 @@ func (s *Server) markDeletionFailed(ctx context.Context, item index.PendingDelet
 	attempts := item.Attempts + 1
 	switch {
 	case attempts >= slowLaneMaxAttempts:
-		log.Printf("deletion: WARNING item %d exhausted all %d attempts — platform=%s account=%s repo=%s remote_path=%s is ORPHANED on the platform and needs manual cleanup (last error: %s)",
+		log.Printf("deletion: WARNING item %d exhausted all %d attempts: platform=%s account=%s repo=%s remote_path=%s is ORPHANED on the platform and needs manual cleanup (last error: %s)",
 			item.ID, slowLaneMaxAttempts, item.Platform, item.Account, item.Repo, item.RemotePath, msg)
 	case attempts == maxAttempts:
-		log.Printf("deletion: WARNING item %d hit %d attempts — platform=%s account=%s repo=%s remote_path=%s moves to the slow retry lane (one attempt per %s, cap %d)",
+		log.Printf("deletion: WARNING item %d hit %d attempts: platform=%s account=%s repo=%s remote_path=%s moves to the slow retry lane (one attempt per %s, cap %d)",
 			item.ID, maxAttempts, item.Platform, item.Account, item.Repo, item.RemotePath, cleanupInterval, slowLaneMaxAttempts)
 	}
 }
@@ -475,7 +475,7 @@ func (s *Server) retryStaleDeletions(ctx context.Context) {
 			continue
 		}
 		if s.processDeletionItem(ctx, item, adapter) {
-			return // rate-limited — stop the slow lane this cycle
+			return // rate-limited. Stop the slow lane this cycle
 		}
 	}
 }
@@ -504,8 +504,8 @@ func (s *Server) cleanupExpiredSendTransfers(ctx context.Context) bool {
 
 // removeStagedChunkFiles best-effort deletes the staging-dir .enc files for
 // chunks whose DB rows were just deleted before the chunk ever synced to a
-// platform (upload cancel, purge, session expiry). Missing files are fine —
-// the sync worker may have raced us — anything else is logged.
+// platform (upload cancel, purge, session expiry). Missing files are fine:
+// the sync worker may have raced us, anything else is logged.
 func removeStagedChunkFiles(chunkIDs []string) {
 	if len(chunkIDs) == 0 {
 		return
@@ -524,7 +524,7 @@ func removeStagedChunkFiles(chunkIDs []string) {
 }
 
 // sweepOrphanedStagingFiles removes staged .enc files that no longer have a
-// chunks row — orphans accumulated by every historical cancel/purge/expiry
+// chunks row: orphans accumulated by every historical cancel/purge/expiry
 // that deleted DB rows without touching the staging dir. Runs once at boot.
 // Files younger than an hour are skipped: HandleChunkUpload stages the file
 // BEFORE inserting its chunk row, so a very fresh file can be live yet not in

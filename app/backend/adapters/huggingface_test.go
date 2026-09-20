@@ -329,7 +329,7 @@ func TestHFCommitChunksSuccess(t *testing.T) {
 	if err := h.CommitChunks(context.Background(), "alice/repo", files); err != nil {
 		t.Fatalf("CommitChunks: %v", err)
 	}
-	// Must NOT touch the legacy in-memory buffer — durability is DB-driven now.
+	// Must NOT touch the legacy in-memory buffer, durability is DB-driven now.
 	if len(h.pendingCommits) != 0 {
 		t.Errorf("CommitChunks must not use pendingCommits, got %d", len(h.pendingCommits))
 	}
@@ -367,7 +367,7 @@ func TestHFBatchDeleteCommitsPresentOnly(t *testing.T) {
 			return nil, nil
 		}
 	})
-	// One present path + one absent path — only the present one should be committed.
+	// One present path + one absent path: only the present one should be committed.
 	if err := h.BatchDelete(context.Background(), "alice/repo", []string{"02/a.bin", "99/x.bin"}); err != nil {
 		t.Fatalf("BatchDelete: %v", err)
 	}

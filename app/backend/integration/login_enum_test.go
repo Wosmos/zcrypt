@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Login must not reveal whether an email has an account — neither in the
+// Login must not reveal whether an email has an account, neither in the
 // response body nor by responding measurably faster for unknown emails.
 func TestLoginNoAccountEnumeration(t *testing.T) {
 	ts := setupTestServer(t)
@@ -44,7 +44,7 @@ func TestLoginNoAccountEnumeration(t *testing.T) {
 		// generous floor keeps this robust across machines while still
 		// catching a regression by an order of magnitude.
 		require.Greater(t, unknownTime, 100*time.Millisecond,
-			"unknown-email login returned too fast (%v) — timing oracle is back (known-email took %v)",
+			"unknown-email login returned too fast (%v): timing oracle is back (known-email took %v)",
 			unknownTime, knownTime)
 	})
 }

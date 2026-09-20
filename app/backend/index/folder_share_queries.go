@@ -31,7 +31,7 @@ func (db *DB) CreateFolderShare(ctx context.Context, s *types.FolderShare, files
 	}
 	// Insert every file in ONE multi-row statement rather than a query per file.
 	// A folder can carry hundreds of files, and one round trip per file to a
-	// remote (Neon) DB dominates share-creation latency — this collapses it to a
+	// remote (Neon) DB dominates share-creation latency: this collapses it to a
 	// single round trip.
 	if len(files) > 0 {
 		values := make([]string, 0, len(files))
@@ -92,7 +92,7 @@ func (db *DB) ListFolderShareFiles(ctx context.Context, folderShareID string) ([
 }
 
 // GetFolderShareFileWrap returns a file's wrapped CEK IF it belongs to the given
-// folder share (pgx.ErrNoRows otherwise) — the authorization check for serving
+// folder share (pgx.ErrNoRows otherwise): the authorization check for serving
 // that file's meta/chunks publicly.
 func (db *DB) GetFolderShareFileWrap(ctx context.Context, folderShareID, fileID string) (string, error) {
 	var wrapped string

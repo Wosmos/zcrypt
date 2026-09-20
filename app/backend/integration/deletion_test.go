@@ -90,8 +90,8 @@ func TestPurgeDeletesBlobsFromPlatform(t *testing.T) {
 }
 
 // TestPurgeDeletesCrashWindowBlob proves the orphan-prevention guarantee: a blob
-// written to the platform in the crash window — after adapter.Upload succeeded but
-// before remote_path was committed — is STILL deleted on purge, via the
+// written to the platform in the crash window, after adapter.Upload succeeded but
+// before remote_path was committed: is STILL deleted on purge, via the
 // planned_remote_path fallback. Without it, such a blob would be a permanent,
 // untrackable orphan (its disguised path was random and never recorded).
 //

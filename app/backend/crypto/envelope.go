@@ -65,7 +65,7 @@ func DecryptToken(kek, ciphertext, nonce []byte) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("create GCM: %w", err)
 	}
-	// GCM.Open PANICS on a wrong-length nonce — a corrupted or hand-mangled
+	// GCM.Open PANICS on a wrong-length nonce, a corrupted or hand-mangled
 	// stored value must surface as an error, not crash the handler.
 	if len(nonce) != aesGCM.NonceSize() {
 		return "", fmt.Errorf("decrypt token: invalid nonce length %d", len(nonce))

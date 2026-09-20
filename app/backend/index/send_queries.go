@@ -165,7 +165,7 @@ func (db *DB) GetTotalSendChunkSize(ctx context.Context, transferID string) (int
 }
 
 // CleanupExpiredSendTransfers queues the expired transfers' synced chunks into
-// pending_deletions (user_id NULL — the deletion worker resolves those via the
+// pending_deletions (user_id NULL: the deletion worker resolves those via the
 // global adapter set) and then deletes the transfer rows, in one transaction.
 // Routing send-chunk cleanup through the durable retry queue replaces the old
 // inline best-effort adapter.Delete loop, whose failures orphaned the platform

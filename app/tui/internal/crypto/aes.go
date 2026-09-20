@@ -31,7 +31,7 @@ func EncryptChunk(key, plaintext []byte) ([]byte, error) {
 	}
 
 	// Seal appends ciphertext + 16-byte auth tag after the IV.
-	// Result layout: [12B IV][ciphertext][16B tag] — matches Web Crypto exactly.
+	// Result layout: [12B IV][ciphertext][16B tag], matches Web Crypto exactly.
 	ciphertext := gcm.Seal(iv, iv, plaintext, nil)
 	return ciphertext, nil
 }

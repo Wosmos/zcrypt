@@ -15,7 +15,7 @@ import (
 
 // TestPublicShareMetaMasksSizeAndTime proves size/timestamp masking on the public
 // share endpoints: the size is coarsened to a band, the precision-leaking
-// compressed/encrypted sizes are gone, and the timestamp is day-granular — while
+// compressed/encrypted sizes are gone, and the timestamp is day-granular, while
 // the OWNER's own view and the stored value stay byte-exact.
 func TestPublicShareMetaMasksSizeAndTime(t *testing.T) {
 	ts := setupTestServer(t)
@@ -87,7 +87,7 @@ func TestStorageAccountingUsesTrueBytes(t *testing.T) {
 	used, err := ts.db.GetUserStorageUsed(ctx, user.ID)
 	require.NoError(t, err)
 
-	// The exact stored size total (accounting sums files.original_size) — NOT a bucket.
+	// The exact stored size total (accounting sums files.original_size), NOT a bucket.
 	var trueBytes int64
 	require.NoError(t, ts.db.Pool().QueryRow(ctx,
 		`SELECT COALESCE(SUM(original_size),0) FROM files WHERE user_id=$1`, user.ID).Scan(&trueBytes))

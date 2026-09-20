@@ -14,7 +14,7 @@ func jsonUnmarshal(data []byte, v interface{}) error {
 	return json.Unmarshal(data, v)
 }
 
-// buildMux wires all HTTP routes — mirrors main.go route registration.
+// buildMux wires all HTTP routes, mirrors main.go route registration.
 // This keeps tests decoupled from main.go while using the same handler logic.
 func buildMux(s *cmd.Server) http.Handler {
 	mux := http.NewServeMux()

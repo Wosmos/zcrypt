@@ -17,8 +17,8 @@ import (
 // authorizeFileRead resolves a file for reading. It tries the OWNER path first
 // (strict user-scoped query, unchanged behavior); ONLY on an owner miss does it
 // fall back to space-member access. On the member path it returns the file
-// OWNER's id — used to resolve chunks + the storage backend through the owner
-// without ever weakening the owner-scoped queries — and the space-wrapped CEK
+// OWNER's id: used to resolve chunks + the storage backend through the owner
+// without ever weakening the owner-scoped queries, and the space-wrapped CEK
 // the member decrypts with. Returns ok=false if neither path authorizes, which
 // callers surface as an indistinguishable 404.
 func (s *Server) authorizeFileRead(ctx context.Context, userID, fileID string) (file *types.FileMetadata, ownerID, wrappedCEK string, ok bool) {
@@ -90,7 +90,7 @@ func (s *Server) HandleGetChunk(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Authorize as owner first; fall back to space-member access. ownerID is the
-	// account whose storage backend actually holds the chunks — for the owner it
+	// account whose storage backend actually holds the chunks, for the owner it
 	// equals userID, for a member it's the file owner.
 	file, ownerID, _, ok := s.authorizeFileRead(ctx, userID, fileID)
 	if !ok {
@@ -114,7 +114,7 @@ func (s *Server) HandleGetChunk(w http.ResponseWriter, r *http.Request) {
 	var data []byte
 
 	if chunk.RemotePath == "" {
-		// Chunk not yet synced to git platform — serve from staging dir
+		// Chunk not yet synced to git platform, serve from staging dir
 		stagingDir, err := config.StagingDir()
 		if err != nil {
 			http.Error(w, `{"error":"staging not available"}`, http.StatusInternalServerError)
@@ -127,13 +127,13 @@ func (s *Server) HandleGetChunk(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else {
-		// Chunk synced — try the local ciphertext cache first. Chunks are
+		// Chunk synced: try the local ciphertext cache first. Chunks are
 		// immutable (a re-upload mints a new chunk id), so a hit never goes
-		// stale — and it serves even when the platform is unreachable.
+		// stale, and it serves even when the platform is unreachable.
 		data = readCachedChunk(chunk.ChunkID)
 
 		if data == nil {
-			// Cache miss — download from git platform using the OWNER's tokens
+			// Cache miss: download from git platform using the OWNER's tokens
 			// (the member has no tokens on the owner's storage accounts).
 			adapter := s.resolveAdapterForUser(ctx, ownerID, chunk.Platform, chunk.Account)
 			if adapter == nil {
@@ -158,13 +158,13 @@ func (s *Server) HandleGetChunk(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			// Write-through cache — best effort, ciphertext only (zero-knowledge safe).
+			// Write-through cache: best effort, ciphertext only (zero-knowledge safe).
 			writeCachedChunk(chunk.ChunkID, data)
 		}
 	}
 
 	// Set headers and stream raw encrypted bytes. Chunks are immutable by
-	// design — a new upload gets a new file id — so clients may cache forever.
+	// design (a new upload gets a new file id) so clients may cache forever.
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Cache-Control", "private, max-age=31536000, immutable")
 	w.Header().Set("Content-Length", strconv.Itoa(len(data)))

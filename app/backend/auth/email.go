@@ -76,7 +76,7 @@ func wrapEmail(heading, content, footerNote, baseURL string) string {
 <!-- Footer -->
 <tr><td style="padding-top:28px;text-align:center">
   <p style="margin:0 0 6px;font-size:12px;color:%s">%s</p>
-  <p style="margin:0 0 4px;font-size:12px;color:%s">zcrypt — Private cloud storage that costs less</p>
+  <p style="margin:0 0 4px;font-size:12px;color:%s">zcrypt. Private cloud storage that costs less</p>
   <p style="margin:0;font-size:11px;color:%s">
     <a href="%s" style="color:%s;text-decoration:none">%s</a>
   </p>
@@ -199,7 +199,7 @@ func SendDeadManSwitchEmail(cfg *EmailConfig, to, contactName, ownerName, person
 	}
 
 	if includeFiles {
-		fmt.Fprintf(&b, `<p style="margin:0 0 16px;font-size:14px;color:%s;line-height:1.6">They indicated they wanted their stored files shared with you. zcrypt is a zero-knowledge service — files are encrypted with a passphrase only the account holder knew — so access requires the decryption passphrase, which they would have arranged to share with you separately. If you do not have it, the files cannot be recovered.</p>`,
+		fmt.Fprintf(&b, `<p style="margin:0 0 16px;font-size:14px;color:%s;line-height:1.6">They indicated they wanted their stored files shared with you. zcrypt is a zero-knowledge service (files are encrypted with a passphrase only the account holder knew) so access requires the decryption passphrase, which they would have arranged to share with you separately. If you do not have it, the files cannot be recovered.</p>`,
 			brandMuted)
 	}
 

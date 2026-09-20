@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// AppDownload is one recorded click on the /api/download/{target} redirect —
+// AppDownload is one recorded click on the /api/download/{target} redirect:
 // an install of the zcrypt app, not a file download from a vault.
 type AppDownload struct {
 	Target    string

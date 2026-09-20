@@ -60,7 +60,7 @@ func TestDedupeChunksQueuesLoserBlobs(t *testing.T) {
 	t.Cleanup(func() { ts.clearUserDeletions(ctx, user.ID) })
 
 	// Drop the unique index so we can plant duplicates the way the racy
-	// check-then-insert historically did. Recreate it no matter what — other
+	// check-then-insert historically did. Recreate it no matter what, other
 	// tests insert chunks with ON CONFLICT (file_id, idx), which errors while the
 	// index is missing, so a mid-test failure must not leave it dropped.
 	_, err = ts.db.Pool().Exec(ctx, `DROP INDEX IF EXISTS uq_chunks_file_idx`)
@@ -80,7 +80,7 @@ func TestDedupeChunksQueuesLoserBlobs(t *testing.T) {
 
 	// Telegram (file_id, idx=0): winner is synced (real message-id path, larger
 	// size); loser has ONLY a planned filename. That planned path must NOT be
-	// queued — the Telegram adapter can't parse a filename into message IDs.
+	// queued: the Telegram adapter can't parse a filename into message IDs.
 	ts.insertChunk(ctx, tgFile, user.ID, "telegram", 0, 200, "123:456,124:457", "chunk_real.bin")
 	ts.insertChunk(ctx, tgFile, user.ID, "telegram", 0, 100, "", "chunk_planned_only.bin")
 
@@ -139,7 +139,7 @@ func TestTelegramPlannedPathNotQueuedOnPurge(t *testing.T) {
 	ts.insertChunk(ctx, tgFile, user.ID, "telegram", 0, 100, "", "planned_only.bin")
 
 	requireStatus(t, ts.DELETE("/api/files/"+tgFile+"/purge", token), 200)
-	// Scope to this chunk's planned filename — pending_deletions is shared across
+	// Scope to this chunk's planned filename, pending_deletions is shared across
 	// tests, so a global count would see other tests' queued rows.
 	assert.Zero(t, ts.countScalar(
 		`SELECT count(*) FROM pending_deletions WHERE remote_path='planned_only.bin'`),

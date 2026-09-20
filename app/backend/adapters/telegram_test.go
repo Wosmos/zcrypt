@@ -30,7 +30,7 @@ func TestParsePartRef(t *testing.T) {
 	if msgID != 42 || fileID != "ABC123" {
 		t.Errorf("got (%d,%q), want (42,ABC123)", msgID, fileID)
 	}
-	// file id may itself contain colons — SplitN keeps the remainder intact.
+	// file id may itself contain colons. SplitN keeps the remainder intact.
 	_, fileID, err = parsePartRef("7:AB:CD:EF")
 	if err != nil || fileID != "AB:CD:EF" {
 		t.Errorf("colon-in-fileid: got %q err %v", fileID, err)

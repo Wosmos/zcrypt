@@ -98,7 +98,7 @@ func TestEmitDropsWhenSubscriberSlow(t *testing.T) {
 		})
 	}
 
-	// Should have 32 buffered, 8 dropped — no panic, no block
+	// Should have 32 buffered, 8 dropped, no panic, no block
 	count := 0
 	for {
 		select {
@@ -213,7 +213,7 @@ func TestConcurrentSubscribeEmit(t *testing.T) {
 		t.Fatal("concurrent emit timed out")
 	}
 
-	// Cleanup — no panic
+	// Cleanup, no panic
 	for i := 0; i < 10; i++ {
 		pe.Unsubscribe("conn-" + string(rune('a'+i)))
 	}

@@ -63,7 +63,7 @@ func NewHuggingFaceAdapter(token string) (*HuggingFaceAdapter, error) {
 		token: token,
 		client: &http.Client{
 			Transport: transport,
-			Timeout:   0, // no overall timeout — uploads can be large
+			Timeout:   0, // no overall timeout, uploads can be large
 		},
 	}
 
@@ -132,7 +132,7 @@ func (h *HuggingFaceAdapter) Upload(ctx context.Context, repo string, chunk type
 		return types.ChunkRef{}, fmt.Errorf("lfs upload: %w", err)
 	}
 
-	// Buffer the commit info — FlushCommits will create a single commit for all chunks
+	// Buffer the commit info. FlushCommits will create a single commit for all chunks
 	h.mu.Lock()
 	h.pendingCommits = append(h.pendingCommits, lfsFileEntry{Path: remotePath, OID: oid, Size: size})
 	h.mu.Unlock()
@@ -154,7 +154,7 @@ func (h *HuggingFaceAdapter) FlushCommits(ctx context.Context, repo string) erro
 	return h.commitEntries(ctx, repo, pending)
 }
 
-// CommitChunks implements BatchCommitter — commits already-uploaded LFS objects
+// CommitChunks implements BatchCommitter, commits already-uploaded LFS objects
 // from DB-derived entries. Unlike FlushCommits it depends on NO in-memory state,
 // so the reconcile worker can call it after a restart / cache eviction and it is
 // idempotent (re-committing an already-present path is a platform no-op).
@@ -164,7 +164,7 @@ func (h *HuggingFaceAdapter) CommitChunks(ctx context.Context, repo string, file
 	}
 	entries := make([]lfsFileEntry, len(files))
 	for i, f := range files {
-		entries[i] = lfsFileEntry(f) // identical field sets — direct conversion
+		entries[i] = lfsFileEntry(f) // identical field sets, direct conversion
 	}
 	return h.commitEntries(ctx, repo, entries)
 }
@@ -323,8 +323,8 @@ func (h *HuggingFaceAdapter) Delete(ctx context.Context, ref types.ChunkRef) err
 // BatchDelete removes many chunks from one repo in a SINGLE commit (implements
 // BatchDeleter). It first lists the repo tree so paths that no longer exist are
 // skipped rather than failing the commit. This both (a) avoids HuggingFace's
-// 128-commits/hour/repo limit — one commit for the whole batch instead of one
-// per file — and (b) lets a queue full of never-committed / already-gone paths
+// 128-commits/hour/repo limit: one commit for the whole batch instead of one
+// per file, and (b) lets a queue full of never-committed / already-gone paths
 // drain in a single tree read with no commit at all. A rate-limit (429) is
 // returned verbatim so the caller can detect it and back off.
 func (h *HuggingFaceAdapter) BatchDelete(ctx context.Context, repo string, remotePaths []string) error {
@@ -335,7 +335,7 @@ func (h *HuggingFaceAdapter) BatchDelete(ctx context.Context, repo string, remot
 		repo = h.username + "/" + repo
 	}
 
-	// Only reference paths that actually exist — deleting an absent path would
+	// Only reference paths that actually exist: deleting an absent path would
 	// fail the whole commit, and the storm we're draining is mostly never-committed
 	// paths that are already "gone" as far as the platform is concerned.
 	present, err := h.ListChunks(ctx, repo)
@@ -354,7 +354,7 @@ func (h *HuggingFaceAdapter) BatchDelete(ctx context.Context, repo string, remot
 	n := 0
 	for _, path := range remotePaths {
 		if _, ok := presentSet[path]; !ok {
-			continue // already absent — nothing to delete
+			continue // already absent, nothing to delete
 		}
 		ndjson = appendNDJSON(ndjson, map[string]interface{}{
 			"key":   "deletedFile",
@@ -363,7 +363,7 @@ func (h *HuggingFaceAdapter) BatchDelete(ctx context.Context, repo string, remot
 		n++
 	}
 	if n == 0 {
-		return nil // every path already gone — no commit needed
+		return nil // every path already gone, no commit needed
 	}
 
 	commitURL := fmt.Sprintf("%s/api/models/%s/commit/main", hfEndpoint, repo)
@@ -681,12 +681,12 @@ func (h *HuggingFaceAdapter) lfsUpload(ctx context.Context, repo, oid string, si
 	return h.uploadToLFSURL(ctx, url, headers, data)
 }
 
-// GetUploadURL implements DirectUploader — returns a presigned URL for direct client upload.
+// GetUploadURL implements DirectUploader: returns a presigned URL for direct client upload.
 func (h *HuggingFaceAdapter) GetUploadURL(ctx context.Context, repo string, oid string, size int64) (string, map[string]string, error) {
 	return h.getLFSUploadInfo(ctx, repo, oid, size)
 }
 
-// RegisterUpload implements DirectUploader — records a directly-uploaded chunk for batch commit.
+// RegisterUpload implements DirectUploader: records a directly-uploaded chunk for batch commit.
 func (h *HuggingFaceAdapter) RegisterUpload(remotePath, oid string, size int64) {
 	h.mu.Lock()
 	h.pendingCommits = append(h.pendingCommits, lfsFileEntry{Path: remotePath, OID: oid, Size: size})

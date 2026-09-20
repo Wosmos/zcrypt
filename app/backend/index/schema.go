@@ -179,13 +179,13 @@ CREATE INDEX IF NOT EXISTS idx_audit_events_time ON audit_events(created_at DESC
 -- Tamper-evident audit log: each event carries a monotonic seq and a hash that
 -- chains the previous event's hash (hash = sha256(prev_hash || canonical fields)).
 -- Editing or deleting any row breaks the chain from that point on, which a verify
--- sweep detects — so even someone with DB write access can't silently rewrite
+-- sweep detects, so even someone with DB write access can't silently rewrite
 -- history. Inserts serialize on an advisory lock (see InsertAuditEvent) to keep
 -- the chain linear. Pre-existing rows are backfilled a seq for stable ordering
--- but keep an empty hash (legacy, pre-chain — not retroactively verifiable).
+-- but keep an empty hash (legacy, pre-chain, not retroactively verifiable).
 -- The audit log must be immutable and outlive the users it references. The
 -- original FK used ON DELETE SET NULL, so deleting a user REWROTE user_id on
--- their audit rows — which both destroys accountability AND (now that user_id
+-- their audit rows: which both destroys accountability AND (now that user_id
 -- is hashed) silently breaks the tamper-evidence chain for a legitimate reason.
 -- Drop the FK: audit rows retain the actor id verbatim even after the user row
 -- is gone. (user_id is a UUID, not PII; retaining it is the point of an audit log.)
@@ -239,7 +239,7 @@ ALTER TABLE chunks ADD COLUMN IF NOT EXISTS sync_attempts INTEGER NOT NULL DEFAU
 -- recorded BEFORE the upload call. remote_path is only set AFTER a successful
 -- upload (it doubles as the "synced" sentinel), so without this a crash between
 -- adapter.Upload succeeding and the remote_path write would strand the blob on the
--- platform with no DB record of its (random) path — a permanent, untrackable
+-- platform with no DB record of its (random) path, a permanent, untrackable
 -- orphan. With planned_remote_path persisted first, deletion can always locate the
 -- blob via COALESCE(NULLIF(remote_path,''), planned_remote_path), so a crash-window
 -- blob is still cleaned up on purge. Deleting a planned-but-never-uploaded path is
@@ -253,7 +253,7 @@ ALTER TABLE chunks ADD COLUMN IF NOT EXISTS planned_remote_path TEXT NOT NULL DE
 -- no tree pointer yet, so a read 404s. The sync worker's reconcile pass then
 -- commits those blobs and flips committed=TRUE ONLY after verifying the path is
 -- actually present in the repo tree. This closes the silent-data-loss window where
--- remote_path (the old "synced" sentinel) was set before any commit — leaving bytes
+-- remote_path (the old "synced" sentinel) was set before any commit, leaving bytes
 -- in LFS with no retrievable pointer, recorded in the DB as durable.
 ALTER TABLE chunks ADD COLUMN IF NOT EXISTS committed BOOLEAN NOT NULL DEFAULT TRUE;
 
@@ -271,7 +271,7 @@ DROP INDEX IF EXISTS idx_files_status;
 ALTER TABLE files ADD COLUMN IF NOT EXISTS wrapped_cek TEXT NOT NULL DEFAULT '';
 
 -- Content-hash scheme discriminator. 'plain' = files.sha256 is SHA-256 of the
--- PLAINTEXT (legacy — lets anyone with DB access confirm a user stores a known
+-- PLAINTEXT (legacy: lets anyone with DB access confirm a user stores a known
 -- file: the confirmation-of-file leak). 'hmac_v1' = a per-user keyed MAC
 -- (HMAC-SHA256 under a passphrase-derived key) the client computes; it stays
 -- deterministic per (user, passphrase, content) so single-user dedup/resume
@@ -306,7 +306,7 @@ ALTER TABLE upload_sessions ADD COLUMN IF NOT EXISTS chunk_size BIGINT NOT NULL 
 -- column). '' = legacy plaintext-name upload (original_name/filename populated).
 ALTER TABLE upload_sessions ADD COLUMN IF NOT EXISTS encrypted_name TEXT NOT NULL DEFAULT '';
 
--- byos-direct upload mode: 'relay' (default — bytes transit the server, which
+-- byos-direct upload mode: 'relay' (default: bytes transit the server, which
 -- stages + pushes to the platform) or 'byos-direct' (the client pushes chunks to
 -- the user's OWN platform with the user's OWN token and only confirms metadata;
 -- bytes never touch the server). Persisted so a cross-device resume keeps the
@@ -317,7 +317,7 @@ ALTER TABLE upload_sessions ADD COLUMN IF NOT EXISTS mode TEXT NOT NULL DEFAULT 
 -- deleted / moved / renamed) stamps the file with a per-user monotonic revision
 -- so any device can pull just what changed via GET /api/changes?since=<rev> and
 -- a live SSE "file" event carries the same {op, file_id, rev}. files.rev starts
--- at 0 (never handed out as a cursor value — the first real change is >= 1).
+-- at 0 (never handed out as a cursor value: the first real change is >= 1).
 ALTER TABLE files ADD COLUMN IF NOT EXISTS rev BIGINT NOT NULL DEFAULT 0;
 ALTER TABLE files ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 CREATE INDEX IF NOT EXISTS idx_files_user_rev ON files(user_id, rev);
@@ -356,7 +356,7 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name TEXT NOT NULL DEFAULT ''
 ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT NOT NULL DEFAULT '';
 
 -- TOTP replay protection: the last accepted time-step counter (RFC 6238 §5.2).
--- A code is one-time-use — verification only succeeds if its counter is
+-- A code is one-time-use: verification only succeeds if its counter is
 -- strictly greater than this value.
 ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_last_counter BIGINT NOT NULL DEFAULT 0;
 
@@ -641,20 +641,20 @@ ALTER TABLE shared_vaults ADD COLUMN IF NOT EXISTS size_limit_bytes BIGINT NOT N
 
 -- The file name encrypted under the SPACE KEY (opaque base64), so members can see
 -- a real name instead of a UUID. The owner's files.original_name is empty for
--- zero-knowledge files, and the per-user name key can't be shared — so the name
+-- zero-knowledge files, and the per-user name key can't be shared, so the name
 -- is sealed under the space key at share time, exactly like the CEK.
 ALTER TABLE shared_vault_files ADD COLUMN IF NOT EXISTS wrapped_name TEXT NOT NULL DEFAULT '';
 
 -- Public folder share links. Mirrors single-file shares (shares table) but for a
 -- whole folder: one random folder-share key (kept only in the URL #fragment,
 -- never sent here) wraps each contained file's CEK. Anyone with the link + key
--- can open it — no account needed — exactly like a file link. The name column is
+-- can open it (no account needed) exactly like a file link. The name column is
 -- a plaintext label the sharer supplies for the public page (folder names are
 -- otherwise E2E-encrypted and opaque to the server).
 CREATE TABLE IF NOT EXISTS folder_shares (
 	id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 	-- Soft reference to the source folder (no FK: the folders table is created
-	-- later in this schema, and a stale id is harmless — the share stands on its
+	-- later in this schema, and a stale id is harmless: the share stands on its
 	-- own folder_share_files rows).
 	folder_id       UUID,
 	user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -750,7 +750,7 @@ CREATE TABLE IF NOT EXISTS device_preferences (
 -- Per-user X25519 keypair for zero-knowledge sharing. The server stores the
 -- PUBLIC key (public by design) plus the private key ONLY as ciphertext
 -- (wrapped_private_key), encrypted client-side under the user's
--- passphrase-derived key — the server can never read it. fingerprint is a
+-- passphrase-derived key: the server can never read it. fingerprint is a
 -- short public hash of public_key for out-of-band verification (MITM defense).
 CREATE TABLE IF NOT EXISTS user_keys (
 	user_id             UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
@@ -766,19 +766,19 @@ CREATE TABLE IF NOT EXISTS user_keys (
 
 // dedupeChunksSQL collapses chunk rows to exactly one per (file_id, idx) and then
 // enforces it with a unique index. It is appended to schemaSQL (so it runs at
-// every boot) but kept as its own const so it is individually testable — a test
+// every boot) but kept as its own const so it is individually testable, a test
 // can drop the index, plant duplicates, and re-run this to assert the behavior.
 //
 // A racy check-then-insert historically allowed a second row for the same index,
 // which over-counted uploaded_chunks (>100% progress) and could mask a missing
 // index at completion. Keep the most-likely-valid duplicate: prefer a non-empty
 // remote_path (a synced locator over a pending/broken one), then the larger size,
-// then a stable chunk_id. Idempotent — after the first run there are no duplicates
+// then a stable chunk_id. Idempotent, after the first run there are no duplicates
 // left and the index creation is a no-op.
 //
 // The losing duplicates were often ALSO synced (the sync worker uploads every
 // pending row), so each may hold the only locator of a live platform blob. Queue
-// those locators for deletion BEFORE dropping the rows — otherwise the blobs are
+// those locators for deletion BEFORE dropping the rows, otherwise the blobs are
 // stranded, irreversibly on Telegram where the remote_path (chat + message IDs)
 // cannot be rediscovered by any sweep. Planned-but-unsynced paths are queued too
 // for git platforms (a 404 delete is a no-op) but never for Telegram, whose
@@ -835,7 +835,7 @@ UPDATE integrity_snapshots SET file_name = '' WHERE file_name <> '';
 --
 -- Privacy: ip_prefix holds anonIP() output (/24, /48) and never a full address;
 -- user_id is set only when the visitor happened to be signed in. No FK on
--- user_id — audit_events drops its own for the same reason (a deleted user must
+-- user_id: audit_events drops its own for the same reason (a deleted user must
 -- not erase or block the historical record).
 CREATE TABLE IF NOT EXISTS app_downloads (
 	id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),

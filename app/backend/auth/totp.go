@@ -55,7 +55,7 @@ func ValidateTOTPCode(secret, code string) bool {
 // the counter to enforce one-time use (RFC 6238 §5.2): a code is only accepted
 // if its counter is strictly greater than the last accepted one.
 func ValidateTOTPCodeCounter(secret, code string) (int64, bool) {
-	// An undecodable secret makes generateCode return "" — without this guard
+	// An undecodable secret makes generateCode return "", without this guard
 	// an empty submitted code would match it.
 	if secret == "" || len(code) != totpDigits {
 		return 0, false

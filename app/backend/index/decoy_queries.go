@@ -72,7 +72,7 @@ func (db *DB) ListDecoyFiles(ctx context.Context, userID string) ([]types.DecoyF
 }
 
 // DeleteDecoyFile removes a specific decoy file.
-// SetDecoyFileName replaces a decoy file's stored name — used to migrate a legacy
+// SetDecoyFileName replaces a decoy file's stored name: used to migrate a legacy
 // plaintext name to its sealed (enc1:) form. Returns false when not the user's.
 func (db *DB) SetDecoyFileName(ctx context.Context, userID, id, name string) (bool, error) {
 	tag, err := db.pool.Exec(ctx,

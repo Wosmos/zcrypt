@@ -37,7 +37,7 @@ func (s *Server) HandleCreateFolderShare(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Verify EVERY file belongs to the caller and carries a wrapped CEK — you can
+	// Verify EVERY file belongs to the caller and carries a wrapped CEK. You can
 	// only share files you own and can decrypt.
 	for _, f := range req.Files {
 		if f.FileID == "" || f.WrappedCEK == "" {

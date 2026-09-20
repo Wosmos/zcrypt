@@ -80,7 +80,7 @@ func (s *Server) invalidatePlanCache() {
 func (s *Server) SeedPlanConfigs(ctx context.Context) {
 	val, err := s.db.GetSystemSetting(ctx, "plan_configs")
 	if err != nil {
-		// No config yet — seed defaults
+		// No config yet, seed defaults
 		data, _ := json.Marshal(defaultPlanConfigs())
 		_ = s.db.SetSystemSetting(ctx, "plan_configs", string(data))
 		return
@@ -224,7 +224,7 @@ func (s *Server) HandleAdminDeleteUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// DeleteUser queued the user's synced chunks into pending_deletions (the
-	// rows survive the user cascade via ON DELETE SET NULL) — wake the deletion
+	// rows survive the user cascade via ON DELETE SET NULL), wake the deletion
 	// worker so the platform blobs actually get removed.
 	s.signalDeletion()
 
@@ -315,7 +315,7 @@ func (s *Server) HandleAdminCreateToken(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Invalidate caches — if global, invalidate all cached users
+	// Invalidate caches, if global, invalidate all cached users
 	if req.IsGlobal {
 		s.adapterMu.Lock()
 		s.adapterCache = make(map[string]map[string]adapters.PlatformAdapter)
@@ -332,7 +332,7 @@ func (s *Server) HandleAdminCreateToken(w http.ResponseWriter, r *http.Request) 
 }
 
 // HandleAdminToggleTokenScope toggles a token between global and local.
-// Admin can only toggle tokens they own — no one can change another user's token scope.
+// Admin can only toggle tokens they own, no one can change another user's token scope.
 // PUT /api/admin/tokens/{id}/scope
 func (s *Server) HandleAdminToggleTokenScope(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -351,7 +351,7 @@ func (s *Server) HandleAdminToggleTokenScope(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Ownership check — admin can only toggle their own tokens
+	// Ownership check: admin can only toggle their own tokens
 	if err := s.db.SetUserPlatformTokenGlobal(ctx, tokenID, adminID, req.IsGlobal); err != nil {
 		http.Error(w, `{"error":"token not found or not owned by you"}`, http.StatusForbidden)
 		return
@@ -481,7 +481,7 @@ func (s *Server) HandleGetQuota(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Check if user can upload (has any adapters — personal or global/managed)
+	// Check if user can upload (has any adapters, personal or global/managed)
 	userAdapters, _ := s.getUserAdapters(ctx, userID)
 	canUpload := len(userAdapters) > 0
 
@@ -519,7 +519,7 @@ func (s *Server) HandleAdminSetPlan(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate against the actually-configured plans (the same source the admin
-	// UI is built from) plus the standard tiers — a hardcoded list alone rejects
+	// UI is built from) plus the standard tiers: a hardcoded list alone rejects
 	// custom/renamed plans the UI legitimately offers, which surfaced as the
 	// "plan must be 'free', 'plus', or 'pro'" error when setting a plan.
 	validPlan := req.Plan == "free" || req.Plan == "plus" || req.Plan == "pro"
@@ -585,7 +585,7 @@ func (s *Server) HandleAdminAuditLog(w http.ResponseWriter, r *http.Request) {
 }
 
 // HandleAdminVerifyAuditChain recomputes the audit-log hash chain and reports
-// whether it is intact. A break means a row was edited, deleted, or reordered —
+// whether it is intact. A break means a row was edited, deleted, or reordered:
 // tamper evidence that survives even an actor with direct DB write access.
 // GET /api/admin/audit/verify
 func (s *Server) HandleAdminVerifyAuditChain(w http.ResponseWriter, r *http.Request) {

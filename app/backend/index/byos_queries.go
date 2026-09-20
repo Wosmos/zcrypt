@@ -11,7 +11,7 @@ import (
 
 // PersonalTokenAccount returns the username of the user's OWN (non-global)
 // platform token for a platform, and whether one exists. byos-direct uploads
-// require a personal token — the shared managed-pool token (is_global = TRUE)
+// require a personal token: the shared managed-pool token (is_global = TRUE)
 // must never back a client-direct transfer, since the client would need its
 // plaintext and it must stay server-side.
 func (db *DB) PersonalTokenAccount(ctx context.Context, userID, platform string) (string, bool, error) {
@@ -67,7 +67,7 @@ func (db *DB) GetRepoByID(ctx context.Context, userID, repoID string) (*types.Re
 
 // DeactivateClientRepo marks a client-owned repo inactive (full), scoped to the
 // caller so one user can never deactivate another's repo. Reports whether a row
-// actually matched — false means the id is unknown or not owned, which the
+// actually matched: false means the id is unknown or not owned, which the
 // handler surfaces as 404 rather than a silent success.
 func (db *DB) DeactivateClientRepo(ctx context.Context, userID, repoID string) (bool, error) {
 	tag, err := db.pool.Exec(ctx,
@@ -97,7 +97,7 @@ func (db *DB) BumpRepoUsage(ctx context.Context, repoID string, delta int64) err
 
 // InsertDirectChunk records a byos-direct chunk: the client already PUT the
 // ciphertext to its own platform AND (for git/Telegram) committed it, so this
-// is stored committed = TRUE immediately — there is no server-side commit pass.
+// is stored committed = TRUE immediately. There is no server-side commit pass.
 // Idempotent via ON CONFLICT (file_id, idx); returns whether a new row landed.
 func (db *DB) InsertDirectChunk(ctx context.Context, userID string, c *types.ChunkRef) (bool, error) {
 	tag, err := db.pool.Exec(ctx,
@@ -113,7 +113,7 @@ func (db *DB) InsertDirectChunk(ctx context.Context, userID string, c *types.Chu
 }
 
 // GetFileLocatorsForOwner returns the per-chunk platform locations for a file,
-// OWNER-ONLY (joined on files.user_id) — this endpoint hands out where every
+// OWNER-ONLY (joined on files.user_id): this endpoint hands out where every
 // chunk physically lives, which must never be exposed through a share or space
 // membership. Ordered by idx. Only committed, actually-placed chunks
 // (remote_path set) are returned.
@@ -154,7 +154,7 @@ func (db *DB) GetFileLocatorsForOwner(ctx context.Context, userID, fileID string
 //
 // A rev is only assigned to a file that still exists; for a hard-deleted file
 // (row gone) the UPDATE affects nothing and the returned rev is still valid as
-// an event cursor — the SSE payload carries the file_id + op so late joiners
+// an event cursor: the SSE payload carries the file_id + op so late joiners
 // reconcile via a full pull.
 func (db *DB) BumpUserFileRev(ctx context.Context, userID, fileID string) (int64, error) {
 	tx, err := db.pool.Begin(ctx)
@@ -187,7 +187,7 @@ func (db *DB) BumpUserFileRev(ctx context.Context, userID, fileID string) (int64
 }
 
 // PurgeFileMetadata permanently removes a file and its chunk rows WITHOUT
-// queuing any platform deletion — for byos-direct files whose owner's device
+// queuing any platform deletion: for byos-direct files whose owner's device
 // already deleted the ciphertext from the user's own storage directly. This is
 // the whole point of byos-direct deletion: the backend never touches the bytes,
 // so there is no deletion worker load. Scoped to the owner. ON DELETE CASCADE on

@@ -23,7 +23,7 @@ func Open(databaseURL string) (*DB, error) {
 	// Neon already pools via PgBouncer (the -pooler URL), so this is a client-side
 	// cap on concurrent server-bound connections. 5 was too tight: parallel uploads,
 	// background workers, and user traffic serialized behind it. MinConns stays 0 and
-	// idle conns drain in 30s so Neon can still auto-suspend when the app is idle —
+	// idle conns drain in 30s so Neon can still auto-suspend when the app is idle.
 	// MaxConns is only a ceiling, never a floor, so raising it doesn't keep Neon awake.
 	config.MaxConns = 25
 	config.MinConns = 0

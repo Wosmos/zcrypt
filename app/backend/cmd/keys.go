@@ -57,7 +57,7 @@ func (s *Server) HandlePublishKey(w http.ResponseWriter, r *http.Request) {
 // HandleLookupUserKey resolves a user's PUBLIC key by email or username, so an
 // admin can seal a space key to them before inviting. Returns 404 both when no
 // such user exists and when they exist but have no published key (don't
-// distinguish — reduces user enumeration; rate-limiting is the real mitigation).
+// distinguish: reduces user enumeration; rate-limiting is the real mitigation).
 // GET /api/keys/lookup?identifier=<email-or-username>
 func (s *Server) HandleLookupUserKey(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()

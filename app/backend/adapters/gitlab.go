@@ -221,7 +221,7 @@ func (g *GitlabAdapter) ListChunks(ctx context.Context, repo string) ([]types.Ch
 
 	// recursive=true walks the shard subdirectories (chunks live under a 2-hex
 	// prefix like "02/abc.bin"), and each entry's `path` is the full sharded path
-	// that chunks.remote_path stores — so a reconciliation diff lines up. Page
+	// that chunks.remote_path stores, so a reconciliation diff lines up. Page
 	// through with offset pagination until a short page signals the end; a
 	// non-recursive or single-page listing would silently under-report and hide
 	// real orphans.

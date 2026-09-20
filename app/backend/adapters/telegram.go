@@ -85,7 +85,7 @@ func NewTelegramAdapter(token string) (*TelegramAdapter, error) {
 		apiBase:  telegramAPIBase,
 		client: &http.Client{
 			Transport: transport,
-			Timeout:   0, // no overall timeout — uploads can be large
+			Timeout:   0, // no overall timeout, uploads can be large
 		},
 	}
 
@@ -110,7 +110,7 @@ func (t *TelegramAdapter) PlatformName() string { return "telegram" }
 func (t *TelegramAdapter) GetUsername() string { return t.botUser }
 
 // CreateRepo returns a virtual repo identifier.
-// Telegram doesn't have repos — the chat_id IS the storage location.
+// Telegram doesn't have repos: the chat_id IS the storage location.
 // The pool manager still needs a unique name, so we combine chat_id + name.
 func (t *TelegramAdapter) CreateRepo(ctx context.Context, name string) (string, error) {
 	return fmt.Sprintf("tg:%s/%s", t.chatID, name), nil
@@ -130,7 +130,7 @@ func (t *TelegramAdapter) Upload(ctx context.Context, repo string, chunk types.C
 	var partRefs []string
 
 	if len(data) <= maxTelegramPartSize {
-		// Single part — fits within Telegram download limit
+		// Single part: fits within Telegram download limit
 		msgID, fileID, err := t.sendDocumentWithRetry(ctx, data, remotePath)
 		if err != nil {
 			return types.ChunkRef{}, fmt.Errorf("upload chunk: %w", err)
@@ -186,7 +186,7 @@ func (t *TelegramAdapter) Download(ctx context.Context, ref types.ChunkRef) ([]b
 // MarkDeletionFailed retries within Telegram's 48-hour deletion window instead
 // of recording a false success and orphaning the messages in the chat forever.
 // "message to delete not found" (already gone) and "message can't be deleted"
-// (permanently undeletable — e.g. past the 48h window in a non-admin chat) are
+// (permanently undeletable, e.g. past the 48h window in a non-admin chat) are
 // treated as success: retrying can never improve on either.
 func (t *TelegramAdapter) Delete(ctx context.Context, ref types.ChunkRef) error {
 	parts := strings.Split(ref.RemotePath, ",")
@@ -212,8 +212,8 @@ func (t *TelegramAdapter) Delete(ctx context.Context, ref types.ChunkRef) error 
 	return errors.Join(errs...)
 }
 
-// isTelegramDeleteFinal reports whether a deleteMessage failure is terminal —
-// the message is already gone or the Bot API will never allow deleting it —
+// isTelegramDeleteFinal reports whether a deleteMessage failure is terminal:
+// the message is already gone or the Bot API will never allow deleting it,
 // so the deletion should be recorded as done rather than retried.
 func isTelegramDeleteFinal(err error) bool {
 	msg := strings.ToLower(err.Error())
@@ -240,7 +240,7 @@ func (t *TelegramAdapter) apiURL(method string) string {
 }
 
 // getMe validates the bot token and returns the bot username.
-// Only called at construction — bounded so a blocked/unreachable Telegram
+// Only called at construction: bounded so a blocked/unreachable Telegram
 // fails fast instead of hanging on the timeout-less upload client.
 func (t *TelegramAdapter) getMe() (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), telegramValidateTimeout)
@@ -276,7 +276,7 @@ func (t *TelegramAdapter) getMe() (string, error) {
 }
 
 // validateChat verifies the bot can access the target chat.
-// Only called at construction — bounded like getMe.
+// Only called at construction, bounded like getMe.
 func (t *TelegramAdapter) validateChat() error {
 	ctx, cancel := context.WithTimeout(context.Background(), telegramValidateTimeout)
 	defer cancel()

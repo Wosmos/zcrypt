@@ -22,7 +22,7 @@ func TestComputeAuditHashSensitivity(t *testing.T) {
 	base := &types.AuditEvent{ID: "evt-1", UserID: &uid, EventType: "login", IP: "1.2.3.4", UserAgent: "ua"}
 	h := computeAuditHash("prev", 5, base, `{"k":"v"}`)
 
-	// Every field that feeds the chain must change the hash — otherwise a tamper
+	// Every field that feeds the chain must change the hash, otherwise a tamper
 	// on that field would go undetected.
 	t.Run("prev_hash", func(t *testing.T) {
 		assert.NotEqual(t, h, computeAuditHash("other", 5, base, `{"k":"v"}`))

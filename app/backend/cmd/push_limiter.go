@@ -7,7 +7,7 @@ import (
 )
 
 // pushLimiter throttles the bytes pushed to a storage platform so the backend
-// stays under a per-platform cap within a trailing window — e.g. GitHub's
+// stays under a per-platform cap within a trailing window, e.g. GitHub's
 // ~7GB/hour push rate. It is a sliding-window reservation limiter: reserve()
 // accounts a push and returns how long the caller should wait before actually
 // sending so the trailing-window total stays at or under the limit.
@@ -45,7 +45,7 @@ func (l *pushLimiter) reserve(platform string, bytes int64) time.Duration {
 
 	limit, ok := l.limits[platform]
 	if !ok || limit <= 0 {
-		return 0 // unlimited platform — no throttling
+		return 0 // unlimited platform, no throttling
 	}
 
 	now := l.now()
@@ -56,13 +56,13 @@ func (l *pushLimiter) reserve(platform string, bytes int64) time.Duration {
 		sum += e.bytes
 	}
 
-	// Fits within the window right now — record and go.
+	// Fits within the window right now, record and go.
 	if sum+bytes <= limit {
 		l.events[platform] = append(l.events[platform], rateEvent{at: now, bytes: bytes})
 		return 0
 	}
 
-	// Over the cap — wait until enough of the oldest reserved bytes age out of
+	// Over the cap: wait until enough of the oldest reserved bytes age out of
 	// the trailing window to make room for this push.
 	need := sum + bytes - limit
 	ordered := append([]rateEvent(nil), l.events[platform]...)

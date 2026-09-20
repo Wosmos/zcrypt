@@ -12,11 +12,11 @@ import (
 )
 
 // sealedPrefix marks a client-sealed (AES-GCM, base64) string stored in a column
-// that historically held plaintext — see app/frontend/lib/sealed.ts. The server
+// that historically held plaintext. See app/frontend/lib/sealed.ts. The server
 // only ever tests for the prefix; it never has the key.
 const sealedPrefix = "enc1:"
 
-// HandleRenameDecoyFile — PATCH /api/decoy/files/{id} {name}. The client uses it
+// HandleRenameDecoyFile. PATCH /api/decoy/files/{id} {name}. The client uses it
 // to replace a legacy plaintext decoy name with its sealed form.
 func (s *Server) HandleRenameDecoyFile(w http.ResponseWriter, r *http.Request) {
 	userID := GetUserID(r)

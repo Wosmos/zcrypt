@@ -33,7 +33,7 @@ func initUpload(ts *testServer, t *testing.T, token string, body map[string]inte
 // TestUploadSHA256SchemeStored proves the confirmation-of-file fix at the storage
 // layer: an upgraded client's per-user keyed MAC is persisted with scheme
 // 'hmac_v1', while a legacy client (no scheme) is labeled 'plain' with no
-// backfill — and both round-trip through the file-meta endpoint.
+// backfill, and both round-trip through the file-meta endpoint.
 func TestUploadSHA256SchemeStored(t *testing.T) {
 	ts := setupTestServer(t)
 	token := ts.registerAndLogin("scheme@example.com", "SecurePass@123!")
@@ -93,7 +93,7 @@ func TestUploadResumeSurvivesHMACScheme(t *testing.T) {
 	require.NotEqual(t, true, first["resumed"], "first init creates a fresh session")
 	firstSession := first["session_id"].(string)
 
-	// Re-init with the SAME (mac, size) — as a second device would — must resume
+	// Re-init with the SAME (mac, size) (as a second device would) must resume
 	// onto the SAME session, not restart from zero.
 	again := initUpload(ts, t, token, map[string]interface{}{
 		"filename": "resume.bin", "original_size": 4096, "sha256": mac,

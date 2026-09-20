@@ -13,7 +13,7 @@ import (
 // Server-side disk cache for ciphertext chunks downloaded from git platforms.
 // Chunks are immutable (a re-upload mints a new chunk id), so entries never go
 // stale; a size-bound sweep keeps the directory under budget. Everything here
-// is best-effort — cache failures must never fail a download — and holds
+// is best-effort (cache failures must never fail a download) and holds
 // ciphertext only, so it's zero-knowledge safe.
 
 // defaultChunkCacheBytes bounds the chunk cache size (2GB). Override with
@@ -48,7 +48,7 @@ func readCachedChunk(chunkID string) []byte {
 }
 
 // writeCachedChunk stores downloaded ciphertext, then sweeps the cache if it
-// exceeds its budget. Write errors are ignored — the chunk was already served.
+// exceeds its budget. Write errors are ignored: the chunk was already served.
 func writeCachedChunk(chunkID string, data []byte) {
 	dir, err := config.ChunkCacheDir()
 	if err != nil {

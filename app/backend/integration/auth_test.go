@@ -128,7 +128,7 @@ func TestTokenRefresh(t *testing.T) {
 	ts := setupTestServer(t)
 
 	// Register (force=true to bypass the breach warning), then log in to obtain
-	// a refresh token — registration itself does not issue tokens.
+	// a refresh token: registration itself does not issue tokens.
 	ts.POST("/api/auth/register", map[string]interface{}{
 		"email":    "refresh@example.com",
 		"password": "SecurePass@123!",

@@ -41,7 +41,7 @@ func TestFolderShare(t *testing.T) {
 	f1 := ts.uploadReadyFile(owner, "alpha.txt", 40)
 	f2 := ts.uploadReadyFile(owner, "beta.txt", 40)
 
-	// A file owned by someone else — must not be shareable by `owner`.
+	// A file owned by someone else: must not be shareable by `owner`.
 	other := ts.registerAndLogin("fshare-other@example.com", "SecurePass@123!")
 	ts.enableMockStorage("fshare-other@example.com")
 	foreign := ts.uploadReadyFile(other, "not-yours.txt", 40)

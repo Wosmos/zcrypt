@@ -7,7 +7,7 @@ import (
 )
 
 // isRepoNotFound must fire ONLY for "the repo itself is gone" errors (the
-// presign self-heal deactivates the repo and rotates the session) — never for
+// presign self-heal deactivates the repo and rotates the session), never for
 // transient failures, which must keep retrying against the same repo.
 func TestIsRepoNotFound(t *testing.T) {
 	cases := []struct {

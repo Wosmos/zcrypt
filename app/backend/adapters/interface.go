@@ -56,7 +56,7 @@ type CommitFile struct {
 
 // BatchDeleter is an optional interface for adapters that can remove many chunks
 // from a repo in a SINGLE commit. This is essential for platforms that rate-limit
-// commits (HuggingFace: 128 commits/hour/repo) — deleting one-file-per-commit
+// commits (HuggingFace: 128 commits/hour/repo), deleting one-file-per-commit
 // storms that limit, so a bulk trash-empty must collapse into one commit.
 type BatchDeleter interface {
 	// BatchDelete removes the given paths from one repo in a single commit. Paths

@@ -41,7 +41,7 @@ func (s *Server) InjectTestAdapter(userID, platform, account string, adapter ada
 // background goroutine's timing. After it returns, synced chunks carry a
 // remote_path and are therefore eligible for platform deletion on purge.
 //
-// integration build tag only — never in a production binary.
+// integration build tag only, never in a production binary.
 func (s *Server) SyncAllChunks(ctx context.Context) {
 	for s.syncPendingChunks(ctx) {
 	}
@@ -52,7 +52,7 @@ func (s *Server) SyncAllChunks(ctx context.Context) {
 // blobs are gone without waiting on the background deletion worker. Items that
 // fail are left queued with a bumped attempt count, exactly as in production.
 //
-// integration build tag only — never in a production binary.
+// integration build tag only, never in a production binary.
 func (s *Server) DrainDeletions(ctx context.Context) {
 	for s.processPendingDeletions(ctx) {
 	}

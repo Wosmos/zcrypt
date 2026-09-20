@@ -133,7 +133,7 @@ func prodLogin(t *testing.T) {
 
 	// Check if 2FA is required
 	if req2fa, ok := result["requires_2fa"].(bool); ok && req2fa {
-		t.Fatal("Account has 2FA enabled — PRODTEST_PASSWORD alone is not enough. Use a test account without 2FA.")
+		t.Fatal("Account has 2FA enabled. PRODTEST_PASSWORD alone is not enough. Use a test account without 2FA.")
 	}
 
 	token, ok := result["access_token"].(string)
@@ -172,7 +172,7 @@ func prodPickFile(t *testing.T) {
 	}
 
 	if len(files) == 0 {
-		t.Fatal("No files found in account — upload a test file first")
+		t.Fatal("No files found in account: upload a test file first")
 	}
 
 	// Pick file with most chunks (best for concurrency testing)
@@ -182,7 +182,7 @@ func prodPickFile(t *testing.T) {
 
 	best := files[0]
 	prodFileID = best.ID
-	t.Logf("Selected file: %s (%s) — %.2f MB, %d chunks",
+	t.Logf("Selected file: %s (%s), %.2f MB, %d chunks",
 		best.OriginalName, best.ID, float64(best.OriginalSize)/1e6, best.ChunkCount)
 }
 
@@ -244,7 +244,7 @@ func TestProdMetaLatency(t *testing.T) {
 }
 
 // TestProdChunkTTFB measures time-to-first-byte for a single chunk download.
-// This is the key diagnostic — if TTFB ~ total time, the backend is buffering.
+// This is the key diagnostic, if TTFB ~ total time, the backend is buffering.
 func TestProdChunkTTFB(t *testing.T) {
 	prodSetup(t)
 	meta := prodFetchMeta(t)
@@ -288,7 +288,7 @@ func TestProdChunkTTFB(t *testing.T) {
 
 	if ttfbRatio > 0.80 {
 		t.Logf("  BUFFERING DETECTED: Backend waits for full chunk before responding.")
-		t.Logf("    TTFB is %.0f%% of total time — should be <30%% with streaming.", ttfbRatio*100)
+		t.Logf("    TTFB is %.0f%% of total time: should be <30%% with streaming.", ttfbRatio*100)
 		t.Logf("    Fix: replace io.ReadAll + w.Write with io.Copy streaming")
 	} else {
 		t.Logf("  Backend appears to be streaming (TTFB is %.0f%% of total)", ttfbRatio*100)
@@ -423,12 +423,12 @@ func TestProdConcurrentChunks(t *testing.T) {
 	t.Logf("  Errors:          %d/%d", errors, concurrency)
 
 	if errors > 0 {
-		t.Logf("\n  %d chunks failed — likely OOM or timeout on Railway's 512MB.", errors)
+		t.Logf("\n  %d chunks failed: likely OOM or timeout on Railway's 512MB.", errors)
 		t.Logf("    Each 10MB chunk buffered = 10MB backend RAM.")
 		t.Logf("    %d concurrent x 10MB = %dMB peak.", concurrency, concurrency*10)
 	}
 	if maxTTFB > 10*time.Second {
-		t.Logf("\n  TTFB >10s — backend under memory/CPU pressure.")
+		t.Logf("\n  TTFB >10s, backend under memory/CPU pressure.")
 	}
 }
 
@@ -542,9 +542,9 @@ func TestProdConcurrentVsSequential(t *testing.T) {
 	t.Logf("Errors: %d", conErrors.Load())
 
 	if speedup < 1.5 {
-		t.Logf("\nConcurrent barely faster (%.2fx) — backend is the bottleneck.", speedup)
+		t.Logf("\nConcurrent barely faster (%.2fx): backend is the bottleneck.", speedup)
 	}
 	if conErrors.Load() > 0 {
-		t.Logf("\n%d concurrent downloads failed — possible OOM on Railway.", conErrors.Load())
+		t.Logf("\n%d concurrent downloads failed: possible OOM on Railway.", conErrors.Load())
 	}
 }

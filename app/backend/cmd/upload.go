@@ -29,7 +29,7 @@ import (
 // Max encrypted chunk size: 16MB data (ultra tier) + 12B IV + 16B tag + margin
 const maxChunkSize = 17 * 1024 * 1024
 
-// maxUploadBytes caps a single file at 10 GiB. Not a monetization limit —
+// maxUploadBytes caps a single file at 10 GiB. Not a monetization limit:
 // browser-side encrypt/chunk beyond that is unreliable (tab memory pressure,
 // eviction mid-upload) and repos rotate long before one file that size pays
 // off. A future desktop/MTProto path can lift this per-client.
@@ -42,7 +42,7 @@ const maxUploadBytes = int64(10) << 30
 var chunkUploadSem = make(chan struct{}, 10)
 
 // repoUploadSems limits concurrent relay uploads per repository.
-// GitHub's Contents API creates one commit per file — concurrent commits to the same repo
+// GitHub's Contents API creates one commit per file: concurrent commits to the same repo
 // cause 409 SHA conflicts. Limiting to 2 concurrent uploads per repo drastically reduces
 // contention while keeping throughput reasonable.
 var repoUploadSems sync.Map // map[string]chan struct{}
@@ -83,7 +83,7 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// chunk_size is optional (0 = legacy client that doesn't send it) but must
-	// not be negative — it is persisted for cross-device resume.
+	// not be negative. It is persisted for cross-device resume.
 	if req.ChunkSize < 0 {
 		http.Error(w, `{"error":"chunk_size must be non-negative"}`, http.StatusBadRequest)
 		return
@@ -108,7 +108,7 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 	// Server-authoritative resume: if an active, unexpired session for this
 	// exact file (user + sha256 + size) already exists, hand it back instead of
 	// creating a duplicate. This pins the resume to the ORIGINAL session and
-	// platform with zero client-side state — a re-init from another device (or
+	// platform with zero client-side state: a re-init from another device (or
 	// after cleared localStorage) resumes instead of restarting from byte 0 and
 	// orphaning the old session's staged chunks. The request's fresh salt and
 	// wrapped_cek are deliberately discarded; the client fetches the stored
@@ -148,14 +148,14 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	} else if !errors.Is(ferr, pgx.ErrNoRows) {
-		// A real lookup failure must not block uploads — log and init fresh.
+		// A real lookup failure must not block uploads, log and init fresh.
 		log.Printf("upload: find resumable session for user %s: %v", userID, ferr)
 	}
 
 	// Data-plane selection. Two modes:
-	//   relay        — bytes transit the server, which stages + pushes to the
+	//   relay       : bytes transit the server, which stages + pushes to the
 	//                  platform (managed pool or the user's token). Legacy default.
-	//   byos-direct  — the client pushes chunks to the user's OWN platform with the
+	//   byos-direct : the client pushes chunks to the user's OWN platform with the
 	//                  user's OWN token and only confirms metadata. No server repo
 	//                  is created here (the client registers + places its own via
 	//                  POST /api/repos/register); the managed pool is never used.
@@ -188,7 +188,7 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		platform = req.Platform
 		account = acct
 		directUpload = true
-		// repoID/repoURL stay empty — the client owns placement in this mode.
+		// repoID/repoURL stay empty: the client owns placement in this mode.
 	} else {
 		// zcrypt is free and open source: there are no artificial plan/quota
 		// limits. Users are bounded only by the real git-platform thresholds
@@ -200,7 +200,7 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 				log.Printf("upload: platform not available for user %s: %v", userID, err)
 				http.Error(w, `{"error":"storage platform not available"}`, http.StatusBadRequest)
 			} else {
-				http.Error(w, `{"error":"storage not available yet — managed storage is being configured"}`, http.StatusServiceUnavailable)
+				http.Error(w, `{"error":"storage not available yet: managed storage is being configured"}`, http.StatusServiceUnavailable)
 			}
 			return
 		}
@@ -285,7 +285,7 @@ func (s *Server) HandleUploadInit(w http.ResponseWriter, r *http.Request) {
 		_, directUpload = adapter.(adapters.DirectUploader)
 	}
 
-	// No filename in the audit trail — a zero-knowledge upload has none, and a
+	// No filename in the audit trail: a zero-knowledge upload has none, and a
 	// legacy plaintext name must not be persisted in audit_events.
 	s.audit(r, &userID, "upload_init", map[string]interface{}{
 		"file_id":    fileID,
@@ -332,7 +332,7 @@ func (s *Server) HandleChunkUpload(w http.ResponseWriter, r *http.Request) {
 
 	compressed := r.Header.Get("X-Chunk-Compressed") == "true"
 
-	// Acquire semaphore slot — limits server-wide concurrent chunk processing to prevent OOM
+	// Acquire semaphore slot: limits server-wide concurrent chunk processing to prevent OOM
 	select {
 	case chunkUploadSem <- struct{}{}:
 		defer func() { <-chunkUploadSem }()
@@ -356,7 +356,7 @@ func (s *Server) HandleChunkUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Idempotency: check if chunk already received — BEFORE reading the body,
+	// Idempotency: check if chunk already received, BEFORE reading the body,
 	// so a duplicate 4-17MB chunk is rejected without receiving it. The response
 	// is written with the body unread; the HTTP server handles draining.
 	existing, _ := s.db.GetChunkByID(ctx, session.FileID+"-"+strconv.Itoa(chunkIndex))
@@ -426,7 +426,7 @@ func (s *Server) HandleChunkUpload(w http.ResponseWriter, r *http.Request) {
 		Platform:   session.Platform,
 		Account:    session.Account,
 		Repo:       session.RepoURL,
-		RemotePath: "", // pending — will be set by background sync worker
+		RemotePath: "", // pending: will be set by background sync worker
 		Compressed: compressed,
 	}
 
@@ -438,7 +438,7 @@ func (s *Server) HandleChunkUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Wake sync worker immediately — non-blocking, channel is buffered(1)
+	// Wake sync worker immediately, non-blocking, channel is buffered(1)
 	select {
 	case s.syncCh <- struct{}{}:
 	default:
@@ -446,7 +446,7 @@ func (s *Server) HandleChunkUpload(w http.ResponseWriter, r *http.Request) {
 
 	// Only a NEW chunk row advances the counter. A duplicate re-PUT of the same
 	// index (racy client / retry) hits ON CONFLICT DO NOTHING and must NOT
-	// double-count — double-counting produced >100% progress and false
+	// double-count: double-counting produced >100% progress and false
 	// "not all chunks" completion failures.
 	uploadedCount := session.UploadedChunks
 	if inserted {
@@ -537,7 +537,7 @@ func (s *Server) HandleUploadComplete(w http.ResponseWriter, r *http.Request) {
 	// /api/changes if they were offline). "upload on Android, see on iOS."
 	s.emitFileChange(ctx, userID, session.FileID, "added")
 
-	// Audit synchronously, before returning — s.audit reads the request (IP,
+	// Audit synchronously, before returning: s.audit reads the request (IP,
 	// User-Agent) and must not be called from the background goroutine after the
 	// handler returns and the request context is cancelled.
 	s.audit(r, &userID, "upload_complete", map[string]interface{}{
@@ -554,7 +554,7 @@ func (s *Server) HandleUploadComplete(w http.ResponseWriter, r *http.Request) {
 	})
 
 	// Background: commit+verify, size verification, repo usage. Capture the
-	// values needed off the request now — the goroutine outlives the request, so
+	// values needed off the request now: the goroutine outlives the request, so
 	// it must not touch r.
 	bgUserID := userID
 	bgSession := session
@@ -564,7 +564,7 @@ func (s *Server) HandleUploadComplete(w http.ResponseWriter, r *http.Request) {
 		bgCtx := context.Background()
 
 		// Commit + VERIFY this file's uploaded-but-uncommitted chunks (HuggingFace
-		// LFS). DB-driven — NOT the old in-memory pendingCommits buffer that a
+		// LFS). DB-driven, NOT the old in-memory pendingCommits buffer that a
 		// per-user adapter-cache eviction between confirm and here would silently
 		// discard (the ~50% silent-loss bug). commitAndVerify flips committed=TRUE
 		// only after confirming each object is actually present on the platform;
@@ -572,7 +572,7 @@ func (s *Server) HandleUploadComplete(w http.ResponseWriter, r *http.Request) {
 		// retry. Either way a chunk is never trusted durable on an object we
 		// haven't seen land.
 		if uncommitted, err := s.db.GetUncommittedChunksForFile(bgCtx, bgSession.FileID); err != nil {
-			log.Printf("upload: WARNING loading uncommitted chunks for file %s failed: %v — reconcile will retry", logSafe(bgSession.FileID), err) // #nosec G706 -- control chars stripped via logSafe
+			log.Printf("upload: WARNING loading uncommitted chunks for file %s failed: %v: reconcile will retry", logSafe(bgSession.FileID), err) // #nosec G706 -- control chars stripped via logSafe
 			select {
 			case s.syncCh <- struct{}{}:
 			default:
@@ -597,7 +597,7 @@ func (s *Server) HandleUploadComplete(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Update repo usage with the SERVER-computed total, not the client-reported
-		// req.EncryptedSize — a client reporting 0 (or lying) must not keep the
+		// req.EncryptedSize: a client reporting 0 (or lying) must not keep the
 		// repo pool from rotating at the real platform thresholds.
 		usageBytes := encryptedSize
 		if err == nil {
@@ -614,8 +614,8 @@ func (s *Server) HandleUploadComplete(w http.ResponseWriter, r *http.Request) {
 }
 
 // HandleListIncompleteUploads returns the caller's active (not-yet-complete,
-// unexpired) upload sessions so the UI can show unfinished uploads — filename,
-// platform, progress and expiry — and offer Resume / Discard.
+// unexpired) upload sessions so the UI can show unfinished uploads, filename,
+// platform, progress and expiry, and offer Resume / Discard.
 // GET /api/upload/incomplete
 func (s *Server) HandleListIncompleteUploads(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -735,7 +735,7 @@ func (s *Server) HandleUploadStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 // HandlePresignChunk returns a presigned URL for direct client upload to the platform.
-// This bypasses the server relay — data goes directly from client to platform storage.
+// This bypasses the server relay: data goes directly from client to platform storage.
 // POST /api/upload/{sid}/presign/{idx}
 func (s *Server) HandlePresignChunk(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -813,7 +813,7 @@ func (s *Server) HandlePresignChunk(w http.ResponseWriter, r *http.Request) {
 		// deactivate the dead repo so the pool stops routing to it, rotate the
 		// session to a fresh (or existing active) repo, and retry the presign
 		// once against the new target.
-		log.Printf("upload: repo %s gone on %s — rotating session %s: %v", // #nosec G706 -- control chars stripped via logSafe
+		log.Printf("upload: repo %s gone on %s: rotating session %s: %v", // #nosec G706 -- control chars stripped via logSafe
 			logSafe(session.RepoURL), logSafe(session.Platform), logSafe(session.ID), err)
 		if healErr := s.healDeadRepo(ctx, session); healErr != nil {
 			log.Printf("upload: repo self-heal failed: %v", healErr)
@@ -849,7 +849,7 @@ func logSafe(s string) string {
 }
 
 // isRepoNotFound reports whether an adapter error means the repo itself is GONE
-// on the platform (deleted, renamed, or removed for policy reasons) — as opposed
+// on the platform (deleted, renamed, or removed for policy reasons), as opposed
 // to a transient failure worth retrying against the same repo. HuggingFace's LFS
 // batch endpoint surfaces this as a 404 with "Repository not found" in the body.
 func isRepoNotFound(err error) bool {
@@ -864,8 +864,8 @@ func isRepoNotFound(err error) bool {
 // healDeadRepo recovers an upload session whose repo the platform has removed:
 // deactivate the dead repo so the pool never routes to it again, rotate to a
 // fresh (or existing active) repo from the same platform:account pool, and
-// persist the session's new target so every remaining chunk — and any future
-// resume — goes straight there. Mutates session.RepoID/RepoURL on success.
+// persist the session's new target so every remaining chunk, and any future
+// resume, goes straight there. Mutates session.RepoID/RepoURL on success.
 func (s *Server) healDeadRepo(ctx context.Context, session *types.UploadSession) error {
 	if session.RepoID != "" {
 		if err := s.db.DeactivateRepo(ctx, session.RepoID); err != nil {
@@ -964,7 +964,7 @@ func (s *Server) HandleConfirmChunk(w http.ResponseWriter, r *http.Request) {
 	if session.Mode == "byos-direct" {
 		// byos-direct: the client pushed the ciphertext to its OWN platform with
 		// its OWN token and (git/Telegram atomic, HF LFS+commit) already committed
-		// it. Record committed = TRUE immediately — there is no server-side commit
+		// it. Record committed = TRUE immediately. There is no server-side commit
 		// pass. Trust the client's location fields but pin the repo to one the
 		// caller actually OWNS (never store an unvalidated client repo_id).
 		repoURL := session.RepoURL
@@ -1003,7 +1003,7 @@ func (s *Server) HandleConfirmChunk(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// Credit the user's own repo usage from the confirmed size (the server
-		// never saw the bytes). Best-effort — never fail the confirm on this.
+		// never saw the bytes). Best-effort, never fail the confirm on this.
 		if inserted && req.RepoID != "" {
 			if uerr := s.db.BumpRepoUsage(ctx, req.RepoID, req.Size); uerr != nil {
 				log.Printf("upload: bump repo usage: %v", uerr)
@@ -1013,7 +1013,7 @@ func (s *Server) HandleConfirmChunk(w http.ResponseWriter, r *http.Request) {
 		// Presign/relay path (HuggingFace): store committed = FALSE. The LFS blob
 		// is uploaded but has no tree pointer yet; durability is established later
 		// by commit+verify (on upload-complete and by the reconcile worker),
-		// driven entirely from this DB row — no fragile in-memory commit buffer.
+		// driven entirely from this DB row, no fragile in-memory commit buffer.
 		dbChunk := &types.ChunkRef{
 			ChunkID:    chunkID,
 			FileID:     session.FileID,

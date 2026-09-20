@@ -22,7 +22,7 @@ func TestDummyPasswordHashMatchesRealCost(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, realCost, dummyCost,
-		"dummy hash cost (%d) must match auth.HashPassword cost (%d) — regenerate it after a cost change",
+		"dummy hash cost (%d) must match auth.HashPassword cost (%d): regenerate it after a cost change",
 		dummyCost, realCost)
 
 	// The comparison must run the full bcrypt work and fail as a mismatch, not

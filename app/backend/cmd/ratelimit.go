@@ -10,7 +10,7 @@ import (
 // single-instance deployment (one VM), where this is simpler and strictly
 // better than a Redis round-trip. If the backend ever scales horizontally,
 // these limits multiply by instance count and the push limiter's per-platform
-// byte budget breaks first (risking storage-account throttling) — move state
+// byte budget breaks first (risking storage-account throttling), move state
 // to Redis/PG at that point, not before.
 type rateLimiter struct {
 	mu       sync.Mutex

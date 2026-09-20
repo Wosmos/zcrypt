@@ -5,13 +5,13 @@ import "time"
 // Metadata masking for PUBLIC (unauthenticated) endpoints.
 //
 // A share / folder-share / send link is handed to someone who may not be able to
-// (or may choose not to) download the ciphertext — password-gated, expired,
+// (or may choose not to) download the ciphertext, password-gated, expired,
 // rate-limited, or just previewing. For that viewer we coarsen the two fields
 // that would otherwise leak precise information: the exact byte size and the
 // exact upload time. This is a modest privacy nicety, NOT an at-rest guarantee:
 // the server still stores true values (accounting needs them) and the ciphertext
 // itself reveals size to a downloader. So masking lives ONLY in the public
-// response layer — never in storage or the owner/authorized-member views.
+// response layer, never in storage or the owner/authorized-member views.
 
 // sizeLadder is a 1-2-5-per-decade ladder (decimal KB) up to just past the
 // per-file cap, so SizeBucket can round any real file size up to a coarse band.

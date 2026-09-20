@@ -19,7 +19,7 @@ func ChunkFilename() (string, error) {
 // hold ~2.5M chunks before any single folder nears HuggingFace's hard 10k
 // entries-per-folder limit (which flat naming hit at ~10k chunks ≈ 40-160 GB
 // depending on chunk size). Used for git platforms (github/gitlab/huggingface);
-// Telegram keeps the flat ChunkFilename — a chat has no folders. Existing
+// Telegram keeps the flat ChunkFilename: a chat has no folders. Existing
 // chunks are unaffected: remote_path is stored per chunk row.
 func ShardedChunkFilename() (string, error) {
 	b := make([]byte, 8)

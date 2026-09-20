@@ -12,7 +12,7 @@ import (
 // their platform, and flips committed=TRUE ONLY for those whose object is
 // afterwards CONFIRMED present in the platform tree. Anything that fails to
 // commit or verify keeps committed=FALSE and gets sync_attempts bumped, so the
-// reconcile loop retries it (up to the cap) — a chunk is NEVER recorded durable
+// reconcile loop retries it (up to the cap): a chunk is NEVER recorded durable
 // on an object we haven't seen on the platform. Safe to call from both
 // upload-complete and the background reconcile; commits are DB-derived and
 // idempotent, so re-running is harmless.
@@ -28,7 +28,7 @@ func (s *Server) commitAndVerify(ctx context.Context, chunks []types.ChunkRef) {
 	for k, group := range groups {
 		adapter := s.resolveAdapterForUser(ctx, k.userID, k.platform, k.account)
 		if adapter == nil {
-			log.Printf("commit-verify: no adapter for %s/%s repo=%s — leaving %d chunk(s) uncommitted for retry", k.platform, k.account, k.repo, len(group))
+			log.Printf("commit-verify: no adapter for %s/%s repo=%s: leaving %d chunk(s) uncommitted for retry", k.platform, k.account, k.repo, len(group))
 			s.bumpUncommitted(ctx, group)
 			continue
 		}
@@ -59,12 +59,12 @@ func (s *Server) commitAndVerify(ctx context.Context, chunks []types.ChunkRef) {
 		}
 
 		// VERIFY: re-list the repo tree and mark committed ONLY the chunks whose
-		// path is actually present. This is the check that makes "durable" honest —
+		// path is actually present. This is the check that makes "durable" honest:
 		// a commit that returns 200 but whose object never lands (LFS dedup false
 		// positive, etc.) is caught here and retried, not silently trusted.
 		present, err := adapter.ListChunks(ctx, k.repo)
 		if err != nil {
-			log.Printf("commit-verify: list %s repo=%s to verify failed: %v — re-verifying next cycle", k.platform, k.repo, err)
+			log.Printf("commit-verify: list %s repo=%s to verify failed: %v: re-verifying next cycle", k.platform, k.repo, err)
 			s.bumpUncommitted(ctx, group)
 			continue
 		}
@@ -86,7 +86,7 @@ func (s *Server) commitAndVerify(ctx context.Context, chunks []types.ChunkRef) {
 			log.Printf("commit-verify: mark %d committed failed: %v", len(confirmed), err)
 		}
 		if len(missing) > 0 {
-			log.Printf("commit-verify: %d chunk(s) still absent on %s repo=%s after commit — retrying", len(missing), k.platform, k.repo)
+			log.Printf("commit-verify: %d chunk(s) still absent on %s repo=%s after commit, retrying", len(missing), k.platform, k.repo)
 			s.bumpUncommitted(ctx, missing)
 		}
 	}
@@ -102,7 +102,7 @@ func (s *Server) bumpUncommitted(ctx context.Context, chunks []types.ChunkRef) {
 			continue
 		}
 		if c.SyncAttempts+1 >= maxSyncAttempts {
-			log.Printf("commit-verify: WARNING chunk %s (file %s idx %d) hit %d commit attempts and is NOT durable on %s — data-loss risk surfaced",
+			log.Printf("commit-verify: WARNING chunk %s (file %s idx %d) hit %d commit attempts and is NOT durable on %s, data-loss risk surfaced",
 				c.ChunkID, c.FileID, c.Index, maxSyncAttempts, c.Platform)
 		}
 	}

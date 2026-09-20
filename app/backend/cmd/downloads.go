@@ -19,7 +19,7 @@ import (
 //
 // Every bundler filename embeds its version (zcrypt_0.1.4_aarch64.dmg), so the
 // download page, the docs and install scripts each had to know the current
-// version to build a link — and drifted apart. One redirect per target fixes
+// version to build a link, and drifted apart. One redirect per target fixes
 // that: /api/download/macos-arm64 is stable forever and resolves the asset at
 // click time. Recording the click is the same request, so download analytics
 // falls out of the URL fix rather than needing its own tracker.
@@ -98,7 +98,7 @@ var downloadTargets = map[string]downloadTarget{
 	"android": {platform: "android", stable: "zcrypt.apk", android: true,
 		match: suffix(".apk")},
 
-	// CLI / TUI archives from GoReleaser. No stable aliases for these — the
+	// CLI / TUI archives from GoReleaser. No stable aliases for these, the
 	// resolver falls through to the versioned name.
 	"cli-darwin-arm64":  {platform: "macos", match: suffix("_darwin_arm64.tar.gz")},
 	"cli-darwin-amd64":  {platform: "macos", match: suffix("_darwin_amd64.tar.gz")},
@@ -121,7 +121,7 @@ type ghRelease struct {
 
 // releaseCache memoises the GitHub API so a burst of download clicks doesn't
 // spend the (unauthenticated, 60/hr) rate limit. A stale entry is still served
-// when a refresh fails — better a slightly old asset URL than a dead link.
+// when a refresh fails: better a slightly old asset URL than a dead link.
 type releaseCache struct {
 	mu      sync.Mutex
 	entries map[string]*releaseCacheEntry
@@ -261,7 +261,7 @@ func (s *Server) HandleAppDownload(w http.ResponseWriter, r *http.Request) {
 	url, version, found := s.resolveTarget(r.Context(), t)
 	if !found {
 		// A target with no published asset (an installer whose build leg did
-		// not complete, say) must not dead-end — send them somewhere useful.
+		// not complete, say) must not dead-end, send them somewhere useful.
 		log.Printf("download: no asset for target %q (release %q)", t.name, version)
 		http.Redirect(w, r, releasesPageURL, http.StatusFound)
 		return
@@ -293,7 +293,7 @@ func (s *Server) HandleAppDownload(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, url, http.StatusFound)
 }
 
-// HandleDownloadStats is the public counter — totals only, no breakdown.
+// HandleDownloadStats is the public counter, totals only, no breakdown.
 // GET /api/downloads/stats
 func (s *Server) HandleDownloadStats(w http.ResponseWriter, r *http.Request) {
 	total, err := s.db.GetDownloadTotal(r.Context())
@@ -305,9 +305,9 @@ func (s *Server) HandleDownloadStats(w http.ResponseWriter, r *http.Request) {
 }
 
 // releaseAsset reports whether one download target actually published on the
-// current release. A missing installer is otherwise silent — the download page
+// current release. A missing installer is otherwise silent, the download page
 // just stops offering it, and /dl/<target> quietly falls back to the releases
-// page — so it is surfaced explicitly.
+// page, so it is surfaced explicitly.
 type releaseAsset struct {
 	Target   string `json:"target"`
 	Platform string `json:"platform"`

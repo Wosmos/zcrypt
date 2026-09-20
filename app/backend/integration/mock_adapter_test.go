@@ -12,7 +12,7 @@ import (
 
 // mockAdapter is an in-memory PlatformAdapter for integration tests. Unlike a
 // pure no-op, it keeps a blob store keyed by repo+remote_path so a test can
-// ASSERT that a chunk actually landed on — and later left — the "platform".
+// ASSERT that a chunk actually landed on (and later left) the "platform".
 // Upload records the blob, Delete removes it, and ListChunks enumerates a repo,
 // which is exactly what the purge round-trip and the reconciliation sweep need
 // to verify. It is safe for concurrent use so the background workers can drive

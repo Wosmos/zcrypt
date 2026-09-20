@@ -52,7 +52,7 @@ func (s *Server) HandlePurgeFile(w http.ResponseWriter, r *http.Request) {
 
 	// byos-direct deletion: the owner's device already removed the ciphertext
 	// from the user's OWN storage (it holds the token), so the server only drops
-	// the metadata — no pending_deletions queue, no deletion-worker load. This is
+	// the metadata, no pending_deletions queue, no deletion-worker load. This is
 	// the delete counterpart to byos-direct upload: bytes never transit us.
 	if r.URL.Query().Get("client_deleted") == "true" {
 		if err := s.db.PurgeFileMetadata(ctx, userID, fileID); err != nil {
@@ -74,10 +74,10 @@ func (s *Server) HandlePurgeFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Unsynced chunks never reached a platform — remove their staged .enc files.
+	// Unsynced chunks never reached a platform. Remove their staged .enc files.
 	removeStagedChunkFiles(staged)
 
-	// Synced chunk refs are now queued in pending_deletions — wake the deletion worker.
+	// Synced chunk refs are now queued in pending_deletions, wake the deletion worker.
 	s.signalDeletion()
 
 	s.emitFileChange(ctx, userID, fileID, "deleted")
@@ -88,7 +88,7 @@ func (s *Server) HandlePurgeFile(w http.ResponseWriter, r *http.Request) {
 }
 
 // bulkFileIDs decodes and validates a bulk file-op request body (all three bulk
-// handlers share it): requires 1..500 ids and drops malformed uuids up front —
+// handlers share it): requires 1..500 ids and drops malformed uuids up front:
 // the set-based statements cast the whole slice to uuid[], so a single bad id
 // would abort the entire batch; dropped ids simply count as failed. Writes the
 // error response itself and returns ok=false when the request is invalid.
@@ -161,7 +161,7 @@ func (s *Server) HandleBulkDeleteFiles(w http.ResponseWriter, r *http.Request) {
 
 // HandleBulkPurgeFiles permanently deletes multiple files in a single transaction
 // (empties them from Trash). This replaces the old client pattern of firing one
-// DELETE /purge request per file in parallel, which — on a large multi-select —
+// DELETE /purge request per file in parallel, which: on a large multi-select:
 // flooded the per-user rate limiter (429s) and hammered the DB with ~7 round-trips
 // per file. Now it's one request and a fixed handful of set-based statements.
 // POST /api/files/bulk-purge
@@ -181,10 +181,10 @@ func (s *Server) HandleBulkPurgeFiles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Unsynced chunks never reached a platform — remove their staged .enc files.
+	// Unsynced chunks never reached a platform. Remove their staged .enc files.
 	removeStagedChunkFiles(staged)
 
-	// Synced chunk refs are now queued in pending_deletions — wake the deletion worker.
+	// Synced chunk refs are now queued in pending_deletions, wake the deletion worker.
 	s.signalDeletion()
 
 	s.emitFileChanges(ctx, userID, validIDs, "deleted")
@@ -209,7 +209,7 @@ func (s *Server) HandleBulkRestoreFiles(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, `{"error":"failed to restore files"}`, http.StatusInternalServerError)
 		return
 	}
-	// Restored files reappear on other devices — emit "added" (a fresh rev) so a
+	// Restored files reappear on other devices: emit "added" (a fresh rev) so a
 	// device that saw the "deleted" event brings them back.
 	s.emitFileChanges(ctx, userID, validIDs, "added")
 	s.respondBulkFileOp(w, r, userID, "bulk_file_restore", "restored", restored, total)

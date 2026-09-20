@@ -355,7 +355,7 @@ func (m *DashboardModel) executeCommand(input string) tea.Cmd {
 		m.err = "Commands: ls, upload [path], dl, rm, search [term], clear, sa (select-all), settings, logout, quit"
 
 	default:
-		m.err = fmt.Sprintf("Unknown command: %s — type :help for available commands", cmd)
+		m.err = fmt.Sprintf("Unknown command: %s: type :help for available commands", cmd)
 	}
 
 	return nil

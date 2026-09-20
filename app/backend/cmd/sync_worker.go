@@ -59,7 +59,7 @@ func (s *Server) StartSyncWorker(ctx context.Context) {
 	go func() {
 		// Recover so a panic in chunk syncing (e.g. a nil adapter deref or a
 		// malformed chunk) doesn't permanently kill all platform syncing for
-		// the process — which would strand every staged chunk on local disk.
+		// the process: which would strand every staged chunk on local disk.
 		// On panic, relaunch the worker so syncing self-heals.
 		defer func() {
 			if r := recover(); r != nil {
@@ -89,7 +89,7 @@ func (s *Server) StartSyncWorker(ctx context.Context) {
 				log.Println("sync-worker: stopped")
 				return
 			case <-s.syncCh:
-				// Upload just happened — drain the whole queue, then poll promptly
+				// Upload just happened: drain the whole queue, then poll promptly
 				// in case more chunks land right behind it.
 				for s.drainAll(ctx) {
 				}
@@ -135,8 +135,8 @@ func (s *Server) drainAll(ctx context.Context) bool {
 
 // reconcileUncommitted commits + verifies a batch of chunks that were uploaded
 // but whose platform commit was never confirmed (the HuggingFace silent-loss
-// path: LFS blob present, tree pointer missing). It is the self-healing backstop
-// — a chunk stays committed=false and is retried here every cycle until its
+// path: LFS blob present, tree pointer missing). It is the self-healing backstop:
+// a chunk stays committed=false and is retried here every cycle until its
 // object is confirmed present on the platform (or it exhausts the attempt cap and
 // is logged as a data-loss risk). Returns true if any were found.
 func (s *Server) reconcileUncommitted(ctx context.Context) bool {
@@ -194,7 +194,7 @@ func (s *Server) syncOneChunk(ctx context.Context, chunk types.ChunkRef, staging
 			return
 		}
 		if chunk.SyncAttempts+1 >= maxSyncAttempts {
-			log.Printf("sync-worker: WARNING chunk %s (file %s, idx %d) hit %d sync attempts and will no longer be retried — it is NOT durable on any platform",
+			log.Printf("sync-worker: WARNING chunk %s (file %s, idx %d) hit %d sync attempts and will no longer be retried. It is NOT durable on any platform",
 				chunk.ChunkID, chunk.FileID, chunk.Index, maxSyncAttempts)
 		}
 	}
@@ -218,7 +218,7 @@ func (s *Server) syncOneChunk(ctx context.Context, chunk types.ChunkRef, staging
 	// Only generate a fresh path the first time, and persist it BEFORE uploading:
 	// remote_path is written only after a successful upload, so without a
 	// pre-recorded plan a crash between Upload succeeding and that write would
-	// strand the blob at a random, unknowable path — a permanent orphan. With the
+	// strand the blob at a random, unknowable path, a permanent orphan. With the
 	// plan persisted, deletion can always find it. Git platforms get a 2-hex-char
 	// shard directory so no folder ever approaches HuggingFace's hard
 	// 10k-entries-per-folder limit; Telegram keeps the flat name (a chat has no
@@ -263,18 +263,18 @@ func (s *Server) syncOneChunk(ctx context.Context, chunk types.ChunkRef, staging
 	// Per-platform push rate limit (e.g. GitHub ~7GB/hour). Wait BEFORE taking a
 	// repo slot so throttling doesn't hold the slot idle and block other repos.
 	if delay := s.pushLimiter.reserve(chunk.Platform, chunk.Size); delay > 0 {
-		log.Printf("sync-worker: throttling %s (rate cap) — holding chunk %s for %s", chunk.Platform, chunk.ChunkID, delay.Round(time.Second))
+		log.Printf("sync-worker: throttling %s (rate cap): holding chunk %s for %s", chunk.Platform, chunk.ChunkID, delay.Round(time.Second))
 		select {
 		case <-time.After(delay):
 		case <-ctx.Done():
-			return // shutdown — not a failed attempt
+			return // shutdown, not a failed attempt
 		}
 	}
 
 	// Acquire per-repo slot to prevent GitHub 409 storms
 	releaseRepo, err := acquireRepoSlot(ctx, chunk.Repo)
 	if err != nil {
-		return // context cancelled — shutdown, not a real failure; don't count it
+		return // context cancelled: shutdown, not a real failure; don't count it
 	}
 	defer releaseRepo()
 
@@ -301,13 +301,13 @@ func (s *Server) syncOneChunk(ctx context.Context, chunk types.ChunkRef, staging
 		return
 	}
 	if rows == 0 {
-		// The chunk row vanished while this upload was in flight — the file was
+		// The chunk row vanished while this upload was in flight, the file was
 		// purged (its planned path was queued for deletion and already processed
 		// as a 404 no-op) before the blob actually landed. The blob now exists at
 		// ref.RemotePath with no DB record, so queue it for deletion directly;
 		// otherwise it is an orphan (invisible forever on Telegram, reconcile-only
 		// on git). Then fall through to remove staging.
-		log.Printf("sync-worker: chunk %s gone at mark time (purged mid-flight) — queueing orphan blob %s for deletion", chunk.ChunkID, ref.RemotePath)
+		log.Printf("sync-worker: chunk %s gone at mark time (purged mid-flight): queueing orphan blob %s for deletion", chunk.ChunkID, ref.RemotePath)
 		if qErr := s.db.QueueChunkDeletion(ctx, chunk.UserID, chunk.Platform, chunk.Account, chunk.Repo, ref.RemotePath); qErr != nil {
 			log.Printf("sync-worker: failed to queue orphan blob %s for deletion: %v", ref.RemotePath, qErr)
 		} else {

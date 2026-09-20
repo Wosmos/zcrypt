@@ -14,7 +14,7 @@ import (
 const orphanSampleCap = 50
 
 // RepoReconcileReport is the per-repo result of the reconciliation sweep: what is
-// physically on the platform versus what the DB accounts for. It is REPORT ONLY —
+// physically on the platform versus what the DB accounts for. It is REPORT ONLY:
 // producing it never deletes anything.
 type RepoReconcileReport struct {
 	RepoID      string   `json:"repo_id"`
@@ -44,7 +44,7 @@ type ReconcileReport struct {
 // Anything on the platform that the DB does not reference is a historical orphan.
 //
 // This is strictly REPORT-ONLY: it never deletes a blob. Auto-deleting on a
-// listing diff is unsafe — a listing that is incomplete or path-mismatched would
+// listing diff is unsafe: a listing that is incomplete or path-mismatched would
 // classify LIVE data as orphaned. The forward-completeness fix (planned_remote_path)
 // prevents NEW orphans; this surfaces pre-existing ones for manual review.
 //
@@ -54,7 +54,7 @@ type ReconcileReport struct {
 func (s *Server) ReconcileUserOrphans(ctx context.Context, userID string) (ReconcileReport, error) {
 	report := ReconcileReport{
 		UserID: userID,
-		Note:   "Report only — no blobs were deleted. Review orphans before acting.",
+		Note:   "Report only, no blobs were deleted. Review orphans before acting.",
 	}
 
 	repos, err := s.db.ListRepos(ctx, userID, "")
@@ -124,10 +124,10 @@ func (s *Server) ReconcileUserOrphans(ctx context.Context, userID string) (Recon
 }
 
 // HandleAdminReconcile reports platform blobs that the DB no longer references
-// (historical orphans), for one user. Report-only — deletes nothing.
+// (historical orphans), for one user. Report-only, deletes nothing.
 //
-// GET /api/admin/reconcile          — reconcile the calling admin's own repos
-// GET /api/admin/reconcile?user_id= — reconcile a specific user's repos
+// GET /api/admin/reconcile         : reconcile the calling admin's own repos
+// GET /api/admin/reconcile?user_id=: reconcile a specific user's repos
 func (s *Server) HandleAdminReconcile(w http.ResponseWriter, r *http.Request) {
 	userID := r.URL.Query().Get("user_id")
 	if userID == "" {

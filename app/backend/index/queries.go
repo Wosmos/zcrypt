@@ -25,7 +25,7 @@ const deletionLocatorExpr = `CASE WHEN platform = 'telegram' ` +
 // folder_id assignment is atomic and ownership-validated in the same INSERT: the
 // value is only persisted when a live folder with that id is owned by this user
 // (the scalar subquery resolves to NULL otherwise, landing the file at Root). A
-// nil f.FolderID means Root, exactly as before — so existing callers that never
+// nil f.FolderID means Root, exactly as before, so existing callers that never
 // set FolderID are unaffected (backward compatible).
 func (db *DB) InsertFile(ctx context.Context, userID string, f *types.FileMetadata) error {
 	status := f.Status
@@ -308,7 +308,7 @@ func (db *DB) GetChunksForFile(ctx context.Context, fileID string, userIDs ...st
 // DeleteFile removes a file from the index and queues its synced chunks for
 // deferred remote deletion. It returns the chunk IDs of NOT-yet-synced chunks
 // (remote_path = ”): those never reached a platform, so there is nothing to
-// queue — but their staged .enc files still sit in the staging dir and the
+// queue, but their staged .enc files still sit in the staging dir and the
 // caller must remove them (best-effort) or they leak server disk forever.
 func (db *DB) DeleteFile(ctx context.Context, userID, fileID string) ([]string, error) {
 	tx, err := db.pool.Begin(ctx)
@@ -357,7 +357,7 @@ func (db *DB) DeleteFile(ctx context.Context, userID, fileID string) ([]string, 
 
 	// Move chunks that have (or may have) a platform blob to pending_deletions
 	// before removing them. A chunk is deletable if it synced (remote_path set)
-	// OR if it was planned for upload (planned_remote_path set) — the latter
+	// OR if it was planned for upload (planned_remote_path set), the latter
 	// covers the crash window where Upload succeeded but the remote_path write
 	// didn't, which would otherwise strand an untrackable blob. The effective
 	// path prefers the confirmed remote_path and falls back to the planned one.
@@ -409,7 +409,7 @@ func (db *DB) DeleteFile(ctx context.Context, userID, fileID string) ([]string, 
 // DeleteFilesBatch deletes many files in a single transaction using set-based SQL,
 // returning the number of files actually removed. This replaces the old pattern of
 // looping DeleteFile once per id (~7 round-trips * N files, all serial) with a fixed
-// ~4 statements regardless of N — the difference between minutes and milliseconds on
+// ~4 statements regardless of N: the difference between minutes and milliseconds on
 // a large multi-select. As with DeleteFile, chunk refs are copied into
 // pending_deletions for deferred remote cleanup before the rows are removed.
 //
@@ -441,7 +441,7 @@ func (db *DB) DeleteFilesBatch(ctx context.Context, userID string, fileIDs []str
 
 	// Queue remote chunk deletions before deleting the chunk rows. A chunk is
 	// deletable if it synced (remote_path set) or was planned for upload
-	// (planned_remote_path set — covers the crash window); the effective path
+	// (planned_remote_path set: covers the crash window); the effective path
 	// prefers remote_path and falls back to the planned one.
 	if _, err := tx.Exec(ctx,
 		`INSERT INTO pending_deletions (user_id, platform, account, repo, remote_path)
@@ -453,7 +453,7 @@ func (db *DB) DeleteFilesBatch(ctx context.Context, userID string, fileIDs []str
 	}
 
 	// Collect unsynced chunk IDs (never reached a platform) so the caller can
-	// remove their staged .enc files — mirrors DeleteFile's single-file cleanup.
+	// remove their staged .enc files, mirrors DeleteFile's single-file cleanup.
 	stagedRows, err := tx.Query(ctx,
 		`SELECT chunk_id FROM chunks WHERE user_id = $1 AND file_id = ANY($2::uuid[]) AND remote_path = ''`,
 		userID, fileIDs,
@@ -522,8 +522,8 @@ func (db *DB) GetPendingDeletions(ctx context.Context, limit, maxAttempts int) (
 
 // GetStalePendingDeletions is the slow retry lane: items that already exhausted
 // the fast worker's attempt budget (attempts >= minAttempts) but are still under
-// the hard cap. The 6-hourly cleanup batch gives these a second chance — e.g. a
-// platform outage that outlasted the fast retries — instead of stranding the
+// the hard cap. The 6-hourly cleanup batch gives these a second chance, e.g. a
+// platform outage that outlasted the fast retries, instead of stranding the
 // remote blob forever after 5 quick failures.
 func (db *DB) GetStalePendingDeletions(ctx context.Context, limit, minAttempts, maxAttempts int) ([]PendingDeletion, error) {
 	return db.getPendingDeletionsRange(ctx, limit, minAttempts, maxAttempts)
@@ -691,8 +691,8 @@ func (db *DB) ListIncompleteFiles(ctx context.Context) ([]types.FileMetadata, er
 
 // UpdateChunkRemotePath sets the remote_path for a chunk after successful upload.
 // UpdateChunkRemotePath sets the remote_path for a chunk after successful upload
-// and returns the number of rows updated. Zero means the chunk row is gone —
-// typically because the file was purged while the upload was in flight — which
+// and returns the number of rows updated. Zero means the chunk row is gone:
+// typically because the file was purged while the upload was in flight, which
 // the sync worker treats as a signal to queue the just-uploaded blob for deletion
 // instead of leaking it.
 func (db *DB) UpdateChunkRemotePath(ctx context.Context, chunkID, remotePath string) (int64, error) {
@@ -730,7 +730,7 @@ func (db *DB) QueueChunkDeletion(ctx context.Context, userID, platform, account,
 // for in a repo: every chunk's confirmed remote_path (or, if not yet synced, its
 // planned_remote_path), plus anything already queued in pending_deletions for
 // that repo. A blob physically present on the platform but NOT in this set is an
-// orphan — nothing in the DB references it and nothing is scheduled to remove it.
+// orphan, nothing in the DB references it and nothing is scheduled to remove it.
 // Used by the report-only reconciliation sweep. pending_deletions is matched by
 // (platform, account, repo) because its user_id can be NULL (account-deleted or
 // anonymous-send items).
@@ -786,7 +786,7 @@ func (db *DB) KnownRemotePaths(ctx context.Context, userID, platform, account, r
 // upload a chunk to, before the upload call. Because remote_path is only written
 // after a successful upload, this is the only durable record of a blob written in
 // the crash window between adapter.Upload succeeding and UpdateChunkRemotePath
-// committing — deletion falls back to it so such a blob is still purgeable.
+// committing: deletion falls back to it so such a blob is still purgeable.
 func (db *DB) SetPlannedRemotePath(ctx context.Context, chunkID, plannedPath string) error {
 	_, err := db.pool.Exec(ctx,
 		`UPDATE chunks SET planned_remote_path = $1 WHERE chunk_id = $2`, plannedPath, chunkID)
@@ -902,8 +902,8 @@ func (db *DB) GetUploadSession(ctx context.Context, sessionID, userID string) (*
 // error wrapping pgx.ErrNoRows when none exists. The join to files guarantees
 // the session's file row still exists (i.e. the session is actually resumable).
 // This is what makes upload resume server-authoritative: a re-init of the same
-// file from any device lands back on the original session — and therefore the
-// original platform — with no client-side state needed.
+// file from any device lands back on the original session, and therefore the
+// original platform: with no client-side state needed.
 func (db *DB) FindActiveUploadSession(ctx context.Context, userID, sha256 string, originalSize int64) (*types.UploadSession, error) {
 	s := &types.UploadSession{}
 	err := db.pool.QueryRow(ctx,
@@ -927,7 +927,7 @@ func (db *DB) FindActiveUploadSession(ctx context.Context, userID, sha256 string
 }
 
 // ListActiveUploadSessions returns a user's not-yet-complete, unexpired upload
-// sessions — the data behind the "unfinished uploads" UI (filename, platform,
+// sessions: the data behind the "unfinished uploads" UI (filename, platform,
 // progress, expiry). Newest first. Selects only display fields (no salt/sha256).
 func (db *DB) ListActiveUploadSessions(ctx context.Context, userID string) ([]types.UploadSession, error) {
 	rows, err := db.pool.Query(ctx,
@@ -1053,7 +1053,7 @@ func (db *DB) CountActiveUploadSessions(ctx context.Context, userID string) (int
 }
 
 // CleanupExpiredUploadSessions cancels expired active sessions and hard-deletes
-// their orphaned 'uploading' files — queueing every already-synced chunk into
+// their orphaned 'uploading' files: queueing every already-synced chunk into
 // pending_deletions FIRST (all in one transaction), exactly like DeleteFile.
 // Without the queueing step, the chunks.file_id CASCADE silently erased the only
 // reference to chunks the sync worker had already pushed to the platforms,
@@ -1143,14 +1143,14 @@ func (db *DB) CleanupExpiredUploadSessions(ctx context.Context) (int, []string, 
 }
 
 // InsertClientChunk inserts a chunk uploaded by the client (already encrypted).
-// Returns inserted=false when a row for this (file_id, idx) already exists — a
-// racy duplicate PUT — so the caller can avoid double-counting uploaded_chunks.
+// Returns inserted=false when a row for this (file_id, idx) already exists, a
+// racy duplicate PUT, so the caller can avoid double-counting uploaded_chunks.
 // Relies on the uq_chunks_file_idx unique index (see schema.go).
 func (db *DB) InsertClientChunk(ctx context.Context, userID string, c *types.ChunkRef) (bool, error) {
 	// committed=FALSE: this is the DIRECT-upload path (HuggingFace), where the
 	// client PUT the LFS blob but no tree-pointer commit exists yet. The sync
 	// worker's reconcile pass commits it and flips committed=TRUE only after
-	// verifying the object is actually present on the platform — so a chunk is
+	// verifying the object is actually present on the platform, so a chunk is
 	// never recorded durable on an uncommitted blob (the silent-loss bug).
 	tag, err := db.pool.Exec(ctx,
 		`INSERT INTO chunks (chunk_id, file_id, user_id, idx, size, sha256, platform, account, repo, remote_path, compressed, committed)
@@ -1275,7 +1275,7 @@ func (db *DB) GetUncommittedChunks(ctx context.Context, limit, maxAttempts int) 
 }
 
 // GetUncommittedChunksForFile returns the uploaded-but-not-yet-committed chunks
-// of a single file — used to commit + verify a file's chunks synchronously on
+// of a single file: used to commit + verify a file's chunks synchronously on
 // upload-complete, before the reconcile loop would otherwise get to them.
 func (db *DB) GetUncommittedChunksForFile(ctx context.Context, fileID string) ([]types.ChunkRef, error) {
 	rows, err := db.pool.Query(ctx,
@@ -1299,7 +1299,7 @@ func (db *DB) GetUncommittedChunksForFile(ctx context.Context, fileID string) ([
 	return chunks, rows.Err()
 }
 
-// MarkChunksCommitted flips committed=TRUE for the given chunks — called ONLY
+// MarkChunksCommitted flips committed=TRUE for the given chunks, called ONLY
 // after the reconcile has confirmed each object is actually present on the
 // platform. Idempotent; a no-op on an empty list.
 func (db *DB) MarkChunksCommitted(ctx context.Context, chunkIDs []string) error {
@@ -1327,7 +1327,7 @@ func (db *DB) IncrementChunkSyncAttempts(ctx context.Context, chunkID string) er
 }
 
 // CountStuckChunks returns the number of chunks that have hit the retry cap
-// without syncing — used for surfacing data-loss risk in logs/metrics.
+// without syncing: used for surfacing data-loss risk in logs/metrics.
 func (db *DB) CountStuckChunks(ctx context.Context, maxAttempts int) (int, error) {
 	var n int
 	err := db.pool.QueryRow(ctx,

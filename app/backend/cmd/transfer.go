@@ -120,7 +120,7 @@ type transferMessage struct {
 //	Sender sends "file_info" with metadata
 //	Sender sends "chunk" messages with encrypted data (base64)
 //	Sender sends "done" when complete
-//	All data is end-to-end encrypted — server just relays
+//	All data is end-to-end encrypted, server just relays
 func (s *Server) HandleTransferWS(w http.ResponseWriter, r *http.Request) {
 	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
 		OriginPatterns: []string{"*"},
@@ -131,7 +131,7 @@ func (s *Server) HandleTransferWS(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.Close(websocket.StatusNormalClosure, "")
 
-	// Relayed chunk messages are ~88KB (64KB of data, base64-encoded) — well over
+	// Relayed chunk messages are ~88KB (64KB of data, base64-encoded), well over
 	// the library's 32KB default read limit, which would otherwise abort the relay
 	// the moment it reads the first chunk. Raise it with headroom; this also caps
 	// per-message size to bound memory use.
@@ -261,7 +261,7 @@ func (s *Server) handleTransferReceiver(ctx context.Context, conn *websocket.Con
 	// The receiver sends no application messages, but we MUST keep reading from
 	// the connection: the websocket library only processes control frames
 	// (ping/pong/close) while a read is in flight, so without this the closing
-	// handshake never completes — surfacing in the browser as "Close received
+	// handshake never completes: surfacing in the browser as "Close received
 	// after close" and a dropped connection. Draining also lets us notice when
 	// the receiver disconnects.
 	recvGone := make(chan struct{})

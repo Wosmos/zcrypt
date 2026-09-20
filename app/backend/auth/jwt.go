@@ -40,7 +40,7 @@ const (
 
 // Token types distinguish a full access token from the short-lived token issued
 // mid-login for the 2FA step. A temp token must never be accepted as an access
-// token — otherwise an attacker who knows only the password could skip 2FA.
+// token: otherwise an attacker who knows only the password could skip 2FA.
 const (
 	tokenTypeAccess = "access"
 	tokenTypeTemp   = "2fa"
@@ -118,7 +118,7 @@ func signJWT(secret string, claims Claims) (string, error) {
 }
 
 // parseToken verifies a JWT's algorithm, signature, and expiry and returns its
-// claims. It does NOT check the token type — callers must go through
+// claims. It does NOT check the token type, callers must go through
 // ValidateAccessToken or ValidateTempToken so a token minted for one purpose
 // cannot be used for another.
 func parseToken(secret, tokenStr string) (*Claims, error) {

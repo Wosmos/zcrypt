@@ -11,13 +11,13 @@ import (
 //
 // X-Forwarded-For is client-controllable: anything to the left of the entry
 // added by your own proxy is attacker-supplied. Reading the left-most ("first")
-// value — as the old extractors did — lets a client spoof its IP and get a
+// value (as the old extractors did) lets a client spoof its IP and get a
 // fresh bucket on every IP-keyed rate limiter. Instead we count trustedHops in
 // from the right of [XFF..., RemoteAddr], which is the boundary your trusted
 // proxies actually control.
 //
 // trustedHops <= 0 ignores forwarding headers entirely and uses the direct TCP
-// peer — secure by default. This assumes the app is only reachable through the
+// peer, secure by default. This assumes the app is only reachable through the
 // trusted proxies; if it is also exposed directly, a non-zero count would let a
 // direct caller forge the headers, so set the count to match real infra.
 func clientIP(r *http.Request, trustedHops int) string {
@@ -41,7 +41,7 @@ func clientIP(r *http.Request, trustedHops int) string {
 	idx := len(chain) - 1 - trustedHops
 	if idx < 0 {
 		// Fewer hops present than configured (misconfig or truncated headers).
-		// Fall back to the direct peer — never an attacker-supplied left entry.
+		// Fall back to the direct peer, never an attacker-supplied left entry.
 		return peer
 	}
 	return chain[idx]
@@ -65,7 +65,7 @@ func (s *Server) clientIP(r *http.Request) string {
 // anonIP coarsens an address before it is written to a long-lived row (audit
 // log, pads, sends): IPv4 keeps its /24, IPv6 its /48. Enough to notice "a login
 // from somewhere new" or an abuse pattern, not enough to pin a person to a
-// household. Session rows (refresh_tokens) keep the exact IP on purpose — the
+// household. Session rows (refresh_tokens) keep the exact IP on purpose, the
 // Devices page shows it to the account owner as a security signal.
 func anonIP(ip string) string {
 	p := net.ParseIP(ip)

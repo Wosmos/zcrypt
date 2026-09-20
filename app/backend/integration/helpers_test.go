@@ -55,10 +55,10 @@ func setupTestServer(t *testing.T) *testServer {
 	}
 
 	db, err := index.Open(dbURL)
-	require.NoError(t, err, "connect to test database — is docker-compose.test.yml running?")
+	require.NoError(t, err, "connect to test database, is docker-compose.test.yml running?")
 	t.Cleanup(func() { db.Close() })
 
-	// Fixed test master key — 32 bytes hex-encoded
+	// Fixed test master key, 32 bytes hex-encoded
 	masterKeyHex := "0000000000000000000000000000000000000000000000000000000000000001"
 	masterKey, err := crypto.ParseMasterKey(masterKeyHex)
 	require.NoError(t, err)
@@ -180,7 +180,7 @@ func requireStatus(t *testing.T, resp *http.Response, expected int) []byte {
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(resp.Body)
 	require.Equal(t, expected, resp.StatusCode,
-		"expected %d but got %d — body: %s", expected, resp.StatusCode, string(body))
+		"expected %d but got %d: body: %s", expected, resp.StatusCode, string(body))
 	return body
 }
 

@@ -104,7 +104,7 @@ func (m RegisterModel) Update(msg tea.Msg) (RegisterModel, tea.Cmd) {
 	return m, cmd
 }
 
-// focusField blurs all and focuses current — called from Update so mutations persist.
+// focusField blurs all and focuses current: called from Update so mutations persist.
 func (m *RegisterModel) focusField() tea.Cmd {
 	m.email.Blur()
 	m.username.Blur()
@@ -126,7 +126,7 @@ func (m RegisterModel) View() string {
 	b.WriteString(theme.Logo())
 	b.WriteString("\n")
 	b.WriteString("  " + theme.BrandLine() + lipgloss.NewStyle().Foreground(lipgloss.Color("#52525b")).
-		Render("  —  create your account"))
+		Render(" ,  create your account"))
 	b.WriteString("\n\n")
 
 	b.WriteString(m.email.View())

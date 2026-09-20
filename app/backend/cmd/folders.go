@@ -135,7 +135,7 @@ func (s *Server) HandleUpdateFolderStyle(w http.ResponseWriter, r *http.Request)
 
 // updateStyle backs both the folder and file "set/clear encrypted style" handlers
 // (identical request shape + response); `noun` labels the logs/error, `update`
-// is the matching index call. encrypted_style is opaque client ciphertext — an
+// is the matching index call. encrypted_style is opaque client ciphertext, an
 // empty string or null clears it.
 func updateStyle(
 	w http.ResponseWriter,
@@ -231,7 +231,7 @@ func (s *Server) HandleMoveFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Cross-device: the file's folder changed — notify the user's other devices.
+	// Cross-device: the file's folder changed: notify the user's other devices.
 	s.emitFileChange(ctx, userID, fileID, "moved")
 
 	w.Header().Set("Content-Type", "application/json")
@@ -243,11 +243,11 @@ func (s *Server) HandleMoveFile(w http.ResponseWriter, r *http.Request) {
 // encrypted_style is an opaque client-encrypted base64 string, exactly like encrypted_name; the
 // server never decrypts or interprets it. An empty string or null clears the style (falls back
 // to the client's auto/default styling).
-// HandleSetFileName — PATCH /api/files/{id}/name {encrypted_name}. The client
+// HandleSetFileName. PATCH /api/files/{id}/name {encrypted_name}. The client
 // calls this the first time it lists a legacy (plaintext-named) file while
 // unlocked, handing back the name sealed under its name key; the server stores
 // the ciphertext and blanks every plaintext copy it held. In a decoy session the
-// id addresses a decoy_files row instead — its names are sealed under the decoy
+// id addresses a decoy_files row instead: its names are sealed under the decoy
 // password with the same enc1: convention (see cmd/list.go).
 func (s *Server) HandleSetFileName(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -289,7 +289,7 @@ func (s *Server) HandleUpdateFileStyle(w http.ResponseWriter, r *http.Request) {
 // POST /api/folders/{id}/password  body { pw_salt, pw_verifier }
 // The body fields are opaque client-computed base64 blobs; the server stores them verbatim
 // and never derives, sees, or logs the folder password or any key. Audit records only the
-// folder id — never the salt, verifier, or any key material.
+// folder id, never the salt, verifier, or any key material.
 func (s *Server) HandleSetFolderPassword(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userID := GetUserID(r)

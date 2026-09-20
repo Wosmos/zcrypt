@@ -145,7 +145,7 @@ func (db *DB) DisableTOTP(ctx context.Context, userID string) error {
 
 // ReplaceBackupCodes atomically replaces a user's 2FA recovery codes with the
 // given hashes (sha256 of the normalized plaintext). Used on enable and
-// regenerate — any previously-issued codes are invalidated.
+// regenerate: any previously-issued codes are invalidated.
 func (db *DB) ReplaceBackupCodes(ctx context.Context, userID string, codeHashes []string) error {
 	tx, err := db.pool.Begin(ctx)
 	if err != nil {
@@ -228,7 +228,7 @@ func (db *DB) SetUserPlan(ctx context.Context, userID, plan string) error {
 
 // DeleteUser removes a user and all associated data (cascade). Before the row
 // delete cascades the chunks table away, every synced chunk is queued into
-// pending_deletions — the ONLY surviving reference to the user's remote blobs —
+// pending_deletions: the ONLY surviving reference to the user's remote blobs,
 // so the deletion worker can remove them from the platforms. The queued rows
 // outlive the user because pending_deletions.user_id is ON DELETE SET NULL;
 // the worker resolves NULL-user items via the global adapter set. The caller

@@ -62,8 +62,8 @@ func (db *DB) ResolveUserPublicKey(ctx context.Context, identifier string) (*typ
 	return pk, nil
 }
 
-// GetPublicKey returns only the shareable public fields for a user — never the
-// wrapped private key — for wrapping a space key to them.
+// GetPublicKey returns only the shareable public fields for a user, never the
+// wrapped private key: for wrapping a space key to them.
 func (db *DB) GetPublicKey(ctx context.Context, userID string) (*types.PublicKey, error) {
 	pk := &types.PublicKey{}
 	err := db.pool.QueryRow(ctx, `

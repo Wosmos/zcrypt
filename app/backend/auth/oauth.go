@@ -177,7 +177,7 @@ func FetchOAuthUserInfo(ctx context.Context, provider, accessToken string) (*OAu
 		return nil, fmt.Errorf("no provider ID in response")
 	}
 	if userInfo.Email == "" {
-		return nil, fmt.Errorf("no email in response — user may have a private email")
+		return nil, fmt.Errorf("no email in response: user may have a private email")
 	}
 
 	return userInfo, nil

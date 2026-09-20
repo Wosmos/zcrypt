@@ -52,8 +52,8 @@ func (s *Server) HandleRegisterRepo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// The user must actually own a personal (non-global) token for this platform
-	// — otherwise a client could seed repos into the pool it has no credentials
+	// The user must actually own a personal (non-global) token for this platform:
+	// otherwise a client could seed repos into the pool it has no credentials
 	// to write to, and the managed pool token must never be usable this way.
 	if _, ok, err := s.db.PersonalTokenAccount(ctx, userID, req.Platform); err != nil {
 		log.Printf("repos/register: personal token lookup for user %s: %v", userID, err)
@@ -91,7 +91,7 @@ func (s *Server) HandleRegisterRepo(w http.ResponseWriter, r *http.Request) {
 }
 
 // HandleDeactivateRepo marks a client-owned repo inactive so the client pool
-// stops writing to it and rotates to a fresh one — the control-plane half of
+// stops writing to it and rotates to a fresh one, the control-plane half of
 // client-side repo rotation (the client creates the replacement via
 // /api/repos/register). Scoped to the caller: deactivating a repo you don't own
 // returns 404, never touches another user's row.
@@ -128,7 +128,7 @@ func (s *Server) HandleDeactivateRepo(w http.ResponseWriter, r *http.Request) {
 
 // HandleGetFileLocators returns the per-chunk platform locations for a file so a
 // byos-direct client can download each chunk directly from the user's own
-// storage. OWNER-ONLY: never exposed through a share or space membership — the
+// storage. OWNER-ONLY: never exposed through a share or space membership, the
 // query is scoped to files.user_id. Web/share downloads keep using the relay
 // (/api/files/{id}/chunks/{idx}); this endpoint is the direct-download map.
 // GET /api/files/{id}/locators

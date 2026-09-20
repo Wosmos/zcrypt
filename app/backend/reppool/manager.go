@@ -84,7 +84,7 @@ func (m *Manager) createNewRepo(ctx context.Context) (*types.RepoInfo, error) {
 // readable "platform_account_name" prefix for logs/debugging, then appends a
 // random suffix. The disguise names come from math/rand, so two registrations
 // (e.g. concurrent chunk uploads that both find no active repo) could otherwise
-// draw the same name at the same index and collide on repos_pkey — which
+// draw the same name at the same index and collide on repos_pkey, which
 // surfaced intermittently as "duplicate key value violates unique constraint
 // repos_pkey" and failed the upload with 500. The suffix makes that impossible.
 func newRepoID(platform, account, name string) string {

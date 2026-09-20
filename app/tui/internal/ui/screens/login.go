@@ -140,7 +140,7 @@ func (m LoginModel) View() string {
 	b.WriteString(theme.Logo())
 	b.WriteString("\n")
 	b.WriteString("  " + theme.BrandLine() + lipgloss.NewStyle().Foreground(lipgloss.Color("#52525b")).
-		Render("  —  zero-knowledge encrypted storage"))
+		Render(" ,  zero-knowledge encrypted storage"))
 	b.WriteString("\n\n")
 
 	// Form

@@ -7,7 +7,7 @@
 //
 // Both are keyed by DeriveUserKEK(masterKey, <row's user id>), so each row is
 // decrypted under the OLD key and re-encrypted under the NEW key using that
-// same user id — this correctly handles per-user AND is_global platform tokens.
+// same user id: this correctly handles per-user AND is_global platform tokens.
 //
 // Usage:
 //
@@ -59,7 +59,7 @@ func run(ctx context.Context, apply bool) error {
 		return fmt.Errorf("MASTER_KEY_NEW: %w", err)
 	}
 	if string(oldKey) == string(newKey) {
-		return errors.New("MASTER_KEY_OLD and MASTER_KEY_NEW are identical — nothing to rotate")
+		return errors.New("MASTER_KEY_OLD and MASTER_KEY_NEW are identical, nothing to rotate")
 	}
 
 	pool, err := pgxpool.New(ctx, dbURL)

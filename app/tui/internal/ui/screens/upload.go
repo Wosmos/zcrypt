@@ -103,7 +103,7 @@ func (m UploadModel) Update(msg tea.Msg) (UploadModel, tea.Cmd) {
 			return m, func() tea.Msg { return SwitchScreenMsg{Screen: "dashboard"} }
 		}
 
-		// Done — any key goes back
+		// Done, any key goes back
 		if m.state == uploadStateDone {
 			return m, func() tea.Msg { return SwitchScreenMsg{Screen: "dashboard"} }
 		}

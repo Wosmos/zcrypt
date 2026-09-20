@@ -123,7 +123,7 @@ func main() {
 	// DEV_MODE=true disables all rate limiting so load tests can run freely.
 	var rateLimited http.Handler
 	if os.Getenv("DEV_MODE") == "true" {
-		log.Println("⚠️  DEV_MODE=true — rate limiting disabled")
+		log.Println("⚠️  DEV_MODE=true, rate limiting disabled")
 		rateLimited = mux
 	} else {
 		rateLimited = cmd.RateLimitMiddleware(200, time.Second, cfg.TrustedProxyCount, mux)

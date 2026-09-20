@@ -65,7 +65,7 @@ func (ts *testServer) makeAdmin(ctx context.Context, email string) *types.User {
 
 // clearAudit empties the audit log so a chain-verification test sees only its
 // own events. VerifyAuditChain is global by design, and sibling tests (tamper,
-// deletion) intentionally break the shared chain — tests run sequentially, so a
+// deletion) intentionally break the shared chain: tests run sequentially, so a
 // clean slate at the top isolates each one.
 func (ts *testServer) clearAudit(ctx context.Context) {
 	ts.t.Helper()
@@ -180,7 +180,7 @@ func TestAuditChainDetectsDeletion(t *testing.T) {
 		ids = append(ids, e.ID)
 	}
 
-	// Delete a middle event — the following event's prev_hash now points at a
+	// Delete a middle event: the following event's prev_hash now points at a
 	// hash that is no longer its predecessor, so the chain must break.
 	_, err := ts.db.Pool().Exec(ctx, `DELETE FROM audit_events WHERE id=$1`, ids[2])
 	require.NoError(t, err)
@@ -192,7 +192,7 @@ func TestAuditChainDetectsDeletion(t *testing.T) {
 }
 
 // TestAuditChainConcurrentInsertsStayLinear proves the advisory lock serializes
-// concurrent audit writes into a single valid chain — no two events fork off the
+// concurrent audit writes into a single valid chain, no two events fork off the
 // same predecessor.
 func TestAuditChainConcurrentInsertsStayLinear(t *testing.T) {
 	ts := setupTestServer(t)
@@ -217,7 +217,7 @@ func TestAuditChainConcurrentInsertsStayLinear(t *testing.T) {
 }
 
 // TestAuditChainSurvivesUserDeletion proves the tamper-evidence chain is NOT
-// broken by a legitimate user deletion — audit rows keep the actor id verbatim
+// broken by a legitimate user deletion: audit rows keep the actor id verbatim
 // (the FK cascade that used to null it, breaking the chain, was removed).
 func TestAuditChainSurvivesUserDeletion(t *testing.T) {
 	ts := setupTestServer(t)

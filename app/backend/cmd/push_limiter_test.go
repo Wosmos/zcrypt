@@ -34,7 +34,7 @@ func TestPushLimiterThrottlesOverCap(t *testing.T) {
 }
 
 func TestPushLimiterUnlimited(t *testing.T) {
-	// A platform with no configured limit is unlimited — never throttled.
+	// A platform with no configured limit is unlimited, never throttled.
 	l := newPushLimiter(map[string]int64{"github": 1000}, time.Hour)
 	if d := l.reserve("telegram", 1<<40); d != 0 {
 		t.Fatalf("unlisted platform should be unlimited, got %v", d)

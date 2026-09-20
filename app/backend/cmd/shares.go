@@ -191,7 +191,7 @@ func (s *Server) HandleGetShareInfo(w http.ResponseWriter, r *http.Request) {
 	if !valid {
 		resp["reason"] = reason
 	}
-	// Only reveal file metadata if no password is set — password-protected shares
+	// Only reveal file metadata if no password is set, password-protected shares
 	// must not leak filename/size until the password is provided via /meta endpoint.
 	if !share.HasPassword {
 		resp["file_name"] = file.OriginalName
@@ -246,7 +246,7 @@ func (s *Server) HandleGetShareFileMeta(w http.ResponseWriter, r *http.Request) 
 		"original_name": file.OriginalName,
 		// Public endpoint: coarsen the size to a band and DROP compressed_size /
 		// encrypted_size (they'd let a link-holder reconstruct the exact size).
-		// chunk_count stays — the recipient needs it to download.
+		// chunk_count stays: the recipient needs it to download.
 		"original_size": SizeBucket(file.OriginalSize),
 		"chunk_count":   file.ChunkCount,
 		"sha256":        file.SHA256,
@@ -254,7 +254,7 @@ func (s *Server) HandleGetShareFileMeta(w http.ResponseWriter, r *http.Request) 
 		"salt":          base64.StdEncoding.EncodeToString(file.Salt),
 		// The CEK wrapped under the share key (from the share, NOT the file's
 		// passphrase-wrapped CEK). The recipient unwraps this with the key in
-		// the share URL fragment — no passphrase needed.
+		// the share URL fragment, no passphrase needed.
 		"wrapped_cek": share.WrappedCEK,
 		"status":      file.Status,
 		"created_at":  CoarsenTimeUTC(file.CreatedAt),
@@ -290,7 +290,7 @@ func (s *Server) HandleGetShareChunk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get file (without user scoping — share grants access)
+	// Get file (without user scoping, share grants access)
 	file, err := s.db.GetFileByIDUnsafe(ctx, share.FileID)
 	if err != nil {
 		http.Error(w, `{"error":"file not found"}`, http.StatusNotFound)

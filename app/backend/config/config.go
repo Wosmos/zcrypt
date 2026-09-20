@@ -73,7 +73,7 @@ type Config struct {
 	// headers entirely and uses the direct peer, so clients cannot spoof their
 	// IP to bypass rate limits. Set to 1 behind a single proxy (e.g. Railway).
 	TrustedProxyCount int `json:"trusted_proxy_count,omitempty"`
-	// From environment only — never persisted to JSON
+	// From environment only, never persisted to JSON
 	DatabaseURL string `json:"-"`
 	MasterKey   string `json:"-"`
 }
@@ -86,11 +86,11 @@ func DefaultConfig() *Config {
 			"github": 850 * 1024 * 1024,  // 850MB
 			"gitlab": 9000 * 1024 * 1024, // 9GB
 			// HF free tier is 100 GB TOTAL private storage per ACCOUNT (not per
-			// repo) — rotating to a new repo adds NO capacity. Keep the per-repo
+			// repo): rotating to a new repo adds NO capacity. Keep the per-repo
 			// threshold safely under the whole-account allowance so a single
 			// repo can never claim more than the account can actually hold.
 			"huggingface": 90 * 1024 * 1024 * 1024, // 90GiB (real limit: 100GB/account)
-			"telegram":    50000 * 1024 * 1024,     // 50GB (virtual — Telegram has no hard repo limit)
+			"telegram":    50000 * 1024 * 1024,     // 50GB (virtual. Telegram has no hard repo limit)
 		},
 	}
 }

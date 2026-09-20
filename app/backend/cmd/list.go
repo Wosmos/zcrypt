@@ -12,7 +12,7 @@ import (
 
 // File-list result bound. The frontend loads the full library to do search/sort/
 // type-filter/pagination entirely client-side, so this is a defensive safety cap
-// against a pathologically large account dumping an unbounded result set — not a
+// against a pathologically large account dumping an unbounded result set, not a
 // product-facing page size. It is high enough that no realistic account is affected;
 // genuine pagination (with server-side sort) would be a separate, larger change.
 const (
@@ -43,7 +43,7 @@ func (s *Server) HandleListFiles(w http.ResponseWriter, r *http.Request) {
 				Status:       "complete",
 			}
 			// Sealed names (enc1:) travel exactly like a real file's encrypted_name,
-			// so the client opens them with the session passphrase — which in a
+			// so the client opens them with the session passphrase, which in a
 			// decoy session IS the decoy password they were sealed under.
 			if strings.HasPrefix(df.Name, sealedPrefix) {
 				fm.EncryptedName = strings.TrimPrefix(df.Name, sealedPrefix)

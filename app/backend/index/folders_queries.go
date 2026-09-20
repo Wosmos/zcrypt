@@ -10,7 +10,7 @@ import (
 )
 
 // ErrFolderCycle is returned by MoveFolder when the requested move would create a
-// cycle — i.e. the target parent is the folder itself or one of its descendants.
+// cycle, i.e. the target parent is the folder itself or one of its descendants.
 // Handlers should surface it as a 4xx (client) error, not a 500. Its message is the
 // authoritative, user-facing rejection string for an attempted cyclic folder move.
 var ErrFolderCycle = errors.New("cannot move a folder into its own subfolder")
@@ -94,7 +94,7 @@ func (db *DB) ListFolders(ctx context.Context, userID string, parentID *string) 
 
 // ListFolderSubtree returns the root folder plus EVERY live descendant (any
 // depth) in a single query. Used by folder sharing to build each file's relative
-// path in one round trip instead of walking the tree one listing at a time — the
+// path in one round trip instead of walking the tree one listing at a time, the
 // per-folder walk could silently drop a branch if any one request hiccupped,
 // flattening those files in the recipient's zip.
 func (db *DB) ListFolderSubtree(ctx context.Context, userID, rootID string) ([]types.Folder, error) {
@@ -193,7 +193,7 @@ func (db *DB) RemoveFolderPassword(ctx context.Context, userID, folderID string)
 // MoveFolder reparents a folder, scoped to the owning user. newParentID nil = move to root.
 //
 // Cycle guard (authoritative for both the dialog and drag paths): a folder may not be
-// moved into itself OR into any of its own descendants — doing so would detach the
+// moved into itself OR into any of its own descendants: doing so would detach the
 // subtree from the tree. A recursive CTE walks the subtree rooted at folderID; if the
 // requested newParentID is anywhere in that subtree the move is rejected with
 // ErrFolderCycle (which handlers surface as a 4xx). Moving to root (nil) is always safe.
@@ -355,7 +355,7 @@ func (db *DB) SoftDeleteFilesBatch(ctx context.Context, userID string, fileIDs [
 
 // RestoreFile brings a file back from the trash, scoped to the owning user. It
 // delegates to RestoreFilesBatch so a single restore also revives the file's
-// trashed ancestor folders (see below) — otherwise a file deleted via its folder
+// trashed ancestor folders (see below): otherwise a file deleted via its folder
 // would restore into a folder the user can't navigate into.
 func (db *DB) RestoreFile(ctx context.Context, userID, fileID string) error {
 	_, err := db.RestoreFilesBatch(ctx, userID, []string{fileID})
@@ -367,7 +367,7 @@ func (db *DB) RestoreFile(ctx context.Context, userID, fileID string) error {
 //
 // Deleting a folder cascade-soft-deletes every file inside it (see
 // SoftDeleteFolderSubtree). Restoring just the files would strand them in a
-// still-trashed folder — invisible, because folder listings filter deleted_at
+// still-trashed folder: invisible, because folder listings filter deleted_at
 // IS NULL. So after un-deleting the files we also revive their ANCESTOR folder
 // chain up to the root, making the restored files reachable again.
 func (db *DB) RestoreFilesBatch(ctx context.Context, userID string, fileIDs []string) (int, error) {
@@ -379,7 +379,7 @@ func (db *DB) RestoreFilesBatch(ctx context.Context, userID string, fileIDs []st
 	if err != nil {
 		return 0, fmt.Errorf("begin tx: %w", err)
 	}
-	// Rollback after a successful Commit is a documented no-op error — safe to drop.
+	// Rollback after a successful Commit is a documented no-op error, safe to drop.
 	defer func() { _ = tx.Rollback(ctx) }()
 
 	tag, err := tx.Exec(ctx,

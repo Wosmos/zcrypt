@@ -20,7 +20,7 @@ type DetectedChat struct {
 }
 
 // TelegramProbe validates a bot token (getMe) and detects channels/groups the
-// bot has recently been added to or posted in (getUpdates). It stores nothing —
+// bot has recently been added to or posted in (getUpdates). It stores nothing:
 // it's a transient lookup the guided UI polls after the user adds the bot to a
 // chat, so the chat ID can be auto-filled instead of hunted for.
 //
@@ -47,7 +47,7 @@ func TelegramProbe(botToken string) (botUsername string, chats []DetectedChat, h
 		return botUsername, nil, "", err
 	}
 	if len(chats) == 0 && dmOnly {
-		hint = "Looks like you only messaged the bot. Files need a channel or group — add the bot to one as an administrator (with permission to post), then Check now."
+		hint = "Looks like you only messaged the bot. Files need a channel or group. Add the bot to one as an administrator (with permission to post), then Check now."
 	}
 	return botUsername, chats, hint, nil
 }
@@ -86,7 +86,7 @@ func telegramGetMeStandalone(client *http.Client, botToken string) (string, erro
 // seeing the same recent events (Telegram retains updates for ~24h).
 //
 // Returns dmOnly=true when updates arrived but none were a usable channel/group
-// (e.g. the user only sent the bot a private /start) — so the UI can explain the
+// (e.g. the user only sent the bot a private /start), so the UI can explain the
 // dead-end instead of spinning forever.
 //
 // getUpdates rejects concurrent calls for the same bot with a 409 Conflict; the
@@ -111,8 +111,8 @@ func telegramDetectChats(client *http.Client, botToken string) (chats []Detected
 }
 
 // telegramGetUpdatesOnce runs a single getUpdates. It reports whether ANY update
-// was returned (sawUpdates) — used to tell "the bot has received nothing" apart
-// from "the bot only got a private DM, not a channel" — and whether a failure was
+// was returned (sawUpdates): used to tell "the bot has received nothing" apart
+// from "the bot only got a private DM, not a channel", and whether a failure was
 // a transient 409 Conflict (concurrent getUpdates) worth retrying.
 func telegramGetUpdatesOnce(client *http.Client, botToken string) (chats []DetectedChat, sawUpdates bool, conflict bool, err error) {
 	q := url.Values{}
@@ -151,7 +151,7 @@ func telegramGetUpdatesOnce(client *http.Client, botToken string) (chats []Detec
 		return nil, false, false, fmt.Errorf("decode getUpdates: %w", err)
 	}
 	if !result.OK {
-		// A 409 Conflict ("terminated by other getUpdates request") is transient —
+		// A 409 Conflict ("terminated by other getUpdates request") is transient:
 		// two getUpdates ran at once. Other failures (e.g. a webhook is set) are
 		// not worth retrying.
 		desc := strings.ToLower(result.Description)
@@ -162,7 +162,7 @@ func telegramGetUpdatesOnce(client *http.Client, botToken string) (chats []Detec
 
 	// Diagnostic: surface exactly what Telegram returned for THIS bot, so a stuck
 	// "waiting" can be told apart from a wrong-bot / DM-only situation. Logs chat
-	// types/titles only — never the token.
+	// types/titles only, never the token.
 	if len(result.Result) == 0 {
 		log.Printf("telegram detect: getUpdates returned 0 updates (bot has received nothing)")
 	} else {

@@ -156,7 +156,7 @@ func TestFileOwnership(t *testing.T) {
 		ts.DELETE("/api/files/"+initResult.FileID, tokenB).Body.Close()
 		// Deletes are scoped by user_id, so user B's request matches no rows it
 		// owns and is a harmless no-op (the API returns an idempotent 200). The
-		// security guarantee is that user A's file is NOT removed — verify it
+		// security guarantee is that user A's file is NOT removed. Verify it
 		// still exists rather than asserting a particular status code.
 		f, err := ts.db.GetFileByIDUnsafe(context.Background(), initResult.FileID)
 		require.NoError(t, err)

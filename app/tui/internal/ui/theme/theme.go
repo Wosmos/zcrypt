@@ -6,7 +6,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// Brand colors — electric cyan + zinc dark palette
+// Brand colors: electric cyan + zinc dark palette
 var (
 	ColorBrand       = lipgloss.Color("#00d5e4")
 	ColorBrandBright = lipgloss.Color("#67e8f9")
@@ -124,11 +124,11 @@ var (
 			Foreground(ColorBorderDim)
 )
 
-// Logo returns the zcrypt ASCII art logo matching the favicon —
+// Logo returns the zcrypt ASCII art logo matching the favicon:
 // two overlapping filled rounded rectangles with a bold "z" in the front plane.
 func Logo() string {
-	f := lipgloss.NewStyle().Foreground(ColorBrand).Bold(true) // front plane — cyan
-	d := lipgloss.NewStyle().Foreground(ColorBrandDim)         // back plane — dim teal
+	f := lipgloss.NewStyle().Foreground(ColorBrand).Bold(true) // front plane, cyan
+	d := lipgloss.NewStyle().Foreground(ColorBrandDim)         // back plane, dim teal
 	z := lipgloss.NewStyle().Foreground(ColorSurface).Bold(true)
 
 	// Solid filled planes using full-block characters (█ ▄ ▀)

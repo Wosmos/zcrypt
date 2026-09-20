@@ -146,7 +146,7 @@ func (s *Server) HandleAddSharedVaultFile(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// The caller must own the file — you can only share files you can decrypt.
+	// The caller must own the file. You can only share files you can decrypt.
 	file, err := s.db.GetFileByID(ctx, userID, req.FileID)
 	if err != nil {
 		http.Error(w, `{"error":"file not found"}`, http.StatusNotFound)

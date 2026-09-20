@@ -171,7 +171,7 @@ func TestSharedVaultMembership(t *testing.T) {
 
 	t.Run("a non-owner member cannot add other members", func(t *testing.T) {
 		id := ts.createSpace(owner, "No Escalation", 0)
-		// Add `member` as an admin — even admin is not owner.
+		// Add `member` as an admin: even admin is not owner.
 		requireStatus(t, ts.POST("/api/shared-vaults/"+id+"/members", map[string]interface{}{
 			"email":             "mem-invitee@example.com",
 			"role":              "admin",
@@ -415,7 +415,7 @@ func TestSharedVaultFiles(t *testing.T) {
 
 // TestSharedVaultCrossUserRead is the crux of the whole feature: a member who is
 // NOT the file's owner must be able to read a shared file (metadata + chunks)
-// using the space-wrapped CEK, while non-members must not — without ever
+// using the space-wrapped CEK, while non-members must not, without ever
 // loosening the owner-scoped chunk/token routing.
 func TestSharedVaultCrossUserRead(t *testing.T) {
 	ts := setupTestServer(t)
@@ -526,7 +526,7 @@ func TestSharedVaultRotation(t *testing.T) {
 			"email": "rot-member@example.com", "role": "editor", "wrapped_space_key": b64("old"),
 		}, owner), http.StatusCreated)
 
-		// Supply a grant for ONLY the owner, deliberately omitting the member — this
+		// Supply a grant for ONLY the owner, deliberately omitting the member, this
 		// would re-wrap files under a key the member never receives, locking them out.
 		ownerID := memberIDs(owner, id)[0] // first is the owner (joined first)
 		resp := ts.POST("/api/shared-vaults/"+id+"/rotate", map[string]interface{}{
