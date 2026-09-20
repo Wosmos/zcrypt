@@ -16,7 +16,7 @@ import (
 // only ever tests for the prefix; it never has the key.
 const sealedPrefix = "enc1:"
 
-// HandleRenameDecoyFile. PATCH /api/decoy/files/{id} {name}. The client uses it
+// HandleRenameDecoyFile serves PATCH /api/decoy/files/{id} {name}. The client uses it
 // to replace a legacy plaintext decoy name with its sealed form.
 func (s *Server) HandleRenameDecoyFile(w http.ResponseWriter, r *http.Request) {
 	userID := GetUserID(r)

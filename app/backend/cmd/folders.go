@@ -243,7 +243,7 @@ func (s *Server) HandleMoveFile(w http.ResponseWriter, r *http.Request) {
 // encrypted_style is an opaque client-encrypted base64 string, exactly like encrypted_name; the
 // server never decrypts or interprets it. An empty string or null clears the style (falls back
 // to the client's auto/default styling).
-// HandleSetFileName. PATCH /api/files/{id}/name {encrypted_name}. The client
+// HandleSetFileName serves PATCH /api/files/{id}/name {encrypted_name}. The client
 // calls this the first time it lists a legacy (plaintext-named) file while
 // unlocked, handing back the name sealed under its name key; the server stores
 // the ciphertext and blanks every plaintext copy it held. In a decoy session the
