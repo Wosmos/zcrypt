@@ -23,7 +23,9 @@ const deviceSteps = [
   {
     icon: Scissors,
     title: "Chunk & ship",
-    desc: "Split into ~10 MB pieces and pushed to storage you own.",
+    // Chunk size is device-tiered (4/10/16/32 MiB), per docs/CRYPTO_FORMAT.md.
+    // "~10 MB" named one tier as if it were the rule.
+    desc: "Split into pieces and pushed to storage you own.",
   },
 ];
 

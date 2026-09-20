@@ -1039,6 +1039,27 @@
     opacity: 1 !important;
     transform: none !important;
   }
+
+  /* Everything above only covers our own .animate-* utilities, which the app
+     shell uses and the marketing pages largely do not. The marketing site
+     animates through inline transitions and the motion library instead, so a
+     visitor who asked the OS for less motion still got the full show: the
+     marquee scrolling, hover lifts, scroll reveals, the lot.
+
+     This is the catch-all. Transitions and CSS animations collapse to
+     effectively instant rather than being removed, because `animation: none`
+     on an element whose final state lives in a keyframe can leave it stuck at
+     0 opacity and invisible. Near-zero duration keeps the end state and drops
+     the movement. JS-driven motion is handled separately by useReducedMotion in
+     the components themselves. */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* ── Reading prose for the DOCX + Markdown viewers (the `.prose-viewer` class

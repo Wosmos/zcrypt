@@ -27,8 +27,11 @@ export function Marquee({
                 text-xl md:text-2xl font-black italic tracking-tighter uppercase whitespace-nowrap font-heading
                 transition-colors duration-300
                 ${
+                  // --color-text-primary is not defined in globals.css, so every
+                  // even item inherited whatever colour happened to be in scope.
+                  // --color-text is the real token.
                   i % 2 === 0
-                    ? "text-[var(--color-text-primary)]"
+                    ? "text-[var(--color-text)]"
                     : "text-cyan-950 dark:text-cyan-500 [-webkit-text-stroke:1px_var(--color-text-muted)] opacity-50"
                 }
                 group-hover:text-cyan-500
