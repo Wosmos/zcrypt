@@ -73,7 +73,7 @@ jobs:
           CRIT_PCT: "${{ inputs.crit_pct || '80' }}"
         run: bash scripts/neon-usage.sh
 
-      - name: Auto-rotate (85%+ quota: before lockout, per docs/DB_SCALING_100_PROJECTS.md)
+      - name: Auto-rotate (85%+ quota, before lockout, per docs/DB_SCALING_100_PROJECTS.md)
         id: rotate
         if: steps.quota.outputs.level == 'CRITICAL'
         continue-on-error: true # let the final step decide the job's pass/fail signal
