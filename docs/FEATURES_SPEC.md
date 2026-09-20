@@ -1,4 +1,4 @@
-# Vault — Viewers + Drag Feel + Trash Actions (build spec)
+# Vault. Viewers + Drag Feel + Trash Actions (build spec)
 
 > **Status: shipped.** Implemented as specified. Kept as design rationale; verify
 > specifics against the current components.
@@ -8,18 +8,18 @@ Deleted-Files actions. All client-side; zero-knowledge stays intact. Every build
 reads this + FEATURES_CONTRACT.md (scout's exact signatures) before writing code.
 
 ## 0. Guardrails (NON-NEGOTIABLE)
-- **Zero-knowledge:** files are decrypted ONLY in the browser using the existing crypto + the vault/folder password; never send plaintext or the passphrase to the server; never log them. Reuse the existing decrypt pipeline (chunks → AES-GCM decrypt → zstd decompress → SHA-256 integrity check) — see the contract for the exact current implementation in `hooks/useVaultActions.ts` (startPreview).
+- **Zero-knowledge:** files are decrypted ONLY in the browser using the existing crypto + the vault/folder password; never send plaintext or the passphrase to the server; never log them. Reuse the existing decrypt pipeline (chunks → AES-GCM decrypt → zstd decompress → SHA-256 integrity check). See the contract for the exact current implementation in `hooks/useVaultActions.ts` (startPreview).
 - **Render untrusted content safely:** file contents are untrusted. HTML/Markdown/DOCX output MUST be sanitized with **DOMPurify** before any `dangerouslySetInnerHTML`. The HTML viewer renders inside a **sandboxed `<iframe>`** (no `allow-scripts`). PDF renders from a decrypted **blob URL** in an `<iframe>`/`<object>` (no external network). Never inject raw file text as HTML.
 - **Memory:** revoke every `URL.createObjectURL` blob URL on close/navigate; release large decrypted buffers.
 - **Tokens:** `--color-*` utilities + `.panel`/`.card` only; NO hardcoded hex. `"use client"` on interactive components. Icons from `@/lib/icons`. `cn` from `@/lib/utils`. Motion via `motion/react`, honor `useReducedMotion()`.
 - **Lazy-load heavy libs** (`mammoth`, `marked`, `dompurify`, `highlight.js`) via dynamic `import()` inside the viewer that needs them, so the main bundle isn't bloated.
 - Never touch `app/(marketing)` / `app/(auth)`. `globals.css` + `tailwind.config.js` are FROZEN.
 - Keep `bun run typecheck` + `bun run build` clean; add no new lint errors beyond the known `media-player.tsx` baseline.
-- Deps are ALREADY installed (mammoth, marked, dompurify, highlight.js) — do NOT modify package.json.
+- Deps are ALREADY installed (mammoth, marked, dompurify, highlight.js). Do NOT modify package.json.
 
 ---
 
-## OWNER 1 — Viewer system + decryptor  (NEW files only; do not touch explorer/page/trash)
+## OWNER 1. Viewer system + decryptor  (NEW files only; do not touch explorer/page/trash)
 
 ### `hooks/useFileDecryptor.ts`
 A reusable hook `useFileDecryptor()` → `{ decryptToBlob(file: FileMetadata): Promise<Blob> }`.
@@ -27,7 +27,7 @@ A reusable hook `useFileDecryptor()` → `{ decryptToBlob(file: FileMetadata): P
 - **Folder-password aware:** pick the password via the existing `useFolderProtection` `passwordForFile(file)` (folder password for a protected-folder file, else the vault passphrase). If locked, it prompts through the existing unlock flow. Throw a typed error on wrong password so callers can re-prompt.
 - Returns a `Blob` with the correct MIME (derive from extension via `lib/utils` `getFileTypeInfo`/a mime map).
 
-### `components/viewers/file-viewer.tsx` — the overlay + dispatcher
+### `components/viewers/file-viewer.tsx`, the overlay + dispatcher
 `<FileViewer open files index onIndexChange onClose decrypt />` where `decrypt = (file) => Promise<Blob>`.
 - Full-bleed overlay (`.panel`/backdrop). Header: filename, type, **Fullscreen toggle** (Fullscreen API on the overlay element; reflect state; Esc exits FS then closes), Download, Close.
 - **Prev/Next** across `files` (wrap or clamp), with a counter "3 / 18".
@@ -47,13 +47,13 @@ A reusable hook `useFileDecryptor()` → `{ decryptToBlob(file: FileMetadata): P
 
 ---
 
-## OWNER 2 — Explorer interactions + viewer wiring  (owns `components/files/vault-explorer.tsx`, `components/files/explorer/*`, `hooks/useDragMove.ts`, `app/(app)/dashboard/page.tsx`, and a NEW `components/files/create-folder-from-files-dialog.tsx`)
+## OWNER 2. Explorer interactions + viewer wiring  (owns `components/files/vault-explorer.tsx`, `components/files/explorer/*`, `hooks/useDragMove.ts`, `app/(app)/dashboard/page.tsx`, and a NEW `components/files/create-folder-from-files-dialog.tsx`)
 
 Depends on OWNER 1 (read `file-viewer.tsx` + `useFileDecryptor.ts` for their interfaces).
 
 **Open → viewer:** clicking a file row/card (outside selection mode) opens `<FileViewer>` (mounted by the page) with the current folder's files as the `files` list (so prev/next walks the folder) and `decrypt = useFileDecryptor().decryptToBlob`. Replace the old single-file preview path with this. Keep DetailsDrawer reachable via the kebab.
 
-**Tilt-on-drag:** dragging a file lifts + tilts it like a real sheet — a custom drag ghost that is rotated (~4–6°), scaled up slightly, with a soft shadow, following the cursor. Use a styled element (either `setDragImage` with a cloned styled node, or a fixed-position ghost that tracks pointer). Reduced-motion → no tilt, just a plain ghost.
+**Tilt-on-drag:** dragging a file lifts + tilts it like a real sheet: a custom drag ghost that is rotated (~4–6°), scaled up slightly, with a soft shadow, following the cursor. Use a styled element (either `setDragImage` with a cloned styled node, or a fixed-position ghost that tracks pointer). Reduced-motion → no tilt, just a plain ghost.
 
 **Drop file → file = make a folder:** when a file is dropped onto ANOTHER file (not a folder/crumb), open `create-folder-from-files-dialog.tsx`: prompts for a folder name (encrypted via the existing name crypto), creates the folder, and moves BOTH files into it (reuse the existing move/move-with-rekey path so protected-folder rules still hold). macOS/iOS-style merge.
 
@@ -66,12 +66,12 @@ Keep all existing explorer behavior (sort, search, breadcrumb, folder DnD, kebab
 
 ---
 
-## OWNER 3 — Deleted Files actions  (owns `components/files/trash-content.tsx` + the `/trash` page if needed)
+## OWNER 3. Deleted Files actions  (owns `components/files/trash-content.tsx` + the `/trash` page if needed)
 
 Depends on OWNER 1 (FileViewer + useFileDecryptor for preview).
-- Per-row actions (kebab or inline): **Restore**, **Delete forever** (confirm), and **Preview** (open `<FileViewer>` read-only — no move/delete from inside it). Match the explorer's row styling + tokens.
+- Per-row actions (kebab or inline): **Restore**, **Delete forever** (confirm), and **Preview** (open `<FileViewer>` read-only, no move/delete from inside it). Match the explorer's row styling + tokens.
 - **Selection + bulk:** select multiple deleted files (mouse + the same keyboard model as the explorer if feasible) → **Restore selected** / **Delete forever selected** with a confirm. Empty state, loading skeletons.
-- Reuse the existing trash API (`listTrash`/`restoreFile`/`purgeFile`) — confirm names in the contract.
+- Reuse the existing trash API (`listTrash`/`restoreFile`/`purgeFile`): confirm names in the contract.
 
 ---
 

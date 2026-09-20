@@ -5,7 +5,7 @@ set up the project, the conventions we follow, and how to submit changes.
 
 zcrypt is a zero-knowledge encrypted cloud storage system. Because it is a
 security/cryptography product, please read [SECURITY.md](./docs/SECURITY.md) before
-reporting anything that might be a vulnerability — **do not open a public issue
+reporting anything that might be a vulnerability: **do not open a public issue
 for security problems.**
 
 ## Prerequisites
@@ -66,7 +66,7 @@ go build ./...
 ## Environment variables
 
 Never commit a real `.env`; it is gitignored. The backend template lives at
-[`app/backend/.env.example`](./app/backend/.env.example) — copy it to `.env` and
+[`app/backend/.env.example`](./app/backend/.env.example). Copy it to `.env` and
 supply your own values. Each contributor is responsible for their own
 credentials. If you accidentally commit a secret, rotate it immediately and let
 a maintainer know.
@@ -89,7 +89,7 @@ tests, and build for whichever modules you touched (frontend / backend / tui /
 desktop), mirroring CI:
 
 ```bash
-bash scripts/install-hooks.sh          # once per clone — wires the pre-push hook
+bash scripts/install-hooks.sh          # once per clone - wires the pre-push hook
 bash scripts/prepush.sh --gates-only   # fast: gates only
 bash scripts/prepush.sh                # full: gates + advisory backlog scans -> docs/report.md
 ```

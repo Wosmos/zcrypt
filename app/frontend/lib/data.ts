@@ -1,6 +1,6 @@
 // ─── Centralized Static Data for Landing Page ────────────────
 // All static content used across marketing/landing components.
-// Icon references use string keys — map them in the consuming component.
+// Icon references use string keys. Map them in the consuming component.
 
 import { SITE_URL } from "@/lib/site";
 
@@ -44,9 +44,9 @@ export interface RoadmapItem {
 
 export const marqueeItems = [
   "Real folders & file explorer",
-  "Preview any file — still encrypted",
+  "Preview any file, still encrypted",
   "Per-folder passwords",
-  "Zero-knowledge — we can't read your files",
+  "Zero-knowledge: we can't read your files",
   "AES-256-GCM encryption",
   "Your own storage accounts",
   "No artificial limits",
@@ -97,7 +97,7 @@ export const bentoFeatures: BentoFeature[] = [
   },
   {
     title: "Open Source",
-    desc: "Every line of code is public. Don't trust us — verify it yourself.",
+    desc: "Every line of code is public. Don't trust us. Verify it yourself.",
     icon: "Globe",
     span: "md:col-span-2",
     bg: "from-cyan-500/10",
@@ -117,7 +117,7 @@ export const features: Feature[] = [
   {
     icon: "Eye",
     title: "Zero-Knowledge Architecture",
-    desc: "Your encryption keys never leave your device. We cannot access your data — by design.",
+    desc: "Your encryption keys never leave your device. We cannot access your data. That's by design.",
     accent: "violet",
     large: true,
   },
@@ -193,7 +193,7 @@ export const steps: Step[] = [
 export const faqs: FAQ[] = [
   {
     q: "How much does zcrypt cost?",
-    a: "zcrypt is free and open source. There are no paid plans. You connect your own storage account, so your available space is bounded only by that platform's free space — not by us.",
+    a: "zcrypt is free and open source. There are no paid plans. You connect your own storage account, so your available space is bounded only by that platform's free space, not by us.",
   },
   {
     q: "How much storage do I get?",
@@ -213,7 +213,7 @@ export const faqs: FAQ[] = [
   },
   {
     q: "Can I preview files without downloading them?",
-    a: "Yes. zcrypt previews images, video, audio, PDFs, documents (DOCX), Markdown, CSVs, and source code directly in the browser. Each file is decrypted on the fly on your device — the plaintext never touches our servers.",
+    a: "Yes. zcrypt previews images, video, audio, PDFs, documents (DOCX), Markdown, CSVs, and source code directly in the browser. Each file is decrypted on the fly on your device, and the plaintext never touches our servers.",
   },
   {
     q: "Can I password-protect a single folder?",
@@ -225,7 +225,7 @@ export const faqs: FAQ[] = [
   },
   {
     q: "Is there a mobile app?",
-    a: "Android is available today as a beta — sideload the APK from the download page. It runs zcrypt-core, the same in-process Rust engine and encryption as the desktop app, and uploads straight to your own storage. iOS is in development.",
+    a: "Android is available today as a beta: sideload the APK from the download page. It runs zcrypt-core, the same in-process Rust engine and encryption as the desktop app, and uploads straight to your own storage. iOS is in development.",
   },
   {
     q: "Is there a command-line or terminal app?",
@@ -241,7 +241,7 @@ export const faqs: FAQ[] = [
 // Single source of truth for facts that get restated across marketing and
 // docs pages (desktop engine, per-platform shipping status). Update here
 // when the underlying architecture changes and every page that imports it
-// stays in sync — see docs/DESKTOP_ARCHITECTURE.md for the full detail.
+// stays in sync. See docs/DESKTOP_ARCHITECTURE.md for the full detail.
 
 export const desktopEngine = {
   name: "zcrypt-core",
@@ -249,7 +249,7 @@ export const desktopEngine = {
   replaces: "a Go sidecar subprocess",
   why: "A subprocess is impossible on iOS (Apple forbids child processes in app sandboxes); an in-process Rust engine runs identically on desktop, Android, and iOS.",
   dataPlane:
-    "BYOS-direct: desktop and mobile upload straight to the user's own GitHub, GitLab, Hugging Face, or Telegram account using credentials from the OS keychain, so the backend never touches the platform token. The web app is the exception — browser sandboxing blocks direct platform access, so it relays ciphertext through the backend.",
+    "BYOS-direct: desktop and mobile upload straight to the user's own GitHub, GitLab, Hugging Face, or Telegram account using credentials from the OS keychain, so the backend never touches the platform token. The web app is the exception, because browser sandboxing blocks direct platform access, so it relays ciphertext through the backend.",
 } as const;
 
 // ─── Roadmap ──────────────────────────────────────────────────
@@ -264,7 +264,7 @@ export const roadmapItems: RoadmapItem[] = [
   {
     icon: "Smartphone",
     title: "Android App",
-    desc: "Sideload APK — same zero-knowledge Rust core as desktop. Offline access and camera backup are next.",
+    desc: "Sideload APK, same zero-knowledge Rust core as desktop. Offline access and camera backup are next.",
     badge: "Beta",
   },
   {
@@ -284,20 +284,20 @@ export const roadmapItems: RoadmapItem[] = [
 // ─── Landing Page Section Copy ───────────────────────────────
 // Plain-string prose for the landing page sections, extracted so the copy
 // lives in one place. Headings that embed JSX (emphasis, animated underlines)
-// stay inline in the page — only their surrounding plain text is here.
+// stay inline in the page. Only their surrounding plain text is here.
 
 export const landingSections = {
   showcase: {
     eyebrow: "Experience",
     subheading:
-      "Folders, instant previews, drag-and-drop — a real file explorer where every file is encrypted on your device.",
+      "Folders, instant previews, drag-and-drop: a real file explorer where every file is encrypted on your device.",
   },
   howItWorks: {
     eyebrow: "How it works",
     subheading:
       "No new storage to buy, no servers to trust. Your files are encrypted before they leave your device and stored in an account you already own.",
     underTheHood:
-      "Under the hood: files are compressed with zstd, encrypted with AES-256-GCM using a key derived from your passphrase, split into chunks, and uploaded to your connected platform — all client-side and zero-knowledge.",
+      "Under the hood: files are compressed with zstd, encrypted with AES-256-GCM using a key derived from your passphrase, split into chunks, and uploaded to your connected platform, all client-side and zero-knowledge.",
   },
   explore: {
     eyebrow: "Explore the drive",
@@ -334,28 +334,28 @@ export const downloadPageContent = {
   },
   desktop: {
     heading: "Desktop apps",
-    subheading: `A native app built with Tauri, running ${desktopEngine.name} — the in-process ${desktopEngine.language} engine — so your files are encrypted on your device before they ever leave it.`,
+    subheading: `A native app built with Tauri, running ${desktopEngine.name}, the in-process ${desktopEngine.language} engine, so your files are encrypted on your device before they ever leave it.`,
   },
   android: {
     badge: "Android",
     heading: "On your phone, sideloaded",
     subheading:
-      "Not on the Play Store — grab the APK directly and install it yourself. Takes about a minute.",
+      "Not on the Play Store, so grab the APK directly and install it yourself. Takes about a minute.",
   },
   cli: {
     badge: "Terminal app",
     heading: "Live in the terminal?",
     subheading:
-      "A single Go binary with zero dependencies — works great over SSH and on headless servers. Pick a package manager:",
+      "A single Go binary with zero dependencies, so it works great over SSH and on headless servers. Pick a package manager:",
   },
   web: {
     heading: "Prefer no install?",
-    body: "The full encrypted drive runs in any modern browser — folders, previews, sharing, and transfers. Everything is still encrypted on your device. Nothing to download.",
+    body: "The full encrypted drive runs in any modern browser: folders, previews, sharing, and transfers. Everything is still encrypted on your device. Nothing to download.",
     cta: "Open the web app",
   },
   openSource: {
     heading: "Every build is open source",
-    body: "Desktop, terminal, and web — all built in the open from the same repository. Read the code, check the checksums, or build it yourself.",
+    body: "Desktop, terminal, and web, all built in the open from the same repository. Read the code, check the checksums, or build it yourself.",
     githubCta: "Source on GitHub",
     selfHostCta: "Self-host zcrypt",
   },
@@ -377,7 +377,7 @@ export const tuiFeatures: TUIFeature[] = [
   {
     icon: "Upload",
     title: "Upload & Download",
-    desc: "Encrypt and upload files with real-time progress tracking — chunks, bytes, speed. Download and decrypt in one step.",
+    desc: "Encrypt and upload files with real-time progress tracking: chunks, bytes, speed. Download and decrypt in one step.",
   },
   {
     icon: "Search",
@@ -392,7 +392,7 @@ export const tuiFeatures: TUIFeature[] = [
   {
     icon: "Lock",
     title: "Full Encryption Pipeline",
-    desc: "Same zero-knowledge pipeline as the web app — compress with zstd, encrypt with AES-256-GCM, chunk, and upload. All on your machine.",
+    desc: "Same zero-knowledge pipeline as the web app: compress with zstd, encrypt with AES-256-GCM, chunk, and upload. All on your machine.",
   },
   {
     icon: "Gauge",
@@ -407,12 +407,12 @@ export const tuiFeatures: TUIFeature[] = [
   {
     icon: "Terminal",
     title: "Command Mode",
-    desc: "Press : for vim-style commands — upload, download, delete, search, select-all, and more. Power at your fingertips.",
+    desc: "Press : for vim-style commands: upload, download, delete, search, select-all, and more. Power at your fingertips.",
   },
   {
     icon: "Cpu",
     title: "Single Binary, Zero Dependencies",
-    desc: "One ~8 MB binary. No runtime, no browser, no Electron. Runs on any machine with a terminal — including headless servers over SSH.",
+    desc: "One ~8 MB binary. No runtime, no browser, no Electron. Runs on any machine with a terminal, including headless servers over SSH.",
   },
 ];
 
@@ -517,7 +517,7 @@ export const tuiInstallMethods = [
   {
     label: "Direct Download",
     command: `${SITE_URL}/download`,
-    note: "All platforms — prebuilt binaries",
+    note: "All platforms, prebuilt binaries",
   },
   {
     label: "Build from Source",
@@ -568,7 +568,7 @@ export const tuiQuickStart: TUIQuickStep[] = [
 
 // ─── Docs Navigation ────────────────────────────────────────
 // Single source of truth for the docs sidebar, the docs index grid, and the
-// search index. Keep titles/desc accurate to what actually ships — honest
+// search index. Keep titles/desc accurate to what actually ships. Honest
 // labels only. `badge: "Beta"` marks features that work but are still
 // maturing; `badge: "Roadmap"` marks planned-but-not-shipped.
 
@@ -577,7 +577,7 @@ export interface DocsNavLink {
   href: string;
   desc: string;
   badge?: "Beta" | "Roadmap" | "New";
-  /** External (e.g. the TUI marketing page) — render with a normal anchor. */
+  /** External (e.g. the TUI marketing page). Render with a normal anchor. */
   external?: boolean;
 }
 
@@ -606,7 +606,7 @@ export const docsNav: DocsNavGroup[] = [
       {
         title: "Core concepts",
         href: "/docs/concepts",
-        desc: "Vault, passphrase, folders, and chunks — and how they fit together.",
+        desc: "Vault, passphrase, folders, chunks, and how they fit together.",
       },
       {
         title: "Connect your storage",
@@ -617,7 +617,7 @@ export const docsNav: DocsNavGroup[] = [
   },
   {
     title: "Organizing files",
-    summary: "Folders, search, previews, and trash — the drive itself.",
+    summary: "Folders, search, previews, and trash: the drive itself.",
     links: [
       {
         title: "Folders & the file explorer",
@@ -673,7 +673,7 @@ export const docsNav: DocsNavGroup[] = [
       {
         title: "Threat model",
         href: "/docs/threat-model",
-        desc: "What zcrypt protects against — and what it can't.",
+        desc: "What zcrypt protects against, and what it can't.",
       },
       {
         title: "Storage obfuscation",
@@ -808,7 +808,7 @@ export const docsNav: DocsNavGroup[] = [
       {
         title: "Account recovery",
         href: "/docs/recovery",
-        desc: "What is and isn't recoverable — and why.",
+        desc: "What is and isn't recoverable, and why.",
       },
     ],
   },
@@ -825,7 +825,7 @@ export const docsNav: DocsNavGroup[] = [
       {
         title: "Android app",
         href: "/docs/android-app",
-        desc: "Sideload the APK — same zero-knowledge core as desktop.",
+        desc: "Sideload the APK, same zero-knowledge core as desktop.",
         badge: "Beta",
       },
       {
@@ -868,7 +868,7 @@ export const docsNav: DocsNavGroup[] = [
       {
         title: "License",
         href: "/docs/license",
-        desc: "zcrypt is MIT-licensed — what that means for you.",
+        desc: "zcrypt is MIT-licensed. What that means for you.",
       },
     ],
   },
@@ -889,7 +889,7 @@ export const docsNav: DocsNavGroup[] = [
 
 // ─── Features Index ──────────────────────────────────────────
 // Single source for the /features index cards AND the site search index
-// (lib/docs-search-index.ts) — icon is a string key, mapped in the
+// (lib/docs-search-index.ts). Icon is a string key, mapped in the
 // consuming component, same convention as bentoFeatures/features above.
 
 export interface FeaturesNavLink {
@@ -904,7 +904,7 @@ export const featuresNav: FeaturesNavLink[] = [
     href: "/features/encrypted-drive",
     icon: "HardDrive",
     title: "Encrypted drive",
-    desc: "A real file explorer — folders, grid/list, search, sort — all encrypted on your device.",
+    desc: "A real file explorer: folders, grid/list, search, sort, all encrypted on your device.",
   },
   {
     href: "/features/folders",
@@ -916,7 +916,7 @@ export const featuresNav: FeaturesNavLink[] = [
     href: "/features/file-viewers",
     icon: "Eye",
     title: "File viewers",
-    desc: "Preview images, video, audio, PDFs, documents, and code — decrypted locally.",
+    desc: "Preview images, video, audio, PDFs, documents, and code, decrypted locally.",
   },
   {
     href: "/features/sharing",
@@ -946,12 +946,12 @@ export const featuresNav: FeaturesNavLink[] = [
     href: "/features/privacy",
     icon: "Shield",
     title: "Privacy tools",
-    desc: "Decoy profile and dead man's switch — with their real limits spelled out.",
+    desc: "Decoy profile and dead man's switch, with their real limits spelled out.",
   },
   {
     href: "/features/apps",
     icon: "Monitor",
     title: "Web, desktop, Android & terminal",
-    desc: "The same zero-knowledge core across every surface — including a Rust-powered Android app and a single-binary TUI.",
+    desc: "The same zero-knowledge core across every surface, including a Rust-powered Android app and a single-binary TUI.",
   },
 ];

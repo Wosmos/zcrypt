@@ -1,4 +1,4 @@
-# zcrypt — AI Agent Guide
+# zcrypt. AI Agent Guide
 
 > **Status:** Active development · **Type:** Zero-knowledge encrypted cloud storage (web-first)
 >
@@ -12,7 +12,7 @@
 
 A zero-knowledge, end-to-end encrypted cloud storage system. Users' files are
 compressed, encrypted, and chunked **in the browser**, then stored as
-ordinary-looking objects inside storage accounts the user already owns — GitHub,
+ordinary-looking objects inside storage accounts the user already owns. GitHub,
 GitLab, Hugging Face, and Telegram. The server never sees the passphrase or any
 plaintext.
 
@@ -36,10 +36,10 @@ Clients                         Backend (Go / Railway)          Storage
 - **File encryption and zstd compression run client-side** (browser Web Crypto /
   `@noble/*` / `@oneidentity/zstd-js`; the Rust core mirrors it for desktop and
   Android, and the TUI has its own Go implementation). The
-  backend is **I/O-bound** — it relays already-encrypted chunks and commits them to
+  backend is **I/O-bound**: it relays already-encrypted chunks and commits them to
   storage. Do not move file crypto server-side, and do not parallelize server crypto.
 - The backend's `crypto/` package only does **platform-token envelope encryption**
-  (HKDF-derived per-user KEK) and TOTP — never file contents.
+  (HKDF-derived per-user KEK) and TOTP, never file contents.
 
 ## 3. Tech stack (current)
 
@@ -50,7 +50,7 @@ Clients                         Backend (Go / Railway)          Storage
 | Backend     | Go 1.25 (`toolchain go1.25.14`), stdlib `net/http`, pgxpool         |
 | Database    | PostgreSQL on Neon; raw SQL, no ORM; UUID PKs (`gen_random_uuid()`) |
 | Crypto      | AES-256-GCM, PBKDF2-SHA256 (600k), HKDF per-user KEK, X25519 ECIES  |
-| Compression | zstd — client-side in the browser                                   |
+| Compression | zstd: client-side in the browser                                   |
 | Auth        | JWT (HS256) + bcrypt (cost 12) + TOTP 2FA + magic links + OAuth     |
 | Deploy      | Frontend on Vercel, Backend on Railway (Docker), DB on Neon         |
 
@@ -79,7 +79,7 @@ app/desktop/    Tauri v2 shell for desktop AND Android; links app/core
   or `/api/pull`. The frontend drives multi-file parallelism with a semaphore.
 - Chunk size is **device-tiered (~4–16 MB, ~10 MB typical)**, not a fixed value.
 - Download: `GET /api/files/{id}/meta` then `GET /api/files/{id}/chunks/{idx}`;
-  verify per-chunk SHA-256, reassemble, decrypt, decompress — all client-side.
+  verify per-chunk SHA-256, reassemble, decrypt, decompress, all client-side.
 - Repo pool auto-rotates same-platform as repos fill (GitHub 850MB, GitLab 9GB,
   HuggingFace 90GB under the 100GB/account cap). Telegram is the unlimited primary;
   do NOT auto-route large files to HuggingFace.
@@ -88,22 +88,22 @@ app/desktop/    Tauri v2 shell for desktop AND Android; links app/core
 
 ```
 SECURITY
-[S1] The passphrase never leaves the client — never transmitted, stored, or logged.
+[S1] The passphrase never leaves the client - never transmitted, stored, or logged.
 [S2] File encryption + compression stay client-side. The server handles only
      already-encrypted chunks.
 [S3] Platform tokens are encrypted at rest (AES-256-GCM under a master-key-derived
-     KEK). Never log tokens, keys, passphrases, or plaintext — not even at debug.
+     KEK). Never log tokens, keys, passphrases, or plaintext - not even at debug.
 [S4] Per-file random CEK, wrapped by the passphrase-derived KEK (envelope model).
      Fresh nonces per chunk. AES-256-GCM and PBKDF2-SHA256 (600k) are settled.
 
 ARCHITECTURE
-[A1] Backend is stdlib net/http — no web framework. Register routes in
+[A1] Backend is stdlib net/http - no web framework. Register routes in
      cmd/server.go `RegisterRoutes`, NOT in main.go.
-[A2] Raw SQL via pgxpool — no ORM. UUID PKs. Migrations live in index/schema.go.
+[A2] Raw SQL via pgxpool - no ORM. UUID PKs. Migrations live in index/schema.go.
 [A3] Wrap errors with fmt.Errorf("context: %w", err). No panic in request paths.
 
 CODE QUALITY
-[C1] TypeScript: no `any` — use `unknown` + type guards. "use client" only for
+[C1] TypeScript: no `any` - use `unknown` + type guards. "use client" only for
      interactive components. Zustand for global state. Hugeicons via lib/icons.tsx.
      No emojis in code. Self-documenting code; comments only for non-obvious logic.
 [C2] Run the change-scoped quality gate before pushing:

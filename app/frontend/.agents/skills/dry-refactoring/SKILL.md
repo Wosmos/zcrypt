@@ -24,26 +24,26 @@ See the **[jscpd](../jscpd/SKILL.md)** skill for full option reference.
 3. Read both code fragments from the source files
 4. Understand what the duplicated code does
 5. Design a refactoring: extract a shared function, class, module, or constant
-6. Apply the refactoring — update both locations and all other usages
+6. Apply the refactoring: update both locations and all other usages
 7. Re-run jscpd to confirm the clone is eliminated
 8. Repeat for remaining clones, highest-impact first
 
 ## Refactoring Strategies
 
-**Extract function** — when the duplicate is a block of logic:
+**Extract function**, when the duplicate is a block of logic:
 ```ts
 // Before: same block in two places
 // After: shared function called from both places
 ```
 
-**Extract module/utility** — when the duplicate spans multiple files in different domains:
+**Extract module/utility**, when the duplicate spans multiple files in different domains:
 ```ts
 // Move shared logic to a shared utility file and import it
 ```
 
-**Extract constant or config** — when the duplicate is repeated data or configuration.
+**Extract constant or config**, when the duplicate is repeated data or configuration.
 
-**Template/base class** — when the duplicate is structural (e.g., repeated class shape).
+**Template/base class**, when the duplicate is structural (e.g., repeated class shape).
 
 Always ensure:
 - All call sites are updated, not just the two reported by jscpd
@@ -52,7 +52,7 @@ Always ensure:
 
 ## Tips
 
-- Start with clones that have the highest line count — they have the most impact
+- Start with clones that have the highest line count: they have the most impact
 - A clone between test files may indicate a missing test helper
 - Clones across unrelated modules may signal a missing shared utility
 - Use `--min-lines 10` to filter noise and focus on meaningful duplications

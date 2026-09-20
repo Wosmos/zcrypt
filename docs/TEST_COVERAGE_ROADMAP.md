@@ -5,7 +5,7 @@ fixing the Go coverage measurement, so the numbers below are measured, not
 estimated.
 
 **The governing principle:** coverage is not the goal. zcrypt is zero-knowledge
-encrypted storage — the user holds the only copy of their data and we cannot
+encrypted storage: the user holds the only copy of their data and we cannot
 inspect it. The one unrecoverable failure is *silent* data loss or silent
 integrity/crypto breakage. So test effort goes where that failure lives, and
 nowhere else on principle.
@@ -14,19 +14,19 @@ nowhere else on principle.
 
 ## Measured baseline
 
-### Frontend — DONE, pinned
+### Frontend. DONE, pinned
 
 `lib/**`, `hooks/**`, `store/**`: **100% statements / branches / functions /
 lines** (5,080 / 2,429 / 1,205 / 4,380), 1,753 tests across 102 files.
 `vitest.config.ts` pins all four thresholds at 100, so regressions fail the
-pre-push gate. `components/**` and `app/**` are deliberately out of scope —
+pre-push gate. `components/**` and `app/**` are deliberately out of scope:
 they're covered by the Playwright suite at `tests/e2e/`.
 
-### Go backend — 38.0% (3,181 / 8,377 statements)
+### Go backend: 38.0% (3,181 / 8,377 statements)
 
 Measured with `scripts/coverage-backend.sh`, which merges the unit and
 integration profiles with `-coverpkg=./...`. **Do not quote `go test -cover
-./...`** — it reports `cmd` at 2.0% and `index` at 0.3% because the
+./...`**: it reports `cmd` at 2.0% and `index` at 0.3% because the
 build-tagged integration suite is invisible to it. See
 [the measurement note](#appendix-why-the-old-go-numbers-were-wrong).
 
@@ -44,7 +44,7 @@ build-tagged integration suite is invisible to it. See
 | `.` (main) | 112 | **0.0%** | 259 |
 | `tools/reseal` | 121 | **0.0%** | 232 |
 
-### Rust — 42.5% core, 0% desktop
+### Rust, 42.5% core, 0% desktop
 
 | Scope | Regions | Lines | Functions |
 |---|---|---|---|
@@ -53,7 +53,7 @@ build-tagged integration suite is invisible to it. See
 | combined | 37.2% | 36.6% | 33.2% |
 
 Every large gap in `app/core` is a network path, and `[dev-dependencies]` is
-**empty** — there is no HTTP mocking harness. That single missing dependency is
+**empty**. There is no HTTP mocking harness. That single missing dependency is
 what makes ~2,300 lines untestable:
 
 | File | Uncovered regions | Coverage |
@@ -70,7 +70,7 @@ what makes ~2,300 lines untestable:
 
 ---
 
-## P0 — do now
+## P0. Do now
 
 ### 1. Commit the frontend + tooling work
 
@@ -87,10 +87,10 @@ they are at a flat 0%.
 
 Two live issues are exactly this failure class:
 
-- **HF chunk data loss** — ~237 files' chunks marked `synced` in the index but
+- **HF chunk data loss**: ~237 files' chunks marked `synced` in the index but
   404 on HuggingFace. The symptom looked like a thumbnail/download bug; the
   cause is a storage-sync integrity defect.
-- **Upload pipeline failures** — root cause was counting chunk rows instead of
+- **Upload pipeline failures**: root cause was counting chunk rows instead of
   `DISTINCT`, so a duplicate row inflated the completed count.
 
 Neither is the kind of bug you find by reading code. Both are the kind a test
@@ -100,7 +100,7 @@ Steps:
 
 1. Add `wiremock` + `tempfile` to `app/core`'s `[dev-dependencies]`.
 2. Point `ApiClient::new(base_url, …)` (`src/api/client.rs:111`) at
-   `server.uri()`. Use the `127.0.0.1` URI as-is — an IP literal skips DNS,
+   `server.uri()`. Use the `127.0.0.1` URI as-is: an IP literal skips DNS,
    which matters because the client installs a custom Cloudflare-backed
    `PublicDnsResolver` that will not resolve a hostname under test.
 3. Cover in this order (highest uncovered regions first): `sync`,
@@ -123,7 +123,7 @@ so the honest number is the one everyone sees:
 
 ---
 
-## P1 — do next
+## P1. Do next
 
 ### 4. Go integrity-critical handlers
 
@@ -137,7 +137,7 @@ Use the existing integration harness (`setupTestServer`, `enableMockStorage`,
 `registerAndLogin` in `integration/helpers_test.go`) rather than building new
 scaffolding.
 
-### 5. Go `index` — invariants only
+### 5. Go `index`, invariants only
 
 Cover the queries that enforce something: chunk dedupe and the
 `UNIQUE(file_id, idx)` constraint, quota accounting, the audit chain
@@ -151,13 +151,13 @@ brute-force protection as a real weakness; that path deserves explicit tests.
 
 ---
 
-## P2 — worth doing, not urgent
+## P2, worth doing, not urgent
 
-- **`tools/reseal` (0%) and `main.go` (0%)** — 353 statements total. A smoke
+- **`tools/reseal` (0%) and `main.go` (0%)**: 353 statements total. A smoke
   test each. Small, easy, closes two conspicuous zeroes.
-- **Rust `reppool` (28%), `profiles` (21%), `engines/mod` (38.6%)** — pure logic,
+- **Rust `reppool` (28%), `profiles` (21%), `engines/mod` (38.6%)**, pure logic,
   no harness needed.
-- **Platform adapters** — Go 72.5%, Rust 40–67%. Both hardcode their hosts
+- **Platform adapters**: Go 72.5%, Rust 40–67%. Both hardcode their hosts
   (`const API: &str = "https://api.github.com"`), so they cannot be aimed at a
   mock server without making the base URL a field or a `cfg(test)`-overridable
   const. **This is a decision, not a task:** it's a production-shape change for
@@ -173,8 +173,8 @@ Each of these is a deliberate call, not a backlog item.
 |---|---|
 | **100% on Go `index`** | 5,850 LOC of thin SQL wrappers. One round-trip test per query mostly proves Postgres works. Near-zero bug yield per test, real maintenance cost. |
 | **`src-tauri` 0% → 70%** | Thin wrappers over `zcrypt-core`. The actual risk is the IPC contract, which Playwright covers better than unit tests can. Cover error mapping if convenient; nothing more. |
-| **The last ~10% anywhere** | Bug yield collapses. Evidence: taking the frontend 98.29% → 100% found **zero bugs** — it produced refactoring value (dead code removed, types tightened) but no defects. |
-| **Replicating the 100% standard on the backends** | Holding 100% on the frontend is now nearly free — the tests exist and the threshold is pinned. Reaching it on 18k LOC of Go and 6.4k of Rust is weeks of work whose final third is negative value. |
+| **The last ~10% anywhere** | Bug yield collapses. Evidence: taking the frontend 98.29% → 100% found **zero bugs**: it produced refactoring value (dead code removed, types tightened) but no defects. |
+| **Replicating the 100% standard on the backends** | Holding 100% on the frontend is now nearly free: the tests exist and the threshold is pinned. Reaching it on 18k LOC of Go and 6.4k of Rust is weeks of work whose final third is negative value. |
 | **Branch-completionism on invariant guards** | A 100% branch target pressures you to delete safety nets or write tests that assert nothing. Where a guard is unreachable by construction, mark it (`/* v8 ignore start */` + the reason) and move on. |
 | **Unit-testing `components/**` / `app/**`** | 365 files, 61.8k LOC. Playwright at `tests/e2e/` owns this layer. |
 
@@ -208,7 +208,7 @@ against a real Postgres. It was invisible to coverage twice over:
 1. It sits behind `//go:build integration`, and the tag was never set in the
    coverage run.
 2. Even with the tag, Go's per-package coverage credits nothing to `cmd` or
-   `index` without `-coverpkg` — the tests live in their own package.
+   `index` without `-coverpkg`: the tests live in their own package.
 
 `scripts/coverage-backend.sh` fixes both: it boots a throwaway Postgres on
 :5434 via the Postgres.app binaries when `TEST_DATABASE_URL` is unset (there is
@@ -216,6 +216,6 @@ no Docker on this machine; CI keeps its `postgres:16-alpine` service on :5433),
 runs both suites with `-coverpkg=./...`, merges the two text profiles with an
 awk max-per-block pass, and prints statement-weighted per-package totals.
 
-The correction was large — `cmd` 2.0% → 28.9%, `index` 0.3% → 35.3%, total
+The correction was large: `cmd` 2.0% → 28.9%, `index` 0.3% → 35.3%, total
 ~20% → 38.0%. Roughly twenty minutes of work that prevented weeks of writing
 tests for code that was already covered. **Measure before you grind.**

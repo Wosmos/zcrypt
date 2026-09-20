@@ -4,7 +4,7 @@
 core, Go TUI/backend) MUST produce byte-identical results for the
 operations below. A file encrypted by any client must decrypt on every other
 client. Conformance is enforced by the shared test vectors in
-`app/backend/crypto/testvectors/vectors.json` — see the README there for how to
+`app/backend/crypto/testvectors/vectors.json`. See the README there for how to
 regenerate and verify them. **Do not change anything in this document without
 regenerating the vectors and updating every implementation in the same change.**
 
@@ -14,7 +14,7 @@ Reference implementations:
 
 The Go sidecar that originally generated the vectors was deleted in `36c1d37`
 once the Rust core replaced it. `vectors.json` is now a frozen fixture that
-every implementation verifies against — there is no longer a reference writer,
+every implementation verifies against. There is no longer a reference writer,
 so changing the format means hand-deriving new vectors and making every
 implementation green in the same change.
 
@@ -80,7 +80,7 @@ Upload, per file:
    the remainder). Chunk boundaries are over the ORIGINAL plaintext.
 4. Per chunk, in order:
    a. **Compress** with zstd IF the filename's extension is not on the
-      skip-list (already-compressed formats — see
+      skip-list (already-compressed formats. See
       `app/core/src/compression.rs`) AND the compressed output is at
       least **5% smaller** than the input; otherwise send the raw plaintext
       and mark the chunk `compressed = false`.
@@ -113,7 +113,7 @@ z2 → default, z3 → better.
 Out of scope for this document except: a member-visible file carries the CEK
 re-wrapped under the **space key** (`wrapped_cek` per member grant) and a name
 re-wrapped likewise (`wrapped_name`); the wrap format is §3. Space-key
-sealing uses X25519 ECIES (see `app/frontend/lib/spaces.ts`) — vectors TBD when
+sealing uses X25519 ECIES (see `app/frontend/lib/spaces.ts`), vectors TBD when
 the Rust core implements spaces.
 
 ## 7. Conformance vectors
@@ -123,9 +123,9 @@ PBKDF2 (incl. a Unicode passphrase), GCM decrypt (wire → plaintext), CEK
 unwrap, end-to-end passphrase→KEK→CEK resolution, SHA-256, HMAC-SHA256 +
 dedup-key derivation, name decryption, and a zstd round-trip blob.
 
-- **Generate**: no longer possible — the Go reference writer was deleted with the
+- **Generate**: no longer possible: the Go reference writer was deleted with the
   sidecar (`36c1d37`). Treat `vectors.json` as frozen.
 - **Verify TS**: `cd app/frontend && bun run vitest run __tests__/lib/crypto-vectors.test.ts`
-  (zstd is exempt on TS — the wasm codec isn't loadable under jsdom; the format
+  (zstd is exempt on TS: the wasm codec isn't loadable under jsdom; the format
   guarantee covers it, and Rust/Go verify the blob.)
 - **Verify Rust** (once `app/core` exists): `cargo test -p zcrypt-core conformance`.

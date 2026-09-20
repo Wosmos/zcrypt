@@ -17,7 +17,7 @@ https://k6.io/docs/getting-started/installation/
 Make sure the backend is running locally with rate limiting disabled:
 
 ```bash
-# In app/backend/.env — already set:
+# In app/backend/.env - already set:
 DEV_MODE=true
 ```
 
@@ -29,7 +29,7 @@ cd app/backend && go run . &
 
 | Script | VUs | Duration | Purpose |
 |--------|-----|----------|---------|
-| `smoke.js` | 1 | 30s | Confirms all endpoints respond — run first |
+| `smoke.js` | 1 | 30s | Confirms all endpoints respond. Run first |
 | `auth.js` | 20–50 | 4m | Login/refresh throughput (bcrypt cost validation) |
 | `upload.js` | 5–25 | 3m | Upload pipeline (init → chunk → complete) |
 | `stress.js` | 0→300 | 12m | Find the breaking point |
@@ -38,19 +38,19 @@ cd app/backend && go run . &
 ## Run commands
 
 ```bash
-# Step 1 — smoke test (always run this first)
+# Step 1 - smoke test (always run this first)
 k6 run tests/load/k6/smoke.js
 
-# Step 2 — auth load
+# Step 2 - auth load
 k6 run tests/load/k6/auth.js
 
-# Step 3 — upload pipeline
+# Step 3 - upload pipeline
 k6 run tests/load/k6/upload.js
 
-# Step 4 — stress (find breaking point)
+# Step 4 - stress (find breaking point)
 k6 run tests/load/k6/stress.js
 
-# Step 5 — soak (leak detection, runs 30 min)
+# Step 5 - soak (leak detection, runs 30 min)
 k6 run tests/load/k6/soak.js
 
 # Shorter soak for quick check
@@ -68,12 +68,12 @@ Rate limiting will block VUs otherwise (returns 429).
 
 ## Key metrics to watch
 
-- `login_duration` p95 — should be < 400ms (bcrypt is intentionally slow ~150ms)
-- `refresh_duration` p95 — should be < 80ms (JWT verify only)
-- `upload_init_duration` p95 — should be < 200ms (DB write + pool lookup)
-- `chunk_upload_duration` p95 — should be < 1s (disk write to staging)
-- `http_req_failed` — should stay < 1% at normal load
-- `upload_failures` — should stay < 5%
+- `login_duration` p95: should be < 400ms (bcrypt is intentionally slow ~150ms)
+- `refresh_duration` p95: should be < 80ms (JWT verify only)
+- `upload_init_duration` p95: should be < 200ms (DB write + pool lookup)
+- `chunk_upload_duration` p95: should be < 1s (disk write to staging)
+- `http_req_failed`: should stay < 1% at normal load
+- `upload_failures`: should stay < 5%
 
 ## What to watch on the server side
 

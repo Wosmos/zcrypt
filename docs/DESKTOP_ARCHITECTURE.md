@@ -1,4 +1,4 @@
-# Desktop & Mobile Architecture — zcrypt-core Rust
+# Desktop & Mobile Architecture, zcrypt-core Rust
 
 ## Overview
 
@@ -55,10 +55,10 @@ The sidecar stays in the backend only (server-side crypto for re-encryption duri
 | **crypto** | PBKDF2-HMAC-SHA256 key derivation, AES-256-GCM encrypt/decrypt (wire format: `[12B IV \|\| ct \|\| 16B tag]`), HMAC-SHA256 (dedup MAC), SHA-256 file hashing. Normative-conformant to `docs/CRYPTO_FORMAT.md` + conformance vectors at `app/backend/crypto/testvectors/vectors.json`. |
 | **compression** | Zstd compress/decompress with format detection (skip list for already-compressed extensions). Per-chunk decision: compress only if ≥5% smaller than input. |
 | **profiles** | Device performance tiers: `light` (2 workers, 4 MiB chunks, z1), `normal` (4 workers, 10 MiB, z2), `intense` (8 workers, 16 MiB, z3), `ludicrous` (all cores, 32 MiB, z3). Maps to web's device-profile picker; fallback is `normal`. |
-| **disguise** | Plausible obfuscation: repo names (`simple-helpers-v1`), chunk paths (sharded: `ab/cdef1234567890.bin` or flat: `8e3168ba.bin` for Telegram), commit messages, README templates — ported verbatim from `app/backend/disguise`. |
+| **disguise** | Plausible obfuscation: repo names (`simple-helpers-v1`), chunk paths (sharded: `ab/cdef1234567890.bin` or flat: `8e3168ba.bin` for Telegram), commit messages, README templates, ported verbatim from `app/backend/disguise`. |
 | **adapters** | Platform-agnostic trait `PlatformAdapter` + implementations for GitHub, GitLab, HuggingFace, Telegram. All byte I/O is ciphertext; adapters are platform-dumb. Methods: `create_repo()`, `upload()`, `download()`, `delete()`, `get_repo_size()`, `list_chunks()`. Mirrors the backend's `app/backend/adapters/*` (client-side port). |
 | **placement** | Multi-platform placement policy: weighted scoring favors Telegram (unlimited capacity), filters by health/capacity/rate-budget, falls back to relay if nothing is eligible. Modes: `smart` (default, capacity-aware), `most_free` (rclone `mfs`), `spread` (round-robin). |
-| **reppool** | Client-side repo pool manager. Wraps a user's platform token and account name; rotates repos when they hit thresholds (GitHub 850 MB, GitLab 9 GB, HuggingFace 90 GB — safely under HF's 100 GB free tier). Trait `RepoStore` abstracts the control-plane calls (`list_repos`, `register_repo`, `update_usage`, `deactivate_repo`). |
+| **reppool** | Client-side repo pool manager. Wraps a user's platform token and account name; rotates repos when they hit thresholds (GitHub 850 MB, GitLab 9 GB, HuggingFace 90 GB: safely under HF's 100 GB free tier). Trait `RepoStore` abstracts the control-plane calls (`list_repos`, `register_repo`, `update_usage`, `deactivate_repo`). |
 | **engines** | Pipeline engines (placeholder, being filled in by P1 port): `local_upload`, `upload`, `download`, `sync`, `ordered_writer`. |
 | **api** | Backend API client (placeholder). SSE listener, `/api/changes` cursor syncer, auth refresh. |
 | **localdb** | Embedded SQLite ledger: file records, chunk status, sync state, platform credentials (wrapped with KEK). Mirrors the backend's index schema; answers upload resume, dedup MAC lookups, and sync cursor. |
@@ -170,8 +170,8 @@ The Tauri v2 updater verifies app signatures using a keypair. **This must be set
 bunx @tauri-apps/cli@v2 signer generate -w ~/.tauri/zcrypt.key
 
 # This creates:
-#   ~/.tauri/zcrypt.key       (PRIVATE — never commit, never share)
-#   ~/.tauri/zcrypt.key.pub   (PUBLIC — goes in tauri.conf.json)
+#   ~/.tauri/zcrypt.key       (PRIVATE - never commit, never share)
+#   ~/.tauri/zcrypt.key.pub   (PUBLIC - goes in tauri.conf.json)
 ```
 
 ### Configure tauri.conf.json

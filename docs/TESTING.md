@@ -1,6 +1,6 @@
 # Backend Tests
 
-> **Note:** The inventory below is indicative and drifts as tests are added — the backend
+> **Note:** The inventory below is indicative and drifts as tests are added, the backend
 > has far more coverage than listed. `go test ./...` (add `-race`) is authoritative.
 
 ## Setup
@@ -30,23 +30,23 @@ cmd/
 
 ## Test Categories
 
-### P0 — Security & Crypto (6 tests)
+### P0. Security & Crypto (6 tests)
 | Test File | Tests | What It Covers |
 |-----------|-------|----------------|
 | `crypto/crypto_test.go` | 6 | Salt/IV generation, PBKDF2 key derivation, AES-256-GCM token encrypt/decrypt, master key parsing, per-user KEK derivation |
 
-### P1 — Auth & Access Control (10 tests)
+### P1. Auth & Access Control (10 tests)
 | Test File | Tests | What It Covers |
 |-----------|-------|----------------|
 | `auth/auth_test.go` | 10 | bcrypt hash/verify, JWT generation/validation, expired token rejection, `alg:none` attack prevention, random token generation |
 
-### P1 — Infrastructure (15 tests)
+### P1. Infrastructure (15 tests)
 | Test File | Tests | What It Covers |
 |-----------|-------|----------------|
 | `config/config_test.go` | 7 | Default values, JWT secret validation, email config requirements |
 | `pipeline/progress_test.go` | 8 | SSE event routing per user, admin broadcast, unsubscribe, slow subscriber backpressure, audit events, concurrent safety (race detector) |
 
-### P2 — Disguise (5 tests)
+### P2. Disguise (5 tests)
 | Test File | Tests | What It Covers |
 |-----------|-------|----------------|
 | `disguise/disguise_test.go` | 5 | Chunk filename generation, uniqueness, commit messages, repo names, README content |

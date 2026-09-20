@@ -18,7 +18,7 @@ Covered: PBKDF2-SHA256 600k (hex + UTF-8 text salts, Unicode passphrase),
 AES-256-GCM decrypt of the `[12B IV || ct || 16B tag]` wire format, CEK unwrap,
 end-to-end passphrase→KEK→CEK resolution, SHA-256, `hmac_v1` content MAC under
 the dedup key, per-user name decryption, and a zstd round-trip blob (format
-compatibility only — encoders may differ byte-wise; TS skips zstd because the
+compatibility only: encoders may differ byte-wise; TS skips zstd because the
 wasm codec can't load under jsdom).
 
 If you change ANY crypto behavior: update the spec, regenerate here, and make

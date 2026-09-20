@@ -1,6 +1,6 @@
-# zcrypt — Testing & QA Guide
+# zcrypt. Testing & QA Guide
 
-> **Note:** A broad QA guide; parts are aspirational — some k6 scripts and E2E specs it
+> **Note:** A broad QA guide; parts are aspirational: some k6 scripts and E2E specs it
 > references do not exist. For the current, real load tests see
 > [`load-tests-README.md`](./load-tests-README.md) and `tests/load/k6/`.
 
@@ -120,11 +120,11 @@ cd app/backend && go test ./crypto/... -v          # specific package
 
 #### Gaps to Fill
 
-- `cmd/` — handler-level logic (covered by integration tests)
-- `reppool/` — repo rotation logic
-- `chunks/` — chunking math, boundary conditions
-- `adapters/` — mock adapter responses
-- `index/` — query builder logic
+- `cmd/`: handler-level logic (covered by integration tests)
+- `reppool/`: repo rotation logic
+- `chunks/`: chunking math, boundary conditions
+- `adapters/`: mock adapter responses
+- `index/`: query builder logic
 
 ```bash
 # Run with coverage HTML report
@@ -151,11 +151,11 @@ cd app/frontend && bun run test -- --coverage      # with coverage
 
 #### Gaps to Fill
 
-- `store/auth.ts` — token lifecycle, refresh logic
-- `store/upload.ts` — upload state machine
-- `hooks/useFileList.ts` — polling, pagination
-- `lib/api.ts` — request building, error handling
-- `components/upload/upload-zone.tsx` — drag-drop, file validation
+- `store/auth.ts`: token lifecycle, refresh logic
+- `store/upload.ts`: upload state machine
+- `hooks/useFileList.ts`: polling, pagination
+- `lib/api.ts`: request building, error handling
+- `components/upload/upload-zone.tsx`: drag-drop, file validation
 
 ---
 
@@ -368,7 +368,7 @@ k6 run --out cloud tests/load/k6/load.js
 
 ### Test Scenarios
 
-#### 1. Auth Endpoints — `auth.js`
+#### 1. Auth Endpoints, `auth.js`
 Tests login/refresh throughput. These are hit on every page load.
 
 **Target thresholds:**
@@ -376,7 +376,7 @@ Tests login/refresh throughput. These are hit on every page load.
 - p99 response < 500ms
 - Error rate < 0.1%
 
-#### 2. Upload Pipeline — `upload.js`
+#### 2. Upload Pipeline, `upload.js`
 Simulates concurrent users uploading files (100KB–10MB).
 
 **Target thresholds:**
@@ -385,21 +385,21 @@ Simulates concurrent users uploading files (100KB–10MB).
 - Complete p95 < 200ms
 - Error rate < 0.5%
 
-#### 3. Download — `download.js`
+#### 3. Download, `download.js`
 Concurrent downloads of various file sizes.
 
 **Target thresholds:**
 - Chunk download p95 < 800ms (per 10MB chunk)
 - Error rate < 0.1%
 
-#### 4. File List — `list.js`
+#### 4. File List, `list.js`
 Simulates dashboard load with pagination.
 
 **Target thresholds:**
 - p95 < 100ms for 100-file lists
 - p95 < 300ms for 10,000-file lists
 
-#### 5. SSE Connections — `sse.js`
+#### 5. SSE Connections, `sse.js`
 Stress-tests concurrent EventSource connections.
 
 **Target thresholds:**
@@ -429,10 +429,10 @@ Based on the current stack (Railway Go server, Neon serverless):
 ```
 
 **Key metrics to watch:**
-- `http_req_duration` p95 — latency SLO
-- `http_req_failed` — error rate
-- `vus` — virtual users
-- `iterations` — total requests / rate
+- `http_req_duration` p95: latency SLO
+- `http_req_failed`: error rate
+- `vus`: virtual users
+- `iterations`: total requests / rate
 
 ---
 
@@ -501,7 +501,7 @@ Run these manually or via a script against the staging environment:
 curl -X GET http://localhost:8080/api/files              # expect 401
 curl -X GET http://localhost:8080/api/admin/users        # expect 401/403
 
-# 2. IDOR test — access another user's file
+# 2. IDOR test - access another user's file
 curl -H "Authorization: Bearer $USER_A_TOKEN" \
   http://localhost:8080/api/download/chunk/USER_B_FILE_ID/0  # expect 404
 
@@ -628,10 +628,10 @@ Use this checklist before every release.
 - [ ] Manual smoke test: register → upload → download → verify file matches
 
 #### Security
-- [ ] `govulncheck ./...` — no critical CVEs
-- [ ] `gosec ./...` — no high-severity findings
-- [ ] `semgrep --config=p/owasp-top-ten .` — no new critical issues
-- [ ] `bun audit` — no high-severity frontend CVEs
+- [ ] `govulncheck ./...`: no critical CVEs
+- [ ] `gosec ./...`: no high-severity findings
+- [ ] `semgrep --config=p/owasp-top-ten .`: no new critical issues
+- [ ] `bun audit`: no high-severity frontend CVEs
 - [ ] Auth bypass tests pass (see Security Testing section)
 - [ ] Rate limiting verified: 429 returned after threshold
 - [ ] Admin endpoints return 403 for non-admin users
@@ -669,14 +669,14 @@ Use this checklist before every release.
 
 | Component | Current | Target | Priority |
 |---|---|---|---|
-| `crypto/` | ~80% | **95%** | P0 — encryption must be bulletproof |
-| `auth/` | ~70% | **90%** | P0 — auth bugs = account takeover |
-| `cmd/` (handlers) | ~5% | **70%** | P1 — via integration tests |
-| `pipeline/` | ~40% | **75%** | P1 — data loss risk |
-| `index/` (queries) | ~0% | **60%** | P1 — via integration tests |
+| `crypto/` | ~80% | **95%** | P0: encryption must be bulletproof |
+| `auth/` | ~70% | **90%** | P0: auth bugs = account takeover |
+| `cmd/` (handlers) | ~5% | **70%** | P1, via integration tests |
+| `pipeline/` | ~40% | **75%** | P1, data loss risk |
+| `index/` (queries) | ~0% | **60%** | P1, via integration tests |
 | `reppool/` | ~0% | **60%** | P2 |
-| `chunks/` | ~0% | **70%** | P1 — data integrity |
-| Frontend `lib/` | ~85% | **90%** | P0 — crypto + API |
+| `chunks/` | ~0% | **70%** | P1, data integrity |
+| Frontend `lib/` | ~85% | **90%** | P0, crypto + API |
 | Frontend `store/` | ~30% | **70%** | P1 |
 | Frontend `hooks/` | ~0% | **60%** | P2 |
 
@@ -720,7 +720,7 @@ Push / PR
 
 ### Running Load Tests in CI
 
-Load tests are intentionally NOT in the standard CI pipeline — they require a live environment and are slow. Run them:
+Load tests are intentionally NOT in the standard CI pipeline: they require a live environment and are slow. Run them:
 
 1. **Before a big release**: `make test-load-staging`
 2. **After architecture changes**: manually via k6
@@ -740,7 +740,7 @@ MCP (Model Context Protocol) servers extend Claude Code with specialized testing
 
 ### Playwright MCP
 
-Gives Claude Code the ability to control a real browser — use it for interactive E2E testing and debugging.
+Gives Claude Code the ability to control a real browser. Use it for interactive E2E testing and debugging.
 
 **Configured in:** `.claude/settings.json`
 

@@ -1,13 +1,13 @@
 # FEATURES_CONTRACT.md
 
 Code-grounded reference for the zcrypt frontend vault build. Every signature below is
-copied from the real source — no guesses. Paths are relative to `app/frontend/`.
+copied from the real source, no guesses. Paths are relative to `app/frontend/`.
 
 ---
 
 ## 1. Decrypt-to-blob pipeline
 
-### `hooks/useVaultActions.ts` — `startPreview`
+### `hooks/useVaultActions.ts`, `startPreview`
 
 Imports used by the preview path (top of file):
 
@@ -33,7 +33,7 @@ const startPreview = useCallback(
 
     try {
       // Resolve the right password (vault, or folder pass for a protected
-      // folder — prompting/verifying if its password isn't cached).
+      // folder - prompting/verifying if its password isn't cached).
       const passphrase = await folderProtection.passwordForFile(file);
 
       const { getFileMeta, getFileChunk } = await import("@/lib/api");
@@ -103,7 +103,7 @@ const startPreview = useCallback(
 
 Pipeline summary (in order):
 1. `openPreview(null, filename, size)` opens the modal in a loading state.
-2. **Passphrase** is obtained via `await folderProtection.passwordForFile(file)` — NOT read directly. This returns the vault passphrase for unprotected files, or the (cached/prompted+verified) folder password for protected-folder files.
+2. **Passphrase** is obtained via `await folderProtection.passwordForFile(file)`, NOT read directly. This returns the vault passphrase for unprotected files, or the (cached/prompted+verified) folder password for protected-folder files.
 3. **Dynamic imports**: `@/lib/api` (`getFileMeta`, `getFileChunk`), `@/lib/crypto` (`resolveFileKey`, `decryptChunk`, `sha256Hex`, `fromBase64`), and `@oneidentity/zstd-js/wasm` (`ZstdInit`). `const zstd = await ZstdInit();`
 4. `meta = await getFileMeta(file.id)`; `salt = fromBase64(meta.salt)`; `keyBytes = await resolveFileKey(passphrase, salt, meta.wrapped_cek)` → raw `ArrayBuffer` CEK (or legacy KEK).
 5. **Chunk loop** `for i in 0..meta.chunk_count`: `getFileChunk(file.id, i)` → `{ data: ArrayBuffer, compressed: boolean }`. `decryptChunk(keyBytes, new Uint8Array(data))` → plaintext `Uint8Array`. If `compressed && zstd`: `plain = zstd.ZstdStream.decompress(plain)` (stream, not simple).
@@ -111,9 +111,9 @@ Pipeline summary (in order):
 7. **Integrity**: `sha256Hex(full)` must equal `meta.sha256` else throw `"File integrity check failed"`.
 8. `blob = new Blob([full], { type: "application/octet-stream" })` → `openPreview(blob, filename, size)`. Note: blob is generic octet-stream; the viewer must dispatch type by filename.
 
-`handlePreview(filename)` wraps it: `vault.withPassphrase(() => { void startPreview(filename); })` — gates on the single vault unlock first.
+`handlePreview(filename)` wraps it: `vault.withPassphrase(() => { void startPreview(filename); })`: gates on the single vault unlock first.
 
-### `hooks/useFolderProtection.ts` — `passwordForFile(file)` password selection
+### `hooks/useFolderProtection.ts`, `passwordForFile(file)` password selection
 
 ```ts
 passwordForFile: (file: FileMetadata) => Promise<string>;
@@ -121,12 +121,12 @@ passwordForFile: (file: FileMetadata) => Promise<string>;
 
 Body logic:
 - `fid = file.folder_id ?? null`; `info = fid ? registryGet(fid) : null`; `protectedFolder = !!fid && info != null && info.pwSalt != null`.
-- **Unprotected** (`!protectedFolder`): returns `new Promise((resolve) => vault.withPassphrase((pp) => resolve(pp)))` — the vault passphrase. If the user cancels the vault modal the promise stays pending (action never runs).
+- **Unprotected** (`!protectedFolder`): returns `new Promise((resolve) => vault.withPassphrase((pp) => resolve(pp)))`, the vault passphrase. If the user cancels the vault modal the promise stays pending (action never runs).
 - **Protected, cached**: `cached = cacheGet(fid!)`; if present → `Promise.resolve(cached)`.
 - **Protected, not cached**: opens the folder-unlock modal via `openModal(fid, name, resolve, reject)`. On confirm it VERIFIES (`verifyFolderPassword`) then caches (TTL) and resolves; on cancel it REJECTS with `FolderUnlockCancelled`.
 
 Related members on `UseFolderProtection` (exact):
-- `thumbnailPasswordResolver: (fileId: string, fileById: Map<string, FileMetadata>) => string | null` — non-prompting; null for a locked protected folder.
+- `thumbnailPasswordResolver: (fileId: string, fileById: Map<string, FileMetadata>) => string | null`: non-prompting; null for a locked protected folder.
 - `isFileProtected: (file: FileMetadata) => boolean`
 - `withFolderPassword: (folderId, folderName, action: () => void, onCancel?: () => void) => void`
 - `clearFolderPassword: (folderId: string) => void`
@@ -136,7 +136,7 @@ Related members on `UseFolderProtection` (exact):
 - `modalState: FolderUnlockModalState`
 
 Exported errors: `class FolderUnlockCancelled extends Error`, `class FolderPasswordRequired extends Error { readonly folderId: string }`.
-Exported standalone (works outside React tree): `async function resolveFilePasswordGlobal(fileId: string): Promise<string>` — reads global singleton stores; throws `Error("Vault is locked")` or `FolderPasswordRequired`.
+Exported standalone (works outside React tree): `async function resolveFilePasswordGlobal(fileId: string): Promise<string>`: reads global singleton stores; throws `Error("Vault is locked")` or `FolderPasswordRequired`.
 
 ---
 
@@ -215,16 +215,16 @@ Supports BOTH audio and video. Internals:
   - `VIDEO_EXT = ["mp4","mov","webm","mkv","m4v","ogv"]`
   - default `"audio"`.
 - `useMediaController()` (internal hook) wires ONE `HTMLMediaElement` ref and exposes: `playing, current, duration, buffered, volume, muted, speed, ready, scrubbing` + handlers `togglePlay, seekTo(time), skip(delta), changeVolume(v), toggleMute, cycleSpeed, setScrubbing, setCurrent`. Speeds: `[0.5, 1, 1.5, 2]`.
-- `AudioPlayer` (artwork + Music glyph + seek/volume/speed) and `VideoPlayer` (in-`<video>`, fullscreen via `requestFullscreen`, auto-hiding controls). The media element is created INTERNALLY — consumers pass only `src` + `filename`.
+- `AudioPlayer` (artwork + Music glyph + seek/volume/speed) and `VideoPlayer` (in-`<video>`, fullscreen via `requestFullscreen`, auto-hiding controls). The media element is created INTERNALLY: consumers pass only `src` + `filename`.
 - Keyboard (scoped to wrapper): space/`k` toggle, arrows ±5s, `m` mute.
 
-**Reuse-for-playlist note**: the component instantiates its own single media element/controller per render and has NO "ended → next" / track-list / queue API. Extending for a playlist requires either an `onEnded`/`onTrackChange` prop + external track list, or lifting the controller — neither exists today.
+**Reuse-for-playlist note**: the component instantiates its own single media element/controller per render and has NO "ended → next" / track-list / queue API. Extending for a playlist requires either an `onEnded`/`onTrackChange` prop + external track list, or lifting the controller, neither exists today.
 
 ---
 
 ## 4. Explorer internals
 
-### `components/files/vault-explorer.tsx` — selection + open + drag wiring
+### `components/files/vault-explorer.tsx`: selection + open + drag wiring
 
 Props (exact):
 ```ts
@@ -249,20 +249,20 @@ export interface VaultExplorerProps {
 }
 ```
 
-Selection state (owned internally, files only — folders are never selectable):
+Selection state (owned internally, files only, folders are never selectable):
 - `const [selectMode, setSelectMode] = useState(false);`
 - `const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());`
-- `toggleSelect(id: string)` — add/remove id from the Set (this is the `onSelect` passed to rows/cards).
+- `toggleSelect(id: string)`: add/remove id from the Set (this is the `onSelect` passed to rows/cards).
 - `allSelected = sortedFiles.length > 0 && sortedFiles.every((f) => selectedIds.has(f.id))`.
-- `selectAll()` — if `allSelected` clears, else selects all `sortedFiles` ids.
-- `exitSelectMode()` — `setSelectMode(false); setSelectedIds(new Set())`.
+- `selectAll()`: if `allSelected` clears, else selects all `sortedFiles` ids.
+- `exitSelectMode()`: `setSelectMode(false); setSelectedIds(new Set())`.
 - A `useEffect` prunes stale ids not in `sortedFiles` whenever the visible list changes.
 - Bulk bar buttons call `onBulkDownload(Array.from(selectedIds))` / `onBulkDelete(Array.from(selectedIds))`.
 
 Listing scope/sort: `folderFiles` = files where `(f.folder_id ?? null) === currentFolderId`, then search + `typeFilter` (`getFileCategory`) + sort by `SortField`. `entries: ExplorerEntry[]` = sortedFolders (always by name, first) then sortedFiles. View modes `"list" | "grid"` render `ExplorerRow` / `ExplorerCard`.
 
-Row/card click + open handler — in `components/files/explorer/explorer-row.tsx`:
-- **FileRow** `handleClick = () => { if (selectMode) onSelect(file.id); else actions.onOpenDetails?.(file); }`. Same on Enter/Space. The kebab menu (not the row click) fires `onPreview(file.original_name)`, `onDownload(file.original_name)`, `onShare(file.id)`, `onMoveRequest(file.id)`, `onDelete(file.id)`. **So a single click opens the DETAILS drawer, not preview** — preview is only reachable via the kebab.
+Row/card click + open handler, in `components/files/explorer/explorer-row.tsx`:
+- **FileRow** `handleClick = () => { if (selectMode) onSelect(file.id); else actions.onOpenDetails?.(file); }`. Same on Enter/Space. The kebab menu (not the row click) fires `onPreview(file.original_name)`, `onDownload(file.original_name)`, `onShare(file.id)`, `onMoveRequest(file.id)`, `onDelete(file.id)`. **So a single click opens the DETAILS drawer, not preview**: preview is only reachable via the kebab.
 - **FolderRow** `onClick={() => onOpenFolder(folder)}` (and Enter/Space). `onOpenFolder` is `openFolderGated`: if `onOpenFolderRequest` provided it delegates to the page (which verifies a protected folder's password before `setCurrentFolder`), else `openFolder(folder)` directly.
 
 ExplorerRow/Card props passed from the explorer: `entry, actions, selectMode, selected (entry.kind==="file" && selectedIds.has(file.id)), onSelect=toggleSelect, onOpenFolder=openFolderGated, onRenameFolder, onDeleteFolder, onProtectFolder, onRemoveFolderPassword, onMoveFolderRequest, drag=dragPropsFor(entry)`.
@@ -290,7 +290,7 @@ Drop handling (in `vault-explorer.tsx`):
 - `handleDropOnto(destId, e)`: reads `fileId = e.dataTransfer.getData(DRAG_MIME)`; **folder drop** → `moveFolder(item.id, destId).then(refreshFolders)` (API call, not a prop); **file drop** → `onMoveFile?.(item?.id ?? fileId, destId)`.
 - `dragPropsFor(entry)`: folder drag enabled `!locked && !selectMode`; file drag enabled `!selectMode`. `onDragStart` sets `dataTransfer.setData(DRAG_MIME, id)` + `effectAllowed="move"` + `startDrag(...)`.
 
-### `app/(app)/dashboard/page.tsx` — preview/details/move wiring
+### `app/(app)/dashboard/page.tsx`, preview/details/move wiring
 
 - `const preview = useFilePreview();` and `<FilePreviewModal open={preview.open} onClose={preview.closePreview} blob={preview.blob} filename={preview.filename} fileSize={preview.fileSize} />`. `useVaultActions` is given `openPreview: preview.openPreview, closePreview: preview.closePreview`.
 - Explorer wiring: `onPreview={actions.handlePreview}`, `onOpenDetails={handleOpenDetails}` (sets `detailsTarget` + opens `<DetailsDrawer file={detailsTarget} open={detailsOpen} .../>`).
@@ -315,7 +315,7 @@ Drop handling (in `vault-explorer.tsx`):
 ```ts
 export function listTrash(): Promise<FileMetadata[]>;                    // GET  /api/files/trash
 export function restoreFile(id: string): Promise<{ success: boolean }>; // POST /api/files/:id/restore
-export function purgeFile(id: string): Promise<{ success: boolean }>;   // DELETE /api/files/:id/purge (irreversible — removes chunks)
+export function purgeFile(id: string): Promise<{ success: boolean }>;   // DELETE /api/files/:id/purge (irreversible - removes chunks)
 ```
 (Soft-delete itself is `deleteFile(id): Promise<{ success: boolean }>` → `DELETE /api/files/:id`, and `bulkDeleteFiles(ids): Promise<{ deleted: number; failed: number }>` → `POST /api/files/bulk-delete`.)
 
@@ -342,7 +342,7 @@ export function easeProgress(raw: number): number;
 export function cn(...inputs: ClassValue[]): string;
 ```
 
-**Category (`label`) strings `getFileCategory` can return** — the set a viewer dispatches on:
+**Category (`label`) strings `getFileCategory` can return**: the set a viewer dispatches on:
 `"Document"`, `"Spreadsheet"`, `"Image"`, `"Video"`, `"Audio"`, `"Archive"`, `"Code"`, `"Data"`, `"Executable"`, `"Font"`, `"File"` (default/unknown).
 
 Extension → category map (for type-based viewer dispatch):
@@ -358,7 +358,7 @@ Extension → category map (for type-based viewer dispatch):
 - **Font** (`File`, fuchsia): ttf, otf, woff, woff2
 - Anything else → **File** (`File`, muted).
 
-Caveat for a viewer: `MediaPlayer`'s `AUDIO_EXT`/`VIDEO_EXT` include extensions (`m4v`, `ogv`, `oga`, `opus`, `avi`) that `getFileTypeInfo` maps differently or to default — dispatch by both maps or unify them.
+Caveat for a viewer: `MediaPlayer`'s `AUDIO_EXT`/`VIDEO_EXT` include extensions (`m4v`, `ogv`, `oga`, `opus`, `avi`) that `getFileTypeInfo` maps differently or to default: dispatch by both maps or unify them.
 
 ### `FileMetadata` (`types/index.ts`)
 

@@ -1,6 +1,6 @@
-# zcrypt — Feature Roadmap & Ideas
+# zcrypt. Feature Roadmap & Ideas
 
-> **Status (2026-07):** A wishlist, not current state. Many items here have shipped —
+> **Status (2026-07):** A wishlist, not current state. Many items here have shipped.
 > Send, encrypted Pad, decoy mode, dead-man's switch, expiring/timed vaults, snapshots,
 > notes, shared vaults, offline pins, clipboard sync, integrity checks. The "LAN
 > transfer" idea shipped as a **server-brokered WebSocket pairing relay** (6-digit code),
@@ -14,15 +14,15 @@
 ## Phase 1: Viral Growth Features (High impact, builds top-of-funnel)
 
 ### zcrypt Send (WeTransfer killer)
-- `zcrypt.cloud/send` — drag drop file, get encrypted share link
+- `zcrypt.cloud/send`: drag drop file, get encrypted share link
 - No login required for sender or receiver
-- Client-side encryption, key in URL fragment (#key=...) — server never sees plaintext
+- Client-side encryption, key in URL fragment (#key=...): server never sees plaintext
 - Limits: 50 MB / 24h expiry for anonymous, higher for accounts
 - Burn-after-read option
 - Every share link = free brand exposure
 
 ### zcrypt Pad (Encrypted text sharing)
-- `zcrypt.cloud/pad` — type/paste text, get encrypted link
+- `zcrypt.cloud/pad`: type/paste text, get encrypted link
 - No login required
 - Options: expiry (1h/24h/7d), burn-after-read, password protect
 - Private mode: syncs across logged-in devices via WebSocket
@@ -35,7 +35,7 @@
 
 ---
 
-## Phase 2: Device Bridge (Differentiator — nobody else does this)
+## Phase 2: Device Bridge (Differentiator, nobody else does this)
 
 ### LAN File Transfer (Encrypted AirDrop)
 - Peer-to-peer between devices on same WiFi
@@ -46,13 +46,13 @@
   - Fast mode (>50 Mbps): no compression, large buffers, parallel TCP streams
   - Balanced (1-50 Mbps): optional compression, medium buffers
   - Slow mode (<1 Mbps): compress everything, tiny chunks, aggressive resume
-- Resumable transfers — connection drops at 80%, resume from 80%
+- Resumable transfers: connection drops at 80%, resume from 80%
 - Auto bandwidth detection on connect (100KB test packet)
 - Connection resilience: auto-retry on WiFi drops, resume on reconnect
 - TUI support: `zcrypt send file.pdf --to laptop`
 
 ### Clipboard Sync
-- Copy on PC, paste on laptop — end-to-end encrypted
+- Copy on PC, paste on laptop: end-to-end encrypted
 - Real-time via WebSocket between logged-in devices
 - Text, images, links
 
@@ -86,7 +86,7 @@
 
 ### Encrypted Photo Gallery
 - Auto-organize by date, like Google Photos but encrypted
-- On-device ML for search ("find beach photos") — runs in browser, not server
+- On-device ML for search ("find beach photos"): runs in browser, not server
 - Thumbnail generation client-side
 
 ### Vault Snapshots (Time Travel)
@@ -147,7 +147,7 @@
 | Burn after read | No | No | No | Yes |
 | QR share | No | No | No | Yes |
 
-**Positioning: zcrypt is not just encrypted storage — it's a privacy toolkit.**
+**Positioning: zcrypt is not just encrypted storage, it's a privacy toolkit.**
 
 ---
 

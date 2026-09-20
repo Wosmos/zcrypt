@@ -9,7 +9,7 @@ Import from the matching file under `@/components/ui/*`.
 
 ---
 
-## `PageHeader` — `page-header.tsx`
+## `PageHeader`, `page-header.tsx`
 
 Standard page title block: eyebrow label, h1, description, right-aligned actions.
 
@@ -32,7 +32,7 @@ Standard page title block: eyebrow label, h1, description, right-aligned actions
 
 ---
 
-## `Section` — `section.tsx`
+## `Section`, `section.tsx`
 
 A labelled content section to compose *inside* a `.panel`. Header is optional;
 with no title/description/actions it renders just the children.
@@ -55,7 +55,7 @@ with no title/description/actions it renders just the children.
 
 ---
 
-## `StatCard` — `stat-card.tsx`
+## `StatCard`, `stat-card.tsx`
 
 Compact metric card with a leading icon chip. Value + hint use `tabular-nums`.
 Includes its own `.panel`, so place it directly in a grid.
@@ -75,7 +75,7 @@ Includes its own `.panel`, so place it directly in a grid.
 
 ---
 
-## `IconButton` — `icon-button.tsx`
+## `IconButton`, `icon-button.tsx`
 
 The app-wide standard for icon-only actions. Always wraps itself in a shadcn
 Tooltip showing `label` and sets `aria-label`. Built on the custom `Button`
@@ -97,13 +97,13 @@ Tooltip showing `label` and sets `aria-label`. Built on the custom `Button`
 
 ---
 
-## `ConfirmDialog` — `confirm-dialog.tsx`
+## `ConfirmDialog`, `confirm-dialog.tsx`
 
 Ergonomic wrapper over the alert-dialog primitive for consistent confirm modals.
 Enforces title + description, supports destructive styling, and shows an inline
 spinner while `loading`. While `loading`, dismissal is blocked. The confirm
-click is `preventDefault`-ed so the dialog stays mounted during async work —
-close it yourself via `onOpenChange(false)` after `onConfirm` resolves.
+click is `preventDefault`-ed so the dialog stays mounted during async work.
+Close it yourself via `onOpenChange(false)` after `onConfirm` resolves.
 `"use client"`.
 
 | Prop           | Type                       | Required | Notes                                  |
@@ -133,7 +133,7 @@ close it yourself via `onOpenChange(false)` after `onConfirm` resolves.
 
 ---
 
-## Skeletons kit — `skeletons.tsx`
+## Skeletons kit, `skeletons.tsx`
 
 Loading placeholders built on the existing `Skeleton` + `.animate-shimmer`.
 Render these while client-side data loads (theme-aware shimmer).

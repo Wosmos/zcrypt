@@ -1,15 +1,15 @@
-# zcrypt Vault Rebuild — Code Contract (exact signatures)
+# zcrypt Vault Rebuild. Code Contract (exact signatures)
 
 > **Status: shipped.** These contracts are implemented. Some references are outdated
 > (the old `components/upload/` and `components/download/` were replaced by
-> `components/transfer/`) and line numbers have drifted — treat the code as source of truth.
+> `components/transfer/`) and line numbers have drifted. Treat the code as source of truth.
 
 Transcribed verbatim from source. Build agents MUST honor these. Paths are relative to `app/frontend/`.
-Do NOT guess — if something here disagrees with source, source wins and update this file.
+Do NOT guess, if something here disagrees with source, source wins and update this file.
 
 ---
 
-## 1. `store/upload.ts` — `useUploadStore` (Zustand, `create<UploadStore>`)
+## 1. `store/upload.ts`, `useUploadStore` (Zustand, `create<UploadStore>`)
 
 ### State + method signatures (interface `UploadStore`, lines 104–117)
 ```ts
@@ -43,21 +43,21 @@ type UploadStatus = "queued" | "encrypting" | "uploading" | "done" | "failed";
 **Adding `"paused"`: update this union in types/index.ts, then audit EVERY switch/compare site below.**
 
 ### EVERY place UploadStatus is read/compared (file:line)
-- `types/index.ts:80` — union definition. `types/index.ts:86` — `UploadItem.status` field.
-- `store/upload.ts:76` — `pendingUpdates` map value type `{ status: UploadStatus; ... }`.
-- `store/upload.ts:109` — `updateStatus` param type.
-- `store/upload.ts:461` — `updateStatus`: `if (status === "done" || status === "failed")` → terminal flush immediately; else batched via `scheduleFlush`. **A `"paused"` status is NOT terminal here — it must NOT hit this branch if you want it flushed; pass it through `set` directly or add it to the terminal check.**
-- `store/upload.ts:482` (`setError`) — sets `status: "failed"`.
-- `store/upload.ts:501` (`clearCompleted`) — `item.status !== "done"`.
-- `store/upload.ts:541–544` — batch summary counts: `i.status === "done"`, `i.status === "failed"`; percent sum treats done/failed as 100 else `progress`.
-- `store/upload.ts:565–566` — final summary toast counts (`done`/`failed`).
-- `store/upload.ts:592` (`retryUpload`) — resets item to `status: "queued"`, `error: undefined`, `progress: 0`, `stage: "Retrying..."`.
-- `store/upload.ts:423` (`addToQueue`) / `:441` (`addBatchToQueue`) — seed `status: "queued"`.
-- `store/upload.ts:221/235/249/267/372/395/398/619/621` — internal `updateStatus(...)` calls inside `uploadOneFile`/`startDesktopUpload` emit `"encrypting"`/`"uploading"`/`"queued"`/`"done"`.
-- `app/(app)/dashboard/page.tsx:174–181` — SSE→store: derives status from `stageLower` (`"done"` | includes `"encrypt"` → `"encrypting"` | else `"uploading"`), then `updateStatus(...)`.
-- `components/upload/upload-queue.tsx` — `:78`(`"done"`), `:79`(`"failed"`), `:80`(`"queued"`), `:87–88`(`"done"`/`"failed"`), `:93`(`"failed"`), `:178`(`isActive = status !== "done" && !== "failed" && !== "queued"`), `:186`(`"done"`), `:187`(`"failed"`), `:193–195`(`"done"`/`"failed"`/`"queued"`), `:228`(`"failed"`). NOTE: this component is being SUPERSEDED by the transfer manager; keep it on disk but stop importing it (integrate step).
+- `types/index.ts:80` (union definition. `types/index.ts:86`) `UploadItem.status` field.
+- `store/upload.ts:76`: `pendingUpdates` map value type `{ status: UploadStatus; ... }`.
+- `store/upload.ts:109`: `updateStatus` param type.
+- `store/upload.ts:461`: `updateStatus`: `if (status === "done" || status === "failed")` → terminal flush immediately; else batched via `scheduleFlush`. **A `"paused"` status is NOT terminal here. It must NOT hit this branch if you want it flushed; pass it through `set` directly or add it to the terminal check.**
+- `store/upload.ts:482` (`setError`): sets `status: "failed"`.
+- `store/upload.ts:501` (`clearCompleted`): `item.status !== "done"`.
+- `store/upload.ts:541–544`: batch summary counts: `i.status === "done"`, `i.status === "failed"`; percent sum treats done/failed as 100 else `progress`.
+- `store/upload.ts:565–566`: final summary toast counts (`done`/`failed`).
+- `store/upload.ts:592` (`retryUpload`): resets item to `status: "queued"`, `error: undefined`, `progress: 0`, `stage: "Retrying..."`.
+- `store/upload.ts:423` (`addToQueue`) / `:441` (`addBatchToQueue`), seed `status: "queued"`.
+- `store/upload.ts:221/235/249/267/372/395/398/619/621`: internal `updateStatus(...)` calls inside `uploadOneFile`/`startDesktopUpload` emit `"encrypting"`/`"uploading"`/`"queued"`/`"done"`.
+- `app/(app)/dashboard/page.tsx:174–181`: SSE→store: derives status from `stageLower` (`"done"` | includes `"encrypt"` → `"encrypting"` | else `"uploading"`), then `updateStatus(...)`.
+- `components/upload/upload-queue.tsx`: `:78`(`"done"`), `:79`(`"failed"`), `:80`(`"queued"`), `:87–88`(`"done"`/`"failed"`), `:93`(`"failed"`), `:178`(`isActive = status !== "done" && !== "failed" && !== "queued"`), `:186`(`"done"`), `:187`(`"failed"`), `:193–195`(`"done"`/`"failed"`/`"queued"`), `:228`(`"failed"`). NOTE: this component is being SUPERSEDED by the transfer manager; keep it on disk but stop importing it (integrate step).
 
-### Resume mechanics (how resume works TODAY — DO NOT break)
+### Resume mechanics (how resume works TODAY. DO NOT break)
 - `ResumeCtx` (store/upload.ts:124–131, module-private):
   ```ts
   interface ResumeCtx { sessionId: string; fileId: string; cekBytes: ArrayBuffer; chunkCount: number; directUpload: boolean; shouldCompress: boolean; }
@@ -68,21 +68,21 @@ type UploadStatus = "queued" | "encrypting" | "uploading" | "done" | "failed";
   Map<string, { platform?: string; onRefresh?: () => void; resume?: ResumeCtx; routedToHF?: boolean }>
   ```
 - `uploadOneFile(file, id, opts)` (store/upload.ts:197) reads `itemMeta.get(id)?.resume`. If present → reuse session+CEK, call `getUploadStatus(sessionId)` → `new Set(status.uploaded_chunks)`, skip `done.has(i)` chunks (idempotent by SHA, line 327). If absent → fresh init, then `itemMeta.set(id, { ...meta, resume })` AT LINE 280–281 so a mid-upload failure can resume.
-- On error (catch, store/upload.ts:401–409): calls `setError`, **deliberately does NOT cancel the session** — keeps it so Retry resumes.
-- `removeFromQueue` (store/upload.ts:485–497): the "give up" path — if `meta?.resume?.sessionId` exists, fires `cancelUpload(sessionId)`, deletes `itemMeta`, removes from queue.
+- On error (catch, store/upload.ts:401–409): calls `setError`, **deliberately does NOT cancel the session**: keeps it so Retry resumes.
+- `removeFromQueue` (store/upload.ts:485–497): the "give up" path, if `meta?.resume?.sessionId` exists, fires `cancelUpload(sessionId)`, deletes `itemMeta`, removes from queue.
 - `retryUpload(id, passphrase)` (store/upload.ts:584): resets the queue item in place (keeps id) and re-runs `uploadOneFile(item.file, id, { passphrase, platform: meta?.platform, profile, onRefresh: meta?.onRefresh })` → continues from uploaded chunks.
 
 ### PAUSE/RESUME additions you must make (spec §4)
 - Add `"paused"` to `UploadStatus` (types/index.ts:80) and handle it at the 461 terminal-check and 541/565 count sites (treat `"paused"` like in-progress for counts; do NOT count it as done/failed).
-- `pauseUpload(id)` must stop sending FURTHER chunks while PRESERVING `itemMeta[id].resume` (do NOT call `cancelUpload`). See §3 for abort capability: **chunk-level fetches do NOT accept an AbortSignal**, so true mid-chunk abort is impossible — pause at the chunk boundary (set a per-item paused flag the chunk loop checks before `acquirePipelineSlot`/launching the next chunk). Optionally also `controller.abort()` if you wire an AbortController into the fetch wrappers — but the current wrappers ignore it (see §3).
-- `resumeUpload(id, passphrase)` continues from `getUploadStatus(sessionId).uploaded_chunks` — effectively the same path as `retryUpload`, but from a `"paused"` (not `"failed"`) state.
+- `pauseUpload(id)` must stop sending FURTHER chunks while PRESERVING `itemMeta[id].resume` (do NOT call `cancelUpload`). See §3 for abort capability: **chunk-level fetches do NOT accept an AbortSignal**, so true mid-chunk abort is impossible: pause at the chunk boundary (set a per-item paused flag the chunk loop checks before `acquirePipelineSlot`/launching the next chunk). Optionally also `controller.abort()` if you wire an AbortController into the fetch wrappers, but the current wrappers ignore it (see §3).
+- `resumeUpload(id, passphrase)` continues from `getUploadStatus(sessionId).uploaded_chunks`: effectively the same path as `retryUpload`, but from a `"paused"` (not `"failed"`) state.
 
 ### Module-internal behaviors to preserve (do not regress)
 Debounced refresh (1500ms, :13), background push notifications (:27 `startBackgroundNotifications`/:67 stop), throttled `scheduleFlush` via `requestAnimationFrame` (:79), large-file→HF nudge `resolveUploadPlatform` (:146, threshold 2GB), `COMPRESSED_EXTENSIONS` skip (:158), `withRetry` rate-limit wrapper (:167), two-stage backpressure pipeline (:286+), batch summary toast (:560).
 
 ---
 
-## 2. `store/download.ts` — `useDownloadStore` (Zustand)
+## 2. `store/download.ts`, `useDownloadStore` (Zustand)
 
 ### `DownloadStatus` union (download.ts:7)
 ```ts
@@ -103,7 +103,7 @@ queue: DownloadItem[];
 controllers: Map<string, AbortController>;                 // id → controller for cancellation
 startDownload: (fileId: string, filename: string, fileSize: number, passphrase: string) => void;
 startBulkZipDownload: (files: BulkDownloadFile[], passphrase: string) => void;   // ZIP path (2GB cap warning lives in page)
-cancelDownload: (id: string) => void;                      // controller.abort() — does NOT remove from queue
+cancelDownload: (id: string) => void;                      // controller.abort() - does NOT remove from queue
 retryDownload: (id: string, passphrase: string) => void;   // removeFromQueue(id) then startDownload(...) fresh (NOT resumable)
 removeFromQueue: (id: string) => void;                     // aborts if running, deletes controller + queue item
 clearCompleted: () => void;                                // removes status === "done" || "cancelled"
@@ -114,34 +114,34 @@ clearCompleted: () => void;                                // removes status ===
 - Abort → caught as `DOMException` with `err.name === "AbortError"` (download.ts:126, :202) → status set to `"cancelled"`. Downloads ARE truly mid-stream cancellable (unlike uploads).
 
 ### DownloadStatus compare sites
-- `download.ts:90, :173` — `if (status === "done" || "failed" || "cancelled")` terminal flush.
-- `download.ts:260` — `clearCompleted`: `!== "done" && !== "cancelled"`.
-- `components/download/download-queue.tsx:23,25,54–116` — full switch (being SUPERSEDED by transfer manager; keep on disk, stop importing).
+- `download.ts:90, :173`: `if (status === "done" || "failed" || "cancelled")` terminal flush.
+- `download.ts:260`: `clearCompleted`: `!== "done" && !== "cancelled"`.
+- `components/download/download-queue.tsx:23,25,54–116`: full switch (being SUPERSEDED by transfer manager; keep on disk, stop importing).
 
 ---
 
-## 3. `lib/upload-session.ts` — chunk API wrappers (AbortSignal status per fn)
+## 3. `lib/upload-session.ts`: chunk API wrappers (AbortSignal status per fn)
 
 All go through `authedFetch` (refreshes token on 401). API_BASE = `process.env.NEXT_PUBLIC_API_URL`.
 
 ```ts
-initUpload(params: UploadInitParams): Promise<UploadInitResponse>     // POST /api/upload/init   — NO AbortSignal param
+initUpload(params: UploadInitParams): Promise<UploadInitResponse>     // POST /api/upload/init   - NO AbortSignal param
 uploadChunk(sessionId: string, index: number, encryptedData: Uint8Array, sha256: string, compressed: boolean): Promise<void>
-                                                                       // PUT /api/upload/{sid}/chunk/{idx}  — NO AbortSignal
+                                                                       // PUT /api/upload/{sid}/chunk/{idx}  - NO AbortSignal
 presignChunk(sessionId: string, index: number, sha256: string, size: number): Promise<PresignResponse>
-                                                                       // POST /api/upload/{sid}/presign/{idx} — NO AbortSignal
+                                                                       // POST /api/upload/{sid}/presign/{idx} - NO AbortSignal
 directUploadToURL(url: string, headers: Record<string,string> | null, data: Uint8Array): Promise<void>
-                                                                       // raw fetch PUT to platform, 3 retries — NO AbortSignal
+                                                                       // raw fetch PUT to platform, 3 retries - NO AbortSignal
 confirmChunk(sessionId: string, index: number, sha256: string, size: number, remotePath: string, compressed: boolean): Promise<void>
-                                                                       // POST /api/upload/{sid}/confirm/{idx} — NO AbortSignal
+                                                                       // POST /api/upload/{sid}/confirm/{idx} - NO AbortSignal
 completeUpload(sessionId: string, encryptedSize: number, compressedSize: number): Promise<UploadCompleteResponse>
-                                                                       // POST /api/upload/{sid}/complete — NO AbortSignal
-cancelUpload(sessionId: string): Promise<void>                        // DELETE /api/upload/{sid} — NO AbortSignal
-getUploadStatus(sessionId: string): Promise<UploadStatusResponse>     // GET /api/upload/{sid}/status — NO AbortSignal
+                                                                       // POST /api/upload/{sid}/complete - NO AbortSignal
+cancelUpload(sessionId: string): Promise<void>                        // DELETE /api/upload/{sid} - NO AbortSignal
+getUploadStatus(sessionId: string): Promise<UploadStatusResponse>     // GET /api/upload/{sid}/status - NO AbortSignal
 ```
 
-### **CRITICAL — abort capability**
-**NONE of these accept an `AbortSignal`.** No `RequestInit.signal` is plumbed through `authedFetch` or the raw `fetch` in `directUploadToURL`. Therefore **true mid-chunk upload abort is NOT possible** with the current code. **Pause MUST happen at the chunk boundary** (check a per-item paused flag in the `uploadOneFile` chunk loop before launching the next chunk; in-flight chunks finish). Do not claim mid-chunk cancellation. (If a future change wants real abort, it must add an optional `signal` param to these wrappers + `authedFetch` — out of scope for this rebuild.)
+### **CRITICAL, abort capability**
+**NONE of these accept an `AbortSignal`.** No `RequestInit.signal` is plumbed through `authedFetch` or the raw `fetch` in `directUploadToURL`. Therefore **true mid-chunk upload abort is NOT possible** with the current code. **Pause MUST happen at the chunk boundary** (check a per-item paused flag in the `uploadOneFile` chunk loop before launching the next chunk; in-flight chunks finish). Do not claim mid-chunk cancellation. (If a future change wants real abort, it must add an optional `signal` param to these wrappers + `authedFetch`: out of scope for this rebuild.)
 
 ### Response/param types
 ```ts
@@ -202,7 +202,7 @@ interface FolderStore {
 }
 ```
 
-### `hooks/useDragMove.ts` → `useDragMove` (Zustand)  [no `moveFolder` here — see note]
+### `hooks/useDragMove.ts` → `useDragMove` (Zustand)  [no `moveFolder` here. See note]
 ```ts
 type DragKind = "file" | "folder";
 interface DragItem { kind: DragKind; id: string; name: string; parentId?: string | null; }
@@ -229,7 +229,7 @@ batchLoadThumbnails(files: FileMetadata[], passphrase: string): Promise<void>   
 hasCachedThumbnail(fileId: string): boolean
 getCachedThumbnailCount(): number
 ```
-Backed by in-memory `memCache` mirrored from IndexedDB (`zcrypt_thumbs`). `useThumbnail` subscribes via `useSyncExternalStore`. Decrypts client-side (`resolveFileKey` + `decryptChunk` + zstd) — passphrase required, never sent to server.
+Backed by in-memory `memCache` mirrored from IndexedDB (`zcrypt_thumbs`). `useThumbnail` subscribes via `useSyncExternalStore`. Decrypts client-side (`resolveFileKey` + `decryptChunk` + zstd): passphrase required, never sent to server.
 
 ### `components/ui/command-palette.tsx` (two Zustand stores exported here)
 ```ts
@@ -237,7 +237,7 @@ useCommandPalette: { open: boolean; setOpen: (open: boolean) => void; toggle: ()
 useVaultSearch:    { query: string; setQuery: (query: string) => void }                       // palette seeds the Vault search; read query to filter
 export function CommandPalette();   // the dialog component itself
 ```
-There is NO separate `useVaultSearch.ts` file — it lives in command-palette.tsx (line 34). Selecting a file in the palette calls `useVaultSearch.getState().setQuery(name)` then routes to `/dashboard`.
+There is NO separate `useVaultSearch.ts` file: it lives in command-palette.tsx (line 34). Selecting a file in the palette calls `useVaultSearch.getState().setQuery(name)` then routes to `/dashboard`.
 
 ---
 
@@ -322,7 +322,7 @@ PageHeader({ title: string; description?: string; eyebrow?: string; actions?: Re
 ### `components/ui/button.tsx`
 ```ts
 Button (forwardRef) extends ButtonHTMLAttributes { variant?: "primary"|"secondary"|"danger"|"ghost"; size?: "sm"|"md"|"lg"|"icon" }  // defaults primary / md
-buttonVariants = cva(...)   // shadcn variants: variant ∈ default|destructive|outline|secondary|ghost|link, size ∈ default|sm|lg|icon. For shadcn primitives only — bespoke Button keeps its own API.
+buttonVariants = cva(...)   // shadcn variants: variant ∈ default|destructive|outline|secondary|ghost|link, size ∈ default|sm|lg|icon. For shadcn primitives only - bespoke Button keeps its own API.
 ```
 
 ### `components/ui/input.tsx`
@@ -330,12 +330,12 @@ buttonVariants = cva(...)   // shadcn variants: variant ∈ default|destructive|
 Input (forwardRef) extends InputHTMLAttributes { label?: string; icon?: ReactNode }   // icon → left-inset, adds pl-10
 ```
 
-### shadcn primitives (exported names — use as composed, props are Radix-standard)
+### shadcn primitives (exported names. Use as composed, props are Radix-standard)
 - `dropdown-menu.tsx`: `DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuCheckboxItem, DropdownMenuRadioItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuShortcut, DropdownMenuGroup, DropdownMenuPortal, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuRadioGroup`
 - `tabs.tsx`: `Tabs, TabsList, TabsTrigger, TabsContent`
 - `accordion.tsx`: `Accordion, AccordionItem, AccordionTrigger, AccordionContent`
 - `dialog.tsx`: `Dialog, DialogPortal, DialogOverlay, DialogTrigger, DialogClose, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription`
-- `sheet.tsx`: `Sheet, SheetPortal, SheetOverlay, SheetTrigger, SheetClose, SheetContent, SheetHeader, SheetFooter, SheetTitle, SheetDescription` — `SheetContent` takes `side?: "top"|"right"|"bottom"|"left"` (default `"right"`).
+- `sheet.tsx`: `Sheet, SheetPortal, SheetOverlay, SheetTrigger, SheetClose, SheetContent, SheetHeader, SheetFooter, SheetTitle, SheetDescription`: `SheetContent` takes `side?: "top"|"right"|"bottom"|"left"` (default `"right"`).
 
 ---
 
@@ -361,7 +361,7 @@ interface FileTypeInfo {
   gradient: string; // e.g. "from-rose-500/20 to-rose-500/5"
 }
 ```
-NOTE: `icon` is a string key — resolve to a component via a local map (see details-drawer.tsx:32 `iconMap`). These per-type tailwind color classes (rose/violet/blue/etc.) are the ONE allowed exception to the token-only rule (they are existing util output, not new code).
+NOTE: `icon` is a string key: resolve to a component via a local map (see details-drawer.tsx:32 `iconMap`). These per-type tailwind color classes (rose/violet/blue/etc.) are the ONE allowed exception to the token-only rule (they are existing util output, not new code).
 
 ---
 
@@ -403,7 +403,7 @@ interface QuotaInfo {
 ```
 `useVaultLock()` (to be built) wraps this → `{ unlocked, remainingMinutes, unlock(), lock() }`. `unlocked = getPassphrase() !== null`. Do NOT change TTL behavior.
 
-### `lib/api.ts` (exact export names — all via authedFetch)
+### `lib/api.ts` (exact export names, all via authedFetch)
 ```ts
 listFiles(filter?: string): Promise<FileMetadata[]>
 deleteFile(id: string): Promise<{ success: boolean }>
@@ -430,5 +430,5 @@ downloadAsZip(files: BulkDownloadFile[], passphrase, options?): Promise<...>   /
 ```
 Aborts surface as `DOMException` `name === "AbortError"`.
 
-### Name crypto (zero-knowledge — never bypass)
+### Name crypto (zero-knowledge, never bypass)
 `lib/name-crypto.ts`: `deriveNameKey(passphrase, userId): Promise<CryptoKey>`, `encryptName(name, key): Promise<string>`, `decryptNameSafe(encrypted, key): Promise<string>` (returns "[locked]"/safe value on failure, never throws).

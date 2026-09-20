@@ -24,7 +24,7 @@ __tests__/
 
 ## Test Categories
 
-### P0 — Data Loss Prevention (29 tests)
+### P0. Data Loss Prevention (29 tests)
 These tests verify the zero-knowledge encryption pipeline. A failure here means user data could be permanently lost or corrupted.
 
 | Test File | Tests | What It Covers |
@@ -32,7 +32,7 @@ These tests verify the zero-knowledge encryption pipeline. A failure here means 
 | `crypto.test.ts` | 20 | Salt generation, key derivation (PBKDF2), encrypt/decrypt roundtrip, wrong passphrase rejection, tampered data detection, empty/large chunks, SHA-256, base64 |
 | `crypto-pipeline.test.ts` | 9 | Multi-chunk split/encrypt/reassemble, hash stability, wrong chunk order, per-chunk overhead (28 bytes), 1MB chunk, single-bit corruption detection, unicode/edge-case passphrases |
 
-### P2 — Utilities & State (21 tests)
+### P2. Utilities & State (21 tests)
 | Test File | Tests | What It Covers |
 |-----------|-------|----------------|
 | `utils.test.ts` | 14 | Byte formatting, ETA calculation, file type detection |

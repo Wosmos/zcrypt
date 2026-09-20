@@ -1,11 +1,11 @@
-# Runbook — Stand up / rotate a zcrypt backend instance
+# Runbook. Stand up / rotate a zcrypt backend instance
 
 > **PRIVATE OPS DOC.** Keep this in the private `zcrypt-ops` repo, **not** in public `zcrypt`.
 > It contains no secrets, but it maps your infrastructure. Fill placeholders from your
 > password manager; never paste real secret values into this file.
 
 This is the repeatable procedure for bringing up a fresh backend (new Railway service +
-new Neon DB) behind the stable Cloudflare domain. Follow the phases **in order** — later
+new Neon DB) behind the stable Cloudflare domain. Follow the phases **in order**, later
 phases depend on earlier ones.
 
 ---
@@ -20,7 +20,7 @@ openssl rand -hex 32   # -> ZCRYPT_JWT_SECRET
 - Save **both** in your password manager immediately. These are permanent.
 - **Never reuse** the secrets that leaked in public git history (`MASTER_KEY 45ce72…`,
   `ZPUSH_JWT_SECRET b6d5fd…`). They are burned.
-- On a **fresh empty DB** there is nothing sealed, so this is a *set*, not a *rotation* —
+- On a **fresh empty DB** there is nothing sealed, so this is a *set*, not a *rotation*,
   no reseal needed. (Reseal is only for recovery day; see §8.)
 
 ---
@@ -59,10 +59,10 @@ openssl rand -hex 32   # -> ZCRYPT_JWT_SECRET
    ⚠️ With Cloudflare proxying (orange cloud) **+** Railway's edge, this is usually `1`–`2`.
    **Verify empirically:** hit an endpoint, check the logged client IP is *your* IP, not a
    Cloudflare/Railway IP. If it's wrong, the auth rate limiter buckets everyone together
-   (or becomes spoofable) — bump/lower the count until the logged IP is correct.
+   (or becomes spoofable): bump/lower the count until the logged IP is correct.
 
 > **Why the stable domain matters:** clients and OAuth only ever know `api.zcrypt.cloud`.
-> To move hosts later, you change **one CNAME** — no client, OAuth, or code changes.
+> To move hosts later, you change **one CNAME**, no client, OAuth, or code changes.
 
 ---
 
@@ -82,12 +82,12 @@ the exact URIs at startup and serves them at `GET /api/auth/oauth/config`.
 ## 5. Frontend (Vercel)
 
 - Set `NEXT_PUBLIC_API_URL=https://api.zcrypt.cloud`.
-- ⚠️ `NEXT_PUBLIC_*` is **baked at build time** — you must **rebuild / redeploy** Vercel,
+- ⚠️ `NEXT_PUBLIC_*` is **baked at build time**: you must **rebuild / redeploy** Vercel,
   not just change the env var. A stale build will keep pointing at the old backend.
 
 ---
 
-## 6. Quota watcher (GitHub Actions — `.github/workflows/neon-watch.yml`)
+## 6. Quota watcher (GitHub Actions, `.github/workflows/neon-watch.yml`)
 
 Add these **repo secrets** (Settings → Secrets and variables → Actions):
 
@@ -95,7 +95,7 @@ Add these **repo secrets** (Settings → Secrets and variables → Actions):
 | ------ | ----- |
 | `NEON_API_KEY` | from §1.4 |
 | `NEON_PROJECT_ID` | from §1.3 |
-| `NTFY_TOPIC` | your ntfy.sh topic (pick an **unguessable** name — topics are public by name) |
+| `NTFY_TOPIC` | your ntfy.sh topic (pick an **unguessable** name: topics are public by name) |
 
 The workflow runs every 6h + on manual dispatch, and pings ntfy at 60% / 80% CU-hour usage.
 Trigger it once manually to confirm it authenticates and reports.
@@ -114,7 +114,7 @@ Trigger it once manually to confirm it authenticates and reports.
 
 ---
 
-## 8. Recovery day — when the OLD locked DB (DB-A) comes back
+## 8. Recovery day, when the OLD locked DB (DB-A) comes back
 
 The real production DB recovers at the monthly Neon reset. Its data is sealed under the
 **burned** `MASTER_KEY (45ce72…)` and its connection string leaked. To bring it back safely:
@@ -161,7 +161,7 @@ Verified against `app/backend/config/config.go` + `app/backend/main.go`.
 | `RESEND_API_KEY` / `RESEND_FROM` | email (verification/reset). Without these, email is disabled. |
 | `ZCRYPT_PORT` | port override (else `PORT`, else 8080) |
 | `ZCRYPT_CHUNK_CACHE_MB` | relay chunk cache size tuning |
-| `DEV_MODE` | `true` disables ALL rate limiting — **never** in prod |
+| `DEV_MODE` | `true` disables ALL rate limiting, **never** in prod |
 
 ---
 

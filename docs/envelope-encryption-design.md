@@ -1,10 +1,10 @@
-# Envelope Encryption — Design (Phase 2)
+# Envelope Encryption. Design (Phase 2)
 
 Status: **IMPLEMENTED** (see "What actually shipped" below).
 
 > **What actually shipped (differs from the original proposal):** The project is
 > in dev and existing files are disposable, so the migration was dropped
-> entirely — there is **no `crypto_version` column and no v1→v2 upgrade path**.
+> entirely. There is **no `crypto_version` column and no v1→v2 upgrade path**.
 > Every new upload is envelope-encrypted (v2). Files uploaded before this change
 > will simply fail to decrypt and should be re-uploaded. The `resolveFileKey`
 > helper still falls back to the passphrase-derived key when `wrapped_cek` is
@@ -67,7 +67,7 @@ link           = https://host/s/{token}#{base64url(shareKey)}
 ### Shared Vaults (v2 files only)
 
 For each member, wrap the file's CEK under a member-specific key. Two viable
-sub-designs — to be settled when we build that feature, not now:
+sub-designs: to be settled when we build that feature, not now:
 - (a) Symmetric: member holds a vault key out-of-band (like a share link). Simple.
 - (b) Asymmetric: member has an ECDH/RSA keypair; owner wraps CEK to their public
   key. True multi-recipient, no shared secret. Heavier (needs a key directory).
@@ -103,7 +103,7 @@ ALTER TABLE shares ADD COLUMN IF NOT EXISTS wrapped_cek    TEXT    NOT NULL DEFA
 
 No column is dropped; v1 continues to work with empty `wrapped_cek`.
 
-## Decryption path (client) — version-aware
+## Decryption path (client), version-aware
 
 ```
 meta = getFileMeta(id)              // now includes crypto_version, wrapped_cek
@@ -124,7 +124,7 @@ This single helper (`resolveFileKey(meta, passphrase)`) replaces the inline
 - `app/(app)/dashboard/page.tsx` (preview)
 - `app/s/[token]/page.tsx` + `lib/share-download.ts` (share uses shareKey instead of passphrase)
 
-## Upload path (client) — v2
+## Upload path (client), v2
 
 In `store/upload.ts` (currently lines ~256-259):
 ```
@@ -152,7 +152,7 @@ link = `${origin}/s/${token}#${base64url(shareKey)}`
 ```
 
 - Creating a share now requires the passphrase in the browser (to get the CEK).
-  That's fine — the owner is logged in and has it cached (`store/passphrase.ts`).
+  That's fine: the owner is logged in and has it cached (`store/passphrase.ts`).
 - **A v1 file cannot be shared until upgraded** (it has no CEK). The share button
   on a v1 file triggers the upgrade flow (below) first.
 
@@ -192,7 +192,7 @@ share** (the user asked to share, so the cost is expected). Recommend that.
 
 - All schema changes additive; deploy backend first (tolerates v1 and v2), then
   frontend. No downtime.
-- v1 read path is preserved indefinitely — no file becomes unreadable.
+- v1 read path is preserved indefinitely: no file becomes unreadable.
 - The breaking-ish change is only that **new** files are v2; old clients reading
   a v2 file would need the new unwrap logic, so ship frontend before announcing
   sharing.
@@ -200,23 +200,23 @@ share** (the user asked to share, so the cost is expected). Recommend that.
 ## Touch list (files)
 
 Backend:
-- `index/schema.go` — 3 ALTER statements
-- `index/queries.go` — file insert/select include crypto_version, wrapped_cek
-- `index/share_queries.go` (or wherever shares live) — persist/return wrapped_cek
-- `cmd/upload.go` — accept crypto_version + wrapped_cek on init
-- `cmd/shares.go` — accept/return wrapped_cek
-- `cmd/download.go` — return crypto_version + wrapped_cek in file meta
-- `types/types.go` — File.CryptoVersion, File.WrappedCEK, ShareLink.WrappedCEK
+- `index/schema.go`: 3 ALTER statements
+- `index/queries.go`: file insert/select include crypto_version, wrapped_cek
+- `index/share_queries.go` (or wherever shares live): persist/return wrapped_cek
+- `cmd/upload.go`: accept crypto_version + wrapped_cek on init
+- `cmd/shares.go`: accept/return wrapped_cek
+- `cmd/download.go`: return crypto_version + wrapped_cek in file meta
+- `types/types.go`: File.CryptoVersion, File.WrappedCEK, ShareLink.WrappedCEK
 
 Frontend:
-- `lib/crypto.ts` — add `generateCEK`, `wrapKey`, `unwrapKey` (thin wrappers over
+- `lib/crypto.ts`: add `generateCEK`, `wrapKey`, `unwrapKey` (thin wrappers over
   encryptChunk/decryptChunk), `resolveFileKey(meta, passphrase)`
-- `store/upload.ts` — generate CEK, wrap, send v2
-- `workers/crypto-worker.ts` — encrypt with CEK
+- `store/upload.ts`: generate CEK, wrap, send v2
+- `workers/crypto-worker.ts`: encrypt with CEK
 - `lib/download-session.ts`, `lib/bulk-download.ts`, `hooks/useThumbnail.ts`,
-  `app/(app)/dashboard/page.tsx` — use resolveFileKey
-- `components/ui/share-modal.tsx` — generate shareKey, wrap CEK, fragment link
-- `app/s/[token]/page.tsx`, `lib/share-download.ts` — read fragment key, unwrap,
+  `app/(app)/dashboard/page.tsx`. Use resolveFileKey
+- `components/ui/share-modal.tsx`: generate shareKey, wrap CEK, fragment link
+- `app/s/[token]/page.tsx`, `lib/share-download.ts`: read fragment key, unwrap,
   drop passphrase input
-- `types/index.ts` — crypto_version, wrapped_cek on file + share types
+- `types/index.ts`: crypto_version, wrapped_cek on file + share types
 ```

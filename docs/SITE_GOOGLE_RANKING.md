@@ -1,4 +1,4 @@
-# zcrypt.cloud — Full Audit, Issues & Execution Plan
+# zcrypt.cloud. Full Audit, Issues & Execution Plan
 
 > Brutally honest assessment. No sugarcoating.
 > Date: March 18, 2026
@@ -7,7 +7,7 @@
 
 ## PART 1: CRITICAL ISSUES
 
-### 1. Domain & Brand — CATASTROPHIC
+### 1. Domain & Brand. CATASTROPHIC
 
 | Issue | Severity | Detail |
 |-------|----------|--------|
@@ -21,31 +21,31 @@
 
 ---
 
-### 2. Technical SEO — ZERO VISIBILITY
+### 2. Technical SEO. ZERO VISIBILITY
 
 | Issue | Severity | Detail |
 |-------|----------|--------|
 | Zero Google indexing | 🔴 Critical | `site:zcrypt.cloud` returns zero results. Google has not indexed a single page. You don't exist on the internet. |
-| JavaScript-only rendering | 🔴 Critical | Crawling `zcrypt.cloud` returns only: `"zcrypt — Private Cloud Storage That Costs Less | zcrypt [Skip to content] z"` — the entire site content is behind client-side JS. Google sees a blank page. |
+| JavaScript-only rendering | 🔴 Critical | Crawling `zcrypt.cloud` returns only: `"zcrypt (Private Cloud Storage That Costs Less | zcrypt [Skip to content] z"`) the entire site content is behind client-side JS. Google sees a blank page. |
 | No `sitemap.xml` detected | 🔴 Critical | No sitemap accessible at standard paths. Google has zero guidance on what to crawl. |
 | No `robots.txt` detected | 🟡 Medium | No robots.txt accessible. Missing basic crawler directives. |
 | No structured data / schema | 🟡 Medium | No Organization schema, Product schema, or FAQ schema detected. Zero rich snippet eligibility. |
 | No meta descriptions visible | 🟡 Medium | Since the HTML is empty (JS-rendered), there are no meta descriptions for Google to use in SERPs. |
 | No Open Graph tags visible | 🟡 Medium | Sharing on Twitter/LinkedIn/Discord will show a blank preview. |
-| www vs non-www redirect | 🟢 Low | `zcrypt.cloud` redirects to `www.zcrypt.cloud` — fine, but canonical tags need verification. |
+| www vs non-www redirect | 🟢 Low | `zcrypt.cloud` redirects to `www.zcrypt.cloud`: fine, but canonical tags need verification. |
 
 **Verdict:** Your site is technically invisible. It's as if it doesn't exist on the internet from a search engine perspective.
 
 ---
 
-### 3. Content & SEO Strategy — NONEXISTENT
+### 3. Content & SEO Strategy. NONEXISTENT
 
 | Issue | Severity | Detail |
 |-------|----------|--------|
-| Zero content pages indexed | 🔴 Critical | Even if you have docs, blog, pricing pages — none are indexed because of the JS rendering problem. |
+| Zero content pages indexed | 🔴 Critical | Even if you have docs, blog, pricing pages, none are indexed because of the JS rendering problem. |
 | No blog / content marketing | 🔴 Critical | No educational content targeting keywords like "encrypted cloud storage," "pCloud alternative," "zero knowledge storage." |
 | No comparison pages | 🟡 Medium | Missing pages like "zcrypt vs pCloud," "zcrypt vs Tresorit," "zcrypt vs Internxt." These are high-intent keywords. |
-| Not listed on privacy directories | 🟡 Medium | Not on PrivacyGuides.org, privacytools.io, AlternativeTo.net — these are where your target audience discovers products. |
+| Not listed on privacy directories | 🟡 Medium | Not on PrivacyGuides.org, privacytools.io, AlternativeTo.net. These are where your target audience discovers products. |
 | No Product Hunt launch | 🟡 Medium | Missing the single highest-impact launch event for developer/privacy tools. |
 | No backlinks | 🔴 Critical | Domain Authority is effectively 0. No external sites link to you. |
 
@@ -59,7 +59,7 @@
 | No `<h1>` in initial HTML | 🔴 Critical | The most important on-page SEO element is missing from the server response. |
 | No semantic HTML in response | 🔴 Critical | No `<header>`, `<main>`, `<article>`, `<nav>` elements visible in server response. |
 | Likely missing alt tags on images | 🟡 Medium | If images exist, they're loaded via JS and likely missing alt attributes for accessibility and SEO. |
-| No `<noscript>` fallback | 🟡 Medium | Users with JS disabled (Tor Browser users — your privacy-conscious target audience) see nothing. |
+| No `<noscript>` fallback | 🟡 Medium | Users with JS disabled (Tor Browser users: your privacy-conscious target audience) see nothing. |
 
 ---
 
@@ -75,7 +75,7 @@
 
 ## PART 2: EXECUTION PLAN
 
-### Phase 1 — Immediate (Week 1-2): Fix Foundations
+### Phase 1. Immediate (Week 1-2): Fix Foundations
 
 **Priority: Make the site exist on the internet.**
 
@@ -105,7 +105,7 @@
 - [ ] **Add `<noscript>` fallback content**
   - Critical for Tor Browser users (your target audience)
 
-### Phase 2 — Short Term (Week 3-4): Content & Rebrand
+### Phase 2. Short Term (Week 3-4): Content & Rebrand
 
 - [ ] **Decide on domain change** (strongly recommended)
   - Research and purchase new `.com` domain (suggestions: bytefort.com, storveil.com, enclova.com)
@@ -128,7 +128,7 @@
   - Ensure www/non-www canonical is consistent
   - Self-referencing canonicals on every page
 
-### Phase 3 — Medium Term (Month 2-3): Growth & Authority
+### Phase 3. Medium Term (Month 2-3): Growth & Authority
 
 - [ ] **Launch on Product Hunt**
   - Prepare assets: logo, screenshots, tagline, maker comment
@@ -139,17 +139,17 @@
   - AlternativeTo.net (create listing)
   - awesome-selfhosted GitHub list (if applicable)
 - [ ] **Post on Hacker News**
-  - "Show HN: [yourname] — Private cloud storage that costs less"
+  - "Show HN: [yourname]: Private cloud storage that costs less"
   - Prepare for technical questions
 - [ ] **Build backlinks**
   - Guest posts on privacy/security blogs
   - Respond to "best encrypted cloud storage" articles
   - Create a security whitepaper (PDF) explaining your encryption model
 - [ ] **Set up analytics**
-  - Privacy-respecting: Plausible, Umami, or Fathom (NOT Google Analytics — your users will hate it)
+  - Privacy-respecting: Plausible, Umami, or Fathom (NOT Google Analytics: your users will hate it)
   - Track: landing page conversions, sign-ups, docs engagement
 
-### Phase 4 — Ongoing: Scale
+### Phase 4. Ongoing: Scale
 
 - [ ] **Monitor Google Search Console weekly**
   - Track indexed pages, click-through rates, search queries
@@ -162,7 +162,7 @@
   - Don't hack around free tier limitations
 - [ ] **Build email list**
   - Offer security newsletter or product updates
-  - Email is your owned channel — social media algorithms can't take it away
+  - Email is your owned channel: social media algorithms can't take it away
 
 ---
 
@@ -205,8 +205,8 @@ You are helping me fix critical SEO and technical issues on my web application.
 ### Task 2: SEO Infrastructure
 Create or update these files:
 
-**sitemap.xml** — Dynamic, auto-updating sitemap listing all public pages
-**robots.txt** — Allow crawling of public pages, disallow `/app/`, `/dashboard/`, `/api/`
+**sitemap.xml** - Dynamic, auto-updating sitemap listing all public pages
+**robots.txt** - Allow crawling of public pages, disallow `/app/`, `/dashboard/`, `/api/`
 
 For every public page, ensure the HTML response includes:
 - Unique `<title>` tag (under 60 chars)
@@ -240,7 +240,7 @@ Ensure the server-rendered HTML uses:
 - Keep the Go backend as the primary server
 - All changes must be backwards-compatible with existing API routes
 - Use semantic, accessible HTML throughout
-- Prioritize page load speed — these are marketing pages, they should be fast
+- Prioritize page load speed - these are marketing pages, they should be fast
 
 ### Output Format
 - Show me the file changes needed
@@ -281,13 +281,13 @@ Ensure the server-rendered HTML uses:
 
 ## SUMMARY: Priority Action Items
 
-1. 🔴 **Fix SSR immediately** — nothing else matters until Google can read your pages
-2. 🔴 **Submit to Google Search Console** — verify domain, submit sitemap
-3. 🔴 **Seriously consider rebranding** — the ransomware association is a permanent handicap
-4. 🟡 **Create 5 foundational content pages** — landing, features, pricing, docs, one blog post
-5. 🟡 **Launch on Product Hunt + Hacker News** — first real traffic and backlinks
-6. 🟡 **Get listed on privacy directories** — where your actual users discover products
-7. 🟢 **Plan database migration** — budget $19-25/month for when you outgrow Neon free tier
+1. 🔴 **Fix SSR immediately**: nothing else matters until Google can read your pages
+2. 🔴 **Submit to Google Search Console**: verify domain, submit sitemap
+3. 🔴 **Seriously consider rebranding**: the ransomware association is a permanent handicap
+4. 🟡 **Create 5 foundational content pages**: landing, features, pricing, docs, one blog post
+5. 🟡 **Launch on Product Hunt + Hacker News**: first real traffic and backlinks
+6. 🟡 **Get listed on privacy directories**: where your actual users discover products
+7. 🟢 **Plan database migration**: budget $19-25/month for when you outgrow Neon free tier
 
 ---
 

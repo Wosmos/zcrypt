@@ -26,14 +26,14 @@
 ## Android
 11. Rebuild APK (CI=push or local) + regen icon mipmaps + on-device test
 
-## Direct Transfer — make /transfer true P2P (bytes off server)
+## Direct Transfer. Make /transfer true P2P (bytes off server)
 Today `/transfer` (Send File + Text Pad, live/both-present) relays ALL bytes
-through the server over WebSocket (`/api/transfer/ws`) — E2E encrypted but pure
+through the server over WebSocket (`/api/transfer/ws`). E2E encrypted but pure
 egress. Upgrade to **WebRTC data channels**:
 - Reuse the existing WS as the **signaling channel only** (SDP + ICE, a few KB).
 - Bytes go **peer-to-peer directly** → ~0 server egress in the common case.
 - **Fallback = the existing WS relay** when NAT blocks direct (symmetric NAT
-  ~10–20%). No new TURN infra needed for v1 — you already have the relay.
+  ~10–20%). No new TURN infra needed for v1. You already have the relay.
 - E2E stays: WebRTC DTLS + your AES-256-GCM app layer. Server sees nothing.
 - Cross-env: WebRTC works in browser AND the Tauri webview (web↔web/native↔web).
 - Rust: reuse webview WebRTC v1; core does chunk+encrypt; `webrtc-rs` later for
@@ -43,5 +43,5 @@ egress. Upgrade to **WebRTC data channels**:
   server-relayed**, same as vault sync.
 
 ## Do NOT migrate (leave on API)
-- move / rename / folders / search / quota / analytics — pure metadata
-- vault cross-device sync — needs the server as the encrypted-metadata coordinator
+- move / rename / folders / search / quota / analytics: pure metadata
+- vault cross-device sync: needs the server as the encrypted-metadata coordinator
