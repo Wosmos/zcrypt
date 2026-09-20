@@ -1,4 +1,4 @@
-//! Local SQLite ledger — port of `sidecar/localdb/db.go`, schema-identical so
+//! Local SQLite ledger: port of `sidecar/localdb/db.go`, schema-identical so
 //! an existing desktop install's database keeps working after the Rust
 //! migration. Offline-first: `local_upload` records files/chunks here and the
 //! sync worker drains them to the backend later.
@@ -20,7 +20,7 @@ pub enum DbError {
 }
 
 /// The per-device data dir: macOS `~/Library/Application Support/zcrypt-desktop`,
-/// elsewhere `~/.zcrypt-desktop` — same locations as the Go sidecar.
+/// elsewhere `~/.zcrypt-desktop`: same locations as the Go sidecar.
 pub fn data_dir() -> Result<PathBuf, DbError> {
     let home = dirs::home_dir().ok_or(DbError::NoHome)?;
     Ok(if cfg!(target_os = "macos") {
@@ -84,7 +84,7 @@ pub struct SyncStats {
     pub error_files: i64,
 }
 
-/// Thread-safe handle (rusqlite connections aren't Sync; a Mutex serializes —
+/// Thread-safe handle (rusqlite connections aren't Sync; a Mutex serializes:
 /// operations here are tiny row writes, matching the sidecar's usage).
 pub struct LocalDb {
     conn: Mutex<Connection>,
@@ -150,8 +150,8 @@ impl LocalDb {
             "#,
         )?;
         // Migrate ledgers created before the byos-direct data plane (e.g. an old
-        // Go-sidecar DB): add the mode column. Errors when it already exists —
-        // SQLite has no ADD COLUMN IF NOT EXISTS — so the result is ignored.
+        // Go-sidecar DB): add the mode column. Errors when it already exists.
+        // SQLite has no ADD COLUMN IF NOT EXISTS, so the result is ignored.
         let _ = conn.execute(
             "ALTER TABLE files ADD COLUMN mode TEXT NOT NULL DEFAULT 'relay'",
             [],
@@ -174,7 +174,7 @@ impl LocalDb {
     pub fn insert_file(&self, f: &LocalFile) -> Result<(), DbError> {
         // sync_status is written explicitly (empty → the historical 'pending')
         // so local_upload can insert as 'staging' and keep the row INVISIBLE to
-        // the sync loop until every chunk is staged — a 'pending' row used to be
+        // the sync loop until every chunk is staged: a 'pending' row used to be
         // picked up by the 1s loop mid-encryption, which init'd a session and
         // even called complete against a partial chunk list.
         let sync_status = if f.sync_status.is_empty() {
@@ -259,7 +259,7 @@ impl LocalDb {
 
     /// Remove a file and its chunk rows from the local ledger. Used after a
     /// delete so a device's local mirror drops the file (whether the delete
-    /// originated here or arrived as a remote change). Idempotent — deleting an
+    /// originated here or arrived as a remote change). Idempotent, deleting an
     /// absent file is a no-op.
     pub fn delete_file(&self, file_id: &str) -> Result<(), DbError> {
         self.with(|c| {
@@ -293,7 +293,7 @@ impl LocalDb {
         })
     }
 
-    /// Every chunk not yet confirmed remote — 'pending' AND 'error'. Sync passes
+    /// Every chunk not yet confirmed remote, 'pending' AND 'error'. Sync passes
     /// use this (not `get_pending_chunks`) so a chunk that errored once is
     /// retried on the next pass; its staging file still exists (staging is only
     /// deleted after a successful push).
@@ -311,7 +311,7 @@ impl LocalDb {
     /// The newest row with the same content (sha256 + size) whose upload is
     /// still in motion ('staging'/'pending'/'init_done'/'uploading'). Used by
     /// `local_upload` to collapse a duplicate invocation onto the existing row
-    /// instead of re-encrypting the whole file into a second ledger row — the
+    /// instead of re-encrypting the whole file into a second ledger row, the
     /// backend dedupes such rows onto ONE upload session (same sha256+size), so
     /// two local rows would race each other on that single session. Note this
     /// deliberately does NOT match a 'synced' row: re-uploading already-finished
@@ -356,7 +356,7 @@ impl LocalDb {
         })
     }
 
-    /// Staging paths of every chunk of a file — for deleting the staged
+    /// Staging paths of every chunk of a file, for deleting the staged
     /// ciphertext when a partially-staged row is cleaned up or garbage-collected.
     pub fn get_staging_paths(&self, file_id: &str) -> Result<Vec<String>, DbError> {
         self.with(|c| {
@@ -368,9 +368,9 @@ impl LocalDb {
         })
     }
 
-    /// All rows in one sync_status — GC uses this to find rows stuck in
+    /// All rows in one sync_status. GC uses this to find rows stuck in
     /// 'staging' (their encrypting process died; the CEK lived only in that
-    /// process's memory, so they can never be finished — only purged).
+    /// process's memory, so they can never be finished, only purged).
     pub fn list_files_in_status(&self, status: &str) -> Result<Vec<LocalFile>, DbError> {
         self.with(|c| {
             let mut stmt = c.prepare(
@@ -383,7 +383,7 @@ impl LocalDb {
         })
     }
 
-    /// Every staging path referenced by ANY chunk row — the orphan-file scan
+    /// Every staging path referenced by ANY chunk row, the orphan-file scan
     /// deletes staging-dir entries not in this set (crash leftovers).
     pub fn all_staging_paths(&self) -> Result<std::collections::HashSet<String>, DbError> {
         self.with(|c| {
@@ -415,7 +415,7 @@ impl LocalDb {
 
     pub fn all_chunks_synced(&self, file_id: &str) -> Result<bool, DbError> {
         self.with(|c| {
-            // Synced count must equal the file's declared chunk_count — NOT just
+            // Synced count must equal the file's declared chunk_count, NOT just
             // "no unsynced chunk rows". Mid-encryption only K of N chunk rows
             // exist; the old absence check returned true with K synced rows and
             // let a sync pass call complete against a partial upload ("not all

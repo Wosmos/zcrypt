@@ -29,12 +29,12 @@ pub enum CryptoError {
     TooShort(usize),
     #[error("invalid key length: {0} bytes")]
     BadKey(usize),
-    /// AES-GCM authentication failed — wrong key/passphrase or tampered data.
-    #[error("decryption failed — wrong passphrase or corrupt data")]
+    /// AES-GCM authentication failed: wrong key/passphrase or tampered data.
+    #[error("decryption failed: wrong passphrase or corrupt data")]
     AuthFailed,
 }
 
-/// PBKDF2-HMAC-SHA256, 600k iterations, 32-byte key. The salt is raw bytes —
+/// PBKDF2-HMAC-SHA256, 600k iterations, 32-byte key. The salt is raw bytes:
 /// callers pass either a random 32-byte salt (file KEK) or a UTF-8 text salt
 /// (`zcrypt-names-<uid>` / `zcrypt-dedup-<uid>` sub-keys).
 pub fn derive_key(passphrase: &str, salt: &[u8]) -> [u8; KEY_SIZE] {
@@ -101,7 +101,7 @@ pub fn decrypt_chunk(key: &[u8], wire: &[u8]) -> Result<Vec<u8>, CryptoError> {
         .map_err(|_| CryptoError::AuthFailed)
 }
 
-/// Wrap (encrypt) a CEK under a KEK — same wire format as a chunk.
+/// Wrap (encrypt) a CEK under a KEK: same wire format as a chunk.
 pub fn wrap_cek(kek: &[u8], cek: &[u8]) -> Result<Vec<u8>, CryptoError> {
     encrypt_chunk(kek, cek)
 }
@@ -125,7 +125,7 @@ pub fn resolve_file_key(
     };
     // Both branches above already copied whatever they needed out of `kek`
     // (unwrap_cek's own AES-GCM key setup; to_vec()'s copy for the legacy
-    // no-envelope case, where kek itself IS the returned key) — wiping it here
+    // no-envelope case, where kek itself IS the returned key), wiping it here
     // can't affect the result either way.
     kek.zeroize();
     result
@@ -138,14 +138,14 @@ pub fn sha256_hex(data: &[u8]) -> String {
 
 /// Whether a whole-file hash comparison against `sha256_scheme`'s stored value
 /// is actually meaningful. `hmac_v1` files store a per-user KEYED MAC there,
-/// which needs the passphrase to recompute — unavailable in space-key mode (a
+/// which needs the passphrase to recompute: unavailable in space-key mode (a
 /// shared space has no passphrase, only its own symmetric key). Mirrors the
 /// web client's `canVerifyHash` (lib/download-session.ts) exactly: a
 /// space-key `hmac_v1` download must SKIP the comparison rather than derive a
 /// MAC key from nothing, which can never match and would make every `hmac_v1`
 /// space file spuriously "fail" integrity. Per-chunk SHA-256 (verified during
 /// fetch) plus the chunk-count assertion are what such downloads rely on
-/// instead — the same trust level as the public-share path.
+/// instead: the same trust level as the public-share path.
 pub fn can_verify_whole_file_hash(sha256_scheme: &str, is_space_mode: bool) -> bool {
     sha256_scheme != "hmac_v1" || !is_space_mode
 }
@@ -153,7 +153,7 @@ pub fn can_verify_whole_file_hash(sha256_scheme: &str, is_space_mode: bool) -> b
 // ── Warm key cache ──────────────────────────────────────────────────────────
 // Process-wide, in-memory-only (never persisted) cache of resolved file keys.
 // Desktop routes many small decrypts through decrypt_to_memory (thumbnails,
-// preview, the viewer) — without this, opening a folder of N thumbnails pays
+// preview, the viewer), without this, opening a folder of N thumbnails pays
 // PBKDF2-SHA256's 600k iterations N times for the SAME file+passphrase. Bounded
 // (FIFO eviction) so it can't grow unbounded across a long session.
 //
@@ -204,7 +204,7 @@ fn key_cache() -> &'static Mutex<KeyCache> {
     CACHE.get_or_init(|| Mutex::new(KeyCache::new()))
 }
 
-/// Cache key: file id + a hash of the passphrase — never the raw passphrase
+/// Cache key: file id + a hash of the passphrase, never the raw passphrase
 /// itself, so a cache entry can't retain plaintext beyond what `resolve_file_key`
 /// itself already handles, and a wrong-then-right retry with a DIFFERENT
 /// passphrase can't collide with a stale entry from an earlier attempt.
@@ -231,13 +231,13 @@ pub fn resolve_file_key_cached(
     Ok(resolved)
 }
 
-/// Forget every cached key — call on vault lock / logout, mirroring the
+/// Forget every cached key. Call on vault lock / logout, mirroring the
 /// frontend's own CEK cache eviction.
 pub fn clear_key_cache() {
     key_cache().lock().unwrap().clear();
 }
 
-/// Lowercase-hex HMAC-SHA256 — the `hmac_v1` content MAC (key from
+/// Lowercase-hex HMAC-SHA256: the `hmac_v1` content MAC (key from
 /// [`derive_dedup_key`]).
 pub fn hmac_sha256_hex(key: &[u8], data: &[u8]) -> String {
     let mut mac = <Hmac<Sha256> as Mac>::new_from_slice(key).expect("hmac accepts any key length");
@@ -284,8 +284,8 @@ mod integrity_scheme_tests {
     // The exact invariant a shared-space hmac_v1 download depends on: it MUST
     // skip whole-file verification (it has no passphrase to recompute the
     // per-user MAC) rather than fail every such file as "corrupted". Getting
-    // this backwards either breaks every space-shared hmac_v1 file, or — the
-    // dangerous direction — silently accepts a tampered file it shouldn't.
+    // this backwards either breaks every space-shared hmac_v1 file, or, the
+    // dangerous direction: silently accepts a tampered file it shouldn't.
 
     #[test]
     fn plain_scheme_is_always_verifiable() {
@@ -311,7 +311,7 @@ mod key_cache_tests {
     use super::*;
 
     // The cache is a process-wide static, and Rust runs tests in the same
-    // process concurrently — every test below uses its own unique file_id
+    // process concurrently: every test below uses its own unique file_id
     // namespace so they can never observe each other's entries.
 
     #[test]
@@ -359,7 +359,7 @@ mod key_cache_tests {
 
     #[test]
     fn eviction_caps_cache_size() {
-        // Exercises KeyCache's own eviction policy directly with dummy values —
+        // Exercises KeyCache's own eviction policy directly with dummy values,
         // NOT via resolve_file_key_cached, which would mean paying for a genuine
         // 600k-iteration PBKDF2 on every one of these misses (a first version of
         // this test did exactly that and took cargo test from ~20s to ~630s).

@@ -1,7 +1,7 @@
-//! Pipeline engines — the client work: local-first upload, background sync,
+//! Pipeline engines: the client work: local-first upload, background sync,
 //! network upload, streaming download. Ports of `sidecar/pipeline/*` with two
 //! deliberate upgrades: the download STREAMS to disk through a bounded reorder
-//! buffer (the Go engine buffered whole files — a mobile OOM), and `upload()`
+//! buffer (the Go engine buffered whole files: a mobile OOM), and `upload()`
 //! is local-first (encrypt→ledger, then drive one sync pass) so the two upload
 //! paths can never drift.
 
@@ -49,7 +49,7 @@ pub enum EngineError {
 /// and to the [`EngineContext`] driving the transfer. The upload/download/bulk
 /// engines poll it at each chunk boundary and bail with [`EngineError::Cancelled`],
 /// so a user can abort a multi-GB transfer promptly instead of waiting for it to
-/// error or finish. Default = never cancelled — tests and background/internal
+/// error or finish. Default = never cancelled, tests and background/internal
 /// calls that don't wire a token behave exactly as before.
 #[derive(Clone, Default)]
 pub struct CancelToken(Arc<std::sync::atomic::AtomicBool>);
@@ -69,7 +69,7 @@ impl CancelToken {
 
 /// The user's own credentials for a storage platform, sourced from the OS
 /// keychain by the shell. Used ONLY for byos-direct transfers with the user's
-/// own token — never the managed-pool token, which stays server-side.
+/// own token, never the managed-pool token, which stays server-side.
 #[derive(Clone)]
 pub struct PlatformCreds {
     pub token: String,
@@ -81,7 +81,7 @@ pub struct PlatformCreds {
 /// engine then falls back to the server-managed relay path).
 pub type CredProvider = Arc<dyn Fn(&str) -> Option<PlatformCreds> + Send + Sync>;
 
-/// A `CredProvider` that yields nothing — relay-only (web-style) operation, and
+/// A `CredProvider` that yields nothing, relay-only (web-style) operation, and
 /// the default for tests and the managed data plane.
 pub fn no_creds() -> CredProvider {
     Arc::new(|_platform| None)
@@ -95,7 +95,7 @@ const BYOS_PREFERENCE: [&str; 4] = ["telegram", "github", "gitlab", "huggingface
 /// Decide the data plane for a new upload. If the device holds the user's own
 /// token for a supported platform, upload byos-direct to that platform (client
 /// owns placement); otherwise relay through the server, which picks + manages
-/// the repo. Returns `(mode, platform)` — platform is empty for relay.
+/// the repo. Returns `(mode, platform)`: platform is empty for relay.
 pub(crate) fn choose_plane(creds: &CredProvider) -> (String, String) {
     for p in BYOS_PREFERENCE {
         if creds(p).is_some() {
@@ -107,8 +107,8 @@ pub(crate) fn choose_plane(creds: &CredProvider) -> (String, String) {
 
 /// Everything an engine call needs. The Tauri shell constructs one per
 /// operation; `progress` forwards to the webview as window events, and `creds`
-/// hands out the user's own platform tokens for byos-direct. `Clone` is cheap —
-/// every field is an `Arc` or `Copy` — so the sync engine can hand a clone to
+/// hands out the user's own platform tokens for byos-direct. `Clone` is cheap:
+/// every field is an `Arc` or `Copy`, so the sync engine can hand a clone to
 /// each concurrent per-chunk upload task.
 #[derive(Clone)]
 pub struct EngineContext {
@@ -145,7 +145,7 @@ pub async fn local_upload(
     local_upload::run(ctx, file_path, passphrase).await
 }
 
-/// Network upload: parallel concurrent chunk streaming (see [`stream_upload`]) —
+/// Network upload: parallel concurrent chunk streaming (see [`stream_upload`]):
 /// read → encrypt in RAM → fire, N in flight, no local-disk staging. Returns
 /// once the bytes are confirmed on the backend/platform. The local-first
 /// `local_upload` + `sync` path stays for the offline/background/folder-watch
@@ -161,7 +161,7 @@ pub async fn upload(
 
 /// Drive an already-locally-uploaded file (see `local_upload` above) to full
 /// sync completion, returning only once it's genuinely confirmed on the
-/// backend/platform — not merely encrypted to local disk. Lets a caller do the
+/// backend/platform, not merely encrypted to local disk. Lets a caller do the
 /// local-first instant-save UX (`local_upload`) and still get an honest
 /// "actually done" signal afterward, without re-encrypting the file.
 pub async fn sync_uploaded_file(
@@ -176,7 +176,7 @@ pub async fn sync_uploaded_file(
 /// to disk → whole-file integrity check → atomic rename.
 ///
 /// `space_key` is `None` for the normal owner/folder path (passphrase-derived
-/// key, as before). Pass `Some(key)` to download a shared-space file — despite
+/// key, as before). Pass `Some(key)` to download a shared-space file, despite
 /// the name, `key` must be the file's ALREADY-RESOLVED content key (the
 /// space-wrapped CEK, unwrapped client-side by the caller against the
 /// `SharedVaultFile` record it holds), NOT the space's raw symmetric key: the
@@ -197,12 +197,12 @@ pub async fn download(
 /// In-memory decrypt: fetch → verify → decrypt → decompress → assemble into a
 /// single buffer and return it (no disk write). The byte-returning sibling of
 /// [`download`], for thumbnails / preview / the in-app viewer on desktop. Capped
-/// at 512 MiB so a large file can't OOM the app — callers fall back to a
+/// at 512 MiB so a large file can't OOM the app: callers fall back to a
 /// streamed [`download`] above the cap.
 ///
-/// `space_key`: see [`download`] — `None` for the passphrase path, `Some(key)`
+/// `space_key`: see [`download`]: `None` for the passphrase path, `Some(key)`
 /// where `key` is the file's already-resolved content key (NOT the space's raw
-/// symmetric key — see the note on [`download`]).
+/// symmetric key. See the note on [`download`]).
 pub async fn decrypt_to_memory(
     ctx: &EngineContext,
     file_id: &str,
@@ -213,13 +213,13 @@ pub async fn decrypt_to_memory(
     decrypt_to_memory::run(ctx, file_id, passphrase, user_id, space_key).await
 }
 
-/// Bulk download: fetches N files (reusing [`download`] per file, unchanged —
+/// Bulk download: fetches N files (reusing [`download`] per file, unchanged:
 /// byos-direct, resilience, integrity) and packs them into one ZIP at
 /// `save_path`. Streams one file at a time through a scratch temp path, so
 /// memory/disk use is bounded by the single largest file, not the sum of the
 /// whole batch. Any single file's failure aborts the whole batch and cleans up
 /// the partial zip, matching the existing in-browser bulk-ZIP behavior. Each
-/// [`BulkFile`] carries its OWN passphrase (not one shared for the batch) —
+/// [`BulkFile`] carries its OWN passphrase (not one shared for the batch):
 /// see its doc comment for why.
 pub async fn bulk_download(
     ctx: &EngineContext,
@@ -230,7 +230,7 @@ pub async fn bulk_download(
     bulk_download::run(ctx, files, user_id, save_path).await
 }
 
-/// Client-side delete — the byos-direct counterpart to upload/download. The
+/// Client-side delete: the byos-direct counterpart to upload/download. The
 /// device holds the platform token, so it removes the ciphertext straight from
 /// the user's OWN storage and the backend only drops the metadata row (no
 /// server deletion-worker load). Chunks whose platform the device has no creds
@@ -241,7 +241,7 @@ pub async fn delete(ctx: &EngineContext, file_id: &str) -> Result<(), EngineErro
 
 /// Background sync loop: drains pending files every second until cancelled
 /// (send `true` on the watch channel, or drop the sender). Starts with one
-/// ledger GC pass — purging dead 'staging' rows, duplicate rows whose content
+/// ledger GC pass: purging dead 'staging' rows, duplicate rows whose content
 /// already synced under a sibling, and orphaned staging-dir files.
 pub async fn run_sync(ctx: EngineContext, mut cancel: tokio::sync::watch::Receiver<bool>) {
     sync::gc_ledger(&ctx).await;
@@ -281,7 +281,7 @@ mod tests {
         let a = CancelToken::new();
         let b = a.clone();
         assert!(!a.is_cancelled() && !b.is_cancelled());
-        // Cancelling via one handle is observed through the other — the shell
+        // Cancelling via one handle is observed through the other, the shell
         // holds one clone, the engine another, and both must agree.
         b.cancel();
         assert!(a.is_cancelled(), "clone must share the underlying flag");

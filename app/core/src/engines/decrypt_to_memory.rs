@@ -1,10 +1,10 @@
-//! In-memory decrypt — the byte-returning sibling of the streaming `download`.
+//! In-memory decrypt: the byte-returning sibling of the streaming `download`.
 //! Fetch → per-chunk SHA verify → decrypt → decompress → ordered assembly into
 //! a single `Vec<u8>` → whole-file integrity check. Same byos-direct→relay
 //! resilience as `download` (shared `acquire_chunk`), but returns the plaintext
 //! in memory for the shell to hand to thumbnails / preview / the in-app viewer
 //! instead of writing a file. Bounded by `MAX_BYTES` so a huge file can't OOM
-//! the app — the shell falls back to a streamed download above the cap.
+//! the app: the shell falls back to a streamed download above the cap.
 
 use std::sync::Arc;
 
@@ -45,7 +45,7 @@ pub async fn run(
         });
     };
 
-    // 1. Metadata (retried — a single dropped request must not kill the op).
+    // 1. Metadata (retried: a single dropped request must not kill the op).
     emit(Stage::FetchingMeta, 0, 0, 0, 0);
     let client = ctx.client.clone();
     let retry_client = client.clone();
@@ -86,10 +86,10 @@ pub async fn run(
     // 2. Key. `space_key` here is actually the file's ALREADY-RESOLVED content
     //    key, not the space's raw symmetric key: a shared file's CEK is wrapped
     //    under the space key in the SharedVaultFile record (a field the generic
-    //    file-meta response above does NOT carry — meta.wrapped_cek is the
+    //    file-meta response above does NOT carry, meta.wrapped_cek is the
     //    OWNER's passphrase-wrapped envelope, a different ciphertext entirely).
     //    So the caller (lib/spaces.ts's spaceFileKey()) unwraps client-side
-    //    using data it already holds and hands us the final key directly — this
+    //    using data it already holds and hands us the final key directly, this
     //    mirrors the web client's `resolveKey` override exactly (no unwrap
     //    happens here). Passphrase mode (PBKDF2, cached) is unchanged.
     emit(Stage::DerivingKey, 0, total, 0, meta.original_size);
@@ -107,7 +107,7 @@ pub async fn run(
 
     // Whole-file hasher + whether its result is actually comparable against
     // meta.sha256. hmac_v1 files store a per-user KEYED MAC there, which needs
-    // the passphrase (owner/folder path) to recompute — a space download has no
+    // the passphrase (owner/folder path) to recompute: a space download has no
     // passphrase, so it CANNOT verify that MAC. Mirrors the web client's
     // canVerifyHash exactly (lib/download-session.ts): we still hash (falling
     // back to plain SHA-256) so the per-chunk work is uniform, but skip the
@@ -115,7 +115,7 @@ pub async fn run(
     // just produce a value that can never match and make every hmac_v1 space
     // file spuriously "fail" integrity. Per-chunk SHA-256 (already verified in
     // acquire_chunk) plus the chunk-count assertion below are what space/share
-    // downloads rely on instead — same trust level as the public-share path.
+    // downloads rely on instead: same trust level as the public-share path.
     let mac_key = if meta.sha256_scheme == "hmac_v1" && !is_space_mode {
         let pass = passphrase.to_string();
         let uid = user_id.to_string();
@@ -133,7 +133,7 @@ pub async fn run(
         None => ContentHasher::new("plain", None),
     };
     // HMAC's new_from_slice() above already copied the key into its own
-    // internal state — this caller-side copy is no longer needed.
+    // internal state: this caller-side copy is no longer needed.
     if let Some(mut mk) = mac_key {
         mk.zeroize();
     }
@@ -176,7 +176,7 @@ pub async fn run(
                 .map_err(|_| EngineError::Other("assembler gone".into()))
         });
     }
-    // Every fetcher above cloned its own copy of `key` — this original is no
+    // Every fetcher above cloned its own copy of `key`, this original is no
     // longer needed now that all of them have been spawned.
     key.zeroize();
     drop(tx);
@@ -211,7 +211,7 @@ pub async fn run(
     assemble?;
 
     // 4. Whole-file integrity (also the wrong-passphrase catch for legacy
-    //    files) — only enforced when it's actually meaningful; see above.
+    //    files): only enforced when it's actually meaningful; see above.
     emit(
         Stage::Verifying,
         total,
@@ -222,7 +222,7 @@ pub async fn run(
     let got = hasher.finalize_hex();
     if can_verify_hash && got != meta.sha256 {
         return Err(EngineError::Integrity(
-            "content hash mismatch — wrong passphrase or corrupt data".into(),
+            "content hash mismatch: wrong passphrase or corrupt data".into(),
         ));
     }
 

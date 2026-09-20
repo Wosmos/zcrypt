@@ -1,15 +1,15 @@
-//! HuggingFace Hub platform adapter — port of `app/backend/adapters/huggingface.go`.
+//! HuggingFace Hub platform adapter, port of `app/backend/adapters/huggingface.go`.
 //!
 //! HuggingFace stores large binaries via Git LFS, so a chunk upload is a
 //! three-step dance: (1) the LFS *batch* API hands back a presigned PUT URL (or
-//! signals the object already exists — content-addressed dedup); (2) PUT the
+//! signals the object already exists: content-addressed dedup); (2) PUT the
 //! ciphertext to that URL; (3) an NDJSON *commit* makes the blob appear in the
 //! repo tree at our disguised path.
 //!
 //! The Go adapter buffers commits and flushes them in one batch (its
 //! `BatchCommitter` interface). The client-side `PlatformAdapter` trait has no
 //! flush hook, so this port commits per upload. That is deliberate for
-//! byos-direct v1 — HuggingFace is a *capacity* backend, not the primary
+//! byos-direct v1. HuggingFace is a *capacity* backend, not the primary
 //! (placement is Telegram-weighted), so it sees few chunks per file and the
 //! ~128-commits/hour/repo limit is not a concern in practice. A 429 surfaces as
 //! `RateLimited` so placement can back off / re-route.
@@ -38,7 +38,7 @@ pub struct HuggingFace {
 impl HuggingFace {
     pub fn new(token: &str, account: &str) -> Self {
         let client = reqwest::Client::builder()
-            // No overall timeout — LFS PUTs can be large; rely on connect/read
+            // No overall timeout. LFS PUTs can be large; rely on connect/read
             // timeouts at the transport layer instead (matches Go's Timeout: 0).
             .connect_timeout(Duration::from_secs(30))
             .user_agent("zcrypt-core")
@@ -51,7 +51,7 @@ impl HuggingFace {
         }
     }
 
-    /// The authenticated username — mirrors Go's `GetUsername`. Supplied at
+    /// The authenticated username, mirrors Go's `GetUsername`. Supplied at
     /// construction (from the caller's stored account) rather than via a
     /// `whoami` round-trip, matching the other Rust adapters.
     pub fn username(&self) -> &str {
@@ -74,7 +74,7 @@ impl HuggingFace {
     }
 
     /// LFS batch: obtain a presigned upload URL for `oid`/`size`. Returns
-    /// `None` when the object already exists on the platform (dedup — no PUT
+    /// `None` when the object already exists on the platform (dedup, no PUT
     /// needed). Retries transient 5xx with backoff.
     async fn lfs_upload_info(
         &self,
@@ -295,7 +295,7 @@ impl PlatformAdapter for HuggingFace {
                 "value": { "path": r#ref.remote_path },
             }),
         ]);
-        // A 404 means the file (or repo) is already gone — a planned-but-never
+        // A 404 means the file (or repo) is already gone, a planned-but-never
         // -uploaded chunk, or a retry after a prior delete. Report success so it
         // leaves the deletion queue instead of retrying to a dead letter forever.
         match self.post_commit(&repo, ndjson, "delete commit").await {
@@ -459,7 +459,7 @@ fn retry_after_secs(headers: &reqwest::header::HeaderMap) -> Option<u64> {
         .ok()
 }
 
-/// Map a failed status to the right `AdapterError` (pure — unit-testable).
+/// Map a failed status to the right `AdapterError` (pure, unit-testable).
 fn classify(status: u16, body: String, retry_after: Option<u64>, context: &str) -> AdapterError {
     match status {
         429 => AdapterError::RateLimited {

@@ -1,4 +1,4 @@
-//! Platform storage adapters — the client-side ports of
+//! Platform storage adapters, the client-side ports of
 //! `app/backend/adapters/*`, used for byos-direct transfers with the USER'S OWN
 //! token (never the managed pool token, which must stay server-side).
 
@@ -34,7 +34,7 @@ pub enum AdapterError {
     Other(String),
 }
 
-/// The unified platform interface — mirrors the Go `adapters.PlatformAdapter`.
+/// The unified platform interface, mirrors the Go `adapters.PlatformAdapter`.
 /// All byte payloads are ciphertext; adapters never see plaintext.
 #[async_trait]
 pub trait PlatformAdapter: Send + Sync {
@@ -60,7 +60,7 @@ pub trait PlatformAdapter: Send + Sync {
     async fn get_repo_size(&self, repo: &str) -> Result<i64, AdapterError>;
 
     /// List chunk files in a repo (reconcile support; Telegram returns
-    /// `NotFound` — a chat can't be enumerated via the Bot API).
+    /// `NotFound`: a chat can't be enumerated via the Bot API).
     async fn list_chunks(&self, repo: &str) -> Result<Vec<ChunkRef>, AdapterError>;
 }
 

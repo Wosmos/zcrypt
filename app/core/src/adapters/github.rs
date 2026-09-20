@@ -1,4 +1,4 @@
-//! GitHub platform adapter — port of `app/backend/adapters/github.go`.
+//! GitHub platform adapter, port of `app/backend/adapters/github.go`.
 //!
 //! The Go side goes through go-github; this port calls the same REST
 //! endpoints directly: the Contents API (base64 content on PUT, current blob
@@ -44,7 +44,7 @@ impl GitHub {
         }
     }
 
-    /// The repo owner this adapter acts as — mirrors Go's `GetUsername`.
+    /// The repo owner this adapter acts as, mirrors Go's `GetUsername`.
     pub fn username(&self) -> &str {
         &self.account
     }
@@ -96,7 +96,7 @@ fn retry_after_secs(headers: &reqwest::header::HeaderMap) -> Option<u64> {
         .ok()
 }
 
-/// Map a failed status to the right `AdapterError` (pure — unit-testable).
+/// Map a failed status to the right `AdapterError` (pure, unit-testable).
 /// 429 and GitHub's secondary rate limit (403 with "rate limit" in the body)
 /// become `RateLimited`; 404 becomes `NotFound`; the rest are `Api` errors.
 fn classify(status: u16, body: String, retry_after: Option<u64>, context: &str) -> AdapterError {
@@ -213,7 +213,7 @@ impl PlatformAdapter for GitHub {
         // backoff + jitter. The Contents API creates one commit per PUT, so
         // concurrent uploads to the same repo race on HEAD SHA. The path is
         // held STABLE across retries: a 409 is a HEAD-SHA race, not a path
-        // collision — rotating the path would strand a maybe-committed blob
+        // collision: rotating the path would strand a maybe-committed blob
         // where deletion could never find it (see the Go adapter's comment).
         let mut last_err: Option<AdapterError> = None;
         for attempt in 0..10u32 {
@@ -256,7 +256,7 @@ impl PlatformAdapter for GitHub {
     async fn download(&self, r#ref: &ChunkRef) -> Result<Vec<u8>, AdapterError> {
         let (owner, repo_name) = self.parse_repo(&r#ref.repo);
 
-        // raw.githubusercontent.com directly — single request, no size limit,
+        // raw.githubusercontent.com directly: single request, no size limit,
         // avoids the 2-request Contents API dance (same as the Go adapter).
         let url = raw_url(owner, repo_name, &r#ref.remote_path);
         let resp = self.req(Method::GET, &url).send().await?;
@@ -270,7 +270,7 @@ impl PlatformAdapter for GitHub {
         let (owner, repo_name) = self.parse_repo(&r#ref.repo);
         let url = contents_url(owner, repo_name, &r#ref.remote_path);
 
-        // Get the file's current SHA first — the Contents API requires it.
+        // Get the file's current SHA first: the Contents API requires it.
         let resp = self.req(Method::GET, &url).send().await?;
         // Already gone (404) → the chunk is deleted as far as we care; report
         // success so it leaves the deletion queue instead of retrying forever.
@@ -329,7 +329,7 @@ impl PlatformAdapter for GitHub {
         // live under a 2-hex-char shard directory (e.g. "02/abc.bin"), so a
         // root-only listing would miss every blob. recursive=1 returns the
         // whole tree in one call and each entry's path is the full sharded
-        // path — exactly what chunks.remote_path stores.
+        // path, exactly what chunks.remote_path stores.
         let resp = self
             .req(Method::GET, &tree_url(owner, repo_name))
             .send()

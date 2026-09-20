@@ -1,4 +1,4 @@
-//! Bounded reorder buffer for streaming downloads — the Rust port of the web
+//! Bounded reorder buffer for streaming downloads: the Rust port of the web
 //! client's `lib/ordered-writer.ts`. Chunks finish out of order; the sink must
 //! receive them strictly by index without ever buffering the whole file.
 //!
@@ -18,7 +18,7 @@ use super::EngineError;
 /// when every sender is dropped; errors if a gap remains (a chunk never
 /// arrived) so a truncated file is never finalized.
 ///
-/// The sink is synchronous (a buffered file write) — chunk-sized sequential
+/// The sink is synchronous (a buffered file write), chunk-sized sequential
 /// writes are fast enough that blocking the drain task briefly is the simpler
 /// and correct trade against an async-closure borrow tangle.
 pub async fn drain<S>(

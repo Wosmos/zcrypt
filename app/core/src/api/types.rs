@@ -1,4 +1,4 @@
-//! Control-plane request/response types — port of `sidecar/api/types.go`
+//! Control-plane request/response types, port of `sidecar/api/types.go`
 //! (wire-identical JSON), plus the new byos-direct types (locators, repo
 //! registration, direct confirm).
 
@@ -25,7 +25,7 @@ pub struct UploadInitRequest {
     pub chunk_count: i64,
     #[serde(skip_serializing_if = "String::is_empty")]
     pub platform: String,
-    /// "" (relay) or "byos-direct" — see docs/DESKTOP_ARCHITECTURE.md.
+    /// "" (relay) or "byos-direct". See docs/DESKTOP_ARCHITECTURE.md.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub mode: String,
 }
@@ -56,7 +56,7 @@ pub struct PresignRequest {
     pub size: i64,
 }
 
-/// Deserialize a field that may be JSON `null` into its `Default` — `#[serde(default)]`
+/// Deserialize a field that may be JSON `null` into its `Default`, `#[serde(default)]`
 /// alone only covers a MISSING key, not an explicit `null`. HuggingFace's LFS
 /// dedup path returns `"upload_headers": null` when the blob already exists, and
 /// without this the client couldn't decode the presign response at all (the
@@ -87,7 +87,7 @@ pub struct ConfirmChunkRequest {
     pub size: i64,
     pub remote_path: String,
     pub compressed: bool,
-    // byos-direct extras — the client uploaded with its own token and reports
+    // byos-direct extras: the client uploaded with its own token and reports
     // where the chunk lives. Empty/false on the relay/presign paths.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub platform: String,
@@ -191,7 +191,7 @@ mod tests {
     use super::*;
 
     // HF's LFS dedup path returns `"upload_headers": null` (blob already exists).
-    // This must decode — before null_default it errored and killed the upload.
+    // This must decode, before null_default it errored and killed the upload.
     #[test]
     fn presign_response_tolerates_null_headers() {
         let r: PresignResponse = serde_json::from_str(

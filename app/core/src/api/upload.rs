@@ -1,4 +1,4 @@
-//! Upload-side control-plane calls — port of `sidecar/api/upload.go` plus the
+//! Upload-side control-plane calls: port of `sidecar/api/upload.go` plus the
 //! byos-direct additions (repo registration, direct confirm).
 
 use super::client::{ApiError, Client};
@@ -15,7 +15,7 @@ impl Client {
             .await
     }
 
-    /// PUT /api/upload/{sid}/chunk/{idx} — the server-relay path. Body is the
+    /// PUT /api/upload/{sid}/chunk/{idx}, the server-relay path. Body is the
     /// encrypted chunk; integrity travels in headers.
     pub async fn upload_chunk(
         &self,
@@ -40,7 +40,7 @@ impl Client {
         ok_or_status(resp).await
     }
 
-    /// GET /api/upload/{sid}/status — chunk indices the backend already has, so
+    /// GET /api/upload/{sid}/status: chunk indices the backend already has, so
     /// a resumed streaming upload re-sends only the missing ones.
     pub async fn upload_status(&self, session_id: &str) -> Result<Vec<i64>, ApiError> {
         let resp: UploadStatusResponse = self
@@ -68,7 +68,7 @@ impl Client {
         .await
     }
 
-    /// PUT to a presigned external URL (HuggingFace LFS). No bearer auth — the
+    /// PUT to a presigned external URL (HuggingFace LFS). No bearer auth, the
     /// URL itself is the credential.
     pub async fn direct_upload_to_url(
         &self,
@@ -91,7 +91,7 @@ impl Client {
         Ok(())
     }
 
-    /// POST /api/upload/{sid}/confirm/{idx} — metadata-only record of a chunk
+    /// POST /api/upload/{sid}/confirm/{idx}: metadata-only record of a chunk
     /// the client pushed itself (presign path or byos-direct).
     pub async fn confirm_chunk(
         &self,
@@ -134,7 +134,7 @@ impl Client {
         ok_or_status(resp).await
     }
 
-    /// DELETE /api/files/{id}/purge — permanently remove a file. When
+    /// DELETE /api/files/{id}/purge, permanently remove a file. When
     /// `client_deleted` is true the caller already removed the ciphertext from
     /// the user's own storage (byos-direct), so the server drops metadata only
     /// and never queues a platform deletion.
@@ -152,7 +152,7 @@ impl Client {
 
     // ── byos-direct control plane ────────────────────────────────────────────
 
-    /// POST /api/repos/register — record a client-created repo.
+    /// POST /api/repos/register, record a client-created repo.
     pub async fn register_repo(&self, repo: &RepoInfo) -> Result<(), ApiError> {
         let req = RegisterRepoRequest {
             id: &repo.id,
@@ -168,7 +168,7 @@ impl Client {
         ok_or_status(resp).await
     }
 
-    /// POST /api/repos/{id}/deactivate — mark a full repo inactive so the pool
+    /// POST /api/repos/{id}/deactivate: mark a full repo inactive so the pool
     /// rotates off it. The control-plane half of client-side repo rotation.
     pub async fn deactivate_repo(&self, repo_id: &str) -> Result<(), ApiError> {
         let repo_id = repo_id.to_string();
@@ -178,10 +178,10 @@ impl Client {
         ok_or_status(resp).await
     }
 
-    /// GET /api/repos?platform= — the user's registered repos (client pool state).
+    /// GET /api/repos?platform=: the user's registered repos (client pool state).
     pub async fn list_repos(&self, platform: &str) -> Result<Vec<RepoInfo>, ApiError> {
         let platform = platform.to_string();
-        // The endpoint returns either a bare array or {repos:[...]} — accept both.
+        // The endpoint returns either a bare array or {repos:[...]}, accept both.
         let resp = self
             .send(|http, base| {
                 http.get(format!("{base}/api/repos"))

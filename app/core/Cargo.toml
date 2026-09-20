@@ -2,11 +2,11 @@
 name = "zcrypt-core"
 version = "0.1.0"
 edition = "2021"
-description = "zcrypt shared client core: zero-knowledge crypto, chunk pipeline, local store, platform adapters. No UI/Tauri dependency — embedded by the desktop/mobile shells."
+description = "zcrypt shared client core: zero-knowledge crypto, chunk pipeline, local store, platform adapters. No UI/Tauri dependency: embedded by the desktop/mobile shells."
 license = "MIT"
 
 [dependencies]
-# Crypto — must stay byte-compatible with docs/CRYPTO_FORMAT.md.
+# Crypto: must stay byte-compatible with docs/CRYPTO_FORMAT.md.
 aes-gcm = "0.10"
 pbkdf2 = { version = "0.12", features = ["simple"] }
 sha2 = "0.10"
@@ -29,13 +29,13 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "fs", "io-util
 # hickory-dns: use the async userspace resolver instead of hyper's default
 # blocking getaddrinfo pool, which chokes under a large file's connection
 # fan-out and returns intermittent "failed to lookup address information"
-# (EAI_NONAME) DNS errors — the cause of downloads dying at the /meta call.
+# (EAI_NONAME) DNS errors: the cause of downloads dying at the /meta call.
 reqwest = { version = "0.12", default-features = false, features = ["json", "multipart", "stream", "rustls-tls", "http2"] }
 # Custom DNS resolver pointed at PUBLIC nameservers (Cloudflare) with caching,
 # wired via reqwest's dns_resolver(). The OS resolver on macOS reads a
 # stale/misconfigured /etc/resolv.conf and, under a large download's concurrent
 # connection fan-out, intermittently returns EAI_NONAME ("failed to lookup
-# address information") — the errors that stalled/killed downloads. This gives
+# address information"): the errors that stalled/killed downloads. This gives
 # one reliable, cached lookup per host regardless of the local resolver.
 hickory-resolver = { version = "0.26", features = ["tokio"] }
 async-trait = "0.1"
@@ -46,7 +46,7 @@ bytes = "1"
 rusqlite = { version = "0.32", features = ["bundled"] }
 
 # Bulk download: pack multiple downloaded files into one ZIP. zlib-rs is a
-# pure-Rust zlib-compatible implementation (not a C binding) — no system zlib.
+# pure-Rust zlib-compatible implementation (not a C binding), no system zlib.
 zip = { version = "8", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 
 # Serialization / ids / paths

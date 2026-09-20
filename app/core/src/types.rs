@@ -87,6 +87,6 @@ pub enum Stage {
     Done,
 }
 
-/// Progress sink — the shells (Tauri commands) pass a closure that forwards to
+/// Progress sink: the shells (Tauri commands) pass a closure that forwards to
 /// `window.emit`; tests collect into a Vec.
 pub type ProgressFn = std::sync::Arc<dyn Fn(Progress) + Send + Sync>;

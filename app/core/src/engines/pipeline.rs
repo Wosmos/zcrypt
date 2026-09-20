@@ -1,4 +1,4 @@
-//! Per-chunk processing — the NORMATIVE order from docs/CRYPTO_FORMAT.md §4:
+//! Per-chunk processing: the NORMATIVE order from docs/CRYPTO_FORMAT.md §4:
 //! zstd-compress (when eligible and ≥5% smaller) → AES-256-GCM encrypt with the
 //! CEK → SHA-256 of the ENCRYPTED wire bytes. Mirrors `sidecar/pipeline/worker.go`
 //! and the web crypto-worker.

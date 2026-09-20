@@ -27,7 +27,7 @@ const KEYCHAIN_SERVICE: &str = "app.zcrypt.desktop";
 /// Tauri event carrying `zcrypt_core::types::Progress` payloads.
 const PROGRESS_EVENT: &str = "zcrypt://progress";
 /// Emitted when the inactivity auto-lock clears the cached passphrase, so the
-/// frontend CAN react (e.g. re-prompt) if it wants to — nothing currently
+/// frontend CAN react (e.g. re-prompt) if it wants to, nothing currently
 /// listens for it; this just leaves the hook in place.
 const AUTO_LOCK_EVENT: &str = "zcrypt://auto-locked";
 /// How long the cached vault passphrase (and the core's warm key cache) may
@@ -38,7 +38,7 @@ const AUTO_LOCK_EVENT: &str = "zcrypt://auto-locked";
 /// separate and unaffected.
 const INACTIVITY_TIMEOUT: Duration = Duration::from_secs(300);
 /// How often the auto-lock task checks for inactivity. A simple periodic poll
-/// comparing timestamps — not a per-call reset-and-cancel timer — so there's
+/// comparing timestamps (not a per-call reset-and-cancel timer) so there's
 /// no cancellation race to get wrong; this only needs to be tighter than the
 /// multi-minute timeout above, not tight to the second.
 const INACTIVITY_POLL_INTERVAL: Duration = Duration::from_secs(30);
@@ -47,7 +47,7 @@ const INACTIVITY_POLL_INTERVAL: Duration = Duration::from_secs(30);
 /// (the core keeps its own alias private).
 type RotateHook = Arc<dyn Fn(&str, &str) + Send + Sync>;
 
-/// Managed engine state — replaces the old Go sidecar process.
+/// Managed engine state: replaces the old Go sidecar process.
 ///
 /// - `client` is built on `start_sync` (needs base URL + tokens).
 /// - `db` is opened lazily on first use.
@@ -65,7 +65,7 @@ struct EngineState {
     /// can encrypt new files without prompting. Cleared on lock/logout, or by
     /// the inactivity auto-lock (see INACTIVITY_TIMEOUT).
     passphrase: StdMutex<Option<String>>,
-    /// Active folder-watch watcher — dropping it stops watching (and ends the
+    /// Active folder-watch watcher: dropping it stops watching (and ends the
     /// processor task, whose channel sender lives inside the watcher callback).
     watcher: StdMutex<Option<notify::RecommendedWatcher>>,
     /// Updated by `touch_activity()` on every passphrase-bearing command; the
@@ -111,7 +111,7 @@ impl EngineState {
             .read()
             .await
             .clone()
-            .ok_or_else(|| "engine not connected — call start_sync first".to_string())
+            .ok_or_else(|| "engine not connected. Call start_sync first".to_string())
     }
 
     /// Build an engine context that forwards progress to the webview. The
@@ -139,7 +139,7 @@ impl EngineState {
         token
     }
 
-    /// Drop a finished transfer's token — called on every exit path so the map
+    /// Drop a finished transfer's token: called on every exit path so the map
     /// doesn't leak entries for completed/failed transfers.
     fn finish_transfer(&self, id: &str) {
         self.transfers.lock().unwrap().remove(id);
@@ -168,8 +168,8 @@ fn progress_emitter(app: &tauri::AppHandle) -> ProgressFn {
 
 /// Runs for the lifetime of the app: every INACTIVITY_POLL_INTERVAL, forgets
 /// the cached passphrase (and the core's warm key cache) if nothing has
-/// touched it for INACTIVITY_TIMEOUT. A periodic poll comparing timestamps —
-/// not a per-call reset-and-cancel timer — so there's no cancellation race:
+/// touched it for INACTIVITY_TIMEOUT. A periodic poll comparing timestamps:
+/// not a per-call reset-and-cancel timer, so there's no cancellation race:
 /// every passphrase-bearing command just updates a timestamp via
 /// `touch_activity()`, and this task alone decides when to act on it.
 fn spawn_inactivity_autolock(app: tauri::AppHandle) {
@@ -183,7 +183,7 @@ fn spawn_inactivity_autolock(app: tauri::AppHandle) {
             if idle < INACTIVITY_TIMEOUT {
                 continue;
             }
-            // .take() both checks and clears in one lock acquisition — a race
+            // .take() both checks and clears in one lock acquisition, a race
             // with an explicit clear_passphrase() just means both agree the
             // end state is None, never a corrupt/partial state.
             let had_passphrase = state.passphrase.lock().unwrap().take().is_some();
@@ -211,7 +211,7 @@ fn keychain_read(key: &str) -> Option<String> {
 /// stored by the frontend via `keychain_set` under `platform.<id>.token` /
 /// `platform.<id>.account`. Returns None when a platform isn't connected, so
 /// the engine falls back to the server-managed relay path. These tokens are the
-/// user's OWN — the managed-pool token never lives on the client.
+/// user's OWN: the managed-pool token never lives on the client.
 fn keychain_creds() -> CredProvider {
     Arc::new(|platform: &str| {
         let token = keychain_read(&format!("platform.{platform}.token"))?;
@@ -316,7 +316,7 @@ async fn download_file(
     res.map_err(|e| e.to_string())
 }
 
-/// One entry of a bulk-download request — mirrors the frontend's
+/// One entry of a bulk-download request, mirrors the frontend's
 /// `BulkDownloadFile` (its `fileSize` is browser-only queue bookkeeping, not
 /// needed here).
 #[derive(serde::Deserialize)]
@@ -325,20 +325,20 @@ struct BulkFileArg {
     file_id: String,
     filename: String,
     /// This file's OWN resolved passphrase (vault passphrase, or the relevant
-    /// folder password) — NOT one shared passphrase for the whole batch. A
+    /// folder password), NOT one shared passphrase for the whole batch. A
     /// bulk selection can span files from different password-protected
     /// folders; the frontend already resolves this per file for the web
     /// bulk-ZIP path, so this mirrors it exactly. See `engines::BulkFile`.
     passphrase: String,
 }
 
-/// Bulk download: N files packed into ONE ZIP via the in-process core —
+/// Bulk download: N files packed into ONE ZIP via the in-process core:
 /// memory/disk use bounded by the single largest file, not the sum of the
 /// whole batch (unlike the in-browser path, which holds every file's full
 /// decrypted bytes in memory simultaneously and caps total selection size at
 /// 2GB for exactly that reason). Any single file's failure aborts the whole
 /// batch and cleans up the partial zip, and duplicate filenames get the same
-/// " (1)", " (2)", ... suffix — both matching lib/bulk-download.ts exactly.
+/// " (1)", " (2)", ... suffix, both matching lib/bulk-download.ts exactly.
 #[tauri::command]
 async fn bulk_download_zip(
     app: tauri::AppHandle,
@@ -371,7 +371,7 @@ async fn bulk_download_zip(
 /// Cancel an in-flight transfer by the `transfer_id` the caller passed to
 /// `upload_file` / `download_file` / `bulk_download_zip`. Returns true if a
 /// matching live transfer was signalled, false if the id is unknown or already
-/// finished (a benign race — the UI can ignore the result).
+/// finished (a benign race: the UI can ignore the result).
 #[tauri::command]
 fn cancel_transfer(state: tauri::State<'_, EngineState>, transfer_id: String) -> bool {
     state.request_cancel(&transfer_id)
@@ -380,7 +380,7 @@ fn cancel_transfer(state: tauri::State<'_, EngineState>, transfer_id: String) ->
 /// In-memory decrypt for thumbnails / preview / the in-app viewer: fetch →
 /// verify → decrypt → decompress → return the plaintext bytes (no disk write).
 /// Returns a raw byte IPC response (not base64) so large previews don't inflate
-/// the bridge. Capped in the core at 512 MiB — callers fall back to a streamed
+/// the bridge. Capped in the core at 512 MiB: callers fall back to a streamed
 /// download above that.
 #[tauri::command]
 async fn decrypt_to_memory(
@@ -398,17 +398,17 @@ async fn decrypt_to_memory(
     Ok(tauri::ipc::Response::new(bytes))
 }
 
-/// Download a shared-space file via the in-process core — works for the owner
+/// Download a shared-space file via the in-process core, works for the owner
 /// and any member alike. `space_key_b64` is base64 for the file's
 /// ALREADY-RESOLVED content key, not the space's raw symmetric key: the
 /// frontend (`lib/spaces.ts`'s `spaceFileKey()`) unwraps the space-wrapped CEK
 /// client-side against the `SharedVaultFile` record it holds (the file's
-/// generic metadata carries a DIFFERENT ciphertext — the owner's
-/// passphrase-wrapped envelope — which the space key can't unwrap) and passes
+/// generic metadata carries a DIFFERENT ciphertext, the owner's
+/// passphrase-wrapped envelope: which the space key can't unwrap) and passes
 /// us the result directly, mirroring the web client's `resolveKey` override.
 /// `passphrase`/`user_id` are empty: this bypasses passphrase-derived key
 /// resolution entirely, and hmac_v1 whole-file verification is skipped rather
-/// than attempted with no passphrase — see `crypto::can_verify_whole_file_hash`.
+/// than attempted with no passphrase. See `crypto::can_verify_whole_file_hash`.
 #[tauri::command]
 async fn download_space_file(
     app: tauri::AppHandle,
@@ -418,7 +418,7 @@ async fn download_space_file(
     save_path: String,
 ) -> Result<(), String> {
     // Doesn't touch the cached passphrase, but the user is clearly at the app
-    // actively using it — counts as activity same as any passphrase-bearing
+    // actively using it: counts as activity same as any passphrase-bearing
     // command, so it doesn't get auto-locked out from under them mid-session.
     state.touch_activity();
     let ctx = state.context(&app).await?;
@@ -435,7 +435,7 @@ async fn download_space_file(
     .map_err(|e| e.to_string())
 }
 
-/// In-memory decrypt of a shared-space file (thumbnails / preview / viewer) —
+/// In-memory decrypt of a shared-space file (thumbnails / preview / viewer):
 /// the space-key sibling of `decrypt_to_memory`. See `download_space_file` for
 /// why `passphrase`/`user_id` are empty.
 #[tauri::command]
@@ -462,7 +462,7 @@ fn base64_decode(s: &str) -> Result<Vec<u8>, String> {
 }
 
 /// byos-direct delete: remove the file's ciphertext directly from the user's own
-/// storage (device holds the token) and drop the backend metadata — no server
+/// storage (device holds the token) and drop the backend metadata, no server
 /// deletion-worker load. Falls back to a server purge for chunks on platforms
 /// the device has no credentials for.
 #[tauri::command]
@@ -523,7 +523,7 @@ async fn start_sync(
         progress: progress_emitter(&app),
         creds: keychain_creds(),
         // The background sync loop is cancelled via its own watch channel
-        // (`cancel_rx`), not the per-transfer token — leave it never-cancelled.
+        // (`cancel_rx`), not the per-transfer token. Leave it never-cancelled.
         cancel: CancelToken::new(),
     };
     tauri::async_runtime::spawn(async move {
@@ -634,7 +634,7 @@ async fn start_folder_watch(
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<PathBuf>();
     let mut watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
         if let Ok(ev) = res {
-            // New files only — Modify would re-upload on every save (versioning
+            // New files only. Modify would re-upload on every save (versioning
             // is a later refinement); Create covers "drop a file in the folder".
             if matches!(ev.kind, notify::EventKind::Create(_)) {
                 for p in ev.paths {
@@ -726,13 +726,13 @@ async fn keychain_delete(key: String) -> Result<(), String> {
 // ---------------------------------------------------------------------------
 
 /// Tauri's Linux updater backend only knows how to replace a *running
-/// AppImage* — it locates the file to overwrite via the `APPIMAGE` env var
+/// AppImage*: it locates the file to overwrite via the `APPIMAGE` env var
 /// that the AppImage runtime itself sets, and has no concept of a system
 /// package at all. A `.deb`/`.rpm` install has no such env var, so without
 /// this check `check_for_updates` would report a real update as "available"
 /// (the manifest has no idea what package the caller is) and then
 /// `install_update` would fail trying to self-replace a file that was never
-/// an AppImage in the first place — a false positive followed by a broken
+/// an AppImage in the first place: a false positive followed by a broken
 /// install, not just silence.
 #[cfg(target_os = "linux")]
 fn running_as_appimage() -> bool {
@@ -748,7 +748,7 @@ struct UpdateCheck {
     #[serde(skip_serializing_if = "Option::is_none")]
     notes: Option<String>,
     /// False for a Linux install that isn't running from an AppImage (i.e. a
-    /// `.deb`/`.rpm` package) — those manage their own updates outside the
+    /// `.deb`/`.rpm` package): those manage their own updates outside the
     /// app. Always true on macOS/Windows.
     updatable: bool,
 }
@@ -799,15 +799,14 @@ async fn check_for_updates(app: tauri::AppHandle) -> Result<UpdateCheck, String>
 }
 
 /// Downloads and installs the pending update, then relaunches. Only returns
-/// on failure — on success the process is replaced. Progress is emitted as
+/// on failure: on success the process is replaced. Progress is emitted as
 /// `update-progress` events with `{downloaded, total}` so the UI can show it.
 #[tauri::command]
 async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
     #[cfg(target_os = "linux")]
     if !running_as_appimage() {
         return Err(
-            "this package doesn't self-update — get new versions from the download page"
-                .to_string(),
+            "this package doesn't self-update: get new versions from the download page".to_string(),
         );
     }
 
@@ -854,7 +853,7 @@ async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
 //
 // Convenience-only: lets the vault's own owner re-unlock with Touch ID instead
 // of retyping their passphrase (same pattern as 1Password/Bitwarden/Notes).
-// Nothing security-sensitive is bypassed — the frontend still holds the real
+// Nothing security-sensitive is bypassed: the frontend still holds the real
 // passphrase-derived key; this only gates whether it resurfaces the cached
 // passphrase (see set_passphrase/clear_passphrase above) without a retype.
 // macOS-only for now; every other target gets a compiling no-op.
@@ -878,7 +877,7 @@ fn biometric_available() -> bool {
 ///
 /// Returns `Ok(true)` on successful authentication, `Ok(false)` on user
 /// cancel or any authentication failure (not enrolled, locked out, denied,
-/// etc — all expected outcomes of a declined prompt). `Err` only if the OS
+/// etc: all expected outcomes of a declined prompt). `Err` only if the OS
 /// never answers the request at all.
 #[tauri::command]
 async fn biometric_authenticate(reason: String) -> Result<bool, String> {
@@ -905,7 +904,7 @@ mod macos_biometrics {
     use objc2_foundation::{NSError, NSString};
     use objc2_local_authentication::{LAContext, LAPolicy};
 
-    /// Touch ID (or other biometrics) only — deliberately excludes the
+    /// Touch ID (or other biometrics) only, deliberately excludes the
     /// password/watch fallback so a declined or unavailable Touch ID never
     /// silently degrades into the macOS account-password prompt.
     const POLICY: LAPolicy = LAPolicy::DeviceOwnerAuthenticationWithBiometrics;
@@ -925,7 +924,7 @@ mod macos_biometrics {
     /// Runs on a blocking-pool thread: creates the context, shows the
     /// prompt, and waits synchronously for the OS reply callback. Keeping
     /// the whole exchange on one thread sidesteps `LAContext` not being
-    /// `Send` — nothing objc-owned ever needs to cross an await point.
+    /// `Send`, nothing objc-owned ever needs to cross an await point.
     fn authenticate_blocking(reason: &str) -> Result<bool, String> {
         let context: Retained<LAContext> = unsafe { LAContext::new() };
         let reason_ns = NSString::from_str(reason);
@@ -1008,7 +1007,7 @@ pub fn run() {
         .setup(|app| {
             #[cfg(desktop)]
             {
-                // Launch-at-login support (no auto-enable — the UI toggles it).
+                // Launch-at-login support (no auto-enable, the UI toggles it).
                 app.handle()
                     .plugin(tauri_plugin_autostart::Builder::new().build())?;
                 // Desktop-only: the updater has no Android/iOS backend. The
@@ -1019,7 +1018,7 @@ pub fn run() {
                     .plugin(tauri_plugin_updater::Builder::new().build())?;
             }
 
-            // Register zcrypt:// scheme at runtime (Linux/Windows only — macOS
+            // Register zcrypt:// scheme at runtime (Linux/Windows only, macOS
             // uses the .app bundle's Info.plist, and MOBILE uses the manifest
             // intent-filters). Must be `all(desktop, ...)`: a bare
             // not(target_os="macos") also matches ANDROID, where deep_link()
@@ -1045,7 +1044,7 @@ pub fn run() {
             #[cfg(desktop)]
             setup_tray(app)?;
 
-            // Inactivity auto-lock — not gated to desktop; the cached
+            // Inactivity auto-lock, not gated to desktop; the cached
             // passphrase and warm key cache exist on every target.
             spawn_inactivity_autolock(app.handle().clone());
 
@@ -1059,7 +1058,7 @@ pub fn run() {
 ///
 /// The `app.trayIcon` config in tauri.conf.json creates the tray icon itself
 /// (id "main"); we attach the menu to it, falling back to building one if the
-/// config-created tray is unavailable. Desktop-only — the tray/menu APIs don't
+/// config-created tray is unavailable. Desktop-only, the tray/menu APIs don't
 /// exist in mobile Tauri.
 #[cfg(desktop)]
 fn setup_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {

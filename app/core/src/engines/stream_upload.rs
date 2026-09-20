@@ -1,14 +1,14 @@
-//! Streaming upload — parallel concurrent chunk streaming, the browser pipeline
+//! Streaming upload: parallel concurrent chunk streaming, the browser pipeline
 //! ported to native Rust: read a chunk from the source, encrypt it IN MEMORY,
-//! fire it at the platform, free it — N chunks in flight at once, N sized to the
+//! fire it at the platform, free it. N chunks in flight at once, N sized to the
 //! device. Unlike `local_upload` + `sync` (which encrypt the WHOLE file to a
-//! local staging dir first, then read it all back to upload — a disk round-trip
+//! local staging dir first, then read it all back to upload, a disk round-trip
 //! and no overlap), nothing is staged to our disk: a 1.4 GB or 100 GB file
 //! streams through a small bounded RAM window (`conc` chunks).
 //!
 //! Resumable: on a repeated init the backend reports which chunks it already has
 //! (`upload_status`); we re-stream only the missing ones from the source file.
-//! No local ledger row — the backend's session is the source of truth, exactly
+//! No local ledger row: the backend's session is the source of truth, exactly
 //! as the browser pipeline did it.
 
 use std::collections::HashSet;
@@ -68,7 +68,7 @@ pub async fn run(
     // Keys + file hash.
     emit(Stage::Hashing, 0, 0);
     // Report hash progress (throttled to ~1% steps) so the bar moves during the
-    // whole-file read instead of freezing — hashing a multi-GB file is a big
+    // whole-file read instead of freezing: hashing a multi-GB file is a big
     // slice of the wall-clock and looked "stuck at 0%" before.
     let progress = ctx.progress.clone();
     let hfn = file_name.clone();
@@ -98,7 +98,7 @@ pub async fn run(
         .map_err(join_err)?;
     // `cek` is what we ACTUALLY encrypt chunks with. For a fresh upload it's a
     // new random key; on a RESUMED session it is REPLACED below with the file's
-    // ORIGINAL key (see the resume block after init) — the backend keeps the
+    // ORIGINAL key (see the resume block after init), the backend keeps the
     // original envelope and discards this fresh one, so re-streamed chunks MUST
     // use the original CEK or the file becomes undecryptable (mismatched CEK).
     let mut cek = crypto::generate_cek();
@@ -134,7 +134,7 @@ pub async fn run(
     let backend_id = resp.file_id;
     let direct = resp.direct_upload;
 
-    // Resume: skip chunks the backend already has, and — critically — encrypt
+    // Resume: skip chunks the backend already has, and (critically) encrypt
     // the remaining chunks with the file's ORIGINAL CEK. The backend discarded
     // the fresh envelope we just sent and kept the original (upload.go resume
     // branch), so a fresh CEK here would produce chunks that don't match the
@@ -183,7 +183,7 @@ pub async fn run(
 
     // Device-scaled concurrency, bounded by the RAM window. Wide enough to beat
     // per-connection upload throttling (the actual bottleneck), not just core
-    // count. ponytail: static formula, not a live RAM probe — upgrade to sysinfo
+    // count. ponytail: static formula, not a live RAM probe, upgrade to sysinfo
     // if these numbers ever prove wrong on a real device.
     let cores = std::thread::available_parallelism()
         .map(|n| n.get())
@@ -215,7 +215,7 @@ pub async fn run(
             break;
         }
         // Acquire BEFORE reading so at most `conc` chunks' bytes are ever
-        // resident — this is the RAM window. Reads are serialized (one at a
+        // resident. This is the RAM window. Reads are serialized (one at a
         // time, here in the loop); encrypt+upload run concurrently in tasks.
         let permit = sem.clone().acquire_owned().await.expect("semaphore");
         let want = std::cmp::min(chunk_size, file_size - idx * chunk_size).max(0) as usize;
@@ -284,7 +284,7 @@ pub async fn run(
     cek.zeroize();
     while join.join_next().await.is_some() {}
     if let Some(e) = first_err.lock().unwrap().take() {
-        // A user-requested cancel is not a failure — return quietly without the
+        // A user-requested cancel is not a failure. Return quietly without the
         // alarming FAILED diagnostics line below.
         if matches!(e, EngineError::Cancelled) {
             eprintln!(
@@ -293,7 +293,7 @@ pub async fn run(
             );
             return Err(e);
         }
-        // Walk the whole source chain — the top-level Display collapses transport
+        // Walk the whole source chain: the top-level Display collapses transport
         // failures ("http: error decoding response body") and drops the real
         // reason (which JSON field, connection reset, TLS, …). We were blind to
         // an HF null-headers decode until this.
@@ -305,7 +305,7 @@ pub async fn run(
             src = s.source();
         }
         eprintln!(
-            "zcrypt stream upload {file_name}: FAILED at {}/{chunk_count} chunks after {:.1}s — {chain}",
+            "zcrypt stream upload {file_name}: FAILED at {}/{chunk_count} chunks after {:.1}s, {chain}",
             done.load(Ordering::SeqCst),
             t_upload.elapsed().as_secs_f64()
         );
@@ -332,13 +332,13 @@ pub async fn run(
     Ok(())
 }
 
-/// `upload_one` with bounded retry — a single transient blip (dropped
+/// `upload_one` with bounded retry: a single transient blip (dropped
 /// connection, 5xx, timeout) on ONE chunk must not kill a multi-minute upload.
 /// The browser pipeline retried every chunk; so does the download path. Safe to
 /// retry: the backend dedups by chunk index (a re-sent chunk returns
 /// `duplicate:true`), so a partially-succeeded chunk isn't double-counted.
 /// "upload session is not active" is terminal for this session (retrying the
-/// same dead session is pointless) — surfaced immediately so the caller can
+/// same dead session is pointless): surfaced immediately so the caller can
 /// re-init/resume instead.
 async fn upload_one_retrying(
     ctx: &EngineContext,

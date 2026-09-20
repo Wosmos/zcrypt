@@ -1,11 +1,11 @@
 // Copied over the Tauri CLI's generated MainActivity by device.yml, after
-// `cargo tauri android init`. It is NOT compiled from this path — gen/android
+// `cargo tauri android init`. It is NOT compiled from this path, gen/android
 // is generated and gitignored, so this lives here to stay reviewable instead
 // of being a heredoc buried in a workflow file.
 //
 // Two jobs:
 //
-// 1. enableEdgeToEdge() — kept from the CLI's own template. Draws the WebView
+// 1. enableEdgeToEdge(): kept from the CLI's own template. Draws the WebView
 //    under the status and navigation bars, which is what makes the safe-area
 //    CSS in globals.css mean anything on Android 14 and below. (On Android 15+
 //    the OS enforces it anyway, because targetSdk is 36.)
@@ -13,7 +13,7 @@
 // 2. Publishing the window insets as --android-safe-* CSS variables. Drawing
 //    edge-to-edge is necessary but not sufficient: the WebView also has to
 //    forward those insets into env(safe-area-inset-*), and that support is
-//    gated on the Android System WebView's OWN version — partial in M136,
+//    gated on the Android System WebView's OWN version, partial in M136,
 //    unconditional only from M144. WebView updates through Play independently
 //    of the OS, so a phone on a stale or sideloaded WebView reports 0px for all
 //    four insets and renders the UI under the notch. That is precisely the bug

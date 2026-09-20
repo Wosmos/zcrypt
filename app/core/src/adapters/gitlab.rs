@@ -1,4 +1,4 @@
-//! GitLab platform adapter — port of `app/backend/adapters/gitlab.go`.
+//! GitLab platform adapter, port of `app/backend/adapters/gitlab.go`.
 //!
 //! Repository Files API with percent-encoded project paths (`owner%2Fname`,
 //! matching Go's `url.PathEscape`), base64 content, and offset-paginated
@@ -39,7 +39,7 @@ impl GitLab {
         }
     }
 
-    /// The authenticated GitLab username — mirrors Go's `GetUsername`.
+    /// The authenticated GitLab username, mirrors Go's `GetUsername`.
     pub fn username(&self) -> &str {
         &self.account
     }
@@ -88,7 +88,7 @@ fn retry_after_secs(headers: &reqwest::header::HeaderMap) -> Option<u64> {
         .ok()
 }
 
-/// Map a failed status to the right `AdapterError` (pure — unit-testable).
+/// Map a failed status to the right `AdapterError` (pure, unit-testable).
 /// 429 becomes `RateLimited`; 404 becomes `NotFound`; the rest are `Api`
 /// errors (GitLab has no body-sniffed secondary rate limit like GitHub's).
 fn classify(status: u16, body: String, retry_after: Option<u64>, context: &str) -> AdapterError {
@@ -241,7 +241,7 @@ impl PlatformAdapter for GitLab {
     async fn list_chunks(&self, repo: &str) -> Result<Vec<ChunkRef>, AdapterError> {
         // recursive=true walks the shard subdirectories (chunks live under a
         // 2-hex prefix like "02/abc.bin"), and each entry's `path` is the full
-        // sharded path that chunks.remote_path stores — so a reconciliation
+        // sharded path that chunks.remote_path stores, so a reconciliation
         // diff lines up. Page through with offset pagination until a short
         // page signals the end; a non-recursive or single-page listing would
         // silently under-report and hide real orphans.

@@ -1,4 +1,4 @@
-//! Background sync — port of `sidecar/pipeline/sync_worker.go`: drive each
+//! Background sync: port of `sidecar/pipeline/sync_worker.go`: drive each
 //! pending ledger file through init → chunk push → complete, deleting staged
 //! ciphertext once it's remote. State machine: pending → init_done →
 //! uploading → synced (or error).
@@ -25,7 +25,7 @@ use super::{EngineContext, EngineError};
 /// (`tokio::fs::remove_file` in one pass vs. `tokio::fs::read` in the other →
 /// "No such file or directory"), and on the same upload session/chunk-index
 /// server-side ("upload session is not active" / "failed to store chunk").
-/// A file whose sync is already in flight is simply skipped for this pass —
+/// A file whose sync is already in flight is simply skipped for this pass:
 /// the next 1s tick (or the explicit caller, which awaits the winner) tries
 /// again once the guard clears.
 fn in_flight() -> &'static Mutex<HashSet<String>> {
@@ -57,7 +57,7 @@ impl Drop for SyncGuard {
 }
 
 /// One pass over every pending file (called by the 1s loop). Errors are
-/// recorded per file/chunk in the ledger, never bubbled — the loop must
+/// recorded per file/chunk in the ledger, never bubbled, the loop must
 /// survive offline periods.
 pub async fn sync_once(ctx: &EngineContext) {
     let files = match ctx.db.get_pending_files() {
@@ -69,24 +69,24 @@ pub async fn sync_once(ctx: &EngineContext) {
     };
     for f in files {
         let Some(guard) = SyncGuard::acquire(&f.id) else {
-            continue; // already being synced by another pass — skip this tick
+            continue; // already being synced by another pass, skip this tick
         };
         let file_id = f.id.clone();
         if let Err(e) = sync_file(ctx, f, None).await {
             // The backend collapsed a rare concurrent double-invocation (two
-            // local rows for identical in-flight content — see
+            // local rows for identical in-flight content. See
             // find_active_sibling's TOCTOU note) onto ONE session, and a
             // sibling pass finished it first: OUR session_id is now dead, but
             // OUR bytes were never uploaded under it. This is never "the
-            // content is already safe" for THIS row — resolve it the only
+            // content is already safe" for THIS row, resolve it the only
             // deterministic way: drop the dead session and get this row a
             // genuinely fresh one next tick. (Never delete the row on a
-            // content match — a user re-uploading identical bytes on purpose
+            // content match: a user re-uploading identical bytes on purpose
             // must always get an independent new file, matching the backend's
             // own resume rule of only ever resuming an ACTIVE session.)
             if is_session_inactive_error(&e) {
                 let _ = ctx.db.reset_file_for_retry(&file_id);
-                eprintln!("sync: {file_id} lost its session to a concurrent pass — retrying fresh");
+                eprintln!("sync: {file_id} lost its session to a concurrent pass, retrying fresh");
             } else {
                 eprintln!("sync: {e}");
             }
@@ -95,7 +95,7 @@ pub async fn sync_once(ctx: &EngineContext) {
     }
 }
 
-/// Whether `e` is the backend's "upload session is not active" 400 — the
+/// Whether `e` is the backend's "upload session is not active" 400, the
 /// signature of a session collision (this row's session was consumed/expired
 /// out from under it), as opposed to a genuine failure (network, auth, disk).
 fn is_session_inactive_error(e: &EngineError) -> bool {
@@ -104,18 +104,18 @@ fn is_session_inactive_error(e: &EngineError) -> bool {
 
 /// Sync a single ledger file to genuine completion (used by `engines::upload`
 /// and the shell's `sync_uploaded_file` command, right after `local_upload`
-/// marks it pending — which the 1s `sync_once` loop can also pick up in the
+/// marks it pending: which the 1s `sync_once` loop can also pick up in the
 /// same instant). Drives the file to a TERMINAL state and only then returns:
 ///
-/// - `synced` in the ledger → Ok — whether our own pass got it there or the
+/// - `synced` in the ledger → Ok, whether our own pass got it there or the
 ///   background loop's did.
-/// - the row disappears (the user deleted/cancelled the file mid-sync) → Ok —
+/// - the row disappears (the user deleted/cancelled the file mid-sync) → Ok:
 ///   nothing left to report on.
 /// - our own pass fails `MAX_OWN_FAILURES` times → Err with the real error.
 ///
 /// It must NOT sample the ledger once and report a non-terminal state
 /// ("uploading", "pending") as failure, and it must NOT time out on a fixed
-/// clock — a multi-GB file legitimately syncs for many minutes, and the old
+/// clock: a multi-GB file legitimately syncs for many minutes, and the old
 /// 30s cap + single-sample readout showed "failed" for uploads that were
 /// mid-flight and later completed fine.
 pub async fn sync_file_by_id(
@@ -125,7 +125,7 @@ pub async fn sync_file_by_id(
 ) -> Result<(), EngineError> {
     const MAX_OWN_FAILURES: u32 = 3;
     // Session collisions (see the is_session_inactive_error branch below) get
-    // their own bounded counter — resetting for a fresh session is a restart,
+    // their own bounded counter: resetting for a fresh session is a restart,
     // not a failure, but it must still terminate if something pathological
     // kept returning this error forever instead of a real session.
     const MAX_SESSION_RESETS: u32 = 5;
@@ -138,7 +138,7 @@ pub async fn sync_file_by_id(
         match f.sync_status.as_str() {
             "synced" => return Ok(()),
             // Chunks still being staged by local_upload (a dedup'd duplicate
-            // invocation lands here while the winner encrypts) — wait, never
+            // invocation lands here while the winner encrypts), wait, never
             // sync a partial chunk list.
             "staging" => {
                 tokio::time::sleep(std::time::Duration::from_millis(250)).await;
@@ -147,7 +147,7 @@ pub async fn sync_file_by_id(
             _ => {}
         }
         let Some(guard) = SyncGuard::acquire(file_id) else {
-            // Another pass (usually the 1s loop) owns this file right now —
+            // Another pass (usually the 1s loop) owns this file right now:
             // wait and re-observe rather than racing it.
             tokio::time::sleep(std::time::Duration::from_millis(250)).await;
             continue;
@@ -155,16 +155,16 @@ pub async fn sync_file_by_id(
         let result = sync_file(ctx, f, platform).await;
         drop(guard);
         match result {
-            // Not necessarily terminal (e.g. nothing left to push this pass) —
+            // Not necessarily terminal (e.g. nothing left to push this pass):
             // loop re-reads the ledger; if it's synced now, we return Ok above.
             Ok(()) => continue,
             Err(e) => {
                 // A concurrent pass (see find_active_sibling's TOCTOU note)
-                // finished this content's shared backend session before us —
+                // finished this content's shared backend session before us.
                 // OUR bytes never went through it. Never treat this as "the
                 // content is safe" and never delete the row: get this row its
                 // own fresh session and retry for real. This doesn't count
-                // against own_failures — it's not a failure, just a restart —
+                // against own_failures: it's not a failure, just a restart,
                 // but session_resets still bounds it so a pathological repeat
                 // of this exact error can't loop forever.
                 if is_session_inactive_error(&e) {
@@ -192,7 +192,7 @@ async fn sync_file(
 ) -> Result<(), EngineError> {
     // Defense in depth: never sync a row whose chunks are still being staged.
     // get_pending_files excludes 'staging' and sync_file_by_id waits it out, so
-    // reaching here with one is a caller bug — skip the pass, don't corrupt it.
+    // reaching here with one is a caller bug: skip the pass, don't corrupt it.
     if f.sync_status == "staging" {
         return Ok(());
     }
@@ -223,13 +223,13 @@ async fn sync_file(
     }
 
     if f.session_id.is_empty() {
-        // Lost the session somehow — reset and retry next pass.
+        // Lost the session somehow: reset and retry next pass.
         ctx.db.update_file_sync_status(&f.id, "pending")?;
         return Ok(());
     }
 
     ctx.db.update_file_sync_status(&f.id, "uploading")?;
-    // Unsynced = pending AND error — a chunk that errored on an earlier pass is
+    // Unsynced = pending AND error: a chunk that errored on an earlier pass is
     // retried here (its staging file still exists; staging is only deleted
     // after a successful push). get_pending_chunks would strand errored chunks
     // forever: nothing else ever resets them.
@@ -237,8 +237,8 @@ async fn sync_file(
     let total = f.chunk_count as u32;
     let already = total.saturating_sub(chunks.len() as u32);
 
-    // byos-direct resolves (and may CREATE) the destination repo once, up front
-    // — doing that per-chunk inside the concurrent tasks below would race N
+    // byos-direct resolves (and may CREATE) the destination repo once, up front:
+    // doing that per-chunk inside the concurrent tasks below would race N
     // chunks into N near-simultaneous get_or_create_repo calls and could create
     // N repos for one file.
     let byos_repo = if f.mode == "byos-direct" {
@@ -247,7 +247,7 @@ async fn sync_file(
         None
     };
 
-    // Push chunks CONCURRENTLY (bounded by the profile's worker count) — the
+    // Push chunks CONCURRENTLY (bounded by the profile's worker count), the
     // previous one-at-a-time loop was the actual reason uploads felt no faster
     // than the old browser pipeline (which uploaded in parallel via a
     // semaphore). Network-bound work, so this is a straight latency win: N
@@ -274,7 +274,7 @@ async fn sync_file(
         let first_err = first_err.clone();
         join.spawn(async move {
             let _permit = permit;
-            // A sibling task already failed — don't push more bytes for a file
+            // A sibling task already failed. Don't push more bytes for a file
             // this pass is about to error out on (they'll retry next pass).
             if first_err.lock().unwrap().is_some() {
                 return;
@@ -327,7 +327,7 @@ async fn sync_file(
     }
 
     if !ctx.db.all_chunks_synced(&f.id)? {
-        return Ok(()); // some chunks errored — retried next pass after reset
+        return Ok(()); // some chunks errored: retried next pass after reset
     }
 
     (ctx.progress)(Progress {
@@ -346,11 +346,11 @@ async fn sync_file(
     Ok(())
 }
 
-/// Ledger garbage collection — run once when the sync worker starts. Cleans
+/// Ledger garbage collection. Run once when the sync worker starts. Cleans
 /// the two kinds of debris a crashed encrypt-in-progress leaves behind:
 ///
 /// 1. Dead 'staging' rows: their encrypting process died (the CEK lived only
-///    in its memory), so they can never complete — they only shadow future
+///    in its memory), so they can never complete. They only shadow future
 ///    uploads of the same content via dedup and pin staged ciphertext forever.
 /// 2. Staging-dir files referenced by no chunk row (crash leftovers). Files
 ///    younger than an hour are skipped: local_upload writes the staging file
@@ -358,7 +358,7 @@ async fn sync_file(
 ///    live write, not garbage.
 ///
 /// Deliberately does NOT purge rows whose content matches an already-synced
-/// sibling — re-uploading identical bytes on purpose must always land as an
+/// sibling: re-uploading identical bytes on purpose must always land as an
 /// independent new file (matching the backend's own resume rule, which only
 /// ever resumes an ACTIVE session); see `is_session_inactive_error` in
 /// `sync_once`/`sync_file_by_id` for the one place a session collision IS
@@ -416,7 +416,7 @@ async fn init_remote_session(
     platform: Option<&str>,
 ) -> Result<(String, String, String, String, bool), EngineError> {
     let b64 = base64::engine::general_purpose::STANDARD;
-    // byos-direct: the client owns placement — send the chosen platform + mode so
+    // byos-direct: the client owns placement: send the chosen platform + mode so
     // the server creates a metadata-only session (no server repo). Relay leaves
     // mode empty and lets the server pick + create the repo.
     let byos = f.mode == "byos-direct";
@@ -450,8 +450,8 @@ async fn init_remote_session(
 }
 
 /// Relay-path chunk push (server stages + pushes, or presigned-direct for
-/// HuggingFace). The byos-direct branch is handled separately by the caller —
-/// see [`resolve_byos_repo`] + [`push_chunk_byos_with_repo`] — because
+/// HuggingFace). The byos-direct branch is handled separately by the caller:
+/// see [`resolve_byos_repo`] + [`push_chunk_byos_with_repo`], because
 /// byos-direct's repo must be resolved ONCE for the whole file, not per-chunk.
 async fn push_chunk(
     ctx: &EngineContext,
@@ -504,9 +504,9 @@ async fn push_chunk(
 }
 
 /// Resolve (creating if needed) the ONE destination repo for a byos-direct
-/// file, up front — before any chunk push. Chunks then share this repo via
+/// file, up front, before any chunk push. Chunks then share this repo via
 /// [`push_chunk_byos_with_repo`] rather than each independently calling
-/// `get_or_create_repo`, which — now that chunk pushes run concurrently —
+/// `get_or_create_repo`, which: now that chunk pushes run concurrently:
 /// would otherwise race N chunks into creating up to N repos for one file.
 pub(super) async fn resolve_byos_repo(
     ctx: &EngineContext,
@@ -536,7 +536,7 @@ pub(super) async fn resolve_byos_repo(
 
 /// byos-direct chunk push against an ALREADY-RESOLVED repo (see
 /// [`resolve_byos_repo`]): upload the ciphertext with the user's OWN adapter +
-/// token, then confirm metadata (committed = TRUE — git/Telegram commit
+/// token, then confirm metadata (committed = TRUE, git/Telegram commit
 /// atomically and the HF adapter does LFS+commit before returning). The server
 /// never handles the bytes.
 async fn push_chunk_byos_with_repo(
@@ -561,7 +561,7 @@ async fn push_chunk_byos_with_repo(
     };
     // Push to the user's OWN platform, retrying a transient failure a couple of
     // times before giving up. Mirrors the download direct-path's 2-attempt
-    // resilience — a blip reaching e.g. Telegram shouldn't fail the chunk on the
+    // resilience, a blip reaching e.g. Telegram shouldn't fail the chunk on the
     // first try. The sync loop already retries the whole file on a later pass, so
     // this only tightens the retry loop; it adds no new at-least-once risk.
     // NOTE: this is intra-plane (byos) resilience only. A true byos-direct ->

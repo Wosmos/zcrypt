@@ -4,7 +4,7 @@
 //! that are already compressed.
 
 /// Profile levels 1..=3 map to real zstd levels: fastest / default / better.
-/// (Byte output need not match other implementations — only the frame format.)
+/// (Byte output need not match other implementations, only the frame format.)
 fn zstd_level(profile_level: i32) -> i32 {
     match profile_level {
         i32::MIN..=1 => 1,
@@ -14,7 +14,7 @@ fn zstd_level(profile_level: i32) -> i32 {
 }
 
 /// Compress `data`; returns `(compressed, true)` only if it saves ≥ 5%,
-/// otherwise `(original, false)` — identical policy to Go/web.
+/// otherwise `(original, false)`, identical policy to Go/web.
 pub fn compress(data: &[u8], profile_level: i32) -> (Vec<u8>, bool) {
     match zstd::bulk::compress(data, zstd_level(profile_level)) {
         Ok(compressed) if (compressed.len() as f64) < (data.len() as f64) * 0.95 => {
@@ -36,7 +36,7 @@ pub fn decompress(data: &[u8]) -> Result<Vec<u8>, DecompressError> {
     Ok(out)
 }
 
-/// Extensions that are already compressed — skip zstd for these.
+/// Extensions that are already compressed, skip zstd for these.
 /// Matches `sidecar/compression/extensions.go` / the web skip-list exactly.
 const COMPRESSED_EXTENSIONS: &[&str] = &[
     // Images

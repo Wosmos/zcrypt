@@ -1,4 +1,4 @@
-//! Device performance profiles — ported verbatim from
+//! Device performance profiles, ported verbatim from
 //! `sidecar/pipeline/profile.go` (which mirrors the web `device-profile` tiers).
 
 /// Tuning knobs for the pipeline engines.

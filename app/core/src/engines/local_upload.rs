@@ -1,4 +1,4 @@
-//! Local-first upload — port of `sidecar/pipeline/local_upload.go`: hash,
+//! Local-first upload, port of `sidecar/pipeline/local_upload.go`: hash,
 //! derive keys, chunk + compress + encrypt in parallel, stage to disk, record
 //! in the SQLite ledger. Returns instantly relative to network (CPU+disk only);
 //! the sync worker pushes later.
@@ -21,7 +21,7 @@ use super::{pipeline, EngineContext, EngineError};
 
 /// File ids whose chunks are being staged by THIS process right now. A row in
 /// sync_status 'staging' is only meaningful while its encrypting task is alive
-/// (the CEK exists only in that task's memory) — the ledger GC purges 'staging'
+/// (the CEK exists only in that task's memory): the ledger GC purges 'staging'
 /// rows NOT in this set as crash leftovers, and must never touch live ones.
 fn staging_live() -> &'static Mutex<HashSet<String>> {
     static SET: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
@@ -33,7 +33,7 @@ pub(crate) fn is_staging_live(file_id: &str) -> bool {
     staging_live().lock().unwrap().contains(file_id)
 }
 
-/// RAII registration in [`staging_live`] — removed on drop, including on any
+/// RAII registration in [`staging_live`]: removed on drop, including on any
 /// early error return, so a failed staging never leaves a stale "live" mark.
 struct StagingLive(String);
 
@@ -83,12 +83,12 @@ pub async fn run(
     // instead of re-encrypting into a second one. The backend collapses
     // same-content inits onto ONE upload session (FindActiveUploadSession
     // matches sha256+size), so two ledger rows would race each other on that
-    // single session — the loser dies with "upload session is not active"
+    // single session: the loser dies with "upload session is not active"
     // after the winner completes it, showing a false failure for a file that
     // actually uploaded.
     if let Some(existing) = ctx.db.find_active_sibling(&file_sha256, file_size)? {
         eprintln!(
-            "zcrypt upload: {} already in flight as {} ({}) — reusing, not re-encrypting",
+            "zcrypt upload: {} already in flight as {} ({}), reusing, not re-encrypting",
             file_name, existing.id, existing.sync_status
         );
         return Ok(existing.id);
@@ -103,7 +103,7 @@ pub async fn run(
         .map_err(join_err)?;
     let mut cek = crypto::generate_cek();
     let wrapped_cek = crypto::wrap_cek(&kek, &cek)?;
-    // wrap_cek (AES-GCM) already copied kek into its own key schedule — this is
+    // wrap_cek (AES-GCM) already copied kek into its own key schedule. This is
     // kek's only use, so it's safe to wipe now.
     kek.zeroize();
 
@@ -118,7 +118,7 @@ pub async fn run(
     // Placement: byos-direct to the user's own platform when we hold a token,
     // else relay. Persisted so the sync worker and any resume keep this plane.
     let (mode, platform) = super::choose_plane(&ctx.creds);
-    // Inserted as 'staging' — invisible to the sync loop (it drains only
+    // Inserted as 'staging': invisible to the sync loop (it drains only
     // 'pending'/'init_done'/'uploading') until every chunk is staged below.
     // Inserting as 'pending' here let the 1s loop init a session and push/
     // complete against a PARTIAL chunk list while encryption was still running.
@@ -139,7 +139,7 @@ pub async fn run(
     })?;
 
     // 4. Read → process (parallel, bounded) → stage + record. Fallible section
-    // wrapped so a mid-staging failure removes the partial row + staged chunks —
+    // wrapped so a mid-staging failure removes the partial row + staged chunks:
     // a leftover 'staging' row would shadow future uploads of this content via
     // the dedup check above (and can never finish: the CEK dies with this call).
     let staged: Result<(), EngineError> = async {
@@ -169,7 +169,7 @@ pub async fn run(
                 let _permit = permit;
                 let processed = tokio::task::spawn_blocking(move || {
                     // process_chunk's AES-GCM setup copies cek into its own key
-                    // schedule — this per-chunk copy is safe to wipe right after.
+                    // schedule: this per-chunk copy is safe to wipe right after.
                     let mut cek = cek;
                     let result = pipeline::process_chunk(&buf, &cek, should_compress, level);
                     cek.zeroize();
@@ -210,7 +210,7 @@ pub async fn run(
                 );
             }
         }
-        // Every spawned task above captured its own copy of `cek` (it's Copy) —
+        // Every spawned task above captured its own copy of `cek` (it's Copy):
         // this original is no longer needed now that they've all been spawned.
         cek.zeroize();
         while let Some(res) = join.join_next().await {
@@ -241,7 +241,7 @@ pub async fn run(
         return Err(e);
     }
 
-    // All chunks staged — NOW the row becomes visible to sync.
+    // All chunks staged. NOW the row becomes visible to sync.
     ctx.db.update_file_sync_status(&file_id, "pending")?;
 
     emit(
@@ -281,7 +281,7 @@ pub(super) async fn sha256_file(path: &Path) -> Result<String, EngineError> {
     sha256_file_progress(path, |_| {}).await
 }
 
-/// Like [`sha256_file`] but reports cumulative bytes hashed via `on_bytes` — so a
+/// Like [`sha256_file`] but reports cumulative bytes hashed via `on_bytes`, so a
 /// multi-GB hash can drive a moving progress bar instead of sitting frozen (the
 /// "stuck at 0%/deriving_key" the streaming upload showed while hashing).
 pub(super) async fn sha256_file_progress(

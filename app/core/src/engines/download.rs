@@ -1,4 +1,4 @@
-//! Streaming download — replaces `sidecar/pipeline/download.go` (which
+//! Streaming download, replaces `sidecar/pipeline/download.go` (which
 //! buffered whole files in memory) with a bounded pipeline: concurrent chunk
 //! fetches → per-chunk SHA verify → decrypt → decompress → ordered write to a
 //! .part file (feeding the whole-file hasher in order) → integrity check →
@@ -22,7 +22,7 @@ use super::{ordered_writer, pipeline, EngineContext, EngineError};
 
 /// Per-chunk direct-download sources for byos-direct: the owner's locators plus
 /// one own-token adapter per platform. Any chunk absent here (or on a platform
-/// with no creds — e.g. a managed-pool file) falls back to the relay endpoint.
+/// with no creds, e.g. a managed-pool file) falls back to the relay endpoint.
 pub(super) type DirectSources = (
     HashMap<i64, ChunkLocator>,
     HashMap<String, Arc<dyn PlatformAdapter>>,
@@ -31,7 +31,7 @@ pub(super) type DirectSources = (
 /// Best-effort resolve of byos-direct sources. On any failure (not the owner,
 /// endpoint down, no creds) it returns empties and the caller relays everything.
 /// Retries transient network failures (3x, capped backoff) instead of a bare
-/// single `.await` — on a flaky connection that used to silently sit on
+/// single `.await`: on a flaky connection that used to silently sit on
 /// "deriving_key" for the client's full 30s request timeout with no feedback
 /// and no fallback; after the retries are exhausted it still degrades to an
 /// all-relay download rather than failing the whole operation.
@@ -73,11 +73,11 @@ pub(super) async fn resolve_direct_sources(ctx: &EngineContext, file_id: &str) -
 
 /// Acquire one chunk's ENCRYPTED wire bytes. Try byos-direct FIRST but fail fast
 /// (2 tries), then FALL BACK to the backend relay (4 tries). This is the key fix
-/// for a platform unreachable from THIS network — e.g. Telegram in a region that
+/// for a platform unreachable from THIS network, e.g. Telegram in a region that
 /// blocks it: the client can't hit api.telegram.org directly, but the server
 /// can, so relaying still completes instead of hanging on a dead direct source.
-/// A verified-bad chunk (sha mismatch) is retried too — a truncated transfer can
-/// look complete-but-wrong — but never past the caps. Only when BOTH paths are
+/// A verified-bad chunk (sha mismatch) is retried too, a truncated transfer can
+/// look complete-but-wrong, but never past the caps. Only when BOTH paths are
 /// exhausted does it error. Shared by the streaming `download` and the in-memory
 /// `decrypt_to_memory` so the fallback/resilience logic lives in one place.
 pub(super) async fn acquire_chunk(
@@ -148,7 +148,7 @@ pub(super) async fn acquire_chunk(
     })
 }
 
-/// Decrypt (+ decompress) one chunk, then zeroize the caller's key clone — it's
+/// Decrypt (+ decompress) one chunk, then zeroize the caller's key clone, it's
 /// only needed for the AES-GCM cipher setup inside `unprocess_chunk`, which
 /// copies it into its own key schedule, so wiping it here afterward is safe.
 /// CPU-bound; call inside `spawn_blocking`. Shared by `download` and
@@ -190,7 +190,7 @@ pub async fn run(
         });
     };
 
-    // 1. Metadata. Retry the control-plane call — on a flaky/filtered network a
+    // 1. Metadata. Retry the control-plane call: on a flaky/filtered network a
     //    single dropped request here used to kill the whole download before a
     //    byte moved (the "error sending request for url .../meta" failure). The
     //    detail() surfaces reqwest's hidden underlying cause if it still fails.
@@ -205,7 +205,7 @@ pub async fn run(
         .await
         .map_err(|e| {
             let d = e.detail();
-            // Full cause to stderr too — the UI toast truncates it, and this is
+            // Full cause to stderr too: the UI toast truncates it, and this is
             // the one line that says WHY a flaky/filtered network is failing.
             eprintln!("zcrypt download {file_id}: metadata fetch failed after retries: {d}");
             EngineError::Other(format!("fetch metadata: {d}"))
@@ -227,10 +227,10 @@ pub async fn run(
     // 2. Key. `space_key` here is actually the file's ALREADY-RESOLVED content
     //    key, not the space's raw symmetric key: a shared file's CEK is wrapped
     //    under the space key in the SharedVaultFile record (a field the generic
-    //    file-meta response above does NOT carry — meta.wrapped_cek is the
+    //    file-meta response above does NOT carry, meta.wrapped_cek is the
     //    OWNER's passphrase-wrapped envelope, a different ciphertext entirely).
     //    So the caller (lib/spaces.ts's spaceFileKey()) unwraps client-side
-    //    using data it already holds and hands us the final key directly — this
+    //    using data it already holds and hands us the final key directly, this
     //    mirrors the web client's `resolveKey` override exactly (no unwrap
     //    happens here). Passphrase mode (PBKDF2, cached) is unchanged.
     emit(Stage::DerivingKey, 0, total, 0, meta.original_size);
@@ -248,7 +248,7 @@ pub async fn run(
 
     // Whole-file hasher + whether its result is actually comparable against
     // meta.sha256. hmac_v1 files store a per-user KEYED MAC there, which needs
-    // the passphrase (owner/folder path) to recompute — a space download has no
+    // the passphrase (owner/folder path) to recompute: a space download has no
     // passphrase, so it CANNOT verify that MAC. Mirrors the web client's
     // canVerifyHash exactly (lib/download-session.ts): still hash (falling back
     // to plain SHA-256) for uniform per-chunk work, but skip the final
@@ -256,7 +256,7 @@ pub async fn run(
     // produce a value that can never match and make every hmac_v1 space file
     // spuriously "fail" integrity. Per-chunk SHA-256 (already verified during
     // fetch) plus the chunk-count assertion (ordered_writer::drain) are what
-    // space/share downloads rely on instead — same trust level as the
+    // space/share downloads rely on instead: same trust level as the
     // public-share path.
     let mac_key = if meta.sha256_scheme == "hmac_v1" && !is_space_mode {
         let pass = passphrase.to_string();
@@ -275,7 +275,7 @@ pub async fn run(
         None => ContentHasher::new("plain", None),
     };
     // HMAC's new_from_slice() above already copied the key into its own
-    // internal state — this caller-side copy is no longer needed.
+    // internal state: this caller-side copy is no longer needed.
     if let Some(mut mk) = mac_key {
         mk.zeroize();
     }
@@ -296,8 +296,8 @@ pub async fn run(
     ));
     // byos-direct telemetry: how many chunks go straight to the user's storage
     // (zero server egress) vs. fall back to the relay. Logged at the end so we
-    // can verify the whole point of the migration — bytes not touching the
-    // server — is actually happening on this device.
+    // can verify the whole point of the migration, bytes not touching the
+    // server: is actually happening on this device.
     let mut direct_chunks = 0u32;
     let mut relay_chunks = 0u32;
     let mut fetchers: tokio::task::JoinSet<Result<(), EngineError>> = tokio::task::JoinSet::new();
@@ -342,7 +342,7 @@ pub async fn run(
                 .map_err(|_| EngineError::Other("writer gone".into()))
         });
     }
-    // Every fetcher above cloned its own copy of `key` — this original is no
+    // Every fetcher above cloned its own copy of `key`, this original is no
     // longer needed now that all of them have been spawned.
     key.zeroize();
     drop(tx);
@@ -370,7 +370,7 @@ pub async fn run(
 
     // Drain fetchers, preferring a real fetcher error (including a Cancelled
     // from an in-flight task) over the sink's generic "writer gone". On ANY
-    // error — failure OR cancel — remove the partial .part file so a stopped
+    // error (failure OR cancel) remove the partial .part file so a stopped
     // download never leaves a half-written artifact behind.
     let mut first_err: Option<EngineError> = None;
     while let Some(res) = fetchers.join_next().await {
@@ -401,7 +401,7 @@ pub async fn run(
         .map_err(|e| EngineError::Io(e.into_error()))?
         .sync_all()?;
 
-    // 4. Whole-file integrity — only enforced when it's actually meaningful;
+    // 4. Whole-file integrity: only enforced when it's actually meaningful;
     //    see the mac_key/can_verify_hash comment above.
     emit(
         Stage::Verifying,
@@ -414,7 +414,7 @@ pub async fn run(
     if can_verify_hash && got != meta.sha256 {
         let _ = tokio::fs::remove_file(&part_path).await;
         return Err(EngineError::Integrity(
-            "content hash mismatch — wrong passphrase or corrupt data".into(),
+            "content hash mismatch: wrong passphrase or corrupt data".into(),
         ));
     }
 

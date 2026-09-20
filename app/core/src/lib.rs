@@ -1,4 +1,4 @@
-//! zcrypt-core — the shared client engine.
+//! zcrypt-core, the shared client engine.
 //!
 //! One crate powering the desktop (Tauri) and mobile shells: zero-knowledge
 //! crypto, the chunk pipeline, the local SQLite ledger, backend API client,

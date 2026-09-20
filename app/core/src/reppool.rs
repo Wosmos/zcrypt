@@ -1,4 +1,4 @@
-//! Client-side repo pool — port of `app/backend/reppool/manager.go`, operating
+//! Client-side repo pool, port of `app/backend/reppool/manager.go`, operating
 //! with the user's OWN platform token. Repos the client creates are registered
 //! with the backend control plane (`POST /api/repos/register`) so the server's
 //! index, quota cross-checks, and reconcile keep working.
@@ -12,7 +12,7 @@ use aes_gcm::aead::OsRng;
 use async_trait::async_trait;
 
 /// Where the pool's repo records live. Implemented by the control-plane API
-/// (list/register/usage) — kept as a trait so engine tests can use an
+/// (list/register/usage): kept as a trait so engine tests can use an
 /// in-memory store.
 #[async_trait]
 pub trait RepoStore: Send + Sync {
@@ -88,7 +88,7 @@ impl<'a> Pool<'a> {
     }
 }
 
-/// Globally-unique repo id: readable prefix + random suffix — same scheme as
+/// Globally-unique repo id: readable prefix + random suffix, same scheme as
 /// the backend's `newRepoID` (random disguise names may repeat; the PK must not).
 pub fn new_repo_id(platform: &str, account: &str, name: &str) -> String {
     let mut b = [0u8; 6];
@@ -96,7 +96,7 @@ pub fn new_repo_id(platform: &str, account: &str, name: &str) -> String {
     format!("{platform}_{account}_{name}_{}", hex::encode(b))
 }
 
-/// Per-platform rotation thresholds — mirrors `cmd/server.go:313`.
+/// Per-platform rotation thresholds, mirrors `cmd/server.go:313`.
 pub fn default_threshold(platform: &str) -> i64 {
     const MB: i64 = 1024 * 1024;
     const GB: i64 = 1024 * MB;

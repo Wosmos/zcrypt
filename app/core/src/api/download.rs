@@ -1,4 +1,4 @@
-//! Download-side control-plane calls — port of `sidecar/api/download.go` plus
+//! Download-side control-plane calls, port of `sidecar/api/download.go` plus
 //! the byos-direct locators endpoint.
 
 use super::client::{ApiError, Client};
@@ -11,7 +11,7 @@ impl Client {
             .await
     }
 
-    /// GET /api/files/{id}/chunks/{idx} — relay download. Integrity metadata
+    /// GET /api/files/{id}/chunks/{idx}, relay download. Integrity metadata
     /// arrives in the X-Chunk-* headers.
     pub async fn get_chunk(&self, file_id: &str, idx: i64) -> Result<ChunkDownload, ApiError> {
         let resp = self
@@ -34,7 +34,7 @@ impl Client {
         })
     }
 
-    /// GET /api/files/{id}/locators — owner-only per-chunk platform locations
+    /// GET /api/files/{id}/locators, owner-only per-chunk platform locations
     /// for byos-direct downloads.
     pub async fn get_file_locators(&self, file_id: &str) -> Result<FileLocatorsResponse, ApiError> {
         self.send_json(|http, base| http.get(format!("{base}/api/files/{file_id}/locators")))

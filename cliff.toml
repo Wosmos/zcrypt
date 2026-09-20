@@ -1,4 +1,4 @@
-# git-cliff configuration — generates CHANGELOG.md from conventional commits.
+# git-cliff configuration: generates CHANGELOG.md from conventional commits.
 # Run locally with `git cliff -o CHANGELOG.md`; CI regenerates it on each tag
 # (see .github/workflows/release.yml).
 

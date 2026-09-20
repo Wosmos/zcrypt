@@ -2,7 +2,7 @@
 name = "zcrypt-desktop"
 version = "0.1.0"
 edition = "2024"
-description = "zcrypt desktop — zero-knowledge encrypted cloud storage"
+description = "zcrypt desktop, zero-knowledge encrypted cloud storage"
 license = "MIT"
 
 [lib]

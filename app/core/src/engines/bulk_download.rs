@@ -1,14 +1,14 @@
 //! Bulk download: fetch N files (reusing the streaming `download` engine per
-//! file — byos-direct, DNS/relay-fallback resilience, whole-file integrity,
+//! file: byos-direct, DNS/relay-fallback resilience, whole-file integrity,
 //! all unchanged) and pack them into ONE ZIP. Streams one file at a time
 //! through a scratch temp path, so at most one file's plaintext exists on
-//! disk (never fully in memory) at any moment — not the sum of the whole
+//! disk (never fully in memory) at any moment, not the sum of the whole
 //! batch, which the in-browser implementation held simultaneously (hence its
 //! 2GB total cap).
 //!
 //! Matches the existing in-browser bulk-ZIP behavior exactly: any single
 //! file's failure (wrong passphrase, integrity, network) aborts the WHOLE
-//! batch — never a partial zip of "whichever files happened to succeed" —
+//! batch, never a partial zip of "whichever files happened to succeed",
 //! and duplicate filenames get a " (1)", " (2)", ... suffix.
 
 use std::collections::HashSet;
@@ -23,7 +23,7 @@ use super::{EngineContext, EngineError};
 pub struct BulkFile {
     pub file_id: String,
     pub filename: String,
-    /// This file's OWN resolved passphrase — the vault passphrase for an
+    /// This file's OWN resolved passphrase: the vault passphrase for an
     /// unprotected file, or the relevant folder password for a
     /// protected-folder file. Per-file (not one shared passphrase for the
     /// whole batch) because a bulk selection can span files from DIFFERENT
@@ -45,7 +45,7 @@ pub async fn run(
         .unwrap_or_else(|| Path::new("."));
     let result = run_inner(ctx, files, user_id, save_path, scratch_dir).await;
     if result.is_err() {
-        // Never leave a partial/corrupt zip behind — same principle as
+        // Never leave a partial/corrupt zip behind, same principle as
         // download's own .zcrypt-part cleanup on failure.
         let _ = std::fs::remove_file(save_path);
     }
@@ -94,7 +94,7 @@ async fn run_inner(
 }
 
 /// Claims `name` as-is if unused, otherwise finds the first free
-/// "base (n).ext" suffix — mirrors lib/bulk-download.ts's exact scheme.
+/// "base (n).ext" suffix, mirrors lib/bulk-download.ts's exact scheme.
 fn dedupe_name(name: &str, used: &mut HashSet<String>) -> String {
     if used.insert(name.to_string()) {
         return name.to_string();
@@ -124,8 +124,8 @@ mod tests {
     use crate::profiles;
     use crate::types::Progress;
 
-    // A pre-cancelled transfer must abort at the first file boundary — before
-    // any network call — and leave no partial zip behind. Exercises the real
+    // A pre-cancelled transfer must abort at the first file boundary, before
+    // any network call, and leave no partial zip behind. Exercises the real
     // run() -> run_inner() -> ctx.check_cancel()? path without a mock HTTP
     // harness (the client points at a dead address that is never contacted
     // because the cancel check fires first).
@@ -167,7 +167,7 @@ mod tests {
     fn zip_writer_round_trips_multiple_entries() {
         // Exercises the exact ZipWriter::start_file + io::copy + finish
         // sequence run_inner uses, independent of download::run's network
-        // dependency (no mock HTTP harness in this crate — see the #5
+        // dependency (no mock HTTP harness in this crate. See the #5
         // integrity-scheme tests for the same constraint). Reads the result
         // back via ZipArchive to prove the bytes are genuinely recoverable,
         // not just "no error was returned."

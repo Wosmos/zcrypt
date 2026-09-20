@@ -1,4 +1,4 @@
-//! Cross-implementation conformance — Rust verifier.
+//! Cross-implementation conformance. Rust verifier.
 //!
 //! Verifies zcrypt-core against the shared fixture
 //! `app/backend/crypto/testvectors/vectors.json` (normative spec:
@@ -96,7 +96,7 @@ fn load() -> Vectors {
         env!("CARGO_MANIFEST_DIR"),
         "/../backend/crypto/testvectors/vectors.json"
     );
-    let data = std::fs::read_to_string(path).expect("vectors.json missing — see its README");
+    let data = std::fs::read_to_string(path).expect("vectors.json missing. See its README");
     serde_json::from_str(&data).expect("vectors.json parse")
 }
 
@@ -197,7 +197,7 @@ fn conformance_zstd_roundtrip() {
     }
 }
 
-/// Encrypt side (random IV) — every other implementation must be able to read
+/// Encrypt side (random IV): every other implementation must be able to read
 /// what this one writes; locally we prove round-trip + tamper rejection.
 #[test]
 fn encrypt_roundtrip_and_tamper() {

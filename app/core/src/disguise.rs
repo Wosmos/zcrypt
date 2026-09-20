@@ -1,4 +1,4 @@
-//! Disguised repo/file naming — ported from `app/backend/disguise` so
+//! Disguised repo/file naming, ported from `app/backend/disguise` so
 //! client-created repos and chunk paths are indistinguishable from the
 //! server-created ones.
 
@@ -54,7 +54,7 @@ pub fn chunk_filename() -> String {
     format!("{}.bin", random_hex8())
 }
 
-/// Sharded chunk path, e.g. `ab/cdef1234567890.bin` (git platforms — keeps any
+/// Sharded chunk path, e.g. `ab/cdef1234567890.bin` (git platforms, keeps any
 /// single folder well under HuggingFace's 10k entries-per-folder limit).
 pub fn sharded_chunk_filename() -> String {
     let name = random_hex8();

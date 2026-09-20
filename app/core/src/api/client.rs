@@ -15,7 +15,7 @@ use tokio::sync::Mutex;
 /// nameservers (Cloudflare 1.1.1.1) with its own cache. The OS resolver on
 /// macOS reads a stale/misconfigured /etc/resolv.conf and, under a large
 /// download's concurrent-connection fan-out, intermittently returns EAI_NONAME
-/// ("failed to lookup address information") — the DNS errors that stalled and
+/// ("failed to lookup address information"): the DNS errors that stalled and
 /// killed downloads while curl/the browser (using cached OS lookups) worked.
 /// This gives one reliable, cached lookup per host, independent of the flaky
 /// local resolver.
@@ -68,7 +68,7 @@ pub enum ApiError {
     Http(#[from] reqwest::Error),
     #[error("api {status}: {body}")]
     Status { status: u16, body: String },
-    #[error("unauthorized — token refresh failed")]
+    #[error("unauthorized, token refresh failed")]
     Unauthorized,
     #[error("{0}")]
     Other(String),
@@ -77,7 +77,7 @@ pub enum ApiError {
 impl ApiError {
     /// Full cause chain. reqwest 0.12's Display collapses every transport
     /// failure to a generic "error sending request for url (...)" and drops the
-    /// underlying reason (DNS failure, connection reset, timeout, TLS) — walk
+    /// underlying reason (DNS failure, connection reset, timeout, TLS), walk
     /// source() so a flaky/filtered-network failure is actually diagnosable.
     pub fn detail(&self) -> String {
         let mut out = self.to_string();
@@ -182,7 +182,7 @@ impl Client {
 
     /// Send a request with bearer auth; on 401, refresh once and retry.
     /// `build` receives (http, base_url) and must produce a fresh RequestBuilder
-    /// each attempt (bodies aren't reusable — this also fixes the sidecar's
+    /// each attempt (bodies aren't reusable. This also fixes the sidecar's
     /// consumed-body-on-retry bug).
     pub async fn send<F>(&self, build: F) -> Result<reqwest::Response, ApiError>
     where
@@ -222,7 +222,7 @@ impl Client {
     }
 
     /// Retry `op` up to `attempts` times with exponential backoff
-    /// (500ms · 2^n, capped 8s). Real backoff — the Go helper was a no-op.
+    /// (500ms · 2^n, capped 8s). Real backoff: the Go helper was a no-op.
     pub async fn with_retry<T, Fut, Op>(&self, attempts: u32, mut op: Op) -> Result<T, ApiError>
     where
         Op: FnMut() -> Fut,

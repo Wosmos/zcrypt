@@ -1,7 +1,7 @@
-//! Telegram platform adapter — port of `app/backend/adapters/telegram.go`.
+//! Telegram platform adapter, port of `app/backend/adapters/telegram.go`.
 //!
 //! Files are sent as documents to the configured chat/channel via the Bot API.
-//! Bot API limits: 50MB upload, but only 20MB download via `getFile` — so
+//! Bot API limits: 50MB upload, but only 20MB download via `getFile`, so
 //! chunks larger than 19MB are transparently split into sub-parts.
 //!
 //! `remote_path` format (the stored locator, identical to the Go backend):
@@ -30,7 +30,7 @@ const RETRY_BASE: Duration = Duration::from_secs(2);
 const PLATFORM: &str = "telegram";
 
 /// Telegram Bot API adapter. `account` is the chat id (`@channel_username` or
-/// a numeric id) — the chat IS the storage location; there are no repos.
+/// a numeric id): the chat IS the storage location; there are no repos.
 pub struct Telegram {
     token: String,
     chat_id: String,
@@ -44,7 +44,7 @@ impl Telegram {
             .connect_timeout(Duration::from_secs(30))
             .pool_idle_timeout(Duration::from_secs(90))
             .pool_max_idle_per_host(4)
-            // No overall request timeout — uploads can be large (matches the
+            // No overall request timeout: uploads can be large (matches the
             // timeout-less Go upload client).
             .build()
             .expect("build reqwest client");
@@ -176,7 +176,7 @@ impl PlatformAdapter for Telegram {
         PLATFORM
     }
 
-    /// Telegram doesn't have repos — the chat_id IS the storage location.
+    /// Telegram doesn't have repos: the chat_id IS the storage location.
     /// The pool manager still needs a unique name, so combine chat_id + name.
     async fn create_repo(&self, name: &str) -> Result<String, AdapterError> {
         Ok(format!("tg:{}/{}", self.chat_id, name))
@@ -194,7 +194,7 @@ impl PlatformAdapter for Telegram {
         let mut part_refs = Vec::new();
 
         if data.len() <= MAX_PART_SIZE {
-            // Single part — fits within the Telegram download limit.
+            // Single part: fits within the Telegram download limit.
             let (msg_id, file_id) = self.send_document_with_retry(&data, &remote_path).await?;
             part_refs.push(format!("{msg_id}:{file_id}"));
         } else {
@@ -351,7 +351,7 @@ fn parse_envelope<T: DeserializeOwned>(
 // --- pure helpers ---
 
 /// Whether a failed sendDocument should be retried: transient transport
-/// errors, rate limits, and HTTP 429/500 — mirroring the Go adapter's
+/// errors, rate limits, and HTTP 429/500, mirroring the Go adapter's
 /// `isRetryable(err) || "429" || "500"` check.
 fn is_retryable(err: &AdapterError) -> bool {
     match err {
@@ -362,7 +362,7 @@ fn is_retryable(err: &AdapterError) -> bool {
     }
 }
 
-/// Whether a deleteMessage failure is terminal — the message is already gone
+/// Whether a deleteMessage failure is terminal: the message is already gone
 /// or the Bot API will never allow deleting it.
 fn is_delete_final(err: &AdapterError) -> bool {
     let msg = err.to_string().to_lowercase();

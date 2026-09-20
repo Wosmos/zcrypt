@@ -1,10 +1,10 @@
-//! Multi-platform placement policy — decides WHICH of the user's connected
+//! Multi-platform placement policy: decides WHICH of the user's connected
 //! platforms receives a file (whole file: chunks never split across platforms,
 //! preserving the resume/download model).
 //!
 //! rclone-union-style create policy, constraint-aware: filter ineligible
 //! platforms (capacity, rate budget, health), score the survivors, pick the
-//! best. Telegram is weighted highest for large/bulk work — it is the only
+//! best. Telegram is weighted highest for large/bulk work. It is the only
 //! backend with unlimited capacity and no commit-rate wall; HuggingFace is the
 //! scarcest (100 GB/account + ~128 commits/hr) and scores lowest.
 
@@ -34,7 +34,7 @@ pub struct PlatformState {
     pub healthy: bool,
 }
 
-/// Base preference under `Smart` — capacity-unlimited and rate-generous first.
+/// Base preference under `Smart`, capacity-unlimited and rate-generous first.
 fn base_weight(platform: &str) -> f64 {
     match platform {
         "telegram" => 1.0,
