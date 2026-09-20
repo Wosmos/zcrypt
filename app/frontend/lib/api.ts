@@ -609,6 +609,19 @@ export interface AdminDownloadsResponse {
   release: ReleaseInfo | null;
 }
 
+/**
+ * Stamp that the user has seen onboarding, so it is never shown again.
+ *
+ * Called from BOTH exits of the flow, finishing and skipping, because the
+ * screen's job is to explain the product once rather than to force a storage
+ * connection. Users who carry on with shared storage get the dashboard banner
+ * instead. Fire and forget: a failure here must never trap someone on the
+ * onboarding screen.
+ */
+export function markOnboarded(): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>("/api/onboarding/complete", { method: "POST" });
+}
+
 export function adminGetDownloads(days = 30): Promise<AdminDownloadsResponse> {
   return request<AdminDownloadsResponse>(`/api/admin/downloads?days=${days}`);
 }

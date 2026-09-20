@@ -355,6 +355,20 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAUL
 ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name TEXT NOT NULL DEFAULT '';
 ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT NOT NULL DEFAULT '';
 
+-- When the user finished (or deliberately skipped) onboarding. NULL means they
+-- have never seen it. This has to live on the server, not in localStorage:
+-- onboarding is the only screen that explains what zcrypt is, so "show it once"
+-- must mean once per person, not once per browser.
+--
+-- It also has to be its own column rather than being inferred from connected
+-- storage. A shared global token makes every platform report connected, so
+-- every new account looked finished and nobody ever saw the screen.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarded_at TIMESTAMPTZ DEFAULT NULL;
+
+-- Existing accounts are treated as already onboarded. They have been using the
+-- product for months; showing them a welcome screen now would be absurd.
+UPDATE users SET onboarded_at = created_at WHERE onboarded_at IS NULL;
+
 -- TOTP replay protection: the last accepted time-step counter (RFC 6238 §5.2).
 -- A code is one-time-use: verification only succeeds if its counter is
 -- strictly greater than this value.

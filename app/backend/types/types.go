@@ -206,21 +206,26 @@ type UploadCompleteRequest struct {
 
 // User represents a registered user.
 type User struct {
-	ID            string    `json:"id"`
-	Email         string    `json:"email"`
-	Username      string    `json:"username"`
-	DisplayName   string    `json:"display_name"`
-	AvatarURL     string    `json:"avatar_url"`
-	PasswordHash  string    `json:"-"`
-	EmailVerified bool      `json:"email_verified"`
-	TOTPSecret    string    `json:"-"`
-	TOTPEnabled   bool      `json:"totp_enabled"`
-	Role          Role      `json:"role"`
-	TokenVersion  int       `json:"-"`
-	Plan          string    `json:"plan"`
-	StorageQuota  *int64    `json:"storage_quota,omitempty"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	ID            string `json:"id"`
+	Email         string `json:"email"`
+	Username      string `json:"username"`
+	DisplayName   string `json:"display_name"`
+	AvatarURL     string `json:"avatar_url"`
+	PasswordHash  string `json:"-"`
+	EmailVerified bool   `json:"email_verified"`
+	TOTPSecret    string `json:"-"`
+	TOTPEnabled   bool   `json:"totp_enabled"`
+	Role          Role   `json:"role"`
+	TokenVersion  int    `json:"-"`
+	Plan          string `json:"plan"`
+	StorageQuota  *int64 `json:"storage_quota,omitempty"`
+	// OnboardedAt is nil until the user has seen onboarding. The client uses it
+	// to decide whether to show that screen, which cannot be inferred from
+	// connected storage: a shared global token makes every platform report
+	// connected, so every new account looked finished.
+	OnboardedAt *time.Time `json:"onboarded_at,omitempty"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
 }
 
 // RefreshToken tracks a user's active refresh token.

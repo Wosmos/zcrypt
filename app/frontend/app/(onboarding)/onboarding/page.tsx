@@ -11,6 +11,8 @@ import { toast } from "@/store/toast";
 import { PlatformIcon } from "@/components/icons/platform-icon";
 import { PLATFORMS } from "@/lib/platforms";
 import { ArrowRight, Lock, Zap, Shield, Key, CheckCircle2, SkipForward } from "@/lib/icons";
+import { markOnboarded } from "@/lib/api";
+import { useAuthStore } from "@/store/auth";
 import { LogoIcon } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
 
@@ -64,8 +66,20 @@ export default function OnboardingPage() {
     }
   };
 
-  const handleSkip = () => {
+  // Both exits stamp onboarded_at, so this screen is shown once per person and
+  // never again. Skipping counts: the point is to explain the product, not to
+  // force a storage connection. Fire and forget, because a failed stamp must
+  // not trap anyone here; the worst case is seeing this screen twice.
+  const finishOnboarding = () => {
+    void markOnboarded().catch(() => {});
+    useAuthStore.setState((prev) =>
+      prev.user ? { user: { ...prev.user, onboarded_at: new Date().toISOString() } } : prev,
+    );
     router.push("/dashboard");
+  };
+
+  const handleSkip = () => {
+    finishOnboarding();
   };
 
   const stepIndex = ["welcome", "platform", "token", "done"].indexOf(step);
@@ -265,7 +279,7 @@ export default function OnboardingPage() {
                 Start uploading encrypted files to your vault.
               </p>
             </div>
-            <Button className="w-full" size="lg" onClick={() => router.push("/dashboard")}>
+            <Button className="w-full" size="lg" onClick={finishOnboarding}>
               Go to Vault <ArrowRight className="h-4 w-4" />
             </Button>
           </div>

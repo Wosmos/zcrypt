@@ -118,6 +118,13 @@ export interface AuthUser {
   role: Role;
   email_verified: boolean;
   totp_enabled: boolean;
+  /**
+   * Absent until the user has seen onboarding. This cannot be inferred from
+   * connected storage: a shared global token makes every platform report
+   * connected, so every new account looked finished and nobody ever saw the
+   * one screen that explains what zcrypt is.
+   */
+  onboarded_at?: string;
   created_at: string;
   updated_at: string;
 }

@@ -673,6 +673,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("PUT /api/config", maxJSON(s.AdminMiddleware(s.HandleUpdateConfig)))
 	mux.HandleFunc("GET /api/events", s.HandleSSE) // SSE auth via query param
 	mux.HandleFunc("GET /api/quota", s.AuthMiddleware(s.HandleGetQuota))
+	mux.HandleFunc("POST /api/onboarding/complete", s.AuthMiddleware(s.HandleMarkOnboarded))
 
 	// Client-side encrypted upload (chunked)
 	mux.HandleFunc("POST /api/upload/init", maxJSON(s.AuthMiddleware(s.HandleUploadInit)))

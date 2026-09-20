@@ -35,7 +35,7 @@ func (db *DB) CreateUser(ctx context.Context, u *types.User) error {
 // GetUserByEmail retrieves a user by email.
 func (db *DB) GetUserByEmail(ctx context.Context, email string) (*types.User, error) {
 	return db.scanUser(ctx,
-		`SELECT id, email, username, display_name, avatar_url, password_hash, email_verified, totp_secret, totp_enabled, role, plan, storage_quota_bytes, COALESCE(token_version, 0), created_at, updated_at
+		`SELECT id, email, username, display_name, avatar_url, password_hash, email_verified, totp_secret, totp_enabled, role, plan, storage_quota_bytes, COALESCE(token_version, 0), onboarded_at, created_at, updated_at
 		 FROM users WHERE email = $1`, email,
 	)
 }
@@ -43,7 +43,7 @@ func (db *DB) GetUserByEmail(ctx context.Context, email string) (*types.User, er
 // GetUserByID retrieves a user by ID.
 func (db *DB) GetUserByID(ctx context.Context, id string) (*types.User, error) {
 	return db.scanUser(ctx,
-		`SELECT id, email, username, display_name, avatar_url, password_hash, email_verified, totp_secret, totp_enabled, role, plan, storage_quota_bytes, COALESCE(token_version, 0), created_at, updated_at
+		`SELECT id, email, username, display_name, avatar_url, password_hash, email_verified, totp_secret, totp_enabled, role, plan, storage_quota_bytes, COALESCE(token_version, 0), onboarded_at, created_at, updated_at
 		 FROM users WHERE id = $1`, id,
 	)
 }
@@ -51,7 +51,7 @@ func (db *DB) GetUserByID(ctx context.Context, id string) (*types.User, error) {
 // GetUserByUsername retrieves a user by username.
 func (db *DB) GetUserByUsername(ctx context.Context, username string) (*types.User, error) {
 	return db.scanUser(ctx,
-		`SELECT id, email, username, display_name, avatar_url, password_hash, email_verified, totp_secret, totp_enabled, role, plan, storage_quota_bytes, COALESCE(token_version, 0), created_at, updated_at
+		`SELECT id, email, username, display_name, avatar_url, password_hash, email_verified, totp_secret, totp_enabled, role, plan, storage_quota_bytes, COALESCE(token_version, 0), onboarded_at, created_at, updated_at
 		 FROM users WHERE username = $1`, username,
 	)
 }
@@ -60,7 +60,7 @@ func (db *DB) scanUser(ctx context.Context, query string, args ...interface{}) (
 	row := db.pool.QueryRow(ctx, query, args...)
 	u := &types.User{}
 	err := row.Scan(&u.ID, &u.Email, &u.Username, &u.DisplayName, &u.AvatarURL, &u.PasswordHash,
-		&u.EmailVerified, &u.TOTPSecret, &u.TOTPEnabled, &u.Role, &u.Plan, &u.StorageQuota, &u.TokenVersion, &u.CreatedAt, &u.UpdatedAt)
+		&u.EmailVerified, &u.TOTPSecret, &u.TOTPEnabled, &u.Role, &u.Plan, &u.StorageQuota, &u.TokenVersion, &u.OnboardedAt, &u.CreatedAt, &u.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("get user: %w", err)
 	}
@@ -452,4 +452,18 @@ func (db *DB) DeleteEmailToken(ctx context.Context, id string) error {
 func (db *DB) DeleteEmailTokensByUser(ctx context.Context, userID, kind string) error {
 	_, err := db.pool.Exec(ctx, `DELETE FROM email_tokens WHERE user_id = $1 AND kind = $2`, userID, kind)
 	return err
+}
+
+// MarkUserOnboarded stamps onboarded_at the first time a user finishes or
+// skips onboarding. Idempotent: the WHERE guard keeps the original timestamp,
+// so a second call cannot rewrite when they actually saw it.
+func (db *DB) MarkUserOnboarded(ctx context.Context, userID string) error {
+	_, err := db.pool.Exec(ctx,
+		`UPDATE users SET onboarded_at = NOW() WHERE id = $1 AND onboarded_at IS NULL`,
+		userID,
+	)
+	if err != nil {
+		return fmt.Errorf("mark user onboarded: %w", err)
+	}
+	return nil
 }

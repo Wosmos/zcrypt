@@ -6,7 +6,6 @@ import { useAuthStore } from "@/store/auth";
 import { getMe } from "@/lib/auth-api";
 import { refreshToken as refreshTokenApi } from "@/lib/auth-api";
 import { prefetchFileList } from "@/store/files";
-import { ensurePlatformStatus } from "@/store/platform";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { isTauri, startSync } from "@/lib/tauri";
 
@@ -33,20 +32,27 @@ export function AuthGuard({
   useEffect(() => {
     if (initialized) return;
 
-    // Background onboarding check: fetch platform health once (shared/deduped with
-    // usePlatformHealth) and redirect to /onboarding only if nothing is connected.
-    // Never blocks initialization, so the dashboard renders immediately.
+    // Show onboarding to anyone who has never seen it, full stop.
+    //
+    // This used to ask "is any platform connected?" and redirect only when the
+    // answer was no. That answer is always yes: zcrypt runs a shared global
+    // token so a brand new user can upload immediately, and a global token
+    // makes every platform report connected. So the redirect never fired, and
+    // nobody ever saw the one screen that explains what the product is or that
+    // they can plug in their own storage. 22 people verified an email and 8
+    // ever stored a file.
+    //
+    // onboarded_at is a server-side stamp, so this means once per person, not
+    // once per browser. Users who skip still get stamped: the screen's job is
+    // to explain the product once, not to force a connection. Those who carry
+    // on with shared storage are nudged later by the dashboard banner instead.
     const runOnboardingCheck = () => {
       if (skipOnboardingCheck) return;
-      void ensurePlatformStatus().then((statuses) => {
-        // Empty means either nothing connected OR a transient error; only the
-        // genuinely-empty connected set should bounce to onboarding, and an
-        // error resolves to [] which we treat as "leave them where they are".
-        if (statuses.length > 0 && !statuses.some((s) => s.connected)) {
-          setRedirecting(true);
-          router.replace("/onboarding");
-        }
-      });
+      const current = useAuthStore.getState().user;
+      if (current && !current.onboarded_at) {
+        setRedirecting(true);
+        router.replace("/onboarding");
+      }
     };
 
     async function init() {

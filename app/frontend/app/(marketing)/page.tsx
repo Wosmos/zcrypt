@@ -81,7 +81,7 @@ const howItWorksSteps = [
 const objections = [
   {
     q: "Do I need a GitHub account?",
-    a: "Yes, and that's the point. Your files live in storage you own, so there are no artificial limits and nothing is locked to us.",
+    a: "No. Sign up and start storing files straight away, nothing to connect. When you want more room, link an account you already have (GitHub, GitLab, Hugging Face or Telegram) and your storage becomes unlimited, because it is yours.",
   },
   {
     q: "Is this allowed by the platforms?",
