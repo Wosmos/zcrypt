@@ -1,0 +1,662 @@
+/* Shared base for the four prototypes: reset, type, nav, buttons, common
+   sections, footer, sticky mobile CTA, reduced-motion. Each direction's own
+   styles.css layers on top and may override anything here. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: auto;
+  /* Pinned sections flip between in-flow and fixed; without this Chrome's
+     scroll anchoring "corrects" the scroll position when they do. */
+  overflow-anchor: none;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: clip;
+}
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+a {
+  color: inherit;
+  text-decoration: none;
+}
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border: 0;
+  background: none;
+}
+textarea {
+  font: inherit;
+}
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+h1,
+h2,
+h3,
+.head {
+  font-family: var(--font-head);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+.mono {
+  font-family: var(--font-mono);
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.wrap {
+  width: min(var(--max), 100% - var(--gutter) * 2);
+  margin-inline: auto;
+}
+.kicker {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.kicker.accent {
+  color: var(--accent);
+}
+.lede {
+  color: var(--text-2);
+  font-size: clamp(16px, 1.4vw, 19px);
+  line-height: 1.6;
+  max-width: 44ch;
+}
+.section {
+  padding-block: clamp(72px, 10vw, 140px);
+}
+.h2 {
+  font-size: clamp(30px, 4.2vw, 52px);
+  max-width: 18ch;
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 22px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 15px;
+  line-height: 1;
+  white-space: nowrap;
+  transition:
+    transform 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease,
+    color 0.2s ease;
+}
+.btn:active {
+  transform: translateY(1px);
+}
+.btn-primary {
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow: 0 0 0 0 rgba(0, 213, 228, 0);
+}
+.btn-primary:hover {
+  box-shadow: 0 0 32px -6px var(--accent);
+  transform: translateY(-1px);
+}
+.btn-ghost {
+  color: var(--text);
+  border: 1px solid var(--surface-3);
+  background: rgba(255, 255, 255, 0.02);
+}
+.btn-ghost:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.btn-link {
+  color: var(--text-2);
+  padding-inline: 8px;
+}
+.btn-link:hover {
+  color: var(--text);
+}
+
+/* Nav */
+.nav {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+  padding-inline: var(--gutter);
+  background: linear-gradient(rgba(12, 15, 26, 0.9), rgba(12, 15, 26, 0));
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.nav .brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-head);
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: -0.02em;
+}
+.nav .brand svg {
+  width: 28px;
+  height: 28px;
+}
+.nav .links {
+  display: none;
+  gap: 4px;
+  align-items: center;
+}
+.nav .links a {
+  padding: 8px 12px;
+  border-radius: 8px;
+  color: var(--text-2);
+  font-size: 14px;
+}
+.nav .links a:hover {
+  color: var(--text);
+}
+.nav .links .btn-primary,
+.nav .links .btn-primary:hover {
+  color: var(--on-accent);
+}
+.nav .btn {
+  padding: 10px 16px;
+  font-size: 14px;
+}
+@media (min-width: 760px) {
+  .nav .links {
+    display: inline-flex;
+  }
+}
+
+/* Trust row */
+.trust {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 22px;
+  font-size: 13px;
+  color: var(--text-3);
+}
+.trust li {
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.trust li::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
+}
+.trust,
+.trust ul {
+  padding: 0;
+  margin: 0;
+}
+
+/* Byline chip */
+.byline {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px 8px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(20, 24, 41, 0.7);
+  color: var(--text-2);
+  font-size: 13px;
+}
+.byline .dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-deep));
+  display: grid;
+  place-items: center;
+  font-family: var(--font-head);
+  font-weight: 800;
+  font-size: 12px;
+  color: var(--on-accent);
+}
+
+/* Cards */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: clamp(18px, 2.4vw, 28px);
+}
+.card.accent {
+  border-color: rgba(0, 213, 228, 0.3);
+}
+
+/* Story beats (default layout, overridden per direction) */
+.beats {
+  display: grid;
+  gap: 18px;
+}
+.beat {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: 18px;
+  padding: 26px 0;
+  border-top: 1px solid var(--border);
+}
+.beat .num {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--accent);
+  padding-top: 6px;
+}
+.beat h3 {
+  font-size: clamp(22px, 2.6vw, 32px);
+}
+.beat p {
+  margin-top: 10px;
+  color: var(--text-2);
+  max-width: 56ch;
+}
+.beat em {
+  font-style: normal;
+  color: var(--text);
+}
+
+/* 80 percent bar */
+.eighty {
+  display: grid;
+  gap: 16px;
+}
+@media (min-width: 720px) {
+  .eighty {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.eighty .name {
+  margin-top: 12px;
+  font-size: 14px;
+}
+.eighty .size {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-3);
+  margin-top: 4px;
+}
+.eighty .track {
+  margin-top: 16px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.eighty .fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: var(--text-3);
+  transition:
+    width 0.5s ease-out,
+    background-color 0.5s;
+}
+.eighty .fill.dead {
+  background: var(--red);
+}
+.eighty .chunks {
+  margin-top: 16px;
+  display: flex;
+  gap: 4px;
+}
+.eighty .chunk {
+  height: 8px;
+  flex: 1;
+  border-radius: 999px;
+  background: var(--surface-3);
+  transition: background-color 0.3s;
+}
+.eighty .chunk.on {
+  background: var(--accent);
+}
+.eighty .status {
+  margin-top: 12px;
+  font-size: 14px;
+  color: var(--text-3);
+  transition: color 0.3s;
+}
+.eighty .status.dead {
+  color: var(--red);
+}
+.eighty .status.drop {
+  color: var(--amber);
+}
+.eighty .status.done {
+  color: var(--accent);
+}
+.eighty .note {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--text-3);
+}
+
+/* Feature grid */
+.features {
+  display: grid;
+  gap: 16px;
+}
+@media (min-width: 640px) {
+  .features {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (min-width: 1000px) {
+  .features {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+.feat {
+  transition:
+    transform 0.3s ease,
+    border-color 0.3s ease;
+}
+.feat:hover {
+  transform: translateY(-3px);
+  border-color: rgba(0, 213, 228, 0.35);
+}
+.feat .icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  background: var(--surface-1);
+  color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--border);
+  transition: box-shadow 0.3s;
+}
+.feat:hover .icon {
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 213, 228, 0.4),
+    0 0 28px -8px var(--accent);
+}
+.feat .icon svg {
+  width: 36px;
+  height: 36px;
+}
+.feat h3 {
+  margin-top: 18px;
+  font-size: 17px;
+  font-family: var(--font-body);
+  letter-spacing: 0;
+  line-height: 1.3;
+}
+.feat p {
+  margin-top: 8px;
+  font-size: 14px;
+  color: var(--text-2);
+}
+
+/* Live cipher */
+.cipher {
+  display: grid;
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+@media (min-width: 720px) {
+  .cipher {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.cipher > div {
+  background: var(--surface);
+  padding: 22px;
+}
+.cipher textarea {
+  margin-top: 12px;
+  width: 100%;
+  resize: none;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  padding: 12px;
+  font-size: 14px;
+  outline: none;
+}
+.cipher textarea:focus {
+  border-color: var(--accent);
+}
+.cipher .count,
+.cipher .foot {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--text-3);
+}
+.cipher .out {
+  margin-top: 12px;
+  height: 104px;
+  overflow: hidden;
+  word-break: break-all;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--accent);
+  opacity: 0.85;
+}
+.cipher .lockrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cipher .lockrow svg {
+  width: 14px;
+  height: 14px;
+  color: var(--accent);
+}
+
+/* Platform row */
+.platforms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.platforms span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  font-size: 13px;
+  color: var(--text-2);
+}
+.platforms svg {
+  width: 16px;
+  height: 16px;
+  color: var(--accent);
+}
+
+/* Price */
+.price .zero {
+  font-family: var(--font-head);
+  font-weight: 800;
+  font-size: clamp(120px, 26vw, 360px);
+  line-height: 0.85;
+  letter-spacing: -0.06em;
+  color: var(--text);
+}
+.strikes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  color: var(--text-2);
+}
+.strike {
+  position: relative;
+  display: inline-block;
+}
+.strike::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 55%;
+  height: 2px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.45s cubic-bezier(0.7, 0, 0.2, 1);
+}
+.strike.on {
+  color: var(--text-3);
+}
+.strike.on::after {
+  transform: scaleX(1);
+}
+
+/* The catch */
+.catch {
+  border-left: 2px solid var(--amber);
+  padding-left: clamp(18px, 3vw, 36px);
+}
+.catch ul {
+  list-style: none;
+  padding: 0;
+  margin: 24px 0 0;
+  display: grid;
+  gap: 14px;
+}
+.catch li {
+  color: var(--text-2);
+  max-width: 60ch;
+}
+.catch li strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* Footer */
+.footer {
+  border-top: 1px solid var(--border);
+  padding: 40px 0 120px;
+  color: var(--text-3);
+  font-size: 13px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 28px;
+  align-items: center;
+  justify-content: space-between;
+}
+@media (min-width: 760px) {
+  .footer {
+    padding-bottom: 48px;
+  }
+}
+.footer .brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-2);
+}
+.footer .brand svg {
+  width: 20px;
+  height: 20px;
+}
+.footer nav {
+  display: flex;
+  gap: 18px;
+}
+
+/* Sticky mobile CTA */
+.sticky-cta {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 10px 10px 16px;
+  border-radius: 16px;
+  background: rgba(20, 24, 41, 0.92);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transform: translateY(120%);
+  transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.sticky-cta.show {
+  transform: translateY(0);
+}
+.sticky-cta .t {
+  font-size: 13px;
+  color: var(--text-2);
+}
+.sticky-cta .btn {
+  padding: 10px 16px;
+  font-size: 14px;
+}
+@media (min-width: 760px) {
+  .sticky-cta {
+    display: none;
+  }
+}
+
+/* Motion preferences: pages animate only inside gsap.matchMedia; these
+   rules make the CSS-driven bits land in their final state as well. */
+@media (prefers-reduced-motion: reduce) {
+  .strike::after {
+    transform: scaleX(1);
+    transition: none;
+  }
+  .strike {
+    color: var(--text-3);
+  }
+  .sticky-cta {
+    transition: none;
+  }
+}
+
+::selection {
+  background: rgba(0, 213, 228, 0.35);
+}

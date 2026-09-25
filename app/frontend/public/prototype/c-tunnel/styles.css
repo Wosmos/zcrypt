@@ -1,0 +1,322 @@
+/* Direction C, The Tunnel. Layers on shared/base.css. */
+
+/* Scroll runway. The wrapper owns the height; the hero sticks inside it. */
+.hero-wrap {
+  position: relative;
+  height: 600vh;
+}
+.hero {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--bg);
+}
+#tube {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 90% at 50% 50%, transparent 40%, rgba(12, 15, 26, 0.75) 100%),
+    linear-gradient(rgba(12, 15, 26, 0.55), transparent 22%, transparent 78%, rgba(12, 15, 26, 0.7));
+}
+
+/* Static poster for reduced motion or no WebGL. A tube drawn in CSS. */
+.poster {
+  display: none;
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 52%, rgba(0, 213, 228, 0.28) 0, rgba(0, 213, 228, 0.12) 6%, transparent 12%),
+    repeating-radial-gradient(circle at 50% 52%, rgba(0, 213, 228, 0.16) 0 1px, transparent 1px 7%),
+    repeating-conic-gradient(from 0deg at 50% 52%, rgba(0, 213, 228, 0.07) 0 2deg, transparent 2deg 18deg),
+    radial-gradient(circle at 50% 52%, var(--bg) 0, var(--bg) 8%, #0e1222 40%, var(--bg) 75%);
+}
+
+/* HUD */
+.hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.station {
+  position: absolute;
+  opacity: 0;
+  visibility: hidden;
+  will-change: transform, opacity;
+}
+.station .num {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--accent);
+  letter-spacing: 0.1em;
+}
+.station h2 {
+  margin-top: 8px;
+  font-size: clamp(24px, 3vw, 36px);
+}
+.station p {
+  margin-top: 10px;
+  color: var(--text-2);
+  font-size: 15px;
+  max-width: 42ch;
+}
+.box {
+  background: rgba(12, 15, 26, 0.66);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 18px;
+  padding: 22px 26px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.8);
+}
+.s1,
+.s2,
+.s3,
+.s4 {
+  left: var(--gutter);
+  bottom: clamp(64px, 12vh, 140px);
+  width: min(440px, calc(100% - var(--gutter) * 2));
+}
+.s4 {
+  left: 50%;
+  bottom: clamp(40px, 8vh, 96px);
+  text-align: center;
+}
+.s4 p {
+  margin-inline: auto;
+}
+
+/* Station 0, the hero frame */
+.s0 {
+  left: var(--gutter);
+  right: var(--gutter);
+  top: 50%;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+.s0-inner {
+  max-width: 760px;
+  padding: 26px 28px;
+  border-radius: 22px;
+  background: linear-gradient(90deg, rgba(12, 15, 26, 0.78), rgba(12, 15, 26, 0.35) 80%, transparent);
+}
+.h1 {
+  margin-top: 18px;
+  font-size: clamp(38px, 6vw, 84px);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 0.98;
+  max-width: 12ch;
+}
+.h1 .char {
+  display: inline-block;
+}
+.s0 .lede {
+  margin-top: 20px;
+}
+.ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 28px;
+}
+.ctas .btn svg {
+  width: 16px;
+  height: 16px;
+}
+#trust {
+  margin-top: 26px;
+}
+.scroll-cue {
+  display: none;
+  margin-top: 34px;
+  align-items: center;
+  gap: 12px;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.cue-line {
+  width: 64px;
+  height: 1px;
+  background: linear-gradient(90deg, var(--accent), transparent);
+}
+@media (min-width: 760px) {
+  .scroll-cue {
+    display: inline-flex;
+  }
+}
+
+/* Branch mouth labels, positioned from 3D */
+.marks {
+  position: absolute;
+  inset: 0;
+}
+.mark {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px 8px 10px;
+  border-radius: 999px;
+  background: rgba(12, 15, 26, 0.8);
+  border: 1px solid rgba(0, 213, 228, 0.45);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0;
+  box-shadow: 0 0 30px -8px var(--accent);
+  will-change: transform, opacity;
+}
+.mark svg {
+  width: 16px;
+  height: 16px;
+  color: var(--accent);
+}
+
+.hint {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  opacity: 0;
+  white-space: nowrap;
+}
+
+/* Progress rail */
+.rail {
+  position: absolute;
+  right: 22px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: none;
+  flex-direction: column;
+  gap: 14px;
+}
+.rail span {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  transition:
+    background 0.3s,
+    box-shadow 0.3s;
+}
+.rail span.on {
+  background: var(--accent);
+  box-shadow: 0 0 12px var(--accent);
+}
+@media (min-width: 760px) {
+  .rail {
+    display: flex;
+  }
+}
+
+/* Static mode: no WebGL, or reduced motion. Everything visible, in flow. */
+.static .hero-wrap {
+  height: auto;
+}
+.static .hero {
+  position: relative;
+  height: auto;
+  min-height: 100vh;
+  padding: 110px var(--gutter) 60px;
+}
+.static #tube,
+.static .rail,
+.static .hint,
+.static .vignette {
+  display: none;
+}
+.static .poster {
+  display: block;
+}
+.static .hud {
+  position: relative;
+  inset: auto;
+  pointer-events: auto;
+}
+.static .station {
+  position: static;
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  width: auto;
+  max-width: 760px;
+}
+.static .s0-inner {
+  padding-inline: 0;
+  background: none;
+}
+.static .s1,
+.static .s2,
+.static .s3,
+.static .s4 {
+  margin-top: 16px;
+  max-width: 520px;
+  text-align: left;
+}
+.static .marks {
+  position: static;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+.static .mark {
+  position: static;
+  opacity: 1;
+  transform: none;
+}
+
+/* After the tunnel: dark, low chrome, the WebGL stays the hero. */
+#after {
+  position: relative;
+  z-index: 1;
+  background: var(--bg);
+}
+#after .section + .section {
+  border-top: 1px solid var(--border);
+}
+.plug-grid {
+  display: grid;
+  gap: 16px;
+}
+@media (min-width: 760px) {
+  .plug-grid {
+    grid-template-columns: 1fr 1.2fr;
+  }
+}
+.price {
+  position: relative;
+  overflow: hidden;
+}
+.price .zero {
+  background: linear-gradient(180deg, var(--text) 30%, rgba(240, 242, 248, 0.25));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.close {
+  background:
+    radial-gradient(60% 80% at 50% 100%, rgba(0, 213, 228, 0.14), transparent 70%),
+    var(--bg);
+}

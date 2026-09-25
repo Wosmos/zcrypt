@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>zcrypt, free cloud storage that cannot read your files</title>
+<meta name="description" content="Zero-knowledge cloud storage. Sealed on your device, split into pieces, stored in accounts you own. Free, no card." />
+<link rel="icon" href="../../favicon.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../shared/tokens.css" />
+<link rel="stylesheet" href="../shared/base.css" />
+<link rel="stylesheet" href="styles.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/ScrollTrigger.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/SplitText.min.js"></script>
+</head>
+<body class="vault-page">
+
+<!-- ============================================================
+     HERO: the door. Pinned for two viewports. Scroll opens it.
+     ============================================================ -->
+<section class="hero" id="hero">
+  <div class="hero-pin">
+
+    <!-- 3D stage: the room sits behind two hinged leaves. -->
+    <div class="stage" aria-hidden="true">
+      <div class="room">
+        <div class="room-light"></div>
+        <div class="floor"></div>
+        <div class="slabs" data-slabs></div>
+        <div class="room-caption">
+          <p class="kicker accent">Inside</p>
+          <p class="room-line">Nothing in here can be read. Not by us, not by anyone.</p>
+        </div>
+      </div>
+
+      <div class="leaf leaf-l">
+        <div class="plate"></div>
+        <div class="hinge hinge-top"></div>
+        <div class="hinge hinge-bot"></div>
+      </div>
+      <div class="leaf leaf-r">
+        <div class="plate"></div>
+        <div class="dial"></div>
+        <div class="hinge hinge-top"></div>
+        <div class="hinge hinge-bot"></div>
+      </div>
+    </div>
+
+    <!-- Light bleeding through the seam, and the lock on it. 2D layer. -->
+    <div class="seam-glow" aria-hidden="true"></div>
+    <div class="lock-node" aria-hidden="true" data-lock></div>
+
+    <!-- Real text, on top of the door. -->
+    <div class="hero-copy">
+      <div data-byline></div>
+      <h1 class="hero-h1">
+        <span class="decode" data-decode>Free cloud storage that cannot read your files.</span>
+        <span class="sr-only">Free cloud storage that cannot read your files.</span>
+      </h1>
+      <p class="lede hero-sub">Sealed on your device before a byte leaves it. What we store is unreadable to everyone, including us. Free, with no card.</p>
+      <div data-ctas></div>
+      <div data-trust></div>
+    </div>
+
+    <div class="scroll-hint" aria-hidden="true">
+      <span class="scroll-hint-line"></span>
+      <span>Scroll to open</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SIGNATURE: one file becomes eight sealed pieces in four places.
+     Pinned for three viewports, scrubbed both ways.
+     ============================================================ -->
+<section class="pipe" id="pipeline">
+  <div class="pipe-pin">
+    <div class="wrap pipe-grid">
+
+      <div class="pipe-steps">
+        <p class="kicker accent" data-pipe-kicker></p>
+        <h2 class="h2 pipe-h2" data-pipe-h2></h2>
+        <ol class="steps" data-steps></ol>
+        <p class="kicker pipe-hint" data-pipe-hint></p>
+      </div>
+
+      <div class="pipe-scene" aria-hidden="true" data-scene>
+        <div class="pipe-floor"></div>
+        <div class="pipe-stage" data-stage>
+          <!-- nodes injected -->
+          <div class="pipe-card" data-card>
+            <div class="pipe-face slab">
+              <div class="slab-top">
+                <span class="kicker">On your device</span>
+                <span class="mono slab-size">1.2 GB</span>
+              </div>
+              <p class="slab-name">wedding-photos.zip</p>
+              <div class="slab-lines">
+                <i style="width:92%"></i><i style="width:74%"></i><i style="width:86%"></i><i style="width:60%"></i>
+              </div>
+              <p class="mono slab-hex" data-hex-face></p>
+            </div>
+            <div class="pipe-lock" data-pipe-lock></div>
+            <!-- tiles injected -->
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- Standard sections, built from shared copy. -->
+<div id="rest"></div>
+
+<script type="module" src="main.js"></script>
+</body>
+</html>

@@ -1,0 +1,736 @@
+/* Prototype A, The Vault.
+   One motif everywhere: a seam of cyan light, and the lock that sits on it.
+   Every 3D surface is a real CSS transform; no WebGL. */
+
+.vault-page {
+  --seam-x: 86%;
+  --steel-0: #10142a;
+  --steel-1: #171c34;
+  --steel-2: #1f2440;
+  --glow: rgba(0, 213, 228, 0.9);
+}
+@media (min-width: 1024px) {
+  .vault-page {
+    --seam-x: 72%;
+  }
+}
+
+/* ------------------------------------------------------------------
+   HERO
+   ------------------------------------------------------------------ */
+.hero {
+  position: relative;
+  /* No explicit height: ScrollTrigger's pin spacer owns the scroll distance. */
+}
+.hero-pin {
+  position: relative;
+  height: 100dvh;
+  overflow: hidden;
+  perspective: 1400px;
+  perspective-origin: var(--seam-x) 50%;
+  background: #05070f;
+}
+
+.stage {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+}
+
+/* The room behind the door. Lives at negative z so the leaves cover it. */
+.room {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transform: translateZ(-40px);
+  background:
+    radial-gradient(60% 55% at var(--seam-x) 45%, rgba(0, 213, 228, 0.16), transparent 70%),
+    linear-gradient(#070a15, #04060d);
+}
+.room-light {
+  position: absolute;
+  inset: 0;
+  transform: translateZ(-900px) scale(2.2);
+  background: radial-gradient(35% 40% at var(--seam-x) 40%, rgba(0, 213, 228, 0.35), transparent 70%);
+}
+.floor {
+  position: absolute;
+  left: -60%;
+  right: -60%;
+  bottom: -6%;
+  height: 90%;
+  transform-origin: 50% 100%;
+  transform: rotateX(74deg) translateZ(-120px);
+  background:
+    repeating-linear-gradient(90deg, rgba(0, 213, 228, 0.18) 0 1px, transparent 1px 64px),
+    repeating-linear-gradient(0deg, rgba(0, 213, 228, 0.18) 0 1px, transparent 1px 64px);
+  -webkit-mask-image: linear-gradient(to top, #000 20%, transparent 95%);
+  mask-image: linear-gradient(to top, #000 20%, transparent 95%);
+}
+
+/* Sealed slabs floating at different depths. */
+.slabs {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+}
+.slab-3d {
+  position: absolute;
+  width: clamp(150px, 16vw, 230px);
+  padding: 14px 16px 12px;
+  transform-style: preserve-3d;
+  background: linear-gradient(160deg, rgba(38, 43, 71, 0.86), rgba(20, 24, 41, 0.92));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 30px 60px -30px rgba(0, 0, 0, 0.8),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.slab-3d .slab-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--text-3);
+  font-size: 11px;
+}
+.slab-3d .slab-top svg {
+  width: 13px;
+  height: 13px;
+  color: var(--accent);
+}
+.slab-3d .slab-name {
+  margin-top: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.slab-3d .slab-hex {
+  margin-top: 8px;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  color: rgba(0, 213, 228, 0.65);
+  white-space: nowrap;
+  overflow: hidden;
+}
+/* The slab's edge: a thin face rotated out of the plane, carrying ciphertext. */
+.slab-3d .edge {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 100%;
+  width: 16px;
+  transform-origin: left center;
+  transform: rotateY(90deg);
+  background: linear-gradient(90deg, rgba(0, 213, 228, 0.45), rgba(0, 138, 151, 0.25));
+  writing-mode: vertical-rl;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  line-height: 16px;
+  color: var(--on-accent);
+  overflow: hidden;
+  letter-spacing: 0.1em;
+}
+
+.room-caption {
+  position: absolute;
+  left: 50%;
+  bottom: 9%;
+  transform: translateX(-50%) translateZ(60px);
+  text-align: center;
+  opacity: 0;
+}
+.room-line {
+  margin-top: 8px;
+  font-family: var(--font-head);
+  font-weight: 600;
+  font-size: clamp(18px, 2.2vw, 26px);
+  letter-spacing: -0.01em;
+  color: var(--text);
+  text-shadow: 0 0 30px rgba(0, 213, 228, 0.4);
+}
+
+/* The two leaves. Brushed steel from layered gradients, no images. */
+.leaf {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+  background:
+    /* diagonal sheen */
+    linear-gradient(115deg, rgba(255, 255, 255, 0.05) 0%, transparent 35%, transparent 65%, rgba(255, 255, 255, 0.03) 100%),
+    /* brushed grain */
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.018) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.12) 0 2px, transparent 2px 7px),
+    linear-gradient(180deg, var(--steel-2), var(--steel-0));
+  box-shadow: inset 0 0 120px rgba(0, 0, 0, 0.5);
+}
+.leaf-l {
+  left: 0;
+  width: calc(var(--seam-x) - 3px);
+  transform-origin: left center;
+  box-shadow:
+    inset 0 0 120px rgba(0, 0, 0, 0.5),
+    inset -40px 0 80px -40px rgba(0, 213, 228, 0.25);
+}
+.leaf-r {
+  right: 0;
+  width: calc(100% - var(--seam-x) - 3px);
+  transform-origin: right center;
+  box-shadow:
+    inset 0 0 120px rgba(0, 0, 0, 0.5),
+    inset 40px 0 80px -40px rgba(0, 213, 228, 0.25);
+}
+/* Riveted plate: a thin inset frame with a dotted rivet line. */
+.plate {
+  position: absolute;
+  inset: 3.5%;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 1px 0 rgba(255, 255, 255, 0.03);
+}
+.plate::before {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  padding: 10px;
+  background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.13) 0 1.2px, transparent 1.9px) 0 0 / 22px 22px padding-box;
+  -webkit-mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  pointer-events: none;
+}
+.hinge {
+  position: absolute;
+  width: 12px;
+  height: 64px;
+  background: linear-gradient(90deg, #2b3152, #151a30);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+}
+.leaf-l .hinge {
+  left: 2px;
+}
+.leaf-r .hinge {
+  right: 2px;
+}
+.hinge-top {
+  top: 18%;
+}
+.hinge-bot {
+  bottom: 18%;
+}
+
+/* The dial. Rings drawn with radial-gradient on a square box; border-radius
+   circles rasterise as rounded squares inside preserve-3d in Chrome. */
+.dial {
+  display: none;
+  position: absolute;
+  width: 24vmin;
+  height: 24vmin;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) translateZ(6px);
+  background:
+    radial-gradient(circle at 42% 36%, rgba(255, 255, 255, 0.16), transparent 42%),
+    radial-gradient(
+      circle,
+      #1c2139 0 12%,
+      #0f1326 12.5% 14%,
+      #232a49 14.5% 27%,
+      #0f1326 27.5% 29%,
+      #1b2038 29.5% 40%,
+      rgba(0, 213, 228, 0.55) 40.5% 41.5%,
+      #141931 42% 48%,
+      #0a0d1c 48.5% 49.6%,
+      transparent 50%
+    );
+  filter: drop-shadow(0 18px 30px rgba(0, 0, 0, 0.6));
+}
+.dial::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-conic-gradient(from 0deg, rgba(255, 255, 255, 0.16) 0deg 1.2deg, transparent 1.2deg 30deg);
+  -webkit-mask: radial-gradient(circle, transparent 0 41%, #000 41.5% 47%, transparent 47.5%);
+  mask: radial-gradient(circle, transparent 0 41%, #000 41.5% 47%, transparent 47.5%);
+}
+@media (min-width: 1024px) {
+  .dial {
+    display: block;
+  }
+}
+
+/* Light through the seam. Brightest thing on the screen. */
+.seam-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  background:
+    radial-gradient(3px 100% at var(--seam-x) 50%, #d8fdff, transparent),
+    radial-gradient(18% 120% at var(--seam-x) 50%, rgba(0, 213, 228, 0.45), transparent 60%),
+    radial-gradient(5% 80% at var(--seam-x) 50%, rgba(0, 213, 228, 0.7), transparent 70%);
+  transform-origin: var(--seam-x) 50%;
+}
+.lock-node {
+  position: absolute;
+  left: var(--seam-x);
+  top: 50%;
+  width: 46px;
+  height: 46px;
+  margin: -23px 0 0 -23px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: var(--bg);
+  color: var(--accent);
+  border: 1px solid rgba(0, 213, 228, 0.6);
+  box-shadow:
+    0 0 0 6px rgba(0, 213, 228, 0.12),
+    0 0 40px rgba(0, 213, 228, 0.55);
+}
+.lock-node svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* The copy sits in the dark part of the left leaf. */
+.hero-copy {
+  position: absolute;
+  z-index: 3;
+  left: var(--gutter);
+  right: var(--gutter);
+  top: 50%;
+  transform: translateY(-50%);
+  max-width: min(640px, calc(var(--seam-x) - var(--gutter) - 40px));
+  display: grid;
+  gap: 22px;
+  justify-items: start;
+}
+@media (max-width: 1023px) {
+  .hero-copy {
+    max-width: none;
+    right: calc(var(--gutter) + 6%);
+  }
+}
+.hero-h1 {
+  font-size: clamp(38px, 6.4vw, 78px);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 0.98;
+  text-shadow: 0 2px 30px rgba(0, 0, 0, 0.6);
+}
+.hero-h1 .word {
+  white-space: nowrap;
+}
+.hero-h1 .char.is-hex {
+  color: var(--accent);
+  opacity: 0.75;
+}
+.hero-sub {
+  max-width: 46ch;
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.6);
+}
+.ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.scroll-hint {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  bottom: 26px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.scroll-hint-line {
+  width: 48px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent));
+  box-shadow: 0 0 10px var(--accent);
+}
+@media (max-width: 1023px) {
+  .scroll-hint {
+    left: var(--gutter);
+    transform: none;
+  }
+}
+
+/* ------------------------------------------------------------------
+   PIPELINE SCENE
+   ------------------------------------------------------------------ */
+.pipe {
+  position: relative;
+  background: linear-gradient(#05070f, var(--bg));
+}
+.pipe-pin {
+  height: 100dvh;
+  overflow: hidden;
+}
+.pipe-grid {
+  height: 100%;
+  display: grid;
+  align-content: center;
+  gap: 24px;
+  padding-top: 64px;
+}
+@media (min-width: 900px) {
+  .pipe-grid {
+    grid-template-columns: 1fr 1.2fr;
+    align-items: center;
+    gap: 40px;
+    padding-top: 0;
+  }
+}
+.pipe-h2 {
+  margin-top: 12px;
+}
+.steps {
+  list-style: none;
+  padding: 0;
+  margin: 28px 0 0;
+  display: grid;
+  gap: 18px;
+}
+.step {
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  gap: 12px;
+  opacity: 0.45;
+}
+.step .num {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--accent);
+  padding-top: 3px;
+}
+.step strong {
+  display: block;
+  font-weight: 600;
+}
+.step span {
+  display: block;
+  margin-top: 4px;
+  font-size: 14px;
+  color: var(--text-2);
+}
+@media (max-height: 760px) and (max-width: 899px) {
+  .step span {
+    display: none;
+  }
+}
+.pipe-hint {
+  margin-top: 26px;
+}
+
+.pipe-scene {
+  position: relative;
+  height: 360px;
+  perspective: 1100px;
+}
+@media (min-width: 640px) {
+  .pipe-scene {
+    height: 520px;
+  }
+}
+.pipe-floor {
+  position: absolute;
+  left: -30%;
+  right: -30%;
+  bottom: -8%;
+  height: 80%;
+  transform-origin: 50% 100%;
+  transform: rotateX(72deg);
+  background:
+    repeating-linear-gradient(90deg, rgba(0, 213, 228, 0.14) 0 1px, transparent 1px 56px),
+    repeating-linear-gradient(0deg, rgba(0, 213, 228, 0.14) 0 1px, transparent 1px 56px);
+  -webkit-mask-image: radial-gradient(60% 80% at 50% 100%, #000 30%, transparent 90%);
+  mask-image: radial-gradient(60% 80% at 50% 100%, #000 30%, transparent 90%);
+}
+.pipe-stage {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+}
+.node {
+  position: absolute;
+  width: 56px;
+  height: 56px;
+  margin: -28px 0 0 -28px;
+  display: grid;
+  place-items: center;
+  color: var(--text-3);
+  background: radial-gradient(circle, var(--surface-1) 0 62%, rgba(0, 213, 228, 0.35) 63% 66%, transparent 67%);
+  transition: color 0.4s;
+}
+.node svg {
+  width: 22px;
+  height: 22px;
+}
+.node::after {
+  content: "";
+  position: absolute;
+  inset: -22px;
+  background: radial-gradient(circle, rgba(0, 213, 228, 0.5), transparent 60%);
+  opacity: 0;
+  transition: opacity 0.4s;
+}
+.node.is-lit {
+  color: var(--accent);
+}
+.node.is-lit::after {
+  opacity: 1;
+}
+.node-label {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translate(-50%, 6px);
+  white-space: nowrap;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.pipe-card {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 280px;
+  height: 200px;
+  margin: -100px 0 0 -140px;
+  transform-style: preserve-3d;
+}
+@media (min-width: 640px) {
+  .pipe-card {
+    width: 360px;
+    height: 250px;
+    margin: -125px 0 0 -180px;
+  }
+}
+.slab {
+  background: linear-gradient(160deg, rgba(38, 43, 71, 0.9), rgba(20, 24, 41, 0.95));
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow:
+    0 40px 80px -30px rgba(0, 0, 0, 0.85),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.pipe-face {
+  position: absolute;
+  inset: 0;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+}
+.pipe-face .slab-top {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+}
+.slab-size {
+  color: var(--text-3);
+}
+.pipe-face .slab-name {
+  margin-top: 14px;
+  font-size: 18px;
+  font-weight: 600;
+}
+.slab-lines {
+  margin-top: 12px;
+  display: grid;
+  gap: 6px;
+}
+.slab-lines i {
+  display: block;
+  height: 6px;
+  background: var(--surface-3);
+}
+.pipe-face .slab-hex {
+  margin-top: auto;
+  font-size: 10px;
+  color: var(--text-3);
+  letter-spacing: 0.06em;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.pipe-lock {
+  position: absolute;
+  right: -18px;
+  top: 50%;
+  width: 36px;
+  height: 36px;
+  margin-top: -18px;
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+  background: radial-gradient(circle, var(--bg) 0 60%, rgba(0, 213, 228, 0.7) 62% 66%, transparent 68%);
+  filter: drop-shadow(0 0 14px rgba(0, 213, 228, 0.6));
+}
+.pipe-lock svg {
+  width: 15px;
+  height: 15px;
+}
+.tile {
+  position: absolute;
+  background: linear-gradient(160deg, #262b47, #1a1f38);
+  border: 1px solid rgba(0, 213, 228, 0.35);
+  box-shadow:
+    0 10px 30px -10px rgba(0, 0, 0, 0.8),
+    inset 0 0 18px rgba(0, 213, 228, 0.12);
+  opacity: 0;
+}
+.tile span {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 6px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  line-height: 1;
+  color: rgba(0, 213, 228, 0.75);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------------
+   STANDARD SECTIONS, restyled with the seam motif
+   ------------------------------------------------------------------ */
+#rest {
+  position: relative;
+  background: var(--bg);
+}
+#rest .section {
+  position: relative;
+}
+
+/* Story beats on glass slabs with a seam of light down the left. */
+.vault-page .beats {
+  gap: 14px;
+}
+.vault-page .beat {
+  position: relative;
+  border-top: 0;
+  padding: 26px 26px 26px 30px;
+  background: linear-gradient(160deg, rgba(28, 32, 57, 0.7), rgba(20, 24, 41, 0.85));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.vault-page .beat::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 12%;
+  bottom: 12%;
+  width: 2px;
+  background: var(--accent);
+  box-shadow:
+    0 0 14px var(--accent),
+    0 0 40px rgba(0, 213, 228, 0.4);
+  transform: scaleY(0);
+  transform-origin: top;
+}
+.vault-page .beat.is-in::before {
+  transform: scaleY(1);
+  transition: transform 0.7s cubic-bezier(0.7, 0, 0.2, 1);
+}
+
+/* Cipher: one slab, the seam of light running through its centre. */
+.vault-page .cipher {
+  background: var(--accent);
+  border-color: rgba(0, 213, 228, 0.35);
+  box-shadow:
+    0 0 60px -20px rgba(0, 213, 228, 0.5),
+    0 40px 80px -40px rgba(0, 0, 0, 0.9);
+  transform-style: preserve-3d;
+}
+.vault-page .cipher > div {
+  background: linear-gradient(160deg, #1a1f38, #12162a);
+}
+.cipher-tilt {
+  perspective: 1200px;
+}
+
+/* Plug: the Default card forward and lit, the other set back. */
+.plug-grid {
+  display: grid;
+  gap: 16px;
+  perspective: 1200px;
+}
+@media (min-width: 760px) {
+  .plug-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.vault-page .plug-a {
+  border-color: rgba(0, 213, 228, 0.45);
+  background: linear-gradient(160deg, #1c2039, #141829);
+  box-shadow:
+    0 0 60px -20px rgba(0, 213, 228, 0.55),
+    0 40px 80px -30px rgba(0, 0, 0, 0.9);
+  transform: translateZ(40px);
+}
+.vault-page .plug-b {
+  border-color: var(--border);
+  transform: translateZ(-30px);
+  opacity: 0.85;
+}
+
+/* $0 lit through a seam behind it. */
+.vault-page .price .wrap {
+  position: relative;
+}
+.vault-page .price .wrap::before {
+  content: "";
+  position: absolute;
+  left: clamp(60px, 12vw, 180px);
+  top: -6%;
+  bottom: -6%;
+  width: 2px;
+  background: var(--accent);
+  box-shadow:
+    0 0 20px var(--accent),
+    0 0 120px 30px rgba(0, 213, 228, 0.25);
+  opacity: 0.9;
+  pointer-events: none;
+}
+.vault-page .price .zero {
+  position: relative;
+  text-shadow: 0 0 60px rgba(0, 213, 228, 0.35);
+}
+
+/* The catch: same seam, amber. */
+.vault-page .catch {
+  border-left-color: var(--amber);
+  box-shadow: -2px 0 24px -6px rgba(245, 181, 63, 0.6);
+}
+
+/* Close */
+.vault-page .close {
+  background:
+    radial-gradient(50% 60% at 50% 100%, rgba(0, 213, 228, 0.16), transparent 70%),
+    var(--bg);
+}
+
+/* Reduced motion: final states without animation. */
+@media (prefers-reduced-motion: reduce) {
+  .vault-page .beat::before {
+    transform: scaleY(1);
+  }
+  .room-caption {
+    opacity: 1;
+  }
+  .tile {
+    opacity: 1;
+  }
+}

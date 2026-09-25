@@ -1,0 +1,33 @@
+/* zcrypt brand tokens, dark theme. Same values as app/globals.css. */
+@font-face {
+  font-family: "Satoshi";
+  src: url("../../fonts/satoshi/Satoshi-Variable.woff2") format("woff2");
+  font-weight: 300 900;
+  font-display: swap;
+}
+
+:root {
+  --bg: #0c0f1a;
+  --surface: #141829;
+  --surface-1: #1c2039;
+  --surface-2: #262b47;
+  --surface-3: #363c5c;
+  --border: #1e2340;
+  --text: #f0f2f8;
+  --text-2: #9ea3c0;
+  --text-3: #7a80a1;
+  --accent: #00d5e4;
+  --accent-deep: #008a97;
+  --on-accent: #04181b;
+  --amber: #f5b53f;
+  --red: #ff5d6c;
+
+  --font-head: "Satoshi", "Poppins", system-ui, sans-serif;
+  --font-body: "Poppins", system-ui, -apple-system, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --radius: 14px;
+  --radius-lg: 22px;
+  --max: 1160px;
+  --gutter: clamp(16px, 4vw, 40px);
+}

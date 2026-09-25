@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>zcrypt, free cloud storage that cannot read your files</title>
+<meta name="description" content="Zero-knowledge cloud storage. Sealed on your device before a byte leaves. Free, no card." />
+<link rel="icon" href="../../favicon.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../shared/tokens.css" />
+<link rel="stylesheet" href="../shared/base.css" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div data-nav></div>
+
+  <!-- Hero. Real text first, motion layered on after paint. -->
+  <section class="hero" id="top">
+    <div class="wrap hero-inner">
+      <div data-byline class="hero-byline"></div>
+      <h1 class="hero-h1" data-h1>Free cloud storage that cannot read your files.</h1>
+      <span class="sr-only">Free cloud storage that cannot read your files.</span>
+      <p class="lede hero-lede" data-sub></p>
+      <div data-ctas class="hero-ctas"></div>
+      <div data-trust class="hero-trust"></div>
+    </div>
+
+    <!-- Product frame: the zcrypt macOS window, drawn in HTML. -->
+    <div class="frame-wrap wrap">
+      <div class="frame-persp">
+        <div class="frame" data-frame aria-label="The zcrypt desktop app" role="img">
+          <div class="frame-bar">
+            <span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span class="frame-title">zcrypt</span>
+            <span class="frame-search" aria-hidden="true">Search files</span>
+          </div>
+          <div class="frame-body">
+            <aside class="frame-side">
+              <ul class="side-list" aria-hidden="true">
+                <li class="on">All files</li>
+                <li>Recent</li>
+                <li>Shared</li>
+                <li>Trash</li>
+              </ul>
+              <div class="side-meter" aria-hidden="true">
+                <span class="side-meter-label">Storage</span>
+                <span class="side-meter-track"><span class="side-meter-fill"></span></span>
+                <span class="side-meter-val">2.5 GB, encrypted</span>
+              </div>
+            </aside>
+            <div class="frame-main">
+              <div class="list-head" aria-hidden="true"><span>Name</span><span>Size</span><span>State</span></div>
+              <ul class="file-list" data-files aria-hidden="true"></ul>
+            </div>
+            <aside class="frame-upload" aria-hidden="true">
+              <span class="kicker">Uploading</span>
+              <p class="up-name">wedding-photos.zip</p>
+              <p class="up-size">1.2 GB</p>
+              <div class="up-chunks" data-upchunks></div>
+              <p class="up-status">Chunk 6 of 8. Sealed on this Mac.</p>
+            </aside>
+          </div>
+        </div>
+      </div>
+      <div class="frame-glow" aria-hidden="true"></div>
+    </div>
+  </section>
+
+  <!-- Story: four beats as a horizontal strip, pinned. Beat 03 holds the
+       80 percent demonstration. -->
+  <section class="story-h" id="story">
+    <div class="story-pin" data-story-pin>
+      <div class="wrap story-head">
+        <p class="kicker accent" data-story-kicker></p>
+        <h2 class="h2" data-story-h2></h2>
+      </div>
+      <div class="story-track" data-story-track></div>
+    </div>
+  </section>
+
+  <div data-features></div>
+
+  <!-- Signature scene: one file, locked, split into four, stored in four places. -->
+  <section class="pipe" id="how">
+    <div class="pipe-pin" data-pipe-pin>
+      <div class="wrap pipe-grid">
+        <div class="pipe-copy">
+          <p class="kicker accent" data-pipe-kicker></p>
+          <h2 class="h2" data-pipe-h2></h2>
+          <ol class="pipe-steps" data-pipe-steps></ol>
+          <p class="kicker pipe-hint" data-pipe-hint></p>
+        </div>
+        <div class="pipe-scene" aria-hidden="true">
+          <div class="pipe-stage">
+            <div class="pfile" data-pfile>
+              <div class="pfile-face">
+                <span class="kicker">On your device</span>
+                <span class="pfile-name">passport-scan.pdf</span>
+                <span class="pfile-size mono">2.4 MB</span>
+                <span class="pfile-lines"><i style="width:88%"></i><i style="width:64%"></i><i style="width:76%"></i><i style="width:42%"></i></span>
+              </div>
+              <span class="pfile-lock" data-plock></span>
+              <div class="pfile-pieces" data-pieces></div>
+            </div>
+            <div class="pnodes" data-pnodes></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div data-cipher-section></div>
+  <div data-plug></div>
+
+  <!-- Price as a single pricing card. -->
+  <section class="section price price-card-sec" id="price">
+    <div class="wrap price-wrap">
+      <div class="price-card card accent">
+        <p class="kicker accent" data-price-kicker></p>
+        <p class="plan-name head">Free</p>
+        <p class="zero-row"><span class="zero" aria-label="Zero dollars">$0</span><span class="forever">/ forever</span></p>
+        <div class="strikes" data-strikes></div>
+        <p class="lede" data-price-p></p>
+        <a href="#" class="btn btn-primary price-cta" data-price-cta></a>
+      </div>
+    </div>
+  </section>
+
+  <div data-catch></div>
+  <div data-close></div>
+  <div data-footer></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/ScrollTrigger.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/SplitText.min.js"></script>
+  <script type="module" src="main.js"></script>
+</body>
+</html>

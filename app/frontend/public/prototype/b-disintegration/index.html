@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>zcrypt, free cloud storage that cannot read your files</title>
+<meta name="description" content="Zero-knowledge cloud storage. Files are sealed on your device before a byte leaves it. Free, no card." />
+<link rel="icon" href="../../favicon.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="preload" href="../../fonts/satoshi/Satoshi-Variable.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="stylesheet" href="../shared/tokens.css" />
+<link rel="stylesheet" href="../shared/base.css" />
+<link rel="stylesheet" href="styles.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/ScrollTrigger.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/SplitText.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/Flip.min.js"></script>
+</head>
+<body>
+
+<!-- Hero. Pinned for 250vh. The passport dissolves into ciphertext, the
+     second headline decodes out of the noise, the noise streams into the
+     four platform marks. All real text, all in the DOM before JS. -->
+<section class="hero" id="hero">
+  <div class="hero-pin">
+    <div class="wrap hero-grid">
+      <div class="hero-copy">
+        <span class="byline"><span class="dot" aria-hidden="true">W</span>Wasif, Karachi. Built this after losing a 4 GB upload at 80 percent.</span>
+        <h1 class="h1" data-h1>Free cloud storage that cannot read your files.</h1>
+        <p class="h1b" data-h1b aria-hidden="true">That is all we would ever see.</p>
+        <span class="sr-only">That is all we would ever see.</span>
+        <p class="lede">Sealed on your device before a byte leaves it. What we store is unreadable to everyone, including us.</p>
+        <div class="ctas">
+          <a href="#" class="btn btn-primary">Start free, no card</a>
+          <a href="#cipher" class="btn btn-ghost">Watch it encrypt</a>
+        </div>
+        <ul class="trust"><li>No card, ever</li><li>Open source</li><li>AES-256-GCM on your device</li></ul>
+      </div>
+
+      <div class="stage" data-stage aria-hidden="true">
+        <div class="art" data-art>
+          <div class="passport">
+            <div class="pp-head"><span>Passport</span><span class="pp-type">P</span></div>
+            <div class="pp-body">
+              <div class="pp-photo"><i></i></div>
+              <div class="pp-fields">
+                <div><small>Surname</small><b>MALIK</b></div>
+                <div><small>Given names</small><b>MUHAMMAD WASIF</b></div>
+                <div><small>Nationality</small><b>PAKISTANI</b></div>
+                <div class="pp-row"><div><small>Date of birth</small><b>&#9608;&#9608; &#9608;&#9608;&#9608; 19&#9608;&#9608;</b></div><div><small>Sex</small><b>M</b></div></div>
+                <div class="pp-row"><div><small>Passport no.</small><b>XX0000000</b></div><div><small>Expiry</small><b>&#9608;&#9608; &#9608;&#9608;&#9608; 20&#9608;&#9608;</b></div></div>
+              </div>
+            </div>
+            <div class="pp-mrz"><span>P&lt;PAKMALIK&lt;&lt;MUHAMMAD&lt;WASIF&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;</span><span>XX0000000PAK0000000M0000000&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;00</span></div>
+            <div class="pp-tag">passport-scan.pdf <em>2.4 MB</em></div>
+          </div>
+          <div class="photos">
+            <div class="ph-grid"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+            <div class="ph-tag">wedding-photos.zip <em>1.2 GB</em></div>
+          </div>
+        </div>
+        <div class="cells" data-cells></div>
+        <p class="rowlabel kicker accent" data-rowlabel>Stored where you already are</p>
+        <div class="marks" data-marks></div>
+      </div>
+    </div>
+    <div class="hero-hint kicker" data-hint>Scroll</div>
+  </div>
+</section>
+
+<!-- Story. Four full-bleed typographic slabs. -->
+<section class="story" id="story">
+  <div class="wrap slab slab-intro">
+    <p class="kicker accent">Why this exists</p>
+    <h2 class="h2 split" data-split>Free storage was never free.</h2>
+  </div>
+  <div class="wrap slab">
+    <span class="n mono">01</span>
+    <h3 class="split" data-split>I ran out of room</h3>
+    <p class="lede split" data-split>Drive gave me 15 GB. I made three accounts and shuffled files between them like a low-budget digital smuggler.</p>
+  </div>
+  <div class="wrap slab">
+    <span class="n mono">02</span>
+    <h3 class="split" data-split>The free terabyte had a catch</h3>
+    <p class="lede split" data-split>TeraBox offered a terabyte for nothing. The nothing turned out to be my photos, indexed, and an app that would not let go.</p>
+  </div>
+  <div class="wrap slab">
+    <span class="n mono">03</span>
+    <h3 class="split" data-split>Then it failed at 80 percent</h3>
+    <p class="lede split" data-split>A 4 GB upload, fifty minutes in, died at 80 percent. No resume. Start again. I closed the laptop instead.</p>
+  </div>
+  <div class="wrap slab slab-last">
+    <span class="n mono">04</span>
+    <h3 class="split" data-split>Every free plan was paid for with the contents of my files.</h3>
+    <p class="big split" data-split>The price tag was me.</p>
+    <p class="lede split" data-split>So I built the one that cannot read them.</p>
+  </div>
+</section>
+
+<!-- Act two. One file, eight pieces, four places. Flat, pinned, scrubbed. -->
+<section class="act2" id="act2">
+  <div class="act2-pin">
+    <div class="wrap act2-grid">
+      <div class="steps">
+        <p class="kicker accent">What actually happens</p>
+        <h2 class="h2">Your file never travels whole.</h2>
+        <ol class="steplist">
+          <li class="step" data-step><span class="mono">01</span><div><b>Locked on your device.</b><p>Sealed with a key only you hold, before a byte leaves.</p></div></li>
+          <li class="step" data-step><span class="mono">02</span><div><b>Split into pieces.</b><p>Cut into pieces. No piece means anything alone.</p></div></li>
+          <li class="step" data-step><span class="mono">03</span><div><b>Stored in accounts you own.</b><p>We hold a map, never the contents.</p></div></li>
+        </ol>
+        <p class="kicker hint">Scroll to drive it. Scroll back to undo it.</p>
+      </div>
+      <div class="scene" data-scene aria-hidden="true">
+        <div class="fcard" data-fcard>
+          <div class="fface" data-fface>
+            <div class="fhead"><span class="kicker">On your device</span><span class="mono">1.2 GB</span></div>
+            <p class="fname">wedding-photos.zip</p>
+            <div class="flines"><i style="width:92%"></i><i style="width:74%"></i><i style="width:86%"></i><i style="width:60%"></i></div>
+            <p class="fhex mono" data-fhex></p>
+          </div>
+          <div class="flock" data-flock></div>
+          <div class="tiles" data-tiles></div>
+        </div>
+        <div class="row" data-row></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Standard sections, built from shared/copy.js. -->
+<div id="rest"></div>
+
+<script type="module" src="main.js"></script>
+</body>
+</html>

@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>zcrypt landing prototypes</title>
+<link rel="icon" href="../favicon.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="shared/tokens.css" />
+<link rel="stylesheet" href="shared/base.css" />
+<style>
+  body { min-height: 100dvh; display: grid; place-items: center; padding: 48px var(--gutter); }
+  .grid { display: grid; gap: 16px; width: min(960px, 100%); margin-top: 32px; }
+  @media (min-width: 720px) { .grid { grid-template-columns: 1fr 1fr; } }
+  .pick { display: block; padding: 26px; border-radius: var(--radius-lg); border: 1px solid var(--border); background: var(--surface); transition: transform .25s, border-color .25s, box-shadow .25s; }
+  .pick:hover { transform: translateY(-3px); border-color: rgba(0,213,228,.4); box-shadow: 0 30px 60px -30px rgba(0,213,228,.35); }
+  .pick .l { font-family: var(--font-mono); font-size: 12px; color: var(--accent); }
+  .pick h2 { margin-top: 10px; font-size: 26px; }
+  .pick p { margin-top: 10px; color: var(--text-2); font-size: 14px; }
+  .pick .tag { margin-top: 14px; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--text-3); }
+</style>
+</head>
+<body>
+  <main style="width:min(960px,100%)">
+    <p class="kicker accent">zcrypt, landing prototypes</p>
+    <h1 class="h2" style="margin-top:12px">Four directions. Pick one to take further.</h1>
+    <p class="lede" style="margin-top:12px">Same copy, same brand tokens, same 80 percent bar and live encryptor. Only the art direction changes. Plain HTML, CSS, JS and GSAP.</p>
+    <div class="grid">
+      <a class="pick" href="a-vault/index.html">
+        <span class="l">A</span><h2>The Vault</h2>
+        <p>A steel door you open by scrolling. Files as glass slabs in the dark. One file fractures into eight and flies to four places.</p>
+        <p class="tag">Heavy, industrial, CSS 3D</p>
+      </a>
+      <a class="pick" href="b-disintegration/index.html">
+        <span class="l">B</span><h2>The Disintegration</h2>
+        <p>A passport scan dissolves into ciphertext glyph by glyph as you scroll. The headline decodes back out of the noise.</p>
+        <p class="tag">Cinematic, kinetic type, no WebGL</p>
+      </a>
+      <a class="pick" href="c-tunnel/index.html">
+        <span class="l">C</span><h2>The Tunnel</h2>
+        <p>Fly down a tube of ciphertext. The file enters whole, gets chunked, sealed, and the tube forks into four.</p>
+        <p class="tag">WebGL, flashiest, heaviest</p>
+      </a>
+      <a class="pick" href="d-pricetag/index.html">
+        <span class="l">D</span><h2>The Price Tag</h2>
+        <p>Type is the hero. Product frame under it. Story as a horizontal strip. Calm grid with icons that explain themselves.</p>
+        <p class="tag">Clean, product-forward, converts</p>
+      </a>
+    </div>
+  </main>
+</body>
+</html>
