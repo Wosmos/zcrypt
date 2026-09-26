@@ -31,7 +31,7 @@ import { useDragMove, DRAG_MIME } from "@/hooks/useDragMove";
 
 // Canonical definitions live in ./explorer/types: imported for local use and
 // re-exported so existing importers of these names from file-table keep working.
-import type { SortField, SortDir } from "./explorer/types";
+import type { SortField, SortDir } from "@/components/files/explorer/types";
 export type { SortField, SortDir };
 
 interface FileTableProps {
