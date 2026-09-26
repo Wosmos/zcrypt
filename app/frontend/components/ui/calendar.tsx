@@ -17,7 +17,10 @@ function fromKey(key: string): Date {
 function buildMonthGrid(year: number, month: number): Date[] {
   const first = new Date(year, month, 1);
   const start = new Date(year, month, 1 - first.getDay());
-  return Array.from({ length: 42 }, (_, i) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + i));
+  return Array.from(
+    { length: 42 },
+    (_, i) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + i),
+  );
 }
 
 interface MonthPaneProps {
@@ -31,7 +34,10 @@ interface MonthPaneProps {
 }
 
 function MonthPane({ year, month, start, end, max, todayKey, onPick }: MonthPaneProps) {
-  const label = new Date(year, month, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  const label = new Date(year, month, 1).toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
+  });
   const days = buildMonthGrid(year, month);
 
   return (
