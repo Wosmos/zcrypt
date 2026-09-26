@@ -105,10 +105,13 @@ export default function VaultPage() {
   }, []);
 
   // Modal targets the explorer hands back to the page.
-  const [deleteTarget, setDeleteTarget] = useState<FileMetadata | null>(null);
-  const [bulkDeleteIds, setBulkDeleteIds] = useState<string[] | null>(null);
+  const [deleteRequest, setDeleteRequest] = useState<
+    { kind: "single"; file: FileMetadata } | { kind: "bulk"; ids: string[] } | null
+  >(null);
   const [shareTarget, setShareTarget] = useState<FileMetadata | null>(null);
-  const [moveTarget, setMoveTarget] = useState<string | null>(null);
+  const [moveRequest, setMoveRequest] = useState<
+    { kind: "file"; fileId: string } | { kind: "folder"; folder: DecryptedFolder } | null
+  >(null);
   const [detailsTarget, setDetailsTarget] = useState<FileMetadata | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
 
@@ -162,7 +165,6 @@ export default function VaultPage() {
   // ── Folder protection: set / remove password + open-protected dialogs ───────
   const [protectTarget, setProtectTarget] = useState<DecryptedFolder | null>(null);
   const [removeTarget, setRemoveTarget] = useState<DecryptedFolder | null>(null);
-  const [moveFolderTarget, setMoveFolderTarget] = useState<DecryptedFolder | null>(null);
   const [rekeyProgress, setRekeyProgress] = useState<{ done: number; total: number } | null>(null);
 
   // Files in a given folder (re-key sweeps operate on these).
@@ -257,7 +259,7 @@ export default function VaultPage() {
   const handleDeleteRequest = useCallback(
     (id: string) => {
       const file = files.find((f) => f.id === id);
-      if (file) setDeleteTarget(file);
+      if (file) setDeleteRequest({ kind: "single", file });
     },
     [files],
   );
@@ -311,16 +313,14 @@ export default function VaultPage() {
   const closeViewer = useCallback(() => setViewerOpen(false), []);
 
   const executeDelete = useCallback(() => {
-    if (!deleteTarget) return;
-    actions.executeDelete(deleteTarget);
-    setDeleteTarget(null);
-  }, [deleteTarget, actions]);
-
-  const executeBulkDelete = useCallback(() => {
-    if (!bulkDeleteIds) return;
-    void actions.executeBulkDelete(bulkDeleteIds);
-    setBulkDeleteIds(null);
-  }, [bulkDeleteIds, actions]);
+    if (!deleteRequest) return;
+    if (deleteRequest.kind === "single") {
+      actions.executeDelete(deleteRequest.file);
+    } else {
+      void actions.executeBulkDelete(deleteRequest.ids);
+    }
+    setDeleteRequest(null);
+  }, [deleteRequest, actions]);
 
   // ── Upload dialog → existing upload flow ────────────────────────────────────
   const handleDialogFiles = useCallback(
@@ -502,14 +502,14 @@ export default function VaultPage() {
             onOpenFile={handleOpenFile}
             onDelete={handleDeleteRequest}
             onMoveFile={actions.handleMoveFileTo}
-            onMoveRequest={setMoveTarget}
-            onBulkDelete={setBulkDeleteIds}
+            onMoveRequest={(fileId) => setMoveRequest({ kind: "file", fileId })}
+            onBulkDelete={(ids) => setDeleteRequest({ kind: "bulk", ids })}
             onBulkDownload={actions.handleBulkDownload}
             onUploadClick={() => setUploadOpen(true)}
             onOpenFolderRequest={handleOpenFolderRequest}
             onProtectFolder={setProtectTarget}
             onRemoveFolderPassword={setRemoveTarget}
-            onMoveFolderRequest={setMoveFolderTarget}
+            onMoveFolderRequest={(folder) => setMoveRequest({ kind: "folder", folder })}
           />
         )}
 
@@ -607,24 +607,13 @@ export default function VaultPage() {
         }}
       />
 
-      {/* Move FILE to folder (kebab path; drag-to-move is handled in-explorer).
-          Routes through moveFileWithRekey so a move across a protection boundary
-          re-keys before moving. */}
       <MoveToFolderDialog
-        open={!!moveTarget}
-        fileId={moveTarget}
-        onClose={() => setMoveTarget(null)}
+        open={!!moveRequest}
+        fileId={moveRequest?.kind === "file" ? moveRequest.fileId : null}
+        folderId={moveRequest?.kind === "folder" ? moveRequest.folder.id : null}
+        onClose={() => setMoveRequest(null)}
         onMoved={() => refresh()}
-        onMoveFile={actions.moveFileWithRekey}
-      />
-
-      {/* Move FOLDER to folder (keyboard-reachable C1; rejects self/descendant). */}
-      <MoveToFolderDialog
-        open={!!moveFolderTarget}
-        fileId={null}
-        folderId={moveFolderTarget?.id ?? null}
-        onClose={() => setMoveFolderTarget(null)}
-        onMoved={() => refresh()}
+        onMoveFile={moveRequest?.kind === "file" ? actions.moveFileWithRekey : undefined}
       />
 
       {/* Folder unlock (open a protected folder / verify before re-key sweeps) */}
@@ -668,41 +657,39 @@ export default function VaultPage() {
         }}
       />
 
-      {/* Confirm delete (single) */}
       <ConfirmDialog
-        open={!!deleteTarget}
-        onOpenChange={(o) => !o && setDeleteTarget(null)}
+        open={!!deleteRequest}
+        onOpenChange={(o) => !o && setDeleteRequest(null)}
         onConfirm={executeDelete}
         destructive
-        title="Move file to Trash?"
-        description={
-          <>
-            <span className="block">
-              This file will be moved to Trash. You can restore it from Deleted Files.
-            </span>
-            {deleteTarget && (
-              <span className="mt-3 block truncate rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2 font-mono text-xs text-[var(--color-text-muted)]">
-                {deleteTarget.original_name}
-              </span>
-            )}
-          </>
+        title={
+          deleteRequest?.kind === "bulk" ? "Move selected files to Trash?" : "Move file to Trash?"
         }
-        confirmLabel="Move to Trash"
-      />
-
-      {/* Bulk delete confirm */}
-      <ConfirmDialog
-        open={!!bulkDeleteIds}
-        onOpenChange={(o) => !o && setBulkDeleteIds(null)}
-        onConfirm={executeBulkDelete}
-        destructive
-        title="Move selected files to Trash?"
-        description={`${bulkDeleteIds?.length ?? 0} file${
-          (bulkDeleteIds?.length ?? 0) !== 1 ? "s" : ""
-        } will be moved to Trash. You can restore them from Deleted Files.`}
-        confirmLabel={`Move ${bulkDeleteIds?.length ?? 0} file${
-          (bulkDeleteIds?.length ?? 0) !== 1 ? "s" : ""
-        } to Trash`}
+        description={
+          deleteRequest?.kind === "bulk" ? (
+            `${deleteRequest.ids.length} file${
+              deleteRequest.ids.length !== 1 ? "s" : ""
+            } will be moved to Trash. You can restore them from Deleted Files.`
+          ) : (
+            <>
+              <span className="block">
+                This file will be moved to Trash. You can restore it from Deleted Files.
+              </span>
+              {deleteRequest && (
+                <span className="mt-3 block truncate rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2 font-mono text-xs text-[var(--color-text-muted)]">
+                  {deleteRequest.file.original_name}
+                </span>
+              )}
+            </>
+          )
+        }
+        confirmLabel={
+          deleteRequest?.kind === "bulk"
+            ? `Move ${deleteRequest.ids.length} file${
+                deleteRequest.ids.length !== 1 ? "s" : ""
+              } to Trash`
+            : "Move to Trash"
+        }
       />
 
       {/* Upload dialog: upload zone + platform selector. Lives outside the tab
