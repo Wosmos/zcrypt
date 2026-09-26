@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { useAuthStore } from "@/store/auth";
 import { getMe, refreshToken as refreshTokenApi } from "@/lib/auth-api";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
+import { isTauri } from "@/lib/tauri";
 
 /**
  * GuestGuard redirects authenticated users away from public/auth pages
@@ -30,8 +31,11 @@ export function GuestGuard({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // No tokens at all: user is a guest, show the page
-      if (!accessToken && !refreshTokenValue) {
+      // No tokens at all: user is a guest, show the page. On desktop this is
+      // reliable (refreshTokenValue is persisted); on web it never is, so
+      // fall through to the refresh-token check below, which now attempts
+      // the httpOnly-cookie-backed refresh regardless.
+      if (!accessToken && !refreshTokenValue && isTauri) {
         setChecked(true);
         return;
       }
@@ -48,8 +52,10 @@ export function GuestGuard({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // Try refresh token
-      if (refreshTokenValue) {
+      // Try refresh token: desktop requires an actual value; web always
+      // attempts it (the httpOnly cookie carries the session, not this
+      // in-memory value).
+      if (refreshTokenValue || !isTauri) {
         try {
           const data = await refreshTokenApi(refreshTokenValue);
           setTokens(data.access_token, data.refresh_token);

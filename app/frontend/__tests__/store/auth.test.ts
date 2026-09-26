@@ -71,16 +71,28 @@ describe("useAuthStore", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.doUnmock("@/lib/tauri");
   });
 
   describe("initial hydration from localStorage", () => {
-    it("reads existing tokens from localStorage when the module first loads", async () => {
+    it("desktop (Tauri): reads both tokens from localStorage when the module first loads", async () => {
+      vi.doMock("@/lib/tauri", () => ({ isTauri: true }));
       localStorage.setItem("zcrypt-access-token", "stored-access");
       localStorage.setItem("zcrypt-refresh-token", "stored-refresh");
       vi.resetModules();
       const fresh = await import("@/store/auth");
       expect(fresh.useAuthStore.getState().accessToken).toBe("stored-access");
       expect(fresh.useAuthStore.getState().refreshTokenValue).toBe("stored-refresh");
+    });
+
+    it("web: reads the access token but never the refresh token from localStorage (XSS-persistence fix)", async () => {
+      vi.doMock("@/lib/tauri", () => ({ isTauri: false }));
+      localStorage.setItem("zcrypt-access-token", "stored-access");
+      localStorage.setItem("zcrypt-refresh-token", "stored-refresh");
+      vi.resetModules();
+      const fresh = await import("@/store/auth");
+      expect(fresh.useAuthStore.getState().accessToken).toBe("stored-access");
+      expect(fresh.useAuthStore.getState().refreshTokenValue).toBeNull();
     });
 
     it("defaults tokens to null when localStorage has nothing stored", async () => {
@@ -115,12 +127,26 @@ describe("useAuthStore", () => {
     expect(useAuthStore.getState().user).toBeNull();
   });
 
-  it("setTokens persists both tokens to localStorage and to state", () => {
-    useAuthStore.getState().setTokens("access-1", "refresh-1");
+  it("desktop (Tauri): setTokens persists both tokens to localStorage", async () => {
+    vi.doMock("@/lib/tauri", () => ({ isTauri: true }));
+    vi.resetModules();
+    const fresh = await import("@/store/auth");
+    fresh.useAuthStore.getState().setTokens("access-1", "refresh-1");
     expect(localStorage.getItem("zcrypt-access-token")).toBe("access-1");
     expect(localStorage.getItem("zcrypt-refresh-token")).toBe("refresh-1");
-    expect(useAuthStore.getState().accessToken).toBe("access-1");
-    expect(useAuthStore.getState().refreshTokenValue).toBe("refresh-1");
+    expect(fresh.useAuthStore.getState().accessToken).toBe("access-1");
+    expect(fresh.useAuthStore.getState().refreshTokenValue).toBe("refresh-1");
+  });
+
+  it("web: setTokens persists only the access token to localStorage, keeps the refresh token in memory only", async () => {
+    vi.doMock("@/lib/tauri", () => ({ isTauri: false }));
+    vi.resetModules();
+    const fresh = await import("@/store/auth");
+    fresh.useAuthStore.getState().setTokens("access-1", "refresh-1");
+    expect(localStorage.getItem("zcrypt-access-token")).toBe("access-1");
+    expect(localStorage.getItem("zcrypt-refresh-token")).toBeNull();
+    expect(fresh.useAuthStore.getState().accessToken).toBe("access-1");
+    expect(fresh.useAuthStore.getState().refreshTokenValue).toBe("refresh-1");
   });
 
   it("setLoading toggles the loading flag", () => {

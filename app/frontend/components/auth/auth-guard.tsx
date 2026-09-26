@@ -56,7 +56,13 @@ export function AuthGuard({
     };
 
     async function init() {
-      if (!accessToken && !refreshTokenValue) {
+      // Desktop persists refreshTokenValue to localStorage, so its absence
+      // here really does mean "never logged in" — skip straight to login.
+      // Web never persists it (store/auth.ts): a returning user with an
+      // expired access token and no in-memory refresh value may still have
+      // a valid httpOnly session cookie, so fall through and let the
+      // refresh path below try it rather than bouncing them out.
+      if (!accessToken && !refreshTokenValue && isTauri) {
         setInitialized(true);
         router.replace("/login");
         return;
@@ -86,8 +92,11 @@ export function AuthGuard({
         }
       }
 
-      // Refresh path.
-      if (refreshTokenValue) {
+      // Refresh path. Desktop requires an actual in-memory token (never
+      // silently probes without one); web always attempts it since the
+      // httpOnly cookie — not this value — is what actually carries the
+      // session across reloads.
+      if (refreshTokenValue || !isTauri) {
         try {
           const data = await refreshTokenApi(refreshTokenValue);
           setTokens(data.access_token, data.refresh_token);
