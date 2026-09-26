@@ -228,6 +228,7 @@ function FileRow({
   onEntryKeyDown,
   onOpenDetails,
   onCustomizeFile,
+  onRenameFile,
   drag,
 }: FileItemProps) {
   // Defensive fallback: use the already-decrypted original_name when present,
@@ -351,6 +352,11 @@ function FileRow({
           {actions.onPreview && (
             <DropdownMenuItem onClick={() => actions.onPreview?.(displayName)}>
               <Eye className="h-4 w-4" /> Preview
+            </DropdownMenuItem>
+          )}
+          {onRenameFile && (
+            <DropdownMenuItem onClick={() => onRenameFile(file)}>
+              <Edit className="h-4 w-4" /> Rename
             </DropdownMenuItem>
           )}
           {onCustomizeFile && (

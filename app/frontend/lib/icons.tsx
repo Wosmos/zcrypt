@@ -47,6 +47,7 @@ export const Check = icon("Check");
 export const CheckCircle2 = icon("CheckCircle");
 export const X = icon("X");
 export const ChevronDown = icon("ChevronDown");
+export const Filter = icon("FilterIcon", "Filter");
 export const ChevronLeft = icon("ChevronLeft");
 export const ChevronRight = icon("ChevronRight");
 export const ChevronUp = icon("ChevronUp");

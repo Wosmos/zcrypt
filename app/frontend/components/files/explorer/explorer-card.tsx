@@ -302,6 +302,7 @@ function FileCardInner({
   onEntryKeyDown,
   onOpenDetails,
   onCustomizeFile,
+  onRenameFile,
   drag,
 }: FileItemProps) {
   // Defensive fallback: use the already-decrypted original_name when present,
@@ -461,6 +462,11 @@ function FileCardInner({
         {actions.onPreview && (
           <ContextMenuItem className="gap-2" onSelect={() => actions.onPreview?.(displayName)}>
             <Eye className="h-4 w-4" /> Preview
+          </ContextMenuItem>
+        )}
+        {onRenameFile && (
+          <ContextMenuItem className="gap-2" onSelect={() => onRenameFile(file)}>
+            <Edit className="h-4 w-4" /> Rename
           </ContextMenuItem>
         )}
         {onCustomizeFile && (

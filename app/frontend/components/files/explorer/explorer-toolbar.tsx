@@ -11,6 +11,8 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { FilterPopover, type EntryFilters } from "./filter-popover";
+import type { FileMetadata } from "@/types";
 
 const COL_OPTIONS: GridCols[] = ["auto", 1, 2, 4, 6, 8, 10, 12];
 
@@ -22,6 +24,9 @@ interface ExplorerToolbarProps {
   onGridColsChange: (cols: GridCols) => void;
   selectMode: boolean;
   onToggleSelect: () => void;
+  files: FileMetadata[];
+  filters: EntryFilters;
+  onFiltersChange: (filters: EntryFilters) => void;
 }
 
 /**
@@ -37,16 +42,20 @@ export function ExplorerToolbar({
   onGridColsChange,
   selectMode,
   onToggleSelect,
+  files,
+  filters,
+  onFiltersChange,
 }: ExplorerToolbarProps) {
   return (
     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
       {/* Row 1 (mobile) / left side (desktop): breadcrumb */}
       <div className="min-w-0 flex-1">{breadcrumb}</div>
 
-      {/* Right side (desktop only): grid density, view toggle, Select. Hidden on
-          mobile. Select/bulk starts from a file's long-press → "Select" there,
-          and grid/view were already desktop-only. */}
+      {/* Right side (desktop only): filter, grid density, view toggle, Select.
+          Hidden on mobile. Select/bulk starts from a file's long-press →
+          "Select" there, and grid/view were already desktop-only. */}
       <div className="hidden items-center gap-2 sm:flex sm:w-auto sm:flex-shrink-0">
+        <FilterPopover files={files} filters={filters} onFiltersChange={onFiltersChange} />
         {/* Grid density: user picks the column count (Auto / 1–4). Only in grid
             view; the choice is persisted by the explorer. */}
         {view === "grid" && (

@@ -19,7 +19,10 @@ const {
   mockDeleteFile,
   mockBulkDeleteFiles,
   mockMoveFile,
+  mockRestoreFile,
+  mockBulkRestoreFiles,
   mockInvalidateTrash,
+  mockInvalidateFilesViews,
   mockClearDecryptCacheForFile,
   mockCachedDecrypt,
   mockRunDecryptPipeline,
@@ -72,7 +75,10 @@ const {
     mockDeleteFile: vi.fn(),
     mockBulkDeleteFiles: vi.fn(),
     mockMoveFile: vi.fn(),
+    mockRestoreFile: vi.fn(),
+    mockBulkRestoreFiles: vi.fn(),
     mockInvalidateTrash: vi.fn(),
+    mockInvalidateFilesViews: vi.fn(),
     mockClearDecryptCacheForFile: vi.fn(),
     mockCachedDecrypt: vi.fn(),
     mockRunDecryptPipeline: vi.fn(),
@@ -154,10 +160,16 @@ vi.mock("@/lib/api", () => ({
   deleteFile: mockDeleteFile,
   bulkDeleteFiles: mockBulkDeleteFiles,
   moveFile: mockMoveFile,
+  restoreFile: mockRestoreFile,
+  bulkRestoreFiles: mockBulkRestoreFiles,
 }));
 
 vi.mock("@/store/trash", () => ({
   invalidateTrash: mockInvalidateTrash,
+}));
+
+vi.mock("@/lib/invalidate", () => ({
+  invalidateFilesViews: mockInvalidateFilesViews,
 }));
 
 vi.mock("@/lib/decrypt-cache", () => ({
@@ -336,7 +348,10 @@ beforeEach(() => {
   mockDeleteFile.mockResolvedValue({ success: true });
   mockBulkDeleteFiles.mockResolvedValue({ deleted: 0, failed: 0 });
   mockMoveFile.mockResolvedValue({ success: true });
+  mockRestoreFile.mockResolvedValue({ success: true });
+  mockBulkRestoreFiles.mockResolvedValue({ restored: 0, failed: 0 });
   mockInvalidateTrash.mockResolvedValue(undefined);
+  mockInvalidateFilesViews.mockResolvedValue(undefined);
   // Passthrough by default so the lambda passed to cachedDecrypt (which calls
   // runDecryptPipeline) actually runs, exercising that closure's body too.
   mockCachedDecrypt.mockImplementation(
@@ -910,9 +925,31 @@ describe("handleMoveFileTo", () => {
     });
 
     expect(args.setFiles).toHaveBeenCalledTimes(1);
-    expect(mockToast.success).toHaveBeenCalledWith('Moved "a.png" to Root');
+    expect(mockToast.success).toHaveBeenCalledWith(
+      'Moved "a.png" to Root',
+      expect.objectContaining({ label: "Undo", onClick: expect.any(Function) }),
+    );
     expect(mockClearDecryptCacheForFile).toHaveBeenCalledWith("f1");
     expect(args.refresh).not.toHaveBeenCalled();
+  });
+
+  it("Undo re-invokes the move back to the file's original folder", async () => {
+    const file = makeFile({ id: "f1", original_name: "a.png", folder_id: "some-folder" });
+    const args = makeArgs({ files: [file] });
+    const { result } = renderHook(() => useVaultActions(args));
+
+    await act(async () => {
+      result.current.handleMoveFileTo("f1", null);
+      await flush();
+    });
+
+    const [, action] = mockToast.success.mock.calls[0];
+    await act(async () => {
+      action.onClick();
+      await flush();
+    });
+
+    expect(mockMoveFile).toHaveBeenCalledWith("f1", null);
   });
 
   it("shows a plain 'Moved' toast when moving into a folder (not Root)", async () => {
@@ -925,7 +962,10 @@ describe("handleMoveFileTo", () => {
       await flush();
     });
 
-    expect(mockToast.success).toHaveBeenCalledWith('Moved "a.png"');
+    expect(mockToast.success).toHaveBeenCalledWith(
+      'Moved "a.png"',
+      expect.objectContaining({ label: "Undo", onClick: expect.any(Function) }),
+    );
   });
 
   it("reverts and shows an error toast + refreshes on a real failure", async () => {
@@ -1000,10 +1040,53 @@ describe("executeDelete", () => {
 
     expect(args.setFiles).toHaveBeenCalledTimes(1);
     expect(mockClearDecryptCacheForFile).toHaveBeenCalledWith("f1");
-    expect(mockToast.success).toHaveBeenCalledWith("File deleted");
+    expect(mockToast.success).toHaveBeenCalledWith(
+      "File deleted",
+      expect.objectContaining({ label: "Undo", onClick: expect.any(Function) }),
+    );
     expect(args.refreshQuota).toHaveBeenCalledTimes(1);
     expect(mockDeleteFile).toHaveBeenCalledWith("f1");
     expect(mockInvalidateTrash).toHaveBeenCalled();
+  });
+
+  it("Undo restores the file and refreshes every file view", async () => {
+    const target = makeFile({ id: "f1" });
+    const args = makeArgs({ files: [target] });
+    const { result } = renderHook(() => useVaultActions(args));
+
+    await act(async () => {
+      result.current.executeDelete(target);
+      await flush();
+    });
+
+    const [, action] = mockToast.success.mock.calls[0];
+    await act(async () => {
+      action.onClick();
+      await flush();
+    });
+
+    expect(mockRestoreFile).toHaveBeenCalledWith("f1");
+    expect(mockInvalidateFilesViews).toHaveBeenCalled();
+  });
+
+  it("Undo shows an error toast when the restore fails", async () => {
+    const target = makeFile({ id: "f1" });
+    mockRestoreFile.mockRejectedValue(new Error("restore boom"));
+    const args = makeArgs({ files: [target] });
+    const { result } = renderHook(() => useVaultActions(args));
+
+    await act(async () => {
+      result.current.executeDelete(target);
+      await flush();
+    });
+
+    const [, action] = mockToast.success.mock.calls[0];
+    await act(async () => {
+      action.onClick();
+      await flush();
+    });
+
+    expect(mockToast.error).toHaveBeenCalledWith("Failed to undo delete");
   });
 
   it("reconciles (refetch + error toast) on failure", async () => {
@@ -1060,9 +1143,46 @@ describe("executeBulkDelete", () => {
 
     expect(args.setFiles).toHaveBeenCalledTimes(1);
     expect(mockClearDecryptCacheForFile).toHaveBeenCalledTimes(2);
-    expect(mockToast.success).toHaveBeenCalledWith("Deleted 2 files");
+    expect(mockToast.success).toHaveBeenCalledWith(
+      "Deleted 2 files",
+      expect.objectContaining({ label: "Undo", onClick: expect.any(Function) }),
+    );
     expect(mockInvalidateTrash).toHaveBeenCalled();
     expect(args.refreshQuota).toHaveBeenCalled();
+  });
+
+  it("Undo bulk-restores the files and refreshes every file view", async () => {
+    mockBulkDeleteFiles.mockResolvedValue({ deleted: 2, failed: 0 });
+    const args = makeArgs({
+      files: [makeFile({ id: "f1" }), makeFile({ id: "f2" })],
+    });
+    const { result } = renderHook(() => useVaultActions(args));
+
+    await result.current.executeBulkDelete(["f1", "f2"]);
+    const [, action] = mockToast.success.mock.calls[0];
+    await act(async () => {
+      action.onClick();
+      await flush();
+    });
+
+    expect(mockBulkRestoreFiles).toHaveBeenCalledWith(["f1", "f2"]);
+    expect(mockInvalidateFilesViews).toHaveBeenCalled();
+  });
+
+  it("Undo shows an error toast when the bulk restore fails", async () => {
+    mockBulkDeleteFiles.mockResolvedValue({ deleted: 1, failed: 0 });
+    mockBulkRestoreFiles.mockRejectedValue(new Error("bulk restore boom"));
+    const args = makeArgs({ files: [makeFile({ id: "f1" })] });
+    const { result } = renderHook(() => useVaultActions(args));
+
+    await result.current.executeBulkDelete(["f1"]);
+    const [, action] = mockToast.success.mock.calls[0];
+    await act(async () => {
+      action.onClick();
+      await flush();
+    });
+
+    expect(mockToast.error).toHaveBeenCalledWith("Failed to undo delete");
   });
 
   it("uses the singular 'file' wording when exactly one file is deleted", async () => {
@@ -1072,7 +1192,10 @@ describe("executeBulkDelete", () => {
 
     await result.current.executeBulkDelete(["f1"]);
 
-    expect(mockToast.success).toHaveBeenCalledWith("Deleted 1 file");
+    expect(mockToast.success).toHaveBeenCalledWith(
+      "Deleted 1 file",
+      expect.objectContaining({ label: "Undo", onClick: expect.any(Function) }),
+    );
   });
 
   it("reports a partial failure and triggers a refetch", async () => {

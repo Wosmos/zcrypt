@@ -29,6 +29,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ShareModal } from "@/components/ui/share-modal";
+import { BulkShareModal } from "@/components/ui/bulk-share-modal";
 import { FilePreviewModal, useFilePreview } from "@/components/ui/file-preview-modal";
 import {
   Accordion,
@@ -56,6 +57,8 @@ import { useFolderStore } from "@/store/folders";
 import { useFolderPasswordStore } from "@/store/folder-passwords";
 import { usePassphraseStore } from "@/store/passphrase";
 import { toast } from "@/store/toast";
+import { useRecentlyViewedStore } from "@/store/recently-viewed";
+import { RecentlyViewedStrip } from "@/components/files/recently-viewed-strip";
 import type { DecryptedFolder } from "@/hooks/useFolders";
 
 import {
@@ -87,6 +90,37 @@ export default function VaultPage() {
   const explorerRef = useRef<VaultExplorerHandle>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
+  // OS file drop anywhere on the page. dragDepth counts nested enter/leave
+  // pairs (every descendant fires its own dragenter/dragleave as the pointer
+  // crosses it), so the overlay only clears on the OUTERMOST leave, not on
+  // every child boundary crossed while dragging over the page. Checking
+  // dataTransfer.types for "Files" excludes the explorer's own in-app
+  // drag-to-move (a non-native drag with no Files type), which must keep
+  // working unaffected by this.
+  const [dragActive, setDragActive] = useState(false);
+  const dragDepth = useRef(0);
+
+  const isOSFileDrag = (e: React.DragEvent) => e.dataTransfer.types.includes("Files");
+
+  const handlePageDragEnter = useCallback((e: React.DragEvent) => {
+    if (!isOSFileDrag(e)) return;
+    e.preventDefault();
+    dragDepth.current += 1;
+    setDragActive(true);
+  }, []);
+
+  const handlePageDragOver = useCallback((e: React.DragEvent) => {
+    if (!isOSFileDrag(e)) return;
+    e.preventDefault();
+  }, []);
+
+  const handlePageDragLeave = useCallback((e: React.DragEvent) => {
+    if (!isOSFileDrag(e)) return;
+    e.preventDefault();
+    dragDepth.current = Math.max(0, dragDepth.current - 1);
+    if (dragDepth.current === 0) setDragActive(false);
+  }, []);
+
   // "/" focuses the search box (GitHub/Slack convention), unless the user is
   // already typing in a field. Escape (handled on the input) clears + blurs.
   useEffect(() => {
@@ -109,8 +143,12 @@ export default function VaultPage() {
     { kind: "single"; file: FileMetadata } | { kind: "bulk"; ids: string[] } | null
   >(null);
   const [shareTarget, setShareTarget] = useState<FileMetadata | null>(null);
+  const [bulkShareIds, setBulkShareIds] = useState<string[] | null>(null);
   const [moveRequest, setMoveRequest] = useState<
-    { kind: "file"; fileId: string } | { kind: "folder"; folder: DecryptedFolder } | null
+    | { kind: "file"; fileId: string }
+    | { kind: "folder"; folder: DecryptedFolder }
+    | { kind: "bulk"; fileIds: string[] }
+    | null
   >(null);
   const [detailsTarget, setDetailsTarget] = useState<FileMetadata | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -281,6 +319,7 @@ export default function VaultPage() {
   // list so prev/next walks the same set the user is browsing. We gate on the
   // vault first (folder names + the unprotected decrypt path need it); the
   // decryptor swaps in a folder password for protected files on demand.
+  const logRecentlyViewed = useRecentlyViewedStore((s) => s.logView);
   const handleOpenFile = useCallback(
     (file: FileMetadata, folderFiles: FileMetadata[]) => {
       const list = folderFiles.length > 0 ? folderFiles : [file];
@@ -292,9 +331,10 @@ export default function VaultPage() {
         setViewerFiles(list);
         setViewerIndex(idx);
         setViewerOpen(true);
+        logRecentlyViewed(file.id);
       });
     },
-    [vault],
+    [vault, logRecentlyViewed],
   );
 
   // Kebab "Preview" (filename-keyed) routes to the SAME full viewer, scoped to
@@ -331,6 +371,18 @@ export default function VaultPage() {
     [actions],
   );
 
+  const handlePageDrop = useCallback(
+    (e: React.DragEvent) => {
+      if (!isOSFileDrag(e)) return;
+      e.preventDefault();
+      dragDepth.current = 0;
+      setDragActive(false);
+      const dropped = Array.from(e.dataTransfer.files);
+      if (dropped.length > 0) actions.handleFilesSelected(dropped);
+    },
+    [actions],
+  );
+
   // Mirror PlatformHealth's filter so the "Storage & backup" panel only renders
   // when it has content to show.
   const hasConnectedPlatform = statuses.some((s) => s.connected);
@@ -362,7 +414,21 @@ export default function VaultPage() {
     // that becomes the containing block for position:sticky, which breaks BOTH
     // sticky mobile rows (search bar here + the filter row inside the explorer)
     // and lets content leak past them. Correct sticky beats a 0.25s entrance.
-    <div className="space-y-6">
+    <div
+      className="relative space-y-6"
+      onDragEnter={handlePageDragEnter}
+      onDragOver={handlePageDragOver}
+      onDragLeave={handlePageDragLeave}
+      onDrop={handlePageDrop}
+    >
+      {dragActive && (
+        <div className="pointer-events-none fixed inset-0 z-[60] flex items-center justify-center bg-[var(--color-bg)]/80 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-3 rounded-3xl border-2 border-dashed border-[var(--color-accent)] bg-[var(--color-surface)] px-12 py-10">
+            <FileUpload className="h-8 w-8 text-[var(--color-accent)]" />
+            <p className="text-base font-semibold text-[var(--color-text)]">Drop files to upload</p>
+          </div>
+        </div>
+      )}
       {/* Top row, search + actions. DESKTOP (sm+): search with the vault-lock
           toggle hugging its right edge, then [New folder, Upload, refresh] far right.
           On MOBILE this row is sticky and carries only search, the vault-lock toggle
@@ -469,6 +535,10 @@ export default function VaultPage() {
           onResume={(file, upload) => actions.handleResumeIncomplete(file, upload)}
         />
 
+        {!currentFolderId && vault.ready && files.length > 0 && (
+          <RecentlyViewedStrip files={files} onOpen={handleOpenFile} />
+        )}
+
         {/* Empty vault → CTA; otherwise the unified explorer. The explorer
               renders its own loading / locked / no-results states. Until the
               lock decision has settled (`vault.ready`), hold on the explorer's
@@ -505,6 +575,8 @@ export default function VaultPage() {
             onMoveRequest={(fileId) => setMoveRequest({ kind: "file", fileId })}
             onBulkDelete={(ids) => setDeleteRequest({ kind: "bulk", ids })}
             onBulkDownload={actions.handleBulkDownload}
+            onBulkMove={(ids) => setMoveRequest({ kind: "bulk", fileIds: ids })}
+            onBulkShare={(ids) => setBulkShareIds(ids)}
             onUploadClick={() => setUploadOpen(true)}
             onOpenFolderRequest={handleOpenFolderRequest}
             onProtectFolder={setProtectTarget}
@@ -597,6 +669,12 @@ export default function VaultPage() {
         fileSize={shareTarget?.original_size ?? 0}
       />
 
+      <BulkShareModal
+        open={!!bulkShareIds}
+        onClose={() => setBulkShareIds(null)}
+        files={bulkShareIds ? files.filter((f) => bulkShareIds.includes(f.id)) : []}
+      />
+
       {/* File details drawer */}
       <DetailsDrawer
         file={detailsTarget}
@@ -611,9 +689,10 @@ export default function VaultPage() {
         open={!!moveRequest}
         fileId={moveRequest?.kind === "file" ? moveRequest.fileId : null}
         folderId={moveRequest?.kind === "folder" ? moveRequest.folder.id : null}
+        fileIds={moveRequest?.kind === "bulk" ? moveRequest.fileIds : undefined}
         onClose={() => setMoveRequest(null)}
         onMoved={() => refresh()}
-        onMoveFile={moveRequest?.kind === "file" ? actions.moveFileWithRekey : undefined}
+        onMoveFile={moveRequest?.kind !== "folder" ? actions.moveFileWithRekey : undefined}
       />
 
       {/* Folder unlock (open a protected folder / verify before re-key sweeps) */}

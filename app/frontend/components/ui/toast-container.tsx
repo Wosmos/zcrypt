@@ -204,9 +204,25 @@ export function ToastContainer() {
                   </span>
 
                   {/* Body */}
-                  <p className="min-w-0 flex-1 break-words pt-1 text-sm font-medium leading-snug text-[var(--color-text)]">
-                    {t.message}
-                  </p>
+                  <div className="min-w-0 flex-1 pt-1">
+                    <p className="break-words text-sm font-medium leading-snug text-[var(--color-text)]">
+                      {t.message}
+                    </p>
+                    {t.action && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          t.action?.onClick();
+                          remove(t.id);
+                        }}
+                        className="mt-1 text-sm font-semibold underline-offset-2 hover:underline"
+                        style={{ color: type.color }}
+                      >
+                        {t.action.label}
+                      </button>
+                    )}
+                  </div>
 
                   {/* Dismiss */}
                   <button

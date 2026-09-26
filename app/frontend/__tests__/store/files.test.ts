@@ -34,18 +34,24 @@ import {
   ensureFiles,
   prefetchFileList,
   updateFileStyle,
+  renameFile,
 } from "@/store/files";
 import { queryClient } from "@/lib/query-client";
 import { qk } from "@/lib/query-keys";
 import { useAuthStore } from "@/store/auth";
 import { usePassphraseStore } from "@/store/passphrase";
-import { listFiles, updateFileStyle as apiUpdateFileStyle } from "@/lib/api";
+import {
+  listFiles,
+  updateFileStyle as apiUpdateFileStyle,
+  setFileName as apiSetFileName,
+} from "@/lib/api";
 import { getOfflineCache } from "@/lib/offline-cache";
 import type { FileMetadata } from "@/types";
 
 vi.mock("@/lib/api", () => ({
   listFiles: vi.fn(),
   updateFileStyle: vi.fn(),
+  setFileName: vi.fn(),
 }));
 
 // updateFileStyle drives real per-user name-key derivation (PBKDF2) + AES style
@@ -419,6 +425,90 @@ describe("files store (TanStack Query)", () => {
       await updateFileStyle("f1", null);
 
       expect(apiUpdateFileStyle).toHaveBeenCalledWith("f1", null);
+    });
+  });
+
+  describe("renameFile", () => {
+    function unlock(passphrase: string | null) {
+      usePassphraseStore.setState({
+        cachedPassphrase: passphrase,
+        persistent: passphrase != null,
+        cacheUntil: null,
+      });
+    }
+
+    afterEach(() => unlock(null));
+
+    it("throws (and never calls the API) when there is no user", async () => {
+      useAuthStore.setState({ user: null });
+      unlock("vault-pass");
+      await expect(renameFile("f1", "new name")).rejects.toThrow(
+        "Unlock your vault to rename files",
+      );
+      expect(apiSetFileName).not.toHaveBeenCalled();
+    });
+
+    it("throws (and never calls the API) when the vault is locked", async () => {
+      useAuthStore.setState({ user: { id: "u1" } as never });
+      unlock(null);
+      await expect(renameFile("f1", "new name")).rejects.toThrow(
+        "Unlock your vault to rename files",
+      );
+      expect(apiSetFileName).not.toHaveBeenCalled();
+    });
+
+    it("throws (and never calls the API) for a blank/whitespace-only name", async () => {
+      useAuthStore.setState({ user: { id: "u1" } as never });
+      unlock("vault-pass");
+      await expect(renameFile("f1", "   ")).rejects.toThrow("Name cannot be empty");
+      expect(apiSetFileName).not.toHaveBeenCalled();
+    });
+
+    it("blocks a duplicate sibling name in the same folder", async () => {
+      useAuthStore.setState({ user: { id: "u1" } as never });
+      unlock("vault-pass");
+      setFilesData([
+        { ...makeFile("f1"), folder_id: "fld1" },
+        { ...makeFile("f2"), original_name: "taken.txt", folder_id: "fld1" },
+      ]);
+
+      await expect(renameFile("f1", "taken.txt")).rejects.toThrow(
+        'A file named "taken.txt" already exists here.',
+      );
+      expect(apiSetFileName).not.toHaveBeenCalled();
+    });
+
+    it("allows the same name if the duplicate lives in a different folder", async () => {
+      useAuthStore.setState({ user: { id: "u1" } as never });
+      unlock("vault-pass");
+      vi.mocked(apiSetFileName).mockResolvedValue({ success: true } as never);
+      setFilesData([
+        { ...makeFile("f1"), folder_id: "fld1" },
+        { ...makeFile("f2"), original_name: "taken.txt", folder_id: "fld2" },
+      ]);
+
+      await renameFile("f1", "taken.txt");
+
+      expect(apiSetFileName).toHaveBeenCalledTimes(1);
+    });
+
+    it("encrypts the trimmed name, calls the API with the ciphertext, then invalidates", async () => {
+      useAuthStore.setState({ user: { id: "u1" } as never });
+      unlock("vault-pass");
+      vi.mocked(apiSetFileName).mockResolvedValue({ success: true } as never);
+      setFilesData([makeFile("f1")]);
+      const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+
+      await renameFile("f1", "  My New Name.txt  ");
+
+      expect(apiSetFileName).toHaveBeenCalledTimes(1);
+      const [fileId, encrypted] = vi.mocked(apiSetFileName).mock.calls[0];
+      expect(fileId).toBe("f1");
+      expect(typeof encrypted).toBe("string");
+      expect((encrypted as string).length).toBeGreaterThan(0);
+      expect(encrypted).not.toContain("My New Name");
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: qk.files });
+      invalidateSpy.mockRestore();
     });
   });
 
