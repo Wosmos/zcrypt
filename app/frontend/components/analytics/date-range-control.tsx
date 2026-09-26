@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { useAnalyticsFiltersStore, type DateRangePreset } from "@/store/analytics-filters";
 import { Calendar } from "@/lib/icons";
@@ -18,93 +19,75 @@ const PRESETS: { value: Exclude<DateRangePreset, "custom">; label: string }[] = 
 /**
  * The page-wide date-range control: a 6-pill segmented ToggleGroup (Today /
  * 7d / 30d / 90d / All time / Custom), matching the ToggleGroup recipe
- * upload-chart.tsx used to own locally. Custom opens a small themed panel
- * anchored right under the pill (not a modal/sheet) with a from-scratch
- * calendar (components/ui/calendar.tsx, no date library), closed on outside
- * click or Escape.
+ * upload-chart.tsx used to own locally. Custom opens a small themed Popover
+ * anchored to the pill with a from-scratch calendar (components/ui/calendar.tsx,
+ * no date library) - Popover already handles outside-click/Escape/positioning.
  */
 export function DateRangeControl() {
   const { preset, customStart, customEnd, setPreset, setCustomRange } = useAnalyticsFiltersStore();
   const [customOpen, setCustomOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
 
   const today = localDateKey(new Date());
   const [start, setStart] = useState(customStart ?? "");
   const [end, setEnd] = useState(customEnd ?? "");
-
-  useEffect(() => {
-    if (!customOpen) return;
-    function handlePointerDown(e: PointerEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setCustomOpen(false);
-      }
-    }
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") setCustomOpen(false);
-    }
-    document.addEventListener("pointerdown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [customOpen]);
 
   const customLabel =
     preset === "custom" && customStart && customEnd
       ? `${formatDateShort(customStart)} – ${formatDateShort(customEnd)}`
       : "Custom";
 
-  function handleCancel() {
+  function handleOpenChange(open: boolean) {
+    if (open) {
+      setCustomOpen(true);
+      return;
+    }
     setStart(customStart ?? "");
     setEnd(customEnd ?? "");
     setCustomOpen(false);
   }
 
   return (
-    <div ref={containerRef} className="relative flex justify-end">
-      <ToggleGroup
-        type="single"
-        value={preset === "custom" ? "custom" : preset}
-        onValueChange={(v) => {
-          if (!v) return;
-          if (v === "custom") {
-            setCustomOpen(true);
-            return;
-          }
-          setPreset(v as DateRangePreset);
-        }}
-        className="flex-wrap rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] p-0.5"
-        aria-label="Select date range"
-      >
-        {PRESETS.map((p) => (
-          <ToggleGroupItem
-            key={p.value}
-            value={p.value}
-            aria-label={p.label}
-            className="h-8 rounded-md px-2.5 text-xs font-medium text-[var(--color-text-secondary)] data-[state=on]:bg-[var(--color-surface)] data-[state=on]:text-[var(--color-text)] data-[state=on]:shadow-sm"
-          >
-            {p.label}
-          </ToggleGroupItem>
-        ))}
-        <ToggleGroupItem
-          value="custom"
-          aria-label="Custom range"
-          className={cn(
-            "inline-flex h-8 items-center gap-1 rounded-md px-2.5 text-xs font-medium text-[var(--color-text-secondary)] data-[state=on]:bg-[var(--color-surface)] data-[state=on]:text-[var(--color-text)] data-[state=on]:shadow-sm",
-          )}
+    <div className="flex justify-end">
+      <Popover open={customOpen} onOpenChange={handleOpenChange}>
+        <ToggleGroup
+          type="single"
+          value={preset === "custom" ? "custom" : preset}
+          onValueChange={(v) => {
+            if (!v) return;
+            if (v === "custom") {
+              setCustomOpen(true);
+              return;
+            }
+            setPreset(v as DateRangePreset);
+          }}
+          className="flex-wrap rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] p-0.5"
+          aria-label="Select date range"
         >
-          <Calendar className="h-3.5 w-3.5" />
-          {customLabel}
-        </ToggleGroupItem>
-      </ToggleGroup>
+          {PRESETS.map((p) => (
+            <ToggleGroupItem
+              key={p.value}
+              value={p.value}
+              aria-label={p.label}
+              className="h-8 rounded-md px-2.5 text-xs font-medium text-[var(--color-text-secondary)] data-[state=on]:bg-[var(--color-surface)] data-[state=on]:text-[var(--color-text)] data-[state=on]:shadow-sm"
+            >
+              {p.label}
+            </ToggleGroupItem>
+          ))}
+          <PopoverAnchor asChild>
+            <ToggleGroupItem
+              value="custom"
+              aria-label="Custom range"
+              className={cn(
+                "inline-flex h-8 items-center gap-1 rounded-md px-2.5 text-xs font-medium text-[var(--color-text-secondary)] data-[state=on]:bg-[var(--color-surface)] data-[state=on]:text-[var(--color-text)] data-[state=on]:shadow-sm",
+              )}
+            >
+              <Calendar className="h-3.5 w-3.5" />
+              {customLabel}
+            </ToggleGroupItem>
+          </PopoverAnchor>
+        </ToggleGroup>
 
-      {customOpen && (
-        <div
-          role="dialog"
-          aria-label="Custom date range"
-          className="panel absolute right-0 top-full z-20 mt-2 w-[min(34rem,calc(100vw-2rem))] space-y-3 p-4 shadow-lg"
-        >
+        <PopoverContent align="end" className="w-[min(34rem,calc(100vw-2rem))] space-y-3 p-4">
           <div className="flex items-center justify-between text-xs text-[var(--color-text-muted)]">
             <span>
               {start ? formatDateShort(start) : "Start"} – {end ? formatDateShort(end) : "End"}
@@ -117,9 +100,6 @@ export function DateRangeControl() {
             onChange={(s, e) => {
               setStart(s);
               setEnd(e);
-              // A range is complete as soon as both ends are picked (or a
-              // single day is picked twice) - commit and close immediately
-              // instead of making the user find a separate Apply button.
               if (s && e) {
                 setCustomRange(s, e);
                 setCustomOpen(false);
@@ -129,14 +109,14 @@ export function DateRangeControl() {
           <div className="flex justify-end border-t border-[var(--color-border)] pt-2">
             <button
               type="button"
-              onClick={handleCancel}
+              onClick={() => handleOpenChange(false)}
               className="rounded-lg px-3 py-1.5 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"
             >
               Cancel
             </button>
           </div>
-        </div>
-      )}
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }

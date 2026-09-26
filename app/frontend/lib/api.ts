@@ -269,7 +269,7 @@ export function listFiles(filter?: string, limit?: number): Promise<FileMetadata
 
 // --- Insights / analytics (server-aggregated: see app/backend/cmd/analytics.go) ---
 
-export interface AnalyticsLargestFile {
+interface AnalyticsLargestFile {
   id: string;
   original_name: string;
   encrypted_name: string;
