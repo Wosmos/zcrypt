@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/zcrypt/zcrypt/adapters"
@@ -98,6 +99,13 @@ type Server struct {
 
 	// devMode disables all per-route rate limiting when DEV_MODE=true.
 	devMode bool
+
+	// maintenanceMode, when set, makes the top-level maintenanceGate wrapper
+	// (main.go) reject mutating requests with 503. Toggled at runtime via
+	// POST /api/internal/maintenance (X-Maintenance-Secret header, checked
+	// against cfg.MaintenanceSecret) — used by scripts/neon-rotate.sh to
+	// freeze writes for the dump→cutover window. See docs/DB_SCALING_100_PROJECTS.md §6.1.
+	maintenanceMode atomic.Bool
 
 	// pushLimiter throttles the sync worker's per-platform push volume to stay
 	// under a platform's rate cap (e.g. GitHub's ~7GB/hour), so a large upload
@@ -610,6 +618,14 @@ func createAdapter(platform, token string) (adapters.PlatformAdapter, error) {
 		return adapters.NewHuggingFaceAdapter(token)
 	case "telegram":
 		return adapters.NewTelegramAdapter(token)
+	case "mock":
+		// Load-testing sandbox only (docker-compose.loadtest.yml). Never
+		// reachable unless the operator explicitly opts in, so this can
+		// never appear in a real deployment by accident.
+		if os.Getenv("ZCRYPT_ENABLE_MOCK_ADAPTER") != "true" {
+			return nil, fmt.Errorf("unsupported platform: %s", platform)
+		}
+		return adapters.NewMockAdapter(token)
 	default:
 		return nil, fmt.Errorf("unsupported platform: %s", platform)
 	}
@@ -859,6 +875,19 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 
 	// Health check (public)
 	mux.HandleFunc("GET /api/health", s.HandleHealth)
+
+	// Maintenance-mode toggle for the Neon rotation write-freeze (internal use
+	// only; authenticated by static secret, see HandleMaintenanceToggle).
+	mux.HandleFunc("POST /api/internal/maintenance", maxJSON(s.HandleMaintenanceToggle))
+}
+
+// maintenancePassthroughPaths are exempt from the maintenance-mode 503 gate
+// even during a freeze: the toggle endpoint itself (or it could never be
+// turned back off) and the health check (so monitoring doesn't flap red for
+// the deliberate duration of a rotation).
+var maintenancePassthroughPaths = map[string]bool{
+	"/api/internal/maintenance": true,
+	"/api/health":               true,
 }
 
 // getAdapterUsername extracts the username from any adapter type.
@@ -871,6 +900,8 @@ func getAdapterUsername(adapter adapters.PlatformAdapter) string {
 	case *adapters.HuggingFaceAdapter:
 		return a.GetUsername()
 	case *adapters.TelegramAdapter:
+		return a.GetUsername()
+	case *adapters.MockAdapter:
 		return a.GetUsername()
 	}
 	return "unknown"
