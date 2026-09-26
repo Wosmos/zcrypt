@@ -21,6 +21,11 @@ import {
   updateFileStyle,
   bulkPurgeFiles,
   getFolderShareFileMeta,
+  listFiles,
+  getAnalyticsSummary,
+  getAnalyticsTimeseries,
+  getAnalyticsStorageGrowth,
+  getAnalyticsFileTypes,
 } from "@/lib/api";
 
 type FetchMock = ReturnType<typeof vi.fn>;
@@ -161,5 +166,97 @@ describe("shareFetchRetry (via getFolderShareFileMeta)", () => {
     const assertion = expect(p).rejects.toThrow("still down");
     await vi.advanceTimersByTimeAsync(20000); // flush every backoff until it throws
     await assertion;
+  });
+});
+
+describe("listFiles", () => {
+  it("GETs the file list with no query params by default", async () => {
+    fetchMock.mockResolvedValueOnce(jsonRes([]));
+    await listFiles();
+    const [url] = fetchMock.mock.calls[0];
+    expect(url).not.toContain("?");
+  });
+
+  it("includes the filter param when given", async () => {
+    fetchMock.mockResolvedValueOnce(jsonRes([]));
+    await listFiles("report");
+    const [url] = fetchMock.mock.calls[0];
+    expect(url).toContain("filter=report");
+  });
+
+  it("includes the limit param when given", async () => {
+    fetchMock.mockResolvedValueOnce(jsonRes([]));
+    await listFiles(undefined, 8);
+    const [url] = fetchMock.mock.calls[0];
+    expect(url).toContain("limit=8");
+  });
+});
+
+describe("analytics endpoints", () => {
+  it("getAnalyticsSummary sends start/end for a bounded range", async () => {
+    fetchMock.mockResolvedValueOnce(jsonRes({ file_count: 1 }));
+    await getAnalyticsSummary({ start: "2026-01-01", end: "2026-01-31" });
+    const [url] = fetchMock.mock.calls[0];
+    expect(url).toContain("/api/analytics/summary?");
+    expect(url).toContain("start=2026-01-01");
+    expect(url).toContain("end=2026-01-31");
+  });
+
+  it("getAnalyticsSummary omits start when it's empty, even for a bounded range", async () => {
+    fetchMock.mockResolvedValueOnce(jsonRes({ file_count: 1 }));
+    await getAnalyticsSummary({ start: "", end: "2026-01-31" });
+    const [url] = fetchMock.mock.calls[0];
+    expect(url).not.toContain("start=");
+    expect(url).toContain("end=2026-01-31");
+  });
+
+  it("getAnalyticsSummary omits end when it's missing, even for a bounded range", async () => {
+    fetchMock.mockResolvedValueOnce(jsonRes({ file_count: 1 }));
+    await getAnalyticsSummary({ start: "2026-01-01" });
+    const [url] = fetchMock.mock.calls[0];
+    expect(url).toContain("start=2026-01-01");
+    expect(url).not.toContain("end=");
+  });
+
+  it("getAnalyticsSummary sends range=all and omits start/end for allTime", async () => {
+    fetchMock.mockResolvedValueOnce(jsonRes({ file_count: 1 }));
+    await getAnalyticsSummary({ allTime: true });
+    const [url] = fetchMock.mock.calls[0];
+    expect(url).toContain("range=all");
+    expect(url).not.toContain("start=");
+    expect(url).not.toContain("end=");
+  });
+
+  it("getAnalyticsTimeseries sends start/end/bucket", async () => {
+    fetchMock.mockResolvedValueOnce(jsonRes({ bucket: "day", points: [] }));
+    await getAnalyticsTimeseries("2026-01-01", "2026-01-31", "day");
+    const [url] = fetchMock.mock.calls[0];
+    expect(url).toContain("/api/analytics/timeseries?");
+    expect(url).toContain("start=2026-01-01");
+    expect(url).toContain("end=2026-01-31");
+    expect(url).toContain("bucket=day");
+  });
+
+  it("getAnalyticsStorageGrowth GETs the storage-growth endpoint", async () => {
+    fetchMock.mockResolvedValueOnce(jsonRes([]));
+    await getAnalyticsStorageGrowth();
+    const [url] = fetchMock.mock.calls[0];
+    expect(url).toContain("/api/analytics/storage-growth");
+  });
+
+  it("getAnalyticsFileTypes sends start/end for a bounded range", async () => {
+    fetchMock.mockResolvedValueOnce(jsonRes([]));
+    await getAnalyticsFileTypes({ start: "2026-01-01", end: "2026-01-31" });
+    const [url] = fetchMock.mock.calls[0];
+    expect(url).toContain("/api/analytics/file-types?");
+    expect(url).toContain("start=2026-01-01");
+    expect(url).toContain("end=2026-01-31");
+  });
+
+  it("getAnalyticsFileTypes sends range=all for allTime", async () => {
+    fetchMock.mockResolvedValueOnce(jsonRes([]));
+    await getAnalyticsFileTypes({ allTime: true });
+    const [url] = fetchMock.mock.calls[0];
+    expect(url).toContain("range=all");
   });
 });

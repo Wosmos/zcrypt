@@ -34,4 +34,40 @@ describe("qk", () => {
   it("folderShares(folderId) keys by folder id", () => {
     expect(qk.folderShares("folder-1")).toEqual(["folder-shares", "folder-1"]);
   });
+
+  it("analyticsSummary(start, end) keys by the resolved window", () => {
+    expect(qk.analyticsSummary("2026-01-01", "2026-01-31")).toEqual([
+      "analytics",
+      "summary",
+      "2026-01-01",
+      "2026-01-31",
+    ]);
+  });
+
+  it("analyticsTimeseries(start, end, bucket) keys by window and bucket", () => {
+    expect(qk.analyticsTimeseries("2026-01-01", "2026-01-31", "day")).toEqual([
+      "analytics",
+      "timeseries",
+      "2026-01-01",
+      "2026-01-31",
+      "day",
+    ]);
+  });
+
+  it("analyticsFileTypes(start, end) keys by the resolved window", () => {
+    expect(qk.analyticsFileTypes("2026-01-01", "2026-01-31")).toEqual([
+      "analytics",
+      "file-types",
+      "2026-01-01",
+      "2026-01-31",
+    ]);
+  });
+
+  it("exposes analyticsStorageGrowth as a fixed tuple", () => {
+    expect(qk.analyticsStorageGrowth).toEqual(["analytics", "storage-growth"]);
+  });
+
+  it("recentUploads(limit) keys by limit", () => {
+    expect(qk.recentUploads(8)).toEqual(["analytics", "recent", 8]);
+  });
 });
