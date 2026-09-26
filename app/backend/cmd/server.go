@@ -70,14 +70,15 @@ type Server struct {
 	transferJoinLimiter *rateLimiter
 	// Desktop-OAuth poll limiter: 30 polls per minute per IP
 	desktopPollLimiter *rateLimiter
-	// Analytics limiter: 20 req per 5 min per USER (not IP), shared across every
+	// Analytics limiter: 100 req per 5 min per USER (not IP), shared across every
 	// /api/analytics/* route. Each new backend aggregation is a real DB query, not
 	// a free cache read, so this is a hard per-account ceiling on top of (not
 	// instead of) the frontend's own refresh cooldown: it holds even against extra
-	// tabs, another device, or a direct API call with a stolen/valid JWT. 20 per 5
-	// min comfortably covers normal use (switching between the 6 range presets
-	// plus one manual refresh, which fires ~4-5 parallel requests) without ever
-	// being a realistic ceiling for a human clicking around.
+	// tabs, another device, or a direct API call with a stolen/valid JWT. One page
+	// mount fires 4 parallel requests (doubled to 8 by React Strict Mode in dev),
+	// so 100 leaves headroom for a dozen-plus reloads/range-switches in a 5 min
+	// window without ever being a realistic ceiling for a human clicking around,
+	// while still being nowhere near what a scripted scrape/DoS attempt would want.
 	analyticsLimiter *rateLimiter
 
 	// tokenVersions enforces JWT revocation by checking each access token's
@@ -153,7 +154,7 @@ func NewServer(db *index.DB, cfg *config.Config, progress *pipeline.ProgressEmit
 		padLimiter:          newRateLimiter(10, time.Hour),
 		transferJoinLimiter: newRateLimiter(5, 10*time.Minute),
 		desktopPollLimiter:  newRateLimiter(30, time.Minute),
-		analyticsLimiter:    newRateLimiter(20, 5*time.Minute),
+		analyticsLimiter:    newRateLimiter(100, 5*time.Minute),
 		globalAdapterCache:  make(map[string]adapters.PlatformAdapter),
 		transferHub:         newTransferHub(),
 		desktopSessions:     make(map[string]*desktopOAuthResult),
