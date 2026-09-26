@@ -16,6 +16,7 @@ import {
 import { useRefreshCooldown } from "@/hooks/useRefreshCooldown";
 import { useAnalyticsFiltersStore } from "@/store/analytics-filters";
 import { getRangeBounds } from "@/components/analytics/date-range";
+import { ApiError } from "@/lib/http-error";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -121,14 +122,19 @@ export function AnalyticsClient() {
   );
 
   if (summaryError && !summary) {
+    const rateLimited = summaryError instanceof ApiError && summaryError.status === 429;
     return (
       <div className="space-y-6">
         {header}
         <div className="panel p-6">
           <EmptyState
             icon={<BarChart3 className="h-7 w-7 text-[var(--color-text-muted)]" />}
-            title="Couldn't load insights"
-            description="We couldn't reach your library to build these insights. Check your connection and try again."
+            title={rateLimited ? "Slow down a little" : "Couldn't load insights"}
+            description={
+              rateLimited
+                ? "You've refreshed this a lot in a short time. Wait a few minutes and it'll load again."
+                : "We couldn't reach your library to build these insights. Check your connection and try again."
+            }
           />
         </div>
       </div>

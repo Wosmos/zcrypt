@@ -1,13 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { BottomSheet } from "@/components/ui/bottom-sheet";
-import { useIsMobile } from "@/hooks/useIsMobile";
+import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { useAnalyticsFiltersStore, type DateRangePreset } from "@/store/analytics-filters";
 import { Calendar } from "@/lib/icons";
-import { cn, formatDateShort } from "@/lib/utils";
+import { cn, formatDateShort, localDateKey } from "@/lib/utils";
 
 const PRESETS: { value: Exclude<DateRangePreset, "custom">; label: string }[] = [
   { value: "today", label: "Today" },
@@ -17,101 +15,54 @@ const PRESETS: { value: Exclude<DateRangePreset, "custom">; label: string }[] = 
   { value: "all", label: "All time" },
 ];
 
-function CustomRangeForm({
-  initialStart,
-  initialEnd,
-  onApply,
-  onCancel,
-}: {
-  initialStart: string | null;
-  initialEnd: string | null;
-  onApply: (start: string, end: string) => void;
-  onCancel: () => void;
-}) {
-  const today = new Date().toISOString().slice(0, 10);
-  const [start, setStart] = useState(initialStart ?? today);
-  const [end, setEnd] = useState(initialEnd ?? today);
-
-  return (
-    <div className="space-y-4 p-1">
-      <h3 className="text-sm font-semibold text-[var(--color-text)]">Custom range</h3>
-      <div className="grid grid-cols-2 gap-3">
-        <label className="block space-y-1 text-xs text-[var(--color-text-muted)]">
-          From
-          <input
-            type="date"
-            value={start}
-            max={end}
-            onChange={(e) => setStart(e.target.value)}
-            className="mt-1 block w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text)]"
-          />
-        </label>
-        <label className="block space-y-1 text-xs text-[var(--color-text-muted)]">
-          To
-          <input
-            type="date"
-            value={end}
-            min={start}
-            max={today}
-            onChange={(e) => setEnd(e.target.value)}
-            className="mt-1 block w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text)]"
-          />
-        </label>
-      </div>
-      <div className="flex justify-end gap-2 pt-1">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="rounded-lg px-3 py-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={() => onApply(start, end)}
-          className="rounded-lg bg-[var(--color-accent)] px-3 py-2 text-sm font-medium text-white"
-        >
-          Apply
-        </button>
-      </div>
-    </div>
-  );
-}
-
 /**
  * The page-wide date-range control: a 6-pill segmented ToggleGroup (Today /
  * 7d / 30d / 90d / All time / Custom), matching the ToggleGroup recipe
- * upload-chart.tsx used to own locally. Custom opens a small picker — a
- * Dialog on desktop, a BottomSheet on mobile (useIsMobile) — with two native
- * date inputs rather than a bespoke calendar widget (no Popover/Calendar
- * primitive exists in this codebase yet, and this keeps it that way).
+ * upload-chart.tsx used to own locally. Custom opens a small themed panel
+ * anchored right under the pill (not a modal/sheet) with a from-scratch
+ * calendar (components/ui/calendar.tsx, no date library), closed on outside
+ * click or Escape.
  */
 export function DateRangeControl() {
   const { preset, customStart, customEnd, setPreset, setCustomRange } = useAnalyticsFiltersStore();
   const [customOpen, setCustomOpen] = useState(false);
-  const isMobile = useIsMobile();
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const today = localDateKey(new Date());
+  const [start, setStart] = useState(customStart ?? "");
+  const [end, setEnd] = useState(customEnd ?? "");
+
+  useEffect(() => {
+    if (!customOpen) return;
+    function handlePointerDown(e: PointerEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setCustomOpen(false);
+      }
+    }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setCustomOpen(false);
+    }
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [customOpen]);
 
   const customLabel =
     preset === "custom" && customStart && customEnd
       ? `${formatDateShort(customStart)} – ${formatDateShort(customEnd)}`
       : "Custom";
 
-  function handleApply(start: string, end: string) {
-    setCustomRange(start, end);
+  function handleCancel() {
+    setStart(customStart ?? "");
+    setEnd(customEnd ?? "");
     setCustomOpen(false);
   }
 
-  const form = (
-    <CustomRangeForm
-      initialStart={customStart}
-      initialEnd={customEnd}
-      onApply={handleApply}
-      onCancel={() => setCustomOpen(false)}
-    />
-  );
-
   return (
-    <div className="flex justify-end">
+    <div ref={containerRef} className="relative flex justify-end">
       <ToggleGroup
         type="single"
         value={preset === "custom" ? "custom" : preset}
@@ -148,14 +99,43 @@ export function DateRangeControl() {
         </ToggleGroupItem>
       </ToggleGroup>
 
-      {isMobile ? (
-        <BottomSheet open={customOpen} onClose={() => setCustomOpen(false)}>
-          {form}
-        </BottomSheet>
-      ) : (
-        <Dialog open={customOpen} onOpenChange={setCustomOpen}>
-          <DialogContent className="max-w-sm">{form}</DialogContent>
-        </Dialog>
+      {customOpen && (
+        <div
+          role="dialog"
+          aria-label="Custom date range"
+          className="panel absolute right-0 top-full z-20 mt-2 w-[min(34rem,calc(100vw-2rem))] space-y-3 p-4 shadow-lg"
+        >
+          <div className="flex items-center justify-between text-xs text-[var(--color-text-muted)]">
+            <span>
+              {start ? formatDateShort(start) : "Start"} – {end ? formatDateShort(end) : "End"}
+            </span>
+          </div>
+          <CalendarPicker
+            start={start || null}
+            end={end || null}
+            maxDate={today}
+            onChange={(s, e) => {
+              setStart(s);
+              setEnd(e);
+              // A range is complete as soon as both ends are picked (or a
+              // single day is picked twice) - commit and close immediately
+              // instead of making the user find a separate Apply button.
+              if (s && e) {
+                setCustomRange(s, e);
+                setCustomOpen(false);
+              }
+            }}
+          />
+          <div className="flex justify-end border-t border-[var(--color-border)] pt-2">
+            <button
+              type="button"
+              onClick={handleCancel}
+              className="rounded-lg px-3 py-1.5 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
