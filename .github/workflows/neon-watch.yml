@@ -25,6 +25,12 @@ name: Neon Quota Watch
 #   RAILWAY_ENVIRONMENT      the environment's ID (e.g. the id behind
 #                            "production", NOT the string "production" itself)
 #   HEALTH_URL               e.g. https://api.zcrypt.cloud/api/health
+#   MAINTENANCE_SECRET       shared secret for POST /api/internal/maintenance
+#                            (write-freeze around the dump->cutover window, see
+#                            docs/DB_SCALING_100_PROJECTS.md §6.1). Must match
+#                            the backend's MAINTENANCE_SECRET env var exactly.
+#                            Without this secret set (here AND on the backend),
+#                            rotation still runs but WITHOUT the write-freeze.
 
 on:
   schedule:
@@ -86,6 +92,7 @@ jobs:
           RAILWAY_SERVICE: ${{ secrets.RAILWAY_SERVICE }}
           RAILWAY_ENVIRONMENT: ${{ secrets.RAILWAY_ENVIRONMENT }}
           HEALTH_URL: ${{ secrets.HEALTH_URL }}
+          MAINTENANCE_SECRET: ${{ secrets.MAINTENANCE_SECRET }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: |
           # @railway/cli is deliberately NOT installed: as of CLI v5.54 it
