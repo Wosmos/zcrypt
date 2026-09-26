@@ -1,15 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
-import { useFileList } from "@/hooks/useFileList";
 import { usePlatformHealth } from "@/hooks/usePlatformHealth";
 import { useQuota } from "@/hooks/useQuota";
-import { formatBytes, cn } from "@/lib/utils";
+import {
+  useAnalyticsSummary,
+  useAnalyticsTimeseries,
+  useStorageGrowth,
+  useAnalyticsFileTypes,
+  useRecentUploads,
+  useAppDownloadsTotal,
+  useRefreshAnalytics,
+} from "@/hooks/useAnalytics";
+import { useRefreshCooldown } from "@/hooks/useRefreshCooldown";
+import { useAnalyticsFiltersStore } from "@/store/analytics-filters";
+import { getRangeBounds } from "@/components/analytics/date-range";
+import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/ui/page-header";
-import { StatCard } from "@/components/ui/stat-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { IconButton } from "@/components/ui/icon-button";
+import { Section } from "@/components/ui/section";
+import { DateRangeControl } from "@/components/analytics/date-range-control";
+import { KpiHeroRow } from "@/components/analytics/kpi-hero-row";
+import { KpiSecondaryStrip } from "@/components/analytics/kpi-secondary-strip";
 import { StorageHero } from "@/components/analytics/storage-hero";
 import { StatCards } from "@/components/analytics/stat-cards";
 import { UploadChart } from "@/components/analytics/upload-chart";
@@ -20,49 +34,57 @@ import { StorageHealth } from "@/components/analytics/storage-health";
 import { StorageGrowth } from "@/components/analytics/storage-growth";
 import { VaultDetails } from "@/components/analytics/vault-details";
 import { AdvancedDetails } from "@/components/analytics/advanced-details";
-import { AppDownloadsCard } from "@/components/analytics/app-downloads-card";
-import {
-  Layers,
-  HardDrive,
-  TrendingDown,
-  Server,
-  RefreshCw,
-  BarChart3,
-  FileText,
-  Gauge,
-} from "@/lib/icons";
+import { RefreshCw, BarChart3, Gauge } from "@/lib/icons";
 import AnalyticsLoading from "@/app/(app)/analytics/loading";
 
 export function AnalyticsClient() {
-  const { files, loading, error, refresh } = useFileList();
+  const { preset, customStart, customEnd } = useAnalyticsFiltersStore();
+  const range = useMemo(
+    () => getRangeBounds(preset, customStart, customEnd),
+    [preset, customStart, customEnd],
+  );
+  const allTimeRange = useMemo(() => getRangeBounds("all", null, null), []);
+
+  const { summary, isLoading: summaryLoading, error: summaryError } = useAnalyticsSummary(range);
+  const { summary: allTimeSummary, isLoading: allTimeSummaryLoading } =
+    useAnalyticsSummary(allTimeRange);
+  const { data: timeseries, isLoading: timeseriesLoading } = useAnalyticsTimeseries(range);
+  const { points: growthPoints, isLoading: growthLoading } = useStorageGrowth();
+  const { items: rangeItems } = useAnalyticsFileTypes(range);
+  const { items: allTimeItems } = useAnalyticsFileTypes(allTimeRange);
+  const { files: recentFiles } = useRecentUploads(8);
+  const appDownloads = useAppDownloadsTotal();
+
   const { repos, statuses, refresh: refreshPlatforms } = usePlatformHealth();
   const { quota: quotaInfo, refresh: refreshQuota } = useQuota();
-  const [refreshing, setRefreshing] = useState(false);
+
   const [advanced, setAdvanced] = useState(false);
   const reduceMotion = useReducedMotion();
 
-  const totalOriginal = files.reduce((s, f) => s + f.original_size, 0);
-  const totalEncrypted = files.reduce((s, f) => s + f.encrypted_size, 0);
-  const totalChunks = files.reduce((s, f) => s + f.chunk_count, 0);
-  const savings = totalOriginal > 0 ? ((1 - totalEncrypted / totalOriginal) * 100).toFixed(1) : "0";
-  const spaceSaved = totalOriginal - totalEncrypted;
-  const largestFile = files.reduce((m, f) => Math.max(m, f.original_size), 0);
+  const refreshAnalytics = useRefreshAnalytics();
+  const {
+    canRefresh,
+    busy: refreshing,
+    remainingMs,
+    trigger: handleRefresh,
+  } = useRefreshCooldown(async () => {
+    await Promise.all([refreshAnalytics(), refreshPlatforms(), refreshQuota()]);
+  });
+
   const platformCount = new Set(statuses.filter((s) => s.connected).map((s) => s.platform)).size;
   const activeRepos = repos.filter((r) => r.active).length;
 
-  async function handleRefresh() {
-    if (refreshing) return;
-    setRefreshing(true);
-    try {
-      await Promise.all([refresh(), refreshPlatforms(), refreshQuota()]);
-    } finally {
-      setRefreshing(false);
-    }
-  }
+  const initialLoading = (summaryLoading || allTimeSummaryLoading) && !summary && !allTimeSummary;
 
-  if (loading && files.length === 0) {
+  if (initialLoading) {
     return <AnalyticsLoading />;
   }
+
+  const refreshLabel = refreshing
+    ? "Refreshing…"
+    : !canRefresh
+      ? `Refresh available in ${Math.ceil(remainingMs / 60_000)}m`
+      : "Refresh data";
 
   const header = (
     <PageHeader
@@ -87,10 +109,10 @@ export function AnalyticsClient() {
           </button>
           <IconButton
             icon={RefreshCw}
-            label={refreshing ? "Refreshing…" : "Refresh data"}
+            label={refreshLabel}
             variant="secondary"
             onClick={handleRefresh}
-            disabled={refreshing}
+            disabled={refreshing || !canRefresh}
             iconClassName={refreshing ? "h-4 w-4 animate-spin" : "h-4 w-4"}
           />
         </div>
@@ -98,7 +120,7 @@ export function AnalyticsClient() {
     />
   );
 
-  if (error && files.length === 0) {
+  if (summaryError && !summary) {
     return (
       <div className="space-y-6">
         {header}
@@ -113,7 +135,7 @@ export function AnalyticsClient() {
     );
   }
 
-  if (files.length === 0) {
+  if (allTimeSummary && allTimeSummary.file_count === 0) {
     return (
       <div className="space-y-6">
         {header}
@@ -147,82 +169,60 @@ export function AnalyticsClient() {
     >
       {header}
 
-      {/* Headline metrics */}
-      <motion.div variants={item} className="grid grid-cols-2 gap-4 lg:grid-cols-6">
-        <StatCard
-          label="Total files"
-          value={files.length.toLocaleString()}
-          hint={`${totalChunks.toLocaleString()} chunks`}
-          icon={Layers}
-        />
-        <StatCard
-          label="Storage"
-          value={formatBytes(totalOriginal)}
-          hint={`Encrypted: ${formatBytes(totalEncrypted)}`}
-          icon={HardDrive}
-        />
-        <StatCard
-          label="Space saved"
-          value={formatBytes(Math.max(0, spaceSaved))}
-          hint={`${savings}% compression`}
-          icon={TrendingDown}
-          accent
-        />
-        <StatCard
-          label="Largest file"
-          value={formatBytes(largestFile)}
-          hint="single upload"
-          icon={FileText}
-        />
-        <StatCard
-          label="Platforms"
-          value={platformCount.toLocaleString()}
-          hint={`${activeRepos} active repo${activeRepos !== 1 ? "s" : ""}`}
-          icon={Server}
-        />
-        <AppDownloadsCard />
-      </motion.div>
-
-      {/* Storage hero */}
       <motion.div variants={item}>
-        <StorageHero files={files} quotaInfo={quotaInfo} />
+        <DateRangeControl />
       </motion.div>
 
-      {/* Storage by file type */}
       <motion.div variants={item}>
-        <StatCards files={files} />
+        <Section title="This period" description={range.label}>
+          <KpiHeroRow summary={summary} showTrend={!range.allTime} />
+          <KpiSecondaryStrip
+            largestFileSize={summary?.largest_file?.original_size ?? null}
+            platformCount={platformCount}
+            activeRepos={activeRepos}
+            appDownloads={appDownloads}
+          />
+          <UploadChart
+            points={timeseries?.points ?? []}
+            bucket={range.bucket}
+            isLoading={timeseriesLoading}
+          />
+          <StatCards items={rangeItems} />
+        </Section>
       </motion.div>
 
-      {/* Activity + distribution */}
-      <motion.div variants={item} className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <UploadChart files={files} />
-        </div>
-        <FileTypeChart files={files} />
-      </motion.div>
-
-      {/* Storage growth over time */}
       <motion.div variants={item}>
-        <StorageGrowth files={files} />
+        <Section title="Your vault" description="Lifetime — not affected by the selected range">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <div className="lg:col-span-2">
+              <StorageHero
+                totalOriginal={allTimeSummary?.original_bytes ?? 0}
+                quotaInfo={quotaInfo}
+                items={allTimeItems}
+              />
+            </div>
+            <FileTypeChart items={allTimeItems} />
+          </div>
+          <StorageGrowth points={growthPoints} isLoading={growthLoading} />
+        </Section>
       </motion.div>
 
-      {/* Detailed metrics */}
       <motion.div variants={item}>
-        <VaultDetails files={files} />
+        <Section title="Details">
+          <VaultDetails summary={summary} items={rangeItems} />
+          <RecentUploads files={recentFiles} />
+        </Section>
       </motion.div>
 
-      {/* Platforms + storage health */}
-      <motion.div variants={item} className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <PlatformBreakdown statuses={statuses} repos={repos} />
-        <StorageHealth repos={repos} />
-      </motion.div>
-
-      {/* Recent uploads */}
       <motion.div variants={item}>
-        <RecentUploads files={files} />
+        <Section title="Platforms">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <PlatformBreakdown statuses={statuses} repos={repos} />
+            <StorageHealth repos={repos} />
+          </div>
+        </Section>
       </motion.div>
 
-      {/* Advanced (toggle) */}
       {advanced && (
         <motion.div
           variants={item}
@@ -230,7 +230,7 @@ export function AnalyticsClient() {
           animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
           transition={{ duration: 0.3, ease: "easeOut" }}
         >
-          <AdvancedDetails files={files} repos={repos} quotaInfo={quotaInfo} />
+          <AdvancedDetails summary={summary} repos={repos} quotaInfo={quotaInfo} />
         </motion.div>
       )}
     </motion.div>

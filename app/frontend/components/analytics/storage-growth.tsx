@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import {
   AreaChart,
   Area,
@@ -10,37 +9,32 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { formatBytes, localDateKey } from "@/lib/utils";
+import { formatBytes } from "@/lib/utils";
 import {
   CHART_TOOLTIP_STYLE,
   CHART_TOOLTIP_LABEL_STYLE,
   CHART_TOOLTIP_CURSOR,
 } from "./chart-theme";
-import type { FileMetadata } from "@/types";
+import type { AnalyticsGrowthPoint } from "@/lib/api";
 
-/** Cumulative vault size over time: how your encrypted library grew. */
-export function StorageGrowth({ files }: { files: FileMetadata[] }) {
-  const data = useMemo(() => {
-    if (files.length === 0) return [];
-    const byDay = new Map<string, number>();
-    for (const f of files) {
-      const k = localDateKey(new Date(f.created_at));
-      byDay.set(k, (byDay.get(k) || 0) + f.original_size);
-    }
-    const keys = Array.from(byDay.keys()).sort();
-    let cumulative = 0;
-    return keys.map((k) => {
-      cumulative += byDay.get(k) ?? 0;
-      return {
-        date: new Date(k + "T00:00:00").toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-        }),
-        bytes: cumulative,
-      };
-    });
-  }, [files]);
-
+/** Cumulative vault size over time: how your encrypted library grew.
+ *  Server-aggregated (GetStorageGrowth), lifetime and not range-scoped —
+ *  re-scoping a cumulative chart to a narrow window would make it read as
+ *  "reset to 0", which is wrong. */
+export function StorageGrowth({
+  points,
+  isLoading,
+}: {
+  points: AnalyticsGrowthPoint[];
+  isLoading?: boolean;
+}) {
+  const data = points.map((p) => ({
+    date: new Date(`${p.bucket}T00:00:00`).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    }),
+    bytes: p.cumulative_bytes,
+  }));
   const peak = data.length > 0 ? data[data.length - 1].bytes : 0;
 
   return (
@@ -51,14 +45,14 @@ export function StorageGrowth({ files }: { files: FileMetadata[] }) {
             Storage growth
           </h3>
           <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-            Cumulative vault size &middot; {formatBytes(peak)} total
+            Cumulative vault size, all time &middot; {formatBytes(peak)} total
           </p>
         </div>
       </div>
       <div className="p-5 pt-4">
-        {data.length === 0 ? (
+        {isLoading || data.length === 0 ? (
           <div className="flex h-[200px] items-center justify-center text-sm text-[var(--color-text-muted)]">
-            No uploads yet
+            {isLoading ? "Loading…" : "No uploads yet"}
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={200}>

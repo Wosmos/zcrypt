@@ -2,7 +2,8 @@
 
 import { formatBytes } from "@/lib/utils";
 import { platformName } from "@/lib/platforms";
-import type { FileMetadata, RepoInfo, QuotaInfo } from "@/types";
+import type { RepoInfo, QuotaInfo } from "@/types";
+import type { AnalyticsSummary } from "@/lib/api";
 
 // Per-repo platform limits (mirrors the backend defaults in cmd/server.go).
 // These are zcrypt's auto-rotation thresholds (when the repo pool spins up a new
@@ -30,20 +31,21 @@ function Row({ label, value }: { label: string; value: string }) {
  * platform thresholds. All derived from real file/repo/quota data.
  */
 export function AdvancedDetails({
-  files,
+  summary,
   repos,
   quotaInfo,
 }: {
-  files: FileMetadata[];
+  summary: AnalyticsSummary | null;
   repos: RepoInfo[];
   quotaInfo: QuotaInfo | null;
 }) {
-  const original = files.reduce((s, f) => s + f.original_size, 0);
-  const compressed = files.reduce((s, f) => s + f.compressed_size, 0);
-  const encrypted = files.reduce((s, f) => s + f.encrypted_size, 0);
-  const chunks = files.reduce((s, f) => s + f.chunk_count, 0);
+  const original = summary?.original_bytes ?? 0;
+  const compressed = summary?.compressed_bytes ?? 0;
+  const encrypted = summary?.encrypted_bytes ?? 0;
+  const chunks = summary?.chunk_count ?? 0;
+  const fileCount = summary?.file_count ?? 0;
   const avgChunk = chunks > 0 ? encrypted / chunks : 0;
-  const avgFile = files.length > 0 ? original / files.length : 0;
+  const avgFile = fileCount > 0 ? original / fileCount : 0;
 
   return (
     <div className="space-y-4">

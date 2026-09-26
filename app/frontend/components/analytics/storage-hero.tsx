@@ -3,11 +3,21 @@
 import { formatBytes } from "@/lib/utils";
 import { Infinity } from "@/lib/icons";
 import { Badge } from "@/components/ui/badge";
-import type { FileMetadata, QuotaInfo } from "@/types";
+import type { QuotaInfo } from "@/types";
+
+interface FileNameSize {
+  original_name: string;
+  original_size: number;
+}
 
 interface StorageHeroProps {
-  files: FileMetadata[];
+  /** Exact lifetime total, from the backend aggregate — not summed from
+   *  `items` below, which is a capped lean listing (see maxFileTypeItems in
+   *  app/backend/index/analytics_queries.go) so it stays a category-breakdown
+   *  approximation only. */
+  totalOriginal: number;
   quotaInfo?: QuotaInfo | null;
+  items: FileNameSize[];
 }
 
 interface CategoryInfo {
@@ -16,7 +26,7 @@ interface CategoryInfo {
   size: number;
 }
 
-function categorizeFiles(files: FileMetadata[]): CategoryInfo[] {
+function categorizeFiles(files: FileNameSize[]): CategoryInfo[] {
   const cats: Record<string, CategoryInfo> = {
     documents: { label: "Docs", color: "#3b82f6", size: 0 },
     images: { label: "Images", color: "#f59e0b", size: 0 },
@@ -91,12 +101,11 @@ function categorizeFiles(files: FileMetadata[]): CategoryInfo[] {
   return Object.values(cats).filter((c) => c.size > 0);
 }
 
-export function StorageHero({ files, quotaInfo }: StorageHeroProps) {
-  const totalOriginal = files.reduce((s, f) => s + f.original_size, 0);
+export function StorageHero({ totalOriginal, quotaInfo, items }: StorageHeroProps) {
   // Storage is unbounded (bounded only by the connected platform), show usage
   // as a total, never a fraction of a cap.
   const totalUsed = quotaInfo?.used_bytes ?? totalOriginal;
-  const categories = categorizeFiles(files);
+  const categories = categorizeFiles(items);
 
   return (
     <div className="panel p-5 sm:p-6">

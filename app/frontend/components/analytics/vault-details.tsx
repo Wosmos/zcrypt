@@ -2,18 +2,11 @@
 
 import { useMemo } from "react";
 import { formatBytes, localDateKey } from "@/lib/utils";
-import type { FileMetadata } from "@/types";
+import type { AnalyticsSummary, AnalyticsFileTypeItem } from "@/lib/api";
 
-function median(values: number[]): number {
-  if (values.length === 0) return 0;
-  const s = [...values].sort((a, b) => a - b);
-  const mid = Math.floor(s.length / 2);
-  return s.length % 2 === 0 ? (s[mid - 1] + s[mid]) / 2 : s[mid];
-}
-
-function topExtension(files: FileMetadata[]): string {
+function topExtension(items: AnalyticsFileTypeItem[]): string {
   const counts = new Map<string, number>();
-  for (const f of files) {
+  for (const f of items) {
     const ext = f.original_name.split(".").pop()?.toLowerCase() || "none";
     counts.set(ext, (counts.get(ext) || 0) + 1);
   }
@@ -34,106 +27,117 @@ interface Metric {
   hint?: string;
 }
 
+interface VaultDetailsProps {
+  /** Exact totals for the selected range (see AnalyticsSummary). */
+  summary: AnalyticsSummary | null;
+  /** Bounded, range-scoped lean items — used only for the metrics that need
+   *  per-file granularity (busiest day, most common type, smallest file);
+   *  everything else comes from the exact `summary` aggregate. */
+  items: AnalyticsFileTypeItem[];
+}
+
 /**
- * Dense, real "nitty-gritty" metrics derived entirely from the loaded file
- * metadata: no estimates. Grouped into Files, Sizes, and Timeline.
+ * Dense, real "nitty-gritty" metrics for the selected period. Sourced from
+ * the backend aggregate (exact totals/median/avg) plus the bounded lean item
+ * list (per-file metrics only a row-level scan can answer) — never a full
+ * unbounded file fetch.
  */
-export function VaultDetails({ files }: { files: FileMetadata[] }) {
+export function VaultDetails({ summary, items }: VaultDetailsProps) {
   const groups = useMemo<{ title: string; metrics: Metric[] }[]>(() => {
-    if (files.length === 0) return [];
+    if (!summary || summary.file_count === 0) return [];
 
-    const sizes = files.map((f) => f.original_size);
-    const original = sizes.reduce((s, v) => s + v, 0);
-    const compressed = files.reduce((s, f) => s + f.compressed_size, 0);
-    const encrypted = files.reduce((s, f) => s + f.encrypted_size, 0);
-    const chunks = files.reduce((s, f) => s + f.chunk_count, 0);
-    const largest = Math.max(...sizes);
-    const smallest = Math.min(...sizes);
+    const smallest = items.length > 0 ? Math.min(...items.map((f) => f.original_size)) : null;
 
-    const times = files.map((f) => new Date(f.created_at).getTime());
-    const oldest = new Date(Math.min(...times));
-    const newest = new Date(Math.max(...times));
-    const ageDays = Math.max(1, Math.round((Date.now() - oldest.getTime()) / 86_400_000));
-
-    const now = Date.now();
-    const last7 = files.filter(
-      (f) => now - new Date(f.created_at).getTime() <= 7 * 86_400_000,
-    ).length;
-    const last30 = files.filter(
-      (f) => now - new Date(f.created_at).getTime() <= 30 * 86_400_000,
-    ).length;
-
-    // Busiest day
-    const byDay = new Map<string, number>();
-    for (const f of files) {
-      const k = localDateKey(new Date(f.created_at));
-      byDay.set(k, (byDay.get(k) || 0) + 1);
-    }
-    let busiestKey = "";
+    let busiestLabel = "-";
     let busiestCount = 0;
-    for (const [k, n] of byDay) {
-      if (n > busiestCount) {
-        busiestCount = n;
-        busiestKey = k;
+    if (items.length > 0) {
+      const byDay = new Map<string, number>();
+      for (const f of items) {
+        const k = localDateKey(new Date(f.created_at));
+        byDay.set(k, (byDay.get(k) || 0) + 1);
       }
-    }
-    const busiestLabel = busiestKey
-      ? new Date(busiestKey + "T00:00:00").toLocaleDateString("en-US", {
+      let busiestKey = "";
+      for (const [k, n] of byDay) {
+        if (n > busiestCount) {
+          busiestCount = n;
+          busiestKey = k;
+        }
+      }
+      if (busiestKey) {
+        busiestLabel = new Date(`${busiestKey}T00:00:00`).toLocaleDateString("en-US", {
           month: "short",
           day: "numeric",
           year: "numeric",
-        })
-      : "-";
+        });
+      }
+    }
 
-    const compressionRatio = original > 0 ? (compressed / original) * 100 : 100;
     const dateFmt: Intl.DateTimeFormatOptions = { month: "short", day: "numeric", year: "numeric" };
+    const oldest = summary.oldest_upload ? new Date(summary.oldest_upload) : null;
+    const newest = summary.newest_upload ? new Date(summary.newest_upload) : null;
+    const spanDays = oldest
+      ? Math.max(1, Math.round((Date.now() - oldest.getTime()) / 86_400_000))
+      : 1;
+    const compressionRatio =
+      summary.original_bytes > 0 ? (summary.compressed_bytes / summary.original_bytes) * 100 : 100;
 
     return [
       {
         title: "Files",
         metrics: [
-          { label: "Total files", value: files.length.toLocaleString() },
-          { label: "Total chunks", value: chunks.toLocaleString() },
-          { label: "Avg chunks / file", value: (chunks / files.length).toFixed(1) },
-          { label: "Most common type", value: topExtension(files) },
-          { label: "Added last 7 days", value: last7.toLocaleString() },
-          { label: "Added last 30 days", value: last30.toLocaleString() },
+          { label: "Total files", value: summary.file_count.toLocaleString() },
+          { label: "Total chunks", value: summary.chunk_count.toLocaleString() },
+          { label: "Avg chunks / file", value: summary.avg_chunks_per_file.toFixed(1) },
+          { label: "Most common type", value: topExtension(items) },
         ],
       },
       {
         title: "Sizes",
         metrics: [
-          { label: "Largest file", value: formatBytes(largest) },
-          { label: "Smallest file", value: formatBytes(smallest) },
-          { label: "Average file", value: formatBytes(original / files.length) },
-          { label: "Median file", value: formatBytes(median(sizes)) },
+          {
+            label: "Largest file",
+            value: summary.largest_file ? formatBytes(summary.largest_file.original_size) : "-",
+          },
+          { label: "Smallest file", value: smallest != null ? formatBytes(smallest) : "-" },
+          {
+            label: "Average file",
+            value: formatBytes(summary.original_bytes / summary.file_count),
+          },
+          { label: "Median file", value: formatBytes(summary.median_size) },
           {
             label: "Compressed to",
             value: `${compressionRatio.toFixed(0)}%`,
-            hint: formatBytes(compressed),
+            hint: formatBytes(summary.compressed_bytes),
           },
-          { label: "Stored (encrypted)", value: formatBytes(encrypted) },
+          { label: "Stored (encrypted)", value: formatBytes(summary.encrypted_bytes) },
         ],
       },
       {
         title: "Timeline",
         metrics: [
-          { label: "First upload", value: oldest.toLocaleDateString("en-US", dateFmt) },
-          { label: "Latest upload", value: newest.toLocaleDateString("en-US", dateFmt) },
           {
-            label: "Vault age",
-            value: `${ageDays.toLocaleString()} day${ageDays !== 1 ? "s" : ""}`,
+            label: "First in range",
+            value: oldest ? oldest.toLocaleDateString("en-US", dateFmt) : "-",
           },
-          { label: "Avg / day", value: (files.length / ageDays).toFixed(1) },
+          {
+            label: "Most recent",
+            value: newest ? newest.toLocaleDateString("en-US", dateFmt) : "-",
+          },
+          {
+            label: "Range span",
+            value: `${spanDays.toLocaleString()} day${spanDays !== 1 ? "s" : ""}`,
+          },
+          { label: "Avg / day", value: (summary.file_count / spanDays).toFixed(1) },
           {
             label: "Busiest day",
             value: busiestLabel,
-            hint: `${busiestCount} file${busiestCount !== 1 ? "s" : ""}`,
+            hint:
+              busiestCount > 0 ? `${busiestCount} file${busiestCount !== 1 ? "s" : ""}` : undefined,
           },
         ],
       },
     ];
-  }, [files]);
+  }, [summary, items]);
 
   if (groups.length === 0) return null;
 

@@ -259,9 +259,106 @@ export async function getFileChunk(
   }
 }
 
-export function listFiles(filter?: string): Promise<FileMetadata[]> {
-  const params = filter ? `?filter=${encodeURIComponent(filter)}` : "";
-  return request<FileMetadata[]>(`/api/files${params}`);
+export function listFiles(filter?: string, limit?: number): Promise<FileMetadata[]> {
+  const params = new URLSearchParams();
+  if (filter) params.set("filter", filter);
+  if (limit) params.set("limit", String(limit));
+  const qs = params.toString();
+  return request<FileMetadata[]>(`/api/files${qs ? `?${qs}` : ""}`);
+}
+
+// --- Insights / analytics (server-aggregated: see app/backend/cmd/analytics.go) ---
+
+export interface AnalyticsLargestFile {
+  id: string;
+  original_name: string;
+  encrypted_name: string;
+  original_size: number;
+  created_at: string;
+}
+
+export interface AnalyticsSummary {
+  file_count: number;
+  prev_file_count: number;
+  original_bytes: number;
+  prev_original_bytes: number;
+  encrypted_bytes: number;
+  prev_encrypted_bytes: number;
+  compressed_bytes: number;
+  chunk_count: number;
+  median_size: number;
+  avg_chunks_per_file: number;
+  oldest_upload?: string;
+  newest_upload?: string;
+  largest_file?: AnalyticsLargestFile;
+}
+
+export interface AnalyticsTimeseriesPoint {
+  bucket: string;
+  uploads: number;
+  bytes: number;
+}
+
+export interface AnalyticsTimeseriesResponse {
+  bucket: "hour" | "day" | "month";
+  points: AnalyticsTimeseriesPoint[];
+}
+
+export interface AnalyticsGrowthPoint {
+  bucket: string;
+  cumulative_bytes: number;
+}
+
+/** Lean per-file shape for the client-side file-type/extension breakdown: the
+ *  server can't GROUP BY extension itself since newer uploads' names are
+ *  zero-knowledge encrypted. Bounded to a date range unless allTime. */
+export interface AnalyticsFileTypeItem {
+  id: string;
+  original_name: string;
+  encrypted_name: string;
+  original_size: number;
+  encrypted_size: number;
+  created_at: string;
+}
+
+export interface AnalyticsRangeParams {
+  start?: string;
+  end?: string;
+  allTime?: boolean;
+}
+
+function rangeQuery({ start, end, allTime }: AnalyticsRangeParams): string {
+  const params = new URLSearchParams();
+  if (allTime) {
+    params.set("range", "all");
+  } else {
+    if (start) params.set("start", start);
+    if (end) params.set("end", end);
+  }
+  return params.toString();
+}
+
+export function getAnalyticsSummary(range: AnalyticsRangeParams): Promise<AnalyticsSummary> {
+  return request<AnalyticsSummary>(`/api/analytics/summary?${rangeQuery(range)}`);
+}
+
+export function getAnalyticsTimeseries(
+  start: string,
+  end: string,
+  bucket: "hour" | "day" | "month",
+): Promise<AnalyticsTimeseriesResponse> {
+  const params = new URLSearchParams({ start, end, bucket });
+  return request<AnalyticsTimeseriesResponse>(`/api/analytics/timeseries?${params.toString()}`);
+}
+
+export function getAnalyticsStorageGrowth(): Promise<AnalyticsGrowthPoint[]> {
+  return request<AnalyticsGrowthPoint[]>(`/api/analytics/storage-growth`);
+}
+
+export function getAnalyticsFileTypes(
+  range: AnalyticsRangeParams,
+): Promise<AnalyticsFileTypeItem[]> {
+  return request<AnalyticsFileTypeItem[]>(`/api/analytics/file-types?${rangeQuery(range)}`);
 }
 
 /** An upload that was started but never finished, the data behind the

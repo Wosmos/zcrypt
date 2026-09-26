@@ -40,6 +40,7 @@ export const Unlock = icon("Unlock");
 export const Upload = icon("Upload");
 export const FileUpload = icon("FileUploadIcon");
 export const Download = icon("Download");
+export const Calendar = icon("Calendar03Icon", "Calendar");
 export const Bell = icon("Bell");
 export const BellOff = icon("BellOff");
 export const Check = icon("Check");

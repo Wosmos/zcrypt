@@ -27,4 +27,15 @@ export const qk = {
   fileMeta: (fileId: string) => ["file-meta", fileId] as const,
   // Public folder links for a given folder.
   folderShares: (folderId: string) => ["folder-shares", folderId] as const,
+  // Insights/analytics: server-aggregated, keyed by the resolved [start,end)
+  // window so switching the date-range preset is a fresh (small, indexed)
+  // fetch, while reloading/reopening the SAME range serves cache (see
+  // hooks/useAnalytics.ts's staleTime: Infinity).
+  analyticsSummary: (start: string, end: string) => ["analytics", "summary", start, end] as const,
+  analyticsTimeseries: (start: string, end: string, bucket: string) =>
+    ["analytics", "timeseries", start, end, bucket] as const,
+  analyticsFileTypes: (start: string, end: string) =>
+    ["analytics", "file-types", start, end] as const,
+  analyticsStorageGrowth: ["analytics", "storage-growth"] as const,
+  recentUploads: (limit: number) => ["analytics", "recent", limit] as const,
 };

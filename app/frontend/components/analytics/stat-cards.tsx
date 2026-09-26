@@ -1,11 +1,11 @@
 "use client";
 
 import { formatBytes } from "@/lib/utils";
-import type { FileMetadata } from "@/types";
+import type { AnalyticsFileTypeItem } from "@/lib/api";
 import { FileText, Image, Video, Archive, File } from "@/lib/icons";
 
 interface StatCardsProps {
-  files: FileMetadata[];
+  items: AnalyticsFileTypeItem[];
 }
 
 interface CategoryStat {
@@ -47,17 +47,21 @@ const categories: CategoryStat[] = [
   },
 ];
 
-export function StatCards({ files }: StatCardsProps) {
+/** Storage by file type for the selected date range (bounded, per
+ *  AnalyticsFileTypeItem — see app/backend/cmd/analytics.go's
+ *  /api/analytics/file-types). Mobile: horizontal snap-carousel, one peek of
+ *  the next card; desktop: a clean 4-up grid. */
+export function StatCards({ items }: StatCardsProps) {
   const knownExts = new Set(categories.flatMap((c) => c.extensions));
 
   const stats = categories.map((cat) => {
     const matched =
       cat.extensions.length > 0
-        ? files.filter((f) => {
+        ? items.filter((f) => {
             const ext = f.original_name.split(".").pop()?.toLowerCase() || "";
             return cat.extensions.includes(ext);
           })
-        : files.filter((f) => {
+        : items.filter((f) => {
             const ext = f.original_name.split(".").pop()?.toLowerCase() || "";
             return !knownExts.has(ext);
           });
@@ -70,13 +74,13 @@ export function StatCards({ files }: StatCardsProps) {
   });
 
   return (
-    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+    <ul className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:grid sm:grid-cols-4 sm:overflow-visible">
       {stats.map((stat) => {
         const Icon = stat.icon;
         return (
-          <div
+          <li
             key={stat.label}
-            className="panel p-5 transition-colors hover:border-[var(--color-border-hover)]"
+            className="min-w-[42%] shrink-0 snap-center rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 transition-colors hover:border-[var(--color-border-hover)] sm:min-w-0 sm:shrink"
           >
             <div className="mb-3 flex items-start justify-between gap-2">
               <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${stat.bg}`}>
@@ -97,9 +101,9 @@ export function StatCards({ files }: StatCardsProps) {
             <p className="mt-0.5 text-xs tabular-nums text-[var(--color-text-secondary)]">
               {stat.count} file{stat.count !== 1 ? "s" : ""}
             </p>
-          </div>
+          </li>
         );
       })}
-    </div>
+    </ul>
   );
 }
