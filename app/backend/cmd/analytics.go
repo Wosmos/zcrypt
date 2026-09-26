@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -67,8 +68,15 @@ func clampBucket(requested string, start, end time.Time) string {
 	}
 }
 
-// GET /api/analytics/summary?start=&end=&range=<all>
-func (s *Server) HandleAnalyticsSummary(w http.ResponseWriter, r *http.Request) {
+// analyticsFn computes one analytics result over a window, real or decoy.
+type analyticsFn func(ctx context.Context, userID string, start, end time.Time, allTime bool) (any, error)
+
+// runAnalyticsQuery parses the request window, picks decoyFn or realFn per
+// IsDecoy(r), and writes the result (or a decoy-labeled error) as JSON.
+// Shared by every /api/analytics/* handler whose shape is just "parse window,
+// branch on decoy, run one query, return it" - HandleAnalyticsSummary and
+// HandleAnalyticsFileTypes are otherwise identical.
+func (s *Server) runAnalyticsQuery(w http.ResponseWriter, r *http.Request, label string, decoyFn, realFn analyticsFn) {
 	ctx := r.Context()
 	userID := GetUserID(r)
 
@@ -78,31 +86,32 @@ func (s *Server) HandleAnalyticsSummary(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	var (
-		summary interface{}
-	)
+	fn, prefix := realFn, ""
 	if IsDecoy(r) {
-		v, err := s.db.GetDecoyAnalyticsSummary(ctx, userID, start, end, allTime)
-		if err != nil {
-			log.Printf("analytics: decoy summary failed: %v", err)
-			http.Error(w, `{"error":"failed to load analytics"}`, http.StatusInternalServerError)
-			return
-		}
-		summary = v
-	} else {
-		v, err := s.db.GetAnalyticsSummary(ctx, userID, start, end, allTime)
-		if err != nil {
-			log.Printf("analytics: summary failed: %v", err)
-			http.Error(w, `{"error":"failed to load analytics"}`, http.StatusInternalServerError)
-			return
-		}
-		summary = v
+		fn, prefix = decoyFn, "decoy "
 	}
-
-	writeJSON(w, http.StatusOK, summary)
+	result, err := fn(ctx, userID, start, end, allTime)
+	if err != nil {
+		log.Printf("analytics: %s%s failed: %v", prefix, label, err)
+		http.Error(w, `{"error":"failed to load analytics"}`, http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
 }
 
-// GET /api/analytics/timeseries?start=&end=&bucket=hour|day|month
+// HandleAnalyticsSummary handles GET /api/analytics/summary?start=&end=&range=<all>.
+func (s *Server) HandleAnalyticsSummary(w http.ResponseWriter, r *http.Request) {
+	s.runAnalyticsQuery(w, r, "summary",
+		func(ctx context.Context, userID string, start, end time.Time, allTime bool) (any, error) {
+			return s.db.GetDecoyAnalyticsSummary(ctx, userID, start, end, allTime)
+		},
+		func(ctx context.Context, userID string, start, end time.Time, allTime bool) (any, error) {
+			return s.db.GetAnalyticsSummary(ctx, userID, start, end, allTime)
+		},
+	)
+}
+
+// HandleAnalyticsTimeseries handles GET /api/analytics/timeseries?start=&end=&bucket=hour|day|month.
 func (s *Server) HandleAnalyticsTimeseries(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userID := GetUserID(r)
@@ -144,8 +153,9 @@ func (s *Server) HandleAnalyticsTimeseries(w http.ResponseWriter, r *http.Reques
 	writeJSON(w, http.StatusOK, map[string]interface{}{"bucket": bucket, "points": points})
 }
 
-// GET /api/analytics/storage-growth — lifetime cumulative chart, not
-// range-scoped (matches the product's existing "growth since day one" chart).
+// HandleAnalyticsStorageGrowth handles GET /api/analytics/storage-growth — a
+// lifetime cumulative chart, not range-scoped (matches the product's existing
+// "growth since day one" chart).
 func (s *Server) HandleAnalyticsStorageGrowth(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userID := GetUserID(r)
@@ -172,39 +182,18 @@ func (s *Server) HandleAnalyticsStorageGrowth(w http.ResponseWriter, r *http.Req
 	writeJSON(w, http.StatusOK, points)
 }
 
-// GET /api/analytics/file-types?start=&end=&range=<all> — a lean per-file
-// listing (id/size/encrypted-or-plain name/created_at only), bounded to the
-// requested range, so the client can decrypt names and bucket by extension
-// without the server needing to see plaintext names. Deliberately not the
-// full FileMetadata shape returned by /api/files.
+// HandleAnalyticsFileTypes handles GET /api/analytics/file-types?start=&end=&range=<all>
+// — a lean per-file listing (id/size/encrypted-or-plain name/created_at
+// only), bounded to the requested range, so the client can decrypt names and
+// bucket by extension without the server needing to see plaintext names.
+// Deliberately not the full FileMetadata shape returned by /api/files.
 func (s *Server) HandleAnalyticsFileTypes(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	userID := GetUserID(r)
-
-	start, end, allTime, err := parseAnalyticsWindow(r)
-	if err != nil {
-		http.Error(w, `{"error":"invalid range"}`, http.StatusBadRequest)
-		return
-	}
-
-	var items interface{}
-	if IsDecoy(r) {
-		v, err := s.db.GetDecoyFileTypeItems(ctx, userID, start, end, allTime)
-		if err != nil {
-			log.Printf("analytics: decoy file types failed: %v", err)
-			http.Error(w, `{"error":"failed to load analytics"}`, http.StatusInternalServerError)
-			return
-		}
-		items = v
-	} else {
-		v, err := s.db.GetFileTypeItems(ctx, userID, start, end, allTime)
-		if err != nil {
-			log.Printf("analytics: file types failed: %v", err)
-			http.Error(w, `{"error":"failed to load analytics"}`, http.StatusInternalServerError)
-			return
-		}
-		items = v
-	}
-
-	writeJSON(w, http.StatusOK, items)
+	s.runAnalyticsQuery(w, r, "file types",
+		func(ctx context.Context, userID string, start, end time.Time, allTime bool) (any, error) {
+			return s.db.GetDecoyFileTypeItems(ctx, userID, start, end, allTime)
+		},
+		func(ctx context.Context, userID string, start, end time.Time, allTime bool) (any, error) {
+			return s.db.GetFileTypeItems(ctx, userID, start, end, allTime)
+		},
+	)
 }

@@ -91,7 +91,7 @@ func (s *Server) AnalyticsRateLimitMiddleware(next http.HandlerFunc) http.Handle
 			w.Header().Set("Content-Type", "application/json")
 			w.Header().Set("Retry-After", "60")
 			w.WriteHeader(http.StatusTooManyRequests)
-			w.Write([]byte(`{"error":"too many analytics requests, please slow down"}`))
+			_, _ = w.Write([]byte(`{"error":"too many analytics requests, please slow down"}`))
 			return
 		}
 		next.ServeHTTP(w, r)

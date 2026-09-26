@@ -1,3 +1,5 @@
+// Package index implements the PostgreSQL persistence layer (via pgx) for
+// zcrypt's file/folder/account/analytics metadata.
 package index
 
 import (
@@ -113,7 +115,7 @@ func (db *DB) GetAnalyticsSummary(ctx context.Context, userID string, start, end
 	return s, nil
 }
 
-// DecoyAnalyticsSummary is the reduced-shape equivalent served to decoy
+// GetDecoyAnalyticsSummary is the reduced-shape equivalent served to decoy
 // sessions: decoy_files only carries id/name/size/created_at, so there is no
 // encrypted/compressed/chunk data to report.
 func (db *DB) GetDecoyAnalyticsSummary(ctx context.Context, userID string, start, end time.Time, allTime bool) (*AnalyticsSummary, error) {
@@ -198,6 +200,22 @@ var bucketStep = map[string]string{
 	"month": "1 month",
 }
 
+// scanTimeseriesPoints drains rows into TimeseriesPoint slices and closes
+// rows. Shared by GetUploadTimeseries and GetDecoyUploadTimeseries, which
+// differ only in their SQL (files vs decoy_files), not this scan loop.
+func scanTimeseriesPoints(rows pgx.Rows, errPrefix string) ([]TimeseriesPoint, error) {
+	defer rows.Close()
+	points := []TimeseriesPoint{}
+	for rows.Next() {
+		var p TimeseriesPoint
+		if err := rows.Scan(&p.Bucket, &p.Uploads, &p.Bytes); err != nil {
+			return nil, fmt.Errorf("%s scan: %w", errPrefix, err)
+		}
+		points = append(points, p)
+	}
+	return points, rows.Err()
+}
+
 // GetUploadTimeseries returns a gap-filled, bucketed upload count/byte series
 // between start and end. bucket must already be one of "hour"/"day"/"month"
 // (validated by the caller) — it is used to build the SQL via fmt.Sprintf, so
@@ -220,17 +238,7 @@ func (db *DB) GetUploadTimeseries(ctx context.Context, userID string, start, end
 	if err != nil {
 		return nil, fmt.Errorf("upload timeseries: %w", err)
 	}
-	defer rows.Close()
-
-	points := []TimeseriesPoint{}
-	for rows.Next() {
-		var p TimeseriesPoint
-		if err := rows.Scan(&p.Bucket, &p.Uploads, &p.Bytes); err != nil {
-			return nil, fmt.Errorf("upload timeseries scan: %w", err)
-		}
-		points = append(points, p)
-	}
-	return points, rows.Err()
+	return scanTimeseriesPoints(rows, "upload timeseries")
 }
 
 // GetDecoyUploadTimeseries is the decoy_files equivalent (no encrypted-size
@@ -253,23 +261,44 @@ func (db *DB) GetDecoyUploadTimeseries(ctx context.Context, userID string, start
 	if err != nil {
 		return nil, fmt.Errorf("decoy upload timeseries: %w", err)
 	}
-	defer rows.Close()
-
-	points := []TimeseriesPoint{}
-	for rows.Next() {
-		var p TimeseriesPoint
-		if err := rows.Scan(&p.Bucket, &p.Uploads, &p.Bytes); err != nil {
-			return nil, fmt.Errorf("decoy upload timeseries scan: %w", err)
-		}
-		points = append(points, p)
-	}
-	return points, rows.Err()
+	return scanTimeseriesPoints(rows, "decoy upload timeseries")
 }
 
 // GrowthPoint is one bucket of the lifetime cumulative-storage chart.
 type GrowthPoint struct {
 	Bucket          string `json:"bucket"`
 	CumulativeBytes int64  `json:"cumulative_bytes"`
+}
+
+// growthBucketFor picks a coarser bucket (day/week/month) as minCreated ages,
+// so a storage-growth response stays bounded (roughly 365-400 points)
+// regardless of account age or file count. Shared by GetStorageGrowth and
+// GetDecoyStorageGrowth.
+func growthBucketFor(minCreated time.Time) (bucket, step string) {
+	switch age := time.Since(minCreated); {
+	case age > 3*365*24*time.Hour:
+		return "month", "1 month"
+	case age > 365*24*time.Hour:
+		return "week", "1 week"
+	default:
+		return "day", "1 day"
+	}
+}
+
+// scanGrowthPoints drains rows into GrowthPoint slices and closes rows.
+// Shared by GetStorageGrowth and GetDecoyStorageGrowth, which differ only in
+// their SQL (files vs decoy_files), not this scan loop.
+func scanGrowthPoints(rows pgx.Rows, errPrefix string) ([]GrowthPoint, error) {
+	defer rows.Close()
+	points := []GrowthPoint{}
+	for rows.Next() {
+		var p GrowthPoint
+		if err := rows.Scan(&p.Bucket, &p.CumulativeBytes); err != nil {
+			return nil, fmt.Errorf("%s scan: %w", errPrefix, err)
+		}
+		points = append(points, p)
+	}
+	return points, rows.Err()
 }
 
 // GetStorageGrowth returns a lifetime cumulative-storage series, auto-choosing
@@ -288,14 +317,7 @@ func (db *DB) GetStorageGrowth(ctx context.Context, userID string) ([]GrowthPoin
 	if n == 0 {
 		return []GrowthPoint{}, nil
 	}
-
-	bucket, step := "day", "1 day"
-	switch age := time.Since(minCreated); {
-	case age > 3*365*24*time.Hour:
-		bucket, step = "month", "1 month"
-	case age > 365*24*time.Hour:
-		bucket, step = "week", "1 week"
-	}
+	bucket, step := growthBucketFor(minCreated)
 
 	rows, err := db.pool.Query(ctx, fmt.Sprintf(`
 		SELECT to_char(bucket, 'YYYY-MM-DD'), SUM(bucket_bytes) OVER (ORDER BY bucket)
@@ -311,17 +333,7 @@ func (db *DB) GetStorageGrowth(ctx context.Context, userID string) ([]GrowthPoin
 	if err != nil {
 		return nil, fmt.Errorf("storage growth: %w", err)
 	}
-	defer rows.Close()
-
-	points := []GrowthPoint{}
-	for rows.Next() {
-		var p GrowthPoint
-		if err := rows.Scan(&p.Bucket, &p.CumulativeBytes); err != nil {
-			return nil, fmt.Errorf("storage growth scan: %w", err)
-		}
-		points = append(points, p)
-	}
-	return points, rows.Err()
+	return scanGrowthPoints(rows, "storage growth")
 }
 
 // GetDecoyStorageGrowth is the decoy_files equivalent.
@@ -337,14 +349,7 @@ func (db *DB) GetDecoyStorageGrowth(ctx context.Context, userID string) ([]Growt
 	if n == 0 {
 		return []GrowthPoint{}, nil
 	}
-
-	bucket, step := "day", "1 day"
-	switch age := time.Since(minCreated); {
-	case age > 3*365*24*time.Hour:
-		bucket, step = "month", "1 month"
-	case age > 365*24*time.Hour:
-		bucket, step = "week", "1 week"
-	}
+	bucket, step := growthBucketFor(minCreated)
 
 	rows, err := db.pool.Query(ctx, fmt.Sprintf(`
 		SELECT to_char(bucket, 'YYYY-MM-DD'), SUM(bucket_bytes) OVER (ORDER BY bucket)
@@ -360,17 +365,7 @@ func (db *DB) GetDecoyStorageGrowth(ctx context.Context, userID string) ([]Growt
 	if err != nil {
 		return nil, fmt.Errorf("decoy storage growth: %w", err)
 	}
-	defer rows.Close()
-
-	points := []GrowthPoint{}
-	for rows.Next() {
-		var p GrowthPoint
-		if err := rows.Scan(&p.Bucket, &p.CumulativeBytes); err != nil {
-			return nil, fmt.Errorf("decoy storage growth scan: %w", err)
-		}
-		points = append(points, p)
-	}
-	return points, rows.Err()
+	return scanGrowthPoints(rows, "decoy storage growth")
 }
 
 // FileTypeItem is the lean per-file shape used only for the client-side
