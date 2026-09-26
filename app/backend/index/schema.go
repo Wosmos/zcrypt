@@ -762,6 +762,17 @@ CREATE TABLE IF NOT EXISTS user_keys (
 	updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Insights analytics aggregation at scale: a covering index lets Postgres
+-- answer the summary/timeseries SUM() queries via an index-only scan (no heap
+-- fetch per row). idx_files_user_created_complete above already serves the
+-- user_id+created_at access pattern; this variant adds the deleted_at
+-- predicate (analytics excludes trashed files) and INCLUDEs the summed
+-- columns. Additive and backward-compatible; not required for correctness.
+CREATE INDEX IF NOT EXISTS idx_files_user_created_complete_covering
+  ON files(user_id, created_at)
+  INCLUDE (original_size, encrypted_size, compressed_size, chunk_count)
+  WHERE status = 'complete' AND deleted_at IS NULL;
+
 ` + dedupeChunksSQL
 
 // dedupeChunksSQL collapses chunk rows to exactly one per (file_id, idx) and then

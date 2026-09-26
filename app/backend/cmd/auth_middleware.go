@@ -77,6 +77,27 @@ func (s *Server) ShareRateLimitMiddleware(next http.HandlerFunc) http.HandlerFun
 	}
 }
 
+// AnalyticsRateLimitMiddleware caps how often ANY /api/analytics/* endpoint
+// can run a real DB aggregation for one account, keyed by user ID (not IP) so
+// it can't be sidestepped by extra browser tabs, another device, or a direct
+// API call with a valid JWT — the client-side refresh cooldown only stops a
+// well-behaved tab, this stops the account. Must run AFTER AuthMiddleware so
+// GetUserID(r) is populated. Shared across all analytics routes (one budget,
+// not one per endpoint) since a single page view or refresh legitimately
+// fires several of them at once.
+func (s *Server) AnalyticsRateLimitMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !s.devMode && !s.analyticsLimiter.allow(GetUserID(r)) {
+			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("Retry-After", "60")
+			w.WriteHeader(http.StatusTooManyRequests)
+			w.Write([]byte(`{"error":"too many analytics requests, please slow down"}`))
+			return
+		}
+		next.ServeHTTP(w, r)
+	}
+}
+
 // internalError logs the real error and returns a generic message to the client.
 func internalError(w http.ResponseWriter, msg string, err error) {
 	log.Printf("error: %s: %v", msg, err)
