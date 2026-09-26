@@ -1,0 +1,41 @@
+# gitleaks fingerprint allowlist (metadata only: commit:file:rule:line — no
+# secret values are stored here, see .gitleaks.toml's comment on why).
+#
+# Seeded from the one-off full-history scan on 2026-09-24. Every line below is
+# a hardcoded placeholder/test-fixture value in test code or .env.example
+# (JWT test secrets, a base64'd "hello world" test fixture, a hex crypto test
+# key, and the "replace-with-..." placeholder in .env.example) — not a real
+# credential. Verified by reading each match before allowlisting it.
+#
+# Do NOT add a new line here without first confirming the flagged value is a
+# placeholder/fixture, not a live secret. A live secret means: rotate it, then
+# clean the history/commit that introduced it — never allowlist it.
+2c129a72210ca53699f80f1eb19f5ed3a461fed0:app/frontend/__tests__/lib/share-link.test.ts:generic-api-key:17
+c201d3d4fc211df34160482c915ec237ae099a83:app/frontend/__tests__/lib/share-link.test.ts:generic-api-key:17
+4688fa3d5cdcaf35732813a166830046a01e078b:app/backend/auth/jwt_edge_test.go:generic-api-key:12
+5c36098b5f201bb88212fb8d43c1398bc0a0482d:app/backend/auth/jwt_edge_test.go:generic-api-key:12
+4688fa3d5cdcaf35732813a166830046a01e078b:app/backend/config/config_extra_test.go:generic-api-key:150
+5c36098b5f201bb88212fb8d43c1398bc0a0482d:app/backend/config/config_extra_test.go:generic-api-key:150
+4dd8d07a933088e0f69571e6073a9840e8cf67f0:app/backend/auth/jwt_tokentype_test.go:generic-api-key:11
+4dd8d07a933088e0f69571e6073a9840e8cf67f0:app/backend/cmd/auth_middleware_test.go:generic-api-key:14
+ed207f4498ea162cb9bff70ddcd34309114b0f9e:app/backend/auth/jwt_tokentype_test.go:generic-api-key:11
+ed207f4498ea162cb9bff70ddcd34309114b0f9e:app/backend/cmd/auth_middleware_test.go:generic-api-key:14
+17c421370c05abbbd4ae8eef82e09e248fad1cf2:app/backend/.env.example:generic-api-key:16
+dac41077e9d51efa30d5ff565c2fefa0cd00ac98:app/backend/.env.example:generic-api-key:16
+d84c1b625f54642398285327322fcc34ceac41d0:app/backend/auth/auth_test.go:generic-api-key:37
+d84c1b625f54642398285327322fcc34ceac41d0:app/backend/auth/auth_test.go:generic-api-key:64
+d84c1b625f54642398285327322fcc34ceac41d0:app/backend/auth/auth_test.go:generic-api-key:79
+d84c1b625f54642398285327322fcc34ceac41d0:app/backend/auth/auth_test.go:generic-api-key:92
+d84c1b625f54642398285327322fcc34ceac41d0:app/backend/auth/auth_test.go:generic-api-key:103
+fbd1fdfe04e3acc46acab635db07959e29d8d8f8:app/backend/auth/auth_test.go:generic-api-key:37
+fbd1fdfe04e3acc46acab635db07959e29d8d8f8:app/backend/auth/auth_test.go:generic-api-key:64
+fbd1fdfe04e3acc46acab635db07959e29d8d8f8:app/backend/auth/auth_test.go:generic-api-key:79
+fbd1fdfe04e3acc46acab635db07959e29d8d8f8:app/backend/auth/auth_test.go:generic-api-key:92
+fbd1fdfe04e3acc46acab635db07959e29d8d8f8:app/backend/auth/auth_test.go:generic-api-key:103
+1eaa4cfcd62ea7aa43066953ffb06309a11c35e0:app/backend/crypto/crypto_test.go:generic-api-key:131
+9fc394393c876cc617cd0a8f7c29a49bf3e1919b:app/backend/crypto/crypto_test.go:generic-api-key:131
+
+# NOT allowlisted, deliberately: a "generic-api-key" hit in
+# .claude/settings.local.json (commit 424c7d9, since removed from tracking and
+# gitignored) looked like a real Neon Postgres password (npg_ prefix). Flagged
+# to the user directly instead of silently allowlisted — see task report.

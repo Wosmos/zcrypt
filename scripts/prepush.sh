@@ -124,6 +124,7 @@ jlog="$LOGDIR/jscpd.log"
 talog="$LOGDIR/typeaware.log"
 glog="$LOGDIR/golangci.log"
 tglog="$LOGDIR/golangci-tui.log"
+slog="$LOGDIR/gitleaks.log"
 
 hr()      { printf '%s────────────────────────────────────────────────────────────%s\n' "$DIM" "$RST"; }
 step()    { printf '\n%s▸ %s%s\n' "$BOLD" "$1" "$RST"; }
@@ -174,7 +175,7 @@ GATE_NAMES=("frontend typecheck" "frontend format" "frontend lint" "frontend tes
             "tui gofmt" "tui vet" "tui tests" "tui build" \
             "core fmt" "core clippy" "core tests" \
             "desktop fmt" "desktop clippy" "desktop cargo check")
-INSPECT_NAMES=("frontend lint warnings" "frontend typeaware lint" "frontend dead code" "frontend duplication" "backend deep lint" "tui deep lint")
+INSPECT_NAMES=("frontend lint warnings" "frontend typeaware lint" "frontend dead code" "frontend duplication" "backend deep lint" "tui deep lint" "secret scan")
 HARDEN_NAMES=("frontend new-code lint" "frontend new-code duplication" \
               "backend new-code lint" "tui new-code lint")
 
@@ -562,6 +563,29 @@ elif [ "$RUN_BE" = 1 ] || [ "$RUN_TUI" = 1 ]; then
   warnln "golangci-lint not installed, skipping (brew install golangci-lint)"
 fi
 
+# gitleaks: secret scanning, scoped to the commits being pushed (vs $BASE), not
+# the whole repo history. Advisory only, never blocks: a real hit here means
+# rotate the secret and clean history, which is a human decision, not something
+# a push gate should auto-fail on. A separate CI job does a full-repo sweep.
+if command -v gitleaks >/dev/null 2>&1; then
+  step "secret scan ${DIM}(inspect · gitleaks · diff vs ${BASE})${RST}"
+  if (cd "$ROOT" && gitleaks detect --source . --log-opts="${BASE}..HEAD" \
+        --no-banner -v) >"$slog" 2>&1; then
+    PASS+=("secret scan"); ok "no new secrets in pushed commits"
+  else
+    scount="$(grep -cE '^Finding:' "$slog" 2>/dev/null || echo 0)"
+    if [ "$scount" -gt 0 ]; then
+      WARN+=("secret scan"); warnln "${scount} potential secret(s) in pushed commits, advisory: review before pushing"
+      note "→ cd $ROOT && gitleaks detect --source . --log-opts=\"${BASE}..HEAD\" -v"
+    else
+      WARN+=("secret scan"); warnln "gitleaks scan did not complete cleanly, see docs/report.md"
+    fi
+  fi
+else
+  step "secret scan ${DIM}(inspect)${RST}"
+  warnln "gitleaks not installed, skipping (brew install gitleaks)"
+fi
+
 fi  # end: RUN_INSPECT guard
 
 # Persist the (merged) baseline so --ratchet has a moving target and --baseline
@@ -738,6 +762,10 @@ write_report() {
     echo "## TUI deep lint, golangci-lint"
     echo
     fence "$tglog"
+    echo
+    echo "## Secret scan, gitleaks"
+    echo
+    fence "$slog"
 
     # failing-gate logs, if any
     if [ "${#FAIL[@]}" -gt 0 ]; then

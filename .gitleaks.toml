@@ -1,0 +1,22 @@
+title = "zcrypt gitleaks config"
+
+# Extend gitleaks' built-in rule set (https://github.com/gitleaks/gitleaks) rather
+# than replacing it, so upstream rule updates keep applying automatically.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Repo-wide exceptions"
+# Paths that are never worth scanning: generated/vendored code, lockfiles, and
+# the crypto conformance test vectors, which intentionally contain long hex
+# blobs (keys/nonces/ciphertexts) that are test fixtures, not real secrets.
+paths = [
+  '''app/backend/crypto/testvectors/.*''',
+  '''.*\.lock$''',
+  '''bun\.lockb''',
+  '''app/desktop/src-tauri/gen/.*''',
+]
+
+# Add path/regex/commit-scoped exceptions below as real false positives are
+# found (e.g. after the first full-history baseline scan). Never add a rule
+# here for a secret that turns out to be live/still-valid — rotate it instead.
