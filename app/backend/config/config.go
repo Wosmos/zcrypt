@@ -76,6 +76,10 @@ type Config struct {
 	// From environment only, never persisted to JSON
 	DatabaseURL string `json:"-"`
 	MasterKey   string `json:"-"`
+	// MaintenanceSecret authenticates POST /api/internal/maintenance (a static
+	// shared secret, not JWT: rotation scripts have no admin session to spend).
+	// Empty (default) means the endpoint always rejects, per-environment opt-in.
+	MaintenanceSecret string `json:"-"`
 }
 
 // DefaultConfig returns the default configuration.
@@ -91,6 +95,7 @@ func DefaultConfig() *Config {
 			// repo can never claim more than the account can actually hold.
 			"huggingface": 90 * 1024 * 1024 * 1024, // 90GiB (real limit: 100GB/account)
 			"telegram":    50000 * 1024 * 1024,     // 50GB (virtual. Telegram has no hard repo limit)
+			"mock":        5 * 1024 * 1024 * 1024,  // 5GB, load-test sandbox only
 		},
 	}
 }
@@ -164,6 +169,9 @@ func (c *Config) applyEnvOverrides() {
 	}
 	if v := os.Getenv("BACKEND_URL"); v != "" {
 		c.BackendURL = v
+	}
+	if v := os.Getenv("MAINTENANCE_SECRET"); v != "" {
+		c.MaintenanceSecret = v
 	}
 	if v := os.Getenv("ZCRYPT_TRUSTED_PROXY_COUNT"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n >= 0 {

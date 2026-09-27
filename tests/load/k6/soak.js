@@ -11,13 +11,17 @@
  *
  * Usage: k6 run tests/load/k6/soak.js
  * Duration override: k6 run --duration=1h tests/load/k6/soak.js
+ * VU override: k6 run --vus=100 tests/load/k6/soak.js
+ *
+ * Default of 100 sustained VUs comfortably represents 500-1k hourly
+ * active users' worth of continuous traffic over the soak window.
  */
 import http from "k6/http";
 import { check, sleep } from "k6";
 import { BASE_URL } from "./config.js";
 
 export const options = {
-  vus: 20,
+  vus: __ENV.SOAK_VUS ? parseInt(__ENV.SOAK_VUS, 10) : 100,
   duration: __ENV.SOAK_DURATION || "30m",
   thresholds: {
     http_req_duration: ["p(95)<600"],

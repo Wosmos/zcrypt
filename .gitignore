@@ -35,6 +35,7 @@ Thumbs.db
 .env.local
 .env.prod
 .env.prodtest
+.env.loadtest
 # Local credentials for GitHub Actions secrets (Neon watchdog etc.), never commit
 github.env
 # Local desktop/Android build target. CI uses the DESKTOP_API_URL repo variable

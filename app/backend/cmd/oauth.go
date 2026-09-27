@@ -133,6 +133,8 @@ func (s *Server) HandleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		MaxAge:   -1,
 		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Secure:   r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https",
 	})
 
 	// Check for provider error
@@ -427,6 +429,10 @@ func (s *Server) oauthRedirect(w http.ResponseWriter, r *http.Request, user *typ
 		http.Redirect(w, r, fmt.Sprintf("%s/oauth/desktop-relay", frontendURL), http.StatusTemporaryRedirect)
 		return
 	}
+
+	// Web: also set the httpOnly refresh cookie (see setRefreshCookie's comment
+	// in auth.go) so the frontend never has to persist the fragment value.
+	setRefreshCookie(w, refreshToken)
 
 	// Web: Use URL fragment (#) so tokens are NOT sent in Referrer headers or server logs.
 	redirectURL := fmt.Sprintf("%s/oauth/callback#access_token=%s&refresh_token=%s",

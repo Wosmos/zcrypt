@@ -29,6 +29,15 @@
 #                         `neonctl orgs list`
 #   RAILWAY_TOKEN, RAILWAY_PROJECT_ID, RAILWAY_SERVICE, RAILWAY_ENVIRONMENT, HEALTH_URL
 #                         passed straight through to neon-cutover.sh
+#   MAINTENANCE_SECRET, BACKEND_URL
+#                         used to freeze writes (POST $BACKEND_URL/api/internal/maintenance,
+#                         X-Maintenance-Secret header) before pg_dump and unfreeze
+#                         after cutover finishes (success, rollback, or abort — see
+#                         the EXIT trap below). BACKEND_URL defaults to HEALTH_URL
+#                         with its /api/health suffix stripped if not set. Without
+#                         these, rotation still runs but WITHOUT the write-freeze:
+#                         see docs/DB_SCALING_100_PROJECTS.md §6.1 for why that
+#                         reopens the exact data-loss window this closes.
 # Optional env:
 #   NEON_PROJECT_ID       fallback active-project id, used only if
 #                         docs/neon-manifest.json has no active_project_id yet
@@ -62,6 +71,41 @@ alert() {
     curl -fsS -H "Title: zcrypt DB rotation" -H "Priority: urgent" -H "Tags: rotating_light" \
       -d "$msg" "https://ntfy.sh/${NTFY_TOPIC}" >/dev/null || true
   fi
+}
+
+# Write-freeze (docs/DB_SCALING_100_PROJECTS.md §6.1): without this, any write
+# to OLD between the pg_dump snapshot and the DATABASE_URL flip is silently
+# lost, and neon-cutover.sh's health-gate cannot detect it (confirmed and
+# quantified: scripts/chaos/neon-cutover-drill.sh). BACKEND_URL defaults to
+# HEALTH_URL with its /api/health suffix stripped.
+BACKEND_URL="${BACKEND_URL:-${HEALTH_URL%/api/health}}"
+FROZEN=0
+maintenance_toggle() {
+  local enabled="$1"
+  if [[ -z "${MAINTENANCE_SECRET:-}" || -z "${BACKEND_URL:-}" ]]; then
+    return 1
+  fi
+  curl -fsS -X POST "${BACKEND_URL}/api/internal/maintenance" \
+    -H "X-Maintenance-Secret: ${MAINTENANCE_SECRET}" \
+    -H "Content-Type: application/json" \
+    -d "{\"enabled\": ${enabled}}" >/dev/null
+}
+freeze_writes() {
+  if maintenance_toggle true; then
+    FROZEN=1
+    echo "    write-freeze engaged: mutating requests now get 503 until cutover completes."
+  else
+    alert "WARNING: could not engage the write-freeze (MAINTENANCE_SECRET/BACKEND_URL not set, or the toggle call failed). Proceeding WITHOUT it: writes to the old project during dump/restore/verify are NOT protected from being lost on cutover. See docs/DB_SCALING_100_PROJECTS.md §6.1."
+  fi
+}
+unfreeze_writes() {
+  [[ "$FROZEN" == "1" ]] || return 0
+  if maintenance_toggle false; then
+    echo "    write-freeze released."
+  else
+    alert "CRITICAL: failed to release the write-freeze after rotation. The app may be stuck rejecting all writes with 503. Call POST \${BACKEND_URL}/api/internal/maintenance {\"enabled\": false} manually NOW."
+  fi
+  FROZEN=0
 }
 
 echo "==> 0a/6  Resolving the currently active project…"
@@ -99,9 +143,10 @@ NEW_POOLED_URL="$(neonctl connection-string --project-id "$NEW_PROJECT_ID" --poo
 [[ -n "$NEW_DIRECT_URL" && "$NEW_DIRECT_URL" != "null" ]] || { echo "ERROR: could not resolve new direct connection string."; exit 1; }
 echo "    new project id: ${NEW_PROJECT_ID}"
 
-echo "==> 2/6  Dumping OLD -> restoring into NEW (custom format, single consistent snapshot)…"
+echo "==> 2/6  Freezing writes, then dumping OLD -> restoring into NEW (custom format, single consistent snapshot)…"
 dump="$(mktemp -t zcrypt-rotate-XXXX.dump)"
-trap 'rm -f "$dump"' EXIT
+trap 'unfreeze_writes; rm -f "$dump"' EXIT
+freeze_writes
 pg_dump --no-owner --no-privileges -Fc "$OLD_DATABASE_URL" >"$dump"
 pg_restore --no-owner --no-privileges --single-transaction -d "$NEW_DIRECT_URL" "$dump"
 
@@ -150,6 +195,12 @@ NEW_DATABASE_URL="$NEW_POOLED_URL" OLD_DATABASE_URL="$OLD_POOLED_URL" \
   bash "${SCRIPT_DIR}/neon-cutover.sh"
 cutover_rc=$?
 set -e
+
+# Cutover has now either landed traffic on NEW or rolled back to OLD — either
+# way, whichever project is live again can safely take writes. Explicit call
+# here (in addition to the EXIT trap's safety net) so unfreezing isn't only
+# an implicit side effect of the script exiting.
+unfreeze_writes
 
 echo "==> 6/6  Recording the outcome in ${MANIFEST}…"
 case "$cutover_rc" in

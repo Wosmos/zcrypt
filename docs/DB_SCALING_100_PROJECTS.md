@@ -347,10 +347,26 @@ the right tool:
 **Write-freeze requirement (the split-brain guard):** between the moment `pg_dump`'s
 snapshot is taken and the moment Railway is repointed, any write to the old project
 is **silently lost** (a dual-write / lost-update anomaly, two divergent copies, no
-conflict detection, no merge). For a solo-operated product the honest mitigation is a
-short **maintenance window**: scale the Railway service down (or flip a maintenance
-flag), take the dump, restore, verify, repoint, redeploy. Total downtime ≈ single-digit
-minutes. RPO = 0 (snapshot taken after writes stop). RTO = the window itself.
+conflict detection, no merge). Confirmed and quantified before this was fixed:
+`scripts/chaos/neon-cutover-drill.sh` reproduced 15/20 writes (75%) lost in a 3.3s
+window, with the health-gate reporting success anyway.
+
+**Implemented mechanism (2026-09-24): application-level maintenance mode, not a
+Railway scale-to-0.** `scripts/neon-rotate.sh` calls `POST
+${BACKEND_URL}/api/internal/maintenance {"enabled": true}` (a static-secret-authenticated
+endpoint, `X-Maintenance-Secret` header, `cmd/maintenance.go`) immediately before
+`pg_dump`, and unfreezes in an `EXIT` trap so it always releases (success, rollback, or
+a mid-script crash). While frozen, the top-level `MaintenanceGate` wrapper
+(`main.go`) rejects every non-GET/HEAD/OPTIONS request with `503` — reads keep
+working (this is a *write* freeze, not a full outage), health checks and the toggle
+endpoint itself are exempt. This is faster and less disruptive than scaling the
+Railway service to 0 (no cold-start on unfreeze, GET traffic never drops), at the
+cost of depending on the app itself to enforce it rather than the infrastructure
+layer — if `MAINTENANCE_SECRET`/`BACKEND_URL` aren't set (on both the workflow and
+the backend), rotation still runs but **without** the freeze, and `neon-rotate.sh`
+alerts loudly rather than failing silently into the old unprotected behavior. RPO = 0
+once the secret is configured. RTO ≈ the dump→verify→cutover window (single-digit
+minutes), during which writes 503 and reads keep serving.
 
 ### 6.2 Considered upgrade: logical replication cutover (near-zero downtime)
 
@@ -398,7 +414,7 @@ sequenceDiagram
     W->>W: threshold crossed → begin switchover
     W->>N: neonctl projects create zcrypt-02
     N-->>W: project id + connection URIs
-    W->>R: scale to 0 / maintenance ON (write freeze begins)
+    W->>R: POST /api/internal/maintenance {enabled:true} (write freeze begins)
     W->>OLD: pg_dump -Fc (direct endpoint, single MVCC snapshot)
     W->>NEW: pg_restore --no-owner --no-privileges
     W->>NEW: VERIFY GATES (see runbook §7 step 5)
@@ -540,7 +556,7 @@ how this plan handles it.
 | # | Failure / vulnerability | DBMS mechanism | Consequence if unhandled | Carousel mitigation | RPO / RTO |
 |---|---|---|---|---|---|
 | V-1 | **Quota lockout before dump** (this incident) | compute suspension blocks all sessions incl. `pg_dump` | total outage until monthly reset; backups impossible *after* the fact | preemptive rotation at 85%; watcher alerts at 60/80; nightly offsite dumps mean a lockout never strands the *only* copy | RPO ≤ 24 h (nightly dump) / RTO = restore-to-fresh-project ≈ 1 h |
-| V-2 | **Split-brain / dual-write**: writes hit old DB after the snapshot | lost-update anomaly; two divergent copies, no conflict resolution | silent data loss (uploads recorded on a DB nobody reads) | hard write-freeze (service down) for the whole dump→repoint window; single-writer topology (one Railway service) makes the freeze airtight | 0 / window ≈ minutes |
+| V-2 | **Split-brain / dual-write**: writes hit old DB after the snapshot | lost-update anomaly; two divergent copies, no conflict resolution | silent data loss (uploads recorded on a DB nobody reads) | **Implemented 2026-09-24**: app-level write-freeze (`POST /api/internal/maintenance`, §6.1) for the whole dump→repoint window, released via an `EXIT` trap so it can't get stuck on. Confirmed via `scripts/chaos/neon-cutover-drill.sh` to close the gap it previously quantified at 75% loss. Depends on `MAINTENANCE_SECRET` being configured on both the workflow and the backend — falls back to the old unprotected behavior (loudly alerted, not silent) if unset. | 0 / window ≈ minutes |
 | V-3 | **Mid-rotation crash** (script dies after restore, before repoint) |: | confusion about which DB is authoritative | manifest is updated **last**; old DB remains active until the health gate passes; rotation is idempotent-restartable (re-dump, re-restore) | 0 / re-run |
 | V-4 | **Restore succeeds but is slow-broken** | restored DB has empty `pg_statistic`; planner chooses seq scans | app "works" but every query crawls; compute burn *rises* | mandatory `ANALYZE` gate in step 5 |, |
 | V-5 | **Missing extension on target** | `pg_trgm` + GIN index are catalog objects needing `CREATE EXTENSION` | filename search degrades | boot-time `applyOptionalExtensions` self-heals; verify gate checks anyway |, |

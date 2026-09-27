@@ -66,6 +66,49 @@ K6_BASE_URL=https://your-backend.railway.app k6 run tests/load/k6/smoke.js
 **Note:** Only run stress/soak against remote if `DEV_MODE=true` is set there too.
 Rate limiting will block VUs otherwise (returns 429).
 
+## Docker sandbox (recommended for anything beyond a quick smoke check)
+
+Running `stress.js`/`soak.js` needs somewhere safe to point them: not a bare
+`go run .` (unrealistic resource limits) and never real production, since
+that means real GitHub/GitLab/HuggingFace/Telegram accounts and the real
+Neon DB. `docker-compose.loadtest.yml` gives you a disposable stack that
+approximates Railway (backend, resource-capped) + a Vercel-like production
+build (frontend, optional) and swaps every real storage platform for a
+disk-backed `mock` adapter (`app/backend/adapters/mock.go`) that's only
+reachable when `ZCRYPT_ENABLE_MOCK_ADAPTER=true` is explicitly set — unset
+(the default, and required in real prod) rejects `"mock"` exactly like any
+other unsupported platform.
+
+**This stack never reaches real Neon or any real platform account.** That's
+what makes running `stress`/`soak` here safe, instead of ever pointing
+`test-load-staging` at production.
+
+```bash
+cp .env.loadtest.example .env.loadtest   # fresh MASTER_KEY/ZCRYPT_JWT_SECRET, see the file's comments
+
+make loadtest-docker-up      # postgres + backend only (frontend is a manual, optional profile: --profile full)
+make loadtest-docker-seed    # one-shot: connects the shared "mock" platform, marks it global
+make loadtest-docker-smoke   # 1 VU / 30s -- confirms the whole wiring before spending more time
+make loadtest-docker-auth    # login/refresh throughput against the containerized, resource-capped backend
+make loadtest-docker-upload  # full init -> chunk -> complete -> async sync -> mock adapter path
+
+# or all four in order:
+make loadtest-docker-safe
+
+# only after the above look clean, run these manually against the same stack:
+k6 run --env K6_BASE_URL=http://localhost:8080 tests/load/k6/stress.js
+k6 run --env K6_BASE_URL=http://localhost:8080 tests/load/k6/soak.js
+
+make loadtest-docker-reset   # wipe Postgres + mock-storage volumes between full runs
+make loadtest-docker-down    # stop without wiping
+```
+
+Watch backend container logs (`docker compose -f docker-compose.loadtest.yml logs -f backend`)
+for `sync-worker: no adapter for chunk...` during the upload test -- that
+means the seed step didn't take (rerun `make loadtest-docker-seed`). Expect
+the containers' CPU/memory caps to become the bottleneck sooner than real
+Railway; that's expected, and the reason this exists.
+
 ## Key metrics to watch
 
 - `login_duration` p95: should be < 400ms (bcrypt is intentionally slow ~150ms)
