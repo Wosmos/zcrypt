@@ -94,20 +94,32 @@ jobs:
           # API directly: which is what neon-cutover.sh now talks to with curl.
           npm install -g neonctl
           sudo apt-get update -qq && sudo apt-get install -y -qq jq
-          # Neon runs PostgreSQL 17; Ubuntu 24.04 ships pg_dump 16, which
-          # refuses to dump a newer server ("aborting because of server version
-          # mismatch"). Pull the matching client from the PGDG apt repo.
+          # Postgres client tools are forward-compatible, not backward: a NEWER
+          # pg_dump can always dump an OLDER-or-equal server, never the reverse.
+          # This job (and its Wosmos/zcrypt-backups sibling) broke twice from
+          # pinning a fixed major version (16->17, then 17->18, both "server
+          # version mismatch" when Neon upgraded ahead of the pin) — Ubuntu
+          # 24.04's own default is pg_dump 16, already behind. Instead of
+          # pinning again, always install whichever major version PGDG
+          # currently offers as newest: that's guaranteed >= whatever Neon is
+          # running, since Neon can't be ahead of a Postgres release PGDG
+          # hasn't packaged yet. Nothing to bump here next time Neon upgrades.
           sudo install -d /usr/share/postgresql-common/pgdg
           sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
             https://www.postgresql.org/media/keys/ACCC4CF8.asc
           echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
             | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
-          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client-17
+          sudo apt-get update -qq
+          pg_major="$(apt-cache search '^postgresql-client-[0-9]+$' \
+            | grep -oE 'postgresql-client-[0-9]+' | grep -oE '[0-9]+' | sort -n | tail -1)"
+          [[ -n "$pg_major" ]] || { echo "ERROR: no postgresql-client-NN package found in the PGDG repo."; exit 1; }
+          echo "Installing postgresql-client-${pg_major} (newest available from PGDG)…"
+          sudo apt-get install -y -qq "postgresql-client-${pg_major}"
           # GITHUB_PATH only takes effect in the NEXT step's shell, not later in
           # THIS one, and the dump runs in this same step. export PATH directly
           # (confirmed needed: a live rotation test still picked up the stock
           # pg_dump 16 here despite the GITHUB_PATH line, 2026-09-12).
-          export PATH="/usr/lib/postgresql/17/bin:$PATH"
+          export PATH="/usr/lib/postgresql/${pg_major}/bin:$PATH"
           git config user.name "zcrypt-neon-bot"
           git config user.email "actions@users.noreply.github.com"
           bash scripts/neon-rotate.sh
