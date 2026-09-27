@@ -39,3 +39,5 @@ fbd1fdfe04e3acc46acab635db07959e29d8d8f8:app/backend/auth/auth_test.go:generic-a
 # .claude/settings.local.json (commit 424c7d9, since removed from tracking and
 # gitignored) looked like a real Neon Postgres password (npg_ prefix). Flagged
 # to the user directly instead of silently allowlisted — see task report.
+a0ce8655490235ea1aedc98f7d9a8ca7659257e6:.env.loadtest.example:generic-api-key:15
+a0ce8655490235ea1aedc98f7d9a8ca7659257e6:.env.loadtest.example:generic-api-key:16

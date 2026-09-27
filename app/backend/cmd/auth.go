@@ -1404,46 +1404,29 @@ func clearRefreshCookie(w http.ResponseWriter) {
 // for web clients, and writes both tokens as a JSON response (still needed
 // by the desktop/Tauri client — see refreshCookieName's comment).
 func (s *Server) issueTokens(w http.ResponseWriter, r *http.Request, user *types.User) {
-	ctx := r.Context()
-
 	accessToken, err := auth.GenerateAccessToken(s.cfg.JWTSecret, user.ID, user.Email, user.Username, user.Role.String(), user.TokenVersion)
 	if err != nil {
 		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
 		return
 	}
-
-	refreshToken, err := auth.GenerateRandomToken()
-	if err != nil {
-		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
-		return
-	}
-
-	s.db.InsertRefreshToken(ctx, &types.RefreshToken{
-		ID:        uuid.New().String(),
-		UserID:    user.ID,
-		TokenHash: auth.HashToken(refreshToken),
-		ExpiresAt: time.Now().Add(auth.RefreshTokenDuration),
-		IP:        s.clientIP(r),
-		UserAgent: r.UserAgent(),
-	})
-
-	setRefreshCookie(w, refreshToken)
-	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"access_token":  accessToken,
-		"refresh_token": refreshToken,
-		"user":          user,
-	})
+	s.writeTokenResponse(w, r, user, accessToken)
 }
 
 // issueDecoyTokens issues JWT tokens with the decoy flag set.
 func (s *Server) issueDecoyTokens(w http.ResponseWriter, r *http.Request, user *types.User) {
-	ctx := r.Context()
-
 	accessToken, err := auth.GenerateDecoyAccessToken(s.cfg.JWTSecret, user.ID, user.Email, user.Username, user.Role.String(), user.TokenVersion)
 	if err != nil {
 		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
 		return
 	}
+	s.writeTokenResponse(w, r, user, accessToken)
+}
+
+// writeTokenResponse generates a refresh token for an already-generated access
+// token, persists it, sets the web refresh cookie, and writes the JSON
+// response shared by issueTokens and issueDecoyTokens.
+func (s *Server) writeTokenResponse(w http.ResponseWriter, r *http.Request, user *types.User, accessToken string) {
+	ctx := r.Context()
 
 	refreshToken, err := auth.GenerateRandomToken()
 	if err != nil {
