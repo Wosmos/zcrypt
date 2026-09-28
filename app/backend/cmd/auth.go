@@ -360,7 +360,7 @@ func (s *Server) HandleLogout(w http.ResponseWriter, r *http.Request) {
 		hash := auth.HashToken(refreshToken)
 		rt, err := s.db.GetRefreshTokenByHash(ctx, hash)
 		if err == nil {
-			s.db.DeleteRefreshToken(ctx, rt.ID)
+			_ = s.db.DeleteRefreshToken(ctx, rt.ID)
 		}
 	}
 	clearRefreshCookie(w)
@@ -1361,7 +1361,7 @@ func (s *Server) HandleMagicLinkVerify(w http.ResponseWriter, r *http.Request) {
 const refreshCookieName = "zcrypt_rt"
 
 func setRefreshCookie(w http.ResponseWriter, token string) {
-	http.SetCookie(w, &http.Cookie{
+	http.SetCookie(w, &http.Cookie{ //nolint:gosec // SameSite=None is deliberate (see comment above) and already paired with Secure+HttpOnly
 		Name:     refreshCookieName,
 		Value:    token,
 		Path:     "/api/auth",
@@ -1389,7 +1389,7 @@ func extractRefreshToken(r *http.Request) string {
 }
 
 func clearRefreshCookie(w http.ResponseWriter) {
-	http.SetCookie(w, &http.Cookie{
+	http.SetCookie(w, &http.Cookie{ //nolint:gosec // SameSite=None is deliberate (see setRefreshCookie comment) and already paired with Secure+HttpOnly
 		Name:     refreshCookieName,
 		Value:    "",
 		Path:     "/api/auth",

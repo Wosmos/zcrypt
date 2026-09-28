@@ -37,7 +37,7 @@ func (s *Server) HandleMaintenanceToggle(w http.ResponseWriter, r *http.Request)
 	s.maintenanceMode.Store(req.Enabled)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]bool{"maintenance": req.Enabled})
+	_ = json.NewEncoder(w).Encode(map[string]bool{"maintenance": req.Enabled})
 }
 
 // InMaintenanceMode reports the current maintenance-mode flag, read by the
@@ -67,6 +67,6 @@ func (s *Server) MaintenanceGate(next http.Handler) http.Handler {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Retry-After", "30")
 		w.WriteHeader(http.StatusServiceUnavailable)
-		w.Write([]byte(`{"error":"database rotation in progress, please retry shortly"}`))
+		_, _ = w.Write([]byte(`{"error":"database rotation in progress, please retry shortly"}`))
 	})
 }

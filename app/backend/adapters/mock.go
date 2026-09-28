@@ -38,17 +38,18 @@ type MockAdapter struct {
 // (default /data/mock-storage). The token is accepted only to match the
 // PlatformAdapter constructor shape used by createAdapter's switch; it is
 // otherwise unused since there is nothing to authenticate against.
-func NewMockAdapter(token string) (*MockAdapter, error) {
+func NewMockAdapter(_ string) (*MockAdapter, error) {
 	dir := os.Getenv("MOCK_ADAPTER_DIR")
 	if dir == "" {
 		dir = defaultMockAdapterDir
 	}
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil { //nolint:gosec // dir comes from an operator-set env var, not request input
 		return nil, fmt.Errorf("mock adapter: create storage dir: %w", err)
 	}
 	return &MockAdapter{baseDir: dir}, nil
 }
 
+// PlatformName returns the name of this platform.
 func (m *MockAdapter) PlatformName() string { return "mock" }
 
 // GetUsername matches the GetUsername() convention the other adapters expose
@@ -72,15 +73,17 @@ func (m *MockAdapter) blobPath(repo, remotePath string) (string, error) {
 	return filepath.Join(m.repoDir(repo), filepath.Clean(remotePath)), nil
 }
 
-func (m *MockAdapter) CreateRepo(ctx context.Context, name string) (string, error) {
+// CreateRepo creates a new repository on the platform.
+func (m *MockAdapter) CreateRepo(_ context.Context, name string) (string, error) {
 	repo := "mock://" + name
-	if err := os.MkdirAll(m.repoDir(repo), 0o755); err != nil {
+	if err := os.MkdirAll(m.repoDir(repo), 0o750); err != nil {
 		return "", fmt.Errorf("mock adapter: create repo: %w", err)
 	}
 	return repo, nil
 }
 
-func (m *MockAdapter) Upload(ctx context.Context, repo string, chunk types.Chunk) (types.ChunkRef, error) {
+// Upload pushes a chunk to the platform and returns its reference.
+func (m *MockAdapter) Upload(_ context.Context, repo string, chunk types.Chunk) (types.ChunkRef, error) {
 	remotePath := chunk.Ref.RemotePath
 	if remotePath == "" {
 		var err error
@@ -98,13 +101,13 @@ func (m *MockAdapter) Upload(ctx context.Context, repo string, chunk types.Chunk
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		return types.ChunkRef{}, fmt.Errorf("mock adapter: mkdir: %w", err)
 	}
 	// Write to a temp file then rename, so a concurrent Download/ListChunks
 	// never observes a partially-written blob.
 	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, chunk.Data, 0o644); err != nil {
+	if err := os.WriteFile(tmp, chunk.Data, 0o600); err != nil {
 		return types.ChunkRef{}, fmt.Errorf("mock adapter: write: %w", err)
 	}
 	if err := os.Rename(tmp, path); err != nil {
@@ -120,12 +123,13 @@ func (m *MockAdapter) Upload(ctx context.Context, repo string, chunk types.Chunk
 	return ref, nil
 }
 
-func (m *MockAdapter) Download(ctx context.Context, ref types.ChunkRef) ([]byte, error) {
+// Download fetches a chunk's data from the platform.
+func (m *MockAdapter) Download(_ context.Context, ref types.ChunkRef) ([]byte, error) {
 	path, err := m.blobPath(ref.Repo, ref.RemotePath)
 	if err != nil {
 		return nil, err
 	}
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // path is confined under baseDir/repoDir by blobPath, which rejects ".."
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, fmt.Errorf("mock adapter: chunk not found: %s", ref.RemotePath)
@@ -135,7 +139,8 @@ func (m *MockAdapter) Download(ctx context.Context, ref types.ChunkRef) ([]byte,
 	return data, nil
 }
 
-func (m *MockAdapter) Delete(ctx context.Context, ref types.ChunkRef) error {
+// Delete removes a chunk from the platform.
+func (m *MockAdapter) Delete(_ context.Context, ref types.ChunkRef) error {
 	path, err := m.blobPath(ref.Repo, ref.RemotePath)
 	if err != nil {
 		return err
@@ -146,7 +151,8 @@ func (m *MockAdapter) Delete(ctx context.Context, ref types.ChunkRef) error {
 	return nil
 }
 
-func (m *MockAdapter) GetRepoSize(ctx context.Context, repo string) (int64, error) {
+// GetRepoSize returns the total bytes used in a repository.
+func (m *MockAdapter) GetRepoSize(_ context.Context, repo string) (int64, error) {
 	var total int64
 	err := filepath.WalkDir(m.repoDir(repo), func(path string, d os.DirEntry, err error) error {
 		if err != nil {
@@ -171,7 +177,8 @@ func (m *MockAdapter) GetRepoSize(ctx context.Context, repo string) (int64, erro
 	return total, nil
 }
 
-func (m *MockAdapter) ListChunks(ctx context.Context, repo string) ([]types.ChunkRef, error) {
+// ListChunks lists all chunk files in a repository.
+func (m *MockAdapter) ListChunks(_ context.Context, repo string) ([]types.ChunkRef, error) {
 	dir := m.repoDir(repo)
 	var out []types.ChunkRef
 	err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
@@ -188,7 +195,7 @@ func (m *MockAdapter) ListChunks(ctx context.Context, repo string) ([]types.Chun
 		if err != nil {
 			return err
 		}
-		data, err := os.ReadFile(path)
+		data, err := os.ReadFile(path) //nolint:gosec // path comes from WalkDir traversing dir itself, not external input
 		if err != nil {
 			return err
 		}

@@ -9,7 +9,7 @@ import (
 
 func TestExtractRefreshTokenPrefersCookieOverBody(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", strings.NewReader(`{"refresh_token":"from-body"}`))
-	req.AddCookie(&http.Cookie{Name: refreshCookieName, Value: "from-cookie"})
+	req.AddCookie(&http.Cookie{Name: refreshCookieName, Value: "from-cookie"}) //nolint:gosec // test fixture simulating an incoming request cookie, not a cookie this server sets
 
 	if got := extractRefreshToken(req); got != "from-cookie" {
 		t.Fatalf("expected cookie value to win, got %q", got)

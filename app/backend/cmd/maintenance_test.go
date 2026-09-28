@@ -87,7 +87,7 @@ func TestMaintenanceGateBlocksMutatingRequestsOnly(t *testing.T) {
 	s := newMaintenanceTestServer("correct-secret")
 	s.maintenanceMode.Store(true)
 
-	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	inner := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
 	gated := s.MaintenanceGate(inner)
@@ -118,7 +118,7 @@ func TestMaintenanceGatePassesThroughWhenDisabled(t *testing.T) {
 	s := newMaintenanceTestServer("correct-secret")
 	// maintenanceMode left at its zero value (false).
 
-	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	inner := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusTeapot)
 	})
 	gated := s.MaintenanceGate(inner)

@@ -139,7 +139,7 @@ func TestMasterKeyRotationEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("re-run resealTOTPSecrets: %v", err)
 	}
-	tx2.Rollback(ctx) //nolint:errcheck
+	tx2.Rollback(ctx) //nolint:errcheck,gosec // test cleanup rollback on an already-used tx, failure is inert
 	if tokenCounts2.migrated != 0 || tokenCounts2.skipped != 1 {
 		t.Errorf("re-run platform_tokens: migrated=%d skipped=%d, want 0/1 (idempotent)", tokenCounts2.migrated, tokenCounts2.skipped)
 	}
@@ -164,7 +164,7 @@ func fixedKey(b byte) []byte {
 	return k
 }
 
-func mustExec(t *testing.T, ctx context.Context, pool *pgxpool.Pool, sql string, args ...interface{}) {
+func mustExec(t *testing.T, ctx context.Context, pool *pgxpool.Pool, sql string, args ...interface{}) { //nolint:revive // t *testing.T first is the stronger Go test-helper convention
 	t.Helper()
 	if _, err := pool.Exec(ctx, sql, args...); err != nil {
 		t.Fatalf("exec %q: %v", sql, err)

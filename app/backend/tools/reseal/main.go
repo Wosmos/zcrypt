@@ -145,7 +145,7 @@ func maintenanceToggle(enabled bool) bool {
 	if enabled {
 		body = `{"enabled": true}`
 	}
-	req, err := http.NewRequest(http.MethodPost, backendURL+"/api/internal/maintenance", bytes.NewBufferString(body))
+	req, err := http.NewRequest(http.MethodPost, backendURL+"/api/internal/maintenance", bytes.NewBufferString(body)) //nolint:gosec // backendURL is an operator-set env var for this CLI ops tool, not request input
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "WARNING: could not build %s request: %v\n", action, err)
 		return false
@@ -154,7 +154,7 @@ func maintenanceToggle(enabled bool) bool {
 	req.Header.Set("Content-Type", "application/json")
 
 	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Do(req)
+	resp, err := client.Do(req) //nolint:gosec // same operator-controlled backendURL as above
 	if err != nil || resp.StatusCode != http.StatusOK {
 		status := 0
 		if resp != nil {
@@ -170,7 +170,7 @@ func maintenanceToggle(enabled bool) bool {
 		return false
 	}
 	if resp.Body != nil {
-		resp.Body.Close()
+		_ = resp.Body.Close()
 	}
 	if enabled {
 		fmt.Printf("write-freeze engaged via %s\n", backendURL)
