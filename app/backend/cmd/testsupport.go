@@ -47,6 +47,32 @@ func (s *Server) SyncAllChunks(ctx context.Context) {
 	}
 }
 
+// ReconcileAllUncommitted synchronously drains the commit+verify reconcile loop
+// for uploaded-but-uncommitted chunks (remote_path set, committed still false),
+// so a test doesn't depend on either the async goroutine HandleUploadComplete
+// launches or the background sync worker's timing. Safe to call even if some
+// chunks were already committed by the time this runs (commitAndVerify is
+// idempotent). Loops to exhaustion, so a chunk that keeps failing verification
+// will have its retry budget fully spent by the time this returns; a test that
+// needs to observe an intermediate state (e.g. toggle a fault mid-retry) should
+// use ReconcileUncommittedOnce instead.
+//
+// integration build tag only, never in a production binary.
+func (s *Server) ReconcileAllUncommitted(ctx context.Context) {
+	for s.reconcileUncommitted(ctx) {
+	}
+}
+
+// ReconcileUncommittedOnce runs exactly one reconcile pass (matching a single
+// production background-worker tick, unlike ReconcileAllUncommitted's loop to
+// exhaustion), so a test can inspect state between retries. Returns true if it
+// found any work.
+//
+// integration build tag only, never in a production binary.
+func (s *Server) ReconcileUncommittedOnce(ctx context.Context) bool {
+	return s.reconcileUncommitted(ctx)
+}
+
 // DrainDeletions synchronously processes the pending_deletions queue to
 // completion (invoking each adapter's Delete), so a test can assert the platform
 // blobs are gone without waiting on the background deletion worker. Items that

@@ -106,7 +106,11 @@ describe("auth-api endpoint wrappers", () => {
     { name: "register", run: () => authApi.register("e@x.com", "user", "pw"), path: "/api/auth/register", method: "POST", body: { email: "e@x.com", username: "user", password: "pw" } },
     { name: "login", run: () => authApi.login("e@x.com", "pw"), path: "/api/auth/login", method: "POST", body: { email: "e@x.com", password: "pw" } },
     { name: "refreshToken", run: () => authApi.refreshToken("rt"), path: "/api/auth/refresh", method: "POST", body: { refresh_token: "rt" } },
+    // Web has no in-memory token to pass (relies on the httpOnly cookie instead,
+    // see store/auth.ts) -- refreshToken/logout must still POST cleanly with "".
+    { name: "refreshToken (no token, web)", run: () => authApi.refreshToken(null), path: "/api/auth/refresh", method: "POST", body: { refresh_token: "" } },
     { name: "logout", run: () => authApi.logout("rt"), path: "/api/auth/logout", method: "POST", body: { refresh_token: "rt" } },
+    { name: "logout (no token, web)", run: () => authApi.logout(null), path: "/api/auth/logout", method: "POST", body: { refresh_token: "" } },
     { name: "forgotPassword", run: () => authApi.forgotPassword("e@x.com"), path: "/api/auth/forgot-password", method: "POST", body: { email: "e@x.com" } },
     { name: "resetPassword", run: () => authApi.resetPassword("tok", "newpw"), path: "/api/auth/reset-password", method: "POST", body: { token: "tok", new_password: "newpw" } },
     { name: "verifyEmail", run: () => authApi.verifyEmail("tok"), path: "/api/auth/verify-email", method: "POST", body: { token: "tok" } },

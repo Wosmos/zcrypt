@@ -4,12 +4,20 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 // JSON api client (lib/api.ts) and the chunked-upload path (lib/upload-session.ts).
 // Mock the auth store and the refresh HTTP call so we can drive every branch
 // directly, rather than through a caller.
-const { getState, refreshTokenApi } = vi.hoisted(() => ({
+const { getState, refreshTokenApi, tauriFlag } = vi.hoisted(() => ({
   getState: vi.fn(),
   refreshTokenApi: vi.fn(),
+  // Mutable box so individual tests can flip isTauri without needing
+  // vi.resetModules()+dynamic import for every test in this file.
+  tauriFlag: { isTauri: false },
 }));
 vi.mock("@/store/auth", () => ({ useAuthStore: { getState } }));
 vi.mock("@/lib/auth-api", () => ({ refreshToken: refreshTokenApi }));
+vi.mock("@/lib/tauri", () => ({
+  get isTauri() {
+    return tauriFlag.isTauri;
+  },
+}));
 
 import { authedFetch, tryRefreshToken } from "@/lib/auth-fetch";
 
@@ -23,6 +31,7 @@ let clearAuth: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   vi.clearAllMocks();
+  tauriFlag.isTauri = false;
   setTokens = vi.fn();
   clearAuth = vi.fn();
   getState.mockReturnValue({
@@ -36,11 +45,24 @@ beforeEach(() => {
 });
 
 describe("tryRefreshToken", () => {
-  it("returns null immediately when there is no refresh token", async () => {
+  it("desktop (Tauri): returns null immediately when there is no refresh token, no cookie fallback exists", async () => {
+    tauriFlag.isTauri = true;
     getState.mockReturnValue({ refreshTokenValue: null, setTokens, clearAuth });
     const result = await tryRefreshToken();
     expect(result).toBeNull();
     expect(refreshTokenApi).not.toHaveBeenCalled();
+  });
+
+  it("web: attempts the refresh even with no in-memory token (relies on the httpOnly cookie)", async () => {
+    tauriFlag.isTauri = false;
+    getState.mockReturnValue({ refreshTokenValue: null, setTokens, clearAuth });
+    refreshTokenApi.mockResolvedValueOnce({ access_token: "new-access", refresh_token: "new-refresh" });
+
+    const result = await tryRefreshToken();
+
+    expect(refreshTokenApi).toHaveBeenCalledWith(null);
+    expect(result).toBe("new-access");
+    expect(setTokens).toHaveBeenCalledWith("new-access", "new-refresh");
   });
 
   it("refreshes and stores the new tokens on success", async () => {

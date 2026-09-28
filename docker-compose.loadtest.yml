@@ -1,0 +1,106 @@
+# Dockerized load-testing sandbox: approximates Railway (backend) + a
+# Vercel-like production build (frontend, optional) so tests/load/k6/*.js can
+# run stress/soak scenarios without ever touching the real Neon DB or a real
+# GitHub/GitLab/HuggingFace/Telegram account. See docs/load-tests-README.md.
+#
+# Separate stack from docker-compose.test.yml (integration tests): different
+# project name, ports, and volumes so the two never collide.
+name: zcrypt-loadtest
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: zcrypt-loadtest-db
+    environment:
+      POSTGRES_DB: zcrypt_loadtest
+      POSTGRES_USER: zcrypt
+      POSTGRES_PASSWORD: loadtest
+    ports:
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zcrypt -d zcrypt_loadtest"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      # Real volume (not tmpfs, unlike docker-compose.test.yml): a load test
+      # should see realistic disk-backed Postgres I/O, not RAM-speed tmpfs.
+      - zcrypt_loadtest_pgdata:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: zcrypt-loadtest-backend
+    env_file:
+      - .env.loadtest
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # NOTE: no container-level healthcheck here. The production image
+    # (gcr.io/distroless/static-debian12:nonroot, see ./Dockerfile) has no
+    # shell and no curl/wget -- there is nothing a HEALTHCHECK could exec
+    # inside this container, and this stack intentionally reuses that image
+    # unmodified rather than forking a debug variant just for a healthcheck.
+    # Readiness is instead polled externally (curl against the published
+    # :8080 port) by the seed step and by `make loadtest-docker-up`.
+    volumes:
+      - zcrypt_loadtest_mockstore:/data/mock-storage
+    deploy:
+      resources:
+        limits:
+          # Rough Railway-starter-tier approximation -- true these up against
+          # the real service's configured limits if you want a tighter match.
+          cpus: "1.0"
+          memory: 512M
+
+  frontend:
+    profiles: ["full"]
+    build:
+      context: app/frontend
+      dockerfile: Dockerfile.loadtest
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8080
+    container_name: zcrypt-loadtest-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+
+  seed:
+    image: curlimages/curl:8.10.1
+    container_name: zcrypt-loadtest-seed
+    entrypoint: ["/bin/sh", "/scripts/loadtest-seed.sh"]
+    environment:
+      SEED_BASE_URL: http://backend:8080
+    volumes:
+      - ./scripts/loadtest-seed.sh:/scripts/loadtest-seed.sh:ro
+    depends_on:
+      - backend
+    restart: "no"
+
+  k6:
+    profiles: ["runner"]
+    image: grafana/k6:latest
+    container_name: zcrypt-loadtest-k6
+    environment:
+      K6_BASE_URL: http://backend:8080
+    volumes:
+      - ./tests/load/k6:/scripts:ro
+    depends_on:
+      - backend
+    # Convenience only -- running a host-installed k6 against the published
+    # localhost:8080 port (the primary, documented path) works unchanged and
+    # doesn't require this profile at all.
+    entrypoint: ["k6"]
+
+volumes:
+  zcrypt_loadtest_pgdata:
+  zcrypt_loadtest_mockstore:

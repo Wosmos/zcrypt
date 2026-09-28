@@ -128,7 +128,7 @@ func main() {
 	} else {
 		rateLimited = cmd.RateLimitMiddleware(200, time.Second, cfg.TrustedProxyCount, mux)
 	}
-	handler := requestLogger(corsMiddleware(exemptLongLived(rateLimited, mux)))
+	handler := requestLogger(corsMiddleware(server.MaintenanceGate(exemptLongLived(rateLimited, mux))))
 
 	// Register every API route. This is the single source of truth for the
 	// route table, shared with the integration test harness (see
@@ -237,6 +237,11 @@ func corsMiddleware(next http.Handler) http.Handler {
 		if origin != "" && allowedOrigins[origin] {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Set("Vary", "Origin")
+			// Required for the browser to send/receive the httpOnly refresh-token
+			// cookie (zcrypt_rt, see cmd/auth.go) on cross-origin requests. Safe
+			// only because the origin above is always a specific reflected value
+			// from the allowlist, never "*".
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
 		}
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Chunk-SHA256, X-Chunk-Compressed, X-Share-Password")

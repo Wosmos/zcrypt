@@ -16,9 +16,21 @@ export function parseErrorBody(body: string): string {
   }
 }
 
-/** Read a non-ok response body and throw an Error carrying the server message. */
+/** An HTTP error that carries the response status, so callers can branch on it
+ *  (e.g. distinguish a 429 rate-limit from a genuine network/server failure)
+ *  without re-parsing the response. */
+export class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+/** Read a non-ok response body and throw an ApiError carrying the server message + status. */
 export async function throwResponseError(res: Response): Promise<never> {
-  throw new Error(parseErrorBody(await res.text()));
+  throw new ApiError(parseErrorBody(await res.text()), res.status);
 }
 
 /**

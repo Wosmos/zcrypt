@@ -2,11 +2,18 @@
 
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import type { FileMetadata } from "@/types";
-import { FileTable, type SortField, type SortDir } from "@/components/files/file-table";
-import { FileCard } from "@/components/files/file-card";
+import { FileTable, type SortField, type SortDir } from "@/components/demo/file-table";
+import { FileCard } from "@/components/demo/file-card";
 import { ExplorerToolbar } from "@/components/files/explorer/explorer-toolbar";
 import { ExplorerBreadcrumb } from "@/components/files/explorer/breadcrumb";
 import type { ViewMode, GridCols } from "@/components/files/explorer/types";
+import {
+  EMPTY_ENTRY_FILTERS,
+  matchesSizeFacet,
+  matchesDateFacet,
+  type EntryFilters,
+} from "@/components/files/explorer/filter-popover";
+import { getFileCategory } from "@/lib/utils";
 import { Logo } from "@/components/ui/logo";
 import {
   Shield,
@@ -95,26 +102,34 @@ export function LiveExplorer({ className }: { className?: string }) {
   const [gridCols, setGridCols] = useState<GridCols>("auto");
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [filters, setFilters] = useState<EntryFilters>(EMPTY_ENTRY_FILTERS);
   const [hint, setHint] = useState<string | null>(null);
   const hintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const files = useMemo(() => {
     const dir = sortDir === "asc" ? 1 : -1;
-    return [...SAMPLE].sort((a, b) => {
-      switch (sortField) {
-        case "name":
-          return dir * a.original_name.localeCompare(b.original_name);
-        case "size":
-          return dir * (a.original_size - b.original_size);
-        case "saved":
-          return dir * (a.compressed_size / a.original_size - b.compressed_size / b.original_size);
-        case "type":
-          return dir * ext(a.original_name).localeCompare(ext(b.original_name));
-        default:
-          return dir * (Date.parse(a.created_at) - Date.parse(b.created_at));
-      }
-    });
-  }, [sortField, sortDir]);
+    return SAMPLE.filter(
+      (f) => filters.types.size === 0 || filters.types.has(getFileCategory(f.original_name)),
+    )
+      .filter((f) => matchesSizeFacet(f.original_size, filters.size))
+      .filter((f) => matchesDateFacet(f.created_at, filters.date))
+      .sort((a, b) => {
+        switch (sortField) {
+          case "name":
+            return dir * a.original_name.localeCompare(b.original_name);
+          case "size":
+            return dir * (a.original_size - b.original_size);
+          case "saved":
+            return (
+              dir * (a.compressed_size / a.original_size - b.compressed_size / b.original_size)
+            );
+          case "type":
+            return dir * ext(a.original_name).localeCompare(ext(b.original_name));
+          default:
+            return dir * (Date.parse(a.created_at) - Date.parse(b.created_at));
+        }
+      });
+  }, [sortField, sortDir, filters]);
 
   const say = (msg: string) => {
     setHint(msg);
@@ -209,6 +224,9 @@ export function LiveExplorer({ className }: { className?: string }) {
                 setSelectMode((v) => !v);
                 setSelected(new Set());
               }}
+              files={SAMPLE}
+              filters={filters}
+              onFiltersChange={setFilters}
             />
             <div className="mt-3">
               {view === "list" ? (

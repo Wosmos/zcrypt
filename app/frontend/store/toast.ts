@@ -6,15 +6,21 @@ import { genId } from "@/lib/id";
 // and notifications can't drift.
 export type ToastType = Severity;
 
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
 interface Toast {
   id: string;
   type: ToastType;
   message: string;
+  action?: ToastAction;
 }
 
 interface ToastStore {
   toasts: Toast[];
-  add: (type: ToastType, message: string) => void;
+  add: (type: ToastType, message: string, action?: ToastAction) => void;
   remove: (id: string) => void;
 }
 
@@ -26,10 +32,10 @@ const MAX_TOASTS = 5;
 export const useToastStore = create<ToastStore>((set) => ({
   toasts: [],
 
-  add: (type, message) => {
+  add: (type, message, action) => {
     const id = genId("toast", { time: false });
     set((s) => {
-      const next = [...s.toasts, { id, type, message }];
+      const next = [...s.toasts, { id, type, message, action }];
       return { toasts: next.slice(-MAX_TOASTS) };
     });
     setTimeout(() => {
@@ -43,8 +49,10 @@ export const useToastStore = create<ToastStore>((set) => ({
 }));
 
 export const toast = {
-  success: (msg: string) => useToastStore.getState().add("success", msg),
-  error: (msg: string) => useToastStore.getState().add("error", msg),
-  info: (msg: string) => useToastStore.getState().add("info", msg),
-  warning: (msg: string) => useToastStore.getState().add("warning", msg),
+  success: (msg: string, action?: ToastAction) =>
+    useToastStore.getState().add("success", msg, action),
+  error: (msg: string, action?: ToastAction) => useToastStore.getState().add("error", msg, action),
+  info: (msg: string, action?: ToastAction) => useToastStore.getState().add("info", msg, action),
+  warning: (msg: string, action?: ToastAction) =>
+    useToastStore.getState().add("warning", msg, action),
 };

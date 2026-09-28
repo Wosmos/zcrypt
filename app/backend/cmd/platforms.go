@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/zcrypt/zcrypt/adapters"
@@ -158,6 +159,13 @@ func (s *Server) HandleConnectPlatform(w http.ResponseWriter, r *http.Request) {
 	switch req.Platform {
 	case "github", "gitlab", "huggingface", "telegram":
 		// supported
+	case "mock":
+		// Load-testing sandbox only, gated the same way as createAdapter's
+		// "mock" case: rejected outright unless explicitly opted into.
+		if os.Getenv("ZCRYPT_ENABLE_MOCK_ADAPTER") != "true" {
+			http.Error(w, `{"error":"unsupported platform, use github, gitlab, huggingface, or telegram"}`, http.StatusBadRequest)
+			return
+		}
 	default:
 		http.Error(w, `{"error":"unsupported platform, use github, gitlab, huggingface, or telegram"}`, http.StatusBadRequest)
 		return

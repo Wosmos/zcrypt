@@ -32,3 +32,22 @@ export function SkeletonStat({ className }: { className?: string }) {
     </div>
   );
 }
+
+/** A primary KpiCard-shaped placeholder (components/ui/kpi-card.tsx): centered
+ *  icon chip, optional trend chip, label and a larger value line. Sibling to
+ *  SkeletonStat, not a replacement — other consumers depend on its shape. */
+export function SkeletonKpiPrimary({ className }: { className?: string }) {
+  return (
+    <div className={cn("rounded-2xl border border-[var(--color-border)] p-5", className)}>
+      <div className="flex flex-col items-center gap-2.5">
+        <div className="flex w-full items-center justify-between">
+          <Skeleton className="h-4 w-10 rounded-full" />
+          <Skeleton className="h-4 w-14 rounded-full" />
+        </div>
+        <Skeleton className="h-[64px] w-[64px] rounded-full" />
+        <Skeleton className="h-7 w-24 rounded-md" />
+        <Skeleton className="h-3 w-16 rounded-md" />
+      </div>
+    </div>
+  );
+}
