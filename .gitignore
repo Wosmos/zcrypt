@@ -95,3 +95,6 @@ scripts/git-time.sh
 # Railway usage export (local artifact, may contain account details)
 railway-usage.json
 app/core/target/
+
+# Per-checkout golangci-lint cache (scripts/prepush.sh), never shared globally
+.golangci-cache/

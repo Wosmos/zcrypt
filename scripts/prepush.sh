@@ -77,6 +77,15 @@ TUI="$ROOT/app/tui"
 DESKTOP="$ROOT/app/desktop"
 CORE="$ROOT/app/core"
 LOGDIR="$(mktemp -d)"
+
+# golangci-lint defaults to one cache dir per machine (~/.cache or
+# ~/Library/Caches/golangci-lint), shared across every local checkout of this
+# repo. A plain (non --new-from-rev) lint run in one checkout can poison that
+# cache such that --new-from-rev in ANOTHER checkout wrongly reports
+# unrelated, untouched files as having "new" issues (observed directly: a
+# file with zero diff against origin/main still showed up as new). Give each
+# checkout its own cache so they can never cross-contaminate.
+export GOLANGCI_LINT_CACHE="$ROOT/.golangci-cache"
 trap 'rm -rf "$LOGDIR"' EXIT
 
 # ── commit-scoped versioning ───────────────────────────────────────────────────
