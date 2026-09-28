@@ -75,5 +75,20 @@ describe("useToastStore", () => {
       const types = useToastStore.getState().toasts.map((t) => t.type);
       expect(types).toEqual(["success", "error", "info", "warning"]);
     });
+
+    it("attaches an optional action to the toast", () => {
+      const onClick = vi.fn();
+      toast.success("undo me", { label: "Undo", onClick });
+      const [t] = useToastStore.getState().toasts;
+      expect(t.action?.label).toBe("Undo");
+      t.action?.onClick();
+      expect(onClick).toHaveBeenCalledOnce();
+    });
+
+    it("omits action when not provided", () => {
+      toast.info("no action");
+      const [t] = useToastStore.getState().toasts;
+      expect(t.action).toBeUndefined();
+    });
   });
 });

@@ -24,10 +24,15 @@ import { DIALOG_PANEL } from "./explorer/types";
 
 interface MoveToFolderDialogProps {
   open: boolean;
-  /** Move a FILE. Mutually exclusive with `folderId`. */
+  /** Move a FILE. Mutually exclusive with `folderId`/`fileIds`. */
   fileId: string | null;
-  /** Move a FOLDER (spec C1). Mutually exclusive with `fileId`. */
+  /** Move a FOLDER (spec C1). Mutually exclusive with `fileId`/`fileIds`. */
   folderId?: string | null;
+  /** Move several FILES at once (bulk action bar). Mutually exclusive with
+   *  `fileId`/`folderId`. Each id is moved individually via `onMoveFile`/
+   *  `moveFile`, so one failure doesn't block the rest; the result is one
+   *  aggregated success/partial-failure toast. */
+  fileIds?: string[];
   onClose: () => void;
   onMoved?: () => void;
   /**
@@ -52,6 +57,7 @@ export function MoveToFolderDialog({
   open,
   fileId,
   folderId,
+  fileIds,
   onClose,
   onMoved,
   onMoveFile,
@@ -197,6 +203,39 @@ export function MoveToFolderDialog({
       return;
     }
 
+    if (fileIds && fileIds.length > 0) {
+      setMoving(true);
+      let succeeded = 0;
+      let failed = 0;
+      let cancelled = false;
+      for (const id of fileIds) {
+        try {
+          if (onMoveFile) await onMoveFile(id, selected);
+          else await moveFile(id, selected);
+          succeeded++;
+        } catch (err) {
+          if (err instanceof FolderUnlockCancelled) {
+            cancelled = true;
+            break;
+          }
+          failed++;
+        }
+      }
+      setMoving(false);
+      if (cancelled && succeeded === 0) {
+        onClose();
+        return;
+      }
+      if (failed > 0) {
+        toast.warning(`${succeeded} moved, ${failed} failed`);
+      } else {
+        toast.success(`Moved ${succeeded} file${succeeded !== 1 ? "s" : ""}`);
+      }
+      onMoved?.();
+      onClose();
+      return;
+    }
+
     if (!fileId) return;
     setMoving(true);
     try {
@@ -264,7 +303,13 @@ export function MoveToFolderDialog({
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className={DIALOG_PANEL}>
         <DialogHeader>
-          <DialogTitle>{movingFolder ? "Move folder" : "Move to folder"}</DialogTitle>
+          <DialogTitle>
+            {movingFolder
+              ? "Move folder"
+              : fileIds && fileIds.length > 0
+                ? `Move ${fileIds.length} file${fileIds.length !== 1 ? "s" : ""}`
+                : "Move to folder"}
+          </DialogTitle>
           <DialogDescription className="text-[var(--color-text-secondary)]">
             {movingFolder
               ? "Choose a destination. A folder can't move into itself or one of its subfolders."

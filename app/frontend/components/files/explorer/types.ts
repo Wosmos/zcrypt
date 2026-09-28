@@ -108,6 +108,8 @@ export interface ExplorerItemProps {
   onOpenDetails?: (file: FileMetadata) => void;
   /** Open the icon/color picker for a file (kebab). */
   onCustomizeFile?: (file: FileMetadata) => void;
+  /** Rename a file (kebab). */
+  onRenameFile?: (file: FileMetadata) => void;
   drag: RowDragProps;
 }
 
@@ -143,6 +145,7 @@ export type FileItemProps = Pick<
   | "onEntryKeyDown"
   | "onOpenDetails"
   | "onCustomizeFile"
+  | "onRenameFile"
   | "drag"
 > & { file: FileMetadata };
 

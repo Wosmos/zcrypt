@@ -71,6 +71,16 @@ type Server struct {
 	transferJoinLimiter *rateLimiter
 	// Desktop-OAuth poll limiter: 30 polls per minute per IP
 	desktopPollLimiter *rateLimiter
+	// Analytics limiter: 100 req per 5 min per USER (not IP), shared across every
+	// /api/analytics/* route. Each new backend aggregation is a real DB query, not
+	// a free cache read, so this is a hard per-account ceiling on top of (not
+	// instead of) the frontend's own refresh cooldown: it holds even against extra
+	// tabs, another device, or a direct API call with a stolen/valid JWT. One page
+	// mount fires 4 parallel requests (doubled to 8 by React Strict Mode in dev),
+	// so 100 leaves headroom for a dozen-plus reloads/range-switches in a 5 min
+	// window without ever being a realistic ceiling for a human clicking around,
+	// while still being nowhere near what a scripted scrape/DoS attempt would want.
+	analyticsLimiter *rateLimiter
 
 	// tokenVersions enforces JWT revocation by checking each access token's
 	// version against the user's current token_version (bumped on password
@@ -152,6 +162,7 @@ func NewServer(db *index.DB, cfg *config.Config, progress *pipeline.ProgressEmit
 		padLimiter:          newRateLimiter(10, time.Hour),
 		transferJoinLimiter: newRateLimiter(5, 10*time.Minute),
 		desktopPollLimiter:  newRateLimiter(30, time.Minute),
+		analyticsLimiter:    newRateLimiter(100, 5*time.Minute),
 		globalAdapterCache:  make(map[string]adapters.PlatformAdapter),
 		transferHub:         newTransferHub(),
 		desktopSessions:     make(map[string]*desktopOAuthResult),
@@ -690,6 +701,14 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/events", s.HandleSSE) // SSE auth via query param
 	mux.HandleFunc("GET /api/quota", s.AuthMiddleware(s.HandleGetQuota))
 	mux.HandleFunc("POST /api/onboarding/complete", s.AuthMiddleware(s.HandleMarkOnboarded))
+
+	// Insights/analytics: backend-aggregated (not full-file-list-to-client) so
+	// KPIs stay cheap at any vault size. Rate-limited per user on top of auth
+	// (see AnalyticsRateLimitMiddleware) since each hit is a real DB aggregation.
+	mux.HandleFunc("GET /api/analytics/summary", s.AuthMiddleware(s.AnalyticsRateLimitMiddleware(s.HandleAnalyticsSummary)))
+	mux.HandleFunc("GET /api/analytics/timeseries", s.AuthMiddleware(s.AnalyticsRateLimitMiddleware(s.HandleAnalyticsTimeseries)))
+	mux.HandleFunc("GET /api/analytics/storage-growth", s.AuthMiddleware(s.AnalyticsRateLimitMiddleware(s.HandleAnalyticsStorageGrowth)))
+	mux.HandleFunc("GET /api/analytics/file-types", s.AuthMiddleware(s.AnalyticsRateLimitMiddleware(s.HandleAnalyticsFileTypes)))
 
 	// Client-side encrypted upload (chunked)
 	mux.HandleFunc("POST /api/upload/init", maxJSON(s.AuthMiddleware(s.HandleUploadInit)))

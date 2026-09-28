@@ -2,14 +2,18 @@
 
 import { useQuery } from "@tanstack/react-query";
 import type { FileMetadata } from "@/types";
-import { listFiles, updateFileStyle as apiUpdateFileStyle } from "@/lib/api";
+import {
+  listFiles,
+  updateFileStyle as apiUpdateFileStyle,
+  setFileName as apiSetFileName,
+} from "@/lib/api";
 import { queryClient } from "@/lib/query-client";
 import { qk } from "@/lib/query-keys";
 import { setListData, getQueryData, invalidateKey } from "@/lib/query-cache";
 import { useAuthStore } from "@/store/auth";
 import { usePassphraseStore } from "@/store/passphrase";
 import { decryptFileNames } from "@/lib/file-names";
-import { deriveNameKey, encryptStyle, type CustomStyle } from "@/lib/name-crypto";
+import { deriveNameKey, encryptStyle, encryptName, type CustomStyle } from "@/lib/name-crypto";
 
 // Fetch the file list and resolve zero-knowledge names in one place, so every
 // consumer of qk.files sees decrypted (or "[locked]") names without its own
@@ -68,6 +72,35 @@ export async function updateFileStyle(fileId: string, style: CustomStyle | null)
   const key = await deriveNameKey(passphrase, user.id);
   const encrypted_style = style ? await encryptStyle(style, key) : null;
   await apiUpdateFileStyle(fileId, encrypted_style);
+  await invalidateFiles();
+}
+
+/** Rename a file: encrypts the trimmed new name with the same per-user name
+ *  key as folders, then calls the PATCH /api/files/{id}/name endpoint (also
+ *  used for one-time legacy-name resealing) and invalidates the files list.
+ *  Blocks a duplicate sibling name within the same folder, mirroring
+ *  useFolders' renameFolder guard. */
+export async function renameFile(fileId: string, name: string): Promise<void> {
+  const user = useAuthStore.getState().user;
+  const passphrase = usePassphraseStore.getState().getPassphrase();
+  if (!user || !passphrase) throw new Error("Unlock your vault to rename files");
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error("Name cannot be empty");
+
+  const files = getFilesData();
+  const target = files.find((f) => f.id === fileId);
+  const folderId = target?.folder_id ?? null;
+  const dup = files.some(
+    (f) =>
+      f.id !== fileId &&
+      (f.folder_id ?? null) === folderId &&
+      f.original_name.trim().toLowerCase() === trimmed.toLowerCase(),
+  );
+  if (dup) throw new Error(`A file named "${trimmed}" already exists here.`);
+
+  const key = await deriveNameKey(passphrase, user.id);
+  const encrypted_name = await encryptName(trimmed, key);
+  await apiSetFileName(fileId, encrypted_name);
   await invalidateFiles();
 }
 

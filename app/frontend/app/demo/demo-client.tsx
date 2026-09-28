@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { FileCard, type DownloadState } from "@/components/files/file-card";
-import { FileTable, type SortField, type SortDir } from "@/components/files/file-table";
+import { FileCard, type DownloadState } from "@/components/demo/file-card";
+import { FileTable, type SortField, type SortDir } from "@/components/demo/file-table";
 import { FileTypeFilter } from "@/components/files/file-type-filter";
-import { MobileVaultHeader } from "@/components/vault/mobile-vault-header";
-import { CompactStats } from "@/components/vault/compact-stats";
+import { MobileVaultHeader } from "@/components/demo/mobile-vault-header";
+import { CompactStats } from "@/components/demo/compact-stats";
 import { UploadZone } from "@/components/upload/upload-zone";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
