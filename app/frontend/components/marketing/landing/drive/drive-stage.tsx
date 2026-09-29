@@ -192,35 +192,21 @@ export function DriveStage({
         <a href="#how" className="zh-skip">
           Skip the app preview
         </a>
-        <div
-          ref={frame}
-          className="zh-frame"
-          data-frame={mounted ? (isPhone ? "phone" : "desk") : undefined}
-        >
-          {!mounted ? (
-            <div className="zh-shell" aria-hidden="true" />
-          ) : isPhone ? (
-            <div className="zh-ph-group">
-              <ViewToggle value={state.view} onChange={setView} size="lg" className="zh-tog-ph" />
-              <IPhoneFrame>
-                <DrivePhone onPick={onPick} />
-              </IPhoneFrame>
+        <div ref={frame} className="zh-frame">
+          <div className="zh-v-desk">
+            <div className="zh-flipdock">
+              <ViewToggle value={state.view} onChange={setView} size="lg" className="zh-tog-dock" />
             </div>
-          ) : (
-            <>
-              <div className="zh-flipdock">
-                <ViewToggle
-                  value={state.view}
-                  onChange={setView}
-                  size="lg"
-                  className="zh-tog-dock"
-                />
-              </div>
-              <MacWindow title="zcrypt" toolbar={<span className="zh-win-pill">Sample files</span>}>
-                <DriveDesktop onPick={onPick} />
-              </MacWindow>
-            </>
-          )}
+            <MacWindow title="zcrypt" toolbar={<span className="zh-win-pill">Sample files</span>}>
+              <DriveDesktop onPick={onPick} />
+            </MacWindow>
+          </div>
+          <div className="zh-v-ph zh-ph-group">
+            <ViewToggle value={state.view} onChange={setView} size="lg" className="zh-tog-ph" />
+            <IPhoneFrame>
+              <DrivePhone onPick={onPick} />
+            </IPhoneFrame>
+          </div>
         </div>
         <input
           ref={picker}

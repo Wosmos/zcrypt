@@ -263,7 +263,7 @@
   right: max(var(--zh-side), (100% - 1680px) / 2);
   transform-origin: 50% 0;
 }
-.zh-frame[data-frame="desk"]::before {
+.zh-frame::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -275,7 +275,7 @@
     0 40px 90px -30px rgba(16, 24, 40, 0.4),
     0 16px 36px -18px rgba(16, 24, 40, 0.25);
 }
-.dark .zh-frame[data-frame="desk"]::before {
+.dark .zh-frame::before {
   box-shadow: 0 60px 120px -40px rgba(0, 0, 0, 0.85);
 }
 @media (prefers-reduced-motion: no-preference) and (min-height: 560px) {
@@ -288,12 +288,12 @@
     transform: translate3d(0, var(--zh-y0, 72svh), 0) scale(var(--zh-s0, 0.78));
   }
 }
-.zh-shell {
-  width: 100%;
+.zh-v-desk {
+  position: relative;
   height: 100%;
-  border-radius: 16px;
-  border: 1px solid var(--zh-border-h);
-  background: var(--zh-bg);
+}
+.zh-frame > .zh-v-ph {
+  display: none;
 }
 
 @media (max-width: 767px) {
@@ -303,14 +303,14 @@
     right: var(--zh-side);
     top: var(--zh-top);
   }
-  .zh-shell {
-    width: min(calc(min(100svh - 156px, 950px) * 0.4758), 100%);
-    height: auto;
-    aspect-ratio: 452 / 950;
-    margin: 56px auto 0;
-    border-radius: 30px;
-    border: 0;
-    background: #0b0d12;
+  .zh-frame::before {
+    display: none;
+  }
+  .zh-frame > .zh-v-desk {
+    display: none;
+  }
+  .zh-frame > .zh-v-ph {
+    display: flex;
   }
   .zh-frame {
     transform-origin: 50% 0;
