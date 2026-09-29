@@ -1,7 +1,7 @@
 "use client";
 
 import { LockKeyOpen } from "@phosphor-icons/react";
-import { GitHubIcon } from "@/components/marketing/preview/platform-marks";
+import { GitHubIcon } from "@/components/icons/github";
 import { LogoIcon } from "@/components/ui/logo";
 import { BarChart3, Bell, Layers, Plus, Shield, Trash2 } from "@/lib/icons";
 import { cn } from "@/lib/utils";

@@ -1,12 +1,10 @@
 import { describe, it, expect } from "vitest";
 import {
-  marqueeItems,
   bentoFeatures,
   features,
   accentColors,
   steps,
   faqs,
-  roadmapItems,
   trustBadges,
   tuiFeatures,
   tuiShortcuts,
@@ -20,10 +18,6 @@ import {
 } from "@/lib/data";
 
 describe("static content arrays", () => {
-  it("marqueeItems is a non-empty list of strings", () => {
-    expect(marqueeItems.length).toBeGreaterThan(0);
-    for (const item of marqueeItems) expect(typeof item).toBe("string");
-  });
 
   it("bentoFeatures entries carry title, desc, icon, span, and bg", () => {
     expect(bentoFeatures.length).toBeGreaterThan(0);
@@ -65,15 +59,6 @@ describe("static content arrays", () => {
     }
   });
 
-  it("roadmapItems each have an icon, title, desc, and badge", () => {
-    expect(roadmapItems.length).toBeGreaterThan(0);
-    for (const r of roadmapItems) {
-      expect(r.icon.length).toBeGreaterThan(0);
-      expect(r.title.length).toBeGreaterThan(0);
-      expect(r.desc.length).toBeGreaterThan(0);
-      expect(r.badge.length).toBeGreaterThan(0);
-    }
-  });
 
   it("trustBadges is a non-empty list of strings", () => {
     expect(trustBadges.length).toBeGreaterThan(0);

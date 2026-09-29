@@ -76,7 +76,7 @@ export default function BringYourOwnStoragePage() {
                 key={a.name}
                 className="rounded-xl border border-[var(--color-border)] bg-black/[0.02] px-3 py-3 dark:bg-white/[0.02]"
               >
-                <a.Icon className="h-5 w-5 text-cyan-500" />
+                <a.Mark className="h-5 w-5" />
                 <div className="mt-2 text-xs font-semibold">{a.name}</div>
                 <div className="font-mono text-[10px] text-[var(--color-text-muted)]">
                   {a.capacity}
@@ -119,7 +119,7 @@ export default function BringYourOwnStoragePage() {
               <li key={a.name}>
                 <article className="card p-6 transition-colors hover:border-cyan-500/30">
                   <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-500">
-                    <a.Icon className="h-5 w-5" />
+                    <a.Mark className="h-5 w-5" />
                   </div>
                   <h3 className="text-sm font-bold">{a.name}</h3>
                   <p className="mt-1 font-mono text-xs text-cyan-600 dark:text-cyan-400">

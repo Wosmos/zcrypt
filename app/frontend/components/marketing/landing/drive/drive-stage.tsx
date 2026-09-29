@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
-import { gsap, MOTION_FULL, MOTION_REDUCE, useGSAP } from "@/components/marketing/preview/gsap";
+import { gsap, MOTION_FULL, MOTION_REDUCE, useGSAP } from "@/components/marketing/landing/gsap";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { DriveDesktop } from "./drive-desktop";
 import { DrivePhone } from "./drive-phone";

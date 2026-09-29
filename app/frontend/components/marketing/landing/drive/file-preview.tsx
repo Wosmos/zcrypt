@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { ScrollTrigger } from "@/components/marketing/preview/gsap";
+import { ScrollTrigger } from "@/components/marketing/landing/gsap";
 import { ChevronLeft, ChevronRight, Download, FileText, Maximize, Minimize, X } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { kindOf, typeOf, type View } from "./drive-data";

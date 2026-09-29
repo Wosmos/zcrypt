@@ -3,12 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { MOBILE_GLYPHS, OS_GLYPHS } from "@/components/marketing/download/os-glyphs";
-import {
-  GitHubIcon,
-  GitLabIcon,
-  HuggingFaceIcon,
-  TelegramIcon,
-} from "@/components/marketing/preview/platform-marks";
+import { GitHubIcon } from "@/components/icons/github";
+import { GitlabIcon as GitLabIcon } from "@/components/icons/gitlab";
+import { HuggingFaceIcon } from "@/components/icons/huggingface";
+import { TelegramIcon } from "@/components/icons/telegram";
 import { ArrowRight, ChevronDown, Download, Lock } from "@/lib/icons";
 import { DriveProvider, useDrive } from "./drive-store";
 import { DriveStage } from "./drive-stage";

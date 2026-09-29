@@ -1,8 +1,8 @@
 "use client";
 
 import { type ComponentType, useEffect, useRef } from "react";
-import { MOTION_REDUCE } from "@/components/marketing/preview/gsap";
-import { SectionHead } from "@/components/marketing/v2/section-head";
+import { MOTION_REDUCE } from "@/components/marketing/landing/gsap";
+import { SectionHead } from "@/components/marketing/landing/section-head";
 import {
   DriveVignette,
   LockVignette,

@@ -2,7 +2,7 @@
 
 import { useRef } from "react";
 import { LockKeyOpen } from "@phosphor-icons/react";
-import { GitHubIcon } from "@/components/marketing/preview/platform-marks";
+import { GitHubIcon } from "@/components/icons/github";
 import { Logo, LogoIcon } from "@/components/ui/logo";
 import {
   BarChart3,

@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArrowRight, X } from "@/lib/icons";
 import { cn } from "@/lib/utils";
-import "@/components/marketing/v2/chrome.css";
+import "@/components/marketing/landing/chrome.css";
 
 const KEY = "zc-sticky-dismissed";
 const EASE_IN = [0.05, 0.7, 0.1, 1] as const;

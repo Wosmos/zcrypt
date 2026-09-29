@@ -1,13 +1,3 @@
-/**
- * Platform marks for the pipeline scene. Three already exist as hand-drawn
- * SVGs under components/icons; GitHub did not, so it lives here. The barrel
- * exists so the scene imports four names from one place and the GitLab
- * casing difference (GitlabIcon) is hidden.
- */
-export { GitlabIcon as GitLabIcon } from "@/components/icons/gitlab";
-export { HuggingFaceIcon } from "@/components/icons/huggingface";
-export { TelegramIcon } from "@/components/icons/telegram";
-
 export function GitHubIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={className}>

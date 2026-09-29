@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { ScrollTrigger } from "@/components/marketing/preview/gsap";
+import { ScrollTrigger } from "@/components/marketing/landing/gsap";
 
 export function ScrollRefresh() {
   useEffect(() => {

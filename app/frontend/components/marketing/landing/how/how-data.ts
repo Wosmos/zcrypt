@@ -1,11 +1,5 @@
-import type { ComponentType } from "react";
-import { hexChar } from "@/components/marketing/preview/gsap";
-import {
-  GitHubIcon,
-  GitLabIcon,
-  HuggingFaceIcon,
-  TelegramIcon,
-} from "@/components/marketing/preview/platform-marks";
+import { hexChar } from "@/components/marketing/landing/gsap";
+import { STORAGE_PLATFORMS } from "@/components/marketing/landing/storage-platforms";
 
 export type HowPart = "connect" | "drop" | "store";
 
@@ -30,30 +24,7 @@ export const STEPS: ReadonlyArray<{ n: string; part: HowPart; title: string; bod
   },
 ];
 
-export const PLATFORMS: ReadonlyArray<{
-  key: "telegram" | "github" | "gitlab" | "huggingface";
-  name: string;
-  limit: string;
-  tint: string;
-  Mark: ComponentType<{ className?: string }>;
-}> = [
-  { key: "telegram", name: "Telegram", limit: "No ceiling", tint: "#0ea5e9", Mark: TelegramIcon },
-  {
-    key: "github",
-    name: "GitHub",
-    limit: "850 MB per project",
-    tint: "var(--color-text)",
-    Mark: GitHubIcon,
-  },
-  { key: "gitlab", name: "GitLab", limit: "9 GB per project", tint: "#f97316", Mark: GitLabIcon },
-  {
-    key: "huggingface",
-    name: "Hugging Face",
-    limit: "90 GB per account",
-    tint: "#eab308",
-    Mark: HuggingFaceIcon,
-  },
-];
+export const PLATFORMS = STORAGE_PLATFORMS.map((p) => ({ ...p, key: p.id }));
 
 export const FILE = { name: "wedding-video.mp4", size: "4.2 GB", ext: "MP4" };
 

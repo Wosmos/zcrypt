@@ -2,11 +2,11 @@ import Link from "next/link";
 import { ArrowRight } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { landingSections } from "@/lib/data";
-import { ScrollReveal } from "@/components/marketing/landing/scroll-reveal";
+import { Section } from "@/components/marketing/section-reveal";
 import { Underlined } from "@/components/marketing/landing/pencil-underline";
 import { HoverReveal } from "@/components/marketing/landing/hover-reveal";
 
-/** The site-wide closing call to action, shared by the homepage and /preview-v2. */
+/** The site-wide closing call to action. */
 export function ClosingCta({
   id,
   label,
@@ -29,7 +29,7 @@ export function ClosingCta({
       </div>
 
       <div className="relative mx-auto max-w-2xl text-center">
-        <ScrollReveal>
+        <Section as="div">
           <p className="mb-4 text-xs font-semibold uppercase tracking-[0.16em] text-cyan-600 dark:text-cyan-400">
             {landingSections.cta.eyebrow}
           </p>
@@ -42,9 +42,9 @@ export function ClosingCta({
           <p className="text-[var(--color-text-secondary)] mt-4 text-lg">
             {landingSections.cta.subtext}
           </p>
-        </ScrollReveal>
+        </Section>
 
-        <ScrollReveal delay={0.2}>
+        <Section as="div" delay={0.2}>
           <div className="mt-10 relative inline-flex flex-wrap items-center justify-center gap-4">
             <Link
               href="/register"
@@ -54,7 +54,7 @@ export function ClosingCta({
             </Link>
             <HoverReveal />
           </div>
-        </ScrollReveal>
+        </Section>
       </div>
     </section>
   );

@@ -15,7 +15,6 @@ import {
   BarChart as BarChartData,
   Bell as BellData,
   BellOff as BellOffData,
-  Bluetooth as BluetoothData,
   BookOpen01Icon as BookOpen01IconData,
   Box as BoxData,
   Calendar03Icon as Calendar03IconData,
@@ -55,7 +54,6 @@ import {
   GridTableIcon as GridTableIconData,
   HardDrive as HardDriveData,
   Heart as HeartData,
-  HelpCircleIcon as HelpCircleIconData,
   Home as HomeData,
   Image as ImageData,
   Infinity as InfinityData,
@@ -92,7 +90,6 @@ import {
   Rocket as RocketData,
   RotateCcw as RotateCcwData,
   RotateClockwiseIcon as RotateClockwiseIconData,
-  Scissors as ScissorsData,
   Search as SearchData,
   Send as SendData,
   Server as ServerData,
@@ -245,7 +242,6 @@ export const CheckSquare = makeIcon(CheckSquareData, "CheckSquare");
 export const ArrowDown = makeIcon(ArrowDownData, "ArrowDown");
 export const ArrowUp = makeIcon(ArrowUpData, "ArrowUp");
 export const ArrowUpDown = makeIcon(ArrowUpDownData, "ArrowUpDown");
-export const Bluetooth = makeIcon(BluetoothData, "Bluetooth");
 export const Box = makeIcon(BoxData, "Box");
 export const Cpu = makeIcon(CpuData, "Cpu");
 export const LayoutGrid = makeIcon(LayoutGridData, "LayoutGrid");
@@ -262,8 +258,6 @@ export const StopCircle = makeIcon(StopData, "Stop");
 export const TableProperties = makeIcon(GridTableIconData, "GridTableIcon");
 export const UploadCloud = makeIcon(CloudUploadData, "CloudUpload");
 export const Volume2 = makeIcon(Volume2Data, "Volume2");
-export const Scissors = makeIcon(ScissorsData, "Scissors");
-export const HelpCircle = makeIcon(HelpCircleIconData, "HelpCircleIcon");
 export const Terminal = makeIcon(TerminalData, "Terminal");
 export const Smartphone = makeIcon(SmartphoneData, "Smartphone");
 export const Share2 = makeIcon(Share01IconData, "Share01Icon");

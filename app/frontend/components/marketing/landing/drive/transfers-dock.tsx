@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { TelegramIcon } from "@/components/marketing/preview/platform-marks";
+import { TelegramIcon } from "@/components/icons/telegram";
 import { CheckCircle2, ChevronDown, Upload } from "@/lib/icons";
 import { cn, formatBytes } from "@/lib/utils";
 import { useDrive } from "./drive-store";

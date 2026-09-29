@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRef } from "react";
-import { MOTION_REDUCE, gsap, useGSAP } from "@/components/marketing/preview/gsap";
+import { MOTION_REDUCE, gsap, useGSAP } from "@/components/marketing/landing/gsap";
 import { ArrowRight } from "@/lib/icons";
 import { SectionHead } from "../section-head";
 import { CAPTIONS, type HowPart } from "./how-data";

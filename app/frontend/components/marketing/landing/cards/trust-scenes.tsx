@@ -1,10 +1,8 @@
 import type { CSSProperties } from "react";
 import { FileText, GitCommit, File, Check } from "@/lib/icons";
-import {
-  GitHubIcon,
-  GitLabIcon,
-  TelegramIcon,
-} from "@/components/marketing/preview/platform-marks";
+import { GitHubIcon } from "@/components/icons/github";
+import { GitlabIcon as GitLabIcon } from "@/components/icons/gitlab";
+import { TelegramIcon } from "@/components/icons/telegram";
 
 const HEX = [
   "9f04 c1e2 b7d8",

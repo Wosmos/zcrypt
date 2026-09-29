@@ -1,8 +1,8 @@
 "use client";
 
 import { type CSSProperties, type ReactElement, useEffect, useRef } from "react";
-import { gsap, useGSAP, MOTION_FULL, MOTION_REDUCE } from "@/components/marketing/preview/gsap";
-import { SectionHead } from "@/components/marketing/v2/section-head";
+import { gsap, useGSAP, MOTION_FULL, MOTION_REDUCE } from "@/components/marketing/landing/gsap";
+import { SectionHead } from "@/components/marketing/landing/section-head";
 import { EncryptScene, ScaleScene, StealthScene, OpenScene } from "./trust-scenes";
 import { useSpotlight } from "./use-spotlight";
 

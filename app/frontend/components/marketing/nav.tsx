@@ -29,7 +29,7 @@ import { Logo } from "@/components/ui/logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { LiquidGlassFilter } from "@/components/marketing/liquid-glass-filter";
 import { useAuthStore } from "@/store/auth";
-import "@/components/marketing/v2/chrome.css";
+import "@/components/marketing/landing/chrome.css";
 
 type IconType = React.ComponentType<{ className?: string; size?: number }>;
 type MenuItem = { href: string; title: string; desc?: string; icon?: IconType };
