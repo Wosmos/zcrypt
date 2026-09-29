@@ -50,7 +50,7 @@ export function AvatarDropdown() {
       // Always call, even with refreshTokenValue null (web, no refresh has
       // happened yet this session): authRequest sends credentials, so the
       // httpOnly cookie still reaches the backend and gets revoked/cleared.
-      await logoutApi(refreshTokenValue);
+      await logoutApi(refreshTokenValue, useAuthStore.getState().accessToken);
     } catch {
       /* ignore */
     }

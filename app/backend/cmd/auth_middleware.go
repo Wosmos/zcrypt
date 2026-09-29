@@ -50,6 +50,28 @@ func (s *Server) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+// OptionalAuthMiddleware injects Claims when a valid, current Bearer token is
+// present and otherwise passes the request through unauthenticated.
+func (s *Server) OptionalAuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		header := r.Header.Get("Authorization")
+		if !strings.HasPrefix(header, "Bearer ") {
+			next.ServeHTTP(w, r)
+			return
+		}
+		claims, err := auth.ValidateAccessToken(s.cfg.JWTSecret, strings.TrimPrefix(header, "Bearer "))
+		if err != nil {
+			next.ServeHTTP(w, r)
+			return
+		}
+		if curVer, vErr := s.tokenVersions.current(r.Context(), claims.Sub); vErr != nil || claims.TokenVersion != curVer {
+			next.ServeHTTP(w, r)
+			return
+		}
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), userContextKey, claims)))
+	}
+}
+
 // AdminMiddleware validates JWT and checks for admin role.
 func (s *Server) AdminMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return s.AuthMiddleware(func(w http.ResponseWriter, r *http.Request) {

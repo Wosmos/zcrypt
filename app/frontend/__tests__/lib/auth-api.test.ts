@@ -111,6 +111,7 @@ describe("auth-api endpoint wrappers", () => {
     { name: "refreshToken (no token, web)", run: () => authApi.refreshToken(null), path: "/api/auth/refresh", method: "POST", body: { refresh_token: "" } },
     { name: "logout", run: () => authApi.logout("rt"), path: "/api/auth/logout", method: "POST", body: { refresh_token: "rt" } },
     { name: "logout (no token, web)", run: () => authApi.logout(null), path: "/api/auth/logout", method: "POST", body: { refresh_token: "" } },
+    { name: "logout (with access token)", run: () => authApi.logout(null, "at"), path: "/api/auth/logout", method: "POST", body: { refresh_token: "" }, auth: "at" },
     { name: "forgotPassword", run: () => authApi.forgotPassword("e@x.com"), path: "/api/auth/forgot-password", method: "POST", body: { email: "e@x.com" } },
     { name: "resetPassword", run: () => authApi.resetPassword("tok", "newpw"), path: "/api/auth/reset-password", method: "POST", body: { token: "tok", new_password: "newpw" } },
     { name: "verifyEmail", run: () => authApi.verifyEmail("tok"), path: "/api/auth/verify-email", method: "POST", body: { token: "tok" } },

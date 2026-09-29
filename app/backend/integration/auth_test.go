@@ -169,6 +169,37 @@ func TestTokenRefresh(t *testing.T) {
 	})
 }
 
+// Logout must revoke the refresh token even without a Bearer header: the web
+// app's access token may be missing or expired, and a stale refresh cookie
+// would silently log the user straight back in.
+func TestLogoutWithoutBearerRevokesRefreshToken(t *testing.T) {
+	ts := setupTestServer(t)
+	ts.POST("/api/auth/register", map[string]interface{}{
+		"email":    "logout@example.com",
+		"password": "SecurePass@123!",
+		"username": "logoutuser",
+		"force":    true,
+	}, "").Body.Close()
+
+	loginResp := ts.POST("/api/auth/login", map[string]string{
+		"email":    "logout@example.com",
+		"password": "SecurePass@123!",
+	}, "")
+	body := requireStatus(t, loginResp, http.StatusOK)
+	var tokens struct {
+		RefreshToken string `json:"refresh_token"`
+	}
+	require.NoError(t, jsonUnmarshal(body, &tokens))
+	require.NotEmpty(t, tokens.RefreshToken)
+
+	resp := ts.POST("/api/auth/logout", map[string]string{"refresh_token": tokens.RefreshToken}, "")
+	requireStatus(t, resp, http.StatusOK)
+
+	again := ts.POST("/api/auth/refresh", map[string]string{"refresh_token": tokens.RefreshToken}, "")
+	assert.Equal(t, http.StatusUnauthorized, again.StatusCode)
+	again.Body.Close()
+}
+
 func TestAuthMiddleware(t *testing.T) {
 	ts := setupTestServer(t)
 

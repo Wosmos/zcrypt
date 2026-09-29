@@ -92,9 +92,10 @@ export function refreshToken(
   });
 }
 
-export function logout(refresh_token?: string | null): Promise<void> {
+export function logout(refresh_token?: string | null, access_token?: string | null): Promise<void> {
   return authRequest("/api/auth/logout", {
     method: "POST",
+    headers: access_token ? { Authorization: `Bearer ${access_token}` } : undefined,
     body: JSON.stringify({ refresh_token: refresh_token ?? "" }),
   });
 }

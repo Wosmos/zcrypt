@@ -670,7 +670,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/auth/oauth/desktop-poll", s.HandleDesktopOAuthPoll)
 
 	// Protected auth routes
-	mux.HandleFunc("POST /api/auth/logout", maxJSON(s.AuthMiddleware(s.HandleLogout)))
+	mux.HandleFunc("POST /api/auth/logout", maxJSON(s.OptionalAuthMiddleware(s.HandleLogout)))
 	mux.HandleFunc("POST /api/auth/2fa/setup", maxJSON(s.AuthMiddleware(s.Handle2FASetup)))
 	mux.HandleFunc("POST /api/auth/2fa/enable", maxJSON(s.AuthMiddleware(s.Handle2FAEnable)))
 	mux.HandleFunc("POST /api/auth/2fa/disable", maxJSON(s.AuthMiddleware(s.Handle2FADisable)))
