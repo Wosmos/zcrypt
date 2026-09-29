@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { gsap, MOTION_FULL, MOTION_REDUCE, useGSAP } from "@/components/marketing/landing/gsap";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { DriveDesktop } from "./drive-desktop";
@@ -11,6 +18,8 @@ import { MacWindow } from "./mac-window";
 import { ViewToggle } from "./view-toggle";
 
 const HOLD = 0.72;
+
+const PLACE_FRAME = `(function(){var s=document.currentScript,p=s&&s.parentElement,f=p&&p.querySelector(".zh-frame"),h=p&&p.querySelector(".zh-head"),r=document.documentElement;if(f&&h){var ph=matchMedia("(max-width: 767px)").matches;r.style.setProperty("--zh-y0",(h.offsetTop+h.offsetHeight+40-f.offsetTop)+"px");r.style.setProperty("--zh-s0",String(ph?0.82:Math.min(0.78,1180/Math.max(1,f.offsetWidth))));}r.setAttribute("data-zh-placed","");})();`;
 
 /** The pinned stage: the head above, and the product window that grows to fill the screen. */
 export function DriveStage({
@@ -32,6 +41,21 @@ export function DriveStage({
   useEffect(() => {
     introRef.current = startIntro;
   }, [startIntro]);
+
+  useLayoutEffect(() => {
+    const r = document.documentElement;
+    const f = frame.current;
+    const h = pin.current?.querySelector<HTMLElement>(".zh-head");
+    if (f && h) {
+      const ph = window.matchMedia("(max-width: 767px)").matches;
+      r.style.setProperty("--zh-y0", `${h.offsetTop + h.offsetHeight + 40 - f.offsetTop}px`);
+      r.style.setProperty(
+        "--zh-s0",
+        String(ph ? 0.82 : Math.min(0.78, 1180 / Math.max(1, f.offsetWidth))),
+      );
+    }
+    r.setAttribute("data-zh-placed", "");
+  }, []);
 
   useEffect(() => setMounted(true), []);
 
@@ -208,6 +232,13 @@ export function DriveStage({
             </IPhoneFrame>
           </div>
         </div>
+        <script
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: static first-paint measurement
+          dangerouslySetInnerHTML={{ __html: PLACE_FRAME }}
+        />
+        <noscript>
+          <style>{".zh-frame{visibility:visible!important}"}</style>
+        </noscript>
         <input
           ref={picker}
           type="file"

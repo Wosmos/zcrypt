@@ -283,6 +283,9 @@
     transform: translate3d(0, var(--zh-y0, 62svh), 0) scale(var(--zh-s0, 0.78));
   }
 }
+html:not([data-zh-placed]) .zh-frame {
+  visibility: hidden;
+}
 @media (prefers-reduced-motion: no-preference) and (min-height: 560px) and (max-height: 780px) {
   .zh-frame {
     transform: translate3d(0, var(--zh-y0, 72svh), 0) scale(var(--zh-s0, 0.78));
