@@ -7,7 +7,7 @@ const GB = MB * 1024;
 export const PIECE = 10 * MB;
 
 export type ArtKey = "beach" | "cat" | "sunset" | "party" | "wallpaper" | "wedding";
-export type FolderGlyph = "image" | "doc" | "music" | "download";
+type FolderGlyph = "image" | "doc" | "music" | "download";
 export type View = "you" | "gh";
 export type FilterKey = "image" | "document" | "video" | "audio" | "archive";
 

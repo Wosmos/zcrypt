@@ -1761,16 +1761,6 @@
   width: 78px;
   height: auto;
 }
-.zc-vl-pad {
-  position: absolute;
-  top: 27px;
-  left: 50%;
-  width: 20px;
-  height: 20px;
-  margin-left: -10px;
-  color: #fff;
-  filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.25));
-}
 .zc-vl-name {
   font-size: 11px;
   font-weight: 500;
@@ -1851,10 +1841,7 @@
 .zc-v-compact .zc-vl-svg {
   width: 72px;
 }
-.zc-v-compact .zc-vl-pad {
-  top: 25px;
-}
-
+.zc-v-compact 
 .zc-vs {
   align-self: start;
   width: 100%;

@@ -1,4 +1,4 @@
-import { MacFolder, PadlockGlyph } from "@/components/files/explorer/explorer-card";
+import { FolderTile } from "@/components/files/tiles/tiles";
 import {
   AlertTriangle,
   Check,
@@ -100,8 +100,7 @@ export function DriveVignette() {
 function LockedFolder() {
   return (
     <span className="zc-vl-fold">
-      <MacFolder className="zc-vl-svg" />
-      <PadlockGlyph className="zc-vl-pad" />
+      <FolderTile locked className="zc-vl-svg" />
       <span className="zc-vl-name">Taxes</span>
     </span>
   );

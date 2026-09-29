@@ -18,7 +18,9 @@ import {
   type DroppedFile,
   type Piece,
 } from "./drive-data";
-import { BinTile, DocTile3D, Folder3D, ThumbTile } from "./folder-3d";
+import { DocTile, FolderTile, ThumbTile } from "@/components/files/tiles/tiles";
+import { BinTile } from "./bin-tile";
+import { PreviewArt } from "./preview-art";
 import { useCardFlip } from "./use-card-flip";
 
 export type CardItem = DriveFolder | DriveFile | DroppedFile;
@@ -61,7 +63,7 @@ function YouFace({ item, kind }: { item: CardItem; kind: CardKind }) {
     return (
       <>
         <span className="zh-ec-prev zh-ec-prev-fold">
-          <Folder3D glyph={fo.glyph} locked={fo.locked} />
+          <FolderTile Glyph={fo.glyph ? PH[fo.glyph] : null} locked={fo.locked} />
         </span>
         <span className="zh-ec-name zh-ec-name-fold">{fo.name}</span>
       </>
@@ -75,9 +77,21 @@ function YouFace({ item, kind }: { item: CardItem; kind: CardKind }) {
     <>
       <span className="zh-ec-prev">
         {thumb ? (
-          <ThumbTile art={fi.art} src={url} seed={fi.seed} video={k === "video"} />
+          <ThumbTile video={k === "video"} className="zh-thumb">
+            {url ? (
+              // oxlint-disable-next-line nextjs/no-img-element
+              <img src={url} alt="" decoding="async" />
+            ) : fi.art ? (
+              <PreviewArt art={fi.art} seed={fi.seed} className="ft-thumb-img" />
+            ) : null}
+          </ThumbTile>
         ) : (
-          <DocTile3D name={fi.name} />
+          <DocTile
+            Icon={fileIconFor(fi.name)}
+            ext={typeOf(fi.name).ext}
+            stacked={typeOf(fi.name).ext === "pdf" || typeOf(fi.name).ext === "docx"}
+            colorClass={typeOf(fi.name).color}
+          />
         )}
       </span>
       <span className="zh-ec-name">{fi.name}</span>
@@ -145,7 +159,7 @@ export function DriveCard({
     >
       <button
         type="button"
-        className="zh-ec-btn"
+        className="zh-ec-btn ft-host"
         aria-label={label}
         aria-pressed={selectMode && kind === "file" ? !!selected : undefined}
         onClick={(e) => onOpen(item, kind, e.currentTarget, e)}

@@ -1,8 +1,3 @@
-@property --zh-fold-s {
-  syntax: "<length>";
-  inherits: true;
-  initial-value: 18px;
-}
 
 .zh {
   --zh-bg: #eceef2;
@@ -1537,233 +1532,42 @@
   white-space: nowrap;
 }
 
-.zh-f3d::before,
-.zh-doc::before,
-.zh-thumb::before {
-  content: "";
-  position: absolute;
-  z-index: -1;
-  left: 15%;
-  right: 15%;
-  bottom: -5px;
-  height: 10px;
-  border-radius: 50%;
-  corner-shape: round;
-  background: radial-gradient(closest-side, rgba(0, 0, 0, 0.22), transparent);
-  filter: blur(2px);
-  transition:
-    transform 0.3s var(--zh-spring),
-    opacity 0.3s var(--zh-ease-out);
-}
-.dark .zh-f3d::before,
-.dark .zh-doc::before,
-.dark .zh-thumb::before {
-  background: radial-gradient(closest-side, rgba(0, 0, 0, 0.55), transparent);
-}
 
-.zh-f3d {
-  position: relative;
-  display: block;
-  width: 100%;
-  max-width: 124px;
-  color: var(--zh-fold);
-}
-.zh-f3d::before {
-  bottom: 2px;
-  left: 12%;
-  right: 12%;
-}
-.zh-f3d-svg {
-  display: block;
-  width: 100%;
-  height: auto;
-  overflow: visible;
-  filter: drop-shadow(0 2px 3px rgba(16, 24, 40, 0.16));
-}
-.zh-f3d-b0 {
-  stop-color: color-mix(in oklab, var(--zh-fold) 72%, #000);
-}
-.zh-f3d-b1 {
-  stop-color: color-mix(in oklab, var(--zh-fold) 60%, #000);
-}
-.zh-f3d-p0 {
-  stop-color: color-mix(in oklab, var(--zh-fold) 80%, #fff);
-}
-.zh-f3d-p1 {
-  stop-color: var(--zh-fold);
-}
-.zh-f3d-p2 {
-  stop-color: color-mix(in oklab, var(--zh-fold) 86%, #000);
-}
-.zh-f3d-sheet {
-  fill: #fff;
-  fill-opacity: 0.95;
-}
-.dark .zh-f3d-sheet {
-  fill: #e8ecf5;
-  fill-opacity: 0.9;
-}
-.zh-f3d-sheet2 {
-  fill: color-mix(in oklab, var(--zh-fold) 22%, #fff);
-}
-.dark .zh-f3d-sheet2 {
-  fill: color-mix(in oklab, var(--zh-fold) 30%, #c9d2e6);
-}
-.zh-f3d-lines {
-  stroke: #c9ced9;
-  stroke-width: 1;
-  stroke-linecap: round;
-}
-.zh-f3d-paper,
-.zh-f3d-pocket,
-.zh-f3d-sheen,
-.zh-f3d-mark {
-  transform-box: fill-box;
-  transition: transform 0.3s var(--zh-spring);
-}
-.zh-f3d-pocket {
-  transform-origin: 50% 100%;
-}
-.zh-f3d-mark {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-.zh-f3d-glyph {
-  position: absolute;
-  left: 50%;
-  top: 58%;
-  width: 26%;
-  height: auto;
-  aspect-ratio: 1;
-  transform: translate(-50%, -50%);
-  color: color-mix(in oklab, var(--zh-fold) 70%, #000);
-  opacity: 0.55;
-}
-.zh-f3d-glyph-hi {
-  color: #fff;
-  opacity: 0.35;
-  transform: translate(-50%, calc(-50% + 1px));
-}
-.zh-f3d-lock {
-  position: absolute;
-  left: 50%;
-  top: 57%;
-  width: 27%;
-  height: auto;
-  aspect-ratio: 1;
-  transform: translate(-50%, -50%);
-  color: #fff;
-  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.25));
-  --color-surface: color-mix(in oklab, var(--zh-fold) 80%, #000);
-}
 
-.zh-doc {
-  position: relative;
-  display: block;
-  width: 76px;
-  height: 100px;
-  filter: drop-shadow(0 3px 5px rgba(16, 24, 40, 0.12)) drop-shadow(0 1px 1px rgba(16, 24, 40, 0.08));
-  transition: transform 0.3s var(--zh-spring);
-}
-.dark .zh-doc {
-  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.4));
-}
-.zh-doc-back,
-.zh-doc-page {
-  position: absolute;
-  inset: 0;
-  border-radius: 10px;
-  background: var(--zh-page);
-  border: 1px solid var(--zh-border);
-}
-.zh-doc-back {
-  transform: translate(3px, 3px) rotate(3deg);
-  opacity: 0.7;
-}
-.zh-doc-page {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  box-shadow: inset 0 1px 0 var(--zh-hi);
-  clip-path: polygon(0 0, calc(100% - var(--zh-fold-s)) 0, 100% var(--zh-fold-s), 100% 100%, 0 100%);
-  transition:
-    --zh-fold-s 0.2s var(--zh-ease-out),
-    clip-path 0.2s var(--zh-ease-out);
-}
-.zh-doc-fold {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: var(--zh-fold-s);
-  height: var(--zh-fold-s);
-  background: linear-gradient(225deg, transparent 50%, var(--zh-s3) 50%);
-  border-bottom-left-radius: 3px;
-  filter: drop-shadow(-1px 1px 1px rgba(0, 0, 0, 0.12));
-}
-.zh-doc-ic {
-  width: 28px;
-  height: 28px;
-}
-.zh-doc-ext {
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: color-mix(in srgb, currentColor 12%, transparent);
-  font-size: 9px;
-  font-weight: 700;
-  line-height: 1.1;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
 
-.zh-thumb {
-  position: relative;
-  display: block;
-  width: 100px;
-  height: 76px;
-  margin-bottom: 8px;
-  transition: transform 0.3s var(--zh-spring);
-}
-.zh-thumb-in {
-  position: relative;
-  display: block;
-  width: 100%;
-  height: 100%;
-  border-radius: 10px;
-  border: 3px solid var(--zh-surface);
-  background: var(--zh-s2);
-  overflow: hidden;
-  box-shadow:
-    0 0 0 1px var(--zh-border),
-    0 3px 9px -2px rgba(16, 24, 40, 0.25),
-    0 1px 2px rgba(16, 24, 40, 0.12);
-}
-.zh-thumb-img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 7px;
-}
-.zh-thumb-play {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 36px;
-  height: 36px;
-  display: grid;
-  place-items: center;
-  border-radius: 999px;
-  corner-shape: round;
-  transform: translate(-50%, -50%);
-  background: rgba(0, 0, 0, 0.35);
-  -webkit-backdrop-filter: blur(6px);
-  backdrop-filter: blur(6px);
-  color: #fff;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25);
-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 .zh-bin {
   position: relative;
@@ -1815,33 +1619,8 @@
     transition-duration: 0.2s;
     transition-timing-function: var(--zh-ease-out);
   }
-  .zh[data-view="you"] .zh-ec-btn:hover .zh-f3d-pocket {
-    transform: translateY(2px) scaleY(0.96);
-    transition: transform 0.2s var(--zh-ease-out);
-  }
-  .zh[data-view="you"] .zh-ec-btn:hover .zh-f3d-paper {
-    transform: translateY(-4px);
-    transition: transform 0.2s var(--zh-ease-out);
-  }
-  .zh[data-view="you"] .zh-ec-btn:hover .zh-f3d-mark {
-    transform: translateY(1.5%);
-    transition: transform 0.2s var(--zh-ease-out);
-  }
-  .zh[data-view="you"] .zh-ec-btn:hover .zh-f3d-sheen {
+  .zh[data-view="you"] .zh-ec-btn:hover .ft-fold-sheen {
     transform: translate(calc(var(--rx) * -0.6px), calc(var(--ry) * 0.6px));
-  }
-  .zh[data-view="you"] .zh-ec-btn:hover .zh-doc {
-    --zh-fold-s: 22px;
-    transform: translateY(-3px);
-  }
-  .zh[data-view="you"] .zh-ec-btn:hover .zh-thumb {
-    transform: translateY(-3px);
-  }
-  .zh[data-view="you"] .zh-ec-btn:hover .zh-f3d::before,
-  .zh[data-view="you"] .zh-ec-btn:hover .zh-doc::before,
-  .zh[data-view="you"] .zh-ec-btn:hover .zh-thumb::before {
-    transform: scale(1.1, 1.2) translateY(2px);
-    opacity: 0.75;
   }
 }
 .zh-ec-btn:active .zh-ec-prev {
@@ -2714,10 +2493,14 @@
 .zh-grid-ph .zh-ec-prev {
   height: 120px;
 }
-.zh-grid-ph .zh-f3d {
+.zh-thumb {
+  width: 100px;
+  height: 76px;
+}
+.zh-grid-ph .ft-fold {
   max-width: 142px;
 }
-.zh-grid-ph .zh-doc,
+.zh-grid-ph .ft-doc,
 .zh-grid-ph .zh-bin {
   width: 87px;
   height: 115px;
@@ -3588,11 +3371,6 @@
     animation: none;
   }
   .zh-ec-prev,
-  .zh-f3d-paper,
-  .zh-f3d-pocket,
-  .zh-f3d-mark,
-  .zh-doc,
-  .zh-thumb,
   .zh-tog-thumb,
   .zh-dock {
     transition: none;
