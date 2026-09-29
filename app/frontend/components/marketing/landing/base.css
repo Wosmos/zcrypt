@@ -37,3 +37,9 @@
 .pv2-ring { position: relative; }
 .pv2-ring::before { content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; background: linear-gradient(180deg, color-mix(in oklab, var(--color-text) 14%, transparent), color-mix(in oklab, var(--color-text) 4%, transparent) 60%, color-mix(in oklab, var(--color-accent) 22%, transparent)); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; pointer-events: none; }
 @media (prefers-reduced-motion: reduce) { .pv2 *, .pv2 *::before, .pv2 *::after { scroll-behavior: auto !important; } }
+
+.zh-pin-sp,
+.zw-pin-sp {
+  display: block !important;
+  width: 100%;
+}

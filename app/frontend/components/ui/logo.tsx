@@ -130,11 +130,7 @@ function LogoIcon({
           className="text-[#0d2b30] dark:text-[#09090b] mt-[2px] ml-[1.5px]"
           style={{ display: "block" }}
         >
-          <path
-            d="M16 14 H104 V36 H16 Z
-               M104 36 L72 36 L16 94 L48 94 Z
-               M16 94 H78 V116 H16 Z"
-          />
+          <path d="M16 14 H104 V36 H16 Z M104 36 L72 36 L16 94 L48 94 Z M16 94 H78 V116 H16 Z" />
           <rect x="70" y="92" width="15" height="24" />
           <rect x="90" y="92" width="13" height="13" />
           <rect x="88" y="114" width="9.5" height="9.5" />

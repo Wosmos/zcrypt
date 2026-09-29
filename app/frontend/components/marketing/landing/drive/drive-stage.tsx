@@ -23,6 +23,7 @@ export function DriveStage({
   const { state, dispatch, accept, startIntro } = useDrive();
   const isPhone = useIsMobile("(max-width: 767px)");
   const [mounted, setMounted] = useState(false);
+  const spacer = useRef<HTMLDivElement>(null);
   const pin = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLDivElement>(null);
   const picker = useRef<HTMLInputElement>(null);
@@ -132,6 +133,7 @@ export function DriveStage({
               id: "zh-grow",
               trigger: root,
               pin: p,
+              pinSpacer: spacer.current ?? undefined,
               start: "top top",
               end: () => `+=${window.innerHeight * (phone ? 1 : 1.1)}`,
               scrub: 0.6,
@@ -184,48 +186,55 @@ export function DriveStage({
   const setView = (v: "you" | "gh") => dispatch({ type: "view", view: v });
 
   return (
-    <div ref={pin} className="zh-pin">
-      {head}
-      <a href="#how" className="zh-skip">
-        Skip the app preview
-      </a>
-      <div
-        ref={frame}
-        className="zh-frame"
-        data-frame={mounted ? (isPhone ? "phone" : "desk") : undefined}
-      >
-        {!mounted ? (
-          <div className="zh-shell" aria-hidden="true" />
-        ) : isPhone ? (
-          <div className="zh-ph-group">
-            <ViewToggle value={state.view} onChange={setView} size="lg" className="zh-tog-ph" />
-            <IPhoneFrame>
-              <DrivePhone onPick={onPick} />
-            </IPhoneFrame>
-          </div>
-        ) : (
-          <>
-            <div className="zh-flipdock">
-              <ViewToggle value={state.view} onChange={setView} size="lg" className="zh-tog-dock" />
+    <div ref={spacer} className="zh-pin-sp">
+      <div ref={pin} className="zh-pin">
+        {head}
+        <a href="#how" className="zh-skip">
+          Skip the app preview
+        </a>
+        <div
+          ref={frame}
+          className="zh-frame"
+          data-frame={mounted ? (isPhone ? "phone" : "desk") : undefined}
+        >
+          {!mounted ? (
+            <div className="zh-shell" aria-hidden="true" />
+          ) : isPhone ? (
+            <div className="zh-ph-group">
+              <ViewToggle value={state.view} onChange={setView} size="lg" className="zh-tog-ph" />
+              <IPhoneFrame>
+                <DrivePhone onPick={onPick} />
+              </IPhoneFrame>
             </div>
-            <MacWindow title="zcrypt" toolbar={<span className="zh-win-pill">Sample files</span>}>
-              <DriveDesktop onPick={onPick} />
-            </MacWindow>
-          </>
-        )}
+          ) : (
+            <>
+              <div className="zh-flipdock">
+                <ViewToggle
+                  value={state.view}
+                  onChange={setView}
+                  size="lg"
+                  className="zh-tog-dock"
+                />
+              </div>
+              <MacWindow title="zcrypt" toolbar={<span className="zh-win-pill">Sample files</span>}>
+                <DriveDesktop onPick={onPick} />
+              </MacWindow>
+            </>
+          )}
+        </div>
+        <input
+          ref={picker}
+          type="file"
+          className="sr-only"
+          tabIndex={-1}
+          aria-hidden="true"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) accept(file);
+            e.target.value = "";
+          }}
+        />
       </div>
-      <input
-        ref={picker}
-        type="file"
-        className="sr-only"
-        tabIndex={-1}
-        aria-hidden="true"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) accept(file);
-          e.target.value = "";
-        }}
-      />
     </div>
   );
 }

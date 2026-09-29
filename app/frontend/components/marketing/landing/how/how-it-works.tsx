@@ -279,6 +279,7 @@ export function HowItWorks() {
       if (!el) return;
       const wrap = el.querySelector<HTMLElement>(".zw-tl");
       const pin = el.querySelector<HTMLElement>(".zw-pin");
+      const spacer = el.querySelector<HTMLElement>(".zw-pin-sp");
       const master = el.querySelector<HTMLElement>(".zw-master .zw-stage");
       if (!wrap || !pin || !master) return;
       const ol = wrap.querySelector<HTMLElement>(".zw-steps") ?? wrap;
@@ -329,6 +330,7 @@ export function HowItWorks() {
             id: "zw-pin",
             trigger: el,
             pin,
+            pinSpacer: spacer ?? undefined,
             start: "top top",
             end: () => `+=${window.innerHeight * 2.4}`,
             scrub: 1,
@@ -410,34 +412,36 @@ export function HowItWorks() {
 
   return (
     <section ref={root} id="how" className="zw-how pv2-sec" aria-labelledby="h-how">
-      <div className="zw-pin">
-        <div className="pv2-wrap zw-grid">
-          <div className="zw-left">
-            <SectionHead
-              id="h-how"
-              eyebrow="How is it unlimited?"
-              title="Your file never travels whole"
-              align="left"
-            />
-            <HowTimeline />
-            <p className="zw-hint">Scroll to drive it. Scroll back to undo it.</p>
-            <p className="zw-foot">
-              Want the grown-up version with the actual maths?{" "}
-              <Link href="/docs/how-it-works" className="zw-link">
-                Read how it works in detail
-                <ArrowRight />
+      <div className="zw-pin-sp">
+        <div className="zw-pin">
+          <div className="pv2-wrap zw-grid">
+            <div className="zw-left">
+              <SectionHead
+                id="h-how"
+                eyebrow="How is it unlimited?"
+                title="Your file never travels whole"
+                align="left"
+              />
+              <HowTimeline />
+              <p className="zw-hint">Scroll to drive it. Scroll back to undo it.</p>
+              <p className="zw-foot">
+                Want the grown-up version with the actual maths?{" "}
+                <Link href="/docs/how-it-works" className="zw-link">
+                  Read how it works in detail
+                  <ArrowRight />
+                </Link>
+              </p>
+              <Link
+                href="/register"
+                className="zw-cta inline-flex h-11 items-center justify-center gap-2 rounded-full bg-gradient-to-br from-[#2de0ed] via-[#00d5e4] to-[#0093a3] px-6 text-[15px] font-semibold text-slate-900 shadow-lg shadow-cyan-500/30 transition-shadow hover:shadow-xl hover:shadow-cyan-500/50"
+              >
+                Start free
+                <ArrowRight className="h-4 w-4" />
               </Link>
-            </p>
-            <Link
-              href="/register"
-              className="zw-cta inline-flex h-11 items-center justify-center gap-2 rounded-full bg-gradient-to-br from-[#2de0ed] via-[#00d5e4] to-[#0093a3] px-6 text-[15px] font-semibold text-slate-900 shadow-lg shadow-cyan-500/30 transition-shadow hover:shadow-xl hover:shadow-cyan-500/50"
-            >
-              Start free
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
-          <div className="zw-master">
-            <HowScene part="all" />
+            </div>
+            <div className="zw-master">
+              <HowScene part="all" />
+            </div>
           </div>
         </div>
       </div>
