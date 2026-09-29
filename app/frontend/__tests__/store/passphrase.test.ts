@@ -260,5 +260,16 @@ describe("usePassphraseStore", () => {
       expect(mod.usePassphraseStore.getState().rememberDevice).toBe(false);
       vi.resetModules();
     });
+
+    it("readRememberPref falls back to false when localStorage throws at module init", async () => {
+      vi.resetModules();
+      const spy = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+        throw new Error("denied");
+      });
+      const mod = await import("@/store/passphrase");
+      expect(mod.usePassphraseStore.getState().rememberDevice).toBe(false);
+      spy.mockRestore();
+      vi.resetModules();
+    });
   });
 });
