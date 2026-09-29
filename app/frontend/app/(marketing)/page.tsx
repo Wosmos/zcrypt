@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import dynamic from "next/dynamic";
 import {
   Lock,
   ArrowRight,
@@ -21,15 +22,18 @@ import { ScrollReveal } from "@/components/marketing/landing/scroll-reveal";
 import { Marquee } from "@/components/marketing/landing/marquee";
 import { FAQItem } from "@/components/marketing/landing/faq-item";
 import { Underlined } from "@/components/marketing/landing/pencil-underline";
-import { HoverReveal } from "@/components/marketing/landing/hover-reveal";
-import { MacOSShowcase } from "@/components/marketing/macos-showcase";
 import { BentoGrid } from "@/components/marketing/landing/bento-grid";
 import { EncryptionBoundary } from "@/components/marketing/landing/encryption-boundary";
 import { BringYourOwnStorage } from "@/components/marketing/landing/bring-your-own-storage";
 import { BuiltToTrust } from "@/components/marketing/landing/built-to-trust";
 import { BuiltBy } from "@/components/marketing/landing/built-by";
+import { ClosingCta } from "@/components/marketing/landing/closing-cta";
 import { FAQJsonLd, SoftwareApplicationJsonLd } from "@/components/seo/json-ld";
 import { SITE_URL } from "@/lib/site";
+
+const MacOSShowcase = dynamic(() =>
+  import("@/components/marketing/macos-showcase").then((m) => m.MacOSShowcase),
+);
 
 export const metadata: Metadata = {
   title: "zcrypt. The Encrypted Cloud Drive You Actually Own",
@@ -382,51 +386,7 @@ export default function LandingPage() {
       {/* ═══ BUILT BY (maker signature) ═══ */}
       <BuiltBy />
 
-      {/* ═══ CTA ═══ */}
-      <section className="py-32 px-4 relative overflow-hidden">
-        {/* Gradient background */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-cyan-500/5 to-transparent" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-500/8 dark:bg-cyan-500/3 rounded-full blur-3xl" />
-        </div>
-
-        <div className="relative mx-auto max-w-2xl text-center">
-          <ScrollReveal>
-            <p className="mb-4 text-xs font-semibold uppercase tracking-[0.16em] text-cyan-600 dark:text-cyan-400">
-              {landingSections.cta.eyebrow}
-            </p>
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight">
-              The drive you{" "}
-              <Underlined variant="highlight">
-                <em className="italic">actually own.</em>
-              </Underlined>
-            </h2>
-            <p className="text-[var(--color-text-secondary)] mt-4 text-lg">
-              {landingSections.cta.subtext}
-            </p>
-          </ScrollReveal>
-
-          <ScrollReveal delay={0.2}>
-            <div className="mt-10 relative inline-flex flex-wrap items-center justify-center gap-4">
-              <Link
-                href="/register"
-                className="inline-flex items-center justify-center gap-2 rounded-full px-8 py-3.5 text-base font-semibold text-slate-900 bg-gradient-to-br from-[#2de0ed] via-[#00d5e4] to-[#0093a3] shadow-lg shadow-cyan-500/30 transition-shadow hover:shadow-xl hover:shadow-cyan-500/50"
-              >
-                {landingSections.cta.button} <ArrowRight className="h-4 w-4" />
-              </Link>
-              {/* <MagneticButton
-                href="/docs"
-                className="inline-flex items-center justify-center rounded-full px-8 py-3.5 text-base font-semibold text-[var(--color-text)] border border-[var(--color-border)] bg-black/[0.02] dark:bg-white/[0.02] transition-colors hover:border-cyan-500/40 hover:bg-cyan-500/5"
-              >
-                Read the docs
-              </MagneticButton> */}
-
-              {/* Easter egg on long hover */}
-              <HoverReveal />
-            </div>
-          </ScrollReveal>
-        </div>
-      </section>
+      <ClosingCta />
     </>
   );
 }

@@ -14,7 +14,7 @@ import {
 } from "@/lib/icons";
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { featuresNav } from "@/lib/data";
-import DocsSearch from "@/components/docs/docs-search";
+import DocsSearch from "@/components/docs/docs-search-modal";
 import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {

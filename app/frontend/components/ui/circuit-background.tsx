@@ -1,7 +1,3 @@
-"use client";
-
-import { useEffect, useState } from "react";
-
 const CIRCUITS = [
   // col 1 (x=40)
   {
@@ -265,14 +261,6 @@ const CIRCUITS = [
 ];
 
 export function CircuitBackground() {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) return null;
-
   // Colors come from --circuit-* vars (light/dark in globals.css) so a theme
   // flip never re-renders this SVG: the View Transition in the theme provider
   // covers the color change, hence no transition-colors on the wrapper either.

@@ -5,7 +5,6 @@ import "./globals.css";
 import { ToastContainer } from "@/components/ui/toast-container";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
-import { NavProgress } from "@/components/ui/nav-progress";
 import { KeyboardAvoider } from "@/components/system/keyboard-avoider";
 import { ExternalLinkHandler } from "@/components/providers/external-link-handler";
 import { OrganizationJsonLd, WebSiteJsonLd } from "@/components/seo/json-ld";
@@ -26,7 +25,7 @@ const satoshi = localFont({
 
 const poppins = Poppins({
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-body",
   display: "swap",
 });
@@ -36,6 +35,7 @@ const manrope = Manrope({
   weight: ["700"],
   variable: "--font-logo",
   display: "swap",
+  preload: false,
 });
 
 export const viewport: Viewport = {
@@ -229,7 +229,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </noscript>
         <ThemeProvider>
           <QueryProvider>
-            <NavProgress />
             <KeyboardAvoider />
             <ExternalLinkHandler />
             {children}
