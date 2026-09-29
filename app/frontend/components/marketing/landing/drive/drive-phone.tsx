@@ -6,10 +6,8 @@ import { LogoIcon } from "@/components/ui/logo";
 import { BarChart3, Bell, Layers, Plus, Shield, Trash2 } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { COMMIT, filterKeyOf, REPO, type FilterKey } from "./drive-data";
-import { DriveCard, GhOnlyCard } from "./drive-card";
-import { DropOverlay, HintToast, UnlockDialog } from "./drive-parts";
-import { FilePreview } from "./file-preview";
 import { TransfersDock } from "./transfers-dock";
+import { ExplorerCards, ExplorerOverlays, useRefocus } from "./explorer-shared";
 import { useExplorer } from "./use-explorer";
 
 const CHIP_ORDER: { key: FilterKey; label: string }[] = [
@@ -30,7 +28,7 @@ const TABS = [
 /** The phone layout of the app, as it renders at 428x926 inside the iPhone frame. */
 export function DrivePhone({ onPick }: { onPick: () => void }) {
   const x = useExplorer();
-  const { state, dispatch, gh, cards, extras, entries } = x;
+  const { state, dispatch, gh, entries } = x;
   const hint = () => dispatch({ type: "hint" });
   const counts = new Map<FilterKey, number>();
   for (const f of entries.files) {
@@ -39,12 +37,7 @@ export function DrivePhone({ onPick }: { onPick: () => void }) {
   }
   const chips = CHIP_ORDER.filter((c) => counts.has(c.key));
   const total = entries.folders.length + entries.files.length;
-  const refocus = () =>
-    requestAnimationFrame(() => {
-      const el = x.opener.current;
-      if (el?.isConnected) el.focus({ preventScroll: true });
-      else x.gridRef.current?.querySelector<HTMLElement>("button")?.focus({ preventScroll: true });
-    });
+  const refocus = useRefocus(x);
 
   return (
     <div className="zh-ph">
@@ -115,34 +108,7 @@ export function DrivePhone({ onPick }: { onPick: () => void }) {
           role="group"
           aria-label="Sample files"
         >
-          {cards.map((c, i) =>
-            c.hidden ? null : (
-              <DriveCard
-                key={c.item.id}
-                item={c.item}
-                kind={c.kind}
-                index={i}
-                piece={c.piece}
-                isGh={gh}
-                mine={c.mine}
-                fresh={"fresh" in c.item && c.item.fresh}
-                selected={state.selected.has(c.item.id)}
-                selectMode={state.selectMode}
-                onOpen={x.onOpen}
-              />
-            ),
-          )}
-          {extras.map((e, k) => (
-            <GhOnlyCard
-              key={e.id}
-              id={e.id}
-              piece={e.piece}
-              more={e.more}
-              index={k}
-              isGh={gh}
-              onOpen={x.onOpenPiece}
-            />
-          ))}
+          <ExplorerCards x={x} />
         </div>
       </div>
 
@@ -174,19 +140,7 @@ export function DrivePhone({ onPick }: { onPick: () => void }) {
         </div>
       </nav>
 
-      <DropOverlay />
-      {state.dialog ? <UnlockDialog onDone={refocus} /> : null}
-      {state.preview ? (
-        <FilePreview
-          files={x.previewList}
-          index={x.previewIndex}
-          onIndex={x.setPreviewIndex}
-          onClose={x.closePreview}
-          mode={state.view}
-          toast={x.toast}
-        />
-      ) : null}
-      <HintToast />
+      <ExplorerOverlays x={x} onDone={refocus} />
     </div>
   );
 }

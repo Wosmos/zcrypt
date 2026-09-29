@@ -6,12 +6,9 @@ import { cn } from "@/lib/utils";
 import { FILTERS, FOLDERS, type FilterKey } from "./drive-data";
 import { useDrive } from "./drive-store";
 
-function trap(e: React.KeyboardEvent<HTMLElement>, root: HTMLElement | null) {
-  if (e.key !== "Tab" || !root) return;
-  const list = Array.from(
-    root.querySelectorAll<HTMLElement>("button:not([disabled]), input:not([disabled])"),
-  );
-  if (!list.length) return;
+/** Keeps Tab and Shift+Tab cycling inside `list`. */
+export function trapFocus(e: React.KeyboardEvent<HTMLElement>, list: HTMLElement[]) {
+  if (e.key !== "Tab" || !list.length) return;
   const first = list[0];
   const last = list[list.length - 1];
   if (e.shiftKey && document.activeElement === first) {
@@ -21,6 +18,14 @@ function trap(e: React.KeyboardEvent<HTMLElement>, root: HTMLElement | null) {
     e.preventDefault();
     first.focus();
   }
+}
+
+function trap(e: React.KeyboardEvent<HTMLElement>, root: HTMLElement | null) {
+  if (!root) return;
+  trapFocus(
+    e,
+    Array.from(root.querySelectorAll<HTMLElement>("button:not([disabled]), input:not([disabled])")),
+  );
 }
 
 /** The app's "Unlock protected folder" dialog. Any password works here. */

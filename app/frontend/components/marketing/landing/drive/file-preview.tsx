@@ -5,6 +5,7 @@ import { ScrollTrigger } from "@/components/marketing/landing/gsap";
 import { ChevronLeft, ChevronRight, Download, FileText, Maximize, Minimize, X } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { kindOf, typeOf, type View } from "./drive-data";
+import { trapFocus } from "./drive-parts";
 import {
   AudioBody,
   DocBody,
@@ -129,19 +130,7 @@ export function FilePreview({
       step(e.key === "ArrowRight" ? 1 : -1);
       return;
     }
-    if (e.key === "Tab" && ref.current) {
-      const list = focusables(ref.current);
-      if (!list.length) return;
-      const first = list[0];
-      const last = list[list.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    }
+    if (ref.current) trapFocus(e, focusables(ref.current));
   };
 
   if (!file) return null;

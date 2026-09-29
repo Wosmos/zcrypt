@@ -16,8 +16,8 @@ import {
 } from "@/lib/utils";
 import { useThumbnail } from "@/hooks/useThumbnail";
 import { prefetchOnHover } from "@/hooks/useFileDecryptor";
-import { getFolderIcon, getIconByKey } from "@/lib/folder-icons";
-import { getBackgroundByKey } from "@/lib/background-presets";
+import { getIconByKey } from "@/lib/folder-icons";
+import { folderLook } from "./folder-look";
 import {
   Folder,
   FolderOpen,
@@ -91,12 +91,11 @@ function FolderRow({
   onCustomizeFolder,
   drag,
 }: FolderItemProps) {
-  const isLocked = folder.protected || folder.name === "[locked]";
-  const customIcon = folder.style?.icon ? getIconByKey(folder.style.icon) : null;
-  const FolderGlyph = !isLocked ? (customIcon ?? getFolderIcon(folder.name)) : null;
-  const customBackground =
-    !isLocked && folder.style?.background ? getBackgroundByKey(folder.style.background) : null;
-  const customColor = !isLocked ? folder.style?.color : undefined;
+  const {
+    Glyph: FolderGlyph,
+    background: customBackground,
+    color: customColor,
+  } = folderLook(folder);
 
   return (
     <div

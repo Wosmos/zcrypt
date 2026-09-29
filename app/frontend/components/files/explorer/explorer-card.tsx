@@ -3,6 +3,7 @@
 import { memo } from "react";
 import type { ExplorerItemProps, FolderItemProps, FileItemProps } from "./types";
 import { explorerItemPropsEqual, FOCUS_RING } from "./types";
+import { folderLook } from "./folder-look";
 import { ExplorerEntryDispatch, SelectCheckbox, useExplorerFileName } from "./entry-dispatch";
 import {
   formatBytes,
@@ -16,8 +17,7 @@ import {
 import { useThumbnail } from "@/hooks/useThumbnail";
 import { DocTile, FolderTile, ThumbTile } from "@/components/files/tiles/tiles";
 import { prefetchOnHover } from "@/hooks/useFileDecryptor";
-import { getFolderIcon, getFolderInitial, getIconByKey } from "@/lib/folder-icons";
-import { getBackgroundByKey } from "@/lib/background-presets";
+import { getIconByKey } from "@/lib/folder-icons";
 import {
   Folder,
   FolderOpen,
@@ -56,19 +56,12 @@ function FolderCard({
   onCustomizeFolder,
   drag,
 }: FolderItemProps) {
-  // Show the padlock when the folder has its own password OR the vault is locked
-  // (name can't be decrypted → "[locked]", set in useFolders).
-  const isLocked = folder.protected || folder.name === "[locked]";
-  // Custom icon (set via "Customize…") wins, then the name-inferred glyph,
-  // falling back to its initial letter, like macOS special folders.
-  const customIcon = folder.style?.icon ? getIconByKey(folder.style.icon) : null;
-  const FolderGlyph = isLocked ? null : (customIcon ?? getFolderIcon(folder.name));
-  const initial = isLocked ? "" : getFolderInitial(folder.name);
-  const customBackground =
-    !isLocked && folder.style?.background
-      ? (getBackgroundByKey(folder.style.background) ?? undefined)
-      : undefined;
-  const customColor = !isLocked && !customBackground ? folder.style?.color : undefined;
+  const look = folderLook(folder);
+  const isLocked = look.isLocked;
+  const FolderGlyph = look.Glyph;
+  const initial = look.initial;
+  const customBackground = look.background;
+  const customColor = customBackground ? undefined : look.color;
 
   return (
     <ContextMenu>

@@ -27,10 +27,10 @@ import {
 } from "@/lib/icons";
 import { cn, fileIconFor, formatBytes } from "@/lib/utils";
 import { COMMIT, countLabel, FOLDERS, README_LINE, REPO } from "./drive-data";
-import { DriveCard, DriveRow, GhOnlyCard } from "./drive-card";
-import { DropOverlay, FilterMenu, HintToast, UnlockDialog } from "./drive-parts";
-import { FilePreview } from "./file-preview";
+import { DriveRow } from "./drive-card";
+import { FilterMenu } from "./drive-parts";
 import { TransfersDock } from "./transfers-dock";
+import { ExplorerCards, ExplorerOverlays, useRefocus } from "./explorer-shared";
 import { useExplorer } from "./use-explorer";
 
 const NAV = [
@@ -46,18 +46,13 @@ const ACCOUNT = [
 /** The desktop app shell: sidebar, top bar and the explorer panel, with sample data. */
 export function DriveDesktop({ onPick }: { onPick: () => void }) {
   const x = useExplorer();
-  const { state, dispatch, gh, cards, extras, recent } = x;
+  const { state, dispatch, gh, cards, recent } = x;
   const search = useRef<HTMLInputElement>(null);
   const hint = () => dispatch({ type: "hint" });
   const fo = FOLDERS.find((f) => f.id === state.folder);
   const count = countLabel(state.view, x.entries, state.dropped, state.folder);
   const list = state.layout === "list" && !gh;
-  const refocus = () =>
-    requestAnimationFrame(() => {
-      const el = x.opener.current;
-      if (el?.isConnected) el.focus({ preventScroll: true });
-      else x.gridRef.current?.querySelector<HTMLElement>("button")?.focus({ preventScroll: true });
-    });
+  const refocus = useRefocus(x);
 
   return (
     <div
@@ -319,34 +314,7 @@ export function DriveDesktop({ onPick }: { onPick: () => void }) {
                 aria-label="Sample files"
                 data-select={state.selectMode || undefined}
               >
-                {cards.map((c, i) =>
-                  c.hidden ? null : (
-                    <DriveCard
-                      key={c.item.id}
-                      item={c.item}
-                      kind={c.kind}
-                      index={i}
-                      piece={c.piece}
-                      isGh={gh}
-                      mine={c.mine}
-                      fresh={"fresh" in c.item && c.item.fresh}
-                      selected={state.selected.has(c.item.id)}
-                      selectMode={state.selectMode}
-                      onOpen={x.onOpen}
-                    />
-                  ),
-                )}
-                {extras.map((e, k) => (
-                  <GhOnlyCard
-                    key={e.id}
-                    id={e.id}
-                    piece={e.piece}
-                    more={e.more}
-                    index={k}
-                    isGh={gh}
-                    onOpen={x.onOpenPiece}
-                  />
-                ))}
+                <ExplorerCards x={x} />
               </div>
             )}
             {!gh && cards.every((c) => c.hidden) ? (
@@ -358,19 +326,7 @@ export function DriveDesktop({ onPick }: { onPick: () => void }) {
       </div>
 
       <TransfersDock variant="desktop" />
-      <DropOverlay />
-      {state.dialog ? <UnlockDialog onDone={refocus} /> : null}
-      {state.preview ? (
-        <FilePreview
-          files={x.previewList}
-          index={x.previewIndex}
-          onIndex={x.setPreviewIndex}
-          onClose={x.closePreview}
-          mode={state.view}
-          toast={x.toast}
-        />
-      ) : null}
-      <HintToast />
+      <ExplorerOverlays x={x} onDone={refocus} />
     </div>
   );
 }
