@@ -2,8 +2,9 @@
 
 import { LockKeyOpen } from "@phosphor-icons/react";
 import { GitHubIcon } from "@/components/icons/github";
+import { MoreDotsIcon } from "@/components/icons/nav-icons";
 import { LogoIcon } from "@/components/ui/logo";
-import { BarChart3, Bell, Layers, Plus, Shield, Trash2 } from "@/lib/icons";
+import { BarChart3, Bell, Layers, Plus, Shield } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { COMMIT, filterKeyOf, REPO, type FilterKey } from "./drive-data";
 import { TransfersDock } from "./transfers-dock";
@@ -22,7 +23,7 @@ const TABS = [
   { icon: Shield, label: "Vault", on: true },
   { icon: BarChart3, label: "Insights" },
   { icon: Layers, label: "Spaces" },
-  { icon: Trash2, label: "Deleted Files" },
+  { icon: MoreDotsIcon, label: "More" },
 ] as const;
 
 /** The phone layout of the app, as it renders at 428x926 inside the iPhone frame. */
