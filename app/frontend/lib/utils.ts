@@ -94,7 +94,7 @@ export function formatDate(dateStr: string): string {
 /** The icon names getFileTypeInfo can return. Keeping this a closed union makes
  *  FILE_ICON_MAP provably total, so the lookup needs no runtime fallback, a new
  *  icon name is a compile error instead of a silently-undefined component. */
-export type FileIconName =
+type FileIconName =
   | "File"
   | "FileText"
   | "Table"

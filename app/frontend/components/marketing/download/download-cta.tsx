@@ -19,7 +19,7 @@ const OS_LABEL: Record<PlatformId, string> = {
   linux: "Linux",
 };
 
-function detectDevice(): DetectedDevice | null {
+export function detectDevice(): DetectedDevice | null {
   if (typeof navigator === "undefined") return null;
   const ua = navigator.userAgent.toLowerCase();
   const platform = (navigator.platform || "").toLowerCase();

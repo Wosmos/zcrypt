@@ -2,7 +2,6 @@
 
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { SplitText } from "gsap/SplitText";
 import { useGSAP } from "@gsap/react";
 
 /**
@@ -16,11 +15,11 @@ import { useGSAP } from "@gsap/react";
  * boundary is not.
  *
  * Registration is idempotent, so importing this from several components is
- * safe. Import `gsap`, `ScrollTrigger`, `SplitText` and `useGSAP` from here
+ * safe. Import `gsap`, `ScrollTrigger` and `useGSAP` from here
  * rather than from the packages, so nothing can forget to register.
  */
 if (typeof window !== "undefined") {
-  gsap.registerPlugin(ScrollTrigger, SplitText, useGSAP);
+  gsap.registerPlugin(ScrollTrigger, useGSAP);
 }
 
 /**
@@ -37,4 +36,4 @@ export function hexChar(seed: number): string {
   return "0123456789abcdef"[x];
 }
 
-export { gsap, ScrollTrigger, SplitText, useGSAP };
+export { gsap, ScrollTrigger, useGSAP };

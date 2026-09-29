@@ -46,7 +46,7 @@ import {
  * and a soft drop shadow for depth. Tinted with the accent via `currentColor`,
  * so it lives on the card surface like a desktop folder icon. ~116px wide.
  */
-function MacFolder({
+export function MacFolder({
   className,
   color,
   background,
@@ -123,7 +123,7 @@ function MacFolder({
 }
 
 /** A clean, filled padlock: shackle + rounded body with a punched keyhole. */
-function PadlockGlyph({ className }: { className?: string }) {
+export function PadlockGlyph({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
       <path
