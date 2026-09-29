@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
-import { Eye, Image as ImageIcon, Video, Music, FileText, Code, Lock, Shield } from "@/lib/icons";
+import { Image as ImageIcon, Video, Music, FileText, Code, Lock, Shield } from "@/lib/icons";
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { FeatureHero } from "@/components/marketing/features/feature-hero";
-import { CapabilityGrid } from "@/components/marketing/features/capability-grid";
+import { CapabilityGrid, StepCards } from "@/components/marketing/features/capability-grid";
+import { SectionHead } from "@/components/marketing/landing/section-head";
+import { IconWell, cardSurfaceSm } from "@/components/marketing/ui/card";
+import { cn } from "@/lib/utils";
 import { RelatedLinks } from "@/components/marketing/features/related-links";
-import { CtaSection } from "@/components/marketing/features/cta-section";
+import { ClosingCta } from "@/components/marketing/landing/closing-cta";
 import { fileViewers } from "../_data/file-viewers";
 import { SITE_URL } from "@/lib/site";
 
@@ -66,15 +69,14 @@ export default function FileViewersPage() {
       {/* ═══ HERO ═══ */}
       <FeatureHero
         eyebrow={hero.eyebrow}
-        headlineTop={hero.headlineTop}
-        headlineGradient={hero.headlineGradient}
+        title={hero.title}
         subtext={hero.subtext}
         secondaryLabel={hero.secondaryLabel}
         secondaryHref={hero.secondaryHref}
       >
         {/* Viewer mock: a full-bleed preview overlay */}
         <div className="mx-auto mt-16 max-w-4xl">
-          <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] shadow-2xl shadow-black/20 dark:shadow-black/40">
+          <div className="overflow-hidden rounded-[22px] corner-squircle border border-[var(--color-border)] bg-[var(--color-bg)] text-left shadow-2xl shadow-black/20 dark:shadow-black/40">
             {/* overlay header */}
             <div className="flex items-center gap-3 border-b border-[var(--color-border)] bg-black/[0.02] px-4 py-3 dark:bg-white/[0.02]">
               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-rose-500/10 text-rose-500">
@@ -153,60 +155,42 @@ export default function FileViewersPage() {
         heading={viewersSection.heading}
         subheading={viewersSection.subheading}
         items={viewers}
-        variant="accent"
       />
 
       {/* ═══ HOW IT STAYS ZERO-KNOWLEDGE ═══ */}
-      <section className="border-y border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-20">
-        <div className="mx-auto max-w-5xl">
-          <div className="mx-auto mb-12 max-w-2xl text-center">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
-              {zeroKnowledgeSection.eyebrow}
-            </p>
-            <h2 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
-              {zeroKnowledgeSection.heading}
-            </h2>
-            <p className="mt-3 text-[var(--color-text-secondary)]">
-              {zeroKnowledgeSection.subheading}
-            </p>
-          </div>
-          <ol className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {pipeline.map(({ step, title, desc }) => (
-              <li key={step} className="card p-6">
-                <div className="mb-3 font-mono text-2xl font-bold text-cyan-500/80">{step}</div>
-                <h3 className="text-sm font-bold">{title}</h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-[var(--color-text-secondary)]">
-                  {desc}
-                </p>
-              </li>
-            ))}
-          </ol>
+      <section className="pv2-sec pv2-sec-join" aria-labelledby="h-local">
+        <div className="pv2-wrap">
+          <SectionHead
+            id="h-local"
+            eyebrow={zeroKnowledgeSection.eyebrow}
+            title={zeroKnowledgeSection.heading}
+            lede={zeroKnowledgeSection.subheading}
+          />
+          <StepCards steps={pipeline} />
 
-          <div className="mt-6 flex flex-col items-start gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-5 sm:flex-row sm:items-center">
-            <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-500">
-              <Shield className="h-5 w-5" />
-            </span>
-            <p className="text-sm leading-relaxed text-[var(--color-text-secondary)]">
-              {memoryNote}
-            </p>
+          <div
+            className={cn(
+              cardSurfaceSm,
+              "mt-4 flex flex-col items-start gap-4 p-6 sm:flex-row sm:items-center",
+            )}
+          >
+            <IconWell icon={Shield} />
+            <p className="pv2-body">{memoryNote}</p>
           </div>
         </div>
       </section>
 
       {/* ═══ THE OVERLAY ═══ */}
       <CapabilityGrid
+        join
         heading={overlaySection.heading}
         subheading={overlaySection.subheading}
         items={overlayFeatures}
       />
 
       {/* ═══ RELATED + CTA ═══ */}
-      <section className="px-4 py-20">
-        <div className="mx-auto max-w-5xl">
-          <RelatedLinks heading="Keep exploring" items={related} />
-          <CtaSection icon={Eye} heading={cta.heading} subtext={cta.subtext} />
-        </div>
-      </section>
+      <RelatedLinks items={related} />
+      <ClosingCta title={cta.heading} subtext={cta.subtext} />
     </>
   );
 }

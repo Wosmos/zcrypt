@@ -236,7 +236,7 @@ export const landingSections = {
     eyebrow: "Get started today",
     subtext:
       "Connect your own account. Encrypted on your device. No artificial limits, no vendor lock-in.",
-    button: "Create your vault",
+    button: "Start free",
   },
 } as const;
 
@@ -248,8 +248,13 @@ export const downloadPageContent = {
   hero: {
     badge: "Apps for every device",
     subtext:
-      "Native desktop apps, a single-binary terminal client, and a web app that needs no install. Same zero-knowledge vault, every platform.",
-    trustItems: ["Free & open source", "Zero-knowledge", "No telemetry", "macOS · Windows · Linux"],
+      "Native desktop apps, a single-binary terminal client, and a web app that needs no install. Same private drive everywhere, locked on your device before anything leaves it.",
+    trustItems: [
+      "Free & open source",
+      "Only you can open your files",
+      "No telemetry",
+      "macOS · Windows · Linux",
+    ],
   },
   desktop: {
     heading: "Desktop apps",
@@ -263,12 +268,12 @@ export const downloadPageContent = {
   },
   cli: {
     badge: "Terminal app",
-    heading: "Live in the terminal?",
+    heading: "Live in the terminal",
     subheading:
       "A single Go binary with zero dependencies, so it works great over SSH and on headless servers. Pick a package manager:",
   },
   web: {
-    heading: "Prefer no install?",
+    heading: "Prefer no install",
     body: "The full encrypted drive runs in any modern browser: folders, previews, sharing, and transfers. Everything is still encrypted on your device. Nothing to download.",
     cta: "Open the web app",
   },

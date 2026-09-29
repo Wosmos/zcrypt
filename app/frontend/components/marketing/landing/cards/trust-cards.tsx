@@ -155,7 +155,7 @@ export function TrustCards() {
           {CARDS.map(({ key, num, label, title, body, chips, mono, caption, Scene }, i) => (
             <li key={key} className="zc-tslot" style={{ "--i": i } as CSSProperties}>
               <article
-                className="zc-tcard zc-spot pv2-ring corner-squircle"
+                className="zc-tcard pv2-card zc-spot pv2-ring corner-squircle"
                 aria-labelledby={`zc-t-${key}`}
               >
                 <span className="zc-tdim" aria-hidden="true" />

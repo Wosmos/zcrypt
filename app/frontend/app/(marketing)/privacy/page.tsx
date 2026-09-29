@@ -1,5 +1,11 @@
-import { LegalPage, LegalCta } from "@/components/marketing/legal-page";
-import { PullQuote, BulletList } from "@/components/marketing/prose";
+import { LegalPage } from "@/components/marketing/legal-page";
+import {
+  BulletList,
+  ProseSection,
+  PullQuote,
+  proseBody,
+  proseLink,
+} from "@/components/marketing/prose";
 import { Section } from "@/components/marketing/section-reveal";
 import { PRIVACY_EMAIL } from "@/lib/site";
 
@@ -9,10 +15,10 @@ export default function PrivacyPage() {
       eyebrow="Privacy"
       title="Privacy Policy"
       lead="What we can see, what we collect, and what we'll never touch. Last updated July 2026."
+      seeAlso={{ href: "/terms", label: "Terms of Service" }}
     >
-      {/* Intro */}
-      <Section className="mt-16">
-        <div className="space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
+      <Section>
+        <div className={proseBody}>
           <p>
             zcrypt is built on a zero-knowledge architecture. This means we are technically unable
             to access the contents of your encrypted files. This Privacy Policy explains what we{" "}
@@ -21,10 +27,8 @@ export default function PrivacyPage() {
         </div>
       </Section>
 
-      {/* What We Cannot See */}
-      <Section className="mt-20">
-        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">1. What We Cannot See</h2>
-        <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
+      <ProseSection id="privacy-what-we-cannot-see" eyebrow="Section 1" title="What we cannot see">
+        <div className={proseBody}>
           <p>Due to our zero-knowledge encryption design:</p>
         </div>
         <BulletList
@@ -47,17 +51,17 @@ export default function PrivacyPage() {
         <PullQuote>
           We can&apos;t read your files. Not because of a policy, because of mathematics.
         </PullQuote>
-      </Section>
+      </ProseSection>
 
-      {/* What We Collect */}
-      <Section className="mt-20">
-        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">2. What We Collect</h2>
-        <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
+      <ProseSection id="privacy-what-we-collect" eyebrow="Section 2" title="What we collect">
+        <div className={proseBody}>
           <p>We collect the minimum data necessary to operate the Service.</p>
         </div>
 
         <div className="mt-8">
-          <h3 className="text-lg font-semibold text-[var(--color-text)]">Account Information</h3>
+          <h3 className="font-heading text-lg font-bold tracking-tight text-[var(--color-text)]">
+            Account information
+          </h3>
           <BulletList
             items={[
               "Email address (for authentication and service communications)",
@@ -69,7 +73,9 @@ export default function PrivacyPage() {
         </div>
 
         <div className="mt-8">
-          <h3 className="text-lg font-semibold text-[var(--color-text)]">Usage Metadata</h3>
+          <h3 className="font-heading text-lg font-bold tracking-tight text-[var(--color-text)]">
+            Usage metadata
+          </h3>
           <BulletList
             items={[
               "File and folder names: encrypted client-side by default, so the server stores only an opaque name it cannot read (some older files may retain a plaintext name in a legacy column we are retiring)",
@@ -82,7 +88,9 @@ export default function PrivacyPage() {
         </div>
 
         <div className="mt-8">
-          <h3 className="text-lg font-semibold text-[var(--color-text)]">Security Logs</h3>
+          <h3 className="font-heading text-lg font-bold tracking-tight text-[var(--color-text)]">
+            Security logs
+          </h3>
           <BulletList
             items={[
               "IP addresses (for rate limiting and abuse prevention)",
@@ -91,12 +99,10 @@ export default function PrivacyPage() {
             ]}
           />
         </div>
-      </Section>
+      </ProseSection>
 
-      {/* Platform Tokens */}
-      <Section className="mt-20">
-        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">3. Platform Tokens</h2>
-        <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
+      <ProseSection id="privacy-platform-tokens" eyebrow="Section 3" title="Platform tokens">
+        <div className={proseBody}>
           <p>
             When you connect a storage platform (GitHub, GitLab, Hugging Face, Telegram), your
             platform access token is encrypted at rest using AES-256-GCM with a key derived from our
@@ -104,11 +110,13 @@ export default function PrivacyPage() {
             operations.
           </p>
         </div>
-      </Section>
+      </ProseSection>
 
-      {/* How We Use Your Data */}
-      <Section className="mt-20">
-        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">4. How We Use Your Data</h2>
+      <ProseSection
+        id="privacy-how-we-use-your-data"
+        eyebrow="Section 4"
+        title="How we use your data"
+      >
         <BulletList
           items={[
             "To provide and maintain the Service",
@@ -118,11 +126,9 @@ export default function PrivacyPage() {
             "To improve the Service (aggregate, anonymized usage statistics only)",
           ]}
         />
-      </Section>
+      </ProseSection>
 
-      {/* What We Do NOT Do */}
-      <Section className="mt-20">
-        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">5. What We Do NOT Do</h2>
+      <ProseSection id="privacy-what-we-do-not-do" eyebrow="Section 5" title="What we do NOT do">
         <BulletList
           items={[
             <>
@@ -147,18 +153,20 @@ export default function PrivacyPage() {
           No ads, no tracking, no data sales. Your data isn&apos;t our product, the service is.
         </PullQuote>
 
-        <div className="space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
+        <div className={proseBody}>
           <p>
             We do not share data with law enforcement without valid legal process, and even then, we
             can only provide account metadata, not file contents.
           </p>
         </div>
-      </Section>
+      </ProseSection>
 
-      {/* Third-Party Services */}
-      <Section className="mt-20">
-        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">6. Third-Party Services</h2>
-        <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
+      <ProseSection
+        id="privacy-third-party-services"
+        eyebrow="Section 6"
+        title="Third-party services"
+      >
+        <div className={proseBody}>
           <p>We use the following third-party services:</p>
         </div>
         <BulletList
@@ -179,18 +187,16 @@ export default function PrivacyPage() {
             </>,
           ]}
         />
-        <div className="mt-4 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
+        <div className={`mt-4 ${proseBody}`}>
           <p>
             Your encrypted files are stored on the platforms you connect (GitHub, GitLab, Hugging
             Face, Telegram). Those platforms&apos; privacy policies apply to the storage of
             encrypted data on their infrastructure.
           </p>
         </div>
-      </Section>
+      </ProseSection>
 
-      {/* Data Retention */}
-      <Section className="mt-20">
-        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">7. Data Retention</h2>
+      <ProseSection id="privacy-data-retention" eyebrow="Section 7" title="Data retention">
         <BulletList
           items={[
             "Account data is retained while your account is active.",
@@ -200,12 +206,10 @@ export default function PrivacyPage() {
             "BYOB data remains on your infrastructure, you control its lifecycle.",
           ]}
         />
-      </Section>
+      </ProseSection>
 
-      {/* Your Rights */}
-      <Section className="mt-20">
-        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">8. Your Rights</h2>
-        <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
+      <ProseSection id="privacy-your-rights" eyebrow="Section 8" title="Your rights">
+        <div className={proseBody}>
           <p>You have the right to:</p>
         </div>
         <BulletList
@@ -227,61 +231,46 @@ export default function PrivacyPage() {
             </>,
           ]}
         />
-        <div className="mt-4 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
+        <div className={`mt-4 ${proseBody}`}>
           <p>
             For GDPR, CCPA, or other data protection requests, contact{" "}
-            <a
-              href={`mailto:${PRIVACY_EMAIL}`}
-              className="text-cyan-600 dark:text-cyan-400 hover:underline font-medium"
-            >
+            <a href={`mailto:${PRIVACY_EMAIL}`} className={proseLink}>
               {PRIVACY_EMAIL}
             </a>
             .
           </p>
         </div>
-      </Section>
+      </ProseSection>
 
-      {/* Children */}
-      <Section className="mt-20">
-        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">9. Children</h2>
-        <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
+      <ProseSection id="privacy-children" eyebrow="Section 9" title="Children">
+        <div className={proseBody}>
           <p>
             zcrypt is not intended for users under 16. We do not knowingly collect data from
             children under 16.
           </p>
         </div>
-      </Section>
+      </ProseSection>
 
-      {/* Changes */}
-      <Section className="mt-20">
-        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">10. Changes</h2>
-        <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
+      <ProseSection id="privacy-changes" eyebrow="Section 10" title="Changes">
+        <div className={proseBody}>
           <p>
             We may update this Privacy Policy. Significant changes will be communicated via email or
             in-app notification at least 30 days before taking effect.
           </p>
         </div>
-      </Section>
+      </ProseSection>
 
-      {/* Contact */}
-      <Section className="mt-20">
-        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">11. Contact</h2>
-        <div className="mt-6 space-y-4 text-base text-[var(--color-text-secondary)] leading-relaxed">
+      <ProseSection id="privacy-contact" eyebrow="Section 11" title="Contact">
+        <div className={proseBody}>
           <p>
             Privacy questions? Contact us at{" "}
-            <a
-              href={`mailto:${PRIVACY_EMAIL}`}
-              className="text-cyan-600 dark:text-cyan-400 hover:underline font-medium"
-            >
+            <a href={`mailto:${PRIVACY_EMAIL}`} className={proseLink}>
               {PRIVACY_EMAIL}
             </a>
             .
           </p>
         </div>
-      </Section>
-
-      {/* CTA */}
-      <LegalCta seeAlsoHref="/terms" seeAlsoLabel="Terms of Service" />
+      </ProseSection>
     </LegalPage>
   );
 }

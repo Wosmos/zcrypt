@@ -81,72 +81,6 @@
   max-width: 72rem;
   margin-inline: auto;
 }
-.zh-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 32px;
-  padding: 0 12px 0 14px;
-  border-radius: 999px;
-  corner-shape: round;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--color-text);
-  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
-  transition:
-    border-color 0.16s var(--zh-ease-hover),
-    transform 0.16s var(--zh-ease-hover);
-}
-.zh-pill:hover {
-  border-color: var(--color-border-hover);
-}
-.zh-pill svg {
-  color: var(--zh-ink);
-  transition: transform 0.16s var(--zh-ease-hover);
-}
-.zh-pill:hover svg {
-  transform: translateX(2px);
-}
-.zh-h1 {
-  margin-top: 20px;
-  max-width: 16ch;
-  font-family: var(--font-heading);
-  font-weight: 700;
-  font-size: min(clamp(2.75rem, 1.6rem + 5vw, 5.25rem), 10.5svh);
-  line-height: 0.98;
-  letter-spacing: -0.04em;
-  color: var(--color-text);
-  text-wrap: balance;
-}
-.zh-dot {
-  color: var(--color-accent);
-}
-.zh-sub {
-  margin-top: 20px;
-  max-width: 38rem;
-  font-size: 18px;
-  line-height: 1.5;
-  color: var(--color-text-secondary);
-  text-wrap: pretty;
-}
-.zh-ctas {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 12px;
-  margin-top: 28px;
-}
-.zh-cta {
-  height: 48px;
-  white-space: nowrap;
-}
-.zh-micro {
-  margin-top: 14px;
-  font-size: 13px;
-  color: var(--color-text-secondary);
-}
 .zh-cue {
   display: inline-flex;
   align-items: center;
@@ -189,21 +123,10 @@
     transform: translateY(2px);
   }
 }
+.zh-head .pv2-h1 {
+  font-size: min(clamp(2.75rem, 1.6rem + 5vw, 5.25rem), 10.5svh);
+}
 @media (max-width: 767px) {
-  .zh-sub {
-    font-size: 17px;
-  }
-  .zh-ctas {
-    flex-direction: column;
-    align-self: stretch;
-    max-width: 26rem;
-    margin-inline: auto;
-    width: 100%;
-  }
-  .zh-cta {
-    height: 52px;
-    width: 100%;
-  }
   .zh-cue {
     display: none;
   }
@@ -212,16 +135,16 @@
   .zh-head {
     padding-top: calc(var(--zh-top) + 8px);
   }
-  .zh-h1 {
+  .zh-head .pv2-h1 {
     margin-top: 14px;
   }
-  .zh-sub {
+  .zh-head .pv2-sub {
     margin-top: 14px;
   }
-  .zh-ctas {
+  .zh-head .pv2-ctas {
     margin-top: 20px;
   }
-  .zh-micro {
+  .zh-head .pv2-micro {
     margin-top: 10px;
   }
   .zh-cue {

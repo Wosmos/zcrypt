@@ -220,7 +220,7 @@ export function StoryRail() {
             <article
               key={b.n}
               data-beat={b.n}
-              className="zs-beat pv2-ring corner-squircle"
+              className="zs-beat pv2-card pv2-ring corner-squircle"
               aria-labelledby={`zs-beat-${b.n}`}
             >
               <div className="zs-beat-stage">

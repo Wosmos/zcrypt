@@ -2,12 +2,15 @@ import type { Metadata } from "next";
 import { Lock, Shield, Cpu, Server, Eye, X } from "@/lib/icons";
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { FeatureHero } from "@/components/marketing/features/feature-hero";
-import { CapabilityGrid } from "@/components/marketing/features/capability-grid";
+import { CapabilityGrid, StepCards } from "@/components/marketing/features/capability-grid";
 import { RelatedLinks } from "@/components/marketing/features/related-links";
-import { CtaSection } from "@/components/marketing/features/cta-section";
+import { ClosingCta } from "@/components/marketing/landing/closing-cta";
 import { TieInSection } from "@/components/marketing/features/tie-in-section";
 import { IconList } from "@/components/marketing/features/icon-list";
 import { CodePanel } from "@/components/marketing/features/code-panel";
+import { SectionHead } from "@/components/marketing/landing/section-head";
+import { IconWell, cardSurface, cardSurfaceSm } from "@/components/marketing/ui/card";
+import { cn } from "@/lib/utils";
 import { encryption } from "../_data/encryption";
 import { SITE_URL } from "@/lib/site";
 
@@ -51,8 +54,7 @@ export default function EncryptionPage() {
       {/* ═══ HERO ═══ */}
       <FeatureHero
         eyebrow={hero.eyebrow}
-        headlineTop={hero.headlineTop}
-        headlineGradient={hero.headlineGradient}
+        title={hero.title}
         subtext={hero.subtext}
         secondaryLabel={hero.secondaryLabel}
         secondaryHref={hero.secondaryHref}
@@ -61,23 +63,21 @@ export default function EncryptionPage() {
         <div className="mx-auto mt-16 max-w-4xl">
           <div className="grid gap-4 md:grid-cols-[1fr_auto_1fr] md:items-stretch">
             {/* trusted device */}
-            <div className="rounded-2xl border border-cyan-500/30 bg-cyan-500/[0.04] p-5">
-              <div className="mb-4 flex items-center gap-2.5">
-                <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-500/10 text-cyan-500">
-                  <Cpu className="h-4 w-4" />
-                </span>
+            <div className={cn(cardSurfaceSm, "p-6 text-left")}>
+              <div className="mb-5 flex items-center gap-3">
+                <IconWell icon={Cpu} />
                 <div>
-                  <div className="text-sm font-bold">{boundary.device.title}</div>
-                  <div className="font-mono text-[10px] uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
+                  <div className="pv2-h3 text-base">{boundary.device.title}</div>
+                  <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--pv2-accent-ink)]">
                     Trusted zone
                   </div>
                 </div>
               </div>
               <IconList
                 items={boundary.device.items}
-                iconClassName="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-cyan-500"
+                iconClassName="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-[var(--pv2-accent-ink)]"
                 itemClassName="flex items-start gap-2"
-                className="space-y-2 text-xs text-[var(--color-text-secondary)]"
+                className="space-y-2 text-[13px] text-[var(--color-text-secondary)]"
               />
             </div>
 
@@ -85,19 +85,17 @@ export default function EncryptionPage() {
             <div className="flex flex-row items-center justify-center gap-2 md:flex-col">
               <div className="hidden h-full w-px bg-gradient-to-b from-transparent via-[var(--color-border)] to-transparent md:block" />
               <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
-                <Lock className="h-3 w-3 text-cyan-500" /> Encryption boundary
+                <Lock className="h-3 w-3 text-[var(--pv2-accent-ink)]" /> Encryption boundary
               </span>
               <div className="hidden h-full w-px bg-gradient-to-b from-transparent via-[var(--color-border)] to-transparent md:block" />
             </div>
 
             {/* server */}
-            <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-              <div className="mb-4 flex items-center gap-2.5">
-                <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-black/[0.04] text-[var(--color-text-muted)] dark:bg-white/[0.04]">
-                  <Server className="h-4 w-4" />
-                </span>
+            <div className={cn(cardSurfaceSm, "p-6 text-left")}>
+              <div className="mb-5 flex items-center gap-3">
+                <IconWell icon={Server} />
                 <div>
-                  <div className="text-sm font-bold">{boundary.server.title}</div>
+                  <div className="pv2-h3 text-base">{boundary.server.title}</div>
                   <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
                     Ciphertext only
                   </div>
@@ -108,7 +106,7 @@ export default function EncryptionPage() {
                 icon={X}
                 iconClassName="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-rose-500/70"
                 itemClassName="flex items-start gap-2"
-                className="space-y-2 text-xs text-[var(--color-text-secondary)]"
+                className="space-y-2 text-[13px] text-[var(--color-text-secondary)]"
               />
             </div>
           </div>
@@ -117,36 +115,23 @@ export default function EncryptionPage() {
 
       {/* ═══ GUARANTEES ═══ */}
       <CapabilityGrid
-        heading="What zero-knowledge actually means"
+        eyebrow="The guarantees"
+        heading="What we can and can't see"
         subheading="Not a privacy policy promise. A cryptographic one: enforced by where the keys live and what code runs where."
         items={guarantees}
       />
 
       {/* ═══ THE PIPELINE ═══ */}
-      <section className="border-y border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-20">
-        <div className="mx-auto max-w-5xl">
-          <div className="mx-auto mb-12 max-w-2xl text-center">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
-              {pipelineSection.eyebrow}
-            </p>
-            <h2 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
-              {pipelineSection.heading}
-            </h2>
-            <p className="mt-3 text-[var(--color-text-secondary)]">{pipelineSection.subheading}</p>
-          </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {pipeline.map((p) => (
-              <div key={p.step} className="card relative p-6">
-                <div className="font-heading text-3xl font-bold text-cyan-500/20">{p.step}</div>
-                <h3 className="mt-3 text-sm font-bold">{p.title}</h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-[var(--color-text-secondary)]">
-                  {p.desc}
-                </p>
-              </div>
-            ))}
-          </div>
+      <section className="pv2-sec pv2-sec-join" aria-labelledby="h-pipeline">
+        <div className="pv2-wrap">
+          <SectionHead
+            id="h-pipeline"
+            eyebrow={pipelineSection.eyebrow}
+            title={pipelineSection.heading}
+            lede={pipelineSection.subheading}
+          />
+          <StepCards steps={pipeline} />
 
-          {/* what the server stores */}
           <div className="mt-10">
             <CodePanel
               comment="// what actually lands on the server"
@@ -175,7 +160,7 @@ export default function EncryptionPage() {
 
       {/* ═══ THE TRADE-OFF (HONESTY) ═══ */}
       <TieInSection
-        surface={false}
+        join
         eyebrow="The honest trade-off"
         heading={tieIn.heading}
         body={tieIn.body}
@@ -183,14 +168,12 @@ export default function EncryptionPage() {
         linkLabel={tieIn.linkLabel}
         linkHref={tieIn.linkHref}
         panel={
-          <div className="card p-6">
-            <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-500">
-              <Shield className="h-5 w-5" />
-            </div>
+          <div className={cn(cardSurface, "p-7 sm:p-8")}>
+            <IconWell icon={Shield} className="mb-5" />
             <IconList
               items={tieIn.panelIntro}
               icon={Eye}
-              iconClassName="mt-0.5 h-4 w-4 flex-shrink-0 text-cyan-500"
+              iconClassName="mt-0.5 h-4 w-4 flex-shrink-0 text-[var(--pv2-accent-ink)]"
               iconStrokeWidth={1.5}
               itemClassName="flex items-start gap-2.5"
               className="space-y-3 text-sm text-[var(--color-text-secondary)]"
@@ -200,12 +183,8 @@ export default function EncryptionPage() {
       />
 
       {/* ═══ RELATED + CTA ═══ */}
-      <section className="px-4 py-20">
-        <div className="mx-auto max-w-5xl">
-          <RelatedLinks heading="Keep exploring" items={related} />
-          <CtaSection heading={cta.heading} subtext={cta.subtext} />
-        </div>
-      </section>
+      <RelatedLinks items={related} />
+      <ClosingCta title={cta.heading} subtext={cta.subtext} />
     </>
   );
 }

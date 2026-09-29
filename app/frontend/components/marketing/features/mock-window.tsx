@@ -34,8 +34,8 @@ export function MockWindowFrame({
   contentClassName = "p-3 sm:p-4",
 }: MockWindowFrameProps) {
   return (
-    <div className={`mx-auto mt-16 ${maxWidth}`}>
-      <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] shadow-2xl shadow-black/20 dark:shadow-black/40">
+    <div className={`mx-auto mt-14 text-left ${maxWidth}`}>
+      <div className="overflow-hidden rounded-[22px] corner-squircle border border-[var(--color-border)] bg-[var(--color-bg)] shadow-2xl shadow-black/20 dark:shadow-black/40">
         <div className="flex items-center gap-2 border-b border-[var(--color-border)] bg-black/[0.02] px-4 py-3 dark:bg-white/[0.02]">
           {dots ? (
             <>

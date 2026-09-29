@@ -8,23 +8,18 @@ import { GitlabIcon as GitLabIcon } from "@/components/icons/gitlab";
 import { HuggingFaceIcon } from "@/components/icons/huggingface";
 import { TelegramIcon } from "@/components/icons/telegram";
 import { ArrowRight, ChevronDown, Download, Lock } from "@/lib/icons";
+import { PillLink } from "@/components/marketing/ui/pill-link";
 import { DriveProvider, useDrive } from "./drive-store";
 import { DriveStage } from "./drive-stage";
 import { useOsLabel } from "./use-os-label";
-
-const PRIMARY =
-  "zh-cta inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-br from-[#2de0ed] via-[#00d5e4] to-[#0093a3] px-7 font-semibold text-slate-900 shadow-lg shadow-cyan-500/30 transition-shadow hover:shadow-xl hover:shadow-cyan-500/50";
-const SECONDARY =
-  "zh-cta inline-flex items-center justify-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-6 font-semibold text-[var(--color-text)] transition-colors hover:border-[var(--color-border-hover)]";
 
 function OsButton() {
   const { os, label, href } = useOsLabel();
   const Glyph = os === "android" || os === "ios" ? MOBILE_GLYPHS[os] : os ? OS_GLYPHS[os] : null;
   return (
-    <Link href={href} className={SECONDARY}>
-      {Glyph ? <Glyph className="h-4 w-4" /> : <Download className="h-4 w-4" />}
+    <PillLink href={href} variant="secondary" icon={Glyph ?? Download}>
       <span>{label}</span>
-    </Link>
+    </PillLink>
   );
 }
 
@@ -34,7 +29,7 @@ function Head() {
       <div className="zh-head-in">
         <Link
           href="/download"
-          className="zh-pill zh-rise"
+          className="pv2-pill zh-rise"
           style={{ "--i": 0 } as React.CSSProperties}
         >
           Now on Android (beta)
@@ -42,26 +37,23 @@ function Head() {
         </Link>
         <h1
           id="h-top"
-          className="zh-h1 zh-rise zh-rise-keep"
+          className="pv2-h1 zh-rise zh-rise-keep"
           style={{ "--i": 1 } as React.CSSProperties}
         >
           Free cloud storage with no limit
-          <span className="zh-dot" aria-hidden="true">
+          <span className="pv2-dot" aria-hidden="true">
             .
           </span>
         </h1>
-        <p className="zh-sub zh-rise" style={{ "--i": 2 } as React.CSSProperties}>
+        <p className="pv2-sub zh-rise" style={{ "--i": 2 } as React.CSSProperties}>
           Your files get locked on your own phone or laptop, then saved in accounts you already
           have, like Telegram or GitHub. Nobody else can open them. Not even us.
         </p>
-        <div className="zh-ctas zh-rise" style={{ "--i": 3 } as React.CSSProperties}>
-          <Link href="/register" className={PRIMARY}>
-            Start free
-            <ArrowRight className="h-4 w-4" />
-          </Link>
+        <div className="pv2-ctas zh-rise" style={{ "--i": 3 } as React.CSSProperties}>
+          <PillLink href="/register">Start free</PillLink>
           <OsButton />
         </div>
-        <p className="zh-micro zh-rise" style={{ "--i": 4 } as React.CSSProperties}>
+        <p className="pv2-micro zh-rise" style={{ "--i": 4 } as React.CSSProperties}>
           No card. No trial. There&apos;s nothing to upgrade to.
         </p>
         <span className="zh-cue" aria-hidden="true">

@@ -2,9 +2,7 @@ import type { Metadata } from "next";
 import type { ComponentType } from "react";
 import Link from "next/link";
 import {
-  ArrowRight,
   ExternalLink,
-  Sparkles,
   Rocket,
   FolderOpen,
   Shield,
@@ -20,6 +18,9 @@ import {
 import { docsNav, type DocsNavGroup, type DocsNavLink } from "@/lib/data";
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { cn } from "@/lib/utils";
+import { Accent } from "@/components/marketing/ui/page-hero";
+import { PillLink, pillClass } from "@/components/marketing/ui/pill-link";
+import { cardSurface } from "@/components/marketing/ui/card";
 import { SITE_URL, SUPPORT_EMAIL } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -163,7 +164,7 @@ function GroupBlock({ group }: { group: DocsNavGroup }) {
 
 export default function DocsPage() {
   return (
-    <>
+    <div className="pv2">
       <BreadcrumbJsonLd
         items={[
           { name: "Home", url: SITE_URL },
@@ -172,28 +173,22 @@ export default function DocsPage() {
       />
 
       {/* Intro */}
-      <header className="mb-10">
-        <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-cyan-500/10 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
-          <Sparkles className="h-3 w-3" />
-          Documentation
-        </div>
-        <h1 className="font-heading text-4xl font-bold tracking-tight sm:text-5xl">
-          Documentation
+      <header className="pv2-hero-left mb-12">
+        <p className="pv2-eyebrow">Documentation</p>
+        <h1 className="pv2-h1 mt-4">
+          How zcrypt works
+          <Accent text="How zcrypt works" />
         </h1>
-        <p className="mt-4 max-w-2xl text-lg leading-relaxed text-[var(--color-text-secondary)]">
+        <p className="pv2-sub max-w-2xl">
           zcrypt is a zero-knowledge encrypted cloud drive: real folders, instant in-browser
-          previews, and per-folder passwords: all encrypted on your device and stored in accounts
+          previews, and per-folder passwords, all encrypted on your device and stored in accounts
           you already own. These guides cover every part of it.
         </p>
-        <div className="mt-6 inline-flex items-center gap-2 text-sm">
-          <span className="text-[var(--color-text-muted)]">New here?</span>
-          <Link
-            href="/docs/getting-started"
-            className="inline-flex items-center gap-1 font-semibold text-cyan-600 transition-all hover:gap-2 dark:text-cyan-400"
-          >
-            Start with the Quickstart
-            <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
+        <div className="pv2-ctas">
+          <PillLink href="/docs/getting-started">Start with the Quickstart</PillLink>
+          <PillLink href="/register" variant="secondary">
+            Start free
+          </PillLink>
         </div>
       </header>
 
@@ -206,30 +201,27 @@ export default function DocsPage() {
       </div>
 
       {/* Help CTA */}
-      <section className="mt-14 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-8 text-center">
-        <h2 className="text-xl font-bold tracking-tight">Can&apos;t find what you need?</h2>
-        <p className="mx-auto mt-2 max-w-md text-sm text-[var(--color-text-secondary)]">
+      <section className={cn(cardSurface, "mt-14 p-8 text-center sm:p-10")}>
+        <h2 className="pv2-h3 text-2xl">Can&apos;t find what you need?</h2>
+        <p className="pv2-body mx-auto mt-2 max-w-md">
           The whole project is open source. Open an issue, read the code, or reach out and
           we&apos;ll help directly.
         </p>
-        <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+        <div className="pv2-ctas">
           <a
             href="https://github.com/Wosmos/zcrypt"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-xl border border-[var(--color-border)] px-5 py-2.5 text-sm font-semibold transition-colors hover:bg-[var(--color-surface-1)]"
+            className={pillClass("secondary")}
           >
             GitHub
             <ExternalLink className="h-3.5 w-3.5" />
           </a>
-          <a
-            href={`mailto:${SUPPORT_EMAIL}`}
-            className="inline-flex items-center gap-2 rounded-xl border border-[var(--color-border)] px-5 py-2.5 text-sm font-semibold transition-colors hover:bg-[var(--color-surface-1)]"
-          >
+          <a href={`mailto:${SUPPORT_EMAIL}`} className={pillClass("secondary")}>
             Contact support
           </a>
         </div>
       </section>
-    </>
+    </div>
   );
 }

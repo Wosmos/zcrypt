@@ -23,7 +23,7 @@ export function InstallCommands({ methods }: { methods: readonly InstallMethod[]
   };
 
   return (
-    <div className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[#09090b] shadow-2xl shadow-black/30">
+    <div className="overflow-hidden rounded-[22px] corner-squircle border border-[var(--color-border)] bg-[#09090b] shadow-2xl shadow-black/30">
       <div className="flex items-center px-4 py-3 border-b border-white/5 bg-white/[0.02]">
         <div className="flex items-center gap-3">
           <div className="flex gap-1.5">
@@ -31,7 +31,7 @@ export function InstallCommands({ methods }: { methods: readonly InstallMethod[]
             <div className="h-3 w-3 rounded-full bg-[#febc2e]" />
             <div className="h-3 w-3 rounded-full bg-[#28c840]" />
           </div>
-          <span className="font-mono text-xs text-white/30">install &mdash; zcrypt</span>
+          <span className="font-mono text-xs text-white/30">install · zcrypt</span>
         </div>
       </div>
       <div className="divide-y divide-white/5 font-mono text-sm">

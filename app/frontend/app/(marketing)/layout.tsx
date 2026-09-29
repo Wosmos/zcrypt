@@ -1,3 +1,4 @@
+import "@/components/marketing/landing/base.css";
 import { CircuitBackground } from "@/components/ui/circuit-background";
 import { DesktopRedirect } from "@/components/guards/desktop-redirect";
 import { DocsSearchProvider } from "@/components/docs/docs-search";

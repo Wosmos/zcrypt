@@ -41,7 +41,9 @@ export function SiteChrome({ children }: { children: React.ReactNode }) {
         Skip to content
       </a>
       <MarketingNav />
-      <main id="main-content">{children}</main>
+      <main id="main-content" className="pv2">
+        {children}
+      </main>
       <MarketingFooter />
     </>
   );

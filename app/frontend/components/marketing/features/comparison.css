@@ -1,0 +1,210 @@
+.pv2 {
+  --vs-line: color-mix(in oklab, var(--color-text) 11%, transparent);
+  --vs-z-line: color-mix(in oklab, var(--color-accent) 65%, transparent);
+}
+
+.vs-sec-top {
+  padding-top: clamp(24px, 4vw, 48px);
+}
+.vs-sec-tight {
+  padding-bottom: 0;
+}
+
+.vs-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  max-width: 44rem;
+  margin: clamp(40px, 5vw, 56px) auto 0;
+  padding: 20px 22px;
+  text-align: left;
+}
+
+.vs-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  max-width: 60rem;
+  margin-inline: auto;
+  list-style: none;
+}
+@media (min-width: 768px) {
+  .vs-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+  }
+}
+.vs-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 100%;
+  padding: clamp(22px, 3vw, 32px);
+}
+.vs-card > .pv2-ic {
+  margin-bottom: 8px;
+}
+
+.vs-link-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.vs-link-arrow {
+  width: 16px;
+  height: 16px;
+  color: var(--pv2-accent-ink);
+  transition: transform 200ms var(--ease-hover);
+}
+.vs-link:hover .vs-link-arrow {
+  transform: translateX(3px);
+}
+
+.vs-cmp {
+  max-width: 60rem;
+  margin-inline: auto;
+}
+.vs-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+}
+.vs-table th,
+.vs-table td {
+  padding: 18px 20px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--vs-line);
+  font-size: 15px;
+  line-height: 1.5;
+  font-weight: 400;
+  color: var(--color-text-secondary);
+}
+.vs-table thead th {
+  padding-top: 24px;
+  padding-bottom: 16px;
+  font-family: var(--font-heading);
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+.vs-table .vs-rl {
+  width: 28%;
+  padding-left: 0;
+  font-weight: 600;
+  color: var(--color-text);
+}
+.vs-table tbody tr:last-child > * {
+  border-bottom: 0;
+}
+.vs-table .vs-z {
+  background: color-mix(in oklab, var(--color-surface) 95%, var(--color-accent));
+  border-inline: 1px solid var(--vs-z-line);
+  color: var(--color-text);
+}
+.vs-table thead .vs-z {
+  border-top: 1px solid var(--vs-z-line);
+  border-radius: 16px 16px 0 0;
+}
+.vs-table tbody tr:last-child .vs-z {
+  border-bottom: 1px solid var(--vs-z-line);
+  border-radius: 0 0 16px 16px;
+}
+.vs-cn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.vs-col {
+  display: none;
+}
+.vs-cell-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.vs-ck {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 3px;
+}
+.vs-ck-yes {
+  color: var(--color-accent);
+}
+.vs-ck-no {
+  color: var(--color-text-muted);
+}
+.vs-foot {
+  max-width: 62ch;
+  margin: 32px auto 0;
+  text-align: center;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+  text-wrap: pretty;
+}
+
+.vs-prose-wrap {
+  max-width: calc(44rem + 2 * var(--pv2-gutter));
+}
+.vs-prose-wrap .pv2-head {
+  max-width: none;
+}
+.vs-prose {
+  display: grid;
+  gap: 20px;
+  font-size: 17px;
+  line-height: 1.65;
+  color: var(--color-text-secondary);
+  text-wrap: pretty;
+}
+
+@media (max-width: 767px) {
+  .vs-table,
+  .vs-table thead,
+  .vs-table tbody,
+  .vs-table tr {
+    display: block;
+  }
+  .vs-table thead {
+    display: none;
+  }
+  .vs-table tr {
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--vs-line);
+  }
+  .vs-table tbody tr:last-child {
+    border-bottom: 0;
+  }
+  .vs-table th,
+  .vs-table td {
+    display: block;
+    padding: 12px 14px;
+    border: 0;
+    font-size: 14px;
+  }
+  .vs-table tbody .vs-rl {
+    width: auto;
+    padding: 20px 0 10px;
+    font-size: 15px;
+  }
+  .vs-table tbody .vs-z,
+  .vs-table tbody tr:last-child .vs-z {
+    border: 1px solid color-mix(in oklab, var(--color-accent) 55%, transparent);
+    border-radius: 14px;
+    margin-bottom: 6px;
+  }
+  .vs-col {
+    display: block;
+    margin-bottom: 6px;
+    font: 600 11px/1.2 var(--font-body);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+  }
+  .vs-z .vs-col {
+    color: var(--pv2-accent-ink);
+  }
+}

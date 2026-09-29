@@ -15,6 +15,10 @@ import {
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { featuresNav } from "@/lib/data";
 import DocsSearch from "@/components/docs/docs-search-modal";
+import { PageHero } from "@/components/marketing/ui/page-hero";
+import { IconWell, cardSurfaceSm } from "@/components/marketing/ui/card";
+import { ClosingCta } from "@/components/marketing/landing/closing-cta";
+import { cn } from "@/lib/utils";
 import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -62,66 +66,42 @@ export default function FeaturesPage() {
         ]}
       />
 
-      <section className="px-6 pt-32 pb-12 text-center md:pt-36">
-        <div className="mx-auto max-w-3xl">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
-            Features
-          </p>
-          <h1 className="font-heading text-4xl font-bold tracking-tight sm:text-5xl">
-            Everything the drive does
-          </h1>
-          <p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-[var(--color-text-secondary)]">
-            A real encrypted file manager with a zero-knowledge core. Here&apos;s every part of it:
-            dig into whichever matters to you.
-          </p>
-          <div className="mx-auto mt-8">
-            <DocsSearch placeholder="Search features & docs..." />
-          </div>
+      <PageHero
+        eyebrow="Features"
+        title="Everything the drive does"
+        lede="A real file manager where only you can open what's inside. Here's every part of it, so dig into whichever matters to you."
+      >
+        <div className="mx-auto mt-8 max-w-xl">
+          <DocsSearch placeholder="Search features & docs..." />
         </div>
-      </section>
+      </PageHero>
 
-      <section className="px-4 pb-24">
-        <ul className="mx-auto grid max-w-5xl grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 list-none">
-          {featuresNav.map(({ href, icon, title, desc }) => {
-            const Icon = ICONS[icon];
-            return (
+      <section className="pv2-sec pv2-sec-join" aria-labelledby="h-all">
+        <div className="pv2-wrap">
+          <h2 id="h-all" className="sr-only">
+            All features
+          </h2>
+          <ul className="grid list-none grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {featuresNav.map(({ href, icon, title, desc }) => (
               <li key={href}>
-                <Link
-                  href={href}
-                  className="card group block h-full p-6 transition-colors hover:border-cyan-500/40"
-                >
-                  <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-500">
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <h2 className="flex items-center gap-2 text-sm font-bold">
+                <Link href={href} className={cn(cardSurfaceSm, "group block h-full p-6 sm:p-7")}>
+                  <IconWell icon={ICONS[icon]} />
+                  <h3 className="pv2-h3 mt-5 flex items-center gap-2 text-lg">
                     {title}
-                    <ArrowRight className="h-3 w-3 text-cyan-500 opacity-0 transition-opacity group-hover:opacity-100" />
-                  </h2>
-                  <p className="mt-1.5 text-sm leading-relaxed text-[var(--color-text-secondary)]">
-                    {desc}
-                  </p>
+                    <ArrowRight className="ml-auto h-4 w-4 text-[var(--pv2-accent-ink)] transition-transform group-hover:translate-x-0.5" />
+                  </h3>
+                  <p className="pv2-body mt-2">{desc}</p>
                 </Link>
               </li>
-            );
-          })}
-        </ul>
-
-        <div className="mx-auto mt-12 max-w-5xl rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-10 text-center">
-          <h2 className="font-heading text-2xl font-bold tracking-tight sm:text-3xl">
-            Start with a drive you actually own
-          </h2>
-          <p className="mx-auto mt-3 max-w-md text-[var(--color-text-secondary)]">
-            Free and open source. Bring a storage account you already have.
-          </p>
-          <Link
-            href="/register"
-            className="mt-7 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-[#2de0ed] via-[#00d5e4] to-[#0093a3] px-8 py-3.5 text-base font-semibold text-slate-900 shadow-lg shadow-cyan-500/30 transition-shadow hover:shadow-xl hover:shadow-cyan-500/50"
-          >
-            Create your vault
-            <ArrowRight className="h-4 w-4" />
-          </Link>
+            ))}
+          </ul>
         </div>
       </section>
+
+      <ClosingCta
+        title="Start with a drive you actually own"
+        subtext="Free and open source. Bring a storage account you already have."
+      />
     </>
   );
 }

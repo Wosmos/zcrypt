@@ -87,21 +87,8 @@
   z-index: calc(var(--i) + 1);
 }
 .zc-tcard {
-  --zc-card-bg: linear-gradient(
-    180deg,
-    var(--color-surface),
-    color-mix(in oklab, var(--color-surface) 92%, var(--color-bg))
-  );
-  --zc-card-glow: radial-gradient(
-    60% 50% at 100% 0%,
-    color-mix(in oklab, var(--color-accent) 8%, transparent),
-    transparent 70%
-  );
   position: relative;
   padding: 24px;
-  border-radius: var(--pv2-r-card);
-  background: var(--zc-card-glow), var(--zc-card-bg);
-  box-shadow: var(--pv2-hi), var(--pv2-card-shadow);
   transform-origin: 50% 0;
 }
 @media (hover: hover) and (pointer: fine) {
@@ -112,7 +99,7 @@
         color-mix(in oklab, var(--color-accent) 5%, transparent),
         transparent 45%
       ),
-      var(--zc-card-glow), var(--zc-card-bg);
+      var(--pv2-card-glow), var(--pv2-card-bg);
   }
 }
 .zc-tdim {

@@ -4,8 +4,7 @@ import type { ReactNode } from "react";
 export interface PrivacyPageData {
   hero: {
     eyebrow: string;
-    headlineTop: string;
-    headlineGradient: string;
+    title: string;
     subtext: ReactNode;
     secondaryLabel: string;
     secondaryHref: string;
@@ -35,8 +34,7 @@ export interface PrivacyPageData {
 export const privacy: PrivacyPageData = {
   hero: {
     eyebrow: "Privacy tools",
-    headlineTop: "Privacy for the",
-    headlineGradient: "moments that matter.",
+    title: "Privacy for the moments that matter",
     subtext: (
       <>
         Encryption keeps your files unreadable. These tools go a step further, for being pressured
@@ -109,7 +107,7 @@ export const privacy: PrivacyPageData = {
   ],
 
   zeroKnowledgeTieIn: {
-    heading: "It all sits on a zero-knowledge core",
+    heading: "It all sits on the same private core",
     body: "Every one of these tools is bounded by the same promise: your files are encrypted on your device with AES-256-GCM before they leave, and we never see your passphrase or your plaintext. The decoy hides a vault we can't read either way; the dead man's switch notifies a person because there are no keys for us to release. Privacy features that can't betray you, because the architecture won't let them.",
   },
 

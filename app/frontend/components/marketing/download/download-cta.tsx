@@ -11,6 +11,8 @@ import {
   type DownloadOption,
   type ReleaseData,
 } from "@/lib/releases";
+import { cn } from "@/lib/utils";
+import { PillLink, pillClass } from "@/components/marketing/ui/pill-link";
 import { OS_GLYPHS, MOBILE_GLYPHS } from "./os-glyphs";
 
 const OS_LABEL: Record<PlatformId, string> = {
@@ -40,8 +42,19 @@ export function detectDevice(): DetectedDevice | null {
   return null;
 }
 
-const PRIMARY_BTN =
-  "group inline-flex items-center gap-3 rounded-xl bg-gradient-to-br from-[#2de0ed] via-[#00d5e4] to-[#0093a3] px-8 py-4 text-base font-bold text-slate-900 shadow-lg shadow-cyan-500/30 transition-all hover:scale-[1.02] hover:shadow-xl hover:shadow-cyan-500/50 active:scale-[0.99]";
+const PRIMARY_BTN = cn("group", pillClass("primary"));
+
+function Note({ children }: { children: React.ReactNode }) {
+  return <p className="pv2-micro w-full text-center">{children}</p>;
+}
+
+function WebApp() {
+  return (
+    <PillLink href="/register" variant="secondary">
+      Start free in the browser
+    </PillLink>
+  );
+}
 
 /**
  * Hero download button: auto-detects OS (and macOS arch where exposed) and
@@ -77,16 +90,16 @@ export function DownloadCta({ release }: { release: ReleaseData | null }) {
   if (device === "ios") {
     const IosGlyph = MOBILE_GLYPHS.ios;
     return (
-      <div className="flex flex-col items-center gap-4">
+      <>
         <Link href="/register" className={PRIMARY_BTN}>
-          <IosGlyph className="h-5 w-5" />
+          <IosGlyph className="h-4 w-4" />
           Use the web app
-          <ArrowRight className="h-4 w-4 opacity-70 transition-transform group-hover:translate-x-0.5" />
+          <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
         </Link>
-        <p className="max-w-xs text-center text-xs text-[var(--color-text-muted)]">
+        <Note>
           There&apos;s no iOS app yet. The web app works fully in Safari, no install needed.
-        </p>
-      </div>
+        </Note>
+      </>
     );
   }
 
@@ -95,13 +108,14 @@ export function DownloadCta({ release }: { release: ReleaseData | null }) {
   if (device === "android") {
     const AndroidGlyph = MOBILE_GLYPHS.android;
     return (
-      <div className="flex flex-col items-center gap-4">
+      <>
         <a href={ANDROID_APK_URL} className={PRIMARY_BTN}>
-          <AndroidGlyph className="h-5 w-5" />
+          <AndroidGlyph className="h-4 w-4" />
           Download APK for Android
-          <Download className="h-4 w-4 opacity-70 transition-transform group-hover:translate-y-0.5" />
+          <Download className="h-4 w-4 transition-transform group-hover:translate-y-0.5" />
         </a>
-        <p className="text-xs text-[var(--color-text-muted)]">
+        <WebApp />
+        <Note>
           Sideloaded, not Play Store
           <span aria-hidden> · </span>
           <a
@@ -110,8 +124,8 @@ export function DownloadCta({ release }: { release: ReleaseData | null }) {
           >
             install steps &amp; QR code
           </a>
-        </p>
-      </div>
+        </Note>
+      </>
     );
   }
 
@@ -122,16 +136,15 @@ export function DownloadCta({ release }: { release: ReleaseData | null }) {
   if (device === "linux") {
     const LinuxGlyph = OS_GLYPHS.linux;
     return (
-      <div className="flex flex-col items-center gap-4">
+      <>
         <a href="#desktop" className={PRIMARY_BTN}>
-          <LinuxGlyph className="h-5 w-5" />
+          <LinuxGlyph className="h-4 w-4" />
           Download for Linux
-          <ChevronDown className="h-4 w-4 opacity-70 transition-transform group-hover:translate-y-0.5" />
+          <ChevronDown className="h-4 w-4 transition-transform group-hover:translate-y-0.5" />
         </a>
-        <p className="text-xs text-[var(--color-text-muted)]">
-          Fedora, Debian/Ubuntu, or a portable build. Pick yours below.
-        </p>
-      </div>
+        <WebApp />
+        <Note>Fedora, Debian/Ubuntu, or a portable build. Pick yours below.</Note>
+      </>
     );
   }
 
@@ -151,13 +164,14 @@ export function DownloadCta({ release }: { release: ReleaseData | null }) {
   // Resolved: OS detected and a matching build exists in the latest release.
   if (primary && platform && Glyph) {
     return (
-      <div className="flex flex-col items-center gap-4">
+      <>
         <a href={primary.href} className={PRIMARY_BTN}>
-          <Glyph className="h-5 w-5" />
+          <Glyph className="h-4 w-4" />
           Download for {OS_LABEL[platform.id]}
-          <Download className="h-4 w-4 opacity-70 transition-transform group-hover:translate-y-0.5" />
+          <Download className="h-4 w-4 transition-transform group-hover:translate-y-0.5" />
         </a>
-        <p className="text-xs text-[var(--color-text-muted)]">
+        <WebApp />
+        <Note>
           {primary.sublabel}
           <span aria-hidden> · </span>
           <a
@@ -166,23 +180,22 @@ export function DownloadCta({ release }: { release: ReleaseData | null }) {
           >
             Other options
           </a>
-        </p>
-      </div>
+        </Note>
+      </>
     );
   }
 
   // Loading, unknown OS, or API unavailable → point at the grid (or releases).
   const href = release === null ? RELEASES_FALLBACK_URL : "#desktop";
   return (
-    <div className="flex flex-col items-center gap-4">
+    <>
       <a href={href} className={PRIMARY_BTN}>
-        <Download className="h-5 w-5" />
+        <Download className="h-4 w-4" />
         Download zcrypt
-        <ChevronDown className="h-4 w-4 opacity-70 transition-transform group-hover:translate-y-0.5" />
+        <ChevronDown className="h-4 w-4 transition-transform group-hover:translate-y-0.5" />
       </a>
-      <p className="text-xs text-[var(--color-text-muted)]">
-        Pick your platform below: macOS, Windows, Linux &amp; the terminal app.
-      </p>
-    </div>
+      <WebApp />
+      <Note>Pick your platform below: macOS, Windows, Linux &amp; the terminal app.</Note>
+    </>
   );
 }

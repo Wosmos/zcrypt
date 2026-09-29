@@ -1,8 +1,7 @@
 import { Lock, HardDrive, Github, Terminal } from "@/lib/icons";
+import type { VsData } from "@/components/marketing/features/comparison-page";
 import type { ComparisonRow } from "@/components/marketing/features/comparison-table";
-import type { CapabilityItem } from "@/components/marketing/features/capability-grid";
-import { type VsData, VS_RELATED_LINKS } from "./dropbox";
-import { SITE_URL } from "@/lib/site";
+import { VS_RELATED_LINKS, vsBreadcrumb } from "./shared";
 
 const rows: ComparisonRow[] = [
   {
@@ -117,7 +116,7 @@ const rows: ComparisonRow[] = [
   },
 ];
 
-const pillars: CapabilityItem[] = [
+const pillars: VsData["pillars"] = [
   {
     Icon: Github,
     title: "Open source, top to bottom",
@@ -136,18 +135,16 @@ const pillars: CapabilityItem[] = [
   {
     Icon: Terminal,
     title: "A real terminal app",
-    desc: "zcrypt ships a full TUI alongside web and desktop, so you can manage an encrypted vault straight from the command line: handy for servers and power users.",
+    desc: "zcrypt ships a full TUI alongside web and desktop, so you can manage your encrypted drive straight from the command line: handy for servers and power users.",
   },
 ];
 
 export const protonDrive: VsData = {
-  slug: "proton-drive",
   otherName: "Proton Drive",
   hero: {
     eyebrow: "zcrypt vs Proton Drive",
-    headlineTop: "Both are end-to-end encrypted.",
-    headlineGradient: "Only one is yours to run.",
-    subtext: (
+    title: "Both are private. Only one is yours to run",
+    lede: (
       <>
         Proton Drive is a genuinely excellent, audited, zero-knowledge drive, and we respect it. The
         differences are narrower here and more about philosophy: zcrypt is open source <em>and</em>{" "}
@@ -155,7 +152,7 @@ export const protonDrive: VsData = {
         ships a terminal app.
       </>
     ),
-    secondaryLabel: "How the encryption works",
+    secondaryLabel: "See how it works",
     secondaryHref: "/features/encryption",
   },
   respectNote: (
@@ -167,14 +164,16 @@ export const protonDrive: VsData = {
       Proton gets anything wrong.
     </>
   ),
-  pillarsHeading: "Where zcrypt is different",
-  pillarsSubheading: (
-    <>The encryption story is similar. These four things are where zcrypt takes a different path.</>
-  ),
+  pillarsHead: {
+    eyebrow: "The differences",
+    title: "Where zcrypt goes its own way",
+    lede: "The encryption story is similar. These four things are where zcrypt takes a different path.",
+  },
   pillars,
   table: {
-    heading: "zcrypt vs Proton Drive, side by side",
-    subheading: (
+    eyebrow: "Side by side",
+    title: "zcrypt and Proton Drive, row by row",
+    lede: (
       <>
         Both check the privacy boxes. The differences cluster around hosting, storage ownership, and
         tooling.
@@ -189,7 +188,8 @@ export const protonDrive: VsData = {
     rows,
   },
   whenBetter: {
-    heading: "When Proton Drive is the better choice",
+    eyebrow: "The honest part",
+    title: "When Proton Drive is the better choice",
     paragraphs: [
       <>
         Proton Drive is a serious, well-built product, and for many people it&apos;s the smarter
@@ -203,8 +203,8 @@ export const protonDrive: VsData = {
       </>,
       <>
         If you value a{" "}
-        <strong className="text-[var(--color-text)]">single, fully managed privacy suite</strong>.
-        Drive, Mail, Calendar, and VPN under one audited provider in Swiss/EU jurisdiction. Proton
+        <strong className="text-[var(--color-text)]">single, fully managed privacy suite</strong>{" "}
+        (Drive, Mail, Calendar, and VPN under one audited provider in Swiss/EU jurisdiction), Proton
         delivers that as a cohesive package. zcrypt is focused on being an encrypted drive, not an
         ecosystem.
       </>,
@@ -225,14 +225,5 @@ export const protonDrive: VsData = {
     ],
   },
   related: VS_RELATED_LINKS,
-  closing: {
-    heading: "End-to-end encrypted, and entirely yours",
-    subtext:
-      "Open source and free. Bring a storage account you already own, or self-host the whole stack.",
-  },
-  breadcrumb: [
-    { name: "Home", url: SITE_URL },
-    { name: "Compare", url: `${SITE_URL}/vs/proton-drive` },
-    { name: "zcrypt vs Proton Drive", url: `${SITE_URL}/vs/proton-drive` },
-  ],
+  breadcrumb: vsBreadcrumb("proton-drive", "zcrypt vs Proton Drive"),
 };

@@ -4,8 +4,7 @@ import type { ReactNode } from "react";
 export interface TransfersPageData {
   hero: {
     eyebrow: string;
-    headlineTop: string;
-    headlineGradient: string;
+    title: string;
     subtext: ReactNode;
     secondaryLabel: string;
     secondaryHref: string;
@@ -33,8 +32,7 @@ export interface TransfersPageData {
 export const transfers: TransfersPageData = {
   hero: {
     eyebrow: "The transfer manager",
-    headlineTop: "Start it. Walk away.",
-    headlineGradient: "It picks up where it stopped.",
+    title: "Start it, walk away, it picks up again",
     subtext: (
       <>
         One docked panel tracks every upload and download. Live progress and ETA, pause and resume
