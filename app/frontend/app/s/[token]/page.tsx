@@ -8,6 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Shield, Lock, Download, Eye } from "@/lib/icons";
 import { formatBytes, saveBlob, concatChunks, extOf } from "@/lib/utils";
 import { keyFromFragment } from "@/lib/share-link";
+import { isSealed, openText, keyFromBytes, LOCKED } from "@/lib/sealed";
+import { resolveDownloadName, sniffFileType } from "@/lib/mime-sniff";
+import { fromBase64 } from "@/lib/crypto";
 import {
   ViewerCard,
   ViewerLoading,
@@ -52,6 +55,16 @@ function reportDecryptError(
   }
 }
 
+// The name is sealed (enc1:) under the share key from the URL fragment. An
+// unopenable name reads as empty so the download falls back to a sniffed one.
+async function openLinkName(raw: string | undefined, key: string | null): Promise<string> {
+  if (!raw) return "";
+  if (!isSealed(raw)) return raw;
+  if (!key) return "";
+  const name = await openText(raw, await keyFromBytes(fromBase64(key)));
+  return name === LOCKED ? "" : name;
+}
+
 function getPreviewType(filename: string): "image" | "video" | "audio" | "none" {
   const ext = extOf(filename);
   if (["jpg", "jpeg", "png", "gif", "webp", "bmp", "svg", "ico"].includes(ext)) return "image";
@@ -80,6 +93,9 @@ function getMimeType(filename: string): string | undefined {
     aac: "audio/aac",
     flac: "audio/flac",
     m4a: "audio/mp4",
+    pdf: "application/pdf",
+    zip: "application/zip",
+    txt: "text/plain",
   };
   return map[ext];
 }
@@ -96,6 +112,8 @@ export default function SharePage() {
   const [decryptedBlob, setDecryptedBlob] = useState<Blob | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [fileName, setFileName] = useState("");
+  // Older links carry no name; the saved name is then guessed from the bytes.
+  const [nameGuessed, setNameGuessed] = useState(false);
   const prevUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -106,6 +124,7 @@ export default function SharePage() {
     setShareKey(key);
 
     getShareInfo(token)
+      .then(async (data) => ({ ...data, file_name: await openLinkName(data.file_name, key) }))
       .then((data) => {
         setInfo(data);
         if (!data.valid) {
@@ -214,9 +233,13 @@ export default function SharePage() {
       }
     }
 
-    const mime = getMimeType(meta.original_name) || "application/octet-stream";
+    const openedName = await openLinkName(meta.original_name, shareKey);
+    setNameGuessed(!openedName);
+    const originalName = resolveDownloadName(openedName, fullFile);
+    const mime =
+      getMimeType(originalName) || sniffFileType(fullFile)?.mime || "application/octet-stream";
     const blob = new Blob([fullFile as BlobPart], { type: mime });
-    return { blob, originalName: meta.original_name };
+    return { blob, originalName };
   }, [token, shareKey, sharePassword]);
 
   // Shared entry-point wrapper for both actions below: guard the key, flip to
@@ -275,7 +298,7 @@ export default function SharePage() {
     [runDecrypt],
   );
 
-  const previewType = info ? getPreviewType(info.file_name) : "none";
+  const previewType = getPreviewType(fileName || info?.file_name || "");
   const isPreviewable = previewType !== "none";
 
   return (
@@ -426,6 +449,13 @@ export default function SharePage() {
           </DownloadCompletePanel>
         )}
       </ViewerCard>
+
+      {nameGuessed && (pageState === "done" || pageState === "preview") && (
+        <p className="mt-4 text-center text-xs text-[var(--color-text-muted)]">
+          This link was created before zcrypt kept file names in links, so the name was guessed. Ask
+          the sender to create a new link to get the original name.
+        </p>
+      )}
 
       {/* Footer */}
       <p className="text-center text-[10px] text-[var(--color-text-muted)] mt-6">

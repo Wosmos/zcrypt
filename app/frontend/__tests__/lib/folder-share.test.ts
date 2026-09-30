@@ -11,6 +11,7 @@ const {
   listFolderSubtree,
   deriveNameKey,
   decryptNameSafe,
+  decryptName,
   getAuthState,
   getPassphrase,
 } = vi.hoisted(() => ({
@@ -24,19 +25,22 @@ const {
   listFolderSubtree: vi.fn(),
   deriveNameKey: vi.fn(),
   decryptNameSafe: vi.fn(),
+  decryptName: vi.fn(),
   getAuthState: vi.fn(),
   getPassphrase: vi.fn(),
 }));
 
 vi.mock("@/lib/crypto", () => ({ generateCEK, resolveFileKey, wrapKey, toBase64, fromBase64 }));
 vi.mock("@/lib/api", () => ({ createFolderShare, getFileMeta, listFolderSubtree }));
-vi.mock("@/lib/name-crypto", () => ({ deriveNameKey, decryptNameSafe }));
+vi.mock("@/lib/name-crypto", () => ({ deriveNameKey, decryptNameSafe, decryptName }));
+vi.mock("@/hooks/useShares", () => ({ invalidateShares: vi.fn() }));
 vi.mock("@/store/auth", () => ({ useAuthStore: { getState: getAuthState } }));
 vi.mock("@/store/passphrase", () => ({ usePassphraseStore: { getState: () => ({ getPassphrase }) } }));
 // The share name is sealed under the folder key (covered by sealed.test.ts); pass it through here.
 vi.mock("@/lib/sealed", () => ({
   sealText: (t: string) => Promise.resolve(t),
   keyFromBytes: () => Promise.resolve({} as CryptoKey),
+  userNameKey: () => Promise.resolve(null),
 }));
 
 import { createFolderShareLink } from "@/lib/folder-share";
@@ -193,6 +197,44 @@ describe("createFolderShareLink", () => {
 
     expect(result.shared).toBe(1);
     expect(result.skipped).toBe(1);
+  });
+
+  describe("per-file names sealed under the folder key", () => {
+    it("opens each owner name with the vault name key and sends it sealed", async () => {
+      getAuthState.mockReturnValue({ user: { id: "u1" } });
+      getFileMeta
+        .mockResolvedValueOnce({ wrapped_cek: "w1", salt: "s", encrypted_name: "enc-a" })
+        .mockResolvedValueOnce({ wrapped_cek: "w2", salt: "s", original_name: "legacy.txt" })
+        .mockResolvedValueOnce({ wrapped_cek: "w3", salt: "s" });
+      resolveFileKey.mockResolvedValue(new Uint8Array([7]).buffer);
+      decryptName.mockResolvedValue("photo.png");
+
+      await createFolderShareLink(null, "F", [
+        { id: "a" },
+        { id: "b" },
+        { id: "c", original_name: "from-caller.pdf" },
+      ]);
+
+      expect(deriveNameKey).toHaveBeenCalledWith("correct-horse-battery", "u1");
+      const arg = createFolderShare.mock.calls[0][0] as { files: { name?: string }[] };
+      expect(arg.files.map((f) => f.name)).toEqual(["photo.png", "legacy.txt", "from-caller.pdf"]);
+    });
+
+    it("still shares (with legacy names) when the name key can't be derived", async () => {
+      getAuthState.mockReturnValue({ user: { id: "u1" } });
+      deriveNameKey.mockRejectedValue(new Error("pbkdf2"));
+      getFileMeta.mockResolvedValue({ wrapped_cek: "w", salt: "s", encrypted_name: "enc" });
+      resolveFileKey.mockResolvedValue(new Uint8Array([7]).buffer);
+
+      const result = await createFolderShareLink(null, "F", [
+        { id: "a", folder_id: "sub", original_name: "a.txt" },
+      ]);
+
+      expect(decryptName).not.toHaveBeenCalled();
+      expect(result.nestingIncomplete).toBe(false);
+      const arg = createFolderShare.mock.calls[0][0] as { files: { name?: string }[] };
+      expect(arg.files[0].name).toBe("a.txt");
+    });
   });
 
   describe("nested-folder path manifest (folderId + authenticated user)", () => {
