@@ -751,15 +751,47 @@ struct UpdateCheck {
     /// `.deb`/`.rpm` package): those manage their own updates outside the
     /// app. Always true on macOS/Windows.
     updatable: bool,
+    /// Set on mobile, where no in-app updater exists: the UI compares the
+    /// version itself and sends the user to the download page instead.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    channel: Option<&'static str>,
 }
 
-/// Desktop-only update check. Distinguishes "no update" from "check failed":
-/// a network or manifest error is returned as Err so the UI can say so instead
-/// of falsely reporting the app is current.
+/// Update check. Distinguishes "no update" from "check failed": a network or
+/// manifest error is returned as Err so the UI can say so instead of falsely
+/// reporting the app is current.
 #[tauri::command]
 async fn check_for_updates(app: tauri::AppHandle) -> Result<UpdateCheck, String> {
     let current_version = app.package_info().version.to_string();
+    platform_update_check(&app, current_version).await
+}
 
+/// Mobile has no updater backend, so this only reports the channel and leaves
+/// the version comparison to the UI rather than claiming "up to date".
+#[cfg(mobile)]
+async fn platform_update_check(
+    _app: &tauri::AppHandle,
+    current_version: String,
+) -> Result<UpdateCheck, String> {
+    Ok(UpdateCheck {
+        available: false,
+        current_version,
+        version: None,
+        notes: None,
+        updatable: false,
+        channel: Some(if cfg!(target_os = "android") {
+            "android"
+        } else {
+            "ios"
+        }),
+    })
+}
+
+#[cfg(desktop)]
+async fn platform_update_check(
+    app: &tauri::AppHandle,
+    current_version: String,
+) -> Result<UpdateCheck, String> {
     #[cfg(target_os = "linux")]
     if !running_as_appimage() {
         return Ok(UpdateCheck {
@@ -768,26 +800,25 @@ async fn check_for_updates(app: tauri::AppHandle) -> Result<UpdateCheck, String>
             version: None,
             notes: None,
             updatable: false,
+            channel: None,
         });
     }
 
-    #[cfg(desktop)]
-    {
-        use tauri_plugin_updater::UpdaterExt;
-        let updater = app.updater().map_err(|e| format!("updater: {e}"))?;
-        let update = updater
-            .check()
-            .await
-            .map_err(|e| format!("update check: {e}"))?;
-        if let Some(update) = update {
-            return Ok(UpdateCheck {
-                available: true,
-                current_version,
-                version: Some(update.version.clone()),
-                notes: update.body.clone(),
-                updatable: true,
-            });
-        }
+    use tauri_plugin_updater::UpdaterExt;
+    let updater = app.updater().map_err(|e| format!("updater: {e}"))?;
+    let update = updater
+        .check()
+        .await
+        .map_err(|e| format!("update check: {e}"))?;
+    if let Some(update) = update {
+        return Ok(UpdateCheck {
+            available: true,
+            current_version,
+            version: Some(update.version.clone()),
+            notes: update.body.clone(),
+            updatable: true,
+            channel: None,
+        });
     }
     Ok(UpdateCheck {
         available: false,
@@ -795,6 +826,7 @@ async fn check_for_updates(app: tauri::AppHandle) -> Result<UpdateCheck, String>
         version: None,
         notes: None,
         updatable: true,
+        channel: None,
     })
 }
 
