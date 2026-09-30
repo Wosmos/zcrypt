@@ -10,6 +10,7 @@ import {
   ArrowLeft as ArrowLeftData,
   ArrowRight as ArrowRightData,
   ArrowUp as ArrowUpData,
+  CompassIcon as CompassIconData,
   ArrowUpDown as ArrowUpDownData,
   ArrowUpRight01Icon as ArrowUpRight01IconData,
   BarChart as BarChartData,
@@ -179,6 +180,7 @@ export const FolderAdd = makeIcon(FolderAddIconData, "FolderAddIcon");
 export const Edit = makeIcon(EditData, "Edit");
 export const Trash2 = makeIcon(Trash2Data, "Trash2");
 export const Star = makeIcon(StarData, "Star");
+export const Compass = makeIcon(CompassIconData, "CompassIcon");
 export const Heart = makeIcon(HeartData, "Heart");
 export const Home = makeIcon(HomeData, "Home");
 export const Settings = makeIcon(SettingsData, "Settings");

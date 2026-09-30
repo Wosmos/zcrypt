@@ -61,6 +61,9 @@ describe("qk", () => {
     expect(qk.adminAudit(2, "login")).toEqual(["admin", "audit", 2, "login"]);
     expect(qk.adminDownloads("30")).toEqual(["admin", "downloads", "30"]);
     expect(qk.adminFeedback(20)).toEqual(["admin", "feedback", 20]);
+    expect(qk.adminBugReports("open", 20)).toEqual(["admin", "bug-reports", "open", 20]);
+    expect(qk.adminReviews("pending", 20)).toEqual(["admin", "reviews", "pending", 20]);
+    expect(qk.myReview).toEqual(["review", "mine"]);
     expect(qk.adminPlans).toEqual(["admin", "plans"]);
     expect(qk.devices("d1")).toEqual(["tools", "devices", "d1"]);
     for (const k of [qk.syncFolders, qk.expiring, qk.integrity, qk.snapshots]) expect(k[0]).toBe("tools");

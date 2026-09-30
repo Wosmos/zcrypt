@@ -90,6 +90,14 @@ const cases: Case[] = [
   // feedback
   { name: "submitFeedback", run: () => api.submitFeedback({ rating: 5, message: "m", context: "c" }), path: "/api/feedback", method: "POST" },
   { name: "getFeedbackStatus", run: () => api.getFeedbackStatus(), path: "/api/feedback/status" },
+  { name: "submitBugReport", run: () => api.submitBugReport({ description: "d", app_version: "1", platform: "web", route: "/", user_agent: "ua" }), path: "/api/feedback/bug", method: "POST" },
+  { name: "adminListBugReports", run: () => api.adminListBugReports(""), path: "/api/admin/bug-reports?limit=20&offset=0" },
+  { name: "adminListBugReports (status)", run: () => api.adminListBugReports("fixed", 10, 20), path: "/api/admin/bug-reports?limit=10&offset=20&status=fixed" },
+  { name: "adminUpdateBugReport", run: () => api.adminUpdateBugReport("b1", "triaged"), path: "/api/admin/bug-reports/b1", method: "PATCH" },
+  { name: "submitReview", run: () => api.submitReview({ rating: 5, quote: "q", display_name: "n", public_ok: true }), path: "/api/reviews", method: "POST" },
+  { name: "adminListReviews", run: () => api.adminListReviews(""), path: "/api/admin/reviews?limit=20&offset=0" },
+  { name: "adminListReviews (status)", run: () => api.adminListReviews("approved", 10, 20), path: "/api/admin/reviews?limit=10&offset=20&status=approved" },
+  { name: "adminUpdateReview", run: () => api.adminUpdateReview("r1", "approved"), path: "/api/admin/reviews/r1", method: "PATCH" },
   // shares (authenticated management)
   { name: "createShare", run: () => api.createShare({ file_id: "f" } as never), path: "/api/shares", method: "POST" },
   { name: "listShares", run: () => api.listShares(), path: "/api/shares" },

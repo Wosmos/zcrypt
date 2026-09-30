@@ -122,12 +122,12 @@ func TestSharedVaultLifecycle(t *testing.T) {
 	t.Run("a non-owner cannot delete someone else's space", func(t *testing.T) {
 		id := ts.createSpace(owner, "Owner Only", 0)
 		other := ts.registerAndLogin("space-other-deleter@example.com", "SecurePass@123!")
-		// DeleteSharedVault is scoped by owner_id, so this matches no rows and is a
-		// harmless no-op. The guarantee: the space still exists for the real owner.
-		ts.DELETE("/api/shared-vaults/"+id, other).Body.Close()
-		resp := ts.GET("/api/shared-vaults/"+id, owner)
-		assert.Equal(t, http.StatusOK, resp.StatusCode, "owner's space survives a non-owner delete")
+		resp := ts.DELETE("/api/shared-vaults/"+id, other)
+		assert.Equal(t, http.StatusForbidden, resp.StatusCode)
 		resp.Body.Close()
+		getResp := ts.GET("/api/shared-vaults/"+id, owner)
+		assert.Equal(t, http.StatusOK, getResp.StatusCode, "owner's space survives a non-owner delete")
+		getResp.Body.Close()
 	})
 
 	t.Run("create with an empty name is rejected", func(t *testing.T) {
@@ -169,12 +169,11 @@ func TestSharedVaultMembership(t *testing.T) {
 		assert.True(t, found, "invited member sees the shared space")
 	})
 
-	t.Run("a non-owner member cannot add other members", func(t *testing.T) {
+	t.Run("an editor cannot add other members", func(t *testing.T) {
 		id := ts.createSpace(owner, "No Escalation", 0)
-		// Add `member` as an admin: even admin is not owner.
 		requireStatus(t, ts.POST("/api/shared-vaults/"+id+"/members", map[string]interface{}{
 			"email":             "mem-invitee@example.com",
-			"role":              "admin",
+			"role":              "editor",
 			"wrapped_space_key": b64("k"),
 		}, owner), http.StatusCreated)
 
@@ -185,8 +184,8 @@ func TestSharedVaultMembership(t *testing.T) {
 			"email":             "mem-third@example.com",
 			"role":              "viewer",
 			"wrapped_space_key": b64("k"),
-		}, member) // member is only an admin, not the owner
-		assert.Equal(t, http.StatusForbidden, resp.StatusCode, "only the owner may add members")
+		}, member)
+		assert.Equal(t, http.StatusForbidden, resp.StatusCode, "editors may not add members")
 		resp.Body.Close()
 	})
 
@@ -263,10 +262,10 @@ func TestSharedVaultMembership(t *testing.T) {
 		resp.Body.Close()
 	})
 
-	t.Run("a non-owner cannot remove members", func(t *testing.T) {
+	t.Run("an editor cannot remove members", func(t *testing.T) {
 		id := ts.createSpace(owner, "RemoveGuard", 0)
 		requireStatus(t, ts.POST("/api/shared-vaults/"+id+"/members", map[string]interface{}{
-			"email": "mem-invitee@example.com", "role": "admin", "wrapped_space_key": b64("k"),
+			"email": "mem-invitee@example.com", "role": "editor", "wrapped_space_key": b64("k"),
 		}, owner), http.StatusCreated)
 		detail := ts.GET("/api/shared-vaults/"+id, owner)
 		dbody := requireStatus(t, detail, http.StatusOK)
@@ -279,13 +278,13 @@ func TestSharedVaultMembership(t *testing.T) {
 		require.NoError(t, json.Unmarshal(dbody, &d))
 		var memberUID string
 		for _, m := range d.Members {
-			if m.Email == "mem-invitee@example.com" {
+			if m.Email == "mem-owner@example.com" {
 				memberUID = m.UserID
 			}
 		}
 		require.NotEmpty(t, memberUID)
 
-		resp := ts.DELETE("/api/shared-vaults/"+id+"/members/"+memberUID, member) // member=admin, not owner
+		resp := ts.DELETE("/api/shared-vaults/"+id+"/members/"+memberUID, member)
 		assert.Equal(t, http.StatusForbidden, resp.StatusCode)
 		resp.Body.Close()
 	})
@@ -521,6 +520,7 @@ func TestSharedVaultRotation(t *testing.T) {
 	})
 
 	t.Run("rotation that omits a current member is rejected (anti-lockout)", func(t *testing.T) {
+		requireStatus(t, ts.POST("/api/keys", publishKeyBody(), member), http.StatusOK)
 		id := ts.createSpace(owner, "RotatePartial", 0)
 		requireStatus(t, ts.POST("/api/shared-vaults/"+id+"/members", map[string]interface{}{
 			"email": "rot-member@example.com", "role": "editor", "wrapped_space_key": b64("old"),
@@ -533,21 +533,332 @@ func TestSharedVaultRotation(t *testing.T) {
 			"members": []map[string]string{{"user_id": ownerID, "wrapped_space_key": b64("new")}},
 			"files":   []interface{}{},
 		}, owner)
-		assert.Equal(t, http.StatusInternalServerError, resp.StatusCode,
+		assert.Equal(t, http.StatusConflict, resp.StatusCode,
 			"the server refuses a partial re-key that would strand a member")
 		resp.Body.Close()
 	})
 
-	t.Run("a non-owner cannot rotate the space key", func(t *testing.T) {
+	t.Run("an editor cannot rotate the space key", func(t *testing.T) {
 		id := ts.createSpace(owner, "RotateGuard", 0)
 		requireStatus(t, ts.POST("/api/shared-vaults/"+id+"/members", map[string]interface{}{
-			"email": "rot-member@example.com", "role": "admin", "wrapped_space_key": b64("old"),
+			"email": "rot-member@example.com", "role": "editor", "wrapped_space_key": b64("old"),
 		}, owner), http.StatusCreated)
 
 		resp := ts.POST("/api/shared-vaults/"+id+"/rotate", map[string]interface{}{
 			"members": []map[string]string{}, "files": []interface{}{},
-		}, member) // admin, not owner
+		}, member)
 		assert.Equal(t, http.StatusForbidden, resp.StatusCode)
 		resp.Body.Close()
+	})
+}
+
+type spaceMember struct {
+	UserID string `json:"user_id"`
+	Email  string `json:"email"`
+	Role   string `json:"role"`
+}
+
+func (ts *testServer) spaceMembers(token, id string) []spaceMember {
+	ts.t.Helper()
+	body := requireStatus(ts.t, ts.GET("/api/shared-vaults/"+id, token), http.StatusOK)
+	var d struct {
+		Members []spaceMember `json:"members"`
+	}
+	require.NoError(ts.t, json.Unmarshal(body, &d))
+	return d.Members
+}
+
+func (ts *testServer) memberByEmail(token, id, email string) spaceMember {
+	ts.t.Helper()
+	for _, m := range ts.spaceMembers(token, id) {
+		if m.Email == email {
+			return m
+		}
+	}
+	ts.t.Fatalf("member %s not found in space %s", email, id)
+	return spaceMember{}
+}
+
+func (ts *testServer) invite(token, id, email, role string) *http.Response {
+	ts.t.Helper()
+	return ts.POST("/api/shared-vaults/"+id+"/members", map[string]interface{}{
+		"email": email, "role": role, "wrapped_space_key": b64("k-" + email),
+	}, token)
+}
+
+func TestSharedVaultRoleParity(t *testing.T) {
+	ts := setupTestServer(t)
+	owner := ts.registerAndLogin("rp-owner@example.com", "SecurePass@123!")
+	admin := ts.registerAndLogin("rp-admin@example.com", "SecurePass@123!")
+	admin2 := ts.registerAndLogin("rp-admin2@example.com", "SecurePass@123!")
+	editor := ts.registerAndLogin("rp-editor@example.com", "SecurePass@123!")
+	viewer := ts.registerAndLogin("rp-viewer@example.com", "SecurePass@123!")
+	_ = ts.registerAndLogin("rp-newbie@example.com", "SecurePass@123!")
+	_ = admin2
+
+	newSpace := func(name string) string {
+		id := ts.createSpace(owner, name, 0)
+		requireStatus(t, ts.invite(owner, id, "rp-admin@example.com", "admin"), http.StatusCreated)
+		requireStatus(t, ts.invite(owner, id, "rp-admin2@example.com", "admin"), http.StatusCreated)
+		requireStatus(t, ts.invite(owner, id, "rp-editor@example.com", "editor"), http.StatusCreated)
+		requireStatus(t, ts.invite(owner, id, "rp-viewer@example.com", "viewer"), http.StatusCreated)
+		return id
+	}
+	status := func(resp *http.Response) int {
+		defer resp.Body.Close()
+		return resp.StatusCode
+	}
+
+	t.Run("an admin can invite viewers and editors but not admins", func(t *testing.T) {
+		id := newSpace("AdminInvites")
+		assert.Equal(t, http.StatusCreated, status(ts.invite(admin, id, "rp-newbie@example.com", "viewer")))
+		assert.Equal(t, http.StatusCreated, status(ts.invite(admin, id, "rp-newbie@example.com", "editor")))
+		assert.Equal(t, http.StatusForbidden, status(ts.invite(admin, id, "rp-newbie@example.com", "admin")))
+	})
+
+	t.Run("an admin cannot demote an admin by re-inviting them", func(t *testing.T) {
+		id := newSpace("NoReinviteDemote")
+		assert.Equal(t, http.StatusForbidden, status(ts.invite(admin, id, "rp-admin2@example.com", "viewer")))
+		assert.Equal(t, "admin", ts.memberByEmail(owner, id, "rp-admin2@example.com").Role)
+	})
+
+	t.Run("editors and viewers cannot invite", func(t *testing.T) {
+		id := newSpace("NoInvite")
+		assert.Equal(t, http.StatusForbidden, status(ts.invite(editor, id, "rp-newbie@example.com", "viewer")))
+		assert.Equal(t, http.StatusForbidden, status(ts.invite(viewer, id, "rp-newbie@example.com", "viewer")))
+	})
+
+	t.Run("editors and viewers cannot remove members", func(t *testing.T) {
+		id := newSpace("NoRemove")
+		target := ts.memberByEmail(owner, id, "rp-viewer@example.com")
+		assert.Equal(t, http.StatusForbidden, status(ts.DELETE("/api/shared-vaults/"+id+"/members/"+target.UserID, editor)))
+		other := ts.memberByEmail(owner, id, "rp-editor@example.com")
+		assert.Equal(t, http.StatusForbidden, status(ts.DELETE("/api/shared-vaults/"+id+"/members/"+other.UserID, viewer)))
+	})
+
+	t.Run("an admin can remove an editor but not an admin or the owner", func(t *testing.T) {
+		id := newSpace("AdminRemoves")
+		editorM := ts.memberByEmail(owner, id, "rp-editor@example.com")
+		admin2M := ts.memberByEmail(owner, id, "rp-admin2@example.com")
+		ownerM := ts.memberByEmail(owner, id, "rp-owner@example.com")
+		assert.Equal(t, http.StatusForbidden, status(ts.DELETE("/api/shared-vaults/"+id+"/members/"+admin2M.UserID, admin)))
+		assert.Equal(t, http.StatusForbidden, status(ts.DELETE("/api/shared-vaults/"+id+"/members/"+ownerM.UserID, admin)))
+		assert.Equal(t, http.StatusOK, status(ts.DELETE("/api/shared-vaults/"+id+"/members/"+editorM.UserID, admin)))
+	})
+
+	t.Run("the owner can never be removed, even by themselves", func(t *testing.T) {
+		id := newSpace("OwnerStays")
+		ownerM := ts.memberByEmail(owner, id, "rp-owner@example.com")
+		assert.Equal(t, http.StatusNotFound, status(ts.DELETE("/api/shared-vaults/"+id+"/members/"+ownerM.UserID, owner)))
+	})
+
+	t.Run("a member can leave a space on their own", func(t *testing.T) {
+		id := newSpace("Leave")
+		v := ts.memberByEmail(owner, id, "rp-viewer@example.com")
+		assert.Equal(t, http.StatusOK, status(ts.DELETE("/api/shared-vaults/"+id+"/members/"+v.UserID, viewer)))
+		assert.Equal(t, http.StatusNotFound, status(ts.GET("/api/shared-vaults/"+id, viewer)))
+	})
+
+	t.Run("role changes: admin manages editors and viewers, only owner manages admins", func(t *testing.T) {
+		id := newSpace("Roles")
+		editorM := ts.memberByEmail(owner, id, "rp-editor@example.com")
+		viewerM := ts.memberByEmail(owner, id, "rp-viewer@example.com")
+		admin2M := ts.memberByEmail(owner, id, "rp-admin2@example.com")
+		path := func(uid string) string { return "/api/shared-vaults/" + id + "/members/" + uid }
+
+		assert.Equal(t, http.StatusForbidden, status(ts.patchJSON(path(viewerM.UserID), map[string]string{"role": "editor"}, editor)))
+		assert.Equal(t, http.StatusForbidden, status(ts.patchJSON(path(editorM.UserID), map[string]string{"role": "viewer"}, viewer)))
+
+		assert.Equal(t, http.StatusOK, status(ts.patchJSON(path(viewerM.UserID), map[string]string{"role": "editor"}, admin)))
+		assert.Equal(t, "editor", ts.memberByEmail(owner, id, "rp-viewer@example.com").Role)
+		assert.Equal(t, http.StatusForbidden, status(ts.patchJSON(path(viewerM.UserID), map[string]string{"role": "admin"}, admin)))
+		assert.Equal(t, http.StatusForbidden, status(ts.patchJSON(path(admin2M.UserID), map[string]string{"role": "viewer"}, admin)))
+		assert.Equal(t, http.StatusBadRequest, status(ts.patchJSON(path(viewerM.UserID), map[string]string{"role": "root"}, owner)))
+
+		assert.Equal(t, http.StatusOK, status(ts.patchJSON(path(editorM.UserID), map[string]string{"role": "admin"}, owner)))
+		assert.Equal(t, http.StatusOK, status(ts.patchJSON(path(admin2M.UserID), map[string]string{"role": "viewer"}, owner)))
+	})
+
+	t.Run("the owner's role cannot be changed", func(t *testing.T) {
+		id := newSpace("OwnerRole")
+		ownerM := ts.memberByEmail(owner, id, "rp-owner@example.com")
+		assert.Equal(t, http.StatusNotFound, status(ts.patchJSON("/api/shared-vaults/"+id+"/members/"+ownerM.UserID, map[string]string{"role": "viewer"}, owner)))
+	})
+
+	t.Run("rename: owner and admin yes, editor and viewer no", func(t *testing.T) {
+		id := newSpace("Rename")
+		path := "/api/shared-vaults/" + id
+		assert.Equal(t, http.StatusForbidden, status(ts.patchJSON(path, map[string]string{"name": "x"}, editor)))
+		assert.Equal(t, http.StatusForbidden, status(ts.patchJSON(path, map[string]string{"name": "x"}, viewer)))
+		assert.Equal(t, http.StatusBadRequest, status(ts.patchJSON(path, map[string]string{"name": "  "}, admin)))
+		assert.Equal(t, http.StatusOK, status(ts.patchJSON(path, map[string]string{"name": "Renamed"}, admin)))
+		body := requireStatus(t, ts.GET(path, owner), http.StatusOK)
+		var d struct {
+			Name        string `json:"name"`
+			Description string `json:"description"`
+		}
+		require.NoError(t, json.Unmarshal(body, &d))
+		assert.Equal(t, "Renamed", d.Name)
+		assert.Equal(t, "test space", d.Description, "untouched fields are kept")
+		assert.Equal(t, http.StatusOK, status(ts.patchJSON(path, map[string]string{"name": "Again"}, owner)))
+	})
+
+	t.Run("only the owner can delete the space", func(t *testing.T) {
+		id := newSpace("DeleteGuard")
+		for _, tok := range []string{admin, editor, viewer} {
+			assert.Equal(t, http.StatusForbidden, status(ts.DELETE("/api/shared-vaults/"+id, tok)))
+		}
+		assert.Equal(t, http.StatusOK, status(ts.GET("/api/shared-vaults/"+id, owner)))
+		assert.Equal(t, http.StatusOK, status(ts.DELETE("/api/shared-vaults/"+id, owner)))
+	})
+
+	t.Run("only the owner can rotate the key; admins and editors cannot", func(t *testing.T) {
+		id := newSpace("RotateRoles")
+		grants := []map[string]string{}
+		for _, m := range ts.spaceMembers(owner, id) {
+			grants = append(grants, map[string]string{"user_id": m.UserID, "wrapped_space_key": b64("n-" + m.UserID)})
+		}
+		body := map[string]interface{}{"members": grants, "files": []interface{}{}}
+		assert.Equal(t, http.StatusForbidden, status(ts.POST("/api/shared-vaults/"+id+"/rotate", body, editor)))
+		assert.Equal(t, http.StatusForbidden, status(ts.POST("/api/shared-vaults/"+id+"/rotate", body, admin)))
+		assert.Equal(t, http.StatusOK, status(ts.POST("/api/shared-vaults/"+id+"/rotate", body, owner)))
+	})
+
+	t.Run("editors can add and remove files, viewers cannot remove them", func(t *testing.T) {
+		ts.enableMockStorage("rp-editor@example.com")
+		id := newSpace("FileRoles")
+		f := ts.uploadReadyFile(editor, "e.txt", 40)
+		assert.Equal(t, http.StatusCreated, status(ts.POST("/api/shared-vaults/"+id+"/files", map[string]interface{}{"file_id": f, "wrapped_cek": b64("x")}, editor)))
+		assert.Equal(t, http.StatusForbidden, status(ts.DELETE("/api/shared-vaults/"+id+"/files/"+f, viewer)))
+		assert.Equal(t, http.StatusOK, status(ts.DELETE("/api/shared-vaults/"+id+"/files/"+f, editor)))
+	})
+}
+
+func TestSharedVaultRevocation(t *testing.T) {
+	ts := setupTestServer(t)
+	owner := ts.registerAndLogin("rv-owner@example.com", "SecurePass@123!")
+	ts.enableMockStorage("rv-owner@example.com")
+	member := ts.registerAndLogin("rv-member@example.com", "SecurePass@123!")
+	keyless := ts.registerAndLogin("rv-keyless@example.com", "SecurePass@123!")
+	_ = keyless
+	requireStatus(t, ts.POST("/api/keys", publishKeyBody(), owner), http.StatusOK)
+	requireStatus(t, ts.POST("/api/keys", publishKeyBody(), member), http.StatusOK)
+
+	detail := func(id string) (needs bool, members []spaceMember) {
+		body := requireStatus(t, ts.GET("/api/shared-vaults/"+id, owner), http.StatusOK)
+		var d struct {
+			NeedsRotation bool          `json:"needs_rotation"`
+			Members       []spaceMember `json:"members"`
+		}
+		require.NoError(t, json.Unmarshal(body, &d))
+		return d.NeedsRotation, d.Members
+	}
+	rotateBody := func(id string, omit string) map[string]interface{} {
+		_, ms := detail(id)
+		grants := []map[string]string{}
+		for _, m := range ms {
+			if m.UserID == omit {
+				continue
+			}
+			grants = append(grants, map[string]string{"user_id": m.UserID, "wrapped_space_key": b64("n-" + m.UserID)})
+		}
+		return map[string]interface{}{"members": grants, "files": []map[string]string{}}
+	}
+
+	t.Run("removal blocks the member immediately and flags the space for rotation", func(t *testing.T) {
+		fileID := ts.uploadReadyFile(owner, "secret.bin", 40)
+		id := ts.createSpace(owner, "Revoke", 0)
+		requireStatus(t, ts.invite(owner, id, "rv-member@example.com", "viewer"), http.StatusCreated)
+		requireStatus(t, ts.POST("/api/shared-vaults/"+id+"/files", map[string]interface{}{"file_id": fileID, "wrapped_cek": b64("c")}, owner), http.StatusCreated)
+		resp := ts.GET("/api/files/"+fileID+"/chunks/0", member)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		resp.Body.Close()
+
+		m := ts.memberByEmail(owner, id, "rv-member@example.com")
+		requireStatus(t, ts.DELETE("/api/shared-vaults/"+id+"/members/"+m.UserID, owner), http.StatusOK)
+
+		for _, path := range []string{"/api/shared-vaults/" + id, "/api/files/" + fileID + "/meta", "/api/files/" + fileID + "/chunks/0"} {
+			r := ts.GET(path, member)
+			assert.Equal(t, http.StatusNotFound, r.StatusCode, path)
+			r.Body.Close()
+		}
+		r := ts.GET("/api/shared-vaults", member)
+		lb := requireStatus(t, r, http.StatusOK)
+		assert.NotContains(t, string(lb), id)
+
+		needs, _ := detail(id)
+		assert.True(t, needs, "space is flagged until the key is rotated")
+	})
+
+	t.Run("new files are refused until an admin rotates, then writes resume", func(t *testing.T) {
+		id := ts.createSpace(owner, "RotateGate", 0)
+		requireStatus(t, ts.invite(owner, id, "rv-member@example.com", "editor"), http.StatusCreated)
+		m := ts.memberByEmail(owner, id, "rv-member@example.com")
+		requireStatus(t, ts.DELETE("/api/shared-vaults/"+id+"/members/"+m.UserID, owner), http.StatusOK)
+
+		f := ts.uploadReadyFile(owner, "after.bin", 40)
+		resp := ts.POST("/api/shared-vaults/"+id+"/files", map[string]interface{}{"file_id": f, "wrapped_cek": b64("c")}, owner)
+		assert.Equal(t, http.StatusConflict, resp.StatusCode)
+		resp.Body.Close()
+
+		requireStatus(t, ts.POST("/api/shared-vaults/"+id+"/rotate", rotateBody(id, ""), owner), http.StatusOK)
+		needs, _ := detail(id)
+		assert.False(t, needs, "rotation clears the flag")
+		requireStatus(t, ts.POST("/api/shared-vaults/"+id+"/files", map[string]interface{}{"file_id": f, "wrapped_cek": b64("c")}, owner), http.StatusCreated)
+	})
+
+	t.Run("rotation must re-wrap every shared file", func(t *testing.T) {
+		id := ts.createSpace(owner, "RotateFiles", 0)
+		f := ts.uploadReadyFile(owner, "w.bin", 40)
+		requireStatus(t, ts.POST("/api/shared-vaults/"+id+"/files", map[string]interface{}{"file_id": f, "wrapped_cek": b64("c")}, owner), http.StatusCreated)
+		resp := ts.POST("/api/shared-vaults/"+id+"/rotate", rotateBody(id, ""), owner)
+		assert.Equal(t, http.StatusConflict, resp.StatusCode, "omitting a file would strand it on the old key")
+		resp.Body.Close()
+
+		body := rotateBody(id, "")
+		body["files"] = []map[string]string{{"file_id": f, "wrapped_cek": b64("new"), "wrapped_name": ""}}
+		requireStatus(t, ts.POST("/api/shared-vaults/"+id+"/rotate", body, owner), http.StatusOK)
+	})
+
+	t.Run("a member without a published key may be omitted and loses their grant", func(t *testing.T) {
+		id := ts.createSpace(owner, "RotateKeyless", 0)
+		requireStatus(t, ts.invite(owner, id, "rv-keyless@example.com", "viewer"), http.StatusCreated)
+		k := ts.memberByEmail(owner, id, "rv-keyless@example.com")
+		requireStatus(t, ts.POST("/api/shared-vaults/"+id+"/rotate", rotateBody(id, k.UserID), owner), http.StatusOK)
+
+		body := requireStatus(t, ts.GET("/api/shared-vaults/"+id, keyless), http.StatusOK)
+		var d struct {
+			WrappedSpaceKey string `json:"wrapped_space_key"`
+		}
+		require.NoError(t, json.Unmarshal(body, &d))
+		assert.Empty(t, d.WrappedSpaceKey, "the keyless member is not handed the new key")
+	})
+
+	t.Run("list carries card stats", func(t *testing.T) {
+		id := ts.createSpace(owner, "Stats", 0)
+		requireStatus(t, ts.invite(owner, id, "rv-member@example.com", "viewer"), http.StatusCreated)
+		f := ts.uploadReadyFile(owner, "s.bin", 40)
+		requireStatus(t, ts.POST("/api/shared-vaults/"+id+"/files", map[string]interface{}{"file_id": f, "wrapped_cek": b64("c")}, owner), http.StatusCreated)
+		body := requireStatus(t, ts.GET("/api/shared-vaults", owner), http.StatusOK)
+		var vs []struct {
+			ID            string `json:"id"`
+			MemberCount   int    `json:"member_count"`
+			FileCount     int    `json:"file_count"`
+			UsedBytes     int64  `json:"used_bytes"`
+			MemberPreview []struct {
+				Username string `json:"username"`
+			} `json:"member_preview"`
+		}
+		require.NoError(t, json.Unmarshal(body, &vs))
+		for _, v := range vs {
+			if v.ID == id {
+				assert.Equal(t, 2, v.MemberCount)
+				assert.Equal(t, 1, v.FileCount)
+				assert.Equal(t, int64(40), v.UsedBytes)
+				assert.Len(t, v.MemberPreview, 2)
+				return
+			}
+		}
+		t.Fatal("space missing from list")
 	})
 }

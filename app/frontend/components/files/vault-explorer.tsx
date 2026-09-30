@@ -48,6 +48,7 @@
  */
 
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import type { FileMetadata } from "@/types";
 import { useFolders, type DecryptedFolder } from "@/hooks/useFolders";
@@ -191,12 +192,20 @@ function ColHeader({
   onSort: (f: SortField) => void;
   className?: string;
 }) {
+  const t = useTranslations("explorer");
   const isActive = field === sortField;
   return (
     <button
       type="button"
       onClick={() => onSort(field)}
-      aria-label={`Sort by ${label}${isActive ? `, currently ${sortDir === "asc" ? "ascending" : "descending"}` : ""}`}
+      aria-label={
+        isActive
+          ? t("sortByCurrent", {
+              label,
+              direction: sortDir === "asc" ? t("ascending") : t("descending"),
+            })
+          : t("sortBy", { label })
+      }
       className={cn(
         "flex items-center gap-1.5 rounded text-xs font-medium text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)]",
         className,
@@ -260,6 +269,9 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
       breadcrumb,
       currentFolderId,
     } = useFolders();
+    const t = useTranslations("explorer");
+    const tc = useTranslations("common");
+    const tp = useTranslations("passphrase");
 
     // Opening a folder is gated by the page when `onOpenFolderRequest` is supplied
     // (a protected folder verifies its password before navigating in). Otherwise
@@ -688,7 +700,9 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
       moveFolder(item.id, destId)
         .then(() => refreshFolders())
         .catch((err) => {
-          toast.error(err instanceof Error ? err.message : `Couldn't move "${prevName}"`);
+          toast.error(
+            err instanceof Error ? err.message : t("toastMoveFailed", { name: prevName }),
+          );
           void refreshFolders();
         });
     };
@@ -959,7 +973,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
         setShowCreate(false);
         setNewName("");
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to create folder");
+        toast.error(err instanceof Error ? err.message : t("toastCreateFolderFailed"));
       } finally {
         setBusy(false);
       }
@@ -974,7 +988,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
         await renameFolder(renameTarget.id, name);
         setRenameTarget(null);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to rename folder");
+        toast.error(err instanceof Error ? err.message : t("toastRenameFolderFailed"));
       } finally {
         setBusy(false);
       }
@@ -994,7 +1008,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
         await apiRenameFile(renameFileTarget.id, name);
         setRenameFileTarget(null);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to rename file");
+        toast.error(err instanceof Error ? err.message : t("toastRenameFileFailed"));
       } finally {
         setRenameFileBusy(false);
       }
@@ -1019,7 +1033,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
         }
         setCustomizeTarget(null);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to update customization");
+        toast.error(err instanceof Error ? err.message : t("toastCustomizeFailed"));
         throw err;
       }
     };
@@ -1031,7 +1045,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
         await deleteFolder(deleteTarget.id);
         setDeleteTarget(null);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to delete folder");
+        toast.error(err instanceof Error ? err.message : t("toastDeleteFolderFailed"));
       } finally {
         setBusy(false);
       }
@@ -1048,7 +1062,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
       const passphrase = usePassphraseStore.getState().getPassphrase();
       const user = useAuthStore.getState().user;
       if (!passphrase || !user) {
-        toast.error("Unlock your vault to create a folder.");
+        toast.error(t("toastUnlockToCreate"));
         throw new Error("locked");
       }
       try {
@@ -1069,7 +1083,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
         onMoveFile?.(target.id, folder.id);
         setCombinePair(null);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Couldn't create the folder");
+        toast.error(err instanceof Error ? err.message : t("toastCreateFolderFailedShort"));
         throw err;
       }
     };
@@ -1334,17 +1348,17 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
         ) : isEmptyFolder ? (
           <EmptyState
             icon={<FolderIcon className="h-7 w-7 text-[var(--color-text-muted)]" />}
-            title="This folder is empty"
-            description="Upload encrypted files or create a folder to organize them. Names are end-to-end encrypted."
+            title={t("emptyTitle")}
+            description={t("emptyDescription")}
             action={
               <div className="flex items-center justify-center gap-2">
                 {onUploadClick && (
                   <Button size="sm" onClick={onUploadClick}>
-                    Upload files
+                    {t("uploadFiles")}
                   </Button>
                 )}
                 <Button variant="secondary" size="sm" onClick={startCreate}>
-                  New folder
+                  {t("newFolder")}
                 </Button>
               </div>
             }
@@ -1352,11 +1366,13 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
         ) : isNoResults ? (
           <EmptyState
             icon={<Search className="h-7 w-7 text-[var(--color-text-muted)]" />}
-            title="No matches"
+            title={t("noMatches")}
             description={
               hasActiveFilters(filters)
-                ? `No matching items${search ? ` for "${search}"` : ""} in this folder.`
-                : `Nothing matches "${search}" in this folder.`
+                ? search
+                  ? t("noMatchesFilteredFor", { search })
+                  : t("noMatchesFiltered")
+                : t("noMatchesSearch", { search })
             }
             action={
               <Button
@@ -1367,7 +1383,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
                   setFilters(EMPTY_ENTRY_FILTERS);
                 }}
               >
-                Clear filters
+                {t("clearFilters")}
               </Button>
             }
           />
@@ -1377,7 +1393,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
             <div className="hidden items-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2.5 sm:flex">
               <span className="w-9 flex-shrink-0" />
               <ColHeader
-                label="Name"
+                label={t("colName")}
                 field="name"
                 sortField={sortField}
                 sortDir={sortDir}
@@ -1385,7 +1401,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
                 className="flex-1"
               />
               <ColHeader
-                label="Type"
+                label={t("colType")}
                 field="type"
                 sortField={sortField}
                 sortDir={sortDir}
@@ -1393,7 +1409,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
                 className="w-[110px] flex-shrink-0"
               />
               <ColHeader
-                label="Size"
+                label={t("colSize")}
                 field="size"
                 sortField={sortField}
                 sortDir={sortDir}
@@ -1401,7 +1417,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
                 className="w-[80px] flex-shrink-0 justify-end"
               />
               <ColHeader
-                label="Saved"
+                label={t("colSaved")}
                 field="saved"
                 sortField={sortField}
                 sortDir={sortDir}
@@ -1409,7 +1425,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
                 className="hidden w-[64px] flex-shrink-0 justify-end md:flex"
               />
               <ColHeader
-                label="Modified"
+                label={t("colModified")}
                 field="date"
                 sortField={sortField}
                 sortDir={sortDir}
@@ -1482,14 +1498,14 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
         <Dialog open={showCreate} onOpenChange={(o) => !o && setShowCreate(false)}>
           <DialogContent className={DIALOG_PANEL}>
             <DialogHeader>
-              <DialogTitle>New folder</DialogTitle>
+              <DialogTitle>{t("newFolder")}</DialogTitle>
               <DialogDescription className="text-[var(--color-text-secondary)]">
-                The folder name is encrypted end-to-end before it leaves your device.
+                {t("newFolderDescription")}
               </DialogDescription>
             </DialogHeader>
             <Input
               autoFocus
-              placeholder="Folder name"
+              placeholder={t("folderName")}
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleCreate()}
@@ -1502,10 +1518,10 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
                 onClick={() => setShowCreate(false)}
                 disabled={busy}
               >
-                Cancel
+                {tc("cancel")}
               </Button>
               <Button size="sm" onClick={handleCreate} disabled={busy || !newName.trim()}>
-                {busy ? "Creating..." : "Create"}
+                {busy ? tc("creating") : tc("create")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -1515,11 +1531,11 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
         <Dialog open={!!renameTarget} onOpenChange={(o) => !o && setRenameTarget(null)}>
           <DialogContent className={DIALOG_PANEL}>
             <DialogHeader>
-              <DialogTitle>Rename folder</DialogTitle>
+              <DialogTitle>{t("renameFolder")}</DialogTitle>
             </DialogHeader>
             <Input
               autoFocus
-              placeholder="Folder name"
+              placeholder={t("folderName")}
               value={renameValue}
               onChange={(e) => setRenameValue(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleRename()}
@@ -1532,10 +1548,10 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
                 onClick={() => setRenameTarget(null)}
                 disabled={busy}
               >
-                Cancel
+                {tc("cancel")}
               </Button>
               <Button size="sm" onClick={handleRename} disabled={busy || !renameValue.trim()}>
-                {busy ? "Saving..." : "Save"}
+                {busy ? tc("saving") : tc("save")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -1545,11 +1561,11 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
         <Dialog open={!!renameFileTarget} onOpenChange={(o) => !o && setRenameFileTarget(null)}>
           <DialogContent className={DIALOG_PANEL}>
             <DialogHeader>
-              <DialogTitle>Rename file</DialogTitle>
+              <DialogTitle>{t("renameFile")}</DialogTitle>
             </DialogHeader>
             <Input
               autoFocus
-              placeholder="File name"
+              placeholder={t("fileName")}
               value={renameFileValue}
               onChange={(e) => setRenameFileValue(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleRenameFile()}
@@ -1562,14 +1578,14 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
                 onClick={() => setRenameFileTarget(null)}
                 disabled={renameFileBusy}
               >
-                Cancel
+                {tc("cancel")}
               </Button>
               <Button
                 size="sm"
                 onClick={handleRenameFile}
                 disabled={renameFileBusy || !renameFileValue.trim()}
               >
-                {renameFileBusy ? "Saving..." : "Save"}
+                {renameFileBusy ? tc("saving") : tc("save")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -1591,9 +1607,9 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
           onOpenChange={(o) => !o && setDeleteTarget(null)}
           onConfirm={handleDeleteFolder}
           destructive
-          title="Delete folder?"
-          description="This folder and its contents will be moved to Trash. Files inside can be restored from Deleted Files."
-          confirmLabel="Delete folder"
+          title={t("deleteFolderTitle")}
+          description={t("deleteFolderDescription")}
+          confirmLabel={t("deleteFolderConfirm")}
           loading={busy}
         />
 
@@ -1615,9 +1631,9 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
             setShowUnlock(false);
             pendingAction.current = null;
           }}
-          title="Unlock your vault"
-          subtitle="Enter your passphrase to decrypt, preview, and download your files"
-          confirmLabel="Unlock"
+          title={tp("unlockTitle")}
+          subtitle={tp("unlockSubtitle")}
+          confirmLabel={tc("unlock")}
         />
       </div>
     );

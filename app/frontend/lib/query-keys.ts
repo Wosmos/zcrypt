@@ -45,6 +45,10 @@ export const qk = {
   adminAudit: (page: number, eventType: string) => ["admin", "audit", page, eventType] as const,
   adminDownloads: (days: string) => ["admin", "downloads", days] as const,
   adminFeedback: (offset: number) => ["admin", "feedback", offset] as const,
+  adminBugReports: (status: string, offset: number) =>
+    ["admin", "bug-reports", status, offset] as const,
+  adminReviews: (status: string, offset: number) => ["admin", "reviews", status, offset] as const,
+  myReview: ["review", "mine"] as const,
   adminPlans: ["admin", "plans"] as const,
   // Settings + tools. Memory only (never persisted): several hold opened
   // sealed labels.

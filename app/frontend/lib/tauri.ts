@@ -9,6 +9,13 @@
 
 export const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
+/** The shell's app version (tauri.conf), or null outside Tauri. */
+export async function getAppVersion(): Promise<string | null> {
+  if (!isTauri) return null;
+  const { getVersion } = await import("@tauri-apps/api/app");
+  return getVersion();
+}
+
 /** Invoke a Tauri command. No-op if not in Tauri. */
 export async function tauriInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
   if (!isTauri) {

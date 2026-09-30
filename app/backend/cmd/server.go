@@ -81,6 +81,9 @@ type Server struct {
 	// window without ever being a realistic ceiling for a human clicking around,
 	// while still being nowhere near what a scripted scrape/DoS attempt would want.
 	analyticsLimiter *rateLimiter
+	// Bug-report limiters: per-IP and per-user, 10 reports per hour each
+	bugIPLimiter   *rateLimiter
+	bugUserLimiter *rateLimiter
 
 	// tokenVersions enforces JWT revocation by checking each access token's
 	// version against the user's current token_version (bumped on password
@@ -163,6 +166,8 @@ func NewServer(db *index.DB, cfg *config.Config, progress *pipeline.ProgressEmit
 		transferJoinLimiter: newRateLimiter(5, 10*time.Minute),
 		desktopPollLimiter:  newRateLimiter(30, time.Minute),
 		analyticsLimiter:    newRateLimiter(100, 5*time.Minute),
+		bugIPLimiter:        newRateLimiter(10, time.Hour),
+		bugUserLimiter:      newRateLimiter(10, time.Hour),
 		globalAdapterCache:  make(map[string]adapters.PlatformAdapter),
 		transferHub:         newTransferHub(),
 		desktopSessions:     make(map[string]*desktopOAuthResult),
@@ -839,6 +844,8 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/shared-vaults", maxJSON(s.AuthMiddleware(s.HandleCreateSharedVault)))
 	mux.HandleFunc("GET /api/shared-vaults/{id}", s.AuthMiddleware(s.HandleGetSharedVault))
 	mux.HandleFunc("DELETE /api/shared-vaults/{id}", s.AuthMiddleware(s.HandleDeleteSharedVault))
+	mux.HandleFunc("PATCH /api/shared-vaults/{id}", maxJSON(s.AuthMiddleware(s.HandleUpdateSharedVault)))
+	mux.HandleFunc("PATCH /api/shared-vaults/{id}/members/{uid}", maxJSON(s.AuthMiddleware(s.HandleUpdateSharedVaultMemberRole)))
 	mux.HandleFunc("POST /api/shared-vaults/{id}/members", maxJSON(s.AuthMiddleware(s.HandleAddSharedVaultMember)))
 	mux.HandleFunc("DELETE /api/shared-vaults/{id}/members/{uid}", s.AuthMiddleware(s.HandleRemoveSharedVaultMember))
 	mux.HandleFunc("POST /api/shared-vaults/{id}/files", maxJSON(s.AuthMiddleware(s.HandleAddSharedVaultFile)))
@@ -891,6 +898,19 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	// Feedback (authenticated)
 	mux.HandleFunc("POST /api/feedback", maxJSON(s.AuthMiddleware(s.HandleSubmitFeedback)))
 	mux.HandleFunc("GET /api/feedback/status", s.AuthMiddleware(s.HandleGetFeedbackStatus))
+
+	// Bug reports: submit works signed-in or signed-out; triage is admin-only.
+	mux.HandleFunc("POST /api/feedback/bug", MaxBodyMiddleware(bugReportMaxBody, s.OptionalAuthMiddleware(s.HandleSubmitBugReport)))
+	mux.HandleFunc("GET /api/admin/bug-reports", s.AdminMiddleware(s.HandleAdminListBugReports))
+	mux.HandleFunc("PATCH /api/admin/bug-reports/{id}", maxJSON(s.AdminMiddleware(s.HandleAdminUpdateBugReport)))
+	mux.HandleFunc("GET /api/admin/bug-reports/{id}/screenshot", s.AdminMiddleware(s.HandleAdminBugReportScreenshot))
+
+	// Reviews: members submit one, admins moderate, only approved public ones are served unauthenticated.
+	mux.HandleFunc("POST /api/reviews", maxJSON(s.AuthMiddleware(s.HandleSubmitReview)))
+	mux.HandleFunc("GET /api/reviews/me", s.AuthMiddleware(s.HandleGetMyReview))
+	mux.HandleFunc("GET /api/reviews/public", s.HandlePublicReviews)
+	mux.HandleFunc("GET /api/admin/reviews", s.AdminMiddleware(s.HandleAdminListReviews))
+	mux.HandleFunc("PATCH /api/admin/reviews/{id}", maxJSON(s.AdminMiddleware(s.HandleAdminUpdateReview)))
 
 	// Health check (public)
 	mux.HandleFunc("GET /api/health", s.HandleHealth)

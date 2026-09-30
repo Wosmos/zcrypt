@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,9 +25,9 @@ interface ConfirmDialogProps {
   title: string;
   /** Required description for context + accessibility. */
   description: ReactNode;
-  /** Confirm button label. Defaults to "Confirm". */
+  /** Confirm button label. Defaults to the translated "Confirm". */
   confirmLabel?: string;
-  /** Cancel button label. Defaults to "Cancel". */
+  /** Cancel button label. Defaults to the translated "Cancel". */
   cancelLabel?: string;
   /** Style the confirm action as destructive (red). */
   destructive?: boolean;
@@ -46,12 +47,13 @@ export function ConfirmDialog({
   onOpenChange,
   title,
   description,
-  confirmLabel = "Confirm",
-  cancelLabel = "Cancel",
+  confirmLabel,
+  cancelLabel,
   destructive = false,
   onConfirm,
   loading = false,
 }: ConfirmDialogProps) {
+  const t = useTranslations("common");
   return (
     <AlertDialog open={open} onOpenChange={loading ? undefined : onOpenChange}>
       <AlertDialogContent className="border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)]">
@@ -66,7 +68,7 @@ export function ConfirmDialog({
             disabled={loading}
             className="border-[var(--color-border)] bg-[var(--color-surface-1)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)]"
           >
-            {cancelLabel}
+            {cancelLabel ?? t("cancel")}
           </AlertDialogCancel>
           <AlertDialogAction
             disabled={loading}
@@ -84,10 +86,10 @@ export function ConfirmDialog({
             {loading ? (
               <span className="flex items-center justify-center gap-2">
                 <LogoSpinner size={14} speed="fast" />
-                Working...
+                {t("working")}
               </span>
             ) : (
-              confirmLabel
+              (confirmLabel ?? t("confirm"))
             )}
           </AlertDialogAction>
         </AlertDialogFooter>

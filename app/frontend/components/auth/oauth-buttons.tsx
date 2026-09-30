@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Github } from "@/lib/icons";
 import { GoogleIcon } from "@/components/icons/google";
 import { getOAuthURL } from "@/lib/auth-api";
@@ -15,7 +16,7 @@ function randomSessionId() {
 /** Event dispatched when a desktop OAuth session starts, so the login page can poll. */
 export const DESKTOP_OAUTH_SESSION_KEY = "zcrypt_desktop_oauth_session";
 
-async function startOAuth(provider: string) {
+async function startOAuth(provider: string, failedMessage: string) {
   try {
     if (isTauri) {
       const session = randomSessionId();
@@ -34,23 +35,24 @@ async function startOAuth(provider: string) {
     }
   } catch (err) {
     // Never let a failed open die silently (that was the frozen-button bug).
-    toast.error(err instanceof Error ? err.message : "Couldn't open the sign-in page");
+    toast.error(err instanceof Error ? err.message : failedMessage);
   }
 }
 
 export function OAuthButtons() {
+  const t = useTranslations("auth");
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3">
         <button
-          onClick={() => startOAuth("google")}
+          onClick={() => startOAuth("google", t("oauthFailed"))}
           className="flex items-center justify-center gap-2 h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-1)] transition-colors text-sm font-medium"
         >
           <GoogleIcon className="h-4 w-4" />
           Google
         </button>
         <button
-          onClick={() => startOAuth("github")}
+          onClick={() => startOAuth("github", t("oauthFailed"))}
           className="flex items-center justify-center gap-2 h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-1)] transition-colors text-sm font-medium"
         >
           <Github className="h-4 w-4" />
@@ -63,7 +65,7 @@ export function OAuthButtons() {
         </div>
         <div className="relative flex justify-center text-xs">
           <span className="bg-[var(--color-surface)] px-3 text-[var(--color-text-muted)]">
-            or continue with email
+            {t("orContinueWithEmail")}
           </span>
         </div>
       </div>

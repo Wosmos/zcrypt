@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { getFileCategory, cn } from "@/lib/utils";
@@ -62,20 +63,25 @@ export function matchesDateFacet(createdAt: string, facet: DateFacet, now = Date
   }
 }
 
-const SIZE_OPTIONS: { value: SizeFacet; label: string }[] = [
-  { value: "any", label: "Any size" },
-  { value: "under1", label: "Under 1 MB" },
-  { value: "1to10", label: "1–10 MB" },
-  { value: "10to100", label: "10–100 MB" },
-  { value: "over100", label: "Over 100 MB" },
+const SIZE_OPTIONS: { value: SizeFacet; labelKey: string }[] = [
+  { value: "any", labelKey: "sizeAny" },
+  { value: "under1", labelKey: "sizeUnder1" },
+  { value: "1to10", labelKey: "" },
+  { value: "10to100", labelKey: "" },
+  { value: "over100", labelKey: "sizeOver100" },
 ];
 
-const DATE_OPTIONS: { value: DateFacet; label: string }[] = [
-  { value: "any", label: "Any time" },
-  { value: "today", label: "Today" },
-  { value: "week", label: "This week" },
-  { value: "month", label: "This month" },
-  { value: "year", label: "This year" },
+const SIZE_RANGE_LABELS: Partial<Record<SizeFacet, string>> = {
+  "1to10": "1–10 MB",
+  "10to100": "10–100 MB",
+};
+
+const DATE_OPTIONS: { value: DateFacet; labelKey: string }[] = [
+  { value: "any", labelKey: "dateAny" },
+  { value: "today", labelKey: "dateToday" },
+  { value: "week", labelKey: "dateWeek" },
+  { value: "month", labelKey: "dateMonth" },
+  { value: "year", labelKey: "dateYear" },
 ];
 
 interface FilterPopoverProps {
@@ -85,6 +91,7 @@ interface FilterPopoverProps {
 }
 
 export function FilterPopover({ files, filters, onFiltersChange }: FilterPopoverProps) {
+  const t = useTranslations("explorer");
   const categories = useMemo(() => {
     const set = new Set<string>();
     for (const f of files) set.add(getFileCategory(f.original_name));
@@ -105,7 +112,7 @@ export function FilterPopover({ files, filters, onFiltersChange }: FilterPopover
       <PopoverTrigger asChild>
         <button
           type="button"
-          aria-label="Filter files"
+          aria-label={t("filterFiles")}
           className={cn(
             "flex h-8 flex-shrink-0 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium transition-colors",
             count > 0
@@ -114,7 +121,7 @@ export function FilterPopover({ files, filters, onFiltersChange }: FilterPopover
           )}
         >
           <Filter className="h-3.5 w-3.5" />
-          Filter
+          {t("filter")}
           {count > 0 && (
             <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[var(--color-accent)] text-[10px] font-semibold text-white">
               {count}
@@ -125,7 +132,9 @@ export function FilterPopover({ files, filters, onFiltersChange }: FilterPopover
       <PopoverContent align="end" className="w-64 space-y-4">
         {categories.length > 0 && (
           <div className="space-y-2">
-            <h4 className="text-xs font-semibold text-[var(--color-text-muted)]">Type</h4>
+            <h4 className="text-xs font-semibold text-[var(--color-text-muted)]">
+              {t("filterType")}
+            </h4>
             <div className="space-y-1.5">
               {categories.map((cat) => (
                 <label
@@ -144,7 +153,9 @@ export function FilterPopover({ files, filters, onFiltersChange }: FilterPopover
         )}
 
         <div className="space-y-2">
-          <h4 className="text-xs font-semibold text-[var(--color-text-muted)]">Size</h4>
+          <h4 className="text-xs font-semibold text-[var(--color-text-muted)]">
+            {t("filterSize")}
+          </h4>
           <select
             value={filters.size}
             onChange={(e) => onFiltersChange({ ...filters, size: e.target.value as SizeFacet })}
@@ -152,14 +163,16 @@ export function FilterPopover({ files, filters, onFiltersChange }: FilterPopover
           >
             {SIZE_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
-                {o.label}
+                {SIZE_RANGE_LABELS[o.value] ?? t(o.labelKey)}
               </option>
             ))}
           </select>
         </div>
 
         <div className="space-y-2">
-          <h4 className="text-xs font-semibold text-[var(--color-text-muted)]">Date</h4>
+          <h4 className="text-xs font-semibold text-[var(--color-text-muted)]">
+            {t("filterDate")}
+          </h4>
           <select
             value={filters.date}
             onChange={(e) => onFiltersChange({ ...filters, date: e.target.value as DateFacet })}
@@ -167,7 +180,7 @@ export function FilterPopover({ files, filters, onFiltersChange }: FilterPopover
           >
             {DATE_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
-                {o.label}
+                {t(o.labelKey)}
               </option>
             ))}
           </select>
@@ -179,7 +192,7 @@ export function FilterPopover({ files, filters, onFiltersChange }: FilterPopover
             onClick={() => onFiltersChange(EMPTY_ENTRY_FILTERS)}
             className="text-xs font-medium text-[var(--color-accent)] hover:underline"
           >
-            Clear filters
+            {t("clearFilters")}
           </button>
         )}
       </PopoverContent>

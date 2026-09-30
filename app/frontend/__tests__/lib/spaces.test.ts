@@ -69,7 +69,10 @@ import {
   rotateSpaceKey,
   shareSpace,
   decryptSpaceFileName,
+  spacePerms,
+  canManageMember,
 } from "@/lib/spaces";
+import { ApiError } from "@/lib/http-error";
 import { sealTo, openSealed, generateSpaceKey } from "@/lib/keys";
 import {
   generateCEK,
@@ -451,13 +454,25 @@ describe("rotateSpaceKey (revocation)", () => {
   it("skips members who have no published key (they have no access to lose)", async () => {
     const oldKey = generateSpaceKey();
     useSpacesStore.getState().setSpaceKey("v", oldKey);
-    vi.mocked(getUserPublicKey).mockRejectedValue(new Error("no key"));
+    vi.mocked(getUserPublicKey).mockRejectedValue(new ApiError("no key", 404));
     vi.mocked(rotateSpace).mockResolvedValue(undefined as never);
 
     await rotateSpaceKey(vault("v"), [{ user_id: "ghost" } as never], []);
 
     const [, memberGrants] = vi.mocked(rotateSpace).mock.calls[0];
     expect(memberGrants).toHaveLength(0);
+  });
+
+  it("aborts on a transient lookup failure instead of dropping the member's grant", async () => {
+    useSpacesStore.getState().setSpaceKey("v", generateSpaceKey());
+    vi.mocked(getUserPublicKey).mockRejectedValue(new ApiError("boom", 503));
+
+    await expect(rotateSpaceKey(vault("v"), [{ user_id: "u" } as never], [])).rejects.toThrow("boom");
+    expect(rotateSpace).not.toHaveBeenCalled();
+
+    vi.mocked(getUserPublicKey).mockRejectedValue(new Error("network"));
+    await expect(rotateSpaceKey(vault("v"), [{ user_id: "u" } as never], [])).rejects.toThrow("network");
+    expect(rotateSpace).not.toHaveBeenCalled();
   });
 
   it("throws when the current (old) key isn't available", async () => {
@@ -512,5 +527,32 @@ describe("shareSpace", () => {
     // The grant is sealed to the invitee: only their private key opens it.
     loadKeypair(invitee);
     expect(await openSealed(wrapped!)).toEqual(spaceKey);
+  });
+});
+
+describe("spacePerms / canManageMember", () => {
+  const v = (role: "viewer" | "editor" | "admin") => ({ owner_id: "o", role });
+
+  it("grades rights strictly: viewer < editor < admin < owner", () => {
+    expect(spacePerms(v("viewer"), "u")).toEqual({ label: "Viewer", editFiles: false, manage: false, rotate: false, owner: false });
+    expect(spacePerms(v("editor"), "u")).toEqual({ label: "Editor", editFiles: true, manage: false, rotate: false, owner: false });
+    expect(spacePerms(v("admin"), "u")).toEqual({ label: "Admin", editFiles: true, manage: true, rotate: false, owner: false });
+    expect(spacePerms(v("admin"), "o")).toEqual({ label: "Owner", editFiles: true, manage: true, rotate: true, owner: true });
+  });
+
+  it("treats a missing user as a non-owner", () => {
+    expect(spacePerms(v("viewer"), undefined).owner).toBe(false);
+  });
+
+  it("lets admins act on viewers and editors but only the owner on admins", () => {
+    const vault = { owner_id: "o" };
+    const admin = spacePerms(v("admin"), "a");
+    const owner = spacePerms(v("admin"), "o");
+    const editor = spacePerms(v("editor"), "e");
+    expect(canManageMember(editor, vault, { user_id: "x", role: "viewer" })).toBe(false);
+    expect(canManageMember(admin, vault, { user_id: "x", role: "editor" })).toBe(true);
+    expect(canManageMember(admin, vault, { user_id: "y", role: "admin" })).toBe(false);
+    expect(canManageMember(owner, vault, { user_id: "y", role: "admin" })).toBe(true);
+    expect(canManageMember(owner, vault, { user_id: "o", role: "admin" })).toBe(false);
   });
 });

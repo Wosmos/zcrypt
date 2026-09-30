@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { cn } from "@/lib/utils";
 import {
@@ -32,118 +33,49 @@ import { useAuthStore } from "@/store/auth";
 import "@/components/marketing/landing/chrome.css";
 
 type IconType = React.ComponentType<{ className?: string; size?: number }>;
-type MenuItem = { href: string; title: string; desc?: string; icon?: IconType };
+type MenuItem = { href: string; k: string; icon?: IconType };
 
 const FOCUS_RING =
   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent)]";
 
 // ─── Mega-menu content ───────────────────────────────────────
 const productFeatures: MenuItem[] = [
-  {
-    href: "/features/encrypted-drive",
-    icon: HardDrive,
-    title: "Encrypted drive",
-    desc: "Folders, search & previews, a real explorer.",
-  },
-  {
-    href: "/features/folders",
-    icon: FolderOpen,
-    title: "Encrypted folders",
-    desc: "Nestable folders with their own passwords.",
-  },
-  {
-    href: "/features/file-viewers",
-    icon: Eye,
-    title: "File viewers",
-    desc: "Preview files without downloading them.",
-  },
-  {
-    href: "/features/sharing",
-    icon: Share2,
-    title: "Sharing",
-    desc: "Links with passwords, expiry & limits.",
-  },
-  {
-    href: "/features/encryption",
-    icon: Lock,
-    title: "Zero-knowledge encryption",
-    desc: "AES-256-GCM, on your device.",
-  },
-  {
-    href: "/features/bring-your-own-storage",
-    icon: RefreshCcw,
-    title: "Bring your own storage",
-    desc: "GitHub, GitLab, Hugging Face, Telegram.",
-  },
+  { href: "/features/encrypted-drive", icon: HardDrive, k: "encryptedDrive" },
+  { href: "/features/folders", icon: FolderOpen, k: "folders" },
+  { href: "/features/file-viewers", icon: Eye, k: "viewers" },
+  { href: "/features/sharing", icon: Share2, k: "sharing" },
+  { href: "/features/encryption", icon: Lock, k: "encryption" },
+  { href: "/features/bring-your-own-storage", icon: RefreshCcw, k: "byos" },
 ];
 
 const productTools: MenuItem[] = [
-  { href: "/send", icon: Send, title: "Send a file", desc: "Encrypted one-off sharing." },
-  {
-    href: "/pad",
-    icon: FileText,
-    title: "Encrypted notepad",
-    desc: "Private, zero-knowledge notes.",
-  },
-  {
-    href: "/transfer",
-    icon: RefreshCcw,
-    title: "Device transfer",
-    desc: "Move files between devices.",
-  },
+  { href: "/send", icon: Send, k: "send" },
+  { href: "/pad", icon: FileText, k: "pad" },
+  { href: "/transfer", icon: RefreshCcw, k: "transfer" },
 ];
 
 const productCompare: MenuItem[] = [
-  { href: "/vs/proton-drive", title: "vs Proton Drive" },
-  { href: "/vs/dropbox", title: "vs Dropbox" },
-  { href: "/vs/google-drive", title: "vs Google Drive" },
+  { href: "/vs/proton-drive", k: "vsProton" },
+  { href: "/vs/dropbox", k: "vsDropbox" },
+  { href: "/vs/google-drive", k: "vsGoogle" },
 ];
 
 const docsStart: MenuItem[] = [
-  {
-    href: "/docs/getting-started",
-    icon: Rocket,
-    title: "Quickstart",
-    desc: "Set up and upload your first file.",
-  },
-  {
-    href: "/docs/concepts",
-    icon: Key,
-    title: "Core concepts",
-    desc: "Vault, passphrase, folders, chunks.",
-  },
-  {
-    href: "/docs/connect-storage",
-    icon: HardDrive,
-    title: "Connect storage",
-    desc: "Link a backend you already own.",
-  },
+  { href: "/docs/getting-started", icon: Rocket, k: "quickstart" },
+  { href: "/docs/concepts", icon: Key, k: "concepts" },
+  { href: "/docs/connect-storage", icon: HardDrive, k: "connect" },
 ];
 
 const docsPopular: MenuItem[] = [
-  {
-    href: "/docs/folders",
-    icon: FolderOpen,
-    title: "Folders & files",
-    desc: "Organize your drive.",
-  },
-  {
-    href: "/docs/security",
-    icon: Shield,
-    title: "Security model",
-    desc: "How the encryption works.",
-  },
-  {
-    href: "/docs/self-hosting",
-    icon: Server,
-    title: "Self-hosting",
-    desc: "Run zcrypt with Docker.",
-  },
-  { href: "/docs/api", icon: Code, title: "API reference", desc: "Endpoints, auth & events." },
+  { href: "/docs/folders", icon: FolderOpen, k: "docFolders" },
+  { href: "/docs/security", icon: Shield, k: "security" },
+  { href: "/docs/self-hosting", icon: Server, k: "selfHosting" },
+  { href: "/docs/api", icon: Code, k: "api" },
 ];
 
 // ─── Shared mega-menu pieces ─────────────────────────────────
 function MegaItem({ item, onClick }: { item: MenuItem; onClick: () => void }) {
+  const t = useTranslations("marketing.nav.items");
   const Icon = item.icon;
   return (
     <Link
@@ -162,11 +94,11 @@ function MegaItem({ item, onClick }: { item: MenuItem; onClick: () => void }) {
       )}
       <span className="min-w-0">
         <span className="block text-[13px] font-semibold text-[var(--color-text)]">
-          {item.title}
+          {t(`${item.k}.title`)}
         </span>
-        {item.desc && (
+        {t.has(`${item.k}.desc`) && (
           <span className="mt-0.5 block text-[11px] leading-snug text-[var(--color-text-muted)]">
-            {item.desc}
+            {t(`${item.k}.desc`)}
           </span>
         )}
       </span>
@@ -176,6 +108,7 @@ function MegaItem({ item, onClick }: { item: MenuItem; onClick: () => void }) {
 
 /** One row in a mobile-menu section: link + optional leading icon. */
 function MobileNavLink({ item, onClick }: { item: MenuItem; onClick: () => void }) {
+  const t = useTranslations("marketing.nav.items");
   const Icon = item.icon;
   return (
     <Link
@@ -187,7 +120,7 @@ function MobileNavLink({ item, onClick }: { item: MenuItem; onClick: () => void 
       )}
     >
       {Icon && <Icon className="h-4 w-4 text-cyan-500" />}
-      {item.title}
+      {t(`${item.k}.title`)}
     </Link>
   );
 }
@@ -245,7 +178,7 @@ function MegaCtaLink({
       )}
     >
       {children}
-      <ArrowRight className="h-3 w-3" />
+      <ArrowRight className="h-3 w-3 rtl:-scale-x-100" />
     </Link>
   );
 }
@@ -277,8 +210,8 @@ function FeaturedCard({
     >
       {/* Glows */}
       <div aria-hidden className="pointer-events-none absolute inset-0">
-        <div className="absolute -right-10 -top-10 h-48 w-48 rounded-full bg-cyan-500/20 blur-3xl transition-opacity duration-500 group-hover:opacity-150" />
-        <div className="absolute bottom-0 left-0 h-32 w-32 rounded-full bg-violet-500/10 blur-2xl" />
+        <div className="absolute -end-10 -top-10 h-48 w-48 rounded-full bg-cyan-500/20 blur-3xl transition-opacity duration-500 group-hover:opacity-150" />
+        <div className="absolute bottom-0 start-0 h-32 w-32 rounded-full bg-violet-500/10 blur-2xl" />
       </div>
 
       <div className="relative flex-1">
@@ -291,19 +224,21 @@ function FeaturedCard({
 
       <div className="relative mt-6 flex items-center gap-2 rounded-xl border border-cyan-500/20 bg-cyan-500/8 px-4 py-3 text-[12px] font-semibold text-cyan-300 transition-colors group-hover:border-cyan-500/35 group-hover:bg-cyan-500/15">
         {cta}
-        <ArrowRight className="ml-auto h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+        <ArrowRight className="ms-auto h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 rtl:-scale-x-100 rtl:group-hover:-translate-x-0.5" />
       </div>
     </Link>
   );
 }
 
 function ProductMega({ onItem }: { onItem: () => void }) {
+  const t = useTranslations("marketing.nav");
+  const ti = useTranslations("marketing.nav.items");
   return (
     <div className="flex flex-1">
       {/* Features, widest column */}
-      <div className="flex flex-[2] flex-col justify-between border-r border-[var(--color-border)] px-6 py-7">
+      <div className="flex flex-[2] flex-col justify-between border-e border-[var(--color-border)] px-6 py-7">
         <div>
-          <MegaHeading>Features</MegaHeading>
+          <MegaHeading>{t("features")}</MegaHeading>
           <ul className="grid grid-cols-2 gap-0.5 list-none">
             {productFeatures.map((i) => (
               <li key={i.href}>
@@ -313,14 +248,14 @@ function ProductMega({ onItem }: { onItem: () => void }) {
           </ul>
         </div>
         <MegaCtaLink href="/features" onClick={onItem}>
-          All features
+          {t("allFeatures")}
         </MegaCtaLink>
       </div>
 
       {/* Tools + Compare */}
-      <div className="flex flex-1 flex-col justify-between border-r border-[var(--color-border)] px-6 py-7">
+      <div className="flex flex-1 flex-col justify-between border-e border-[var(--color-border)] px-6 py-7">
         <div>
-          <MegaHeading>Tools</MegaHeading>
+          <MegaHeading>{t("tools")}</MegaHeading>
           <ul className="flex flex-col gap-0.5 list-none">
             {productTools.map((i) => (
               <li key={i.href}>
@@ -330,7 +265,7 @@ function ProductMega({ onItem }: { onItem: () => void }) {
           </ul>
         </div>
         <div>
-          <MegaHeading>Compare</MegaHeading>
+          <MegaHeading>{t("compare")}</MegaHeading>
           <ul className="flex flex-col gap-0.5 list-none">
             {productCompare.map((i) => (
               <li key={i.href}>
@@ -343,7 +278,7 @@ function ProductMega({ onItem }: { onItem: () => void }) {
                     FOCUS_RING,
                   )}
                 >
-                  {i.title}
+                  {ti(`${i.k}.title`)}
                 </Link>
               </li>
             ))}
@@ -355,10 +290,10 @@ function ProductMega({ onItem }: { onItem: () => void }) {
       <div className="flex-1 p-5">
         <FeaturedCard
           href="/features/encrypted-drive"
-          tag="Featured"
-          title="The encrypted drive you actually own"
-          desc="Real folders, instant previews, and zero-knowledge encryption, on every platform."
-          cta="Explore the drive"
+          tag={t("featuredTag")}
+          title={t("featuredTitle")}
+          desc={t("featuredDesc")}
+          cta={t("featuredCta")}
           onClick={onItem}
         />
       </div>
@@ -367,12 +302,13 @@ function ProductMega({ onItem }: { onItem: () => void }) {
 }
 
 function DocsMega({ onItem }: { onItem: () => void }) {
+  const t = useTranslations("marketing.nav");
   return (
     <div className="flex flex-1">
       {/* Start here */}
-      <div className="flex flex-1 flex-col justify-between border-r border-[var(--color-border)] px-6 py-7">
+      <div className="flex flex-1 flex-col justify-between border-e border-[var(--color-border)] px-6 py-7">
         <div>
-          <MegaHeading>Start here</MegaHeading>
+          <MegaHeading>{t("startHere")}</MegaHeading>
           <ul className="flex flex-col gap-0.5 list-none">
             {docsStart.map((i) => (
               <li key={i.href}>
@@ -382,13 +318,13 @@ function DocsMega({ onItem }: { onItem: () => void }) {
           </ul>
         </div>
         <MegaCtaLink href="/docs" onClick={onItem}>
-          Open the docs
+          {t("openDocs")}
         </MegaCtaLink>
       </div>
 
       {/* Popular */}
-      <div className="flex flex-1 flex-col border-r border-[var(--color-border)] px-6 py-7">
-        <MegaHeading>Popular</MegaHeading>
+      <div className="flex flex-1 flex-col border-e border-[var(--color-border)] px-6 py-7">
+        <MegaHeading>{t("popular")}</MegaHeading>
         <ul className="flex flex-1 flex-col justify-between gap-0.5 list-none">
           {docsPopular.map((i) => (
             <li key={i.href}>
@@ -402,10 +338,10 @@ function DocsMega({ onItem }: { onItem: () => void }) {
       <div className="flex-1 p-5">
         <FeaturedCard
           href="/docs/api"
-          tag="New"
-          title="API reference"
-          desc="REST endpoints, authentication, and the SSE event stream, fully documented."
-          cta="Read the API docs"
+          tag={t("newTag")}
+          title={t("apiTitle")}
+          desc={t("apiDesc")}
+          cta={t("apiCta")}
           onClick={onItem}
         />
       </div>
@@ -414,10 +350,7 @@ function DocsMega({ onItem }: { onItem: () => void }) {
 }
 
 // ─── Nav ─────────────────────────────────────────────────────
-const MEGA_MENUS = [
-  { key: "product", label: "Product" },
-  { key: "docs", label: "Docs" },
-] as const;
+const MEGA_MENUS = [{ key: "product" }, { key: "docs" }] as const;
 
 type MegaKey = (typeof MEGA_MENUS)[number]["key"];
 
@@ -425,6 +358,7 @@ const PANEL_IN = [0.05, 0.7, 0.1, 1] as const;
 const PANEL_OUT = [0.3, 0, 0.8, 0.15] as const;
 
 export function MarketingNav() {
+  const t = useTranslations("marketing.nav");
   const pathname = usePathname();
   const reduce = useReducedMotion();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -600,7 +534,7 @@ export function MarketingNav() {
         data-scrolled="false"
         data-tone="calm"
         data-menu={openMenu ?? (mobileOpen ? "mobile" : "")}
-        className="fixed top-0 left-0 right-0 z-50 pointer-events-none pt-3 px-4 sm:px-6 lg:px-8"
+        className="fixed inset-x-0 top-0 z-50 pointer-events-none pt-3 px-4 sm:px-6 lg:px-8"
       >
         <LiquidGlassFilter targetRef={glassRef} />
         <div className="relative mx-auto max-w-6xl">
@@ -615,14 +549,14 @@ export function MarketingNav() {
             <div className="relative z-[1] flex items-center justify-between">
               <Link
                 href="/"
-                aria-label="zcrypt home"
+                aria-label={t("home")}
                 className={cn("flex items-center rounded-xl", FOCUS_RING)}
               >
                 <Logo size="lg" />
               </Link>
 
               <nav
-                aria-label="Main"
+                aria-label={t("main")}
                 className="hidden items-center gap-0.5 md:flex"
                 onMouseLeave={scheduleClose}
               >
@@ -631,7 +565,7 @@ export function MarketingNav() {
                   aria-current={pathname === "/" ? "page" : undefined}
                   className={triggerClass(pathname === "/")}
                 >
-                  Home
+                  {t("homeLink")}
                 </Link>
 
                 {MEGA_MENUS.map((m) => (
@@ -647,7 +581,7 @@ export function MarketingNav() {
                     aria-haspopup="true"
                     className={triggerClass(openMenu === m.key)}
                   >
-                    {m.label}
+                    {t(m.key)}
                     <ChevronDown
                       className={cn(
                         "h-3 w-3 transition-transform duration-200 motion-reduce:transition-none",
@@ -662,7 +596,7 @@ export function MarketingNav() {
                   aria-current={pathname === "/download" ? "page" : undefined}
                   className={triggerClass(pathname === "/download")}
                 >
-                  Download
+                  {t("download")}
                 </Link>
 
                 <Link
@@ -670,7 +604,7 @@ export function MarketingNav() {
                   aria-current={pathname === "/philosophy" ? "page" : undefined}
                   className={triggerClass(pathname === "/philosophy")}
                 >
-                  Why zcrypt
+                  {t("why")}
                 </Link>
 
                 <Link
@@ -678,7 +612,7 @@ export function MarketingNav() {
                   aria-current={pathname === "/about" ? "page" : undefined}
                   className={triggerClass(pathname === "/about")}
                 >
-                  About
+                  {t("about")}
                 </Link>
               </nav>
 
@@ -693,7 +627,7 @@ export function MarketingNav() {
                       FOCUS_RING,
                     )}
                   >
-                    Log in
+                    {t("logIn")}
                   </Link>
                 )}
 
@@ -704,7 +638,7 @@ export function MarketingNav() {
                     FOCUS_RING,
                   )}
                 >
-                  {signedIn ? "Open app" : "Get started"}
+                  {signedIn ? t("openApp") : t("getStarted")}
                   <ArrowRight className="h-3 w-3 transition-transform duration-200 group-hover:translate-x-0.5 motion-reduce:transition-none" />
                 </Link>
 
@@ -714,7 +648,7 @@ export function MarketingNav() {
                   onClick={() => setMobileOpen((o) => !o)}
                   aria-expanded={mobileOpen}
                   aria-controls="mobile-menu"
-                  aria-label={mobileOpen ? "Close menu" : "Open menu"}
+                  aria-label={mobileOpen ? t("closeMenu") : t("openMenu")}
                   className={cn(
                     "flex h-11 w-11 items-center justify-center rounded-xl text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-1)]/60 hover:text-[var(--color-text)] md:hidden",
                     FOCUS_RING,
@@ -747,7 +681,7 @@ export function MarketingNav() {
                 onMouseEnter={cancelClose}
                 onMouseLeave={scheduleClose}
                 role="menu"
-                aria-label={openMenu === "product" ? "Product" : "Documentation"}
+                aria-label={openMenu === "product" ? t("product") : t("documentation")}
                 className="lg-panel pointer-events-auto absolute inset-x-0 top-full z-50 mt-2 hidden min-h-[55dvh] flex-col rounded-3xl corner-squircle md:flex"
               >
                 {openMenu === "product" ? (
@@ -791,25 +725,29 @@ export function MarketingNav() {
                 transition: { duration: 0.18, ease: PANEL_OUT },
               }}
               style={{ transformOrigin: "top center" }}
-              className="lg-panel fixed left-4 right-4 top-20 z-50 flex outline-none max-h-[calc(100dvh-6.5rem)] flex-col overflow-hidden rounded-2xl corner-squircle md:hidden"
+              className="lg-panel fixed inset-x-4 top-20 z-50 flex outline-none max-h-[calc(100dvh-6.5rem)] flex-col overflow-hidden rounded-2xl corner-squircle md:hidden"
             >
               <nav
-                aria-label="Mobile"
+                aria-label={t("mobile")}
                 className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
               >
                 <div className="space-y-1 p-3">
                   <Link href="/" onClick={closeMobile} className={cn(mobileRow, FOCUS_RING)}>
-                    Home
+                    {t("homeLink")}
                   </Link>
 
                   <MobileNavSection
-                    title="Features"
+                    title={t("features")}
                     items={productFeatures}
                     onClick={closeMobile}
                   />
-                  <MobileNavSection title="Tools" items={productTools} onClick={closeMobile} />
-                  <MobileNavSection title="Compare" items={productCompare} onClick={closeMobile} />
-                  <MobileNavSection title="Docs" items={docsStart} onClick={closeMobile} />
+                  <MobileNavSection title={t("tools")} items={productTools} onClick={closeMobile} />
+                  <MobileNavSection
+                    title={t("compare")}
+                    items={productCompare}
+                    onClick={closeMobile}
+                  />
+                  <MobileNavSection title={t("docs")} items={docsStart} onClick={closeMobile} />
                   <Link
                     href="/docs"
                     onClick={closeMobile}
@@ -818,8 +756,8 @@ export function MarketingNav() {
                       FOCUS_RING,
                     )}
                   >
-                    Open the docs
-                    <ArrowRight className="h-3.5 w-3.5" />
+                    {t("openDocs")}
+                    <ArrowRight className="h-3.5 w-3.5 rtl:-scale-x-100" />
                   </Link>
 
                   <Link
@@ -828,7 +766,7 @@ export function MarketingNav() {
                     className={cn(mobileRow, "mt-1", FOCUS_RING)}
                   >
                     <Download className="h-4 w-4 text-cyan-500" />
-                    Download
+                    {t("download")}
                   </Link>
 
                   <Link
@@ -836,11 +774,11 @@ export function MarketingNav() {
                     onClick={closeMobile}
                     className={cn(mobileRow, FOCUS_RING)}
                   >
-                    Why zcrypt
+                    {t("why")}
                   </Link>
 
                   <Link href="/about" onClick={closeMobile} className={cn(mobileRow, FOCUS_RING)}>
-                    About
+                    {t("about")}
                   </Link>
                 </div>
               </nav>
@@ -856,7 +794,7 @@ export function MarketingNav() {
                         FOCUS_RING,
                       )}
                     >
-                      Open app
+                      {t("openApp")}
                     </Link>
                   ) : null}
                   <Link
@@ -868,7 +806,7 @@ export function MarketingNav() {
                       FOCUS_RING,
                     )}
                   >
-                    Log in
+                    {t("logIn")}
                   </Link>
                   <Link
                     hidden={signedIn}
@@ -879,7 +817,7 @@ export function MarketingNav() {
                       FOCUS_RING,
                     )}
                   >
-                    Sign up
+                    {t("signUp")}
                   </Link>
                 </div>
               </div>

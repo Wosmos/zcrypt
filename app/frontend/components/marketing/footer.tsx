@@ -1,54 +1,54 @@
+"use client";
+
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { Logo } from "@/components/ui/logo";
 import { ArrowUpRight, BookOpen, Github } from "@/lib/icons";
 import { WOSMO, WosmoWordmark } from "@/components/marketing/wosmo";
+import { LanguageSwitcher } from "@/components/ui/language-switcher";
 
 const GITHUB_REPO_URL = "https://github.com/Wosmos/zcrypt";
 
-type FooterLink = { label: string; href: string; external?: boolean };
+type FooterLink = { key: string; href: string; external?: boolean };
 
-const FOOTER_COLUMNS: { title: string; links: FooterLink[] }[] = [
+const FOOTER_COLUMNS: { titleKey: string; links: FooterLink[] }[] = [
   {
-    title: "Features",
+    titleKey: "colFeatures",
     links: [
-      { label: "Encrypted drive", href: "/features/encrypted-drive" },
-      { label: "File viewers", href: "/features/file-viewers" },
-      { label: "Encrypted folders", href: "/features/folders" },
-      { label: "Sharing", href: "/features/sharing" },
-      { label: "All features", href: "/features" },
+      { key: "encryptedDrive", href: "/features/encrypted-drive" },
+      { key: "fileViewers", href: "/features/file-viewers" },
+      { key: "folders", href: "/features/folders" },
+      { key: "sharing", href: "/features/sharing" },
+      { key: "allFeatures", href: "/features" },
     ],
   },
   {
-    title: "Compare & apps",
+    titleKey: "colCompare",
     links: [
-      { label: "Download", href: "/download" },
-      { label: "vs Dropbox", href: "/vs/dropbox" },
-      { label: "vs Google Drive", href: "/vs/google-drive" },
-      { label: "vs Proton Drive", href: "/vs/proton-drive" },
-      { label: "Terminal app", href: "/tui" },
+      { key: "download", href: "/download" },
+      { key: "vsDropbox", href: "/vs/dropbox" },
+      { key: "vsGoogle", href: "/vs/google-drive" },
+      { key: "vsProton", href: "/vs/proton-drive" },
+      { key: "tui", href: "/tui" },
     ],
   },
   {
-    title: "Developers",
+    titleKey: "colDevelopers",
     links: [
-      { label: "Documentation", href: "/docs" },
-      { label: "Self-hosting", href: "/docs/self-hosting" },
-      { label: "API reference", href: "/docs/api" },
-      { label: "GitHub", href: GITHUB_REPO_URL, external: true },
+      { key: "documentation", href: "/docs" },
+      { key: "selfHosting", href: "/docs/self-hosting" },
+      { key: "api", href: "/docs/api" },
+      { key: "github", href: GITHUB_REPO_URL, external: true },
     ],
   },
   {
-    title: "Company",
+    titleKey: "colCompany",
     links: [
-      { label: "About the maker", href: "/about" },
-      { label: "Philosophy", href: "/philosophy" },
-      { label: "Privacy", href: "/privacy" },
-      { label: "Terms", href: "/terms" },
-      {
-        label: "Security",
-        href: `${GITHUB_REPO_URL}/blob/main/SECURITY.md`,
-        external: true,
-      },
+      { key: "about", href: "/about" },
+      { key: "philosophy", href: "/philosophy" },
+      { key: "privacy", href: "/privacy" },
+      { key: "terms", href: "/terms" },
+      { key: "security", href: `${GITHUB_REPO_URL}/blob/main/SECURITY.md`, external: true },
     ],
   },
 ];
@@ -62,16 +62,26 @@ const UNDERLINE =
 const ICON_BUTTON =
   "grid h-11 w-11 place-items-center rounded-[10px] border border-[var(--color-border)] bg-[var(--color-surface)]/50 text-[var(--color-text-secondary)] transition-colors hover:border-[var(--color-border-hover)] hover:text-[var(--color-text)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent)] md:h-10 md:w-10";
 
-function FooterNavLink({ label, href, external }: FooterLink) {
+function FooterNavLink({
+  linkKey,
+  href,
+  external,
+}: {
+  linkKey: string;
+  href: string;
+  external?: boolean;
+}) {
+  const t = useTranslations("marketing.footer");
+  const label = t(`links.${linkKey}`);
   if (external) {
     return (
       <a href={href} target="_blank" rel="noopener noreferrer" className={LINK_CLASS}>
         <span className={UNDERLINE}>{label}</span>
         <ArrowUpRight
           aria-hidden="true"
-          className="h-3 w-3 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 motion-reduce:transition-none"
+          className="h-3 w-3 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 rtl:-scale-x-100 motion-reduce:transition-none"
         />
-        <span className="sr-only">(opens in a new tab)</span>
+        <span className="sr-only">{t("newTab")}</span>
       </a>
     );
   }
@@ -83,6 +93,7 @@ function FooterNavLink({ label, href, external }: FooterLink) {
 }
 
 export function MarketingFooter() {
+  const t = useTranslations("marketing.footer");
   return (
     <footer className="relative z-[2] mt-28 px-5 sm:px-[50px]">
       {/* Cyan glow bleeding up from behind the footer box */}
@@ -124,14 +135,13 @@ export function MarketingFooter() {
             <div className="col-span-2 md:col-span-1">
               <Link
                 href="/"
-                aria-label="zcrypt home"
+                aria-label={t("home")}
                 className="inline-flex rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent)]"
               >
                 <Logo size="xl" />
               </Link>
               <p className="mt-4 mb-[1.4rem] max-w-[300px] text-[0.9rem] leading-[1.7] text-[var(--color-text-secondary)] text-pretty">
-                Free cloud storage that lives in accounts you already own. Locked on your device, so
-                nobody else can open it. Not even us. Open source, and yours to run.
+                {t("blurb")}
               </p>
               <a
                 href={GITHUB_REPO_URL}
@@ -140,21 +150,21 @@ export function MarketingFooter() {
                 className="group inline-flex min-h-11 items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)]/40 px-[0.9rem] text-[0.76rem] text-[var(--color-text-secondary)] transition-colors hover:border-[var(--color-border-hover)] hover:text-[var(--color-text)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent)] md:min-h-8"
               >
                 <Github aria-hidden="true" className="h-3.5 w-3.5" />
-                Open source · MIT licensed
-                <span className="sr-only">(opens in a new tab)</span>
+                {t("openSource")}
+                <span className="sr-only">{t("newTab")}</span>
               </a>
             </div>
 
-            <h2 className="sr-only">Site links</h2>
+            <h2 className="sr-only">{t("siteLinks")}</h2>
             {FOOTER_COLUMNS.map((column) => (
-              <div key={column.title}>
+              <div key={column.titleKey}>
                 <h3 className="mb-2 font-heading text-[0.74rem] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)] md:mb-3">
-                  {column.title}
+                  {t(column.titleKey)}
                 </h3>
                 <ul className="list-none">
                   {column.links.map((link) => (
-                    <li key={link.label}>
-                      <FooterNavLink {...link} />
+                    <li key={link.key}>
+                      <FooterNavLink linkKey={link.key} href={link.href} external={link.external} />
                     </li>
                   ))}
                 </ul>
@@ -164,31 +174,32 @@ export function MarketingFooter() {
 
           <div className="pb-safe flex flex-col items-start gap-4 border-t border-[var(--color-border)] pt-8 md:grid md:grid-cols-[1fr_auto_1fr] md:items-center">
             <p className="text-[0.82rem] text-[var(--color-text-muted)]">
-              &copy; {new Date().getFullYear()} zcrypt, your files, your keys.
+              {t("copyright", { year: new Date().getFullYear() })}
             </p>
 
             <a
               href={WOSMO.portfolio}
               target="_blank"
               rel="noopener noreferrer"
-              aria-label={`Built by ${WOSMO.name}`}
+              aria-label={t("builtByAria", { name: WOSMO.name })}
               className="group inline-flex min-h-11 items-center gap-2 rounded-lg text-[0.82rem] text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent)] md:min-h-0 md:justify-self-center"
             >
-              <span>Built by</span>
+              <span>{t("builtBy")}</span>
               <WosmoWordmark className="h-3.5 w-auto opacity-80 transition-opacity group-hover:opacity-100" />
             </a>
 
-            <div className="flex gap-[0.7rem] md:justify-self-end">
+            <div className="flex flex-wrap items-center gap-[0.7rem] md:justify-self-end">
+              <LanguageSwitcher variant="footer" />
               <a
                 href={GITHUB_REPO_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label="GitHub (opens in a new tab)"
+                aria-label={t("githubAria")}
                 className={ICON_BUTTON}
               >
                 <Github aria-hidden="true" className="h-[17px] w-[17px]" />
               </a>
-              <Link href="/docs" aria-label="Docs" className={ICON_BUTTON}>
+              <Link href="/docs" aria-label={t("docs")} className={ICON_BUTTON}>
                 <BookOpen aria-hidden="true" className="h-[17px] w-[17px]" />
               </Link>
             </div>

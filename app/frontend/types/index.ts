@@ -416,6 +416,13 @@ export interface SharedVault {
   role?: "viewer" | "editor" | "admin";
   /** Optional size cap in bytes (sum of shared files' original sizes). 0 = no limit. */
   size_limit_bytes: number;
+  /** True after a member removal until the key is rotated; new files are refused. */
+  needs_rotation?: boolean;
+  /** Card stats from the list endpoint. */
+  member_count?: number;
+  file_count?: number;
+  used_bytes?: number;
+  member_preview?: { user_id: string; username: string }[];
 }
 
 export interface SharedVaultMember {

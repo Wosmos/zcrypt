@@ -20,7 +20,7 @@ export function IPhoneFrame({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <div ref={ref} className="zh-phone">
+    <div ref={ref} className="zh-phone" dir="ltr">
       <span className="zh-phone-btn zh-phone-act" aria-hidden="true" />
       <span className="zh-phone-btn zh-phone-vu" aria-hidden="true" />
       <span className="zh-phone-btn zh-phone-vd" aria-hidden="true" />

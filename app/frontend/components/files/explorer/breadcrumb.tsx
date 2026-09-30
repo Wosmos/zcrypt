@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { Crumb } from "@/store/folders";
 import { ChevronRight, Home } from "@/lib/icons";
 import { cn, midTrunc } from "@/lib/utils";
@@ -25,9 +26,10 @@ export function ExplorerBreadcrumb({
   acceptsDrag,
   dropHandlers,
 }: ExplorerBreadcrumbProps) {
+  const t = useTranslations("explorer");
   return (
     <nav
-      aria-label="Folder path"
+      aria-label={t("folderPath")}
       style={{ scrollbarWidth: "none" }}
       className={cn(
         "flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto [&::-webkit-scrollbar]:hidden",
@@ -48,7 +50,7 @@ export function ExplorerBreadcrumb({
             className="flex flex-shrink-0 items-center gap-0.5"
           >
             {i > 0 && (
-              <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 text-[var(--color-text-muted)]" />
+              <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 text-[var(--color-text-muted)] rtl:-scale-x-100" />
             )}
             <button
               type="button"

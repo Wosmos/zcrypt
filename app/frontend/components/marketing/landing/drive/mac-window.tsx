@@ -13,7 +13,7 @@ export function MacWindow({
   children: ReactNode;
 }) {
   return (
-    <div className="zh-win corner-squircle">
+    <div className="zh-win corner-squircle" dir="ltr">
       <div className="zh-win-bar">
         <span className="zh-lights" aria-hidden="true">
           <span className="zh-light zh-light-r">

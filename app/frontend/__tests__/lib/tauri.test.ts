@@ -10,6 +10,7 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke: invokeMock }));
 vi.mock("@tauri-apps/plugin-dialog", () => ({ open: openMock, save: saveMock }));
 vi.mock("@tauri-apps/api/event", () => ({ listen: listenMock }));
 vi.mock("@tauri-apps/plugin-opener", () => ({ openUrl: openUrlMock }));
+vi.mock("@tauri-apps/api/app", () => ({ getVersion: async () => "9.9.9" }));
 
 describe("tauri (outside the Tauri runtime)", () => {
   beforeEach(() => {
@@ -20,6 +21,11 @@ describe("tauri (outside the Tauri runtime)", () => {
     listenMock.mockReset();
     openUrlMock.mockReset();
     delete (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__;
+  });
+
+  it("getAppVersion is null", async () => {
+    const mod = await import("@/lib/tauri");
+    await expect(mod.getAppVersion()).resolves.toBeNull();
   });
 
   it("isTauri is false", async () => {
@@ -145,6 +151,11 @@ describe("tauri (inside the Tauri runtime)", () => {
 
   afterEach(() => {
     delete (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__;
+  });
+
+  it("getAppVersion reads the shell version", async () => {
+    const mod = await import("@/lib/tauri");
+    await expect(mod.getAppVersion()).resolves.toBe("9.9.9");
   });
 
   it("isTauri is true", async () => {

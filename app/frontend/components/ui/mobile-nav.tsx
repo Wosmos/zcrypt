@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useMemo, type ComponentType } from "react";
+import { useTranslations } from "next-intl";
 import { motion, LayoutGroup, useReducedMotion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { haptic } from "@/lib/haptics";
@@ -10,26 +11,49 @@ import { usePreferencesStore } from "@/store/preferences";
 import { useAuthStore } from "@/store/auth";
 import { logout as logoutApi } from "@/lib/auth-api";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
-import { Cog, Users, LogOut, ArrowRight, BarChart3, Layers, Trash2 } from "@/lib/icons";
+import {
+  Cog,
+  Users,
+  LogOut,
+  ArrowRight,
+  BarChart3,
+  Layers,
+  Trash2,
+  AlertTriangle,
+  Star,
+  Compass,
+} from "@/lib/icons";
+import { useTour } from "@/components/onboarding/tour-provider";
+import { BugReportDialog } from "@/components/feedback/bug-report-dialog";
+import { ReviewDialog } from "@/components/feedback/review-dialog";
 import { VaultIcon, GearIcon, MoreDotsIcon } from "@/components/icons/nav-icons";
 import { Role } from "@/types";
 
 // Primary tabs: kept to the essentials so the bar stays light. Share, Settings,
 // Tools and Admin live in the "More" sheet instead of crowding the bar.
 const NAV_LINKS = [
-  { href: "/dashboard", label: "Vault", Icon: VaultIcon },
-  { href: "/analytics", label: "Insights", Icon: BarChart3 },
-  { href: "/spaces", label: "Spaces", Icon: Layers },
-];
+  { href: "/dashboard", labelKey: "vault", Icon: VaultIcon },
+  { href: "/analytics", labelKey: "insights", Icon: BarChart3 },
+  { href: "/spaces", labelKey: "spaces", Icon: Layers },
+] as const;
 
-type DrawerLink = { href: string; label: string; icon: ComponentType<{ className?: string }> };
+const TOUR_NAV: Record<string, string> = {
+  "/spaces": "nav-spaces-mobile",
+  "/analytics": "nav-insights-mobile",
+};
+
+type DrawerLink = { href: string; labelKey: string; icon: ComponentType<{ className?: string }> };
 
 export function MobileNav() {
+  const t = useTranslations("shell");
   const pathname = usePathname();
   const router = useRouter();
+  const { replay } = useTour();
   const advancedMode = usePreferencesStore((s) => s.advancedMode);
   const { user, refreshTokenValue, clearAuth } = useAuthStore();
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [bugOpen, setBugOpen] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
   const reduce = useReducedMotion();
   const spring = reduce
     ? { duration: 0 }
@@ -41,13 +65,13 @@ export function MobileNav() {
   // are always here; Tools/Admin appear when relevant.
   const drawerLinks = useMemo<DrawerLink[]>(() => {
     const items: DrawerLink[] = [
-      { href: "/settings", label: "Settings", icon: GearIcon },
+      { href: "/settings", labelKey: "settings", icon: GearIcon },
       // Parity with the desktop sidebar's "Deleted Files", without this, a
       // mobile user has no way to reach /trash at all.
-      { href: "/trash", label: "Deleted Files", icon: Trash2 },
+      { href: "/trash", labelKey: "deletedFiles", icon: Trash2 },
     ];
-    if (advancedMode) items.push({ href: "/tools", label: "Tools", icon: Cog });
-    if (isAdmin) items.push({ href: "/admin", label: "Admin", icon: Users });
+    if (advancedMode) items.push({ href: "/tools", labelKey: "tools", icon: Cog });
+    if (isAdmin) items.push({ href: "/admin", labelKey: "admin", icon: Users });
     return items;
   }, [advancedMode, isAdmin]);
 
@@ -76,8 +100,8 @@ export function MobileNav() {
   return (
     <>
       <nav
-        aria-label="Mobile navigation"
-        className="pointer-events-none fixed bottom-0 left-0 right-0 z-50 select-none px-4 pb-[calc(var(--safe-bottom)+8px)] pt-4 [-webkit-tap-highlight-color:transparent] md:hidden"
+        aria-label={t("mobileNavigation")}
+        className="pointer-events-none fixed inset-x-0 bottom-0 z-50 select-none px-4 pb-[calc(var(--safe-bottom)+8px)] pt-4 [-webkit-tap-highlight-color:transparent] md:hidden"
       >
         <div className="pointer-events-auto mx-auto max-w-sm">
           <div
@@ -92,13 +116,14 @@ export function MobileNav() {
             )}
           >
             <LayoutGroup>
-              {NAV_LINKS.map(({ href, label, Icon }) => {
+              {NAV_LINKS.map(({ href, labelKey, Icon }) => {
                 const active = isActive(href);
                 return (
                   <Link
                     key={href}
                     href={href}
                     aria-current={active ? "page" : undefined}
+                    data-tour={TOUR_NAV[href]}
                     onClick={() => {
                       if (!active) haptic(6);
                     }}
@@ -107,7 +132,7 @@ export function MobileNav() {
                     <TabGlyph active={active} spring={spring}>
                       <Icon filled={active} className={glyphClass(active)} />
                     </TabGlyph>
-                    <span className={labelClass(active)}>{label}</span>
+                    <span className={labelClass(active)}>{t(labelKey)}</span>
                   </Link>
                 );
               })}
@@ -118,7 +143,7 @@ export function MobileNav() {
                   haptic(6);
                   setSheetOpen(true);
                 }}
-                aria-label="More"
+                aria-label={t("more")}
                 aria-haspopup="dialog"
                 aria-expanded={sheetOpen}
                 className={TAB}
@@ -129,7 +154,7 @@ export function MobileNav() {
                     className={glyphClass(sheetOpen || moreActive)}
                   />
                 </TabGlyph>
-                <span className={labelClass(sheetOpen || moreActive)}>More</span>
+                <span className={labelClass(sheetOpen || moreActive)}>{t("more")}</span>
               </button>
             </LayoutGroup>
           </div>
@@ -141,10 +166,10 @@ export function MobileNav() {
           {/* Navigation. Share + Settings always; Tools/Admin when relevant. */}
           <div className="px-3 pb-1">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--color-text-muted)]">
-              Navigation
+              {t("navigation")}
             </p>
           </div>
-          {drawerLinks.map(({ href, label, icon: Icon }) => (
+          {drawerLinks.map(({ href, labelKey, icon: Icon }) => (
             <Link
               key={href}
               href={href}
@@ -167,10 +192,55 @@ export function MobileNav() {
               >
                 <Icon className="h-4 w-4" />
               </div>
-              <span className="flex-1 text-sm font-medium">{label}</span>
-              <ArrowRight className="h-3.5 w-3.5 text-[var(--color-text-muted)]" />
+              <span className="flex-1 text-sm font-medium">{t(labelKey)}</span>
+              <ArrowRight className="h-3.5 w-3.5 text-[var(--color-text-muted)] rtl:-scale-x-100" />
             </Link>
           ))}
+
+          <button
+            onClick={() => {
+              haptic(6);
+              setSheetOpen(false);
+              setTimeout(replay, 250);
+            }}
+            className="mx-1 flex min-h-12 w-full touch-manipulation items-center gap-3 rounded-xl px-3 py-2.5 text-[var(--color-text)] transition-[background-color,transform] duration-150 hover:bg-[var(--color-surface-1)] active:scale-[0.98]"
+          >
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-surface-1)]">
+              <Compass className="h-4 w-4" />
+            </div>
+            <span className="flex-1 text-left text-sm font-medium">{t("takeTour")}</span>
+            <ArrowRight className="h-3.5 w-3.5 text-[var(--color-text-muted)] rtl:-scale-x-100" />
+          </button>
+
+          <button
+            onClick={() => {
+              haptic(6);
+              setSheetOpen(false);
+              setReviewOpen(true);
+            }}
+            className="mx-1 flex min-h-12 w-full touch-manipulation items-center gap-3 rounded-xl px-3 py-2.5 text-[var(--color-text)] transition-[background-color,transform] duration-150 hover:bg-[var(--color-surface-1)] active:scale-[0.98]"
+          >
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-surface-1)]">
+              <Star className="h-4 w-4" />
+            </div>
+            <span className="flex-1 text-left text-sm font-medium">{t("rate")}</span>
+            <ArrowRight className="h-3.5 w-3.5 text-[var(--color-text-muted)] rtl:-scale-x-100" />
+          </button>
+
+          <button
+            onClick={() => {
+              haptic(6);
+              setSheetOpen(false);
+              setBugOpen(true);
+            }}
+            className="mx-1 flex min-h-12 w-full touch-manipulation items-center gap-3 rounded-xl px-3 py-2.5 text-[var(--color-text)] transition-[background-color,transform] duration-150 hover:bg-[var(--color-surface-1)] active:scale-[0.98]"
+          >
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-surface-1)]">
+              <AlertTriangle className="h-4 w-4" />
+            </div>
+            <span className="flex-1 text-left text-sm font-medium">{t("reportBug")}</span>
+            <ArrowRight className="h-3.5 w-3.5 text-[var(--color-text-muted)] rtl:-scale-x-100" />
+          </button>
 
           {/* Log out (theme toggle lives in the avatar dropdown, not here). */}
           <div className="mx-3 my-2 border-t border-[var(--color-border)]" />
@@ -184,10 +254,12 @@ export function MobileNav() {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-500/10">
               <LogOut className="h-4 w-4" />
             </div>
-            <span className="text-sm font-medium">Log out</span>
+            <span className="text-sm font-medium">{t("logOut")}</span>
           </button>
         </div>
       </BottomSheet>
+      <BugReportDialog open={bugOpen} onOpenChange={setBugOpen} />
+      <ReviewDialog open={reviewOpen} onOpenChange={setReviewOpen} />
     </>
   );
 }
