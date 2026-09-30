@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   listFolders,
@@ -9,16 +9,11 @@ import {
   deleteFolder as apiDeleteFolder,
   updateFolderStyle as apiUpdateFolderStyle,
 } from "@/lib/api";
-import {
-  deriveNameKey,
-  encryptName,
-  decryptNameSafe,
-  encryptStyle,
-  decryptStyle,
-  type CustomStyle,
-} from "@/lib/name-crypto";
-import { useAuthStore } from "@/store/auth";
+import { encryptName, encryptStyle, type CustomStyle } from "@/lib/name-crypto";
+import { userNameKey, LOCKED } from "@/lib/sealed";
+import { ensureNames, peekName, peekStyle, subscribeNames, getNamesEpoch } from "@/lib/file-names";
 import { usePassphraseStore } from "@/store/passphrase";
+import { useAuthStore } from "@/store/auth";
 import { useFolderStore } from "@/store/folders";
 import { useFolderRegistry } from "@/store/folder-registry";
 import { queryClient } from "@/lib/query-client";
@@ -41,78 +36,58 @@ function invalidateFolders(): Promise<void> {
   return queryClient.invalidateQueries({ queryKey: ["folders"] });
 }
 
+/** Resolve a raw folder list against the in-memory name maps. While unlocked, a
+ *  name still being decrypted reads as "" for a frame rather than "[locked]". */
+function resolveFolders(raw: Folder[], unlocked: boolean, _epoch?: number): DecryptedFolder[] {
+  return raw.map((f) => ({
+    ...f,
+    name: unlocked ? (peekName(f.encrypted_name) ?? "") : LOCKED,
+    protected: f.pw_salt != null,
+    style: unlocked ? peekStyle(f.encrypted_style) : null,
+  }));
+}
+
+const EMPTY: DecryptedFolder[] = [];
+
 export function useFolders() {
-  const user = useAuthStore((s) => s.user);
-  const getPassphrase = usePassphraseStore((s) => s.getPassphrase);
-  // Subscribe to the raw cached passphrase (a reactive VALUE, not the stable
-  // getPassphrase fn) so this hook re-decrypts the moment the vault is unlocked
-  // or locked anywhere, e.g. via the header VaultLock pill.
-  const cachedPassphrase = usePassphraseStore((s) => s.cachedPassphrase);
+  // Subscribe to the raw cached passphrase (a reactive VALUE) so names flip the
+  // moment the vault is unlocked or locked anywhere, e.g. via the header pill.
+  const hasUser = useAuthStore((s) => s.user != null);
+  const unlocked = usePassphraseStore((s) => s.cachedPassphrase != null) && hasUser;
+  const epoch = useSyncExternalStore(subscribeNames, getNamesEpoch, getNamesEpoch);
 
   const currentFolderId = useFolderStore((s) => s.currentFolderId);
   const breadcrumb = useFolderStore((s) => s.breadcrumb);
   const setCurrentFolder = useFolderStore((s) => s.setCurrentFolder);
   const navigateToCrumbStore = useFolderStore((s) => s.navigateToCrumb);
 
-  // Raw (encrypted) folder list for the current parent, the single source of
-  // truth, cached per parent. Names are decrypted client-side below.
-  const rawQuery = useQuery({
+  // The cache holds the raw (encrypted) listing per parent, which is what gets
+  // persisted. Names are resolved in `select` from the shared name maps, so an
+  // unlock or a revisit re-derives from cache with no refetch.
+  const select = useCallback(
+    (raw: Folder[]) => resolveFolders(raw, unlocked, epoch),
+    [epoch, unlocked],
+  );
+  const query = useQuery({
     queryKey: qk.folders(currentFolderId),
     queryFn: () => listFolders(currentFolderId),
+    select,
   });
+  const folders = query.data ?? EMPTY;
 
-  const [folders, setFolders] = useState<DecryptedFolder[]>([]);
-  const [locked, setLocked] = useState(false);
-
-  // Cache the derived name key so we don't re-derive (PBKDF2) on every refresh.
-  const nameKeyRef = useRef<CryptoKey | null>(null);
-  const keyForPassphraseRef = useRef<string | null>(null);
-
-  const getNameKey = useCallback(async (): Promise<CryptoKey | null> => {
-    if (!user) return null;
-    const passphrase = getPassphrase();
-    if (!passphrase) return null;
-    if (nameKeyRef.current && keyForPassphraseRef.current === passphrase) {
-      return nameKeyRef.current;
-    }
-    const key = await deriveNameKey(passphrase, user.id);
-    nameKeyRef.current = key;
-    keyForPassphraseRef.current = passphrase;
-    return key;
-  }, [user, getPassphrase]);
-
-  // Decrypt folder names whenever the raw list changes OR the vault locks/unlocks
-  // (`cachedPassphrase`). A cancel flag drops a stale in-flight decrypt if the
-  // folder/passphrase changes before it resolves, so the displayed list always
-  // matches the current parent.
-  const raw = rawQuery.data;
+  // Record protection metadata so any browsed folder can be password-routed by
+  // id (the backend has no get-by-id), and decrypt any names not seen yet.
+  const updatedAt = query.dataUpdatedAt;
   useEffect(() => {
-    let cancelled = false;
-    if (!raw) {
-      setFolders([]);
-      return;
-    }
-    // Record protection metadata so any browsed folder can be password-routed
-    // by id (the backend has no get-by-id).
+    const raw = queryClient.getQueryData<Folder[]>(qk.folders(currentFolderId));
+    if (!raw) return;
     useFolderRegistry.getState().record(raw);
-    void (async () => {
-      const key = await getNameKey();
-      if (cancelled) return;
-      setLocked(!key);
-      const decrypted = await Promise.all(
-        raw.map(async (f) => ({
-          ...f,
-          name: key ? await decryptNameSafe(f.encrypted_name, key) : "[locked]",
-          protected: f.pw_salt != null,
-          style: key ? await decryptStyle(f.encrypted_style, key) : null,
-        })),
+    if (unlocked)
+      void ensureNames(
+        raw.map((f) => f.encrypted_name),
+        raw.map((f) => f.encrypted_style),
       );
-      if (!cancelled) setFolders(decrypted);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [raw, cachedPassphrase, getNameKey]);
+  }, [updatedAt, currentFolderId, unlocked]);
 
   const refresh = useCallback(async () => {
     await invalidateFolders();
@@ -120,7 +95,7 @@ export function useFolders() {
 
   const createFolder = useCallback(
     async (name: string) => {
-      const key = await getNameKey();
+      const key = await userNameKey();
       if (!key) throw new Error("Unlock your vault to create folders");
       const trimmed = name.trim();
       // Block a duplicate sibling name (case-insensitive). Folder names are
@@ -133,12 +108,12 @@ export function useFolders() {
       await apiCreateFolder({ encrypted_name, parent_id: currentFolderId });
       await invalidateFolders();
     },
-    [getNameKey, currentFolderId, folders],
+    [currentFolderId, folders],
   );
 
   const renameFolder = useCallback(
     async (id: string, name: string) => {
-      const key = await getNameKey();
+      const key = await userNameKey();
       if (!key) throw new Error("Unlock your vault to rename folders");
       const trimmed = name.trim();
       if (
@@ -150,19 +125,16 @@ export function useFolders() {
       await apiRenameFolder(id, encrypted_name);
       await invalidateFolders();
     },
-    [getNameKey, folders],
+    [folders],
   );
 
-  const updateFolderStyle = useCallback(
-    async (folderId: string, style: CustomStyle | null) => {
-      const key = await getNameKey();
-      if (!key) throw new Error("Unlock your vault to customize folders");
-      const encrypted_style = style ? await encryptStyle(style, key) : null;
-      await apiUpdateFolderStyle(folderId, encrypted_style);
-      await invalidateFolders();
-    },
-    [getNameKey],
-  );
+  const updateFolderStyle = useCallback(async (folderId: string, style: CustomStyle | null) => {
+    const key = await userNameKey();
+    if (!key) throw new Error("Unlock your vault to customize folders");
+    const encrypted_style = style ? await encryptStyle(style, key) : null;
+    await apiUpdateFolderStyle(folderId, encrypted_style);
+    await invalidateFolders();
+  }, []);
 
   const deleteFolder = useCallback(async (id: string) => {
     await apiDeleteFolder(id);
@@ -189,8 +161,8 @@ export function useFolders() {
 
   return {
     folders,
-    loading: rawQuery.isPending,
-    locked,
+    loading: query.isPending,
+    locked: !unlocked,
     refresh,
     createFolder,
     renameFolder,

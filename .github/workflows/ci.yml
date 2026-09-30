@@ -246,7 +246,7 @@ jobs:
           # Disable per-IP rate limiting so the serial E2E suite can register and
           # log in many users from a single IP without being throttled.
           DEV_MODE: "true"
-        run: go run . &
+        run: go run -tags=integration . &
 
       - name: Install frontend dependencies
         working-directory: app/frontend

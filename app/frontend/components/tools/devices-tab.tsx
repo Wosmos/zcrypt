@@ -16,7 +16,10 @@ import {
   updateSyncFolder,
   deleteSyncFolder,
 } from "@/lib/api";
-import { ensureFiles } from "@/store/files";
+import { useFilesQuery } from "@/store/files";
+import { useQuery } from "@tanstack/react-query";
+import { qk } from "@/lib/query-keys";
+import { setListData } from "@/lib/query-cache";
 import { encryptChunk, decryptChunk, toBase64 } from "@/lib/crypto";
 import type { OfflinePin, FileMetadata, ClipboardItem, SyncFolder } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -47,24 +50,22 @@ function getDeviceId(): string {
 
 // ── Offline Pins Section ──────────────────────────────────────────────
 
+const NO_PINS: OfflinePin[] = [];
+const NO_FILES: FileMetadata[] = [];
+
 function OfflinePinsSection() {
-  const [pins, setPins] = useState<OfflinePin[]>([]);
-  const [files, setFiles] = useState<FileMetadata[]>([]);
-  const [loading, setLoading] = useState(true);
   const [pinning, setPinning] = useState<string | null>(null);
   const deviceId = typeof window !== "undefined" ? getDeviceId() : "";
-
-  useEffect(() => {
-    Promise.all([listOfflinePins(deviceId), ensureFiles()])
-      .then(([p, f]) => {
-        setPins(p);
-        setFiles(f);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-    // deviceId is stable for the session; run once on mount.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const pinsQuery = useQuery({
+    queryKey: qk.devices(deviceId),
+    queryFn: () => listOfflinePins(deviceId),
+  });
+  const pins = pinsQuery.data ?? NO_PINS;
+  const setPins = (fn: (prev: OfflinePin[]) => OfflinePin[]) =>
+    setListData<OfflinePin>(qk.devices(deviceId), fn);
+  const filesQuery = useFilesQuery();
+  const files = filesQuery.data ?? NO_FILES;
+  const loading = pinsQuery.isPending || filesQuery.isPending;
 
   const isPinned = (fileId: string) => pins.some((p) => p.file_id === fileId);
 
@@ -427,10 +428,15 @@ function ClipboardSyncSection() {
 
 // ── Folder Sync Section ───────────────────────────────────────────────
 
+const NO_SYNC: SyncFolder[] = [];
+
 function FolderSyncSection() {
   const reduceMotion = useReducedMotion();
-  const [folders, setFolders] = useState<SyncFolder[]>([]);
-  const [loading, setLoading] = useState(true);
+  const syncQuery = useQuery({ queryKey: qk.syncFolders, queryFn: listSyncFolders });
+  const folders = syncQuery.data ?? NO_SYNC;
+  const loading = syncQuery.isPending;
+  const setFolders = (fn: (prev: SyncFolder[]) => SyncFolder[]) =>
+    setListData<SyncFolder>(qk.syncFolders, fn);
   const [showAdd, setShowAdd] = useState(false);
   const [newPath, setNewPath] = useState("");
   const [newLabel, setNewLabel] = useState("");
@@ -438,13 +444,6 @@ function FolderSyncSection() {
   const [error, setError] = useState("");
   const [pendingDelete, setPendingDelete] = useState<SyncFolder | null>(null);
   const [deleting, setDeleting] = useState(false);
-
-  useEffect(() => {
-    listSyncFolders()
-      .then(setFolders)
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
 
   const handleCreate = async () => {
     if (!newPath.trim()) return;

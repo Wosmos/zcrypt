@@ -21,7 +21,8 @@ import {
   decryptSpaceFileName,
 } from "@/lib/spaces";
 import { ensureUserKeypair } from "@/lib/keys";
-import { deriveNameKey, decryptNameSafe } from "@/lib/name-crypto";
+import { decryptNameSafe } from "@/lib/name-crypto";
+import { nameKeyFor } from "@/lib/sealed";
 import { usePassphraseStore } from "@/store/passphrase";
 import { useFilesQuery } from "@/store/files";
 import { queryClient } from "@/lib/query-client";
@@ -86,7 +87,7 @@ function useFolderOptions(files: FileMetadata[], enabled: boolean) {
       return;
     }
     void (async () => {
-      const key = await deriveNameKey(pass, user.id);
+      const key = await nameKeyFor(pass, user.id);
       if (cancelled) return;
       const entries = await Promise.all(
         raw.map(async (f) => [f.id, await decryptNameSafe(f.encrypted_name, key)] as const),

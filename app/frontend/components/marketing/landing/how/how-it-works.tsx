@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRef } from "react";
-import { MOTION_REDUCE, gsap, useGSAP } from "@/components/marketing/landing/gsap";
+import { MOTION_REDUCE, ScrollTrigger, gsap, useGSAP } from "@/components/marketing/landing/gsap";
 import { ArrowRight } from "@/lib/icons";
 import { SectionHead } from "../section-head";
 import { CAPTIONS, type HowPart } from "./how-data";
@@ -287,7 +287,7 @@ export function HowItWorks() {
       const fill = wrap.querySelector<HTMLElement>(".zw-fill");
       const dot = wrap.querySelector<HTMLElement>(".zw-dot");
 
-      const geo = () => {
+      const read = () => {
         const cs = steps.map((li) => {
           const n = li.querySelector<HTMLElement>(".zw-node");
           return n ? n.offsetTop + n.offsetHeight / 2 : 0;
@@ -296,8 +296,18 @@ export function HowItWorks() {
         const h = Math.max(1, wrap.offsetHeight - top);
         return { ys: [0, (cs[1] ?? top) - top, (cs[2] ?? top) - top, h], h, top };
       };
+      let cache: ReturnType<typeof read> | null = null;
+      const geo = () => {
+        cache ??= read();
+        return cache;
+      };
+      const reset = () => {
+        cache = null;
+      };
+      ScrollTrigger.addEventListener("refreshInit", reset);
       const measure = () => {
-        const g = geo();
+        cache = read();
+        const g = cache;
         wrap.style.setProperty("--zw-rail-top", `${g.top}px`);
         wrap.style.setProperty("--zw-rail-h", `${g.h}px`);
       };
@@ -333,8 +343,7 @@ export function HowItWorks() {
             pinSpacer: spacer ?? undefined,
             start: "top top",
             end: () => `+=${window.innerHeight * 2.4}`,
-            scrub: 1,
-            anticipatePin: 1,
+            scrub: 0.5,
             invalidateOnRefresh: true,
             refreshPriority: 1,
             onUpdate: (self) =>
@@ -405,7 +414,10 @@ export function HowItWorks() {
 
       mm.add(MOTION_REDUCE, () => setActive("all"));
 
-      return () => ro.disconnect();
+      return () => {
+        ro.disconnect();
+        ScrollTrigger.removeEventListener("refreshInit", reset);
+      };
     },
     { scope: root },
   );

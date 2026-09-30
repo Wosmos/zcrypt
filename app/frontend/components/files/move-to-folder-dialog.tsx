@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { listFolders, moveFile, moveFolder } from "@/lib/api";
-import { deriveNameKey, decryptNameSafe } from "@/lib/name-crypto";
+import { decryptNameSafe } from "@/lib/name-crypto";
+import { nameKeyFor } from "@/lib/sealed";
+import { qk } from "@/lib/query-keys";
+import { queryClient } from "@/lib/query-client";
 import { useAuthStore } from "@/store/auth";
 import { usePassphraseStore } from "@/store/passphrase";
 import { useFolderRegistry } from "@/store/folder-registry";
@@ -86,7 +89,12 @@ export function MoveToFolderDialog({
   const parentRef = useRef<Map<string, string | null>>(new Map());
 
   const fetchChildren = useCallback(async (parentId: string | null): Promise<TreeNode[]> => {
-    const raw = await listFolders(parentId);
+    // Shares the explorer's per-parent folder cache: a level already browsed
+    // opens instantly, and a new one warms the explorer too.
+    const raw = await queryClient.fetchQuery({
+      queryKey: qk.folders(parentId),
+      queryFn: () => listFolders(parentId),
+    });
     // Record protection metadata (the registry has no get-by-id endpoint) and
     // parent edges for descendant detection.
     useFolderRegistry.getState().record(raw);
@@ -130,7 +138,7 @@ export function MoveToFolderDialog({
     void (async () => {
       try {
         const passphrase = getPassphrase();
-        keyRef.current = passphrase && user ? await deriveNameKey(passphrase, user.id) : null;
+        keyRef.current = passphrase && user ? await nameKeyFor(passphrase, user.id) : null;
         setLocked(!keyRef.current);
         const top = await fetchChildren(null);
         setChildren({ root: top });

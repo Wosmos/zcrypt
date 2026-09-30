@@ -72,9 +72,8 @@ export default function OnboardingPage() {
   // not trap anyone here; the worst case is seeing this screen twice.
   const finishOnboarding = () => {
     void markOnboarded().catch(() => {});
-    useAuthStore.setState((prev) =>
-      prev.user ? { user: { ...prev.user, onboarded_at: new Date().toISOString() } } : prev,
-    );
+    const { user, setUser } = useAuthStore.getState();
+    if (user) setUser({ ...user, onboarded_at: new Date().toISOString() });
     router.push("/dashboard");
   };
 

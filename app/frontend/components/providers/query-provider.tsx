@@ -1,8 +1,26 @@
 "use client";
 
-import { QueryClientProvider } from "@tanstack/react-query";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { lazy, Suspense } from "react";
-import { queryClient } from "@/lib/query-client";
+import {
+  queryClient,
+  queryPersister,
+  shouldPersistQuery,
+  PERSIST_MAX_AGE,
+  revalidateRestored,
+} from "@/lib/query-client";
+import { cachedUserId } from "@/store/auth";
+
+// A reload paints the last-known lists straight from IndexedDB, then refetches
+// whatever is stale. The buster is the cached user id, so a snapshot never
+// restores into another account.
+const persistOptions = {
+  persister: queryPersister,
+  maxAge: PERSIST_MAX_AGE,
+  buster: cachedUserId,
+  dehydrateOptions: { shouldDehydrateQuery: shouldPersistQuery },
+  onSuccess: revalidateRestored,
+};
 
 // Devtools are dev-only and dynamically imported so they never reach the prod
 // bundle. They render a floating panel that shows the live cache state, useful
@@ -18,13 +36,13 @@ const ReactQueryDevtools =
 
 export function QueryProvider({ children }: { children: React.ReactNode }) {
   return (
-    <QueryClientProvider client={queryClient}>
+    <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
       {children}
       {ReactQueryDevtools && (
         <Suspense fallback={null}>
           <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />
         </Suspense>
       )}
-    </QueryClientProvider>
+    </PersistQueryClientProvider>
   );
 }

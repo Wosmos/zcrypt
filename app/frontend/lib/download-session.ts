@@ -78,7 +78,7 @@ export interface DownloadResumeState {
   writtenCount?: number;
 }
 
-export type DownloadProgressCallback = (info: {
+type DownloadProgressCallback = (info: {
   stage: string;
   percent: number;
   chunksDone: number;
@@ -401,8 +401,9 @@ export async function downloadAndDecryptFile(
         const vaultPass = usePassphraseStore.getState().getPassphrase();
         if (uid && vaultPass) {
           try {
-            const { deriveNameKey, decryptName } = await import("@/lib/name-crypto");
-            saveName = await decryptName(meta.encrypted_name, await deriveNameKey(vaultPass, uid));
+            const { decryptName } = await import("@/lib/name-crypto");
+            const { nameKeyFor } = await import("@/lib/sealed");
+            saveName = await decryptName(meta.encrypted_name, await nameKeyFor(vaultPass, uid));
           } catch {
             /* keep meta.original_name (possibly '') */
           }

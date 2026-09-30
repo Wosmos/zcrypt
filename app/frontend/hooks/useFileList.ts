@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
+import { useCallback } from "react";
 import type { FileMetadata } from "@/types";
-import { useFilesQuery, setFilesData, invalidateFiles, hydrateFilesFromCache } from "@/store/files";
+import { useFilesQuery, setFilesData, invalidateFiles } from "@/store/files";
 
 /**
  * Vault file list. A thin adapter over the TanStack Query `files` cache so every
@@ -12,12 +12,6 @@ import { useFilesQuery, setFilesData, invalidateFiles, hydrateFilesFromCache } f
  */
 export function useFileList() {
   const query = useFilesQuery();
-
-  // Instant cold start: seed from the OPFS offline cache if the query has no
-  // data yet. Only fills an empty cache, so it never clobbers fresher state.
-  useEffect(() => {
-    void hydrateFilesFromCache();
-  }, []);
 
   // `filter` is accepted for call-site compatibility but ignored: the explorer
   // filters the single global list client-side, so a refresh just reconciles

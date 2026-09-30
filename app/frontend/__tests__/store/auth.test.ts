@@ -25,7 +25,9 @@ vi.hoisted(() => {
   });
 });
 
-import { useAuthStore } from "@/store/auth";
+import { useAuthStore, readCachedUser } from "@/store/auth";
+import { queryClient } from "@/lib/query-client";
+import * as qc from "@/lib/query-client";
 import { usePassphraseStore } from "@/store/passphrase";
 import { useKeysStore } from "@/store/keys";
 import { useSpacesStore } from "@/store/spaces";
@@ -206,6 +208,76 @@ describe("useAuthStore", () => {
     it("is safe to call when nothing was ever set", () => {
       expect(() => useAuthStore.getState().clearAuth()).not.toThrow();
       expect(useAuthStore.getState().user).toBeNull();
+    });
+  });
+
+  describe("cached identity (instant shell)", () => {
+    it("persists only id, role, onboarded_at and username, and reads it back", () => {
+      useAuthStore.getState().setUser({ ...USER, onboarded_at: "2026-02-01" });
+      const raw = JSON.parse(localStorage.getItem("zcrypt-user")!);
+      expect(raw).toEqual({
+        id: "user-1",
+        role: Role.User,
+        onboarded_at: "2026-02-01",
+        username: "alice",
+      });
+      expect(raw.email).toBeUndefined();
+      const cached = readCachedUser();
+      expect(cached).toMatchObject({ id: "user-1", role: Role.User, username: "alice", email: "" });
+    });
+
+    it("reads nothing for missing, id-less, username-less or corrupt entries", () => {
+      expect(readCachedUser()).toBeNull();
+      localStorage.setItem("zcrypt-user", JSON.stringify({ role: "user" }));
+      expect(readCachedUser()).toBeNull();
+      localStorage.setItem("zcrypt-user", "{not json");
+      expect(readCachedUser()).toBeNull();
+      localStorage.setItem("zcrypt-user", JSON.stringify({ id: "u", role: "user" }));
+      expect(readCachedUser()?.username).toBe("");
+    });
+
+    it("reads nothing during SSR", () => {
+      vi.stubGlobal("window", undefined);
+      expect(readCachedUser()).toBeNull();
+    });
+
+    it("survives storage that throws on write", () => {
+      const spy = vi.spyOn(localStorage, "setItem").mockImplementation(() => {
+        throw new Error("quota");
+      });
+      expect(() => useAuthStore.getState().setUser(USER)).not.toThrow();
+      spy.mockRestore();
+    });
+
+    it("wipes the query cache when a different account signs in on this device", () => {
+      const wipe = vi.spyOn(qc, "wipeQueryCache");
+      useAuthStore.getState().setUser(USER);
+      expect(wipe).not.toHaveBeenCalled();
+      useAuthStore.getState().setUser(USER); // same account again
+      expect(wipe).not.toHaveBeenCalled();
+      queryClient.setQueryData(["files"], [{ id: "a-file" }]);
+      useAuthStore.getState().setUser({ ...USER, id: "user-2" });
+      expect(wipe).toHaveBeenCalledTimes(1);
+      expect(queryClient.getQueryData(["files"])).toBeUndefined();
+      wipe.mockRestore();
+    });
+
+    it("clearAuth forgets the cached identity and wipes the query cache", () => {
+      useAuthStore.getState().setUser(USER);
+      queryClient.setQueryData(["files"], [{ id: "a-file" }]);
+      useAuthStore.getState().clearAuth();
+      expect(localStorage.getItem("zcrypt-user")).toBeNull();
+      expect(queryClient.getQueryData(["files"])).toBeUndefined();
+    });
+
+    it("exposes the boot-time cached user id for the persist buster", async () => {
+      localStorage.setItem("zcrypt-user", JSON.stringify({ id: "boot-user", role: "user" }));
+      vi.resetModules();
+      const fresh = await import("@/store/auth");
+      expect(fresh.cachedUserId).toBe("boot-user");
+      localStorage.clear();
+      vi.resetModules();
+      expect((await import("@/store/auth")).cachedUserId).toBe("");
     });
   });
 });

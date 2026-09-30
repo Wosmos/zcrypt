@@ -22,6 +22,26 @@ import { Logo } from "@/components/ui/logo";
 import { MobileNav } from "@/components/ui/mobile-nav";
 import { useAuthStore } from "@/store/auth";
 import { useQuotaQuery } from "@/store/quota";
+import { prefetchVault } from "@/store/files";
+import { prefetchAnalytics } from "@/hooks/useAnalytics";
+import { fetchAdminOverview } from "@/hooks/useAdminGuardedFetch";
+import { listSharedVaults } from "@/lib/api";
+import { queryClient } from "@/lib/query-client";
+import { qk } from "@/lib/query-keys";
+
+// Warm a page's data on hover/focus of its nav link, so the click lands on a
+// cache hit. prefetchQuery is a no-op for anything still fresh.
+const prefetchers: Record<string, () => Promise<unknown>> = {
+  "/dashboard": prefetchVault,
+  "/analytics": prefetchAnalytics,
+  "/spaces": () => queryClient.prefetchQuery({ queryKey: qk.spaces, queryFn: listSharedVaults }),
+  "/admin": () =>
+    queryClient.prefetchQuery({ queryKey: qk.adminOverview, queryFn: fetchAdminOverview }),
+};
+
+function prefetchRoute(href: string): void {
+  void prefetchers[href]?.().catch(() => {});
+}
 
 const primaryLinks = [
   { href: "/dashboard", label: "Vault", icon: Shield },
@@ -77,6 +97,8 @@ export function Sidebar() {
         href={href}
         title={collapsed ? label : undefined}
         aria-current={active ? "page" : undefined}
+        onMouseEnter={() => prefetchRoute(href)}
+        onFocus={() => prefetchRoute(href)}
         className={cn(
           "group flex items-center gap-3 rounded-xl text-sm font-medium transition-colors duration-150",
           collapsed ? "justify-center px-0 py-2.5" : "px-3 py-2.5",

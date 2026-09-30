@@ -35,15 +35,15 @@ func (db *DB) CreateFolderShare(ctx context.Context, s *types.FolderShare, files
 	// single round trip.
 	if len(files) > 0 {
 		values := make([]string, 0, len(files))
-		args := make([]interface{}, 0, len(files)*3)
+		args := make([]interface{}, 0, len(files)*4)
 		for i, f := range files {
-			b := i * 3
-			values = append(values, fmt.Sprintf("($%d, $%d, $%d)", b+1, b+2, b+3))
-			args = append(args, s.ID, f.FileID, f.WrappedCEK)
+			b := i * 4
+			values = append(values, fmt.Sprintf("($%d, $%d, $%d, $%d)", b+1, b+2, b+3, b+4))
+			args = append(args, s.ID, f.FileID, f.WrappedCEK, f.EncName)
 		}
-		query := `INSERT INTO folder_share_files (folder_share_id, file_id, wrapped_cek) VALUES ` +
+		query := `INSERT INTO folder_share_files (folder_share_id, file_id, wrapped_cek, enc_name) VALUES ` +
 			strings.Join(values, ", ") +
-			` ON CONFLICT (folder_share_id, file_id) DO UPDATE SET wrapped_cek = EXCLUDED.wrapped_cek`
+			` ON CONFLICT (folder_share_id, file_id) DO UPDATE SET wrapped_cek = EXCLUDED.wrapped_cek, enc_name = EXCLUDED.enc_name`
 		if _, err := tx.Exec(ctx, query, args...); err != nil {
 			return fmt.Errorf("add folder share files: %w", err)
 		}
@@ -70,7 +70,7 @@ func (db *DB) GetFolderShareByToken(ctx context.Context, token string) (*types.F
 // per-file wrapped CEK so a recipient can decrypt with the folder-share key.
 func (db *DB) ListFolderShareFiles(ctx context.Context, folderShareID string) ([]types.FolderShareFile, error) {
 	rows, err := db.pool.Query(ctx, `
-		SELECT fsf.file_id, fsf.wrapped_cek, f.original_name, f.original_size, f.chunk_count
+		SELECT fsf.file_id, fsf.wrapped_cek, COALESCE(NULLIF(fsf.enc_name, ''), f.original_name), f.original_size, f.chunk_count
 		FROM folder_share_files fsf
 		JOIN files f ON f.id = fsf.file_id
 		WHERE fsf.folder_share_id = $1
@@ -91,15 +91,19 @@ func (db *DB) ListFolderShareFiles(ctx context.Context, folderShareID string) ([
 	return files, rows.Err()
 }
 
-// GetFolderShareFileWrap returns a file's wrapped CEK IF it belongs to the given
-// folder share (pgx.ErrNoRows otherwise): the authorization check for serving
-// that file's meta/chunks publicly.
-func (db *DB) GetFolderShareFileWrap(ctx context.Context, folderShareID, fileID string) (string, error) {
-	var wrapped string
-	err := db.pool.QueryRow(ctx,
-		`SELECT wrapped_cek FROM folder_share_files WHERE folder_share_id = $1 AND file_id = $2`,
-		folderShareID, fileID).Scan(&wrapped)
-	return wrapped, err
+// GetFolderShareFileWrap returns a file's wrapped CEK and sealed name IF it
+// belongs to the given folder share (pgx.ErrNoRows otherwise): the authorization
+// check for serving that file's meta/chunks publicly. The name falls back to the
+// file's legacy plaintext name for links created before names were sealed.
+func (db *DB) GetFolderShareFileWrap(ctx context.Context, folderShareID, fileID string) (string, string, error) {
+	var wrapped, name string
+	err := db.pool.QueryRow(ctx, `
+		SELECT fsf.wrapped_cek, COALESCE(NULLIF(fsf.enc_name, ''), f.original_name)
+		FROM folder_share_files fsf
+		JOIN files f ON f.id = fsf.file_id
+		WHERE fsf.folder_share_id = $1 AND fsf.file_id = $2`,
+		folderShareID, fileID).Scan(&wrapped, &name)
+	return wrapped, name, err
 }
 
 // ListFolderSharesByUser returns a user's folder shares (optionally for one

@@ -8,7 +8,14 @@ const { getPassphrase, getUser } = vi.hoisted(() => ({
   getUser: vi.fn<() => { id: string } | null>(),
 }));
 vi.mock("@/store/passphrase", () => ({
-  usePassphraseStore: { getState: () => ({ getPassphrase }) },
+  usePassphraseStore: {
+    getState: () => ({
+      getPassphrase,
+      get cachedPassphrase() {
+        return getPassphrase();
+      },
+    }),
+  },
 }));
 const { setFileName } = vi.hoisted(() => ({
   setFileName: vi.fn(() => Promise.resolve({ success: true })),
@@ -18,7 +25,19 @@ vi.mock("@/store/auth", () => ({
   useAuthStore: { getState: () => ({ user: getUser() }) },
 }));
 
-import { decryptFileNames } from "@/lib/file-names";
+import {
+  decryptFileNames,
+  ensureNames,
+  ensureFileNames,
+  resolveFileNames,
+  subscribeNames,
+  getNamesEpoch,
+  peekName,
+  peekStyle,
+  clearNames,
+} from "@/lib/file-names";
+import { clearDecryptCache } from "@/lib/decrypt-cache";
+import { userNameKey } from "@/lib/sealed";
 
 function file(over: Partial<FileMetadata>): FileMetadata {
   return {
@@ -33,6 +52,7 @@ const PASS = "vault-pass";
 beforeEach(() => {
   getUser.mockReturnValue(USER);
   getPassphrase.mockReturnValue(PASS);
+  clearNames();
 });
 
 describe("decryptFileNames (zero-knowledge name dual-read)", () => {
@@ -143,5 +163,103 @@ describe("decryptFileNames (zero-knowledge name dual-read)", () => {
     // decryptNameSafe swallows the AES-GCM failure; the list must still resolve.
     const [out] = await decryptFileNames([file({ id: "1", encrypted_name: "bm90LXZhbGlkLWNpcGhlcnRleHQ=" })]);
     expect(typeof out.original_name).toBe("string");
+  });
+});
+
+describe("name maps (sync resolve over a raw ciphertext list)", () => {
+  it("resolves from the maps once ensured, and notifies subscribers", async () => {
+    const key = await deriveNameKey(PASS, USER.id);
+    const enc = await encryptName("a.pdf", key);
+    const encStyle = await encryptStyle({ icon: "star", color: "#123456" }, key);
+    const raw = [file({ id: "1", encrypted_name: enc, encrypted_style: encStyle })];
+    const cb = vi.fn();
+    const unsub = subscribeNames(cb);
+    const before = getNamesEpoch();
+
+    // Pending while unlocked: the row's own (empty) original_name, no plaintext yet.
+    expect(resolveFileNames(raw)[0].original_name).toBe("");
+
+    await ensureFileNames(raw);
+    expect(cb).toHaveBeenCalled();
+    expect(getNamesEpoch()).toBeGreaterThan(before);
+    expect(peekName(enc)).toBe("a.pdf");
+    const [out] = resolveFileNames(raw, true, getNamesEpoch());
+    expect(out.original_name).toBe("a.pdf");
+    expect(out.style).toEqual({ icon: "star", color: "#123456" });
+
+    // Locked: names and styles are withheld even though the maps are warm.
+    const [locked] = resolveFileNames(raw, false);
+    expect(locked.original_name).toBe("[locked]");
+    expect(locked.style).toBeNull();
+
+    unsub();
+    cb.mockClear();
+    clearNames();
+    expect(cb).not.toHaveBeenCalled();
+  });
+
+  it("shows an optimistic row's own plaintext until its ciphertext resolves", () => {
+    const [out] = resolveFileNames(
+      [file({ id: "1", original_name: "just-uploaded.txt", encrypted_name: "ct" })],
+      true,
+    );
+    expect(out.original_name).toBe("just-uploaded.txt");
+  });
+
+  it("peekStyle is null for no ciphertext or an unknown one", () => {
+    expect(peekStyle(undefined)).toBeNull();
+    expect(peekStyle("unknown")).toBeNull();
+  });
+
+  it("clearDecryptCache (lock / logout) drops every resolved name", async () => {
+    const key = await deriveNameKey(PASS, USER.id);
+    const enc = await encryptName("gone.txt", key);
+    await ensureNames([enc]);
+    expect(peekName(enc)).toBe("gone.txt");
+    clearDecryptCache();
+    expect(peekName(enc)).toBeUndefined();
+  });
+
+  it("does nothing while locked, and skips empty or already-known ciphertexts", async () => {
+    getPassphrase.mockReturnValue(null);
+    const before = getNamesEpoch();
+    await ensureNames(["some-ct"], ["some-style"]);
+    expect(peekName("some-ct")).toBeUndefined();
+    await ensureNames([null, undefined, ""]);
+    expect(getNamesEpoch()).toBe(before);
+  });
+
+  it("dedupes a ciphertext already in flight", async () => {
+    const key = await deriveNameKey(PASS, USER.id);
+    const enc = await encryptName("once.txt", key);
+    const encStyle = await encryptStyle({ icon: "x", color: "#000000" }, key);
+    const before = getNamesEpoch();
+    await Promise.all([ensureNames([enc], [encStyle]), ensureNames([enc], [encStyle])]);
+    expect(peekName(enc)).toBe("once.txt");
+    expect(getNamesEpoch()).toBe(before + 1);
+  });
+
+  it("never repopulates the maps when the vault locks mid-decrypt", async () => {
+    const key = await deriveNameKey(PASS, USER.id);
+    const enc = await encryptName("race.txt", key);
+    const pending = ensureNames([enc]);
+    clearNames(); // lock lands while the key/decrypt is in flight
+    await pending;
+    expect(peekName(enc)).toBeUndefined();
+  });
+
+  it("never repopulates when the lock lands after the key but before the decrypt finishes", async () => {
+    const key = await deriveNameKey(PASS, USER.id);
+    const enc = await encryptName("late.txt", key);
+    await userNameKey(); // warm the memo so the key resolves immediately
+    const pending = ensureNames([enc]);
+    for (let i = 0; i < 4; i++) await Promise.resolve();
+    clearNames();
+    await pending;
+    expect(peekName(enc)).toBeUndefined();
+  });
+
+  it("ensureFileNames on an empty list is a no-op", async () => {
+    await expect(ensureFileNames([])).resolves.toBeUndefined();
   });
 });

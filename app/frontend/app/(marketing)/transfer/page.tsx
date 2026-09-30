@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { TransferTool } from "@/components/tools/transfer-tool";
 import { Shield, Lock, Zap, MonitorSmartphone, Wifi, Server } from "@/lib/icons";
+import { MarketingCard } from "@/components/marketing/ui/card";
 import { toolMetadata } from "@/lib/tool-metadata";
 import {
-  ToolPageShell,
   ToolHero,
   ToolSection,
+  ToolBand,
   FeatureGrid,
   ToolCta,
   type ToolFeature,
@@ -70,43 +71,32 @@ const features: ToolFeature[] = [
   },
 ];
 
-/** One side of the sender/receiver "how it works" panel below. */
-function RoleSteps({
-  label,
-  badgeClass,
-  steps,
-}: {
-  label: string;
-  badgeClass: string;
-  steps: string[];
-}) {
+function RoleSteps({ label, steps }: { label: string; steps: string[] }) {
   return (
-    <div className="p-6 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]">
-      <h3 className="text-base font-semibold mb-4 flex items-center gap-2">
-        <div
-          className={`flex items-center justify-center h-8 w-8 rounded-lg text-sm font-bold ${badgeClass}`}
-        >
+    <MarketingCard as="div" size="sm" className="p-6 sm:p-7">
+      <h3 className="pv2-h3 flex items-center gap-3">
+        <span className="pv2-ic corner-squircle text-base font-bold" aria-hidden="true">
           {label[0]}
-        </div>
+        </span>
         {label}
       </h3>
-      <ol className="space-y-3">
+      <ol className="mt-5 space-y-3">
         {steps.map((s, i) => (
-          <li key={i} className="flex gap-3 text-sm text-[var(--color-text-secondary)]">
-            <span className="flex-shrink-0 flex items-center justify-center h-5 w-5 rounded-full bg-[var(--color-surface-1)] text-[10px] font-medium">
+          <li key={i} className="pv2-body flex gap-3">
+            <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-[var(--color-surface-1)] text-[10px] font-medium">
               {i + 1}
             </span>
             {s}
           </li>
         ))}
       </ol>
-    </div>
+    </MarketingCard>
   );
 }
 
 export default function TransferPublicPage() {
   return (
-    <ToolPageShell>
+    <>
       <ToolHero
         badgeIcon={Wifi}
         badgeLabel="Peer-to-peer encrypted"
@@ -121,39 +111,31 @@ export default function TransferPublicPage() {
       </ToolSection>
 
       {/* How it works */}
-      <section className="py-16 sm:py-20 border-t border-[var(--color-border)]">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl sm:text-3xl font-bold font-heading tracking-tight text-center mb-4">
-            How encrypted transfer works
-          </h2>
-          <p className="text-center text-[var(--color-text-secondary)] mb-12 max-w-xl mx-auto">
-            Two devices. One code. Zero data stored.
-          </p>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <RoleSteps
-              label="Sender"
-              badgeClass="bg-[var(--color-accent)]/10 text-[var(--color-accent)]"
-              steps={[
-                "Select a file to send",
-                "A unique encryption key and 6-digit code are generated",
-                "Share the code with the receiver",
-                "Once paired, the file streams encrypted chunks over WebSocket",
-              ]}
-            />
-            <RoleSteps
-              label="Receiver"
-              badgeClass="bg-cyan-500/10 text-cyan-500"
-              steps={[
-                "Enter the 6-digit code or scan the QR code",
-                "Connect to the sender via encrypted WebSocket",
-                "Receive and decrypt each chunk in real time",
-                "File automatically downloads when complete",
-              ]}
-            />
-          </div>
+      <ToolBand
+        title="How encrypted transfer works"
+        lede="Two devices. One code. Zero data stored."
+      >
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <RoleSteps
+            label="Sender"
+            steps={[
+              "Select a file to send",
+              "A unique encryption key and 6-digit code are generated",
+              "Share the code with the receiver",
+              "Once paired, the file streams encrypted chunks over WebSocket",
+            ]}
+          />
+          <RoleSteps
+            label="Receiver"
+            steps={[
+              "Enter the 6-digit code or scan the QR code",
+              "Connect to the sender via encrypted WebSocket",
+              "Receive and decrypt each chunk in real time",
+              "File automatically downloads when complete",
+            ]}
+          />
         </div>
-      </section>
+      </ToolBand>
 
       {/* Features grid */}
       <FeatureGrid heading="Why use encrypted transfer?" features={features} />
@@ -163,6 +145,6 @@ export default function TransferPublicPage() {
         heading="Need persistent cloud storage?"
         description="Create a free zcrypt account for 10 GB of encrypted cloud storage with file versioning, encrypted notes, and more."
       />
-    </ToolPageShell>
+    </>
   );
 }

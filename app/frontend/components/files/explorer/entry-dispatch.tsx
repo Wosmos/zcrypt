@@ -6,24 +6,10 @@ import { cn } from "@/lib/utils";
 import { FOCUS_RING } from "./types";
 import { CheckSquare, Square } from "@/lib/icons";
 import type { FileMetadata } from "@/types";
-import { deriveNameKey, decryptNameSafe } from "@/lib/name-crypto";
+import { decryptNameSafe } from "@/lib/name-crypto";
+import { nameKeyFor } from "@/lib/sealed";
 import { useAuthStore } from "@/store/auth";
 import { usePassphraseStore } from "@/store/passphrase";
-
-// Cache the derived per-user name key across every card/row the explorer
-// renders, so a grid of many files doesn't re-run PBKDF2 (deriveNameKey) once
-// per tile: mirrors useFolders' nameKeyRef, just module-scoped since this is
-// called from one hook instance per file.
-let nameKeyCache: { passphrase: string; userId: string; key: Promise<CryptoKey> } | null = null;
-
-function getNameKeyCached(passphrase: string, userId: string): Promise<CryptoKey> {
-  if (nameKeyCache && nameKeyCache.passphrase === passphrase && nameKeyCache.userId === userId) {
-    return nameKeyCache.key;
-  }
-  const key = deriveNameKey(passphrase, userId);
-  nameKeyCache = { passphrase, userId, key };
-  return key;
-}
 
 /**
  * Defensive fallback name resolver for the explorer's file card/row.
@@ -61,7 +47,7 @@ export function useExplorerFileName(file: FileMetadata): string {
     }
     let cancelled = false;
     void (async () => {
-      const key = await getNameKeyCached(passphrase, userId);
+      const key = await nameKeyFor(passphrase, userId);
       const name = await decryptNameSafe(encryptedName as string, key);
       if (!cancelled) setDecrypted(name);
     })();

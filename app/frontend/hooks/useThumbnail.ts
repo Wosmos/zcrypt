@@ -49,7 +49,11 @@ const retryTimers = new Map<string, ReturnType<typeof setTimeout>>();
 // time-boxed to SHIMMER_MAX_MS instead of running until success/permanent-fail.
 const genStartedAt = new Map<string, number>();
 const graceTimers = new Map<string, ReturnType<typeof setTimeout>>();
-let version = 0; // bumped on every change so per-file hooks re-render
+let version = 0; // bumped on every GLOBAL change (prime / lock / hydrate)
+// Per-file versions: a change to one file wakes only that file's card, so a
+// grid of N tiles re-renders one tile per thumbnail event instead of all N.
+const idVersion = new Map<string, number>();
+const idListeners = new Map<string, Set<() => void>>();
 // False until the IndexedDB cache has finished loading into memCache. Cards must
 // NOT shimmer or start (re)generating before this: otherwise on every reload a
 // card sees an empty memCache, re-decrypts a thumbnail that's actually cached on
@@ -57,9 +61,30 @@ let version = 0; // bumped on every change so per-file hooks re-render
 // instantly across reloads/logouts (the cache itself already survives both).
 let hydrated = false;
 let listeners: (() => void)[] = [];
-function notify() {
-  version++;
+function notify(id?: string) {
+  if (id === undefined) {
+    version++;
+    for (const set of idListeners.values()) for (const l of set) l();
+  } else {
+    idVersion.set(id, (idVersion.get(id) ?? 0) + 1);
+    for (const l of idListeners.get(id) ?? []) l();
+  }
   for (const l of listeners) l();
+}
+function subscribeId(id: string, cb: () => void) {
+  let set = idListeners.get(id);
+  if (!set) {
+    set = new Set();
+    idListeners.set(id, set);
+  }
+  set.add(cb);
+  return () => {
+    set.delete(cb);
+    if (set.size === 0) idListeners.delete(id);
+  };
+}
+function getIdVersion(id: string): string {
+  return `${version}:${idVersion.get(id) ?? 0}`;
 }
 function subscribe(cb: () => void) {
   listeners.push(cb);
@@ -69,9 +94,6 @@ function subscribe(cb: () => void) {
 }
 function getSnapshot() {
   return memCache;
-}
-function getVersion() {
-  return version;
 }
 
 /** Given up after MAX_THUMB_ATTEMPTS: show the type icon, stop retrying. */
@@ -131,7 +153,7 @@ function markThumbFailed(id: string, permanent: boolean): void {
       id,
       setTimeout(() => {
         retryTimers.delete(id);
-        notify();
+        notify(id);
       }, backoff + 50),
     );
   }
@@ -184,17 +206,19 @@ async function hydrate() {
     const db = await openDB();
     const tx = db.transaction(STORE_NAME, "readonly");
     const store = tx.objectStore(STORE_NAME);
-    const req = store.openCursor();
-    req.onsuccess = () => {
-      const cursor = req.result;
-      if (cursor) {
-        memCache.set(cursor.key as string, cursor.value as string);
-        cursor.continue();
-      } else {
-        markHydrated(); // cache fully loaded: a memCache miss is now trustworthy
-      }
+    // Two bulk reads instead of a cursor round-trip per thumbnail. Requests in
+    // one transaction complete in order, and both come back sorted by key, so
+    // the keys have landed by the time the values do and index i pairs up.
+    const keysReq = store.getAllKeys();
+    const valsReq = store.getAll();
+    valsReq.onsuccess = () => {
+      const keys = keysReq.result;
+      const vals = valsReq.result;
+      for (let i = 0; i < keys.length; i++) memCache.set(keys[i] as string, vals[i] as string);
+      markHydrated(); // cache fully loaded: a memCache miss is now trustworthy
     };
-    req.onerror = () => markHydrated();
+    keysReq.onerror = () => markHydrated();
+    valsReq.onerror = () => markHydrated();
   } catch {
     // IndexedDB unavailable - fallback to memory-only
     markHydrated();
@@ -512,11 +536,11 @@ async function fetchAndCacheThumbnail(
       fileId,
       setTimeout(() => {
         graceTimers.delete(fileId);
-        notify();
+        notify(fileId);
       }, SHIMMER_MAX_MS),
     );
   }
-  notify(); // surface the loading state to mounted cards right away
+  notify(fileId); // surface the loading state to this file's card right away
 
   // acquireSlot() lives INSIDE the try so the finally always runs and clears
   // `inflight`: otherwise a slow/blocked acquire would leave the card's
@@ -578,7 +602,7 @@ async function fetchAndCacheThumbnail(
   } finally {
     inflight.delete(fileId);
     if (slotHeld) releaseSlot();
-    notify(); // always: clears `loading`, and reflects the cached/failed result
+    notify(fileId); // always: clears `loading`, and reflects the cached/failed result
   }
 }
 
@@ -607,7 +631,7 @@ export async function seedThumbnailFromFile(
       : await generateThumbnail(source, 300, 300);
     memCache.set(fileId, dataUrl);
     dbPut(fileId, dataUrl).catch(() => {});
-    notify();
+    notify(fileId);
   } catch {
     // Unsupported/undecodable source: the grid will fetch-decrypt it instead.
   }
@@ -683,8 +707,11 @@ export function useThumbnail(
    *  stays plain FIFO for this file. */
   cardRef: (node: Element | null) => void;
 } {
-  // Re-render on any thumbnail state change (cache / inflight / failed / prime).
-  const storeVersion = useSyncExternalStore(subscribe, getVersion, getVersion);
+  // Re-render on this file's thumbnail state changes (cache / inflight /
+  // failed) and on global ones (prime / lock / hydrate), not on other files'.
+  const subscribeThis = useCallback((cb: () => void) => subscribeId(fileId, cb), [fileId]);
+  const versionThis = useCallback(() => getIdVersion(fileId), [fileId]);
+  const storeVersion = useSyncExternalStore(subscribeThis, versionThis, versionThis);
 
   const observerRef = useRef<IntersectionObserver | null>(null);
   const cardRef = useCallback(

@@ -1,7 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { getIncompleteUploads, type IncompleteUpload } from "@/lib/api";
+import { queryClient } from "@/lib/query-client";
+import { qk } from "@/lib/query-keys";
+import { setListData } from "@/lib/query-cache";
 import { cancelUpload } from "@/lib/upload-session";
 import { formatBytes } from "@/lib/utils";
 import { toast } from "@/store/toast";
@@ -37,29 +41,29 @@ function expiresInLabel(expiresAt: string, now: number): string {
  * so the platform pin survives) to the upload flow, which continues from the
  * server's already-received chunks on the session's original platform.
  */
+const NO_UPLOADS: IncompleteUpload[] = [];
+
 export function IncompleteUploads({
   onResume,
 }: {
   onResume: (file: File, upload: IncompleteUpload) => void;
 }) {
-  const [uploads, setUploads] = useState<IncompleteUpload[]>([]);
   const [expanded, setExpanded] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const resumeTargetRef = useRef<IncompleteUpload | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Non-critical UI: a failed fetch just leaves the section empty.
+  const query = useQuery({
+    queryKey: qk.incompleteUploads,
+    queryFn: () => getIncompleteUploads().then((r) => r.uploads),
+  });
+  const uploads = query.data ?? NO_UPLOADS;
+  const setUploads = (fn: (prev: IncompleteUpload[]) => IncompleteUpload[]) =>
+    setListData<IncompleteUpload>(qk.incompleteUploads, fn);
   const refresh = useCallback(async () => {
-    try {
-      const { uploads } = await getIncompleteUploads();
-      setUploads(uploads);
-    } catch {
-      // Non-critical UI: a failed fetch just leaves the section empty.
-    }
+    await queryClient.invalidateQueries({ queryKey: qk.incompleteUploads });
   }, []);
-
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
 
   // Hide sessions the transfer dock is still handling in THIS tab. An in-progress
   // upload is an "active" server session, so without this cross-reference it wrongly
@@ -75,7 +79,10 @@ export function IncompleteUploads({
   // When an in-tab upload finishes, its server session flips to complete, re-fetch
   // so it drops off the list instead of lingering as "unfinished".
   const doneCount = queue.filter((i) => i.status === "done").length;
+  const lastDone = useRef(doneCount);
   useEffect(() => {
+    if (doneCount === lastDone.current) return;
+    lastDone.current = doneCount;
     void refresh();
   }, [doneCount, refresh]);
 

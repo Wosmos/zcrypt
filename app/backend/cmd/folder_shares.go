@@ -44,6 +44,10 @@ func (s *Server) HandleCreateFolderShare(w http.ResponseWriter, r *http.Request)
 			http.Error(w, `{"error":"each file needs a file_id and wrapped_cek"}`, http.StatusBadRequest)
 			return
 		}
+		if !isSealedLinkName(f.EncName) {
+			http.Error(w, `{"error":"file names must be sealed under the link key"}`, http.StatusBadRequest)
+			return
+		}
 		if _, err := s.db.GetFileByID(ctx, userID, f.FileID); err != nil {
 			http.Error(w, `{"error":"one of the files was not found"}`, http.StatusNotFound)
 			return
@@ -190,34 +194,35 @@ func (s *Server) HandleGetFolderShareInfo(w http.ResponseWriter, r *http.Request
 }
 
 // authorizeFolderShareFile validates the token + optional password and confirms
-// the file belongs to the share, returning the share, the file, and the file's
-// wrapped CEK. Writes the appropriate HTTP error and returns ok=false otherwise.
-func (s *Server) authorizeFolderShareFile(w http.ResponseWriter, r *http.Request, token, fileID string) (*types.FolderShare, *types.FileMetadata, string, bool) {
+// the file belongs to the share, returning the share, the file, the file's
+// wrapped CEK and its link-sealed name. Writes the appropriate HTTP error and
+// returns ok=false otherwise.
+func (s *Server) authorizeFolderShareFile(w http.ResponseWriter, r *http.Request, token, fileID string) (*types.FolderShare, *types.FileMetadata, string, string, bool) {
 	ctx := r.Context()
 	share, err := s.db.GetFolderShareByToken(ctx, token)
 	if err != nil {
 		http.Error(w, `{"error":"folder link not found"}`, http.StatusNotFound)
-		return nil, nil, "", false
+		return nil, nil, "", "", false
 	}
 	if reason, valid := validateFolderShare(share); !valid {
 		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, reason), http.StatusForbidden)
-		return nil, nil, "", false
+		return nil, nil, "", "", false
 	}
 	if !validateFolderSharePassword(share, r.Header.Get("X-Share-Password")) {
 		http.Error(w, `{"error":"password required"}`, http.StatusUnauthorized)
-		return nil, nil, "", false
+		return nil, nil, "", "", false
 	}
-	wrapped, err := s.db.GetFolderShareFileWrap(ctx, share.ID, fileID)
+	wrapped, name, err := s.db.GetFolderShareFileWrap(ctx, share.ID, fileID)
 	if err != nil {
 		http.Error(w, `{"error":"file not in this folder link"}`, http.StatusNotFound)
-		return nil, nil, "", false
+		return nil, nil, "", "", false
 	}
 	file, err := s.db.GetFileByIDUnsafe(ctx, fileID)
 	if err != nil {
 		http.Error(w, `{"error":"file not found"}`, http.StatusNotFound)
-		return nil, nil, "", false
+		return nil, nil, "", "", false
 	}
-	return share, file, wrapped, true
+	return share, file, wrapped, name, true
 }
 
 // HandleGetFolderShareFileMeta returns one file's metadata + its folder-wrapped
@@ -228,7 +233,7 @@ func (s *Server) HandleGetFolderShareFileMeta(w http.ResponseWriter, r *http.Req
 	token := r.PathValue("token")
 	fileID := r.PathValue("fid")
 
-	share, file, wrapped, ok := s.authorizeFolderShareFile(w, r, token, fileID)
+	share, file, wrapped, name, ok := s.authorizeFolderShareFile(w, r, token, fileID)
 	if !ok {
 		return
 	}
@@ -238,7 +243,7 @@ func (s *Server) HandleGetFolderShareFileMeta(w http.ResponseWriter, r *http.Req
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"id":            file.ID,
-		"original_name": file.OriginalName,
+		"original_name": name,
 		// Public endpoint: coarsen size + drop the precision-leaking size fields.
 		"original_size": SizeBucket(file.OriginalSize),
 		"chunk_count":   file.ChunkCount,
@@ -265,7 +270,7 @@ func (s *Server) HandleGetFolderShareChunk(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	share, file, _, ok := s.authorizeFolderShareFile(w, r, token, fileID)
+	share, file, _, _, ok := s.authorizeFolderShareFile(w, r, token, fileID)
 	if !ok {
 		return
 	}
@@ -280,23 +285,5 @@ func (s *Server) HandleGetFolderShareChunk(w http.ResponseWriter, r *http.Reques
 		http.Error(w, `{"error":"chunk not found"}`, http.StatusNotFound)
 		return
 	}
-	adapter := s.resolveAdapterForUser(ctx, share.UserID, chunk.Platform, chunk.Account)
-	if adapter == nil {
-		http.Error(w, `{"error":"platform adapter not available"}`, http.StatusInternalServerError)
-		return
-	}
-	data, err := adapter.Download(ctx, *chunk)
-	if err != nil {
-		log.Printf("folder-shares: download chunk failed: %v", err)
-		http.Error(w, `{"error":"failed to download chunk"}`, http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/octet-stream")
-	w.Header().Set("Content-Length", strconv.Itoa(len(data)))
-	w.Header().Set("X-Chunk-SHA256", chunk.SHA256)
-	if chunk.Compressed {
-		w.Header().Set("X-Chunk-Compressed", "true")
-	}
-	w.Write(data)
+	s.serveLinkChunk(w, r, share.UserID, chunk, "folder-shares")
 }
