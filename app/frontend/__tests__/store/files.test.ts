@@ -33,6 +33,7 @@ import {
   invalidateFiles,
   ensureFiles,
   prefetchFileList,
+  prefetchVault,
   updateFileStyle,
   renameFile,
 } from "@/store/files";
@@ -42,14 +43,16 @@ import { useAuthStore } from "@/store/auth";
 import { usePassphraseStore } from "@/store/passphrase";
 import {
   listFiles,
+  listFolders,
   updateFileStyle as apiUpdateFileStyle,
   setFileName as apiSetFileName,
 } from "@/lib/api";
-import { getOfflineCache } from "@/lib/offline-cache";
+import { deriveNameKey, encryptName } from "@/lib/name-crypto";
 import type { FileMetadata } from "@/types";
 
 vi.mock("@/lib/api", () => ({
   listFiles: vi.fn(),
+  listFolders: vi.fn(),
   updateFileStyle: vi.fn(),
   setFileName: vi.fn(),
 }));
@@ -60,10 +63,6 @@ vi.mock("@/lib/device-vault", () => ({
   persistPassphrase: vi.fn(async () => {}),
   loadPassphrase: vi.fn(async () => null),
   clearPersistedPassphrase: vi.fn(async () => {}),
-}));
-
-vi.mock("@/lib/offline-cache", () => ({
-  getOfflineCache: vi.fn(),
 }));
 
 function makeFile(id: string): FileMetadata {
@@ -77,10 +76,6 @@ function makeFile(id: string): FileMetadata {
     sha256: `sha-${id}`,
     created_at: "2026-01-01T00:00:00Z",
   };
-}
-
-function flushMicrotasks(): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
 function wrapper({ children }: { children: React.ReactNode }) {
@@ -165,205 +160,113 @@ describe("files store (TanStack Query)", () => {
     expect(spy).toHaveBeenCalledWith({ queryKey: qk.files, refetchType: "all" });
   });
 
-  describe("hydrateFilesFromCache", () => {
-    // hydrateFilesFromCache guards itself with a private module-level "hydrated"
-    // flag that only ever resets when called with no logged-in user. Each test
-    // below reloads a fresh module instance (vi.resetModules) so that flag starts
-    // at its initial `false` regardless of test order.
-    // NOTE: resetModules also gives store/files.ts a fresh "@/lib/query-client"
-    // instance, distinct from this file's top-level `queryClient`/`getFilesData`.
-    // So every assertion here must go through the FRESH module's own
-    // getFilesData/setFilesData, not the top-level ones.
-    async function freshHydrate() {
-      vi.resetModules();
-      const filesMod = await import("@/store/files");
-      const authMod = await import("@/store/auth");
-      const offlineCacheMod = await import("@/lib/offline-cache");
+  describe("name resolution over the raw (ciphertext) cache", () => {
+    function unlock(passphrase: string | null) {
+      usePassphraseStore.setState({
+        cachedPassphrase: passphrase,
+        persistent: passphrase != null,
+        cacheUntil: null,
+      });
+    }
+
+    afterEach(() => unlock(null));
+
+    async function sealed(name: string): Promise<FileMetadata> {
+      const key = await deriveNameKey("vault-pass", "u1");
       return {
-        hydrateFilesFromCache: filesMod.hydrateFilesFromCache,
-        getFilesData: filesMod.getFilesData,
-        setFilesData: filesMod.setFilesData,
-        useAuthStore: authMod.useAuthStore,
-        getOfflineCache: offlineCacheMod.getOfflineCache,
+        ...makeFile(name),
+        original_name: "",
+        encrypted_name: await encryptName(name, key),
       };
     }
 
-    it("no-ops (and stays retryable) when there is no logged-in user", async () => {
-      const mod = await freshHydrate();
-      mod.useAuthStore.setState({ user: null });
-      await mod.hydrateFilesFromCache();
-      expect(mod.getOfflineCache).not.toHaveBeenCalled();
-    });
-
-    it("seeds the query cache from OPFS when empty and a user is present", async () => {
-      const mod = await freshHydrate();
-      mod.useAuthStore.setState({ user: { id: "u1" } as never });
-      const cached = [makeFile("cached-1")];
-      vi.mocked(mod.getOfflineCache).mockResolvedValue({
-        getFiles: vi.fn(() => cached),
-      } as never);
-
-      await mod.hydrateFilesFromCache();
-      expect(mod.getFilesData()).toEqual(cached);
-    });
-
-    it("does not overwrite data that is already present", async () => {
-      const mod = await freshHydrate();
-      mod.useAuthStore.setState({ user: { id: "u1" } as never });
-      mod.setFilesData([makeFile("already-here")]);
-
-      await mod.hydrateFilesFromCache();
-      expect(mod.getOfflineCache).not.toHaveBeenCalled();
-      expect(mod.getFilesData()).toEqual([makeFile("already-here")]);
-    });
-
-    it("leaves the cache untouched when the OPFS cache is empty", async () => {
-      const mod = await freshHydrate();
-      mod.useAuthStore.setState({ user: { id: "u1" } as never });
-      vi.mocked(mod.getOfflineCache).mockResolvedValue({ getFiles: vi.fn(() => []) } as never);
-
-      await mod.hydrateFilesFromCache();
-      expect(mod.getFilesData()).toEqual([]);
-    });
-
-    it("swallows an OPFS failure and leaves the cache empty", async () => {
-      const mod = await freshHydrate();
-      mod.useAuthStore.setState({ user: { id: "u1" } as never });
-      vi.mocked(mod.getOfflineCache).mockRejectedValue(new Error("OPFS unavailable"));
-
-      await expect(mod.hydrateFilesFromCache()).resolves.toBeUndefined();
-      expect(mod.getFilesData()).toEqual([]);
-    });
-
-    it("is a no-op on a second call within the same session", async () => {
-      const mod = await freshHydrate();
-      mod.useAuthStore.setState({ user: { id: "u1" } as never });
-      vi.mocked(mod.getOfflineCache).mockResolvedValue({
-        getFiles: vi.fn(() => [makeFile("first-call")]),
-      } as never);
-
-      await mod.hydrateFilesFromCache();
-      vi.mocked(mod.getOfflineCache).mockClear();
-
-      await mod.hydrateFilesFromCache();
-      expect(mod.getOfflineCache).not.toHaveBeenCalled();
-    });
-  });
-
-  describe("OPFS write-through mirror", () => {
-    it("mirrors a files-key update into the offline cache after a microtask", async () => {
+    it("keeps ciphertext in the cache and shows [locked] while locked", async () => {
       useAuthStore.setState({ user: { id: "u1" } as never });
-      const setFiles = vi.fn();
-      vi.mocked(getOfflineCache).mockResolvedValue({ getFiles: vi.fn(), setFiles } as never);
+      const raw = await sealed("secret.txt");
+      vi.mocked(listFiles).mockResolvedValue([raw]);
 
-      setFilesData([makeFile("1")]);
-      await flushMicrotasks();
+      const { result } = renderHook(() => useFilesQuery(), { wrapper });
+      await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-      expect(getOfflineCache).toHaveBeenCalled();
-      expect(setFiles).toHaveBeenCalledWith("u1", [makeFile("1")]);
+      expect(result.current.data?.[0].original_name).toBe("[locked]");
+      expect(queryClient.getQueryData<FileMetadata[]>(qk.files)?.[0].original_name).toBe("");
     });
 
-    it("strips decrypted names/styles of zero-knowledge files before persisting to OPFS", async () => {
+    it("unlocking resolves names from cache with no refetch", async () => {
       useAuthStore.setState({ user: { id: "u1" } as never });
-      const setFiles = vi.fn();
-      vi.mocked(getOfflineCache).mockResolvedValue({ getFiles: vi.fn(), setFiles } as never);
+      const raw = await sealed("report.pdf");
+      vi.mocked(listFiles).mockResolvedValue([raw]);
+      const { result } = renderHook(() => useFilesQuery(), { wrapper });
+      await waitFor(() => expect(result.current.isSuccess).toBe(true));
+      const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
 
-      // Three shapes so both the outer condition and the inner name ternary are
-      // exercised: (a) encrypted name + style -> name blanked, style dropped;
-      // (b) encrypted style only -> keep plaintext-less name as-is, style dropped;
-      // (c) legacy plaintext -> untouched.
-      const encName = {
-        ...makeFile("a"),
-        encrypted_name: "ENCNAME",
-        encrypted_style: "ENCSTYLE",
-        original_name: "secret.txt",
-        style: { icon: "star" },
-      } as FileMetadata;
-      const encStyleOnly = {
-        ...makeFile("b"),
-        encrypted_style: "ENCSTYLE",
-        original_name: "legacy.txt",
-        style: { icon: "heart" },
-      } as FileMetadata;
-      const plaintext = makeFile("c");
+      unlock("vault-pass");
 
-      setFilesData([encName, encStyleOnly, plaintext]);
-      await flushMicrotasks();
-
-      expect(setFiles).toHaveBeenCalledTimes(1);
-      const [userId, persisted] = setFiles.mock.calls[0];
-      expect(userId).toBe("u1");
-      // (a) name blanked (it's encrypted), style dropped, ciphertext kept.
-      expect(persisted[0]).toMatchObject({ id: "a", original_name: "", style: null, encrypted_name: "ENCNAME" });
-      // (b) no encrypted_name -> plaintext name preserved, style still dropped.
-      expect(persisted[1]).toMatchObject({ id: "b", original_name: "legacy.txt", style: null });
-      // (c) legacy plaintext file passes through untouched.
-      expect(persisted[2]).toEqual(plaintext);
+      await waitFor(() => expect(result.current.data?.[0].original_name).toBe("report.pdf"));
+      expect(listFiles).toHaveBeenCalledTimes(1);
+      expect(invalidateSpy.mock.calls.some((c) => c[0]?.queryKey?.[0] === "files")).toBe(false);
+      expect(getFilesData()[0].original_name).toBe("report.pdf");
+      // The cache itself still holds only ciphertext.
+      expect(queryClient.getQueryData<FileMetadata[]>(qk.files)?.[0].original_name).toBe("");
+      invalidateSpy.mockRestore();
     });
 
-    it("coalesces multiple synchronous updates into a single persist", async () => {
+    it("a list landing while unlocked is decrypted without any hook mounted", async () => {
       useAuthStore.setState({ user: { id: "u1" } as never });
-      const setFiles = vi.fn();
-      vi.mocked(getOfflineCache).mockResolvedValue({ getFiles: vi.fn(), setFiles } as never);
-
-      setFilesData([makeFile("1")]);
-      setFilesData((prev) => [...prev, makeFile("2")]);
-      await flushMicrotasks();
-
-      expect(setFiles).toHaveBeenCalledTimes(1);
-      expect(setFiles).toHaveBeenCalledWith("u1", [makeFile("1"), makeFile("2")]);
+      unlock("vault-pass");
+      setFilesData([await sealed("bg.txt")]);
+      await waitFor(() => expect(getFilesData()[0].original_name).toBe("bg.txt"));
     });
 
-    it("skips persisting when there is no logged-in user", async () => {
-      useAuthStore.setState({ user: null });
-      setFilesData([makeFile("1")]);
-      await flushMicrotasks();
-      expect(getOfflineCache).not.toHaveBeenCalled();
-    });
-
-    it("ignores updates to unrelated query keys", async () => {
+    it("ensureFiles returns names resolved", async () => {
       useAuthStore.setState({ user: { id: "u1" } as never });
+      // Set before unlocking: a hook left mounted by an earlier test re-renders
+      // on unlock and would otherwise fetch the default [] first.
+      vi.mocked(listFiles).mockResolvedValue([await sealed("e.txt")]);
+      unlock("vault-pass");
+      const data = await ensureFiles();
+      expect(data[0].original_name).toBe("e.txt");
+    });
+
+    it("unlock refreshes tools lists; lock drops them; staying unlocked does neither", async () => {
+      queryClient.setQueryData(qk.snapshots, [{ id: "s", label: "opened" }]);
+      unlock(null);
+      const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+      unlock("vault-pass");
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["tools"] });
+      invalidateSpy.mockClear();
+      unlock("vault-pass-2"); // unlocked -> unlocked: no transition
+      expect(invalidateSpy).not.toHaveBeenCalled();
+      invalidateSpy.mockRestore();
+
+      usePassphraseStore.getState().clear();
+      expect(queryClient.getQueryData(qk.snapshots)).toBeUndefined();
+    });
+
+    it("ignores unrelated keys and non-update cache events", () => {
+      unlock("vault-pass");
       queryClient.setQueryData(["trash"], [1]);
-      await flushMicrotasks();
-      expect(getOfflineCache).not.toHaveBeenCalled();
-    });
-
-    it("ignores non-update cache events (e.g. query removal)", async () => {
-      useAuthStore.setState({ user: { id: "u1" } as never });
       setFilesData([makeFile("1")]);
-      await flushMicrotasks();
-      vi.clearAllMocks();
-
       queryClient.removeQueries({ queryKey: qk.files });
-      await flushMicrotasks();
-      expect(getOfflineCache).not.toHaveBeenCalled();
+      expect(getFilesData()).toEqual([]);
     });
 
-    it("swallows a persist failure without throwing", async () => {
-      useAuthStore.setState({ user: { id: "u1" } as never });
-      vi.mocked(getOfflineCache).mockRejectedValue(new Error("no opfs"));
-
-      expect(() => setFilesData([makeFile("1")])).not.toThrow();
-      await flushMicrotasks();
-    });
-
-    it("is never installed when window is undefined at module load (SSR)", async () => {
+    it("installs no subscriptions without a window (SSR)", async () => {
       vi.stubGlobal("window", undefined);
       vi.resetModules();
       const filesMod = await import("@/store/files");
-      const authMod = await import("@/store/auth");
-      const offlineCacheMod = await import("@/lib/offline-cache");
+      expect(() => filesMod.setFilesData([makeFile("1")])).not.toThrow();
+    });
+  });
 
-      authMod.useAuthStore.setState({ user: { id: "u1" } as never });
-      vi.mocked(offlineCacheMod.getOfflineCache).mockResolvedValue({
-        getFiles: vi.fn(),
-        setFiles: vi.fn(),
-      } as never);
-
-      filesMod.setFilesData([makeFile("1")]);
-      await flushMicrotasks();
-
-      expect(offlineCacheMod.getOfflineCache).not.toHaveBeenCalled();
+  describe("prefetchVault", () => {
+    it("warms the file list and the root folders together", async () => {
+      vi.mocked(listFiles).mockResolvedValue([makeFile("1")]);
+      vi.mocked(listFolders).mockResolvedValue([]);
+      await prefetchVault();
+      expect(listFiles).toHaveBeenCalledTimes(1);
+      expect(listFolders).toHaveBeenCalledWith(null);
+      expect(queryClient.getQueryData(qk.folders(null))).toEqual([]);
     });
   });
 
@@ -475,7 +378,9 @@ describe("files store (TanStack Query)", () => {
       await expect(renameFile("f1", "taken.txt")).rejects.toThrow(
         'A file named "taken.txt" already exists here.',
       );
-      expect(apiSetFileName).not.toHaveBeenCalled();
+      // No rename went out; the only PATCHes are the one-time legacy re-seals
+      // of the two plaintext-named rows (once per file per session).
+      await vi.waitFor(() => expect(apiSetFileName).toHaveBeenCalledTimes(2));
     });
 
     it("allows the same name if the duplicate lives in a different folder", async () => {
@@ -508,26 +413,6 @@ describe("files store (TanStack Query)", () => {
       expect((encrypted as string).length).toBeGreaterThan(0);
       expect(encrypted).not.toContain("My New Name");
       expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: qk.files });
-      invalidateSpy.mockRestore();
-    });
-  });
-
-  describe("vault lock/unlock re-decrypt subscription", () => {
-    it("invalidates the files list when the vault's unlocked state flips", async () => {
-      // The subscription is wired via a dynamic import at module load; let that
-      // microtask settle so the subscriber is registered.
-      await flushMicrotasks();
-      const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
-
-      // Flip locked -> unlocked -> locked. Regardless of the module-level
-      // `lastUnlocked` seed, at least one of these transitions differs and fires.
-      usePassphraseStore.setState({ cachedPassphrase: "vault-pass", persistent: true, cacheUntil: null });
-      usePassphraseStore.setState({ cachedPassphrase: null, persistent: false, cacheUntil: null });
-
-      const filesInvalidations = invalidateSpy.mock.calls.filter(
-        (c) => c[0]?.queryKey?.[0] === "files"
-      );
-      expect(filesInvalidations.length).toBeGreaterThan(0);
       invalidateSpy.mockRestore();
     });
   });

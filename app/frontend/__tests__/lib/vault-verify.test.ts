@@ -25,13 +25,17 @@ vi.mock("@/store/files", () => ({ ensureFiles }));
 vi.mock("@/lib/crypto", () => ({ resolveFileKey, fromBase64, IncorrectPassphraseError }));
 
 import { verifyVaultPassphrase } from "@/lib/vault-verify";
+import { useFolderRegistry } from "@/store/folder-registry";
+import type { Folder } from "@/types";
 
-function file(id: string) {
-  return { id } as { id: string };
+function file(id: string, folder_id: string | null = null) {
+  return { id, folder_id } as { id: string; folder_id: string | null };
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
+  getFileMeta.mockReset();
+  useFolderRegistry.setState({ byId: {} });
 });
 
 describe("verifyVaultPassphrase", () => {
@@ -95,5 +99,66 @@ describe("verifyVaultPassphrase", () => {
 
     expect(await verifyVaultPassphrase("pw")).toBe(true);
     expect(getFileMeta).toHaveBeenCalledTimes(5); // slice(0, 5)
+  });
+
+  it("fetches candidates in parallel and skips one whose metadata fails to load", async () => {
+    ensureFiles.mockResolvedValueOnce([file("a"), file("b")]);
+    getFileMeta
+      .mockRejectedValueOnce(new Error("network"))
+      .mockResolvedValueOnce({ salt: "s", wrapped_cek: "w" });
+    resolveFileKey.mockResolvedValueOnce(new Uint8Array(32));
+    await expect(verifyVaultPassphrase("pp")).resolves.toBe(true);
+    expect(getFileMeta).toHaveBeenCalledTimes(2);
+  });
+
+  it("a later success outweighs a rejection from a folder of unknown protection", async () => {
+    ensureFiles.mockResolvedValueOnce([file("a", "unknown-folder"), file("b", "other-folder")]);
+    getFileMeta.mockResolvedValue({ salt: "s", wrapped_cek: "w" });
+    resolveFileKey
+      .mockRejectedValueOnce(new IncorrectPassphraseError())
+      .mockResolvedValueOnce(new Uint8Array(32));
+    await expect(verifyVaultPassphrase("pp")).resolves.toBe(true);
+  });
+
+  it("an odd unwrap error is inconclusive, not a rejection", async () => {
+    ensureFiles.mockResolvedValueOnce([file("a")]);
+    getFileMeta.mockResolvedValueOnce({ salt: "s", wrapped_cek: "w" });
+    resolveFileKey.mockRejectedValueOnce(new Error("malformed envelope"));
+    await expect(verifyVaultPassphrase("pp")).resolves.toBe(true);
+  });
+
+  it("returns false on the first rejection of a root file, with one derivation", async () => {
+    ensureFiles.mockResolvedValueOnce([file("a"), file("b"), file("c")]);
+    getFileMeta.mockResolvedValue({ salt: "s", wrapped_cek: "w" });
+    resolveFileKey.mockRejectedValue(new IncorrectPassphraseError());
+    await expect(verifyVaultPassphrase("wrong")).resolves.toBe(false);
+    expect(resolveFileKey).toHaveBeenCalledTimes(1);
+  });
+
+  it("treats a rejection from a known-unprotected folder as conclusive", async () => {
+    useFolderRegistry.getState().record([{ id: "open", pw_salt: null } as Folder]);
+    ensureFiles.mockResolvedValueOnce([file("a", "open"), file("b", "open")]);
+    getFileMeta.mockResolvedValue({ salt: "s", wrapped_cek: "w" });
+    resolveFileKey.mockRejectedValue(new IncorrectPassphraseError());
+    await expect(verifyVaultPassphrase("wrong")).resolves.toBe(false);
+    expect(resolveFileKey).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips files in known-protected folders and tests root files first", async () => {
+    useFolderRegistry.getState().record([{ id: "locked", pw_salt: "salt" } as Folder]);
+    ensureFiles.mockResolvedValueOnce([file("p", "locked"), file("u", "unknown"), file("r")]);
+    getFileMeta.mockResolvedValue({ salt: "s", wrapped_cek: "w" });
+    resolveFileKey.mockRejectedValue(new IncorrectPassphraseError());
+    await expect(verifyVaultPassphrase("wrong")).resolves.toBe(false);
+    expect(getFileMeta.mock.calls.map((c) => c[0])).toEqual(["r", "u"]);
+    expect(resolveFileKey).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps probing past rejections from unknown folders before reporting wrong", async () => {
+    ensureFiles.mockResolvedValueOnce([file("a", "x"), file("b", "y")]);
+    getFileMeta.mockResolvedValue({ salt: "s", wrapped_cek: "w" });
+    resolveFileKey.mockRejectedValue(new IncorrectPassphraseError());
+    await expect(verifyVaultPassphrase("pp")).resolves.toBe(false);
+    expect(resolveFileKey).toHaveBeenCalledTimes(2);
   });
 });

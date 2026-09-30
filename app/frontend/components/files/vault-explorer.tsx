@@ -59,7 +59,8 @@ import { useVaultSearch } from "@/components/ui/command-palette";
 import { usePassphraseStore } from "@/store/passphrase";
 import { useAuthStore } from "@/store/auth";
 import { moveFolder, createFolder as apiCreateFolder } from "@/lib/api";
-import { deriveNameKey, encryptName, type CustomStyle } from "@/lib/name-crypto";
+import { encryptName, type CustomStyle } from "@/lib/name-crypto";
+import { nameKeyFor } from "@/lib/sealed";
 import { updateFileStyle as apiUpdateFileStyle, renameFile as apiRenameFile } from "@/store/files";
 import { toast } from "@/store/toast";
 import { getFileCategory, cn } from "@/lib/utils";
@@ -1058,7 +1059,7 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
         if (folders.some((f) => f.name.trim().toLowerCase() === trimmed.toLowerCase())) {
           throw new Error(`A folder named "${trimmed}" already exists here.`);
         }
-        const key = await deriveNameKey(passphrase, user.id);
+        const key = await nameKeyFor(passphrase, user.id);
         const encrypted_name = await encryptName(trimmed, key);
         const folder = await apiCreateFolder({ encrypted_name, parent_id: currentFolderId });
         await refreshFolders();
@@ -1074,15 +1075,20 @@ export const VaultExplorer = forwardRef<VaultExplorerHandle, VaultExplorerProps>
     };
 
     // ── Action bundle forwarded to rows/cards ───────────────────────────────────
-    const actions: ExplorerActions = {
-      onPreview,
-      onDownload,
-      onShare,
-      onOpenDetails,
-      onDelete,
-      onMoveFile,
-      onMoveRequest,
-    };
+    // Memoized: the row/card memo comparator checks `actions` by identity, so a
+    // fresh object each render would re-render every item on any state change.
+    const actions = useMemo<ExplorerActions>(
+      () => ({
+        onPreview,
+        onDownload,
+        onShare,
+        onOpenDetails,
+        onDelete,
+        onMoveFile,
+        onMoveRequest,
+      }),
+      [onPreview, onDownload, onShare, onOpenDetails, onDelete, onMoveFile, onMoveRequest],
+    );
 
     // ── Motion (reduced-motion safe stagger) ────────────────────────────────────
     const itemMotion = animateList

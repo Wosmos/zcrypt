@@ -1,4 +1,19 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+
+// Node's own global localStorage shadows jsdom's and throws without
+// --localstorage-file; install a working stub before any import evaluates.
+vi.hoisted(() => {
+  const backing = new Map<string, string>();
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    value: {
+      getItem: (k: string) => (backing.has(k) ? backing.get(k)! : null),
+      setItem: (k: string, v: string) => void backing.set(k, String(v)),
+      removeItem: (k: string) => void backing.delete(k),
+      clear: () => backing.clear(),
+    },
+  });
+});
 import { createElement, type ReactNode } from "react";
 import { renderHook, waitFor, act } from "@testing-library/react";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -11,6 +26,7 @@ import {
   useAppDownloadsTotal,
   useRefreshAnalytics,
   anyLoading,
+  prefetchAnalytics,
 } from "@/hooks/useAnalytics";
 import { queryClient } from "@/lib/query-client";
 import type { RangeBounds } from "@/components/analytics/date-range";
@@ -25,14 +41,38 @@ vi.mock("@/lib/api", () => ({
   getDownloadTotal: vi.fn(),
   listFiles: vi.fn(),
 }));
+const names = vi.hoisted(() => ({
+  map: new Map<string, string>(),
+  epoch: 0,
+  listeners: new Set<() => void>(),
+}));
 vi.mock("@/lib/file-names", () => ({
-  decryptFileNames: vi.fn(async (files: FileMetadata[]) => files),
+  ensureNames: vi.fn(async (cts: Iterable<string | undefined>) => {
+    let added = false;
+    for (const c of cts) {
+      if (c && !names.map.has(c)) {
+        names.map.set(c, "decrypted-name");
+        added = true;
+      }
+    }
+    if (added) {
+      names.epoch++;
+      for (const l of names.listeners) l();
+    }
+  }),
+  peekName: (c: string) => names.map.get(c),
+  resolveFileNames: vi.fn((files: FileMetadata[]) => files),
+  subscribeNames: (cb: () => void) => {
+    names.listeners.add(cb);
+    return () => names.listeners.delete(cb);
+  },
+  getNamesEpoch: () => names.epoch,
 }));
-vi.mock("@/lib/sealed", () => ({
-  userNameKey: vi.fn(async () => null),
-}));
-vi.mock("@/lib/name-crypto", () => ({
-  decryptNameSafe: vi.fn(async () => "decrypted-name"),
+vi.mock("@/lib/sealed", () => ({ LOCKED: "[locked]" }));
+const pass = vi.hoisted(() => ({ cached: "vault-pass" as string | null }));
+vi.mock("@/store/passphrase", () => ({
+  usePassphraseStore: (sel: (s: { cachedPassphrase: string | null }) => unknown) =>
+    sel({ cachedPassphrase: pass.cached }),
 }));
 
 import {
@@ -43,31 +83,23 @@ import {
   getDownloadTotal,
   listFiles,
 } from "@/lib/api";
-import { decryptFileNames } from "@/lib/file-names";
-import { userNameKey } from "@/lib/sealed";
-import { decryptNameSafe } from "@/lib/name-crypto";
+import { ensureNames, resolveFileNames } from "@/lib/file-names";
+import { getRangeBounds } from "@/components/analytics/date-range";
+import { useAnalyticsFiltersStore } from "@/store/analytics-filters";
+import { qk } from "@/lib/query-keys";
 
 function wrapper({ children }: { children: ReactNode }) {
   return createElement(QueryClientProvider, { client: queryClient }, children);
 }
 
-const boundedRange: RangeBounds = {
-  start: new Date("2026-01-01T00:00:00.000Z"),
-  end: new Date("2026-01-31T00:00:00.000Z"),
-  allTime: false,
-  label: "30d",
-  bucket: "day",
-};
-
-const allTimeRange: RangeBounds = {
-  start: null,
-  end: new Date("2026-01-31T00:00:00.000Z"),
-  allTime: true,
-  label: "All time",
-  bucket: "month",
-};
+// A custom range is deterministic (no "now"); the all-time end is "now" at
+// fetch time, so its end is only checked for shape.
+const boundedRange: RangeBounds = getRangeBounds("custom", "2026-01-01", "2026-01-30");
+const allTimeRange: RangeBounds = getRangeBounds("all", null, null);
 
 beforeEach(() => {
+  names.map.clear();
+  pass.cached = "vault-pass";
   queryClient.clear();
   queryClient.setDefaultOptions({ queries: { retry: false, gcTime: 0 } });
   vi.clearAllMocks();
@@ -104,9 +136,21 @@ describe("useAnalyticsSummary", () => {
     await waitFor(() => expect(result.current.summary).toEqual({ file_count: 9 }));
     expect(getAnalyticsSummary).toHaveBeenCalledWith({
       start: "",
-      end: allTimeRange.end.toISOString(),
+      end: expect.any(String),
       allTime: true,
     });
+  });
+
+  it("keys by preset + day, so a re-resolved range shares one cached fetch", async () => {
+    (getAnalyticsSummary as ReturnType<typeof vi.fn>).mockResolvedValue({ file_count: 1 });
+    const first = getRangeBounds("30d", null, null);
+    const { result } = renderHook(() => useAnalyticsSummary(first), { wrapper });
+    await waitFor(() => expect(result.current.summary).toEqual({ file_count: 1 }));
+    const again = getRangeBounds("30d", null, null);
+    expect(again.key).toBe(first.key);
+    const { result: second } = renderHook(() => useAnalyticsSummary(again), { wrapper });
+    expect(second.current.summary).toEqual({ file_count: 1 });
+    expect(getAnalyticsSummary).toHaveBeenCalledTimes(1);
   });
 
   it("surfaces a query error", async () => {
@@ -147,7 +191,7 @@ describe("useAnalyticsTimeseries", () => {
     await waitFor(() => expect(getAnalyticsTimeseries).toHaveBeenCalled());
     expect(getAnalyticsTimeseries).toHaveBeenCalledWith(
       new Date(0).toISOString(),
-      allTimeRange.end.toISOString(),
+      expect.any(String),
       "month",
     );
   });
@@ -168,61 +212,58 @@ describe("useStorageGrowth", () => {
   });
 });
 
+function item(over: Partial<AnalyticsFileTypeItem>): AnalyticsFileTypeItem {
+  return {
+    id: "f1",
+    original_name: "",
+    encrypted_name: "",
+    original_size: 10,
+    encrypted_size: 12,
+    created_at: "2026-01-05T00:00:00.000Z",
+    ...over,
+  };
+}
+
 describe("useAnalyticsFileTypes", () => {
   it("returns items unchanged when none have an encrypted name", async () => {
-    const items: AnalyticsFileTypeItem[] = [
-      {
-        id: "f1",
-        original_name: "a.png",
-        encrypted_name: "",
-        original_size: 10,
-        encrypted_size: 12,
-        created_at: "2026-01-05T00:00:00.000Z",
-      },
-    ];
+    const items = [item({ original_name: "a.png" })];
     (getAnalyticsFileTypes as ReturnType<typeof vi.fn>).mockResolvedValue(items);
     const { result } = renderHook(() => useAnalyticsFileTypes(boundedRange), { wrapper });
     await waitFor(() => expect(result.current.items).toEqual(items));
-    expect(userNameKey).not.toHaveBeenCalled();
   });
 
-  it("decrypts encrypted names when the name key is available", async () => {
-    const items: AnalyticsFileTypeItem[] = [
-      {
-        id: "f1",
-        original_name: "",
-        encrypted_name: "ENC",
-        original_size: 10,
-        encrypted_size: 12,
-        created_at: "2026-01-05T00:00:00.000Z",
-      },
-    ];
+  it("caches the raw ciphertext and resolves names from the shared maps", async () => {
+    const items = [item({ encrypted_name: "ENC" })];
     (getAnalyticsFileTypes as ReturnType<typeof vi.fn>).mockResolvedValue(items);
-    (userNameKey as ReturnType<typeof vi.fn>).mockResolvedValue({} as CryptoKey);
     const { result } = renderHook(() => useAnalyticsFileTypes(boundedRange), { wrapper });
     await waitFor(() =>
       expect(result.current.items).toEqual([{ ...items[0], original_name: "decrypted-name" }]),
     );
-    expect(decryptNameSafe).toHaveBeenCalledWith("ENC", {});
+    expect(ensureNames).toHaveBeenCalled();
+    const cached = queryClient.getQueryData<AnalyticsFileTypeItem[]>(
+      qk.analyticsFileTypes(boundedRange.key),
+    );
+    expect(cached?.[0].original_name).toBe("");
   });
 
-  it("falls back to '[locked]' for an encrypted name with no key available", async () => {
-    const items: AnalyticsFileTypeItem[] = [
-      {
-        id: "f1",
-        original_name: "",
-        encrypted_name: "ENC",
-        original_size: 10,
-        encrypted_size: 12,
-        created_at: "2026-01-05T00:00:00.000Z",
-      },
-    ];
+  it("shows '[locked]' for an encrypted name while the vault is locked", async () => {
+    pass.cached = null;
+    const items = [item({ encrypted_name: "ENC" })];
     (getAnalyticsFileTypes as ReturnType<typeof vi.fn>).mockResolvedValue(items);
-    (userNameKey as ReturnType<typeof vi.fn>).mockResolvedValue(null);
     const { result } = renderHook(() => useAnalyticsFileTypes(boundedRange), { wrapper });
     await waitFor(() =>
       expect(result.current.items).toEqual([{ ...items[0], original_name: "[locked]" }]),
     );
+    expect(ensureNames).not.toHaveBeenCalled();
+  });
+
+  it("reads '' for a name still being decrypted", async () => {
+    vi.mocked(ensureNames).mockImplementationOnce(async () => {});
+    const items = [item({ encrypted_name: "SLOW" })];
+    (getAnalyticsFileTypes as ReturnType<typeof vi.fn>).mockResolvedValue(items);
+    const { result } = renderHook(() => useAnalyticsFileTypes(boundedRange), { wrapper });
+    await waitFor(() => expect(result.current.items).toHaveLength(1));
+    expect(result.current.items[0].original_name).toBe("");
   });
 
   it("defaults to an empty array before the query resolves", () => {
@@ -232,26 +273,11 @@ describe("useAnalyticsFileTypes", () => {
   });
 
   it("leaves items without an encrypted name untouched in a mixed batch", async () => {
-    const items: AnalyticsFileTypeItem[] = [
-      {
-        id: "f1",
-        original_name: "",
-        encrypted_name: "ENC",
-        original_size: 10,
-        encrypted_size: 12,
-        created_at: "2026-01-05T00:00:00.000Z",
-      },
-      {
-        id: "f2",
-        original_name: "plain.png",
-        encrypted_name: "",
-        original_size: 20,
-        encrypted_size: 22,
-        created_at: "2026-01-06T00:00:00.000Z",
-      },
+    const items = [
+      item({ encrypted_name: "ENC" }),
+      item({ id: "f2", original_name: "plain.png" }),
     ];
     (getAnalyticsFileTypes as ReturnType<typeof vi.fn>).mockResolvedValue(items);
-    (userNameKey as ReturnType<typeof vi.fn>).mockResolvedValue({} as CryptoKey);
     const { result } = renderHook(() => useAnalyticsFileTypes(boundedRange), { wrapper });
     await waitFor(() =>
       expect(result.current.items).toEqual([
@@ -261,27 +287,30 @@ describe("useAnalyticsFileTypes", () => {
     );
   });
 
-  it("fetches with an epoch-anchored 'all' key for an all-time range", async () => {
+  it("fetches with no start for an all-time range", async () => {
     (getAnalyticsFileTypes as ReturnType<typeof vi.fn>).mockResolvedValue([]);
     renderHook(() => useAnalyticsFileTypes(allTimeRange), { wrapper });
     await waitFor(() => expect(getAnalyticsFileTypes).toHaveBeenCalled());
-    expect(getAnalyticsFileTypes).toHaveBeenCalledWith({ start: "", end: allTimeRange.end.toISOString(), allTime: true });
+    expect(getAnalyticsFileTypes).toHaveBeenCalledWith({
+      start: "",
+      end: expect.any(String),
+      allTime: true,
+    });
   });
 });
 
 describe("useRecentUploads", () => {
-  it("defaults limit to 8 and returns the decrypted file list", async () => {
+  it("defaults limit to 8 and returns the resolved file list", async () => {
     const files = [{ id: "1" } as FileMetadata];
     (listFiles as ReturnType<typeof vi.fn>).mockResolvedValue(files);
-    (decryptFileNames as ReturnType<typeof vi.fn>).mockResolvedValue(files);
     const { result } = renderHook(() => useRecentUploads(), { wrapper });
     await waitFor(() => expect(result.current.files).toEqual(files));
     expect(listFiles).toHaveBeenCalledWith(undefined, 8);
+    expect(resolveFileNames).toHaveBeenCalled();
   });
 
   it("passes a custom limit through to listFiles", async () => {
     (listFiles as ReturnType<typeof vi.fn>).mockResolvedValue([]);
-    (decryptFileNames as ReturnType<typeof vi.fn>).mockResolvedValue([]);
     renderHook(() => useRecentUploads(3), { wrapper });
     await waitFor(() => expect(listFiles).toHaveBeenCalledWith(undefined, 3));
   });
@@ -290,6 +319,21 @@ describe("useRecentUploads", () => {
     (listFiles as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}));
     const { result } = renderHook(() => useRecentUploads(), { wrapper });
     expect(result.current.files).toEqual([]);
+  });
+});
+
+describe("prefetchAnalytics", () => {
+  it("warms the selected range and the lifetime panels", async () => {
+    useAnalyticsFiltersStore.setState({ preset: "7d", customStart: null, customEnd: null });
+    (getAnalyticsSummary as ReturnType<typeof vi.fn>).mockResolvedValue({});
+    (getAnalyticsTimeseries as ReturnType<typeof vi.fn>).mockResolvedValue({ points: [] });
+    (getAnalyticsFileTypes as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+    await prefetchAnalytics();
+    expect(getAnalyticsSummary).toHaveBeenCalledTimes(2);
+    expect(getAnalyticsTimeseries).toHaveBeenCalledTimes(1);
+    expect(getAnalyticsFileTypes).toHaveBeenCalledTimes(2);
+    const range = getRangeBounds("7d", null, null);
+    expect(queryClient.getQueryData(qk.analyticsSummary(range.key))).toEqual({});
   });
 });
 

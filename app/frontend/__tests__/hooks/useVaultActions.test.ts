@@ -1338,13 +1338,53 @@ describe("useOperationStatus SSE handler", () => {
 });
 
 describe("thumbnail priming effect", () => {
-  it("primes thumbnails and ensures a keypair when unlocked with files and a cached passphrase", () => {
+  it("primes thumbnails when unlocked with files and a cached passphrase", () => {
     mockPassphraseGetPassphrase.mockReturnValue("cached-pass");
     const args = makeArgs({ vault: makeVault({ unlocked: true }), files: [makeFile({ id: "f1" })] });
     renderHook(() => useVaultActions(args));
 
     expect(mockPrimeThumbnails).toHaveBeenCalledWith("cached-pass", expect.any(Function));
+    // The keypair is deferred off the critical path (idle), not run inline.
+    expect(mockEnsureUserKeypair).not.toHaveBeenCalled();
+  });
+
+  it("ensures the keypair once idle after an unlock (setTimeout fallback)", () => {
+    vi.useFakeTimers();
+    const ric = window.requestIdleCallback;
+    // @ts-expect-error: simulate a browser without requestIdleCallback
+    window.requestIdleCallback = undefined;
+    mockPassphraseGetPassphrase.mockReturnValue("cached-pass");
+    const args = makeArgs({ vault: makeVault({ unlocked: true }), files: [] });
+    const { unmount } = renderHook(() => useVaultActions(args));
+    vi.advanceTimersByTime(2000);
     expect(mockEnsureUserKeypair).toHaveBeenCalledWith("cached-pass");
+    unmount();
+    window.requestIdleCallback = ric;
+    vi.useRealTimers();
+  });
+
+  it("ensures the keypair via requestIdleCallback, and cancels it on unmount", () => {
+    const ric = window.requestIdleCallback;
+    const cic = window.cancelIdleCallback;
+    const cancel = vi.fn();
+    let run: (() => void) | null = null;
+    window.requestIdleCallback = ((cb: () => void) => {
+      run = cb;
+      return 7;
+    }) as typeof window.requestIdleCallback;
+    window.cancelIdleCallback = cancel;
+    mockPassphraseGetPassphrase.mockReturnValue(null);
+    const args = makeArgs({ vault: makeVault({ unlocked: true }), files: [] });
+    const { unmount } = renderHook(() => useVaultActions(args));
+    run!(); // locked again by the time the browser is idle: nothing to do
+    expect(mockEnsureUserKeypair).not.toHaveBeenCalled();
+    mockPassphraseGetPassphrase.mockReturnValue("cached-pass");
+    run!();
+    expect(mockEnsureUserKeypair).toHaveBeenCalledWith("cached-pass");
+    unmount();
+    expect(cancel).toHaveBeenCalledWith(7);
+    window.requestIdleCallback = ric;
+    window.cancelIdleCallback = cic;
   });
 
   it("does nothing when locked", () => {

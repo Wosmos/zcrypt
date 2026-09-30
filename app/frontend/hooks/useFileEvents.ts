@@ -3,18 +3,11 @@
 import { useEffect } from "react";
 import { createEventSource } from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
-import { invalidateFilesViews } from "@/lib/invalidate";
+import { invalidateFilesViews, applyFileEvents, type FileEvent } from "@/lib/invalidate";
 
 const DEBOUNCE_MS = 300;
 const MAX_RECONNECT_DELAY = 30_000;
 const BASE_DELAY = 1_000;
-
-/** Payload shape of the `file` SSE event (see backend /api/events contract). */
-interface FileEvent {
-  op: "added" | "updated" | "deleted" | "restored" | "moved" | "renamed";
-  file_id: string;
-  rev: number;
-}
 
 /**
  * Cross-device file-event sync. Other devices/sessions mutating the vault
@@ -45,6 +38,7 @@ export function useFileEvents() {
     let disposed = false;
     let reconnectAttempt = 0;
     let es: EventSource | null = null;
+    let batch: (FileEvent | null)[] = [];
 
     function connect() {
       if (disposed) return;
@@ -52,15 +46,19 @@ export function useFileEvents() {
       es = createEventSource();
 
       es.addEventListener("file", (e: MessageEvent) => {
+        let event: FileEvent | null = null;
         try {
-          JSON.parse(e.data) as FileEvent;
+          event = JSON.parse(e.data) as FileEvent;
         } catch {
-          // Malformed payload: still worth an invalidation pass below since we
-          // know *something* changed, but skip acting on the (unusable) data.
+          // Malformed payload: still worth a full invalidation since we know
+          // *something* changed (a null entry forces that below).
         }
+        batch.push(event);
         if (debounceTimer) clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => {
-          void invalidateFilesViews();
+          const events = batch;
+          batch = [];
+          void applyFileEvents(events);
         }, DEBOUNCE_MS);
       });
 

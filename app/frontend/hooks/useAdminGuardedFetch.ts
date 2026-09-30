@@ -1,35 +1,47 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
+import { useQuery, type QueryKey } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/auth";
+import { queryClient } from "@/lib/query-client";
+import { adminGetStats, adminListTokens } from "@/lib/api";
 import { Role } from "@/types";
 
+/** The admin overview's data (stats + platform tokens). Shared by the page and
+ *  the sidebar's hover prefetch so both fill the same cache entry. */
+export async function fetchAdminOverview() {
+  const [stats, tokens] = await Promise.all([adminGetStats(), adminListTokens()]);
+  return { stats, tokens };
+}
+
 /**
- * Fetch-on-mount scaffold shared by the admin content pages: only runs
- * `fetcher` once the current user is confirmed an admin, tracks loading/error,
- * and exposes `refresh` so callers can retry (the error panel's "Try again")
- * or refetch after a mutation. `fetcher` must be memoized (`useCallback`) with
- * its own real dependencies (route params, etc.): a new identity re-runs it.
+ * Cached admin read: a normal query that is simply disabled until the current
+ * user is confirmed an admin. Revisiting an admin page serves the cache (2m
+ * stale time, previous data kept while a new key loads, see lib/query-client).
+ * `refresh` (the error panel's "Try again", or after a mutation) refetches this
+ * view and marks every other admin view stale, since a role/plan/quota change
+ * shows up on several of them.
  */
-export function useAdminGuardedFetch(fetcher: () => Promise<void>) {
-  const { user } = useAuthStore();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-
+export function useAdminQuery<T>(
+  queryKey: QueryKey,
+  queryFn: () => Promise<T>,
+  opts: { keepPrevious?: boolean } = {},
+) {
+  const user = useAuthStore((s) => s.user);
+  const isAdmin = user?.role === Role.Admin;
+  const query = useQuery({
+    queryKey,
+    queryFn,
+    enabled: isAdmin,
+    ...(opts.keepPrevious === false ? { placeholderData: undefined } : {}),
+  });
   const refresh = useCallback(async () => {
-    setError(false);
-    try {
-      await fetcher();
-    } catch {
-      setError(true);
-    } finally {
-      setLoading(false);
-    }
-  }, [fetcher]);
+    await queryClient.invalidateQueries({ queryKey: ["admin"] });
+  }, []);
 
-  useEffect(() => {
-    if (user?.role === Role.Admin) {
-      void refresh();
-    }
-  }, [user, refresh]);
-
-  return { user, loading, error, refresh };
+  return {
+    user,
+    data: query.data,
+    loading: query.isPending,
+    error: query.isError,
+    refresh,
+  };
 }

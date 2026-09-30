@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAuthStore } from "@/store/auth";
+import { useAuthStore, readCachedUser } from "@/store/auth";
 import { getMe } from "@/lib/auth-api";
-import { refreshToken as refreshTokenApi } from "@/lib/auth-api";
-import { prefetchFileList } from "@/store/files";
+import { tryRefreshToken } from "@/lib/auth-fetch";
+import { prefetchVault } from "@/store/files";
 import { LogoSpinner } from "@/components/ui/logo-spinner";
 import { isTauri, startSync } from "@/lib/tauri";
 
@@ -73,56 +73,75 @@ export function AuthGuard({
       const existingUser = useAuthStore.getState().user;
       if (existingUser && accessToken) {
         setInitialized(true);
-        void prefetchFileList();
+        void prefetchVault();
         runOnboardingCheck();
         return;
       }
 
-      // Resolve a user from the current access token.
-      if (accessToken) {
-        try {
-          const me = await getMe(accessToken);
-          setUser(me);
-          setInitialized(true);
-          void prefetchFileList();
-          runOnboardingCheck();
-          return;
-        } catch {
-          // token might be expired, try refresh
-        }
-      }
-
-      // Refresh path. Desktop requires an actual in-memory token (never
-      // silently probes without one); web always attempts it since the
-      // httpOnly cookie — not this value — is what actually carries the
-      // session across reloads.
-      if (refreshTokenValue || !isTauri) {
-        try {
-          const data = await refreshTokenApi(refreshTokenValue);
-          setTokens(data.access_token, data.refresh_token);
-          const me = await getMe(data.access_token);
-          setUser(me);
-          setInitialized(true);
-          void prefetchFileList();
-          runOnboardingCheck();
-          return;
-        } catch (err) {
-          // Only a DEFINITIVE rejection (refresh token invalid/expired) should
-          // log out. A transient failure on load (offline, 5xx, timeout) must
-          // NOT nuke a valid session. Keep the tokens and let authedFetch
-          // refresh on the next real request. Mirrors the auth-fetch.ts fix.
-          const status = (err as { status?: number })?.status;
-          if (status !== 401 && status !== 403) {
-            setInitialized(true);
-            return;
+      // Resolve the session. Refreshes go through the shared, deduped
+      // tryRefreshToken: the vault prefetch below may hit a 401 and refresh at
+      // the same moment, and refresh tokens rotate on use. It clears auth itself
+      // on a definitive rejection; a transient miss leaves the tokens alone.
+      const resolveUser = async (): Promise<"ok" | "rejected" | "transient"> => {
+        if (accessToken) {
+          try {
+            setUser(await getMe(accessToken));
+            return "ok";
+          } catch {
+            // token might be expired, try refresh
           }
         }
+        // Desktop requires an actual in-memory token (never silently probes
+        // without one); web always attempts it since the httpOnly cookie, not
+        // this value, is what actually carries the session across reloads.
+        if (!refreshTokenValue && isTauri) return "rejected";
+        const fresh = await tryRefreshToken();
+        if (fresh) {
+          try {
+            setUser(await getMe(fresh));
+            return "ok";
+          } catch {
+            return "transient";
+          }
+        }
+        return useAuthStore.getState().accessToken ? "transient" : "rejected";
+      };
+
+      const toLogin = () => {
+        clearAuth();
+        setInitialized(true);
+        router.replace("/login");
+      };
+
+      // Returning user on this device: paint the shell (and the persisted
+      // lists) right away from the cached identity while the session check and
+      // the vault lists load in parallel.
+      const cached = accessToken ? readCachedUser() : null;
+      if (cached) {
+        setUser(cached);
+        setInitialized(true);
+        void prefetchVault();
+        runOnboardingCheck();
+        const result = await resolveUser();
+        if (result === "ok") runOnboardingCheck();
+        else if (result === "rejected") toLogin();
+        return;
       }
 
-      // No credentials at all, or the refresh token was definitively rejected.
-      clearAuth();
-      setInitialized(true);
-      router.replace("/login");
+      if (accessToken) void prefetchVault();
+      const result = await resolveUser();
+      if (result === "ok") {
+        setInitialized(true);
+        runOnboardingCheck();
+        return;
+      }
+      if (result === "transient") {
+        // Only a DEFINITIVE rejection should log out. A transient failure on
+        // load (offline, 5xx, timeout) must NOT nuke a valid session.
+        setInitialized(true);
+        return;
+      }
+      toLogin();
     }
 
     void init();
@@ -138,12 +157,13 @@ export function AuthGuard({
     clearAuth,
   ]);
 
-  // Start desktop sync worker whenever we have a valid token
+  // Start the desktop sync worker as soon as tokens exist, alongside the
+  // session check rather than after it. A rotated token re-runs this.
   useEffect(() => {
-    if (!isTauri || !initialized || !accessToken || !refreshTokenValue) return;
+    if (!isTauri || !accessToken || !refreshTokenValue) return;
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
     startSync(apiUrl, accessToken, refreshTokenValue).catch(() => {});
-  }, [initialized, accessToken, refreshTokenValue]);
+  }, [accessToken, refreshTokenValue]);
 
   if (!initialized || redirecting) {
     return (

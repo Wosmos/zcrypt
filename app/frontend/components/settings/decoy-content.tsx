@@ -1,6 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { queryClient } from "@/lib/query-client";
+import { qk } from "@/lib/query-keys";
 import { motion, AnimatePresence } from "motion/react";
 import Link from "next/link";
 import {
@@ -57,15 +60,30 @@ export function DecoyContent() {
   const [fileToDelete, setFileToDelete] = useState<DecoyFile | null>(null);
   const [deletingFile, setDeletingFile] = useState(false);
 
+  // Cached read, seeded once into local state; local edits are mirrored back
+  // into the cache so a revisit opens instantly and current.
+  const decoyQuery = useQuery({
+    queryKey: qk.decoy,
+    queryFn: async () => {
+      const [s, f] = await Promise.all([getDecoyStatus(), listDecoyFiles(null)]);
+      return { status: s, files: f };
+    },
+  });
+  const seeded = useRef(false);
+  const settled = !decoyQuery.isPending;
+  const loaded = decoyQuery.data;
   useEffect(() => {
-    Promise.all([getDecoyStatus(), listDecoyFiles(null)])
-      .then(([s, f]) => {
-        setStatus(s);
-        setFiles(f);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+    if (seeded.current || !settled) return;
+    seeded.current = true;
+    if (loaded) {
+      setStatus(loaded.status);
+      setFiles(loaded.files);
+    }
+    setLoading(false);
+  }, [settled, loaded]);
+  useEffect(() => {
+    if (seeded.current && status) queryClient.setQueryData(qk.decoy, { status, files });
+  }, [status, files]);
 
   const handleSetup = async () => {
     setError("");

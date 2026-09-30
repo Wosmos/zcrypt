@@ -141,10 +141,24 @@ export function useVaultActions({
     if (passphrase) {
       // Arm lazy generation; each card generates its own thumbnail on render.
       primeThumbnails(passphrase, (fileId) => thumbnailResolver(fileId, fileById));
-      // Ensure this account has an X25519 keypair (foundation for sharing).
-      void ensureUserKeypair(passphrase);
     }
   }, [files, vaultUnlocked, folderPwCache, thumbnailResolver, fileById]);
+
+  // Ensure this account has an X25519 keypair (foundation for sharing), but off
+  // the vault's critical path: once per unlock, when the browser is idle.
+  useEffect(() => {
+    if (!vaultUnlocked) return;
+    const run = () => {
+      const passphrase = usePassphraseStore.getState().getPassphrase();
+      if (passphrase) void ensureUserKeypair(passphrase);
+    };
+    if (typeof window.requestIdleCallback === "function") {
+      const id = window.requestIdleCallback(run, { timeout: 5000 });
+      return () => window.cancelIdleCallback(id);
+    }
+    const t = setTimeout(run, 2000);
+    return () => clearTimeout(t);
+  }, [vaultUnlocked]);
 
   // ── SSE events from the backend pipeline → upload store ─────────────────────
   // TERMINAL events only (done / error). Intermediate progress events are

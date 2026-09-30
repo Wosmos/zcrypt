@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   getAnalyticsSummary,
@@ -11,12 +11,20 @@ import {
   listFiles,
   type AnalyticsFileTypeItem,
 } from "@/lib/api";
-import { decryptFileNames } from "@/lib/file-names";
-import { userNameKey } from "@/lib/sealed";
-import { decryptNameSafe } from "@/lib/name-crypto";
+import {
+  ensureNames,
+  peekName,
+  resolveFileNames,
+  subscribeNames,
+  getNamesEpoch,
+} from "@/lib/file-names";
+import { LOCKED } from "@/lib/sealed";
+import { usePassphraseStore } from "@/store/passphrase";
+import { useAnalyticsFiltersStore } from "@/store/analytics-filters";
 import { queryClient } from "@/lib/query-client";
 import { qk } from "@/lib/query-keys";
-import type { RangeBounds } from "@/components/analytics/date-range";
+import { getRangeBounds, type RangeBounds } from "@/components/analytics/date-range";
+import type { FileMetadata } from "@/types";
 
 /**
  * Every analytics query below opts out of the app's normal 30s freshness
@@ -29,38 +37,67 @@ import type { RangeBounds } from "@/components/analytics/date-range";
  * which is also capped server-side per user (see AnalyticsRateLimitMiddleware
  * in app/backend/cmd/auth_middleware.go) so this holds even against extra
  * tabs, another device, or a direct API call with a valid token.
+ *
+ * Keys come from `range.key` (preset + day). The concrete ISO window is
+ * resolved inside the queryFn, at fetch time, so a Refresh an hour later still
+ * asks for "up to now".
  */
 const ANALYTICS_QUERY_OPTS = {
   staleTime: Infinity,
   refetchOnReconnect: false,
 } as const;
 
-function iso(d: Date): string {
-  return d.toISOString();
+function windowOf(range: RangeBounds): { start: string; end: string } {
+  const b = getRangeBounds(range.preset, range.customStart, range.customEnd);
+  return { start: b.start ? b.start.toISOString() : "", end: b.end.toISOString() };
 }
 
+const summaryOptions = (range: RangeBounds) => ({
+  queryKey: qk.analyticsSummary(range.key),
+  queryFn: () => getAnalyticsSummary({ ...windowOf(range), allTime: range.allTime }),
+  ...ANALYTICS_QUERY_OPTS,
+});
+
+const timeseriesOptions = (range: RangeBounds) => ({
+  queryKey: qk.analyticsTimeseries(range.key, range.bucket),
+  queryFn: () => {
+    // The timeseries endpoint always needs a concrete window; "All time"
+    // widens it to the epoch rather than requiring its own special case.
+    const { start, end } = windowOf(range);
+    return getAnalyticsTimeseries(start || new Date(0).toISOString(), end, range.bucket);
+  },
+  ...ANALYTICS_QUERY_OPTS,
+});
+
+const fileTypesOptions = (range: RangeBounds) => ({
+  queryKey: qk.analyticsFileTypes(range.key),
+  queryFn: () => getAnalyticsFileTypes({ ...windowOf(range), allTime: range.allTime }),
+  ...ANALYTICS_QUERY_OPTS,
+});
+
 export function useAnalyticsSummary(range: RangeBounds) {
-  const start = range.allTime ? "" : iso(range.start as Date);
-  const end = iso(range.end);
-  const query = useQuery({
-    queryKey: qk.analyticsSummary(range.allTime ? "all" : start, end),
-    queryFn: () => getAnalyticsSummary({ start, end, allTime: range.allTime }),
-    ...ANALYTICS_QUERY_OPTS,
-  });
+  const query = useQuery(summaryOptions(range));
   return { summary: query.data ?? null, isLoading: query.isPending, error: query.error };
 }
 
 export function useAnalyticsTimeseries(range: RangeBounds) {
-  // The timeseries endpoint always needs a concrete window; "All time" widens
-  // it to the epoch rather than requiring its own special case server-side.
-  const start = iso(range.start ?? new Date(0));
-  const end = iso(range.end);
-  const query = useQuery({
-    queryKey: qk.analyticsTimeseries(start, end, range.bucket),
-    queryFn: () => getAnalyticsTimeseries(start, end, range.bucket),
-    ...ANALYTICS_QUERY_OPTS,
-  });
+  const query = useQuery(timeseriesOptions(range));
   return { data: query.data ?? null, isLoading: query.isPending, error: query.error };
+}
+
+/** Warm the Insights page (hover/focus on its nav link): the selected range
+ *  plus the lifetime panels. A no-op for anything already cached. */
+export function prefetchAnalytics(): Promise<void> {
+  const { preset, customStart, customEnd } = useAnalyticsFiltersStore.getState();
+  const range = getRangeBounds(preset, customStart, customEnd);
+  const all = getRangeBounds("all", null, null);
+  return Promise.all([
+    queryClient.prefetchQuery(summaryOptions(range)),
+    queryClient.prefetchQuery(summaryOptions(all)),
+    queryClient.prefetchQuery(timeseriesOptions(range)),
+    queryClient.prefetchQuery(fileTypesOptions(range)),
+    queryClient.prefetchQuery(fileTypesOptions(all)),
+  ]).then(() => undefined);
 }
 
 export function useStorageGrowth() {
@@ -72,43 +109,58 @@ export function useStorageGrowth() {
   return { points: query.data ?? [], isLoading: query.isPending, error: query.error };
 }
 
-/** Decrypts a lean analytics item's name in place, without the full
- *  useFileList() reseal side-effects (this is a read-only analytics view;
- *  the explorer already owns resealing legacy names). */
-async function resolveFileTypeNames(
+/** The names epoch + lock state. The cache (and its disk snapshot) keeps only
+ *  ciphertext; names resolve in `select` from the shared in-memory maps. */
+function useNameState() {
+  const epoch = useSyncExternalStore(subscribeNames, getNamesEpoch, getNamesEpoch);
+  const unlocked = usePassphraseStore((s) => s.cachedPassphrase != null);
+  return { epoch, unlocked };
+}
+
+/** Decrypt any names in `items` not seen yet (a no-op while locked). */
+function useEnsureNames(items: { encrypted_name?: string }[] | undefined, unlocked: boolean) {
+  useEffect(() => {
+    if (unlocked && items) void ensureNames(items.map((it) => it.encrypted_name));
+  }, [items, unlocked]);
+}
+
+function resolveItemNames(
   items: AnalyticsFileTypeItem[],
-): Promise<AnalyticsFileTypeItem[]> {
-  if (items.length === 0 || !items.some((it) => it.encrypted_name)) return items;
-  const key = await userNameKey();
-  return Promise.all(
-    items.map(async (it) => {
-      if (!it.encrypted_name) return it;
-      return {
-        ...it,
-        original_name: key ? await decryptNameSafe(it.encrypted_name, key) : "[locked]",
-      };
-    }),
+  unlocked: boolean,
+  _epoch: number,
+): AnalyticsFileTypeItem[] {
+  if (!items.some((it) => it.encrypted_name)) return items;
+  return items.map((it) =>
+    it.encrypted_name
+      ? { ...it, original_name: unlocked ? (peekName(it.encrypted_name) ?? "") : LOCKED }
+      : it,
   );
 }
 
 export function useAnalyticsFileTypes(range: RangeBounds) {
-  const start = range.allTime ? "" : iso(range.start as Date);
-  const end = iso(range.end);
-  const query = useQuery({
-    queryKey: qk.analyticsFileTypes(range.allTime ? "all" : start, end),
-    queryFn: () =>
-      getAnalyticsFileTypes({ start, end, allTime: range.allTime }).then(resolveFileTypeNames),
-    ...ANALYTICS_QUERY_OPTS,
-  });
+  const { epoch, unlocked } = useNameState();
+  const select = useCallback(
+    (d: AnalyticsFileTypeItem[]) => resolveItemNames(d, unlocked, epoch),
+    [epoch, unlocked],
+  );
+  const query = useQuery({ ...fileTypesOptions(range), select });
+  useEnsureNames(query.data, unlocked);
   return { items: query.data ?? [], isLoading: query.isPending, error: query.error };
 }
 
 export function useRecentUploads(limit = 8) {
+  const { epoch, unlocked } = useNameState();
+  const select = useCallback(
+    (d: FileMetadata[]) => resolveFileNames(d, unlocked, epoch),
+    [epoch, unlocked],
+  );
   const query = useQuery({
     queryKey: qk.recentUploads(limit),
-    queryFn: () => listFiles(undefined, limit).then(decryptFileNames),
+    queryFn: () => listFiles(undefined, limit),
+    select,
     ...ANALYTICS_QUERY_OPTS,
   });
+  useEnsureNames(query.data, unlocked);
   return { files: query.data ?? [], isLoading: query.isPending, error: query.error };
 }
 

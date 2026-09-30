@@ -13,6 +13,7 @@
 import { deriveNameKey, encryptName, decryptNameSafe } from "@/lib/name-crypto";
 import { usePassphraseStore } from "@/store/passphrase";
 import { useAuthStore } from "@/store/auth";
+import { onDecryptCacheClear } from "@/lib/decrypt-cache";
 
 export const SEALED_PREFIX = "enc1:";
 export const LOCKED = "[locked]";
@@ -52,15 +53,25 @@ export async function openFields<T extends object>(
 }
 
 // PBKDF2 is deliberately slow; remember the last derived key per (passphrase, user).
+// This is THE name key: every caller goes through here, so it is derived once
+// per unlock, and dropped with the rest of the plaintext on lock / logout.
 let memo: { passphrase: string; userId: string; key: Promise<CryptoKey> } | null = null;
+onDecryptCacheClear(() => {
+  memo = null;
+});
 
 /** The signed-in user's name key, or null while the vault is locked. */
 export function userNameKey(): Promise<CryptoKey | null> {
   const user = useAuthStore.getState().user;
   const passphrase = usePassphraseStore.getState().getPassphrase();
   if (!user || !passphrase) return Promise.resolve(null);
-  if (!memo || memo.passphrase !== passphrase || memo.userId !== user.id) {
-    memo = { passphrase, userId: user.id, key: deriveNameKey(passphrase, user.id) };
+  return nameKeyFor(passphrase, user.id);
+}
+
+/** The name key for an explicit (passphrase, user), sharing the same memo. */
+export function nameKeyFor(passphrase: string, userId: string): Promise<CryptoKey> {
+  if (!memo || memo.passphrase !== passphrase || memo.userId !== userId) {
+    memo = { passphrase, userId, key: deriveNameKey(passphrase, userId) };
   }
   return memo.key;
 }

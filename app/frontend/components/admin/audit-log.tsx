@@ -1,7 +1,10 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { adminGetAuditLog, type AdminAuditResponse } from "@/lib/api";
+import { useAdminQuery } from "@/hooks/useAdminGuardedFetch";
+import { queryClient } from "@/lib/query-client";
+import { qk } from "@/lib/query-keys";
 import { useOperationStatus } from "@/hooks/useOperationStatus";
 import type { AuditEvent } from "@/lib/auth-api";
 import { cn, formatBytes, formatDateTime, formatRelativeTime } from "@/lib/utils";
@@ -185,44 +188,39 @@ function EventDetails({ event }: { event: AdminAuditResponse["events"][0] }) {
 }
 
 export function AuditLog() {
-  const [events, setEvents] = useState<AdminAuditResponse["events"]>([]);
-  const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [eventTypeFilter, setEventTypeFilter] = useState("");
-  const [loading, setLoading] = useState(true);
   const [paused, setPaused] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const fetchEvents = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await adminGetAuditLog({
-        limit: PAGE_SIZE,
-        offset: (page - 1) * PAGE_SIZE,
-        event_type: eventTypeFilter || undefined,
-      });
-      setEvents(res.events);
-      setTotal(res.total);
-    } catch {
-      // ignore
-    } finally {
-      setLoading(false);
-    }
-  }, [page, eventTypeFilter]);
+  const auditKey = qk.adminAudit(page, eventTypeFilter);
+  const { data, loading } = useAdminQuery(auditKey, () =>
+    adminGetAuditLog({
+      limit: PAGE_SIZE,
+      offset: (page - 1) * PAGE_SIZE,
+      event_type: eventTypeFilter || undefined,
+    }),
+  );
+  const events = data?.events ?? [];
+  const total = data?.total ?? 0;
 
-  useEffect(() => {
-    void fetchEvents();
-  }, [fetchEvents]);
-
-  // Real-time SSE audit events (prepend to list if on page 1 and not paused)
+  // Real-time SSE audit events: patched into the cached first page (if on page
+  // 1 and not paused) instead of refetching it.
   useOperationStatus(
     () => {},
     useCallback(
       (event: AuditEvent) => {
         if (paused || page !== 1) return;
         if (eventTypeFilter && event.event_type !== eventTypeFilter) return;
-        setEvents((prev) => [event, ...prev].slice(0, PAGE_SIZE));
-        setTotal((t) => t + 1);
+        queryClient.setQueryData<AdminAuditResponse>(
+          qk.adminAudit(1, eventTypeFilter),
+          (prev) =>
+            prev && {
+              ...prev,
+              events: [event, ...prev.events].slice(0, PAGE_SIZE),
+              total: prev.total + 1,
+            },
+        );
       },
       [paused, page, eventTypeFilter],
     ),

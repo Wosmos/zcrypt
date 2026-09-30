@@ -1,25 +1,34 @@
 "use client";
 
+import { useCallback, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { FileMetadata } from "@/types";
 import {
   listFiles,
+  listFolders,
   updateFileStyle as apiUpdateFileStyle,
   setFileName as apiSetFileName,
 } from "@/lib/api";
 import { queryClient } from "@/lib/query-client";
 import { qk } from "@/lib/query-keys";
-import { setListData, getQueryData, invalidateKey } from "@/lib/query-cache";
-import { useAuthStore } from "@/store/auth";
+import { setListData, invalidateKey } from "@/lib/query-cache";
 import { usePassphraseStore } from "@/store/passphrase";
-import { decryptFileNames } from "@/lib/file-names";
-import { deriveNameKey, encryptStyle, encryptName, type CustomStyle } from "@/lib/name-crypto";
+import {
+  decryptFileNames,
+  ensureFileNames,
+  resolveFileNames,
+  subscribeNames,
+  getNamesEpoch,
+} from "@/lib/file-names";
+import { encryptStyle, encryptName, type CustomStyle } from "@/lib/name-crypto";
+import { requireNameKey } from "@/lib/sealed";
+import { onDecryptCacheClear } from "@/lib/decrypt-cache";
 
-// Fetch the file list and resolve zero-knowledge names in one place, so every
-// consumer of qk.files sees decrypted (or "[locked]") names without its own
-// decrypt step. Legacy plaintext-name files pass through untouched.
+// The cache holds the RAW list exactly as the server returns it (names are
+// ciphertext), which is what makes it safe to persist. Names are resolved at
+// read time from the in-memory name maps (lib/file-names).
 function fetchFiles(): Promise<FileMetadata[]> {
-  return listFiles().then(decryptFileNames);
+  return listFiles();
 }
 
 /**
@@ -30,23 +39,28 @@ function fetchFiles(): Promise<FileMetadata[]> {
  * source of truth is the whole point: every view reads this key and every
  * mutation invalidates it, so a delete/move can no longer leave a stale second
  * copy behind (the ghost-file bug class).
- *
- * The OPFS offline cache is integrated as (a) an instant cold-load seed and
- * (b) a write-through mirror that follows the query cache, so a remount can
- * never resurrect a row that was just deleted/moved.
  */
 
-/** Reactive files list for components. */
+/** Reactive files list for components, with names resolved for display. */
 export function useFilesQuery() {
-  return useQuery({
-    queryKey: qk.files,
-    queryFn: fetchFiles,
-  });
+  const epoch = useSyncExternalStore(subscribeNames, getNamesEpoch, getNamesEpoch);
+  const unlocked = usePassphraseStore((s) => s.cachedPassphrase != null);
+  // A new select identity whenever names resolve or the vault locks/unlocks, so
+  // the view re-derives from cache instead of refetching.
+  const select = useCallback(
+    (data: FileMetadata[]) => resolveFileNames(data, unlocked, epoch),
+    [epoch, unlocked],
+  );
+  return useQuery({ queryKey: qk.files, queryFn: fetchFiles, select });
 }
 
-/** Non-reactive snapshot for stores/handlers outside the React tree. */
+function getRawFiles(): FileMetadata[] {
+  return queryClient.getQueryData<FileMetadata[]>(qk.files) ?? [];
+}
+
+/** Non-reactive snapshot (names resolved) for stores/handlers outside React. */
 export function getFilesData(): FileMetadata[] {
-  return getQueryData<FileMetadata[]>(qk.files, []);
+  return resolveFileNames(getRawFiles());
 }
 
 /** Optimistically write the files cache (mutations + drag-to-move/delete). */
@@ -66,10 +80,9 @@ export function invalidateFiles(): Promise<void> {
  *  files list so the decrypted `style` is reconciled from the server response:
  *  mirrors useFolders' renameFolder (call, then invalidate; no manual patch). */
 export async function updateFileStyle(fileId: string, style: CustomStyle | null): Promise<void> {
-  const user = useAuthStore.getState().user;
-  const passphrase = usePassphraseStore.getState().getPassphrase();
-  if (!user || !passphrase) throw new Error("Unlock your vault to customize files");
-  const key = await deriveNameKey(passphrase, user.id);
+  const key = await requireNameKey().catch(() => {
+    throw new Error("Unlock your vault to customize files");
+  });
   const encrypted_style = style ? await encryptStyle(style, key) : null;
   await apiUpdateFileStyle(fileId, encrypted_style);
   await invalidateFiles();
@@ -81,9 +94,9 @@ export async function updateFileStyle(fileId: string, style: CustomStyle | null)
  *  Blocks a duplicate sibling name within the same folder, mirroring
  *  useFolders' renameFolder guard. */
 export async function renameFile(fileId: string, name: string): Promise<void> {
-  const user = useAuthStore.getState().user;
-  const passphrase = usePassphraseStore.getState().getPassphrase();
-  if (!user || !passphrase) throw new Error("Unlock your vault to rename files");
+  const key = await requireNameKey().catch(() => {
+    throw new Error("Unlock your vault to rename files");
+  });
   const trimmed = name.trim();
   if (!trimmed) throw new Error("Name cannot be empty");
 
@@ -98,21 +111,22 @@ export async function renameFile(fileId: string, name: string): Promise<void> {
   );
   if (dup) throw new Error(`A file named "${trimmed}" already exists here.`);
 
-  const key = await deriveNameKey(passphrase, user.id);
   const encrypted_name = await encryptName(trimmed, key);
   await apiSetFileName(fileId, encrypted_name);
   await invalidateFiles();
 }
 
 /**
- * Fetch-or-cache the file list, returning it directly. For one-off readers
- * (integrity / snapshots / devices / shared-vault / expiring tabs) that need the
- * file list as a reference but aren't part of the reactive vault UI, they share
- * the one cache (instant if the vault was just open) instead of issuing their own
- * independent `/api/files`.
+ * Fetch-or-cache the file list, returning it with names resolved. For one-off
+ * readers (integrity / snapshots / devices / shared-vault / expiring tabs) that
+ * need the file list as a reference but aren't part of the reactive vault UI,
+ * they share the one cache (instant if the vault was just open) instead of
+ * issuing their own independent `/api/files`.
  */
 export function ensureFiles(): Promise<FileMetadata[]> {
-  return queryClient.ensureQueryData({ queryKey: qk.files, queryFn: fetchFiles });
+  return queryClient
+    .ensureQueryData({ queryKey: qk.files, queryFn: fetchFiles })
+    .then(decryptFileNames);
 }
 
 // Single deduped initial fetch, shared by AuthGuard's prefetch and useFileList's
@@ -126,83 +140,33 @@ export function prefetchFileList(force = false): Promise<void> {
   return queryClient.prefetchQuery({ queryKey: qk.files, queryFn: fetchFiles });
 }
 
-// ── Offline cache (OPFS) integration ─────────────────────────────────────────
-
-let hydrated = false;
-
-/** Seed the files cache from OPFS for an instant cold start (before the network
- *  refetch lands). Only seeds when the query has no data yet, so it never
- *  overwrites fresher in-memory state. */
-export async function hydrateFilesFromCache(): Promise<void> {
-  if (hydrated) return;
-  hydrated = true;
-  const userId = useAuthStore.getState().user?.id;
-  if (!userId) {
-    hydrated = false; // allow a retry once the user resolves
-    return;
-  }
-  if (getFilesData().length > 0) return;
-  try {
-    const { getOfflineCache } = await import("@/lib/offline-cache");
-    const cache = await getOfflineCache();
-    // OPFS stores ciphertext names (see the write-through below); decrypt on the
-    // way in so an offline cold start shows real names when the vault is unlocked.
-    const cached = await decryptFileNames(cache.getFiles(userId));
-    if (cached.length > 0 && getFilesData().length === 0) {
-      queryClient.setQueryData<FileMetadata[]>(qk.files, cached);
-    }
-  } catch {
-    // OPFS unavailable: fall back to the network fetch only
-  }
+/** Warm the two lists the vault paints first (all files + root folders) in one
+ *  go. Called by AuthGuard in parallel with the session check. */
+export function prefetchVault(): Promise<void> {
+  return Promise.all([
+    prefetchFileList(),
+    queryClient.prefetchQuery({ queryKey: qk.folders(null), queryFn: () => listFolders(null) }),
+  ]).then(() => undefined);
 }
 
-// Blank the decrypted name/style of zero-knowledge files before they touch disk,
-// so the OPFS cache never persists plaintext (it holds only the opaque
-// encrypted_name/encrypted_style, exactly like the server). Legacy plaintext-name
-// files are unaffected: their name is already plaintext on the server.
-function stripDecryptedNames(files: FileMetadata[]): FileMetadata[] {
-  return files.map((f) =>
-    f.encrypted_name || f.encrypted_style
-      ? { ...f, original_name: f.encrypted_name ? "" : f.original_name, style: null }
-      : f,
-  );
-}
-
-// Re-resolve names when the vault locks or unlocks: encrypted-name files must
-// flip between "[locked]" and their real name. A dynamic import avoids any load
-// cycle; the passphrase store fires on unlock (cache set) and lock (cache clear).
+// Resolve names the moment they become resolvable: when the raw list lands (a
+// fetch, a restore from disk, an optimistic write) and when the vault unlocks.
+// Neither refetches: the list is already cached, only the names were missing.
 if (typeof window !== "undefined") {
-  let lastUnlocked: boolean | null = null;
-  void import("@/store/passphrase").then(({ usePassphraseStore }) => {
-    usePassphraseStore.subscribe((s) => {
-      const unlocked = s.cachedPassphrase != null;
-      if (unlocked !== lastUnlocked) {
-        lastUnlocked = unlocked;
-        void invalidateFiles(); // refetch → fetchFiles re-runs decryptFileNames
-      }
-    });
-  });
-}
-
-// Write-through: whenever the files cache changes (network refetch OR an
-// optimistic mutation), mirror it to OPFS so the next cold load is correct.
-// Coalesced to one persist per tick to avoid thrashing on rapid updates.
-if (typeof window !== "undefined") {
-  let persistScheduled = false;
   queryClient.getQueryCache().subscribe((event) => {
-    if (event.type !== "updated") return;
-    if (event.query.queryKey[0] !== "files") return;
-    if (persistScheduled) return;
-    persistScheduled = true;
-    queueMicrotask(() => {
-      persistScheduled = false;
-      const userId = useAuthStore.getState().user?.id;
-      const data = stripDecryptedNames(getFilesData());
-      if (!userId) return;
-      void import("@/lib/offline-cache")
-        .then(({ getOfflineCache }) => getOfflineCache())
-        .then((cache) => cache.setFiles(userId, data))
-        .catch(() => {});
-    });
+    if (event.type !== "updated" || event.query.queryKey[0] !== "files") return;
+    if (usePassphraseStore.getState().cachedPassphrase) void ensureFileNames(getRawFiles());
   });
+  let wasUnlocked = usePassphraseStore.getState().cachedPassphrase != null;
+  usePassphraseStore.subscribe((s) => {
+    const unlocked = s.cachedPassphrase != null;
+    if (unlocked && !wasUnlocked) {
+      void ensureFileNames(getRawFiles());
+      // Tools lists open sealed labels at fetch time: refetch any read while locked.
+      void queryClient.invalidateQueries({ queryKey: ["tools"] });
+    }
+    wasUnlocked = unlocked;
+  });
+  // ...and drop them on lock, like every other piece of decrypted plaintext.
+  onDecryptCacheClear(() => queryClient.removeQueries({ queryKey: ["tools"] }));
 }

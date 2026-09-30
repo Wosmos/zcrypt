@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { adminListFeedback, type AdminFeedbackResponse } from "@/lib/api";
+import { useState } from "react";
+import { adminListFeedback } from "@/lib/api";
+import { useAdminQuery } from "@/hooks/useAdminGuardedFetch";
+import { qk } from "@/lib/query-keys";
 import { Star, MessageSquare } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -27,25 +29,10 @@ function Stars({ rating }: { rating: number }) {
 }
 
 export function FeedbackList() {
-  const [data, setData] = useState<AdminFeedbackResponse | null>(null);
   const [page, setPage] = useState(0);
-  const [loading, setLoading] = useState(true);
-
-  const fetchPage = async (offset: number) => {
-    setLoading(true);
-    try {
-      const res = await adminListFeedback(PAGE_SIZE, offset);
-      setData(res);
-    } catch {
-      // ignore
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    void fetchPage(page * PAGE_SIZE);
-  }, [page]);
+  const { data, loading } = useAdminQuery(qk.adminFeedback(page * PAGE_SIZE), () =>
+    adminListFeedback(PAGE_SIZE, page * PAGE_SIZE),
+  );
 
   const feedback = data?.feedback ?? [];
   const total = data?.total ?? 0;
