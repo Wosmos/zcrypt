@@ -68,7 +68,7 @@ func TestUserActivityOwnEventsForNonAdmin(t *testing.T) {
 func TestUserActivityHiddenFromDecoySessions(t *testing.T) {
 	ts := setupTestServer(t)
 	const email = "activity-decoy@example.com"
-	const password = "SecurePass@123!"
+	password := newTestPassword()
 	const decoyPassword = "duress-pass-99"
 
 	real := ts.registerAndLogin(email, password)

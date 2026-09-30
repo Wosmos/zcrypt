@@ -385,7 +385,7 @@ func TestTwoFADisableClearsBackupCodes(t *testing.T) {
 func TestTwoFAMagicLinkRequiresSecondFactor(t *testing.T) {
 	ts := setupTestServer(t)
 	const email = "twofa-magic@example.com"
-	const password = "SecurePass@123!"
+	password := newTestPassword()
 
 	_, secret := setup2FA(ts, t, email, password)
 
@@ -468,7 +468,7 @@ func oauthCallback(ts *testServer, t *testing.T, state string) *http.Response {
 func TestTwoFAOAuthAutoLinkRequiresSecondFactor(t *testing.T) {
 	ts := setupTestServer(t)
 	const email = "twofa-oauth@example.com"
-	const password = "SecurePass@123!"
+	password := newTestPassword()
 
 	_, secret := setup2FA(ts, t, email, password)
 	_, err := ts.db.Pool().Exec(context.Background(), `UPDATE users SET email_verified = true WHERE email = $1`, email)
@@ -565,7 +565,7 @@ func TestOAuthLoginWithoutTwoFAStillIssuesTokens(t *testing.T) {
 func TestTwoFADecoyLoginRequiresSecondFactor(t *testing.T) {
 	ts := setupTestServer(t)
 	const email = "twofa-decoy@example.com"
-	const password = "SecurePass@123!"
+	password := newTestPassword()
 	const decoyPassword = "duress-pass-99"
 
 	real, secret := setup2FA(ts, t, email, password)
