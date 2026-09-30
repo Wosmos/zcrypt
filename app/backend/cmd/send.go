@@ -45,8 +45,14 @@ func (s *Server) HandleSendInit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate filename
-	if strings.Contains(req.Filename, "..") || strings.Contains(req.Filename, "/") ||
+	// Validate filename. A sealed name (enc1: + base64) is opaque ciphertext that
+	// is only stored and echoed back, and base64 legitimately contains "/".
+	if strings.HasPrefix(req.Filename, "enc1:") {
+		if len(req.Filename) > 1024 {
+			http.Error(w, `{"error":"invalid filename"}`, http.StatusBadRequest)
+			return
+		}
+	} else if strings.Contains(req.Filename, "..") || strings.Contains(req.Filename, "/") ||
 		strings.Contains(req.Filename, "\\") || len(req.Filename) > 255 {
 		http.Error(w, `{"error":"invalid filename"}`, http.StatusBadRequest)
 		return
