@@ -1,4 +1,5 @@
 import { test, expect, request, type Browser, type BrowserContext, type Page } from "@playwright/test";
+import { execFileSync } from "child_process";
 import { createHash, randomBytes } from "crypto";
 import fs from "fs";
 import { loginUser, registerUser, testEmail } from "./helpers";
@@ -12,6 +13,8 @@ const API_URL = process.env.E2E_API_URL || "http://localhost:8080";
 const PASSWORD = process.env.E2E_PASSWORD || `Sm0ke-${randomBytes(9).toString("hex")}!`;
 const PASSPHRASE = "smoke-passphrase-2026";
 const TTFR_BUDGET_MS = 15_000;
+const DB_URL = process.env.E2E_DATABASE_URL || "postgres://zcrypt:testpassword@127.0.0.1:5434/zcrypt_test";
+const PSQL = process.env.E2E_PSQL || "/Applications/Postgres.app/Contents/Versions/latest/bin/psql";
 
 const sha256 = (b: Buffer | Uint8Array) => createHash("sha256").update(b).digest("hex");
 
@@ -57,6 +60,15 @@ async function downloadBytes(p: Page, trigger: () => Promise<void>) {
   return { name: dl.suggestedFilename(), bytes: fs.readFileSync(path) };
 }
 
+function promoteToAdmin(adminEmail: string): boolean {
+  try {
+    execFileSync(PSQL, [DB_URL, "-qc", `UPDATE users SET role='admin' WHERE email='${adminEmail}'`], { stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function freshContext(browser: Browser): Promise<BrowserContext> {
   return browser.newContext({ acceptDownloads: true });
 }
@@ -88,6 +100,19 @@ async function uploadViaUI(page: Page, files: SmokeFile[]) {
   for (const f of files) {
     await expect(page.getByText(f.name, { exact: true }).first()).toBeVisible();
   }
+}
+
+async function adminPage(browser: Browser): Promise<Page | null> {
+  const adminEmail = testEmail("smoke-admin");
+  const ctx = await freshContext(browser);
+  const p = await ctx.newPage();
+  await registerUser(p, adminEmail, PASSWORD);
+  if (!promoteToAdmin(adminEmail)) {
+    await ctx.close();
+    return null;
+  }
+  await loginUser(p, adminEmail, PASSWORD);
+  return p;
 }
 
 test.describe.configure({ mode: "serial" });
@@ -125,6 +150,21 @@ test.describe("Smoke: vault, sharing, tools, session", () => {
 
     await loginUser(page, email, PASSWORD);
     await expect(page.getByText("No files yet")).toBeVisible({ timeout: 15_000 });
+  });
+
+  test("vault tour appears once, can be skipped and does not come back", async () => {
+    await page.goto("/dashboard");
+    const skip = page.getByRole("button", { name: "Skip tour" });
+    await expect(skip).toBeVisible({ timeout: 15_000 });
+    await skip.click();
+    await expect(skip).toBeHidden();
+
+    await page.reload();
+    await expect(page.getByText("No files yet").or(page.getByText(single.name, { exact: true }).first())).toBeVisible({
+      timeout: 15_000,
+    });
+    await page.waitForTimeout(2_500);
+    await expect(skip).toHaveCount(0);
   });
 
   test("upload a small file and it appears", async () => {
@@ -278,6 +318,78 @@ test.describe("Smoke: vault, sharing, tools, session", () => {
       } finally {
         await recvCtx.close();
       }
+    } finally {
+      await ctx.close();
+    }
+  });
+
+  test("bug report reaches the admin inbox", async ({ browser }) => {
+    const description = `smoke bug ${Date.now()}: the widget misbehaves`;
+    await page.goto("/dashboard");
+    await page.getByRole("button", { name: "Account menu" }).click();
+    await page.getByRole("button", { name: "Report a bug" }).click();
+    await page.getByLabel("Bug description").fill(description);
+    await page.getByRole("button", { name: "Send report" }).click();
+    await expect(page.getByText("Bug report sent. Thank you.").first()).toBeVisible({ timeout: 10_000 });
+
+    const admin = await adminPage(browser);
+    if (!admin) test.skip(true, "cannot promote an admin (psql unavailable)");
+    try {
+      await admin!.goto("/admin/reports");
+      await expect(admin!.getByText(description).first()).toBeVisible({ timeout: 15_000 });
+    } finally {
+      await admin!.context().close();
+    }
+  });
+
+  test("review is moderated and then served publicly", async ({ browser }) => {
+    const quote = `smoke review ${Date.now()}: honest and quick`;
+    const api = await request.newContext();
+    const before = await (await api.get(`${API_URL}/api/reviews/public`)).json();
+    expect(JSON.stringify(before)).not.toContain(quote);
+
+    await page.goto("/dashboard");
+    await page.getByRole("button", { name: "Account menu" }).click();
+    await page.getByRole("button", { name: "Rate zcrypt" }).click();
+    await page.getByRole("radio", { name: "5 stars" }).click();
+    await page.getByLabel("Your review").fill(quote);
+    await page.getByLabel("Display name").fill("Smoke Tester");
+    await page.getByText("OK to show on the website").click();
+    await page.getByRole("button", { name: "Send review" }).click();
+    await expect(page.getByText(/Thanks\. It will show on the site/).first()).toBeVisible({ timeout: 10_000 });
+
+    const pending = await (await api.get(`${API_URL}/api/reviews/public`)).json();
+    expect(JSON.stringify(pending)).not.toContain(quote);
+
+    const admin = await adminPage(browser);
+    if (!admin) test.skip(true, "cannot promote an admin (psql unavailable)");
+    try {
+      await admin!.goto("/admin/reviews");
+      const row = admin!.getByRole("listitem").filter({ hasText: quote });
+      await expect(row).toBeVisible({ timeout: 15_000 });
+      await row.getByRole("button", { name: "Approve" }).click();
+      await expect(admin!.getByRole("listitem").filter({ hasText: quote })).toHaveCount(0, { timeout: 10_000 });
+    } finally {
+      await admin!.context().close();
+    }
+
+    await expect
+      .poll(async () => JSON.stringify(await (await api.get(`${API_URL}/api/reviews/public`)).json()), { timeout: 10_000 })
+      .toContain(quote);
+    await api.dispose();
+  });
+
+  test("language switch to Arabic flips direction and translates the nav", async ({ browser }) => {
+    const ctx = await freshContext(browser);
+    try {
+      const guest = await ctx.newPage();
+      await guest.goto("/");
+      await expect(guest.locator("html")).not.toHaveAttribute("dir", "rtl");
+      await expect(guest.getByRole("link", { name: "Log in" }).first()).toBeVisible();
+      await guest.getByLabel("Language").selectOption("ar");
+      await expect(guest.locator("html")).toHaveAttribute("dir", "rtl");
+      await expect(guest.locator("html")).toHaveAttribute("lang", "ar");
+      await expect(guest.getByRole("link", { name: "تسجيل الدخول" }).first()).toBeVisible();
     } finally {
       await ctx.close();
     }
