@@ -254,6 +254,8 @@ jobs:
 
       - name: Start frontend
         working-directory: app/frontend
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8080
         run: bun run dev &
 
       - name: Install Playwright browsers
