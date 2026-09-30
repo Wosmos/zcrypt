@@ -816,6 +816,132 @@ export function adminSetUserQuota(
   });
 }
 
+// ─── Bug reports ───
+
+export type BugReportStatus = "open" | "triaged" | "fixed" | "wontfix";
+
+export interface BugReportInput {
+  description: string;
+  screenshot?: string;
+  app_version: string;
+  platform: string;
+  route: string;
+  user_agent: string;
+}
+
+export function submitBugReport(data: BugReportInput): Promise<{ success: boolean; id: string }> {
+  return request<{ success: boolean; id: string }>("/api/feedback/bug", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export interface AdminBugReport {
+  id: string;
+  user_id: string | null;
+  email: string;
+  username: string;
+  description: string;
+  has_screenshot: boolean;
+  app_version: string;
+  platform: string;
+  route: string;
+  user_agent: string;
+  status: BugReportStatus;
+  created_at: string;
+}
+
+export interface AdminBugReportsResponse {
+  reports: AdminBugReport[];
+  total: number;
+}
+
+export function adminListBugReports(
+  status: BugReportStatus | "",
+  limit = 20,
+  offset = 0,
+): Promise<AdminBugReportsResponse> {
+  const q = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+  if (status) q.set("status", status);
+  return request<AdminBugReportsResponse>(`/api/admin/bug-reports?${q}`);
+}
+
+export function adminUpdateBugReport(
+  id: string,
+  status: BugReportStatus,
+): Promise<{ id: string; status: BugReportStatus }> {
+  return request<{ id: string; status: BugReportStatus }>(`/api/admin/bug-reports/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status }),
+  });
+}
+
+export async function adminGetBugReportScreenshot(id: string): Promise<Blob> {
+  const res = await authedFetch(`${API_BASE}/api/admin/bug-reports/${id}/screenshot`);
+  if (!res.ok) await throwResponseError(res);
+  return res.blob();
+}
+
+// ─── Reviews ───
+
+export type ReviewStatus = "pending" | "approved" | "rejected";
+
+export interface ReviewInput {
+  rating: number;
+  quote: string;
+  display_name: string;
+  public_ok: boolean;
+}
+
+export interface Review extends ReviewInput {
+  id: string;
+  status: ReviewStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminReview extends Review {
+  user_id: string;
+  email: string;
+  username: string;
+}
+
+export function submitReview(data: ReviewInput): Promise<Review> {
+  return request<Review>("/api/reviews", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function getMyReview(): Promise<Review | null> {
+  const res = await request<{ review: Review | null }>("/api/reviews/me");
+  return res.review;
+}
+
+export function adminListReviews(
+  status: ReviewStatus | "",
+  limit = 20,
+  offset = 0,
+): Promise<{ reviews: AdminReview[]; total: number }> {
+  const q = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+  if (status) q.set("status", status);
+  return request<{ reviews: AdminReview[]; total: number }>(`/api/admin/reviews?${q}`);
+}
+
+export function adminUpdateReview(
+  id: string,
+  status: ReviewStatus,
+): Promise<{ id: string; status: ReviewStatus }> {
+  return request<{ id: string; status: ReviewStatus }>(`/api/admin/reviews/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status }),
+  });
+}
+
 // ─── Admin Audit API ───
 
 export interface AdminAuditResponse {
@@ -1484,6 +1610,31 @@ export function removeSharedVaultMember(
 ): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/api/shared-vaults/${vaultId}/members/${userId}`, {
     method: "DELETE",
+  });
+}
+
+/** Rename / re-limit a space (owner or admin). Omitted fields are unchanged. */
+export function updateSharedVault(
+  id: string,
+  patch: { name?: string; description?: string; size_limit_bytes?: number },
+): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/api/shared-vaults/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+}
+
+/** Change a member's role (owner or admin; only the owner may touch admins). */
+export function updateSharedVaultMemberRole(
+  vaultId: string,
+  userId: string,
+  role: "viewer" | "editor" | "admin",
+): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/api/shared-vaults/${vaultId}/members/${userId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ role }),
   });
 }
 

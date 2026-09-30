@@ -1237,7 +1237,7 @@
 .zs-q-bar {
   position: relative;
   display: flex;
-  justify-content: center;
+  justify-content: flex-end;
   align-items: center;
   min-height: 44px;
   margin-top: -8px;
@@ -1247,28 +1247,6 @@
   position: absolute;
   top: 0;
   right: 0;
-}
-.zs-stag {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
-  border-radius: 999px;
-  corner-shape: round;
-  border: 1px dashed var(--color-border-hover);
-  background: var(--color-surface-2);
-  font-size: 12px;
-  line-height: 1.2;
-  font-weight: 600;
-  color: var(--color-text);
-}
-.zs-stag::before {
-  content: "";
-  width: 6px;
-  height: 6px;
-  border-radius: 999px;
-  corner-shape: round;
-  background: var(--color-accent);
 }
 
 .zs-rows {
@@ -1360,18 +1338,6 @@
   height: 18px;
   color: var(--pv2-accent-ink);
 }
-.zs-qc-tag {
-  padding: 4px 8px;
-  border-radius: 999px;
-  corner-shape: round;
-  background: var(--color-surface-2);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 11px;
-  line-height: 1;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  color: var(--color-text-secondary);
-}
 .zs-qc-text {
   flex: 1;
   margin: 0;
@@ -1429,10 +1395,23 @@
   font-weight: 600;
   color: var(--color-text);
 }
-.zs-qc-role {
-  font-size: 13px;
-  line-height: 1.3;
-  color: var(--color-text-muted);
+.zs-qc-stars {
+  display: inline-flex;
+  gap: 2px;
+  color: var(--pv2-accent-ink);
+}
+.zs-qc-stars svg {
+  width: 14px;
+  height: 14px;
+}
+.zs-qc-stars svg path {
+  fill: currentColor;
+}
+.zs-qc-stars [data-off] {
+  color: var(--color-border-hover);
+}
+.zs-qc-stars [data-off] path {
+  fill: none;
 }
 
 .zs-faq {
@@ -1612,8 +1591,6 @@
 .zs-seg-thumb,
 .zs-seg-opt,
 .zs-seg-bar,
-.zs-here,
-.zs-stag,
-.zs-qc-tag {
+.zs-here {
   corner-shape: round;
 }

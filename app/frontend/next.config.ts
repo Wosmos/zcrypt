@@ -42,6 +42,7 @@ const cspHeaderKey =
     : "Content-Security-Policy-Report-Only";
 
 const nextConfig: NextConfig = {
+  env: { NEXT_PUBLIC_APP_VERSION: process.env.npm_package_version ?? "" },
   reactCompiler: true,
   turbopack: {},
   // Zero-knowledge: every image the app renders is a client-side blob: object

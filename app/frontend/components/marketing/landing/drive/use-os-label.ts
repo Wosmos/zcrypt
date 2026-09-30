@@ -4,17 +4,17 @@ import { useEffect, useState } from "react";
 import { detectDevice } from "@/components/marketing/download/download-cta";
 import type { DetectedDevice } from "@/lib/releases";
 
-export type OsLabel = { os: DetectedDevice | null; label: string; href: string };
+export type OsLabel = { os: DetectedDevice | null; labelKey: string; href: string };
 
-const LABELS: Record<DetectedDevice, { label: string; href: string }> = {
-  macos: { label: "Download for Mac", href: "/download?os=mac" },
-  windows: { label: "Download for Windows", href: "/download?os=windows" },
-  linux: { label: "Download for Linux", href: "/download?os=linux" },
-  android: { label: "Get the Android app", href: "/download?os=android" },
-  ios: { label: "Open in Safari, no app needed", href: "/register" },
+const LABELS: Record<DetectedDevice, { labelKey: string; href: string }> = {
+  macos: { labelKey: "osMac", href: "/download?os=mac" },
+  windows: { labelKey: "osWindows", href: "/download?os=windows" },
+  linux: { labelKey: "osLinux", href: "/download?os=linux" },
+  android: { labelKey: "osAndroid", href: "/download?os=android" },
+  ios: { labelKey: "osIos", href: "/register" },
 };
 
-const FALLBACK: OsLabel = { os: null, label: "Download the app", href: "/download" };
+const FALLBACK: OsLabel = { os: null, labelKey: "osFallback", href: "/download" };
 
 /** The OS download button's label and link, resolved after mount so SSR and hydration agree. */
 export function useOsLabel(): OsLabel {

@@ -1,5 +1,6 @@
 "use client";
 
+import { useAutoTour } from "@/components/onboarding/tour-provider";
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { X, Share2, Copy, Check, Link2, Lock, Trash2 } from "@/lib/icons";
@@ -53,6 +54,9 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
     generatedToken && shareKeyB64
       ? `${window.location.origin}/s/${generatedToken}#key=${shareKeyB64}`
       : "";
+
+  useAutoTour("share", open && step === "form", 450);
+  useAutoTour("share-copy", open && step === "link", 350);
 
   // Reset on close
   useEffect(() => {
@@ -161,7 +165,7 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
           {step === "form" ? (
             <>
               {/* Password toggle */}
-              <div className="space-y-2">
+              <div className="space-y-2" data-tour="share-password">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <Checkbox
                     checked={usePassword}
@@ -181,7 +185,7 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
               </div>
 
               {/* Expiry */}
-              <div className="space-y-1.5">
+              <div className="space-y-1.5" data-tour="share-expiry">
                 <label className="text-sm font-medium text-[var(--color-text-secondary)]">
                   Link expiry
                 </label>
@@ -220,6 +224,7 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
                 onClick={handleGenerate}
                 disabled={loading || (usePassword && !password)}
                 className="w-full"
+                data-tour="share-generate"
               >
                 {loading ? "Generating..." : "Generate Link"}
               </Button>
@@ -228,7 +233,10 @@ export function ShareModal({ open, onClose, fileId, fileName, fileSize }: ShareM
             <>
               {/* Generated link */}
               <div className="space-y-3">
-                <div className="flex items-center gap-2 p-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)]">
+                <div
+                  className="flex items-center gap-2 p-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)]"
+                  data-tour="share-copy"
+                >
                   <Link2 className="h-4 w-4 text-[var(--color-accent)] flex-shrink-0" />
                   <input
                     readOnly

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { MOBILE_GLYPHS, OS_GLYPHS } from "@/components/marketing/download/os-glyphs";
 import { GitHubIcon } from "@/components/icons/github";
 import { GitlabIcon as GitLabIcon } from "@/components/icons/gitlab";
@@ -14,16 +15,18 @@ import { DriveStage } from "./drive-stage";
 import { useOsLabel } from "./use-os-label";
 
 function OsButton() {
-  const { os, label, href } = useOsLabel();
+  const t = useTranslations("marketing.hero");
+  const { os, labelKey, href } = useOsLabel();
   const Glyph = os === "android" || os === "ios" ? MOBILE_GLYPHS[os] : os ? OS_GLYPHS[os] : null;
   return (
     <PillLink href={href} variant="secondary" icon={Glyph ?? Download}>
-      <span>{label}</span>
+      <span>{t(labelKey)}</span>
     </PillLink>
   );
 }
 
 function Head() {
+  const t = useTranslations("marketing.hero");
   return (
     <div className="zh-head">
       <div className="zh-head-in">
@@ -32,32 +35,31 @@ function Head() {
           className="pv2-pill zh-rise"
           style={{ "--i": 0 } as React.CSSProperties}
         >
-          Now on Android (beta)
-          <ArrowRight className="h-3.5 w-3.5" />
+          {t("badge")}
+          <ArrowRight className="h-3.5 w-3.5 rtl:-scale-x-100" />
         </Link>
         <h1
           id="h-top"
           className="pv2-h1 zh-rise zh-rise-keep"
           style={{ "--i": 1 } as React.CSSProperties}
         >
-          Free cloud storage with no limit
+          {t("title")}
           <span className="pv2-dot" aria-hidden="true">
             .
           </span>
         </h1>
         <p className="pv2-sub zh-rise" style={{ "--i": 2 } as React.CSSProperties}>
-          Your files get locked on your own phone or laptop, then saved in accounts you already
-          have, like Telegram or GitHub. Nobody else can open them. Not even us.
+          {t("sub")}
         </p>
         <div className="pv2-ctas zh-rise" style={{ "--i": 3 } as React.CSSProperties}>
-          <PillLink href="/register">Start free</PillLink>
+          <PillLink href="/register">{t("cta")}</PillLink>
           <OsButton />
         </div>
         <p className="pv2-micro zh-rise" style={{ "--i": 4 } as React.CSSProperties}>
-          No card. No trial. There&apos;s nothing to upgrade to.
+          {t("micro")}
         </p>
         <span className="zh-cue" aria-hidden="true">
-          Scroll to open the app
+          {t("scroll")}
           <ChevronDown className="h-3.5 w-3.5" />
         </span>
       </div>
@@ -82,20 +84,20 @@ function Live() {
 }
 
 function After() {
+  const t = useTranslations("marketing.hero");
   return (
     <div className="zh-after">
       <div className="zh-caps">
         <p className="zh-cap" data-for="you">
-          <span className="zh-cap-d">
-            This is the app, with sample files. Click a file to open it, or drop one of yours on it.
-          </span>
-          <span className="zh-cap-t">Tap a file to open it, or tap + to add one.</span> Nothing
-          leaves your browser.
+          {t.rich("capYou", {
+            d: (chunks) => <span className="zh-cap-d">{chunks}</span>,
+            t: (chunks) => <span className="zh-cap-t">{chunks}</span>,
+          })}
         </p>
         <p className="zh-cap" data-for="gh">
-          Same files, from our side. And from Telegram, GitHub, GitLab or Hugging Face: locked
-          pieces called <span className="zh-nw">a3/9f04c1e2b7d8e1.bin</span> in a project called{" "}
-          <span className="zh-nw">quick-loader-v2</span>. Nobody can open them. Not even us.
+          {t.rich("capThem", {
+            nw: (chunks) => <span className="zh-nw">{chunks}</span>,
+          })}
         </p>
       </div>
       <ul className="zh-trust">
@@ -103,9 +105,7 @@ function After() {
           <span className="zh-tr-ic">
             <GitHubIcon className="h-4 w-4" />
           </span>
-          <span>
-            <b>Open source.</b> Read every line.
-          </span>
+          <span>{t.rich("trustOpen", { b: (chunks) => <b>{chunks}</b> })}</span>
         </li>
         <li>
           <span className="zh-tr-ic zh-tr-plat" aria-hidden="true">
@@ -114,17 +114,13 @@ function After() {
             <GitLabIcon className="zh-c-gl" />
             <HuggingFaceIcon className="zh-c-hf" />
           </span>
-          <span>
-            <b>Uses accounts you already own.</b>
-          </span>
+          <span>{t.rich("trustAccounts", { b: (chunks) => <b>{chunks}</b> })}</span>
         </li>
         <li>
           <span className="zh-tr-ic">
             <Lock className="h-4 w-4" />
           </span>
-          <span>
-            <b>Locked before it leaves your device.</b>
-          </span>
+          <span>{t.rich("trustLocked", { b: (chunks) => <b>{chunks}</b> })}</span>
         </li>
       </ul>
       <Live />

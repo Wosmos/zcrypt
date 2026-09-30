@@ -202,6 +202,7 @@ function FileCardInner({
           ref={cardRef}
           role="button"
           data-entry-id={file.id}
+          data-tour="file-card"
           tabIndex={focused ? 0 : -1}
           aria-selected={selected}
           aria-label={`${displayName}, ${typeInfo.label}, ${formatBytes(file.original_size)}${unavailable ? ", preview unavailable" : ""}. Right-click or long-press for actions.`}

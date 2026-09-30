@@ -26,6 +26,7 @@ import {
 } from "@/lib/crypto";
 import { downloadAndDecryptFile, type DownloadOptions } from "@/lib/download-session";
 import { isTauri, sidecarDownloadSpace, pickSaveLocation, subscribeProgress } from "@/lib/tauri";
+import { ApiError } from "@/lib/http-error";
 import { useKeysStore } from "@/store/keys";
 import { useSpacesStore } from "@/store/spaces";
 import { usePassphraseStore } from "@/store/passphrase";
@@ -169,8 +170,8 @@ export async function downloadSpaceFile(
  *  fresh space key, seals it to every REMAINING member's public key, and
  *  re-wraps every shared file's CEK under it. Call this AFTER removing the
  *  member. Requires the space to be unlocked (needs the old key to re-wrap).
- *  Members with no published key are skipped: they have no functional access
- *  either way. */
+ *  Members the server says have no published key (404) are omitted: the server
+ *  re-checks that and clears their grant. */
 export async function rotateSpaceKey(
   vault: SharedVault,
   remainingMembers: SharedVaultMember[],
@@ -188,8 +189,10 @@ export async function rotateSpaceKey(
         user_id: m.user_id,
         wrapped_space_key: await sealTo(fromBase64(pk.public_key), newKey),
       });
-    } catch {
-      /* member has no published key, nothing to seal, and no access to lose */
+    } catch (err) {
+      // Only a definite 404 means "no published key". Anything else (network,
+      // 5xx) must abort: dropping the grant would lock that member out.
+      if (!(err instanceof ApiError && err.status === 404)) throw err;
     }
   }
 
@@ -230,4 +233,47 @@ export async function shareSpace(
   const recipient = await lookupUserKey(email);
   const wrapped = await sealTo(fromBase64(recipient.public_key), spaceKey);
   return addSharedVaultMember(vaultId, email, role, wrapped);
+}
+
+export type SpaceRole = "viewer" | "editor" | "admin";
+
+export interface SpacePerms {
+  label: "Owner" | "Admin" | "Editor" | "Viewer";
+  /** Add and remove files. */
+  editFiles: boolean;
+  /** Invite, remove, re-role members; rename. */
+  manage: boolean;
+  /** Only the owner: rotate the space key. */
+  rotate: boolean;
+  /** Only the owner: grant admin, act on admins, delete the space. */
+  owner: boolean;
+}
+
+/** What the caller may do in a space. Mirrors the backend's role checks; the
+ *  server stays authoritative, this only decides what the UI offers. */
+export function spacePerms(
+  vault: Pick<SharedVault, "owner_id" | "role">,
+  userId: string | undefined,
+): SpacePerms {
+  const owner = !!userId && vault.owner_id === userId;
+  const admin = owner || vault.role === "admin";
+  const editor = admin || vault.role === "editor";
+  return {
+    label: owner ? "Owner" : admin ? "Admin" : editor ? "Editor" : "Viewer",
+    editFiles: editor,
+    manage: admin,
+    rotate: owner,
+    owner,
+  };
+}
+
+/** Whether the caller may change or remove this member. Admins act on viewers
+ *  and editors only; the owner acts on anyone but themselves. */
+export function canManageMember(
+  perms: SpacePerms,
+  vault: Pick<SharedVault, "owner_id">,
+  member: Pick<SharedVaultMember, "user_id" | "role">,
+): boolean {
+  if (!perms.manage || member.user_id === vault.owner_id) return false;
+  return perms.owner || member.role !== "admin";
 }

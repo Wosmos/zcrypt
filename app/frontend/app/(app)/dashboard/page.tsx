@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 
 import { VaultExplorer, type VaultExplorerHandle } from "@/components/files/vault-explorer";
@@ -73,6 +74,7 @@ import {
   X,
 } from "@/lib/icons";
 import type { FileMetadata } from "@/types";
+import { useAutoTour } from "@/components/onboarding/tour-provider";
 
 /**
  * Vault page: composition over a god-component (REBUILD_SPEC §6).
@@ -85,6 +87,7 @@ import type { FileMetadata } from "@/types";
  * unlock provided by <VaultLockProvider> (header pill = <VaultLock />).
  */
 export default function VaultPage() {
+  const t = useTranslations("dashboard");
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -246,14 +249,14 @@ export default function VaultPage() {
           vaultPass ?? "",
           (p) => setRekeyProgress({ done: p.done, total: p.total }),
         );
-        toast.success("Folder protected");
+        toast.success(t("toastFolderProtected"));
         setProtectTarget(null);
         await refresh();
       } finally {
         setRekeyProgress(null);
       }
     },
-    [protectTarget, filesInFolder, folderProtection, refresh],
+    [protectTarget, filesInFolder, folderProtection, refresh, t],
   );
 
   // Remove protection: needs the folder password (prompt if uncached) AND the
@@ -275,7 +278,7 @@ export default function VaultPage() {
           vaultPass ?? "",
           (p) => setRekeyProgress({ done: p.done, total: p.total }),
         );
-        toast.success("Folder password removed");
+        toast.success(t("toastFolderPasswordRemoved"));
         setRemoveTarget(null);
         await refresh();
       } finally {
@@ -292,7 +295,7 @@ export default function VaultPage() {
         if (pw) void run(pw);
       });
     }
-  }, [removeTarget, filesInFolder, folderProtection, refresh]);
+  }, [removeTarget, filesInFolder, folderProtection, refresh, t]);
 
   // ── Explorer callbacks that surface a page-owned modal ──────────────────────
   const handleDeleteRequest = useCallback(
@@ -390,12 +393,12 @@ export default function VaultPage() {
 
   const uploadHint =
     quotaInfo && !quotaInfo.can_upload
-      ? "Storage not available yet"
+      ? t("storageUnavailable")
       : statuses.some((s) => s.connected) &&
           !statuses.some((s) => s.platform === "huggingface" && s.connected)
-        ? "Tip: connect Hugging Face for faster large-file (2GB+) uploads"
+        ? t("hintHuggingFace")
         : vault.unlocked
-          ? "Vault unlocked. Drop files to upload instantly"
+          ? t("hintUnlocked")
           : undefined;
 
   // Full-screen lock mask: shown ONLY once the rehydrate attempt has settled
@@ -409,6 +412,7 @@ export default function VaultPage() {
   // before this mask mounts, and a remembered-device vault never flashes this
   // mask before its content. Both resolve together on the `ready` flip.
   const showLockOverlay = vault.ready && !vault.unlocked && files.length > 0;
+  useAutoTour("vault", vault.ready && !loading && !error && !showLockOverlay && !currentFolderId);
 
   return (
     // No animate-fade-in anywhere on this tree: it leaves a lingering `transform`
@@ -426,7 +430,7 @@ export default function VaultPage() {
         <div className="pointer-events-none fixed inset-0 z-[60] flex items-center justify-center bg-[var(--color-bg)]/80 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-3 rounded-3xl border-2 border-dashed border-[var(--color-accent)] bg-[var(--color-surface)] px-12 py-10">
             <FileUpload className="h-8 w-8 text-[var(--color-accent)]" />
-            <p className="text-base font-semibold text-[var(--color-text)]">Drop files to upload</p>
+            <p className="text-base font-semibold text-[var(--color-text)]">{t("dropToUpload")}</p>
           </div>
         </div>
       )}
@@ -438,11 +442,11 @@ export default function VaultPage() {
       <div className="sticky -top-1 z-20 -mx-3 flex flex-row items-center gap-2 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-3 sm:static sm:z-auto sm:mx-0 sm:justify-between sm:gap-3 sm:border-b-0 sm:bg-transparent sm:p-0">
         {/* Left group: search + the vault lock hugging its right edge (desktop). */}
         <div className="flex min-w-0 flex-1 items-center gap-2 sm:flex-initial">
-          <div className="relative w-full min-w-0 flex-1 sm:w-80">
+          <div className="relative w-full min-w-0 flex-1 sm:w-80" data-tour="vault-search">
             <Input
               ref={searchRef}
               type="search"
-              placeholder="Search your vault"
+              placeholder={t("searchVault")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => {
@@ -452,20 +456,20 @@ export default function VaultPage() {
                 }
               }}
               icon={<Search className="h-4 w-4" />}
-              className="h-9 pr-9"
-              aria-label="Search your vault"
+              className="h-9 pe-9"
+              aria-label={t("searchVault")}
             />
             {search ? (
               <button
                 type="button"
                 onClick={() => setSearch("")}
-                aria-label="Clear search"
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)]"
+                aria-label={t("clearSearch")}
+                className="absolute end-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-1)] hover:text-[var(--color-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)]"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
             ) : (
-              <kbd className="pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2 select-none rounded border border-[var(--color-border)] bg-[var(--color-surface-1)] px-1.5 py-0.5 font-mono text-[10px] leading-none text-[var(--color-text-muted)] sm:block">
+              <kbd className="pointer-events-none absolute end-2.5 top-1/2 hidden -translate-y-1/2 select-none rounded border border-[var(--color-border)] bg-[var(--color-surface-1)] px-1.5 py-0.5 font-mono text-[10px] leading-none text-[var(--color-text-muted)] sm:block">
                 /
               </kbd>
             )}
@@ -478,6 +482,7 @@ export default function VaultPage() {
             onUnlock={() => vault.unlock()}
             onLock={vault.lock}
             className="hidden flex-shrink-0 sm:inline-flex"
+            tour="vault-lock"
           />
         </div>
         {/* Desktop actions. New folder, Upload, refresh. Hidden on mobile (moved to TopBar + filters). */}
@@ -485,18 +490,19 @@ export default function VaultPage() {
           <Button
             variant="secondary"
             onClick={() => explorerRef.current?.startNewFolder()}
-            aria-label="New folder"
+            aria-label={t("newFolder")}
+            data-tour="new-folder"
           >
             <FolderAdd className="h-4 w-4" />
-            <span className="hidden sm:inline">New folder</span>
+            <span className="hidden sm:inline">{t("newFolder")}</span>
           </Button>
-          <Button onClick={() => setUploadOpen(true)}>
+          <Button onClick={() => setUploadOpen(true)} data-tour="upload-button">
             <FileUpload className="h-4 w-4" />
-            Upload
+            {t("upload")}
           </Button>
           <IconButton
             icon={RefreshCw}
-            label="Refresh"
+            label={t("refresh")}
             variant="secondary"
             onClick={() => refresh()}
           />
@@ -513,17 +519,19 @@ export default function VaultPage() {
             <AlertTriangle className="h-5 w-5 text-amber-500 dark:text-amber-400 flex-shrink-0 mt-0.5" />
             <div>
               <p className="text-sm font-medium text-amber-700 dark:text-amber-300">
-                Storage not available yet
+                {t("storageUnavailable")}
               </p>
               <p className="text-xs text-amber-600/70 dark:text-amber-400/60 mt-0.5">
-                Managed storage is being set up. You can also{" "}
-                <Link
-                  href="/settings"
-                  className="underline hover:text-amber-600 dark:hover:text-amber-300 transition-colors"
-                >
-                  connect your own platform
-                </Link>{" "}
-                for unlimited storage.
+                {t.rich("storageSettingUp", {
+                  link: (chunks) => (
+                    <Link
+                      href="/settings"
+                      className="underline hover:text-amber-600 dark:hover:text-amber-300 transition-colors"
+                    >
+                      {chunks}
+                    </Link>
+                  ),
+                })}
               </p>
             </div>
           </div>
@@ -554,12 +562,12 @@ export default function VaultPage() {
         {vault.ready && !loading && !error && files.length === 0 ? (
           <EmptyState
             icon={<Shield className="h-7 w-7 text-[var(--color-text-muted)]" />}
-            title="No files yet"
-            description="Upload your first file to get started. Files are compressed, encrypted, and stored across your connected platforms."
+            title={t("noFilesTitle")}
+            description={t("noFilesDescription")}
             action={
               <Button size="sm" onClick={() => setUploadOpen(true)}>
                 <FileUpload className="h-4 w-4" />
-                Upload files
+                {t("uploadDialogTitle")}
               </Button>
             }
           />
@@ -747,19 +755,13 @@ export default function VaultPage() {
         onOpenChange={(o) => !o && setDeleteRequest(null)}
         onConfirm={executeDelete}
         destructive
-        title={
-          deleteRequest?.kind === "bulk" ? "Move selected files to Trash?" : "Move file to Trash?"
-        }
+        title={deleteRequest?.kind === "bulk" ? t("trashSelectedTitle") : t("trashFileTitle")}
         description={
           deleteRequest?.kind === "bulk" ? (
-            `${deleteRequest.ids.length} file${
-              deleteRequest.ids.length !== 1 ? "s" : ""
-            } will be moved to Trash. You can restore them from Deleted Files.`
+            t("trashSelectedDescription", { count: deleteRequest.ids.length })
           ) : (
             <>
-              <span className="block">
-                This file will be moved to Trash. You can restore it from Deleted Files.
-              </span>
+              <span className="block">{t("trashFileDescription")}</span>
               {deleteRequest && (
                 <span className="mt-3 block truncate rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2 font-mono text-xs text-[var(--color-text-muted)]">
                   {deleteRequest.file.original_name}
@@ -770,10 +772,8 @@ export default function VaultPage() {
         }
         confirmLabel={
           deleteRequest?.kind === "bulk"
-            ? `Move ${deleteRequest.ids.length} file${
-                deleteRequest.ids.length !== 1 ? "s" : ""
-              } to Trash`
-            : "Move to Trash"
+            ? t("trashSelectedConfirm", { count: deleteRequest.ids.length })
+            : t("trashFileConfirm")
         }
       />
 
@@ -782,9 +782,9 @@ export default function VaultPage() {
       <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
         <DialogContent className="max-w-xl border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)]">
           <DialogHeader>
-            <DialogTitle>Upload files</DialogTitle>
+            <DialogTitle>{t("uploadDialogTitle")}</DialogTitle>
             <DialogDescription className="text-[var(--color-text-secondary)]">
-              Files are compressed, end-to-end encrypted, and chunked before they leave your device.
+              {t("uploadDialogDescription")}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">

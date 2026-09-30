@@ -415,3 +415,27 @@ describe("getDownloadTotal", () => {
     await expect(api.getDownloadTotal()).rejects.toThrow("failed to load download total");
   });
 });
+
+describe("adminGetBugReportScreenshot", () => {
+  it("returns the image blob and throws on a failed response", async () => {
+    const blob = new Blob(["x"], { type: "image/jpeg" });
+    fetchMock.mockResolvedValueOnce({ ...mk(200, {}), blob: async () => blob } as unknown as Response);
+    expect(await api.adminGetBugReportScreenshot("b1")).toBe(blob);
+    expect(url()).toContain("/api/admin/bug-reports/b1/screenshot");
+
+    fetchMock.mockResolvedValueOnce(mk(404, {}));
+    await expect(api.adminGetBugReportScreenshot("b1")).rejects.toThrow();
+  });
+});
+
+describe("getMyReview", () => {
+  it("unwraps the review and passes null through", async () => {
+    const review = { id: "r1", rating: 5 };
+    fetchMock.mockResolvedValueOnce(mk(200, { json: { review } }));
+    expect(await api.getMyReview()).toEqual(review);
+    expect(url()).toContain("/api/reviews/me");
+
+    fetchMock.mockResolvedValueOnce(mk(200, { json: { review: null } }));
+    expect(await api.getMyReview()).toBeNull();
+  });
+});

@@ -92,6 +92,7 @@ export function VaultFab({ onNewFolder, onUpload }: VaultFabProps) {
         <motion.button
           type="button"
           onClick={() => setOpen((o) => !o)}
+          data-tour="upload-fab"
           aria-label={open ? "Close actions" : "Add to vault"}
           aria-expanded={open}
           className={cn(

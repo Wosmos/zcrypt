@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { forgotPassword } from "@/lib/auth-api";
@@ -11,6 +12,8 @@ import { SubmitButton } from "@/components/auth/submit-button";
 import { Mail, ArrowRight, ArrowLeft, CheckCircle2 } from "@/lib/icons";
 
 export default function ForgotPasswordPage() {
+  const t = useTranslations("auth");
+  const tf = useTranslations("auth.forgot");
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
@@ -35,18 +38,20 @@ export default function ForgotPasswordPage() {
       <AuthStatusCard
         icon={CheckCircle2}
         tone="cyan"
-        title="Check your email"
+        title={t("checkEmail")}
         action={
           <Link href="/login">
             <Button variant="secondary" className="mt-5">
-              <ArrowLeft className="h-4 w-4" /> Back to login
+              <ArrowLeft className="h-4 w-4 rtl:-scale-x-100" /> {t("backToLogin")}
             </Button>
           </Link>
         }
       >
         <p className="text-sm text-[var(--color-text-secondary)] mt-2 leading-relaxed">
-          If an account exists for <strong className="text-[var(--color-text)]">{email}</strong>,
-          you&apos;ll receive a password reset link shortly.
+          {tf.rich("sentTo", {
+            email,
+            b: (chunks) => <strong className="text-[var(--color-text)]">{chunks}</strong>,
+          })}
         </p>
       </AuthStatusCard>
     );
@@ -55,17 +60,15 @@ export default function ForgotPasswordPage() {
   return (
     <div className="animate-fade-in">
       <div className="mb-6">
-        <h1 className="text-xl font-bold tracking-tight">Reset password</h1>
-        <p className="text-sm text-[var(--color-text-secondary)] mt-1">
-          Enter your email and we&apos;ll send a reset link
-        </p>
+        <h1 className="text-xl font-bold tracking-tight">{tf("title")}</h1>
+        <p className="text-sm text-[var(--color-text-secondary)] mt-1">{tf("subtitle")}</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-3">
         <Input
-          label="Email"
+          label={t("email")}
           type="email"
-          placeholder="you@example.com"
+          placeholder={t("emailPlaceholder")}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           icon={<Mail className="h-4 w-4" />}
@@ -77,16 +80,16 @@ export default function ForgotPasswordPage() {
           type="submit"
           loading={loading}
           disabled={loading || !email.trim()}
-          loadingLabel="Sending..."
+          loadingLabel={tf("sending")}
           icon={ArrowRight}
         >
-          Send reset link
+          {tf("send")}
         </SubmitButton>
       </form>
 
       <p className="text-center text-sm text-[var(--color-text-secondary)] mt-6">
         <AuthLink href="/login" className={`${AUTH_LINK_CLASS} inline-flex items-center gap-1`}>
-          <ArrowLeft className="h-3.5 w-3.5" /> Back to login
+          <ArrowLeft className="h-3.5 w-3.5 rtl:-scale-x-100" /> {t("backToLogin")}
         </AuthLink>
       </p>
     </div>
