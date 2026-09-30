@@ -6,6 +6,62 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.1.6] - 2026-09-30
+
+### Added
+
+- Cap shared storage at 1 GiB per user
+- Landing rebuild at /preview, plus the bugs it uncovered
+- /preview v2, The Vault
+- Four standalone landing prototypes under /prototype
+- /preview-v2, the storage-first landing
+- Write-freeze, refresh-token cookie, and a gated mock adapter
+- Freeze writes during MASTER_KEY rotation, and test it
+- Docker sandbox for k6, never touching Neon or real platforms
+- Move Insights aggregation to the backend
+- Redesign Insights page - date range, global KPI card, mobile carousel
+- Add the missing Popover primitive
+- Quick-filter popover, undo toast, drop-anywhere upload, inline rename, recently-viewed, bulk move/share
+- Rebuild /preview-v2 as a product-first landing
+- Make the product-first landing the homepage
+- Share the layered folder and document tiles with the vault explorer
+- Tighten the mobile tab bar into a native-feeling four-tab bar
+- Give every marketing page the homepage's design language
+
+### Changed
+
+- Drop the em dashes from backend and TUI comments
+- Drop the em dashes from core, desktop and the Android activity
+- Drop the em dashes from the app, styles and scripts
+
+### Fixed
+
+- MacOS updates resolved to a 404
+- Deploy the backend from CI again
+- Let Railway deploy, but make a missed deploy visible
+- Restore the Go doc-comment form the de-dash pass broke
+- Repair the neon-watch workflow the de-dash pass invalidated
+- Stop Dependabot desktop builds dying on a secret they cannot have
+- Show the welcome screen to everyone who has never seen it
+- Freeze writes around the Neon dump-to-cutover window
+- Stop persisting the refresh token in localStorage on the web
+- Stop pinning pg_dump's major version, always use the newest
+- Gate failures surfaced by the merge
+- Raise the per-user analytics rate limit to a realistic ceiling
+- Honest 429 messaging, from-scratch range calendar
+- Satisfy the new-code lint gate on the analytics endpoints
+- Wire Popover into the date-range control, drop dead exports
+- Resolve new-code lint findings surfaced by the 3-branch merge
+- Isolate golangci-lint's cache per checkout, not shared globally
+- Stop the homepage flashing and replaying its entrance on load
+- Render the hero window on the server instead of a placeholder
+- Place the hero window before first paint
+- Make web logout actually revoke the refresh cookie
+
+### Performance
+
+- Render marketing pages without the auth gate
+
 ## [0.1.5] - 2026-09-18
 
 ### Added
@@ -70,23 +126,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Make breadcrumb drop targets visible during drag
 - Guided connect with auto-detected chat ID
 - Folder details drawer + Apple-style name truncation + explorer refresh
-- App shell polish: top bar, sidebar, dropdowns, toasts, dark palette
+- App shell polish — top bar, sidebar, dropdowns, toasts, dark palette
 - Reusable hero component + nav and download refresh
 - Docs footer + sidebar and layout refresh
 - Per-device color themes, squircle corners, macOS-style folders
 - MacOS-style file icons, image+video thumbnails, lazy loading
 - CSP (Report-Only) + per-user X25519 keypairs for ZK sharing
-- P2: per-member key grants + ECIES sealed-box for ZK sharing
+- P2 — per-member key grants + ECIES sealed-box for ZK sharing
 - Wire shared-vaults UI to end-to-end key grants
-- P3 backend: member file access + CEK re-wrap under space key
+- P3 backend — member file access + CEK re-wrap under space key
 - Expose shared-file list with space-wrapped CEKs in vault detail
 - Client lib for sharing + downloading files in a space
-- File management UI in shared vaults: add, download, remove
+- File management UI in shared vaults — add, download, remove
 - Show member key fingerprints for out-of-band verification
 - Optional per-space size limit with server-side enforcement
 - Dedicated /spaces destination + nav entry
-- P5 backend: space-key rotation for true revocation
-- P5 frontend: auto re-key on member removal + manual Re-key
+- P5 backend — space-key rotation for true revocation
+- P5 frontend — auto re-key on member removal + manual Re-key
 - Backend for public folder links
 - Shareable folders via public link (frontend)
 - Rework the vault UI for phones
@@ -99,7 +155,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 3D-deck notification design with a11y hardening
 - Route-accurate loading skeletons and refined shimmer
 - Unify broad audio/video format detection
-- Player overhaul: aspect, audio skin, drawer, transport
+- Player overhaul — aspect, audio skin, drawer, transport
 - Relabel tools and correct copy to match behavior
 - Created date in get-info, deleted-on in trash, folder share-link history
 - About page, wosmo branding assets, footer + json-ld
@@ -110,8 +166,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Harden verification, encrypt secrets at rest, add backup codes
 - Cap single files at 10 GB
 - Tamper-evident audit log + re-auth friction on destructive ops
-- Per-user keyed content hash: close the confirmation-of-file leak
-- Encrypt file names: server stores only opaque ciphertext
+- Per-user keyed content hash — close the confirmation-of-file leak
+- Encrypt file names — server stores only opaque ciphertext
 - Mask size + upload time on public share/send endpoints
 - Hold a screen wake lock during uploads + auto-resume after interruption
 - Calibrate the tuning tier with a crypto micro-benchmark
@@ -137,10 +193,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Port the HuggingFace LFS adapter
 - Byos-direct control plane + cross-device change feed
 - Client-side delete engine + own-token credential provider
-- Byos-direct delete: metadata-only purge + locator contract
+- Byos-direct delete — metadata-only purge + locator contract
 - Keychain creds provider + delete_file command
-- Byos-direct download: fetch chunks from the user's own storage
-- Byos-direct upload: push chunks to the user's own storage
+- Byos-direct download — fetch chunks from the user's own storage
+- Byos-direct upload — push chunks to the user's own storage
 - Emit cross-device file event on move
 - Launch-at-login (autostart) + folder-watch dep
 - Folder-watch backup agent + backup notifications
@@ -156,11 +212,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Route shared-space download through the core
 - Zeroize key material after last use
 - Inactivity auto-lock for the cached passphrase
-- Bulk_download engine: N files streamed into one ZIP
+- Bulk_download engine — N files streamed into one ZIP
 - Bulk ZIP download through the core
 - Parallel streaming upload engine + upload/sync hardening
 - Route desktop uploads through the streaming core
-- Docs overhaul: tree sidebar, site-wide search, new pages
+- Docs overhaul — tree sidebar, site-wide search, new pages
 - Animated theme toggle and smoother switch transition
 - Client-facing repo deactivate endpoint for pool rotation
 - Cooperative cancellation for foreground transfers
@@ -204,7 +260,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dedupe bulk file handlers and settle new-code lint
 - Responsive grids, pagination, and an activity table
 - Dedupe folder/file style handlers into one helper
-- Native settings: two-pane desktop, grouped-list mobile
+- Native settings — two-pane desktop, grouped-list mobile
 - Centralize marketing content into typed data modules
 - Centralize the production origin in lib/site.ts
 
@@ -219,7 +275,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Stop crash-loop on already-gone GitHub chunks
 - Explain DM-only dead-end + log getUpdates contents
 - Honest connect UX + working deep links + DM diagnostics
-- Harden authz from security audit: owner-gated membership + anti-lockout re-key
+- Harden authz from security audit — owner-gated membership + anti-lockout re-key
 - Reveal the file listing once the correct password is supplied
 - Stop distorted squircle fallback in Safari/Firefox
 - Time-box generation so one stuck file can't freeze the grid
@@ -248,7 +304,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Render cached thumbnails instantly on reload
 - Close blob-orphaning gaps in the durable upload/deletion path
 - Verify hmac_v1 keyed hash in the client viewers, not plain SHA-256
-- Make the lock genuine: evict decrypted thumbnails, add lock mask
+- Make the lock genuine — evict decrypted thumbnails, add lock mask
 - Correct effect dependency arrays
 - Improve frontend linting and duplication checks for changed files
 - Adjust main content class for better layout handling
@@ -260,7 +316,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Give custom app backgrounds their own ambient set
 - Make repo IDs globally unique to stop repos_pkey collisions
 - Don't register the updater plugin without a config (launch crash)
-- Desktop UX pass: keychain prompt, login, upload, thumbnails, decrypt, squircles
+- Desktop UX pass — keychain prompt, login, upload, thumbnails, decrypt, squircles
 - Decrypt folder names, terminal thumbnail state, byos-direct on (desktop)
 - Stop OS-notification spam on SSE reconnects
 - Reliable DNS + resilient downloads (byos-direct→relay fallback)
@@ -275,7 +331,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Drive transactional email footer from FRONTEND_URL
 - Drop View Transitions theme flip, make circuit bg CSS-driven
 - Put the user toolchains back on PATH in prepush
-- Clear govulncheck: Go 1.25.14, x/text v0.39.0
+- Clear govulncheck — Go 1.25.14, x/text v0.39.0
 - Mark the settings platform refreshes as fire-and-forget
 
 ### Performance
@@ -286,8 +342,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Edge-to-edge shell, solid nav, no per-item list animation
 - Ciphertext chunk cache + immutable cache headers on downloads
 - Parallel decrypt pipeline, key memo, hover prefetch, progress
-- Halve peak memory: incremental hash, no full-file copy
-- Decouple file concurrency from CPU tier: fan out by network + batch size
+- Halve peak memory — incremental hash, no full-file copy
+- Decouple file concurrency from CPU tier — fan out by network + batch size
 - Batch bulk purge/restore and collapse chunk deletes into one commit
 - Collapse bulk purge/restore into a single request
 - Warm CEK cache for repeat file-key resolution
@@ -372,10 +428,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Implement user authentication including registration, login, logout, password reset, email verification, and a frontend auth guard.
 - Initialize frontend project with dependencies and add backend email authentication.
 - Implement concurrent file uploads with progress tracking, add admin user plan management, introduce a confirm modal for disconnections, and include backend event heartbeats.
-- Error handling & resilience: error boundaries, SSE reconnect with backoff, API retry, panic recovery, graceful shutdown
-- Database hardening: add missing indexes, atomic InsertFileWithChunks transaction
+- Error handling & resilience — error boundaries, SSE reconnect with backoff, API retry, panic recovery, graceful shutdown
+- Database hardening — add missing indexes, atomic InsertFileWithChunks transaction
 - Structured logging with log/slog and request logging middleware
-- Accessibility: skip-to-content link, keyboard-accessible upload zone, aria-labels on pagination and sidebar
+- Accessibility — skip-to-content link, keyboard-accessible upload zone, aria-labels on pagination and sidebar
 - Implement core backend server with authentication, platform integrations, file management, and rate limiting, alongside initial frontend components.
 - Introduce core frontend application structure, essential UI components, theme management, and platform connection features.
 - Add user authentication including registration, login, email verification, and password reset functionality.
@@ -387,7 +443,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Establish foundational application with backend services, admin panel, and comprehensive frontend UI.
 - Enable Turbopack, configure local `sql-wasm.wasm` loading, update Next.js type imports, and adjust marquee text color.
 - Rebrand zpush to zcrypt across backend, TUI, and root configs
-- Premium UI overhaul: design system, auth layout, landing page, new pages
+- Premium UI overhaul — design system, auth layout, landing page, new pages
 - Implement comprehensive file management with file table, sorting, selection, download, preview, and sharing capabilities.
 - Implement comprehensive admin and user-facing features, including token management, audit logs, and new application pages.
 - Implement core backend services for file management, authentication, user administration, and platform integration with initial frontend components.
@@ -401,6 +457,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Disable API rewrites in production to prevent Vercel private DNS error
-- Security hardening: CORS whitelist, JWT alg validation, password complexity, auth rate limiting, filename validation, error sanitization, security headers
+- Security hardening — CORS whitelist, JWT alg validation, password complexity, auth rate limiting, filename validation, error sanitization, security headers
 - Security hardening round 2 and code quality improvements
 
