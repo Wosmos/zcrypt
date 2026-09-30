@@ -21,7 +21,7 @@ export interface IconListProps {
 export function IconList({
   items,
   icon: Icon = Check,
-  iconClassName = "h-4 w-4 flex-shrink-0 text-cyan-500",
+  iconClassName = "h-4 w-4 flex-shrink-0 text-[var(--pv2-accent-ink)]",
   iconStrokeWidth = 3,
   itemClassName = "flex items-center gap-2.5 text-sm text-[var(--color-text-secondary)]",
   className = "mt-6 space-y-2.5",

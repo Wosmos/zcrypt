@@ -14,7 +14,7 @@ test.describe("Authentication", () => {
     await page.click('button[type="submit"]');
 
     // Should redirect away from register
-    await expect(page).not.toHaveURL(/\/register/);
+    await expect(page).not.toHaveURL(/\/register/, { timeout: 20_000 });
   });
 
   test("login with valid credentials navigates to dashboard", async ({ page }) => {

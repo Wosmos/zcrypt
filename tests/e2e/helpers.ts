@@ -27,7 +27,7 @@ export async function registerUser(
   await page.click('button[type="submit"]');
   // After register the app either auto-logs in (no SMTP configured -> dashboard),
   // shows the verify-email screen, or bounces to login.
-  await page.waitForURL(/\/(dashboard|verify-email|login)/, { timeout: 10_000 });
+  await page.waitForURL(/\/(dashboard|onboarding|verify-email|login)/, { timeout: 20_000 });
   // Leave a clean guest session. When SMTP is not configured the app auto-logs
   // in after registering; clearing the tokens lets callers drive login explicitly
   // (otherwise GuestGuard would redirect them away from /login).
@@ -35,6 +35,7 @@ export async function registerUser(
     localStorage.removeItem("zcrypt-access-token");
     localStorage.removeItem("zcrypt-refresh-token");
   });
+  await page.context().clearCookies();
 }
 
 // Log in via the UI
@@ -47,7 +48,16 @@ export async function loginUser(
   await page.fill('input[name="email"], input[type="email"]', email);
   await page.fill('input[name="password"], input[type="password"]', password);
   await page.click('button[type="submit"]');
-  await page.waitForURL(/\/dashboard/, { timeout: 10_000 });
+  await page.waitForURL(/\/(dashboard|onboarding)/, { timeout: 20_000 });
+  // First login shows onboarding; skip it so callers land on the real dashboard.
+  const skip = page.getByRole("button", { name: "Skip for now" });
+  const onboarding = await skip
+    .waitFor({ state: "visible", timeout: 5_000 })
+    .then(() => true)
+    .catch(() => false);
+  if (onboarding) await skip.click();
+  await page.waitForURL(/\/dashboard/, { timeout: 20_000 });
+  await page.getByRole("button", { name: "Account menu" }).waitFor({ timeout: 20_000 });
 }
 
 // Log in via API (faster than UI. Use for test setup)

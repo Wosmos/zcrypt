@@ -5,6 +5,9 @@ import {
   type DownloadOption,
   type ReleaseData,
 } from "@/lib/releases";
+import { cn } from "@/lib/utils";
+import { cardSurface } from "@/components/marketing/ui/card";
+import { pillClass } from "@/components/marketing/ui/pill-link";
 import { OS_GLYPHS } from "./os-glyphs";
 
 const glyphColor: Record<PlatformId, string> = {
@@ -21,7 +24,7 @@ const glow: Record<PlatformId, string> = {
 
 function CardShell({ children }: { children: React.ReactNode }) {
   return (
-    <li className="group relative flex flex-col overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-[var(--color-border-hover)] hover:shadow-xl hover:shadow-black/5 dark:hover:shadow-black/30">
+    <li className={cn("group flex flex-col overflow-hidden p-6 sm:p-7", cardSurface)}>
       {children}
     </li>
   );
@@ -77,7 +80,7 @@ export function DesktopGrid({ release }: { release: ReleaseData | null }) {
   // API unavailable → send people to the releases page rather than show nothing.
   if (release === null || release.desktop.length === 0) {
     return (
-      <div className="mx-auto max-w-md rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-8 text-center">
+      <div className={cn("mx-auto max-w-md p-8 text-center", cardSurface)}>
         <p className="text-sm text-[var(--color-text-secondary)]">
           Couldn&apos;t load the latest builds right now.
         </p>
@@ -85,7 +88,7 @@ export function DesktopGrid({ release }: { release: ReleaseData | null }) {
           href={RELEASES_FALLBACK_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[var(--color-text)] px-5 py-2.5 text-sm font-semibold text-[var(--color-bg)] transition-opacity hover:opacity-90"
+          className={cn("mt-5", pillClass("secondary"))}
         >
           View all downloads on GitHub
           <ArrowRight className="h-4 w-4" />
@@ -130,7 +133,7 @@ export function DesktopGrid({ release }: { release: ReleaseData | null }) {
                 </span>
               </div>
 
-              <h3 className="relative mt-6 text-xl font-bold tracking-tight">{platform.name}</h3>
+              <h3 className="pv2-h3 relative mt-6 text-xl">{platform.name}</h3>
               <p className="relative mt-1.5 min-h-[2.5rem] text-[13px] leading-relaxed text-[var(--color-text-muted)]">
                 {platform.blurb}
               </p>
@@ -142,7 +145,7 @@ export function DesktopGrid({ release }: { release: ReleaseData | null }) {
                   <>
                     <a
                       href={primary.href}
-                      className="group/dl flex items-center justify-center gap-2 rounded-xl bg-[var(--color-text)] px-4 py-3 text-sm font-semibold text-[var(--color-bg)] transition-opacity hover:opacity-90"
+                      className={cn("group/dl w-full", pillClass("secondary"))}
                     >
                       <Download className="h-4 w-4 transition-transform group-hover/dl:translate-y-0.5" />
                       Download for {platform.name}

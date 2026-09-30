@@ -11,8 +11,7 @@ interface AboutProject {
 export interface AboutPageData {
   hero: {
     eyebrow: string;
-    headlineTop: ReactNode;
-    headlineSecondary: ReactNode;
+    title: string;
     subtext: ReactNode;
     primaryLabel: string;
     secondaryLabel: string;
@@ -22,6 +21,7 @@ export interface AboutPageData {
     body: ReactNode;
   };
   origin: {
+    eyebrow: string;
     heading: string;
     paragraphsBeforeQuote: ReactNode[];
     pullQuote: ReactNode;
@@ -29,17 +29,20 @@ export interface AboutPageData {
     philosophyLinkLabel: string;
   };
   projects: {
+    eyebrow: string;
     heading: string;
     intro: ReactNode;
     items: AboutProject[];
     portfolioLinkLabel: string;
   };
   stack: {
+    eyebrow: string;
     heading: string;
     intro: ReactNode;
     items: string[];
   };
   cta: {
+    eyebrow: string;
     heading: string;
     body: ReactNode;
   };
@@ -48,18 +51,16 @@ export interface AboutPageData {
 export const about: AboutPageData = {
   hero: {
     eyebrow: "Who's actually behind this",
-    headlineTop: <>Hi, I&apos;m Wasif.</>,
-    headlineSecondary: <>I just wanted free storage.</>,
+    title: "Hi, I'm Wasif. I just wanted free storage",
     subtext: (
       <>
-        {WOSMO.name} &mdash;{" "}
+        {WOSMO.name}, or{" "}
         <span className="font-semibold text-[var(--color-text)]">{WOSMO.handle}</span> to the
         internet. A {WOSMO.role.toLowerCase()} in {WOSMO.location} who needed somewhere to put a lot
-        of files, couldn&apos;t find storage that didn&apos;t also want to read them, and &mdash;
-        instead of letting it go like a reasonable person &mdash; spent a few months building his
-        own. That&apos;s zcrypt. It&apos;s just me back here: no team, no investors, no
-        &ldquo;zcrypt family.&rdquo; Which mostly means when something breaks, I already know whose
-        fault it is.
+        of files, couldn&apos;t find storage that didn&apos;t also want to read them, and instead of
+        letting it go like a reasonable person, spent a few months building his own. That&apos;s
+        zcrypt. It&apos;s just me back here: no team, no investors, no &ldquo;zcrypt family.&rdquo;
+        Which mostly means when something breaks, I already know whose fault it is.
       </>
     ),
     primaryLabel: "View my portfolio",
@@ -70,22 +71,23 @@ export const about: AboutPageData = {
     eyebrow: "Why my name is on this",
     body: (
       <>
-        A tool that holds your keys should at least tell you who to blame &mdash; so, that&apos;s
-        me. Right here. There&apos;s no mysterious &ldquo;we&rdquo; to vanish behind when something
-        breaks, no &ldquo;the team is looking into it.&rdquo; There is a team. It&apos;s me. The
-        encryption runs on your device before anything uploads, so I can&apos;t read your files.
-        I&apos;ve tried it on my own test data. Can&apos;t. That&apos;s the entire point.
+        A tool that holds your keys should at least tell you who to blame. So, that&apos;s me. Right
+        here. There&apos;s no mysterious &ldquo;we&rdquo; to vanish behind when something breaks, no
+        &ldquo;the team is looking into it.&rdquo; There is a team. It&apos;s me. The encryption
+        runs on your device before anything uploads, so I can&apos;t read your files. I&apos;ve
+        tried it on my own test data. Can&apos;t. That&apos;s the entire point.
       </>
     ),
   },
 
   origin: {
+    eyebrow: "The origin story",
     heading: "How zcrypt actually happened",
     paragraphsBeforeQuote: [
       <>
-        A couple of months ago I was moving my whole life between machines &mdash; 50-something
-        gigabytes of projects, RAW photos, and half-finished edits I keep swearing I&apos;ll get
-        back to. The kind of files you can&apos;t just re-download.
+        A couple of months ago I was moving my whole life between machines: 50-something gigabytes
+        of projects, RAW photos, and half-finished edits I keep swearing I&apos;ll get back to. The
+        kind of files you can&apos;t just re-download.
       </>,
       <>
         Google Drive tapped me on the shoulder at 15GB and asked for my card. So I did the very
@@ -104,9 +106,9 @@ export const about: AboutPageData = {
       </>,
       <>
         And here&apos;s the part I genuinely can&apos;t take credit for, because it&apos;s just
-        true: free storage was never free. I just hadn&apos;t read the price tag &mdash; because the
-        price tag is me. These are billion-dollar companies; privacy isn&apos;t a feature they
-        forgot to add, it&apos;s the thing they quietly sell against.
+        true: free storage was never free. I just hadn&apos;t read the price tag, because the price
+        tag is me. These are billion-dollar companies; privacy isn&apos;t a feature they forgot to
+        add, it&apos;s the thing they quietly sell against.
       </>,
       <>
         So I stopped complaining online and started building, which is really just complaining with
@@ -118,15 +120,15 @@ export const about: AboutPageData = {
     ],
     pullQuote: (
       <>
-        Free storage was never free. I just hadn&apos;t read the price tag &mdash; because the price
-        tag was me.
+        Free storage was never free. I just hadn&apos;t read the price tag, because the price tag
+        was me.
       </>
     ),
     paragraphsAfterQuote: [
       <>
-        I&apos;m building it in public &mdash; the wins, the bugs, and the 2AM &ldquo;why is this
-        WASM module re-initialising&rdquo; commits. It&apos;s me and a concerning amount of coffee,
-        so yes, there will be rough edges. The encryption isn&apos;t one of them: it&apos;s open
+        I&apos;m building it in public: the wins, the bugs, and the 2AM &ldquo;why is this WASM
+        module re-initialising&rdquo; commits. It&apos;s me and a concerning amount of coffee, so
+        yes, there will be rough edges. The encryption isn&apos;t one of them: it&apos;s open
         source, and I can&apos;t read your files even if I wanted to. (I don&apos;t. But I
         couldn&apos;t.)
       </>,
@@ -135,11 +137,12 @@ export const about: AboutPageData = {
   },
 
   projects: {
+    eyebrow: "Side quests",
     heading: "Other things I've built",
     intro: (
       <>
-        I have a bad habit of building the whole thing myself &mdash; frontend, backend, and the
-        awkward bits in between. A few others that (mostly) work:
+        I have a bad habit of building the whole thing myself: frontend, backend, and the awkward
+        bits in between. A few others that (mostly) work:
       </>
     ),
     items: [
@@ -184,6 +187,7 @@ export const about: AboutPageData = {
   },
 
   stack: {
+    eyebrow: "Toolbox",
     heading: "The usual suspects",
     intro: <>The tools I reach for, from the browser all the way down to the bytes on disk:</>,
     items: [
@@ -201,11 +205,12 @@ export const about: AboutPageData = {
   },
 
   cta: {
-    heading: "Let's build something.",
+    eyebrow: "Say hello",
+    heading: "Let's build something",
     body: (
       <>
-        I&apos;m open to new projects and freelance work &mdash; and I answer my own messages,
-        mostly because there&apos;s no one else to pass them to. Pick a door:
+        I&apos;m open to new projects and freelance work, and I answer my own messages, mostly
+        because there&apos;s no one else to pass them to. Pick a door:
       </>
     ),
   },

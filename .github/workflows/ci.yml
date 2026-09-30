@@ -185,7 +185,7 @@ jobs:
       - name: Unit tests (with coverage)
         if: github.event_name == 'pull_request'
         working-directory: app/frontend
-        run: bun run test -- --coverage --reporter=json
+        run: bun run test -- --coverage --coverage.reporter=text --coverage.skipFull --reporter=dot
 
       - name: Build
         if: github.event_name == 'pull_request'

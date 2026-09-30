@@ -4,8 +4,7 @@ import type { ReactNode } from "react";
 export interface EncryptionPageData {
   hero: {
     eyebrow: string;
-    headlineTop: string;
-    headlineGradient: string;
+    title: string;
     subtext: ReactNode;
     secondaryLabel: string;
     secondaryHref: string;
@@ -32,8 +31,7 @@ export interface EncryptionPageData {
 export const encryption: EncryptionPageData = {
   hero: {
     eyebrow: "Zero-knowledge encryption",
-    headlineTop: "We can't read your files.",
-    headlineGradient: "That's the whole point.",
+    title: "We can't read your files",
     subtext: (
       <>
         Your files are encrypted on your own device with AES-256-GCM before they ever leave it. The

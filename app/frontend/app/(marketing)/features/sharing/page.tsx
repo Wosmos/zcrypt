@@ -4,7 +4,7 @@ import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { FeatureHero } from "@/components/marketing/features/feature-hero";
 import { CapabilityGrid } from "@/components/marketing/features/capability-grid";
 import { RelatedLinks } from "@/components/marketing/features/related-links";
-import { CtaSection } from "@/components/marketing/features/cta-section";
+import { ClosingCta } from "@/components/marketing/landing/closing-cta";
 import { MockWindowFrame } from "@/components/marketing/features/mock-window";
 import { TieInSection } from "@/components/marketing/features/tie-in-section";
 import { IconList } from "@/components/marketing/features/icon-list";
@@ -60,8 +60,7 @@ export default function SharingPage() {
       {/* ═══ HERO ═══ */}
       <FeatureHero
         eyebrow={hero.eyebrow}
-        headlineTop={hero.headlineTop}
-        headlineGradient={hero.headlineGradient}
+        title={hero.title}
         subtext={hero.subtext}
         secondaryLabel={hero.secondaryLabel}
         secondaryHref={hero.secondaryHref}
@@ -106,7 +105,7 @@ export default function SharingPage() {
                 key={c.label}
                 className="rounded-xl border border-[var(--color-border)] bg-black/[0.02] px-3 py-2.5 dark:bg-white/[0.02]"
               >
-                <c.Icon className="h-4 w-4 text-cyan-500" />
+                <c.Icon className="h-4 w-4 text-[var(--pv2-accent-ink)]" />
                 <div className="mt-1.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
                   {c.label}
                 </div>
@@ -126,7 +125,7 @@ export default function SharingPage() {
 
       {/* ═══ WHY THE FRAGMENT MATTERS ═══ */}
       <TieInSection
-        sectionClassName="border-y border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-20"
+        join
         eyebrow={tieIn.eyebrow}
         heading={tieIn.heading}
         body={tieIn.body}
@@ -157,44 +156,20 @@ export default function SharingPage() {
       />
 
       {/* ═══ MORE WAYS TO SEND ═══ */}
-      <section className="px-4 py-20">
-        <div className="mx-auto max-w-5xl">
-          <div className="mx-auto mb-12 max-w-2xl text-center">
-            <h2 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
-              {moreWaysSection.heading}
-            </h2>
-            <p className="mt-3 text-[var(--color-text-secondary)]">{moreWaysSection.subheading}</p>
-          </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <article className="card p-6">
-              <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-500">
-                <Zap className="h-5 w-5" />
-              </div>
-              <h3 className="text-base font-bold">{moreWays[0].title}</h3>
-              <p className="mt-1.5 text-sm leading-relaxed text-[var(--color-text-secondary)]">
-                {moreWays[0].desc}
-              </p>
-            </article>
-            <article className="card p-6">
-              <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-500">
-                <FileText className="h-5 w-5" />
-              </div>
-              <h3 className="text-base font-bold">{moreWays[1].title}</h3>
-              <p className="mt-1.5 text-sm leading-relaxed text-[var(--color-text-secondary)]">
-                {moreWays[1].desc}
-              </p>
-            </article>
-          </div>
-        </div>
-      </section>
+      <CapabilityGrid
+        join
+        columns={2}
+        heading={moreWaysSection.heading}
+        subheading={moreWaysSection.subheading}
+        items={[
+          { Icon: Zap, ...moreWays[0] },
+          { Icon: FileText, ...moreWays[1] },
+        ]}
+      />
 
       {/* ═══ RELATED + CTA ═══ */}
-      <section className="px-4 pb-20">
-        <div className="mx-auto max-w-5xl">
-          <RelatedLinks heading="Keep exploring" items={related} />
-          <CtaSection heading={cta.heading} subtext={cta.subtext} />
-        </div>
-      </section>
+      <RelatedLinks items={related} />
+      <ClosingCta title={cta.heading} subtext={cta.subtext} />
     </>
   );
 }

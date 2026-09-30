@@ -31,31 +31,8 @@ export interface Step {
 export interface FAQ {
   q: string;
   a: string;
+  flag?: string;
 }
-
-export interface RoadmapItem {
-  icon: string;
-  title: string;
-  desc: string;
-  badge: string;
-}
-
-// ─── Marquee ──────────────────────────────────────────────────
-
-export const marqueeItems = [
-  "Real folders & file explorer",
-  "Preview any file, still encrypted",
-  "Per-folder passwords",
-  "Zero-knowledge: we can't read your files",
-  "AES-256-GCM encryption",
-  "Your own storage accounts",
-  "No artificial limits",
-  "Open source",
-  "Trash & restore",
-  "Pause & resume uploads",
-  "Native desktop & Android apps",
-  "Terminal app available",
-] as const;
 
 // ─── Bento Grid Features ─────────────────────────────────────
 
@@ -192,48 +169,45 @@ export const steps: Step[] = [
 
 export const faqs: FAQ[] = [
   {
-    q: "How much does zcrypt cost?",
-    a: "zcrypt is free and open source. There are no paid plans. You connect your own storage account, so your available space is bounded only by that platform's free space, not by us.",
+    q: "Is it really free?",
+    a: "Yes. There are no paid plans and no card. Your files live in accounts you already own, so there's nothing for us to charge for.",
   },
   {
-    q: "How much storage do I get?",
-    a: "You bring your own storage. Connect your GitHub, GitLab, Hugging Face, or Telegram account and your capacity is whatever free space that platform gives you. zcrypt handles the encryption and chunking on top of it.",
+    q: "How can there be no limit?",
+    a: "zcrypt doesn't keep your files. Your connected accounts do. Every account you add is more room, and Telegram has no ceiling at all. New accounts start with 1 GB of shared space while you set things up.",
   },
   {
-    q: "How secure is the encryption?",
-    a: "We use AES-256-GCM. Your encryption keys are derived locally on your device and are never transmitted. This zero-knowledge architecture ensures that even we cannot access your files.",
+    q: "Can you see my files?",
+    a: "No. Files are locked on your own device before they're uploaded, and so are their names. We only know where the pieces went, never what's in them.",
   },
   {
-    q: "What is BYOB (Bring Your Own Backend)?",
-    a: "BYOB is the core of how zcrypt works: you connect your own GitHub, GitLab, Hugging Face, or Telegram account as the storage backend. Your encrypted data lives on infrastructure you control, and zcrypt handles the encryption and chunking. Because it's your account, your storage is bounded only by that platform's free space.",
+    q: "What if I forget my password?",
+    a: "Then nobody can open your files, including us. That's what real privacy costs, so keep it in a password manager.",
   },
   {
-    q: "Does zcrypt have real folders, or just a flat file list?",
-    a: "Real folders. zcrypt is a full encrypted drive: create and nest folders, drag files to organize them, search, sort, and switch between grid and list views. Folder names are encrypted too, so even your structure stays private.",
+    q: "Do I need a GitHub or Telegram account?",
+    a: "Not to start. You can upload right away. Connect an account whenever you want more room. Telegram is the easiest if you already use it.",
   },
   {
-    q: "Can I preview files without downloading them?",
-    a: "Yes. zcrypt previews images, video, audio, PDFs, documents (DOCX), Markdown, CSVs, and source code directly in the browser. Each file is decrypted on the fly on your device, and the plaintext never touches our servers.",
+    q: "Can I share with someone who doesn't use zcrypt?",
+    a: "Yes. Send them a link. You can add a password, an end date and a download limit, or use Send to make a file that disappears after one read.",
   },
   {
-    q: "Can I password-protect a single folder?",
-    a: "Yes. Any folder can have its own password, separate from your account passphrase. The files inside are re-encrypted under that folder's key, so even with your vault unlocked, a protected folder stays sealed until you enter its password.",
+    q: "Does it work on iPhone?",
+    a: "The website does, in Safari. There's no iPhone app yet. There are apps for Mac, Windows, Linux, Android (beta) and the terminal.",
   },
   {
-    q: "Can I access my files across multiple devices?",
-    a: "Yes. Log into zcrypt from any modern browser, the native desktop app (macOS, Windows, Linux), the Android app (beta), or the terminal app (TUI), enter your passphrase, and access your encrypted files. Everything is decrypted locally on your device.",
+    q: "What if a platform removes my files?",
+    a: "Then the pieces stored there are gone from there. For anything you can't lose, keep a second copy somewhere else too. That's good advice for every cloud, this one included.",
   },
   {
-    q: "Is there a mobile app?",
-    a: "Android is available today as a beta: sideload the APK from the download page. It runs zcrypt-core, the same in-process Rust engine and encryption as the desktop app, and uploads straight to your own storage. iOS is in development.",
+    q: "What happens if zcrypt shuts down?",
+    a: "Every line of zcrypt is public, so anyone can run it, including you. Once you connect your own accounts, your pieces sit there, not with us. Files in the 1 GB starter space live on a shared account, so if I ever wind it down, I'll say so well ahead of time and you can download everything.",
+    flag: "shutdown",
   },
   {
-    q: "Is there a command-line or terminal app?",
-    a: "Yes. The zcrypt TUI is a full terminal interface built with Go. Upload, download, search, and manage your vault with vim-style keys and real-time progress. Install it with: go install github.com/zcrypt/zcrypt-tui@latest",
-  },
-  {
-    q: "What happens if I forget my passphrase?",
-    a: "Because zcrypt is strictly zero-knowledge, your passphrase is never stored on our servers. If you lose it, your encrypted files cannot be recovered by anyone. We strongly recommend using a password manager.",
+    q: "Is it open source?",
+    a: "Every line, under the MIT license. Read it, poke at it, or run the whole thing yourself with docker build and docker run.",
   },
 ];
 
@@ -252,72 +226,17 @@ export const desktopEngine = {
     "BYOS-direct: desktop and mobile upload straight to the user's own GitHub, GitLab, Hugging Face, or Telegram account using credentials from the OS keychain, so the backend never touches the platform token. The web app is the exception, because browser sandboxing blocks direct platform access, so it relays ciphertext through the backend.",
 } as const;
 
-// ─── Roadmap ──────────────────────────────────────────────────
-
-export const roadmapItems: RoadmapItem[] = [
-  {
-    icon: "Terminal",
-    title: "Terminal App",
-    desc: "Full terminal interface with vim-style navigation, real-time progress, command mode, and four performance profiles. Built with Go.",
-    badge: "Available now",
-  },
-  {
-    icon: "Smartphone",
-    title: "Android App",
-    desc: "Sideload APK, same zero-knowledge Rust core as desktop. Offline access and camera backup are next.",
-    badge: "Beta",
-  },
-  {
-    icon: "Smartphone",
-    title: "iOS App",
-    desc: "Same Rust core as desktop and Android, running in-process (no sidecar) so it works inside Apple's app sandbox. App Store release pending.",
-    badge: "In development",
-  },
-  {
-    icon: "Image",
-    title: "Photo Gallery",
-    desc: "Browse your encrypted photos with a beautiful gallery view. Private photo backup.",
-    badge: "Q3 2026",
-  },
-];
-
 // ─── Landing Page Section Copy ───────────────────────────────
 // Plain-string prose for the landing page sections, extracted so the copy
 // lives in one place. Headings that embed JSX (emphasis, animated underlines)
 // stay inline in the page. Only their surrounding plain text is here.
 
 export const landingSections = {
-  showcase: {
-    eyebrow: "Experience",
-    subheading:
-      "Folders, instant previews, drag-and-drop: a real file explorer where every file is encrypted on your device.",
-  },
-  howItWorks: {
-    eyebrow: "How it works",
-    subheading:
-      "No new storage to buy, no servers to trust. Your files are encrypted before they leave your device and stored in an account you already own.",
-    underTheHood:
-      "Under the hood: files are compressed with zstd, encrypted with AES-256-GCM using a key derived from your passphrase, split into chunks, and uploaded to your connected platform, all client-side and zero-knowledge.",
-  },
-  explore: {
-    eyebrow: "Explore the drive",
-    heading: "Everything it does",
-    subheading: "A real file manager with a zero-knowledge core. Dig into any part of it.",
-    cta: "See all features",
-  },
-  faq: {
-    heading: "Questions? Answers.",
-    subheading: "Everything you need to know before trusting us with your files.",
-  },
-  roadmap: {
-    heading: "We're just getting started.",
-    subheading: "Here's what we're building next.",
-  },
   cta: {
     eyebrow: "Get started today",
     subtext:
       "Connect your own account. Encrypted on your device. No artificial limits, no vendor lock-in.",
-    button: "Create your vault",
+    button: "Start free",
   },
 } as const;
 
@@ -329,8 +248,13 @@ export const downloadPageContent = {
   hero: {
     badge: "Apps for every device",
     subtext:
-      "Native desktop apps, a single-binary terminal client, and a web app that needs no install. Same zero-knowledge vault, every platform.",
-    trustItems: ["Free & open source", "Zero-knowledge", "No telemetry", "macOS · Windows · Linux"],
+      "Native desktop apps, a single-binary terminal client, and a web app that needs no install. Same private drive everywhere, locked on your device before anything leaves it.",
+    trustItems: [
+      "Free & open source",
+      "Only you can open your files",
+      "No telemetry",
+      "macOS · Windows · Linux",
+    ],
   },
   desktop: {
     heading: "Desktop apps",
@@ -344,12 +268,12 @@ export const downloadPageContent = {
   },
   cli: {
     badge: "Terminal app",
-    heading: "Live in the terminal?",
+    heading: "Live in the terminal",
     subheading:
       "A single Go binary with zero dependencies, so it works great over SSH and on headless servers. Pick a package manager:",
   },
   web: {
-    heading: "Prefer no install?",
+    heading: "Prefer no install",
     body: "The full encrypted drive runs in any modern browser: folders, previews, sharing, and transfers. Everything is still encrypted on your device. Nothing to download.",
     cta: "Open the web app",
   },

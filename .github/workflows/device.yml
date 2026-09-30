@@ -311,6 +311,7 @@ jobs:
           d="app/desktop/src-tauri/${{ matrix.bundle }}/macos"
           shopt -s nullglob
           for f in "$d"/zcrypt.app.tar.gz "$d"/zcrypt.app.tar.gz.sig; do
+            [ -e "$f" ] || continue
             base="$(basename "$f")"
             mv "$f" "$d/zcrypt_${{ matrix.target }}.${base#zcrypt.}"
             echo "renamed $base -> zcrypt_${{ matrix.target }}.${base#zcrypt.}"

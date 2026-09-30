@@ -1,0 +1,316 @@
+@property --ft-fold-s {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 18px;
+}
+
+@layer components {
+.ft-fold,
+.ft-doc,
+.ft-thumb {
+  --ft-ease: cubic-bezier(0.23, 1, 0.32, 1);
+  --ft-spring: linear(0, 0.009, 0.035 2.1%, 0.141 4.4%, 0.723 12.9%, 0.938 16.7%, 1.017 20.3%, 1.043 24.4%, 1.035 28.2%, 1.007 38.8%, 0.998 48.3%, 1);
+  --ft-page: linear-gradient(180deg, #ffffff, #f3f5f9);
+  --ft-hi: rgba(255, 255, 255, 0.9);
+  position: relative;
+  display: block;
+}
+.dark .ft-fold,
+.dark .ft-doc,
+.dark .ft-thumb {
+  --ft-page: linear-gradient(180deg, var(--color-surface-1), var(--color-surface-2));
+  --ft-hi: rgba(255, 255, 255, 0.06);
+}
+.ft-fold::before,
+.ft-doc::before,
+.ft-thumb::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: 15%;
+  right: 15%;
+  bottom: -5px;
+  height: 10px;
+  border-radius: 50%;
+  corner-shape: round;
+  background: radial-gradient(closest-side, rgba(0, 0, 0, 0.22), transparent);
+  filter: blur(2px);
+  transition:
+    transform 0.3s var(--ft-spring),
+    opacity 0.3s var(--ft-ease);
+}
+.dark .ft-fold::before,
+.dark .ft-doc::before,
+.dark .ft-thumb::before {
+  background: radial-gradient(closest-side, rgba(0, 0, 0, 0.55), transparent);
+}
+
+.ft-fold {
+  --ft-tint: var(--color-accent);
+  width: 100%;
+  max-width: 124px;
+  color: var(--ft-tint);
+}
+.ft-fold::before {
+  bottom: 2px;
+  left: 12%;
+  right: 12%;
+}
+.ft-fold-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  filter: drop-shadow(0 2px 3px rgba(16, 24, 40, 0.16));
+}
+.ft-fold-b0 {
+  stop-color: color-mix(in oklab, var(--ft-tint) 72%, #000);
+}
+.ft-fold-b1 {
+  stop-color: color-mix(in oklab, var(--ft-tint) 60%, #000);
+}
+.ft-fold-p0 {
+  stop-color: color-mix(in oklab, var(--ft-tint) 80%, #fff);
+}
+.ft-fold-p1 {
+  stop-color: var(--ft-tint);
+}
+.ft-fold-p2 {
+  stop-color: color-mix(in oklab, var(--ft-tint) 86%, #000);
+}
+.ft-fold-sheet {
+  fill: #fff;
+  fill-opacity: 0.95;
+}
+.dark .ft-fold-sheet {
+  fill: #e8ecf5;
+  fill-opacity: 0.9;
+}
+.ft-fold-sheet2 {
+  fill: color-mix(in oklab, var(--ft-tint) 22%, #fff);
+}
+.dark .ft-fold-sheet2 {
+  fill: color-mix(in oklab, var(--ft-tint) 30%, #c9d2e6);
+}
+.ft-fold-lines {
+  stroke: #c9ced9;
+  stroke-width: 1;
+  stroke-linecap: round;
+}
+.ft-fold-paper,
+.ft-fold-pocket,
+.ft-fold-sheen,
+.ft-fold-mark {
+  transform-box: fill-box;
+  transition: transform 0.3s var(--ft-spring);
+}
+.ft-fold-pocket {
+  transform-origin: 50% 100%;
+}
+.ft-fold-mark {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.ft-fold-glyph {
+  position: absolute;
+  left: 50%;
+  top: 58%;
+  width: 26%;
+  height: auto;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  color: color-mix(in oklab, var(--ft-tint) 70%, #000);
+  opacity: 0.55;
+}
+.ft-fold-glyph-hi {
+  color: #fff;
+  opacity: 0.35;
+  transform: translate(-50%, calc(-50% + 1px));
+}
+.ft-fold-initial {
+  position: absolute;
+  left: 50%;
+  top: 58%;
+  transform: translate(-50%, -50%);
+  font-family: var(--font-heading);
+  font-size: clamp(16px, 20cqw, 26px);
+  font-weight: 700;
+  line-height: 1;
+  color: color-mix(in oklab, var(--ft-tint) 70%, #000);
+  opacity: 0.55;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+.ft-fold-lock {
+  position: absolute;
+  left: 50%;
+  top: 57%;
+  width: 27%;
+  height: auto;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  color: #fff;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.25));
+  --color-surface: color-mix(in oklab, var(--ft-tint) 80%, #000);
+}
+.ft-fold[data-bg] .ft-fold-glyph,
+.ft-fold[data-bg] .ft-fold-initial {
+  color: #000;
+  opacity: 0.25;
+}
+
+.ft-doc {
+  width: 76px;
+  height: 100px;
+  filter: drop-shadow(0 3px 5px rgba(16, 24, 40, 0.12)) drop-shadow(0 1px 1px rgba(16, 24, 40, 0.08));
+  transition: transform 0.3s var(--ft-spring);
+}
+.dark .ft-doc {
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.4));
+}
+.ft-doc-back,
+.ft-doc-page {
+  position: absolute;
+  inset: 0;
+  border-radius: 10px;
+  background: var(--ft-page);
+  border: 1px solid var(--color-border);
+}
+.ft-doc-back {
+  transform: translate(3px, 3px) rotate(3deg);
+  opacity: 0.7;
+}
+.ft-doc-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: inset 0 1px 0 var(--ft-hi);
+  clip-path: polygon(0 0, calc(100% - var(--ft-fold-s)) 0, 100% var(--ft-fold-s), 100% 100%, 0 100%);
+  transition:
+    --ft-fold-s 0.2s var(--ft-ease),
+    clip-path 0.2s var(--ft-ease);
+}
+.ft-doc-fold {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: var(--ft-fold-s);
+  height: var(--ft-fold-s);
+  background: linear-gradient(225deg, transparent 50%, var(--color-surface-2) 50%);
+  border-bottom-left-radius: 3px;
+  filter: drop-shadow(-1px 1px 1px rgba(0, 0, 0, 0.12));
+}
+.ft-doc-ic {
+  width: 28px;
+  height: 28px;
+}
+.ft-doc-ext {
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.ft-doc-warn {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  corner-shape: round;
+  background: var(--color-surface);
+  color: #f59e0b;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12), 0 0 0 1px var(--color-border);
+}
+
+.ft-thumb {
+  margin-bottom: 8px;
+  transition: transform 0.3s var(--ft-spring);
+}
+.ft-thumb-in {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 10px;
+  border: 3px solid var(--color-surface);
+  background: var(--color-surface-1);
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px var(--color-border),
+    0 3px 9px -2px rgba(16, 24, 40, 0.25),
+    0 1px 2px rgba(16, 24, 40, 0.12);
+}
+.ft-thumb-in > img,
+.ft-thumb-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 7px;
+}
+.ft-thumb-play {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  corner-shape: round;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.35);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  color: #fff;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ft-host:hover .ft-fold-pocket {
+    transform: translateY(2px) scaleY(0.96);
+    transition: transform 0.2s var(--ft-ease);
+  }
+  .ft-host:hover .ft-fold-paper {
+    transform: translateY(-4px);
+    transition: transform 0.2s var(--ft-ease);
+  }
+  .ft-host:hover .ft-fold-mark {
+    transform: translateY(1.5%);
+    transition: transform 0.2s var(--ft-ease);
+  }
+  .ft-host:hover .ft-doc {
+    --ft-fold-s: 22px;
+    transform: translateY(-3px);
+  }
+  .ft-host:hover .ft-thumb {
+    transform: translateY(-3px);
+  }
+  .ft-host:hover .ft-fold::before,
+  .ft-host:hover .ft-doc::before,
+  .ft-host:hover .ft-thumb::before {
+    transform: scale(1.1, 1.2) translateY(2px);
+    opacity: 0.75;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ft-fold-paper,
+  .ft-fold-pocket,
+  .ft-fold-mark,
+  .ft-doc,
+  .ft-doc-page,
+  .ft-thumb {
+    transition: none;
+  }
+}
+}

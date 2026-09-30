@@ -1,5 +1,6 @@
-import Link from "next/link";
-import { Download, ShieldCheck, ChevronRight } from "@/lib/icons";
+import { Download, ShieldCheck } from "@/lib/icons";
+import { cardSurfaceSm } from "@/components/marketing/ui/card";
+import { PillLink } from "@/components/marketing/ui/pill-link";
 import { RELEASES_FALLBACK_URL, type CliBinary, type ReleaseData } from "@/lib/releases";
 
 function group(binaries: CliBinary[]) {
@@ -17,15 +18,12 @@ export function CliBinaries({ release }: { release: ReleaseData | null }) {
     <>
       {release && groups.length > 0 && (
         <div className="mt-8">
-          <p className="mb-3 text-center text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+          <p className="pv2-eyebrow mb-4 text-center">
             Or grab a prebuilt binary &middot; v{release.version}
           </p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {groups.map((g) => (
-              <div
-                key={g.os}
-                className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4"
-              >
+              <div key={g.os} className={`${cardSurfaceSm} p-4`}>
                 <p className="mb-2 text-[13px] font-semibold text-[var(--color-text)]">{g.os}</p>
                 <div className="flex flex-col gap-1">
                   {g.items.map((b) => (
@@ -46,18 +44,14 @@ export function CliBinaries({ release }: { release: ReleaseData | null }) {
       )}
 
       <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-        <Link
-          href="/tui"
-          className="inline-flex items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-5 py-2.5 text-sm font-medium text-[var(--color-text)] transition-colors hover:border-[var(--color-border-hover)]"
-        >
+        <PillLink href="/tui" variant="secondary" arrow>
           Explore the terminal app
-          <ChevronRight className="h-3.5 w-3.5" />
-        </Link>
+        </PillLink>
         <a
           href={release?.checksumsUrl ?? RELEASES_FALLBACK_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text)]"
+          className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text)]"
         >
           <ShieldCheck className="h-4 w-4" />
           Verify checksums

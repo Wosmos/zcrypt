@@ -1,8 +1,7 @@
 import { Lock, Shield, HardDrive, Github } from "@/lib/icons";
+import type { VsData } from "@/components/marketing/features/comparison-page";
 import type { ComparisonRow } from "@/components/marketing/features/comparison-table";
-import type { CapabilityItem } from "@/components/marketing/features/capability-grid";
-import { type VsData, VS_RELATED_LINKS } from "./dropbox";
-import { SITE_URL } from "@/lib/site";
+import { VS_RELATED_LINKS, vsBreadcrumb } from "./shared";
 
 const rows: ComparisonRow[] = [
   {
@@ -105,7 +104,7 @@ const rows: ComparisonRow[] = [
   },
 ];
 
-const pillars: CapabilityItem[] = [
+const pillars: VsData["pillars"] = [
   {
     Icon: Lock,
     title: "Only you can read it",
@@ -123,19 +122,17 @@ const pillars: CapabilityItem[] = [
   },
   {
     Icon: Github,
-    title: "Open source & self-hostable",
+    title: "Open source, run it yourself",
     desc: "Read the code, audit the crypto, or run the whole thing yourself. How your files are handled isn't a black box.",
   },
 ];
 
 export const googleDrive: VsData = {
-  slug: "google-drive",
   otherName: "Google Drive",
   hero: {
     eyebrow: "zcrypt vs Google Drive",
-    headlineTop: "Google Drive can read your files.",
-    headlineGradient: "zcrypt can't.",
-    subtext: (
+    title: "Google Drive can read your files. zcrypt can't",
+    lede: (
       <>
         Google Drive is deeply integrated and incredibly convenient, but it processes your content
         for search, previews, and smart features, and it isn&apos;t end-to-end encrypted. zcrypt
@@ -143,13 +140,18 @@ export const googleDrive: VsData = {
         source from top to bottom.
       </>
     ),
-    secondaryLabel: "How the encryption works",
+    secondaryLabel: "See how it works",
     secondaryHref: "/features/encryption",
+  },
+  pillarsHead: {
+    eyebrow: "Why switch",
+    title: "What changes when nobody else can look",
   },
   pillars,
   table: {
-    heading: "zcrypt vs Google Drive, side by side",
-    subheading: (
+    eyebrow: "Side by side",
+    title: "zcrypt and Google Drive, row by row",
+    lede: (
       <>
         An honest look at where each one fits. Google Drive wins on integration and collaboration;
         zcrypt wins on privacy, ownership, and openness.
@@ -164,7 +166,8 @@ export const googleDrive: VsData = {
     rows,
   },
   whenBetter: {
-    heading: "When Google Drive is the better choice",
+    eyebrow: "The honest part",
+    title: "When Google Drive is the better choice",
     paragraphs: [
       <>
         Google Drive is one of the most capable products of its kind, and there are plenty of
@@ -186,8 +189,8 @@ export const googleDrive: VsData = {
           powerful search across the contents of your files
         </strong>
         , AI-assisted features, or automatic photo organization, those rely on Google being able to
-        read your data. zcrypt can&apos;t offer them precisely because it can&apos;t see your files
-        : that&apos;s the deliberate trade-off of zero-knowledge.
+        read your data. zcrypt can&apos;t offer them precisely because it can&apos;t see your files.
+        That&apos;s the deliberate trade-off of zero-knowledge.
       </>,
       <>
         And if polished native mobile apps are essential today,{" "}
@@ -204,14 +207,5 @@ export const googleDrive: VsData = {
     ],
   },
   related: VS_RELATED_LINKS,
-  closing: {
-    heading: "Storage that can't read your files",
-    subtext:
-      "Free and open source. Bring a storage account you already own and start in under a minute.",
-  },
-  breadcrumb: [
-    { name: "Home", url: SITE_URL },
-    { name: "Compare", url: `${SITE_URL}/vs/google-drive` },
-    { name: "zcrypt vs Google Drive", url: `${SITE_URL}/vs/google-drive` },
-  ],
+  breadcrumb: vsBreadcrumb("google-drive", "zcrypt vs Google Drive"),
 };

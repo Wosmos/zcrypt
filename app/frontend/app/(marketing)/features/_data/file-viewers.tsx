@@ -16,14 +16,13 @@ import type { ReactNode } from "react";
 export interface FileViewersPageData {
   hero: {
     eyebrow: string;
-    headlineTop: string;
-    headlineGradient: string;
+    title: string;
     subtext: ReactNode;
     secondaryLabel: string;
     secondaryHref: string;
   };
   viewersSection: { heading: string; subheading: string };
-  viewers: { Icon: typeof ImageIcon; title: string; desc: string; accent: string; color: string }[];
+  viewers: { Icon: typeof ImageIcon; title: string; desc: string }[];
   zeroKnowledgeSection: { eyebrow: string; heading: string; subheading: string };
   pipeline: { step: string; title: string; desc: string }[];
   memoryNote: ReactNode;
@@ -36,8 +35,7 @@ export interface FileViewersPageData {
 export const fileViewers: FileViewersPageData = {
   hero: {
     eyebrow: "In-browser file viewers",
-    headlineTop: "See your files.",
-    headlineGradient: "Don't hand them over.",
+    title: "See your files without handing them over",
     subtext: (
       <>
         Most encrypted storage makes you download a file and trust a server to show it. zcrypt
@@ -60,57 +58,41 @@ export const fileViewers: FileViewersPageData = {
       Icon: ImageIcon,
       title: "Images",
       desc: "Zoom, pan, and rotate JPG, PNG, GIF, WebP, SVG, and more. A cached low-res thumbnail shows instantly while the full image decrypts.",
-      accent: "from-cyan-500/15 to-cyan-500/5",
-      color: "text-cyan-500",
     },
     {
       Icon: Video,
       title: "Video & audio",
       desc: "A custom player for MP4, MOV, WebM, MP3, FLAC, and more: with a playlist of the other media in the same folder.",
-      accent: "from-violet-500/15 to-violet-500/5",
-      color: "text-violet-500",
     },
     {
       Icon: FileText,
       title: "PDF",
       desc: "Rendered natively, page by page, with lazy loading, no browser plugin and no third-party PDF service.",
-      accent: "from-rose-500/15 to-rose-500/5",
-      color: "text-rose-500",
     },
     {
       Icon: FileText,
       title: "DOCX documents",
       desc: "Word documents are rendered to clean HTML and sanitized before display, so you read the content without opening an editor.",
-      accent: "from-blue-500/15 to-blue-500/5",
-      color: "text-blue-500",
     },
     {
       Icon: Code,
       title: "HTML",
       desc: "Sanitized and shown in a sandboxed frame with scripts disabled: preview a page safely without it phoning home.",
-      accent: "from-amber-500/15 to-amber-500/5",
-      color: "text-amber-500",
     },
     {
       Icon: FileText,
       title: "Markdown",
       desc: "Rendered to formatted, sanitized HTML: headings, lists, links, and code blocks, the way you wrote them.",
-      accent: "from-emerald-500/15 to-emerald-500/5",
-      color: "text-emerald-500",
     },
     {
       Icon: Table,
       title: "CSV & TSV",
       desc: "Comma- and tab-separated data laid out as a readable table instead of a wall of raw text.",
-      accent: "from-teal-500/15 to-teal-500/5",
-      color: "text-teal-500",
     },
     {
       Icon: Code,
       title: "Text & source code",
       desc: "Around 40 languages (JS, TS, Python, Go, Rust, SQL, YAML, and more) with syntax highlighting and a line-wrap toggle.",
-      accent: "from-indigo-500/15 to-indigo-500/5",
-      color: "text-indigo-500",
     },
   ],
 
@@ -213,6 +195,6 @@ export const fileViewers: FileViewersPageData = {
   cta: {
     heading: "See your files without downloading",
     subtext:
-      "Free and open source. Bring a storage account you already own and preview your first encrypted file in under a minute.",
+      "Free and open source. Bring a storage account you already own and preview your first file in under a minute.",
   },
 };

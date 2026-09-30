@@ -5,8 +5,7 @@ import type { ReactNode } from "react";
 export interface AppsPageData {
   hero: {
     eyebrow: string;
-    headlineTop: string;
-    headlineGradient: string;
+    title: string;
     subtext: ReactNode;
     secondaryLabel: string;
     secondaryHref: string;
@@ -32,8 +31,7 @@ export interface AppsPageData {
 export const apps: AppsPageData = {
   hero: {
     eyebrow: "Web, desktop, Android & terminal",
-    headlineTop: "One vault.",
-    headlineGradient: "Four ways to reach it.",
+    title: "One drive, four ways in",
     subtext: (
       <>
         The same zero-knowledge core, wherever you work: a web app in any browser, a native desktop
@@ -121,7 +119,7 @@ export const apps: AppsPageData = {
 
   comparisonSection: {
     heading: "Which one when?",
-    subheading: "A quick way to choose. There's no wrong answer: they all open the same vault.",
+    subheading: "A quick way to choose. There's no wrong answer: they all open the same drive.",
     footnote:
       "One account, one encrypted vault: switch surfaces any time without re-uploading a thing.",
   },
@@ -171,7 +169,7 @@ export const apps: AppsPageData = {
   ],
 
   cta: {
-    heading: "The same vault, wherever you are",
+    heading: "The same drive, wherever you are",
     subtext:
       "Free and open source. Create an account once and reach it from the web, your desktop, your phone, or a terminal.",
   },
