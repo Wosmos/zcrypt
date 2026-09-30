@@ -350,7 +350,8 @@ func (s *Server) serveLinkChunk(w http.ResponseWriter, r *http.Request, ownerID 
 			http.Error(w, `{"error":"staging not available"}`, http.StatusInternalServerError)
 			return
 		}
-		data, err = os.ReadFile(filepath.Join(stagingDir, chunk.ChunkID+".enc"))
+		name := filepath.Base(chunk.ChunkID) + ".enc"
+		data, err = os.ReadFile(filepath.Clean(filepath.Join(stagingDir, name)))
 		if err != nil {
 			log.Printf("%s: read staging file failed: %v", logPrefix, err)
 			http.Error(w, `{"error":"chunk data not available yet"}`, http.StatusInternalServerError)
