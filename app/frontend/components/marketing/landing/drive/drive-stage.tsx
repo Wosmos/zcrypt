@@ -1,15 +1,7 @@
 "use client";
 
-import {
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type ReactNode,
-  type RefObject,
-} from "react";
+import { useEffect, useLayoutEffect, useRef, type ReactNode, type RefObject } from "react";
 import { gsap, MOTION_FULL, MOTION_REDUCE, useGSAP } from "@/components/marketing/landing/gsap";
-import { useIsMobile } from "@/hooks/useIsMobile";
 import { DriveDesktop } from "./drive-desktop";
 import { DrivePhone } from "./drive-phone";
 import { useDrive } from "./drive-store";
@@ -19,7 +11,10 @@ import { ViewToggle } from "./view-toggle";
 
 const HOLD = 0.72;
 
-const PLACE_FRAME = `(function(){var s=document.currentScript,p=s&&s.parentElement,f=p&&p.querySelector(".zh-frame"),h=p&&p.querySelector(".zh-head"),r=document.documentElement;if(f&&h){var ph=matchMedia("(max-width: 767px)").matches;r.style.setProperty("--zh-y0",(h.offsetTop+h.offsetHeight+40-f.offsetTop)+"px");r.style.setProperty("--zh-s0",String(ph?0.82:Math.min(0.78,1180/Math.max(1,f.offsetWidth))));}r.setAttribute("data-zh-placed","");})();`;
+const LAG = 0.06;
+const SETTLE_MS = 180;
+
+const PLACE_FRAME = `(function(){var s=document.currentScript,p=s&&s.parentElement,f=p&&p.querySelector(".zh-frame"),h=p&&p.querySelector(".zh-head"),r=document.documentElement;if(f&&h){var ph=matchMedia("(max-width: 767px)").matches;f.style.setProperty("--zh-y0",(h.offsetTop+h.offsetHeight+40-f.offsetTop)+"px");f.style.setProperty("--zh-s0",String(ph?0.82:Math.min(0.78,1180/Math.max(1,f.offsetWidth))));}r.setAttribute("data-zh-placed","");})();`;
 
 /** The pinned stage: the head above, and the product window that grows to fill the screen. */
 export function DriveStage({
@@ -30,8 +25,6 @@ export function DriveStage({
   section: RefObject<HTMLElement | null>;
 }) {
   const { state, dispatch, accept, startIntro } = useDrive();
-  const isPhone = useIsMobile("(max-width: 767px)");
-  const [mounted, setMounted] = useState(false);
   const spacer = useRef<HTMLDivElement>(null);
   const pin = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLDivElement>(null);
@@ -48,8 +41,8 @@ export function DriveStage({
     const h = pin.current?.querySelector<HTMLElement>(".zh-head");
     if (f && h) {
       const ph = window.matchMedia("(max-width: 767px)").matches;
-      r.style.setProperty("--zh-y0", `${h.offsetTop + h.offsetHeight + 40 - f.offsetTop}px`);
-      r.style.setProperty(
+      f.style.setProperty("--zh-y0", `${h.offsetTop + h.offsetHeight + 40 - f.offsetTop}px`);
+      f.style.setProperty(
         "--zh-s0",
         String(ph ? 0.82 : Math.min(0.78, 1180 / Math.max(1, f.offsetWidth))),
       );
@@ -57,29 +50,11 @@ export function DriveStage({
     r.setAttribute("data-zh-placed", "");
   }, []);
 
-  useEffect(() => setMounted(true), []);
-
   useEffect(() => {
     if (state.view !== "you" || !state.extra) return;
     const t = window.setTimeout(() => dispatch({ type: "extra", on: false }), 420);
     return () => window.clearTimeout(t);
   }, [state.view, state.extra, dispatch]);
-
-  useEffect(() => {
-    const el = frame.current;
-    if (!el || !mounted) return;
-    const io = new IntersectionObserver(
-      (list) => {
-        if (list.some((e) => e.isIntersecting)) {
-          io.disconnect();
-          window.setTimeout(() => introRef.current(), 300);
-        }
-      },
-      { threshold: 0.6 },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [mounted, isPhone]);
 
   useEffect(() => {
     const root = section.current;
@@ -123,11 +98,13 @@ export function DriveStage({
 
   useGSAP(
     () => {
-      const root = section.current;
       const p = pin.current;
+      const root = p?.closest<HTMLElement>(".zh");
       const fr = frame.current;
       const hd = p?.querySelector<HTMLElement>(".zh-head");
-      if (!root || !p || !fr || !hd || !mounted) return;
+      if (!root || !p || !fr || !hd) return;
+      const dock = fr.querySelector<HTMLElement>(".zh-flipdock");
+      const shade = fr.querySelector<HTMLElement>(".zh-frame-sh");
       const mm = gsap.matchMedia();
       mm.add(
         {
@@ -140,7 +117,20 @@ export function DriveStage({
           const { full, tall, phone } = ctx.conditions as Record<string, boolean>;
           if (!full || !tall) {
             root.dataset.expanded = "true";
+            let timer = 0;
+            const io = new IntersectionObserver(
+              (list) => {
+                if (list.some((e) => e.isIntersecting)) {
+                  io.disconnect();
+                  timer = window.setTimeout(() => introRef.current(), 300);
+                }
+              },
+              { threshold: 0.6 },
+            );
+            io.observe(fr);
             return () => {
+              io.disconnect();
+              window.clearTimeout(timer);
               delete root.dataset.expanded;
             };
           }
@@ -151,6 +141,7 @@ export function DriveStage({
             fr.style.setProperty("--zh-s0", String(s0()));
           };
           setVars();
+          let settle = 0;
           const tl = gsap.timeline({
             defaults: { ease: "none" },
             scrollTrigger: {
@@ -159,19 +150,18 @@ export function DriveStage({
               pin: p,
               pinSpacer: spacer.current ?? undefined,
               start: "top top",
-              end: () => `+=${window.innerHeight * (phone ? 1 : 1.1)}`,
-              scrub: 0.6,
-              anticipatePin: 1,
+              end: () => `+=${p.offsetHeight * (phone ? 1 : 1.1)}`,
+              scrub: 0.5,
               invalidateOnRefresh: true,
               refreshPriority: 2,
               onRefresh: setVars,
               onUpdate: (self) => {
                 const on = self.progress >= HOLD;
-                if (on && root.dataset.expanded !== "true") {
-                  root.dataset.expanded = "true";
-                  introRef.current();
-                } else if (!on && root.dataset.expanded === "true") {
-                  delete root.dataset.expanded;
+                window.clearTimeout(settle);
+                if (on) {
+                  settle = window.setTimeout(() => {
+                    if ((tl.scrollTrigger?.progress ?? 0) >= HOLD) introRef.current();
+                  }, SETTLE_MS);
                 }
               },
             },
@@ -179,16 +169,44 @@ export function DriveStage({
           tl.fromTo(
             hd,
             { autoAlpha: 1, y: 0 },
-            { autoAlpha: 0, y: -48, ease: "power1.in", duration: 0.4 },
+            { autoAlpha: 0, y: -48, ease: "power2.out", duration: 0.2 },
             0,
           )
             .fromTo(
               fr,
-              { y: () => y0(), scale: () => s0(), "--zh-lift": 1 },
-              { y: 0, scale: 1, "--zh-lift": 0, ease: "power2.inOut", duration: HOLD },
-              0,
+              { y: () => y0(), scale: () => s0() },
+              { y: 0, scale: 1, force3D: true, ease: "power2.inOut", duration: HOLD - LAG },
+              LAG,
             )
             .to({}, { duration: 1 - HOLD }, HOLD);
+          tl.eventCallback("onUpdate", () => {
+            const on = tl.progress() >= HOLD - 0.001;
+            if (on && root.dataset.expanded !== "true") {
+              root.dataset.expanded = "true";
+            } else if (!on && root.dataset.expanded === "true") {
+              delete root.dataset.expanded;
+            }
+          });
+          if (!phone && dock && shade) {
+            tl.fromTo(
+              dock,
+              { x: 0, y: 0, scale: 1 },
+              {
+                x: 12,
+                y: 28,
+                scale: 0.76,
+                force3D: true,
+                ease: "power2.inOut",
+                duration: HOLD - LAG,
+              },
+              LAG,
+            ).fromTo(
+              shade,
+              { opacity: 1 },
+              { opacity: 0, ease: "power2.inOut", duration: HOLD - LAG },
+              LAG,
+            );
+          }
 
           const onFocus = () => {
             const st = tl.scrollTrigger;
@@ -197,13 +215,14 @@ export function DriveStage({
           };
           fr.addEventListener("focusin", onFocus);
           return () => {
+            window.clearTimeout(settle);
             fr.removeEventListener("focusin", onFocus);
             delete root.dataset.expanded;
           };
         },
       );
     },
-    { scope: section, dependencies: [mounted] },
+    { scope: spacer },
   );
 
   const onPick = () => picker.current?.click();
@@ -216,7 +235,8 @@ export function DriveStage({
         <a href="#how" className="zh-skip">
           Skip the app preview
         </a>
-        <div ref={frame} className="zh-frame">
+        <div ref={frame} className="zh-frame" suppressHydrationWarning>
+          <div className="zh-frame-sh" aria-hidden="true" />
           <div className="zh-v-desk">
             <div className="zh-flipdock">
               <ViewToggle value={state.view} onChange={setView} size="lg" className="zh-tog-dock" />

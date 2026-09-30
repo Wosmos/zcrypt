@@ -11,11 +11,12 @@ export function TransfersDock({ variant }: { variant: "desktop" | "sheet" }) {
   const { state } = useDrive();
   const { upload, uploadItem, uploadAt, uploadMs } = state;
   const fill = useRef<HTMLElement>(null);
-  const [pct, setPct] = useState(0);
+  const pctRef = useRef<HTMLSpanElement>(null);
   const [hold, setHold] = useState(false);
 
   useEffect(() => {
     const el = fill.current;
+    const label = pctRef.current;
     if (upload !== "running" || !el) return;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const now = performance.now();
@@ -29,16 +30,21 @@ export function TransfersDock({ variant }: { variant: "desktop" | "sheet" }) {
     });
     if (played) anim.currentTime = Math.min(played, uploadMs);
     let raf = 0;
+    let shown = -1;
     const tick = (t: number) => {
       const p = Math.max(0, Math.min(1, (t - uploadAt) / uploadMs));
-      setPct(Math.min(99, Math.round(p * 100)));
+      const n = Math.min(99, Math.round(p * 100));
+      if (n !== shown && label) {
+        shown = n;
+        label.textContent = `${n}%`;
+      }
       if (p < 1) raf = requestAnimationFrame(tick);
     };
     if (!reduce) raf = requestAnimationFrame(tick);
     return () => {
       cancelAnimationFrame(raf);
       anim.cancel();
-      setPct(0);
+      if (label) label.textContent = "0%";
     };
   }, [upload, uploadAt, uploadMs]);
 
@@ -85,7 +91,7 @@ export function TransfersDock({ variant }: { variant: "desktop" | "sheet" }) {
               <p className="zh-dk-name">{uploadItem.name}</p>
               <span className="zh-dk-meta">
                 <span>{formatBytes(uploadItem.size)}</span>
-                {running ? <span>{pct}%</span> : null}
+                {running ? <span ref={pctRef}>0%</span> : null}
               </span>
             </div>
             <div className="zh-dk-bar">

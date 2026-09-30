@@ -186,24 +186,36 @@
   right: max(var(--zh-side), (100% - 1680px) / 2);
   transform-origin: 50% 0;
 }
-.zh-frame::before {
-  content: "";
+.zh-frame-sh {
   position: absolute;
   inset: 0;
   z-index: -1;
   border-radius: 24px;
   pointer-events: none;
-  opacity: var(--zh-lift, 0);
+  opacity: 0;
   box-shadow:
     0 40px 90px -30px rgba(16, 24, 40, 0.4),
     0 16px 36px -18px rgba(16, 24, 40, 0.25);
 }
-.dark .zh-frame::before {
+.dark .zh-frame-sh {
   box-shadow: 0 60px 120px -40px rgba(0, 0, 0, 0.85);
 }
 @media (prefers-reduced-motion: no-preference) and (min-height: 560px) {
   .zh-frame {
     transform: translate3d(0, var(--zh-y0, 62svh), 0) scale(var(--zh-s0, 0.78));
+    contain: layout style;
+  }
+  .zh:not([data-expanded="true"]) .zh-frame {
+    will-change: transform;
+  }
+  .zh-frame-sh {
+    opacity: 1;
+    will-change: opacity;
+  }
+  .zh:not([data-expanded="true"]) .zh-frame *,
+  .zh:not([data-expanded="true"]) .zh-frame *::before,
+  .zh:not([data-expanded="true"]) .zh-frame *::after {
+    animation-play-state: paused;
   }
 }
 html:not([data-zh-placed]) .zh-frame {
@@ -229,7 +241,7 @@ html:not([data-zh-placed]) .zh-frame {
     right: var(--zh-side);
     top: var(--zh-top);
   }
-  .zh-frame::before {
+  .zh-frame-sh {
     display: none;
   }
   .zh-frame > .zh-v-desk {
@@ -294,6 +306,7 @@ html:not([data-zh-placed]) .zh-frame {
   border: 1px solid var(--zh-border-h);
   background: var(--zh-bg);
   overflow: hidden;
+  contain: paint;
   box-shadow:
     0 40px 80px -40px rgba(16, 24, 40, 0.3),
     0 12px 28px -16px rgba(16, 24, 40, 0.18),
@@ -515,9 +528,8 @@ html:not([data-zh-placed]) .zh-frame {
 .zh-flipdock {
   position: absolute;
   z-index: 6;
-  top: calc(-22px + (1 - var(--zh-lift, 1)) * 28px);
-  right: calc(28px - (1 - var(--zh-lift, 1)) * 12px);
-  transform: scale(calc(1 - (1 - var(--zh-lift, 1)) * 0.24));
+  top: -22px;
+  right: 28px;
   transform-origin: 100% 0;
 }
 .zh-tog-dock {
