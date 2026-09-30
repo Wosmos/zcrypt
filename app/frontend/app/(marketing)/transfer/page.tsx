@@ -15,7 +15,7 @@ import {
 export const metadata: Metadata = toolMetadata({
   title: "Transfer Files Between Devices. Encrypted P2P File Transfer | zcrypt",
   description:
-    "Stream encrypted files directly between devices with a 6-digit code. Peer-to-peer AES-256 encrypted transfer over WebSocket. No file size limit, no storage, no accounts. Phone to laptop, any device to any device.",
+    "Send encrypted files between devices with a 6-digit code and a pairing key. AES-256 encrypted in your browser, relayed over WebSocket, never stored. No accounts. Phone to laptop, any device to any device.",
   keywords: [
     "peer to peer file transfer",
     "encrypted file transfer",
@@ -35,39 +35,39 @@ export const metadata: Metadata = toolMetadata({
   path: "/transfer",
   ogTitle: "Transfer Files Between Devices, zcrypt",
   ogDescription:
-    "Stream encrypted files directly between any two devices. 6-digit code, no storage, no limits.",
+    "Send encrypted files between any two devices. Pairing key stays off the server, nothing stored.",
 });
 
 const features: ToolFeature[] = [
   {
     icon: MonitorSmartphone,
     title: "Device to device",
-    desc: "Stream files directly between any two devices with a browser. Phone to laptop, laptop to desktop, any combination.",
+    desc: "Send files between any two devices with a browser. Phone to laptop, laptop to desktop, any combination.",
   },
   {
     icon: Lock,
     title: "End-to-end encrypted",
-    desc: "Files are encrypted with AES-256-GCM before streaming. The relay server handles only encrypted bytes.",
+    desc: "Files and filenames are encrypted with AES-256-GCM on your device. The key is shared by QR code, link or pairing key and never reaches the relay, which only sees ciphertext.",
   },
   {
     icon: Zap,
     title: "Real-time streaming",
-    desc: "Files transfer as a live stream over WebSocket. No waiting for uploads to finish before downloading.",
+    desc: "Files are relayed live over WebSocket as they are encrypted. No waiting for an upload to finish first.",
   },
   {
     icon: Wifi,
-    title: "No file size limit",
-    desc: "Transfer files of any size. The data streams in 64 KB encrypted chunks, so memory usage stays low.",
+    title: "Sent in small chunks",
+    desc: "The sender encrypts and sends 64 KB chunks, so sending stays light. The receiving browser holds the whole file in memory until it saves, so very large files need a device with room for them.",
   },
   {
     icon: Shield,
     title: "Nothing stored",
-    desc: "Zero data is stored on the server. Once the transfer is complete, there is no trace of the file.",
+    desc: "The relay keeps nothing on disk and forgets the room when the transfer ends. It does see that a transfer happened, its timing and its approximate size.",
   },
   {
     icon: Server,
-    title: "6-digit code",
-    desc: "Pair devices with a simple 6-digit code or QR scan. No accounts, no apps, no configuration.",
+    title: "Code, key and confirmation",
+    desc: "A 6-digit code finds the room and a separate pairing key (in the QR code or link) encrypts the file. Both screens show the same confirmation code. No accounts, no apps.",
   },
 ];
 
@@ -102,7 +102,7 @@ export default function TransferPublicPage() {
         badgeLabel="Peer-to-peer encrypted"
         titleLead="Transfer files between devices."
         titleAccent="Encrypted in real time."
-        subtitle="Stream encrypted files directly from one device to another. No storage, no accounts, no file size limits. Connected by a 6-digit code, secured by AES-256 encryption."
+        subtitle="Stream encrypted files directly from one device to another. No storage, no accounts. Found by a 6-digit code, encrypted with a key the server never sees."
       />
 
       {/* Tool */}
@@ -113,24 +113,25 @@ export default function TransferPublicPage() {
       {/* How it works */}
       <ToolBand
         title="How encrypted transfer works"
-        lede="Two devices. One code. Zero data stored."
+        lede="Two devices. One code. One key that stays off the server."
       >
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <RoleSteps
             label="Sender"
             steps={[
               "Select a file to send",
-              "A unique encryption key and 6-digit code are generated",
-              "Share the code with the receiver",
-              "Once paired, the file streams encrypted chunks over WebSocket",
+              "A random pairing key and a 6-digit room code are generated",
+              "Show the QR code or link to the receiver, or read out the code and pairing key",
+              "Check that both screens show the same confirmation code",
+              "The file and its name are encrypted on your device and relayed as ciphertext",
             ]}
           />
           <RoleSteps
             label="Receiver"
             steps={[
-              "Enter the 6-digit code or scan the QR code",
-              "Connect to the sender via encrypted WebSocket",
-              "Receive and decrypt each chunk in real time",
+              "Scan the QR code, or enter the 6-digit code and pairing key",
+              "Connect through the relay and compare the confirmation code",
+              "Each chunk is decrypted in your browser as it arrives",
               "File automatically downloads when complete",
             ]}
           />

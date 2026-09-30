@@ -127,20 +127,28 @@ export default function SyncTransferDocPage() {
       <DocSection id="transfer" title="Device-to-device transfer">
         <DocP>
           The separate <strong>Transfer</strong> tab streams a file directly from one device to
-          another in real time. The sending device gets a <strong>6-digit room code</strong>; enter
-          that code on the receiving device to pair them, and the file flows between them while both
-          stay connected.
+          another in real time through a relay. The sending device gets a{" "}
+          <strong>6-digit room code</strong> and a separate <strong>pairing key</strong>. Scan the
+          QR code (or open the link), or type both on the receiving device, and the file flows while
+          both stay connected.
         </DocP>
         <DocList
           items={[
             <>
-              <strong>Encrypted before it leaves:</strong> the file is encrypted in your browser and
-              streamed in small chunks over a WebSocket relay.
+              <strong>Encrypted before it leaves:</strong> the file and its name are encrypted in
+              your browser and sent in small chunks over a WebSocket relay. The key is derived from
+              the pairing key, which travels only in the QR code, link fragment or what you type,
+              never through the relay.
             </>,
             <>
-              <strong>Nothing stored:</strong> the relay keeps the pairing room only in memory
-              &mdash; it is torn down as soon as the transfer finishes, and an unclaimed room
-              expires after about 10 minutes.
+              <strong>Confirmation code:</strong> both screens show the same short code once paired.
+              If they differ, stop and start a new room.
+            </>,
+            <>
+              <strong>Nothing stored:</strong> the relay keeps the pairing room only in memory, and
+              it can still see that a transfer happened and roughly how large it is; the room is
+              torn down as soon as the transfer finishes, and an unclaimed room expires after about
+              10 minutes.
             </>,
             <>
               <strong>Both online at once:</strong> because the file streams straight between the
