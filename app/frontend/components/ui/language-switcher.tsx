@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useLocaleControl } from "@/components/providers/i18n-provider";
 import { LOCALES, isLocale } from "@/lib/i18n";
-import { ChevronDown, Globe } from "@/lib/icons";
+import { ChevronDown, Languages } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
 export function LanguageSwitcher({
@@ -37,7 +37,7 @@ export function LanguageSwitcher({
           className,
         )}
       >
-        <Globe aria-hidden="true" className="pointer-events-none h-4 w-4" />
+        <Languages aria-hidden="true" className="pointer-events-none h-4 w-4" />
         <select
           aria-label={t("language")}
           value={locale}
@@ -52,7 +52,7 @@ export function LanguageSwitcher({
 
   return (
     <div className={cn("relative inline-flex items-center", className)}>
-      <Globe
+      <Languages
         aria-hidden="true"
         className="pointer-events-none absolute start-3 h-4 w-4 text-[var(--color-text-muted)]"
       />

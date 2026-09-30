@@ -126,6 +126,7 @@ import {
   Zap as ZapData,
   ZoomInAreaIcon as ZoomInAreaIconData,
   ZoomOutAreaIcon as ZoomOutAreaIconData,
+  Translate as TranslateData,
 } from "@hugeicons/core-free-icons";
 
 type IconProps = SVGProps<SVGSVGElement> & {
@@ -192,6 +193,7 @@ export const Mail = makeIcon(MailData, "Mail");
 export const Cloud = makeIcon(CloudData, "Cloud");
 export const Database = makeIcon(DatabaseData, "Database");
 export const Globe = makeIcon(GlobeData, "Globe");
+export const Languages = makeIcon(TranslateData, "Languages");
 export const Key = makeIcon(KeyData, "Key");
 export const AlertCircle = makeIcon(AlertCircleData, "AlertCircle");
 export const AlertTriangle = makeIcon(AlertTriangleData, "AlertTriangle");
