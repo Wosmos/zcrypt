@@ -38,11 +38,7 @@ function invalidateFolders(): Promise<void> {
 
 /** Resolve a raw folder list against the in-memory name maps. While unlocked, a
  *  name still being decrypted reads as "" for a frame rather than "[locked]". */
-function resolveFolders(
-  raw: Folder[],
-  unlocked: boolean,
-  _epoch?: number,
-): DecryptedFolder[] {
+function resolveFolders(raw: Folder[], unlocked: boolean, _epoch?: number): DecryptedFolder[] {
   return raw.map((f) => ({
     ...f,
     name: unlocked ? (peekName(f.encrypted_name) ?? "") : LOCKED,
