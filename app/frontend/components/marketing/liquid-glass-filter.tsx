@@ -5,6 +5,7 @@ import { type RefObject, useEffect, useRef } from "react";
 const BEZEL = 18;
 const SCALE = -30;
 const TWEEN_MS = 400;
+const IDLE_MS = 160;
 
 type UAData = { brands?: { brand: string }[] };
 
@@ -97,6 +98,7 @@ export function LiquidGlassFilter({ targetRef }: { targetRef: RefObject<HTMLElem
     let enabled = false;
     let size = "";
     let timer = 0;
+    let idle = 0;
     let tweenRaf = 0;
     let tweened = false;
     let alive = true;
@@ -146,8 +148,19 @@ export function LiquidGlassFilter({ targetRef }: { targetRef: RefObject<HTMLElem
 
     const ro = new ResizeObserver(schedule);
     const mo = new MutationObserver(tween);
-    const onEnd = (e: TransitionEvent) => {
-      if (e.target === el && e.propertyName.startsWith("padding")) build();
+    const settle = () => {
+      idle = 0;
+      delete root.dataset.lgScroll;
+    };
+    const onScroll = () => {
+      if (idle) window.clearTimeout(idle);
+      else if (root.dataset.lg === "refract") root.dataset.lgScroll = "";
+      idle = window.setTimeout(settle, IDLE_MS);
+    };
+    const stopScroll = () => {
+      window.removeEventListener("scroll", onScroll);
+      window.clearTimeout(idle);
+      settle();
     };
 
     const evaluate = () => {
@@ -158,7 +171,7 @@ export function LiquidGlassFilter({ targetRef }: { targetRef: RefObject<HTMLElem
         size = "";
         build();
         ro.observe(el);
-        el.addEventListener("transitionend", onEnd);
+        window.addEventListener("scroll", onScroll, { passive: true });
         if (header) {
           mo.observe(header, { attributes: true, attributeFilter: ["data-scrolled", "data-menu"] });
         }
@@ -166,7 +179,7 @@ export function LiquidGlassFilter({ targetRef }: { targetRef: RefObject<HTMLElem
       } else {
         ro.disconnect();
         mo.disconnect();
-        el.removeEventListener("transitionend", onEnd);
+        stopScroll();
         window.clearTimeout(timer);
         delete root.dataset.lg;
       }
@@ -180,7 +193,7 @@ export function LiquidGlassFilter({ targetRef }: { targetRef: RefObject<HTMLElem
       for (const q of [wide, lessGlass, lessMotion]) q.removeEventListener("change", evaluate);
       ro.disconnect();
       mo.disconnect();
-      el.removeEventListener("transitionend", onEnd);
+      stopScroll();
       window.clearTimeout(timer);
       cancelAnimationFrame(tweenRaf);
       delete root.dataset.lg;
