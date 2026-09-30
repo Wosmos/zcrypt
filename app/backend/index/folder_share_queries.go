@@ -156,12 +156,8 @@ func (db *DB) RevokeFolderShare(ctx context.Context, userID, shareID string) err
 	return nil
 }
 
-// IncrementFolderShareDownloads atomically bumps the download counter.
-func (db *DB) IncrementFolderShareDownloads(ctx context.Context, shareID string) error {
-	_, err := db.pool.Exec(ctx,
-		`UPDATE folder_shares SET download_count = download_count + 1 WHERE id = $1`, shareID)
-	if err != nil {
-		return fmt.Errorf("increment folder share downloads: %w", err)
-	}
-	return nil
+// CompleteFolderShareDownload records one finished file download for a folder
+// link, keyed by the ticket nonce so retries count once.
+func (db *DB) CompleteFolderShareDownload(ctx context.Context, shareID, nonce string) (bool, error) {
+	return db.completeDownload(ctx, "folder_shares", shareID, nonce)
 }

@@ -5,6 +5,7 @@ package integration_test
 import (
 	"context"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -379,4 +380,224 @@ func TestTwoFADisableClearsBackupCodes(t *testing.T) {
 	}, "")
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode, "codes from before disable are dead")
 	resp.Body.Close()
+}
+
+func TestTwoFAMagicLinkRequiresSecondFactor(t *testing.T) {
+	ts := setupTestServer(t)
+	const email = "twofa-magic@example.com"
+	const password = "SecurePass@123!"
+
+	_, secret := setup2FA(ts, t, email, password)
+
+	var userID string
+	require.NoError(t, ts.db.Pool().QueryRow(context.Background(),
+		`SELECT id FROM users WHERE email = $1`, email).Scan(&userID))
+
+	mintLink := func(raw string) {
+		t.Helper()
+		_, err := ts.db.Pool().Exec(context.Background(),
+			`INSERT INTO email_tokens (user_id, token_hash, kind, expires_at) VALUES ($1, $2, 'magic_link', $3)`,
+			userID, auth.HashToken(raw), time.Now().Add(10*time.Minute))
+		require.NoError(t, err)
+	}
+
+	mintLink("magic-2fa-token")
+	resp := ts.POST("/api/auth/magic-link/verify", map[string]string{"token": "magic-2fa-token"}, "")
+	body := requireStatus(t, resp, http.StatusOK)
+	var challenge struct {
+		AccessToken  string `json:"access_token"`
+		RefreshToken string `json:"refresh_token"`
+		Requires2FA  bool   `json:"requires_2fa"`
+		TempToken    string `json:"temp_token"`
+	}
+	require.NoError(t, jsonUnmarshal(body, &challenge))
+	assert.True(t, challenge.Requires2FA)
+	assert.NotEmpty(t, challenge.TempToken)
+	assert.Empty(t, challenge.AccessToken, "magic link must not mint a session before the second factor")
+	assert.Empty(t, challenge.RefreshToken)
+
+	resp = ts.POST("/api/auth/magic-link/verify", map[string]string{"token": "magic-2fa-token"}, "")
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode, "link is single use")
+	resp.Body.Close()
+
+	resp = ts.POST("/api/auth/2fa/verify", map[string]string{
+		"temp_token": challenge.TempToken,
+		"code":       "000000",
+	}, "")
+	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	resp.Body.Close()
+
+	resp = ts.POST("/api/auth/2fa/verify", map[string]string{
+		"temp_token": challenge.TempToken,
+		"code":       auth.TOTPCodeAt(secret, time.Now().Add(30*time.Second)),
+	}, "")
+	body = requireStatus(t, resp, http.StatusOK)
+	var tokens struct {
+		AccessToken string `json:"access_token"`
+	}
+	require.NoError(t, jsonUnmarshal(body, &tokens))
+	assert.NotEmpty(t, tokens.AccessToken)
+}
+
+func oauthStubProvider(t *testing.T, providerID, email string) *httptest.Server {
+	t.Helper()
+	mux := http.NewServeMux()
+	mux.HandleFunc("/token", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"access_token":"stub-access"}`))
+	})
+	mux.HandleFunc("/userinfo", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"id":"` + providerID + `","email":"` + email + `","name":"Stub User"}`))
+	})
+	stub := httptest.NewServer(mux)
+	t.Cleanup(stub.Close)
+	return stub
+}
+
+func oauthCallback(ts *testServer, t *testing.T, state string) *http.Response {
+	t.Helper()
+	req, err := http.NewRequest("GET", ts.URL+"/api/auth/oauth/google/callback?code=abc&state="+state, nil)
+	require.NoError(t, err)
+	req.Header.Set("X-Forwarded-For", uniqueTestIP())
+	req.AddCookie(&http.Cookie{Name: "oauth_state", Value: state})
+	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	resp, err := client.Do(req)
+	require.NoError(t, err)
+	return resp
+}
+
+func TestTwoFAOAuthAutoLinkRequiresSecondFactor(t *testing.T) {
+	ts := setupTestServer(t)
+	const email = "twofa-oauth@example.com"
+	const password = "SecurePass@123!"
+
+	_, secret := setup2FA(ts, t, email, password)
+	_, err := ts.db.Pool().Exec(context.Background(), `UPDATE users SET email_verified = true WHERE email = $1`, email)
+	require.NoError(t, err)
+	_, err = ts.db.Pool().Exec(context.Background(), `DELETE FROM oauth_providers WHERE provider_id = 'g-2fa-1'`)
+	require.NoError(t, err)
+
+	stub := oauthStubProvider(t, "g-2fa-1", email)
+	restore := auth.SetOAuthEndpointsForTest("google", stub.URL+"/token", stub.URL+"/userinfo")
+	t.Cleanup(restore)
+	ts.srv.EnableTestOAuth("google", "cid", "csecret")
+
+	check := func(resp *http.Response) string {
+		t.Helper()
+		defer resp.Body.Close()
+		require.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
+		loc := resp.Header.Get("Location")
+		assert.Contains(t, loc, "/oauth/callback#requires_2fa=1&temp_token=")
+		assert.NotContains(t, loc, "access_token")
+		assert.NotContains(t, loc, "refresh_token")
+		for _, c := range resp.Cookies() {
+			assert.NotEqual(t, "refresh_token", c.Name, "no session cookie before the second factor")
+		}
+		return loc[strings.Index(loc, "temp_token=")+len("temp_token="):]
+	}
+
+	temp := check(oauthCallback(ts, t, "webstate1"))
+	// Second pass goes through the already-linked path.
+	check(oauthCallback(ts, t, "webstate2"))
+
+	resp := ts.POST("/api/auth/2fa/verify", map[string]string{"temp_token": temp, "code": "000000"}, "")
+	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	resp.Body.Close()
+	resp = ts.POST("/api/auth/2fa/verify", map[string]string{
+		"temp_token": temp,
+		"code":       auth.TOTPCodeAt(secret, time.Now().Add(30*time.Second)),
+	}, "")
+	body := requireStatus(t, resp, http.StatusOK)
+	var tokens struct {
+		AccessToken string `json:"access_token"`
+	}
+	require.NoError(t, jsonUnmarshal(body, &tokens))
+	assert.NotEmpty(t, tokens.AccessToken)
+
+	session := "0123456789abcdef0123456789abcdef"
+	verifier := "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"
+	resp = oauthCallback(ts, t, "desktop:"+session+":"+desktopChallenge(verifier)+":rnd")
+	require.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
+	assert.Contains(t, resp.Header.Get("Location"), "/oauth/desktop-relay")
+	relay := resp.Header.Get("Location")
+	resp.Body.Close()
+	approveDesktopRelay(ts, t, relay)
+
+	resp = ts.GET("/api/auth/oauth/desktop-poll?session="+session+"&verifier="+verifier, "")
+	body = requireStatus(t, resp, http.StatusOK)
+	var poll struct {
+		AccessToken  string `json:"access_token"`
+		RefreshToken string `json:"refresh_token"`
+		Requires2FA  bool   `json:"requires_2fa"`
+		TempToken    string `json:"temp_token"`
+	}
+	require.NoError(t, jsonUnmarshal(body, &poll))
+	assert.True(t, poll.Requires2FA)
+	assert.NotEmpty(t, poll.TempToken)
+	assert.Empty(t, poll.AccessToken)
+	assert.Empty(t, poll.RefreshToken)
+}
+
+func TestOAuthLoginWithoutTwoFAStillIssuesTokens(t *testing.T) {
+	ts := setupTestServer(t)
+	const email = "oauth-no2fa@example.com"
+	_, err := ts.db.Pool().Exec(context.Background(), `DELETE FROM users WHERE email = $1`, email)
+	require.NoError(t, err)
+
+	ts.registerAndLogin(email, "SecurePass@123!")
+	_, err = ts.db.Pool().Exec(context.Background(), `UPDATE users SET email_verified = true WHERE email = $1`, email)
+	require.NoError(t, err)
+	_, err = ts.db.Pool().Exec(context.Background(), `DELETE FROM oauth_providers WHERE provider_id = 'g-plain-1'`)
+	require.NoError(t, err)
+
+	stub := oauthStubProvider(t, "g-plain-1", email)
+	restore := auth.SetOAuthEndpointsForTest("google", stub.URL+"/token", stub.URL+"/userinfo")
+	t.Cleanup(restore)
+	ts.srv.EnableTestOAuth("google", "cid", "csecret")
+
+	resp := oauthCallback(ts, t, "webstate3")
+	defer resp.Body.Close()
+	require.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
+	loc := resp.Header.Get("Location")
+	assert.Contains(t, loc, "access_token=")
+	assert.NotContains(t, loc, "requires_2fa")
+}
+
+func TestTwoFADecoyLoginRequiresSecondFactor(t *testing.T) {
+	ts := setupTestServer(t)
+	const email = "twofa-decoy@example.com"
+	const password = "SecurePass@123!"
+	const decoyPassword = "duress-pass-99"
+
+	real, secret := setup2FA(ts, t, email, password)
+	requireStatus(t, ts.POST("/api/decoy/setup", map[string]interface{}{"decoy_password": decoyPassword}, real), http.StatusOK)
+
+	resp := ts.POST("/api/auth/login", map[string]string{"email": email, "password": decoyPassword}, "")
+	body := requireStatus(t, resp, http.StatusOK)
+	var challenge struct {
+		AccessToken string `json:"access_token"`
+		Requires2FA bool   `json:"requires_2fa"`
+		TempToken   string `json:"temp_token"`
+	}
+	require.NoError(t, jsonUnmarshal(body, &challenge))
+	assert.True(t, challenge.Requires2FA, "the decoy password alone must not mint a session")
+	assert.Empty(t, challenge.AccessToken)
+	require.NotEmpty(t, challenge.TempToken)
+
+	resp = ts.POST("/api/auth/2fa/verify", map[string]string{"temp_token": challenge.TempToken, "code": "000000"}, "")
+	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	resp.Body.Close()
+
+	resp = ts.POST("/api/auth/2fa/verify", map[string]string{
+		"temp_token": challenge.TempToken,
+		"code":       auth.TOTPCodeAt(secret, time.Now().Add(30*time.Second)),
+	}, "")
+	body = requireStatus(t, resp, http.StatusOK)
+	var tokens struct {
+		AccessToken string `json:"access_token"`
+	}
+	require.NoError(t, jsonUnmarshal(body, &tokens))
+	require.NotEmpty(t, tokens.AccessToken)
+
+	activity := requireStatus(t, ts.GET("/api/auth/activity", tokens.AccessToken), http.StatusOK)
+	assert.JSONEq(t, `[]`, string(activity), "the session that follows the second factor is a decoy one")
 }

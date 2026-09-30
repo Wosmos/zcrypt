@@ -282,13 +282,13 @@ func (s *Server) HandleAppDownload(w http.ResponseWriter, r *http.Request) {
 	// request context is cancelled the instant the redirect is written) but
 	// should still carry the request's values.
 	writeCtx := context.WithoutCancel(r.Context())
-	go func() {
+	s.goBackground(func() {
 		ctx, cancel := context.WithTimeout(writeCtx, 5*time.Second)
 		defer cancel()
 		if err := s.db.InsertAppDownload(ctx, rec); err != nil {
 			log.Printf("download: record %s: %v", t.name, err)
 		}
-	}()
+	})
 
 	http.Redirect(w, r, url, http.StatusFound)
 }
