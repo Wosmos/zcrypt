@@ -1,27 +1,22 @@
 "use client";
 
-import { useCallback, useState } from "react";
 import { SystemStatsCards } from "@/components/admin/system-stats";
 import { TokenManagement } from "@/components/admin/token-management";
 import { FeedbackList } from "@/components/admin/feedback-list";
-import { adminGetStats, adminListTokens } from "@/lib/api";
 import { Role } from "@/types";
-import type { SystemStats, PlatformTokenInfo } from "@/types";
 import { OverviewSkeleton } from "@/components/admin/skeletons";
 import { LoadErrorPanel } from "@/components/admin/load-error-panel";
-import { useAdminGuardedFetch } from "@/hooks/useAdminGuardedFetch";
+import { useAdminQuery, fetchAdminOverview } from "@/hooks/useAdminGuardedFetch";
+import { qk } from "@/lib/query-keys";
 import { AlertTriangle } from "@/lib/icons";
 
 export function AdminOverviewContent() {
-  const [stats, setStats] = useState<SystemStats | null>(null);
-  const [tokens, setTokens] = useState<PlatformTokenInfo[]>([]);
-
-  const fetcher = useCallback(async () => {
-    const [s, t] = await Promise.all([adminGetStats(), adminListTokens()]);
-    setStats(s);
-    setTokens(t);
-  }, []);
-  const { user, loading, error, refresh } = useAdminGuardedFetch(fetcher);
+  const { user, data, loading, error, refresh } = useAdminQuery(
+    qk.adminOverview,
+    fetchAdminOverview,
+  );
+  const stats = data?.stats ?? null;
+  const tokens = data?.tokens ?? [];
 
   if (!user || user.role !== Role.Admin) return null;
 

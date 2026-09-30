@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { qk } from "@/lib/query-keys";
 import { getUserActivity, type AuditEvent } from "@/lib/auth-api";
 import { useAuthStore } from "@/store/auth";
 import { formatDateTime, formatRelativeTime } from "@/lib/utils";
@@ -11,6 +13,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Shield, Activity } from "@/lib/icons";
 
 const PAGE_SIZE = 10;
+const EMPTY_EVENTS: AuditEvent[] = [];
 
 const eventLabels: Record<string, string> = {
   login: "Signed in",
@@ -51,18 +54,15 @@ function parseUserAgent(ua: string): string {
 }
 
 export function SecurityActivity() {
-  const { accessToken } = useAuthStore();
-  const [events, setEvents] = useState<AuditEvent[]>([]);
-  const [loading, setLoading] = useState(true);
+  const hasToken = useAuthStore((s) => !!s.accessToken);
   const [page, setPage] = useState(1);
-
-  useEffect(() => {
-    if (!accessToken) return;
-    getUserActivity(accessToken)
-      .then(setEvents)
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [accessToken]);
+  const query = useQuery({
+    queryKey: qk.securityActivity,
+    queryFn: () => getUserActivity(useAuthStore.getState().accessToken ?? ""),
+    enabled: hasToken,
+  });
+  const events: AuditEvent[] = query.data ?? EMPTY_EVENTS;
+  const loading = query.isPending;
 
   const totalPages = Math.max(1, Math.ceil(events.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);

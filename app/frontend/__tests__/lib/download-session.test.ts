@@ -46,6 +46,7 @@ const { getUser, getVaultPass, deriveNameKey, decryptName } = vi.hoisted(() => (
 vi.mock("@/store/auth", () => ({ useAuthStore: { getState: () => ({ user: getUser() }) } }));
 vi.mock("@/store/passphrase", () => ({ usePassphraseStore: { getState: () => ({ getPassphrase: getVaultPass }) } }));
 vi.mock("@/lib/name-crypto", () => ({ deriveNameKey, decryptName }));
+vi.mock("@/lib/sealed", () => ({ nameKeyFor: deriveNameKey }));
 
 const { getDeviceProfile } = vi.hoisted(() => ({ getDeviceProfile: vi.fn() }));
 vi.mock("@/lib/device-profile", () => ({ getDeviceProfile }));

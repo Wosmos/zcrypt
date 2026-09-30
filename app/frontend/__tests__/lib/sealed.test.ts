@@ -18,7 +18,9 @@ import {
   keyFromBytes,
   userNameKey,
   requireNameKey,
+  nameKeyFor,
 } from "@/lib/sealed";
+import { clearDecryptCache } from "@/lib/decrypt-cache";
 
 async function freshKey(): Promise<CryptoKey> {
   return keyFromBytes(crypto.getRandomValues(new Uint8Array(32)));
@@ -100,6 +102,22 @@ describe("sealed metadata", () => {
     const k2 = await userNameKey();
     expect(k1).toBe(k2); // memoized promise result
     store.passphrase = "different";
+    expect(await userNameKey()).not.toBe(k1);
+  });
+
+  it("nameKeyFor shares the one memo with userNameKey", async () => {
+    store.user = { id: "u2" };
+    store.passphrase = "shared";
+    const viaStore = await userNameKey();
+    expect(await nameKeyFor("shared", "u2")).toBe(viaStore);
+    expect(await nameKeyFor("other", "u2")).not.toBe(viaStore);
+  });
+
+  it("drops the memoized key on lock / logout (clearDecryptCache)", async () => {
+    store.user = { id: "u3" };
+    store.passphrase = "p";
+    const k1 = await userNameKey();
+    clearDecryptCache();
     expect(await userNameKey()).not.toBe(k1);
   });
 });

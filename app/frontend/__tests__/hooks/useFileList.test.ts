@@ -3,17 +3,15 @@ import { act, renderHook } from "@testing-library/react";
 import { useFileList } from "@/hooks/useFileList";
 import type { FileMetadata } from "@/types";
 
-const { useFilesQuery, setFilesData, invalidateFiles, hydrateFilesFromCache } = vi.hoisted(() => ({
+const { useFilesQuery, setFilesData, invalidateFiles } = vi.hoisted(() => ({
   useFilesQuery: vi.fn(),
   setFilesData: vi.fn(),
   invalidateFiles: vi.fn(async () => {}),
-  hydrateFilesFromCache: vi.fn(async () => {}),
 }));
 vi.mock("@/store/files", () => ({
   useFilesQuery,
   setFilesData,
   invalidateFiles,
-  hydrateFilesFromCache,
 }));
 
 function file(id: string): FileMetadata {
@@ -33,11 +31,6 @@ describe("useFileList", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useFilesQuery.mockReturnValue({ data: undefined, isPending: false, error: null });
-  });
-
-  it("seeds from the OPFS cache on mount", () => {
-    renderHook(() => useFileList());
-    expect(hydrateFilesFromCache).toHaveBeenCalledTimes(1);
   });
 
   it("defaults files to an empty array when the query has no data yet", () => {

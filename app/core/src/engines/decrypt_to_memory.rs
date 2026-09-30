@@ -120,9 +120,11 @@ pub async fn run(
         let pass = passphrase.to_string();
         let uid = user_id.to_string();
         Some(
-            tokio::task::spawn_blocking(move || crypto::derive_dedup_key(&pass, &uid).to_vec())
-                .await
-                .map_err(|e| EngineError::Other(format!("join: {e}")))?,
+            tokio::task::spawn_blocking(move || {
+                crypto::derive_dedup_key_cached(&pass, &uid).to_vec()
+            })
+            .await
+            .map_err(|e| EngineError::Other(format!("join: {e}")))?,
         )
     } else {
         None

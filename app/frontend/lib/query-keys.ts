@@ -27,15 +27,35 @@ export const qk = {
   fileMeta: (fileId: string) => ["file-meta", fileId] as const,
   // Public folder links for a given folder.
   folderShares: (folderId: string) => ["folder-shares", folderId] as const,
-  // Insights/analytics: server-aggregated, keyed by the resolved [start,end)
-  // window so switching the date-range preset is a fresh (small, indexed)
-  // fetch, while reloading/reopening the SAME range serves cache (see
-  // hooks/useAnalytics.ts's staleTime: Infinity).
-  analyticsSummary: (start: string, end: string) => ["analytics", "summary", start, end] as const,
-  analyticsTimeseries: (start: string, end: string, bucket: string) =>
-    ["analytics", "timeseries", start, end, bucket] as const,
-  analyticsFileTypes: (start: string, end: string) =>
-    ["analytics", "file-types", start, end] as const,
+  // Insights/analytics: server-aggregated, keyed by the range's stable key
+  // (preset + local day, or the custom dates), never by millisecond bounds, so
+  // reopening the same range serves cache. The exact ISO window is computed
+  // inside each queryFn at fetch time (see hooks/useAnalytics.ts).
+  analyticsSummary: (rangeKey: string) => ["analytics", "summary", rangeKey] as const,
+  analyticsTimeseries: (rangeKey: string, bucket: string) =>
+    ["analytics", "timeseries", rangeKey, bucket] as const,
+  analyticsFileTypes: (rangeKey: string) => ["analytics", "file-types", rangeKey] as const,
   analyticsStorageGrowth: ["analytics", "storage-growth"] as const,
   recentUploads: (limit: number) => ["analytics", "recent", limit] as const,
+  // Admin console. One root so every admin view shares the 2m stale time and
+  // keeps the previous page while a new filter/page loads.
+  adminOverview: ["admin", "overview"] as const,
+  adminUsers: ["admin", "users"] as const,
+  adminUser: (id: string) => ["admin", "user", id] as const,
+  adminAudit: (page: number, eventType: string) => ["admin", "audit", page, eventType] as const,
+  adminDownloads: (days: string) => ["admin", "downloads", days] as const,
+  adminFeedback: (offset: number) => ["admin", "feedback", offset] as const,
+  adminPlans: ["admin", "plans"] as const,
+  // Settings + tools. Memory only (never persisted): several hold opened
+  // sealed labels.
+  securityActivity: ["settings", "security-activity"] as const,
+  linkedAccounts: ["settings", "linked-accounts"] as const,
+  deadman: ["settings", "deadman"] as const,
+  decoy: ["settings", "decoy"] as const,
+  devices: (deviceId: string) => ["tools", "devices", deviceId] as const,
+  syncFolders: ["tools", "sync-folders"] as const,
+  expiring: ["tools", "expiring"] as const,
+  integrity: ["tools", "integrity"] as const,
+  snapshots: ["tools", "snapshots"] as const,
+  incompleteUploads: ["uploads", "incomplete"] as const,
 };

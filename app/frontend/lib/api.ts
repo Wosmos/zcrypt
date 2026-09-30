@@ -915,6 +915,8 @@ export function adminGetUser(userId: string): Promise<AdminUserDetail> {
 export function createShare(data: {
   file_id: string;
   wrapped_cek?: string;
+  /** File name sealed (enc1:) under the link key; opaque to the server. */
+  name?: string;
   password?: string;
   expires_in_hours?: number;
   max_downloads?: number;
@@ -1005,7 +1007,7 @@ export interface FolderShareLink {
 export function createFolderShare(body: {
   folder_id?: string;
   name: string;
-  files: { file_id: string; wrapped_cek: string }[];
+  files: { file_id: string; wrapped_cek: string; name?: string }[];
   password?: string;
   expires_in_hours?: number;
   max_downloads?: number;

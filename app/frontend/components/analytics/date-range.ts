@@ -10,6 +10,12 @@ export interface RangeBounds {
   allTime: boolean;
   label: string;
   bucket: Bucket;
+  /** Stable cache identity: the preset (plus custom dates) and the local day.
+   *  Never the millisecond bounds, which differ on every render. */
+  key: string;
+  preset: DateRangePreset;
+  customStart: string | null;
+  customEnd: string | null;
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -33,8 +39,24 @@ export function getRangeBounds(
   customStart: string | null,
   customEnd: string | null,
 ): RangeBounds {
-  const end = new Date();
+  const now = new Date();
+  const day = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+  const custom = preset === "custom" && customStart && customEnd;
+  const meta = {
+    key: custom ? `custom:${customStart}:${customEnd}` : `${preset}:${day}`,
+    preset,
+    customStart,
+    customEnd,
+  };
+  return { ...resolveBounds(preset, customStart, customEnd, now), ...meta };
+}
 
+function resolveBounds(
+  preset: DateRangePreset,
+  customStart: string | null,
+  customEnd: string | null,
+  end: Date,
+): Omit<RangeBounds, "key" | "preset" | "customStart" | "customEnd"> {
   if (preset === "today") {
     const start = new Date(end);
     start.setHours(0, 0, 0, 0);

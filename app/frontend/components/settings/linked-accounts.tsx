@@ -1,6 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { queryClient } from "@/lib/query-client";
+import { qk } from "@/lib/query-keys";
 import {
   getLinkedAccounts,
   unlinkAccount,
@@ -18,21 +21,15 @@ import { cn } from "@/lib/utils";
 
 export function LinkedAccounts() {
   const { accessToken } = useAuthStore();
-  const [data, setData] = useState<LinkedAccountsResponse | null>(null);
-  const [loading, setLoading] = useState(true);
   const [unlinking, setUnlinking] = useState<string | null>(null);
-
-  const refresh = useCallback(() => {
-    if (!accessToken) return;
-    getLinkedAccounts(accessToken)
-      .then(setData)
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [accessToken]);
-
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
+  const query = useQuery({
+    queryKey: qk.linkedAccounts,
+    queryFn: () => getLinkedAccounts(useAuthStore.getState().accessToken ?? ""),
+    enabled: !!accessToken,
+  });
+  const data: LinkedAccountsResponse | null = query.data ?? null;
+  const loading = query.isPending;
+  const refresh = () => void queryClient.invalidateQueries({ queryKey: qk.linkedAccounts });
 
   const handleUnlink = async (provider: string) => {
     if (!accessToken) return;

@@ -34,6 +34,15 @@ export type VaultLockContextValue = UseVaultLock & { ready: boolean };
  * Zero-knowledge: this provider only renders the unlock modal and re-exposes the
  * hook's API. The passphrase never leaves the client and is never logged here.
  */
+// Kick the device-passphrase restore off at module load, not after the first
+// render, so names can decrypt while the shell is still mounting.
+let rehydrating: Promise<void> | null = null;
+function startRehydrate(): Promise<void> {
+  rehydrating ??= usePassphraseStore.getState().rehydrate();
+  return rehydrating;
+}
+if (typeof window !== "undefined") void startRehydrate();
+
 const VaultLockContext = createContext<VaultLockContextValue | null>(null);
 
 export function useVaultLockContext(): VaultLockContextValue {
@@ -59,12 +68,9 @@ export function VaultLockProvider({ children }: { children: React.ReactNode }) {
   // once that attempt settles so the lock overlay can trust `unlocked`.
   useEffect(() => {
     let cancelled = false;
-    void usePassphraseStore
-      .getState()
-      .rehydrate()
-      .finally(() => {
-        if (!cancelled) setReady(true);
-      });
+    void startRehydrate().finally(() => {
+      if (!cancelled) setReady(true);
+    });
     return () => {
       cancelled = true;
     };

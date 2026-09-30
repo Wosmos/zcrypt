@@ -1,6 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { queryClient } from "@/lib/query-client";
+import { qk } from "@/lib/query-keys";
 import { motion } from "motion/react";
 import Link from "next/link";
 import {
@@ -56,23 +59,27 @@ export function DeadManContent() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  // Cached read; the form edits local state seeded once from it, and every
+  // mutation writes its result back so a revisit opens instantly and current.
+  const dmsQuery = useQuery({ queryKey: qk.deadman, queryFn: getDeadManSwitch });
+  const seeded = useRef(false);
+  const settled = !dmsQuery.isPending;
+  const loaded = dmsQuery.data;
   useEffect(() => {
-    getDeadManSwitch()
-      .then((data) => {
-        if (data && data.id) {
-          setDms(data);
-          setContactEmail(data.contact_email);
-          setContactName(data.contact_name);
-          setTimeoutDays(data.timeout_days);
-          setMessage(data.message);
-          setIncludeFiles(data.include_files);
-        } else {
-          setNotConfigured(true);
-        }
-      })
-      .catch(() => setNotConfigured(true))
-      .finally(() => setLoading(false));
-  }, []);
+    if (seeded.current || !settled) return;
+    seeded.current = true;
+    if (loaded && loaded.id) {
+      setDms(loaded);
+      setContactEmail(loaded.contact_email);
+      setContactName(loaded.contact_name);
+      setTimeoutDays(loaded.timeout_days);
+      setMessage(loaded.message);
+      setIncludeFiles(loaded.include_files);
+    } else {
+      setNotConfigured(true);
+    }
+    setLoading(false);
+  }, [settled, loaded]);
 
   const handleSave = async () => {
     setError("");
@@ -95,6 +102,7 @@ export function DeadManContent() {
         include_files: includeFiles,
       });
       setDms(result);
+      queryClient.setQueryData(qk.deadman, result);
       setNotConfigured(false);
       setSuccess("Dead man's switch saved successfully");
     } catch (err) {
@@ -112,6 +120,7 @@ export function DeadManContent() {
       await checkinDeadManSwitch();
       const data = await getDeadManSwitch();
       if (data && data.id) setDms(data);
+      queryClient.setQueryData(qk.deadman, data);
       setSuccess("Check-in successful, timer reset.");
     } catch {
       setError("Check-in failed");
@@ -125,6 +134,7 @@ export function DeadManContent() {
     setError("");
     try {
       await deleteDeadManSwitch();
+      queryClient.removeQueries({ queryKey: qk.deadman });
       setDms(null);
       setNotConfigured(true);
       setContactEmail("");

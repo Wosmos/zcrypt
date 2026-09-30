@@ -231,6 +231,36 @@ pub fn resolve_file_key_cached(
     Ok(resolved)
 }
 
+/// Memoized per-user sub-key: same (passphrase, user) pair derives once per
+/// unlock instead of paying 600k PBKDF2 iterations on every download. Lives in
+/// the same bounded cache, so `clear_key_cache` (lock / logout) drops it too.
+fn derive_user_key_cached(
+    kind: &str,
+    passphrase: &str,
+    user_id: &str,
+    derive: fn(&str, &str) -> [u8; KEY_SIZE],
+) -> [u8; KEY_SIZE] {
+    let cache_key = format!("{kind}:{user_id}:{}", sha256_hex(passphrase.as_bytes()));
+    if let Some(key) = key_cache().lock().unwrap().get(&cache_key) {
+        if let Ok(arr) = <[u8; KEY_SIZE]>::try_from(key.as_slice()) {
+            return arr;
+        }
+    }
+    let key = derive(passphrase, user_id);
+    key_cache().lock().unwrap().put(cache_key, key.to_vec());
+    key
+}
+
+/// Cached [`derive_name_key`].
+pub fn derive_name_key_cached(passphrase: &str, user_id: &str) -> [u8; KEY_SIZE] {
+    derive_user_key_cached("names", passphrase, user_id, derive_name_key)
+}
+
+/// Cached [`derive_dedup_key`].
+pub fn derive_dedup_key_cached(passphrase: &str, user_id: &str) -> [u8; KEY_SIZE] {
+    derive_user_key_cached("dedup", passphrase, user_id, derive_dedup_key)
+}
+
 /// Forget every cached key. Call on vault lock / logout, mirroring the
 /// frontend's own CEK cache eviction.
 pub fn clear_key_cache() {
@@ -336,6 +366,32 @@ mod key_cache_tests {
         let b =
             resolve_file_key_cached("file-collision-test", "passphrase-b", &salt, None).unwrap();
         assert_ne!(a, b);
+    }
+
+    #[test]
+    fn cached_user_keys_match_direct_derivation_and_clear_on_lock() {
+        let (pass, uid) = ("pw-user-key-test", "uid-user-key-test");
+        assert_eq!(
+            derive_name_key_cached(pass, uid),
+            derive_name_key(pass, uid)
+        );
+        assert_eq!(
+            derive_dedup_key_cached(pass, uid),
+            derive_dedup_key(pass, uid)
+        );
+        assert_ne!(
+            derive_name_key_cached(pass, uid),
+            derive_dedup_key_cached(pass, uid)
+        );
+        assert_ne!(
+            derive_name_key_cached(pass, uid),
+            derive_name_key_cached("other-pass", uid)
+        );
+        // No presence check before the clear: other tests clear this shared
+        // static concurrently.
+        let names_key = format!("names:{uid}:{}", sha256_hex(pass.as_bytes()));
+        clear_key_cache();
+        assert!(key_cache().lock().unwrap().get(&names_key).is_none());
     }
 
     #[test]

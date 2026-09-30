@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion } from "motion/react";
 import {
   listIntegritySnapshots,
@@ -8,7 +8,10 @@ import {
   checkFileIntegrity,
   getChangedFiles,
 } from "@/lib/api";
-import { ensureFiles } from "@/store/files";
+import { useFilesQuery } from "@/store/files";
+import { useQuery } from "@tanstack/react-query";
+import { queryClient } from "@/lib/query-client";
+import { qk } from "@/lib/query-keys";
 import type { IntegritySnapshot, FileMetadata } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Section } from "@/components/ui/section";
@@ -37,29 +40,38 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+const NO_SNAPS: IntegritySnapshot[] = [];
+const NO_FILES: FileMetadata[] = [];
+
 export function IntegrityTab() {
-  const [snapshots, setSnapshots] = useState<IntegritySnapshot[]>([]);
+  const integrityQuery = useQuery({
+    queryKey: qk.integrity,
+    queryFn: async () => {
+      const [snaps, changed] = await Promise.all([listIntegritySnapshots(), getChangedFiles()]);
+      return { snaps, changed };
+    },
+  });
+  const snapshots = integrityQuery.data?.snaps ?? NO_SNAPS;
+  const changes = integrityQuery.data?.changed ?? NO_SNAPS;
+  type Lists = { snaps: IntegritySnapshot[]; changed: IntegritySnapshot[] };
+  type Update = (prev: IntegritySnapshot[]) => IntegritySnapshot[];
+  const patch = (field: keyof Lists, fn: Update) =>
+    queryClient.setQueryData<Lists>(qk.integrity, (prev) => {
+      const base = prev ?? { snaps: [], changed: [] };
+      return { ...base, [field]: fn(base[field]) };
+    });
+  const setSnapshots = (fn: Update) => patch("snaps", fn);
+  const setChanges = (fn: Update) => patch("changed", fn);
   // Snapshots no longer carry a plaintext filename (zero-knowledge); resolve the
   // name from the user's own decrypted file list instead.
   const nameOf = (s: IntegritySnapshot) =>
     files.find((f) => f.id === s.file_id)?.original_name || s.file_name || "Deleted file";
-  const [changes, setChanges] = useState<IntegritySnapshot[]>([]);
-  const [files, setFiles] = useState<FileMetadata[]>([]);
-  const [loading, setLoading] = useState(true);
+  const filesQuery = useFilesQuery();
+  const files = filesQuery.data ?? NO_FILES;
+  const loading = integrityQuery.isPending || filesQuery.isPending;
   const [selectedFile, setSelectedFile] = useState("");
   const [creating, setCreating] = useState(false);
   const [checking, setChecking] = useState(false);
-
-  useEffect(() => {
-    Promise.all([listIntegritySnapshots(), getChangedFiles(), ensureFiles()])
-      .then(([snaps, changed, f]) => {
-        setSnapshots(snaps);
-        setChanges(changed);
-        setFiles(f);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
 
   const handleSnapshot = async () => {
     if (!selectedFile) return;
