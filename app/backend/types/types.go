@@ -339,6 +339,46 @@ type FeedbackWithUser struct {
 	Username string `json:"username"`
 }
 
+// BugReport is an in-app bug report. The screenshot bytes are served through a
+// separate admin endpoint and never embedded in list responses.
+type BugReport struct {
+	ID            string    `json:"id"`
+	UserID        *string   `json:"user_id"`
+	Email         string    `json:"email"`
+	Username      string    `json:"username"`
+	Description   string    `json:"description"`
+	HasScreenshot bool      `json:"has_screenshot"`
+	AppVersion    string    `json:"app_version"`
+	Platform      string    `json:"platform"`
+	Route         string    `json:"route"`
+	UserAgent     string    `json:"user_agent"`
+	Status        string    `json:"status"`
+	CreatedAt     time.Time `json:"created_at"`
+}
+
+// Review is an in-app review. Email and Username are only filled for admin
+// listings.
+type Review struct {
+	ID          string    `json:"id"`
+	UserID      string    `json:"user_id"`
+	Email       string    `json:"email,omitempty"`
+	Username    string    `json:"username,omitempty"`
+	Rating      int       `json:"rating"`
+	Quote       string    `json:"quote"`
+	DisplayName string    `json:"display_name"`
+	PublicOK    bool      `json:"public_ok"`
+	Status      string    `json:"status"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+// PublicReview is the subset of a review safe to show on the website.
+type PublicReview struct {
+	DisplayName string `json:"display_name"`
+	Rating      int    `json:"rating"`
+	Quote       string `json:"quote"`
+}
+
 // PlanFeature describes a single feature line in a plan's marketing display.
 type PlanFeature struct {
 	Text     string `json:"text"`
@@ -738,6 +778,31 @@ type SharedVault struct {
 	Role            string    `json:"role,omitempty"`
 	// Optional size cap in bytes (sum of shared files' original sizes). 0 = no limit.
 	SizeLimitBytes int64 `json:"size_limit_bytes"`
+	// NeedsRotation is true after a member removal until the key is rotated.
+	NeedsRotation bool `json:"needs_rotation"`
+	// Card stats, populated by the list endpoint.
+	MemberCount   int                  `json:"member_count"`
+	FileCount     int                  `json:"file_count"`
+	UsedBytes     int64                `json:"used_bytes"`
+	MemberPreview []SharedVaultPreview `json:"member_preview,omitempty"`
+}
+
+// SharedVaultPreview is the minimal member identity shown in a card's avatar stack.
+type SharedVaultPreview struct {
+	UserID   string `json:"user_id"`
+	Username string `json:"username"`
+}
+
+// SharedVaultUpdateRequest renames or re-limits a space. Nil fields are unchanged.
+type SharedVaultUpdateRequest struct {
+	Name           *string `json:"name"`
+	Description    *string `json:"description"`
+	SizeLimitBytes *int64  `json:"size_limit_bytes"`
+}
+
+// SharedVaultRoleRequest changes an existing member's role.
+type SharedVaultRoleRequest struct {
+	Role string `json:"role"`
 }
 
 // SharedVaultMember represents a member of a shared vault. WrappedSpaceKey is

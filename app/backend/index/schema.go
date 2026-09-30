@@ -400,6 +400,38 @@ CREATE TABLE IF NOT EXISTS feedback (
 CREATE INDEX IF NOT EXISTS idx_feedback_user ON feedback(user_id);
 CREATE INDEX IF NOT EXISTS idx_feedback_time ON feedback(created_at DESC);
 
+-- In-app bug reports (user optional so signed-out failures can still be filed)
+CREATE TABLE IF NOT EXISTS bug_reports (
+	id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+	user_id     UUID REFERENCES users(id) ON DELETE SET NULL,
+	description TEXT NOT NULL,
+	screenshot  BYTEA,
+	app_version TEXT NOT NULL DEFAULT '',
+	platform    TEXT NOT NULL DEFAULT '',
+	route       TEXT NOT NULL DEFAULT '',
+	user_agent  TEXT NOT NULL DEFAULT '',
+	status      TEXT NOT NULL DEFAULT 'open',
+	created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_bug_reports_status_time ON bug_reports(status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_bug_reports_time ON bug_reports(created_at DESC);
+
+-- In-app reviews; one per user, shown on the landing page once approved
+CREATE TABLE IF NOT EXISTS reviews (
+	id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+	user_id      UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+	rating       INT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+	quote        TEXT NOT NULL,
+	display_name TEXT NOT NULL,
+	public_ok    BOOLEAN NOT NULL DEFAULT FALSE,
+	status       TEXT NOT NULL DEFAULT 'pending',
+	created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_reviews_status_time ON reviews(status, updated_at DESC);
+
 -- File sharing via public links
 CREATE TABLE IF NOT EXISTS shares (
 	id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -662,6 +694,10 @@ ALTER TABLE shared_vaults ADD COLUMN IF NOT EXISTS size_limit_bytes BIGINT NOT N
 -- zero-knowledge files, and the per-user name key can't be shared, so the name
 -- is sealed under the space key at share time, exactly like the CEK.
 ALTER TABLE shared_vault_files ADD COLUMN IF NOT EXISTS wrapped_name TEXT NOT NULL DEFAULT '';
+
+-- Set when a member is removed; cleared by the next key rotation. Until then new
+-- files are refused so nothing is wrapped under a key the removed member may hold.
+ALTER TABLE shared_vaults ADD COLUMN IF NOT EXISTS needs_rotation BOOLEAN NOT NULL DEFAULT false;
 
 -- Public folder share links. Mirrors single-file shares (shares table) but for a
 -- whole folder: one random folder-share key (kept only in the URL #fragment,
