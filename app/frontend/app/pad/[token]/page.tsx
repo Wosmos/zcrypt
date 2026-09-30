@@ -105,7 +105,7 @@ export default function PadViewPage() {
           <span className="text-xl font-bold font-heading tracking-tight">zcrypt Pad</span>
         </div>
 
-        <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-xl overflow-hidden">
+        <div className="pv2-card pv2-ring corner-squircle overflow-hidden">
           {pageState === "loading" && (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
               <LogoSpinner size={32} />
