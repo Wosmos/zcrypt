@@ -49,6 +49,7 @@ import {
   Monitor,
   ChevronDown,
   Globe,
+  Languages,
   User,
   ShieldAlert,
   Eye,
@@ -570,7 +571,7 @@ function AppearanceContent({
 
       <SettingGroup label={t("languageGroup")}>
         <ValueRow
-          icon={<Globe className="h-4 w-4" />}
+          icon={<Languages className="h-4 w-4" />}
           title={t("languageRow")}
           subtitle={t("languageDesc")}
           trailing={<LanguageSwitcher />}
