@@ -19,8 +19,33 @@ import {
   toArrayBuffer,
 } from "@/lib/crypto";
 import { getFileMeta, createShare } from "@/lib/api";
+import { decryptName } from "@/lib/name-crypto";
+import { sealText, keyFromBytes, userNameKey } from "@/lib/sealed";
 import { invalidateShares } from "@/hooks/useShares";
 import { usePassphraseStore } from "@/store/passphrase";
+
+/**
+ * The owner's file name, sealed under a link key so a recipient can save the
+ * file under its real name while the server only ever sees ciphertext. Uses the
+ * decrypted `encrypted_name`, falling back to the legacy plaintext name.
+ * Returns undefined when no readable name exists (the recipient then sniffs one).
+ */
+export async function sealFileNameForLink(
+  meta: { encrypted_name?: string; original_name?: string },
+  nameKey: CryptoKey | null,
+  linkKey: CryptoKey,
+): Promise<string | undefined> {
+  let name = "";
+  if (meta.encrypted_name && nameKey) {
+    try {
+      name = await decryptName(meta.encrypted_name, nameKey);
+    } catch {
+      name = "";
+    }
+  }
+  name = name || meta.original_name || "";
+  return name ? sealText(name, linkKey) : undefined;
+}
 
 export interface FileShareOptions {
   password?: string;
@@ -58,12 +83,14 @@ export async function createFileShareLink(
   // 2. Wrap the CEK under a fresh random share key.
   const shareKey = generateCEK();
   const shareWrappedCek = await wrapKey(toArrayBuffer(shareKey), cek);
+  const name = await sealFileNameForLink(meta, await userNameKey(), await keyFromBytes(shareKey));
 
   // 3. Create the share storing only the share-wrapped CEK. The share key never
   //    leaves the browser except in the URL fragment below.
   const result = await createShare({
     file_id: fileId,
     wrapped_cek: toBase64(shareWrappedCek),
+    name,
     password: opts.password || undefined,
     expires_in_hours: opts.expiresHours || undefined,
     max_downloads: opts.maxDownloads || undefined,

@@ -380,6 +380,7 @@ type ShareLink struct {
 	Token         string     `json:"token"`
 	PasswordHash  string     `json:"-"`
 	WrappedCEK    string     `json:"wrapped_cek,omitempty"` // file CEK wrapped under the share key (base64)
+	EncName       string     `json:"-"`                     // file name sealed (enc1:) under the share key
 	HasPassword   bool       `json:"has_password"`
 	ExpiresAt     *time.Time `json:"expires_at,omitempty"`
 	MaxDownloads  int        `json:"max_downloads"`
@@ -393,6 +394,7 @@ type ShareLink struct {
 type FolderShareFileInput struct {
 	FileID     string `json:"file_id"`
 	WrappedCEK string `json:"wrapped_cek"`
+	EncName    string `json:"name,omitempty"` // file name sealed (enc1:) under the folder-share key
 }
 
 // CreateFolderShareRequest is the JSON body for creating a public folder link.

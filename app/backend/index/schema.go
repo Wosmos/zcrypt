@@ -423,6 +423,10 @@ CREATE INDEX IF NOT EXISTS idx_shares_file ON shares(file_id);
 -- (the key itself travels only in the share URL fragment, never to the server).
 ALTER TABLE shares ADD COLUMN IF NOT EXISTS wrapped_cek TEXT NOT NULL DEFAULT '';
 
+-- The file name sealed (enc1:) under the share's link key, so a recipient can
+-- save the file under its real name. Opaque to the server; '' on older links.
+ALTER TABLE shares ADD COLUMN IF NOT EXISTS enc_name TEXT NOT NULL DEFAULT '';
+
 -- Anonymous encrypted file sharing (zcrypt Send)
 CREATE TABLE IF NOT EXISTS send_transfers (
 	id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -696,6 +700,9 @@ CREATE TABLE IF NOT EXISTS folder_share_files (
 );
 
 CREATE INDEX IF NOT EXISTS idx_folder_share_files_file ON folder_share_files(file_id);
+
+-- Per-file name sealed (enc1:) under the folder-share key; '' on older links.
+ALTER TABLE folder_share_files ADD COLUMN IF NOT EXISTS enc_name TEXT NOT NULL DEFAULT '';
 
 -- Offline vault (pinned files for offline access)
 CREATE TABLE IF NOT EXISTS offline_pins (
