@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import "@/components/marketing/landing/base.css";
 
 // Under `output: export` (the Tauri desktop build) Next 16 requires at least
 // one concrete param per dynamic segment; an empty array is rejected with
@@ -33,7 +34,7 @@ export function formatShortExpiry(expiresAt: string): string {
 
 export function TokenViewerMain({ children }: { children: ReactNode }) {
   return (
-    <main className="min-h-dvh flex items-center justify-center bg-[var(--color-bg)] p-4 pt-safe pb-safe px-safe">
+    <main className="pv2 min-h-dvh flex items-center justify-center bg-[var(--color-bg)] p-4 pt-safe pb-safe px-safe">
       {children}
     </main>
   );

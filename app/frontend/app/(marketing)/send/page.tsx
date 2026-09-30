@@ -3,9 +3,9 @@ import { SendTool } from "@/components/tools/send-tool";
 import { Shield, Lock, Clock, Eye, Zap, Server } from "@/lib/icons";
 import { toolMetadata } from "@/lib/tool-metadata";
 import {
-  ToolPageShell,
   ToolHero,
   ToolSection,
+  ToolBand,
   StepGrid,
   FeatureGrid,
   ToolCta,
@@ -73,7 +73,7 @@ const features: ToolFeature[] = [
 
 export default function SendPublicPage() {
   return (
-    <ToolPageShell>
+    <>
       <ToolHero
         badgeIcon={Lock}
         badgeLabel="End-to-end encrypted"
@@ -88,36 +88,30 @@ export default function SendPublicPage() {
       </ToolSection>
 
       {/* How it works */}
-      <section className="py-16 sm:py-20 border-t border-[var(--color-border)]">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl sm:text-3xl font-bold font-heading tracking-tight text-center mb-4">
-            How encrypted file sharing works
-          </h2>
-          <p className="text-center text-[var(--color-text-secondary)] mb-12 max-w-xl mx-auto">
-            Three steps. No accounts. No tracking. Your privacy is built into the protocol.
-          </p>
-
-          <StepGrid
-            steps={[
-              {
-                step: "1",
-                title: "Drop your file",
-                desc: "Select any file up to 50 MB. It never leaves your browser unencrypted.",
-              },
-              {
-                step: "2",
-                title: "Automatic encryption",
-                desc: "Your file is encrypted with a unique AES-256-GCM key generated in your browser.",
-              },
-              {
-                step: "3",
-                title: "Share the link",
-                desc: "The decryption key is embedded in the URL fragment. Only the recipient can decrypt.",
-              },
-            ]}
-          />
-        </div>
-      </section>
+      <ToolBand
+        title="How encrypted file sharing works"
+        lede="Three steps. No accounts. No tracking. Your privacy is built into the protocol."
+      >
+        <StepGrid
+          steps={[
+            {
+              step: "1",
+              title: "Drop your file",
+              desc: "Select any file up to 50 MB. It never leaves your browser unencrypted.",
+            },
+            {
+              step: "2",
+              title: "Automatic encryption",
+              desc: "Your file is encrypted with a unique AES-256-GCM key generated in your browser.",
+            },
+            {
+              step: "3",
+              title: "Share the link",
+              desc: "The decryption key is embedded in the URL fragment. Only the recipient can decrypt.",
+            },
+          ]}
+        />
+      </ToolBand>
 
       {/* Features grid */}
       <FeatureGrid heading="Built for privacy, designed for simplicity" features={features} />
@@ -127,6 +121,6 @@ export default function SendPublicPage() {
         heading="Need more than 50 MB?"
         description="Create a free zcrypt account for 10 GB of zero-knowledge encrypted cloud storage, larger file transfers, and persistent encrypted notes."
       />
-    </ToolPageShell>
+    </>
   );
 }

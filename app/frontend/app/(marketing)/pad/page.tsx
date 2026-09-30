@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { PadTool } from "@/components/tools/pad-tool";
 import { Shield, Lock, Clock, Eye, Zap, FileText } from "@/lib/icons";
+import { MarketingCard } from "@/components/marketing/ui/card";
 import { toolMetadata } from "@/lib/tool-metadata";
 import {
-  ToolPageShell,
   ToolHero,
   ToolSection,
+  ToolBand,
   StepGrid,
   FeatureGrid,
   ToolCta,
@@ -73,7 +74,7 @@ const features: ToolFeature[] = [
 
 export default function PadPublicPage() {
   return (
-    <ToolPageShell>
+    <>
       <ToolHero
         badgeIcon={Shield}
         badgeLabel="Zero-knowledge text sharing"
@@ -88,84 +89,68 @@ export default function PadPublicPage() {
       </ToolSection>
 
       {/* How it works */}
-      <section className="py-16 sm:py-20 border-t border-[var(--color-border)]">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl sm:text-3xl font-bold font-heading tracking-tight text-center mb-4">
-            How encrypted text sharing works
-          </h2>
-          <p className="text-center text-[var(--color-text-secondary)] mb-12 max-w-xl mx-auto">
-            Type. Encrypt. Share. The server never sees your plaintext.
-          </p>
-
-          <StepGrid
-            steps={[
-              {
-                step: "1",
-                title: "Type or paste",
-                desc: "Enter your text. It stays in your browser until you encrypt.",
-              },
-              {
-                step: "2",
-                title: "One-click encrypt",
-                desc: "A unique AES-256-GCM key is generated. Your text is encrypted locally and uploaded.",
-              },
-              {
-                step: "3",
-                title: "Share the link",
-                desc: "The key is embedded in the URL fragment. Only people with the link can read it.",
-              },
-            ]}
-          />
-        </div>
-      </section>
+      <ToolBand
+        title="How encrypted text sharing works"
+        lede="Type. Encrypt. Share. The server never sees your plaintext."
+      >
+        <StepGrid
+          steps={[
+            {
+              step: "1",
+              title: "Type or paste",
+              desc: "Enter your text. It stays in your browser until you encrypt.",
+            },
+            {
+              step: "2",
+              title: "One-click encrypt",
+              desc: "A unique AES-256-GCM key is generated. Your text is encrypted locally and uploaded.",
+            },
+            {
+              step: "3",
+              title: "Share the link",
+              desc: "The key is embedded in the URL fragment. Only people with the link can read it.",
+            },
+          ]}
+        />
+      </ToolBand>
 
       {/* Features grid */}
       <FeatureGrid heading="Private by design" features={features} />
 
       {/* Use cases */}
-      <section className="py-16 sm:py-20 border-t border-[var(--color-border)]">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl sm:text-3xl font-bold font-heading tracking-tight text-center mb-12">
-            Common use cases
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[
-              {
-                title: "Passwords",
-                desc: "Share login credentials securely with burn-after-read enabled.",
-              },
-              {
-                title: "API keys",
-                desc: "Send API keys and tokens without exposing them in email or chat.",
-              },
-              {
-                title: "Code snippets",
-                desc: "Share code with colleagues that auto-expires when no longer needed.",
-              },
-              {
-                title: "Private notes",
-                desc: "Send confidential information that disappears after reading.",
-              },
-            ].map((c) => (
-              <div
-                key={c.title}
-                className="p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]"
-              >
-                <h3 className="text-sm font-semibold mb-1">{c.title}</h3>
-                <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed">
-                  {c.desc}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <ToolBand title="Common use cases">
+        <ul className="grid list-none grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            {
+              title: "Passwords",
+              desc: "Share login credentials securely with burn-after-read enabled.",
+            },
+            {
+              title: "API keys",
+              desc: "Send API keys and tokens without exposing them in email or chat.",
+            },
+            {
+              title: "Code snippets",
+              desc: "Share code with colleagues that auto-expires when no longer needed.",
+            },
+            {
+              title: "Private notes",
+              desc: "Send confidential information that disappears after reading.",
+            },
+          ].map((c) => (
+            <MarketingCard key={c.title} as="li" size="sm" className="p-6">
+              <h3 className="pv2-h3">{c.title}</h3>
+              <p className="pv2-body mt-2">{c.desc}</p>
+            </MarketingCard>
+          ))}
+        </ul>
+      </ToolBand>
 
       {/* CTA */}
       <ToolCta
         heading="Need persistent encrypted notes?"
         description="Create a free zcrypt account for encrypted personal notes, 10 GB of cloud storage, and more."
       />
-    </ToolPageShell>
+    </>
   );
 }

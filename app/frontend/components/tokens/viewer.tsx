@@ -17,11 +17,7 @@ import { formatBytes, easeProgress } from "@/lib/utils";
 
 /** The card container: rounded surface with border + shadow, clipping children. */
 export function ViewerCard({ children }: { children: ReactNode }) {
-  return (
-    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-xl overflow-hidden">
-      {children}
-    </div>
-  );
+  return <div className="pv2-card pv2-ring corner-squircle overflow-hidden">{children}</div>;
 }
 
 /** Centered spinner + a caption while the link's info is loading. */

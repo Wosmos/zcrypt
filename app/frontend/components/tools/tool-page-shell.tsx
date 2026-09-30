@@ -1,14 +1,9 @@
 import type { ReactNode } from "react";
-import Link from "next/link";
-import { MarketingNav } from "@/components/marketing/nav";
-import { MarketingFooter } from "@/components/marketing/footer";
-
-/**
- * Shared scaffolding for the anonymous tool landing pages (pad / send /
- * transfer). Each page assembles these blocks with its own copy, feature list,
- * and tool composer; the pad/send-vs-transfer "how it works" variants stay
- * inline per page (deliberately not unified).
- */
+import { PageHero } from "@/components/marketing/ui/page-hero";
+import { IconWell, MarketingCard } from "@/components/marketing/ui/card";
+import { SectionHead, headId } from "@/components/marketing/landing/section-head";
+import { ClosingCta } from "@/components/marketing/landing/closing-cta";
+import { cn } from "@/lib/utils";
 
 type ToolIcon = typeof import("@/lib/icons")["File"];
 
@@ -18,20 +13,6 @@ export interface ToolFeature {
   desc: string;
 }
 
-/** Page frame: full-height column with the marketing nav, main region, footer. */
-export function ToolPageShell({ children }: { children: ReactNode }) {
-  return (
-    <div className="min-h-dvh flex flex-col bg-[var(--color-bg)] pb-safe px-safe">
-      <MarketingNav />
-
-      <main className="flex-1">{children}</main>
-
-      <MarketingFooter />
-    </div>
-  );
-}
-
-/** Centered hero: pill badge, two-tone heading, and a lead paragraph. */
 export function ToolHero({
   badgeIcon: BadgeIcon,
   badgeLabel,
@@ -46,32 +27,30 @@ export function ToolHero({
   subtitle: string;
 }) {
   return (
-    <section className="pt-28 pb-8 sm:pt-32 sm:pb-12">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 text-center">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] text-xs font-medium text-[var(--color-text-muted)] mb-6">
+    <PageHero
+      badge={
+        <span className="mb-5 inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1 text-xs font-medium text-[var(--color-text-muted)]">
           <BadgeIcon className="h-3 w-3 text-[var(--color-accent)]" />
           {badgeLabel}
-        </div>
-        <h1 className="text-4xl sm:text-5xl font-bold font-heading tracking-tight leading-tight">
+        </span>
+      }
+      title={
+        <>
           {titleLead} <span className="text-[var(--color-accent)]">{titleAccent}</span>
-        </h1>
-        <p className="mt-4 text-lg text-[var(--color-text-secondary)] max-w-2xl mx-auto leading-relaxed">
-          {subtitle}
-        </p>
-      </div>
-    </section>
+        </>
+      }
+      accent={false}
+      lede={subtitle}
+    />
   );
 }
 
-/**
- * Tool composer container. `maxWidth` is a full Tailwind class (e.g. "max-w-2xl"
- * for pad, "max-w-lg" for send/transfer) so the JIT can still see it at the
- * call site.
- */
 export function ToolSection({ maxWidth, children }: { maxWidth: string; children: ReactNode }) {
   return (
-    <section className="pb-16 sm:pb-20">
-      <div className={`mx-auto ${maxWidth} px-4 sm:px-6`}>{children}</div>
+    <section className="pv2-sec pv2-sec-join">
+      <div className="pv2-wrap">
+        <div className={cn("mx-auto", maxWidth)}>{children}</div>
+      </div>
     </section>
   );
 }
@@ -82,75 +61,64 @@ export interface ToolStep {
   desc: string;
 }
 
-/** Numbered "how it works" card grid: 3 steps, shared by the tool pages. */
+export function ToolBand({
+  title,
+  lede,
+  children,
+}: {
+  title: string;
+  lede?: string;
+  children: ReactNode;
+}) {
+  const id = headId(title);
+  return (
+    <section className="pv2-sec" aria-labelledby={id}>
+      <div className="pv2-wrap">
+        <SectionHead id={id} title={title} lede={lede} />
+        {children}
+      </div>
+    </section>
+  );
+}
+
 export function StepGrid({ steps }: { steps: ToolStep[] }) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <ol className="grid list-none grid-cols-1 gap-4 md:grid-cols-3">
       {steps.map((s) => (
-        <div
-          key={s.step}
-          className="relative p-6 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]"
-        >
-          <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-[var(--color-accent)]/10 text-[var(--color-accent)] font-bold text-lg mb-4">
+        <MarketingCard key={s.step} as="li" size="sm" className="p-6 sm:p-7">
+          <span className="pv2-ic corner-squircle text-lg font-bold" aria-hidden="true">
             {s.step}
-          </div>
-          <h3 className="text-base font-semibold mb-2">{s.title}</h3>
-          <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">{s.desc}</p>
-        </div>
+          </span>
+          <h3 className="pv2-h3 mt-5">{s.title}</h3>
+          <p className="pv2-body mt-2">{s.desc}</p>
+        </MarketingCard>
       ))}
-    </div>
+    </ol>
   );
 }
 
-/** Feature grid on a surface band: heading plus a responsive card grid. */
 export function FeatureGrid({ heading, features }: { heading: string; features: ToolFeature[] }) {
   return (
-    <section className="py-16 sm:py-20 border-t border-[var(--color-border)] bg-[var(--color-surface)]">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        <h2 className="text-2xl sm:text-3xl font-bold font-heading tracking-tight text-center mb-12">
-          {heading}
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {features.map((f) => (
-            <div
-              key={f.title}
-              className="p-5 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)]"
-            >
-              <f.icon className="h-5 w-5 text-[var(--color-accent)] mb-3" />
-              <h3 className="text-sm font-semibold mb-1">{f.title}</h3>
-              <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed">{f.desc}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
+    <ToolBand title={heading}>
+      <ul className="grid list-none grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {features.map((f) => (
+          <MarketingCard key={f.title} as="li" size="sm" className="p-6 sm:p-7">
+            <IconWell icon={f.icon} />
+            <h3 className="pv2-h3 mt-5">{f.title}</h3>
+            <p className="pv2-body mt-2">{f.desc}</p>
+          </MarketingCard>
+        ))}
+      </ul>
+    </ToolBand>
   );
 }
 
-/** Closing call-to-action: heading, blurb, and the register / features buttons. */
 export function ToolCta({ heading, description }: { heading: string; description: string }) {
   return (
-    <section className="py-16 sm:py-20 border-t border-[var(--color-border)]">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 text-center">
-        <h2 className="text-2xl sm:text-3xl font-bold font-heading tracking-tight mb-4">
-          {heading}
-        </h2>
-        <p className="text-[var(--color-text-secondary)] mb-8 max-w-md mx-auto">{description}</p>
-        <div className="flex items-center justify-center gap-3">
-          <Link
-            href="/register"
-            className="px-6 py-2.5 text-sm font-semibold bg-[var(--color-text)] text-[var(--color-bg)] rounded-xl hover:opacity-90 transition-opacity"
-          >
-            Get started free
-          </Link>
-          <Link
-            href="/features"
-            className="px-6 py-2.5 text-sm font-medium border border-[var(--color-border)] rounded-xl hover:bg-[var(--color-surface-1)] transition-colors"
-          >
-            See features
-          </Link>
-        </div>
-      </div>
-    </section>
+    <ClosingCta
+      title={heading}
+      subtext={description}
+      secondary={{ href: "/features", label: "See features" }}
+    />
   );
 }
