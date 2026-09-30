@@ -5,7 +5,6 @@ import { useTranslations } from "next-intl";
 import { Logo } from "@/components/ui/logo";
 import { ArrowUpRight, BookOpen, Github } from "@/lib/icons";
 import { WOSMO, WosmoWordmark } from "@/components/marketing/wosmo";
-import { LanguageSwitcher } from "@/components/ui/language-switcher";
 
 const GITHUB_REPO_URL = "https://github.com/Wosmos/zcrypt";
 
@@ -189,7 +188,6 @@ export function MarketingFooter() {
             </a>
 
             <div className="flex flex-wrap items-center gap-[0.7rem] md:justify-self-end">
-              <LanguageSwitcher variant="footer" />
               <a
                 href={GITHUB_REPO_URL}
                 target="_blank"
