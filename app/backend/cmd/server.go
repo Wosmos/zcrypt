@@ -599,7 +599,7 @@ func (s *Server) invalidateGlobalAdapterCache() {
 func (s *Server) SendRateLimitMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ip := s.clientIP(r)
-		if !s.sendLimiter.allow(ip) {
+		if !s.devMode && !s.sendLimiter.allow(ip) {
 			http.Error(w, `{"error":"too many send requests, try again later"}`, http.StatusTooManyRequests)
 			return
 		}
@@ -610,7 +610,7 @@ func (s *Server) SendRateLimitMiddleware(next http.HandlerFunc) http.HandlerFunc
 func (s *Server) PadRateLimitMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ip := s.clientIP(r)
-		if !s.padLimiter.allow(ip) {
+		if !s.devMode && !s.padLimiter.allow(ip) {
 			http.Error(w, `{"error":"too many pad requests, try again later"}`, http.StatusTooManyRequests)
 			return
 		}
@@ -898,7 +898,14 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	// Maintenance-mode toggle for the Neon rotation write-freeze (internal use
 	// only; authenticated by static secret, see HandleMaintenanceToggle).
 	mux.HandleFunc("POST /api/internal/maintenance", maxJSON(s.HandleMaintenanceToggle))
+
+	for _, register := range testRoutes {
+		register(s, mux)
+	}
 }
+
+// testRoutes is populated only by files built under the `integration` tag.
+var testRoutes []func(s *Server, mux *http.ServeMux)
 
 // maintenancePassthroughPaths are exempt from the maintenance-mode 503 gate
 // even during a freeze: the toggle endpoint itself (or it could never be
