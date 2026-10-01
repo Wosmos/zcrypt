@@ -542,7 +542,7 @@ if [ "$RUN_FE" = 1 ]; then
   step "frontend duplication ${DIM}(inspect · jscpd · ${MODE_LABEL})${RST}"
   jlog="$LOGDIR/jscpd.log"
   (cd "$FE" && bun run dupes) >"$jlog" 2>&1
-  jcount="$(grep -oE 'Found [0-9]+ clones' "$jlog" | grep -oE '[0-9]+' | head -1)"; jcount="${jcount:-0}"
+  jcount="$(grep -oE 'Found [0-9]+ (exact )?clones' "$jlog" | grep -oE '[0-9]+' | head -1)"; jcount="${jcount:-0}"
   jtotal="$(grep -E '^\s*Total:' "$jlog" | head -1 | tr -s ' ')"
   [ "$jcount" -gt 0 ] && { [ -n "$jtotal" ] && note "$jtotal"; note "→ cd app/frontend && bun run dupes"; }
   handle_backlog "frontend duplication" "$jcount"
@@ -647,7 +647,7 @@ if [ "$ENFORCE" = 1 ]; then
     step "frontend new-code duplication ${DIM}(harden · jscpd on changed files)${RST}"
     hlog="$LOGDIR/frontend_new-code_duplication.log"
     (cd "$FE" && bunx jscpd --silent "${fe_arr[@]}") >"$hlog" 2>&1
-    hclones="$(grep -oE 'Found [0-9]+ clones' "$hlog" | head -1)"
+    hclones="$(grep -oE 'Found [0-9]+ (exact )?clones' "$hlog" | head -1)"
     if [ -z "$hclones" ] || echo "$hclones" | grep -q 'Found 0 '; then
       PASS+=("frontend new-code duplication"); ok "no copy-paste in changed files"
     else
