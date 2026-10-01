@@ -306,7 +306,6 @@ html:not([data-zh-placed]) .zh-frame {
   border: 1px solid var(--zh-border-h);
   background: var(--zh-bg);
   overflow: hidden;
-  contain: paint;
   box-shadow:
     0 40px 80px -40px rgba(16, 24, 40, 0.3),
     0 12px 28px -16px rgba(16, 24, 40, 0.18),
