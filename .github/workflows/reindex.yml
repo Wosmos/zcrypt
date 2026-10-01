@@ -23,7 +23,7 @@ jobs:
     name: Nudge search engines to recrawl
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Wait for Vercel deploy to land
         run: sleep 60
