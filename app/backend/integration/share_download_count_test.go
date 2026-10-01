@@ -253,12 +253,12 @@ func TestShareCapIsEnforcedWithoutClientCompletion(t *testing.T) {
 		assert.Equal(t, http.StatusForbidden, ts.getShared(base+"/chunks/0", "").StatusCode)
 	})
 
-	t.Run("a ticketless client is counted when it fetches the last chunk", func(t *testing.T) {
+	t.Run("a ticketless client cannot fetch or spend a capped link", func(t *testing.T) {
 		token := newLink()
 		base := "/api/share/" + token
-		assert.Equal(t, []int{200, 200, 200}, fetchAll(base, ""))
-		assert.Equal(t, 1, ts.linkCount("shares", token))
-		assert.Equal(t, http.StatusForbidden, ts.getShared(base+"/meta", "").StatusCode)
+		assert.Equal(t, []int{403, 403, 403}, fetchAll(base, ""))
+		assert.Equal(t, 0, ts.linkCount("shares", token))
+		assert.Equal(t, http.StatusOK, ts.getShared(base+"/meta", "").StatusCode)
 	})
 
 	t.Run("an abandoned download does not burn the link", func(t *testing.T) {
