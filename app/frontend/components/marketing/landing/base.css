@@ -79,3 +79,10 @@ a.pv2-card, .pv2-card-link { transition: transform 200ms var(--ease-hover), box-
   display: block !important;
   width: 100%;
 }
+
+.pv2 [data-offscreen],
+.pv2 [data-offscreen] *,
+.pv2 [data-offscreen] *::before,
+.pv2 [data-offscreen] *::after {
+  animation-play-state: paused !important;
+}

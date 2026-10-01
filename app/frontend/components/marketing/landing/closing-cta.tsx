@@ -34,7 +34,7 @@ export function ClosingCta({
     >
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-cyan-500/5 to-transparent" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-500/8 dark:bg-cyan-500/3 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full bg-[radial-gradient(closest-side,rgb(6_182_212/0.08),transparent)] dark:bg-[radial-gradient(closest-side,rgb(6_182_212/0.03),transparent)]" />
       </div>
 
       <div className="relative mx-auto max-w-2xl text-center">
