@@ -118,6 +118,7 @@ function TourController({ children }: { children: ReactNode }) {
             if (tour === "share" && userId) markTourSeen(userId, "share-copy");
           }}
           displayArrow={false}
+          clickThroughOverlay
           disableConsoleLogs
           noInViewScroll={false}
           scrollToTop={false}

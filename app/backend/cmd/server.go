@@ -98,6 +98,8 @@ type Server struct {
 	transferHub *transferHub
 
 	// Desktop OAuth: temporary token store for poll-based auth flow
+	bgWG sync.WaitGroup
+
 	desktopSessionsMu sync.Mutex
 	desktopSessions   map[string]*desktopOAuthResult
 
@@ -138,8 +140,13 @@ func defaultPushLimits() map[string]int64 {
 type desktopOAuthResult struct {
 	AccessToken  string    `json:"access_token"`
 	RefreshToken string    `json:"refresh_token"`
+	Requires2FA  bool      `json:"requires_2fa,omitempty"`
+	TempToken    string    `json:"temp_token,omitempty"`
 	Error        string    `json:"error,omitempty"`
 	CreatedAt    time.Time `json:"-"`
+	Challenge    string    `json:"-"`
+	Approved     bool      `json:"-"`
+	ApprovalTok  string    `json:"-"`
 }
 
 // NewServer creates a new API server.
@@ -673,6 +680,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/auth/oauth/{provider}", s.HandleOAuthStart)
 	mux.HandleFunc("GET /api/auth/oauth/{provider}/callback", s.HandleOAuthCallback)
 	mux.HandleFunc("GET /api/auth/oauth/desktop-poll", s.HandleDesktopOAuthPoll)
+	mux.HandleFunc("POST /api/auth/oauth/desktop-approve", maxJSON(s.HandleDesktopOAuthApprove))
 
 	// Protected auth routes
 	mux.HandleFunc("POST /api/auth/logout", maxJSON(s.OptionalAuthMiddleware(s.HandleLogout)))
@@ -683,7 +691,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/auth/me", s.AuthMiddleware(s.HandleGetMe))
 	mux.HandleFunc("PATCH /api/auth/profile", s.AuthMiddleware(s.HandleUpdateProfile))
 	mux.HandleFunc("POST /api/auth/change-password", s.AuthMiddleware(s.HandleChangePassword))
-	mux.HandleFunc("GET /api/auth/activity", s.AdminMiddleware(s.HandleUserActivity))
+	mux.HandleFunc("GET /api/auth/activity", s.AuthMiddleware(s.HandleUserActivity))
 	mux.HandleFunc("GET /api/auth/linked-accounts", s.AuthMiddleware(s.HandleLinkedAccounts))
 	mux.HandleFunc("DELETE /api/auth/linked-accounts/{provider}", s.AuthMiddleware(s.HandleUnlinkAccount))
 
@@ -745,6 +753,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/share/{token}", s.ShareRateLimitMiddleware(s.HandleGetShareInfo))
 	mux.HandleFunc("GET /api/share/{token}/meta", s.ShareRateLimitMiddleware(s.HandleGetShareFileMeta))
 	mux.HandleFunc("GET /api/share/{token}/chunks/{idx}", s.ShareRateLimitMiddleware(s.HandleGetShareChunk))
+	mux.HandleFunc("POST /api/share/{token}/complete", s.ShareRateLimitMiddleware(s.HandleCompleteShareDownload))
 
 	// Folder shares: public link for a whole folder (management is authed;
 	// access mirrors the single-file public share above)
@@ -754,6 +763,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/folder-share/{token}", s.ShareRateLimitMiddleware(s.HandleGetFolderShareInfo))
 	mux.HandleFunc("GET /api/folder-share/{token}/files/{fid}/meta", s.ShareRateLimitMiddleware(s.HandleGetFolderShareFileMeta))
 	mux.HandleFunc("GET /api/folder-share/{token}/files/{fid}/chunks/{idx}", s.ShareRateLimitMiddleware(s.HandleGetFolderShareChunk))
+	mux.HandleFunc("POST /api/folder-share/{token}/files/{fid}/complete", s.ShareRateLimitMiddleware(s.HandleCompleteFolderShareDownload))
 
 	// Anonymous send (no auth, rate-limited by IP)
 	mux.HandleFunc("POST /api/send/init", maxJSON(s.SendRateLimitMiddleware(s.HandleSendInit)))
@@ -951,4 +961,27 @@ func getAdapterUsername(adapter adapters.PlatformAdapter) string {
 		return a.GetUsername()
 	}
 	return "unknown"
+}
+
+// goBackground runs fn on a goroutine that shutdown waits for. Use it for
+// request-spawned work that touches the database and must outlive the request.
+func (s *Server) goBackground(fn func()) {
+	s.bgWG.Add(1)
+	go func() {
+		defer s.bgWG.Done()
+		fn()
+	}()
+}
+
+// WaitBackground blocks until request-spawned background work finishes or ctx ends.
+func (s *Server) WaitBackground(ctx context.Context) {
+	done := make(chan struct{})
+	go func() {
+		s.bgWG.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-ctx.Done():
+	}
 }

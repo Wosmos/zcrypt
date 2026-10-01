@@ -253,3 +253,17 @@ html:has(#mobile-menu) .zk-bar {
     transition: none;
   }
 }
+
+@media (max-width: 767px), (pointer: coarse) {
+  .lg-glass,
+  .dark .lg-glass,
+  html[data-lg="refract"] .lg-glass,
+  html.dark[data-lg="refract"] .lg-glass {
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+  }
+  .lg-panel {
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+  }
+}

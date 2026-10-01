@@ -5,12 +5,11 @@ import { Github } from "@/lib/icons";
 import { GoogleIcon } from "@/components/icons/google";
 import { getOAuthURL } from "@/lib/auth-api";
 import { isTauri } from "@/lib/tauri";
-import { bytesToHex } from "@/lib/crypto";
+import { bytesToHex, sha256Hex } from "@/lib/crypto";
 import { toast } from "@/store/toast";
 
-/** Generate a random session ID for desktop OAuth polling. */
-function randomSessionId() {
-  return bytesToHex(crypto.getRandomValues(new Uint8Array(16)));
+function randomHex(bytes: number) {
+  return bytesToHex(crypto.getRandomValues(new Uint8Array(bytes)));
 }
 
 /** Event dispatched when a desktop OAuth session starts, so the login page can poll. */
@@ -19,12 +18,18 @@ export const DESKTOP_OAUTH_SESSION_KEY = "zcrypt_desktop_oauth_session";
 async function startOAuth(provider: string, failedMessage: string) {
   try {
     if (isTauri) {
-      const session = randomSessionId();
-      // Store session ID so the login page can start polling
-      sessionStorage.setItem(DESKTOP_OAUTH_SESSION_KEY, session);
+      const session = randomHex(16);
+      const verifier = randomHex(32);
+      const challenge = await sha256Hex(new TextEncoder().encode(verifier));
+      const code = challenge.slice(0, 6).toUpperCase();
+      sessionStorage.setItem(
+        DESKTOP_OAUTH_SESSION_KEY,
+        JSON.stringify({ session, verifier, code }),
+      );
       window.dispatchEvent(new Event("desktop-oauth-start"));
 
-      const url = getOAuthURL(provider) + `?platform=desktop&session=${session}`;
+      const url =
+        getOAuthURL(provider) + `?platform=desktop&session=${session}&challenge=${challenge}`;
       // Open the OAuth page in the system browser via the opener plugin. NOT the
       // shell plugin's open(): that routes to a desktop-only (xdg-open) backend
       // that silently fails on Android, which made these buttons appear frozen.

@@ -6,6 +6,7 @@ import {
   getFolderShareInfo,
   getFolderShareFileMeta,
   getFolderShareChunk,
+  completeFolderShareDownload,
   type FolderShareInfo,
   type FolderShareFileEntry,
 } from "@/lib/api";
@@ -163,6 +164,7 @@ export default function FolderSharePage() {
           file.file_id,
           i,
           password || undefined,
+          meta.download_ticket,
         );
         let plain = await decryptChunk(keyBytes, new Uint8Array(data));
         if (compressed && zstd) plain = zstd.ZstdStream.decompress(plain);
@@ -183,6 +185,14 @@ export default function FolderSharePage() {
       const name = resolveDownloadName(opened || file.name || "", full, "file");
       if (meta.sha256_scheme !== "hmac_v1" && (await sha256Hex(full)) !== meta.sha256) {
         throw new Error("Integrity check failed for " + name);
+      }
+      if (meta.download_ticket) {
+        await completeFolderShareDownload(
+          token,
+          file.file_id,
+          meta.download_ticket,
+          password || undefined,
+        ).catch(() => {});
       }
       return { name, bytes: full };
     },

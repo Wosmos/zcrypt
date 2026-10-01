@@ -921,4 +921,25 @@ CREATE TABLE IF NOT EXISTS app_downloads (
 CREATE INDEX IF NOT EXISTS idx_app_downloads_time ON app_downloads(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_app_downloads_platform ON app_downloads(platform);
 CREATE INDEX IF NOT EXISTS idx_app_downloads_target ON app_downloads(target);
+
+-- One row per completed public-link download. The nonce comes from the signed
+-- download ticket issued at /meta, so a retried or replayed completion counts
+-- once. No FK: the row only needs to outlive the ticket's lifetime.
+CREATE TABLE IF NOT EXISTS share_download_tickets (
+	nonce      TEXT PRIMARY KEY,
+	created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_share_download_tickets_time ON share_download_tickets(created_at);
+
+-- Which chunks a download ticket has been served. A download counts once every
+-- chunk of the file went out under the ticket, so the cap holds server-side.
+CREATE TABLE IF NOT EXISTS share_ticket_chunks (
+	nonce      TEXT NOT NULL,
+	idx        INT NOT NULL,
+	created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	PRIMARY KEY (nonce, idx)
+);
+
+CREATE INDEX IF NOT EXISTS idx_share_ticket_chunks_time ON share_ticket_chunks(created_at);
 `

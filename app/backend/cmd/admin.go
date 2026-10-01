@@ -611,6 +611,11 @@ func (s *Server) HandleUserActivity(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if IsDecoy(r) {
+		writeJSON(w, http.StatusOK, []types.AuditEvent{})
+		return
+	}
+
 	events, err := s.db.ListUserAuditEvents(r.Context(), userID, 20)
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)

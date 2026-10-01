@@ -5,6 +5,8 @@ package cmd
 import (
 	"context"
 
+	"github.com/zcrypt/zcrypt/config"
+
 	"github.com/zcrypt/zcrypt/adapters"
 	"github.com/zcrypt/zcrypt/reppool"
 )
@@ -81,5 +83,20 @@ func (s *Server) ReconcileUncommittedOnce(ctx context.Context) bool {
 // integration build tag only, never in a production binary.
 func (s *Server) DrainDeletions(ctx context.Context) {
 	for s.processPendingDeletions(ctx) {
+	}
+}
+
+// EnableTestOAuth registers a fake provider config so the OAuth callback can be
+// driven against a stub provider server in integration tests.
+func (s *Server) EnableTestOAuth(provider, clientID, clientSecret string) {
+	if s.cfg.OAuth == nil {
+		s.cfg.OAuth = &config.OAuthConfig{}
+	}
+	pc := &config.OAuthProviderConfig{ClientID: clientID, ClientSecret: clientSecret}
+	switch provider {
+	case "google":
+		s.cfg.OAuth.Google = pc
+	case "github":
+		s.cfg.OAuth.GitHub = pc
 	}
 }

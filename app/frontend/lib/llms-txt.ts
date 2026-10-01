@@ -85,7 +85,11 @@ const productLinks: Array<[string, string, string]> = [
   ["Terminal app (TUI)", "/tui", "Manage your vault from the command line."],
   ["Anonymous Send", "/send", "Send an encrypted file to anyone without an account."],
   ["Encrypted Pad", "/pad", "Share a one-time, end-to-end encrypted note."],
-  ["Device transfer", "/transfer", "Move a file between your devices with a 6-digit code."],
+  [
+    "Device transfer",
+    "/transfer",
+    "Move a file between your devices with a 6-digit code and a pairing key.",
+  ],
   ["Sign up", "/register", "Create a free account."],
   ["Log in", "/login", "Sign in to your vault."],
 ];

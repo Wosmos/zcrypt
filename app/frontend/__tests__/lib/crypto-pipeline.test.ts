@@ -161,3 +161,15 @@ describe("key derivation edge cases", () => {
     expect(key.byteLength).toBe(32);
   });
 });
+
+describe("additional authenticated data", () => {
+  it("binds a chunk to its aad", async () => {
+    const key = await deriveKeyBytes("aad", generateSalt());
+    const data = new Uint8Array([9, 8, 7]);
+    const aad = new TextEncoder().encode("ctx-1");
+    const sealed = await encryptChunk(key, data, aad);
+    expect(await decryptChunk(key, sealed, aad)).toEqual(data);
+    await expect(decryptChunk(key, sealed, new TextEncoder().encode("ctx-2"))).rejects.toThrow();
+    await expect(decryptChunk(key, sealed)).rejects.toThrow();
+  });
+});

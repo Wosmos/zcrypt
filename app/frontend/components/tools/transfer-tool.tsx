@@ -10,6 +10,20 @@ import { QRShare } from "@/components/ui/qr-code";
 import { Send, Download, Lock, Copy, Check } from "@/lib/icons";
 import { formatBytes } from "@/lib/utils";
 import { copyToClipboard } from "@/lib/clipboard";
+import {
+  deriveTransferKeys,
+  formatPairingSecret,
+  isCompletePairingSecret,
+  newPairingSecret,
+  normalizePairingSecret,
+  assembleTransfer,
+  openChunk,
+  openMeta,
+  pairingLink,
+  sealChunk,
+  sealMeta,
+  secretFromHash,
+} from "@/lib/transfer-crypto";
 import { SelectedFileCard } from "./shared/selected-file-card";
 import { ProgressBar } from "./shared/progress-bar";
 import { ToolErrorState, ToolSuccessState } from "./shared/tool-states";
@@ -24,6 +38,7 @@ interface FileInfo {
   name: string;
   size: number;
   type: string;
+  chunks: number;
 }
 
 /**
@@ -52,6 +67,17 @@ function attachWsLifecycle(
   };
 }
 
+function ConfirmCode({ value }: { value: string }) {
+  return (
+    <div className="rounded-xl border border-[var(--color-border)] p-3 text-center">
+      <p className="text-xs text-[var(--color-text-muted)]">
+        Both screens must show the same confirmation code
+      </p>
+      <p className="mt-1 font-mono text-xl tracking-[0.2em] tabular-nums">{value}</p>
+    </div>
+  );
+}
+
 export function TransferTool() {
   const [mode, setMode] = useState<Mode>("choose");
 
@@ -67,8 +93,10 @@ export function TransferTool() {
           </Button>
           <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3">
             <p className="text-xs text-cyan-700 dark:text-cyan-300">
-              Files stream directly between devices with end-to-end encryption. The server relays
-              encrypted data but cannot read it.
+              Files are encrypted on the sending device with a key that never touches the server. It
+              travels only in the QR code or link you share, or in the pairing key you read out. The
+              server relays ciphertext and cannot read the file or its name, but it can see that a
+              transfer happened and roughly how large it is.
             </p>
           </div>
         </div>
@@ -83,11 +111,14 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
   const [state, setState] = useState<SendState>("selecting");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [code, setCode] = useState("");
+  const [secret, setSecret] = useState("");
+  const [confirm, setConfirm] = useState("");
   const [progress, setProgress] = useState({ percent: 0, stage: "" });
   const [errorMsg, setErrorMsg] = useState("");
   const [copied, setCopied] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
-  const keyRef = useRef<Uint8Array | null>(null);
+  const secretRef = useRef("");
+  const codeRef = useRef("");
   const stateRef = useRef<SendState>(state);
   stateRef.current = state;
 
@@ -95,31 +126,39 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
     if (files[0]) setSelectedFile(files[0]);
   }, []);
 
-  const startTransfer = useCallback(async (ws: WebSocket, file: File, key: Uint8Array) => {
+  const startTransfer = useCallback(async (ws: WebSocket, file: File) => {
     setState("transferring");
     try {
-      const { encryptChunk, toBase64 } = await import("@/lib/crypto");
+      const { key, confirm: cf } = await deriveTransferKeys(secretRef.current, codeRef.current);
+      setConfirm(cf);
       const CHUNK = 64 * 1024;
+      const totalChunks = Math.ceil(file.size / CHUNK);
 
       ws.send(
         JSON.stringify({
           type: "file_info",
-          data: { name: file.name, size: file.size, type: file.type, key: toBase64(key) },
+          data: {
+            meta: await sealMeta(key, {
+              name: file.name,
+              size: file.size,
+              type: file.type,
+              chunks: totalChunks,
+            }),
+          },
         }),
       );
 
-      const totalChunks = Math.ceil(file.size / CHUNK);
       for (let i = 0; i < totalChunks; i++) {
         const start = i * CHUNK;
         const end = Math.min(start + CHUNK, file.size);
         const slice = file.slice(start, end);
         const plaintext = new Uint8Array(await slice.arrayBuffer());
-        const encrypted = await encryptChunk(key.buffer as ArrayBuffer, plaintext);
+        const payload = await sealChunk(key, i, totalChunks, plaintext);
 
         ws.send(
           JSON.stringify({
             type: "chunk",
-            data: { index: i, total: totalChunks, payload: toBase64(encrypted) },
+            data: { index: i, total: totalChunks, payload },
           }),
         );
 
@@ -143,8 +182,9 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
     if (wsRef.current && wsRef.current.readyState <= WebSocket.OPEN) return; // already connecting/open
     setState("waiting");
 
-    const key = crypto.getRandomValues(new Uint8Array(32));
-    keyRef.current = key;
+    const pairSecret = newPairingSecret();
+    secretRef.current = pairSecret;
+    setSecret(pairSecret);
 
     const ws = new WebSocket(WS_URL);
     wsRef.current = ws;
@@ -157,12 +197,14 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
       const msg = JSON.parse(e.data);
       switch (msg.type) {
         case "code":
+          codeRef.current = msg.data;
           setCode(msg.data);
+          void deriveTransferKeys(pairSecret, msg.data).then((k) => setConfirm(k.confirm));
           break;
         case "paired":
           setState("paired");
           setTimeout(() => {
-            void startTransfer(ws, selectedFile, key);
+            void startTransfer(ws, selectedFile);
           }, 200);
           break;
         case "error":
@@ -175,13 +217,18 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
     attachWsLifecycle(ws, stateRef, setState, setErrorMsg);
   }, [selectedFile, startTransfer]);
 
+  const pairLink =
+    code && secret
+      ? pairingLink(typeof window !== "undefined" ? window.location.origin : "", code, secret)
+      : "";
+
   const handleCopyCode = useCallback(async () => {
-    if (!code) return;
-    if (await copyToClipboard(code)) {
+    if (!pairLink) return;
+    if (await copyToClipboard(pairLink)) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
-  }, [code]);
+  }, [pairLink]);
 
   useEffect(() => {
     return () => {
@@ -226,7 +273,8 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
             <LogoSpinner size={32} />
             <p className="text-sm font-medium">Waiting for receiver</p>
             <p className="text-xs text-[var(--color-text-muted)]">
-              Share this code with the receiving device
+              Scan the QR code or open the link on the receiving device, or type the code and
+              pairing key there
             </p>
           </div>
           {code && (
@@ -237,15 +285,20 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
                 </div>
                 <IconButton
                   icon={copied ? Check : Copy}
-                  label={copied ? "Copied" : "Copy code"}
+                  label={copied ? "Copied" : "Copy link"}
                   variant="ghost"
                   onClick={handleCopyCode}
                   iconClassName={copied ? "h-4 w-4 text-cyan-500" : "h-4 w-4"}
                 />
               </div>
-              <QRShare
-                url={`${typeof window !== "undefined" ? window.location.origin : ""}/transfer?code=${code}`}
-              />
+              <div className="space-y-1">
+                <p className="text-xs text-[var(--color-text-muted)]">Pairing key</p>
+                <p className="font-mono text-sm tracking-wider break-all">
+                  {formatPairingSecret(secret)}
+                </p>
+              </div>
+              <QRShare url={pairLink} />
+              {confirm && <ConfirmCode value={confirm} />}
             </>
           )}
         </div>
@@ -262,6 +315,7 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
               </p>
             </div>
           </div>
+          {confirm && <ConfirmCode value={confirm} />}
           <ProgressBar stage={progress.stage || "Preparing..."} percent={progress.percent} />
         </div>
       )}
@@ -285,6 +339,8 @@ function TransferSendMode({ onBack }: { onBack: () => void }) {
 function TransferReceiveMode({ onBack }: { onBack: () => void }) {
   const [state, setState] = useState<RecvState>("entering");
   const [code, setCode] = useState("");
+  const [secret, setSecret] = useState("");
+  const [confirm, setConfirm] = useState("");
   const [fileInfo, setFileInfo] = useState<FileInfo | null>(null);
   const [progress, setProgress] = useState({ percent: 0, stage: "" });
   const [errorMsg, setErrorMsg] = useState("");
@@ -300,60 +356,82 @@ function TransferReceiveMode({ onBack }: { onBack: () => void }) {
     const params = new URLSearchParams(window.location.search);
     const urlCode = params.get("code");
     if (urlCode && /^\d{6}$/.test(urlCode)) setCode(urlCode);
+    const urlSecret = secretFromHash(window.location.hash);
+    if (urlSecret) {
+      setSecret(urlSecret);
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    }
   }, []);
 
   const handleConnect = useCallback(() => {
-    if (code.length !== 6) return;
+    if (code.length !== 6 || !isCompletePairingSecret(secret)) return;
     if (wsRef.current && wsRef.current.readyState <= WebSocket.OPEN) return; // already connecting/open
     setState("connecting");
 
     const ws = new WebSocket(WS_URL);
     wsRef.current = ws;
 
+    const keysPromise = deriveTransferKeys(secret, code);
+
     ws.onopen = () => {
       ws.send(JSON.stringify({ type: "join", data: code }));
     };
 
-    ws.onmessage = async (e) => {
-      const msg = JSON.parse(e.data);
+    const handle = async (raw: string) => {
+      const msg = JSON.parse(raw);
       switch (msg.type) {
         case "paired":
           setState("paired");
+          void keysPromise.then((k) => setConfirm(k.confirm));
           break;
         case "file_info": {
-          const info = msg.data;
-          const fi = { name: info.name, size: info.size, type: info.type };
-          fileInfoRef.current = fi;
-          setFileInfo(fi);
-          const { fromBase64 } = await import("@/lib/crypto");
-          keyRef.current = fromBase64(info.key).buffer as ArrayBuffer;
-          chunksRef.current = [];
-          setState("receiving");
+          try {
+            const { key } = await keysPromise;
+            const fi = await openMeta(key, msg.data.meta);
+            keyRef.current = key;
+            fileInfoRef.current = fi;
+            setFileInfo(fi);
+            chunksRef.current = [];
+            setState("receiving");
+          } catch {
+            setState("error");
+            setErrorMsg("Pairing key does not match the sender");
+            ws.close();
+          }
           break;
         }
         case "chunk": {
-          const { decryptChunk, fromBase64 } = await import("@/lib/crypto");
-          const encrypted = fromBase64(msg.data.payload);
           const key = keyRef.current;
-          if (!key) return;
-          const plaintext = await decryptChunk(key, encrypted);
-          chunksRef.current[msg.data.index] = plaintext;
-          setProgress({
-            stage: `Receiving ${msg.data.index + 1}/${msg.data.total}`,
-            percent: Math.round(((msg.data.index + 1) / msg.data.total) * 100),
-          });
+          const fi = fileInfoRef.current;
+          if (!key || !fi) return;
+          try {
+            const index = msg.data.index;
+            if (chunksRef.current[index]) throw new Error("Transfer integrity check failed");
+            chunksRef.current[index] = await openChunk(key, index, fi.chunks, msg.data.payload);
+            setProgress({
+              stage: `Receiving ${index + 1}/${fi.chunks}`,
+              percent: Math.round(((index + 1) / fi.chunks) * 100),
+            });
+          } catch {
+            setState("error");
+            setErrorMsg("Transfer integrity check failed");
+            ws.close();
+          }
           break;
         }
         case "done": {
-          setState("done"); // Mark done immediately so onclose doesn't show error
-          const totalSize = chunksRef.current.reduce((s, c) => s + c.byteLength, 0);
-          const fullFile = new Uint8Array(totalSize);
-          let offset = 0;
-          for (const chunk of chunksRef.current) {
-            fullFile.set(chunk, offset);
-            offset += chunk.byteLength;
-          }
           const fi = fileInfoRef.current;
+          let fullFile: Uint8Array<ArrayBuffer>;
+          try {
+            if (!fi) throw new Error("Transfer integrity check failed");
+            fullFile = assembleTransfer(chunksRef.current, fi);
+          } catch {
+            setState("error");
+            setErrorMsg("Transfer integrity check failed: the file was incomplete or altered");
+            ws.close();
+            break;
+          }
+          setState("done"); // Mark done immediately so onclose doesn't show error
           const blob = new Blob([fullFile], { type: fi?.type || "application/octet-stream" });
           const url = URL.createObjectURL(blob);
           const a = document.createElement("a");
@@ -371,9 +449,19 @@ function TransferReceiveMode({ onBack }: { onBack: () => void }) {
           break;
       }
     };
+    let queue = Promise.resolve();
+    ws.onmessage = (e) => {
+      queue = queue
+        .then(() => handle(e.data))
+        .catch(() => {
+          setState("error");
+          setErrorMsg("Transfer error");
+          ws.close();
+        });
+    };
 
     attachWsLifecycle(ws, stateRef, setState, setErrorMsg);
-  }, [code]);
+  }, [code, secret]);
 
   useEffect(() => {
     return () => {
@@ -396,11 +484,29 @@ function TransferReceiveMode({ onBack }: { onBack: () => void }) {
               className="text-center text-2xl font-mono tracking-[0.3em]"
               maxLength={6}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && code.length === 6) handleConnect();
+                if (e.key === "Enter") handleConnect();
               }}
             />
           </div>
-          <Button onClick={handleConnect} disabled={code.length !== 6} className="w-full">
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-[var(--color-text-secondary)]">
+              Pairing key (skip if you scanned the QR code)
+            </label>
+            <Input
+              value={formatPairingSecret(secret)}
+              onChange={(e) => setSecret(normalizePairingSecret(e.target.value))}
+              placeholder="XXXX-XXXX-XXXX-XXXX"
+              className="text-center font-mono tracking-wider"
+              autoCapitalize="characters"
+              autoComplete="off"
+              spellCheck={false}
+            />
+          </div>
+          <Button
+            onClick={handleConnect}
+            disabled={code.length !== 6 || !isCompletePairingSecret(secret)}
+            className="w-full"
+          >
             <Download className="h-4 w-4 mr-2" /> Connect
           </Button>
           <button
@@ -423,6 +529,7 @@ function TransferReceiveMode({ onBack }: { onBack: () => void }) {
         <div className="flex flex-col items-center gap-3 py-4">
           <LogoSpinner size={32} />
           <p className="text-sm text-[var(--color-text-muted)]">Paired! Waiting for file...</p>
+          {confirm && <ConfirmCode value={confirm} />}
         </div>
       )}
 
@@ -435,6 +542,7 @@ function TransferReceiveMode({ onBack }: { onBack: () => void }) {
               <p className="text-xs text-[var(--color-text-muted)]">{formatBytes(fileInfo.size)}</p>
             </div>
           </div>
+          {confirm && <ConfirmCode value={confirm} />}
           <ProgressBar stage={progress.stage} percent={progress.percent} />
         </div>
       )}

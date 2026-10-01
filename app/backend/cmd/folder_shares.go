@@ -13,6 +13,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/zcrypt/zcrypt/auth"
+	"github.com/zcrypt/zcrypt/index"
 	"github.com/zcrypt/zcrypt/types"
 )
 
@@ -197,14 +198,15 @@ func (s *Server) HandleGetFolderShareInfo(w http.ResponseWriter, r *http.Request
 // the file belongs to the share, returning the share, the file, the file's
 // wrapped CEK and its link-sealed name. Writes the appropriate HTTP error and
 // returns ok=false otherwise.
-func (s *Server) authorizeFolderShareFile(w http.ResponseWriter, r *http.Request, token, fileID string) (*types.FolderShare, *types.FileMetadata, string, string, bool) {
+func (s *Server) authorizeFolderShareFile(w http.ResponseWriter, r *http.Request, token, fileID string, allowTicket bool) (*types.FolderShare, *types.FileMetadata, string, string, bool) {
 	ctx := r.Context()
 	share, err := s.db.GetFolderShareByToken(ctx, token)
 	if err != nil {
 		http.Error(w, `{"error":"folder link not found"}`, http.StatusNotFound)
 		return nil, nil, "", "", false
 	}
-	if reason, valid := validateFolderShare(share); !valid {
+	if reason, valid := validateFolderShare(share); !valid &&
+		(!allowTicket || !linkOpenForChunk(share.Revoked, share.ExpiresAt, true, s.shareTicketLive(r, share.ID, fileID))) {
 		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, reason), http.StatusForbidden)
 		return nil, nil, "", "", false
 	}
@@ -229,16 +231,13 @@ func (s *Server) authorizeFolderShareFile(w http.ResponseWriter, r *http.Request
 // CEK for a valid folder link.
 // GET /api/folder-share/{token}/files/{fid}/meta
 func (s *Server) HandleGetFolderShareFileMeta(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
 	token := r.PathValue("token")
 	fileID := r.PathValue("fid")
 
-	share, file, wrapped, name, ok := s.authorizeFolderShareFile(w, r, token, fileID)
+	share, file, wrapped, name, ok := s.authorizeFolderShareFile(w, r, token, fileID, false)
 	if !ok {
 		return
 	}
-	// Count each file download against the link's optional cap.
-	_ = s.db.IncrementFolderShareDownloads(ctx, share.ID)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
@@ -253,6 +252,22 @@ func (s *Server) HandleGetFolderShareFileMeta(w http.ResponseWriter, r *http.Req
 		"wrapped_cek":   wrapped,
 		"status":        file.Status,
 		"created_at":    CoarsenTimeUTC(file.CreatedAt),
+		// Each file counts against the cap only when the client confirms it finished.
+		"download_ticket": s.issueShareTicket(share.ID, fileID),
+	})
+}
+
+// HandleCompleteFolderShareDownload counts one finished file download.
+// POST /api/folder-share/{token}/files/{fid}/complete
+func (s *Server) HandleCompleteFolderShareDownload(w http.ResponseWriter, r *http.Request) {
+	share, err := s.db.GetFolderShareByToken(r.Context(), r.PathValue("token"))
+	if err != nil {
+		http.Error(w, `{"error":"folder link not found"}`, http.StatusNotFound)
+		return
+	}
+	fileID := r.PathValue("fid")
+	s.completeShareDownload(w, r, share.ID, fileID, func(nonce string) (index.DownloadCompletion, error) {
+		return s.db.CompleteFolderShareDownload(r.Context(), share.ID, nonce)
 	})
 }
 
@@ -270,7 +285,7 @@ func (s *Server) HandleGetFolderShareChunk(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	share, file, _, _, ok := s.authorizeFolderShareFile(w, r, token, fileID)
+	share, file, _, _, ok := s.authorizeFolderShareFile(w, r, token, fileID, true)
 	if !ok {
 		return
 	}
@@ -285,5 +300,8 @@ func (s *Server) HandleGetFolderShareChunk(w http.ResponseWriter, r *http.Reques
 		http.Error(w, `{"error":"chunk not found"}`, http.StatusNotFound)
 		return
 	}
-	s.serveLinkChunk(w, r, share.UserID, chunk, "folder-shares")
+	commit := s.linkChunkCommit(r, share.ID, fileID, chunkIndex, file.ChunkCount, share.MaxDownloads > 0, func(nonce string) (index.DownloadCompletion, error) {
+		return s.db.CompleteFolderShareDownload(ctx, share.ID, nonce)
+	})
+	s.serveLinkChunk(w, r, share.UserID, chunk, "folder-shares", commit)
 }

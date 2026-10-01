@@ -69,6 +69,17 @@ function promoteToAdmin(adminEmail: string): boolean {
   }
 }
 
+async function skipTourIfShown(p: Page) {
+  const skip = p.getByRole("button", { name: "Skip tour" });
+  try {
+    await skip.waitFor({ state: "visible", timeout: 1_500 });
+    await skip.click();
+    await skip.waitFor({ state: "hidden" });
+  } catch {
+    return;
+  }
+}
+
 async function freshContext(browser: Browser): Promise<BrowserContext> {
   return browser.newContext({ acceptDownloads: true });
 }
@@ -183,6 +194,7 @@ test.describe("Smoke: vault, sharing, tools, session", () => {
   test("file share: fresh browser downloads the original name and bytes", async ({ browser }) => {
     await page.getByText(single.name, { exact: true }).first().click({ button: "right" });
     await page.getByRole("menuitem", { name: "Share" }).click();
+    await skipTourIfShown(page);
     await page.getByRole("button", { name: "Generate Link" }).click();
     const url = await page.locator('input[readonly][value*="/s/"]').inputValue();
     expect(url).toContain("#key=");

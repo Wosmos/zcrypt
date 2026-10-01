@@ -29,7 +29,10 @@ export default function MagicLinkPage() {
 
     verifyMagicLink(token)
       .then((res) => {
-        if (res.access_token && res.refresh_token) {
+        if (res.requires_2fa && res.temp_token) {
+          sessionStorage.setItem("zcrypt-temp-token", res.temp_token);
+          router.replace("/2fa-verify");
+        } else if (res.access_token && res.refresh_token) {
           setTokens(res.access_token, res.refresh_token);
           if (res.user) setUser(res.user);
           toast.success("Signed in successfully");
