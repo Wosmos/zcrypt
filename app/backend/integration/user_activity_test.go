@@ -3,6 +3,7 @@
 package integration_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -69,8 +70,10 @@ func TestUserActivityHiddenFromDecoySessions(t *testing.T) {
 	ts := setupTestServer(t)
 	const email = "activity-decoy@example.com"
 	password := newTestPassword()
-	const decoyPassword = "duress-pass-99"
+	decoyPassword := newTestPassword()
 
+	_, err := ts.db.Pool().Exec(context.Background(), `DELETE FROM users WHERE email = $1`, email)
+	require.NoError(t, err)
 	real := ts.registerAndLogin(email, password)
 	requireStatus(t, ts.POST("/api/decoy/setup", map[string]interface{}{"decoy_password": decoyPassword}, real), 200)
 

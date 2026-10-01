@@ -319,3 +319,32 @@ func TestFolderShareCapIsEnforcedWithoutClientCompletion(t *testing.T) {
 	assert.Equal(t, 1, ts.linkCount("folder_shares", created.Token))
 	assert.Equal(t, http.StatusForbidden, ts.getShared(base+"/meta", "").StatusCode)
 }
+
+func TestShareTicketRequiredOnlyForCappedLinks(t *testing.T) {
+	ts := setupTestServer(t)
+	email := "share-ticketless-" + newTestPassword()[3:11] + "@example.com"
+	owner := ts.registerAndLogin(email, newTestPassword())
+	ts.enableMockStorage(email)
+	fileID := ts.uploadReadyFile(owner, "ticketless.bin", 40)
+
+	link := func(maxDownloads int) string {
+		resp := requireStatus(t, ts.POST("/api/shares", map[string]interface{}{
+			"file_id": fileID, "wrapped_cek": b64("cek"), "max_downloads": maxDownloads,
+		}, owner), http.StatusOK)
+		var created struct{ Token string }
+		require.NoError(t, json.Unmarshal(resp, &created))
+		return "/api/share/" + created.Token
+	}
+
+	t.Run("a capped link withholds chunks from a client without a ticket", func(t *testing.T) {
+		c := ts.publicDo("GET", link(1)+"/chunks/0", "", nil)
+		assert.Equal(t, http.StatusForbidden, c.StatusCode)
+		c.Body.Close()
+	})
+
+	t.Run("an uncapped link still serves ticketless legacy clients", func(t *testing.T) {
+		c := ts.publicDo("GET", link(0)+"/chunks/0", "", nil)
+		assert.Equal(t, http.StatusOK, c.StatusCode)
+		c.Body.Close()
+	})
+}
