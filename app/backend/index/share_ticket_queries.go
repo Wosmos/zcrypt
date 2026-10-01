@@ -7,10 +7,22 @@ import (
 
 const shareTicketRetention = "2 days"
 
-func (db *DB) completeDownload(ctx context.Context, table, shareID, nonce string) (bool, error) {
+// DownloadCompletion is the outcome of completing a ticketed link download.
+type DownloadCompletion int
+
+const (
+	// DownloadCounted means this call counted the download.
+	DownloadCounted DownloadCompletion = iota
+	// DownloadAlreadyCounted means the nonce was completed earlier.
+	DownloadAlreadyCounted
+	// DownloadCapReached means the link's download cap blocked the count.
+	DownloadCapReached
+)
+
+func (db *DB) completeDownload(ctx context.Context, table, shareID, nonce string) (DownloadCompletion, error) {
 	tx, err := db.pool.Begin(ctx)
 	if err != nil {
-		return false, fmt.Errorf("begin complete download: %w", err)
+		return DownloadCapReached, fmt.Errorf("begin complete download: %w", err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
@@ -19,22 +31,25 @@ func (db *DB) completeDownload(ctx context.Context, table, shareID, nonce string
 	tag, err := tx.Exec(ctx,
 		`INSERT INTO share_download_tickets (nonce) VALUES ($1) ON CONFLICT DO NOTHING`, nonce)
 	if err != nil {
-		return false, fmt.Errorf("record download ticket: %w", err)
+		return DownloadCapReached, fmt.Errorf("record download ticket: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return false, nil
+		return DownloadAlreadyCounted, nil
 	}
 
 	tag, err = tx.Exec(ctx,
 		`UPDATE `+table+` SET download_count = download_count + 1
 		 WHERE id = $1 AND (max_downloads = 0 OR download_count < max_downloads)`, shareID)
 	if err != nil {
-		return false, fmt.Errorf("increment downloads: %w", err)
+		return DownloadCapReached, fmt.Errorf("increment downloads: %w", err)
 	}
 	if err := tx.Commit(ctx); err != nil {
-		return false, fmt.Errorf("commit complete download: %w", err)
+		return DownloadCapReached, fmt.Errorf("commit complete download: %w", err)
 	}
-	return tag.RowsAffected() > 0, nil
+	if tag.RowsAffected() == 0 {
+		return DownloadCapReached, nil
+	}
+	return DownloadCounted, nil
 }
 
 // ShareDownloadTicketUsed reports whether a ticket nonce was already redeemed.

@@ -158,6 +158,6 @@ func (db *DB) RevokeFolderShare(ctx context.Context, userID, shareID string) err
 
 // CompleteFolderShareDownload records one finished file download for a folder
 // link, keyed by the ticket nonce so retries count once.
-func (db *DB) CompleteFolderShareDownload(ctx context.Context, shareID, nonce string) (bool, error) {
+func (db *DB) CompleteFolderShareDownload(ctx context.Context, shareID, nonce string) (DownloadCompletion, error) {
 	return db.completeDownload(ctx, "folder_shares", shareID, nonce)
 }

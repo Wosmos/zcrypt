@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/zcrypt/zcrypt/index"
 )
 
 const (
@@ -93,7 +95,7 @@ func linkOpenForChunk(revoked bool, expiresAt *time.Time, capped, ticketLive boo
 }
 
 // completeShareDownload counts one finished download for the ticket in the body.
-func (s *Server) completeShareDownload(w http.ResponseWriter, r *http.Request, linkID, fileID string, count func(nonce string) (bool, error)) {
+func (s *Server) completeShareDownload(w http.ResponseWriter, r *http.Request, linkID, fileID string, count func(nonce string) (index.DownloadCompletion, error)) {
 	var req struct {
 		Ticket string `json:"ticket"`
 	}
@@ -106,44 +108,52 @@ func (s *Server) completeShareDownload(w http.ResponseWriter, r *http.Request, l
 		http.Error(w, `{"error":"invalid or expired ticket"}`, http.StatusForbidden)
 		return
 	}
-	counted, err := count(t.Nonce)
+	result, err := count(t.Nonce)
 	if err != nil {
 		http.Error(w, `{"error":"failed to record download"}`, http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	_, _ = fmt.Fprintf(w, `{"success":true,"counted":%t}`, counted)
+	_, _ = fmt.Fprintf(w, `{"success":true,"counted":%t}`, result == index.DownloadCounted)
 }
 
 // linkChunkCommit returns the step that runs once a chunk's bytes are in hand and
-// before they are sent. It counts the download on the server: under a live ticket
-// when every chunk of the file has been served, for a ticketless client when the
-// last chunk is. A false result means the cap was reached and the chunk is withheld.
-func (s *Server) linkChunkCommit(r *http.Request, linkID, fileID string, idx, count int,
-	complete func(nonce string) (bool, error)) func() bool {
+// before they are sent. Under a live ticket it counts the download on the server
+// once every chunk of the file has been served. A capped link requires a ticket
+// for every chunk; an uncapped one still serves ticketless legacy clients and
+// counts them on the last chunk. ok=false withholds the chunk because the cap is
+// reached or no ticket was sent; err reports a failure the client may retry.
+func (s *Server) linkChunkCommit(r *http.Request, linkID, fileID string, idx, count int, capped bool,
+	complete func(nonce string) (index.DownloadCompletion, error)) func() (bool, error) {
 	nonce := ""
 	if s.shareTicketLive(r, linkID, fileID) {
 		t, _ := s.parseShareTicket(r.Header.Get(shareTicketHeader), linkID, fileID)
 		nonce = t.Nonce
 	}
-	return func() bool {
+	return func() (bool, error) {
 		if nonce == "" {
+			if capped {
+				return false, nil
+			}
 			if idx != count-1 {
-				return true
+				return true, nil
 			}
 			nb := make([]byte, 16)
 			_, _ = rand.Read(nb)
-			counted, err := complete(hex.EncodeToString(nb))
-			return err == nil && counted
+			_, err := complete(hex.EncodeToString(nb))
+			return err == nil, err
 		}
 		served, err := s.db.RecordShareTicketChunk(r.Context(), nonce, idx)
 		if err != nil {
-			return false
+			return false, err
 		}
 		if served < count {
-			return true
+			return true, nil
 		}
-		counted, err := complete(nonce)
-		return err == nil && counted
+		result, err := complete(nonce)
+		if err != nil {
+			return false, err
+		}
+		return result != index.DownloadCapReached, nil
 	}
 }

@@ -13,6 +13,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/zcrypt/zcrypt/auth"
+	"github.com/zcrypt/zcrypt/index"
 	"github.com/zcrypt/zcrypt/types"
 )
 
@@ -265,7 +266,7 @@ func (s *Server) HandleCompleteFolderShareDownload(w http.ResponseWriter, r *htt
 		return
 	}
 	fileID := r.PathValue("fid")
-	s.completeShareDownload(w, r, share.ID, fileID, func(nonce string) (bool, error) {
+	s.completeShareDownload(w, r, share.ID, fileID, func(nonce string) (index.DownloadCompletion, error) {
 		return s.db.CompleteFolderShareDownload(r.Context(), share.ID, nonce)
 	})
 }
@@ -299,7 +300,7 @@ func (s *Server) HandleGetFolderShareChunk(w http.ResponseWriter, r *http.Reques
 		http.Error(w, `{"error":"chunk not found"}`, http.StatusNotFound)
 		return
 	}
-	commit := s.linkChunkCommit(r, share.ID, fileID, chunkIndex, file.ChunkCount, func(nonce string) (bool, error) {
+	commit := s.linkChunkCommit(r, share.ID, fileID, chunkIndex, file.ChunkCount, share.MaxDownloads > 0, func(nonce string) (index.DownloadCompletion, error) {
 		return s.db.CompleteFolderShareDownload(ctx, share.ID, nonce)
 	})
 	s.serveLinkChunk(w, r, share.UserID, chunk, "folder-shares", commit)

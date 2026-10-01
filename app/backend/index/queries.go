@@ -1502,6 +1502,6 @@ func (db *DB) RevokeShare(ctx context.Context, userID, shareID string) error {
 // CompleteShareDownload records one finished download for a public file link,
 // keyed by the ticket nonce so retries count once. It reports whether the
 // download was counted; the increment is skipped once the cap is already met.
-func (db *DB) CompleteShareDownload(ctx context.Context, shareID, nonce string) (bool, error) {
+func (db *DB) CompleteShareDownload(ctx context.Context, shareID, nonce string) (DownloadCompletion, error) {
 	return db.completeDownload(ctx, "shares", shareID, nonce)
 }
