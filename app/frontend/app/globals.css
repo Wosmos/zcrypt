@@ -569,28 +569,6 @@
   }
 }
 
-@keyframes circuit-flow {
-  0% {
-    stroke-dashoffset: 120;
-    opacity: 0;
-  }
-  5% {
-    opacity: 1;
-  }
-  95% {
-    opacity: 1;
-  }
-  100% {
-    stroke-dashoffset: -20;
-    opacity: 0;
-  }
-}
-.animate-circuit-flow {
-  animation: circuit-flow var(--duration, 5s) linear infinite;
-  animation-delay: var(--delay, 0s);
-  animation-direction: var(--dir, normal);
-}
-
 /* Theme toggle is an instant flip, deliberately no whole-page animation.
    A color crossfade looked broken (only color/bg faded while borders, shadows
    and icons snapped), and a View Transitions circular reveal hitched on every
@@ -1025,8 +1003,7 @@
   .animate-progress-shimmer,
   .animate-bar-sheen,
   .animate-nudge-up,
-  .animate-nudge-down,
-  .animate-circuit-flow {
+  .animate-nudge-down {
     animation: none !important;
   }
   /* With no sweep, flatten the shimmer gradient to a solid surface so it never

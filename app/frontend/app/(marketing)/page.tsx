@@ -17,6 +17,7 @@ import { Faq } from "@/components/marketing/landing/social/faq";
 import { ClosingCta } from "@/components/marketing/landing/closing-cta";
 import { StickyCta } from "@/components/marketing/landing/sticky-cta";
 import { ScrollRefresh } from "@/components/marketing/landing/scroll-refresh";
+import { OffscreenPause } from "@/components/marketing/landing/offscreen-pause";
 import { FAQJsonLd, SoftwareApplicationJsonLd } from "@/components/seo/json-ld";
 import { faqs } from "@/lib/data";
 import { SITE_URL } from "@/lib/site";
@@ -53,6 +54,7 @@ export default function HomePage() {
       <ClosingCta id="start" label="Start free" className="pb-12" />
       <StickyCta />
       <ScrollRefresh />
+      <OffscreenPause />
     </div>
   );
 }

@@ -101,8 +101,7 @@ export function MarketingFooter() {
         className="pointer-events-none absolute left-1/2 top-[-90px] z-[1] h-[300px] w-[min(1100px,92%)] -translate-x-1/2"
         style={{
           background:
-            "radial-gradient(ellipse 55% 100% at 50% 100%, rgba(0,213,228,0.08), transparent 72%)",
-          filter: "blur(14px)",
+            "radial-gradient(ellipse 60% 110% at 50% 100%, rgba(0,213,228,0.07), transparent 78%)",
         }}
       />
 
