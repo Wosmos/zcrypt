@@ -258,6 +258,15 @@
     scrollbar-color: var(--color-border) transparent;
   }
 
+  /* Desktop rubber-band overscroll (trackpad, still enabled outside the
+     touch media query below) briefly reveals the area above/below the
+     document, which falls through to html's background. Match body so
+     that gap shows the real page color instead of the UA default canvas
+     (a visible flat gray/white seam on overscroll, especially in dark mode). */
+  html {
+    @apply bg-[var(--color-bg)];
+  }
+
   body {
     @apply bg-[var(--color-bg)] text-[var(--color-text)] antialiased;
     font-family: var(--font-body), "Poppins", -apple-system, BlinkMacSystemFont,
