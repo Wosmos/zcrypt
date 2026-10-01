@@ -23,6 +23,7 @@ import { invalidateTrash } from "@/store/trash";
 import { invalidateFilesViews } from "@/lib/invalidate";
 import { clearDecryptCacheForFile } from "@/lib/decrypt-cache";
 import { toast } from "@/store/toast";
+import { useConnectStorage } from "@/store/connect-storage";
 import { formatBytes } from "@/lib/utils";
 import { useFolderRegistry } from "@/store/folder-registry";
 import { useFolderPasswordStore } from "@/store/folder-passwords";
@@ -260,6 +261,18 @@ export function useVaultActions({
       // Managed storage / personal tokens must be available.
       if (quotaInfo && !quotaInfo.can_upload) {
         toast.warning("No storage platform connected. Go to Settings to connect one.");
+        useConnectStorage.getState().show();
+        return;
+      }
+
+      const sharedFull =
+        quotaInfo &&
+        !quotaInfo.has_personal_key &&
+        !quotaInfo.is_unlimited &&
+        quotaInfo.quota_bytes > 0 &&
+        quotaInfo.used_bytes >= quotaInfo.quota_bytes;
+      if (sharedFull) {
+        useConnectStorage.getState().show();
         return;
       }
 

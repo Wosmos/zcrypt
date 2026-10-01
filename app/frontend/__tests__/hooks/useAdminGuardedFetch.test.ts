@@ -14,7 +14,7 @@ vi.mock("@/store/auth", () => ({
 
 vi.mock("@/lib/api", () => ({
   adminGetStats: vi.fn(async () => ({ users: 1 })),
-  adminListTokens: vi.fn(async () => [{ id: "t" }]),
+  adminListTokens: vi.fn(async () => ({ tokens: [{ id: "t" }], others_count: 3 })),
 }));
 
 function wrapper({ children }: { children: ReactNode }) {
@@ -91,7 +91,11 @@ describe("useAdminQuery", () => {
   });
 
   it("fetchAdminOverview loads stats and tokens together", async () => {
-    await expect(fetchAdminOverview()).resolves.toEqual({ stats: { users: 1 }, tokens: [{ id: "t" }] });
+    await expect(fetchAdminOverview()).resolves.toEqual({
+      stats: { users: 1 },
+      tokens: [{ id: "t" }],
+      othersCount: 3,
+    });
     expect(adminGetStats).toHaveBeenCalled();
     expect(adminListTokens).toHaveBeenCalled();
   });

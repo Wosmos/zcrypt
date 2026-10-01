@@ -23,6 +23,7 @@ import { UploadZone } from "@/components/upload/upload-zone";
 import { PlatformSelector } from "@/components/upload/platform-selector";
 import { IncompleteUploads } from "@/components/upload/incomplete-uploads";
 import { SharedStorageBanner } from "@/components/dashboard/shared-storage-banner";
+import { ConnectStorageDialog } from "@/components/dashboard/connect-storage-dialog";
 
 import { VaultLock } from "@/components/ui/vault-lock";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -541,6 +542,7 @@ export default function VaultPage() {
               and only once a day. Above the uploads so it is seen before someone
               starts a transfer that the cap would refuse. */}
         <SharedStorageBanner />
+        <ConnectStorageDialog />
 
         {/* Unfinished uploads (started but never completed), resume or discard.
               Resume goes through handleResumeIncomplete so the ORIGINAL session's

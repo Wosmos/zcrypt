@@ -8,8 +8,8 @@ import { Role } from "@/types";
 /** The admin overview's data (stats + platform tokens). Shared by the page and
  *  the sidebar's hover prefetch so both fill the same cache entry. */
 export async function fetchAdminOverview() {
-  const [stats, tokens] = await Promise.all([adminGetStats(), adminListTokens()]);
-  return { stats, tokens };
+  const [stats, owned] = await Promise.all([adminGetStats(), adminListTokens()]);
+  return { stats, tokens: owned.tokens, othersCount: owned.others_count };
 }
 
 /**

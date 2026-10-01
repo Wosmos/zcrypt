@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge, badgeVariants } from "@/components/ui/badge";
+import { badgeVariants } from "@/components/ui/badge";
 import { adminCreateToken, adminDeleteToken, adminToggleTokenScope } from "@/lib/api";
 import { toast } from "@/store/toast";
 import { cn } from "@/lib/utils";
@@ -26,12 +26,12 @@ import { PLATFORM_NAMES as platformNames, PLATFORM_SHORT as platformShort } from
 
 export function TokenManagement({
   tokens,
+  othersCount,
   onRefresh,
-  currentUserId,
 }: {
   tokens: PlatformTokenInfo[];
+  othersCount: number;
   onRefresh: () => void;
-  currentUserId: string;
 }) {
   const [showForm, setShowForm] = useState(false);
   const [platform, setPlatform] = useState("github");
@@ -112,12 +112,8 @@ export function TokenManagement({
   // Pill shape shared by the scope badges (rounded-full, gap, py-1, medium weight)
   const scopePillClass = "gap-1.5 rounded-full py-1 font-medium";
 
-  const scopeVariant = (t: PlatformTokenInfo) => {
-    const isOwner = t.user_id === currentUserId;
-    const isGlobalResolved = resolveGlobal(t);
-    if (isGlobalResolved) return "accent" as const;
-    return isOwner ? ("amber" as const) : ("muted" as const);
-  };
+  const scopeVariant = (t: PlatformTokenInfo) =>
+    resolveGlobal(t) ? ("accent" as const) : ("amber" as const);
 
   return (
     <>
@@ -128,7 +124,8 @@ export function TokenManagement({
               Platform tokens
             </h2>
             <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-              {tokens.length} token{tokens.length !== 1 ? "s" : ""} registered
+              {tokens.length} of your token{tokens.length !== 1 ? "s" : ""}
+              {othersCount > 0 && ` · ${othersCount} from other users`}
             </p>
           </div>
           <Button
@@ -203,7 +200,6 @@ export function TokenManagement({
         ) : (
           <div className="divide-y divide-[var(--color-border)]">
             {tokens.map((t) => {
-              const isOwner = t.user_id === currentUserId;
               const isGlobalResolved = resolveGlobal(t);
               return (
                 <div
@@ -229,54 +225,39 @@ export function TokenManagement({
                       {new Date(t.created_at).toLocaleDateString()}
                     </p>
                   </div>
-                  {isOwner ? (
-                    <button
-                      onClick={() => setScopeTarget(t)}
-                      title={
-                        isGlobalResolved
-                          ? "Click to review and make local (owner-only)"
-                          : "Click to review and make global (all users)"
-                      }
-                      aria-label={isGlobalResolved ? "Make token local" : "Make token global"}
-                      className={cn(
-                        badgeVariants({ variant: scopeVariant(t) }),
-                        scopePillClass,
-                        // Neutralize badgeVariants' base focus: ring (fires on mouse click);
-                        // keep only the intended focus-visible accent ring.
-                        "cursor-pointer hover:opacity-80 focus:ring-0 focus:ring-offset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40",
-                      )}
-                    >
-                      {isGlobalResolved ? (
-                        <Globe className="h-3.5 w-3.5" />
-                      ) : (
-                        <User className="h-3.5 w-3.5" />
-                      )}
-                      <span className="hidden sm:inline">
-                        {isGlobalResolved ? "Global" : "Local"}
-                      </span>
-                    </button>
-                  ) : (
-                    <Badge variant={scopeVariant(t)} className={scopePillClass}>
-                      {isGlobalResolved ? (
-                        <Globe className="h-3.5 w-3.5" />
-                      ) : (
-                        <User className="h-3.5 w-3.5" />
-                      )}
-                      <span className="hidden sm:inline">
-                        {isGlobalResolved ? "Global" : "Local"}
-                      </span>
-                    </Badge>
-                  )}
-                  {isOwner && (
-                    <IconButton
-                      icon={Trash2}
-                      label="Delete token"
-                      variant="ghost"
-                      onClick={() => setDeleteTarget(t)}
-                      disabled={deleting === t.id}
-                      className="flex-shrink-0 hover:bg-red-500/10 hover:text-red-500"
-                    />
-                  )}
+                  <button
+                    onClick={() => setScopeTarget(t)}
+                    title={
+                      isGlobalResolved
+                        ? "Click to review and make local (owner-only)"
+                        : "Click to review and make global (all users)"
+                    }
+                    aria-label={isGlobalResolved ? "Make token local" : "Make token global"}
+                    className={cn(
+                      badgeVariants({ variant: scopeVariant(t) }),
+                      scopePillClass,
+                      // Neutralize badgeVariants' base focus: ring (fires on mouse click);
+                      // keep only the intended focus-visible accent ring.
+                      "cursor-pointer hover:opacity-80 focus:ring-0 focus:ring-offset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/40",
+                    )}
+                  >
+                    {isGlobalResolved ? (
+                      <Globe className="h-3.5 w-3.5" />
+                    ) : (
+                      <User className="h-3.5 w-3.5" />
+                    )}
+                    <span className="hidden sm:inline">
+                      {isGlobalResolved ? "Global" : "Local"}
+                    </span>
+                  </button>
+                  <IconButton
+                    icon={Trash2}
+                    label="Delete token"
+                    variant="ghost"
+                    onClick={() => setDeleteTarget(t)}
+                    disabled={deleting === t.id}
+                    className="flex-shrink-0 hover:bg-red-500/10 hover:text-red-500"
+                  />
                 </div>
               );
             })}
