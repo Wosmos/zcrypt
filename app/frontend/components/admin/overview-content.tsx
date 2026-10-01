@@ -36,7 +36,7 @@ export function AdminOverviewContent() {
   return (
     <div className="space-y-8">
       {stats && <SystemStatsCards stats={stats} />}
-      <TokenManagement tokens={tokens} onRefresh={refresh} currentUserId={user.id} />
+      <TokenManagement tokens={tokens} othersCount={data?.othersCount ?? 0} onRefresh={refresh} />
       <FeedbackList />
     </div>
   );

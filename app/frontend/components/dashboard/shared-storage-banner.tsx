@@ -18,13 +18,13 @@ import { cn } from "@/lib/utils";
  * or that their own account is one click away and unlimited. Of the 8 people
  * who have ever stored a file, 6 were on shared storage and had no idea.
  *
- * Deliberately a banner and not a redirect or a modal. These users are working;
- * the correct interruption for "you could have more room" is a line they can
- * dismiss, not a wall. Dismissal lasts 24 hours, so it stays a nudge rather
- * than becoming wallpaper they stop seeing.
+ * Dismissible for 24 hours while usage is under half the cap; past that it
+ * stays put, and ConnectStorageDialog handles the first-visit and cap-reached
+ * moments.
  */
 const DISMISS_KEY = "zcrypt:shared-storage-banner-dismissed-at";
 const DISMISS_FOR_MS = 24 * 60 * 60 * 1000;
+const STICKY_FROM_PCT = 50;
 
 function dismissedRecently(): boolean {
   try {
@@ -48,13 +48,19 @@ export function SharedStorageBanner() {
 
   const onShared = Boolean(quota && !quota.has_personal_key && !quota.is_unlimited);
 
+  const sticky = Boolean(
+    quota &&
+      quota.quota_bytes > 0 &&
+      (quota.used_bytes / quota.quota_bytes) * 100 >= STICKY_FROM_PCT,
+  );
+
   useEffect(() => {
     if (!onShared) {
       setVisible(false);
       return;
     }
-    setVisible(!dismissedRecently());
-  }, [onShared]);
+    setVisible(sticky || !dismissedRecently());
+  }, [onShared, sticky]);
 
   const dismiss = () => {
     setVisible(false);
@@ -134,14 +140,16 @@ export function SharedStorageBanner() {
               <ArrowRight className="h-3.5 w-3.5" />
             </Link>
 
-            <button
-              type="button"
-              onClick={dismiss}
-              aria-label="Dismiss for today"
-              className="shrink-0 rounded-md p-1.5 text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)]"
-            >
-              <X className="h-4 w-4" />
-            </button>
+            {pct < STICKY_FROM_PCT && (
+              <button
+                type="button"
+                onClick={dismiss}
+                aria-label="Dismiss for today"
+                className="shrink-0 rounded-md p-1.5 text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)]"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
         </motion.div>
       )}

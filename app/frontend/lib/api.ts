@@ -746,8 +746,11 @@ export function adminDeleteUser(userId: string): Promise<{ success: boolean }> {
   });
 }
 
-export function adminListTokens(): Promise<PlatformTokenInfo[]> {
-  return request<PlatformTokenInfo[]>("/api/admin/tokens");
+export function adminListTokens(): Promise<{
+  tokens: PlatformTokenInfo[];
+  others_count: number;
+}> {
+  return request<{ tokens: PlatformTokenInfo[]; others_count: number }>("/api/admin/tokens");
 }
 
 export function adminCreateToken(data: {
