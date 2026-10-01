@@ -11,7 +11,7 @@
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Mutex, OnceLock};
 
-use aes_gcm::aead::{Aead, AeadCore, KeyInit, OsRng};
+use aes_gcm::aead::{Aead, KeyInit};
 use aes_gcm::{Aes256Gcm, Nonce};
 use hmac::{Hmac, Mac};
 use sha2::{Digest, Sha256};
@@ -56,20 +56,19 @@ pub fn derive_dedup_key(passphrase: &str, user_id: &str) -> [u8; KEY_SIZE] {
 /// Generate a random 32-byte salt.
 pub fn generate_salt() -> [u8; SALT_SIZE] {
     let mut salt = [0u8; SALT_SIZE];
-    getrandom(&mut salt);
+    fill_random(&mut salt);
     salt
 }
 
 /// Generate a random per-file Content Encryption Key.
 pub fn generate_cek() -> [u8; KEY_SIZE] {
     let mut cek = [0u8; KEY_SIZE];
-    getrandom(&mut cek);
+    fill_random(&mut cek);
     cek
 }
 
-fn getrandom(buf: &mut [u8]) {
-    use aes_gcm::aead::rand_core::RngCore;
-    OsRng.fill_bytes(buf);
+pub(crate) fn fill_random(buf: &mut [u8]) {
+    getrandom::fill(buf).expect("OS random number generator unavailable");
 }
 
 fn cipher(key: &[u8]) -> Result<Aes256Gcm, CryptoError> {
@@ -79,7 +78,9 @@ fn cipher(key: &[u8]) -> Result<Aes256Gcm, CryptoError> {
 /// Encrypt with a fresh random IV → `[IV || ct || tag]`.
 pub fn encrypt_chunk(key: &[u8], plaintext: &[u8]) -> Result<Vec<u8>, CryptoError> {
     let cipher = cipher(key)?;
-    let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
+    let mut iv = [0u8; IV_SIZE];
+    fill_random(&mut iv);
+    let nonce = Nonce::from(iv);
     let ct = cipher
         .encrypt(&nonce, plaintext)
         .map_err(|_| CryptoError::AuthFailed)?;
@@ -95,9 +96,9 @@ pub fn decrypt_chunk(key: &[u8], wire: &[u8]) -> Result<Vec<u8>, CryptoError> {
         return Err(CryptoError::TooShort(wire.len()));
     }
     let cipher = cipher(key)?;
-    let nonce = Nonce::from_slice(&wire[..IV_SIZE]);
+    let nonce = Nonce::try_from(&wire[..IV_SIZE]).map_err(|_| CryptoError::TooShort(wire.len()))?;
     cipher
-        .decrypt(nonce, &wire[IV_SIZE..])
+        .decrypt(&nonce, &wire[IV_SIZE..])
         .map_err(|_| CryptoError::AuthFailed)
 }
 
@@ -270,7 +271,8 @@ pub fn clear_key_cache() {
 /// Lowercase-hex HMAC-SHA256: the `hmac_v1` content MAC (key from
 /// [`derive_dedup_key`]).
 pub fn hmac_sha256_hex(key: &[u8], data: &[u8]) -> String {
-    let mut mac = <Hmac<Sha256> as Mac>::new_from_slice(key).expect("hmac accepts any key length");
+    let mut mac =
+        <Hmac<Sha256> as hmac::KeyInit>::new_from_slice(key).expect("hmac accepts any key length");
     mac.update(data);
     hex::encode(mac.finalize().into_bytes())
 }
@@ -286,7 +288,8 @@ impl ContentHasher {
     pub fn new(scheme: &str, key: Option<&[u8]>) -> Self {
         match (scheme, key) {
             ("hmac_v1", Some(k)) => ContentHasher::HmacV1(
-                <Hmac<Sha256> as Mac>::new_from_slice(k).expect("hmac accepts any key length"),
+                <Hmac<Sha256> as hmac::KeyInit>::new_from_slice(k)
+                    .expect("hmac accepts any key length"),
             ),
             _ => ContentHasher::Plain(Sha256::new()),
         }

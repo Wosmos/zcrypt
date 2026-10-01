@@ -7,8 +7,7 @@ use crate::adapters::{AdapterError, PlatformAdapter};
 use crate::disguise;
 use crate::types::RepoInfo;
 
-use aes_gcm::aead::rand_core::RngCore;
-use aes_gcm::aead::OsRng;
+use crate::crypto::fill_random;
 use async_trait::async_trait;
 
 /// Where the pool's repo records live. Implemented by the control-plane API
@@ -92,7 +91,7 @@ impl<'a> Pool<'a> {
 /// the backend's `newRepoID` (random disguise names may repeat; the PK must not).
 pub fn new_repo_id(platform: &str, account: &str, name: &str) -> String {
     let mut b = [0u8; 6];
-    OsRng.fill_bytes(&mut b);
+    fill_random(&mut b);
     format!("{platform}_{account}_{name}_{}", hex::encode(b))
 }
 

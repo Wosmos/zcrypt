@@ -7,8 +7,7 @@
 
 use std::time::Duration;
 
-use aes_gcm::aead::rand_core::RngCore;
-use aes_gcm::aead::OsRng;
+use crate::crypto::fill_random;
 use async_trait::async_trait;
 use base64::engine::general_purpose::STANDARD as BASE64;
 use base64::Engine as _;
@@ -132,11 +131,11 @@ fn backoff_base_secs(attempt: u32) -> u64 {
     1u64 << (attempt - 1).min(3)
 }
 
-/// Random jitter up to 1s. Uses `OsRng` because the crate carries no `rand`
+/// Random jitter up to 1s. Uses the OS RNG because the crate carries no `rand`
 /// dependency (same approach as `disguise.rs`).
 fn jitter_ms() -> u64 {
     let mut b = [0u8; 8];
-    OsRng.fill_bytes(&mut b);
+    fill_random(&mut b);
     u64::from_le_bytes(b) % 1000
 }
 
