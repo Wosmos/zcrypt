@@ -383,6 +383,19 @@ describe("files store (TanStack Query)", () => {
       await vi.waitFor(() => expect(apiSetFileName).toHaveBeenCalledTimes(2));
     });
 
+    it("blocks a duplicate sibling name at the vault root", async () => {
+      useAuthStore.setState({ user: { id: "u1" } as never });
+      unlock("vault-pass");
+      setFilesData([
+        { ...makeFile("f1"), folder_id: undefined },
+        { ...makeFile("f2"), original_name: "root.txt", folder_id: undefined },
+      ]);
+
+      await expect(renameFile("f1", "root.txt")).rejects.toThrow(
+        'A file named "root.txt" already exists here.',
+      );
+    });
+
     it("allows the same name if the duplicate lives in a different folder", async () => {
       useAuthStore.setState({ user: { id: "u1" } as never });
       unlock("vault-pass");

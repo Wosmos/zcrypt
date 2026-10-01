@@ -57,6 +57,11 @@ updates:
       frontend:
         patterns: ["*"]
         exclude-patterns: ["next", "react", "react-dom", "@types/react*", "eslint-config-next"]
+    ignore:
+      # Next loads next.config.ts through the TypeScript JS API, which TS 7
+      # (native) does not ship. Type checking already runs on TS 7 via tsgo.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
     open-pull-requests-limit: 4
 
   # Keeps the action SHAs in device.yml / ci.yml / release.yml current.
