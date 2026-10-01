@@ -237,10 +237,17 @@ func (s *Server) HandleAdminDeleteUser(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
 
-// HandleAdminListTokens returns metadata for all platform tokens (no encrypted data).
+// HandleAdminListTokens returns the calling admin's own tokens plus only the
+// count of everyone else's. Other users' tokens are never listed.
 // GET /api/admin/tokens
 func (s *Server) HandleAdminListTokens(w http.ResponseWriter, r *http.Request) {
-	tokens, err := s.db.ListAllPlatformTokens(r.Context())
+	adminID := GetUserID(r)
+	tokens, err := s.db.ListOwnPlatformTokens(r.Context(), adminID)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)
+		return
+	}
+	others, err := s.db.CountOtherPlatformTokens(r.Context(), adminID)
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)
 		return
@@ -250,8 +257,7 @@ func (s *Server) HandleAdminListTokens(w http.ResponseWriter, r *http.Request) {
 		tokens = []types.PlatformTokenInfo{}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(tokens)
+	writeJSON(w, http.StatusOK, map[string]interface{}{"tokens": tokens, "others_count": others})
 }
 
 // HandleAdminCreateToken creates a global token or assigns a token to any user.
@@ -368,7 +374,7 @@ func (s *Server) HandleAdminToggleTokenScope(w http.ResponseWriter, r *http.Requ
 	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
 
-// HandleAdminDeleteToken deletes any platform token by ID.
+// HandleAdminDeleteToken deletes one of the calling admin's own platform tokens.
 // DELETE /api/admin/tokens/{id}
 func (s *Server) HandleAdminDeleteToken(w http.ResponseWriter, r *http.Request) {
 	tokenID := r.PathValue("id")
@@ -377,8 +383,8 @@ func (s *Server) HandleAdminDeleteToken(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if err := s.db.DeletePlatformToken(r.Context(), tokenID); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), http.StatusInternalServerError)
+	if err := s.db.DeleteUserPlatformToken(r.Context(), tokenID, GetUserID(r)); err != nil {
+		http.Error(w, `{"error":"token not found or not owned by you"}`, http.StatusForbidden)
 		return
 	}
 

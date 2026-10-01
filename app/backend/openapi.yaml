@@ -782,10 +782,10 @@ paths:
   /api/admin/tokens:
     get:
       tags: [Admin]
-      summary: List all platform tokens
+      summary: List the calling admin's own platform tokens plus a count of other users' tokens
       responses:
         "200":
-          description: Token list
+          description: Object with tokens (own, metadata only) and others_count
     post:
       tags: [Admin]
       summary: Create platform token
@@ -812,7 +812,7 @@ paths:
   /api/admin/tokens/{id}:
     delete:
       tags: [Admin]
-      summary: Delete platform token
+      summary: Delete one of the calling admin's own platform tokens
       parameters:
         - name: id
           in: path

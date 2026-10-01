@@ -112,6 +112,20 @@ func (db *DB) DeletePlatformToken(ctx context.Context, tokenID string) error {
 	return err
 }
 
+// DeleteUserPlatformToken deletes a platform token only if it belongs to userID.
+func (db *DB) DeleteUserPlatformToken(ctx context.Context, tokenID, userID string) error {
+	tag, err := db.pool.Exec(ctx,
+		`DELETE FROM platform_tokens WHERE id = $1 AND user_id = $2`, tokenID, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("delete user platform token: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("token not found or not owned by user")
+	}
+	return nil
+}
+
 // DeletePlatformTokenByUser deletes a specific platform token for a user.
 func (db *DB) DeletePlatformTokenByUser(ctx context.Context, userID, platform, username string) error {
 	_, err := db.pool.Exec(ctx,
@@ -121,14 +135,14 @@ func (db *DB) DeletePlatformTokenByUser(ctx context.Context, userID, platform, u
 	return err
 }
 
-// ListAllPlatformTokens returns metadata for all tokens (admin only, no encrypted data).
-func (db *DB) ListAllPlatformTokens(ctx context.Context) ([]types.PlatformTokenInfo, error) {
+// ListOwnPlatformTokens returns metadata (no encrypted data) for tokens the user owns.
+func (db *DB) ListOwnPlatformTokens(ctx context.Context, userID string) ([]types.PlatformTokenInfo, error) {
 	rows, err := db.pool.Query(ctx,
 		`SELECT id, user_id, platform, username, is_global, created_at
-		 FROM platform_tokens ORDER BY created_at DESC`,
+		 FROM platform_tokens WHERE user_id = $1 ORDER BY created_at DESC`, userID,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("list all platform tokens: %w", err)
+		return nil, fmt.Errorf("list own platform tokens: %w", err)
 	}
 	defer rows.Close()
 
@@ -141,9 +155,21 @@ func (db *DB) ListAllPlatformTokens(ctx context.Context) ([]types.PlatformTokenI
 		tokens = append(tokens, t)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate all platform tokens: %w", err)
+		return nil, fmt.Errorf("iterate own platform tokens: %w", err)
 	}
 	return tokens, nil
+}
+
+// CountOtherPlatformTokens returns how many tokens belong to users other than userID.
+func (db *DB) CountOtherPlatformTokens(ctx context.Context, userID string) (int, error) {
+	var n int
+	err := db.pool.QueryRow(ctx,
+		`SELECT COUNT(*) FROM platform_tokens WHERE user_id <> $1`, userID,
+	).Scan(&n)
+	if err != nil {
+		return 0, fmt.Errorf("count other platform tokens: %w", err)
+	}
+	return n, nil
 }
 
 // GetUserPlatformTokenInfo returns token metadata for a user (no encrypted data).
